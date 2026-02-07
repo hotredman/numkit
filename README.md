@@ -1,4 +1,4 @@
-# MLab — Embeddable MATLAB Interpreter in C++
+# MLab — Embeddable MATLAB Interpreter in C++ by Claude Opus 4.6
 
 A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
 
