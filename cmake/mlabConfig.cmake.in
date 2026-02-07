@@ -1,0 +1,4 @@
+# cmake/mlabConfig.cmake.in
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/mlabTargets.cmake")
+check_required_components(mlab)
