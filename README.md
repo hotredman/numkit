@@ -2,6 +2,11 @@
 
 A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
 
+[![Try Online](https://img.shields.io/badge/Try%20Online-MLab%20REPL-blue?style=for-the-badge&logo=webassembly)](https://picosaur.github.io/MLab/)
+
+**[▶ Launch MLab REPL in Browser](https://picosaur.github.io/MLab/)**
+
+---
 ## Features
 
 ### Language Support
