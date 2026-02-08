@@ -10,9 +10,6 @@ if(EMSCRIPTEN)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist"
     )
 
-    # ── Флаги линковки ──
-    # Каждый -s KEY=VALUE передаём как один элемент через "SHELL:" prefix,
-    # чтобы CMake не разбивал их на части.
     target_link_options(matlab_repl PRIVATE
         --bind
         "SHELL:-s MODULARIZE=1"
@@ -30,7 +27,6 @@ if(EMSCRIPTEN)
         -O2
     )
 
-    # ── Копируем веб-файлы в dist/ ──
     set(DIST_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist")
 
     add_custom_command(TARGET matlab_repl POST_BUILD
@@ -40,6 +36,7 @@ if(EMSCRIPTEN)
             "${CMAKE_CURRENT_SOURCE_DIR}/web/repl.css"
             "${CMAKE_CURRENT_SOURCE_DIR}/web/repl.js"
             "${CMAKE_CURRENT_SOURCE_DIR}/web/terminal.js"
+            "${CMAKE_CURRENT_SOURCE_DIR}/web/examples.js"
             "${DIST_DIR}/"
         COMMENT "Copying web assets to dist/"
     )
