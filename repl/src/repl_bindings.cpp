@@ -7,10 +7,6 @@
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
 
-// ════════════════════════════════════════════════
-// Перехват stdout/stderr
-// ════════════════════════════════════════════════
-
 class OutputCapture {
 public:
     OutputCapture() {
@@ -42,10 +38,6 @@ private:
     std::streambuf* old_cerr_ = nullptr;
 };
 
-// ════════════════════════════════════════════════
-// Сессия REPL
-// ════════════════════════════════════════════════
-
 class ReplSession {
 public:
     ReplSession() {
@@ -60,8 +52,6 @@ public:
             capture.restore();
 
             std::string output = capture.getAll();
-
-            // Убираем trailing whitespace
             while (!output.empty() &&
                    (output.back() == '\n' || output.back() == ' '))
                 output.pop_back();
@@ -89,7 +79,6 @@ public:
     }
 
     std::string getWorkspace() {
-        // Попробуем выполнить who/whos если реализовано
         OutputCapture capture;
         try {
             engine_->eval("whos");
@@ -99,8 +88,6 @@ public:
         } catch (...) {
             capture.restore();
         }
-
-        // Fallback
         return "Workspace inspection not available.\nUse 'disp(varname)' to check variables.";
     }
 
@@ -108,30 +95,22 @@ public:
         if (partial.empty()) return "";
 
         static const char* keywords[] = {
-            // Ключевые слова
             "break", "case", "catch", "continue",
             "else", "elseif", "end", "for", "function",
             "global", "if", "otherwise",
             "return", "switch", "try", "while",
-            // Матрицы
             "zeros", "ones", "eye", "rand", "randn",
             "linspace", "logspace", "reshape",
             "size", "length", "numel",
-            // Математика
             "sin", "cos", "tan", "asin", "acos", "atan",
             "exp", "log", "log2", "log10", "sqrt", "abs", "sign",
             "floor", "ceil", "round", "mod", "rem", "pow",
-            // Статистика
             "min", "max", "sum", "prod", "mean",
             "cumsum", "sort",
-            // Комплексные
             "real", "imag", "conj",
-            // Строки
             "upper", "lower", "strcmp", "strcmpi",
             "strcat", "strsplit",
-            // Вывод
             "disp", "fprintf", "sprintf", "num2str",
-            // Утилиты
             "clear", "clc", "who", "whos",
             "true", "false", "pi", "inf", "nan", "eps",
             "isempty", "isnumeric", "ischar",
@@ -142,7 +121,6 @@ public:
         std::string result;
         for (int i = 0; keywords[i]; ++i) {
             const char* kw = keywords[i];
-            // Проверяем prefix match
             bool match = true;
             for (size_t j = 0; j < partial.size(); ++j) {
                 if (kw[j] == '\0' || kw[j] != partial[j]) {
@@ -162,15 +140,11 @@ private:
     std::unique_ptr<mlab::Engine> engine_;
 };
 
-// ════════════════════════════════════════════════
-// Глобальная сессия и экспортируемые функции
-// ════════════════════════════════════════════════
-
 static std::unique_ptr<ReplSession> g_session;
 
 std::string repl_init() {
     g_session = std::make_unique<ReplSession>();
-    return "MATLAB Interpreter v1.0\n"
+    return "MLab Interpreter v1.0\n"
            "Type commands below. Enter to execute.\n"
            "Shift+Enter for multiline. Tab for autocomplete.\n";
 }
@@ -178,7 +152,6 @@ std::string repl_init() {
 std::string repl_execute(const std::string& input) {
     if (!g_session) repl_init();
 
-    // trim
     size_t start = input.find_first_not_of(" \t\n\r");
     if (start == std::string::npos) return "";
     size_t end = input.find_last_not_of(" \t\n\r");
@@ -221,7 +194,7 @@ std::string repl_workspace() {
     return g_session->getWorkspace();
 }
 
-EMSCRIPTEN_BINDINGS(matlab_repl) {
+EMSCRIPTEN_BINDINGS(mlab_repl) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);

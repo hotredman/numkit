@@ -59,7 +59,6 @@
                     desc.textContent = item.description;
                     card.appendChild(desc);
 
-                    // Preview: первые 3 строки кода
                     var preview = document.createElement('div');
                     preview.className = 'example-card-preview';
                     var previewLines = item.code.split('\n').slice(0, 3);
@@ -105,11 +104,8 @@
         }
 
         closeExamples();
-
-        // Показываем заголовок
         terminal.writeSystem('--- ' + item.title + ' ---');
 
-        // Выполняем построчно или как один блок
         var lines = item.code.split('\n');
         var block = '';
         var depth = 0;
@@ -122,7 +118,6 @@
 
             block += (block ? '\n' : '') + line;
 
-            // Считаем глубину блоков
             var firstWord = trimmed.split(/[\s(;,]+/)[0];
             if (openers.indexOf(firstWord) !== -1) depth++;
             if (/\bend\b/.test(trimmed)) {
@@ -132,7 +127,6 @@
                 }
             }
 
-            // Если глубина 0 — выполняем блок
             if (depth <= 0) {
                 terminal.writeInput(block);
                 var result = Module.repl_execute(block);
@@ -150,7 +144,6 @@
             }
         }
 
-        // Если остался незавершённый блок — выполнить
         if (block) {
             terminal.writeInput(block);
             var result = Module.repl_execute(block);
@@ -167,9 +160,7 @@
         terminal.focus();
     }
 
-    // Инициализация панели
     buildExamplesPanel();
-
     btnExamples.addEventListener('click', toggleExamples);
     examplesClose.addEventListener('click', closeExamples);
 
@@ -182,13 +173,13 @@
         console.log('[REPL] Starting WASM init...');
 
         try {
-            if (typeof createMatlabModule === 'undefined') {
-                throw new Error('createMatlabModule not found.');
+            if (typeof createMLabModule === 'undefined') {
+                throw new Error('createMLabModule not found.');
             }
 
-            console.log('[REPL] createMatlabModule found, calling...');
+            console.log('[REPL] createMLabModule found, calling...');
 
-            Module = await createMatlabModule({
+            Module = await createMLabModule({
                 locateFile: function(path) {
                     console.log('[REPL] locateFile:', path);
                     return path;
@@ -237,7 +228,7 @@
             repl_complete: function(p) {
                 var kw = ['disp','fprintf','for','while','if','end',
                     'function','clear','clc','who','zeros','ones',
-                    'eye','rand','sin','cos','sqrt','plot','help'];
+                    'eye','rand','sin','cos','sqrt','help'];
                 return kw.filter(function(k) { return k.indexOf(p) === 0; }).join(',');
             },
             repl_reset: function()     { return 'Workspace cleared.'; },
@@ -377,7 +368,7 @@
     }
 
     // ══════════════════════════════════════
-    // Button bindings
+    // Buttons
     // ══════════════════════════════════════
 
     terminal.onSubmit(executeCommand);
