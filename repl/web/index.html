@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATLAB REPL</title>
+    <link rel="stylesheet" href="repl.css">
+</head>
+<body>
+    <div id="app">
+        <header id="header">
+            <div class="header-left">
+                <h1>MATLAB <span class="accent">REPL</span></h1>
+                <span class="version">v1.0</span>
+            </div>
+            <div class="header-right">
+                <button id="btn-clear" title="Clear screen (clc)">Clear</button>
+                <button id="btn-reset" title="Reset workspace">Reset</button>
+                <button id="btn-workspace" title="Show workspace">Workspace</button>
+            </div>
+        </header>
+
+        <div id="terminal-container">
+            <div id="terminal-output"></div>
+            <div id="input-line">
+                <span class="prompt">&gt;&gt;</span>
+                <div id="input-wrapper">
+                    <textarea id="terminal-input"
+                              rows="1"
+                              spellcheck="false"
+                              autocomplete="off"
+                              autocorrect="off"
+                              autocapitalize="off"
+                              placeholder="Enter MATLAB command..."></textarea>
+                    <div id="autocomplete-dropdown" class="hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer id="status-bar">
+            <span id="status-text">Loading WebAssembly...</span>
+            <span id="status-right">
+                <span id="exec-time"></span>
+                <span class="separator">|</span>
+                <span>Tab: autocomplete</span>
+                <span class="separator">|</span>
+                <span>↑↓: history</span>
+                <span class="separator">|</span>
+                <span>Shift+Enter: newline</span>
+            </span>
+        </footer>
+    </div>
+
+    <!-- Порядок загрузки важен! terminal.js до repl.js, wasm последним -->
+    <script src="terminal.js"></script>
+    <script src="matlab_repl.js"></script>
+    <script src="repl.js"></script>
+</body>
+</html>

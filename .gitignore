@@ -1,3 +1,6 @@
+.qtcreator
+build*
+
 # Prerequisites
 *.d
 

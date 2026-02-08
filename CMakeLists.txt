@@ -9,6 +9,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(MLAB_BUILD_EXAMPLE "Build example executable" ON)
 option(MLAB_BUILD_SHARED  "Build shared library"     OFF)
 option(MLAB_INSTALL       "Generate install target"  ON)
+option(MLAB_BUILD_REPL    "Build WebAssembly REPL"   ON)   # ← ДОБАВЬ
 
 set(MLAB_SOURCES
     src/MLabAllocator.cpp
@@ -47,12 +48,19 @@ target_include_directories(mlab
 
 target_compile_features(mlab PUBLIC cxx_std_17)
 
-if(MLAB_BUILD_EXAMPLE)
+if(MLAB_BUILD_EXAMPLE AND NOT EMSCRIPTEN)
     add_executable(mlab_example example/main.cpp)
     target_link_libraries(mlab_example PRIVATE mlab::mlab)
 endif()
 
-if(MLAB_INSTALL)
+# ──────────────────────────────────────────────
+# REPL subdirectory
+# ──────────────────────────────────────────────
+if(MLAB_BUILD_REPL OR EMSCRIPTEN)
+    add_subdirectory(repl)
+endif()
+
+if(MLAB_INSTALL AND NOT EMSCRIPTEN)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
