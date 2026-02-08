@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MLab REPL</title>
+    <link rel="stylesheet" href="repl.css">
+</head>
+<body>
+    <div id="app">
+        <header id="header">
+            <div class="header-left">
+                <h1>MLab <span class="accent">REPL</span></h1>
+                <span class="version">v1.0</span>
+            </div>
+            <div class="header-right">
+                <button id="btn-examples" title="Show examples">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M4 1h8a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1zm1 2v2h6V3H5zm0 3v1h6V6H5zm0 2v1h4V8H5z"/>
+                    </svg>
+                    Examples
+                </button>
+                <button id="btn-clear" title="Clear screen (clc)">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M2 2h12v2H2V2zm1 3h10v9a1 1 0 01-1 1H4a1 1 0 01-1-1V5zm3 2v5h1V7H6zm3 0v5h1V7H9z"/>
+                    </svg>
+                    Clear
+                </button>
+                <button id="btn-reset" title="Reset workspace">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 1a7 7 0 00-7 7h2a5 5 0 115 5v-2l-4 3 4 3v-2a7 7 0 000-14z"/>
+                    </svg>
+                    Reset
+                </button>
+                <button id="btn-workspace" title="Show workspace">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M1 2h14v12H1V2zm1 2v8h12V4H2zm1 1h4v2H3V5zm0 3h4v2H3V8zm5-3h4v2H8V5zm0 3h4v2H8V8z"/>
+                    </svg>
+                    Workspace
+                </button>
+            </div>
+        </header>
+
+        <div id="examples-panel" class="hidden">
+            <div id="examples-header">
+                <h2>Examples</h2>
+                <button id="examples-close">&times;</button>
+            </div>
+            <div id="examples-categories"></div>
+        </div>
+
+        <div id="terminal-container">
+            <div id="terminal-output"></div>
+            <div id="input-line">
+                <span class="prompt">&gt;&gt;</span>
+                <div id="input-wrapper">
+                    <textarea id="terminal-input"
+                              rows="1"
+                              spellcheck="false"
+                              autocomplete="off"
+                              autocorrect="off"
+                              autocapitalize="off"
+                              placeholder="Enter MLab command..."></textarea>
+                    <div id="autocomplete-dropdown" class="hidden"></div>
+                </div>
+            </div>
+        </div>
+
+        <footer id="status-bar">
+            <span id="status-text">Loading WebAssembly...</span>
+            <span id="status-right">
+                <span id="exec-time"></span>
+                <span class="separator">|</span>
+                <span>Tab: autocomplete</span>
+                <span class="separator">|</span>
+                <span>↑↓: history</span>
+                <span class="separator">|</span>
+                <span>Shift+Enter: newline</span>
+            </span>
+        </footer>
+    </div>
+
+    <script src="terminal.js"></script>
+    <script src="examples.js"></script>
+    <script src="mlab_repl.js"></script>
+    <script src="repl.js"></script>
+</body>
+</html>
