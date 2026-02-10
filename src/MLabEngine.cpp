@@ -1,4 +1,6 @@
 #include "MLabEngine.hpp"
+#include "MLabLexer.hpp"
+#include "MLabParser.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>

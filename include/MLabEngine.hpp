@@ -3,8 +3,6 @@
 #include "MLabAllocator.hpp"
 #include "MLabAst.hpp"
 #include "MLabEnvironment.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
 #include "MLabValue.hpp"
 
 #include <atomic>

@@ -9,7 +9,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(MLAB_BUILD_EXAMPLE "Build example executable" ON)
 option(MLAB_BUILD_SHARED  "Build shared library"     OFF)
 option(MLAB_INSTALL       "Generate install target"  ON)
-option(MLAB_BUILD_REPL    "Build WebAssembly REPL"   ON)   # ← ДОБАВЬ
+
+if(NOT EMSCRIPTEN)
+    set(MLAB_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
+else()
+    option(MLAB_BUILD_REPL "Build WebAssembly REPL" ON)
+endif()
 
 set(MLAB_SOURCES
     src/MLabAllocator.cpp
@@ -56,7 +61,7 @@ endif()
 # ──────────────────────────────────────────────
 # REPL subdirectory
 # ──────────────────────────────────────────────
-if(MLAB_BUILD_REPL OR EMSCRIPTEN)
+if(MLAB_BUILD_REPL)
     add_subdirectory(repl)
 endif()
 
