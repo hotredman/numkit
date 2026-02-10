@@ -1,4 +1,3 @@
-// include/MLabLexer.hpp
 #pragma once
 
 #include <string>
@@ -16,6 +15,7 @@ enum class TokenType {
     STAR,
     SLASH,
     BACKSLASH,
+    DOT_BACKSLASH,
     CARET,
     DOT_STAR,
     DOT_SLASH,
@@ -30,6 +30,7 @@ enum class TokenType {
     AND,
     OR,
     NOT,
+    TILDE,
     AND_SHORT,
     OR_SHORT,
     ASSIGN,
@@ -46,6 +47,7 @@ enum class TokenType {
     NEWLINE,
     APOSTROPHE,
     AT,
+    ELLIPSIS,
     KW_IF,
     KW_ELSEIF,
     KW_ELSE,
@@ -88,7 +90,7 @@ private:
     int line_ = 1;
     int col_ = 1;
     std::vector<Token> tokens_;
-    int bracketDepth_ = 0; // для [], {}
+    int bracketDepth_ = 0;
 
     char peek() const;
     char peek(int offset) const;
@@ -96,8 +98,8 @@ private:
 
     void skipSpacesAndComments();
     void addToken(TokenType type, const std::string &val, int line, int col);
-    bool isTransposeContext() const;
     bool isValueToken(TokenType t) const;
+    bool isTransposeContext() const;
 
     void readNumber();
     void readString(int startLine, int startCol);
@@ -106,6 +108,14 @@ private:
     bool readOperator();
 
     void insertImplicitComma();
+
+    [[noreturn]] void error(const std::string &msg);
+    [[noreturn]] void error(const std::string &msg, int line, int col);
+
+    static bool isDigit(char c);
+    static bool isAlpha(char c);
+    static bool isAlnum(char c);
+    static bool isXDigit(char c);
 };
 
 } // namespace mlab

@@ -1,10 +1,47 @@
-// src/MLabLexer.cpp
 #include "MLabLexer.hpp"
 
 #include <stdexcept>
 #include <unordered_map>
 
 namespace mlab {
+
+// ─── безопасные обёртки над ctype (избегаем UB при signed char > 127) ───
+
+bool Lexer::isDigit(char c)
+{
+    return std::isdigit(static_cast<unsigned char>(c));
+}
+
+bool Lexer::isAlpha(char c)
+{
+    return std::isalpha(static_cast<unsigned char>(c));
+}
+
+bool Lexer::isAlnum(char c)
+{
+    return std::isalnum(static_cast<unsigned char>(c));
+}
+
+bool Lexer::isXDigit(char c)
+{
+    return std::isxdigit(static_cast<unsigned char>(c));
+}
+
+// ─── error helpers ──────────────────────────────────────────────────────
+
+void Lexer::error(const std::string &msg)
+{
+    throw std::runtime_error(msg + " at line " + std::to_string(line_) + " col "
+                             + std::to_string(col_));
+}
+
+void Lexer::error(const std::string &msg, int line, int col)
+{
+    throw std::runtime_error(msg + " at line " + std::to_string(line) + " col "
+                             + std::to_string(col));
+}
+
+// ─── конструктор / базовые методы ───────────────────────────────────────
 
 Lexer::Lexer(const std::string &source)
     : src_(source)
@@ -17,7 +54,7 @@ char Lexer::peek() const
 
 char Lexer::peek(int offset) const
 {
-    size_t p = pos_ + offset;
+    size_t p = pos_ + static_cast<size_t>(offset);
     return (p < src_.size()) ? src_[p] : '\0';
 }
 
@@ -40,18 +77,43 @@ void Lexer::addToken(TokenType type, const std::string &val, int line, int col)
     tokens_.push_back({type, val, line, col});
 }
 
+// ─── контекстные проверки ───────────────────────────────────────────────
+
 bool Lexer::isValueToken(TokenType t) const
 {
-    return t == TokenType::NUMBER || t == TokenType::IMAG_NUMBER || t == TokenType::IDENTIFIER
-           || t == TokenType::RPAREN || t == TokenType::RBRACKET || t == TokenType::RBRACE
-           || t == TokenType::APOSTROPHE || t == TokenType::DOT_APOSTROPHE || t == TokenType::KW_END
-           || t == TokenType::KW_TRUE || t == TokenType::KW_FALSE || t == TokenType::STRING;
+    switch (t) {
+    case TokenType::NUMBER:
+    case TokenType::IMAG_NUMBER:
+    case TokenType::STRING:
+    case TokenType::IDENTIFIER:
+    case TokenType::RPAREN:
+    case TokenType::RBRACKET:
+    case TokenType::RBRACE:
+    case TokenType::APOSTROPHE:
+    case TokenType::DOT_APOSTROPHE:
+    case TokenType::KW_END:
+    case TokenType::KW_TRUE:
+    case TokenType::KW_FALSE:
+        return true;
+    default:
+        return false;
+    }
 }
+
+bool Lexer::isTransposeContext() const
+{
+    if (tokens_.empty())
+        return false;
+    return isValueToken(tokens_.back().type);
+}
+
+// ─── implicit comma внутри [] и {} ──────────────────────────────────────
 
 void Lexer::insertImplicitComma()
 {
     if (bracketDepth_ <= 0 || tokens_.empty())
         return;
+
     auto prev = tokens_.back().type;
     if (!isValueToken(prev))
         return;
@@ -66,18 +128,28 @@ void Lexer::insertImplicitComma()
 
     char next = src_[scanPos];
 
-    // +/- внутри [] после значения — всегда бинарный оператор в MATLAB
+    // +/- внутри [] после value-токена — бинарный оператор, не вставляем запятую
     if (next == '+' || next == '-')
         return;
 
-    bool nextIsValue = std::isdigit(next) || std::isalpha(next) || next == '_' || next == '('
-                       || next == '[' || next == '{' || next == '\'' || next == '"' || next == '~'
-                       || next == '@' || next == '.';
+    // Точка может быть началом числа (.5) или dot-оператором (.*, ./, .^, .')
+    if (next == '.') {
+        char afterDot = (scanPos + 1 < src_.size()) ? src_[scanPos + 1] : '\0';
+        // Только если после точки идёт цифра — это число, нужна запятая
+        if (!isDigit(afterDot))
+            return;
+    }
+
+    bool nextIsValue = isDigit(next) || isAlpha(next) || next == '_' || next == '(' || next == '['
+                       || next == '{' || next == '\'' || next == '"' || next == '~' || next == '@'
+                       || next == '.';
 
     if (nextIsValue) {
         addToken(TokenType::COMMA, ",", line_, col_);
     }
 }
+
+// ─── пропуск пробелов, комментариев, line continuation ─────────────────
 
 void Lexer::skipSpacesAndComments()
 {
@@ -92,30 +164,23 @@ void Lexer::skipSpacesAndComments()
             }
             advance();
         } else if (c == '%') {
+            // Однострочный комментарий
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
         } else if (c == '.' && peek(1) == '.' && peek(2) == '.') {
-            // line continuation ...
+            // Line continuation (...)
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
+            // Пропускаем сам \n — advance() обновит line_/col_
             if (pos_ < src_.size())
-                advance(); // пропускаем \n, advance() обновит line_/col_
+                advance();
         } else {
             break;
         }
     }
 }
 
-bool Lexer::isTransposeContext() const
-{
-    if (tokens_.empty())
-        return false;
-    auto t = tokens_.back().type;
-    return t == TokenType::RPAREN || t == TokenType::RBRACKET || t == TokenType::RBRACE
-           || t == TokenType::IDENTIFIER || t == TokenType::NUMBER || t == TokenType::IMAG_NUMBER
-           || t == TokenType::STRING || t == TokenType::APOSTROPHE || t == TokenType::DOT_APOSTROPHE
-           || t == TokenType::KW_END || t == TokenType::KW_TRUE || t == TokenType::KW_FALSE;
-}
+// ─── чтение числа ──────────────────────────────────────────────────────
 
 void Lexer::readNumber()
 {
@@ -123,16 +188,14 @@ void Lexer::readNumber()
     int startCol = col_;
     size_t start = pos_;
 
-    // Hex: 0x...
+    // ── Hex: 0x... ──
     if (peek() == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
         advance(); // '0'
         advance(); // 'x'
-        if (pos_ >= src_.size() || !std::isxdigit(peek()))
-            throw std::runtime_error("Invalid hex literal at line " + std::to_string(startLine)
-                                     + " col " + std::to_string(startCol));
-        while (pos_ < src_.size() && std::isxdigit(peek()))
+        if (pos_ >= src_.size() || !isXDigit(peek()))
+            error("Invalid hex literal", startLine, startCol);
+        while (pos_ < src_.size() && isXDigit(peek()))
             advance();
-        // hex с мнимой единицей
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
             advance();
             addToken(TokenType::IMAG_NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
@@ -142,13 +205,12 @@ void Lexer::readNumber()
         return;
     }
 
-    // Binary: 0b...
+    // ── Binary: 0b... ──
     if (peek() == '0' && (peek(1) == 'b' || peek(1) == 'B')) {
         advance(); // '0'
         advance(); // 'b'
         if (pos_ >= src_.size() || (peek() != '0' && peek() != '1'))
-            throw std::runtime_error("Invalid binary literal at line " + std::to_string(startLine)
-                                     + " col " + std::to_string(startCol));
+            error("Invalid binary literal", startLine, startCol);
         while (pos_ < src_.size() && (peek() == '0' || peek() == '1'))
             advance();
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
@@ -160,41 +222,64 @@ void Lexer::readNumber()
         return;
     }
 
-    // Decimal / float
-    while (pos_ < src_.size() && std::isdigit(peek()))
+    // ── Decimal / float ──
+
+    // Целая часть (может быть пустой если число начинается с '.')
+    while (pos_ < src_.size() && isDigit(peek()))
         advance();
 
+    // Дробная часть
     if (pos_ < src_.size() && peek() == '.') {
         char next = peek(1);
-        // Не съедаем точку если за ней dot-оператор или другая точка
-        if (next != '*' && next != '/' && next != '^' && next != '\'' && next != '.'
-            && !std::isalpha(next) && next != '(' && next != '[') {
+
+        // Не съедаем точку если за ней dot-оператор (.*  ./  .^  .')
+        // или другая точка (..), но 'e'/'E' после точки — часть числа (1.e5)
+        bool isDotOperator = (next == '*' || next == '/' || next == '^' || next == '\''
+                              || next == '.');
+        // Проверяем что после точки идёт не буква (кроме e/E — экспонента)
+        // и не скобка — тогда точка принадлежит числу
+        bool isFieldAccess = (isAlpha(next) && next != 'e' && next != 'E') || next == '('
+                             || next == '[';
+
+        if (!isDotOperator && !isFieldAccess) {
             advance(); // '.'
-            while (pos_ < src_.size() && std::isdigit(peek()))
+            while (pos_ < src_.size() && isDigit(peek()))
                 advance();
         }
     }
 
-    // Exponent
+    // Экспонента
     if (pos_ < src_.size() && (peek() == 'e' || peek() == 'E')) {
-        advance();
+        // Убедимся что перед 'e' были цифры или точка (т.е. это число, а не идентификатор)
+        // Это всегда так, т.к. readNumber вызывается только когда первый символ — цифра или '.'
+        advance(); // 'e' / 'E'
         if (pos_ < src_.size() && (peek() == '+' || peek() == '-'))
             advance();
-        if (pos_ >= src_.size() || !std::isdigit(peek()))
-            throw std::runtime_error("Invalid number exponent at line " + std::to_string(startLine)
-                                     + " col " + std::to_string(startCol));
-        while (pos_ < src_.size() && std::isdigit(peek()))
+        if (pos_ >= src_.size() || !isDigit(peek()))
+            error("Invalid number exponent", startLine, startCol);
+        while (pos_ < src_.size() && isDigit(peek()))
             advance();
     }
 
-    // Imaginary suffix
+    // Мнимый суффикс
     if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
-        advance();
-        addToken(TokenType::IMAG_NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
-    } else {
-        addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
+        // Убедимся что за i/j не идёт буква/цифра (иначе это идентификатор: 1if, ...)
+        char afterSuffix = peek(1);
+        if (!isAlnum(afterSuffix) && afterSuffix != '_') {
+            advance();
+            addToken(TokenType::IMAG_NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
+            return;
+        }
     }
+
+    std::string numStr = src_.substr(start, pos_ - start);
+    if (numStr.empty() || numStr == ".")
+        error("Invalid number literal", startLine, startCol);
+
+    addToken(TokenType::NUMBER, numStr, startLine, startCol);
 }
+
+// ─── чтение строк ──────────────────────────────────────────────────────
 
 void Lexer::readString(int startLine, int startCol)
 {
@@ -203,6 +288,7 @@ void Lexer::readString(int startLine, int startCol)
     while (pos_ < src_.size()) {
         if (peek() == '\'') {
             if (peek(1) == '\'') {
+                // Экранирование: '' → '
                 s += '\'';
                 advance();
                 advance();
@@ -212,15 +298,12 @@ void Lexer::readString(int startLine, int startCol)
                 return;
             }
         } else if (peek() == '\n') {
-            throw std::runtime_error("Unterminated string literal at line "
-                                     + std::to_string(startLine) + " col "
-                                     + std::to_string(startCol));
+            error("Unterminated string literal", startLine, startCol);
         } else {
             s += advance();
         }
     }
-    throw std::runtime_error("Unterminated string literal at line " + std::to_string(startLine)
-                             + " col " + std::to_string(startCol));
+    error("Unterminated string literal", startLine, startCol);
 }
 
 void Lexer::readDoubleQuotedString(int startLine, int startCol)
@@ -240,16 +323,15 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
                 return;
             }
         } else if (peek() == '\n') {
-            throw std::runtime_error("Unterminated string literal at line "
-                                     + std::to_string(startLine) + " col "
-                                     + std::to_string(startCol));
+            error("Unterminated string literal", startLine, startCol);
         } else {
             s += advance();
         }
     }
-    throw std::runtime_error("Unterminated string literal at line " + std::to_string(startLine)
-                             + " col " + std::to_string(startCol));
+    error("Unterminated string literal", startLine, startCol);
 }
+
+// ─── чтение идентификатора / ключевого слова ────────────────────────────
 
 void Lexer::readIdentifier()
 {
@@ -257,7 +339,7 @@ void Lexer::readIdentifier()
     int startCol = col_;
     size_t start = pos_;
 
-    while (pos_ < src_.size() && (std::isalnum(peek()) || peek() == '_'))
+    while (pos_ < src_.size() && (isAlnum(peek()) || peek() == '_'))
         advance();
 
     std::string word = src_.substr(start, pos_ - start);
@@ -291,6 +373,8 @@ void Lexer::readIdentifier()
         addToken(TokenType::IDENTIFIER, word, startLine, startCol);
 }
 
+// ─── чтение операторов / пунктуации ─────────────────────────────────────
+
 bool Lexer::readOperator()
 {
     char c = peek();
@@ -319,6 +403,8 @@ bool Lexer::readOperator()
             return twoChar(TokenType::DOT_STAR, ".*");
         if (c2 == '/')
             return twoChar(TokenType::DOT_SLASH, "./");
+        if (c2 == '\\')
+            return twoChar(TokenType::DOT_BACKSLASH, ".\\");
         if (c2 == '^')
             return twoChar(TokenType::DOT_CARET, ".^");
         if (c2 == '\'')
@@ -343,7 +429,10 @@ bool Lexer::readOperator()
     case '~':
         if (c2 == '=')
             return twoChar(TokenType::NEQ, "~=");
-        return oneChar(TokenType::NOT, "~");
+        // В контексте [~, b] = f() — это TILDE (игнорирование выхода)
+        // В контексте ~x — это NOT (логическое отрицание)
+        // Лексер выдаёт TILDE, парсер разберётся по контексту
+        return oneChar(TokenType::TILDE, "~");
     case '<':
         if (c2 == '=')
             return twoChar(TokenType::LEQ, "<=");
@@ -388,6 +477,8 @@ bool Lexer::readOperator()
     return false;
 }
 
+// ─── основной цикл токенизации ──────────────────────────────────────────
+
 std::vector<Token> Lexer::tokenize()
 {
     tokens_.clear();
@@ -403,13 +494,13 @@ std::vector<Token> Lexer::tokenize()
 
         char c = peek();
 
+        // ── Newline ──
         if (c == '\n') {
             int nl = line_;
             int nc = col_;
 
-            // Внутри [] / {}: newline эквивалентен ; (разделитель строк матрицы)
             if (bracketDepth_ > 0) {
-                // Вставляем ; только если предыдущий токен — значение
+                // Внутри [] / {}: newline ≡ разделитель строк матрицы (;)
                 if (!tokens_.empty() && isValueToken(tokens_.back().type)) {
                     addToken(TokenType::SEMICOLON, ";", nl, nc);
                 }
@@ -420,12 +511,13 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
-        if (std::isdigit(c)
-            || (c == '.' && pos_ + 1 < src_.size() && std::isdigit(src_[pos_ + 1]))) {
+        // ── Число (начинается с цифры или с '.' перед цифрой) ──
+        if (isDigit(c) || (c == '.' && pos_ + 1 < src_.size() && isDigit(src_[pos_ + 1]))) {
             readNumber();
             continue;
         }
 
+        // ── Одинарная кавычка: строка или транспонирование ──
         if (c == '\'') {
             if (isTransposeContext()) {
                 addToken(TokenType::APOSTROPHE, "'", line_, col_);
@@ -436,21 +528,23 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
+        // ── Двойная кавычка: строка ──
         if (c == '"') {
             readDoubleQuotedString(line_, col_);
             continue;
         }
 
-        if (std::isalpha(c) || c == '_') {
+        // ── Идентификатор / ключевое слово ──
+        if (isAlpha(c) || c == '_') {
             readIdentifier();
             continue;
         }
 
+        // ── Оператор / пунктуация ──
         if (readOperator())
             continue;
 
-        throw std::runtime_error("Unexpected character '" + std::string(1, c) + "' at line "
-                                 + std::to_string(line_) + " col " + std::to_string(col_));
+        error("Unexpected character '" + std::string(1, c) + "'");
     }
 
     addToken(TokenType::END_OF_INPUT, "", line_, col_);
