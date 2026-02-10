@@ -89,19 +89,24 @@ private:
     int line_ = 1;
     int col_ = 1;
     std::vector<Token> tokens_;
-    int bracketDepth_ = 0; // tracks nesting of (), [], {}
+    std::vector<char> bracketStack_; // tracks nesting of (, [, {
 
     char peek() const;
     char peek(int offset) const;
     char advance();
 
+    int bracketDepth() const;
+    bool inMatrixContext() const;
+
     void skipSpacesAndComments();
     void skipBlockComment();
+    bool isBlockCommentStart() const;
     void addToken(TokenType type, const std::string &val, int line, int col);
     bool isValueToken(TokenType t) const;
     bool isTransposeContext() const;
 
     void readNumber();
+    void validateUnderscores(size_t start, size_t end, int startLine, int startCol);
     void readString(int startLine, int startCol);
     void readDoubleQuotedString(int startLine, int startCol);
     void readIdentifier();

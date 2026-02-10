@@ -77,6 +77,18 @@ void Lexer::addToken(TokenType type, const std::string &val, int line, int col)
     tokens_.push_back({type, val, line, col});
 }
 
+// ─── bracket tracking ──────────────────────────────────────────────────
+
+int Lexer::bracketDepth() const
+{
+    return static_cast<int>(bracketStack_.size());
+}
+
+bool Lexer::inMatrixContext() const
+{
+    return !bracketStack_.empty() && (bracketStack_.back() == '[' || bracketStack_.back() == '{');
+}
+
 // ─── context checks ────────────────────────────────────────────────────
 
 bool Lexer::isValueToken(TokenType t) const
@@ -111,7 +123,8 @@ bool Lexer::isTransposeContext() const
 
 void Lexer::insertImplicitComma()
 {
-    if (bracketDepth_ <= 0 || tokens_.empty())
+    // only inside [] and {}
+    if (!inMatrixContext() || tokens_.empty())
         return;
 
     auto prev = tokens_.back().type;
@@ -151,6 +164,27 @@ void Lexer::insertImplicitComma()
 
 // ─── block comment %{ ... %} ───────────────────────────────────────────
 
+bool Lexer::isBlockCommentStart() const
+{
+    // %{ must be at the beginning of the line (only whitespace before %)
+    if (peek() != '%' || peek(1) != '{')
+        return false;
+
+    // scan backwards to check if only whitespace before current pos on this line
+    if (pos_ == 0)
+        return true;
+
+    for (size_t i = pos_; i > 0; i--) {
+        char ch = src_[i - 1];
+        if (ch == '\n')
+            return true; // reached start of line — ok
+        if (ch != ' ' && ch != '\t')
+            return false; // non-whitespace before % — not a block comment
+    }
+    // reached start of file
+    return true;
+}
+
 void Lexer::skipBlockComment()
 {
     // called when pos_ is at '%' and peek(1) == '{'
@@ -179,6 +213,9 @@ void Lexer::skipBlockComment()
         }
     }
 
+    if (depth > 0)
+        error("Unterminated block comment");
+
     // skip rest of the %} line
     while (pos_ < src_.size() && peek() != '\n')
         advance();
@@ -191,7 +228,7 @@ void Lexer::skipSpacesAndComments()
     while (pos_ < src_.size()) {
         char c = peek();
         if (c == ' ' || c == '\t' || c == '\r') {
-            if (bracketDepth_ > 0 && (c == ' ' || c == '\t')) {
+            if (inMatrixContext() && (c == ' ' || c == '\t')) {
                 while (pos_ < src_.size() && (peek() == ' ' || peek() == '\t'))
                     advance();
                 insertImplicitComma();
@@ -199,8 +236,7 @@ void Lexer::skipSpacesAndComments()
             }
             advance();
         } else if (c == '%') {
-            if (peek(1) == '{') {
-                // block comment %{ ... %}
+            if (isBlockCommentStart()) {
                 skipBlockComment();
             } else {
                 // single-line comment
@@ -220,6 +256,21 @@ void Lexer::skipSpacesAndComments()
     }
 }
 
+// ─── underscore validation in numbers ───────────────────────────────────
+
+void Lexer::validateUnderscores(size_t start, size_t end, int startLine, int startCol)
+{
+    // no trailing underscore
+    if (end > start && src_[end - 1] == '_')
+        error("Number literal cannot end with underscore", startLine, startCol);
+
+    // no consecutive underscores
+    for (size_t i = start; i + 1 < end; i++) {
+        if (src_[i] == '_' && src_[i + 1] == '_')
+            error("Number literal cannot have consecutive underscores", startLine, startCol);
+    }
+}
+
 // ─── read number ────────────────────────────────────────────────────────
 
 void Lexer::readNumber()
@@ -235,11 +286,13 @@ void Lexer::readNumber()
         advance(); // 'x'
         if (pos_ >= src_.size() || !isXDigit(peek()))
             error("Invalid hex literal", startLine, startCol);
+        size_t digitStart = pos_;
         while (pos_ < src_.size() && (isXDigit(peek()) || peek() == '_')) {
             if (peek() != '_')
                 hasDigits = true;
             advance();
         }
+        validateUnderscores(digitStart, pos_, startLine, startCol);
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
             char afterSuffix = peek(1);
             if (!isAlnum(afterSuffix) && afterSuffix != '_') {
@@ -261,8 +314,10 @@ void Lexer::readNumber()
         advance(); // 'b'
         if (pos_ >= src_.size() || (peek() != '0' && peek() != '1'))
             error("Invalid binary literal", startLine, startCol);
+        size_t digitStart = pos_;
         while (pos_ < src_.size() && (peek() == '0' || peek() == '1' || peek() == '_'))
             advance();
+        validateUnderscores(digitStart, pos_, startLine, startCol);
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
             char afterSuffix = peek(1);
             if (!isAlnum(afterSuffix) && afterSuffix != '_') {
@@ -281,17 +336,20 @@ void Lexer::readNumber()
     // ── Decimal / float ──
 
     // integer part (may be empty if number starts with '.')
+    size_t intStart = pos_;
     while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
         if (peek() != '_')
             hasDigits = true;
         advance();
     }
+    if (pos_ > intStart)
+        validateUnderscores(intStart, pos_, startLine, startCol);
 
     // fractional part
     if (pos_ < src_.size() && peek() == '.') {
         char next = peek(1);
 
-        // don't consume dot if followed by dot-operator (.* ./ .^ .' ..)
+        // don't consume dot if followed by dot-operator (.* ./ .^ .' .\ ..)
         bool isDotOperator = (next == '*' || next == '/' || next == '^' || next == '\''
                               || next == '\\' || next == '.');
 
@@ -301,11 +359,14 @@ void Lexer::readNumber()
 
         if (!isDotOperator && !isFieldAccess) {
             advance(); // '.'
+            size_t fracStart = pos_;
             while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
                 if (peek() != '_')
                     hasDigits = true;
                 advance();
             }
+            if (pos_ > fracStart)
+                validateUnderscores(fracStart, pos_, startLine, startCol);
         }
     }
 
@@ -320,8 +381,11 @@ void Lexer::readNumber()
             advance();
         if (pos_ >= src_.size() || !isDigit(peek()))
             error("Invalid number exponent", startLine, startCol);
+        size_t expStart = pos_;
         while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_'))
             advance();
+        if (pos_ > expStart)
+            validateUnderscores(expStart, pos_, startLine, startCol);
     }
 
     // imaginary suffix
@@ -400,6 +464,9 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
                 break;
             case '\\':
                 s += '\\';
+                break;
+            case '"':
+                s += '"';
                 break;
             case '0':
                 s += '\0';
@@ -536,25 +603,25 @@ bool Lexer::readOperator()
             return twoChar(TokenType::OR_SHORT, "||");
         return oneChar(TokenType::OR, "|");
     case '(':
-        bracketDepth_++;
+        bracketStack_.push_back('(');
         return oneChar(TokenType::LPAREN, "(");
     case ')':
-        if (bracketDepth_ > 0)
-            bracketDepth_--;
+        if (!bracketStack_.empty())
+            bracketStack_.pop_back();
         return oneChar(TokenType::RPAREN, ")");
     case '[':
-        bracketDepth_++;
+        bracketStack_.push_back('[');
         return oneChar(TokenType::LBRACKET, "[");
     case ']':
-        if (bracketDepth_ > 0)
-            bracketDepth_--;
+        if (!bracketStack_.empty())
+            bracketStack_.pop_back();
         return oneChar(TokenType::RBRACKET, "]");
     case '{':
-        bracketDepth_++;
+        bracketStack_.push_back('{');
         return oneChar(TokenType::LBRACE, "{");
     case '}':
-        if (bracketDepth_ > 0)
-            bracketDepth_--;
+        if (!bracketStack_.empty())
+            bracketStack_.pop_back();
         return oneChar(TokenType::RBRACE, "}");
     case ',':
         return oneChar(TokenType::COMMA, ",");
@@ -571,10 +638,10 @@ bool Lexer::readOperator()
 std::vector<Token> Lexer::tokenize()
 {
     tokens_.clear();
+    bracketStack_.clear();
     pos_ = 0;
     line_ = 1;
     col_ = 1;
-    bracketDepth_ = 0;
 
     while (pos_ < src_.size()) {
         skipSpacesAndComments();
@@ -588,20 +655,14 @@ std::vector<Token> Lexer::tokenize()
             int nl = line_;
             int nc = col_;
 
-            if (bracketDepth_ > 0) {
-                // inside (), [], {}: newline is row separator (;) or ignored
-                // only insert ; if inside [] or {} and previous token is a value
-                // inside (): newlines are simply ignored
-                if (!tokens_.empty() && isValueToken(tokens_.back().type)) {
-                    // determine if we are inside [] or {} (not ())
-                    // heuristic: check if the innermost bracket is [ or {
-                    // since we track all three with bracketDepth_, we need
-                    // to check what opened the current context
-                    // For simplicity: suppress NEWLINE entirely inside any bracket
-                    // and let insertImplicitComma handle [] and {} separation
-                    // Parser will handle () correctly
+            if (bracketDepth() > 0) {
+                if (inMatrixContext()) {
+                    // inside [] or {}: newline = row separator (;)
+                    if (!tokens_.empty() && isValueToken(tokens_.back().type)) {
+                        addToken(TokenType::SEMICOLON, ";", nl, nc);
+                    }
                 }
-                // suppress newline inside any bracketed context
+                // inside (): newline silently ignored
             } else {
                 addToken(TokenType::NEWLINE, "\\n", nl, nc);
             }
