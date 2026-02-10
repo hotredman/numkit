@@ -98,10 +98,10 @@ bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
 }
 
 // ============================================================
-// Безопасный парсинг числа
+// Безопасный парсинг числа (чистая функция)
 // ============================================================
 
-double Parser::parseDouble(const std::string &text, int line, int col) const
+double Parser::parseDouble(const std::string &text, int line, int col)
 {
     try {
         return std::stod(text);
@@ -469,8 +469,6 @@ ASTNodePtr Parser::parseFunctionDef()
     skipTerminators();
     node->children.push_back(parseBlock({TokenType::KW_END}));
 
-    // В MATLAB функция без 'end' допустима только если ВСЕ функции
-    // в файле без 'end'. Здесь требуем 'end' при его наличии.
     if (check(TokenType::KW_END)) {
         pos_++;
     } else if (!isAtEnd()) {
@@ -728,67 +726,69 @@ ASTNodePtr Parser::parsePrimary()
 {
     auto [ln, cl] = loc();
 
-    if (check(TokenType::NUMBER)) {
+    switch (current().type) {
+    case TokenType::NUMBER: {
         auto n = makeNode(NodeType::NUMBER_LITERAL, ln, cl);
         n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
     }
-    if (check(TokenType::IMAG_NUMBER)) {
+    case TokenType::IMAG_NUMBER: {
         auto n = makeNode(NodeType::IMAG_LITERAL, ln, cl);
         n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
     }
-    if (check(TokenType::STRING)) {
+    case TokenType::STRING: {
         auto n = makeNode(NodeType::STRING_LITERAL, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
     }
-    if (check(TokenType::KW_TRUE)) {
+    case TokenType::KW_TRUE: {
         pos_++;
         auto n = makeNode(NodeType::BOOL_LITERAL, ln, cl);
         n->boolValue = true;
         return n;
     }
-    if (check(TokenType::KW_FALSE)) {
+    case TokenType::KW_FALSE: {
         pos_++;
         auto n = makeNode(NodeType::BOOL_LITERAL, ln, cl);
         n->boolValue = false;
         return n;
     }
-    if (check(TokenType::KW_END)) {
+    case TokenType::KW_END: {
         pos_++;
         return makeNode(NodeType::END_VAL, ln, cl);
     }
-    if (check(TokenType::IDENTIFIER)) {
+    case TokenType::IDENTIFIER: {
         auto n = makeNode(NodeType::IDENTIFIER, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
     }
-    if (check(TokenType::AT))
+    case TokenType::AT:
         return parseAnonFunc();
-    if (check(TokenType::LPAREN)) {
+    case TokenType::LPAREN: {
         pos_++;
         auto e = parseExpression();
         consume(TokenType::RPAREN, ")");
         return e;
     }
-    if (check(TokenType::LBRACKET))
+    case TokenType::LBRACKET:
         return parseMatrixLiteral();
-    if (check(TokenType::LBRACE))
+    case TokenType::LBRACE:
         return parseCellLiteral();
-    if (check(TokenType::COLON)) {
+    case TokenType::COLON: {
         pos_++;
         return makeNode(NodeType::COLON_EXPR, ln, cl);
     }
-
-    throw std::runtime_error("Unexpected token '" + current().value + "' at line "
-                             + std::to_string(ln) + " col " + std::to_string(cl));
+    default:
+        throw std::runtime_error("Unexpected token '" + current().value + "' at line "
+                                 + std::to_string(ln) + " col " + std::to_string(cl));
+    }
 }
 
 // ============================================================

@@ -39,7 +39,7 @@ private:
     bool isTerminator(std::initializer_list<TokenType> terminators) const;
 
     // — Безопасный парсинг числа —
-    double parseDouble(const std::string &text, int line, int col) const;
+    static double parseDouble(const std::string &text, int line, int col);
 
     // — Statements —
     ASTNodePtr parseStatement();
