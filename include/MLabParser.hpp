@@ -17,6 +17,14 @@ private:
     std::vector<Token> tokens_;
     size_t pos_ = 0;
 
+    // — Позиция в исходнике —
+    struct SourceLoc
+    {
+        int line;
+        int col;
+    };
+    SourceLoc loc() const;
+
     // — Утилиты навигации по токенам —
     const Token &current() const;
     const Token &peekToken(int off = 0) const;
@@ -27,7 +35,7 @@ private:
     void skipNewlines();
     void skipTerminators();
 
-    // — Проверка, является ли текущий токен терминатором —
+    // — Проверка терминаторов —
     bool isTerminator(std::initializer_list<TokenType> terminators) const;
 
     // — Statements —

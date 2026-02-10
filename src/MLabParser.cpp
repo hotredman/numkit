@@ -25,11 +25,15 @@ Parser::Parser(const std::vector<Token> &tokens)
 // Навигация по токенам
 // ============================================================
 
+Parser::SourceLoc Parser::loc() const
+{
+    return {current().line, current().col};
+}
+
 const Token &Parser::current() const
 {
-    if (pos_ >= tokens_.size()) {
-        return tokens_.back(); // всегда END_OF_INPUT благодаря конструктору
-    }
+    if (pos_ >= tokens_.size())
+        return tokens_.back();
     return tokens_[pos_];
 }
 
@@ -98,7 +102,8 @@ bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
 
 ASTNodePtr Parser::parse()
 {
-    auto block = makeNode(NodeType::BLOCK, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto block = makeNode(NodeType::BLOCK, ln, cl);
     skipNewlines();
     while (!isAtEnd()) {
         auto stmt = parseStatement();
@@ -132,20 +137,23 @@ ASTNodePtr Parser::parseStatement()
     case TokenType::KW_PERSISTENT:
         return parseGlobalPersistent();
     case TokenType::KW_BREAK: {
-        auto node = makeNode(NodeType::BREAK_STMT, current().line, current().col);
+        auto [ln, cl] = loc();
+        auto node = makeNode(NodeType::BREAK_STMT, ln, cl);
         pos_++;
         skipTerminators();
         return node;
     }
     case TokenType::KW_CONTINUE: {
-        auto node = makeNode(NodeType::CONTINUE_STMT, current().line, current().col);
+        auto [ln, cl] = loc();
+        auto node = makeNode(NodeType::CONTINUE_STMT, ln, cl);
         pos_++;
         skipTerminators();
         return node;
     }
     case TokenType::KW_RETURN: {
         // MATLAB return не принимает выражения — просто возврат из функции
-        auto node = makeNode(NodeType::RETURN_STMT, current().line, current().col);
+        auto [ln, cl] = loc();
+        auto node = makeNode(NodeType::RETURN_STMT, ln, cl);
         pos_++;
         skipTerminators();
         return node;
@@ -157,7 +165,7 @@ ASTNodePtr Parser::parseStatement()
 
 ASTNodePtr Parser::parseExpressionStatement()
 {
-    // Попытка multi-assign: [a, b] = expr
+    // Попытка multi-assign: [a, b] = expr  или  [~, b] = expr
     if (check(TokenType::LBRACKET)) {
         size_t save = pos_;
         auto ma = tryMultiAssign();
@@ -166,9 +174,7 @@ ASTNodePtr Parser::parseExpressionStatement()
         pos_ = save; // tryMultiAssign гарантирует мягкий откат
     }
 
-    int startLine = current().line;
-    int startCol = current().col;
-
+    auto [startLine, startCol] = loc();
     auto expr = parseExpression();
 
     if (check(TokenType::ASSIGN)) {
@@ -200,24 +206,39 @@ ASTNodePtr Parser::parseExpressionStatement()
 
 ASTNodePtr Parser::tryMultiAssign()
 {
-    // Мягкий разбор — возвращает nullptr без исключений при неудаче
+    // Мягкий разбор — возвращает nullptr без исключений при неудаче.
+    // Поддерживает ~ (tilde) для игнорируемых выходов: [~, b] = func()
     if (!check(TokenType::LBRACKET))
         return nullptr;
+
+    auto [startLine, startCol] = loc();
     pos_++;
 
     std::vector<std::string> names;
 
-    if (!check(TokenType::IDENTIFIER))
-        return nullptr;
-    names.push_back(current().value);
-    pos_++;
-
-    while (check(TokenType::COMMA)) {
-        pos_++;
-        if (!check(TokenType::IDENTIFIER))
-            return nullptr;
+    // Первый элемент: идентификатор или ~
+    if (check(TokenType::IDENTIFIER)) {
         names.push_back(current().value);
         pos_++;
+    } else if (check(TokenType::TILDE)) {
+        names.push_back("~");
+        pos_++;
+    } else {
+        return nullptr;
+    }
+
+    // Остальные элементы через запятую
+    while (check(TokenType::COMMA)) {
+        pos_++;
+        if (check(TokenType::IDENTIFIER)) {
+            names.push_back(current().value);
+            pos_++;
+        } else if (check(TokenType::TILDE)) {
+            names.push_back("~");
+            pos_++;
+        } else {
+            return nullptr;
+        }
     }
 
     if (!check(TokenType::RBRACKET))
@@ -226,8 +247,6 @@ ASTNodePtr Parser::tryMultiAssign()
 
     if (!check(TokenType::ASSIGN))
         return nullptr;
-    int startLine = current().line;
-    int startCol = current().col;
     pos_++;
 
     auto rhs = parseExpression();
@@ -245,7 +264,8 @@ ASTNodePtr Parser::tryMultiAssign()
 
 ASTNodePtr Parser::parseIf()
 {
-    auto node = makeNode(NodeType::IF_STMT, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::IF_STMT, ln, cl);
     consume(TokenType::KW_IF, "if");
 
     auto cond = parseExpression();
@@ -273,7 +293,8 @@ ASTNodePtr Parser::parseIf()
 
 ASTNodePtr Parser::parseFor()
 {
-    auto node = makeNode(NodeType::FOR_STMT, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::FOR_STMT, ln, cl);
     consume(TokenType::KW_FOR, "for");
 
     node->strValue = consume(TokenType::IDENTIFIER, "loop variable").value;
@@ -289,7 +310,8 @@ ASTNodePtr Parser::parseFor()
 
 ASTNodePtr Parser::parseWhile()
 {
-    auto node = makeNode(NodeType::WHILE_STMT, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::WHILE_STMT, ln, cl);
     consume(TokenType::KW_WHILE, "while");
 
     node->children.push_back(parseExpression());
@@ -303,7 +325,8 @@ ASTNodePtr Parser::parseWhile()
 
 ASTNodePtr Parser::parseSwitch()
 {
-    auto node = makeNode(NodeType::SWITCH_STMT, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::SWITCH_STMT, ln, cl);
     consume(TokenType::KW_SWITCH, "switch");
 
     node->children.push_back(parseExpression());
@@ -329,7 +352,8 @@ ASTNodePtr Parser::parseSwitch()
 
 ASTNodePtr Parser::parseTryCatch()
 {
-    auto node = makeNode(NodeType::TRY_STMT, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::TRY_STMT, ln, cl);
     consume(TokenType::KW_TRY, "try");
     skipTerminators();
 
@@ -352,9 +376,8 @@ ASTNodePtr Parser::parseTryCatch()
 ASTNodePtr Parser::parseGlobalPersistent()
 {
     bool isGlobal = check(TokenType::KW_GLOBAL);
-    auto node = makeNode(isGlobal ? NodeType::GLOBAL_STMT : NodeType::PERSISTENT_STMT,
-                         current().line,
-                         current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(isGlobal ? NodeType::GLOBAL_STMT : NodeType::PERSISTENT_STMT, ln, cl);
     pos_++;
 
     while (check(TokenType::IDENTIFIER)) {
@@ -372,19 +395,22 @@ ASTNodePtr Parser::parseGlobalPersistent()
 
 bool Parser::probeHasOutputSignature() const
 {
-    // Проверяем, есть ли выходные аргументы, не мутируя pos_
+    // Read-only lookahead: проверяем, есть ли выходные аргументы
+    // Не мутирует pos_
     if (current().type == TokenType::LBRACKET) {
         size_t probe = pos_ + 1;
         int depth = 1;
         while (probe < tokens_.size() && depth > 0) {
+            // Сначала проверяем END_OF_INPUT — выходим до инкремента
+            if (tokens_[probe].type == TokenType::END_OF_INPUT)
+                break;
             if (tokens_[probe].type == TokenType::LBRACKET)
                 depth++;
             else if (tokens_[probe].type == TokenType::RBRACKET)
                 depth--;
-            if (tokens_[probe].type == TokenType::END_OF_INPUT)
-                break;
             probe++;
         }
+        // При depth==0: probe указывает на токен после ']'
         return (probe < tokens_.size() && tokens_[probe].type == TokenType::ASSIGN);
     }
 
@@ -397,7 +423,8 @@ bool Parser::probeHasOutputSignature() const
 
 ASTNodePtr Parser::parseFunctionDef()
 {
-    auto node = makeNode(NodeType::FUNCTION_DEF, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto node = makeNode(NodeType::FUNCTION_DEF, ln, cl);
     consume(TokenType::KW_FUNCTION, "function");
 
     bool hasOutput = probeHasOutputSignature();
@@ -429,8 +456,14 @@ ASTNodePtr Parser::parseFunctionDef()
     skipTerminators();
     node->children.push_back(parseBlock({TokenType::KW_END}));
 
-    if (check(TokenType::KW_END))
+    // В MATLAB функция без 'end' допустима только если ВСЕ функции
+    // в файле без 'end'. Здесь требуем 'end' при его наличии.
+    if (check(TokenType::KW_END)) {
         pos_++;
+    } else if (!isAtEnd()) {
+        throw std::runtime_error("Expected 'end' for function '" + node->strValue
+                                 + "' defined at line " + std::to_string(node->line));
+    }
 
     skipTerminators();
     return node;
@@ -442,7 +475,8 @@ ASTNodePtr Parser::parseFunctionDef()
 
 ASTNodePtr Parser::parseBlock(std::initializer_list<TokenType> terminators)
 {
-    auto block = makeNode(NodeType::BLOCK, current().line, current().col);
+    auto [ln, cl] = loc();
+    auto block = makeNode(NodeType::BLOCK, ln, cl);
     while (!isAtEnd()) {
         if (isTerminator(terminators))
             return block;
@@ -467,8 +501,8 @@ ASTNodePtr Parser::parseOr()
 {
     auto left = parseAnd();
     while (check(TokenType::OR) || check(TokenType::OR_SHORT)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -483,8 +517,8 @@ ASTNodePtr Parser::parseAnd()
 {
     auto left = parseComparison();
     while (check(TokenType::AND) || check(TokenType::AND_SHORT)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -500,8 +534,8 @@ ASTNodePtr Parser::parseComparison()
     auto left = parseColon();
     while (check(TokenType::EQ) || check(TokenType::NEQ) || check(TokenType::LT)
            || check(TokenType::GT) || check(TokenType::LEQ) || check(TokenType::GEQ)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -516,7 +550,7 @@ ASTNodePtr Parser::parseColon()
 {
     auto start = parseAddSub();
     if (check(TokenType::COLON)) {
-        int ln = current().line, cl = current().col;
+        auto [ln, cl] = loc();
         pos_++;
         auto second = parseAddSub();
         if (check(TokenType::COLON)) {
@@ -539,8 +573,8 @@ ASTNodePtr Parser::parseAddSub()
 {
     auto left = parseMulDiv();
     while (check(TokenType::PLUS) || check(TokenType::MINUS)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -557,8 +591,8 @@ ASTNodePtr Parser::parseMulDiv()
     while (check(TokenType::STAR) || check(TokenType::SLASH) || check(TokenType::BACKSLASH)
            || check(TokenType::DOT_BACKSLASH) || check(TokenType::DOT_STAR)
            || check(TokenType::DOT_SLASH)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -572,7 +606,7 @@ ASTNodePtr Parser::parseMulDiv()
 ASTNodePtr Parser::parseUnary()
 {
     if (check(TokenType::MINUS)) {
-        int ln = current().line, cl = current().col;
+        auto [ln, cl] = loc();
         pos_++;
         auto n = makeNode(NodeType::UNARY_OP, ln, cl);
         n->strValue = "-";
@@ -580,7 +614,7 @@ ASTNodePtr Parser::parseUnary()
         return n;
     }
     if (check(TokenType::TILDE)) {
-        int ln = current().line, cl = current().col;
+        auto [ln, cl] = loc();
         pos_++;
         auto n = makeNode(NodeType::UNARY_OP, ln, cl);
         n->strValue = "~";
@@ -598,8 +632,8 @@ ASTNodePtr Parser::parsePower()
 {
     auto left = parsePostfix();
     if (check(TokenType::CARET) || check(TokenType::DOT_CARET)) {
+        auto [ln, cl] = loc();
         std::string op = current().value;
-        int ln = current().line, cl = current().col;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
@@ -615,7 +649,9 @@ ASTNodePtr Parser::parsePostfix()
     auto node = parsePrimary();
     while (true) {
         if (check(TokenType::LPAREN)) {
-            int ln = current().line, cl = current().col;
+            // В MATLAB f(args) может быть как вызовом функции, так и
+            // индексацией массива. Различение происходит на этапе интерпретации.
+            auto [ln, cl] = loc();
             pos_++;
             auto cn = makeNode(NodeType::CALL, ln, cl);
             cn->children.push_back(std::move(node));
@@ -627,7 +663,7 @@ ASTNodePtr Parser::parsePostfix()
             consume(TokenType::RPAREN, ")");
             node = std::move(cn);
         } else if (check(TokenType::LBRACE)) {
-            int ln = current().line, cl = current().col;
+            auto [ln, cl] = loc();
             pos_++;
             auto cn = makeNode(NodeType::CELL_INDEX, ln, cl);
             cn->children.push_back(std::move(node));
@@ -637,21 +673,21 @@ ASTNodePtr Parser::parsePostfix()
             consume(TokenType::RBRACE, "}");
             node = std::move(cn);
         } else if (check(TokenType::DOT) && peekToken(1).type == TokenType::IDENTIFIER) {
-            int ln = current().line, cl = current().col;
+            auto [ln, cl] = loc();
             pos_++;
             auto fn = makeNode(NodeType::FIELD_ACCESS, ln, cl);
             fn->strValue = consume(TokenType::IDENTIFIER, "field").value;
             fn->children.push_back(std::move(node));
             node = std::move(fn);
         } else if (check(TokenType::APOSTROPHE)) {
-            int ln = current().line, cl = current().col;
+            auto [ln, cl] = loc();
             pos_++;
             auto tn = makeNode(NodeType::UNARY_OP, ln, cl);
             tn->strValue = "'";
             tn->children.push_back(std::move(node));
             node = std::move(tn);
         } else if (check(TokenType::DOT_APOSTROPHE)) {
-            int ln = current().line, cl = current().col;
+            auto [ln, cl] = loc();
             pos_++;
             auto tn = makeNode(NodeType::UNARY_OP, ln, cl);
             tn->strValue = ".'";
@@ -666,8 +702,7 @@ ASTNodePtr Parser::parsePostfix()
 
 ASTNodePtr Parser::parsePrimary()
 {
-    int ln = current().line;
-    int cl = current().col;
+    auto [ln, cl] = loc();
 
     if (check(TokenType::NUMBER)) {
         auto n = makeNode(NodeType::NUMBER_LITERAL, ln, cl);
@@ -738,10 +773,10 @@ ASTNodePtr Parser::parsePrimary()
 
 ASTNodePtr Parser::parseAnonFunc()
 {
-    int ln = current().line, cl = current().col;
+    auto [ln, cl] = loc();
     consume(TokenType::AT, "@");
 
-    // @funcName  — хэндл на существующую функцию
+    // @funcName — хэндл на существующую функцию
     if (check(TokenType::IDENTIFIER) && peekToken(1).type != TokenType::LPAREN) {
         auto n = makeNode(NodeType::ANON_FUNC, ln, cl);
         n->strValue = current().value;
@@ -749,7 +784,7 @@ ASTNodePtr Parser::parseAnonFunc()
         return n;
     }
 
-    // @(params) expr  — анонимная функция
+    // @(params) expr — анонимная функция
     auto n = makeNode(NodeType::ANON_FUNC, ln, cl);
     consume(TokenType::LPAREN, "(");
     if (!check(TokenType::RPAREN)) {
@@ -768,8 +803,10 @@ ASTNodePtr Parser::parseAnonFunc()
 
 ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType nodeType)
 {
-    int ln = current().line, cl = current().col;
-    consume(open, (open == TokenType::LBRACKET) ? "[" : "{");
+    auto [ln, cl] = loc();
+    const char *openStr = (open == TokenType::LBRACKET) ? "[" : "{";
+    const char *closeStr = (close == TokenType::RBRACKET) ? "]" : "}";
+    consume(open, openStr);
 
     auto node = makeNode(nodeType, ln, cl);
 
@@ -782,6 +819,8 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
     row->children.push_back(parseExpression());
 
     while (!check(close) && !isAtEnd()) {
+        size_t beforeIteration = pos_;
+
         if (check(TokenType::SEMICOLON) || check(TokenType::NEWLINE)) {
             node->children.push_back(std::move(row));
             row = makeNode(NodeType::BLOCK, current().line, current().col);
@@ -793,14 +832,22 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
         } else if (check(TokenType::COMMA)) {
             pos_++;
         }
+
         if (!check(close) && !check(TokenType::SEMICOLON) && !check(TokenType::NEWLINE))
             row->children.push_back(parseExpression());
+
+        // Защита от бесконечного цикла
+        if (pos_ == beforeIteration) {
+            throw std::runtime_error("Parse error: stuck in array literal at line "
+                                     + std::to_string(current().line) + " col "
+                                     + std::to_string(current().col));
+        }
     }
 
     if (!row->children.empty())
         node->children.push_back(std::move(row));
 
-    consume(close, (close == TokenType::RBRACKET) ? "]" : "}");
+    consume(close, closeStr);
     return node;
 }
 
