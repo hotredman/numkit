@@ -3,9 +3,21 @@
 
 namespace mlab {
 
+// ============================================================
+// Фабрики узлов
+// ============================================================
+
 ASTNodePtr makeNode(NodeType t)
 {
     return std::make_unique<ASTNode>(t);
+}
+
+ASTNodePtr makeNode(NodeType t, int line, int col)
+{
+    auto node = std::make_unique<ASTNode>(t);
+    node->line = line;
+    node->col = col;
+    return node;
 }
 
 ASTNodePtr cloneNode(const ASTNode *src)

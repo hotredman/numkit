@@ -2,6 +2,7 @@
 
 #include "MLabAst.hpp"
 #include "MLabLexer.hpp"
+#include <initializer_list>
 #include <vector>
 
 namespace mlab {
@@ -16,6 +17,7 @@ private:
     std::vector<Token> tokens_;
     size_t pos_ = 0;
 
+    // — Утилиты навигации по токенам —
     const Token &current() const;
     const Token &peekToken(int off = 0) const;
     bool isAtEnd() const;
@@ -25,6 +27,10 @@ private:
     void skipNewlines();
     void skipTerminators();
 
+    // — Проверка, является ли текущий токен терминатором —
+    bool isTerminator(std::initializer_list<TokenType> terminators) const;
+
+    // — Statements —
     ASTNodePtr parseStatement();
     ASTNodePtr parseExpressionStatement();
     ASTNodePtr tryMultiAssign();
@@ -35,8 +41,9 @@ private:
     ASTNodePtr parseFunctionDef();
     ASTNodePtr parseTryCatch();
     ASTNodePtr parseGlobalPersistent();
-    ASTNodePtr parseBlock(std::vector<TokenType> terminators);
+    ASTNodePtr parseBlock(std::initializer_list<TokenType> terminators);
 
+    // — Expressions —
     ASTNodePtr parseExpression();
     ASTNodePtr parseOr();
     ASTNodePtr parseAnd();
@@ -49,9 +56,14 @@ private:
     ASTNodePtr parsePostfix();
     ASTNodePtr parsePrimary();
 
+    // — Литералы —
+    ASTNodePtr parseArrayLiteral(TokenType open, TokenType close, NodeType nodeType);
     ASTNodePtr parseMatrixLiteral();
     ASTNodePtr parseCellLiteral();
     ASTNodePtr parseAnonFunc();
+
+    // — Lookahead для function def —
+    bool probeHasOutputSignature() const;
 };
 
 } // namespace mlab

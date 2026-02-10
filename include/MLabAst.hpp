@@ -48,6 +48,9 @@ using ASTNodePtr = std::unique_ptr<ASTNode>;
 struct ASTNode
 {
     NodeType type;
+    int line = 0;
+    int col = 0;
+
     std::string strValue;
     double numValue = 0;
     bool boolValue = false;
@@ -69,6 +72,7 @@ struct ASTNode
 };
 
 ASTNodePtr makeNode(NodeType t);
+ASTNodePtr makeNode(NodeType t, int line, int col);
 ASTNodePtr cloneNode(const ASTNode *src);
 
 } // namespace mlab
