@@ -97,6 +97,8 @@ private:
 
     int bracketDepth() const;
     bool inMatrixContext() const;
+    void pushBracket(char open);
+    void popBracket(char expected);
 
     void skipSpacesAndComments();
     void skipBlockComment();
@@ -121,6 +123,7 @@ private:
     static bool isAlpha(char c);
     static bool isAlnum(char c);
     static bool isXDigit(char c);
+    static char closingFor(char open);
 };
 
 } // namespace mlab

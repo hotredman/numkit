@@ -54,8 +54,10 @@ char Lexer::peek() const
 
 char Lexer::peek(int offset) const
 {
-    size_t p = pos_ + static_cast<size_t>(offset);
-    return (p < src_.size()) ? src_[p] : '\0';
+    int p = static_cast<int>(pos_) + offset;
+    if (p < 0 || static_cast<size_t>(p) >= src_.size())
+        return '\0';
+    return src_[static_cast<size_t>(p)];
 }
 
 char Lexer::advance()
@@ -87,6 +89,39 @@ int Lexer::bracketDepth() const
 bool Lexer::inMatrixContext() const
 {
     return !bracketStack_.empty() && (bracketStack_.back() == '[' || bracketStack_.back() == '{');
+}
+
+char Lexer::closingFor(char open)
+{
+    switch (open) {
+    case '(':
+        return ')';
+    case '[':
+        return ']';
+    case '{':
+        return '}';
+    default:
+        return '?';
+    }
+}
+
+void Lexer::pushBracket(char open)
+{
+    bracketStack_.push_back(open);
+}
+
+void Lexer::popBracket(char expected)
+{
+    if (bracketStack_.empty()) {
+        error("Unexpected closing '" + std::string(1, expected) + "' without matching open");
+    }
+    char open = bracketStack_.back();
+    char expectedClosing = closingFor(open);
+    if (expected != expectedClosing) {
+        error("Mismatched bracket: expected '" + std::string(1, expectedClosing) + "' but found '"
+              + std::string(1, expected) + "'");
+    }
+    bracketStack_.pop_back();
 }
 
 // ─── context checks ────────────────────────────────────────────────────
@@ -260,8 +295,15 @@ void Lexer::skipSpacesAndComments()
 
 void Lexer::validateUnderscores(size_t start, size_t end, int startLine, int startCol)
 {
+    if (start >= end)
+        return;
+
+    // no leading underscore in digit group
+    if (src_[start] == '_')
+        error("Number literal cannot start digit group with underscore", startLine, startCol);
+
     // no trailing underscore
-    if (end > start && src_[end - 1] == '_')
+    if (src_[end - 1] == '_')
         error("Number literal cannot end with underscore", startLine, startCol);
 
     // no consecutive underscores
@@ -468,9 +510,6 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
             case '"':
                 s += '"';
                 break;
-            case '0':
-                s += '\0';
-                break;
             default:
                 // unknown escape — keep as-is (MATLAB behavior)
                 s += '\\';
@@ -603,25 +642,22 @@ bool Lexer::readOperator()
             return twoChar(TokenType::OR_SHORT, "||");
         return oneChar(TokenType::OR, "|");
     case '(':
-        bracketStack_.push_back('(');
+        pushBracket('(');
         return oneChar(TokenType::LPAREN, "(");
     case ')':
-        if (!bracketStack_.empty())
-            bracketStack_.pop_back();
+        popBracket(')');
         return oneChar(TokenType::RPAREN, ")");
     case '[':
-        bracketStack_.push_back('[');
+        pushBracket('[');
         return oneChar(TokenType::LBRACKET, "[");
     case ']':
-        if (!bracketStack_.empty())
-            bracketStack_.pop_back();
+        popBracket(']');
         return oneChar(TokenType::RBRACKET, "]");
     case '{':
-        bracketStack_.push_back('{');
+        pushBracket('{');
         return oneChar(TokenType::LBRACE, "{");
     case '}':
-        if (!bracketStack_.empty())
-            bracketStack_.pop_back();
+        popBracket('}');
         return oneChar(TokenType::RBRACE, "}");
     case ',':
         return oneChar(TokenType::COMMA, ",");
@@ -629,8 +665,9 @@ bool Lexer::readOperator()
         return oneChar(TokenType::SEMICOLON, ";");
     case ':':
         return oneChar(TokenType::COLON, ":");
+    default:
+        return false;
     }
-    return false;
 }
 
 // ─── main tokenization loop ────────────────────────────────────────────
@@ -704,6 +741,11 @@ std::vector<Token> Lexer::tokenize()
             continue;
 
         error("Unexpected character '" + std::string(1, c) + "'");
+    }
+
+    // check for unclosed brackets
+    if (!bracketStack_.empty()) {
+        error("Unclosed bracket '" + std::string(1, bracketStack_.back()) + "'");
     }
 
     addToken(TokenType::END_OF_INPUT, "", line_, col_);
