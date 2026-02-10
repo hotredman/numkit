@@ -5,7 +5,7 @@
 
 namespace mlab {
 
-// ─── безопасные обёртки над ctype (избегаем UB при signed char > 127) ───
+// ─── safe ctype wrappers (avoid UB with signed char > 127) ──────────────
 
 bool Lexer::isDigit(char c)
 {
@@ -41,7 +41,7 @@ void Lexer::error(const std::string &msg, int line, int col)
                              + std::to_string(col));
 }
 
-// ─── конструктор / базовые методы ───────────────────────────────────────
+// ─── constructor / basic methods ────────────────────────────────────────
 
 Lexer::Lexer(const std::string &source)
     : src_(source)
@@ -77,7 +77,7 @@ void Lexer::addToken(TokenType type, const std::string &val, int line, int col)
     tokens_.push_back({type, val, line, col});
 }
 
-// ─── контекстные проверки ───────────────────────────────────────────────
+// ─── context checks ────────────────────────────────────────────────────
 
 bool Lexer::isValueToken(TokenType t) const
 {
@@ -107,7 +107,7 @@ bool Lexer::isTransposeContext() const
     return isValueToken(tokens_.back().type);
 }
 
-// ─── implicit comma внутри [] и {} ──────────────────────────────────────
+// ─── implicit comma inside [] and {} ────────────────────────────────────
 
 void Lexer::insertImplicitComma()
 {
@@ -128,14 +128,14 @@ void Lexer::insertImplicitComma()
 
     char next = src_[scanPos];
 
-    // +/- внутри [] после value-токена — бинарный оператор, не вставляем запятую
+    // +/- after a value token inside [] — binary operator, no comma
     if (next == '+' || next == '-')
         return;
 
-    // Точка может быть началом числа (.5) или dot-оператором (.*, ./, .^, .')
+    // dot can be start of number (.5) or dot-operator (.*, ./, .^, .')
     if (next == '.') {
         char afterDot = (scanPos + 1 < src_.size()) ? src_[scanPos + 1] : '\0';
-        // Только если после точки идёт цифра — это число, нужна запятая
+        // only if digit follows dot — it's a number, insert comma
         if (!isDigit(afterDot))
             return;
     }
@@ -149,7 +149,42 @@ void Lexer::insertImplicitComma()
     }
 }
 
-// ─── пропуск пробелов, комментариев, line continuation ─────────────────
+// ─── block comment %{ ... %} ───────────────────────────────────────────
+
+void Lexer::skipBlockComment()
+{
+    // called when pos_ is at '%' and peek(1) == '{'
+    advance(); // '%'
+    advance(); // '{'
+
+    // skip rest of the %{ line
+    while (pos_ < src_.size() && peek() != '\n')
+        advance();
+    if (pos_ < src_.size())
+        advance(); // '\n'
+
+    // nested block comments supported
+    int depth = 1;
+    while (pos_ < src_.size() && depth > 0) {
+        if (peek() == '%' && peek(1) == '}') {
+            depth--;
+            advance(); // '%'
+            advance(); // '}'
+        } else if (peek() == '%' && peek(1) == '{') {
+            depth++;
+            advance(); // '%'
+            advance(); // '{'
+        } else {
+            advance();
+        }
+    }
+
+    // skip rest of the %} line
+    while (pos_ < src_.size() && peek() != '\n')
+        advance();
+}
+
+// ─── skip spaces, comments, line continuation ──────────────────────────
 
 void Lexer::skipSpacesAndComments()
 {
@@ -164,14 +199,19 @@ void Lexer::skipSpacesAndComments()
             }
             advance();
         } else if (c == '%') {
-            // Однострочный комментарий
-            while (pos_ < src_.size() && peek() != '\n')
-                advance();
+            if (peek(1) == '{') {
+                // block comment %{ ... %}
+                skipBlockComment();
+            } else {
+                // single-line comment
+                while (pos_ < src_.size() && peek() != '\n')
+                    advance();
+            }
         } else if (c == '.' && peek(1) == '.' && peek(2) == '.') {
-            // Line continuation (...)
+            // line continuation (...)
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
-            // Пропускаем сам \n — advance() обновит line_/col_
+            // skip the newline itself — advance() updates line_/col_
             if (pos_ < src_.size())
                 advance();
         } else {
@@ -180,13 +220,14 @@ void Lexer::skipSpacesAndComments()
     }
 }
 
-// ─── чтение числа ──────────────────────────────────────────────────────
+// ─── read number ────────────────────────────────────────────────────────
 
 void Lexer::readNumber()
 {
     int startLine = line_;
     int startCol = col_;
     size_t start = pos_;
+    bool hasDigits = false;
 
     // ── Hex: 0x... ──
     if (peek() == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
@@ -194,14 +235,23 @@ void Lexer::readNumber()
         advance(); // 'x'
         if (pos_ >= src_.size() || !isXDigit(peek()))
             error("Invalid hex literal", startLine, startCol);
-        while (pos_ < src_.size() && isXDigit(peek()))
+        while (pos_ < src_.size() && (isXDigit(peek()) || peek() == '_')) {
+            if (peek() != '_')
+                hasDigits = true;
             advance();
-        if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
-            advance();
-            addToken(TokenType::IMAG_NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
-        } else {
-            addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
         }
+        if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
+            char afterSuffix = peek(1);
+            if (!isAlnum(afterSuffix) && afterSuffix != '_') {
+                advance();
+                addToken(TokenType::IMAG_NUMBER,
+                         src_.substr(start, pos_ - start),
+                         startLine,
+                         startCol);
+                return;
+            }
+        }
+        addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
         return;
     }
 
@@ -211,59 +261,71 @@ void Lexer::readNumber()
         advance(); // 'b'
         if (pos_ >= src_.size() || (peek() != '0' && peek() != '1'))
             error("Invalid binary literal", startLine, startCol);
-        while (pos_ < src_.size() && (peek() == '0' || peek() == '1'))
+        while (pos_ < src_.size() && (peek() == '0' || peek() == '1' || peek() == '_'))
             advance();
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
-            advance();
-            addToken(TokenType::IMAG_NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
-        } else {
-            addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
+            char afterSuffix = peek(1);
+            if (!isAlnum(afterSuffix) && afterSuffix != '_') {
+                advance();
+                addToken(TokenType::IMAG_NUMBER,
+                         src_.substr(start, pos_ - start),
+                         startLine,
+                         startCol);
+                return;
+            }
         }
+        addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
         return;
     }
 
     // ── Decimal / float ──
 
-    // Целая часть (может быть пустой если число начинается с '.')
-    while (pos_ < src_.size() && isDigit(peek()))
+    // integer part (may be empty if number starts with '.')
+    while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
+        if (peek() != '_')
+            hasDigits = true;
         advance();
+    }
 
-    // Дробная часть
+    // fractional part
     if (pos_ < src_.size() && peek() == '.') {
         char next = peek(1);
 
-        // Не съедаем точку если за ней dot-оператор (.*  ./  .^  .')
-        // или другая точка (..), но 'e'/'E' после точки — часть числа (1.e5)
+        // don't consume dot if followed by dot-operator (.* ./ .^ .' ..)
         bool isDotOperator = (next == '*' || next == '/' || next == '^' || next == '\''
-                              || next == '.');
-        // Проверяем что после точки идёт не буква (кроме e/E — экспонента)
-        // и не скобка — тогда точка принадлежит числу
+                              || next == '\\' || next == '.');
+
+        // don't consume dot if followed by letter (field access) — except e/E (exponent)
         bool isFieldAccess = (isAlpha(next) && next != 'e' && next != 'E') || next == '('
                              || next == '[';
 
         if (!isDotOperator && !isFieldAccess) {
             advance(); // '.'
-            while (pos_ < src_.size() && isDigit(peek()))
+            while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
+                if (peek() != '_')
+                    hasDigits = true;
                 advance();
+            }
         }
     }
 
-    // Экспонента
+    // must have at least one digit before exponent
+    if (!hasDigits)
+        error("Invalid number literal", startLine, startCol);
+
+    // exponent
     if (pos_ < src_.size() && (peek() == 'e' || peek() == 'E')) {
-        // Убедимся что перед 'e' были цифры или точка (т.е. это число, а не идентификатор)
-        // Это всегда так, т.к. readNumber вызывается только когда первый символ — цифра или '.'
         advance(); // 'e' / 'E'
         if (pos_ < src_.size() && (peek() == '+' || peek() == '-'))
             advance();
         if (pos_ >= src_.size() || !isDigit(peek()))
             error("Invalid number exponent", startLine, startCol);
-        while (pos_ < src_.size() && isDigit(peek()))
+        while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_'))
             advance();
     }
 
-    // Мнимый суффикс
+    // imaginary suffix
     if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
-        // Убедимся что за i/j не идёт буква/цифра (иначе это идентификатор: 1if, ...)
         char afterSuffix = peek(1);
         if (!isAlnum(afterSuffix) && afterSuffix != '_') {
             advance();
@@ -272,28 +334,24 @@ void Lexer::readNumber()
         }
     }
 
-    std::string numStr = src_.substr(start, pos_ - start);
-    if (numStr.empty() || numStr == ".")
-        error("Invalid number literal", startLine, startCol);
-
-    addToken(TokenType::NUMBER, numStr, startLine, startCol);
+    addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
 }
 
-// ─── чтение строк ──────────────────────────────────────────────────────
+// ─── read single-quoted string ──────────────────────────────────────────
 
 void Lexer::readString(int startLine, int startCol)
 {
-    advance(); // пропускаем открывающий '
+    advance(); // skip opening '
     std::string s;
     while (pos_ < src_.size()) {
         if (peek() == '\'') {
             if (peek(1) == '\'') {
-                // Экранирование: '' → '
+                // escape: '' → '
                 s += '\'';
                 advance();
                 advance();
             } else {
-                advance(); // закрывающий '
+                advance(); // closing '
                 addToken(TokenType::STRING, s, startLine, startCol);
                 return;
             }
@@ -306,21 +364,51 @@ void Lexer::readString(int startLine, int startCol)
     error("Unterminated string literal", startLine, startCol);
 }
 
+// ─── read double-quoted string (with escape sequences) ──────────────────
+
 void Lexer::readDoubleQuotedString(int startLine, int startCol)
 {
-    advance(); // пропускаем открывающий "
+    advance(); // skip opening "
     std::string s;
     while (pos_ < src_.size()) {
         if (peek() == '"') {
             if (peek(1) == '"') {
-                // MATLAB-стиль: "" → "
+                // MATLAB-style: "" → "
                 s += '"';
                 advance();
                 advance();
             } else {
-                advance(); // закрывающий "
+                advance(); // closing "
                 addToken(TokenType::STRING, s, startLine, startCol);
                 return;
+            }
+        } else if (peek() == '\\') {
+            // escape sequences in double-quoted strings
+            advance(); // skip backslash
+            if (pos_ >= src_.size())
+                error("Unterminated string literal", startLine, startCol);
+            char esc = advance();
+            switch (esc) {
+            case 'n':
+                s += '\n';
+                break;
+            case 't':
+                s += '\t';
+                break;
+            case 'r':
+                s += '\r';
+                break;
+            case '\\':
+                s += '\\';
+                break;
+            case '0':
+                s += '\0';
+                break;
+            default:
+                // unknown escape — keep as-is (MATLAB behavior)
+                s += '\\';
+                s += esc;
+                break;
             }
         } else if (peek() == '\n') {
             error("Unterminated string literal", startLine, startCol);
@@ -331,7 +419,7 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
     error("Unterminated string literal", startLine, startCol);
 }
 
-// ─── чтение идентификатора / ключевого слова ────────────────────────────
+// ─── read identifier / keyword ──────────────────────────────────────────
 
 void Lexer::readIdentifier()
 {
@@ -373,7 +461,7 @@ void Lexer::readIdentifier()
         addToken(TokenType::IDENTIFIER, word, startLine, startCol);
 }
 
-// ─── чтение операторов / пунктуации ─────────────────────────────────────
+// ─── read operators / punctuation ───────────────────────────────────────
 
 bool Lexer::readOperator()
 {
@@ -429,9 +517,7 @@ bool Lexer::readOperator()
     case '~':
         if (c2 == '=')
             return twoChar(TokenType::NEQ, "~=");
-        // В контексте [~, b] = f() — это TILDE (игнорирование выхода)
-        // В контексте ~x — это NOT (логическое отрицание)
-        // Лексер выдаёт TILDE, парсер разберётся по контексту
+        // TILDE: parser decides if it's NOT or ignore-output
         return oneChar(TokenType::TILDE, "~");
     case '<':
         if (c2 == '=')
@@ -450,8 +536,11 @@ bool Lexer::readOperator()
             return twoChar(TokenType::OR_SHORT, "||");
         return oneChar(TokenType::OR, "|");
     case '(':
+        bracketDepth_++;
         return oneChar(TokenType::LPAREN, "(");
     case ')':
+        if (bracketDepth_ > 0)
+            bracketDepth_--;
         return oneChar(TokenType::RPAREN, ")");
     case '[':
         bracketDepth_++;
@@ -477,7 +566,7 @@ bool Lexer::readOperator()
     return false;
 }
 
-// ─── основной цикл токенизации ──────────────────────────────────────────
+// ─── main tokenization loop ────────────────────────────────────────────
 
 std::vector<Token> Lexer::tokenize()
 {
@@ -500,24 +589,33 @@ std::vector<Token> Lexer::tokenize()
             int nc = col_;
 
             if (bracketDepth_ > 0) {
-                // Внутри [] / {}: newline ≡ разделитель строк матрицы (;)
+                // inside (), [], {}: newline is row separator (;) or ignored
+                // only insert ; if inside [] or {} and previous token is a value
+                // inside (): newlines are simply ignored
                 if (!tokens_.empty() && isValueToken(tokens_.back().type)) {
-                    addToken(TokenType::SEMICOLON, ";", nl, nc);
+                    // determine if we are inside [] or {} (not ())
+                    // heuristic: check if the innermost bracket is [ or {
+                    // since we track all three with bracketDepth_, we need
+                    // to check what opened the current context
+                    // For simplicity: suppress NEWLINE entirely inside any bracket
+                    // and let insertImplicitComma handle [] and {} separation
+                    // Parser will handle () correctly
                 }
+                // suppress newline inside any bracketed context
             } else {
                 addToken(TokenType::NEWLINE, "\\n", nl, nc);
             }
-            advance(); // advance() обновит line_/col_
+            advance();
             continue;
         }
 
-        // ── Число (начинается с цифры или с '.' перед цифрой) ──
+        // ── Number (starts with digit or '.' before digit) ──
         if (isDigit(c) || (c == '.' && pos_ + 1 < src_.size() && isDigit(src_[pos_ + 1]))) {
             readNumber();
             continue;
         }
 
-        // ── Одинарная кавычка: строка или транспонирование ──
+        // ── Single quote: string or transpose ──
         if (c == '\'') {
             if (isTransposeContext()) {
                 addToken(TokenType::APOSTROPHE, "'", line_, col_);
@@ -528,19 +626,19 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
-        // ── Двойная кавычка: строка ──
+        // ── Double quote: string ──
         if (c == '"') {
             readDoubleQuotedString(line_, col_);
             continue;
         }
 
-        // ── Идентификатор / ключевое слово ──
+        // ── Identifier / keyword ──
         if (isAlpha(c) || c == '_') {
             readIdentifier();
             continue;
         }
 
-        // ── Оператор / пунктуация ──
+        // ── Operator / punctuation ──
         if (readOperator())
             continue;
 

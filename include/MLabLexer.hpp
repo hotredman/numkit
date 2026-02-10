@@ -29,7 +29,6 @@ enum class TokenType {
     GEQ,
     AND,
     OR,
-    NOT,
     TILDE,
     AND_SHORT,
     OR_SHORT,
@@ -90,13 +89,14 @@ private:
     int line_ = 1;
     int col_ = 1;
     std::vector<Token> tokens_;
-    int bracketDepth_ = 0;
+    int bracketDepth_ = 0; // tracks nesting of (), [], {}
 
     char peek() const;
     char peek(int offset) const;
     char advance();
 
     void skipSpacesAndComments();
+    void skipBlockComment();
     void addToken(TokenType type, const std::string &val, int line, int col);
     bool isValueToken(TokenType t) const;
     bool isTransposeContext() const;
