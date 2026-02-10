@@ -10,7 +10,6 @@ namespace mlab {
 Parser::Parser(const std::vector<Token> &tokens)
     : tokens_(tokens)
 {
-    // Гарантируем, что список токенов заканчивается END_OF_INPUT
     if (tokens_.empty() || tokens_.back().type != TokenType::END_OF_INPUT) {
         Token eof;
         eof.type = TokenType::END_OF_INPUT;
@@ -68,8 +67,10 @@ Token Parser::consume(TokenType t, const std::string &msg)
 {
     if (check(t))
         return tokens_[pos_++];
+    std::string expected = msg.empty() ? ("token type " + std::to_string(static_cast<int>(t)))
+                                       : msg;
     throw std::runtime_error("Parse error at line " + std::to_string(current().line) + " col "
-                             + std::to_string(current().col) + ": expected " + msg + " got '"
+                             + std::to_string(current().col) + ": expected " + expected + ", got '"
                              + current().value + "'");
 }
 
@@ -94,6 +95,20 @@ bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
             return true;
     }
     return false;
+}
+
+// ============================================================
+// Безопасный парсинг числа
+// ============================================================
+
+double Parser::parseDouble(const std::string &text, int line, int col) const
+{
+    try {
+        return std::stod(text);
+    } catch (const std::exception &) {
+        throw std::runtime_error("Invalid number literal '" + text + "' at line "
+                                 + std::to_string(line) + " col " + std::to_string(col));
+    }
 }
 
 // ============================================================
@@ -171,7 +186,7 @@ ASTNodePtr Parser::parseExpressionStatement()
         auto ma = tryMultiAssign();
         if (ma)
             return ma;
-        pos_ = save; // tryMultiAssign гарантирует мягкий откат
+        pos_ = save;
     }
 
     auto [startLine, startCol] = loc();
@@ -247,6 +262,9 @@ ASTNodePtr Parser::tryMultiAssign()
 
     if (!check(TokenType::ASSIGN))
         return nullptr;
+
+    // Точка невозврата: после '=' это точно multi-assign.
+    // Ошибка в RHS — реальная синтаксическая ошибка.
     pos_++;
 
     auto rhs = parseExpression();
@@ -395,13 +413,10 @@ ASTNodePtr Parser::parseGlobalPersistent()
 
 bool Parser::probeHasOutputSignature() const
 {
-    // Read-only lookahead: проверяем, есть ли выходные аргументы
-    // Не мутирует pos_
     if (current().type == TokenType::LBRACKET) {
         size_t probe = pos_ + 1;
         int depth = 1;
         while (probe < tokens_.size() && depth > 0) {
-            // Сначала проверяем END_OF_INPUT — выходим до инкремента
             if (tokens_[probe].type == TokenType::END_OF_INPUT)
                 break;
             if (tokens_[probe].type == TokenType::LBRACKET)
@@ -410,13 +425,11 @@ bool Parser::probeHasOutputSignature() const
                 depth--;
             probe++;
         }
-        // При depth==0: probe указывает на токен после ']'
         return (probe < tokens_.size() && tokens_[probe].type == TokenType::ASSIGN);
     }
 
-    if (current().type == TokenType::IDENTIFIER && peekToken(1).type == TokenType::ASSIGN) {
+    if (current().type == TokenType::IDENTIFIER && peekToken(1).type == TokenType::ASSIGN)
         return true;
-    }
 
     return false;
 }
@@ -480,10 +493,16 @@ ASTNodePtr Parser::parseBlock(std::initializer_list<TokenType> terminators)
     while (!isAtEnd()) {
         if (isTerminator(terminators))
             return block;
+        size_t before = pos_;
         auto stmt = parseStatement();
         if (stmt)
             block->children.push_back(std::move(stmt));
         skipNewlines();
+        if (pos_ == before) {
+            throw std::runtime_error("Parse error: stuck in block at line "
+                                     + std::to_string(current().line) + " col "
+                                     + std::to_string(current().col));
+        }
     }
     return block;
 }
@@ -556,9 +575,9 @@ ASTNodePtr Parser::parseColon()
         if (check(TokenType::COLON)) {
             pos_++;
             auto n = makeNode(NodeType::COLON_EXPR, ln, cl);
-            n->children.push_back(std::move(start));  // start
-            n->children.push_back(std::move(second)); // step
-            n->children.push_back(parseAddSub());     // stop
+            n->children.push_back(std::move(start));
+            n->children.push_back(std::move(second));
+            n->children.push_back(parseAddSub());
             return n;
         }
         auto n = makeNode(NodeType::COLON_EXPR, ln, cl);
@@ -648,6 +667,8 @@ ASTNodePtr Parser::parsePostfix()
 {
     auto node = parsePrimary();
     while (true) {
+        size_t before = pos_;
+
         if (check(TokenType::LPAREN)) {
             // В MATLAB f(args) может быть как вызовом функции, так и
             // индексацией массива. Различение происходит на этапе интерпретации.
@@ -696,6 +717,9 @@ ASTNodePtr Parser::parsePostfix()
         } else {
             break;
         }
+
+        if (pos_ == before)
+            break;
     }
     return node;
 }
@@ -706,14 +730,14 @@ ASTNodePtr Parser::parsePrimary()
 
     if (check(TokenType::NUMBER)) {
         auto n = makeNode(NodeType::NUMBER_LITERAL, ln, cl);
-        n->numValue = std::stod(current().value);
+        n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
     }
     if (check(TokenType::IMAG_NUMBER)) {
         auto n = makeNode(NodeType::IMAG_LITERAL, ln, cl);
-        n->numValue = std::stod(current().value);
+        n->numValue = parseDouble(current().value, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;
@@ -836,7 +860,6 @@ ASTNodePtr Parser::parseArrayLiteral(TokenType open, TokenType close, NodeType n
         if (!check(close) && !check(TokenType::SEMICOLON) && !check(TokenType::NEWLINE))
             row->children.push_back(parseExpression());
 
-        // Защита от бесконечного цикла
         if (pos_ == beforeIteration) {
             throw std::runtime_error("Parse error: stuck in array literal at line "
                                      + std::to_string(current().line) + " col "

@@ -38,6 +38,9 @@ private:
     // — Проверка терминаторов —
     bool isTerminator(std::initializer_list<TokenType> terminators) const;
 
+    // — Безопасный парсинг числа —
+    double parseDouble(const std::string &text, int line, int col) const;
+
     // — Statements —
     ASTNodePtr parseStatement();
     ASTNodePtr parseExpressionStatement();
