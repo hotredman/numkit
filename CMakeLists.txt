@@ -40,7 +40,8 @@ set(MLAB_HEADERS
 if(MLAB_BUILD_SHARED)
     add_library(mlab SHARED ${MLAB_SOURCES} ${MLAB_HEADERS})
 else()
-    add_library(mlab STATIC ${MLAB_SOURCES} ${MLAB_HEADERS})
+    add_library(mlab STATIC ${MLAB_SOURCES} ${MLAB_HEADERS}
+        src/MLabAst.cpp)
 endif()
 
 add_library(mlab::mlab ALIAS mlab)
