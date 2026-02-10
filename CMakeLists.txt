@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(MLAB_BUILD_EXAMPLE "Build example executable" ON)
+option(MLAB_BUILD_TESTS   "Build tests"              ON)
 option(MLAB_BUILD_SHARED  "Build shared library"     OFF)
 option(MLAB_INSTALL       "Generate install target"  ON)
 
@@ -16,6 +17,10 @@ else()
     option(MLAB_BUILD_REPL "Build WebAssembly REPL" ON)
 endif()
 
+# ──────────────────────────────────────────────
+# Основная библиотека
+# ──────────────────────────────────────────────
+
 set(MLAB_SOURCES
     src/MLabAllocator.cpp
     src/MLabValue.cpp
@@ -24,6 +29,7 @@ set(MLAB_SOURCES
     src/MLabEnvironment.cpp
     src/MLabEngine.cpp
     src/MLabStdLibrary.cpp
+    src/MLabAst.cpp
 )
 
 set(MLAB_HEADERS
@@ -40,8 +46,7 @@ set(MLAB_HEADERS
 if(MLAB_BUILD_SHARED)
     add_library(mlab SHARED ${MLAB_SOURCES} ${MLAB_HEADERS})
 else()
-    add_library(mlab STATIC ${MLAB_SOURCES} ${MLAB_HEADERS}
-        src/MLabAst.cpp)
+    add_library(mlab STATIC ${MLAB_SOURCES} ${MLAB_HEADERS})
 endif()
 
 add_library(mlab::mlab ALIAS mlab)
@@ -54,17 +59,62 @@ target_include_directories(mlab
 
 target_compile_features(mlab PUBLIC cxx_std_17)
 
+# ──────────────────────────────────────────────
+# Example
+# ──────────────────────────────────────────────
+
 if(MLAB_BUILD_EXAMPLE AND NOT EMSCRIPTEN)
     add_executable(mlab_example example/main.cpp)
     target_link_libraries(mlab_example PRIVATE mlab::mlab)
 endif()
 
 # ──────────────────────────────────────────────
+# Тесты (Google Test)
+# ──────────────────────────────────────────────
+
+if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG        v1.14.0
+    )
+
+    # Windows: не ломать runtime library
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(googletest)
+
+    enable_testing()
+
+    add_executable(mlab_tests
+        tests/lexer_test.cpp
+        # tests/parser_test.cpp
+        # tests/engine_test.cpp
+    )
+
+    target_link_libraries(mlab_tests
+        PRIVATE
+            mlab::mlab
+            GTest::gtest_main
+    )
+
+    include(GoogleTest)
+    gtest_discover_tests(mlab_tests)
+endif()
+
+# ──────────────────────────────────────────────
 # REPL subdirectory
 # ──────────────────────────────────────────────
+
 if(MLAB_BUILD_REPL)
     add_subdirectory(repl)
 endif()
+
+# ──────────────────────────────────────────────
+# Install
+# ──────────────────────────────────────────────
 
 if(MLAB_INSTALL AND NOT EMSCRIPTEN)
     include(GNUInstallDirs)
