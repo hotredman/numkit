@@ -88,24 +88,23 @@ private:
     int line_ = 1;
     int col_ = 1;
     std::vector<Token> tokens_;
-    int bracketDepth_ = 0; // для отслеживания контекста []
+    int bracketDepth_ = 0; // для [], {}
 
     char peek() const;
     char peek(int offset) const;
     char advance();
 
     void skipSpacesAndComments();
-    void addToken(TokenType type, const std::string &val);
+    void addToken(TokenType type, const std::string &val, int line, int col);
     bool isTransposeContext() const;
     bool isValueToken(TokenType t) const;
 
     void readNumber();
-    void readString();
-    void readDoubleQuotedString();
+    void readString(int startLine, int startCol);
+    void readDoubleQuotedString(int startLine, int startCol);
     void readIdentifier();
     bool readOperator();
 
-    // Вставка неявных запятых внутри []
     void insertImplicitComma();
 };
 
