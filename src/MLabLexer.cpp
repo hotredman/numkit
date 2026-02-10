@@ -124,6 +124,29 @@ void Lexer::popBracket(char expected)
     bracketStack_.pop_back();
 }
 
+// ─── line-start check ───────────────────────────────────────────────────
+
+bool Lexer::isAtLineStart() const
+{
+    return isAtLineStart(pos_);
+}
+
+bool Lexer::isAtLineStart(size_t position) const
+{
+    if (position == 0)
+        return true;
+
+    for (size_t i = position; i > 0; i--) {
+        char ch = src_[i - 1];
+        if (ch == '\n')
+            return true;
+        if (ch != ' ' && ch != '\t')
+            return false;
+    }
+    // reached start of file
+    return true;
+}
+
 // ─── context checks ────────────────────────────────────────────────────
 
 bool Lexer::isValueToken(TokenType t) const
@@ -158,7 +181,6 @@ bool Lexer::isTransposeContext() const
 
 void Lexer::insertImplicitComma()
 {
-    // only inside [] and {}
     if (!inMatrixContext() || tokens_.empty())
         return;
 
@@ -176,14 +198,11 @@ void Lexer::insertImplicitComma()
 
     char next = src_[scanPos];
 
-    // +/- after a value token inside [] — binary operator, no comma
     if (next == '+' || next == '-')
         return;
 
-    // dot can be start of number (.5) or dot-operator (.*, ./, .^, .')
     if (next == '.') {
         char afterDot = (scanPos + 1 < src_.size()) ? src_[scanPos + 1] : '\0';
-        // only if digit follows dot — it's a number, insert comma
         if (!isDigit(afterDot))
             return;
     }
@@ -199,42 +218,6 @@ void Lexer::insertImplicitComma()
 
 // ─── block comment %{ ... %} ───────────────────────────────────────────
 
-bool Lexer::isBlockCommentStart() const
-{
-    // %{ must be at the beginning of the line (only whitespace before %)
-    if (peek() != '%' || peek(1) != '{')
-        return false;
-
-    if (pos_ == 0)
-        return true;
-
-    for (size_t i = pos_; i > 0; i--) {
-        char ch = src_[i - 1];
-        if (ch == '\n')
-            return true;
-        if (ch != ' ' && ch != '\t')
-            return false;
-    }
-    return true;
-}
-
-bool Lexer::isNestedBlockCommentStart() const
-{
-    // check that %{ is at the beginning of its line (only whitespace before %)
-    // pos_ points to '%', scan backwards to find start of line
-    if (pos_ == 0)
-        return true;
-
-    for (size_t i = pos_; i > 0; i--) {
-        char ch = src_[i - 1];
-        if (ch == '\n')
-            return true;
-        if (ch != ' ' && ch != '\t')
-            return false;
-    }
-    return true;
-}
-
 void Lexer::skipBlockComment()
 {
     advance(); // '%'
@@ -248,49 +231,19 @@ void Lexer::skipBlockComment()
 
     int depth = 1;
     while (pos_ < src_.size() && depth > 0) {
-        if (peek() == '%' && peek(1) == '}') {
-            // check that %} is at the beginning of its line
-            bool atLineStart = true;
-            for (size_t i = pos_; i > 0; i--) {
-                char ch = src_[i - 1];
-                if (ch == '\n')
-                    break;
-                if (ch != ' ' && ch != '\t') {
-                    atLineStart = false;
-                    break;
-                }
-            }
-            if (atLineStart) {
-                depth--;
-                advance(); // '%'
-                advance(); // '}'
-            } else {
-                advance(); // skip '%', treat as regular content
-            }
-        } else if (peek() == '%' && peek(1) == '{') {
-            // check that nested %{ is at the beginning of its line
-            bool atLineStart = true;
-            for (size_t i = pos_; i > 0; i--) {
-                char ch = src_[i - 1];
-                if (ch == '\n')
-                    break;
-                if (ch != ' ' && ch != '\t') {
-                    atLineStart = false;
-                    break;
-                }
-            }
-            if (atLineStart) {
-                depth++;
-                advance(); // '%'
-                advance(); // '{'
-                // skip rest of nested %{ line
-                while (pos_ < src_.size() && peek() != '\n')
-                    advance();
-                if (pos_ < src_.size())
-                    advance(); // '\n'
-            } else {
-                advance(); // skip '%', treat as regular content
-            }
+        if (peek() == '%' && peek(1) == '}' && isAtLineStart(pos_)) {
+            depth--;
+            advance(); // '%'
+            advance(); // '}'
+        } else if (peek() == '%' && peek(1) == '{' && isAtLineStart(pos_)) {
+            depth++;
+            advance(); // '%'
+            advance(); // '{'
+            // skip rest of nested %{ line
+            while (pos_ < src_.size() && peek() != '\n')
+                advance();
+            if (pos_ < src_.size())
+                advance(); // '\n'
         } else {
             advance();
         }
@@ -319,15 +272,13 @@ void Lexer::skipSpacesAndComments()
             }
             advance();
         } else if (c == '%') {
-            if (isBlockCommentStart()) {
+            if (peek(1) == '{' && isAtLineStart()) {
                 skipBlockComment();
             } else {
-                // single-line comment
                 while (pos_ < src_.size() && peek() != '\n')
                     advance();
             }
         } else if (c == '.' && peek(1) == '.' && peek(2) == '.') {
-            // line continuation (...)
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
             if (pos_ < src_.size())
@@ -364,20 +315,16 @@ void Lexer::readNumber()
     int startLine = line_;
     int startCol = col_;
     size_t start = pos_;
-    bool hasDigits = false;
 
     // ── Hex: 0x... ──
     if (peek() == '0' && (peek(1) == 'x' || peek(1) == 'X')) {
-        advance(); // '0'
-        advance(); // 'x'
+        advance();
+        advance();
         if (pos_ >= src_.size() || !isXDigit(peek()))
             error("Invalid hex literal", startLine, startCol);
         size_t digitStart = pos_;
-        while (pos_ < src_.size() && (isXDigit(peek()) || peek() == '_')) {
-            if (peek() != '_')
-                hasDigits = true;
+        while (pos_ < src_.size() && (isXDigit(peek()) || peek() == '_'))
             advance();
-        }
         validateUnderscores(digitStart, pos_, startLine, startCol);
         if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
             char afterSuffix = peek(1);
@@ -396,8 +343,8 @@ void Lexer::readNumber()
 
     // ── Binary: 0b... ──
     if (peek() == '0' && (peek(1) == 'b' || peek(1) == 'B')) {
-        advance(); // '0'
-        advance(); // 'b'
+        advance();
+        advance();
         if (pos_ >= src_.size() || (peek() != '0' && peek() != '1'))
             error("Invalid binary literal", startLine, startCol);
         size_t digitStart = pos_;
@@ -420,7 +367,9 @@ void Lexer::readNumber()
     }
 
     // ── Decimal / float ──
+    bool hasDigits = false;
 
+    // integer part (may be empty if number starts with '.')
     size_t intStart = pos_;
     while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
         if (peek() != '_')
@@ -430,6 +379,7 @@ void Lexer::readNumber()
     if (pos_ > intStart)
         validateUnderscores(intStart, pos_, startLine, startCol);
 
+    // fractional part
     if (pos_ < src_.size() && peek() == '.') {
         char next = peek(1);
 
@@ -455,6 +405,7 @@ void Lexer::readNumber()
     if (!hasDigits)
         error("Invalid number literal", startLine, startCol);
 
+    // exponent
     if (pos_ < src_.size() && (peek() == 'e' || peek() == 'E')) {
         advance();
         if (pos_ < src_.size() && (peek() == '+' || peek() == '-'))
@@ -468,6 +419,7 @@ void Lexer::readNumber()
             validateUnderscores(expStart, pos_, startLine, startCol);
     }
 
+    // imaginary suffix
     if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
         char afterSuffix = peek(1);
         if (!isAlnum(afterSuffix) && afterSuffix != '_') {

@@ -100,10 +100,11 @@ private:
     void pushBracket(char open);
     void popBracket(char expected);
 
+    bool isAtLineStart() const;
+    bool isAtLineStart(size_t position) const;
+
     void skipSpacesAndComments();
     void skipBlockComment();
-    bool isBlockCommentStart() const;
-    bool isNestedBlockCommentStart() const;
     void addToken(TokenType type, const std::string &val, int line, int col);
     bool isValueToken(TokenType t) const;
     bool isTransposeContext() const;
