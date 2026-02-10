@@ -89,7 +89,7 @@ private:
     int line_ = 1;
     int col_ = 1;
     std::vector<Token> tokens_;
-    std::vector<char> bracketStack_; // tracks nesting of (, [, {
+    std::vector<char> bracketStack_;
 
     char peek() const;
     char peek(int offset) const;
@@ -103,6 +103,7 @@ private:
     void skipSpacesAndComments();
     void skipBlockComment();
     bool isBlockCommentStart() const;
+    bool isNestedBlockCommentStart() const;
     void addToken(TokenType type, const std::string &val, int line, int col);
     bool isValueToken(TokenType t) const;
     bool isTransposeContext() const;

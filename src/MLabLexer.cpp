@@ -54,7 +54,7 @@ char Lexer::peek() const
 
 char Lexer::peek(int offset) const
 {
-    int p = static_cast<int>(pos_) + offset;
+    long long p = static_cast<long long>(pos_) + offset;
     if (p < 0 || static_cast<size_t>(p) >= src_.size())
         return '\0';
     return src_[static_cast<size_t>(p)];
@@ -205,24 +205,38 @@ bool Lexer::isBlockCommentStart() const
     if (peek() != '%' || peek(1) != '{')
         return false;
 
-    // scan backwards to check if only whitespace before current pos on this line
     if (pos_ == 0)
         return true;
 
     for (size_t i = pos_; i > 0; i--) {
         char ch = src_[i - 1];
         if (ch == '\n')
-            return true; // reached start of line — ok
+            return true;
         if (ch != ' ' && ch != '\t')
-            return false; // non-whitespace before % — not a block comment
+            return false;
     }
-    // reached start of file
+    return true;
+}
+
+bool Lexer::isNestedBlockCommentStart() const
+{
+    // check that %{ is at the beginning of its line (only whitespace before %)
+    // pos_ points to '%', scan backwards to find start of line
+    if (pos_ == 0)
+        return true;
+
+    for (size_t i = pos_; i > 0; i--) {
+        char ch = src_[i - 1];
+        if (ch == '\n')
+            return true;
+        if (ch != ' ' && ch != '\t')
+            return false;
+    }
     return true;
 }
 
 void Lexer::skipBlockComment()
 {
-    // called when pos_ is at '%' and peek(1) == '{'
     advance(); // '%'
     advance(); // '{'
 
@@ -232,17 +246,51 @@ void Lexer::skipBlockComment()
     if (pos_ < src_.size())
         advance(); // '\n'
 
-    // nested block comments supported
     int depth = 1;
     while (pos_ < src_.size() && depth > 0) {
         if (peek() == '%' && peek(1) == '}') {
-            depth--;
-            advance(); // '%'
-            advance(); // '}'
+            // check that %} is at the beginning of its line
+            bool atLineStart = true;
+            for (size_t i = pos_; i > 0; i--) {
+                char ch = src_[i - 1];
+                if (ch == '\n')
+                    break;
+                if (ch != ' ' && ch != '\t') {
+                    atLineStart = false;
+                    break;
+                }
+            }
+            if (atLineStart) {
+                depth--;
+                advance(); // '%'
+                advance(); // '}'
+            } else {
+                advance(); // skip '%', treat as regular content
+            }
         } else if (peek() == '%' && peek(1) == '{') {
-            depth++;
-            advance(); // '%'
-            advance(); // '{'
+            // check that nested %{ is at the beginning of its line
+            bool atLineStart = true;
+            for (size_t i = pos_; i > 0; i--) {
+                char ch = src_[i - 1];
+                if (ch == '\n')
+                    break;
+                if (ch != ' ' && ch != '\t') {
+                    atLineStart = false;
+                    break;
+                }
+            }
+            if (atLineStart) {
+                depth++;
+                advance(); // '%'
+                advance(); // '{'
+                // skip rest of nested %{ line
+                while (pos_ < src_.size() && peek() != '\n')
+                    advance();
+                if (pos_ < src_.size())
+                    advance(); // '\n'
+            } else {
+                advance(); // skip '%', treat as regular content
+            }
         } else {
             advance();
         }
@@ -282,7 +330,6 @@ void Lexer::skipSpacesAndComments()
             // line continuation (...)
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
-            // skip the newline itself — advance() updates line_/col_
             if (pos_ < src_.size())
                 advance();
         } else {
@@ -298,15 +345,12 @@ void Lexer::validateUnderscores(size_t start, size_t end, int startLine, int sta
     if (start >= end)
         return;
 
-    // no leading underscore in digit group
     if (src_[start] == '_')
         error("Number literal cannot start digit group with underscore", startLine, startCol);
 
-    // no trailing underscore
     if (src_[end - 1] == '_')
         error("Number literal cannot end with underscore", startLine, startCol);
 
-    // no consecutive underscores
     for (size_t i = start; i + 1 < end; i++) {
         if (src_[i] == '_' && src_[i + 1] == '_')
             error("Number literal cannot have consecutive underscores", startLine, startCol);
@@ -377,7 +421,6 @@ void Lexer::readNumber()
 
     // ── Decimal / float ──
 
-    // integer part (may be empty if number starts with '.')
     size_t intStart = pos_;
     while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
         if (peek() != '_')
@@ -387,15 +430,12 @@ void Lexer::readNumber()
     if (pos_ > intStart)
         validateUnderscores(intStart, pos_, startLine, startCol);
 
-    // fractional part
     if (pos_ < src_.size() && peek() == '.') {
         char next = peek(1);
 
-        // don't consume dot if followed by dot-operator (.* ./ .^ .' .\ ..)
         bool isDotOperator = (next == '*' || next == '/' || next == '^' || next == '\''
                               || next == '\\' || next == '.');
 
-        // don't consume dot if followed by letter (field access) — except e/E (exponent)
         bool isFieldAccess = (isAlpha(next) && next != 'e' && next != 'E') || next == '('
                              || next == '[';
 
@@ -412,13 +452,11 @@ void Lexer::readNumber()
         }
     }
 
-    // must have at least one digit before exponent
     if (!hasDigits)
         error("Invalid number literal", startLine, startCol);
 
-    // exponent
     if (pos_ < src_.size() && (peek() == 'e' || peek() == 'E')) {
-        advance(); // 'e' / 'E'
+        advance();
         if (pos_ < src_.size() && (peek() == '+' || peek() == '-'))
             advance();
         if (pos_ >= src_.size() || !isDigit(peek()))
@@ -430,7 +468,6 @@ void Lexer::readNumber()
             validateUnderscores(expStart, pos_, startLine, startCol);
     }
 
-    // imaginary suffix
     if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
         char afterSuffix = peek(1);
         if (!isAlnum(afterSuffix) && afterSuffix != '_') {
@@ -447,17 +484,16 @@ void Lexer::readNumber()
 
 void Lexer::readString(int startLine, int startCol)
 {
-    advance(); // skip opening '
+    advance();
     std::string s;
     while (pos_ < src_.size()) {
         if (peek() == '\'') {
             if (peek(1) == '\'') {
-                // escape: '' → '
                 s += '\'';
                 advance();
                 advance();
             } else {
-                advance(); // closing '
+                advance();
                 addToken(TokenType::STRING, s, startLine, startCol);
                 return;
             }
@@ -474,23 +510,21 @@ void Lexer::readString(int startLine, int startCol)
 
 void Lexer::readDoubleQuotedString(int startLine, int startCol)
 {
-    advance(); // skip opening "
+    advance();
     std::string s;
     while (pos_ < src_.size()) {
         if (peek() == '"') {
             if (peek(1) == '"') {
-                // MATLAB-style: "" → "
                 s += '"';
                 advance();
                 advance();
             } else {
-                advance(); // closing "
+                advance();
                 addToken(TokenType::STRING, s, startLine, startCol);
                 return;
             }
         } else if (peek() == '\\') {
-            // escape sequences in double-quoted strings
-            advance(); // skip backslash
+            advance();
             if (pos_ >= src_.size())
                 error("Unterminated string literal", startLine, startCol);
             char esc = advance();
@@ -511,7 +545,6 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
                 s += '"';
                 break;
             default:
-                // unknown escape — keep as-is (MATLAB behavior)
                 s += '\\';
                 s += esc;
                 break;
@@ -623,7 +656,6 @@ bool Lexer::readOperator()
     case '~':
         if (c2 == '=')
             return twoChar(TokenType::NEQ, "~=");
-        // TILDE: parser decides if it's NOT or ignore-output
         return oneChar(TokenType::TILDE, "~");
     case '<':
         if (c2 == '=')
@@ -687,19 +719,16 @@ std::vector<Token> Lexer::tokenize()
 
         char c = peek();
 
-        // ── Newline ──
         if (c == '\n') {
             int nl = line_;
             int nc = col_;
 
             if (bracketDepth() > 0) {
                 if (inMatrixContext()) {
-                    // inside [] or {}: newline = row separator (;)
                     if (!tokens_.empty() && isValueToken(tokens_.back().type)) {
                         addToken(TokenType::SEMICOLON, ";", nl, nc);
                     }
                 }
-                // inside (): newline silently ignored
             } else {
                 addToken(TokenType::NEWLINE, "\\n", nl, nc);
             }
@@ -707,13 +736,11 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
-        // ── Number (starts with digit or '.' before digit) ──
         if (isDigit(c) || (c == '.' && pos_ + 1 < src_.size() && isDigit(src_[pos_ + 1]))) {
             readNumber();
             continue;
         }
 
-        // ── Single quote: string or transpose ──
         if (c == '\'') {
             if (isTransposeContext()) {
                 addToken(TokenType::APOSTROPHE, "'", line_, col_);
@@ -724,26 +751,22 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
-        // ── Double quote: string ──
         if (c == '"') {
             readDoubleQuotedString(line_, col_);
             continue;
         }
 
-        // ── Identifier / keyword ──
         if (isAlpha(c) || c == '_') {
             readIdentifier();
             continue;
         }
 
-        // ── Operator / punctuation ──
         if (readOperator())
             continue;
 
         error("Unexpected character '" + std::string(1, c) + "'");
     }
 
-    // check for unclosed brackets
     if (!bracketStack_.empty()) {
         error("Unclosed bracket '" + std::string(1, bracketStack_.back()) + "'");
     }
