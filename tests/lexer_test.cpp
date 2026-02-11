@@ -164,30 +164,40 @@ TEST(Lexer, OctalNumber)
 // Числа с подчёркиваниями (MATLAB R2019b+)
 // ============================================================
 
-TEST(Lexer, NumberWithUnderscores)
-{
-    expectSingleToken("1_000_000", TokenType::NUMBER, "1_000_000");
-}
-
-TEST(Lexer, HexWithUnderscores)
-{
-    expectSingleToken("0xFF_FF", TokenType::NUMBER, "0xFF_FF");
-}
-
+// Подчёркивание в начале группы цифр
 TEST(Lexer, NumberLeadingUnderscoreError)
 {
-    EXPECT_ANY_THROW(lex("_123")); // это identifier, не число — может не бросать
-    // Если _123 — валидный идентификатор, замени на другой кейс:
+    EXPECT_ANY_THROW(lex("1_000._5")); // _ в начале дробной части
+    EXPECT_ANY_THROW(lex("0x_FF"));    // _ сразу после префикса 0x
+    EXPECT_ANY_THROW(lex("0b_101"));   // _ сразу после префикса 0b
+    EXPECT_ANY_THROW(lex("0o_77"));    // _ сразу после префикса 0o
 }
 
+// Подчёркивание в конце числа
 TEST(Lexer, NumberTrailingUnderscoreError)
 {
-    EXPECT_ANY_THROW(lex("123_"));
+    EXPECT_ANY_THROW(lex("1_000_"));
+    EXPECT_ANY_THROW(lex("3.14_"));
+    EXPECT_ANY_THROW(lex("0xFF_"));
 }
 
+// Двойное подчёркивание
 TEST(Lexer, NumberDoubleUnderscoreError)
 {
-    EXPECT_ANY_THROW(lex("1__2"));
+    EXPECT_ANY_THROW(lex("1__000"));
+    EXPECT_ANY_THROW(lex("0x__FF"));
+    EXPECT_ANY_THROW(lex("3.14__15"));
+}
+
+// Валидные числа с подчёркиваниями (для контраста)
+TEST(Lexer, NumberValidUnderscores)
+{
+    expectSingleToken("1_000", TokenType::NUMBER, "1_000");
+    expectSingleToken("1_000_000", TokenType::NUMBER, "1_000_000");
+    expectSingleToken("0xFF_FF", TokenType::NUMBER, "0xFF_FF");
+    expectSingleToken("0b1010_0101", TokenType::NUMBER, "0b1010_0101");
+    expectSingleToken("0o77_77", TokenType::NUMBER, "0o77_77");
+    expectSingleToken("3.14_15", TokenType::NUMBER, "3.14_15");
 }
 
 // ============================================================
@@ -338,6 +348,8 @@ TEST(Lexer, DotApostrophe)
 // Идентификаторы
 // ============================================================
 
+// ─── Базовые идентификаторы ─────────────────────────────────────────────
+
 TEST(Lexer, IdentifierSimple)
 {
     expectSingleToken("myVar", TokenType::IDENTIFIER, "myVar");
@@ -363,6 +375,69 @@ TEST(Lexer, IdentifierAllCaps)
     expectSingleToken("MAX_SIZE", TokenType::IDENTIFIER, "MAX_SIZE");
 }
 
+// ─── Дополнительные случаи ──────────────────────────────────────────────
+
+TEST(Lexer, IdentifierSingleChar)
+{
+    expectSingleToken("x", TokenType::IDENTIFIER, "x");
+}
+
+TEST(Lexer, IdentifierSingleUnderscore)
+{
+    expectSingleToken("_", TokenType::IDENTIFIER, "_");
+}
+
+TEST(Lexer, IdentifierUnderscoreDigits)
+{
+    expectSingleToken("_123", TokenType::IDENTIFIER, "_123");
+}
+
+TEST(Lexer, IdentifierMultipleUnderscores)
+{
+    expectSingleToken("__init__", TokenType::IDENTIFIER, "__init__");
+}
+
+TEST(Lexer, IdentifierTrailingUnderscore)
+{
+    expectSingleToken("value_", TokenType::IDENTIFIER, "value_");
+}
+
+TEST(Lexer, IdentifierLong)
+{
+    expectSingleToken("myVeryLongVariableName_42",
+                      TokenType::IDENTIFIER,
+                      "myVeryLongVariableName_42");
+}
+
+// ─── Не путать с ключевыми словами ─────────────────────────────────────
+
+TEST(Lexer, IdentifierKeywordPrefix)
+{
+    expectSingleToken("iffy", TokenType::IDENTIFIER, "iffy");
+}
+
+TEST(Lexer, IdentifierKeywordSuffix)
+{
+    expectSingleToken("myend", TokenType::IDENTIFIER, "myend");
+}
+
+TEST(Lexer, IdentifierKeywordWithUnderscore)
+{
+    expectSingleToken("end_idx", TokenType::IDENTIFIER, "end_idx");
+}
+
+// ─── Невалидные: начинаются с цифры (лексер читает как число) ───────────
+
+TEST(Lexer, IdentifierStartsWithDigitIsNumber)
+{
+    // "2abc" → NUMBER "2" + IDENTIFIER "abc", не один токен
+    auto tokens = lex("2abc");
+    ASSERT_GE(tokens.size(), 2u);
+    EXPECT_EQ(tokens[0].type, TokenType::NUMBER);
+    EXPECT_EQ(tokens[0].value, "2");
+    EXPECT_EQ(tokens[1].type, TokenType::IDENTIFIER);
+    EXPECT_EQ(tokens[1].value, "abc");
+}
 // ============================================================
 // Ключевые слова
 // ============================================================

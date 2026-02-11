@@ -5,7 +5,7 @@
 
 namespace mlab {
 
-// ─── safe ctype wrappers (avoid UB with signed char > 127) ──────────────
+// ─── safe ctype wrappers ────────────────────────────────────────────────
 
 bool Lexer::isDigit(char c)
 {
@@ -143,7 +143,6 @@ bool Lexer::isAtLineStart(size_t position) const
         if (ch != ' ' && ch != '\t')
             return false;
     }
-    // reached start of file
     return true;
 }
 
@@ -198,8 +197,15 @@ void Lexer::insertImplicitComma()
 
     char next = src_[scanPos];
 
-    if (next == '+' || next == '-')
+    if (next == '+' || next == '-') {
+        size_t afterOp = scanPos + 1;
+        bool spaceAfterOp = (afterOp < src_.size()
+                             && (src_[afterOp] == ' ' || src_[afterOp] == '\t'));
+        if (!spaceAfterOp) {
+            addToken(TokenType::COMMA, ",", line_, col_);
+        }
         return;
+    }
 
     if (next == '.') {
         char afterDot = (scanPos + 1 < src_.size()) ? src_[scanPos + 1] : '\0';
@@ -207,9 +213,8 @@ void Lexer::insertImplicitComma()
             return;
     }
 
-    bool nextIsValue = isDigit(next) || isAlpha(next) || next == '_' || next == '(' || next == '['
-                       || next == '{' || next == '\'' || next == '"' || next == '~' || next == '@'
-                       || next == '.';
+    bool nextIsValue = isDigit(next) || isAlpha(next) || next == '(' || next == '[' || next == '{'
+                       || next == '\'' || next == '"' || next == '~' || next == '@' || next == '.';
 
     if (nextIsValue) {
         addToken(TokenType::COMMA, ",", line_, col_);
@@ -223,7 +228,6 @@ void Lexer::skipBlockComment()
     advance(); // '%'
     advance(); // '{'
 
-    // skip rest of the %{ line
     while (pos_ < src_.size() && peek() != '\n')
         advance();
     if (pos_ < src_.size())
@@ -239,7 +243,6 @@ void Lexer::skipBlockComment()
             depth++;
             advance(); // '%'
             advance(); // '{'
-            // skip rest of nested %{ line
             while (pos_ < src_.size() && peek() != '\n')
                 advance();
             if (pos_ < src_.size())
@@ -252,7 +255,6 @@ void Lexer::skipBlockComment()
     if (depth > 0)
         error("Unterminated block comment");
 
-    // skip rest of the %} line
     while (pos_ < src_.size() && peek() != '\n')
         advance();
 }
@@ -366,10 +368,34 @@ void Lexer::readNumber()
         return;
     }
 
+    // ── Octal: 0o... ──
+    if (peek() == '0' && (peek(1) == 'o' || peek(1) == 'O')) {
+        advance();
+        advance();
+        if (pos_ >= src_.size() || peek() < '0' || peek() > '7')
+            error("Invalid octal literal", startLine, startCol);
+        size_t digitStart = pos_;
+        while (pos_ < src_.size() && ((peek() >= '0' && peek() <= '7') || peek() == '_'))
+            advance();
+        validateUnderscores(digitStart, pos_, startLine, startCol);
+        if (pos_ < src_.size() && (peek() == 'i' || peek() == 'j')) {
+            char afterSuffix = peek(1);
+            if (!isAlnum(afterSuffix) && afterSuffix != '_') {
+                advance();
+                addToken(TokenType::IMAG_NUMBER,
+                         src_.substr(start, pos_ - start),
+                         startLine,
+                         startCol);
+                return;
+            }
+        }
+        addToken(TokenType::NUMBER, src_.substr(start, pos_ - start), startLine, startCol);
+        return;
+    }
+
     // ── Decimal / float ──
     bool hasDigits = false;
 
-    // integer part (may be empty if number starts with '.')
     size_t intStart = pos_;
     while (pos_ < src_.size() && (isDigit(peek()) || peek() == '_')) {
         if (peek() != '_')
@@ -386,8 +412,7 @@ void Lexer::readNumber()
         bool isDotOperator = (next == '*' || next == '/' || next == '^' || next == '\''
                               || next == '\\' || next == '.');
 
-        bool isFieldAccess = (isAlpha(next) && next != 'e' && next != 'E') || next == '('
-                             || next == '[';
+        bool isFieldAccess = (isAlpha(next) && next != 'e' && next != 'E');
 
         if (!isDotOperator && !isFieldAccess) {
             advance(); // '.'
@@ -495,6 +520,21 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
                 break;
             case '"':
                 s += '"';
+                break;
+            case '0':
+                s += '\0';
+                break;
+            case 'a':
+                s += '\a';
+                break;
+            case 'b':
+                s += '\b';
+                break;
+            case 'f':
+                s += '\f';
+                break;
+            case 'v':
+                s += '\v';
                 break;
             default:
                 s += '\\';
@@ -688,7 +728,9 @@ std::vector<Token> Lexer::tokenize()
             continue;
         }
 
-        if (isDigit(c) || (c == '.' && pos_ + 1 < src_.size() && isDigit(src_[pos_ + 1]))) {
+        if (isDigit(c)
+            || (c == '.' && pos_ + 1 < src_.size() && isDigit(src_[pos_ + 1])
+                && !isTransposeContext())) {
             readNumber();
             continue;
         }
