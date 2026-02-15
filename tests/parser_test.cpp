@@ -88,6 +88,41 @@ TEST_F(ParserNumberLiteralTest, HexLiteral)
     EXPECT_DOUBLE_EQ(s.children[0]->numValue, 255.0);
 }
 
+TEST_F(ParserNumberLiteralTest, BinaryLiteral)
+{
+    auto ast = parseSource("0b1010;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 10.0);
+}
+
+TEST_F(ParserNumberLiteralTest, OctalLiteral)
+{
+    auto ast = parseSource("0o17;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 15.0);
+}
+
+TEST_F(ParserNumberLiteralTest, UnderscoreLiteral)
+{
+    auto ast = parseSource("1_000;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 1000.0);
+}
+
+TEST_F(ParserNumberLiteralTest, MultiUnderscoreLiteral)
+{
+    auto ast = parseSource("1_000_000;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 1000000.0);
+}
+
 TEST_F(ParserNumberLiteralTest, NegativeExponent)
 {
     auto ast = parseSource("2.5e-3;");
@@ -350,6 +385,42 @@ TEST_F(ParserPrecedenceTest, ShortCircuitAndOr)
     EXPECT_EQ(expr.children[1]->strValue, "&&");
 }
 
+TEST_F(ParserPrecedenceTest, ElementAndHigherThanShortCircuit)
+{
+    // a && b | c → &&(a, |(b,c))
+    // В MATLAB: | имеет более высокий приоритет, чем &&
+    auto ast = parseSource("a && b | c;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.strValue, "&&");
+    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[1]->strValue, "|");
+}
+
+TEST_F(ParserPrecedenceTest, ElementOrHigherThanShortCircuitAnd)
+{
+    // a || b | c → ||(a, |(b,c))
+    auto ast = parseSource("a || b | c;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.strValue, "||");
+    EXPECT_EQ(expr.children[1]->strValue, "|");
+}
+
+TEST_F(ParserPrecedenceTest, AllFourLogicalLevels)
+{
+    // a || b && c | d & e
+    // Парсится как: a || (b && (c | (d & e)))
+    auto ast = parseSource("a || b && c | d & e;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.strValue, "||");                                       // ||
+    EXPECT_EQ(expr.children[1]->strValue, "&&");                          // &&
+    EXPECT_EQ(expr.children[1]->children[1]->strValue, "|");              // |
+    EXPECT_EQ(expr.children[1]->children[1]->children[1]->strValue, "&"); // &
+}
+
 TEST_F(ParserPrecedenceTest, UnaryMinusVsPower)
 {
     // В MATLAB: -2^2 = -(2^2) = -4 (а не (-2)^2 = 4)
@@ -483,13 +554,15 @@ TEST_F(ParserUnaryOpTest, UnaryMinus)
 
 TEST_F(ParserUnaryOpTest, UnaryPlus)
 {
-    // Парсер оптимизирует unary + — пропускает его, возвращая операнд.
-    // Это допустимо, т.к. uplus(x) == x для всех числовых типов MATLAB.
+    // FIX: unary plus теперь создаёт узел UNARY_OP (для совместимости с uplus)
     auto ast = parseSource("+x;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::IDENTIFIER);
-    EXPECT_EQ(expr.strValue, "x");
+    EXPECT_EQ(expr.type, NodeType::UNARY_OP);
+    EXPECT_EQ(expr.strValue, "+");
+    ASSERT_EQ(expr.children.size(), 1u);
+    EXPECT_EQ(expr.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.children[0]->strValue, "x");
 }
 
 TEST_F(ParserUnaryOpTest, LogicalNot)
@@ -614,10 +687,21 @@ TEST_F(ParserAssignTest, MultiAssignThreeOutputs)
 
 TEST_F(ParserAssignTest, DeleteAssign)
 {
-    // x = [] — удаление переменной (MATLAB-идиома)
+    // x = [] — обычное присваивание пустой матрицы (не delete)
     auto ast = parseSource("x = [];");
     const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[1]->type, NodeType::MATRIX_LITERAL);
+    EXPECT_EQ(s.children[1]->children.size(), 0u); // пустая матрица
+}
+
+TEST_F(ParserAssignTest, IndexedDeleteAssign)
+{
+    // A(1:3) = [] — удаление элементов (DELETE_ASSIGN)
+    auto ast = parseSource("A(1:3) = [];");
+    const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::DELETE_ASSIGN);
+    EXPECT_EQ(s.children[0]->type, NodeType::CALL);
 }
 
 // ============================================================

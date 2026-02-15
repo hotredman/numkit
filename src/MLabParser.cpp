@@ -1,4 +1,5 @@
 #include "MLabParser.hpp"
+#include <algorithm>
 #include <stdexcept>
 
 namespace mlab {
@@ -38,10 +39,11 @@ const Token &Parser::current() const
 
 const Token &Parser::peekToken(int off) const
 {
-    size_t p = pos_ + static_cast<size_t>(off);
-    if (p >= tokens_.size())
+    // FIX #13: безопасная обработка отрицательных offset
+    long long p = static_cast<long long>(pos_) + off;
+    if (p < 0 || static_cast<size_t>(p) >= tokens_.size())
         return tokens_.back();
-    return tokens_[p];
+    return tokens_[static_cast<size_t>(p)];
 }
 
 bool Parser::isAtEnd() const
@@ -98,13 +100,42 @@ bool Parser::isTerminator(std::initializer_list<TokenType> terminators) const
 }
 
 // ============================================================
-// Безопасный парсинг числа (чистая функция)
+// FIX #2: Полноценный парсинг числовых литералов
+// Обрабатывает hex (0x), binary (0b), octal (0o), подчёркивания
 // ============================================================
 
 double Parser::parseDouble(const std::string &text, int line, int col)
 {
+    // Убираем подчёркивания и суффикс i/j (для мнимых)
+    std::string clean;
+    clean.reserve(text.size());
+    for (char c : text) {
+        if (c != '_')
+            clean += c;
+    }
+
+    // Убрать суффикс i/j (IMAG_LITERAL)
+    if (!clean.empty() && (clean.back() == 'i' || clean.back() == 'j'))
+        clean.pop_back();
+
+    if (clean.empty()) {
+        throw std::runtime_error("Invalid number literal '" + text + "' at line "
+                                 + std::to_string(line) + " col " + std::to_string(col));
+    }
+
     try {
-        return std::stod(text);
+        // Binary: 0b...
+        if (clean.size() > 2 && clean[0] == '0' && (clean[1] == 'b' || clean[1] == 'B')) {
+            return static_cast<double>(std::stoull(clean.substr(2), nullptr, 2));
+        }
+
+        // Octal: 0o...
+        if (clean.size() > 2 && clean[0] == '0' && (clean[1] == 'o' || clean[1] == 'O')) {
+            return static_cast<double>(std::stoull(clean.substr(2), nullptr, 8));
+        }
+
+        // Hex и decimal — std::stod обрабатывает оба
+        return std::stod(clean);
     } catch (const std::exception &) {
         throw std::runtime_error("Invalid number literal '" + text + "' at line "
                                  + std::to_string(line) + " col " + std::to_string(col));
@@ -194,14 +225,31 @@ ASTNodePtr Parser::parseExpressionStatement()
 
     if (check(TokenType::ASSIGN)) {
         pos_++;
-        // a = [] — удаление
+
+        // FIX #12: Различаем x = [] (обычное присваивание пустой матрицы)
+        // и A(idx) = [] (удаление элементов)
         if (check(TokenType::LBRACKET) && peekToken(1).type == TokenType::RBRACKET) {
             pos_ += 2;
-            auto node = makeNode(NodeType::DELETE_ASSIGN, startLine, startCol);
-            node->children.push_back(std::move(expr));
-            node->suppressOutput = match(TokenType::SEMICOLON);
-            skipNewlines();
-            return node;
+            // Если LHS — индексное выражение (CALL/CELL_INDEX/FIELD_ACCESS),
+            // то это удаление элементов. Иначе — обычное присваивание [].
+            bool isIndexedLhs = (expr->type == NodeType::CALL || expr->type == NodeType::CELL_INDEX
+                                 || expr->type == NodeType::FIELD_ACCESS);
+            if (isIndexedLhs) {
+                auto node = makeNode(NodeType::DELETE_ASSIGN, startLine, startCol);
+                node->children.push_back(std::move(expr));
+                node->suppressOutput = match(TokenType::SEMICOLON);
+                skipNewlines();
+                return node;
+            } else {
+                // x = [] — обычное присваивание пустой матрицы
+                auto emptyMat = makeNode(NodeType::MATRIX_LITERAL, startLine, startCol);
+                auto node = makeNode(NodeType::ASSIGN, startLine, startCol);
+                node->children.push_back(std::move(expr));
+                node->children.push_back(std::move(emptyMat));
+                node->suppressOutput = match(TokenType::SEMICOLON);
+                skipNewlines();
+                return node;
+            }
         }
         auto rhs = parseExpression();
         auto node = makeNode(NodeType::ASSIGN, startLine, startCol);
@@ -507,33 +555,72 @@ ASTNodePtr Parser::parseBlock(std::initializer_list<TokenType> terminators)
 
 // ============================================================
 // Expressions
+// FIX #1: Правильные приоритеты MATLAB (от низкого к высокому):
+//   ||  →  &&  →  |  →  &  →  == ~= < > <= >=  →  :
+//   →  + -  →  * / \ .* ./ .\  →  - ~ +  →  ^ .^  →  postfix
 // ============================================================
 
 ASTNodePtr Parser::parseExpression()
 {
-    return parseOr();
+    return parseShortCircuitOr();
 }
 
-ASTNodePtr Parser::parseOr()
+// || (short-circuit OR) — самый низкий приоритет
+ASTNodePtr Parser::parseShortCircuitOr()
 {
-    auto left = parseAnd();
-    while (check(TokenType::OR) || check(TokenType::OR_SHORT)) {
+    auto left = parseShortCircuitAnd();
+    while (check(TokenType::OR_SHORT)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
         pos_++;
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
-        n->children.push_back(parseAnd());
+        n->children.push_back(parseShortCircuitAnd());
         left = std::move(n);
     }
     return left;
 }
 
-ASTNodePtr Parser::parseAnd()
+// && (short-circuit AND)
+ASTNodePtr Parser::parseShortCircuitAnd()
+{
+    auto left = parseElementOr();
+    while (check(TokenType::AND_SHORT)) {
+        auto [ln, cl] = loc();
+        std::string op = current().value;
+        pos_++;
+        auto n = makeNode(NodeType::BINARY_OP, ln, cl);
+        n->strValue = std::move(op);
+        n->children.push_back(std::move(left));
+        n->children.push_back(parseElementOr());
+        left = std::move(n);
+    }
+    return left;
+}
+
+// | (element-wise OR)
+ASTNodePtr Parser::parseElementOr()
+{
+    auto left = parseElementAnd();
+    while (check(TokenType::OR)) {
+        auto [ln, cl] = loc();
+        std::string op = current().value;
+        pos_++;
+        auto n = makeNode(NodeType::BINARY_OP, ln, cl);
+        n->strValue = std::move(op);
+        n->children.push_back(std::move(left));
+        n->children.push_back(parseElementAnd());
+        left = std::move(n);
+    }
+    return left;
+}
+
+// & (element-wise AND)
+ASTNodePtr Parser::parseElementAnd()
 {
     auto left = parseComparison();
-    while (check(TokenType::AND) || check(TokenType::AND_SHORT)) {
+    while (check(TokenType::AND)) {
         auto [ln, cl] = loc();
         std::string op = current().value;
         pos_++;
@@ -620,6 +707,7 @@ ASTNodePtr Parser::parseMulDiv()
     return left;
 }
 
+// FIX #4: unary plus создаёт узел AST (для совместимости с uplus)
 ASTNodePtr Parser::parseUnary()
 {
     if (check(TokenType::MINUS)) {
@@ -639,8 +727,12 @@ ASTNodePtr Parser::parseUnary()
         return n;
     }
     if (check(TokenType::PLUS)) {
+        auto [ln, cl] = loc();
         pos_++;
-        return parsePower();
+        auto n = makeNode(NodeType::UNARY_OP, ln, cl);
+        n->strValue = "+";
+        n->children.push_back(parsePower());
+        return n;
     }
     return parsePower();
 }
@@ -655,7 +747,7 @@ ASTNodePtr Parser::parsePower()
         auto n = makeNode(NodeType::BINARY_OP, ln, cl);
         n->strValue = std::move(op);
         n->children.push_back(std::move(left));
-        n->children.push_back(parseUnary());
+        n->children.push_back(parseUnary()); // правоассоциативность
         return n;
     }
     return left;

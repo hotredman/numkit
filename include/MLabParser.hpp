@@ -54,17 +54,19 @@ private:
     ASTNodePtr parseGlobalPersistent();
     ASTNodePtr parseBlock(std::initializer_list<TokenType> terminators);
 
-    // — Expressions —
+    // — Expressions (MATLAB precedence, low to high) —
     ASTNodePtr parseExpression();
-    ASTNodePtr parseOr();
-    ASTNodePtr parseAnd();
-    ASTNodePtr parseComparison();
-    ASTNodePtr parseColon();
-    ASTNodePtr parseAddSub();
-    ASTNodePtr parseMulDiv();
-    ASTNodePtr parseUnary();
-    ASTNodePtr parsePower();
-    ASTNodePtr parsePostfix();
+    ASTNodePtr parseShortCircuitOr();  // ||
+    ASTNodePtr parseShortCircuitAnd(); // &&
+    ASTNodePtr parseElementOr();       // |
+    ASTNodePtr parseElementAnd();      // &
+    ASTNodePtr parseComparison();      // == ~= < > <= >=
+    ASTNodePtr parseColon();           // :
+    ASTNodePtr parseAddSub();          // + -
+    ASTNodePtr parseMulDiv();          // * / .* ./
+    ASTNodePtr parseUnary();           // - ~ +
+    ASTNodePtr parsePower();           // ^ .^
+    ASTNodePtr parsePostfix();         // () {} . ' .'
     ASTNodePtr parsePrimary();
 
     // — Литералы —
