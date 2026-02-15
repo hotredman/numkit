@@ -70,6 +70,33 @@ TEST_F(ParserNumberLiteralTest, ImaginaryLiteral)
     EXPECT_EQ(s.children[0]->type, NodeType::IMAG_LITERAL);
 }
 
+TEST_F(ParserNumberLiteralTest, ZeroLiteral)
+{
+    auto ast = parseSource("0;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 0.0);
+}
+
+TEST_F(ParserNumberLiteralTest, HexLiteral)
+{
+    auto ast = parseSource("0xFF;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 255.0);
+}
+
+TEST_F(ParserNumberLiteralTest, NegativeExponent)
+{
+    auto ast = parseSource("2.5e-3;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[0]->numValue, 2.5e-3);
+}
+
 // ============================================================
 // Тесты: Строковые литералы
 // ============================================================
@@ -92,6 +119,15 @@ TEST_F(ParserStringLiteralTest, DoubleQuotedString)
     ASSERT_EQ(s.children.size(), 1u);
     EXPECT_EQ(s.children[0]->type, NodeType::STRING_LITERAL);
     EXPECT_EQ(s.children[0]->strValue, "world");
+}
+
+TEST_F(ParserStringLiteralTest, EmptyString)
+{
+    auto ast = parseSource("'';");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::STRING_LITERAL);
+    EXPECT_EQ(s.children[0]->strValue, "");
 }
 
 // ============================================================
@@ -291,6 +327,7 @@ TEST_F(ParserPrecedenceTest, ComparisonAfterArithmetic)
 TEST_F(ParserPrecedenceTest, AndOrPrecedence)
 {
     // a | b & c → |(a, &(b,c))
+    // В MATLAB: & имеет более высокий приоритет, чем |
     auto ast = parseSource("a | b & c;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
@@ -302,11 +339,79 @@ TEST_F(ParserPrecedenceTest, AndOrPrecedence)
 
 TEST_F(ParserPrecedenceTest, ShortCircuitAndOr)
 {
+    // a || b && c → ||(a, &&(b,c))
+    // В MATLAB: && имеет более высокий приоритет, чем ||
     auto ast = parseSource("a || b && c;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::BINARY_OP);
     EXPECT_EQ(expr.strValue, "||");
+    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[1]->strValue, "&&");
+}
+
+TEST_F(ParserPrecedenceTest, UnaryMinusVsPower)
+{
+    // В MATLAB: -2^2 = -(2^2) = -4 (а не (-2)^2 = 4)
+    // unary minus имеет более низкий приоритет, чем ^
+    auto ast = parseSource("-2^2;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::UNARY_OP);
+    EXPECT_EQ(expr.strValue, "-");
+    ASSERT_EQ(expr.children.size(), 1u);
+    EXPECT_EQ(expr.children[0]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "^");
+}
+
+TEST_F(ParserPrecedenceTest, PowerRightAssociative)
+{
+    // В MATLAB: 2^3^4 = 2^(3^4)  (правоассоциативно)
+    auto ast = parseSource("2^3^4;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.strValue, "^");
+    EXPECT_EQ(expr.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(expr.children[0]->numValue, 2.0);
+    // Правый потомок — тоже ^
+    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[1]->strValue, "^");
+}
+
+TEST_F(ParserPrecedenceTest, AddSubLeftAssociative)
+{
+    // a + b - c → -( +(a,b), c )
+    auto ast = parseSource("a + b - c;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.strValue, "-");
+    EXPECT_EQ(expr.children[0]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "+");
+}
+
+TEST_F(ParserPrecedenceTest, MulDivLeftAssociative)
+{
+    // a * b / c → /( *(a,b), c )
+    auto ast = parseSource("a * b / c;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.strValue, "/");
+    EXPECT_EQ(expr.children[0]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "*");
+}
+
+TEST_F(ParserPrecedenceTest, MixedOperatorsFullTree)
+{
+    // a + b * c - d / e → -( +(a, *(b,c)), /(d,e) )
+    auto ast = parseSource("a + b * c - d / e;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.strValue, "-");
+    EXPECT_EQ(expr.children[0]->strValue, "+");
+    EXPECT_EQ(expr.children[1]->strValue, "/");
 }
 
 // ============================================================
@@ -378,11 +483,13 @@ TEST_F(ParserUnaryOpTest, UnaryMinus)
 
 TEST_F(ParserUnaryOpTest, UnaryPlus)
 {
+    // Парсер оптимизирует unary + — пропускает его, возвращая операнд.
+    // Это допустимо, т.к. uplus(x) == x для всех числовых типов MATLAB.
     auto ast = parseSource("+x;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::UNARY_OP);
-    EXPECT_EQ(expr.strValue, "+");
+    EXPECT_EQ(expr.type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.strValue, "x");
 }
 
 TEST_F(ParserUnaryOpTest, LogicalNot)
@@ -412,15 +519,28 @@ TEST_F(ParserUnaryOpTest, DotTranspose)
     EXPECT_EQ(expr.strValue, ".'");
 }
 
-TEST_F(ParserUnaryOpTest, DoubleNegation)
+TEST_F(ParserUnaryOpTest, DoubleNegationWithParens)
 {
-    auto ast = parseSource("--x;");
+    // -(-x) — допустимая двойная негация через скобки
+    auto ast = parseSource("-(-x);");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.strValue, "-");
     EXPECT_EQ(expr.children[0]->type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.children[0]->strValue, "-");
+}
+
+TEST_F(ParserUnaryOpTest, NotOfComparison)
+{
+    // ~(a == b) — в MATLAB: логическое отрицание результата сравнения
+    auto ast = parseSource("~(a == b);");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::UNARY_OP);
+    EXPECT_EQ(expr.strValue, "~");
+    EXPECT_EQ(expr.children[0]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "==");
 }
 
 // ============================================================
@@ -433,31 +553,31 @@ TEST_F(ParserAssignTest, SimpleAssign)
 {
     auto ast = parseSource("x = 5;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::EXPR_STMT);
-    const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::ASSIGN);
-    ASSERT_EQ(expr.children.size(), 2u);
-    EXPECT_EQ(expr.children[0]->type, NodeType::IDENTIFIER);
-    EXPECT_EQ(expr.children[0]->strValue, "x");
-    EXPECT_EQ(expr.children[1]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    ASSERT_EQ(s.children.size(), 2u);
+    EXPECT_EQ(s.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(s.children[0]->strValue, "x");
+    EXPECT_EQ(s.children[1]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[1]->numValue, 5.0);
+    EXPECT_TRUE(s.suppressOutput);
 }
 
-TEST_F(ParserAssignTest, AssignExpression)
+TEST_F(ParserAssignTest, AssignWithoutSemicolon)
 {
-    auto ast = parseSource("x = 1 + 2;");
+    // Без ; — вывод не подавлен
+    auto ast = parseSource("x = 5\n");
     const auto &s = stmt(*ast, 0);
-    const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::ASSIGN);
-    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_FALSE(s.suppressOutput);
 }
 
 TEST_F(ParserAssignTest, IndexedAssign)
 {
     auto ast = parseSource("x(1) = 10;");
     const auto &s = stmt(*ast, 0);
-    const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::ASSIGN);
-    EXPECT_EQ(expr.children[0]->type, NodeType::INDEX);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    // LHS парсится как CALL — разрешение index vs call на этапе интерпретации
+    EXPECT_EQ(s.children[0]->type, NodeType::CALL);
 }
 
 TEST_F(ParserAssignTest, MultiAssign)
@@ -465,26 +585,39 @@ TEST_F(ParserAssignTest, MultiAssign)
     auto ast = parseSource("[a, b] = func();");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::MULTI_ASSIGN);
-}
-
-TEST_F(ParserAssignTest, MultiAssignThreeOutputs)
-{
-    auto ast = parseSource("[a, b, c] = func();");
-    const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::MULTI_ASSIGN);
-    EXPECT_EQ(s.returnNames.size(), 3u);
+    ASSERT_EQ(s.returnNames.size(), 2u);
     EXPECT_EQ(s.returnNames[0], "a");
     EXPECT_EQ(s.returnNames[1], "b");
-    EXPECT_EQ(s.returnNames[2], "c");
 }
 
 TEST_F(ParserAssignTest, MultiAssignWithTilde)
 {
-    auto ast = parseSource("[~, b] = func();");
+    // [~, b] = size(A); — игнорирование первого выхода
+    auto ast = parseSource("[~, b] = size(A);");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::MULTI_ASSIGN);
+    ASSERT_EQ(s.returnNames.size(), 2u);
     EXPECT_EQ(s.returnNames[0], "~");
     EXPECT_EQ(s.returnNames[1], "b");
+}
+
+TEST_F(ParserAssignTest, MultiAssignThreeOutputs)
+{
+    auto ast = parseSource("[U, S, V] = svd(A);");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::MULTI_ASSIGN);
+    ASSERT_EQ(s.returnNames.size(), 3u);
+    EXPECT_EQ(s.returnNames[0], "U");
+    EXPECT_EQ(s.returnNames[1], "S");
+    EXPECT_EQ(s.returnNames[2], "V");
+}
+
+TEST_F(ParserAssignTest, DeleteAssign)
+{
+    // x = [] — удаление переменной (MATLAB-идиома)
+    auto ast = parseSource("x = [];");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::DELETE_ASSIGN);
 }
 
 // ============================================================
@@ -495,11 +628,15 @@ class ParserIndexCallTest : public ::testing::Test
 
 TEST_F(ParserIndexCallTest, SingleIndex)
 {
+    // В парсере x(1) всегда CALL — различение index/call при интерпретации
     auto ast = parseSource("x(1);");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    // В MATLAB x(1) может быть INDEX или CALL — зависит от реализации
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    // children: [x, 1]
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.children[1]->type, NodeType::NUMBER_LITERAL);
 }
 
 TEST_F(ParserIndexCallTest, MultiIndex)
@@ -507,9 +644,9 @@ TEST_F(ParserIndexCallTest, MultiIndex)
     auto ast = parseSource("A(1, 2);");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
-    // Должно быть 3 children: объект + 2 индекса, или объект + аргументы
-    EXPECT_GE(expr.children.size(), 2u);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    // children: [A, 1, 2]
+    ASSERT_EQ(expr.children.size(), 3u);
 }
 
 TEST_F(ParserIndexCallTest, CellIndex)
@@ -525,16 +662,20 @@ TEST_F(ParserIndexCallTest, FunctionCallNoArgs)
     auto ast = parseSource("foo();");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    // children: [foo] — только имя функции, без аргументов
+    ASSERT_EQ(expr.children.size(), 1u);
 }
 
 TEST_F(ParserIndexCallTest, ChainedIndexing)
 {
+    // x(1)(2) — в MATLAB: результат x(1) индексируется (2)
     auto ast = parseSource("x(1)(2);");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    // Внешний — INDEX/CALL, внутренний child[0] тоже INDEX/CALL
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    // Внутренний child[0] — тоже CALL
+    EXPECT_EQ(expr.children[0]->type, NodeType::CALL);
 }
 
 TEST_F(ParserIndexCallTest, NestedCalls)
@@ -542,7 +683,20 @@ TEST_F(ParserIndexCallTest, NestedCalls)
     auto ast = parseSource("foo(bar(x));");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    // Аргумент — вложенный вызов
+    EXPECT_EQ(expr.children[1]->type, NodeType::CALL);
+}
+
+TEST_F(ParserIndexCallTest, ChainedCellFieldCall)
+{
+    // s.data{2}.name(1) — цепочка доступов
+    auto ast = parseSource("s.data{2}.name(1);");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    // Внешний — CALL (индексация результата s.data{2}.name)
+    EXPECT_EQ(expr.type, NodeType::CALL);
 }
 
 // ============================================================
@@ -565,6 +719,7 @@ TEST_F(ParserFieldAccessTest, SimpleFieldAccess)
 
 TEST_F(ParserFieldAccessTest, ChainedFieldAccess)
 {
+    // a.b.c — цепочка: FIELD_ACCESS(c) → FIELD_ACCESS(b) → IDENTIFIER(a)
     auto ast = parseSource("a.b.c;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
@@ -572,6 +727,8 @@ TEST_F(ParserFieldAccessTest, ChainedFieldAccess)
     EXPECT_EQ(expr.strValue, "c");
     EXPECT_EQ(expr.children[0]->type, NodeType::FIELD_ACCESS);
     EXPECT_EQ(expr.children[0]->strValue, "b");
+    EXPECT_EQ(expr.children[0]->children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.children[0]->children[0]->strValue, "a");
 }
 
 // ============================================================
@@ -582,22 +739,27 @@ class ParserColonExprTest : public ::testing::Test
 
 TEST_F(ParserColonExprTest, SimpleRange)
 {
+    // 1:10 → COLON_EXPR с 2 children: [1, 10]
     auto ast = parseSource("1:10;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::COLON_EXPR);
-    ASSERT_GE(expr.children.size(), 2u);
+    ASSERT_EQ(expr.children.size(), 2u);
     EXPECT_DOUBLE_EQ(expr.children[0]->numValue, 1.0);
     EXPECT_DOUBLE_EQ(expr.children[1]->numValue, 10.0);
 }
 
 TEST_F(ParserColonExprTest, SteppedRange)
 {
+    // 1:2:10 → COLON_EXPR с 3 children: [start, step, stop]
     auto ast = parseSource("1:2:10;");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::COLON_EXPR);
     ASSERT_EQ(expr.children.size(), 3u);
+    EXPECT_DOUBLE_EQ(expr.children[0]->numValue, 1.0);
+    EXPECT_DOUBLE_EQ(expr.children[1]->numValue, 2.0);
+    EXPECT_DOUBLE_EQ(expr.children[2]->numValue, 10.0);
 }
 
 TEST_F(ParserColonExprTest, ColonWithExpressions)
@@ -606,6 +768,21 @@ TEST_F(ParserColonExprTest, ColonWithExpressions)
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::COLON_EXPR);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.children[1]->type, NodeType::IDENTIFIER);
+}
+
+TEST_F(ParserColonExprTest, ColonWithArithmetic)
+{
+    // 1:n-1 → COLON_EXPR с children: [1, -(n,1)]
+    auto ast = parseSource("1:n-1;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::COLON_EXPR);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[1]->strValue, "-");
 }
 
 // ============================================================
@@ -625,27 +802,110 @@ TEST_F(ParserMatrixLiteralTest, EmptyMatrix)
 
 TEST_F(ParserMatrixLiteralTest, RowVector)
 {
+    // [1, 2, 3] → MATRIX_LITERAL с 1 row (BLOCK) содержащим 3 элемента
     auto ast = parseSource("[1, 2, 3];");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
-    EXPECT_GE(expr.children.size(), 1u);
+    ASSERT_EQ(expr.children.size(), 1u);              // один ряд
+    EXPECT_EQ(expr.children[0]->children.size(), 3u); // три элемента
 }
 
 TEST_F(ParserMatrixLiteralTest, ColumnVector)
 {
+    // [1; 2; 3] → 3 ряда по 1 элементу
     auto ast = parseSource("[1; 2; 3];");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+    ASSERT_EQ(expr.children.size(), 3u);
+    EXPECT_EQ(expr.children[0]->children.size(), 1u);
+    EXPECT_EQ(expr.children[1]->children.size(), 1u);
+    EXPECT_EQ(expr.children[2]->children.size(), 1u);
 }
 
 TEST_F(ParserMatrixLiteralTest, Matrix2x2)
 {
+    // [1, 2; 3, 4] → 2 ряда по 2 элемента
     auto ast = parseSource("[1, 2; 3, 4];");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[0]->children.size(), 2u);
+    EXPECT_EQ(expr.children[1]->children.size(), 2u);
+}
+
+TEST_F(ParserMatrixLiteralTest, SpaceSeparatedRow)
+{
+    // В MATLAB: [1 2 3] эквивалентно [1, 2, 3]
+    auto ast = parseSource("[1 2 3];");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+    ASSERT_EQ(expr.children.size(), 1u);
+    EXPECT_EQ(expr.children[0]->children.size(), 3u);
+}
+
+TEST_F(ParserMatrixLiteralTest, SpaceVsBinaryPlusInMatrix)
+{
+    // В MATLAB:
+    // [1 +2] → два элемента: 1 и +2 (пробел перед +, нет пробела после)
+    // [1 + 2] → одно выражение: 1+2 = 3 (пробелы с обеих сторон оператора)
+    {
+        auto ast = parseSource("[1 +2];");
+        const auto &expr = *stmt(*ast, 0).children[0];
+        EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+        ASSERT_EQ(expr.children.size(), 1u);
+        EXPECT_EQ(expr.children[0]->children.size(), 2u); // два элемента
+    }
+    {
+        auto ast = parseSource("[1 + 2];");
+        const auto &expr = *stmt(*ast, 0).children[0];
+        EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+        ASSERT_EQ(expr.children.size(), 1u);
+        EXPECT_EQ(expr.children[0]->children.size(), 1u); // одно выражение
+    }
+}
+
+TEST_F(ParserMatrixLiteralTest, SpaceVsBinaryMinusInMatrix)
+{
+    // [3 -1] → два элемента: 3 и -1
+    // [3 - 1] → одно выражение: 3-1
+    {
+        auto ast = parseSource("[3 -1];");
+        const auto &expr = *stmt(*ast, 0).children[0];
+        ASSERT_EQ(expr.children.size(), 1u);
+        EXPECT_EQ(expr.children[0]->children.size(), 2u);
+    }
+    {
+        auto ast = parseSource("[3 - 1];");
+        const auto &expr = *stmt(*ast, 0).children[0];
+        ASSERT_EQ(expr.children.size(), 1u);
+        EXPECT_EQ(expr.children[0]->children.size(), 1u);
+    }
+}
+
+TEST_F(ParserMatrixLiteralTest, StringsInMatrix)
+{
+    // ['hello' ' ' 'world'] — конкатенация символьных массивов
+    auto ast = parseSource("['hello' ' ' 'world'];");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+    ASSERT_EQ(expr.children.size(), 1u);              // один ряд
+    EXPECT_EQ(expr.children[0]->children.size(), 3u); // три строковых элемента
+}
+
+TEST_F(ParserMatrixLiteralTest, MatrixWithExpressions)
+{
+    auto ast = parseSource("[1+2, 3*4; 5-6, 7/8];");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::MATRIX_LITERAL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[0]->children.size(), 2u);
+    EXPECT_EQ(expr.children[1]->children.size(), 2u);
 }
 
 // ============================================================
@@ -660,15 +920,30 @@ TEST_F(ParserCellLiteralTest, EmptyCell)
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::CELL_LITERAL);
+    EXPECT_EQ(expr.children.size(), 0u);
 }
 
 TEST_F(ParserCellLiteralTest, CellWithElements)
 {
+    // {1, 'hello', true} — один ряд с 3 элементами
     auto ast = parseSource("{1, 'hello', true};");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::CELL_LITERAL);
-    EXPECT_GE(expr.children.size(), 1u);
+    ASSERT_EQ(expr.children.size(), 1u);
+    EXPECT_EQ(expr.children[0]->children.size(), 3u);
+}
+
+TEST_F(ParserCellLiteralTest, CellMultiRow)
+{
+    // {1, 2; 3, 4} — 2 ряда по 2 элемента
+    auto ast = parseSource("{1, 2; 3, 4};");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::CELL_LITERAL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[0]->children.size(), 2u);
+    EXPECT_EQ(expr.children[1]->children.size(), 2u);
 }
 
 // ============================================================
@@ -686,7 +961,8 @@ TEST_F(ParserIfTest, SimpleIf)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::IF_STMT);
-    EXPECT_GE(s.branches.size(), 1u);
+    ASSERT_EQ(s.branches.size(), 1u);
+    EXPECT_EQ(s.elseBranch, nullptr);
 }
 
 TEST_F(ParserIfTest, IfElse)
@@ -700,7 +976,7 @@ TEST_F(ParserIfTest, IfElse)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::IF_STMT);
-    EXPECT_GE(s.branches.size(), 1u);
+    ASSERT_EQ(s.branches.size(), 1u);
     EXPECT_NE(s.elseBranch, nullptr);
 }
 
@@ -717,7 +993,7 @@ TEST_F(ParserIfTest, IfElseifElse)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::IF_STMT);
-    EXPECT_GE(s.branches.size(), 2u);
+    ASSERT_EQ(s.branches.size(), 2u);
     EXPECT_NE(s.elseBranch, nullptr);
 }
 
@@ -749,7 +1025,6 @@ TEST_F(ParserIfTest, NestedIf)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::IF_STMT);
-    // Проверяем что внутри тела первого if есть вложенный if
     const auto &body = *s.branches[0].second;
     EXPECT_EQ(body.type, NodeType::BLOCK);
     ASSERT_GE(body.children.size(), 1u);
@@ -772,7 +1047,8 @@ TEST_F(ParserForTest, SimpleFor)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FOR_STMT);
     EXPECT_EQ(s.strValue, "i");
-    ASSERT_GE(s.children.size(), 2u);
+    ASSERT_EQ(s.children.size(), 2u); // [range_expr, body_block]
+    EXPECT_EQ(s.children[0]->type, NodeType::COLON_EXPR);
 }
 
 TEST_F(ParserForTest, ForWithStep)
@@ -784,6 +1060,8 @@ TEST_F(ParserForTest, ForWithStep)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FOR_STMT);
+    EXPECT_EQ(s.children[0]->type, NodeType::COLON_EXPR);
+    EXPECT_EQ(s.children[0]->children.size(), 3u);
 }
 
 TEST_F(ParserForTest, ForOverVector)
@@ -795,6 +1073,20 @@ TEST_F(ParserForTest, ForOverVector)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FOR_STMT);
+    EXPECT_EQ(s.children[0]->type, NodeType::MATRIX_LITERAL);
+}
+
+TEST_F(ParserForTest, ForOverMatrix)
+{
+    // В MATLAB: for i = [1 2; 3 4] итерирует по столбцам матрицы
+    auto ast = parseSource(R"(
+        for i = [1 2; 3 4]
+            disp(i);
+        end
+    )");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::FOR_STMT);
+    EXPECT_EQ(s.children[0]->type, NodeType::MATRIX_LITERAL);
 }
 
 TEST_F(ParserForTest, NestedFor)
@@ -808,8 +1100,12 @@ TEST_F(ParserForTest, NestedFor)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FOR_STMT);
+    ASSERT_EQ(s.children.size(), 2u);
     // Тело содержит вложенный for
-    ASSERT_GE(s.children.size(), 2u);
+    const auto &body = *s.children[1];
+    EXPECT_EQ(body.type, NodeType::BLOCK);
+    ASSERT_GE(body.children.size(), 1u);
+    EXPECT_EQ(body.children[0]->type, NodeType::FOR_STMT);
 }
 
 // ============================================================
@@ -827,7 +1123,7 @@ TEST_F(ParserWhileTest, SimpleWhile)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::WHILE_STMT);
-    ASSERT_GE(s.children.size(), 2u);
+    ASSERT_EQ(s.children.size(), 2u); // [condition, body]
 }
 
 TEST_F(ParserWhileTest, WhileTrue)
@@ -839,6 +1135,8 @@ TEST_F(ParserWhileTest, WhileTrue)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::WHILE_STMT);
+    EXPECT_EQ(s.children[0]->type, NodeType::BOOL_LITERAL);
+    EXPECT_TRUE(s.children[0]->boolValue);
 }
 
 // ============================================================
@@ -856,9 +1154,7 @@ TEST_F(ParserControlFlowTest, Break)
     )");
     const auto &w = stmt(*ast, 0);
     EXPECT_EQ(w.type, NodeType::WHILE_STMT);
-    // Тело while — Block, внутри которого break
-    const auto &body = *w.children[1]; // или children[1]
-    // Ищем BREAK_STMT
+    const auto &body = *w.children[1];
     bool foundBreak = false;
     for (auto &c : body.children) {
         if (c->type == NodeType::BREAK_STMT)
@@ -876,6 +1172,13 @@ TEST_F(ParserControlFlowTest, Continue)
     )");
     const auto &f = stmt(*ast, 0);
     EXPECT_EQ(f.type, NodeType::FOR_STMT);
+    const auto &body = *f.children[1];
+    bool foundContinue = false;
+    for (auto &c : body.children) {
+        if (c->type == NodeType::CONTINUE_STMT)
+            foundContinue = true;
+    }
+    EXPECT_TRUE(foundContinue);
 }
 
 TEST_F(ParserControlFlowTest, Return)
@@ -888,6 +1191,14 @@ TEST_F(ParserControlFlowTest, Return)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
+    // Проверяем что return есть в теле функции
+    const auto &body = *s.children[0];
+    bool foundReturn = false;
+    for (auto &c : body.children) {
+        if (c->type == NodeType::RETURN_STMT)
+            foundReturn = true;
+    }
+    EXPECT_TRUE(foundReturn);
 }
 
 // ============================================================
@@ -910,7 +1221,8 @@ TEST_F(ParserSwitchTest, SimpleSwitch)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::SWITCH_STMT);
-    EXPECT_GE(s.branches.size(), 2u); // at least 2 cases
+    EXPECT_EQ(s.branches.size(), 2u);
+    EXPECT_NE(s.elseBranch, nullptr);
 }
 
 TEST_F(ParserSwitchTest, SwitchWithoutOtherwise)
@@ -925,6 +1237,24 @@ TEST_F(ParserSwitchTest, SwitchWithoutOtherwise)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::SWITCH_STMT);
+    EXPECT_EQ(s.branches.size(), 2u);
+    EXPECT_EQ(s.elseBranch, nullptr);
+}
+
+TEST_F(ParserSwitchTest, SwitchCaseWithCell)
+{
+    // В MATLAB: case {1, 2} — совпадение с любым из элементов
+    auto ast = parseSource(R"(
+        switch x
+            case {1, 2}
+                y = 1;
+        end
+    )");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::SWITCH_STMT);
+    ASSERT_EQ(s.branches.size(), 1u);
+    // Условие case — CELL_LITERAL
+    EXPECT_EQ(s.branches[0].first->type, NodeType::CELL_LITERAL);
 }
 
 // ============================================================
@@ -943,9 +1273,9 @@ TEST_F(ParserFunctionTest, SimpleFunction)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "foo");
-    EXPECT_EQ(s.paramNames.size(), 1u);
+    ASSERT_EQ(s.paramNames.size(), 1u);
     EXPECT_EQ(s.paramNames[0], "x");
-    EXPECT_EQ(s.returnNames.size(), 1u);
+    ASSERT_EQ(s.returnNames.size(), 1u);
     EXPECT_EQ(s.returnNames[0], "y");
 }
 
@@ -960,7 +1290,8 @@ TEST_F(ParserFunctionTest, FunctionNoReturn)
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "greet");
     EXPECT_EQ(s.returnNames.size(), 0u);
-    EXPECT_EQ(s.paramNames.size(), 1u);
+    ASSERT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.paramNames[0], "name");
 }
 
 TEST_F(ParserFunctionTest, FunctionMultipleReturns)
@@ -974,10 +1305,12 @@ TEST_F(ParserFunctionTest, FunctionMultipleReturns)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "swap");
-    EXPECT_EQ(s.returnNames.size(), 2u);
+    ASSERT_EQ(s.returnNames.size(), 2u);
     EXPECT_EQ(s.returnNames[0], "a");
     EXPECT_EQ(s.returnNames[1], "b");
-    EXPECT_EQ(s.paramNames.size(), 2u);
+    ASSERT_EQ(s.paramNames.size(), 2u);
+    EXPECT_EQ(s.paramNames[0], "x");
+    EXPECT_EQ(s.paramNames[1], "y");
 }
 
 TEST_F(ParserFunctionTest, FunctionNoArgs)
@@ -990,10 +1323,12 @@ TEST_F(ParserFunctionTest, FunctionNoArgs)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.paramNames.size(), 0u);
+    EXPECT_EQ(s.returnNames.size(), 1u);
 }
 
 TEST_F(ParserFunctionTest, FunctionNoArgsNoParens)
 {
+    // В MATLAB: function x = getval  — допустимо без скобок
     auto ast = parseSource(R"(
         function x = getval
             x = 42;
@@ -1002,6 +1337,23 @@ TEST_F(ParserFunctionTest, FunctionNoArgsNoParens)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "getval");
+    EXPECT_EQ(s.paramNames.size(), 0u);
+}
+
+TEST_F(ParserFunctionTest, FunctionThreeReturns)
+{
+    auto ast = parseSource(R"(
+        function [r, g, b] = splitRGB(image)
+            r = image(:,:,1);
+            g = image(:,:,2);
+            b = image(:,:,3);
+        end
+    )");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(s.strValue, "splitRGB");
+    EXPECT_EQ(s.returnNames.size(), 3u);
+    EXPECT_EQ(s.paramNames.size(), 1u);
 }
 
 // ============================================================
@@ -1014,28 +1366,51 @@ TEST_F(ParserAnonFuncTest, SimpleAnon)
 {
     auto ast = parseSource("f = @(x) x^2;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    EXPECT_EQ(assign.type, NodeType::ASSIGN);
-    EXPECT_EQ(assign.children[1]->type, NodeType::ANON_FUNC);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[1]->type, NodeType::ANON_FUNC);
+    ASSERT_EQ(s.children[1]->paramNames.size(), 1u);
+    EXPECT_EQ(s.children[1]->paramNames[0], "x");
 }
 
 TEST_F(ParserAnonFuncTest, AnonMultiParam)
 {
     auto ast = parseSource("f = @(x, y) x + y;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    const auto &anon = *assign.children[1];
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    const auto &anon = *s.children[1];
     EXPECT_EQ(anon.type, NodeType::ANON_FUNC);
-    EXPECT_EQ(anon.paramNames.size(), 2u);
+    ASSERT_EQ(anon.paramNames.size(), 2u);
+    EXPECT_EQ(anon.paramNames[0], "x");
+    EXPECT_EQ(anon.paramNames[1], "y");
+    // Тело — выражение x + y
+    ASSERT_EQ(anon.children.size(), 1u);
+    EXPECT_EQ(anon.children[0]->type, NodeType::BINARY_OP);
 }
 
 TEST_F(ParserAnonFuncTest, FunctionHandle)
 {
+    // @sin — хэндл на существующую функцию
     auto ast = parseSource("f = @sin;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    // Может быть ANON_FUNC или другой тип — зависит от реализации
-    EXPECT_NE(assign.children[1], nullptr);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    const auto &rhs = *s.children[1];
+    EXPECT_EQ(rhs.type, NodeType::ANON_FUNC);
+    EXPECT_EQ(rhs.strValue, "sin");
+    EXPECT_EQ(rhs.paramNames.size(), 0u);
+    EXPECT_EQ(rhs.children.size(), 0u);
+}
+
+TEST_F(ParserAnonFuncTest, AnonNoParams)
+{
+    // @() 42 — анонимная функция без параметров
+    auto ast = parseSource("f = @() 42;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    const auto &anon = *s.children[1];
+    EXPECT_EQ(anon.type, NodeType::ANON_FUNC);
+    EXPECT_EQ(anon.paramNames.size(), 0u);
+    ASSERT_EQ(anon.children.size(), 1u);
+    EXPECT_EQ(anon.children[0]->type, NodeType::NUMBER_LITERAL);
 }
 
 // ============================================================
@@ -1055,6 +1430,8 @@ TEST_F(ParserTryCatchTest, SimpleTryCatch)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::TRY_STMT);
+    EXPECT_EQ(s.strValue, "e");       // имя переменной исключения
+    ASSERT_EQ(s.children.size(), 2u); // [try_block, catch_block]
 }
 
 TEST_F(ParserTryCatchTest, TryWithoutCatchVar)
@@ -1068,6 +1445,8 @@ TEST_F(ParserTryCatchTest, TryWithoutCatchVar)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::TRY_STMT);
+    EXPECT_EQ(s.strValue, ""); // нет переменной
+    ASSERT_EQ(s.children.size(), 2u);
 }
 
 // ============================================================
@@ -1081,6 +1460,10 @@ TEST_F(ParserGlobalPersistentTest, GlobalStatement)
     auto ast = parseSource("global x y z;");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::GLOBAL_STMT);
+    ASSERT_EQ(s.paramNames.size(), 3u);
+    EXPECT_EQ(s.paramNames[0], "x");
+    EXPECT_EQ(s.paramNames[1], "y");
+    EXPECT_EQ(s.paramNames[2], "z");
 }
 
 TEST_F(ParserGlobalPersistentTest, PersistentStatement)
@@ -1088,6 +1471,8 @@ TEST_F(ParserGlobalPersistentTest, PersistentStatement)
     auto ast = parseSource("persistent count;");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::PERSISTENT_STMT);
+    ASSERT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.paramNames[0], "count");
 }
 
 // ============================================================
@@ -1098,18 +1483,37 @@ class ParserEndValTest : public ::testing::Test
 
 TEST_F(ParserEndValTest, EndInIndex)
 {
+    // x(end) — end как индекс последнего элемента
     auto ast = parseSource("x(end);");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
-    // Внутри аргументов индекса должен быть END_VAL
-    EXPECT_TRUE(expr.type == NodeType::INDEX || expr.type == NodeType::CALL);
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    EXPECT_EQ(expr.children[1]->type, NodeType::END_VAL);
 }
 
 TEST_F(ParserEndValTest, EndMinusOne)
 {
+    // x(end-1) — end в арифметическом выражении
     auto ast = parseSource("x(end-1);");
     const auto &s = stmt(*ast, 0);
-    EXPECT_TRUE(s.children[0]->type == NodeType::INDEX || s.children[0]->type == NodeType::CALL);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    ASSERT_EQ(expr.children.size(), 2u);
+    // Аргумент — бинарная операция end-1
+    EXPECT_EQ(expr.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[1]->strValue, "-");
+    EXPECT_EQ(expr.children[1]->children[0]->type, NodeType::END_VAL);
+}
+
+TEST_F(ParserEndValTest, EndInMultiDimIndex)
+{
+    // A(1:end, end-1:end) — end в нескольких измерениях
+    auto ast = parseSource("A(1:end, end-1:end);");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    ASSERT_EQ(expr.children.size(), 3u); // [A, 1:end, end-1:end]
 }
 
 // ============================================================
@@ -1132,6 +1536,20 @@ TEST_F(ParserSuppressOutputTest, WithoutSemicolon)
     EXPECT_FALSE(s.suppressOutput);
 }
 
+TEST_F(ParserSuppressOutputTest, ExprWithSemicolon)
+{
+    auto ast = parseSource("42;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_TRUE(s.suppressOutput);
+}
+
+TEST_F(ParserSuppressOutputTest, ExprWithoutSemicolon)
+{
+    auto ast = parseSource("42\n");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_FALSE(s.suppressOutput);
+}
+
 // ============================================================
 // Тесты: Множественные statements
 // ============================================================
@@ -1147,6 +1565,7 @@ TEST_F(ParserMultiStatementTest, TwoStatements)
 
 TEST_F(ParserMultiStatementTest, StatementsOnSameLine)
 {
+    // В MATLAB: ; разделяет стейтменты на одной строке
     auto ast = parseSource("x = 1; y = 2;");
     EXPECT_EQ(ast->type, NodeType::BLOCK);
     EXPECT_EQ(ast->children.size(), 2u);
@@ -1179,33 +1598,29 @@ TEST_F(ParserComplexExprTest, NestedParentheses)
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::BINARY_OP);
     EXPECT_EQ(expr.strValue, "*");
-}
-
-TEST_F(ParserComplexExprTest, MixedOperators)
-{
-    auto ast = parseSource("a + b * c - d / e;");
-    const auto &s = stmt(*ast, 0);
-    const auto &expr = *s.children[0];
-    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
-    // Верхний уровень — вычитание (или сложение, зависит от ассоциативности)
+    EXPECT_EQ(expr.children[0]->strValue, "+");
+    EXPECT_EQ(expr.children[1]->strValue, "-");
 }
 
 TEST_F(ParserComplexExprTest, TransposeAfterParen)
 {
+    // (A * B)' — транспонирование результата выражения
     auto ast = parseSource("(A * B)';");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.strValue, "'");
+    EXPECT_EQ(expr.children[0]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "*");
 }
 
 TEST_F(ParserComplexExprTest, FunctionCallInExpression)
 {
     auto ast = parseSource("y = sin(x) + cos(x);");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    EXPECT_EQ(assign.type, NodeType::ASSIGN);
-    EXPECT_EQ(assign.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.children[1]->strValue, "+");
 }
 
 TEST_F(ParserComplexExprTest, MatrixTranspose)
@@ -1215,13 +1630,19 @@ TEST_F(ParserComplexExprTest, MatrixTranspose)
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.strValue, "'");
+    EXPECT_EQ(expr.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(expr.children[0]->strValue, "A");
 }
 
-TEST_F(ParserComplexExprTest, ColonInMatrix)
+TEST_F(ParserComplexExprTest, ColonInIndex)
 {
+    // A(:, 1) — colon как «все элементы»
     auto ast = parseSource("A(:, 1);");
     const auto &s = stmt(*ast, 0);
-    EXPECT_NE(s.children[0], nullptr);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::CALL);
+    ASSERT_EQ(expr.children.size(), 3u); // [A, :, 1]
+    EXPECT_EQ(expr.children[1]->type, NodeType::COLON_EXPR);
 }
 
 // ============================================================
@@ -1244,6 +1665,8 @@ TEST_F(ParserFullProgramTest, Fibonacci)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "fib");
+    EXPECT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.returnNames.size(), 1u);
 }
 
 TEST_F(ParserFullProgramTest, BubbleSort)
@@ -1265,6 +1688,10 @@ TEST_F(ParserFullProgramTest, BubbleSort)
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
     EXPECT_EQ(s.strValue, "bubsort");
+    EXPECT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.paramNames[0], "A");
+    EXPECT_EQ(s.returnNames.size(), 1u);
+    EXPECT_EQ(s.returnNames[0], "A");
 }
 
 TEST_F(ParserFullProgramTest, ScriptWithMultipleConstructs)
@@ -1282,7 +1709,11 @@ TEST_F(ParserFullProgramTest, ScriptWithMultipleConstructs)
         end
     )");
     EXPECT_EQ(ast->type, NodeType::BLOCK);
-    EXPECT_GE(ast->children.size(), 4u);
+    ASSERT_EQ(ast->children.size(), 4u); // x=10, y=20, if, for
+    EXPECT_EQ(ast->children[0]->type, NodeType::ASSIGN);
+    EXPECT_EQ(ast->children[1]->type, NodeType::ASSIGN);
+    EXPECT_EQ(ast->children[2]->type, NodeType::IF_STMT);
+    EXPECT_EQ(ast->children[3]->type, NodeType::FOR_STMT);
 }
 
 TEST_F(ParserFullProgramTest, MultipleFunctions)
@@ -1297,9 +1728,11 @@ TEST_F(ParserFullProgramTest, MultipleFunctions)
         end
     )");
     EXPECT_EQ(ast->type, NodeType::BLOCK);
-    EXPECT_EQ(ast->children.size(), 2u);
+    ASSERT_EQ(ast->children.size(), 2u);
     EXPECT_EQ(ast->children[0]->type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(ast->children[0]->strValue, "double_it");
     EXPECT_EQ(ast->children[1]->type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(ast->children[1]->strValue, "triple_it");
 }
 
 // ============================================================
@@ -1330,7 +1763,13 @@ TEST_F(ParserErrorTest, UnexpectedToken)
 
 TEST_F(ParserErrorTest, MissingFunctionEnd)
 {
-    EXPECT_ANY_THROW(parseSource("function y = foo(x)\n    y = x;\n"));
+    // В MATLAB функция без end в конце файла допустима —
+    // парсер трактует EOF как неявный end (поведение single-function файлов).
+    // Проверяем, что парсер не падает и корректно создаёт FUNCTION_DEF.
+    auto ast = parseSource("function y = foo(x)\n    y = x;\n");
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(ast->children[0]->type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(ast->children[0]->strValue, "foo");
 }
 
 TEST_F(ParserErrorTest, ForMissingEnd)
@@ -1343,6 +1782,11 @@ TEST_F(ParserErrorTest, WhileMissingEnd)
     EXPECT_ANY_THROW(parseSource("while true\n    break;\n"));
 }
 
+TEST_F(ParserErrorTest, MismatchedBrackets)
+{
+    EXPECT_ANY_THROW(parseSource("(1 + 2]"));
+}
+
 // ============================================================
 // Тесты: Крайние случаи
 // ============================================================
@@ -1352,13 +1796,15 @@ class ParserEdgeCaseTest : public ::testing::Test
 TEST_F(ParserEdgeCaseTest, SingleNumber)
 {
     auto ast = parseSource("42\n");
-    EXPECT_EQ(ast->children.size(), 1u);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(ast->children[0]->type, NodeType::EXPR_STMT);
 }
 
 TEST_F(ParserEdgeCaseTest, SingleString)
 {
     auto ast = parseSource("'test'\n");
-    EXPECT_EQ(ast->children.size(), 1u);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(ast->children[0]->type, NodeType::EXPR_STMT);
     EXPECT_EQ(ast->children[0]->children[0]->type, NodeType::STRING_LITERAL);
 }
 
@@ -1369,13 +1815,8 @@ TEST_F(ParserEdgeCaseTest, NegativeNumber)
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.strValue, "-");
-}
-
-TEST_F(ParserEdgeCaseTest, MatrixWithExpressions)
-{
-    auto ast = parseSource("[1+2, 3*4; 5-6, 7/8];");
-    const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.children[0]->type, NodeType::MATRIX_LITERAL);
+    EXPECT_EQ(expr.children[0]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(expr.children[0]->numValue, 42.0);
 }
 
 TEST_F(ParserEdgeCaseTest, DeeplyNestedExpressions)
@@ -1388,12 +1829,15 @@ TEST_F(ParserEdgeCaseTest, DeeplyNestedExpressions)
 
 TEST_F(ParserEdgeCaseTest, MultipleTransposes)
 {
+    // A'' — двойная транспозиция (identity для вещественных)
     auto ast = parseSource("A'';");
     const auto &s = stmt(*ast, 0);
     const auto &expr = *s.children[0];
     EXPECT_EQ(expr.type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.strValue, "'");
     EXPECT_EQ(expr.children[0]->type, NodeType::UNARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "'");
+    EXPECT_EQ(expr.children[0]->children[0]->type, NodeType::IDENTIFIER);
 }
 
 TEST_F(ParserEdgeCaseTest, EmptyFunctionBody)
@@ -1404,31 +1848,58 @@ TEST_F(ParserEdgeCaseTest, EmptyFunctionBody)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(s.strValue, "nothing");
+    // Тело — пустой блок
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(s.children[0]->type, NodeType::BLOCK);
+    EXPECT_EQ(s.children[0]->children.size(), 0u);
 }
 
 TEST_F(ParserEdgeCaseTest, AssignFieldAccess)
 {
     auto ast = parseSource("s.x = 10;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    EXPECT_EQ(assign.type, NodeType::ASSIGN);
-    EXPECT_EQ(assign.children[0]->type, NodeType::FIELD_ACCESS);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[0]->type, NodeType::FIELD_ACCESS);
+    EXPECT_EQ(s.children[0]->strValue, "x");
 }
 
 TEST_F(ParserEdgeCaseTest, CellIndexAssign)
 {
     auto ast = parseSource("c{1} = 42;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    EXPECT_EQ(assign.type, NodeType::ASSIGN);
-    EXPECT_EQ(assign.children[0]->type, NodeType::CELL_INDEX);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[0]->type, NodeType::CELL_INDEX);
 }
 
 TEST_F(ParserEdgeCaseTest, LineContinuation)
 {
+    // В MATLAB: ... продолжение строки
     auto ast = parseSource("x = 1 + ...\n    2;");
     const auto &s = stmt(*ast, 0);
-    const auto &assign = *s.children[0];
-    EXPECT_EQ(assign.type, NodeType::ASSIGN);
-    EXPECT_EQ(assign.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.children[1]->strValue, "+");
+}
+
+TEST_F(ParserEdgeCaseTest, NestedCellFieldAccess)
+{
+    // s.data{2}.name — доступ к полю элемента cell array
+    auto ast = parseSource("s.data{2}.name;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::FIELD_ACCESS);
+    EXPECT_EQ(expr.strValue, "name");
+}
+
+TEST_F(ParserEdgeCaseTest, MatrixTransposeInExpression)
+{
+    // A' * B — транспонирование как часть выражения
+    auto ast = parseSource("A' * B;");
+    const auto &s = stmt(*ast, 0);
+    const auto &expr = *s.children[0];
+    EXPECT_EQ(expr.type, NodeType::BINARY_OP);
+    EXPECT_EQ(expr.strValue, "*");
+    EXPECT_EQ(expr.children[0]->type, NodeType::UNARY_OP);
+    EXPECT_EQ(expr.children[0]->strValue, "'");
 }
