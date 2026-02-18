@@ -335,13 +335,104 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("<=", makeCmpOp("<="));
     engine.registerBinaryOp(">=", makeCmpOp(">="));
 
-    // --- Logical element-wise ---
-    engine.registerBinaryOp("&", [](const MValue &a, const MValue &b) -> MValue {
-        return MValue::logicalScalar(a.toBool() && b.toBool(), nullptr);
+    // --- Logical element-wise AND ---
+    engine.registerBinaryOp("&", [&engine](const MValue &a, const MValue &b) -> MValue {
+        auto *alloc = &engine.allocator();
+        // scalar & scalar
+        if (a.isScalar() && b.isScalar())
+            return MValue::logicalScalar(a.toBool() && b.toBool(), alloc);
+        // element-wise
+        auto toBoolArray = [&](const MValue &v) -> std::vector<uint8_t> {
+            std::vector<uint8_t> r(v.numel());
+            if (v.isLogical()) {
+                const uint8_t *d = v.logicalData();
+                for (size_t i = 0; i < v.numel(); ++i)
+                    r[i] = d[i] ? 1 : 0;
+            } else if (v.type() == MType::DOUBLE) {
+                const double *d = v.doubleData();
+                for (size_t i = 0; i < v.numel(); ++i)
+                    r[i] = (d[i] != 0.0) ? 1 : 0;
+            } else {
+                r[0] = v.toBool() ? 1 : 0;
+            }
+            return r;
+        };
+        if (a.isScalar()) {
+            bool av = a.toBool();
+            auto bb = toBoolArray(b);
+            auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::LOGICAL, alloc);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < bb.size(); ++i)
+                dst[i] = (av && bb[i]) ? 1 : 0;
+            return r;
+        }
+        if (b.isScalar()) {
+            bool bv = b.toBool();
+            auto aa = toBoolArray(a);
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < aa.size(); ++i)
+                dst[i] = (aa[i] && bv) ? 1 : 0;
+            return r;
+        }
+        if (a.numel() != b.numel())
+            throw std::runtime_error("Matrix dimensions must agree for &");
+        auto aa = toBoolArray(a);
+        auto bb = toBoolArray(b);
+        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+        uint8_t *dst = r.logicalDataMut();
+        for (size_t i = 0; i < aa.size(); ++i)
+            dst[i] = (aa[i] && bb[i]) ? 1 : 0;
+        return r;
     });
 
-    engine.registerBinaryOp("|", [](const MValue &a, const MValue &b) -> MValue {
-        return MValue::logicalScalar(a.toBool() || b.toBool(), nullptr);
+    // --- Logical element-wise OR ---
+    engine.registerBinaryOp("|", [&engine](const MValue &a, const MValue &b) -> MValue {
+        auto *alloc = &engine.allocator();
+        if (a.isScalar() && b.isScalar())
+            return MValue::logicalScalar(a.toBool() || b.toBool(), alloc);
+        auto toBoolArray = [&](const MValue &v) -> std::vector<uint8_t> {
+            std::vector<uint8_t> r(v.numel());
+            if (v.isLogical()) {
+                const uint8_t *d = v.logicalData();
+                for (size_t i = 0; i < v.numel(); ++i)
+                    r[i] = d[i] ? 1 : 0;
+            } else if (v.type() == MType::DOUBLE) {
+                const double *d = v.doubleData();
+                for (size_t i = 0; i < v.numel(); ++i)
+                    r[i] = (d[i] != 0.0) ? 1 : 0;
+            } else {
+                r[0] = v.toBool() ? 1 : 0;
+            }
+            return r;
+        };
+        if (a.isScalar()) {
+            bool av = a.toBool();
+            auto bb = toBoolArray(b);
+            auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::LOGICAL, alloc);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < bb.size(); ++i)
+                dst[i] = (av || bb[i]) ? 1 : 0;
+            return r;
+        }
+        if (b.isScalar()) {
+            bool bv = b.toBool();
+            auto aa = toBoolArray(a);
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < aa.size(); ++i)
+                dst[i] = (aa[i] || bv) ? 1 : 0;
+            return r;
+        }
+        if (a.numel() != b.numel())
+            throw std::runtime_error("Matrix dimensions must agree for |");
+        auto aa = toBoolArray(a);
+        auto bb = toBoolArray(b);
+        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+        uint8_t *dst = r.logicalDataMut();
+        for (size_t i = 0; i < aa.size(); ++i)
+            dst[i] = (aa[i] || bb[i]) ? 1 : 0;
+        return r;
     });
 }
 
@@ -360,10 +451,34 @@ void StdLibrary::registerUnaryOps(Engine &engine)
         throw std::runtime_error("Unsupported unary -");
     });
 
-    // --- Logical not ---
-    engine.registerUnaryOp("~", [](const MValue &a) -> MValue {
-        return MValue::logicalScalar(!a.toBool(), nullptr);
+    // --- Logical not (element-wise) ---
+    engine.registerUnaryOp("~", [&engine](const MValue &a) -> MValue {
+        auto *alloc = &engine.allocator();
+        if (a.isLogical()) {
+            if (a.isScalar())
+                return MValue::logicalScalar(!a.toBool(), alloc);
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            const uint8_t *src = a.logicalData();
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = src[i] ? 0 : 1;
+            return r;
+        }
+        if (a.type() == MType::DOUBLE) {
+            if (a.isScalar())
+                return MValue::logicalScalar(a.toScalar() == 0.0, alloc);
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            const double *src = a.doubleData();
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = (src[i] == 0.0) ? 1 : 0;
+            return r;
+        }
+        return MValue::logicalScalar(!a.toBool(), alloc);
     });
+
+    // --- Unary plus (identity) ---
+    engine.registerUnaryOp("+", [](const MValue &a) -> MValue { return a; });
 
     // --- Conjugate transpose ---
     engine.registerUnaryOp("'", [&engine](const MValue &a) -> MValue {

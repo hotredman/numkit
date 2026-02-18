@@ -558,11 +558,13 @@ MValue Engine::execMultiAssign(const ASTNode *node, std::shared_ptr<Environment>
     auto results = execCallMulti(node->children[0].get(), env, node->returnNames.size());
 
     for (size_t i = 0; i < node->returnNames.size() && i < results.size(); ++i)
-        env->set(node->returnNames[i], results[i]);
+        if (node->returnNames[i] != "~")
+            env->set(node->returnNames[i], results[i]);
 
     if (!node->suppressOutput && !results.empty())
         for (size_t i = 0; i < node->returnNames.size() && i < results.size(); ++i)
-            displayValue(node->returnNames[i], results[i]);
+            if (node->returnNames[i] != "~")
+                displayValue(node->returnNames[i], results[i]);
 
     return results.empty() ? MValue::empty() : results[0];
 }
@@ -748,8 +750,26 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
 {
     auto *funcNode = node->children[0].get();
 
-    if (funcNode->type != NodeType::IDENTIFIER)
-        throw std::runtime_error("Complex call targets not supported");
+    // FIX #1: Поддержка chain calls — target может быть любым выражением
+    // Если target — не идентификатор, вычисляем его и пытаемся вызвать/проиндексировать
+    if (funcNode->type != NodeType::IDENTIFIER) {
+        auto target = execNode(funcNode, env);
+
+        if (target.isFuncHandle()) {
+            std::vector<MValue> args;
+            args.reserve(node->children.size() - 1);
+            for (size_t i = 1; i < node->children.size(); ++i)
+                args.push_back(execNode(node->children[i].get(), env));
+            return callFuncHandle(target, args, env);
+        }
+
+        // Если результат — массив/cell/etc., трактуем как индексацию
+        if (target.isNumeric() || target.isLogical() || target.isChar() || target.isCell())
+            return execIndexAccess(target, node, env);
+
+        throw std::runtime_error("Cannot call or index into value of type "
+                                 + std::string(mtypeName(target.type())));
+    }
 
     const std::string &name = funcNode->strValue;
 
@@ -803,6 +823,16 @@ MValue Engine::execIndexAccess(const MValue &var,
 {
     size_t nargs = callNode->children.size() - 1;
 
+    // FIX #7: Bounds check helper for read-access
+    auto checkBounds = [](const std::vector<size_t> &indices, size_t limit, const char *ctx) {
+        for (auto idx : indices) {
+            if (idx >= limit)
+                throw std::runtime_error(std::string("Index exceeds array dimensions (") + ctx
+                                         + ": " + std::to_string(idx + 1) + " > "
+                                         + std::to_string(limit) + ")");
+        }
+    };
+
     if (var.isChar()) {
         if (nargs == 1) {
             auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
@@ -845,6 +875,7 @@ MValue Engine::execIndexAccess(const MValue &var,
 
     if (nargs == 1) {
         auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
+        checkBounds(indices, var.numel(), "linear index");
         if (var.isLogical()) {
             const uint8_t *ld = var.logicalData();
             if (indices.size() == 1)
@@ -867,6 +898,8 @@ MValue Engine::execIndexAccess(const MValue &var,
     if (nargs == 2) {
         auto ri = resolveIndex(callNode->children[1].get(), var, 0, 2, env);
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 2, env);
+        checkBounds(ri, var.dims().rows(), "row index");
+        checkBounds(ci, var.dims().cols(), "column index");
         if (ri.size() == 1 && ci.size() == 1)
             return MValue::scalar(var(ri[0], ci[0]), &allocator_);
         auto result = MValue::matrix(ri.size(), ci.size(), MType::DOUBLE, &allocator_);
