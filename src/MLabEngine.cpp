@@ -2,6 +2,7 @@
 #include "MLabEngine.hpp"
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
+#include "MLabStdLibrary.hpp"
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -31,6 +32,8 @@ Engine::Engine()
     globalEnv_->set("false", MValue::logicalScalar(false, &allocator_));
     globalEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_)); // ← заменить
     globalEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_)); // ← заменить
+
+    StdLibrary::install(*this);
 }
 
 void Engine::setAllocator(Allocator alloc)
@@ -539,15 +542,29 @@ void Engine::execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_p
         throw std::runtime_error("Invalid cell assignment target");
 
     auto *var = env->get(target->strValue);
-    if (!var)
-        throw std::runtime_error("Undefined variable: " + target->strValue);
+    if (!var) {
+        // Create empty cell if variable doesn't exist
+        env->set(target->strValue, MValue::cell(0, 0));
+        var = env->get(target->strValue);
+    }
     if (!var->isCell())
         throw std::runtime_error("Cell indexing on non-cell variable: " + target->strValue);
 
     IndexContextGuard guard(indexContextStack_, {var, 0, 1});
     MValue idx = execNode(lhs->children[1].get(), env);
 
-    var->cellAt(static_cast<size_t>(idx.toScalar()) - 1) = rhs;
+    size_t i = static_cast<size_t>(idx.toScalar()) - 1;
+
+    // Auto-expand cell array if index is out of bounds
+    if (i >= var->numel()) {
+        size_t newSize = i + 1;
+        auto newCell = MValue::cell(1, newSize);
+        for (size_t k = 0; k < var->numel(); ++k)
+            newCell.cellAt(k) = var->cellAt(k);
+        *var = newCell;
+    }
+
+    var->cellAt(i) = rhs;
 }
 
 // ============================================================
@@ -797,16 +814,15 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
         MValue result;
         if (tryBuiltinCall(name, args, env, result))
             return result;
-    }
 
-    if (externalFuncs_.count(name)) {
-        auto args = buildArgs();
-        auto res = externalFuncs_[name](args);
-        return res.empty() ? MValue::empty() : res[0];
-    }
-    if (userFuncs_.count(name)) {
-        auto args = buildArgs();
-        return callUserFunction(userFuncs_[name], args, env);
+        // Reuse already-built args for external/user functions
+        if (externalFuncs_.count(name)) {
+            auto res = externalFuncs_[name](args);
+            return res.empty() ? MValue::empty() : res[0];
+        }
+        if (userFuncs_.count(name)) {
+            return callUserFunction(userFuncs_[name], args, env);
+        }
     }
 
     if (var) {
@@ -1472,6 +1488,10 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
                                                   size_t nout)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
+
+    // Check for too many arguments
+    if (args.size() > func.params.size())
+        throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
 
     auto parentEnv = func.closureEnv ? func.closureEnv : globalEnv_;
     auto localEnv = std::make_shared<Environment>(parentEnv, &globalStore_);
