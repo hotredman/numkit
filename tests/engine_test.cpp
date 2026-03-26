@@ -3,10 +3,12 @@
 
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
-#include <cmath>
 #include <gtest/gtest.h>
 #include <string>
-#include <vector>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 using namespace mlab;
 
@@ -990,4 +992,321 @@ TEST_F(EngineGlobalTest, GlobalVariable)
     )");
     eval("global g; setg();");
     EXPECT_DOUBLE_EQ(getVar("g"), 42.0);
+}
+
+// ============================================================
+// Engine тесты: end-to-end обработка кода с комментариями
+// Добавить в engine_test.cpp
+// ============================================================
+
+class EngineCommentTest : public EngineTest
+{};
+
+// --- Базовое: присваивание с trailing comment ---
+
+TEST_F(EngineCommentTest, AssignWithTrailingComment)
+{
+    eval("c = 1500; % speed of sound");
+    EXPECT_DOUBLE_EQ(getVar("c"), 1500.0);
+}
+
+TEST_F(EngineCommentTest, AssignWithTrailingCommentUTF8)
+{
+    eval("c = 1500; % \xd1\x81\xd0\xba\xd0\xbe\xd1\x80\xd0\xbe\xd1\x81\xd1\x82\xd1\x8c "
+         "\xd0\xb7\xd0\xb2\xd1\x83\xd0\xba\xd0\xb0, \xd0\xbc/\xd1\x81");
+    EXPECT_DOUBLE_EQ(getVar("c"), 1500.0);
+}
+
+TEST_F(EngineCommentTest, AssignWithoutSemicolonAndComment)
+{
+    eval("x = 42 % no semicolon");
+    EXPECT_DOUBLE_EQ(getVar("x"), 42.0);
+    // Без ; — значение выводится
+    EXPECT_FALSE(capturedOutput.empty());
+}
+
+TEST_F(EngineCommentTest, AssignWithSemicolonSuppressesOutput)
+{
+    eval("x = 42; % with semicolon");
+    EXPECT_DOUBLE_EQ(getVar("x"), 42.0);
+    // С ; — вывод подавлен
+    EXPECT_TRUE(capturedOutput.empty());
+}
+
+// --- Несколько строк с комментариями ---
+
+TEST_F(EngineCommentTest, MultipleAssignsWithComments)
+{
+    eval(R"(
+        c     = 1500;       % speed of sound, m/s
+        N     = 8;          % number of elements
+        f     = 10000;      % frequency, Hz
+        d_lambda = 0.5;     % spacing in wavelengths
+    )");
+    EXPECT_DOUBLE_EQ(getVar("c"), 1500.0);
+    EXPECT_DOUBLE_EQ(getVar("N"), 8.0);
+    EXPECT_DOUBLE_EQ(getVar("f"), 10000.0);
+    EXPECT_DOUBLE_EQ(getVar("d_lambda"), 0.5);
+}
+
+// --- Вычисления с комментариями ---
+
+TEST_F(EngineCommentTest, ExpressionWithComment)
+{
+    eval(R"(
+        c = 1500;       % speed
+        f = 10000;      % frequency
+        lambda = c / f; % wavelength
+    )");
+    EXPECT_DOUBLE_EQ(getVar("lambda"), 0.15);
+}
+
+TEST_F(EngineCommentTest, ChainedComputationsWithComments)
+{
+    eval(R"(
+        c     = 1500;           % speed of sound
+        f     = 10000;          % frequency
+        d_lam = 0.5;            % spacing
+        lambda = c / f;         % wavelength
+        d = d_lam * lambda;     % element spacing
+    )");
+    EXPECT_DOUBLE_EQ(getVar("lambda"), 0.15);
+    EXPECT_DOUBLE_EQ(getVar("d"), 0.075);
+}
+
+// --- Секционные комментарии %% ---
+
+TEST_F(EngineCommentTest, SectionComments)
+{
+    eval(R"(
+        %% Section 1: Parameters
+        a = 10;
+        %% Section 2: Derived
+        b = a * 2;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 20.0);
+}
+
+// --- Комментарий-заголовок перед кодом ---
+
+TEST_F(EngineCommentTest, HeaderCommentsBeforeCode)
+{
+    eval(R"(
+        % =====================
+        % My cool script
+        % =====================
+        x = 99;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), 99.0);
+}
+
+// --- Блочный комментарий %{ %} ---
+
+TEST_F(EngineCommentTest, BlockCommentBetweenCode)
+{
+    eval("a = 1;\n"
+         "%{\n"
+         "This block comment\n"
+         "spans multiple lines\n"
+         "%}\n"
+         "b = 2;\n");
+    EXPECT_DOUBLE_EQ(getVar("a"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 2.0);
+}
+
+// --- Комментарий внутри if ---
+
+TEST_F(EngineCommentTest, CommentInsideIf)
+{
+    eval(R"(
+        x = 5;
+        if x > 0
+            % positive branch
+            y = 1;
+        else
+            % negative branch
+            y = -1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+}
+
+// --- Комментарий внутри for ---
+
+TEST_F(EngineCommentTest, CommentInsideFor)
+{
+    eval(R"(
+        s = 0;
+        for i = 1:5
+            % accumulate
+            s = s + i;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("s"), 15.0);
+}
+
+// --- Комментарий после заголовка for ---
+
+TEST_F(EngineCommentTest, CommentAfterForHeader)
+{
+    eval(R"(
+        s = 0;
+        for i = 1:3 % iterate
+            s = s + i;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("s"), 6.0);
+}
+
+// --- Комментарий внутри while ---
+
+TEST_F(EngineCommentTest, CommentInsideWhile)
+{
+    eval(R"(
+        x = 10;
+        while x > 0
+            % decrement
+            x = x - 3;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), -2.0);
+}
+
+// --- Комментарий внутри switch ---
+
+TEST_F(EngineCommentTest, CommentInsideSwitch)
+{
+    eval(R"(
+        x = 2;
+        switch x
+            case 1
+                % first
+                y = 10;
+            case 2
+                % second
+                y = 20;
+            otherwise
+                % default
+                y = 0;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 20.0);
+}
+
+// --- Комментарий внутри function ---
+
+TEST_F(EngineCommentTest, CommentInsideFunction)
+{
+    eval(R"(
+        function y = square(x)
+            % Computes the square
+            y = x^2;
+        end
+    )");
+    eval("r = square(7);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 49.0);
+}
+
+TEST_F(EngineCommentTest, CommentBeforeAndInsideFunction)
+{
+    eval(R"(
+        % Helper function for doubling
+        function y = dbl(x)
+            % double the input
+            y = x * 2;
+        end
+    )");
+    eval("r = dbl(5);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 10.0);
+}
+
+// --- Комментарий внутри try/catch ---
+
+TEST_F(EngineCommentTest, CommentInsideTryCatch)
+{
+    eval(R"(
+        try
+            % risky code
+            x = 1;
+        catch e
+            % handle error
+            x = -1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+}
+
+// --- Файл, состоящий только из комментариев ---
+
+TEST_F(EngineCommentTest, OnlyComments)
+{
+    // Не должен бросать исключение
+    EXPECT_NO_THROW(eval(R"(
+        % just comments
+        % nothing here
+        %% section
+    )"));
+}
+
+// --- Пустые строки и комментарии вперемешку ---
+
+TEST_F(EngineCommentTest, EmptyLinesAndComments)
+{
+    eval(R"(
+
+        % comment
+
+        x = 1;
+
+        % another comment
+
+        y = x + 1;
+
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
+}
+
+// --- Комментарий с операторами внутри не влияет на вычисления ---
+
+TEST_F(EngineCommentTest, CommentWithOperatorsDoesNotAffectResult)
+{
+    eval(R"(
+        a = 10; % a / b = ??? [not code]
+        b = 20; % (a + b) * {c}
+    )");
+    EXPECT_DOUBLE_EQ(getVar("a"), 10.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 20.0);
+}
+
+// --- Реалистичный скрипт ---
+
+TEST_F(EngineCommentTest, RealisticScriptSnippet)
+{
+    eval(R"(
+        %% Parameters
+        c     = 1500;       % speed of sound, m/s
+        N     = 8;          % number of elements
+        f     = 10000;      % frequency, Hz
+        d_lam = 0.5;        % spacing in wavelengths
+
+        %% Derived quantities
+        lambda = c / f;             % wavelength, m
+        d      = d_lam * lambda;    % element spacing, m
+        k      = 2 * pi / lambda;   % wave number, rad/m
+
+        theta0 = 0;  % main lobe direction (degrees)
+    )");
+
+    EXPECT_DOUBLE_EQ(getVar("c"), 1500.0);
+    EXPECT_DOUBLE_EQ(getVar("N"), 8.0);
+    EXPECT_DOUBLE_EQ(getVar("f"), 10000.0);
+    EXPECT_DOUBLE_EQ(getVar("d_lam"), 0.5);
+
+    double lambda = 1500.0 / 10000.0; // 0.15
+    EXPECT_DOUBLE_EQ(getVar("lambda"), lambda);
+    EXPECT_DOUBLE_EQ(getVar("d"), 0.5 * lambda);
+    EXPECT_NEAR(getVar("k"), 2.0 * M_PI / lambda, 1e-10);
+    EXPECT_DOUBLE_EQ(getVar("theta0"), 0.0);
 }
