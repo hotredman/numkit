@@ -8,16 +8,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+  <!--
+    Emscripten WASM glue. Must load BEFORE React.
+    With MODULARIZE=1 + EXPORT_NAME=createMLabModule,
+    Emscripten creates a `createMLabModule` function.
+    We ensure it lands on `window` so React can find it.
+  -->
+  <script>window.__WASM_GLUE_LOADED__ = false;</script>
+  <script src="/mlab_repl.js"
+          onerror="console.log('[REPL] WASM glue not found — fallback mode')">
+  </script>
+  <script>
+    // Emscripten MODULARIZE assigns to `var`, not `window`.
+    // Patch it onto window so App.jsx can detect it.
+    if (typeof createMLabModule !== 'undefined') {
+      window.createMLabModule = createMLabModule;
+      window.__WASM_GLUE_LOADED__ = true;
+      console.log('[REPL] WASM glue loaded OK');
+    } else {
+      console.log('[REPL] createMLabModule not defined after script load');
+    }
+  </script>
 </head>
 <body>
   <div id="root"></div>
-  <!--
-    Emscripten WASM glue script.
-    After building with emcmake, copy mlab_repl.js + mlab_repl.wasm
-    into public/ directory. The script exposes window.createMLabModule.
-    In dev/fallback mode the app works without this file.
-  -->
-  <script src="/mlab_repl.js" onerror="console.log('[REPL] WASM glue not found, running in fallback mode')"></script>
   <script type="module" src="/src/main.jsx"></script>
 </body>
 </html>

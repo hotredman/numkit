@@ -906,13 +906,13 @@ function VarInspector({ variables, visible, onClose }) {
 
   return (
     <div style={{
-      position: "absolute", right: 0, top: 0, bottom: 0, width: 300,
-      background: C.bg1, borderLeft: `1px solid ${C.border}`, zIndex: 20,
-      display: "flex", flexDirection: "column", boxShadow: "-4px 0 20px rgba(0,0,0,0.3)",
+      width: 280, minWidth: 280, flexShrink: 0,
+      background: C.bg1, borderLeft: `1px solid ${C.border}`,
+      display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "10px 14px", borderBottom: `1px solid ${C.border}`,
+        padding: "10px 14px", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
       }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Workspace</span>
         <button onClick={onClose} style={{
@@ -960,13 +960,13 @@ function CheatSheet({ visible, onClose }) {
   if (!visible) return null;
   return (
     <div style={{
-      position: "absolute", left: 0, right: 0, bottom: 0, height: "50%",
-      background: C.bg1, borderTop: `1px solid ${C.border}`, zIndex: 20,
-      display: "flex", flexDirection: "column", boxShadow: "0 -4px 20px rgba(0,0,0,0.3)",
+      background: C.bg1, borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+      maxHeight: "45vh", overflowY: "auto",
     }}>
       <div style={{
         display: "flex", justifyContent: "space-between", alignItems: "center",
-        padding: "10px 16px", borderBottom: `1px solid ${C.border}`, flexShrink: 0,
+        padding: "10px 16px", position: "sticky", top: 0, background: C.bg1, zIndex: 1,
+        borderBottom: `1px solid ${C.border}`,
       }}>
         <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>Quick Reference</span>
         <button onClick={onClose} style={{
@@ -974,7 +974,7 @@ function CheatSheet({ visible, onClose }) {
         }}>×</button>
       </div>
       <div style={{
-        flex: 1, overflowY: "auto", padding: 12,
+        padding: 12,
         display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12,
         alignContent: "start",
       }}>
@@ -1312,9 +1312,9 @@ function GitRepoBrowser({ visible, onClose, onOpenFile, onRunFile }) {
 
   return (
     <div style={{
-      position: "absolute", left: 0, top: 0, bottom: 0, width: 340,
-      background: C.bg1, borderRight: `1px solid ${C.border}`, zIndex: 20,
-      display: "flex", flexDirection: "column", boxShadow: "4px 0 20px rgba(0,0,0,0.3)",
+      width: 320, minWidth: 320, flexShrink: 0,
+      background: C.bg1, borderRight: `1px solid ${C.border}`,
+      display: "flex", flexDirection: "column", overflow: "hidden",
     }}>
       {/* Header */}
       <div style={{
@@ -1473,7 +1473,7 @@ function GitRepoBrowser({ visible, onClose, onOpenFile, onRunFile }) {
 // ════════════════════════════════════════════════════════════════
 // Main App
 // ════════════════════════════════════════════════════════════════
-export default function MLabREPL() {
+export default function MLabREPL({ engine: engineProp, status: statusProp, initMessage }) {
   const [output, setOutput] = useState([]);
   const [inputVal, setInputVal] = useState("");
   const [history, setHistory] = useState([]);
@@ -1492,6 +1492,8 @@ export default function MLabREPL() {
   const [acIdx, setAcIdx] = useState(-1);
   const [acPartial, setAcPartial] = useState("");
   const [execTimeMs, setExecTimeMs] = useState(null);
+
+  const [showConsole, setShowConsole] = useState(true);
 
   const interpreterRef = useRef(null);
   const outputRef = useRef(null);
@@ -1784,7 +1786,13 @@ export default function MLabREPL() {
           <Btn onClick={() => setShowExamples(!showExamples)} active={showExamples} title="Examples">📋 Examples</Btn>
           <Btn onClick={() => setShowCheatSheet(!showCheatSheet)} active={showCheatSheet} title="Quick Reference">📖 Cheat Sheet</Btn>
           <Btn onClick={() => setShowEditor(!showEditor)} active={showEditor} title="Script Editor">📝 Editor</Btn>
+          <Btn onClick={() => setShowConsole(!showConsole)} active={showConsole} title="Toggle Console">💻 Console</Btn>
           <Btn onClick={() => setShowInspector(!showInspector)} active={showInspector} title="Variable Inspector">🔍 Workspace</Btn>
+          {showEditor && (
+            <Btn onClick={runActiveTab} title="Run current script">
+              <span style={{ color: C.green }}>▶</span> Run
+            </Btn>
+          )}
           <Btn onClick={handleFileLoad} title="Open .m file">📂 Open</Btn>
           {showEditor && <Btn onClick={handleFileSave} title="Save .m file">💾 Save</Btn>}
           <Btn onClick={() => { setOutput([]); setPlots([]); }} title="Clear screen">🗑 Clear</Btn>
@@ -1792,158 +1800,171 @@ export default function MLabREPL() {
         </div>
       </div>
 
-      {/* Examples */}
+      {/* Examples (dropdown) */}
       <ExamplesPanel visible={showExamples} onClose={() => setShowExamples(false)} onRun={runExample} />
 
-      {/* Main area */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", position: "relative", overflow: "hidden" }}>
-        {/* Git Repo Browser */}
-        <GitRepoBrowser
-          visible={showGitPanel}
-          onClose={() => setShowGitPanel(false)}
-          onOpenFile={handleGitOpenFile}
-          onRunFile={handleGitRunFile}
-        />
+      {/* Cheat Sheet (dropdown) */}
+      <CheatSheet visible={showCheatSheet} onClose={() => setShowCheatSheet(false)} />
 
-        {/* Editor */}
-        {showEditor && (
-          <div style={{
-            height: "40%", display: "flex", flexDirection: "column",
-            borderBottom: `2px solid ${C.border}`, flexShrink: 0,
-          }}>
-            <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}
-              onClose={closeTab} onNew={newTab} onRename={renameTab} />
-            <div style={{ flex: 1, display: "flex", position: "relative" }}>
-              <div style={{
-                padding: "8px 0", background: C.bg0, borderRight: `1px solid ${C.border}`,
-                userSelect: "none", minWidth: 36, textAlign: "right",
-              }}>
-                {(activeTabData?.code || "").split("\n").map((_, i) => (
-                  <div key={i} style={{ fontSize: 11, color: C.textMuted, padding: "0 8px", lineHeight: "20px" }}>{i + 1}</div>
-                ))}
-              </div>
-              <textarea
-                value={activeTabData?.code || ""}
-                onChange={e => updateTabCode(e.target.value)}
-                spellCheck={false}
-                style={{
-                  flex: 1, background: C.bg1, color: C.text, border: "none", outline: "none",
-                  fontFamily: font, fontSize: 13, lineHeight: "20px", padding: 8, resize: "none",
-                  caretColor: C.accent,
-                }}
-              />
-              <button onClick={runActiveTab} style={{
-                position: "absolute", bottom: 8, right: 12,
-                background: C.accent, color: "#fff", border: "none", borderRadius: 6,
-                padding: "6px 16px", fontFamily: font, fontSize: 12, fontWeight: 600,
-                cursor: "pointer", boxShadow: `0 2px 8px ${C.accent}44`,
-              }}>▶ Run</button>
-            </div>
-          </div>
+      {/* Main area: horizontal flex [Git?] [Center] [Workspace?] */}
+      <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+
+        {/* Left: Git Repo Browser */}
+        {showGitPanel && (
+          <GitRepoBrowser
+            visible={showGitPanel}
+            onClose={() => setShowGitPanel(false)}
+            onOpenFile={handleGitOpenFile}
+            onRunFile={handleGitRunFile}
+          />
         )}
 
-        {/* Terminal output + plots */}
-        <div ref={outputRef} style={{
-          flex: 1, overflowY: "auto", padding: "12px 16px",
-          background: C.bg1,
-          marginLeft: showGitPanel ? 340 : 0,
-          marginRight: showInspector ? 300 : 0,
-          transition: "margin 0.2s",
-        }}>
-          {output.map((item, i) => {
-            const colors = {
-              input: C.textMuted, result: C.text, error: C.red,
-              warning: C.orange, system: C.textMuted, info: C.cyan,
-            };
-            if (item.type === "input") {
-              return (
-                <div key={i} style={{ padding: "1px 0", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                  <span style={{ color: C.green, fontWeight: 700, userSelect: "none" }}>{">> "}</span>
-                  <span style={{ color: C.textMuted }}>{item.text}</span>
-                </div>
-              );
-            }
-            return (
-              <div key={i} style={{
-                padding: "1px 0", color: colors[item.type] || C.text,
-                fontStyle: item.type === "system" ? "italic" : "normal",
-                whiteSpace: "pre-wrap", wordBreak: "break-word",
-              }}>{item.text}</div>
-            );
-          })}
+        {/* Center column: vertical flex [Editor?] [Console?] */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
 
-          {/* Inline help */}
-          {helpTopic && <HelpPanel topic={helpTopic} onClose={() => setHelpTopic(null)} />}
-
-          {/* Plots */}
-          {plots.map((p, i) => (
-            <PlotPanel key={i} data={p} onClose={() => setPlots(prev => prev.filter((_, j) => j !== i))} />
-          ))}
-        </div>
-
-        {/* Variable Inspector */}
-        <VarInspector variables={variables} visible={showInspector} onClose={() => setShowInspector(false)} />
-
-        {/* Cheat Sheet */}
-        <CheatSheet visible={showCheatSheet} onClose={() => setShowCheatSheet(false)} />
-      </div>
-
-      {/* Input line */}
-      <div style={{
-        display: "flex", alignItems: "flex-start", padding: "10px 16px",
-        background: C.bg0, borderTop: `1px solid ${C.border}`, flexShrink: 0,
-        position: "relative",
-      }}>
-        <span style={{ color: C.green, fontWeight: 700, marginRight: 8, marginTop: 2, userSelect: "none", flexShrink: 0 }}>&gt;&gt;</span>
-        <div style={{ flex: 1, position: "relative" }}>
-          {/* Autocomplete */}
-          {acItems.length > 1 && (
+          {/* Editor */}
+          {showEditor && (
             <div style={{
-              position: "absolute", bottom: "calc(100% + 4px)", left: 0,
-              minWidth: 180, maxWidth: 360, maxHeight: 180, overflowY: "auto",
-              background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6,
-              boxShadow: "0 -4px 16px rgba(0,0,0,0.4)", zIndex: 100,
+              flex: showConsole ? "0 0 50%" : 1,
+              display: "flex", flexDirection: "column",
+              borderBottom: showConsole ? `2px solid ${C.border}` : "none",
+              overflow: "hidden",
             }}>
-              {acItems.map((item, i) => (
-                <div key={item}
-                  onClick={() => {
-                    const val = inputVal;
-                    const cur = inputRef.current?.selectionStart || val.length;
-                    let ws = cur - 1;
-                    while (ws >= 0 && /[a-zA-Z0-9_]/.test(val[ws])) ws--;
-                    ws++;
-                    setInputVal(val.substring(0, ws) + item + val.substring(cur));
-                    setAcItems([]);
-                    inputRef.current?.focus();
-                  }}
-                  style={{
-                    padding: "5px 10px", cursor: "pointer", fontSize: 12,
-                    color: i === acIdx ? C.text : C.textDim,
-                    background: i === acIdx ? C.border : "transparent",
-                  }}>
-                  <span style={{ color: C.accent, fontWeight: 600 }}>{item.substring(0, acPartial.length)}</span>
-                  {item.substring(acPartial.length)}
+              <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab}
+                onClose={closeTab} onNew={newTab} onRename={renameTab} />
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                <div style={{
+                  padding: "8px 0", background: C.bg0, borderRight: `1px solid ${C.border}`,
+                  userSelect: "none", minWidth: 36, textAlign: "right", overflowY: "auto",
+                }}>
+                  {(activeTabData?.code || "").split("\n").map((_, i) => (
+                    <div key={i} style={{ fontSize: 11, color: C.textMuted, padding: "0 8px", lineHeight: "20px" }}>{i + 1}</div>
+                  ))}
                 </div>
-              ))}
+                <textarea
+                  value={activeTabData?.code || ""}
+                  onChange={e => updateTabCode(e.target.value)}
+                  spellCheck={false}
+                  style={{
+                    flex: 1, background: C.bg1, color: C.text, border: "none", outline: "none",
+                    fontFamily: font, fontSize: 13, lineHeight: "20px", padding: 8, resize: "none",
+                    caretColor: C.accent, overflow: "auto",
+                  }}
+                />
+              </div>
             </div>
           )}
-          <textarea
-            ref={inputRef}
-            value={inputVal}
-            onChange={e => { setInputVal(e.target.value); setAcItems([]); }}
-            onKeyDown={handleKeyDown}
-            rows={1}
-            spellCheck={false}
-            autoComplete="off"
-            placeholder="Enter MLab command..."
-            style={{
-              width: "100%", background: "transparent", border: "none", outline: "none",
-              color: C.text, fontFamily: font, fontSize: 13, lineHeight: 1.6,
-              resize: "none", overflow: "hidden", caretColor: C.accent,
-            }}
-            onInput={e => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
-          />
+
+          {/* Console (terminal output + input) */}
+          {showConsole && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Output */}
+              <div ref={outputRef} style={{
+                flex: 1, overflowY: "auto", padding: "12px 16px", background: C.bg1,
+              }}>
+                {output.map((item, i) => {
+                  const colors = {
+                    input: C.textMuted, result: C.text, error: C.red,
+                    warning: C.orange, system: C.textMuted, info: C.cyan,
+                  };
+                  if (item.type === "input") {
+                    return (
+                      <div key={i} style={{ padding: "1px 0", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        <span style={{ color: C.green, fontWeight: 700, userSelect: "none" }}>{">> "}</span>
+                        <span style={{ color: C.textMuted }}>{item.text}</span>
+                      </div>
+                    );
+                  }
+                  return (
+                    <div key={i} style={{
+                      padding: "1px 0", color: colors[item.type] || C.text,
+                      fontStyle: item.type === "system" ? "italic" : "normal",
+                      whiteSpace: "pre-wrap", wordBreak: "break-word",
+                    }}>{item.text}</div>
+                  );
+                })}
+
+                {helpTopic && <HelpPanel topic={helpTopic} onClose={() => setHelpTopic(null)} />}
+
+                {plots.map((p, i) => (
+                  <PlotPanel key={i} data={p} onClose={() => setPlots(prev => prev.filter((_, j) => j !== i))} />
+                ))}
+              </div>
+
+              {/* Input line */}
+              <div style={{
+                display: "flex", alignItems: "flex-start", padding: "10px 16px",
+                background: C.bg0, borderTop: `1px solid ${C.border}`, flexShrink: 0,
+                position: "relative",
+              }}>
+                <span style={{ color: C.green, fontWeight: 700, marginRight: 8, marginTop: 2, userSelect: "none", flexShrink: 0 }}>&gt;&gt;</span>
+                <div style={{ flex: 1, position: "relative" }}>
+                  {acItems.length > 1 && (
+                    <div style={{
+                      position: "absolute", bottom: "calc(100% + 4px)", left: 0,
+                      minWidth: 180, maxWidth: 360, maxHeight: 180, overflowY: "auto",
+                      background: C.bg3, border: `1px solid ${C.border}`, borderRadius: 6,
+                      boxShadow: "0 -4px 16px rgba(0,0,0,0.4)", zIndex: 100,
+                    }}>
+                      {acItems.map((item, i) => (
+                        <div key={item}
+                          onClick={() => {
+                            const val = inputVal;
+                            const cur = inputRef.current?.selectionStart || val.length;
+                            let ws = cur - 1;
+                            while (ws >= 0 && /[a-zA-Z0-9_]/.test(val[ws])) ws--;
+                            ws++;
+                            setInputVal(val.substring(0, ws) + item + val.substring(cur));
+                            setAcItems([]);
+                            inputRef.current?.focus();
+                          }}
+                          style={{
+                            padding: "5px 10px", cursor: "pointer", fontSize: 12,
+                            color: i === acIdx ? C.text : C.textDim,
+                            background: i === acIdx ? C.border : "transparent",
+                          }}>
+                          <span style={{ color: C.accent, fontWeight: 600 }}>{item.substring(0, acPartial.length)}</span>
+                          {item.substring(acPartial.length)}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <textarea
+                    ref={inputRef}
+                    value={inputVal}
+                    onChange={e => { setInputVal(e.target.value); setAcItems([]); }}
+                    onKeyDown={handleKeyDown}
+                    rows={1}
+                    spellCheck={false}
+                    autoComplete="off"
+                    placeholder="Enter MLab command..."
+                    style={{
+                      width: "100%", background: "transparent", border: "none", outline: "none",
+                      color: C.text, fontFamily: font, fontSize: 13, lineHeight: 1.6,
+                      resize: "none", overflow: "hidden", caretColor: C.accent,
+                    }}
+                    onInput={e => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* If both editor and console are hidden, show a placeholder */}
+          {!showEditor && !showConsole && (
+            <div style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+              color: C.textMuted, fontSize: 12,
+            }}>
+              Open Editor or Console from the toolbar above
+            </div>
+          )}
         </div>
+
+        {/* Right: Variable Inspector */}
+        {showInspector && (
+          <VarInspector variables={variables} visible={showInspector} onClose={() => setShowInspector(false)} />
+        )}
       </div>
 
       {/* Status bar */}
@@ -1954,9 +1975,11 @@ export default function MLabREPL() {
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{
-            width: 7, height: 7, borderRadius: "50%", background: C.green, display: "inline-block",
+            width: 7, height: 7, borderRadius: "50%",
+            background: statusProp === "ready" ? C.green : C.yellow,
+            display: "inline-block",
           }} />
-          <span>Ready (demo mode)</span>
+          <span>{statusProp === "ready" ? "Ready (WASM)" : "Ready (demo mode)"}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           {execTimeMs !== null && <span>{execTimeMs.toFixed(1)}ms</span>}

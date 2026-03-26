@@ -16,20 +16,26 @@ export default function App() {
 
     async function init() {
       try {
-        // Try loading real WASM engine
-        if (typeof window.createMLabModule === 'function') {
+        // Check if Emscripten glue loaded (set in index.html)
+        const hasWasm = window.__WASM_GLUE_LOADED__ === true
+                     && typeof window.createMLabModule === 'function';
+
+        console.log('[REPL] WASM glue detected:', hasWasm);
+
+        if (hasWasm) {
           setInitMessage('Loading WebAssembly...');
           const eng = await createWasmEngine(window.createMLabModule);
           if (cancelled) return;
           setEngine(eng);
           setStatus('ready');
           setInitMessage(eng.init());
+          console.log('[REPL] WASM engine initialised');
         } else {
-          throw new Error('WASM not available');
+          throw new Error('WASM glue not loaded');
         }
       } catch (err) {
         if (cancelled) return;
-        console.log('[REPL] WASM unavailable, using fallback:', err.message);
+        console.log('[REPL] Using fallback engine:', err.message);
         const eng = createFallbackEngine();
         setEngine(eng);
         setStatus('fallback');
@@ -37,9 +43,8 @@ export default function App() {
       }
     }
 
-    // Small delay to let Emscripten script load
-    const timer = setTimeout(init, 200);
-    return () => { cancelled = true; clearTimeout(timer); };
+    init();
+    return () => { cancelled = true; };
   }, []);
 
   if (!engine) {
