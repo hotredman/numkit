@@ -41,6 +41,10 @@ private:
     // — Безопасный парсинг числа —
     static double parseDouble(const std::string &text, int line, int col);
 
+    // — Command-style calls (clear all, grid on, cd dir, etc.) —
+    bool isCommandStyleCall() const;
+    ASTNodePtr parseCommandStyleCall();
+
     // — Statements —
     ASTNodePtr parseStatement();
     ASTNodePtr parseExpressionStatement();

@@ -40,6 +40,7 @@ enum class NodeType {
     GLOBAL_STMT,
     PERSISTENT_STMT,
     DELETE_ASSIGN,
+    COMMAND_CALL,
 };
 
 struct ASTNode;

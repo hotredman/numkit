@@ -209,8 +209,152 @@ ASTNodePtr Parser::parseStatement()
     }
 }
 
+// ============================================================
+// Command-style calls
+//
+// MATLAB позволяет вызывать функции без скобок:
+//   clear all          →  clear('all')
+//   grid on            →  grid('on')
+//   format long        →  format('long')
+//   cd /path/to/dir    →  cd('/path/to/dir')
+//   load data.mat x y  →  load('data.mat','x','y')
+//   disp hello         →  disp('hello')
+//
+// Правило: IDENTIFIER на позиции statement, за которым на той же
+// строке следует токен-аргумент (IDENTIFIER, STRING, NUMBER, …)
+// без оператора/скобки между ними.
+//
+// Представление в AST: COMMAND_CALL
+//   strValue   = имя функции
+//   children[] = аргументы (STRING_LITERAL)
+// ============================================================
+
+bool Parser::isCommandStyleCall() const
+{
+    if (current().type != TokenType::IDENTIFIER)
+        return false;
+
+    const Token &next = peekToken(1);
+
+    // Если следующий токен — оператор, скобка, присваивание, терминатор
+    // или конец файла — это НЕ command-style.
+    switch (next.type) {
+    // Присваивание и скобочный доступ
+    case TokenType::ASSIGN:
+    case TokenType::LPAREN:
+    case TokenType::LBRACE:
+    // Доступ к полю / транспонирование
+    case TokenType::DOT:
+    case TokenType::APOSTROPHE:
+    case TokenType::DOT_APOSTROPHE:
+    // Арифметические и логические операторы
+    case TokenType::PLUS:
+    case TokenType::MINUS:
+    case TokenType::STAR:
+    case TokenType::SLASH:
+    case TokenType::BACKSLASH:
+    case TokenType::CARET:
+    case TokenType::DOT_STAR:
+    case TokenType::DOT_SLASH:
+    case TokenType::DOT_BACKSLASH:
+    case TokenType::DOT_CARET:
+    // Сравнения
+    case TokenType::EQ:
+    case TokenType::NEQ:
+    case TokenType::LT:
+    case TokenType::GT:
+    case TokenType::LEQ:
+    case TokenType::GEQ:
+    // Логические
+    case TokenType::AND:
+    case TokenType::OR:
+    case TokenType::AND_SHORT:
+    case TokenType::OR_SHORT:
+    // Colon (x:y — range)
+    case TokenType::COLON:
+    // Терминаторы
+    case TokenType::SEMICOLON:
+    case TokenType::NEWLINE:
+    case TokenType::COMMA:
+    case TokenType::RPAREN:
+    case TokenType::RBRACKET:
+    case TokenType::RBRACE:
+    case TokenType::END_OF_INPUT:
+        return false;
+    default:
+        break;
+    }
+
+    // Аргумент должен быть на той же строке
+    if (next.line != current().line)
+        return false;
+
+    // Допустимые типы первого аргумента
+    switch (next.type) {
+    case TokenType::IDENTIFIER:
+    case TokenType::STRING:
+    case TokenType::NUMBER:
+    case TokenType::KW_TRUE:
+    case TokenType::KW_FALSE:
+        return true;
+    default:
+        return false;
+    }
+}
+
+ASTNodePtr Parser::parseCommandStyleCall()
+{
+    auto [ln, cl] = loc();
+
+    // Имя функции
+    std::string funcName = current().value;
+    pos_++;
+
+    auto node = makeNode(NodeType::COMMAND_CALL, ln, cl);
+    node->strValue = std::move(funcName);
+
+    // Собираем аргументы до конца statement (NEWLINE, SEMICOLON, EOF).
+    // Каждый токен/группа токенов через DOT/SLASH склеиваются в один
+    // строковый аргумент (для путей: data.mat, ../dir, +pkg/file).
+    int cmdLine = ln;
+    while (!isAtEnd() && !check(TokenType::NEWLINE) && !check(TokenType::SEMICOLON)
+           && current().line == cmdLine) {
+        auto [aln, acl] = loc();
+        std::string argStr = current().value;
+        pos_++;
+
+        // Склейка: data.mat, ../dir, path/to/file
+        while (
+            !isAtEnd() && current().line == cmdLine
+            && (check(TokenType::DOT) || check(TokenType::SLASH) || check(TokenType::BACKSLASH))) {
+            argStr += current().value;
+            pos_++;
+            // После разделителя — следующий фрагмент
+            if (!isAtEnd() && current().line == cmdLine
+                && (check(TokenType::IDENTIFIER) || check(TokenType::NUMBER)
+                    || check(TokenType::STRING) || check(TokenType::DOT))) {
+                argStr += current().value;
+                pos_++;
+            }
+        }
+
+        auto arg = makeNode(NodeType::STRING_LITERAL, aln, acl);
+        arg->strValue = std::move(argStr);
+        node->children.push_back(std::move(arg));
+    }
+
+    node->suppressOutput = match(TokenType::SEMICOLON);
+    skipNewlines();
+    return node;
+}
+
 ASTNodePtr Parser::parseExpressionStatement()
 {
+    // Command-style вызов: clear all, grid on, cd dir, и т.д.
+    // Проверяем ДО multi-assign и expression parsing.
+    if (isCommandStyleCall())
+        return parseCommandStyleCall();
+
     // Попытка multi-assign: [a, b] = expr  или  [~, b] = expr
     if (check(TokenType::LBRACKET)) {
         size_t save = pos_;
