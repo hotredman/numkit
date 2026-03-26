@@ -11,7 +11,7 @@ class ReplSession {
 public:
     ReplSession() {
         engine_ = std::make_unique<mlab::Engine>();
-        mlab::StdLibrary::install(*engine_);
+        // StdLibrary уже установлена в конструкторе Engine
         engine_->setOutputFunc([this](const std::string &s) {
             outputBuf_ += s;
         });
@@ -70,7 +70,7 @@ public:
 
     void reset() {
         engine_ = std::make_unique<mlab::Engine>();
-        mlab::StdLibrary::install(*engine_);
+        // StdLibrary уже установлена в конструкторе Engine
         engine_->setOutputFunc([this](const std::string &s) {
             outputBuf_ += s;
         });

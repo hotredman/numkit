@@ -187,6 +187,25 @@ void Lexer::insertImplicitComma()
     if (!isValueToken(prev))
         return;
 
+    // Не вставляем запятую после ')' закрывающей @(params) —
+    // следующий токен — это тело анонимной функции, а не новый элемент.
+    if (prev == TokenType::RPAREN) {
+        // Ищем соответствующую '(' и проверяем, стоит ли перед ней '@'
+        int depth = 0;
+        for (int i = static_cast<int>(tokens_.size()) - 1; i >= 0; --i) {
+            if (tokens_[i].type == TokenType::RPAREN)
+                depth++;
+            else if (tokens_[i].type == TokenType::LPAREN)
+                depth--;
+            if (depth == 0) {
+                // Нашли соответствующую '(' — проверяем что перед ней '@'
+                if (i > 0 && tokens_[i - 1].type == TokenType::AT)
+                    return; // Это @(params) — не вставляем запятую
+                break;
+            }
+        }
+    }
+
     size_t scanPos = pos_;
 
     while (scanPos < src_.size() && (src_[scanPos] == ' ' || src_[scanPos] == '\t'))

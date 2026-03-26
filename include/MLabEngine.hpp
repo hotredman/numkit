@@ -31,9 +31,13 @@ class MLabError : public std::runtime_error
 {
 public:
     MLabError(const std::string &msg, int line = 0, int col = 0)
-        : std::runtime_error(msg), line_(line), col_(col) {}
+        : std::runtime_error(msg)
+        , line_(line)
+        , col_(col)
+    {}
     int line() const { return line_; }
     int col() const { return col_; }
+
 private:
     int line_;
     int col_;
@@ -78,6 +82,9 @@ public:
     std::vector<std::string> globalVarNames() const;
     /** Return JSON workspace snapshot for the web inspector */
     std::string workspaceJSON() const;
+
+    /** Output text via the configured output function (or stdout) */
+    void outputText(const std::string &s);
 
 private:
     Allocator allocator_;
@@ -160,6 +167,7 @@ private:
     MValue execSwitch(const ASTNode *node, std::shared_ptr<Environment> env);
     MValue execFunctionDef(const ASTNode *node, std::shared_ptr<Environment> env);
     MValue execExprStmt(const ASTNode *node, std::shared_ptr<Environment> env);
+    MValue execCommandCall(const ASTNode *node, std::shared_ptr<Environment> env);
     MValue execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> env);
     MValue execTryCatch(const ASTNode *node, std::shared_ptr<Environment> env);
     MValue execDeleteAssign(const ASTNode *node, std::shared_ptr<Environment> env);

@@ -374,10 +374,10 @@ ASTNodePtr Parser::parseExpressionStatement()
         // и A(idx) = [] (удаление элементов)
         if (check(TokenType::LBRACKET) && peekToken(1).type == TokenType::RBRACKET) {
             pos_ += 2;
-            // Если LHS — индексное выражение (CALL/CELL_INDEX/FIELD_ACCESS),
-            // то это удаление элементов. Иначе — обычное присваивание [].
-            bool isIndexedLhs = (expr->type == NodeType::CALL || expr->type == NodeType::CELL_INDEX
-                                 || expr->type == NodeType::FIELD_ACCESS);
+            // Если LHS — индексное выражение (CALL или CELL_INDEX),
+            // то это удаление элементов. FIELD_ACCESS (s.field = [])
+            // — это обычное присваивание пустой матрицы полю структуры.
+            bool isIndexedLhs = (expr->type == NodeType::CALL || expr->type == NodeType::CELL_INDEX);
             if (isIndexedLhs) {
                 auto node = makeNode(NodeType::DELETE_ASSIGN, startLine, startCol);
                 node->children.push_back(std::move(expr));
@@ -1010,6 +1010,18 @@ ASTNodePtr Parser::parsePrimary()
     case TokenType::LPAREN: {
         pos_++;
         auto e = parseExpression();
+        // Поддержка (x = expr) — присваивание как выражение.
+        // Используется в short-circuit: if cond && (x = 1)
+        if (check(TokenType::ASSIGN) && e->type == NodeType::IDENTIFIER) {
+            pos_++;
+            auto rhs = parseExpression();
+            auto assignNode = makeNode(NodeType::ASSIGN, e->line, e->col);
+            assignNode->children.push_back(std::move(e));
+            assignNode->children.push_back(std::move(rhs));
+            assignNode->suppressOutput = true;
+            consume(TokenType::RPAREN, ")");
+            return assignNode;
+        }
         consume(TokenType::RPAREN, ")");
         return e;
     }

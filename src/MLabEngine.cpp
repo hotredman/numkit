@@ -96,6 +96,11 @@ void Engine::output(const std::string &s)
         std::cout << s;
 }
 
+void Engine::outputText(const std::string &s)
+{
+    output(s);
+}
+
 void Engine::displayValue(const std::string &name, const MValue &val)
 {
     std::ostringstream os;
@@ -297,86 +302,90 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
         return MValue::empty();
 
     try {
-
-    switch (node->type) {
-    case NodeType::BLOCK:
-        return execBlock(node, env);
-    case NodeType::NUMBER_LITERAL:
-        return MValue::scalar(node->numValue, &allocator_);
-    case NodeType::STRING_LITERAL:
-        return MValue::fromString(node->strValue, &allocator_);
-    case NodeType::BOOL_LITERAL:
-        return MValue::logicalScalar(node->boolValue, &allocator_);
-    case NodeType::IMAG_LITERAL:                                        // ← добавить
-        return MValue::complexScalar(0.0, node->numValue, &allocator_); // ← добавить
-    case NodeType::IDENTIFIER:
-        return execIdentifier(node, env);
-    case NodeType::ASSIGN:
-        return execAssign(node, env);
-    case NodeType::MULTI_ASSIGN:
-        return execMultiAssign(node, env);
-    case NodeType::BINARY_OP:
-        return execBinaryOp(node, env);
-    case NodeType::UNARY_OP:
-        return execUnaryOp(node, env);
-    case NodeType::CALL:
-        return execCall(node, env);
-    case NodeType::CELL_INDEX:
-        return execCellIndex(node, env);
-    case NodeType::FIELD_ACCESS:
-        return execFieldAccess(node, env);
-    case NodeType::MATRIX_LITERAL:
-        return execMatrixLiteral(node, env);
-    case NodeType::CELL_LITERAL:
-        return execCellLiteral(node, env);
-    case NodeType::COLON_EXPR:
-        return execColonExpr(node, env);
-    case NodeType::IF_STMT:
-        return execIf(node, env);
-    case NodeType::FOR_STMT:
-        return execFor(node, env);
-    case NodeType::WHILE_STMT:
-        return execWhile(node, env);
-    case NodeType::SWITCH_STMT:
-        return execSwitch(node, env);
-    case NodeType::BREAK_STMT:
-        throw BreakSignal{};
-    case NodeType::CONTINUE_STMT:
-        throw ContinueSignal{};
-    case NodeType::RETURN_STMT:
-        throw ReturnSignal{};
-    case NodeType::FUNCTION_DEF:
-        return execFunctionDef(node, env);
-    case NodeType::EXPR_STMT:
-        return execExprStmt(node, env);
-    case NodeType::ANON_FUNC:
-        return execAnonFunc(node, env);
-    case NodeType::TRY_STMT:
-        return execTryCatch(node, env);
-    case NodeType::DELETE_ASSIGN:
-        return execDeleteAssign(node, env);
-    case NodeType::GLOBAL_STMT:
-    case NodeType::PERSISTENT_STMT:
-        return execGlobalPersistent(node, env);
-    case NodeType::END_VAL: {
-        if (!indexContextStack_.empty()) {
-            auto &ctx = indexContextStack_.back();
-            size_t sz = (ctx.ndims == 1) ? ctx.array->numel()
-                                         : ctx.array->dims().dimSize(ctx.dimension);
-            return MValue::scalar(static_cast<double>(sz), &allocator_);
+        switch (node->type) {
+        case NodeType::BLOCK:
+            return execBlock(node, env);
+        case NodeType::NUMBER_LITERAL:
+            return MValue::scalar(node->numValue, &allocator_);
+        case NodeType::STRING_LITERAL:
+            return MValue::fromString(node->strValue, &allocator_);
+        case NodeType::BOOL_LITERAL:
+            return MValue::logicalScalar(node->boolValue, &allocator_);
+        case NodeType::IMAG_LITERAL:                                        // ← добавить
+            return MValue::complexScalar(0.0, node->numValue, &allocator_); // ← добавить
+        case NodeType::IDENTIFIER:
+            return execIdentifier(node, env);
+        case NodeType::ASSIGN:
+            return execAssign(node, env);
+        case NodeType::MULTI_ASSIGN:
+            return execMultiAssign(node, env);
+        case NodeType::BINARY_OP:
+            return execBinaryOp(node, env);
+        case NodeType::UNARY_OP:
+            return execUnaryOp(node, env);
+        case NodeType::CALL:
+            return execCall(node, env);
+        case NodeType::CELL_INDEX:
+            return execCellIndex(node, env);
+        case NodeType::FIELD_ACCESS:
+            return execFieldAccess(node, env);
+        case NodeType::MATRIX_LITERAL:
+            return execMatrixLiteral(node, env);
+        case NodeType::CELL_LITERAL:
+            return execCellLiteral(node, env);
+        case NodeType::COLON_EXPR:
+            return execColonExpr(node, env);
+        case NodeType::IF_STMT:
+            return execIf(node, env);
+        case NodeType::FOR_STMT:
+            return execFor(node, env);
+        case NodeType::WHILE_STMT:
+            return execWhile(node, env);
+        case NodeType::SWITCH_STMT:
+            return execSwitch(node, env);
+        case NodeType::BREAK_STMT:
+            throw BreakSignal{};
+        case NodeType::CONTINUE_STMT:
+            throw ContinueSignal{};
+        case NodeType::RETURN_STMT:
+            throw ReturnSignal{};
+        case NodeType::FUNCTION_DEF:
+            return execFunctionDef(node, env);
+        case NodeType::EXPR_STMT:
+            return execExprStmt(node, env);
+        case NodeType::ANON_FUNC:
+            return execAnonFunc(node, env);
+        case NodeType::TRY_STMT:
+            return execTryCatch(node, env);
+        case NodeType::DELETE_ASSIGN:
+            return execDeleteAssign(node, env);
+        case NodeType::GLOBAL_STMT:
+        case NodeType::PERSISTENT_STMT:
+            return execGlobalPersistent(node, env);
+        case NodeType::COMMAND_CALL:
+            return execCommandCall(node, env);
+        case NodeType::END_VAL: {
+            if (!indexContextStack_.empty()) {
+                auto &ctx = indexContextStack_.back();
+                size_t sz = (ctx.ndims == 1) ? ctx.array->numel()
+                                             : ctx.array->dims().dimSize(ctx.dimension);
+                return MValue::scalar(static_cast<double>(sz), &allocator_);
+            }
+            throw std::runtime_error("'end' used outside of indexing context");
         }
-        throw std::runtime_error("'end' used outside of indexing context");
-    }
-    default:
-        throw std::runtime_error("Unknown AST node type");
-    }
+        default:
+            throw std::runtime_error("Unknown AST node type");
+        }
 
     } catch (const MLabError &) {
         // Already annotated — re-throw as-is
         throw;
-    } catch (const BreakSignal &) { throw;
-    } catch (const ContinueSignal &) { throw;
-    } catch (const ReturnSignal &) { throw;
+    } catch (const BreakSignal &) {
+        throw;
+    } catch (const ContinueSignal &) {
+        throw;
+    } catch (const ReturnSignal &) {
+        throw;
     } catch (const std::runtime_error &e) {
         // Annotate with line/col from this AST node
         if (node->line > 0)
@@ -1413,6 +1422,61 @@ MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> en
 }
 
 // ============================================================
+// Command-style call: clear all, grid on, load data.mat x y …
+//
+// COMMAND_CALL node layout:
+//   strValue   = имя функции
+//   children[] = STRING_LITERAL аргументы
+//
+// Семантика MATLAB: command syntax ≡ вызов со строковыми аргументами
+//   clear all       →  clear('all')
+//   load data.mat x →  load('data.mat','x')
+// ============================================================
+MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment> env)
+{
+    const std::string &name = node->strValue;
+
+    // Все children — STRING_LITERAL → превращаем в CHAR MValue
+    std::vector<MValue> args;
+    args.reserve(node->children.size());
+    for (auto &child : node->children)
+        args.push_back(MValue::fromString(child->strValue, &allocator_));
+
+    // 1. Встроенные команды (clear, who, whos, exist, class)
+    MValue result;
+    if (tryBuiltinCall(name, args, env, result)) {
+        if (!node->suppressOutput && !result.isEmpty()) {
+            env->set("ans", result);
+            displayValue("ans", result);
+        }
+        return result;
+    }
+
+    // 2. Внешние зарегистрированные функции
+    if (externalFuncs_.count(name)) {
+        auto res = externalFuncs_[name](args);
+        result = res.empty() ? MValue::empty() : res[0];
+        if (!node->suppressOutput && !result.isEmpty()) {
+            env->set("ans", result);
+            displayValue("ans", result);
+        }
+        return result;
+    }
+
+    // 3. Пользовательские функции
+    if (userFuncs_.count(name)) {
+        result = callUserFunction(userFuncs_[name], args, env);
+        if (!node->suppressOutput && !result.isEmpty()) {
+            env->set("ans", result);
+            displayValue("ans", result);
+        }
+        return result;
+    }
+
+    throw std::runtime_error("Undefined function: " + name);
+}
+
+// ============================================================
 // Anonymous functions
 // ============================================================
 MValue Engine::execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> env)
@@ -1546,14 +1610,26 @@ bool Engine::tryBuiltinCall(const std::string &name,
 {
     if (name == "clear") {
         if (args.empty()) {
-            // clear all local variables
-            auto names = env->localNames();
-            for (auto &n : names)
-                env->remove(n);
+            // clear — удалить все локальные переменные
+            env->clearAll();
         } else {
-            for (auto &a : args) {
-                if (a.isChar())
-                    env->remove(a.toString());
+            std::string first = args[0].isChar() ? args[0].toString() : "";
+            if (first == "all" || first == "classes") {
+                // clear all / clear classes — очистить переменные и функции
+                env->clearAll();
+                userFuncs_.clear();
+            } else if (first == "functions") {
+                // clear functions — только пользовательские функции
+                userFuncs_.clear();
+            } else if (first == "global") {
+                // clear global — TODO: очистка global store
+                // (требует доп. API)
+            } else {
+                // clear x y z — удалить конкретные переменные по имени
+                for (auto &a : args) {
+                    if (a.isChar())
+                        env->remove(a.toString());
+                }
             }
         }
         result = MValue::empty();
@@ -1633,10 +1709,20 @@ bool Engine::tryBuiltinCall(const std::string &name,
 // REPL helpers
 // ============================================================
 
-static const std::unordered_set<std::string> kBuiltinNames = {
-    "pi", "eps", "inf", "Inf", "nan", "NaN", "true", "false", "i", "j",
-    "ans", "nargin", "nargout", "end"
-};
+static const std::unordered_set<std::string> kBuiltinNames = {"pi",
+                                                              "eps",
+                                                              "inf",
+                                                              "Inf",
+                                                              "nan",
+                                                              "NaN",
+                                                              "true",
+                                                              "false",
+                                                              "i",
+                                                              "j",
+                                                              "ans",
+                                                              "nargin",
+                                                              "nargout",
+                                                              "end"};
 
 std::vector<std::string> Engine::globalVarNames() const
 {
@@ -1656,11 +1742,16 @@ static std::string jsonEscape(const std::string &s)
     std::string out;
     out.reserve(s.size() + 4);
     for (char c : s) {
-        if (c == '"') out += "\\\"";
-        else if (c == '\\') out += "\\\\";
-        else if (c == '\n') out += "\\n";
-        else if (c == '\t') out += "\\t";
-        else out += c;
+        if (c == '"')
+            out += "\\\"";
+        else if (c == '\\')
+            out += "\\\\";
+        else if (c == '\n')
+            out += "\\n";
+        else if (c == '\t')
+            out += "\\t";
+        else
+            out += c;
     }
     return out;
 }
@@ -1673,9 +1764,11 @@ std::string Engine::workspaceJSON() const
     bool first = true;
     for (auto &name : names) {
         auto *val = globalEnv_->get(name);
-        if (!val) continue;
+        if (!val)
+            continue;
 
-        if (!first) os << ",";
+        if (!first)
+            os << ",";
         first = false;
 
         os << "\"" << jsonEscape(name) << "\":{";
@@ -1684,7 +1777,8 @@ std::string Engine::workspaceJSON() const
         // size
         auto &d = val->dims();
         os << ",\"size\":\"" << d.rows() << "x" << d.cols();
-        if (d.is3D()) os << "x" << d.pages();
+        if (d.is3D())
+            os << "x" << d.pages();
         os << "\"";
         // bytes
         os << ",\"bytes\":" << val->rawBytes();
@@ -1692,13 +1786,17 @@ std::string Engine::workspaceJSON() const
         os << ",\"preview\":";
         if (val->type() == MType::DOUBLE && val->isScalar()) {
             double v = val->toScalar();
-            if (std::isnan(v)) os << "\"NaN\"";
-            else if (std::isinf(v)) os << (v > 0 ? "\"Inf\"" : "\"-Inf\"");
-            else os << v;
+            if (std::isnan(v))
+                os << "\"NaN\"";
+            else if (std::isinf(v))
+                os << (v > 0 ? "\"Inf\"" : "\"-Inf\"");
+            else
+                os << v;
         } else if (val->type() == MType::COMPLEX && val->isScalar()) {
             auto c = val->toComplex();
             os << "\"" << c.real();
-            if (c.imag() >= 0) os << "+";
+            if (c.imag() >= 0)
+                os << "+";
             os << c.imag() << "i\"";
         } else if (val->type() == MType::CHAR) {
             os << "\"" << jsonEscape(val->toString()) << "\"";
@@ -1707,7 +1805,8 @@ std::string Engine::workspaceJSON() const
         } else if ((val->type() == MType::DOUBLE) && val->numel() <= 10) {
             os << "[";
             for (size_t i = 0; i < val->numel(); ++i) {
-                if (i) os << ",";
+                if (i)
+                    os << ",";
                 os << val->doubleData()[i];
             }
             os << "]";

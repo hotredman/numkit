@@ -1310,3 +1310,257 @@ TEST_F(EngineCommentTest, RealisticScriptSnippet)
     EXPECT_NEAR(getVar("k"), 2.0 * M_PI / lambda, 1e-10);
     EXPECT_DOUBLE_EQ(getVar("theta0"), 0.0);
 }
+
+// ============================================================
+// Command-style calls — runtime (clear all, disp hello, etc.)
+// ============================================================
+
+class EngineCommandStyleTest : public EngineTest
+{};
+
+// --- clear all ---
+
+TEST_F(EngineCommandStyleTest, ClearAll)
+{
+    eval("x = 1; y = 2; z = 3;");
+    EXPECT_NE(getVarPtr("x"), nullptr);
+    EXPECT_NE(getVarPtr("y"), nullptr);
+    eval("clear all");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_EQ(getVarPtr("y"), nullptr);
+    EXPECT_EQ(getVarPtr("z"), nullptr);
+}
+
+TEST_F(EngineCommandStyleTest, ClearAllWithSemicolon)
+{
+    eval("x = 1;");
+    eval("clear all;");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+}
+
+// --- clear <varname> ---
+
+TEST_F(EngineCommandStyleTest, ClearSpecificVar)
+{
+    eval("x = 1; y = 2; z = 3;");
+    eval("clear x");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_NE(getVarPtr("y"), nullptr);
+    EXPECT_NE(getVarPtr("z"), nullptr);
+}
+
+TEST_F(EngineCommandStyleTest, ClearMultipleVars)
+{
+    eval("a = 1; b = 2; c = 3;");
+    eval("clear a b");
+    EXPECT_EQ(getVarPtr("a"), nullptr);
+    EXPECT_EQ(getVarPtr("b"), nullptr);
+    EXPECT_NE(getVarPtr("c"), nullptr);
+}
+
+// --- clear functions ---
+
+TEST_F(EngineCommandStyleTest, ClearFunctions)
+{
+    eval("function y = sq(x)\n  y = x^2;\nend");
+    EXPECT_DOUBLE_EQ(evalScalar("sq(3);"), 9.0);
+    eval("clear functions");
+    EXPECT_THROW(eval("sq(3);"), std::exception);
+}
+
+// --- who / whos ---
+
+TEST_F(EngineCommandStyleTest, WhosProducesOutput)
+{
+    eval("x = 42; y = [1 2 3];");
+    capturedOutput.clear();
+    eval("whos x y");
+    EXPECT_FALSE(capturedOutput.empty());
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("y"), std::string::npos);
+}
+
+// --- disp ---
+
+TEST_F(EngineCommandStyleTest, DispCommandStyle)
+{
+    capturedOutput.clear();
+    eval("disp hello");
+    EXPECT_FALSE(capturedOutput.empty());
+    EXPECT_NE(capturedOutput.find("hello"), std::string::npos);
+}
+
+TEST_F(EngineCommandStyleTest, DispWithParensEquivalent)
+{
+    // disp('test') и disp test — оба должны работать
+    capturedOutput.clear();
+    eval("disp('test')");
+    EXPECT_NE(capturedOutput.find("test"), std::string::npos);
+
+    capturedOutput.clear();
+    eval("disp test");
+    EXPECT_NE(capturedOutput.find("test"), std::string::npos);
+}
+
+// --- exist command-style ---
+
+TEST_F(EngineCommandStyleTest, ExistCommandStyle)
+{
+    eval("x = 42;");
+    auto val = eval("exist x");
+    // exist('x') возвращает 1 — переменная
+    // execCommandCall устанавливает ans
+}
+
+// --- user function called command-style ---
+
+TEST_F(EngineCommandStyleTest, UserFuncCommandStyle)
+{
+    eval(R"(
+        function myfn(tag)
+            global last_tag;
+            last_tag = tag;
+        end
+    )");
+    eval("global last_tag;");
+    eval("myfn hello");
+    auto *t = getVarPtr("last_tag");
+    ASSERT_NE(t, nullptr);
+    EXPECT_EQ(t->toString(), "hello");
+}
+
+TEST_F(EngineCommandStyleTest, UserFuncMultiArgCommandStyle)
+{
+    eval(R"(
+        function myfn(a, b)
+            global ga;
+            global gb;
+            ga = a;
+            gb = b;
+        end
+    )");
+    eval("global ga; global gb;");
+    eval("myfn foo bar");
+    EXPECT_EQ(getVarPtr("ga")->toString(), "foo");
+    EXPECT_EQ(getVarPtr("gb")->toString(), "bar");
+}
+
+// --- semicolon suppresses output ---
+
+TEST_F(EngineCommandStyleTest, SemicolonSuppressesOutput)
+{
+    eval("x = 10;");
+    capturedOutput.clear();
+    eval("clear x;");
+    EXPECT_TRUE(capturedOutput.empty());
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+}
+
+// --- command-style inside control flow ---
+
+TEST_F(EngineCommandStyleTest, CommandInsideIf)
+{
+    eval("x = 1; y = 2;");
+    eval(R"(
+        if true
+            clear x
+        end
+    )");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_NE(getVarPtr("y"), nullptr);
+}
+
+TEST_F(EngineCommandStyleTest, CommandInsideFor)
+{
+    eval(R"(
+        function myfn(tag)
+            global last_tag;
+            last_tag = tag;
+        end
+    )");
+    eval("global last_tag;");
+    eval(R"(
+        for i = 1:3
+            myfn hello
+        end
+    )");
+    EXPECT_EQ(getVarPtr("last_tag")->toString(), "hello");
+}
+
+TEST_F(EngineCommandStyleTest, CommandInsideFunction)
+{
+    eval(R"(
+        function cleanup()
+            clear x
+        end
+    )");
+    // cleanup работает в локальном scope — глобальный x не затронут
+    eval("x = 42;");
+    EXPECT_NO_THROW(eval("cleanup()"));
+    EXPECT_NE(getVarPtr("x"), nullptr);
+}
+
+// --- не ломает обычные выражения ---
+
+TEST_F(EngineCommandStyleTest, NormalExpressionStillWorks)
+{
+    eval("a = 5; b = a + 3;");
+    EXPECT_DOUBLE_EQ(getVar("b"), 8.0);
+}
+
+TEST_F(EngineCommandStyleTest, FunctionCallParensStillWorks)
+{
+    eval("v = [3 1 2]; r = sort(v);");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[2], 3.0);
+}
+
+TEST_F(EngineCommandStyleTest, DotAccessStillWorks)
+{
+    eval("s.x = 42;");
+    EXPECT_DOUBLE_EQ(getVarPtr("s")->field("x").toScalar(), 42.0);
+}
+
+TEST_F(EngineCommandStyleTest, AssignStillWorks)
+{
+    eval("x = 10;");
+    EXPECT_DOUBLE_EQ(getVar("x"), 10.0);
+}
+
+TEST_F(EngineCommandStyleTest, BinaryOpStillWorks)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("3 + 4;"), 7.0);
+}
+
+TEST_F(EngineCommandStyleTest, ColonStillWorks)
+{
+    eval("v = 1:5;");
+    EXPECT_EQ(getVarPtr("v")->numel(), 5u);
+}
+
+// --- реалистичный скрипт ---
+
+TEST_F(EngineCommandStyleTest, RealisticScript)
+{
+    eval(R"(
+        x = 1;
+        y = 2;
+        z = 3;
+        clear x y
+    )");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_EQ(getVarPtr("y"), nullptr);
+    EXPECT_NE(getVarPtr("z"), nullptr);
+    EXPECT_DOUBLE_EQ(getVar("z"), 3.0);
+}
+
+TEST_F(EngineCommandStyleTest, ClearAllThenReassign)
+{
+    eval("a = 1; b = 2;");
+    eval("clear all");
+    eval("c = 99;");
+    EXPECT_EQ(getVarPtr("a"), nullptr);
+    EXPECT_EQ(getVarPtr("b"), nullptr);
+    EXPECT_DOUBLE_EQ(getVar("c"), 99.0);
+}
