@@ -389,6 +389,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [acPartial, setAcPartial] = useState("");
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [variables, setVariables] = useState({});
+  const [errorLine, setErrorLine] = useState(null);
 
   // Editor state
   const [tabs, setTabs] = useState([{ id: "1", name: "untitled.m", code: "", modified: false }]);
@@ -397,6 +398,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const outputRef = useRef(null);
   const inputRef = useRef(null);
   const tabCountRef = useRef(1);
+  const editorRef = useRef(null);
+  const gutterRef = useRef(null);
 
   // Use the engine passed from App.jsx (WASM or fallback)
   const engine = engineProp;
@@ -422,11 +425,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const t0 = performance.now();
     const result = engine.execute(code);
     setExecTimeMs(performance.now() - t0);
+    setErrorLine(null); // Clear previous error
     const items = [];
     if (result.output) {
       for (const line of result.output.split("\n")) {
         if (line === "__CLEAR__") { setOutput([]); continue; }
-        if (/^Error:/.test(line)) items.push({ type: "error", text: line });
+        if (/^Error/.test(line)) items.push({ type: "error", text: line });
         else if (/^Warning:/.test(line)) items.push({ type: "warning", text: line });
         else items.push({ type: "result", text: line });
       }
@@ -434,6 +438,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     addOutput(items);
     if (result.plots && result.plots.length > 0) {
       setPlots(prev => [...prev, ...result.plots]);
+    }
+    // Highlight error line in editor
+    if (result.errorLine) {
+      setErrorLine(result.errorLine);
     }
     // Refresh workspace variables after each execution
     setVariables(engine.getVars());
@@ -644,15 +652,42 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           {showCenter && (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
               <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} />
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                {/* Line numbers */}
-                <div style={{ padding: "8px 0", background: C.bg0, borderRight: `1px solid ${C.border}`, userSelect: "none", minWidth: 34, textAlign: "right", overflowY: "auto" }}>
-                  {(activeTabData?.code || "").split("\n").map((_, i) => (
-                    <div key={i} style={{ fontSize: 10, color: C.textMuted, padding: "0 6px", lineHeight: "20px" }}>{i + 1}</div>
-                  ))}
+              <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
+                {/* Line numbers — synced scroll with textarea */}
+                <div ref={gutterRef} style={{
+                  padding: "8px 0", background: C.bg0, borderRight: `1px solid ${C.border}`,
+                  userSelect: "none", minWidth: 34, textAlign: "right",
+                  overflowY: "hidden", overflowX: "hidden", flexShrink: 0,
+                }}>
+                  {(activeTabData?.code || "").split("\n").map((_, i) => {
+                    const lineNum = i + 1;
+                    const isError = errorLine === lineNum;
+                    return (
+                      <div key={i} style={{
+                        fontSize: 10, padding: "0 6px", lineHeight: "20px",
+                        color: isError ? C.red : C.textMuted,
+                        background: isError ? `${C.red}18` : "transparent",
+                        fontWeight: isError ? 700 : 400,
+                      }}>{lineNum}</div>
+                    );
+                  })}
                 </div>
-                <textarea value={activeTabData?.code || ""} onChange={e => updateTabCode(e.target.value)} spellCheck={false}
-                  style={{ flex: 1, background: C.bg1, color: C.text, border: "none", outline: "none", fontFamily: FONT, fontSize: 13, lineHeight: "20px", padding: 8, resize: "none", caretColor: C.accent, overflow: "auto" }} />
+                <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+                  {/* Error line highlight overlay */}
+                  {errorLine && (
+                    <div style={{
+                      position: "absolute", left: 0, right: 0,
+                      top: (errorLine - 1) * 20 + 8, height: 20,
+                      background: `${C.red}12`, borderLeft: `2px solid ${C.red}`,
+                      pointerEvents: "none", zIndex: 1,
+                    }} />
+                  )}
+                  <textarea ref={editorRef} value={activeTabData?.code || ""} onChange={e => { updateTabCode(e.target.value); setErrorLine(null); }} spellCheck={false}
+                    onScroll={e => {
+                      if (gutterRef.current) gutterRef.current.scrollTop = e.target.scrollTop;
+                    }}
+                    style={{ width: "100%", height: "100%", background: C.bg1, color: C.text, border: "none", outline: "none", fontFamily: FONT, fontSize: 13, lineHeight: "20px", padding: 8, resize: "none", caretColor: C.accent, overflow: "auto", position: "relative", zIndex: 2 }} />
+                </div>
               </div>
             </div>
           )}

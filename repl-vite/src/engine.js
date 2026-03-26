@@ -11,33 +11,38 @@
  */
 
 /**
- * Parse __PLOT_DATA__:{...json...} markers out of WASM output.
- * Supports MULTIPLE plot markers in a single output.
- * Returns { cleanOutput, plots } where plots is an array.
+ * Parse __PLOT_DATA__ and __ERROR_LINE__ markers out of WASM output.
+ * Returns { cleanOutput, plots, errorLine }.
  */
-function extractPlotData(rawOutput) {
-  if (!rawOutput) return { cleanOutput: '', plots: [] };
+function extractMarkers(rawOutput) {
+  if (!rawOutput) return { cleanOutput: '', plots: [], errorLine: null };
 
   const plotMarker = '__PLOT_DATA__:';
-  if (rawOutput.indexOf(plotMarker) === -1) {
-    return { cleanOutput: rawOutput, plots: [] };
-  }
+  const errorMarker = '__ERROR_LINE__:';
 
   const lines = rawOutput.split('\n');
   const cleanLines = [];
   const plots = [];
+  let errorLine = null;
 
   for (const line of lines) {
+    // Check for error line marker
+    const errIdx = line.indexOf(errorMarker);
+    if (errIdx !== -1) {
+      const num = parseInt(line.substring(errIdx + errorMarker.length).trim(), 10);
+      if (!isNaN(num) && num > 0) errorLine = num;
+      continue; // Don't include marker line in output
+    }
+
+    // Check for plot data marker
     const mIdx = line.indexOf(plotMarker);
     if (mIdx === -1) {
       cleanLines.push(line);
       continue;
     }
-    // Text before the marker on this line is normal output
     const before = line.substring(0, mIdx).trimEnd();
     if (before) cleanLines.push(before);
 
-    // Extract JSON
     let jsonStr = line.substring(mIdx + plotMarker.length).trim();
     let depth = 0, jsonEnd = 0;
     for (let i = 0; i < jsonStr.length; i++) {
@@ -53,7 +58,7 @@ function extractPlotData(rawOutput) {
     }
   }
 
-  return { cleanOutput: cleanLines.join('\n').trimEnd(), plots };
+  return { cleanOutput: cleanLines.join('\n').trimEnd(), plots, errorLine };
 }
 
 /**
@@ -262,8 +267,8 @@ export async function createWasmEngine(createModule) {
      */
     execute(code) {
       const raw = Module.repl_execute(code);
-      const { cleanOutput, plots } = extractPlotData(raw);
-      return { output: cleanOutput, plots };
+      const { cleanOutput, plots, errorLine } = extractMarkers(raw);
+      return { output: cleanOutput, plots, errorLine };
     },
 
     complete(partial) {
@@ -322,9 +327,8 @@ export function createFallbackEngine() {
      */
     execute(code) {
       const result = interp.execute(code);
-      // interp returns { output, plot } with a single plot
       const plots = result.plot ? [result.plot] : [];
-      return { output: result.output, plots };
+      return { output: result.output, plots, errorLine: null };
     },
 
     complete(partial) {

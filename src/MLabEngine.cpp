@@ -296,6 +296,8 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
     if (!node)
         return MValue::empty();
 
+    try {
+
     switch (node->type) {
     case NodeType::BLOCK:
         return execBlock(node, env);
@@ -367,6 +369,19 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
     }
     default:
         throw std::runtime_error("Unknown AST node type");
+    }
+
+    } catch (const MLabError &) {
+        // Already annotated — re-throw as-is
+        throw;
+    } catch (const BreakSignal &) { throw;
+    } catch (const ContinueSignal &) { throw;
+    } catch (const ReturnSignal &) { throw;
+    } catch (const std::runtime_error &e) {
+        // Annotate with line/col from this AST node
+        if (node->line > 0)
+            throw MLabError(e.what(), node->line, node->col);
+        throw;
     }
 }
 

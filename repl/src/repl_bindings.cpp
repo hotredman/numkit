@@ -20,38 +20,48 @@ public:
     std::string execute(const std::string& code) {
         outputBuf_.clear();
 
-        // Also capture stdout for __PLOT_DATA__ markers from plot stubs
+        // Capture stdout for __PLOT_DATA__ markers
         std::ostringstream coutCapture;
         auto oldCout = std::cout.rdbuf(coutCapture.rdbuf());
 
-        try {
-            engine_->eval(code);
+        auto collectOutput = [&]() -> std::string {
             std::cout.rdbuf(oldCout);
-
-            // Combine engine output + stdout captures
             std::string output = outputBuf_;
             std::string coutStr = coutCapture.str();
             if (!coutStr.empty()) {
                 if (!output.empty() && output.back() != '\n') output += '\n';
                 output += coutStr;
             }
+            return output;
+        };
 
+        try {
+            engine_->eval(code);
+            std::string output = collectOutput();
             while (!output.empty() &&
                    (output.back() == '\n' || output.back() == ' '))
                 output.pop_back();
             return output;
-        } catch (const std::exception& e) {
-            std::cout.rdbuf(oldCout);
-            std::string output = outputBuf_;
-            std::string coutStr = coutCapture.str();
-            if (!coutStr.empty()) {
-                if (!output.empty() && output.back() != '\n') output += '\n';
-                output += coutStr;
+
+        } catch (const mlab::MLabError& e) {
+            std::string output = collectOutput();
+            if (!output.empty() && output.back() != '\n')
+                output += '\n';
+            if (e.line() > 0) {
+                output += "__ERROR_LINE__:" + std::to_string(e.line()) + "\n";
+                output += "Error (line " + std::to_string(e.line()) + "): " + e.what();
+            } else {
+                output += std::string("Error: ") + e.what();
             }
+            return output;
+
+        } catch (const std::exception& e) {
+            std::string output = collectOutput();
             if (!output.empty() && output.back() != '\n')
                 output += '\n';
             output += std::string("Error: ") + e.what();
             return output;
+
         } catch (...) {
             std::cout.rdbuf(oldCout);
             return "Error: Unknown exception";

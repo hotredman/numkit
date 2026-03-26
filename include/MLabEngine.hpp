@@ -26,6 +26,19 @@ struct ContinueSignal
 struct ReturnSignal
 {};
 
+/** Runtime error with source location info */
+class MLabError : public std::runtime_error
+{
+public:
+    MLabError(const std::string &msg, int line = 0, int col = 0)
+        : std::runtime_error(msg), line_(line), col_(col) {}
+    int line() const { return line_; }
+    int col() const { return col_; }
+private:
+    int line_;
+    int col_;
+};
+
 struct UserFunction
 {
     std::string name;
