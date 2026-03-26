@@ -127,6 +127,194 @@ void StdLibrary::install(Engine &engine)
     registerCellStructFunctions(engine);
     registerStringFunctions(engine);
     registerComplexFunctions(engine);
+
+    // ================================================================
+    // Plotting stubs — emit __PLOT_DATA__ JSON for the web UI
+    // ================================================================
+    auto *alloc_ptr = &engine.allocator();
+
+    // Helper: serialize a double vector/matrix to JSON array
+    auto vecToJson = [](const MValue &v) -> std::string {
+        std::ostringstream os;
+        os << "[";
+        if (v.isComplex()) {
+            // For complex: output magnitude
+            for (size_t i = 0; i < v.numel(); ++i) {
+                if (i) os << ",";
+                os << std::abs(v.complexData()[i]);
+            }
+        } else {
+            for (size_t i = 0; i < v.numel(); ++i) {
+                if (i) os << ",";
+                double val = v.doubleData()[i];
+                if (std::isnan(val)) os << "null";
+                else if (std::isinf(val)) os << (val > 0 ? "1e308" : "-1e308");
+                else os << val;
+            }
+        }
+        os << "]";
+        return os.str();
+    };
+
+    // --- plot(x, y) or plot(y) ---
+    engine.registerFunction("plot", [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        if (args.empty()) return {MValue::empty()};
+        std::string xJson, yJson;
+        if (args.size() >= 2 && !args[1].isChar()) {
+            xJson = vecToJson(args[0]);
+            yJson = vecToJson(args[1]);
+        } else {
+            auto &y = args[0];
+            std::ostringstream xs;
+            xs << "[";
+            for (size_t i = 0; i < y.numel(); ++i) { if (i) xs << ","; xs << (i+1); }
+            xs << "]";
+            xJson = xs.str();
+            yJson = vecToJson(y);
+        }
+        // Use engine output so it gets captured by setOutputFunc
+        std::ostringstream os;
+        os << "__PLOT_DATA__:{\"datasets\":[{\"x\":" << xJson << ",\"y\":" << yJson
+           << "}],\"config\":{\"type\":\"line\",\"title\":\"\",\"xlabel\":\"\",\"ylabel\":\"\"}}\n";
+        // We need both: engine output (for WASM capture) and stdout (for standalone)
+        std::cout << os.str();
+        return {MValue::empty()};
+    });
+
+    // --- bar(y) ---
+    engine.registerFunction("bar", [vecToJson](const std::vector<MValue> &args) -> std::vector<MValue> {
+        if (args.empty()) return {MValue::empty()};
+        auto &y = args[0];
+        std::ostringstream xs;
+        xs << "[";
+        for (size_t i = 0; i < y.numel(); ++i) { if (i) xs << ","; xs << (i+1); }
+        xs << "]";
+        std::cout << "__PLOT_DATA__:{\"datasets\":[{\"x\":" << xs.str() << ",\"y\":" << vecToJson(y)
+                  << "}],\"config\":{\"type\":\"bar\",\"title\":\"\",\"xlabel\":\"\",\"ylabel\":\"\"}}\n";
+        return {MValue::empty()};
+    });
+
+    // --- scatter(x, y) ---
+    engine.registerFunction("scatter", [vecToJson](const std::vector<MValue> &args) -> std::vector<MValue> {
+        if (args.size() < 2) return {MValue::empty()};
+        std::cout << "__PLOT_DATA__:{\"datasets\":[{\"x\":" << vecToJson(args[0]) << ",\"y\":" << vecToJson(args[1])
+                  << "}],\"config\":{\"type\":\"scatter\",\"title\":\"\",\"xlabel\":\"\",\"ylabel\":\"\"}}\n";
+        return {MValue::empty()};
+    });
+
+    // --- hist(data, bins) ---
+    engine.registerFunction("hist", [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        if (args.empty()) return {MValue::empty()};
+        auto &data = args[0];
+        int bins = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 10;
+        double mn = data.doubleData()[0], mx = data.doubleData()[0];
+        for (size_t i = 1; i < data.numel(); ++i) {
+            mn = std::min(mn, data.doubleData()[i]);
+            mx = std::max(mx, data.doubleData()[i]);
+        }
+        double bw = (mx - mn) / bins;
+        if (bw == 0) bw = 1;
+        auto centers = MValue::matrix(1, bins, MType::DOUBLE, alloc);
+        auto counts = MValue::matrix(1, bins, MType::DOUBLE, alloc);
+        for (int b = 0; b < bins; ++b) centers.doubleDataMut()[b] = mn + bw * (b + 0.5);
+        for (size_t i = 0; i < data.numel(); ++i) {
+            int b = static_cast<int>((data.doubleData()[i] - mn) / bw);
+            if (b >= bins) b = bins - 1;
+            if (b < 0) b = 0;
+            counts.doubleDataMut()[b] += 1;
+        }
+        std::cout << "__PLOT_DATA__:{\"datasets\":[{\"x\":" << vecToJson(centers)
+                  << ",\"y\":" << vecToJson(counts)
+                  << "}],\"config\":{\"type\":\"bar\",\"title\":\"\",\"xlabel\":\"\",\"ylabel\":\"\"}}" << std::endl;
+        return {MValue::empty()};
+    });
+
+    // ================================================================
+    // GUI no-ops — functions that exist in MATLAB but have no meaning
+    // in the web REPL. They silently succeed to allow scripts to run.
+    // ================================================================
+    auto noop = [](const std::vector<MValue> &) -> std::vector<MValue> {
+        return {MValue::empty()};
+    };
+    auto noop_ret1 = [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
+        return {MValue::scalar(1.0, &engine.allocator())};
+    };
+
+    // Figure/axes management
+    engine.registerFunction("figure", noop_ret1);
+    engine.registerFunction("subplot", noop);
+    engine.registerFunction("axes", noop_ret1);
+    engine.registerFunction("gca", noop_ret1);
+    engine.registerFunction("gcf", noop_ret1);
+    engine.registerFunction("close", noop);
+    engine.registerFunction("clf", noop);
+    engine.registerFunction("cla", noop);
+
+    // Plot decoration
+    engine.registerFunction("title", noop);
+    engine.registerFunction("xlabel", noop);
+    engine.registerFunction("ylabel", noop);
+    engine.registerFunction("zlabel", noop);
+    engine.registerFunction("legend", noop);
+    engine.registerFunction("colorbar", noop);
+    engine.registerFunction("colormap", noop);
+    engine.registerFunction("caxis", noop);
+    engine.registerFunction("clim", noop);
+    engine.registerFunction("xlim", noop);
+    engine.registerFunction("ylim", noop);
+    engine.registerFunction("zlim", noop);
+    engine.registerFunction("rlim", noop);
+    engine.registerFunction("grid", noop);
+    engine.registerFunction("hold", noop);
+    engine.registerFunction("axis", noop);
+    engine.registerFunction("view", noop);
+    engine.registerFunction("set", noop);
+    engine.registerFunction("get", noop_ret1);
+
+    // 3D/specialized plots (no-ops in web)
+    engine.registerFunction("scatter3", noop);
+    engine.registerFunction("surf", noop);
+    engine.registerFunction("mesh", noop);
+    engine.registerFunction("contour", noop);
+    engine.registerFunction("contourf", noop);
+    engine.registerFunction("imagesc", noop);
+    engine.registerFunction("pcolor", noop);
+    engine.registerFunction("polarplot", noop);
+    engine.registerFunction("xline", noop);
+    engine.registerFunction("yline", noop);
+    engine.registerFunction("camlight", noop);
+    engine.registerFunction("lighting", noop);
+
+    // --- lines(n) --- returns Nx3 matrix of colors (simplified)
+    engine.registerFunction("lines", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        int n = args.empty() ? 7 : static_cast<int>(args[0].toScalar());
+        // Default MATLAB color order (first 7)
+        static const double colors[][3] = {
+            {0,0.447,0.741}, {0.850,0.325,0.098}, {0.929,0.694,0.125},
+            {0.494,0.184,0.556}, {0.466,0.674,0.188}, {0.301,0.745,0.933},
+            {0.635,0.078,0.184}
+        };
+        auto r = MValue::matrix(n, 3, MType::DOUBLE, alloc);
+        for (int i = 0; i < n; ++i) {
+            int ci = i % 7;
+            r.elem(i, 0) = colors[ci][0];
+            r.elem(i, 1) = colors[ci][1];
+            r.elem(i, 2) = colors[ci][2];
+        }
+        return {r};
+    });
+
+    // --- arrayfun (basic scalar version) ---
+    engine.registerFunction("arrayfun", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        // arrayfun(@func, array) — very simplified
+        // For 'UniformOutput', false — return cell (not implemented, just ignore extra args)
+        if (args.size() < 2) throw std::runtime_error("arrayfun requires at least 2 arguments");
+        // This is a stub — just return the second argument
+        // Real arrayfun would need function handle evaluation which is complex
+        return {args[1]};
+    });
 }
 
 // ============================================================
@@ -857,6 +1045,53 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                                     m.doubleDataMut()[i] = dist(gen);
                                 return {m};
                             });
+
+    // --- deg2rad ---
+    engine.registerFunction("deg2rad", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        constexpr double k = 3.14159265358979323846 / 180.0;
+        return {unaryDouble(args[0], [](double x) { return x * (3.14159265358979323846 / 180.0); }, alloc)};
+    });
+
+    // --- rad2deg ---
+    engine.registerFunction("rad2deg", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        return {unaryDouble(args[0], [](double x) { return x * (180.0 / 3.14159265358979323846); }, alloc)};
+    });
+
+    // --- atan2 ---
+    engine.registerFunction("atan2", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        if (args.size() < 2) throw std::runtime_error("atan2 requires 2 arguments");
+        return {elementwiseDouble(args[0], args[1], [](double y, double x) { return std::atan2(y, x); }, alloc)};
+    });
+
+    // --- asin ---
+    engine.registerFunction("asin", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        auto &a = args[0];
+        if (a.isComplex())
+            return {unaryComplex(a, [](const Complex &c) { return std::asin(c); }, alloc)};
+        return {unaryDouble(a, [](double x) { return std::asin(x); }, alloc)};
+    });
+
+    // --- acos ---
+    engine.registerFunction("acos", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        auto &a = args[0];
+        if (a.isComplex())
+            return {unaryComplex(a, [](const Complex &c) { return std::acos(c); }, alloc)};
+        return {unaryDouble(a, [](double x) { return std::acos(x); }, alloc)};
+    });
+
+    // --- atan ---
+    engine.registerFunction("atan", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        auto &a = args[0];
+        if (a.isComplex())
+            return {unaryComplex(a, [](const Complex &c) { return std::atan(c); }, alloc)};
+        return {unaryDouble(a, [](double x) { return std::atan(x); }, alloc)};
+    });
 }
 
 // ============================================================
@@ -1074,11 +1309,78 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                 }
                                 return {r};
                             });
+
+    // --- meshgrid ---
+    engine.registerFunction("meshgrid", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        if (args.size() < 2) throw std::runtime_error("meshgrid requires 2 arguments");
+        auto &xv = args[0];
+        auto &yv = args[1];
+        size_t nx = xv.numel();
+        size_t ny = yv.numel();
+        auto X = MValue::matrix(ny, nx, MType::DOUBLE, alloc);
+        auto Y = MValue::matrix(ny, nx, MType::DOUBLE, alloc);
+        for (size_t r = 0; r < ny; ++r) {
+            for (size_t c = 0; c < nx; ++c) {
+                X.elem(r, c) = xv.doubleData()[c];
+                Y.elem(r, c) = yv.doubleData()[r];
+            }
+        }
+        return {X, Y};
+    });
+
+    // --- cumsum ---
+    engine.registerFunction("cumsum", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        auto &a = args[0];
+        if (a.dims().isVector() || a.isScalar()) {
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+            double s = 0;
+            for (size_t i = 0; i < a.numel(); ++i) {
+                s += a.doubleData()[i];
+                r.doubleDataMut()[i] = s;
+            }
+            return {r};
+        }
+        // Column-wise cumsum
+        size_t R = a.dims().rows(), C = a.dims().cols();
+        auto r = MValue::matrix(R, C, MType::DOUBLE, alloc);
+        for (size_t c = 0; c < C; ++c) {
+            double s = 0;
+            for (size_t rr = 0; rr < R; ++rr) {
+                s += a(rr, c);
+                r.elem(rr, c) = s;
+            }
+        }
+        return {r};
+    });
+
+    // --- cross --- (3D cross product)
+    engine.registerFunction("cross", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        if (args.size() < 2) throw std::runtime_error("cross requires 2 arguments");
+        auto &a = args[0]; auto &b = args[1];
+        if (a.numel() != 3 || b.numel() != 3) throw std::runtime_error("cross requires 3-element vectors");
+        auto r = MValue::matrix(1, 3, MType::DOUBLE, alloc);
+        r.doubleDataMut()[0] = a.doubleData()[1]*b.doubleData()[2] - a.doubleData()[2]*b.doubleData()[1];
+        r.doubleDataMut()[1] = a.doubleData()[2]*b.doubleData()[0] - a.doubleData()[0]*b.doubleData()[2];
+        r.doubleDataMut()[2] = a.doubleData()[0]*b.doubleData()[1] - a.doubleData()[1]*b.doubleData()[0];
+        return {r};
+    });
+
+    // --- dot --- (dot product)
+    engine.registerFunction("dot", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        auto *alloc = &engine.allocator();
+        if (args.size() < 2) throw std::runtime_error("dot requires 2 arguments");
+        auto &a = args[0]; auto &b = args[1];
+        if (a.numel() != b.numel()) throw std::runtime_error("dot: vectors must have same length");
+        double s = 0;
+        for (size_t i = 0; i < a.numel(); ++i)
+            s += a.doubleData()[i] * b.doubleData()[i];
+        return {MValue::scalar(s, alloc)};
+    });
 }
 
-// ============================================================
-// I/O functions
-// ============================================================
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
     engine.registerFunction("disp", [](const std::vector<MValue> &args) -> std::vector<MValue> {

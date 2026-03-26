@@ -7,68 +7,53 @@
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
 
-class OutputCapture {
-public:
-    OutputCapture() {
-        old_cout_ = std::cout.rdbuf(cout_buf_.rdbuf());
-        old_cerr_ = std::cerr.rdbuf(cerr_buf_.rdbuf());
-    }
-
-    ~OutputCapture() { restore(); }
-
-    void restore() {
-        if (old_cout_) { std::cout.rdbuf(old_cout_); old_cout_ = nullptr; }
-        if (old_cerr_) { std::cerr.rdbuf(old_cerr_); old_cerr_ = nullptr; }
-    }
-
-    std::string getAll() const {
-        std::string result = cout_buf_.str();
-        std::string err = cerr_buf_.str();
-        if (!err.empty()) {
-            if (!result.empty() && result.back() != '\n') result += '\n';
-            result += err;
-        }
-        return result;
-    }
-
-private:
-    std::ostringstream cout_buf_;
-    std::ostringstream cerr_buf_;
-    std::streambuf* old_cout_ = nullptr;
-    std::streambuf* old_cerr_ = nullptr;
-};
-
 class ReplSession {
 public:
     ReplSession() {
         engine_ = std::make_unique<mlab::Engine>();
         mlab::StdLibrary::install(*engine_);
+        engine_->setOutputFunc([this](const std::string &s) {
+            outputBuf_ += s;
+        });
     }
 
     std::string execute(const std::string& code) {
-        OutputCapture capture;
+        outputBuf_.clear();
+
+        // Also capture stdout for __PLOT_DATA__ markers from plot stubs
+        std::ostringstream coutCapture;
+        auto oldCout = std::cout.rdbuf(coutCapture.rdbuf());
+
         try {
             engine_->eval(code);
-            capture.restore();
+            std::cout.rdbuf(oldCout);
 
-            std::string output = capture.getAll();
+            // Combine engine output + stdout captures
+            std::string output = outputBuf_;
+            std::string coutStr = coutCapture.str();
+            if (!coutStr.empty()) {
+                if (!output.empty() && output.back() != '\n') output += '\n';
+                output += coutStr;
+            }
+
             while (!output.empty() &&
                    (output.back() == '\n' || output.back() == ' '))
                 output.pop_back();
-
             return output;
-
         } catch (const std::exception& e) {
-            capture.restore();
-
-            std::string output = capture.getAll();
+            std::cout.rdbuf(oldCout);
+            std::string output = outputBuf_;
+            std::string coutStr = coutCapture.str();
+            if (!coutStr.empty()) {
+                if (!output.empty() && output.back() != '\n') output += '\n';
+                output += coutStr;
+            }
             if (!output.empty() && output.back() != '\n')
                 output += '\n';
             output += std::string("Error: ") + e.what();
             return output;
-
         } catch (...) {
-            capture.restore();
+            std::cout.rdbuf(oldCout);
             return "Error: Unknown exception";
         }
     }
@@ -76,59 +61,56 @@ public:
     void reset() {
         engine_ = std::make_unique<mlab::Engine>();
         mlab::StdLibrary::install(*engine_);
+        engine_->setOutputFunc([this](const std::string &s) {
+            outputBuf_ += s;
+        });
     }
 
     std::string getWorkspace() {
-        OutputCapture capture;
+        outputBuf_.clear();
         try {
             engine_->eval("whos");
-            capture.restore();
-            std::string out = capture.getAll();
+            std::string out = outputBuf_;
             if (!out.empty()) return out;
+        } catch (...) {}
+        return "No variables in workspace.";
+    }
+
+    std::string getWorkspaceJSON() {
+        try {
+            return engine_->workspaceJSON();
         } catch (...) {
-            capture.restore();
+            return "{}";
         }
-        return "Workspace inspection not available.\nUse 'disp(varname)' to check variables.";
     }
 
     std::string complete(const std::string& partial) {
         if (partial.empty()) return "";
-
         static const char* keywords[] = {
-            "break", "case", "catch", "continue",
-            "else", "elseif", "end", "for", "function",
-            "global", "if", "otherwise",
-            "return", "switch", "try", "while",
-            "zeros", "ones", "eye", "rand", "randn",
-            "linspace", "logspace", "reshape",
-            "size", "length", "numel",
-            "sin", "cos", "tan", "asin", "acos", "atan",
-            "exp", "log", "log2", "log10", "sqrt", "abs", "sign",
-            "floor", "ceil", "round", "mod", "rem", "pow",
-            "min", "max", "sum", "prod", "mean",
-            "cumsum", "sort",
-            "real", "imag", "conj",
-            "upper", "lower", "strcmp", "strcmpi",
-            "strcat", "strsplit",
-            "disp", "fprintf", "sprintf", "num2str",
-            "clear", "clc", "who", "whos",
-            "true", "false", "pi", "inf", "nan", "eps",
-            "isempty", "isnumeric", "ischar",
-            "help",
+            "break","case","catch","continue","else","elseif","end",
+            "for","function","global","if","otherwise","return",
+            "switch","try","while",
+            "zeros","ones","eye","rand","randn","linspace","logspace",
+            "reshape","meshgrid","size","length","numel",
+            "sin","cos","tan","asin","acos","atan","atan2",
+            "exp","log","log2","log10","sqrt","abs","sign",
+            "floor","ceil","round","mod","rem","pow",
+            "min","max","sum","prod","mean","cumsum","sort",
+            "real","imag","conj","deg2rad","rad2deg",
+            "upper","lower","strcmp","strcmpi","strcat","strsplit",
+            "disp","fprintf","sprintf","num2str",
+            "clear","clc","who","whos",
+            "true","false","pi","inf","nan","eps",
+            "isempty","isnumeric","ischar",
+            "plot","bar","scatter","hist","figure","subplot",
+            "title","xlabel","ylabel","zlabel","legend",
+            "grid","hold","axis","view","close","help",
             nullptr
         };
-
         std::string result;
         for (int i = 0; keywords[i]; ++i) {
             const char* kw = keywords[i];
-            bool match = true;
-            for (size_t j = 0; j < partial.size(); ++j) {
-                if (kw[j] == '\0' || kw[j] != partial[j]) {
-                    match = false;
-                    break;
-                }
-            }
-            if (match) {
+            if (std::string(kw).substr(0, partial.size()) == partial) {
                 if (!result.empty()) result += ',';
                 result += kw;
             }
@@ -138,44 +120,28 @@ public:
 
 private:
     std::unique_ptr<mlab::Engine> engine_;
+    std::string outputBuf_;
 };
 
 static std::unique_ptr<ReplSession> g_session;
 
 std::string repl_init() {
     g_session = std::make_unique<ReplSession>();
-    return "MLab Interpreter v1.0\n"
-           "Type commands below. Enter to execute.\n"
-           "Shift+Enter for multiline. Tab for autocomplete.\n";
+    return "MLab Interpreter v2.2\nType commands below.";
 }
 
 std::string repl_execute(const std::string& input) {
     if (!g_session) repl_init();
-
     size_t start = input.find_first_not_of(" \t\n\r");
     if (start == std::string::npos) return "";
     size_t end = input.find_last_not_of(" \t\n\r");
     std::string trimmed = input.substr(start, end - start + 1);
     if (trimmed.empty()) return "";
-
     if (trimmed == "clc") return "__CLEAR__";
-
     if (trimmed == "help") {
-        return "Commands:\n"
-               "  clc        - Clear screen\n"
-               "  clear      - Clear workspace\n"
-               "  who/whos   - List variables\n"
-               "  help       - This message\n"
-               "\n"
-               "Keys:\n"
-               "  Enter        Execute\n"
-               "  Shift+Enter  New line\n"
-               "  Tab          Autocomplete\n"
-               "  Up/Down      History\n"
-               "  Ctrl+L       Clear screen\n"
-               "  Ctrl+C       Cancel input";
+        return "Commands: clc, clear, who, whos, help\n"
+               "Keys: Enter=exec, Shift+Enter=newline, Tab=autocomplete";
     }
-
     return g_session->execute(trimmed);
 }
 
@@ -194,10 +160,16 @@ std::string repl_workspace() {
     return g_session->getWorkspace();
 }
 
+std::string repl_get_vars() {
+    if (!g_session) return "{}";
+    return "__VARS__:" + g_session->getWorkspaceJSON();
+}
+
 EMSCRIPTEN_BINDINGS(mlab_repl) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);
     emscripten::function("repl_reset",     &repl_reset);
     emscripten::function("repl_workspace", &repl_workspace);
+    emscripten::function("repl_get_vars",  &repl_get_vars);
 }

@@ -61,6 +61,11 @@ public:
     void setOutputFunc(OutputFunc f);
     void setMaxRecursionDepth(int depth);
 
+    /** Return names of user variables in global scope (excluding builtins) */
+    std::vector<std::string> globalVarNames() const;
+    /** Return JSON workspace snapshot for the web inspector */
+    std::string workspaceJSON() const;
+
 private:
     Allocator allocator_;
     GlobalStore globalStore_;

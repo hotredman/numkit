@@ -10,6 +10,7 @@
 #include <limits>
 #include <sstream>
 #include <stdexcept>
+#include <unordered_set>
 
 namespace mlab {
 
@@ -1611,6 +1612,97 @@ bool Engine::tryBuiltinCall(const std::string &name,
     }
 
     return false;
+}
+
+// ============================================================
+// REPL helpers
+// ============================================================
+
+static const std::unordered_set<std::string> kBuiltinNames = {
+    "pi", "eps", "inf", "Inf", "nan", "NaN", "true", "false", "i", "j",
+    "ans", "nargin", "nargout", "end"
+};
+
+std::vector<std::string> Engine::globalVarNames() const
+{
+    auto names = globalEnv_->localNames();
+    std::vector<std::string> result;
+    result.reserve(names.size());
+    for (auto &n : names) {
+        if (kBuiltinNames.count(n) == 0)
+            result.push_back(n);
+    }
+    std::sort(result.begin(), result.end());
+    return result;
+}
+
+static std::string jsonEscape(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.size() + 4);
+    for (char c : s) {
+        if (c == '"') out += "\\\"";
+        else if (c == '\\') out += "\\\\";
+        else if (c == '\n') out += "\\n";
+        else if (c == '\t') out += "\\t";
+        else out += c;
+    }
+    return out;
+}
+
+std::string Engine::workspaceJSON() const
+{
+    auto names = globalVarNames();
+    std::ostringstream os;
+    os << "{";
+    bool first = true;
+    for (auto &name : names) {
+        auto *val = globalEnv_->get(name);
+        if (!val) continue;
+
+        if (!first) os << ",";
+        first = false;
+
+        os << "\"" << jsonEscape(name) << "\":{";
+        // type
+        os << "\"type\":\"" << mtypeName(val->type()) << "\"";
+        // size
+        auto &d = val->dims();
+        os << ",\"size\":\"" << d.rows() << "x" << d.cols();
+        if (d.is3D()) os << "x" << d.pages();
+        os << "\"";
+        // bytes
+        os << ",\"bytes\":" << val->rawBytes();
+        // preview value (scalar/small vector only)
+        os << ",\"preview\":";
+        if (val->type() == MType::DOUBLE && val->isScalar()) {
+            double v = val->toScalar();
+            if (std::isnan(v)) os << "\"NaN\"";
+            else if (std::isinf(v)) os << (v > 0 ? "\"Inf\"" : "\"-Inf\"");
+            else os << v;
+        } else if (val->type() == MType::COMPLEX && val->isScalar()) {
+            auto c = val->toComplex();
+            os << "\"" << c.real();
+            if (c.imag() >= 0) os << "+";
+            os << c.imag() << "i\"";
+        } else if (val->type() == MType::CHAR) {
+            os << "\"" << jsonEscape(val->toString()) << "\"";
+        } else if (val->type() == MType::LOGICAL && val->isScalar()) {
+            os << (val->toBool() ? "true" : "false");
+        } else if ((val->type() == MType::DOUBLE) && val->numel() <= 10) {
+            os << "[";
+            for (size_t i = 0; i < val->numel(); ++i) {
+                if (i) os << ",";
+                os << val->doubleData()[i];
+            }
+            os << "]";
+        } else {
+            os << "null";
+        }
+        os << "}";
+    }
+    os << "}";
+    return os.str();
 }
 
 } // namespace mlab

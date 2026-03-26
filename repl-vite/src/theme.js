@@ -1,15 +1,14 @@
-/** Colour palette — shared across all components */
 const C = {
-  bg0: '#0f0f17',
-  bg1: '#161622',
-  bg2: '#1c1c2e',
-  bg3: '#262640',
-  bg4: '#2e2e4a',
-  border: '#363658',
-  borderHi: '#4a4a7a',
+  bg0: '#0a0a12',
+  bg1: '#111119',
+  bg2: '#18182a',
+  bg3: '#222240',
+  bg4: '#2c2c4e',
+  border: '#2a2a48',
+  borderHi: '#3e3e6e',
   text: '#d4d4f0',
   textDim: '#8888b0',
-  textMuted: '#5a5a80',
+  textMuted: '#55557a',
   accent: '#7c6ff0',
   accentDim: '#5a50b0',
   green: '#6ee7a0',
@@ -24,3 +23,4 @@ const C = {
 export default C;
 
 export const FONT = "'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', 'SF Mono', Consolas, monospace";
+export const FONT_UI = "'DM Sans', 'IBM Plex Mono', sans-serif";
