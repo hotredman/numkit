@@ -1987,3 +1987,409 @@ TEST_F(ParserEdgeCaseTest, MatrixTransposeInExpression)
     EXPECT_EQ(expr.children[0]->type, NodeType::UNARY_OP);
     EXPECT_EQ(expr.children[0]->strValue, "'");
 }
+
+// ============================================================
+// Тесты парсера: код с комментариями
+// Добавить в parser_test.cpp
+// ============================================================
+
+class ParserCommentTest : public ::testing::Test
+{};
+
+// --- Присваивание с trailing comment ---
+
+TEST_F(ParserCommentTest, AssignWithTrailingComment)
+{
+    auto ast = parseSource("c = 1500; % speed of sound");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_TRUE(s.suppressOutput);
+    EXPECT_EQ(s.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(s.children[0]->strValue, "c");
+    EXPECT_EQ(s.children[1]->type, NodeType::NUMBER_LITERAL);
+    EXPECT_DOUBLE_EQ(s.children[1]->numValue, 1500.0);
+}
+
+TEST_F(ParserCommentTest, AssignWithTrailingCommentUTF8)
+{
+    // Кириллица в комментарии не ломает парсер
+    auto ast = parseSource(
+        "c = 1500; % \xd1\x81\xd0\xba\xd0\xbe\xd1\x80\xd0\xbe\xd1\x81\xd1\x82\xd1\x8c "
+        "\xd0\xb7\xd0\xb2\xd1\x83\xd0\xba\xd0\xb0, \xd0\xbc/\xd1\x81");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_DOUBLE_EQ(s.children[1]->numValue, 1500.0);
+}
+
+TEST_F(ParserCommentTest, AssignWithoutSemicolonAndComment)
+{
+    // Без ; — suppressOutput == false
+    auto ast = parseSource("x = 5 % comment");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_FALSE(s.suppressOutput);
+    EXPECT_DOUBLE_EQ(s.children[1]->numValue, 5.0);
+}
+
+// --- Несколько присваиваний, каждое с комментарием ---
+
+TEST_F(ParserCommentTest, MultipleAssignsWithComments)
+{
+    std::string src = "c     = 1500;       % speed of sound\n"
+                      "N     = 8;          % number of elements\n"
+                      "f     = 10000;      % frequency\n"
+                      "d_lambda = 0.5;     % spacing\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 4u);
+
+    // c = 1500
+    {
+        const auto &s = stmt(*ast, 0);
+        EXPECT_EQ(s.type, NodeType::ASSIGN);
+        EXPECT_TRUE(s.suppressOutput);
+        EXPECT_EQ(s.children[0]->strValue, "c");
+        EXPECT_DOUBLE_EQ(s.children[1]->numValue, 1500.0);
+    }
+    // N = 8
+    {
+        const auto &s = stmt(*ast, 1);
+        EXPECT_EQ(s.type, NodeType::ASSIGN);
+        EXPECT_EQ(s.children[0]->strValue, "N");
+        EXPECT_DOUBLE_EQ(s.children[1]->numValue, 8.0);
+    }
+    // f = 10000
+    {
+        const auto &s = stmt(*ast, 2);
+        EXPECT_EQ(s.type, NodeType::ASSIGN);
+        EXPECT_EQ(s.children[0]->strValue, "f");
+        EXPECT_DOUBLE_EQ(s.children[1]->numValue, 10000.0);
+    }
+    // d_lambda = 0.5
+    {
+        const auto &s = stmt(*ast, 3);
+        EXPECT_EQ(s.type, NodeType::ASSIGN);
+        EXPECT_EQ(s.children[0]->strValue, "d_lambda");
+        EXPECT_DOUBLE_EQ(s.children[1]->numValue, 0.5);
+    }
+}
+
+// --- Секционный комментарий %% ---
+
+TEST_F(ParserCommentTest, SectionCommentIgnored)
+{
+    std::string src = "%% Section 1\n"
+                      "a = 1;\n"
+                      "%% Section 2\n"
+                      "b = 2;\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 2u);
+
+    EXPECT_EQ(stmt(*ast, 0).children[0]->strValue, "a");
+    EXPECT_EQ(stmt(*ast, 1).children[0]->strValue, "b");
+}
+
+// --- Комментарий на первой строке ---
+
+TEST_F(ParserCommentTest, CommentAsFirstLine)
+{
+    auto ast = parseSource("% header\na = 1;");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[0]->strValue, "a");
+}
+
+TEST_F(ParserCommentTest, MultiplePrefixCommentLines)
+{
+    std::string src = "% ===================\n"
+                      "% Script description\n"
+                      "% ===================\n"
+                      "x = 42;\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::ASSIGN);
+    EXPECT_DOUBLE_EQ(stmt(*ast, 0).children[1]->numValue, 42.0);
+}
+
+// --- Комментарий между блоками ---
+
+TEST_F(ParserCommentTest, CommentBetweenStatements)
+{
+    std::string src = "a = 1;\n"
+                      "% intermediate comment\n"
+                      "b = 2;\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 2u);
+    EXPECT_EQ(stmt(*ast, 0).children[0]->strValue, "a");
+    EXPECT_EQ(stmt(*ast, 1).children[0]->strValue, "b");
+}
+
+// --- Блочный комментарий %{ %} ---
+
+TEST_F(ParserCommentTest, BlockCommentBetweenAssignments)
+{
+    std::string src = "a = 1;\n"
+                      "%{\n"
+                      "This is a block comment.\n"
+                      "It spans multiple lines.\n"
+                      "%}\n"
+                      "b = 2;\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 2u);
+    EXPECT_EQ(stmt(*ast, 0).children[0]->strValue, "a");
+    EXPECT_EQ(stmt(*ast, 1).children[0]->strValue, "b");
+}
+
+TEST_F(ParserCommentTest, BlockCommentAtStart)
+{
+    std::string src = "%{\n"
+                      "File description\n"
+                      "%}\n"
+                      "x = 1;\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::ASSIGN);
+}
+
+// --- Комментарий после выражения с вычислениями ---
+
+TEST_F(ParserCommentTest, CommentAfterExpression)
+{
+    auto ast = parseSource("lambda = c / f; % wavelength, m");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_TRUE(s.suppressOutput);
+    EXPECT_EQ(s.children[0]->strValue, "lambda");
+    // RHS: c / f — BINARY_OP
+    EXPECT_EQ(s.children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(s.children[1]->strValue, "/");
+}
+
+TEST_F(ParserCommentTest, CommentAfterComplexExpression)
+{
+    // k = 2 * pi / lambda;  % wave number
+    auto ast = parseSource("k = 2 * pi / lambda; % wave number");
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::ASSIGN);
+    EXPECT_EQ(s.children[0]->strValue, "k");
+}
+
+// --- Комментарий внутри if/for/while ---
+
+TEST_F(ParserCommentTest, CommentInsideIfBlock)
+{
+    std::string src = "if x > 0\n"
+                      "    % positive case\n"
+                      "    y = 1;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &ifNode = stmt(*ast, 0);
+    EXPECT_EQ(ifNode.type, NodeType::IF_STMT);
+    // Тело if содержит одно присваивание
+    ASSERT_EQ(ifNode.branches.size(), 1u);
+    EXPECT_EQ(ifNode.branches[0].second->children.size(), 1u);
+}
+
+TEST_F(ParserCommentTest, CommentInsideForLoop)
+{
+    std::string src = "for i = 1:10\n"
+                      "    % loop body\n"
+                      "    x = i;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::FOR_STMT);
+}
+
+TEST_F(ParserCommentTest, CommentAfterForHeader)
+{
+    std::string src = "for i = 1:10 % iterate\n"
+                      "    x = i;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::FOR_STMT);
+}
+
+TEST_F(ParserCommentTest, CommentInsideWhileLoop)
+{
+    std::string src = "while x > 0\n"
+                      "    % decrement\n"
+                      "    x = x - 1;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::WHILE_STMT);
+}
+
+// --- Комментарий внутри function ---
+
+TEST_F(ParserCommentTest, CommentInsideFunction)
+{
+    std::string src = "function y = foo(x)\n"
+                      "    % Compute the square\n"
+                      "    y = x^2;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &fn = stmt(*ast, 0);
+    EXPECT_EQ(fn.type, NodeType::FUNCTION_DEF);
+    EXPECT_EQ(fn.strValue, "foo");
+}
+
+TEST_F(ParserCommentTest, CommentBeforeFunction)
+{
+    std::string src = "% Helper function\n"
+                      "function y = helper(x)\n"
+                      "    y = x + 1;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::FUNCTION_DEF);
+}
+
+// --- Комментарий внутри switch ---
+
+TEST_F(ParserCommentTest, CommentInsideSwitch)
+{
+    std::string src = "switch x\n"
+                      "    case 1\n"
+                      "        % first case\n"
+                      "        y = 10;\n"
+                      "    case 2\n"
+                      "        % second case\n"
+                      "        y = 20;\n"
+                      "    otherwise\n"
+                      "        % default\n"
+                      "        y = 0;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    const auto &sw = stmt(*ast, 0);
+    EXPECT_EQ(sw.type, NodeType::SWITCH_STMT);
+    EXPECT_EQ(sw.branches.size(), 2u);
+    EXPECT_NE(sw.elseBranch, nullptr);
+}
+
+// --- Комментарий внутри try/catch ---
+
+TEST_F(ParserCommentTest, CommentInsideTryCatch)
+{
+    std::string src = "try\n"
+                      "    % risky code\n"
+                      "    x = 1/0;\n"
+                      "catch e\n"
+                      "    % handle error\n"
+                      "    x = 0;\n"
+                      "end\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 1u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::TRY_STMT);
+}
+
+// --- Реалистичный скрипт целиком ---
+
+TEST_F(ParserCommentTest, RealisticMatlabScriptSnippet)
+{
+    std::string src = "%% Parameters\n"
+                      "c     = 1500;       % speed of sound, m/s\n"
+                      "N     = 8;          % number of elements\n"
+                      "f     = 10000;      % frequency, Hz\n"
+                      "d_lambda = 0.5;     % spacing in wavelengths\n"
+                      "\n"
+                      "%% Derived quantities\n"
+                      "lambda = c / f;             % wavelength, m\n"
+                      "d      = d_lambda * lambda; % element spacing, m\n"
+                      "k      = 2 * pi / lambda;   % wave number, rad/m\n"
+                      "\n"
+                      "theta0 = 0;  % main lobe direction (degrees)\n";
+
+    auto ast = parseSource(src);
+
+    // Должно быть 7 присваиваний: c, N, f, d_lambda, lambda, d, k, theta0
+    ASSERT_EQ(ast->children.size(), 8u);
+
+    // Проверяем имена переменных
+    std::vector<std::string> expectedNames
+        = {"c", "N", "f", "d_lambda", "lambda", "d", "k", "theta0"};
+    for (size_t i = 0; i < expectedNames.size(); i++) {
+        const auto &s = stmt(*ast, i);
+        EXPECT_EQ(s.type, NodeType::ASSIGN) << "Statement #" << i;
+        EXPECT_EQ(s.children[0]->strValue, expectedNames[i]) << "Statement #" << i;
+        EXPECT_TRUE(s.suppressOutput) << "Statement #" << i << " should have ;";
+    }
+
+    // Проверяем значения простых присваиваний
+    EXPECT_DOUBLE_EQ(stmt(*ast, 0).children[1]->numValue, 1500.0);
+    EXPECT_DOUBLE_EQ(stmt(*ast, 1).children[1]->numValue, 8.0);
+    EXPECT_DOUBLE_EQ(stmt(*ast, 2).children[1]->numValue, 10000.0);
+    EXPECT_DOUBLE_EQ(stmt(*ast, 3).children[1]->numValue, 0.5);
+
+    // lambda = c / f — RHS — BINARY_OP "/"
+    EXPECT_EQ(stmt(*ast, 4).children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(stmt(*ast, 4).children[1]->strValue, "/");
+
+    // d = d_lambda * lambda — RHS — BINARY_OP "*"
+    EXPECT_EQ(stmt(*ast, 5).children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(stmt(*ast, 5).children[1]->strValue, "*");
+
+    // k = 2 * pi / lambda — RHS — деление (/ — верхний уровень)
+    // Парсер строит (2 * pi) / lambda, т.к. * и / левоассоциативны
+    EXPECT_EQ(stmt(*ast, 6).children[1]->type, NodeType::BINARY_OP);
+    EXPECT_EQ(stmt(*ast, 6).children[1]->strValue, "/");
+
+    // theta0 = 0
+    EXPECT_DOUBLE_EQ(stmt(*ast, 7).children[1]->numValue, 0.0);
+}
+
+// --- Комментарий файл-only ---
+
+TEST_F(ParserCommentTest, FileWithOnlyComments)
+{
+    std::string src = "% This file has no code\n"
+                      "% Just comments\n"
+                      "%% And a section\n";
+
+    auto ast = parseSource(src);
+    EXPECT_EQ(ast->children.size(), 0u);
+}
+
+// --- Пустые строки и комментарии вперемешку ---
+
+TEST_F(ParserCommentTest, EmptyLinesAndCommentsInterleaved)
+{
+    std::string src = "\n"
+                      "% comment\n"
+                      "\n"
+                      "x = 1;\n"
+                      "\n"
+                      "% another comment\n"
+                      "\n"
+                      "y = 2;\n"
+                      "\n";
+
+    auto ast = parseSource(src);
+    ASSERT_EQ(ast->children.size(), 2u);
+    EXPECT_EQ(stmt(*ast, 0).children[0]->strValue, "x");
+    EXPECT_EQ(stmt(*ast, 1).children[0]->strValue, "y");
+}

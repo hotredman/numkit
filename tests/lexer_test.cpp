@@ -1444,11 +1444,350 @@ TEST(Lexer, EndOfInputAlwaysLast)
 }
 
 // ============================================================
-// main
+// Тесты лексера: комментарии в реальном MATLAB-коде
+// Добавить в lexer_test.cpp перед секцией main
 // ============================================================
 
-int main(int argc, char **argv)
+// --- Строчные комментарии после выражений ---
+
+TEST(LexerComment, AssignWithTrailingComment)
 {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    // c = 1500;  % скорость звука, м/с
+    expectTokenTypes("c = 1500; % speed of sound",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, AssignWithTrailingCommentUTF8)
+{
+    // Кириллица в комментарии
+    expectTokenTypes("c = 1500; % \xd1\x81\xd0\xba\xd0\xbe\xd1\x80\xd0\xbe\xd1\x81\xd1\x82\xd1\x8c",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, AssignWithTrailingCommentAndNewline)
+{
+    // Комментарий, затем перенос строки и следующее выражение
+    expectTokenTypes("c = 1500; % comment\nN = 8;",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, AssignWithoutSemicolonAndComment)
+{
+    // Без точки с запятой: x = 5 % comment
+    expectTokenTypes("x = 5 % comment",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, AssignWithoutSemicolonCommentNewlineNextLine)
+{
+    // x = 5 % comment\ny = 10
+    expectTokenTypes("x = 5 % comment\ny = 10",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::END_OF_INPUT});
+}
+
+// --- Секционные комментарии %% ---
+
+TEST(LexerComment, SectionComment)
+{
+    // %% Section title
+    auto tokens = lex("%% Section title\nx = 1;");
+    // %% — обычный строчный комментарий, пропускается до \n
+    expectTokenTypes("%% Section title\nx = 1;",
+                     {TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, SectionCommentBetweenStatements)
+{
+    expectTokenTypes("a = 1;\n%% next section\nb = 2;",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::NEWLINE,
+                      TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+// --- Несколько строк с комментариями подряд ---
+
+TEST(LexerComment, MultipleConsecutiveCommentLines)
+{
+    auto tokens = lex("% line 1\n% line 2\n% line 3\nx = 1;");
+    // Каждый комментарий пропускается, \n остаются
+    // Должны быть NEWLINE-ы и потом x = 1;
+    int newlineCount = 0;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::NEWLINE)
+            newlineCount++;
+    }
+    EXPECT_EQ(newlineCount, 3);
+
+    // Последние токены — x = 1 ; END_OF_INPUT
+    size_t n = tokens.size();
+    ASSERT_GE(n, 5u);
+    EXPECT_EQ(tokens[n - 5].type, TokenType::IDENTIFIER);
+    EXPECT_EQ(tokens[n - 5].value, "x");
+    EXPECT_EQ(tokens[n - 4].type, TokenType::ASSIGN);
+    EXPECT_EQ(tokens[n - 3].type, TokenType::NUMBER);
+    EXPECT_EQ(tokens[n - 2].type, TokenType::SEMICOLON);
+    EXPECT_EQ(tokens[n - 1].type, TokenType::END_OF_INPUT);
+}
+
+// --- Комментарий с символами-операторами внутри ---
+
+TEST(LexerComment, CommentWithOperatorChars)
+{
+    // Внутри комментария м/с — слэш не должен стать токеном
+    expectTokenTypes("d = 0.5; % d in m/s^2 = ok",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, CommentWithBrackets)
+{
+    // Скобки в комментарии не должны влиять на bracketStack
+    expectTokenTypes("x = 1; % f(x) = [a, b]",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, CommentWithStringChars)
+{
+    // Кавычки в комментарии — не строки
+    expectTokenTypes("x = 1; % it's a \"test\"",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, CommentWithEllipsis)
+{
+    // ... внутри комментария — не line continuation
+    expectTokenTypes("x = 1; % see also...\ny = 2;",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+// --- Комментарий в контексте матрицы ---
+
+TEST(LexerComment, CommentInsideMatrixLiteral)
+{
+    // [1, 2, ... % first row
+    //  3, 4]
+    // Тут "..." — line continuation, "% first row" — комментарий
+    // Но "..." обрабатывается ДО "%", так что тут
+    // оба пропускаются, и строка продолжается
+    auto tokens = lex("[1, 2, ...\n3, 4]");
+    // Внутри [] newline → неявная ;, но после ... продолжение строки
+    bool foundRBracket = false;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::RBRACKET)
+            foundRBracket = true;
+    }
+    EXPECT_TRUE(foundRBracket);
+}
+
+TEST(LexerComment, CommentAfterMatrixRow)
+{
+    // [1, 2; % row 1
+    //  3, 4] % row 2
+    auto tokens = lex("[1, 2; % row 1\n 3, 4]");
+    bool foundRBracket = false;
+    int semiCount = 0;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::RBRACKET)
+            foundRBracket = true;
+        if (t.type == TokenType::SEMICOLON)
+            semiCount++;
+    }
+    EXPECT_TRUE(foundRBracket);
+    // Должна быть хотя бы одна ; (явная)
+    EXPECT_GE(semiCount, 1);
+}
+
+// --- Блочный комментарий между выражениями ---
+
+TEST(LexerComment, BlockCommentBetweenAssignments)
+{
+    auto tokens = lex("a = 1;\n%{\nblock comment\nwith multiple lines\n%}\nb = 2;");
+    // Должны быть: a = 1 ; NEWLINE ... b = 2 ; END_OF_INPUT
+    bool foundA = false, foundB = false;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::IDENTIFIER && t.value == "a")
+            foundA = true;
+        if (t.type == TokenType::IDENTIFIER && t.value == "b")
+            foundB = true;
+    }
+    EXPECT_TRUE(foundA);
+    EXPECT_TRUE(foundB);
+}
+
+TEST(LexerComment, BlockCommentWithUTF8)
+{
+    auto tokens = lex("%{\n\xd0\x9a\xd0\xbe\xd0\xbc\xd0\xbc\xd0\xb5\xd0\xbd\xd1\x82\n%}\nx = 1;");
+    bool foundAssign = false;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::ASSIGN)
+            foundAssign = true;
+    }
+    EXPECT_TRUE(foundAssign);
+}
+
+// --- Реалистичный скрипт: несколько строк инициализации ---
+
+TEST(LexerComment, RealisticScriptHeader)
+{
+    // Имитация начала реального MATLAB-скрипта
+    std::string src = "c     = 1500;       % speed of sound\n"
+                      "N     = 8;          % number of elements\n"
+                      "f     = 10000;      % frequency, Hz\n"
+                      "d_lambda = 0.5;     % spacing in wavelengths\n";
+
+    auto tokens = lex(src);
+
+    // Считаем присваивания — должно быть 4
+    int assignCount = 0;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::ASSIGN)
+            assignCount++;
+    }
+    EXPECT_EQ(assignCount, 4);
+
+    // Считаем числа — 1500, 8, 10000, 0.5 = 4
+    int numberCount = 0;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::NUMBER)
+            numberCount++;
+    }
+    EXPECT_EQ(numberCount, 4);
+
+    // Проверяем, что идентификаторы все на месте
+    std::vector<std::string> expectedIds = {"c", "N", "f", "d_lambda"};
+    std::vector<std::string> foundIds;
+    for (auto &t : tokens) {
+        if (t.type == TokenType::IDENTIFIER)
+            foundIds.push_back(t.value);
+    }
+    EXPECT_EQ(foundIds, expectedIds);
+}
+
+// --- Комментарий на первой строке файла ---
+
+TEST(LexerComment, CommentAsFirstLine)
+{
+    expectTokenTypes("% header comment\na = 1;",
+                     {TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, CommentOnlyFile)
+{
+    auto tokens = lex("% just a comment");
+    ASSERT_EQ(tokens.size(), 1u);
+    EXPECT_EQ(tokens[0].type, TokenType::END_OF_INPUT);
+}
+
+TEST(LexerComment, CommentOnlyFileWithNewline)
+{
+    auto tokens = lex("% just a comment\n");
+    EXPECT_EQ(tokens.back().type, TokenType::END_OF_INPUT);
+}
+
+// --- Комментарий сразу после числа без пробела ---
+
+TEST(LexerComment, CommentDirectlyAfterNumber)
+{
+    // 42%comment — % начинает комментарий даже без пробела
+    expectTokenTypes("42%comment", {TokenType::NUMBER, TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, CommentDirectlyAfterSemicolon)
+{
+    expectTokenTypes("x=1;%comment",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+// --- Пустой комментарий ---
+
+TEST(LexerComment, EmptyComment)
+{
+    // Просто % и сразу перенос строки
+    expectTokenTypes("%\nx = 1;",
+                     {TokenType::NEWLINE,
+                      TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
+}
+
+TEST(LexerComment, EmptyCommentEndOfFile)
+{
+    auto tokens = lex("x = 1; %");
+    expectTokenTypes("x = 1; %",
+                     {TokenType::IDENTIFIER,
+                      TokenType::ASSIGN,
+                      TokenType::NUMBER,
+                      TokenType::SEMICOLON,
+                      TokenType::END_OF_INPUT});
 }

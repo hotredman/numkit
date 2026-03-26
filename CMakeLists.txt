@@ -89,6 +89,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
     enable_testing()
 
     add_executable(mlab_tests
+        tests/main.cpp
         tests/lexer_test.cpp
         tests/parser_test.cpp
         tests/engine_test.cpp
