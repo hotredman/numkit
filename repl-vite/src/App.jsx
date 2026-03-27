@@ -21,42 +21,6 @@ export default function App() {
       try {
         setInitMessage('Initialising file system...');
         await vfs.init();
-
-        const empty = await vfs.isEmpty();
-        if (empty) {
-          setInitMessage('Setting up workspace...');
-          // Create default folder
-          await vfs.mkdir('/My Scripts');
-          await vfs.writeFile('/My Scripts/untitled.m', '% My first script\ndisp(\'Hello, MLab!\')\n');
-
-          // Load examples from manifest and populate VFS
-          try {
-            const base = import.meta.env.BASE_URL || '/';
-            const res = await fetch(`${base}examples/manifest.json`);
-            if (res.ok) {
-              const manifest = await res.json();
-              for (const folder of manifest.folders) {
-                const folderPath = `/Examples/${folder.name.replace(/_/g, ' ')}`;
-                await vfs.mkdir(folderPath);
-                for (const file of folder.files) {
-                  try {
-                    const fRes = await fetch(`${base}examples/${folder.name}/${file}`);
-                    if (fRes.ok) {
-                      const content = await fRes.text();
-                      await vfs.writeFile(`${folderPath}/${file}`, content);
-                    }
-                  } catch (e) {
-                    console.warn(`[VFS] Failed to fetch example: ${file}`, e);
-                  }
-                }
-              }
-              console.log('[VFS] Examples loaded into virtual FS');
-            }
-          } catch (e) {
-            console.warn('[VFS] Could not load examples manifest:', e);
-          }
-        }
-
         if (!cancelled) setVfsReady(true);
       } catch (e) {
         console.error('[VFS] Init failed:', e);

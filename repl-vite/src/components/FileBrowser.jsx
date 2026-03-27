@@ -8,7 +8,6 @@ const isTextFile = name => {
   return exts.some(e => name.endsWith(e));
 };
 
-// ── Shared row style builder ──
 function rowStyle(isSel, isDir, name, depth) {
   return {
     display: 'flex', alignItems: 'center', gap: 4,
@@ -21,7 +20,6 @@ function rowStyle(isSel, isDir, name, depth) {
   };
 }
 
-// ── Context Menu ──
 function ContextMenu({ x, y, items, onClose }) {
   const ref = useRef(null);
   useEffect(() => {
@@ -29,7 +27,6 @@ function ContextMenu({ x, y, items, onClose }) {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [onClose]);
-
   return (
     <div ref={ref} style={{
       position: 'fixed', left: x, top: y, zIndex: 1000,
@@ -50,7 +47,6 @@ function ContextMenu({ x, y, items, onClose }) {
   );
 }
 
-// ── Inline Input for rename/create ──
 function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
   const [val, setVal] = useState(defaultValue || '');
   const ref = useRef(null);
@@ -64,7 +60,7 @@ function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
 }
 
 // ════════════════════════════════════════
-// LocalBrowser — IndexedDB virtual FS
+// LocalBrowser — root = user workspace
 // ════════════════════════════════════════
 function LocalBrowser({ onOpenFile, onRefreshKey }) {
   const [tree, setTree] = useState([]);
@@ -80,12 +76,12 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
 
   useEffect(() => { loadTree(); }, [loadTree, onRefreshKey]);
 
-  const handleFileDoubleClick = async node => {
+  const handleFileDoubleClick = useCallback(async (node) => {
     if (node.type === 'file') {
       const content = await vfs.readFile(node.path);
-      if (content !== null) onOpenFile(node.name, content, node.path, 'local');
+      onOpenFile(node.name, content !== null ? content : '', node.path, 'local');
     }
-  };
+  }, [onOpenFile]);
 
   const handleContextMenu = (e, node) => {
     e.preventDefault();
@@ -95,8 +91,8 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
       items.push({ icon: '📁', label: 'New Folder', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'folder' }); } });
       items.push({ separator: true });
     }
-    if (node.type === 'file' && isMFile(node.name)) {
-      items.push({ icon: '▶', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
+    if (node.type === 'file') {
+      items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
       items.push({ separator: true });
     }
     items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
@@ -106,11 +102,27 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   };
 
+  const handleRootContextMenu = (e) => {
+    e.preventDefault();
+    setContextMenu({
+      x: e.clientX, y: e.clientY,
+      items: [
+        { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
+        { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
+      ],
+    });
+  };
+
   const handleCreate = async name => {
     if (!name || !creating) { setCreating(null); return; }
-    const path = `${creating.parentPath}/${name}`;
+    const parent = creating.parentPath || '';
+    const path = parent ? `${parent}/${name}` : `/${name}`;
     if (creating.type === 'folder') await vfs.mkdir(path);
-    else await vfs.writeFile(path, `% ${name}\n`);
+    else {
+      const fileName = name.endsWith('.m') ? name : name;
+      const filePath = parent ? `${parent}/${fileName}` : `/${fileName}`;
+      await vfs.writeFile(filePath, `% ${fileName}\n`);
+    }
     setCreating(null); loadTree();
   };
 
@@ -160,21 +172,23 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'flex', gap: 3, padding: '6px 8px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        <button onClick={() => { setExpanded(p => ({ ...p, '/My Scripts': true })); setCreating({ parentPath: '/My Scripts', type: 'file' }); }} title="New file"
+        <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file"
           style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
-        <button onClick={() => setCreating({ parentPath: '/', type: 'folder' })} title="New folder"
+        <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder"
           style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
         <div style={{ flex: 1 }} />
-        <button onClick={async () => { if (confirm('Clear all local files? This cannot be undone.')) { await vfs.clear(); loadTree(); } }} title="Clear all"
+        <button onClick={async () => { if (confirm('Clear all local files?')) { await vfs.clear(); loadTree(); } }} title="Clear all"
           style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>🗑</button>
       </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>
         {tree.length === 0
-          ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No files yet.</div>
+          ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>
+              No files yet.<br />Click 📄+ to create a file<br />or right-click for options.
+            </div>
           : renderTree(tree)}
-        {creating && creating.parentPath === '/' && (
+        {creating && (creating.parentPath === '' || creating.parentPath === '/') && (
           <div style={{ padding: '2px 6px', paddingLeft: 6 }}>
-            <InlineInput defaultValue="" placeholder="folder name" onSubmit={handleCreate} onCancel={() => setCreating(null)} />
+            <InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} />
           </div>
         )}
       </div>
@@ -215,14 +229,15 @@ function ExamplesBrowser({ onOpenFile }) {
     })();
   }, []);
 
-  const handleFileDoubleClick = async node => {
+  const handleFileDoubleClick = useCallback(async (node) => {
     if (node.type !== 'file' || !node._fetchPath) return;
     try {
       const res = await fetch(node._fetchPath);
       if (!res.ok) throw new Error('fetch failed');
-      onOpenFile(node.name, await res.text(), null, 'examples');
+      const content = await res.text();
+      onOpenFile(node.name, content, null, 'examples');
     } catch (e) { console.error('[Examples]', e); }
-  };
+  }, [onOpenFile]);
 
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
     const isDir = node.type === 'folder';
@@ -249,14 +264,14 @@ function ExamplesBrowser({ onOpenFile }) {
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }}>
       {tree.length === 0
-        ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No examples found.</div>
+        ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10 }}>No examples found.</div>
         : <><div style={{ padding: '4px 8px', fontSize: 9, color: C.textMuted, fontStyle: 'italic' }}>Double-click to open in editor</div>{renderTree(tree)}</>}
     </div>
   );
 }
 
 // ════════════════════════════════════════
-// GitHubBrowser — browse repos
+// GitHubBrowser
 // ════════════════════════════════════════
 function GitHubBrowser({ onOpenFile, defaultRepo }) {
   const [repoUrl, setRepoUrl] = useState(defaultRepo || '');
@@ -281,80 +296,91 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
     return null;
   };
 
-  useEffect(() => { if (defaultRepo) fetchRepo(); }, []); // eslint-disable-line
-
-  const fetchRepo = async () => {
-    const p = parseRepo(repoUrl);
+  const fetchRepo = useCallback(async (urlOverride) => {
+    const url = urlOverride || repoUrl;
+    const p = parseRepo(url);
     if (!p) { setError('Use: owner/repo'); return; }
     setLoading(true); setError(''); setTree(null); setPreviewFile(null);
     try {
-      const ir = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}`);
-      if (!ir.ok) throw new Error(ir.status === 404 ? 'Not found' : `Error ${ir.status}`);
-      const info = await ir.json(); setRepoInfo(info);
-      const br = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/branches?per_page=20`);
-      if (br.ok) setBranches((await br.json()).map(b => b.name));
-      const tr = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${info.default_branch || 'main'}?recursive=1`);
-      if (!tr.ok) throw new Error('Failed to fetch tree');
-      setTree((await tr.json()).tree || []); setBranch(info.default_branch || 'main');
-    } catch (e) { setError(e.message); } finally { setLoading(false); }
-  };
+      const infoRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}`);
+      if (!infoRes.ok) throw new Error(infoRes.status === 404 ? 'Repository not found' : `API error: ${infoRes.status}`);
+      const info = await infoRes.json();
+      setRepoInfo(info);
+      const brRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/branches?per_page=20`);
+      if (brRes.ok) setBranches((await brRes.json()).map(b => b.name));
+      const treeRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${info.default_branch || 'main'}?recursive=1`);
+      if (!treeRes.ok) throw new Error('Failed to fetch file tree');
+      setTree((await treeRes.json()).tree || []);
+      setBranch(info.default_branch || 'main');
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
+  }, [repoUrl]);
 
-  const fetchBranch = async bn => {
-    const p = parseRepo(repoUrl); if (!p) return;
-    setLoading(true); setError(''); setBranch(bn); setPreviewFile(null);
+  useEffect(() => { if (defaultRepo) fetchRepo(defaultRepo); }, []); // eslint-disable-line
+
+  const fetchBranch = async branchName => {
+    const p = parseRepo(repoUrl);
+    if (!p) return;
+    setLoading(true); setError(''); setBranch(branchName); setPreviewFile(null);
     try {
-      const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${bn}?recursive=1`);
-      if (!r.ok) throw new Error('Failed'); setTree((await r.json()).tree || []);
-    } catch (e) { setError(e.message); } finally { setLoading(false); }
+      const treeRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${branchName}?recursive=1`);
+      if (!treeRes.ok) throw new Error('Failed to fetch branch');
+      setTree((await treeRes.json()).tree || []);
+    } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
-  const fetchFile = async path => {
-    const p = parseRepo(repoUrl); if (!p) return;
+  const fetchFileContent = useCallback(async (path) => {
+    const p = parseRepo(repoUrl);
+    if (!p) return;
     setPreviewLoading(true); setPreviewFile(path);
     try {
-      const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`);
-      if (!r.ok) throw new Error('Failed');
-      const d = await r.json();
-      setPreviewContent(d.encoding === 'base64' ? atob(d.content) : d.content || '');
+      const res = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`);
+      if (!res.ok) throw new Error('Failed to fetch file');
+      const data = await res.json();
+      setPreviewContent(data.encoding === 'base64' ? atob(data.content) : data.content || '');
     } catch (e) { setPreviewContent(`Error: ${e.message}`); } finally { setPreviewLoading(false); }
-  };
+  }, [repoUrl, branch]);
+
+  const handleFileDoubleClick = useCallback(async (path, name) => {
+    const p = parseRepo(repoUrl);
+    if (!p) return;
+    try {
+      const res = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`);
+      if (!res.ok) throw new Error('Failed to fetch file');
+      const data = await res.json();
+      const content = data.encoding === 'base64' ? atob(data.content) : data.content || '';
+      onOpenFile(name, content, null, 'github');
+    } catch (e) { console.error('[GitHub]', e); }
+  }, [repoUrl, branch, onOpenFile]);
 
   const nested = useMemo(() => {
     if (!tree) return [];
     const root = { children: {} };
     for (const item of tree) {
-      const parts = item.path.split('/'); let node = root;
+      const parts = item.path.split('/');
+      let node = root;
       for (let i = 0; i < parts.length; i++) {
-        if (!node.children[parts[i]]) node.children[parts[i]] = { name: parts[i], path: parts.slice(0, i + 1).join('/'), type: i === parts.length - 1 ? item.type : 'tree', children: {} };
+        if (!node.children[parts[i]]) {
+          node.children[parts[i]] = { name: parts[i], path: parts.slice(0, i + 1).join('/'), type: i === parts.length - 1 ? item.type : 'tree', children: {} };
+        }
         node = node.children[parts[i]];
       }
     }
-    const toArr = cm => Object.values(cm).map(n => ({ ...n, type: n.type === 'tree' ? 'folder' : 'file', children: Object.keys(n.children).length ? toArr(n.children) : undefined })).sort((a, b) => a.type !== b.type ? (a.type === 'folder' ? -1 : 1) : a.name.localeCompare(b.name));
-    return toArr(root.children);
+    const flatten = obj => Object.values(obj).sort((a, b) => {
+      if (a.type === 'tree' && b.type !== 'tree') return -1;
+      if (a.type !== 'tree' && b.type === 'tree') return 1;
+      return a.name.localeCompare(b.name);
+    }).map(n => ({ ...n, children: n.children ? flatten(n.children) : undefined }));
+    return flatten(root.children);
   }, [tree]);
 
-  const handleFileDoubleClick = async node => {
-    if (node.type !== 'file') return;
-    if (previewFile === node.path && previewContent && !previewLoading) {
-      onOpenFile(node.name, previewContent, null, 'github'); return;
-    }
-    const p = parseRepo(repoUrl); if (!p) return;
-    try {
-      const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${node.path}?ref=${branch}`);
-      if (!r.ok) throw new Error('Failed');
-      const d = await r.json();
-      onOpenFile(node.name, d.encoding === 'base64' ? atob(d.content) : d.content || '', null, 'github');
-    } catch (e) { console.error('[GitHub]', e); }
-  };
-
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
-    const isDir = node.type === 'folder';
+    const isDir = node.type === 'tree';
     const isExp = expanded[node.path];
     const isSel = selected === node.path;
     return (
       <div key={node.path}>
-        <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : (() => { setSelected(node.path); if (isTextFile(node.name)) fetchFile(node.path); })()}
-          onDoubleClick={() => !isDir && handleFileDoubleClick(node)}
+        <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : (() => { setSelected(node.path); if (isTextFile(node.name)) fetchFileContent(node.path); })()}
+          onDoubleClick={() => !isDir && isTextFile(node.name) && handleFileDoubleClick(node.path, node.name)}
           style={rowStyle(isSel, isDir, node.name, depth)}
           onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
           onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
@@ -363,7 +389,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isDir ? '📁 ' : ''}{node.name}</span>
           {!isDir && isMFile(node.name) && <span style={{ fontSize: 7, padding: '0 3px', borderRadius: 2, background: `${C.green}22`, color: C.green }}>M</span>}
         </div>
-        {isDir && isExp && node.children && renderTree(node.children, depth + 1)}
+        {isDir && isExp && node.children && node.children.length > 0 && renderTree(node.children, depth + 1)}
       </div>
     );
   });
@@ -374,7 +400,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
         <div style={{ display: 'flex', gap: 4 }}>
           <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} onKeyDown={e => e.key === 'Enter' && fetchRepo()}
             placeholder="owner/repo" style={{ flex: 1, padding: '5px 8px', borderRadius: 5, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, outline: 'none', fontFamily: FONT }} />
-          <button onClick={fetchRepo} disabled={loading || !repoUrl.trim()}
+          <button onClick={() => fetchRepo()} disabled={loading || !repoUrl.trim()}
             style={{ padding: '5px 10px', borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', opacity: loading || !repoUrl.trim() ? 0.5 : 1, fontFamily: FONT }}>
             {loading ? '…' : 'Load'}
           </button>
@@ -396,8 +422,8 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
         {loading && !tree && <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 11 }}>Loading…</div>}
-        {nested.length > 0 && <div style={{ padding: '3px 0' }}>{renderTree(nested)}</div>}
-        {!tree && !loading && <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>Enter a GitHub repo to browse.</div>}
+        {nested.length > 0 && <><div style={{ padding: '4px 8px', fontSize: 9, color: C.textMuted, fontStyle: 'italic' }}>Double-click to open in editor</div><div style={{ padding: '3px 0' }}>{renderTree(nested)}</div></>}
+        {!tree && !loading && <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10 }}>Enter a GitHub repo to browse.</div>}
       </div>
       {previewFile && (
         <div style={{ borderTop: `1px solid ${C.border}`, flexShrink: 0, maxHeight: '40%', display: 'flex', flexDirection: 'column' }}>
@@ -405,7 +431,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
             <span style={{ fontSize: 10, color: C.text, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{previewFile.split('/').pop()}</span>
             <div style={{ display: 'flex', gap: 3, flexShrink: 0 }}>
               {isTextFile(previewFile) && <button onClick={() => onOpenFile(previewFile.split('/').pop(), previewContent, null, 'github')}
-                style={{ padding: '2px 6px', borderRadius: 3, fontSize: 9, fontWeight: 600, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer' }}>Open</button>}
+                style={{ padding: '2px 6px', borderRadius: 3, fontSize: 9, fontWeight: 600, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer' }}>Open in Editor</button>}
               <button onClick={() => { setPreviewFile(null); setPreviewContent(''); }}
                 style={{ padding: '2px 4px', borderRadius: 3, fontSize: 12, lineHeight: 1, background: 'none', color: C.textMuted, border: 'none', cursor: 'pointer' }}>×</button>
             </div>
@@ -430,9 +456,9 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
         <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontFamily: FONT_UI, flexShrink: 0 }}>📂</span>
         <select value={source} onChange={e => setSource(e.target.value)}
           style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, fontFamily: FONT_UI, cursor: 'pointer', outline: 'none', flex: 1 }}>
-          <option value="local">Local Files</option>
-          <option value="examples">Examples</option>
-          <option value="github">GitHub</option>
+          <option value="local">💾 Local Files</option>
+          <option value="examples">📋 Examples</option>
+          <option value="github">🐙 GitHub</option>
         </select>
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
