@@ -18,6 +18,79 @@ function FigurePanel({ figure, onClose }) {
     svg.selectAll("*").remove();
 
     const cw = containerRef.current.clientWidth;
+
+    // ── Polar plot ──
+    if (figure.config?.polar) {
+      const size = Math.min(Math.max(200, cw - 16), 400);
+      const radius = size / 2 - 40;
+      svg.attr("width", size).attr("height", size + (figure.config?.title ? 24 : 0));
+      const cy = size / 2 + (figure.config?.title ? 24 : 0);
+      const g = svg.append("g").attr("transform", `translate(${size/2},${cy})`);
+
+      // Find max rho across all datasets
+      let maxRho = 0;
+      figure.datasets.forEach(ds => {
+        ds.y.forEach(v => { if (v !== null && Math.abs(v) > maxRho) maxRho = Math.abs(v); });
+      });
+      if (maxRho === 0) maxRho = 1;
+      const rScale = d3.scaleLinear().domain([0, maxRho]).range([0, radius]).nice();
+      const niceMax = rScale.domain()[1];
+
+      // Radial grid circles
+      const ticks = rScale.ticks(4).filter(t => t > 0);
+      ticks.forEach(t => {
+        g.append("circle").attr("r", rScale(t))
+          .attr("fill", "none").attr("stroke", C.border).attr("stroke-dasharray", "2,4");
+        g.append("text").attr("x", 3).attr("y", -rScale(t) - 2)
+          .attr("fill", C.textMuted).attr("font-size", 8).text(t);
+      });
+
+      // Angular grid lines (every 30°)
+      for (let deg = 0; deg < 360; deg += 30) {
+        const rad = deg * Math.PI / 180;
+        g.append("line")
+          .attr("x1", 0).attr("y1", 0)
+          .attr("x2", rScale(niceMax) * Math.cos(rad))
+          .attr("y2", -rScale(niceMax) * Math.sin(rad))
+          .attr("stroke", C.border).attr("stroke-dasharray", "2,4");
+        g.append("text")
+          .attr("x", (rScale(niceMax) + 12) * Math.cos(rad))
+          .attr("y", -(rScale(niceMax) + 12) * Math.sin(rad))
+          .attr("text-anchor", "middle").attr("alignment-baseline", "middle")
+          .attr("fill", C.textMuted).attr("font-size", 8).text(`${deg}°`);
+      }
+
+      // Plot datasets
+      figure.datasets.forEach((ds, idx) => {
+        const color = parseStyleColor(ds.style) || COLORS[idx % COLORS.length];
+        const points = ds.x.map((theta, i) => {
+          if (ds.y[i] === null) return null;
+          const r = rScale(ds.y[i]);
+          return [r * Math.cos(theta - Math.PI/2), -r * Math.sin(theta - Math.PI/2)];
+        }).filter(Boolean);
+
+        if (points.length > 1) {
+          const lineGen = d3.line().x(d => d[0]).y(d => d[1]).curve(d3.curveLinearClosed);
+          g.append("path").datum(points).attr("d", lineGen)
+            .attr("fill", "none").attr("stroke", color).attr("stroke-width", 2);
+        }
+        points.forEach(p => {
+          g.append("circle").attr("cx", p[0]).attr("cy", p[1])
+            .attr("r", 2).attr("fill", color);
+        });
+      });
+
+      // Title
+      if (figure.config?.title) {
+        svg.append("text").attr("x", size/2).attr("y", 16)
+          .attr("text-anchor", "middle").attr("fill", C.text)
+          .attr("font-size", 12).attr("font-weight", 600)
+          .text(figure.config.title);
+      }
+      return;
+    }
+
+    // ── Cartesian plot ──
     const width = Math.max(200, cw - 16);
     const hasTitle = !!figure.config?.title;
     const hasXLabel = !!figure.config?.xlabel;

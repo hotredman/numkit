@@ -41,6 +41,7 @@ set(MLAB_HEADERS
     include/MLabEnvironment.hpp
     include/MLabEngine.hpp
     include/MLabStdLibrary.hpp
+    include/MLabFigureManager.hpp
 )
 
 if(MLAB_BUILD_SHARED)

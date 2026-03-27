@@ -129,151 +129,18 @@ void StdLibrary::install(Engine &engine)
     registerComplexFunctions(engine);
 
     // ================================================================
-    // Plotting — Figure Manager with MATLAB-like behavior
+    // Plotting — uses engine.figureManager() (member of Engine)
     // ================================================================
     //
-    // Architecture:
-    //   - FigureManager holds a map of figure_id -> FigureState
-    //   - figure(n) sets current figure to n (creates if needed)
-    //   - plot/bar/scatter/hist add datasets to current figure
-    //   - hold on/off controls whether new plots clear existing datasets
-    //   - title/xlabel/ylabel/xlim/ylim/grid/legend modify current figure
-    //   - After execution, engine.js extracts __FIGURE_DATA__ markers
+    // Replace the old plotting stubs section in MLabStdLibrary.cpp
+    // (from "// Plotting stubs" through "// 3D/specialized plots")
+    // with this entire block.
     //
-    // Each figure emits: __FIGURE_DATA__:{id, datasets[], config{}}
-    // The web UI renders each figure in the Figures panel.
-    //
-    // We use a static struct shared via lambdas. This is safe because
-    // the REPL is single-threaded in WASM.
+    // FigureManager is defined in MLabFigureManager.hpp and owned
+    // by Engine. It resets automatically when Engine is recreated.
     // ================================================================
 
-    struct DatasetInfo
-    {
-        std::string xJson;
-        std::string yJson;
-        std::string type;  // "line", "bar", "scatter"
-        std::string label; // for legend
-        std::string style; // line style hint, e.g. "r--"
-    };
-
-    struct FigureState
-    {
-        int id = 1;
-        std::vector<DatasetInfo> datasets;
-        std::string title;
-        std::string xlabel;
-        std::string ylabel;
-        std::string xlimJson; // "" or "[min,max]"
-        std::string ylimJson;
-        bool grid = false;
-        bool holdOn = false;
-        bool modified = false; // set true when a plot command touches this figure
-        std::vector<std::string> legendLabels;
-    };
-
-    struct FigureManager
-    {
-        std::map<int, FigureState> figures;
-        int currentFigure = 1;
-        int nextAutoId = 1;
-
-        FigureState &current()
-        {
-            if (figures.find(currentFigure) == figures.end()) {
-                FigureState fs;
-                fs.id = currentFigure;
-                figures[currentFigure] = fs;
-            }
-            return figures[currentFigure];
-        }
-
-        // figure() with no args — create new figure
-        int newFigure()
-        {
-            nextAutoId++;
-            while (figures.find(nextAutoId) != figures.end())
-                nextAutoId++;
-            currentFigure = nextAutoId;
-            FigureState fs;
-            fs.id = currentFigure;
-            figures[currentFigure] = fs;
-            return currentFigure;
-        }
-
-        // figure(n) — switch to figure n, create if needed
-        int setFigure(int n)
-        {
-            currentFigure = n;
-            if (n >= nextAutoId)
-                nextAutoId = n + 1;
-            return n;
-        }
-
-        // Called before adding a dataset
-        void prepareForPlot()
-        {
-            auto &fig = current();
-            if (!fig.holdOn) {
-                fig.datasets.clear();
-            }
-            fig.modified = true;
-        }
-
-        // Emit all modified figures as __FIGURE_DATA__ markers, then clear modified flag
-        void emitModified()
-        {
-            for (auto &[id, fig] : figures) {
-                if (!fig.modified)
-                    continue;
-                fig.modified = false;
-
-                std::ostringstream os;
-                os << "__FIGURE_DATA__:{\"id\":" << fig.id << ",\"datasets\":[";
-                for (size_t i = 0; i < fig.datasets.size(); ++i) {
-                    if (i)
-                        os << ",";
-                    auto &ds = fig.datasets[i];
-                    os << "{\"x\":" << ds.xJson << ",\"y\":" << ds.yJson << ",\"type\":\""
-                       << ds.type << "\"";
-                    if (!ds.label.empty())
-                        os << ",\"label\":\"" << ds.label << "\"";
-                    if (!ds.style.empty())
-                        os << ",\"style\":\"" << ds.style << "\"";
-                    os << "}";
-                }
-                os << "],\"config\":{";
-                os << "\"title\":\"" << fig.title << "\"";
-                os << ",\"xlabel\":\"" << fig.xlabel << "\"";
-                os << ",\"ylabel\":\"" << fig.ylabel << "\"";
-                if (!fig.xlimJson.empty())
-                    os << ",\"xlim\":" << fig.xlimJson;
-                if (!fig.ylimJson.empty())
-                    os << ",\"ylim\":" << fig.ylimJson;
-                os << ",\"grid\":" << (fig.grid ? "true" : "false");
-                if (!fig.legendLabels.empty()) {
-                    os << ",\"legend\":[";
-                    for (size_t i = 0; i < fig.legendLabels.size(); ++i) {
-                        if (i)
-                            os << ",";
-                        os << "\"" << fig.legendLabels[i] << "\"";
-                    }
-                    os << "]";
-                }
-                os << "}}";
-                std::cout << os.str() << "\n";
-            }
-        }
-
-        void reset()
-        {
-            figures.clear();
-            currentFigure = 1;
-            nextAutoId = 1;
-        }
-    };
-
-    // Static manager — lives for the session lifetime
-    static FigureManager figMgr;
+    auto &fm = engine.figureManager(); // reference for lambdas below
 
     // Helper: serialize a double vector/matrix to JSON array
     auto vecToJson = [](const MValue &v) -> std::string {
@@ -315,39 +182,41 @@ void StdLibrary::install(Engine &engine)
         return xs.str();
     };
 
-    // Helper: extract string from MValue arg (removes quotes)
+    // Helper: extract string from MValue arg
     auto argStr = [](const MValue &v) -> std::string { return v.toString(); };
 
     // --- figure() / figure(n) ---
     engine.registerFunction("figure",
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
+                                auto &fm = engine.figureManager();
                                 int id;
                                 if (args.empty()) {
-                                    id = figMgr.newFigure();
+                                    id = fm.newFigure();
                                 } else {
                                     id = static_cast<int>(args[0].toScalar());
-                                    figMgr.setFigure(id);
+                                    fm.setFigure(id);
                                 }
                                 return {MValue::scalar(static_cast<double>(id), alloc)};
                             });
 
     // --- close() / close(n) / close('all') ---
-    engine.registerFunction("close", [](const std::vector<MValue> &args) -> std::vector<MValue> {
-        if (args.empty()) {
-            figMgr.figures.erase(figMgr.currentFigure);
-        } else if (args[0].isChar() && args[0].toString() == "all") {
-            figMgr.reset();
-        } else {
-            int id = static_cast<int>(args[0].toScalar());
-            figMgr.figures.erase(id);
-        }
-        return {MValue::empty()};
-    });
+    engine.registerFunction("close",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                auto &fm = engine.figureManager();
+                                if (args.empty()) {
+                                    fm.closeCurrent();
+                                } else if (args[0].isChar() && args[0].toString() == "all") {
+                                    fm.closeAll();
+                                } else {
+                                    fm.closeFigure(static_cast<int>(args[0].toScalar()));
+                                }
+                                return {MValue::empty()};
+                            });
 
     // --- clf ---
-    engine.registerFunction("clf", [](const std::vector<MValue> &) -> std::vector<MValue> {
-        auto &fig = figMgr.current();
+    engine.registerFunction("clf", [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
+        auto &fig = engine.figureManager().current();
         fig.datasets.clear();
         fig.title.clear();
         fig.xlabel.clear();
@@ -355,31 +224,34 @@ void StdLibrary::install(Engine &engine)
         fig.xlimJson.clear();
         fig.ylimJson.clear();
         fig.grid = false;
+        fig.polar = false;
         fig.legendLabels.clear();
         fig.holdOn = false;
         fig.modified = true;
+        engine.figureManager().emitModified();
         return {MValue::empty()};
     });
 
     // --- hold on / hold off / hold ---
-    engine.registerFunction("hold", [](const std::vector<MValue> &args) -> std::vector<MValue> {
-        auto &fig = figMgr.current();
-        if (args.empty()) {
-            fig.holdOn = !fig.holdOn; // toggle
-        } else {
-            std::string s = args[0].toString();
-            fig.holdOn = (s == "on");
-        }
-        return {MValue::empty()};
-    });
+    engine.registerFunction("hold",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                auto &fig = engine.figureManager().current();
+                                if (args.empty()) {
+                                    fig.holdOn = !fig.holdOn;
+                                } else {
+                                    fig.holdOn = (args[0].toString() == "on");
+                                }
+                                return {MValue::empty()};
+                            });
 
     // --- plot(x, y) / plot(y) / plot(x, y, style) ---
     engine.registerFunction("plot",
-                            [vecToJson, makeIndexJson](
+                            [vecToJson, makeIndexJson, &engine](
                                 const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (args.empty())
                                     return {MValue::empty()};
-                                figMgr.prepareForPlot();
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 if (args.size() >= 2 && !args[1].isChar()) {
@@ -393,18 +265,19 @@ void StdLibrary::install(Engine &engine)
                                     if (args.size() >= 2 && args[1].isChar())
                                         ds.style = args[1].toString();
                                 }
-                                figMgr.current().datasets.push_back(std::move(ds));
-                                figMgr.emitModified();
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
                                 return {MValue::empty()};
                             });
 
     // --- bar(y) / bar(x, y) ---
     engine.registerFunction("bar",
-                            [vecToJson, makeIndexJson](
+                            [vecToJson, makeIndexJson, &engine](
                                 const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (args.empty())
                                     return {MValue::empty()};
-                                figMgr.prepareForPlot();
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "bar";
                                 if (args.size() >= 2 && !args[1].isChar()) {
@@ -414,23 +287,25 @@ void StdLibrary::install(Engine &engine)
                                     ds.xJson = makeIndexJson(args[0].numel());
                                     ds.yJson = vecToJson(args[0]);
                                 }
-                                figMgr.current().datasets.push_back(std::move(ds));
-                                figMgr.emitModified();
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
                                 return {MValue::empty()};
                             });
 
     // --- scatter(x, y) ---
     engine.registerFunction("scatter",
-                            [vecToJson](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (args.size() < 2)
                                     return {MValue::empty()};
-                                figMgr.prepareForPlot();
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "scatter";
                                 ds.xJson = vecToJson(args[0]);
                                 ds.yJson = vecToJson(args[1]);
-                                figMgr.current().datasets.push_back(std::move(ds));
-                                figMgr.emitModified();
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
                                 return {MValue::empty()};
                             });
 
@@ -464,93 +339,128 @@ void StdLibrary::install(Engine &engine)
                                         b = 0;
                                     counts.doubleDataMut()[b] += 1;
                                 }
-                                figMgr.prepareForPlot();
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "bar";
                                 ds.xJson = vecToJson(centers);
                                 ds.yJson = vecToJson(counts);
-                                figMgr.current().datasets.push_back(std::move(ds));
-                                figMgr.emitModified();
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // --- polarplot(theta, rho) / polarplot(theta, rho, style) ---
+    engine.registerFunction("polarplot",
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.size() < 2)
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                fm.current().polar = true;
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                ds.xJson = vecToJson(args[0]); // theta (radians)
+                                ds.yJson = vecToJson(args[1]); // rho
+                                if (args.size() >= 3 && args[2].isChar())
+                                    ds.style = args[2].toString();
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
                                 return {MValue::empty()};
                             });
 
     // --- title('text') ---
     engine.registerFunction("title",
-                            [argStr](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
-                                    figMgr.current().title = argStr(args[0]);
-                                    figMgr.current().modified = true;
-                                    figMgr.emitModified();
+                                    auto &fm = engine.figureManager();
+                                    fm.current().title = argStr(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
                                 }
                                 return {MValue::empty()};
                             });
 
     // --- xlabel('text') ---
     engine.registerFunction("xlabel",
-                            [argStr](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
-                                    figMgr.current().xlabel = argStr(args[0]);
-                                    figMgr.current().modified = true;
-                                    figMgr.emitModified();
+                                    auto &fm = engine.figureManager();
+                                    fm.current().xlabel = argStr(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
                                 }
                                 return {MValue::empty()};
                             });
 
     // --- ylabel('text') ---
     engine.registerFunction("ylabel",
-                            [argStr](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
-                                    figMgr.current().ylabel = argStr(args[0]);
-                                    figMgr.current().modified = true;
-                                    figMgr.emitModified();
+                                    auto &fm = engine.figureManager();
+                                    fm.current().ylabel = argStr(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
                                 }
                                 return {MValue::empty()};
                             });
 
     // --- xlim([min, max]) ---
     engine.registerFunction("xlim",
-                            [vecToJson](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    figMgr.current().xlimJson = vecToJson(args[0]);
-                                    figMgr.current().modified = true;
-                                    figMgr.emitModified();
+                                    auto &fm = engine.figureManager();
+                                    fm.current().xlimJson = vecToJson(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
                                 }
                                 return {MValue::empty()};
                             });
 
     // --- ylim([min, max]) ---
     engine.registerFunction("ylim",
-                            [vecToJson](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    figMgr.current().ylimJson = vecToJson(args[0]);
-                                    figMgr.current().modified = true;
-                                    figMgr.emitModified();
+                                    auto &fm = engine.figureManager();
+                                    fm.current().ylimJson = vecToJson(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
                                 }
                                 return {MValue::empty()};
                             });
 
     // --- grid on / grid off / grid ---
-    engine.registerFunction("grid", [](const std::vector<MValue> &args) -> std::vector<MValue> {
-        auto &fig = figMgr.current();
-        if (args.empty()) {
-            fig.grid = !fig.grid;
-        } else {
-            fig.grid = (args[0].toString() == "on");
-        }
-        fig.modified = true;
-        figMgr.emitModified();
-        return {MValue::empty()};
-    });
+    engine.registerFunction("grid",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                auto &fm = engine.figureManager();
+                                auto &fig = fm.current();
+                                if (args.empty()) {
+                                    fig.grid = !fig.grid;
+                                } else {
+                                    fig.grid = (args[0].toString() == "on");
+                                }
+                                fig.modified = true;
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
 
     // --- legend('a', 'b', ...) ---
     engine.registerFunction("legend",
-                            [argStr](const std::vector<MValue> &args) -> std::vector<MValue> {
-                                auto &fig = figMgr.current();
+                            [argStr,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                auto &fm = engine.figureManager();
+                                auto &fig = fm.current();
                                 fig.legendLabels.clear();
                                 for (auto &a : args)
                                     fig.legendLabels.push_back(argStr(a));
                                 fig.modified = true;
-                                figMgr.emitModified();
+                                fm.emitModified();
                                 return {MValue::empty()};
                             });
 
@@ -579,7 +489,6 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("set", noop);
     engine.registerFunction("get", noop_ret1);
 
-    // 3D/specialized plots (no-ops in web)
     engine.registerFunction("scatter3", noop);
     engine.registerFunction("surf", noop);
     engine.registerFunction("mesh", noop);
@@ -587,7 +496,6 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("contourf", noop);
     engine.registerFunction("imagesc", noop);
     engine.registerFunction("pcolor", noop);
-    engine.registerFunction("polarplot", noop);
     engine.registerFunction("xline", noop);
     engine.registerFunction("yline", noop);
     engine.registerFunction("camlight", noop);

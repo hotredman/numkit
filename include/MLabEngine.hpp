@@ -3,6 +3,7 @@
 #include "MLabAllocator.hpp"
 #include "MLabAst.hpp"
 #include "MLabEnvironment.hpp"
+#include "MLabFigureManager.hpp"
 #include "MLabValue.hpp"
 
 #include <atomic>
@@ -86,6 +87,10 @@ public:
     /** Output text via the configured output function (or stdout) */
     void outputText(const std::string &s);
 
+    /** Figure manager — owned by Engine, reset on Engine recreation */
+    FigureManager &figureManager() { return figureManager_; }
+    const FigureManager &figureManager() const { return figureManager_; }
+
 private:
     Allocator allocator_;
     GlobalStore globalStore_;
@@ -100,6 +105,8 @@ private:
     int maxRecursionDepth_ = 500;
     int currentRecursionDepth_ = 0;
     std::atomic<int> anonCounter_{0};
+
+    FigureManager figureManager_;
 
     struct IndexContext
     {
