@@ -1,0 +1,71 @@
+{
+  "folders": [
+    {
+      "name": "Advanced",
+      "files": [
+        "complex_numbers.m",
+        "matrix_operations.m",
+        "statistical_analysis.m"
+      ]
+    },
+    {
+      "name": "Algorithms",
+      "files": [
+        "bubble_sort.m",
+        "fizzbuzz.m",
+        "newton_sqrt.m"
+      ]
+    },
+    {
+      "name": "Basics",
+      "files": [
+        "arithmetic.m",
+        "math_functions.m",
+        "strings.m",
+        "variables.m"
+      ]
+    },
+    {
+      "name": "Control_Flow",
+      "files": [
+        "for_loop.m",
+        "if_elseif_else.m",
+        "nested_loops.m",
+        "while_loop.m"
+      ]
+    },
+    {
+      "name": "Functions",
+      "files": [
+        "factorial.m",
+        "fibonacci.m",
+        "multiple_returns.m"
+      ]
+    },
+    {
+      "name": "Matrices",
+      "files": [
+        "create_and_index.m",
+        "matrix_arithmetic.m",
+        "special_matrices.m",
+        "vector_operations.m"
+      ]
+    },
+    {
+      "name": "Plotting",
+      "files": [
+        "bar_chart.m",
+        "multiple_curves.m",
+        "scatter_plot.m",
+        "sine_wave.m"
+      ]
+    },
+    {
+      "name": "Structures",
+      "files": [
+        "basic_struct.m",
+        "nested_structs.m"
+      ]
+    }
+  ]
+}
