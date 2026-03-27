@@ -1,26 +1,72 @@
 import { useState, useEffect } from 'react';
 import MLabREPL from './components/MLabREPL';
 import { createWasmEngine, createFallbackEngine } from './engine';
+import vfs from './vfs';
 
 /**
- * App — initialises the MLab engine (WASM or fallback)
- * and passes it down to the REPL component.
+ * App — initialises VFS + MLab engine (WASM or fallback)
+ * On first run, populates VFS with example files from public/examples/
  */
 export default function App() {
   const [engine, setEngine] = useState(null);
-  const [status, setStatus] = useState('loading'); // loading | ready | fallback | error
+  const [status, setStatus] = useState('loading');
   const [initMessage, setInitMessage] = useState('');
+  const [vfsReady, setVfsReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
+      // ── 1. Init VFS ──
       try {
-        // Check if Emscripten glue loaded (set in index.html)
+        setInitMessage('Initialising file system...');
+        await vfs.init();
+
+        const empty = await vfs.isEmpty();
+        if (empty) {
+          setInitMessage('Setting up workspace...');
+          // Create default folder
+          await vfs.mkdir('/My Scripts');
+          await vfs.writeFile('/My Scripts/untitled.m', '% My first script\ndisp(\'Hello, MLab!\')\n');
+
+          // Load examples from manifest and populate VFS
+          try {
+            const base = import.meta.env.BASE_URL || '/';
+            const res = await fetch(`${base}examples/manifest.json`);
+            if (res.ok) {
+              const manifest = await res.json();
+              for (const folder of manifest.folders) {
+                const folderPath = `/Examples/${folder.name.replace(/_/g, ' ')}`;
+                await vfs.mkdir(folderPath);
+                for (const file of folder.files) {
+                  try {
+                    const fRes = await fetch(`${base}examples/${folder.name}/${file}`);
+                    if (fRes.ok) {
+                      const content = await fRes.text();
+                      await vfs.writeFile(`${folderPath}/${file}`, content);
+                    }
+                  } catch (e) {
+                    console.warn(`[VFS] Failed to fetch example: ${file}`, e);
+                  }
+                }
+              }
+              console.log('[VFS] Examples loaded into virtual FS');
+            }
+          } catch (e) {
+            console.warn('[VFS] Could not load examples manifest:', e);
+          }
+        }
+
+        if (!cancelled) setVfsReady(true);
+      } catch (e) {
+        console.error('[VFS] Init failed:', e);
+        if (!cancelled) setVfsReady(true); // continue anyway
+      }
+
+      // ── 2. Init Engine ──
+      try {
         const hasWasm = window.__WASM_GLUE_LOADED__ === true
                      && typeof window.createMLabModule === 'function';
-
-        console.log('[REPL] WASM glue detected:', hasWasm);
 
         if (hasWasm) {
           setInitMessage('Loading WebAssembly...');
@@ -29,7 +75,6 @@ export default function App() {
           setEngine(eng);
           setStatus('ready');
           setInitMessage(eng.init());
-          console.log('[REPL] WASM engine initialised');
         } else {
           throw new Error('WASM glue not loaded');
         }
@@ -47,7 +92,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  if (!engine) {
+  if (!engine || !vfsReady) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',

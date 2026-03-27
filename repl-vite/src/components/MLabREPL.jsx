@@ -1,17 +1,14 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import * as d3 from "d3";
 import HELP_DB from "../data/help";
-import EXAMPLES from "../data/examples";
 import CHEAT_SHEET from "../data/cheatsheet";
-// Engine is passed in as a prop from App.jsx — no local interpreter needed
+import EXAMPLES from "../data/examples";
+import FileBrowser from "./FileBrowser";
+import vfs from "../vfs";
 import C, { FONT, FONT_UI } from "../theme";
 
 // ════════════════════════════════════════════════════════════
-// MLab REPL v2.2 — 4-Panel IDE Layout
-// Left: GitHub Browser
-// Center: Code Editor with Tabs
-// Right: Workspace / Variable Inspector
-// Bottom: Console + Examples + Cheat Sheet (tabs)
+// MLab REPL v2.3 — IDE with Virtual File System
 // ════════════════════════════════════════════════════════════
 
 // ── PlotPanel ──
@@ -108,7 +105,7 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
   );
 }
 
-// ── Variable Inspector (Right Panel Content) ──
+// ── Variable Inspector ──
 function VarInspector({ variables }) {
   const entries = Object.entries(variables);
   const getType = v => { if (Array.isArray(v)) { if (v.length && Array.isArray(v[0])) return "matrix"; return "vector"; } if (typeof v === "string") return "char"; if (typeof v === "object" && v !== null) return "struct"; return "double"; };
@@ -122,7 +119,7 @@ function VarInspector({ variables }) {
       ) : entries.map(([name, val]) => {
         const type = getType(val);
         return (
-          <div key={name} style={{ padding: "7px 10px", marginBottom: 3, borderRadius: 5, background: C.bg2, border: `1px solid ${C.border}`, animation: "fadeIn 0.2s ease" }}>
+          <div key={name} style={{ padding: "7px 10px", marginBottom: 3, borderRadius: 5, background: C.bg2, border: `1px solid ${C.border}` }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
               <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{name}</span>
               <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
@@ -157,7 +154,7 @@ function CheatSheetContent() {
   );
 }
 
-// ── Examples Content ──
+// ── Examples Content (for bottom panel tab) ──
 function ExamplesContent({ onRun }) {
   return (
     <div style={{ padding: "8px 12px", overflowY: "auto" }}>
@@ -186,195 +183,19 @@ function ExamplesContent({ onRun }) {
   );
 }
 
-// ── GitHub Repo Browser (Left Panel Content) ──
-function GitRepoBrowser({ onOpenFile, onRunFile }) {
-  const [repoUrl, setRepoUrl] = useState("");
-  const [tree, setTree] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [expanded, setExpanded] = useState({});
-  const [previewFile, setPreviewFile] = useState(null);
-  const [previewContent, setPreviewContent] = useState("");
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [branch, setBranch] = useState("main");
-  const [branches, setBranches] = useState([]);
-  const [repoInfo, setRepoInfo] = useState(null);
-
-  const parseRepoUrl = url => {
-    const cleaned = url.trim().replace(/\/+$/, "").replace(/\.git$/, "");
-    let m = cleaned.match(/github\.com\/([^/]+)\/([^/]+)/);
-    if (m) return { owner: m[1], repo: m[2] };
-    m = cleaned.match(/^([^/\s]+)\/([^/\s]+)$/);
-    if (m) return { owner: m[1], repo: m[2] };
-    return null;
-  };
-
-  const fetchRepo = async () => {
-    const parsed = parseRepoUrl(repoUrl);
-    if (!parsed) { setError("Use: owner/repo or https://github.com/owner/repo"); return; }
-    setLoading(true); setError(""); setTree(null); setPreviewFile(null);
-    try {
-      const infoRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`);
-      if (!infoRes.ok) throw new Error(infoRes.status === 404 ? "Repository not found" : `API error: ${infoRes.status}`);
-      const info = await infoRes.json();
-      setRepoInfo(info);
-      const brRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/branches?per_page=20`);
-      if (brRes.ok) { const brs = await brRes.json(); setBranches(brs.map(b => b.name)); }
-      const treeRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${info.default_branch || "main"}?recursive=1`);
-      if (!treeRes.ok) throw new Error("Failed to fetch file tree");
-      const treeData = await treeRes.json();
-      setTree(treeData.tree || []);
-      setBranch(info.default_branch || "main");
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
-  };
-
-  const fetchBranch = async branchName => {
-    const parsed = parseRepoUrl(repoUrl);
-    if (!parsed) return;
-    setLoading(true); setError(""); setBranch(branchName); setPreviewFile(null);
-    try {
-      const treeRes = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/git/trees/${branchName}?recursive=1`);
-      if (!treeRes.ok) throw new Error("Failed to fetch branch");
-      const treeData = await treeRes.json();
-      setTree(treeData.tree || []);
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
-  };
-
-  const fetchFileContent = async path => {
-    const parsed = parseRepoUrl(repoUrl);
-    if (!parsed) return;
-    setPreviewLoading(true); setPreviewFile(path);
-    try {
-      const res = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}/contents/${path}?ref=${branch}`);
-      if (!res.ok) throw new Error("Failed to fetch file");
-      const data = await res.json();
-      setPreviewContent(data.encoding === "base64" ? atob(data.content) : data.content || "");
-    } catch (err) { setPreviewContent(`Error: ${err.message}`); } finally { setPreviewLoading(false); }
-  };
-
-  const buildTree = items => {
-    if (!items) return {};
-    const root = { children: {} };
-    for (const item of items) {
-      const parts = item.path.split("/");
-      let node = root;
-      for (let i = 0; i < parts.length; i++) {
-        if (!node.children[parts[i]]) node.children[parts[i]] = { name: parts[i], path: parts.slice(0, i + 1).join("/"), type: i === parts.length - 1 ? item.type : "tree", size: item.size, children: {} };
-        node = node.children[parts[i]];
-      }
-    }
-    return root.children;
-  };
-
-  const isTextFile = name => {
-    const exts = [".m", ".txt", ".md", ".json", ".cpp", ".hpp", ".h", ".c", ".py", ".js", ".ts", ".jsx", ".css", ".html", ".yml", ".yaml", ".cmake", ".sh"];
-    const names = ["Makefile", "CMakeLists.txt", "LICENSE", ".gitignore", "README", "Dockerfile"];
-    return exts.some(e => name.endsWith(e)) || names.some(n => name === n || name.startsWith(n));
-  };
-  const isMFile = name => name.endsWith(".m");
-
-  const nestedTree = useMemo(() => tree ? buildTree(tree) : {}, [tree]);
-
-  const renderNode = (nodeMap, depth = 0) => {
-    const entries = Object.values(nodeMap).sort((a, b) => {
-      if (a.type === "tree" && b.type !== "tree") return -1;
-      if (a.type !== "tree" && b.type === "tree") return 1;
-      return a.name.localeCompare(b.name);
-    });
-    return entries.map(node => {
-      const isDir = node.type === "tree";
-      const isExp = expanded[node.path];
-      const isSel = previewFile === node.path;
-      return (
-        <div key={node.path}>
-          <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : isTextFile(node.name) && fetchFileContent(node.path)}
-            style={{
-              display: "flex", alignItems: "center", gap: 4, padding: "2px 6px", paddingLeft: depth * 14 + 6, cursor: "pointer", fontSize: 11,
-              background: isSel ? `${C.accent}15` : "transparent", borderLeft: isSel ? `2px solid ${C.accent}` : "2px solid transparent",
-              color: isMFile(node.name) ? C.green : isDir ? C.accent : C.textDim, transition: "all 0.1s",
-            }}
-            onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
-            onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = "transparent"; }}>
-            {isDir ? <span style={{ fontSize: 9, width: 12, textAlign: "center", color: C.textMuted }}>{isExp ? "▼" : "▶"}</span>
-                   : <span style={{ fontSize: 10, width: 12, textAlign: "center" }}>{isMFile(node.name) ? "📄" : "📝"}</span>}
-            <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{isDir ? "📁 " : ""}{node.name}</span>
-            {isMFile(node.name) && <span style={{ fontSize: 7, padding: "0 3px", borderRadius: 2, background: `${C.green}22`, color: C.green }}>M</span>}
-          </div>
-          {isDir && isExp && Object.keys(node.children).length > 0 && renderNode(node.children, depth + 1)}
-        </div>
-      );
-    });
-  };
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
-      <div style={{ padding: "8px 10px", borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        <div style={{ display: "flex", gap: 4 }}>
-          <input value={repoUrl} onChange={e => setRepoUrl(e.target.value)} onKeyDown={e => e.key === "Enter" && fetchRepo()}
-            placeholder="owner/repo" style={{ flex: 1, padding: "5px 8px", borderRadius: 5, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, outline: "none", fontFamily: FONT }} />
-          <button onClick={fetchRepo} disabled={loading || !repoUrl.trim()} style={{
-            padding: "5px 10px", borderRadius: 5, fontSize: 10, fontWeight: 600, background: C.accent, color: "#fff", border: "none", cursor: "pointer",
-            opacity: loading || !repoUrl.trim() ? 0.5 : 1, fontFamily: FONT,
-          }}>{loading ? "…" : "Load"}</button>
-        </div>
-        {branches.length > 0 && (
-          <div style={{ marginTop: 5, display: "flex", alignItems: "center", gap: 5 }}>
-            <span style={{ fontSize: 9, color: C.textMuted }}>Branch:</span>
-            <select value={branch} onChange={e => fetchBranch(e.target.value)} style={{ flex: 1, padding: "2px 4px", borderRadius: 3, fontSize: 10, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, fontFamily: FONT, cursor: "pointer" }}>
-              {branches.map(b => <option key={b} value={b}>{b}</option>)}
-            </select>
-          </div>
-        )}
-        {repoInfo && <div style={{ marginTop: 4, fontSize: 9, color: C.textMuted, display: "flex", gap: 6 }}>
-          <span>⭐ {repoInfo.stargazers_count}</span>
-          <span>🍴 {repoInfo.forks_count}</span>
-          {repoInfo.language && <span>💻 {repoInfo.language}</span>}
-        </div>}
-        {error && <div style={{ color: C.red, fontSize: 10, marginTop: 4 }}>{error}</div>}
-      </div>
-      <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden" }}>
-        {loading && !tree && <div style={{ padding: 16, textAlign: "center", color: C.textMuted, fontSize: 11 }}>Loading…</div>}
-        {tree && Object.keys(nestedTree).length > 0 && <div style={{ padding: "3px 0" }}>{renderNode(nestedTree)}</div>}
-        {!tree && !loading && <div style={{ padding: 16, textAlign: "center", color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>
-          Enter a GitHub repo to browse.<br /><br />
-          <span style={{ color: C.accent, cursor: "pointer" }} onClick={() => setRepoUrl("mathworks/MATLAB-Simulink-Challenge")}>mathworks/MATLAB-Simulink-Challenge</span>
-        </div>}
-      </div>
-      {previewFile && (
-        <div style={{ borderTop: `1px solid ${C.border}`, flexShrink: 0, maxHeight: "40%", display: "flex", flexDirection: "column" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "4px 10px", background: C.bg0, borderBottom: `1px solid ${C.border}` }}>
-            <span style={{ fontSize: 10, color: C.text, fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{previewFile.split("/").pop()}</span>
-            <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-              {isMFile(previewFile) && <>
-                <button onClick={() => onRunFile(previewFile.split("/").pop(), previewContent)} style={{ padding: "2px 6px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: C.green, color: C.bg0, border: "none", cursor: "pointer" }}>▶ Run</button>
-                <button onClick={() => onOpenFile(previewFile.split("/").pop(), previewContent)} style={{ padding: "2px 6px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: C.accent, color: "#fff", border: "none", cursor: "pointer" }}>Open</button>
-              </>}
-              {!isMFile(previewFile) && isTextFile(previewFile) && <button onClick={() => onOpenFile(previewFile.split("/").pop(), previewContent)} style={{ padding: "2px 6px", borderRadius: 3, fontSize: 9, fontWeight: 600, background: C.accent, color: "#fff", border: "none", cursor: "pointer" }}>Open</button>}
-              <button onClick={() => { setPreviewFile(null); setPreviewContent(""); }} style={{ padding: "2px 4px", borderRadius: 3, fontSize: 12, lineHeight: 1, background: "none", color: C.textMuted, border: "none", cursor: "pointer" }}>×</button>
-            </div>
-          </div>
-          <pre style={{ flex: 1, overflowY: "auto", padding: "6px 10px", margin: 0, fontSize: 10, lineHeight: 1.5, color: C.textDim, background: C.bg0, fontFamily: FONT, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-            {previewLoading ? "Loading…" : previewContent}
-          </pre>
-        </div>
-      )}
-    </div>
-  );
-}
-
 
 // ════════════════════════════════════════════════════════════
 // Main IDE Component
 // ════════════════════════════════════════════════════════════
 export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   // Panel visibility
-  const [showLeft, setShowLeft] = useState(false);
+  const [showLeft, setShowLeft] = useState(true);
   const [showCenter, setShowCenter] = useState(true);
   const [showRight, setShowRight] = useState(false);
   const [showBottom, setShowBottom] = useState(true);
 
   // Bottom panel tab
-  const [bottomTab, setBottomTab] = useState("console"); // console | examples | cheatsheet
+  const [bottomTab, setBottomTab] = useState("console");
 
   // Console state
   const [output, setOutput] = useState([]);
@@ -391,9 +212,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [variables, setVariables] = useState({});
   const [errorLine, setErrorLine] = useState(null);
 
-  // Editor state
-  const [tabs, setTabs] = useState([{ id: "1", name: "untitled.m", code: "", modified: false }]);
+  // Editor state — tabs now track vfsPath for saving
+  const [tabs, setTabs] = useState([{ id: "1", name: "untitled.m", code: "", modified: false, vfsPath: null }]);
   const [activeTab, setActiveTab] = useState("1");
+  const [saveStatus, setSaveStatus] = useState(null); // null | 'saving' | 'saved'
 
   const outputRef = useRef(null);
   const inputRef = useRef(null);
@@ -401,7 +223,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
 
-  // Use the engine passed from App.jsx (WASM or fallback)
   const engine = engineProp;
 
   const scrollBottom = useCallback(() => {
@@ -409,7 +230,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   }, []);
 
   useEffect(() => {
-    setOutput([{ type: "system", text: "MLab REPL v2.2 — Enhanced Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]);
+    setOutput([{ type: "system", text: "MLab REPL v2.3 — Web IDE with Virtual File System" }, { type: "system", text: 'Type commands below. Double-click files in Explorer to edit.' }]);
   }, []);
 
   useEffect(scrollBottom, [output, plots]);
@@ -425,7 +246,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const t0 = performance.now();
     const result = engine.execute(code);
     setExecTimeMs(performance.now() - t0);
-    setErrorLine(null); // Clear previous error
+    setErrorLine(null);
     const items = [];
     if (result.output) {
       for (const line of result.output.split("\n")) {
@@ -439,11 +260,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if (result.plots && result.plots.length > 0) {
       setPlots(prev => [...prev, ...result.plots]);
     }
-    // Highlight error line in editor
-    if (result.errorLine) {
-      setErrorLine(result.errorLine);
-    }
-    // Refresh workspace variables after each execution
+    if (result.errorLine) setErrorLine(result.errorLine);
     setVariables(engine.getVars());
   }, [engine, addOutput]);
 
@@ -495,7 +312,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       return;
     }
     if (e.key === "l" && e.ctrlKey) { e.preventDefault(); setOutput([]); setPlots([]); }
-  }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx,  engine]);
+  }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx, engine]);
 
   const runExample = useCallback(item => {
     setBottomTab("console");
@@ -504,19 +321,77 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     inputRef.current?.focus();
   }, [addOutput, runCode]);
 
-  // Tab operations
+  // ── Tab operations ──
   const newTab = useCallback(() => {
     tabCountRef.current++;
     const id = String(tabCountRef.current);
-    setTabs(prev => [...prev, { id, name: `script${tabCountRef.current}.m`, code: "", modified: false }]);
+    setTabs(prev => [...prev, { id, name: `script${tabCountRef.current}.m`, code: "", modified: false, vfsPath: null }]);
     setActiveTab(id);
   }, []);
+
   const closeTab = useCallback(id => {
-    setTabs(prev => { const next = prev.filter(t => t.id !== id); if (!next.length) return prev; if (activeTab === id) setActiveTab(next[next.length - 1].id); return next; });
+    setTabs(prev => {
+      const next = prev.filter(t => t.id !== id);
+      if (!next.length) return prev;
+      if (activeTab === id) setActiveTab(next[next.length - 1].id);
+      return next;
+    });
   }, [activeTab]);
-  const renameTab = useCallback((id, name) => { if (!name.trim()) return; setTabs(prev => prev.map(t => t.id === id ? { ...t, name: name.trim() } : t)); }, []);
+
+  const renameTab = useCallback((id, name) => {
+    if (!name.trim()) return;
+    setTabs(prev => prev.map(t => t.id === id ? { ...t, name: name.trim() } : t));
+  }, []);
+
   const activeTabData = tabs.find(t => t.id === activeTab) || tabs[0];
-  const updateTabCode = useCallback(code => { setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, code, modified: true } : t)); }, [activeTab]);
+  const updateTabCode = useCallback(code => {
+    setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, code, modified: true } : t));
+  }, [activeTab]);
+
+  // ── Save to VFS ──
+  const saveActiveTab = useCallback(async () => {
+    const tab = tabs.find(t => t.id === activeTab);
+    if (!tab) return;
+
+    let savePath = tab.vfsPath;
+
+    if (!savePath) {
+      // Ask for path — prompt for filename
+      const name = prompt("Save as (e.g. My Scripts/hello.m):", tab.name);
+      if (!name) return;
+      const cleanName = name.endsWith('.m') ? name : name + '.m';
+      savePath = cleanName.startsWith('/') ? cleanName : '/My Scripts/' + cleanName;
+    }
+
+    try {
+      setSaveStatus('saving');
+      await vfs.init(); // ensure init
+      await vfs.writeFile(savePath, tab.code);
+      setTabs(prev => prev.map(t => t.id === activeTab ? {
+        ...t,
+        modified: false,
+        vfsPath: savePath,
+        name: savePath.split('/').pop(),
+      } : t));
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus(null), 2000);
+    } catch (e) {
+      console.error('Save failed:', e);
+      setSaveStatus(null);
+    }
+  }, [tabs, activeTab]);
+
+  // Ctrl+S handler
+  useEffect(() => {
+    const handler = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        saveActiveTab();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [saveActiveTab]);
 
   const runActiveTab = useCallback(() => {
     const tab = tabs.find(t => t.id === activeTab);
@@ -527,7 +402,36 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, modified: false } : t));
   }, [tabs, activeTab, addOutput, runCode]);
 
-  // File I/O
+  // ── File Open Handler (from FileBrowser) ──
+  const handleFileOpen = useCallback((name, vfsPath, content) => {
+    // Check if already open
+    if (vfsPath) {
+      const existing = tabs.find(t => t.vfsPath === vfsPath);
+      if (existing) {
+        setActiveTab(existing.id);
+        setShowCenter(true);
+        return;
+      }
+    }
+
+    tabCountRef.current++;
+    const id = String(tabCountRef.current);
+    setTabs(prev => [...prev, {
+      id, name, code: content || '', modified: false,
+      vfsPath: vfsPath || null,
+    }]);
+    setActiveTab(id);
+    setShowCenter(true);
+  }, [tabs]);
+
+  // ── File Run Handler (from FileBrowser) ──
+  const handleFileRun = useCallback((name, content) => {
+    setBottomTab("console"); setShowBottom(true);
+    addOutput([{ type: "system", text: `── Running ${name} ──` }, { type: "input", text: content }]);
+    runCode(content);
+  }, [addOutput, runCode]);
+
+  // ── File I/O (disk) ──
   const handleFileLoad = useCallback(() => {
     const input = document.createElement("input"); input.type = "file"; input.accept = ".m,.txt";
     input.onchange = e => {
@@ -535,7 +439,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       const reader = new FileReader();
       reader.onload = ev => {
         tabCountRef.current++; const id = String(tabCountRef.current);
-        setTabs(prev => [...prev, { id, name: file.name, code: ev.target.result, modified: false }]);
+        setTabs(prev => [...prev, { id, name: file.name, code: ev.target.result, modified: false, vfsPath: null }]);
         setActiveTab(id); setShowCenter(true);
       };
       reader.readAsText(file);
@@ -543,26 +447,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     input.click();
   }, []);
 
-  const handleFileSave = useCallback(() => {
+  const handleFileSaveDisk = useCallback(() => {
     const tab = tabs.find(t => t.id === activeTab); if (!tab) return;
     const blob = new Blob([tab.code], { type: "text/plain" }); const url = URL.createObjectURL(blob);
     const a = document.createElement("a"); a.href = url; a.download = tab.name; a.click(); URL.revokeObjectURL(url);
     setTabs(prev => prev.map(t => t.id === activeTab ? { ...t, modified: false } : t));
   }, [tabs, activeTab]);
-
-  const handleGitOpenFile = useCallback((filename, content) => {
-    tabCountRef.current++; const id = String(tabCountRef.current);
-    setTabs(prev => [...prev, { id, name: filename, code: content, modified: false }]);
-    setActiveTab(id); setShowCenter(true);
-    addOutput([{ type: "system", text: `Opened ${filename} from GitHub` }]);
-  }, [addOutput]);
-
-  const handleGitRunFile = useCallback((filename, content) => {
-    setBottomTab("console"); setShowBottom(true);
-    addOutput([{ type: "system", text: `── Running ${filename} (GitHub) ──` }, { type: "input", text: content }]);
-    runCode(content);
-  }, [addOutput, runCode]);
-
 
   // ── Panel toggle button ──
   const PanelBtn = ({ active, onClick, icon, label, title }) => (
@@ -578,12 +468,14 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   );
 
   // ── Action button ──
-  const ActBtn = ({ onClick, icon, label, color, title }) => (
-    <button onClick={onClick} title={title} style={{
+  const ActBtn = ({ onClick, icon, label, color, title, disabled }) => (
+    <button onClick={onClick} title={title} disabled={disabled} style={{
       display: "flex", alignItems: "center", gap: 3, padding: "4px 8px", border: `1px solid ${C.border}`, borderRadius: 4,
-      background: C.bg2, color: color || C.textDim, fontFamily: FONT_UI, fontSize: 11, fontWeight: 500, cursor: "pointer", transition: "all 0.15s", whiteSpace: "nowrap",
+      background: C.bg2, color: color || C.textDim, fontFamily: FONT_UI, fontSize: 11, fontWeight: 500,
+      cursor: disabled ? "default" : "pointer", transition: "all 0.15s", whiteSpace: "nowrap",
+      opacity: disabled ? 0.4 : 1,
     }}
-    onMouseEnter={e => { e.currentTarget.style.borderColor = C.borderHi; }}
+    onMouseEnter={e => { if (!disabled) e.currentTarget.style.borderColor = C.borderHi; }}
     onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; }}>
       <span style={{ fontSize: 12 }}>{icon}</span>{label}
     </button>
@@ -605,27 +497,26 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         display: "flex", alignItems: "center", justifyContent: "space-between", padding: "5px 12px",
         background: C.bg1, borderBottom: `1px solid ${C.border}`, flexShrink: 0, zIndex: 30, gap: 8,
       }}>
-        {/* Logo */}
         <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexShrink: 0 }}>
           <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.5, fontFamily: FONT_UI }}>
             MLab <span style={{ color: C.accent }}>IDE</span>
           </span>
-          <span style={{ fontSize: 9, color: C.textMuted }}>v2.2</span>
+          <span style={{ fontSize: 9, color: C.textMuted }}>v2.3</span>
         </div>
 
-        {/* Panel toggles */}
         <div style={{ display: "flex", gap: 2, alignItems: "center", background: C.bg0, borderRadius: 6, padding: "2px 3px" }}>
-          <PanelBtn active={showLeft}   onClick={() => setShowLeft(!showLeft)}     icon="🐙" label="Explorer"  title="GitHub Explorer" />
+          <PanelBtn active={showLeft}   onClick={() => setShowLeft(!showLeft)}     icon="📂" label="Explorer"  title="File Explorer" />
           <PanelBtn active={showCenter} onClick={() => setShowCenter(!showCenter)} icon="📝" label="Editor"    title="Code Editor" />
           <PanelBtn active={showRight}  onClick={() => setShowRight(!showRight)}   icon="🔍" label="Workspace" title="Variable Inspector" />
           <PanelBtn active={showBottom} onClick={() => setShowBottom(!showBottom)} icon="💻" label="Terminal"  title="Bottom Panel" />
         </div>
 
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
-          {showCenter && <ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script" />}
-          <ActBtn onClick={handleFileLoad} icon="📂" label="Open" title="Open .m file" />
-          {showCenter && <ActBtn onClick={handleFileSave} icon="💾" label="Save" title="Save file" />}
+        <div style={{ display: "flex", gap: 3, flexShrink: 0, alignItems: "center" }}>
+          {showCenter && <ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script (F5)" />}
+          {showCenter && <ActBtn onClick={saveActiveTab} icon="💾" label="Save" color={saveStatus === 'saved' ? C.green : undefined} title="Save to local FS (Ctrl+S)" />}
+          {saveStatus === 'saved' && <span style={{ fontSize: 9, color: C.green }}>✓</span>}
+          <ActBtn onClick={handleFileLoad} icon="📂" label="Open" title="Open .m file from disk" />
+          {showCenter && <ActBtn onClick={handleFileSaveDisk} icon="⬇" label="Export" title="Download as file" />}
           <ActBtn onClick={() => { setOutput([]); setPlots([]); }} icon="🗑" label="Clear" title="Clear console" />
           <ActBtn onClick={() => { engine.reset(); setVariables({}); addOutput([{ type: "system", text: "Workspace cleared." }]); }} icon="🔄" label="Reset" title="Reset workspace" />
         </div>
@@ -634,17 +525,16 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       {/* ═══ Main Content Area ═══ */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
 
-        {/* Top row: [Left] [Center] [Right] */}
         <div style={{ flex: showBottom ? "1 1 60%" : 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
 
-          {/* ── Left Panel: GitHub ── */}
+          {/* ── Left Panel: File Browser ── */}
           {showLeft && (
-            <div style={{ width: 280, minWidth: 220, flexShrink: 0, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              <div style={{ padding: "7px 10px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontFamily: FONT_UI }}>🐙 GitHub Explorer</span>
-                <button onClick={() => setShowLeft(false)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
-              </div>
-              <GitRepoBrowser onOpenFile={handleGitOpenFile} onRunFile={handleGitRunFile} />
+            <div style={{ width: 260, minWidth: 200, flexShrink: 0, background: C.bg1, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              <FileBrowser
+                onOpenFile={handleFileOpen}
+                onRunFile={handleFileRun}
+                onClose={() => setShowLeft(false)}
+              />
             </div>
           )}
 
@@ -653,7 +543,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minWidth: 0 }}>
               <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} />
               <div style={{ flex: 1, display: "flex", overflow: "hidden", position: "relative" }}>
-                {/* Line numbers — synced scroll with textarea */}
                 <div ref={gutterRef} style={{
                   padding: "8px 0", background: C.bg0, borderRight: `1px solid ${C.border}`,
                   userSelect: "none", minWidth: 34, textAlign: "right",
@@ -673,7 +562,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                   })}
                 </div>
                 <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
-                  {/* Error line highlight overlay */}
                   {errorLine && (
                     <div style={{
                       position: "absolute", left: 0, right: 0,
@@ -683,9 +571,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                     }} />
                   )}
                   <textarea ref={editorRef} value={activeTabData?.code || ""} onChange={e => { updateTabCode(e.target.value); setErrorLine(null); }} spellCheck={false}
-                    onScroll={e => {
-                      if (gutterRef.current) gutterRef.current.scrollTop = e.target.scrollTop;
-                    }}
+                    onScroll={e => { if (gutterRef.current) gutterRef.current.scrollTop = e.target.scrollTop; }}
                     style={{ width: "100%", height: "100%", background: C.bg1, color: C.text, border: "none", outline: "none", fontFamily: FONT, fontSize: 13, lineHeight: "20px", padding: 8, resize: "none", caretColor: C.accent, overflow: "auto", position: "relative", zIndex: 2 }} />
                 </div>
               </div>
@@ -703,7 +589,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
             </div>
           )}
 
-          {/* If nothing is shown */}
           {!showLeft && !showCenter && !showRight && (
             <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.textMuted, fontSize: 12, fontFamily: FONT_UI }}>
               Toggle panels from the toolbar above
@@ -714,23 +599,18 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         {/* ═══ Bottom Panel ═══ */}
         {showBottom && (
           <div style={{ flex: "0 0 40%", minHeight: 140, maxHeight: "55%", display: "flex", flexDirection: "column", borderTop: `2px solid ${C.border}`, overflow: "hidden" }}>
-            {/* Bottom tabs */}
             <div style={{ display: "flex", alignItems: "center", background: C.bg0, borderBottom: `1px solid ${C.border}`, flexShrink: 0, justifyContent: "space-between" }}>
               <div style={{ display: "flex" }}>
                 {bottomTabBtn("console", "💻 Console")}
-                {bottomTabBtn("examples", "📋 Examples")}
+                {bottomTabBtn("examples", "📋 Quick Examples")}
                 {bottomTabBtn("cheatsheet", "📖 Reference")}
               </div>
               <button onClick={() => setShowBottom(false)} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, padding: "0 10px", lineHeight: 1 }}>×</button>
             </div>
 
-            {/* Bottom content */}
             <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-
-              {/* Console Tab */}
               {bottomTab === "console" && (
                 <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-                  {/* Output */}
                   <div ref={outputRef} style={{ flex: 1, overflowY: "auto", padding: "8px 12px", background: C.bg1 }}>
                     {output.map((item, i) => {
                       const colors = { input: C.textMuted, result: C.text, error: C.red, warning: C.orange, system: C.textMuted, info: C.cyan };
@@ -754,7 +634,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                     {plots.map((p, i) => <PlotPanel key={i} data={p} onClose={() => setPlots(prev => prev.filter((_, j) => j !== i))} />)}
                   </div>
 
-                  {/* Input */}
                   <div style={{ display: "flex", alignItems: "flex-start", padding: "8px 12px", background: C.bg0, borderTop: `1px solid ${C.border}`, flexShrink: 0, position: "relative" }}>
                     <span style={{ color: C.green, fontWeight: 700, marginRight: 6, marginTop: 2, userSelect: "none", flexShrink: 0, fontSize: 13 }}>&gt;&gt;</span>
                     <div style={{ flex: 1, position: "relative" }}>
@@ -779,11 +658,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                   </div>
                 </div>
               )}
-
-              {/* Examples Tab */}
               {bottomTab === "examples" && <div style={{ flex: 1, overflowY: "auto" }}><ExamplesContent onRun={runExample} /></div>}
-
-              {/* Cheat Sheet Tab */}
               {bottomTab === "cheatsheet" && <div style={{ flex: 1, overflowY: "auto" }}><CheatSheetContent /></div>}
             </div>
           </div>
@@ -800,15 +675,16 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span>{statusProp === "ready" ? "WASM" : "Demo"}</span>
           <span style={{ color: C.border }}>|</span>
           <span>{activeTabData?.name}</span>
+          {activeTabData?.vfsPath && <span style={{ color: C.textMuted }}>({activeTabData.vfsPath})</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {execTimeMs !== null && <span>{execTimeMs.toFixed(1)}ms</span>}
           <span style={{ color: C.border }}>|</span>
+          <span>Ctrl+S: save</span>
+          <span style={{ color: C.border }}>|</span>
           <span>Tab: autocomplete</span>
           <span style={{ color: C.border }}>|</span>
           <span>↑↓: history</span>
-          <span style={{ color: C.border }}>|</span>
-          <span>Shift+Enter: newline</span>
         </div>
       </div>
     </div>

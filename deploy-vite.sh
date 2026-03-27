@@ -55,7 +55,17 @@ else
     warn "To include WASM engine: source ~/emsdk/emsdk_env.sh && re-run"
 fi
 
-# ── 2. Устанавливаем зависимости ──
+# ── 2. Генерируем манифест примеров ──
+
+if [ -d "${VITE_DIR}/public/examples" ]; then
+    info "Generating examples manifest..."
+    node "${VITE_DIR}/scripts/generate-manifest.js"
+    ok "Manifest generated"
+else
+    warn "No examples directory found — skipping manifest"
+fi
+
+# ── 3. Устанавливаем зависимости ──
 
 info "Installing npm dependencies..."
 cd "${VITE_DIR}"
@@ -66,13 +76,13 @@ else
     ok "node_modules exists, skipping install"
 fi
 
-# ── 3. Собираем Vite production build ──
+# ── 4. Собираем Vite production build ──
 
 info "Building Vite production bundle..."
 npm run build
 ok "Vite build complete"
 
-# ── 4. Копируем в docs/ для GitHub Pages ──
+# ── 5. Копируем в docs/ для GitHub Pages ──
 
 info "Copying to docs/..."
 rm -rf "${PAGES_DIR}"
