@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MLab REPL</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/svg+xml" href="/mlab/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -16,7 +16,7 @@
     We ensure it lands on `window` so React can find it.
   -->
   <script>window.__WASM_GLUE_LOADED__ = false;</script>
-  <script src="/mlab_repl.js"
+  <script src="./mlab_repl.js"
           onerror="console.log('[REPL] WASM glue not found — fallback mode')">
   </script>
   <script>
@@ -30,8 +30,8 @@
       console.log('[REPL] createMLabModule not defined after script load');
     }
   </script>
-  <script type="module" crossorigin src="/assets/index-f1G7YIBq.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-D3gy2UXp.css">
+  <script type="module" crossorigin src="/mlab/assets/index-f1G7YIBq.js"></script>
+  <link rel="stylesheet" crossorigin href="/mlab/assets/index-D3gy2UXp.css">
 </head>
 <body>
   <div id="root"></div>
