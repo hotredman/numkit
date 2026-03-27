@@ -1,54 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import * as d3 from "d3";
-import HELP_DB from "../data/help";
-import CHEAT_SHEET from "../data/cheatsheet";
 import FileBrowser from "./FileBrowser";
+import Console from "./Console";
+import Workspace from "./Workspace";
+import Reference from "./Reference";
 import vfs from "../vfs";
 import C, { FONT, FONT_UI } from "../theme";
-
-// ── PlotPanel ──
-function PlotPanel({ data, onClose }) {
-  const svgRef = useRef(null);
-  const containerRef = useRef(null);
-  useEffect(() => {
-    if (!data || !svgRef.current || !containerRef.current) return;
-    const svg = d3.select(svgRef.current); svg.selectAll("*").remove();
-    const cw = containerRef.current.clientWidth;
-    const width = Math.min(cw - 8, 560), height = 240;
-    const margin = { top: 28, right: 16, bottom: 36, left: 46 };
-    const iw = width - margin.left - margin.right, ih = height - margin.top - margin.bottom;
-    svg.attr("width", width).attr("height", height);
-    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-    const colors = [C.accent, C.cyan, C.green, C.orange, C.pink, C.yellow];
-    const allX = data.datasets.flatMap(d => d.x), allY = data.datasets.flatMap(d => d.y);
-    const xScale = d3.scaleLinear().domain([Math.min(...allX), Math.max(...allX)]).range([0, iw]).nice();
-    const yScale = d3.scaleLinear().domain([Math.min(...allY)*0.95, Math.max(...allY)*1.05]).range([ih, 0]).nice();
-    g.append("g").selectAll("line").data(yScale.ticks(4)).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","2,4");
-    g.append("g").attr("transform",`translate(0,${ih})`).call(d3.axisBottom(xScale).ticks(5)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
-    g.append("g").call(d3.axisLeft(yScale).ticks(4)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
-    data.datasets.forEach((ds, idx) => {
-      const color = colors[idx % colors.length];
-      if (data.config.type === "line") {
-        g.append("path").datum(ds.y).attr("d", d3.line().x((_,i)=>xScale(ds.x[i])).y((_,i)=>yScale(ds.y[i])).curve(d3.curveMonotoneX)).attr("fill","none").attr("stroke",color).attr("stroke-width",2);
-      } else if (data.config.type === "scatter") {
-        g.selectAll(`.dot-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("circle").attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.y)).attr("r",4).attr("fill",color).attr("opacity",0.8);
-      } else if (data.config.type === "bar") {
-        const bw = Math.max(2, iw/ds.x.length*0.7);
-        g.selectAll(`.bar-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("rect").attr("x",d=>xScale(d.x)-bw/2).attr("y",d=>yScale(d.y)).attr("width",bw).attr("height",d=>ih-yScale(d.y)).attr("fill",color).attr("opacity",0.85).attr("rx",2);
-      }
-    });
-    if (data.config.title) svg.append("text").attr("x",width/2).attr("y",16).attr("text-anchor","middle").attr("fill",C.text).attr("font-size",12).attr("font-weight",600).text(data.config.title);
-    if (data.config.xlabel) svg.append("text").attr("x",width/2).attr("y",height-4).attr("text-anchor","middle").attr("fill",C.textMuted).attr("font-size",10).text(data.config.xlabel);
-    if (data.config.ylabel) svg.append("text").attr("transform",`translate(12,${height/2}) rotate(-90)`).attr("text-anchor","middle").attr("fill",C.textMuted).attr("font-size",10).text(data.config.ylabel);
-  }, [data]);
-  if (!data) return null;
-  return (
-    <div ref={containerRef} style={{background:C.bg1,border:`1px solid ${C.border}`,borderRadius:6,margin:"4px 0",padding:6,position:"relative"}}>
-      <button onClick={onClose} style={{position:"absolute",top:4,right:6,background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button>
-      <svg ref={svgRef} style={{display:"block",margin:"0 auto"}} />
-    </div>
-  );
-}
 
 // ── Tab Bar ──
 function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
@@ -81,55 +37,6 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
   );
 }
 
-// ── Variable Inspector ──
-function VarInspector({ variables }) {
-  const entries = Object.entries(variables);
-  const getType = v => { if(Array.isArray(v)){if(v.length&&Array.isArray(v[0]))return"matrix";return"vector";}if(typeof v==="string")return"char";if(typeof v==="object"&&v!==null)return"struct";return"double"; };
-  const getSize = v => { if(Array.isArray(v)){if(v.length&&Array.isArray(v[0]))return`${v.length}×${v[0].length}`;return`1×${v.length}`;}if(typeof v==="string")return`1×${v.length}`;if(typeof v==="object"&&v!==null)return`1×${Object.keys(v).length}`;return"1×1"; };
-  const getPreview = v => { if(Array.isArray(v)){const f=v.flat();if(f.length<=6)return`[${f.map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}]`;return`[${f.slice(0,4).map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}, …]`;}if(typeof v==="string")return`'${v}'`;if(typeof v==="object"&&v!==null)return`{${Object.keys(v).join(", ")}}`;if(typeof v==="number")return Number.isInteger(v)?String(v):v.toFixed(6);return String(v); };
-  const typeColors = {double:C.cyan,vector:C.green,matrix:C.accent,char:C.yellow,struct:C.orange};
-  return (
-    <div style={{flex:1,overflowY:"auto",padding:8}}>
-      {!entries.length?(
-        <div style={{color:C.textMuted,fontSize:11,padding:16,textAlign:"center",lineHeight:1.6}}>No variables in workspace.<br/>Run some code to see variables here.</div>
-      ):entries.map(([name,val])=>{
-        const type=getType(val);
-        return(
-          <div key={name} style={{padding:"7px 10px",marginBottom:3,borderRadius:5,background:C.bg2,border:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-              <span style={{fontSize:12,fontWeight:600,color:C.text}}>{name}</span>
-              <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                <span style={{fontSize:9,color:C.textMuted}}>{getSize(val)}</span>
-                <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${typeColors[type]||C.textDim}22`,color:typeColors[type]||C.textDim}}>{type}</span>
-              </div>
-            </div>
-            <div style={{fontSize:10,color:C.textDim,fontFamily:FONT,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPreview(val)}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Cheat Sheet ──
-function CheatSheetContent() {
-  return (
-    <div style={{padding:10,display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))",gap:8,alignContent:"start",overflowY:"auto"}}>
-      {CHEAT_SHEET.map(section=>(
-        <div key={section.title} style={{background:C.bg2,borderRadius:6,padding:10,border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:10,fontWeight:700,color:C.accent,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>{section.title}</div>
-          {section.items.map((item,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",gap:6,marginBottom:3}}>
-              <code style={{fontSize:10,color:C.green,whiteSpace:"nowrap"}}>{item.code}</code>
-              <span style={{fontSize:9,color:C.textMuted,textAlign:"right"}}>{item.desc}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // ═══════════════════════════════════════════
 // Main IDE
 // ═══════════════════════════════════════════
@@ -140,15 +47,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [bottomTab, setBottomTab] = useState("console");
   const [bottomHeight, setBottomHeight] = useState(300);
   const [output, setOutput] = useState([]);
-  const [inputVal, setInputVal] = useState("");
-  const [history, setHistory] = useState([]);
-  const [histIdx, setHistIdx] = useState(-1);
-  const [savedInput, setSavedInput] = useState("");
-  const [helpTopic, setHelpTopic] = useState(null);
   const [plots, setPlots] = useState([]);
-  const [acItems, setAcItems] = useState([]);
-  const [acIdx, setAcIdx] = useState(-1);
-  const [acPartial, setAcPartial] = useState("");
+  const [helpTopic, setHelpTopic] = useState(null);
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [variables, setVariables] = useState({});
   const [errorLine, setErrorLine] = useState(null);
@@ -157,18 +57,16 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [vfsRefreshKey, setVfsRefreshKey] = useState(0);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
+  const [forceExplorerSource, setForceExplorerSource] = useState(null);
 
-  const outputRef = useRef(null);
-  const inputRef = useRef(null);
   const tabCountRef = useRef(1);
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
+  const consoleRef = useRef(null);
   const resizingRef = useRef(false);
   const engine = engineProp;
 
-  const scrollBottom = useCallback(() => { requestAnimationFrame(() => { if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight; }); }, []);
   useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.4 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
-  useEffect(scrollBottom, [output, plots]);
 
   const addOutput = useCallback(items => { setOutput(prev => { for (const i of items) if (i.text === "__CLEAR__") return []; return [...prev, ...items.filter(i => i.text !== "__CLEAR__")]; }); }, []);
 
@@ -186,31 +84,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if (result.errorLine) setErrorLine(result.errorLine);
     setVariables(engine.getVars());
   }, [engine, addOutput]);
-
-  const handleSubmit = useCallback(() => {
-    const val = inputVal.trim(); if (!val) return;
-    addOutput([{ type: "input", text: val }]);
-    setHistory(prev => { const h = [...prev, val]; return h.length > 200 ? h.slice(-200) : h; });
-    setHistIdx(-1); setInputVal(""); setAcItems([]);
-    const hm = val.match(/^help\s+(\w+)$/);
-    if (hm && HELP_DB[hm[1]]) { setHelpTopic(hm[1]); return; }
-    if (val === "help") { setHelpTopic(null); addOutput([{ type: "system", text: "Commands: clc, clear, who, whos, help <topic>" }]); return; }
-    runCode(val);
-  }, [inputVal, addOutput, runCode]);
-
-  const handleKeyDown = useCallback(e => {
-    if (acItems.length > 0) {
-      if (e.key === "ArrowDown") { e.preventDefault(); setAcIdx(i => (i+1)%acItems.length); return; }
-      if (e.key === "ArrowUp") { e.preventDefault(); setAcIdx(i => (i-1+acItems.length)%acItems.length); return; }
-      if ((e.key === "Enter" || e.key === "Tab") && acIdx >= 0) { e.preventDefault(); const item=acItems[acIdx],val=inputVal,cur=inputRef.current?.selectionStart||val.length; let ws=cur-1; while(ws>=0&&/[a-zA-Z0-9_]/.test(val[ws]))ws--;ws++; setInputVal(val.substring(0,ws)+item+val.substring(cur)); setAcItems([]); return; }
-      if (e.key === "Escape") { setAcItems([]); return; }
-    }
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); return; }
-    if (e.key === "ArrowUp" && !e.shiftKey && !inputVal.includes("\n")) { e.preventDefault(); if (!history.length) return; const ni=histIdx===-1?history.length-1:Math.max(0,histIdx-1); if(histIdx===-1)setSavedInput(inputVal); setHistIdx(ni); setInputVal(history[ni]); return; }
-    if (e.key === "ArrowDown" && !e.shiftKey && !inputVal.includes("\n")) { e.preventDefault(); if(histIdx===-1)return; if(histIdx<history.length-1){setHistIdx(histIdx+1);setInputVal(history[histIdx+1]);}else{setHistIdx(-1);setInputVal(savedInput);} return; }
-    if (e.key === "Tab") { e.preventDefault(); const val=inputVal,cur=inputRef.current?.selectionStart||val.length; let ws=cur-1; while(ws>=0&&/[a-zA-Z0-9_]/.test(val[ws]))ws--;ws++; const partial=val.substring(ws,cur); if(partial){const items=engine.complete(partial); if(items.length===1){setInputVal(val.substring(0,ws)+items[0]+val.substring(cur));setAcItems([]);}else if(items.length>1){setAcItems(items);setAcIdx(0);setAcPartial(partial);}} return; }
-    if (e.key === "l" && e.ctrlKey) { e.preventDefault(); setOutput([]); setPlots([]); }
-  }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx, engine]);
 
   // Tabs
   const newTab = useCallback(() => { tabCountRef.current++; const id=String(tabCountRef.current); setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]); setActiveTab(id); }, []);
@@ -245,23 +118,15 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     addOutput([{ type: "system", text: `Saved ${name||tab.name}` }]);
   }, [tabs, activeTab, addOutput]);
 
-  // Ctrl+S / Save button: always save to VFS (even for examples/github files)
   const handleSave = useCallback(() => {
     const tab = tabs.find(t=>t.id===activeTab); if(!tab) return;
-    if (tab.vfsPath) {
-      // Already has a VFS path — save in place
-      handleSaveToVFS(tab.vfsPath, tab.name);
-    } else {
-      // No VFS path — show save dialog (for new files, examples, github files)
-      setSaveFileName(tab.name);
-      setShowSaveDialog(true);
-    }
+    if (tab.vfsPath) handleSaveToVFS(tab.vfsPath, tab.name);
+    else { setSaveFileName(tab.name); setShowSaveDialog(true); }
   }, [tabs, activeTab, handleSaveToVFS]);
 
   const handleSaveDialogSubmit = useCallback(async () => {
     if (!saveFileName.trim()) return;
     let name = saveFileName.trim();
-    // Auto-add .m extension if no extension provided
     if (!name.includes('.')) name = name + '.m';
     await handleSaveToVFS(`/${name}`, name);
     setShowSaveDialog(false);
@@ -273,38 +138,42 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const a = document.createElement("a"); a.href = url; a.download = tab.name; a.click(); URL.revokeObjectURL(url);
   }, [tabs, activeTab]);
 
-  const handleFileLoad = useCallback(() => {
+  const handleImport = useCallback(() => {
     const input = document.createElement("input"); input.type = "file"; input.accept = ".m,.txt";
-    input.onchange = e => { const file=e.target.files[0]; if(!file)return; const r=new FileReader(); r.onload=ev=>{handleOpenFile(file.name,ev.target.result,null,'disk');}; r.readAsText(file); };
+    input.onchange = async (e) => {
+      const file = e.target.files[0]; if (!file) return;
+      const r = new FileReader();
+      r.onload = async (ev) => {
+        const content = ev.target.result;
+        const name = file.name.includes('.') ? file.name : file.name + '.m';
+        const vfsPath = `/${name}`;
+        await vfs.writeFile(vfsPath, content);
+        setVfsRefreshKey(k => k + 1);
+        handleOpenFile(name, content, vfsPath, 'local');
+        setShowLeft(true);
+        setForceExplorerSource('local');
+        setTimeout(() => setForceExplorerSource(null), 100);
+        addOutput([{ type: "system", text: `Imported ${name} to Local Files` }]);
+      };
+      r.readAsText(file);
+    };
     input.click();
-  }, [handleOpenFile]);
+  }, [handleOpenFile, addOutput]);
 
-  // Ctrl+S global handler
+  // Ctrl+S
   useEffect(() => {
     const h = e => { if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   }, [handleSave]);
 
-  // ── Bottom panel resize ──
+  // Bottom panel resize
   const handleResizeStart = useCallback((e) => {
     e.preventDefault();
     resizingRef.current = true;
     const startY = e.clientY;
     const startH = bottomHeight;
-
-    const onMove = (ev) => {
-      if (!resizingRef.current) return;
-      const delta = startY - ev.clientY;
-      const newH = Math.max(100, Math.min(window.innerHeight * 0.7, startH + delta));
-      setBottomHeight(newH);
-    };
-
-    const onUp = () => {
-      resizingRef.current = false;
-      document.removeEventListener('mousemove', onMove);
-      document.removeEventListener('mouseup', onUp);
-    };
-
+    const onMove = (ev) => { if (!resizingRef.current) return; setBottomHeight(Math.max(100, Math.min(window.innerHeight * 0.7, startH + startY - ev.clientY))); };
+    const onUp = () => { resizingRef.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mouseup', onUp);
   }, [bottomHeight]);
@@ -342,7 +211,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{ display:"flex",gap:3,flexShrink:0 }}>
           {showCenter && <ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script" />}
           {showCenter && <ActBtn onClick={handleSave} icon="💾" label="Save" title="Save to local FS (Ctrl+S)" />}
-          <ActBtn onClick={handleFileLoad} icon="📂" label="Open" title="Open from disk" />
+          <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file to Local FS" />
           {showCenter && <ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download to disk" />}
           <ActBtn onClick={()=>{setOutput([]);setPlots([]);}} icon="🗑" label="Clear" title="Clear console" />
           <ActBtn onClick={()=>{engine.reset();setVariables({});addOutput([{type:"system",text:"Workspace cleared."}]);}} icon="🔄" label="Reset" title="Reset workspace" />
@@ -352,11 +221,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       {/* Main */}
       <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
         <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
+          {/* Left: Explorer */}
           {showLeft && (
             <div style={{ width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-              <FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} />
+              <FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource} />
             </div>
           )}
+          {/* Center: Editor */}
           {showCenter && (
             <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0 }}>
               <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} />
@@ -376,16 +247,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           {!showLeft&&!showCenter&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
         </div>
 
-        {/* Bottom Panel with resize handle */}
+        {/* Bottom Panel */}
         {showBottom && (
           <div style={{ height:bottomHeight,minHeight:100,display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0 }}>
-            {/* Resize handle */}
             <div onMouseDown={handleResizeStart}
               style={{ height:4,cursor:"ns-resize",background:C.border,flexShrink:0,transition:"background 0.15s" }}
               onMouseEnter={e=>e.currentTarget.style.background=C.accent}
               onMouseLeave={e=>{if(!resizingRef.current)e.currentTarget.style.background=C.border;}} />
-
-            {/* Bottom tabs */}
             <div style={{ display:"flex",alignItems:"center",background:C.bg0,borderBottom:`1px solid ${C.border}`,flexShrink:0,justifyContent:"space-between" }}>
               <div style={{display:"flex"}}>
                 {bottomTabBtn("console","💻 Console")}
@@ -394,51 +262,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
               </div>
               <button onClick={()=>setShowBottom(false)} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:16,padding:"0 10px",lineHeight:1}}>×</button>
             </div>
-
-            {/* Bottom content */}
             <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
-              {bottomTab==="console"&&(
-                <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-                  <div ref={outputRef} style={{ flex:1,overflowY:"auto",padding:"8px 12px",background:C.bg1 }}>
-                    {output.map((item,i)=>{
-                      const clr={input:C.textMuted,result:C.text,error:C.red,warning:C.orange,system:C.textMuted,info:C.cyan};
-                      if(item.type==="input")return<div key={i} style={{padding:"1px 0",whiteSpace:"pre-wrap",wordBreak:"break-word"}}><span style={{color:C.green,fontWeight:700,userSelect:"none"}}>{">> "}</span><span style={{color:C.textMuted}}>{item.text}</span></div>;
-                      return<div key={i} style={{padding:"1px 0",color:clr[item.type]||C.text,fontStyle:item.type==="system"?"italic":"normal",whiteSpace:"pre-wrap",wordBreak:"break-word"}}>{item.text}</div>;
-                    })}
-                    {helpTopic&&HELP_DB[helpTopic]&&(
-                      <div style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:6,padding:"8px 12px",margin:"4px 0",position:"relative"}}>
-                        <button onClick={()=>setHelpTopic(null)} style={{position:"absolute",top:4,right:6,background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:14}}>×</button>
-                        <div style={{fontSize:13,fontWeight:700,color:C.accent,marginBottom:3}}>{HELP_DB[helpTopic].sig}</div>
-                        <div style={{fontSize:11,color:C.text,marginBottom:3}}>{HELP_DB[helpTopic].desc}</div>
-                        <div style={{fontSize:10,color:C.textMuted}}>Category: {HELP_DB[helpTopic].cat}</div>
-                        <div style={{fontSize:11,color:C.green,marginTop:3,fontFamily:FONT}}>{HELP_DB[helpTopic].ex}</div>
-                      </div>
-                    )}
-                    {plots.map((p,i)=><PlotPanel key={i} data={p} onClose={()=>setPlots(prev=>prev.filter((_,j)=>j!==i))}/>)}
-                  </div>
-                  <div style={{display:"flex",alignItems:"flex-start",padding:"8px 12px",background:C.bg0,borderTop:`1px solid ${C.border}`,flexShrink:0,position:"relative"}}>
-                    <span style={{color:C.green,fontWeight:700,marginRight:6,marginTop:2,userSelect:"none",flexShrink:0,fontSize:13}}>&gt;&gt;</span>
-                    <div style={{flex:1,position:"relative"}}>
-                      {acItems.length>1&&(
-                        <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:0,minWidth:160,maxWidth:320,maxHeight:160,overflowY:"auto",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:5,boxShadow:"0 -4px 16px rgba(0,0,0,0.5)",zIndex:100}}>
-                          {acItems.map((item,i)=>(
-                            <div key={item} onClick={()=>{const val=inputVal,cur=inputRef.current?.selectionStart||val.length;let ws=cur-1;while(ws>=0&&/[a-zA-Z0-9_]/.test(val[ws]))ws--;ws++;setInputVal(val.substring(0,ws)+item+val.substring(cur));setAcItems([]);inputRef.current?.focus();}}
-                              style={{padding:"4px 8px",cursor:"pointer",fontSize:11,color:i===acIdx?C.text:C.textDim,background:i===acIdx?C.border:"transparent"}}>
-                              <span style={{color:C.accent,fontWeight:600}}>{item.substring(0,acPartial.length)}</span>{item.substring(acPartial.length)}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <textarea ref={inputRef} value={inputVal} onChange={e=>{setInputVal(e.target.value);setAcItems([]);}}
-                        onKeyDown={handleKeyDown} rows={1} spellCheck={false} autoComplete="off" placeholder="Enter MLab command…"
-                        style={{width:"100%",background:"transparent",border:"none",outline:"none",color:C.text,fontFamily:FONT,fontSize:13,lineHeight:1.6,resize:"none",overflow:"hidden",caretColor:C.accent}}
-                        onInput={e=>{e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}}/>
-                    </div>
-                  </div>
-                </div>
-              )}
-              {bottomTab==="workspace"&&<VarInspector variables={variables} />}
-              {bottomTab==="cheatsheet"&&<div style={{flex:1,overflowY:"auto"}}><CheatSheetContent/></div>}
+              {bottomTab==="console"&&<Console ref={consoleRef} engine={engine} output={output} onAddOutput={addOutput} onRunCode={runCode} plots={plots} onSetPlots={setPlots} helpTopic={helpTopic} onSetHelpTopic={setHelpTopic} />}
+              {bottomTab==="workspace"&&<Workspace variables={variables} />}
+              {bottomTab==="cheatsheet"&&<Reference />}
             </div>
           </div>
         )}
