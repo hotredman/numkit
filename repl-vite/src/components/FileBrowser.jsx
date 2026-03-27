@@ -83,8 +83,30 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     }
   }, [onOpenFile]);
 
+  const handleDuplicate = useCallback(async (node) => {
+    if (node.type !== 'file') return;
+    const content = await vfs.readFile(node.path);
+    if (content === null) return;
+    const parent = node.path.substring(0, node.path.lastIndexOf('/'));
+    const name = node.name;
+    const ext = name.includes('.') ? name.substring(name.lastIndexOf('.')) : '';
+    const base = ext ? name.substring(0, name.lastIndexOf('.')) : name;
+    // Generate unique name: file_copy.m, file_copy2.m, file_copy3.m ...
+    let copyName = `${base}_copy${ext}`;
+    let copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`;
+    let counter = 2;
+    while (await vfs.exists(copyPath)) {
+      copyName = `${base}_copy${counter}${ext}`;
+      copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`;
+      counter++;
+    }
+    await vfs.writeFile(copyPath, content);
+    loadTree();
+  }, [loadTree]);
+
   const handleContextMenu = (e, node) => {
     e.preventDefault();
+    e.stopPropagation();
     const items = [];
     if (node.type === 'folder') {
       items.push({ icon: '📄', label: 'New File', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
@@ -93,6 +115,7 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     }
     if (node.type === 'file') {
       items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
+      items.push({ icon: '📋', label: 'Duplicate', action: () => handleDuplicate(node) });
       items.push({ separator: true });
     }
     items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
