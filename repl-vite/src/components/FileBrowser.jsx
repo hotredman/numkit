@@ -142,7 +142,7 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     const path = parent ? `${parent}/${name}` : `/${name}`;
     if (creating.type === 'folder') await vfs.mkdir(path);
     else {
-      const fileName = name.endsWith('.m') ? name : name;
+      const fileName = name.includes('.') ? name : name + '.m';
       const filePath = parent ? `${parent}/${fileName}` : `/${fileName}`;
       await vfs.writeFile(filePath, `% ${fileName}\n`);
     }

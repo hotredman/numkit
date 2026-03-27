@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as d3 from "d3";
 import HELP_DB from "../data/help";
-import EXAMPLES from "../data/examples";
 import CHEAT_SHEET from "../data/cheatsheet";
 import FileBrowser from "./FileBrowser";
 import vfs from "../vfs";
@@ -29,9 +28,14 @@ function PlotPanel({ data, onClose }) {
     g.append("g").call(d3.axisLeft(yScale).ticks(4)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
     data.datasets.forEach((ds, idx) => {
       const color = colors[idx % colors.length];
-      if (data.config.type === "line") g.append("path").datum(ds.y).attr("d",d3.line().x((_,i)=>xScale(ds.x[i])).y((_,i)=>yScale(ds.y[i])).curve(d3.curveMonotoneX)).attr("fill","none").attr("stroke",color).attr("stroke-width",2);
-      else if (data.config.type === "scatter") g.selectAll(`.dot-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("circle").attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.y)).attr("r",4).attr("fill",color).attr("opacity",0.8);
-      else if (data.config.type === "bar") { const bw = Math.max(2,iw/ds.x.length*0.7); g.selectAll(`.bar-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("rect").attr("x",d=>xScale(d.x)-bw/2).attr("y",d=>yScale(d.y)).attr("width",bw).attr("height",d=>ih-yScale(d.y)).attr("fill",color).attr("opacity",0.85).attr("rx",2); }
+      if (data.config.type === "line") {
+        g.append("path").datum(ds.y).attr("d", d3.line().x((_,i)=>xScale(ds.x[i])).y((_,i)=>yScale(ds.y[i])).curve(d3.curveMonotoneX)).attr("fill","none").attr("stroke",color).attr("stroke-width",2);
+      } else if (data.config.type === "scatter") {
+        g.selectAll(`.dot-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("circle").attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.y)).attr("r",4).attr("fill",color).attr("opacity",0.8);
+      } else if (data.config.type === "bar") {
+        const bw = Math.max(2, iw/ds.x.length*0.7);
+        g.selectAll(`.bar-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("rect").attr("x",d=>xScale(d.x)-bw/2).attr("y",d=>yScale(d.y)).attr("width",bw).attr("height",d=>ih-yScale(d.y)).attr("fill",color).attr("opacity",0.85).attr("rx",2);
+      }
     });
     if (data.config.title) svg.append("text").attr("x",width/2).attr("y",16).attr("text-anchor","middle").attr("fill",C.text).attr("font-size",12).attr("font-weight",600).text(data.config.title);
     if (data.config.xlabel) svg.append("text").attr("x",width/2).attr("y",height-4).attr("text-anchor","middle").attr("fill",C.textMuted).attr("font-size",10).text(data.config.xlabel);
@@ -39,9 +43,9 @@ function PlotPanel({ data, onClose }) {
   }, [data]);
   if (!data) return null;
   return (
-    <div ref={containerRef} style={{ background: C.bg1, border: `1px solid ${C.border}`, borderRadius: 6, margin: "4px 0", padding: 6, position: "relative" }}>
-      <button onClick={onClose} style={{ position: "absolute", top: 4, right: 6, background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 14, lineHeight: 1 }}>×</button>
-      <svg ref={svgRef} style={{ display: "block", margin: "0 auto" }} />
+    <div ref={containerRef} style={{background:C.bg1,border:`1px solid ${C.border}`,borderRadius:6,margin:"4px 0",padding:6,position:"relative"}}>
+      <button onClick={onClose} style={{position:"absolute",top:4,right:6,background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button>
+      <svg ref={svgRef} style={{display:"block",margin:"0 auto"}} />
     </div>
   );
 }
@@ -51,28 +55,28 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 1, padding: "3px 8px", background: C.bg0, borderBottom: `1px solid ${C.border}`, overflowX: "auto", minHeight: 32, flexShrink: 0 }}>
-      {tabs.map(tab => (
-        <div key={tab.id} onClick={() => onSelect(tab.id)} style={{
-          display: "flex", alignItems: "center", gap: 4, padding: "3px 10px", borderRadius: 5, cursor: "pointer", fontSize: 11,
-          background: tab.id === activeTab ? C.bg3 : "transparent", color: tab.id === activeTab ? C.text : C.textMuted,
-          border: `1px solid ${tab.id === activeTab ? C.borderHi : "transparent"}`, whiteSpace: "nowrap", transition: "all 0.15s",
+    <div style={{display:"flex",alignItems:"center",gap:1,padding:"3px 8px",background:C.bg0,borderBottom:`1px solid ${C.border}`,overflowX:"auto",minHeight:32,flexShrink:0}}>
+      {tabs.map(tab=>(
+        <div key={tab.id} onClick={()=>onSelect(tab.id)} style={{
+          display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:11,
+          background:tab.id===activeTab?C.bg3:"transparent",color:tab.id===activeTab?C.text:C.textMuted,
+          border:`1px solid ${tab.id===activeTab?C.borderHi:"transparent"}`,whiteSpace:"nowrap",transition:"all 0.15s",
         }}>
-          {editingId === tab.id ? (
-            <input value={editName} autoFocus onChange={e => setEditName(e.target.value)}
-              onBlur={() => { onRename(tab.id, editName); setEditingId(null); }}
-              onKeyDown={e => { if (e.key === "Enter") { onRename(tab.id, editName); setEditingId(null); } }}
-              style={{ background: "transparent", border: "none", color: C.text, fontSize: 11, width: 80, outline: "none", fontFamily: FONT }}
-              onClick={e => e.stopPropagation()} />
-          ) : (
-            <span onDoubleClick={e => { e.stopPropagation(); setEditingId(tab.id); setEditName(tab.name); }}>
-              {tab.name}{tab.modified ? " •" : ""}
+          {editingId===tab.id?(
+            <input value={editName} autoFocus onChange={e=>setEditName(e.target.value)}
+              onBlur={()=>{onRename(tab.id,editName);setEditingId(null);}}
+              onKeyDown={e=>{if(e.key==="Enter"){onRename(tab.id,editName);setEditingId(null);}}}
+              style={{background:"transparent",border:"none",color:C.text,fontSize:11,width:80,outline:"none",fontFamily:FONT}}
+              onClick={e=>e.stopPropagation()}/>
+          ):(
+            <span onDoubleClick={e=>{e.stopPropagation();setEditingId(tab.id);setEditName(tab.name);}}>
+              {tab.name}{tab.modified?" •":""}
             </span>
           )}
-          {tabs.length > 1 && <span onClick={e => { e.stopPropagation(); onClose(tab.id); }} style={{ color: C.textMuted, fontSize: 13, lineHeight: 1, marginLeft: 2, opacity: 0.5 }}>×</span>}
+          {tabs.length>1&&<span onClick={e=>{e.stopPropagation();onClose(tab.id);}} style={{color:C.textMuted,fontSize:13,lineHeight:1,marginLeft:2,opacity:0.5}}>×</span>}
         </div>
       ))}
-      <button onClick={onNew} style={{ background: "none", border: `1px dashed ${C.border}`, borderRadius: 5, color: C.textMuted, fontSize: 13, padding: "1px 8px", cursor: "pointer", lineHeight: 1, marginLeft: 4 }}>+</button>
+      <button onClick={onNew} style={{background:"none",border:`1px dashed ${C.border}`,borderRadius:5,color:C.textMuted,fontSize:13,padding:"1px 8px",cursor:"pointer",lineHeight:1,marginLeft:4}}>+</button>
     </div>
   );
 }
@@ -80,25 +84,29 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
 // ── Variable Inspector ──
 function VarInspector({ variables }) {
   const entries = Object.entries(variables);
-  const getType = v => { if (Array.isArray(v)) return v.length && Array.isArray(v[0]) ? "matrix" : "vector"; if (typeof v === "string") return "char"; if (typeof v === "object" && v !== null) return "struct"; return "double"; };
-  const getSize = v => { if (Array.isArray(v)) return v.length && Array.isArray(v[0]) ? `${v.length}×${v[0].length}` : `1×${v.length}`; if (typeof v === "string") return `1×${v.length}`; if (typeof v === "object" && v !== null) return `1×${Object.keys(v).length}`; return "1×1"; };
-  const getPreview = v => { if (Array.isArray(v)) { const f=v.flat(); return f.length<=6 ? `[${f.map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}]` : `[${f.slice(0,4).map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}, …]`; } if (typeof v==="string") return `'${v}'`; if (typeof v==="object"&&v!==null) return `{${Object.keys(v).join(", ")}}`; if (typeof v==="number") return Number.isInteger(v)?String(v):v.toFixed(6); return String(v); };
-  const tc = { double: C.cyan, vector: C.green, matrix: C.accent, char: C.yellow, struct: C.orange };
+  const getType = v => { if(Array.isArray(v)){if(v.length&&Array.isArray(v[0]))return"matrix";return"vector";}if(typeof v==="string")return"char";if(typeof v==="object"&&v!==null)return"struct";return"double"; };
+  const getSize = v => { if(Array.isArray(v)){if(v.length&&Array.isArray(v[0]))return`${v.length}×${v[0].length}`;return`1×${v.length}`;}if(typeof v==="string")return`1×${v.length}`;if(typeof v==="object"&&v!==null)return`1×${Object.keys(v).length}`;return"1×1"; };
+  const getPreview = v => { if(Array.isArray(v)){const f=v.flat();if(f.length<=6)return`[${f.map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}]`;return`[${f.slice(0,4).map(x=>typeof x==="number"?(Number.isInteger(x)?x:x.toFixed(3)):x).join(", ")}, …]`;}if(typeof v==="string")return`'${v}'`;if(typeof v==="object"&&v!==null)return`{${Object.keys(v).join(", ")}}`;if(typeof v==="number")return Number.isInteger(v)?String(v):v.toFixed(6);return String(v); };
+  const typeColors = {double:C.cyan,vector:C.green,matrix:C.accent,char:C.yellow,struct:C.orange};
   return (
-    <div style={{ flex: 1, overflowY: "auto", padding: 8 }}>
-      {!entries.length ? <div style={{ color: C.textMuted, fontSize: 11, padding: 16, textAlign: "center", lineHeight: 1.6 }}>No variables.<br/>Run code to see them here.</div>
-      : entries.map(([name, val]) => { const t=getType(val); return (
-        <div key={name} style={{ padding: "7px 10px", marginBottom: 3, borderRadius: 5, background: C.bg2, border: `1px solid ${C.border}` }}>
-          <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom: 3 }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{name}</span>
-            <div style={{ display:"flex", gap: 5, alignItems:"center" }}>
-              <span style={{ fontSize: 9, color: C.textMuted }}>{getSize(val)}</span>
-              <span style={{ fontSize: 9, padding: "1px 5px", borderRadius: 3, background: `${tc[t]||C.textDim}22`, color: tc[t]||C.textDim }}>{t}</span>
+    <div style={{flex:1,overflowY:"auto",padding:8}}>
+      {!entries.length?(
+        <div style={{color:C.textMuted,fontSize:11,padding:16,textAlign:"center",lineHeight:1.6}}>No variables in workspace.<br/>Run some code to see variables here.</div>
+      ):entries.map(([name,val])=>{
+        const type=getType(val);
+        return(
+          <div key={name} style={{padding:"7px 10px",marginBottom:3,borderRadius:5,background:C.bg2,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+              <span style={{fontSize:12,fontWeight:600,color:C.text}}>{name}</span>
+              <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                <span style={{fontSize:9,color:C.textMuted}}>{getSize(val)}</span>
+                <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${typeColors[type]||C.textDim}22`,color:typeColors[type]||C.textDim}}>{type}</span>
+              </div>
             </div>
+            <div style={{fontSize:10,color:C.textDim,fontFamily:FONT,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{getPreview(val)}</div>
           </div>
-          <div style={{ fontSize: 10, color: C.textDim, fontFamily: FONT, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{getPreview(val)}</div>
-        </div>
-      ); })}
+        );
+      })}
     </div>
   );
 }
@@ -106,42 +114,16 @@ function VarInspector({ variables }) {
 // ── Cheat Sheet ──
 function CheatSheetContent() {
   return (
-    <div style={{ padding: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, alignContent: "start", overflowY: "auto" }}>
-      {CHEAT_SHEET.map(s => (
-        <div key={s.title} style={{ background: C.bg2, borderRadius: 6, padding: 10, border: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.8 }}>{s.title}</div>
-          {s.items.map((item, i) => (
-            <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 6, marginBottom: 3 }}>
-              <code style={{ fontSize: 10, color: C.green, whiteSpace: "nowrap" }}>{item.code}</code>
-              <span style={{ fontSize: 9, color: C.textMuted, textAlign: "right" }}>{item.desc}</span>
+    <div style={{padding:10,display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(200px, 1fr))",gap:8,alignContent:"start",overflowY:"auto"}}>
+      {CHEAT_SHEET.map(section=>(
+        <div key={section.title} style={{background:C.bg2,borderRadius:6,padding:10,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:10,fontWeight:700,color:C.accent,marginBottom:6,textTransform:"uppercase",letterSpacing:0.8}}>{section.title}</div>
+          {section.items.map((item,i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",gap:6,marginBottom:3}}>
+              <code style={{fontSize:10,color:C.green,whiteSpace:"nowrap"}}>{item.code}</code>
+              <span style={{fontSize:9,color:C.textMuted,textAlign:"right"}}>{item.desc}</span>
             </div>
           ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Examples (bottom panel) ──
-function ExamplesContent({ onRun }) {
-  return (
-    <div style={{ padding: "8px 12px", overflowY: "auto" }}>
-      {EXAMPLES.map(cat => (
-        <div key={cat.category} style={{ marginBottom: 10 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, color: C.accent, textTransform: "uppercase", letterSpacing: 0.6, marginBottom: 5 }}>{cat.icon} {cat.category}</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 5 }}>
-            {cat.items.map(item => (
-              <div key={item.title} onClick={() => onRun(item)} style={{ background: C.bg2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", cursor: "pointer", transition: "all 0.15s" }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor=C.accent; e.currentTarget.style.background=C.bg3; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor=C.border; e.currentTarget.style.background=C.bg2; }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: C.text }}>{item.title}</div>
-                <div style={{ fontSize: 9, color: C.textMuted, marginBottom: 3 }}>{item.description}</div>
-                <pre style={{ fontSize: 9, color: C.textDim, background: C.bg0, borderRadius: 3, padding: "3px 5px", margin: 0, overflow: "hidden", maxHeight: "2.4em", whiteSpace: "pre", fontFamily: FONT }}>
-                  {item.code.split("\n").slice(0,2).join("\n")}{item.code.split("\n").length>2?"\n…":""}
-                </pre>
-              </div>
-            ))}
-          </div>
         </div>
       ))}
     </div>
@@ -154,9 +136,9 @@ function ExamplesContent({ onRun }) {
 export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [showLeft, setShowLeft] = useState(true);
   const [showCenter, setShowCenter] = useState(true);
-  const [showRight, setShowRight] = useState(false);
   const [showBottom, setShowBottom] = useState(true);
   const [bottomTab, setBottomTab] = useState("console");
+  const [bottomHeight, setBottomHeight] = useState(300);
   const [output, setOutput] = useState([]);
   const [inputVal, setInputVal] = useState("");
   const [history, setHistory] = useState([]);
@@ -181,10 +163,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const tabCountRef = useRef(1);
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
+  const resizingRef = useRef(false);
   const engine = engineProp;
 
   const scrollBottom = useCallback(() => { requestAnimationFrame(() => { if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight; }); }, []);
-  useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.3 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
+  useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.4 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
   useEffect(scrollBottom, [output, plots]);
 
   const addOutput = useCallback(items => { setOutput(prev => { for (const i of items) if (i.text === "__CLEAR__") return []; return [...prev, ...items.filter(i => i.text !== "__CLEAR__")]; }); }, []);
@@ -229,8 +212,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if (e.key === "l" && e.ctrlKey) { e.preventDefault(); setOutput([]); setPlots([]); }
   }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx, engine]);
 
-  const runExample = useCallback(item => { setBottomTab("console"); addOutput([{ type: "system", text: `── ${item.title} ──` }, { type: "input", text: item.code }]); runCode(item.code); inputRef.current?.focus(); }, [addOutput, runCode]);
-
   // Tabs
   const newTab = useCallback(() => { tabCountRef.current++; const id=String(tabCountRef.current); setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]); setActiveTab(id); }, []);
   const closeTab = useCallback(id => { setTabs(p=>{const n=p.filter(t=>t.id!==id);if(!n.length)return p;if(activeTab===id)setActiveTab(n[n.length-1].id);return n;}); }, [activeTab]);
@@ -259,20 +240,29 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const tab = tabs.find(t=>t.id===activeTab); if(!tab) return;
     const fullPath = path || tab.vfsPath; if(!fullPath) return;
     await vfs.writeFile(fullPath, tab.code);
-    setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name}:t));
+    setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'local'}:t));
     setVfsRefreshKey(k=>k+1);
     addOutput([{ type: "system", text: `Saved ${name||tab.name}` }]);
   }, [tabs, activeTab, addOutput]);
 
+  // Ctrl+S / Save button: always save to VFS (even for examples/github files)
   const handleSave = useCallback(() => {
     const tab = tabs.find(t=>t.id===activeTab); if(!tab) return;
-    if (tab.vfsPath) handleSaveToVFS(tab.vfsPath, tab.name);
-    else { setSaveFileName(tab.name); setShowSaveDialog(true); }
+    if (tab.vfsPath) {
+      // Already has a VFS path — save in place
+      handleSaveToVFS(tab.vfsPath, tab.name);
+    } else {
+      // No VFS path — show save dialog (for new files, examples, github files)
+      setSaveFileName(tab.name);
+      setShowSaveDialog(true);
+    }
   }, [tabs, activeTab, handleSaveToVFS]);
 
   const handleSaveDialogSubmit = useCallback(async () => {
     if (!saveFileName.trim()) return;
-    const name = saveFileName.trim().endsWith('.m') ? saveFileName.trim() : saveFileName.trim() + '.m';
+    let name = saveFileName.trim();
+    // Auto-add .m extension if no extension provided
+    if (!name.includes('.')) name = name + '.m';
     await handleSaveToVFS(`/${name}`, name);
     setShowSaveDialog(false);
   }, [saveFileName, handleSaveToVFS]);
@@ -289,10 +279,35 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     input.click();
   }, [handleOpenFile]);
 
+  // Ctrl+S global handler
   useEffect(() => {
     const h = e => { if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   }, [handleSave]);
+
+  // ── Bottom panel resize ──
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    resizingRef.current = true;
+    const startY = e.clientY;
+    const startH = bottomHeight;
+
+    const onMove = (ev) => {
+      if (!resizingRef.current) return;
+      const delta = startY - ev.clientY;
+      const newH = Math.max(100, Math.min(window.innerHeight * 0.7, startH + delta));
+      setBottomHeight(newH);
+    };
+
+    const onUp = () => {
+      resizingRef.current = false;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [bottomHeight]);
 
   // UI helpers
   const PanelBtn = ({ active, onClick, icon, label, title }) => (
@@ -317,12 +332,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 12px",background:C.bg1,borderBottom:`1px solid ${C.border}`,flexShrink:0,zIndex:30,gap:8 }}>
         <div style={{ display:"flex",alignItems:"baseline",gap:6,flexShrink:0 }}>
           <span style={{ fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI }}>MLab <span style={{color:C.accent}}>IDE</span></span>
-          <span style={{ fontSize:9,color:C.textMuted }}>v2.3</span>
+          <span style={{ fontSize:9,color:C.textMuted }}>v2.4</span>
         </div>
         <div style={{ display:"flex",gap:2,alignItems:"center",background:C.bg0,borderRadius:6,padding:"2px 3px" }}>
           <PanelBtn active={showLeft} onClick={()=>setShowLeft(!showLeft)} icon="📂" label="Explorer" title="File Browser" />
           <PanelBtn active={showCenter} onClick={()=>setShowCenter(!showCenter)} icon="📝" label="Editor" title="Code Editor" />
-          <PanelBtn active={showRight} onClick={()=>setShowRight(!showRight)} icon="🔍" label="Workspace" title="Variable Inspector" />
           <PanelBtn active={showBottom} onClick={()=>setShowBottom(!showBottom)} icon="💻" label="Terminal" title="Bottom Panel" />
         </div>
         <div style={{ display:"flex",gap:3,flexShrink:0 }}>
@@ -337,7 +351,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
       {/* Main */}
       <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-        <div style={{ flex:showBottom?"1 1 60%":1,display:"flex",overflow:"hidden",minHeight:0 }}>
+        <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
           {showLeft && (
             <div style={{ width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
               <FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} />
@@ -359,25 +373,29 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
               </div>
             </div>
           )}
-          {showRight && (
-            <div style={{ width:260,minWidth:200,flexShrink:0,background:C.bg1,borderLeft:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-              <div style={{ padding:"7px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center",flexShrink:0 }}>
-                <span style={{ fontSize:11,fontWeight:600,color:C.text,fontFamily:FONT_UI }}>🔍 Workspace</span>
-                <button onClick={()=>setShowRight(false)} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:16,lineHeight:1}}>×</button>
-              </div>
-              <VarInspector variables={variables} />
-            </div>
-          )}
-          {!showLeft&&!showCenter&&!showRight&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
+          {!showLeft&&!showCenter&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
         </div>
 
-        {/* Bottom */}
+        {/* Bottom Panel with resize handle */}
         {showBottom && (
-          <div style={{ flex:"0 0 40%",minHeight:140,maxHeight:"55%",display:"flex",flexDirection:"column",borderTop:`2px solid ${C.border}`,overflow:"hidden" }}>
+          <div style={{ height:bottomHeight,minHeight:100,display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0 }}>
+            {/* Resize handle */}
+            <div onMouseDown={handleResizeStart}
+              style={{ height:4,cursor:"ns-resize",background:C.border,flexShrink:0,transition:"background 0.15s" }}
+              onMouseEnter={e=>e.currentTarget.style.background=C.accent}
+              onMouseLeave={e=>{if(!resizingRef.current)e.currentTarget.style.background=C.border;}} />
+
+            {/* Bottom tabs */}
             <div style={{ display:"flex",alignItems:"center",background:C.bg0,borderBottom:`1px solid ${C.border}`,flexShrink:0,justifyContent:"space-between" }}>
-              <div style={{display:"flex"}}>{bottomTabBtn("console","💻 Console")}{bottomTabBtn("examples","📋 Examples")}{bottomTabBtn("cheatsheet","📖 Reference")}</div>
+              <div style={{display:"flex"}}>
+                {bottomTabBtn("console","💻 Console")}
+                {bottomTabBtn("workspace","🔍 Workspace")}
+                {bottomTabBtn("cheatsheet","📖 Reference")}
+              </div>
               <button onClick={()=>setShowBottom(false)} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:16,padding:"0 10px",lineHeight:1}}>×</button>
             </div>
+
+            {/* Bottom content */}
             <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
               {bottomTab==="console"&&(
                 <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
@@ -419,7 +437,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                   </div>
                 </div>
               )}
-              {bottomTab==="examples"&&<div style={{flex:1,overflowY:"auto"}}><ExamplesContent onRun={runExample}/></div>}
+              {bottomTab==="workspace"&&<VarInspector variables={variables} />}
               {bottomTab==="cheatsheet"&&<div style={{flex:1,overflowY:"auto"}}><CheatSheetContent/></div>}
             </div>
           </div>
@@ -431,10 +449,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowSaveDialog(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:20,width:320,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>
             <div style={{fontSize:13,fontWeight:600,color:C.text,marginBottom:12}}>Save to Local Files</div>
-            <div style={{fontSize:10,color:C.textMuted,marginBottom:8}}>File will be saved to Local Files</div>
+            <div style={{fontSize:10,color:C.textMuted,marginBottom:8}}>Extension .m will be added automatically if not specified</div>
             <input value={saveFileName} onChange={e=>setSaveFileName(e.target.value)} autoFocus
               onKeyDown={e=>{if(e.key==="Enter")handleSaveDialogSubmit();if(e.key==="Escape")setShowSaveDialog(false);}}
-              placeholder="filename.m" style={{width:"100%",padding:"8px 10px",borderRadius:5,fontSize:12,background:C.bg0,border:`1px solid ${C.border}`,color:C.text,outline:"none",fontFamily:FONT,marginBottom:12,boxSizing:"border-box"}}/>
+              placeholder="filename" style={{width:"100%",padding:"8px 10px",borderRadius:5,fontSize:12,background:C.bg0,border:`1px solid ${C.border}`,color:C.text,outline:"none",fontFamily:FONT,marginBottom:12,boxSizing:"border-box"}}/>
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
               <button onClick={()=>setShowSaveDialog(false)} style={{padding:"6px 14px",borderRadius:5,fontSize:11,background:C.bg3,border:`1px solid ${C.border}`,color:C.textDim,cursor:"pointer",fontFamily:FONT_UI}}>Cancel</button>
               <button onClick={handleSaveDialogSubmit} style={{padding:"6px 14px",borderRadius:5,fontSize:11,fontWeight:600,background:C.accent,border:"none",color:"#fff",cursor:"pointer",fontFamily:FONT_UI}}>Save</button>
