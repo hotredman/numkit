@@ -245,7 +245,7 @@ function tryParseValue(s) {
 // ── WASM engine wrapper ──
 export async function createWasmEngine(createModule) {
   const Module = await createModule({
-    locateFile: (path) => `/${path}`,
+    locateFile: (path) => `${import.meta.env.BASE_URL}${path}`,
     print: (text) => console.log('[WASM stdout]', text),
     printErr: (text) => console.warn('[WASM stderr]', text),
   });
