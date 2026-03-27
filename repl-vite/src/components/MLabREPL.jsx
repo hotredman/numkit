@@ -49,7 +49,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [bottomTab, setBottomTab] = useState("console");
   const [bottomHeight, setBottomHeight] = useState(300);
   const [output, setOutput] = useState([]);
-  const [plots, setPlots] = useState([]);
+  const [figures, setFigures] = useState([]);
   const [helpTopic, setHelpTopic] = useState(null);
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [variables, setVariables] = useState({});
@@ -91,9 +91,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       // Notify console tab if not active
       setConsoleNotify(true);
     }
-    if (result.plots?.length) {
-      setPlots(prev => [...prev, ...result.plots]);
-      // Auto-show figures panel when new plots arrive
+    if (result.figures?.length) {
+      setFigures(prev => {
+        // Replace figures with same ID, append new ones
+        const map = new Map(prev.map(f => [f.id, f]));
+        for (const fig of result.figures) map.set(fig.id, fig);
+        return Array.from(map.values());
+      });
       setShowRight(true);
     }
     if (result.errorLine) setErrorLine(result.errorLine);
@@ -252,7 +256,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{ display:"flex",gap:2,alignItems:"center",background:C.bg0,borderRadius:6,padding:"2px 3px" }}>
           <PanelBtn active={showLeft} onClick={()=>setShowLeft(!showLeft)} icon="📂" label="Explorer" title="File Browser" />
           <PanelBtn active={showCenter} onClick={()=>setShowCenter(!showCenter)} icon="📝" label="Editor" title="Code Editor" />
-          <PanelBtn active={showRight} onClick={()=>setShowRight(!showRight)} icon="📊" label="Figures" title="Plot Figures" notify={plots.length>0&&!showRight} />
+          <PanelBtn active={showRight} onClick={()=>setShowRight(!showRight)} icon="📊" label="Figures" title="Plot Figures" notify={figures.length>0&&!showRight} />
           <PanelBtn active={showBottom} onClick={()=>setShowBottom(!showBottom)} icon="💻" label="Terminal" title="Bottom Panel" />
         </div>
         <div style={{ display:"flex",gap:3,flexShrink:0 }}>
@@ -299,7 +303,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                 onMouseEnter={e=>e.currentTarget.style.background=C.accent}
                 onMouseLeave={e=>{if(!resizingRightRef.current)e.currentTarget.style.background=C.border;}} />
               <div style={{ width:figuresWidth,minWidth:200,flexShrink:0,background:C.bg1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-                <Figures plots={plots} onSetPlots={setPlots} onClose={()=>setShowRight(false)} />
+                <Figures figures={figures} onSetFigures={setFigures} onClose={()=>setShowRight(false)} />
               </div>
             </>
           )}
@@ -355,7 +359,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{color:C.border}}>|</span>
           <span>{activeTabData?.name}</span>
           {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📁 local</span></>}
-          {plots.length>0&&<><span style={{color:C.border}}>|</span><span>{plots.length} figure{plots.length>1?"s":""}</span></>}
+          {figures.length>0&&<><span style={{color:C.border}}>|</span><span>{figures.length} figure{figures.length>1?"s":""}</span></>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {execTimeMs!==null&&<span>{execTimeMs.toFixed(1)}ms</span>}
