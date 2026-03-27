@@ -1,66 +1,12 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
-import * as d3 from "d3";
 import HELP_DB from "../data/help";
 import C, { FONT } from "../theme";
 
-// ── PlotPanel ──
-function PlotPanel({ data, onClose }) {
-  const svgRef = useRef(null);
-  const containerRef = useRef(null);
-  useEffect(() => {
-    if (!data || !svgRef.current || !containerRef.current) return;
-    const svg = d3.select(svgRef.current); svg.selectAll("*").remove();
-    const cw = containerRef.current.clientWidth;
-    const width = Math.min(cw - 8, 560), height = 240;
-    const margin = { top: 28, right: 16, bottom: 36, left: 46 };
-    const iw = width - margin.left - margin.right, ih = height - margin.top - margin.bottom;
-    svg.attr("width", width).attr("height", height);
-    const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
-    const colors = [C.accent, C.cyan, C.green, C.orange, C.pink, C.yellow];
-    const allX = data.datasets.flatMap(d => d.x), allY = data.datasets.flatMap(d => d.y);
-    const xScale = d3.scaleLinear().domain([Math.min(...allX), Math.max(...allX)]).range([0, iw]).nice();
-    const yScale = d3.scaleLinear().domain([Math.min(...allY)*0.95, Math.max(...allY)*1.05]).range([ih, 0]).nice();
-    g.append("g").selectAll("line").data(yScale.ticks(4)).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","2,4");
-    g.append("g").attr("transform",`translate(0,${ih})`).call(d3.axisBottom(xScale).ticks(5)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
-    g.append("g").call(d3.axisLeft(yScale).ticks(4)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
-    data.datasets.forEach((ds, idx) => {
-      const color = colors[idx % colors.length];
-      if (data.config.type === "line") {
-        g.append("path").datum(ds.y).attr("d", d3.line().x((_,i)=>xScale(ds.x[i])).y((_,i)=>yScale(ds.y[i])).curve(d3.curveMonotoneX)).attr("fill","none").attr("stroke",color).attr("stroke-width",2);
-      } else if (data.config.type === "scatter") {
-        g.selectAll(`.dot-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("circle").attr("cx",d=>xScale(d.x)).attr("cy",d=>yScale(d.y)).attr("r",4).attr("fill",color).attr("opacity",0.8);
-      } else if (data.config.type === "bar") {
-        const bw = Math.max(2, iw/ds.x.length*0.7);
-        g.selectAll(`.bar-${idx}`).data(ds.x.map((x,i)=>({x,y:ds.y[i]}))).enter().append("rect").attr("x",d=>xScale(d.x)-bw/2).attr("y",d=>yScale(d.y)).attr("width",bw).attr("height",d=>ih-yScale(d.y)).attr("fill",color).attr("opacity",0.85).attr("rx",2);
-      }
-    });
-    if (data.config.title) svg.append("text").attr("x",width/2).attr("y",16).attr("text-anchor","middle").attr("fill",C.text).attr("font-size",12).attr("font-weight",600).text(data.config.title);
-    if (data.config.xlabel) svg.append("text").attr("x",width/2).attr("y",height-4).attr("text-anchor","middle").attr("fill",C.textMuted).attr("font-size",10).text(data.config.xlabel);
-    if (data.config.ylabel) svg.append("text").attr("transform",`translate(12,${height/2}) rotate(-90)`).attr("text-anchor","middle").attr("fill",C.textMuted).attr("font-size",10).text(data.config.ylabel);
-  }, [data]);
-  if (!data) return null;
-  return (
-    <div ref={containerRef} style={{background:C.bg1,border:`1px solid ${C.border}`,borderRadius:6,margin:"4px 0",padding:6,position:"relative"}}>
-      <button onClick={onClose} style={{position:"absolute",top:4,right:6,background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:14,lineHeight:1}}>×</button>
-      <svg ref={svgRef} style={{display:"block",margin:"0 auto"}} />
-    </div>
-  );
-}
-
 /**
- * Console — terminal with input, output, plots, help, autocomplete.
- *
- * Props:
- *   engine        — the MLab engine (execute, complete, reset, getVars)
- *   output        — output lines array [{type, text}]
- *   onAddOutput   — (items) => void
- *   onRunCode     — (code) => void
- *   plots         — plot data array
- *   onSetPlots    — setter
- *   helpTopic     — current help topic string | null
- *   onSetHelpTopic — setter
+ * Console — terminal with input, output, help, autocomplete.
+ * Plots have been moved to the Figures panel.
  */
-const Console = forwardRef(function Console({ engine, output, onAddOutput, onRunCode, plots, onSetPlots, helpTopic, onSetHelpTopic }, ref) {
+const Console = forwardRef(function Console({ engine, output, onAddOutput, onRunCode, helpTopic, onSetHelpTopic }, ref) {
   const [inputVal, setInputVal] = useState("");
   const [history, setHistory] = useState([]);
   const [histIdx, setHistIdx] = useState(-1);
@@ -72,15 +18,13 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
   const outputRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Expose focus method to parent
   useImperativeHandle(ref, () => ({
     focus: () => inputRef.current?.focus(),
   }));
 
-  // Auto-scroll
   useEffect(() => {
     requestAnimationFrame(() => { if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight; });
-  }, [output, plots]);
+  }, [output]);
 
   const handleSubmit = useCallback(() => {
     const val = inputVal.trim(); if (!val) return;
@@ -104,12 +48,11 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
     if (e.key === "ArrowUp" && !e.shiftKey && !inputVal.includes("\n")) { e.preventDefault(); if (!history.length) return; const ni=histIdx===-1?history.length-1:Math.max(0,histIdx-1); if(histIdx===-1)setSavedInput(inputVal); setHistIdx(ni); setInputVal(history[ni]); return; }
     if (e.key === "ArrowDown" && !e.shiftKey && !inputVal.includes("\n")) { e.preventDefault(); if(histIdx===-1)return; if(histIdx<history.length-1){setHistIdx(histIdx+1);setInputVal(history[histIdx+1]);}else{setHistIdx(-1);setInputVal(savedInput);} return; }
     if (e.key === "Tab") { e.preventDefault(); const val=inputVal,cur=inputRef.current?.selectionStart||val.length; let ws=cur-1; while(ws>=0&&/[a-zA-Z0-9_]/.test(val[ws]))ws--;ws++; const partial=val.substring(ws,cur); if(partial){const items=engine.complete(partial); if(items.length===1){setInputVal(val.substring(0,ws)+items[0]+val.substring(cur));setAcItems([]);}else if(items.length>1){setAcItems(items);setAcIdx(0);setAcPartial(partial);}} return; }
-    if (e.key === "l" && e.ctrlKey) { e.preventDefault(); onAddOutput([{text:"__CLEAR__"}]); onSetPlots([]); }
-  }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx, engine, onAddOutput, onSetPlots]);
+    if (e.key === "l" && e.ctrlKey) { e.preventDefault(); onAddOutput([{text:"__CLEAR__"}]); }
+  }, [inputVal, handleSubmit, history, histIdx, savedInput, acItems, acIdx, engine, onAddOutput]);
 
   return (
     <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-      {/* Output */}
       <div ref={outputRef} style={{ flex:1,overflowY:"auto",padding:"8px 12px",background:C.bg1 }}>
         {output.map((item,i)=>{
           const clr={input:C.textMuted,result:C.text,error:C.red,warning:C.orange,system:C.textMuted,info:C.cyan};
@@ -125,9 +68,7 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
             <div style={{fontSize:11,color:C.green,marginTop:3,fontFamily:FONT}}>{HELP_DB[helpTopic].ex}</div>
           </div>
         )}
-        {plots.map((p,i)=><PlotPanel key={i} data={p} onClose={()=>onSetPlots(prev=>prev.filter((_,j)=>j!==i))}/>)}
       </div>
-      {/* Input */}
       <div style={{display:"flex",alignItems:"flex-start",padding:"8px 12px",background:C.bg0,borderTop:`1px solid ${C.border}`,flexShrink:0,position:"relative"}}>
         <span style={{color:C.green,fontWeight:700,marginRight:6,marginTop:2,userSelect:"none",flexShrink:0,fontSize:13}}>&gt;&gt;</span>
         <div style={{flex:1,position:"relative"}}>

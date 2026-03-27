@@ -3,6 +3,7 @@ import FileBrowser from "./FileBrowser";
 import Console from "./Console";
 import Workspace from "./Workspace";
 import Reference from "./Reference";
+import Figures from "./Figures";
 import vfs from "../vfs";
 import C, { FONT, FONT_UI } from "../theme";
 
@@ -43,6 +44,7 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
 export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [showLeft, setShowLeft] = useState(true);
   const [showCenter, setShowCenter] = useState(true);
+  const [showRight, setShowRight] = useState(false);
   const [showBottom, setShowBottom] = useState(true);
   const [bottomTab, setBottomTab] = useState("console");
   const [bottomHeight, setBottomHeight] = useState(300);
@@ -58,6 +60,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [forceExplorerSource, setForceExplorerSource] = useState(null);
+  // Notification indicators for bottom tabs
+  const [consoleNotify, setConsoleNotify] = useState(false);
 
   const tabCountRef = useRef(1);
   const editorRef = useRef(null);
@@ -66,9 +70,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const resizingRef = useRef(false);
   const engine = engineProp;
 
-  useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.4 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
+  useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.5 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
 
-  const addOutput = useCallback(items => { setOutput(prev => { for (const i of items) if (i.text === "__CLEAR__") return []; return [...prev, ...items.filter(i => i.text !== "__CLEAR__")]; }); }, []);
+  const addOutput = useCallback(items => {
+    setOutput(prev => { for (const i of items) if (i.text === "__CLEAR__") return []; return [...prev, ...items.filter(i => i.text !== "__CLEAR__")]; });
+  }, []);
 
   const runCode = useCallback(code => {
     const t0 = performance.now();
@@ -79,11 +85,25 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       if (line === "__CLEAR__") { setOutput([]); continue; }
       items.push({ type: /^Error/.test(line) ? "error" : /^Warning:/.test(line) ? "warning" : "result", text: line });
     }
-    addOutput(items);
-    if (result.plots?.length) setPlots(prev => [...prev, ...result.plots]);
+    if (items.length) {
+      addOutput(items);
+      // Notify console tab if not active
+      setConsoleNotify(true);
+    }
+    if (result.plots?.length) {
+      setPlots(prev => [...prev, ...result.plots]);
+      // Auto-show figures panel when new plots arrive
+      setShowRight(true);
+    }
     if (result.errorLine) setErrorLine(result.errorLine);
     setVariables(engine.getVars());
   }, [engine, addOutput]);
+
+  // Clear console notification when switching to console tab
+  const handleBottomTabChange = useCallback((id) => {
+    setBottomTab(id);
+    if (id === "console") setConsoleNotify(false);
+  }, []);
 
   // Tabs
   const newTab = useCallback(() => { tabCountRef.current++; const id=String(tabCountRef.current); setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]); setActiveTab(id); }, []);
@@ -94,8 +114,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   const runActiveTab = useCallback(() => {
     const tab = tabs.find(t=>t.id===activeTab); if(!tab||!tab.code.trim()) return;
-    setBottomTab("console"); setShowBottom(true);
+    // Don't auto-switch tabs — just ensure bottom panel is visible
+    setShowBottom(true);
     addOutput([{ type: "system", text: `── Running ${tab.name} ──` }, { type: "input", text: tab.code }]);
+    setConsoleNotify(true);
     runCode(tab.code);
     setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));
   }, [tabs, activeTab, addOutput, runCode]);
@@ -116,6 +138,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'local'}:t));
     setVfsRefreshKey(k=>k+1);
     addOutput([{ type: "system", text: `Saved ${name||tab.name}` }]);
+    setConsoleNotify(true);
   }, [tabs, activeTab, addOutput]);
 
   const handleSave = useCallback(() => {
@@ -154,6 +177,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         setForceExplorerSource('local');
         setTimeout(() => setForceExplorerSource(null), 100);
         addOutput([{ type: "system", text: `Imported ${name} to Local Files` }]);
+        setConsoleNotify(true);
       };
       r.readAsText(file);
     };
@@ -179,10 +203,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   }, [bottomHeight]);
 
   // UI helpers
-  const PanelBtn = ({ active, onClick, icon, label, title }) => (
-    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4, background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted, fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}
+  const PanelBtn = ({ active, onClick, icon, label, title, notify }) => (
+    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4, background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted, fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative" }}
     onMouseEnter={e=>{if(!active)e.currentTarget.style.background=C.bg3;}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
       <span style={{fontSize:13}}>{icon}</span>{label}
+      {notify&&<span style={{width:6,height:6,borderRadius:"50%",background:C.green,position:"absolute",top:2,right:2}}/>}
     </button>
   );
   const ActBtn = ({ onClick, icon, label, color, title }) => (
@@ -191,8 +216,16 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       <span style={{fontSize:12}}>{icon}</span>{label}
     </button>
   );
-  const bottomTabBtn = (id, label) => (
-    <button onClick={()=>setBottomTab(id)} style={{ padding:"5px 12px",border:"none",borderBottom:bottomTab===id?`2px solid ${C.accent}`:"2px solid transparent", background:"transparent",color:bottomTab===id?C.text:C.textMuted,fontFamily:FONT_UI,fontSize:11,fontWeight:bottomTab===id?600:400,cursor:"pointer",transition:"all 0.15s" }}>{label}</button>
+  const bottomTabBtn = (id, label, notify) => (
+    <button onClick={()=>handleBottomTabChange(id)} style={{
+      padding:"5px 12px",border:"none",
+      borderBottom:bottomTab===id?`2px solid ${C.accent}`:"2px solid transparent",
+      background:"transparent",
+      color: notify && bottomTab !== id ? C.green : bottomTab===id ? C.text : C.textMuted,
+      fontFamily:FONT_UI,fontSize:11,
+      fontWeight: (notify && bottomTab !== id) || bottomTab===id ? 600 : 400,
+      cursor:"pointer",transition:"all 0.15s",
+    }}>{label}</button>
   );
 
   return (
@@ -201,11 +234,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       <div style={{ display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 12px",background:C.bg1,borderBottom:`1px solid ${C.border}`,flexShrink:0,zIndex:30,gap:8 }}>
         <div style={{ display:"flex",alignItems:"baseline",gap:6,flexShrink:0 }}>
           <span style={{ fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI }}>MLab <span style={{color:C.accent}}>IDE</span></span>
-          <span style={{ fontSize:9,color:C.textMuted }}>v2.4</span>
+          <span style={{ fontSize:9,color:C.textMuted }}>v2.5</span>
         </div>
         <div style={{ display:"flex",gap:2,alignItems:"center",background:C.bg0,borderRadius:6,padding:"2px 3px" }}>
           <PanelBtn active={showLeft} onClick={()=>setShowLeft(!showLeft)} icon="📂" label="Explorer" title="File Browser" />
           <PanelBtn active={showCenter} onClick={()=>setShowCenter(!showCenter)} icon="📝" label="Editor" title="Code Editor" />
+          <PanelBtn active={showRight} onClick={()=>setShowRight(!showRight)} icon="📊" label="Figures" title="Plot Figures" notify={plots.length>0&&!showRight} />
           <PanelBtn active={showBottom} onClick={()=>setShowBottom(!showBottom)} icon="💻" label="Terminal" title="Bottom Panel" />
         </div>
         <div style={{ display:"flex",gap:3,flexShrink:0 }}>
@@ -213,8 +247,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           {showCenter && <ActBtn onClick={handleSave} icon="💾" label="Save" title="Save to local FS (Ctrl+S)" />}
           <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file to Local FS" />
           {showCenter && <ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download to disk" />}
-          <ActBtn onClick={()=>{setOutput([]);setPlots([]);}} icon="🗑" label="Clear" title="Clear console" />
-          <ActBtn onClick={()=>{engine.reset();setVariables({});addOutput([{type:"system",text:"Workspace cleared."}]);}} icon="🔄" label="Reset" title="Reset workspace" />
+          <ActBtn onClick={()=>{setOutput([]);}} icon="🗑" label="Clear" title="Clear console" />
+          <ActBtn onClick={()=>{engine.reset();setVariables({});addOutput([{type:"system",text:"Workspace cleared."}]);setConsoleNotify(true);}} icon="🔄" label="Reset" title="Reset workspace" />
         </div>
       </div>
 
@@ -244,7 +278,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
               </div>
             </div>
           )}
-          {!showLeft&&!showCenter&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
+          {/* Right: Figures */}
+          {showRight && (
+            <div style={{ width:320,minWidth:240,flexShrink:0,background:C.bg1,borderLeft:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
+              <Figures plots={plots} onSetPlots={setPlots} onClose={()=>setShowRight(false)} />
+            </div>
+          )}
+          {!showLeft&&!showCenter&&!showRight&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
         </div>
 
         {/* Bottom Panel */}
@@ -256,14 +296,14 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
               onMouseLeave={e=>{if(!resizingRef.current)e.currentTarget.style.background=C.border;}} />
             <div style={{ display:"flex",alignItems:"center",background:C.bg0,borderBottom:`1px solid ${C.border}`,flexShrink:0,justifyContent:"space-between" }}>
               <div style={{display:"flex"}}>
-                {bottomTabBtn("console","💻 Console")}
+                {bottomTabBtn("console","💻 Console", consoleNotify)}
                 {bottomTabBtn("workspace","🔍 Workspace")}
                 {bottomTabBtn("cheatsheet","📖 Reference")}
               </div>
               <button onClick={()=>setShowBottom(false)} style={{background:"none",border:"none",color:C.textMuted,cursor:"pointer",fontSize:16,padding:"0 10px",lineHeight:1}}>×</button>
             </div>
             <div style={{ flex:1,overflow:"hidden",display:"flex",flexDirection:"column" }}>
-              {bottomTab==="console"&&<Console ref={consoleRef} engine={engine} output={output} onAddOutput={addOutput} onRunCode={runCode} plots={plots} onSetPlots={setPlots} helpTopic={helpTopic} onSetHelpTopic={setHelpTopic} />}
+              {bottomTab==="console"&&<Console ref={consoleRef} engine={engine} output={output} onAddOutput={addOutput} onRunCode={runCode} helpTopic={helpTopic} onSetHelpTopic={setHelpTopic} />}
               {bottomTab==="workspace"&&<Workspace variables={variables} />}
               {bottomTab==="cheatsheet"&&<Reference />}
             </div>
@@ -296,6 +336,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{color:C.border}}>|</span>
           <span>{activeTabData?.name}</span>
           {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📁 local</span></>}
+          {plots.length>0&&<><span style={{color:C.border}}>|</span><span>{plots.length} figure{plots.length>1?"s":""}</span></>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {execTimeMs!==null&&<span>{execTimeMs.toFixed(1)}ms</span>}
