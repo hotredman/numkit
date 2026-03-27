@@ -60,14 +60,15 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [forceExplorerSource, setForceExplorerSource] = useState(null);
-  // Notification indicators for bottom tabs
   const [consoleNotify, setConsoleNotify] = useState(false);
+  const [figuresWidth, setFiguresWidth] = useState(360);
 
   const tabCountRef = useRef(1);
   const editorRef = useRef(null);
   const gutterRef = useRef(null);
   const consoleRef = useRef(null);
   const resizingRef = useRef(false);
+  const resizingRightRef = useRef(false);
   const engine = engineProp;
 
   useEffect(() => { setOutput([{ type: "system", text: "MLab REPL v2.5 — Web IDE" }, { type: "system", text: 'Type commands below. "help <topic>" for function info.' }]); }, []);
@@ -202,6 +203,18 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     document.addEventListener('mouseup', onUp);
   }, [bottomHeight]);
 
+  // Figures panel resize (horizontal)
+  const handleRightResizeStart = useCallback((e) => {
+    e.preventDefault();
+    resizingRightRef.current = true;
+    const startX = e.clientX;
+    const startW = figuresWidth;
+    const onMove = (ev) => { if (!resizingRightRef.current) return; setFiguresWidth(Math.max(200, Math.min(window.innerWidth * 0.5, startW + startX - ev.clientX))); };
+    const onUp = () => { resizingRightRef.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [figuresWidth]);
+
   // UI helpers
   const PanelBtn = ({ active, onClick, icon, label, title, notify }) => (
     <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4, background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted, fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative" }}
@@ -278,11 +291,17 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
               </div>
             </div>
           )}
-          {/* Right: Figures */}
+          {/* Right: Figures with resize handle */}
           {showRight && (
-            <div style={{ width:320,minWidth:240,flexShrink:0,background:C.bg1,borderLeft:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-              <Figures plots={plots} onSetPlots={setPlots} onClose={()=>setShowRight(false)} />
-            </div>
+            <>
+              <div onMouseDown={handleRightResizeStart}
+                style={{ width:4,cursor:"ew-resize",background:C.border,flexShrink:0,transition:"background 0.15s" }}
+                onMouseEnter={e=>e.currentTarget.style.background=C.accent}
+                onMouseLeave={e=>{if(!resizingRightRef.current)e.currentTarget.style.background=C.border;}} />
+              <div style={{ width:figuresWidth,minWidth:200,flexShrink:0,background:C.bg1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
+                <Figures plots={plots} onSetPlots={setPlots} onClose={()=>setShowRight(false)} />
+              </div>
+            </>
           )}
           {!showLeft&&!showCenter&&!showRight&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
         </div>
