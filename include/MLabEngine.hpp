@@ -214,6 +214,7 @@ private:
 
     bool isKnownFunction(const std::string &name) const;
     double colonCount(double start, double step, double stop) const;
+    void reinstallConstants();
 
 private:
     bool tryBuiltinCall(const std::string &name,

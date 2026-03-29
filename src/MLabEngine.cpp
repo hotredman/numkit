@@ -22,7 +22,13 @@ Engine::Engine()
     allocator_ = Allocator::defaultAllocator();
     globalEnv_ = std::make_shared<Environment>(nullptr, &globalStore_);
 
-    // Standard MATLAB constants
+    reinstallConstants();
+
+    StdLibrary::install(*this);
+}
+
+void Engine::reinstallConstants()
+{
     globalEnv_->set("pi", MValue::scalar(3.14159265358979323846, &allocator_));
     globalEnv_->set("eps", MValue::scalar(2.2204460492503131e-16, &allocator_));
     globalEnv_->set("inf", MValue::scalar(std::numeric_limits<double>::infinity(), &allocator_));
@@ -31,10 +37,8 @@ Engine::Engine()
     globalEnv_->set("NaN", MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
     globalEnv_->set("true", MValue::logicalScalar(true, &allocator_));
     globalEnv_->set("false", MValue::logicalScalar(false, &allocator_));
-    globalEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_)); // ← заменить
-    globalEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_)); // ← заменить
-
-    StdLibrary::install(*this);
+    globalEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_));
+    globalEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_));
 }
 
 void Engine::setAllocator(Allocator alloc)
@@ -1603,6 +1607,24 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
     return results;
 }
 
+// ============================================================
+// Built-in constant names (protected from clear)
+// ============================================================
+static const std::unordered_set<std::string> kBuiltinNames = {"pi",
+                                                              "eps",
+                                                              "inf",
+                                                              "Inf",
+                                                              "nan",
+                                                              "NaN",
+                                                              "true",
+                                                              "false",
+                                                              "i",
+                                                              "j",
+                                                              "ans",
+                                                              "nargin",
+                                                              "nargout",
+                                                              "end"};
+
 bool Engine::tryBuiltinCall(const std::string &name,
                             const std::vector<MValue> &args,
                             std::shared_ptr<Environment> env,
@@ -1610,25 +1632,30 @@ bool Engine::tryBuiltinCall(const std::string &name,
 {
     if (name == "clear") {
         if (args.empty()) {
-            // clear — удалить все локальные переменные
+            // clear (no args) — same as clear all
             env->clearAll();
+            userFuncs_.clear();
+            reinstallConstants();
         } else {
             std::string first = args[0].isChar() ? args[0].toString() : "";
             if (first == "all" || first == "classes") {
-                // clear all / clear classes — очистить переменные и функции
+                // clear all / clear classes
                 env->clearAll();
                 userFuncs_.clear();
+                reinstallConstants();
             } else if (first == "functions") {
-                // clear functions — только пользовательские функции
+                // clear functions
                 userFuncs_.clear();
             } else if (first == "global") {
-                // clear global — TODO: очистка global store
-                // (требует доп. API)
+                // clear global — TODO
             } else {
-                // clear x y z — удалить конкретные переменные по имени
+                // clear x y z — remove by name, protect constants
                 for (auto &a : args) {
-                    if (a.isChar())
-                        env->remove(a.toString());
+                    if (a.isChar()) {
+                        std::string varName = a.toString();
+                        if (kBuiltinNames.count(varName) == 0)
+                            env->remove(varName);
+                    }
                 }
             }
         }
@@ -1708,21 +1735,6 @@ bool Engine::tryBuiltinCall(const std::string &name,
 // ============================================================
 // REPL helpers
 // ============================================================
-
-static const std::unordered_set<std::string> kBuiltinNames = {"pi",
-                                                              "eps",
-                                                              "inf",
-                                                              "Inf",
-                                                              "nan",
-                                                              "NaN",
-                                                              "true",
-                                                              "false",
-                                                              "i",
-                                                              "j",
-                                                              "ans",
-                                                              "nargin",
-                                                              "nargout",
-                                                              "end"};
 
 std::vector<std::string> Engine::globalVarNames() const
 {
