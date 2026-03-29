@@ -58,7 +58,8 @@
         "log_scale.m",
         "styled_plot.m",
         "legend_demo.m",
-        "axis_modes.m"
+        "axis_modes.m",
+        "subplot_demo.m"
       ]
     },
     {

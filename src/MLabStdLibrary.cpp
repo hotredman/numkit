@@ -221,40 +221,26 @@ void StdLibrary::install(Engine &engine)
 
     // --- clf ---
     engine.registerFunction("clf", [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
-        auto &fig = engine.figureManager().current();
-        fig.datasets.clear();
-        fig.title.clear();
-        fig.xlabel.clear();
-        fig.ylabel.clear();
-        fig.xlimJson.clear();
-        fig.ylimJson.clear();
-        fig.rlimJson.clear();
-        fig.thetalimJson.clear();
-        fig.grid = false;
-        fig.polar = false;
-        fig.legendLabels.clear();
-        fig.holdOn = false;
-        fig.xscale = "linear";
-        fig.yscale = "linear";
-        fig.axisMode.clear();
-        fig.thetaDir = "counterclockwise";
-        fig.thetaZeroLocation = "right";
+        auto &fm = engine.figureManager();
+        auto &fig = fm.current();
+        fig.axes.clear();
+        fig.axes.push_back(AxesState{});
+        fig.currentAxes = 0;
         fig.subplotRows = 0;
         fig.subplotCols = 0;
-        fig.subplotIndex = 0;
         fig.modified = true;
-        engine.figureManager().emitModified();
+        fm.emitModified();
         return {MValue::empty()};
     });
 
     // --- hold on / hold off / hold ---
     engine.registerFunction("hold",
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
-                                auto &fig = engine.figureManager().current();
+                                auto &ax = engine.figureManager().currentAxes();
                                 if (args.empty()) {
-                                    fig.holdOn = !fig.holdOn;
+                                    ax.holdOn = !ax.holdOn;
                                 } else {
-                                    fig.holdOn = (args[0].toString() == "on");
+                                    ax.holdOn = (args[0].toString() == "on");
                                 }
                                 return {MValue::empty()};
                             });
@@ -280,7 +266,7 @@ void StdLibrary::install(Engine &engine)
                                     if (args.size() >= 2 && args[1].isChar())
                                         ds.style = args[1].toString();
                                 }
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -302,7 +288,7 @@ void StdLibrary::install(Engine &engine)
                                     ds.xJson = makeIndexJson(args[0].numel());
                                     ds.yJson = vecToJson(args[0]);
                                 }
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -319,7 +305,7 @@ void StdLibrary::install(Engine &engine)
                                 ds.type = "scatter";
                                 ds.xJson = vecToJson(args[0]);
                                 ds.yJson = vecToJson(args[1]);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -360,7 +346,7 @@ void StdLibrary::install(Engine &engine)
                                 ds.type = "bar";
                                 ds.xJson = vecToJson(centers);
                                 ds.yJson = vecToJson(counts);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -373,14 +359,14 @@ void StdLibrary::install(Engine &engine)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
-                                fm.current().polar = true;
+                                fm.currentAxes().polar = true;
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 ds.xJson = vecToJson(args[0]); // theta (radians)
                                 ds.yJson = vecToJson(args[1]); // rho
                                 if (args.size() >= 3 && args[2].isChar())
                                     ds.style = args[2].toString();
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -391,7 +377,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().title = argStr(args[0]);
+                                    fm.currentAxes().title = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -404,7 +390,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().xlabel = argStr(args[0]);
+                                    fm.currentAxes().xlabel = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -417,7 +403,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().ylabel = argStr(args[0]);
+                                    fm.currentAxes().ylabel = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -430,7 +416,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().xlimJson = vecToJson(args[0]);
+                                    fm.currentAxes().xlimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -443,7 +429,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().ylimJson = vecToJson(args[0]);
+                                    fm.currentAxes().ylimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -454,13 +440,13 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("grid",
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
-                                auto &fig = fm.current();
+                                auto &ax = fm.currentAxes();
                                 if (args.empty()) {
-                                    fig.grid = !fig.grid;
+                                    ax.grid = !ax.grid;
                                 } else {
-                                    fig.grid = (args[0].toString() == "on");
+                                    ax.grid = (args[0].toString() == "on");
                                 }
-                                fig.modified = true;
+                                fm.current().modified = true;
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -470,11 +456,11 @@ void StdLibrary::install(Engine &engine)
                             [argStr,
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
-                                auto &fig = fm.current();
-                                fig.legendLabels.clear();
+                                auto &ax = fm.currentAxes();
+                                ax.legendLabels.clear();
                                 for (auto &a : args)
-                                    fig.legendLabels.push_back(argStr(a));
-                                fig.modified = true;
+                                    ax.legendLabels.push_back(argStr(a));
+                                fm.current().modified = true;
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -489,7 +475,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().rlimJson = vecToJson(args[0]);
+                                    fm.currentAxes().rlimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -502,7 +488,7 @@ void StdLibrary::install(Engine &engine)
                              &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().thetalimJson = vecToJson(args[0]);
+                                    fm.currentAxes().thetalimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -514,7 +500,7 @@ void StdLibrary::install(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().thetaDir = args[0].toString();
+                                    fm.currentAxes().thetaDir = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -526,7 +512,7 @@ void StdLibrary::install(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().thetaZeroLocation = args[0].toString();
+                                    fm.currentAxes().thetaZeroLocation = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -538,7 +524,7 @@ void StdLibrary::install(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
-                                    fm.current().axisMode = args[0].toString();
+                                    fm.currentAxes().axisMode = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
@@ -554,28 +540,19 @@ void StdLibrary::install(Engine &engine)
                                 int m = static_cast<int>(args[0].toScalar());
                                 int n = static_cast<int>(args[1].toScalar());
                                 int p = static_cast<int>(args[2].toScalar());
-                                // Each subplot position is a separate figure-like entry
-                                // Use composite ID: figureId * 1000 + p
-                                auto &fig = fm.current();
-                                fig.subplotRows = m;
-                                fig.subplotCols = n;
-                                fig.subplotIndex = p;
-                                // Clear datasets for this subplot position
-                                fig.datasets.clear();
-                                fig.modified = true;
+                                fm.setSubplot(m, n, p);
                                 return {MValue::empty()};
                             });
 
     // Helper lambda for plot-like functions with name-value pair support
-    auto parsePlotArgs = [](const std::vector<MValue> &args, size_t startIdx, DatasetInfo &ds) {
+    auto parsePlotArgs = [](const std::vector<MValue> &args, size_t startIdx,
+                            DatasetInfo &ds) {
         // Parse name-value pairs after style string
         for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
-            if (!args[i].isChar())
-                continue;
+            if (!args[i].isChar()) continue;
             std::string key = args[i].toString();
             // Case-insensitive comparison
-            for (auto &c : key)
-                c = std::tolower(c);
+            for (auto &c : key) c = std::tolower(c);
             if (key == "linewidth") {
                 ds.lineWidth = args[i + 1].toScalar();
             } else if (key == "markersize") {
@@ -592,8 +569,8 @@ void StdLibrary::install(Engine &engine)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
-                                fm.current().xscale = "log";
-                                fm.current().yscale = "linear";
+                                fm.currentAxes().xscale = "log";
+                                fm.currentAxes().yscale = "linear";
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 size_t nvStart = 2;
@@ -615,7 +592,7 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -628,8 +605,8 @@ void StdLibrary::install(Engine &engine)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
-                                fm.current().xscale = "linear";
-                                fm.current().yscale = "log";
+                                fm.currentAxes().xscale = "linear";
+                                fm.currentAxes().yscale = "log";
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 size_t nvStart = 2;
@@ -651,7 +628,7 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -664,8 +641,8 @@ void StdLibrary::install(Engine &engine)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
-                                fm.current().xscale = "log";
-                                fm.current().yscale = "log";
+                                fm.currentAxes().xscale = "log";
+                                fm.currentAxes().yscale = "log";
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 size_t nvStart = 2;
@@ -687,7 +664,7 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -721,7 +698,7 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -755,7 +732,7 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -794,20 +771,20 @@ void StdLibrary::install(Engine &engine)
                                     }
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
 
     // Re-register polarplot with name-value pair support
     engine.registerFunction("polarplot",
-                            [vecToJson, parsePlotArgs, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, parsePlotArgs,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (args.size() < 2)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
-                                fm.current().polar = true;
+                                fm.currentAxes().polar = true;
                                 DatasetInfo ds;
                                 ds.type = "line";
                                 ds.xJson = vecToJson(args[0]);
@@ -818,7 +795,7 @@ void StdLibrary::install(Engine &engine)
                                     nvStart = 3;
                                 }
                                 parsePlotArgs(args, nvStart, ds);
-                                fm.current().datasets.push_back(std::move(ds));
+                                fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
                                 return {MValue::empty()};
                             });
@@ -1571,8 +1548,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
-                                    throw std::runtime_error(
-                                        "logspace requires at least 2 arguments");
+                                    throw std::runtime_error("logspace requires at least 2 arguments");
                                 double a = args[0].toScalar();
                                 double b = args[1].toScalar();
                                 size_t n = args.size() >= 3
