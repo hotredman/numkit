@@ -8,20 +8,98 @@ import SyntaxEditor from "./SyntaxEditor";
 import vfs from "../vfs";
 import { useTheme, FONT, FONT_UI } from "../theme";
 
-function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
+function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
   const C = useTheme();
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
+  const [ctxMenu, setCtxMenu] = useState(null); // {x, y, tabId}
+  const [canScrollL, setCanScrollL] = useState(false);
+  const [canScrollR, setCanScrollR] = useState(false);
+  const scrollRef = useRef(null);
+
+  const checkScroll = useCallback(() => {
+    const el = scrollRef.current; if (!el) return;
+    setCanScrollL(el.scrollLeft > 2);
+    setCanScrollR(el.scrollLeft + el.clientWidth < el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current; if (!el) return;
+    checkScroll();
+    el.addEventListener('scroll', checkScroll);
+    const ro = new ResizeObserver(checkScroll); ro.observe(el);
+    return () => { el.removeEventListener('scroll', checkScroll); ro.disconnect(); };
+  }, [checkScroll, tabs]);
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!ctxMenu) return;
+    const h = () => setCtxMenu(null);
+    window.addEventListener('mousedown', h);
+    return () => window.removeEventListener('mousedown', h);
+  }, [ctxMenu]);
+
+  const scroll = dir => { const el = scrollRef.current; if (el) el.scrollBy({ left: dir * 120, behavior: 'smooth' }); };
+
+  const arrowStyle = (enabled) => ({
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    width: 22, height: 26, flexShrink: 0,
+    background: C.bg0, border: 'none', cursor: enabled ? 'pointer' : 'default',
+    color: enabled ? C.textDim : `${C.textMuted}44`, fontSize: 13, transition: 'color 0.15s',
+  });
+
   return (
-    <div style={{display:"flex",alignItems:"center",gap:1,padding:"3px 8px",background:C.bg0,borderBottom:`1px solid ${C.border}`,overflowX:"auto",minHeight:32,flexShrink:0}}>
-      {tabs.map(tab=>(
-        <div key={tab.id} onClick={()=>onSelect(tab.id)} style={{display:"flex",alignItems:"center",gap:4,padding:"3px 10px",borderRadius:5,cursor:"pointer",fontSize:11,background:tab.id===activeTab?C.bg3:"transparent",color:tab.id===activeTab?C.text:C.textMuted,border:`1px solid ${tab.id===activeTab?C.borderHi:"transparent"}`,whiteSpace:"nowrap",transition:"all 0.15s"}}>
-          {editingId===tab.id?<input value={editName} autoFocus onChange={e=>setEditName(e.target.value)} onBlur={()=>{onRename(tab.id,editName);setEditingId(null);}} onKeyDown={e=>{if(e.key==="Enter"){onRename(tab.id,editName);setEditingId(null);}}} style={{background:"transparent",border:"none",color:C.text,fontSize:11,width:80,outline:"none",fontFamily:FONT}} onClick={e=>e.stopPropagation()}/>
-          :<span onDoubleClick={e=>{e.stopPropagation();setEditingId(tab.id);setEditName(tab.name);}}>{tab.name}{tab.modified?" •":""}</span>}
-          {tabs.length>1&&<span onClick={e=>{e.stopPropagation();onClose(tab.id);}} style={{color:C.textMuted,fontSize:13,lineHeight:1,marginLeft:2,opacity:0.5}}>×</span>}
+    <div style={{ display: 'flex', alignItems: 'center', background: C.bg0, borderBottom: `1px solid ${C.border}`, minHeight: 32, flexShrink: 0, position: 'relative' }}>
+      {/* Left scroll arrow */}
+      <button onClick={() => scroll(-1)} style={arrowStyle(canScrollL)} disabled={!canScrollL}>◀</button>
+
+      {/* Scrollable tab container */}
+      <div ref={scrollRef} className="tab-scroll" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, padding: '3px 2px', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        onWheel={e => { if (scrollRef.current) scrollRef.current.scrollLeft += e.deltaY; }}>
+        <style>{`.tab-scroll::-webkit-scrollbar{display:none}`}</style>
+        {tabs.map(tab => (
+          <div key={tab.id}
+            onClick={() => onSelect(tab.id)}
+            onContextMenu={e => { e.preventDefault(); setCtxMenu({ x: e.clientX, y: e.clientY, tabId: tab.id }); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 5, cursor: 'pointer', fontSize: 11, background: tab.id === activeTab ? C.bg3 : 'transparent', color: tab.id === activeTab ? C.text : C.textMuted, border: `1px solid ${tab.id === activeTab ? C.borderHi : 'transparent'}`, whiteSpace: 'nowrap', transition: 'all 0.15s', flexShrink: 0 }}
+            onMouseEnter={e => { if (tab.id !== activeTab) e.currentTarget.style.background = C.bg2; }}
+            onMouseLeave={e => { if (tab.id !== activeTab) e.currentTarget.style.background = 'transparent'; }}>
+            {editingId === tab.id
+              ? <input value={editName} autoFocus onChange={e => setEditName(e.target.value)} onBlur={() => { onRename(tab.id, editName); setEditingId(null); }} onKeyDown={e => { if (e.key === 'Enter') { onRename(tab.id, editName); setEditingId(null); } }} style={{ background: 'transparent', border: 'none', color: C.text, fontSize: 11, width: 80, outline: 'none', fontFamily: FONT }} onClick={e => e.stopPropagation()} />
+              : <span onDoubleClick={e => { e.stopPropagation(); setEditingId(tab.id); setEditName(tab.name); }}>{tab.name}{tab.modified ? ' •' : ''}</span>}
+            {tabs.length > 1 && <span onClick={e => { e.stopPropagation(); onClose(tab.id); }} style={{ color: C.textMuted, fontSize: 13, lineHeight: 1, marginLeft: 2, opacity: 0.5 }} onMouseEnter={e => e.currentTarget.style.opacity = 1} onMouseLeave={e => e.currentTarget.style.opacity = 0.5}>×</span>}
+          </div>
+        ))}
+      </div>
+
+      {/* Right scroll arrow */}
+      <button onClick={() => scroll(1)} style={arrowStyle(canScrollR)} disabled={!canScrollR}>▶</button>
+
+      {/* New tab button */}
+      <button onClick={onNew} style={{ background: 'none', border: `1px dashed ${C.border}`, borderRadius: 5, color: C.textMuted, fontSize: 13, padding: '1px 8px', cursor: 'pointer', lineHeight: 1, marginRight: 8, flexShrink: 0 }}>+</button>
+
+      {/* Context menu */}
+      {ctxMenu && (
+        <div onMouseDown={e => e.stopPropagation()} style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000, background: C.bg3, border: `1px solid ${C.borderHi}`, borderRadius: 5, boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 160, padding: '4px 0' }}>
+          {[
+            { label: '📄 New Script', action: () => onNew() },
+            { sep: true },
+            { label: '✏️ Rename', action: () => { setEditingId(ctxMenu.tabId); setEditName(tabs.find(t => t.id === ctxMenu.tabId)?.name || ''); } },
+            { sep: true },
+            { label: '✕ Close', action: () => onClose(ctxMenu.tabId), disabled: tabs.length <= 1 },
+            { label: '✕ Close All', action: () => onCloseAll() },
+            { label: '✕ Close Others', action: () => onCloseExcept(ctxMenu.tabId), disabled: tabs.length <= 1 },
+          ].map((item, i) => item.sep
+            ? <div key={i} style={{ height: 1, background: C.border, margin: '3px 8px' }} />
+            : <div key={i} onClick={() => { if (!item.disabled) { item.action(); setCtxMenu(null); } }}
+                style={{ padding: '5px 12px', fontSize: 11, color: item.disabled ? C.textMuted : C.text, cursor: item.disabled ? 'default' : 'pointer', opacity: item.disabled ? 0.4 : 1 }}
+                onMouseEnter={e => { if (!item.disabled) e.currentTarget.style.background = C.bg4; }}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                {item.label}
+              </div>
+          )}
         </div>
-      ))}
-      <button onClick={onNew} style={{background:"none",border:`1px dashed ${C.border}`,borderRadius:5,color:C.textMuted,fontSize:13,padding:"1px 8px",cursor:"pointer",lineHeight:1,marginLeft:4}}>+</button>
+      )}
     </div>
   );
 }
@@ -73,6 +151,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   const newTab=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]);setActiveTab(id);},[]);
   const closeTab=useCallback(id=>{setTabs(p=>{const n=p.filter(t=>t.id!==id);if(!n.length)return p;if(activeTab===id)setActiveTab(n[n.length-1].id);return n;});},[activeTab]);
+  const closeAllTabs=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs([{id,name:'untitled.m',code:'',modified:false,vfsPath:null,source:null}]);setActiveTab(id);},[]);
+  const closeOtherTabs=useCallback(id=>{setTabs(p=>{const keep=p.find(t=>t.id===id);return keep?[keep]:p;});setActiveTab(id);},[]);
   const renameTab=useCallback((id,name)=>{if(!name.trim())return;setTabs(p=>p.map(t=>t.id===id?{...t,name:name.trim()}:t));},[]);
   const activeTabData=tabs.find(t=>t.id===activeTab)||tabs[0];
   const updateTabCode=useCallback(code=>{setTabs(p=>p.map(t=>t.id===activeTab?{...t,code,modified:true}:t));},[activeTab]);
@@ -123,7 +203,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
           {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource}/></div>}
           {showCenter&&<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
-            <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab}/>
+            <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} onCloseAll={closeAllTabs} onCloseExcept={closeOtherTabs}/>
             <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>
               <div ref={gutterRef} style={{padding:"8px 0",background:C.bg0,borderRight:`1px solid ${C.border}`,userSelect:"none",minWidth:34,textAlign:"right",overflowY:"hidden",flexShrink:0}}>
                 {(activeTabData?.code||"").split("\n").map((_,i)=>{const ln=i+1,isErr=errorLine===ln;return<div key={i} style={{fontSize:10,padding:"0 6px",lineHeight:"20px",color:isErr?C.red:C.textMuted,background:isErr?`${C.red}18`:"transparent",fontWeight:isErr?700:400}}>{ln}</div>;})}
