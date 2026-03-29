@@ -91,6 +91,14 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       // Notify console tab if not active
       setConsoleNotify(true);
     }
+    // Handle figure closes from engine (close, close all, close(n))
+    if (result.closeAllFigures) {
+      setFigures([]);
+    } else if (result.closedFigureIds?.length) {
+      const closed = new Set(result.closedFigureIds);
+      setFigures(prev => prev.filter(f => !closed.has(f.id)));
+    }
+    // Handle new/updated figures
     if (result.figures?.length) {
       setFigures(prev => {
         // Replace figures with same ID, append new ones

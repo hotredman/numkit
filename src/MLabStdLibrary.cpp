@@ -205,11 +205,16 @@ void StdLibrary::install(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
                                 if (args.empty()) {
+                                    int id = fm.currentFigureId();
                                     fm.closeCurrent();
+                                    std::cout << "__FIGURE_CLOSE__:" << id << "\n";
                                 } else if (args[0].isChar() && args[0].toString() == "all") {
                                     fm.closeAll();
+                                    std::cout << "__FIGURE_CLOSE_ALL__\n";
                                 } else {
-                                    fm.closeFigure(static_cast<int>(args[0].toScalar()));
+                                    int id = static_cast<int>(args[0].toScalar());
+                                    fm.closeFigure(id);
+                                    std::cout << "__FIGURE_CLOSE__:" << id << "\n";
                                 }
                                 return {MValue::empty()};
                             });

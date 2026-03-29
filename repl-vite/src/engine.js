@@ -3,7 +3,7 @@
  *
  * Both WASM and fallback engines expose a unified interface:
  *   init()              → string
- *   execute(code)       → { output: string, figures: object[], errorLine: number|null }
+ *   execute(code)       → { output: string, figures: object[], closedFigureIds: number[], closeAllFigures: bool, errorLine: number|null }
  *   complete(partial)   → string[]
  *   reset()             → string
  *   workspace()         → string
@@ -13,22 +13,24 @@
  */
 
 /**
- * Parse __FIGURE_DATA__ and __PLOT_DATA__ and __ERROR_LINE__ markers.
- * Returns { cleanOutput, figures, errorLine }.
- *
- * __FIGURE_DATA__ is the new format with figure ID and full config.
- * __PLOT_DATA__ is legacy — converted to a figure with auto-incrementing ID.
+ * Parse __FIGURE_DATA__, __FIGURE_CLOSE__, __FIGURE_CLOSE_ALL__,
+ * __PLOT_DATA__ and __ERROR_LINE__ markers.
+ * Returns { cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine }.
  */
 function extractMarkers(rawOutput) {
-  if (!rawOutput) return { cleanOutput: '', figures: [], errorLine: null };
+  if (!rawOutput) return { cleanOutput: '', figures: [], closedFigureIds: [], closeAllFigures: false, errorLine: null };
 
   const figureMarker = '__FIGURE_DATA__:';
   const plotMarker = '__PLOT_DATA__:';
   const errorMarker = '__ERROR_LINE__:';
+  const closeMarker = '__FIGURE_CLOSE__:';
+  const closeAllMarker = '__FIGURE_CLOSE_ALL__';
 
   const lines = rawOutput.split('\n');
   const cleanLines = [];
   const figures = [];
+  const closedFigureIds = [];
+  let closeAllFigures = false;
   let errorLine = null;
   let legacyId = 1000; // auto-ID for legacy __PLOT_DATA__
 
@@ -38,6 +40,20 @@ function extractMarkers(rawOutput) {
     if (errIdx !== -1) {
       const num = parseInt(line.substring(errIdx + errorMarker.length).trim(), 10);
       if (!isNaN(num) && num > 0) errorLine = num;
+      continue;
+    }
+
+    // Figure close all marker
+    if (line.trim() === closeAllMarker) {
+      closeAllFigures = true;
+      continue;
+    }
+
+    // Figure close marker
+    const closeIdx = line.indexOf(closeMarker);
+    if (closeIdx !== -1) {
+      const id = parseInt(line.substring(closeIdx + closeMarker.length).trim(), 10);
+      if (!isNaN(id)) closedFigureIds.push(id);
       continue;
     }
 
@@ -76,7 +92,7 @@ function extractMarkers(rawOutput) {
     cleanLines.push(line);
   }
 
-  return { cleanOutput: cleanLines.join('\n').trimEnd(), figures, errorLine };
+  return { cleanOutput: cleanLines.join('\n').trimEnd(), figures, closedFigureIds, closeAllFigures, errorLine };
 }
 
 /** Extract a balanced JSON object from the start of a string */
@@ -221,8 +237,8 @@ export async function createWasmEngine(createModule) {
 
     execute(code) {
       const raw = Module.repl_execute(code);
-      const { cleanOutput, figures, errorLine } = extractMarkers(raw);
-      return { output: cleanOutput, figures, errorLine };
+      const { cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine } = extractMarkers(raw);
+      return { output: cleanOutput, figures, closedFigureIds, closeAllFigures, errorLine };
     },
 
     complete(partial) {
@@ -265,7 +281,7 @@ export function createFallbackEngine() {
         datasets: result.plot.datasets.map(ds => ({ ...ds, type: result.plot.config?.type || 'line' })),
         config: result.plot.config || {},
       }] : [];
-      return { output: result.output, figures, errorLine: null };
+      return { output: result.output, figures, closedFigureIds: [], closeAllFigures: false, errorLine: null };
     },
 
     complete(partial) { return interp.complete(partial); },
