@@ -1,4 +1,5 @@
 clear
+close all
 
 % Beam Steering — Phased array antenna
 % Demonstrates steering a linear array beam to 60 degrees
