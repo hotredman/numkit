@@ -1,28 +1,21 @@
 {
   "folders": [
     {
-      "name": "Advanced",
-      "files": [
-        "complex_numbers.m",
-        "matrix_operations.m",
-        "statistical_analysis.m"
-      ]
-    },
-    {
-      "name": "Algorithms",
-      "files": [
-        "bubble_sort.m",
-        "fizzbuzz.m",
-        "newton_sqrt.m"
-      ]
-    },
-    {
       "name": "Basics",
       "files": [
         "arithmetic.m",
         "math_functions.m",
         "strings.m",
         "variables.m"
+      ]
+    },
+    {
+      "name": "Matrices",
+      "files": [
+        "create_and_index.m",
+        "matrix_arithmetic.m",
+        "special_matrices.m",
+        "vector_operations.m"
       ]
     },
     {
@@ -43,21 +36,29 @@
       ]
     },
     {
-      "name": "Matrices",
+      "name": "Algorithms",
       "files": [
-        "create_and_index.m",
-        "matrix_arithmetic.m",
-        "special_matrices.m",
-        "vector_operations.m"
+        "bubble_sort.m",
+        "fizzbuzz.m",
+        "newton_sqrt.m"
       ]
     },
     {
       "name": "Plotting",
       "files": [
-        "bar_chart.m",
+        "sine_wave.m",
         "multiple_curves.m",
+        "bar_chart.m",
         "scatter_plot.m",
-        "sine_wave.m"
+        "histogram.m",
+        "polar_pattern.m",
+        "polar_config.m",
+        "stem_plot.m",
+        "stairs_plot.m",
+        "log_scale.m",
+        "styled_plot.m",
+        "legend_demo.m",
+        "axis_modes.m"
       ]
     },
     {
@@ -65,6 +66,16 @@
       "files": [
         "basic_struct.m",
         "nested_structs.m"
+      ]
+    },
+    {
+      "name": "Advanced",
+      "files": [
+        "complex_numbers.m",
+        "matrix_operations.m",
+        "statistical_analysis.m",
+        "beam_steering.m",
+        "damped_oscillator.m"
       ]
     }
   ]
