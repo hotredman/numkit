@@ -74,13 +74,10 @@ MLab includes a full-featured browser IDE built with React + Vite, running the C
 `mod`, `rem`, `sign`, `max`, `min`, `sum`, `prod`, `mean`, `cumsum`,
 `linspace`, `logspace`, `rand`, `randn`, `deg2rad`, `rad2deg`
 
-#### Matrix & Linear Algebra
+#### Matrix
 `zeros`, `ones`, `eye`, `size`, `length`, `numel`, `ndims`, `reshape`,
 `transpose`, `diag`, `sort`, `find`, `horzcat`, `vertcat`,
-`cross`, `dot`, `norm`, `det`, `inv`, `eig`
-
-#### Signal Processing
-`fft`, `ifft`, `conv`
+`cross`, `dot`, `meshgrid`
 
 #### I/O
 `disp`, `fprintf`, `sprintf`, `error`, `warning`
@@ -101,9 +98,6 @@ MLab includes a full-featured browser IDE built with React + Vite, running the C
 
 #### Workspace
 `clear`, `who`, `whos`, `which`, `exist`, `class`
-
-#### Higher-Order
-`arrayfun`
 
 #### Constants
 `pi`, `eps`, `inf`, `Inf`, `nan`, `NaN`, `i`, `j`, `true`, `false`
@@ -345,6 +339,8 @@ disp(fieldnames(config))    % {'db', 'server'}
 
 ## Limitations
 
+- No linear algebra beyond `cross`/`dot` (`det`, `inv`, `eig`, `norm` not implemented)
+- No signal processing (`fft`, `ifft`, `conv` not implemented)
 - No sparse matrix support
 - No object-oriented programming (classdef)
 - No Simulink or toolbox functions
@@ -354,7 +350,7 @@ disp(fieldnames(config))    % {'db', 'server'}
 - No GUI functions
 - Matrix left division (`\`) only for scalars
 - Matrix power (`^`) only for scalars
-- No 3D plotting (`surf`, `mesh`, `plot3` — registered but no renderer)
+- 3D plot functions registered as no-ops (`surf`, `mesh`, `contour`, `scatter3`)
 - No `saveas` / figure export
 
 ---
