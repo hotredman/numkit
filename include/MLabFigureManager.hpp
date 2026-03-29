@@ -8,15 +8,17 @@
 
 namespace mlab {
 
-struct DatasetInfo {
+struct DatasetInfo
+{
     std::string xJson;
     std::string yJson;
-    std::string type;   // "line", "bar", "scatter"
-    std::string label;  // for legend
-    std::string style;  // MATLAB style hint, e.g. "r--", "b:", "g-."
+    std::string type;  // "line", "bar", "scatter"
+    std::string label; // for legend
+    std::string style; // MATLAB style hint, e.g. "r--", "b:", "g-."
 };
 
-struct FigureState {
+struct FigureState
+{
     int id = 1;
     std::vector<DatasetInfo> datasets;
     std::string title;
@@ -43,9 +45,11 @@ struct FigureState {
  *
  * Owned by Engine — destroyed and recreated on reset.
  */
-class FigureManager {
+class FigureManager
+{
 public:
-    FigureState& current() {
+    FigureState &current()
+    {
         if (figures_.find(currentFigure_) == figures_.end()) {
             FigureState fs;
             fs.id = currentFigure_;
@@ -55,28 +59,33 @@ public:
     }
 
     /** figure() — create a new figure, return its ID */
-    int newFigure() {
-        nextAutoId_++;
-        while (figures_.find(nextAutoId_) != figures_.end()) nextAutoId_++;
+    int newFigure()
+    {
+        while (figures_.find(nextAutoId_) != figures_.end())
+            nextAutoId_++;
         currentFigure_ = nextAutoId_;
         FigureState fs;
         fs.id = currentFigure_;
         figures_[currentFigure_] = fs;
+        nextAutoId_++;
         return currentFigure_;
     }
 
     /** figure(n) — switch to figure n, create if needed */
-    int setFigure(int n) {
+    int setFigure(int n)
+    {
         currentFigure_ = n;
-        if (n >= nextAutoId_) nextAutoId_ = n + 1;
+        if (n >= nextAutoId_)
+            nextAutoId_ = n + 1;
         return n;
     }
 
     int currentFigureId() const { return currentFigure_; }
 
     /** Prepare for a new plot command: clear datasets if hold is off */
-    void prepareForPlot() {
-        auto& fig = current();
+    void prepareForPlot()
+    {
+        auto &fig = current();
         if (!fig.holdOn) {
             fig.datasets.clear();
         }
@@ -84,20 +93,21 @@ public:
     }
 
     /** Emit __FIGURE_DATA__ JSON to stdout for all modified figures */
-    void emitModified() {
-        for (auto& [id, fig] : figures_) {
-            if (!fig.modified) continue;
+    void emitModified()
+    {
+        for (auto &[id, fig] : figures_) {
+            if (!fig.modified)
+                continue;
             fig.modified = false;
 
             std::ostringstream os;
-            os << "__FIGURE_DATA__:{\"id\":" << fig.id
-               << ",\"datasets\":[";
+            os << "__FIGURE_DATA__:{\"id\":" << fig.id << ",\"datasets\":[";
             for (size_t i = 0; i < fig.datasets.size(); ++i) {
-                if (i) os << ",";
-                auto& ds = fig.datasets[i];
-                os << "{\"x\":" << ds.xJson
-                   << ",\"y\":" << ds.yJson
-                   << ",\"type\":\"" << ds.type << "\"";
+                if (i)
+                    os << ",";
+                auto &ds = fig.datasets[i];
+                os << "{\"x\":" << ds.xJson << ",\"y\":" << ds.yJson << ",\"type\":\"" << ds.type
+                   << "\"";
                 if (!ds.label.empty())
                     os << ",\"label\":\"" << ds.label << "\"";
                 if (!ds.style.empty())
@@ -117,7 +127,8 @@ public:
             if (!fig.legendLabels.empty()) {
                 os << ",\"legend\":[";
                 for (size_t i = 0; i < fig.legendLabels.size(); ++i) {
-                    if (i) os << ",";
+                    if (i)
+                        os << ",";
                     os << "\"" << fig.legendLabels[i] << "\"";
                 }
                 os << "]";
@@ -134,14 +145,15 @@ public:
     void closeCurrent() { figures_.erase(currentFigure_); }
 
     /** Close all figures and reset state */
-    void closeAll() {
+    void closeAll()
+    {
         figures_.clear();
         currentFigure_ = 1;
         nextAutoId_ = 1;
     }
 
     /** Get the figures map (for inspection) */
-    const std::map<int, FigureState>& figures() const { return figures_; }
+    const std::map<int, FigureState> &figures() const { return figures_; }
 
 private:
     std::map<int, FigureState> figures_;
