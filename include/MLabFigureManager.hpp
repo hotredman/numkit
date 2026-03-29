@@ -118,6 +118,12 @@ public:
     int setFigure(int n)
     {
         currentFigure_ = n;
+        if (figures_.find(n) == figures_.end()) {
+            FigureState fs;
+            fs.id = n;
+            fs.axes.push_back(AxesState{});
+            figures_[n] = fs;
+        }
         return n;
     }
 

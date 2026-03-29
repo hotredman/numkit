@@ -96,6 +96,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
         tests/engine_test.cpp
         tests/engine_advanced_test.cpp
         tests/command_style_test.cpp
+        tests/figure_test.cpp
     )
 
     target_link_libraries(mlab_tests

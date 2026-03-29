@@ -1564,3 +1564,245 @@ TEST_F(EngineCommandStyleTest, ClearAllThenReassign)
     EXPECT_EQ(getVarPtr("b"), nullptr);
     EXPECT_DOUBLE_EQ(getVar("c"), 99.0);
 }
+
+// ============================================================
+// APPEND to engine_test.cpp after existing tests
+// ============================================================
+
+// ============================================================
+// Clear — constants protection (reinstallConstants)
+// ============================================================
+
+class EngineClearConstantsTest : public EngineTest
+{};
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesPi)
+{
+    eval("x = 42;");
+    eval("clear all");
+    EXPECT_NEAR(evalScalar("pi;"), M_PI, 1e-12);
+}
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesEps)
+{
+    eval("clear all");
+    double eps = evalScalar("eps;");
+    EXPECT_GT(eps, 0);
+    EXPECT_LT(eps, 1e-10);
+}
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesInf)
+{
+    eval("clear all");
+    EXPECT_TRUE(std::isinf(evalScalar("inf;")));
+}
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesNan)
+{
+    eval("clear all");
+    EXPECT_TRUE(std::isnan(evalScalar("nan;")));
+}
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesTrueFalse)
+{
+    eval("clear all");
+    EXPECT_DOUBLE_EQ(evalScalar("true;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("false;"), 0.0);
+}
+
+TEST_F(EngineClearConstantsTest, ClearAllPreservesImaginaryUnit)
+{
+    eval("clear all");
+    auto v = eval("i;");
+    EXPECT_TRUE(v.isComplex());
+    EXPECT_DOUBLE_EQ(v.toComplex().imag(), 1.0);
+}
+
+TEST_F(EngineClearConstantsTest, ClearSpecificCannotRemovePi)
+{
+    eval("clear pi");
+    EXPECT_NEAR(evalScalar("pi;"), M_PI, 1e-12);
+}
+
+TEST_F(EngineClearConstantsTest, ClearSpecificCannotRemoveInf)
+{
+    eval("clear inf");
+    EXPECT_TRUE(std::isinf(evalScalar("inf;")));
+}
+
+TEST_F(EngineClearConstantsTest, ClearNoArgsSameAsClearAll)
+{
+    eval("x = 1; y = 2;");
+    eval("clear");
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_EQ(getVarPtr("y"), nullptr);
+    EXPECT_NEAR(evalScalar("pi;"), M_PI, 1e-12);
+}
+
+// ============================================================
+// who/whos — argument filtering and constant hiding
+// ============================================================
+
+class EngineWhoFilterTest : public EngineTest
+{};
+
+TEST_F(EngineWhoFilterTest, WhoWithArgsShowsOnlyRequested)
+{
+    eval("x = 1; y = 2; z = 3;");
+    capturedOutput.clear();
+    eval("who x z");
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("z"), std::string::npos);
+}
+
+TEST_F(EngineWhoFilterTest, WhoHidesConstants)
+{
+    eval("myvar = 42;");
+    capturedOutput.clear();
+    eval("who");
+    // pi, eps, inf should NOT appear in who output
+    // (they are constants, not user variables)
+    std::string out = capturedOutput;
+    // Check that myvar IS listed
+    EXPECT_NE(out.find("myvar"), std::string::npos);
+}
+
+TEST_F(EngineWhoFilterTest, WhosWithArgShowsDetails)
+{
+    eval("A = zeros(3, 4);");
+    capturedOutput.clear();
+    eval("whos A");
+    EXPECT_NE(capturedOutput.find("A"), std::string::npos);
+    // Should contain size info (3 and 4)
+    EXPECT_NE(capturedOutput.find("3"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("4"), std::string::npos);
+}
+
+TEST_F(EngineWhoFilterTest, WhosNoArgs)
+{
+    eval("x = 42; y = [1 2 3];");
+    capturedOutput.clear();
+    eval("whos");
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("y"), std::string::npos);
+}
+
+// ============================================================
+// which command
+// ============================================================
+
+class EngineWhichTest : public EngineTest
+{};
+
+TEST_F(EngineWhichTest, WhichFindsVariable)
+{
+    eval("x = 42;");
+    capturedOutput.clear();
+    eval("which x");
+    EXPECT_NE(capturedOutput.find("variable"), std::string::npos);
+}
+
+TEST_F(EngineWhichTest, WhichFindsBuiltin)
+{
+    capturedOutput.clear();
+    eval("which sin");
+    EXPECT_NE(capturedOutput.find("built-in"), std::string::npos);
+}
+
+TEST_F(EngineWhichTest, WhichFindsUserFunction)
+{
+    eval("function y = myfun(x)\n  y = x;\nend");
+    capturedOutput.clear();
+    eval("which myfun");
+    EXPECT_NE(capturedOutput.find("user"), std::string::npos);
+}
+
+TEST_F(EngineWhichTest, WhichReportsNotFound)
+{
+    capturedOutput.clear();
+    eval("which totally_nonexistent");
+    EXPECT_NE(capturedOutput.find("not found"), std::string::npos);
+}
+
+// ============================================================
+// exist function
+// ============================================================
+
+class EngineExistTest : public EngineTest
+{};
+
+TEST_F(EngineExistTest, ExistFindsVariable)
+{
+    eval("x = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 1.0);
+}
+
+TEST_F(EngineExistTest, ExistFindsBuiltin)
+{
+    double r = evalScalar("exist('sin');");
+    EXPECT_GT(r, 0);
+}
+
+TEST_F(EngineExistTest, ExistFindsUserFunction)
+{
+    eval("function y = myfun(x)\n  y = x;\nend");
+    double r = evalScalar("exist('myfun');");
+    EXPECT_GT(r, 0);
+}
+
+TEST_F(EngineExistTest, ExistReturnsZeroForNonexistent)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("exist('totally_nonexistent_xyz');"), 0.0);
+}
+
+TEST_F(EngineExistTest, ExistAfterClear)
+{
+    eval("x = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 1.0);
+    eval("clear x");
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 0.0);
+}
+
+// ============================================================
+// logspace
+// ============================================================
+
+class EngineLogspaceTest : public EngineTest
+{};
+
+TEST_F(EngineLogspaceTest, BasicLogspace)
+{
+    eval("x = logspace(0, 3, 4);");
+    auto *x = getVarPtr("x");
+    ASSERT_NE(x, nullptr);
+    EXPECT_EQ(x->numel(), 4u);
+    EXPECT_NEAR(x->doubleData()[0], 1.0, 1e-10);    // 10^0
+    EXPECT_NEAR(x->doubleData()[1], 10.0, 1e-10);   // 10^1
+    EXPECT_NEAR(x->doubleData()[2], 100.0, 1e-10);  // 10^2
+    EXPECT_NEAR(x->doubleData()[3], 1000.0, 1e-10); // 10^3
+}
+
+TEST_F(EngineLogspaceTest, LogspaceTwoPoints)
+{
+    eval("x = logspace(1, 2, 2);");
+    auto *x = getVarPtr("x");
+    EXPECT_NEAR(x->doubleData()[0], 10.0, 1e-10);
+    EXPECT_NEAR(x->doubleData()[1], 100.0, 1e-10);
+}
+
+TEST_F(EngineLogspaceTest, LogspaceDefaultN)
+{
+    eval("x = logspace(0, 1);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->numel(), 50u);
+    EXPECT_NEAR(x->doubleData()[0], 1.0, 1e-10);
+    EXPECT_NEAR(x->doubleData()[49], 10.0, 1e-10);
+}
+
+TEST_F(EngineLogspaceTest, LogspaceSinglePoint)
+{
+    eval("x = logspace(2, 2, 1);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->numel(), 1u);
+    EXPECT_NEAR(x->doubleData()[0], 100.0, 1e-10);
+}
