@@ -1,21 +1,30 @@
 {
   "folders": [
     {
+      "name": "Advanced",
+      "files": [
+        "beam_steering.m",
+        "complex_numbers.m",
+        "damped_oscillator.m",
+        "matrix_operations.m",
+        "statistical_analysis.m"
+      ]
+    },
+    {
+      "name": "Algorithms",
+      "files": [
+        "bubble_sort.m",
+        "fizzbuzz.m",
+        "newton_sqrt.m"
+      ]
+    },
+    {
       "name": "Basics",
       "files": [
         "arithmetic.m",
         "math_functions.m",
         "strings.m",
         "variables.m"
-      ]
-    },
-    {
-      "name": "Matrices",
-      "files": [
-        "create_and_index.m",
-        "matrix_arithmetic.m",
-        "special_matrices.m",
-        "vector_operations.m"
       ]
     },
     {
@@ -36,29 +45,30 @@
       ]
     },
     {
-      "name": "Algorithms",
+      "name": "Matrices",
       "files": [
-        "bubble_sort.m",
-        "fizzbuzz.m",
-        "newton_sqrt.m"
+        "create_and_index.m",
+        "matrix_arithmetic.m",
+        "special_matrices.m",
+        "vector_operations.m"
       ]
     },
     {
       "name": "Plotting",
       "files": [
-        "sine_wave.m",
-        "multiple_curves.m",
-        "bar_chart.m",
-        "scatter_plot.m",
-        "histogram.m",
-        "polar_pattern.m",
-        "polar_config.m",
-        "stem_plot.m",
-        "stairs_plot.m",
-        "log_scale.m",
-        "styled_plot.m",
-        "legend_demo.m",
         "axis_modes.m",
+        "bar_chart.m",
+        "histogram.m",
+        "legend_demo.m",
+        "log_scale.m",
+        "multiple_curves.m",
+        "polar_config.m",
+        "polar_pattern.m",
+        "scatter_plot.m",
+        "sine_wave.m",
+        "stairs_plot.m",
+        "stem_plot.m",
+        "styled_plot.m",
         "subplot_demo.m"
       ]
     },
@@ -67,16 +77,6 @@
       "files": [
         "basic_struct.m",
         "nested_structs.m"
-      ]
-    },
-    {
-      "name": "Advanced",
-      "files": [
-        "complex_numbers.m",
-        "matrix_operations.m",
-        "statistical_analysis.m",
-        "beam_steering.m",
-        "damped_oscillator.m"
       ]
     }
   ]
