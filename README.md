@@ -1,12 +1,27 @@
-# MLab — Embeddable MATLAB Interpreter in C++ by Claude Opus 4.6
+# MLab — Embeddable MATLAB Interpreter in C++ written with Claude Opus
 
-A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
+A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Includes a browser-based IDE compiled to WebAssembly. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
 
-[![Try Online](https://img.shields.io/badge/Try%20Online-MLab%20REPL-blue?style=for-the-badge&logo=webassembly)](https://skynetjudgmentday.github.io/mlab/)
+[![Try Online](https://img.shields.io/badge/Try%20Online-MLab%20IDE-blue?style=for-the-badge&logo=webassembly)](https://skynetjudgmentday.github.io/mlab-demo/)
 
-**[▶ Launch MLab REPL in Browser](https://skynetjudgmentday.github.io/mlab/)**
+**[▶ Launch MLab IDE in Browser](https://skynetjudgmentday.github.io/mlab-demo/)**
 
 ---
+
+## Web IDE
+
+MLab includes a full-featured browser IDE built with React + Vite, running the C++ engine via WebAssembly:
+
+- **Syntax highlighting** — keywords, builtins, constants, strings, comments
+- **Dark / Light theme** — single-source theming via React Context
+- **File browser** — local virtual FS, bundled examples, GitHub repo browser
+- **Multi-tab editor** — context menu, scroll arrows, rename, close all/others
+- **Interactive figures** — SVG-rendered plots with resize support
+- **Console** — command history, tab completion, inline help
+- **Workspace inspector** — live variable viewer with types and previews
+
+---
+
 ## Features
 
 ### Language Support
@@ -19,8 +34,8 @@ A lightweight, embeddable interpreter for a substantial subset of the MATLAB lan
 | Matrix multiplication (`*`) | ✅ |
 | Conjugate transpose (`'`) and transpose (`.'`) | ✅ |
 | Comparison operators (`==`, `~=`, `<`, `>`, `<=`, `>=`) | ✅ |
-| Logical operators (`&`, `|`, `~`, `&&`, `||`) | ✅ |
-| Short-circuit evaluation (`&&`, `||`) | ✅ |
+| Logical operators (`&`, `\|`, `~`, `&&`, `\|\|`) | ✅ |
+| Short-circuit evaluation (`&&`, `\|\|`) | ✅ |
 | Colon expressions (`1:10`, `0:0.5:5`, `10:-1:1`) | ✅ |
 | String literals (single and double quoted) | ✅ |
 | String concatenation (`['Hello' ' ' 'World']`) | ✅ |
@@ -46,20 +61,26 @@ A lightweight, embeddable interpreter for a substantial subset of the MATLAB lan
 | Logical indexing | ✅ |
 | Element deletion (`A(idx) = []`) | ✅ |
 | 2D and 3D array support | ✅ |
+| Command-style syntax (`clear all`, `grid on`) | ✅ |
 | Implicit semicolon suppression | ✅ |
 | Line continuation (`...`) | ✅ |
-| Comments (`%`) | ✅ |
+| Comments (`%`) and block comments (`%{ %}`) | ✅ |
 
 ### Built-in Functions
 
 #### Math
-`sqrt`, `abs`, `sin`, `cos`, `tan`, `exp`, `log`, `log2`, `log10`,
-`floor`, `ceil`, `round`, `fix`, `mod`, `rem`, `sign`, `max`, `min`,
-`sum`, `prod`, `mean`, `linspace`, `rand`, `randn`
+`sqrt`, `abs`, `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`,
+`exp`, `log`, `log2`, `log10`, `floor`, `ceil`, `round`, `fix`,
+`mod`, `rem`, `sign`, `max`, `min`, `sum`, `prod`, `mean`, `cumsum`,
+`linspace`, `logspace`, `rand`, `randn`, `deg2rad`, `rad2deg`
 
-#### Matrix
+#### Matrix & Linear Algebra
 `zeros`, `ones`, `eye`, `size`, `length`, `numel`, `ndims`, `reshape`,
-`transpose`, `diag`, `sort`, `find`, `horzcat`, `vertcat`
+`transpose`, `diag`, `sort`, `find`, `horzcat`, `vertcat`,
+`cross`, `dot`, `norm`, `det`, `inv`, `eig`
+
+#### Signal Processing
+`fft`, `ifft`, `conv`
 
 #### I/O
 `disp`, `fprintf`, `sprintf`, `error`, `warning`
@@ -79,14 +100,44 @@ A lightweight, embeddable interpreter for a substantial subset of the MATLAB lan
 `real`, `imag`, `conj`, `complex`, `angle`
 
 #### Workspace
-`clear`, `who`, `whos`, `exist`, `class`
+`clear`, `who`, `whos`, `which`, `exist`, `class`
+
+#### Higher-Order
+`arrayfun`
 
 #### Constants
 `pi`, `eps`, `inf`, `Inf`, `nan`, `NaN`, `i`, `j`, `true`, `false`
 
-## Architecture
-Source Code → Lexer → Tokens → Parser → AST → Engine (eval)
+### Plotting
 
+MLab includes a figure management system that outputs plot data as JSON, rendered as SVG in the Web IDE.
+
+#### Plot Types
+`plot`, `bar`, `scatter`, `stem`, `stairs`, `hist`, `polarplot`,
+`semilogx`, `semilogy`, `loglog`
+
+#### Figure Management
+`figure`, `close`, `clf`, `subplot`
+
+#### Plot Configuration
+`title`, `xlabel`, `ylabel`, `legend`, `xlim`, `ylim`,
+`grid` (on/off/minor), `hold` (on/off), `axis` (equal/tight/ij/xy)
+
+#### Polar Configuration
+`rlim`, `thetalim`, `thetadir`, `thetazero`
+
+#### Style
+Style strings (`'r--o'`, `'b:'`, `'g-.'`) and name-value pairs (`'LineWidth'`, `'MarkerSize'`)
+
+---
+
+## Architecture
+
+```
+Source Code → Lexer → Tokens → Parser → AST → Engine (eval)
+                                                  ↓
+                                            FigureManager → JSON → Frontend (SVG)
+```
 
 | Module | File | Responsibility |
 |---|---|---|
@@ -98,6 +149,7 @@ Source Code → Lexer → Tokens → Parser → AST → Engine (eval)
 | **Environment** | `MLabEnvironment.hpp/cpp` | Scoped variable storage with global store |
 | **Allocator** | `MLabAllocator.hpp/cpp` | Pluggable memory allocator |
 | **StdLibrary** | `MLabStdLibrary.hpp/cpp` | All built-in operators and functions |
+| **FigureManager** | `MLabFigureManager.hpp` | Plot state management with subplot/axes support |
 
 ### Key Design Decisions
 
@@ -108,6 +160,10 @@ Source Code → Lexer → Tokens → Parser → AST → Engine (eval)
 - **Pluggable allocator** — track memory, use custom pools, or integrate with your application's allocator
 - **Non-copyable, non-movable `Engine`** — prevents dangling references in registered lambdas
 - **Environment snapshots** — anonymous functions capture variables by value at creation time (MATLAB semantics)
+- **AxesState / FigureState** — per-axes configuration supports subplot grids with independent settings
+- **Constants protection** — `clear all` reinstalls `pi`, `eps`, `inf`, `nan`, `true`, `false`, `i`, `j`
+
+---
 
 ## Building
 
@@ -122,19 +178,37 @@ Source Code → Lexer → Tokens → Parser → AST → Engine (eval)
 mkdir build && cd build
 cmake ..
 cmake --build .
+```
 
 ### Run
+
+```bash
 ./mlab_example          # Run demo
 ./mlab_example --repl   # Interactive REPL
 ```
 
-### Run
-```Shell
-./mlab_example          # Run demo
-./mlab_example --repl   # Interactive REPL
+### Build Web IDE (WebAssembly)
+
+```bash
+# Requires Emscripten SDK
+cd repl-vite
+npm install
+npm run build
 ```
+
+### Run Tests
+
+```bash
+cd build
+ctest --output-on-failure
+```
+
+---
+
 ## Usage
+
 ### Basic Embedding
+
 ```c++
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
@@ -151,7 +225,9 @@ int main()
     return 0;
 }
 ```
+
 ### Custom Allocator
+
 ```c++
 mlab::Engine engine;
 
@@ -171,7 +247,9 @@ mlab::StdLibrary::install(engine);
 engine.eval("A = rand(100, 100);");
 std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ```
+
 ### C++ ↔ MATLAB Data Exchange
+
 ```c++
 mlab::Engine engine;
 mlab::StdLibrary::install(engine);
@@ -186,24 +264,10 @@ auto* area = engine.getVariable("area");
 if (area)
     std::cout << "Area = " << area->toScalar() << "\n";
 ```
-### Custom Output
-```c++
-mlab::Engine engine;
-mlab::StdLibrary::install(engine);
 
-std::string captured;
-engine.setOutputFunc([&captured](const std::string& s) {
-    captured += s;
-});
-
-engine.eval("disp('Hello from MATLAB')");
-// captured == "Hello from MATLAB\n"
-```
 ### Registering Custom Functions
-```c++
-mlab::Engine engine;
-mlab::StdLibrary::install(engine);
 
+```c++
 engine.registerFunction("myfunc",
     [&engine](const std::vector<mlab::MValue>& args) -> std::vector<mlab::MValue> {
         auto* alloc = &engine.allocator();
@@ -214,18 +278,47 @@ engine.registerFunction("myfunc",
 
 engine.eval("disp(myfunc(3, 4))");  // 25
 ```
+
+### Plotting (Embeddable)
+
+```c++
+// FigureManager collects plot data as JSON
+mlab::Engine engine;
+mlab::StdLibrary::install(engine);
+
+engine.eval(R"(
+    x = linspace(0, 2*pi, 100);
+    figure(1);
+    plot(x, sin(x), 'b-');
+    hold on;
+    plot(x, cos(x), 'r--');
+    title('Trigonometric Functions');
+    legend('sin', 'cos');
+    grid on;
+)");
+
+// Extract figure data as JSON for your renderer
+auto& fm = engine.figureManager();
+for (auto& [id, fig] : fm.figures()) {
+    std::string json = fm.toJSON(id);
+    // Send to your SVG/Canvas/WebGL renderer
+}
+```
+
 ### Complex Numbers
-```octave
+
+```matlab
 z = 3 + 4i;
 disp(abs(z))      % 5
 disp(real(z))     % 3
 disp(imag(z))     % 4
 disp(conj(z))     % 3 - 4i
-disp(z * (1+1i))  % -1 + 7i
 disp(angle(z))    % 0.9273
 ```
+
 ### Closures
-```octave
+
+```matlab
 function h = make_adder(n)
     h = @(x) x + n;
 end
@@ -234,8 +327,10 @@ add5 = make_adder(5);
 disp(add5(10))  % 15
 disp(add5(20))  % 25
 ```
+
 ### Structs
-```octave
+
+```matlab
 config.server.host = 'localhost';
 config.server.port = 8080;
 config.db.pool.min = 5;
@@ -245,49 +340,34 @@ disp(config.server.host)    % localhost
 disp(config.db.pool.max)    % 20
 disp(fieldnames(config))    % {'db', 'server'}
 ```
-### Cell Arrays
-```octave
-c = {1, 'hello'; [1 2 3], true};
-disp(c{1, 2})    % hello
-disp(c{2, 1})    % [1 2 3]
 
-% Cell matching in switch
-switch day
-    case {1, 7}
-        disp('weekend')
-    case {2, 3, 4, 5, 6}
-        disp('weekday')
-end
-```
-### Error Handling
-MATLAB
+---
 
-```octave
-try
-    x = 1 / 0;
-    error('something went wrong')
-catch e
-    disp(e.message)
-end
-```
 ## Limitations
+
 - No sparse matrix support
 - No object-oriented programming (classdef)
 - No Simulink or toolbox functions
-- Limited `fprintf`/`sprintf` formatting (no format specifiers yet)
+- Limited `fprintf`/`sprintf` formatting
 - No file I/O (`fopen`, `fread`, etc.)
 - No regular expressions (`regexp`)
 - No GUI functions
 - Matrix left division (`\`) only for scalars
 - Matrix power (`^`) only for scalars
-- Integer types declared in `MType` but not fully implemented
+- No 3D plotting (`surf`, `mesh`, `plot3` — registered but no renderer)
+- No `saveas` / figure export
+
+---
+
 ## Project Structure
+
 ```
 ├── include/
 │   ├── MLabAllocator.hpp
 │   ├── MLabAst.hpp
 │   ├── MLabEngine.hpp
 │   ├── MLabEnvironment.hpp
+│   ├── MLabFigureManager.hpp
 │   ├── MLabLexer.hpp
 │   ├── MLabParser.hpp
 │   ├── MLabStdLibrary.hpp
@@ -300,10 +380,32 @@ end
 │   ├── MLabParser.cpp
 │   ├── MLabStdLibrary.cpp
 │   └── MLabValue.cpp
+├── tests/
+│   ├── engine_test.cpp
+│   ├── engine_advanced_test.cpp
+│   ├── command_style_test.cpp
+│   └── figure_test.cpp
 ├── example/
 │   └── main.cpp
+├── repl-vite/                  # Web IDE (React + Vite)
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── MLabREPL.jsx    # Main IDE layout
+│   │   │   ├── Console.jsx     # Command console
+│   │   │   ├── Figures.jsx     # SVG plot renderer
+│   │   │   ├── FileBrowser.jsx # Local/Examples/GitHub browser
+│   │   │   ├── SyntaxEditor.jsx# MATLAB syntax highlighting
+│   │   │   ├── Workspace.jsx   # Variable inspector
+│   │   │   └── Reference.jsx   # Cheat sheet
+│   │   ├── theme.jsx           # Dark/Light theme (React Context)
+│   │   ├── engine.js           # WASM engine wrapper
+│   │   └── vfs.js              # Virtual filesystem (IndexedDB)
+│   └── public/
+│       └── examples/           # 39 example .m scripts
 ├── CMakeLists.txt
 └── README.md
 ```
+
 ## License
-MIT License. See [LICENSE](https://arena.ai/c/LICENSE) for details.
+
+MIT License. See [LICENSE](LICENSE) for details.
