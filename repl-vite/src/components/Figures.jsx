@@ -122,15 +122,15 @@ function renderAxes(svg,ax,ox,oy,availW,availH){
   const gridMode=cfg.grid===true?'on':(cfg.grid||'');
   if(gridMode==='on'||gridMode==='minor'){
     // Major grid lines — aligned with axis ticks
-    g.append("g").selectAll("line").data(yTicks).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.5);
-    g.append("g").selectAll("line").data(xTicks).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.5);
+    g.append("g").selectAll("line").data(yTicks).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.textMuted).attr("stroke-dasharray","3,3").attr("opacity",0.3);
+    g.append("g").selectAll("line").data(xTicks).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.textMuted).attr("stroke-dasharray","3,3").attr("opacity",0.3);
     if(gridMode==='minor'){
-      // Minor grid lines — subdivide between major ticks
+      // Minor grid lines — 4 subdivisions between each pair of major ticks
       const xMinor=[],yMinor=[];
       for(let i=0;i<xTicks.length-1;i++){const a=xTicks[i],b=xTicks[i+1];const step=(b-a)/5;for(let j=1;j<5;j++)xMinor.push(a+step*j);}
       for(let i=0;i<yTicks.length-1;i++){const a=yTicks[i],b=yTicks[i+1];const step=(b-a)/5;for(let j=1;j<5;j++)yMinor.push(a+step*j);}
-      g.append("g").selectAll("line").data(yMinor).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","1,3").attr("opacity",0.25);
-      g.append("g").selectAll("line").data(xMinor).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.border).attr("stroke-dasharray","1,3").attr("opacity",0.25);
+      g.append("g").selectAll("line").data(yMinor).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.textMuted).attr("stroke-dasharray","1,3").attr("opacity",0.15);
+      g.append("g").selectAll("line").data(xMinor).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.textMuted).attr("stroke-dasharray","1,3").attr("opacity",0.15);
     }
   }
   // grid off → no grid lines at all

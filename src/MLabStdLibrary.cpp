@@ -442,16 +442,24 @@ void StdLibrary::install(Engine &engine)
                                 auto &fm = engine.figureManager();
                                 auto &ax = fm.currentAxes();
                                 if (args.empty()) {
-                                    // toggle: off → on → off
+                                    // toggle major grid
                                     ax.gridMode = ax.gridMode.empty() ? "on" : "";
                                 } else {
                                     std::string arg = args[0].toString();
-                                    if (arg == "on")
+                                    if (arg == "on") {
                                         ax.gridMode = "on";
-                                    else if (arg == "off")
+                                    } else if (arg == "off") {
                                         ax.gridMode = "";
-                                    else if (arg == "minor")
-                                        ax.gridMode = "minor";
+                                    } else if (arg == "minor") {
+                                        // MATLAB: grid minor toggles minor grid
+                                        // If off → enable major+minor
+                                        // If on (major only) → add minor
+                                        // If minor (already) → back to major only
+                                        if (ax.gridMode == "minor")
+                                            ax.gridMode = "on";
+                                        else
+                                            ax.gridMode = "minor";
+                                    }
                                 }
                                 fm.current().modified = true;
                                 fm.emitModified();
