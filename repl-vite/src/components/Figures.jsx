@@ -10,7 +10,6 @@ function parseStyleColor(style) {
   for (const ch of style) { if (colorMap[ch]) return colorMap[ch]; }
   return null;
 }
-
 function parseStyleDash(style) {
   if (!style) return null;
   if (style.includes('-.')) return '8,3,2,3';
@@ -18,14 +17,12 @@ function parseStyleDash(style) {
   if (style.includes(':')) return '2,4';
   return null;
 }
-
 function parseStyleMarker(style) {
   if (!style) return null;
   const markers = ['o','s','d','^','v','<','>','p','h','*','+','x','.'];
   for (const ch of style) { if (markers.includes(ch)) return ch; }
   return null;
 }
-
 function parseStyleHasLine(style) {
   if (!style) return true;
   if (style.includes('-') || style.includes(':')) return true;
@@ -55,15 +52,17 @@ function drawMarker(g, cx, cy, marker, color, size) {
   }
 }
 
-/** Convert thetaZeroLocation to rotation offset in radians */
 function thetaZeroOffset(loc) {
   switch (loc) {
     case 'top': return Math.PI / 2;
     case 'left': return Math.PI;
     case 'bottom': return -Math.PI / 2;
-    default: return 0; // 'right'
+    default: return 0;
   }
 }
+
+/** Unique clip ID counter */
+let clipIdCounter = 0;
 
 function FigurePanel({ figure, onClose }) {
   const svgRef = useRef(null);
@@ -74,6 +73,7 @@ function FigurePanel({ figure, onClose }) {
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
     const cw = containerRef.current.clientWidth;
+    const clipId = `clip-${figure.id}-${++clipIdCounter}`;
 
     // ── Polar plot ──
     if (figure.config?.polar) {
@@ -92,7 +92,6 @@ function FigurePanel({ figure, onClose }) {
       });
       if (maxRho === 0) maxRho = 1;
 
-      // Apply rlim if set
       let rMin = 0, rMax = maxRho;
       if (figure.config?.rlim?.length >= 2) {
         rMin = figure.config.rlim[0];
@@ -101,6 +100,11 @@ function FigurePanel({ figure, onClose }) {
       const rScale = d3.scaleLinear().domain([rMin, rMax]).range([0, radius]).nice();
       const niceMax = rScale.domain()[1];
 
+      // Clip path — circle at radius, clips data that exceeds rlim
+      const defs = svg.append("defs");
+      defs.append("clipPath").attr("id", clipId)
+        .append("circle").attr("cx", 0).attr("cy", 0).attr("r", rScale(niceMax));
+
       // Radial grid
       const ticks = rScale.ticks(4).filter(t => t > 0);
       ticks.forEach(t => {
@@ -108,10 +112,12 @@ function FigurePanel({ figure, onClose }) {
         g.append("text").attr("x",3).attr("y",-rScale(t)-2).attr("fill",C.textMuted).attr("font-size",8).text(t);
       });
 
-      // Angular grid — respects thetaDir and thetaZeroLocation
+      // Outer boundary circle
+      g.append("circle").attr("r", rScale(niceMax)).attr("fill","none").attr("stroke",C.border).attr("stroke-width",0.5);
+
+      // Angular grid
       for (let deg = 0; deg < 360; deg += 30) {
         const displayRad = deg * Math.PI / 180;
-        // Convert display angle to screen coords
         const screenAngle = zeroOffset + thetaDirSign * displayRad;
         const gx = Math.cos(screenAngle);
         const gy = -Math.sin(screenAngle);
@@ -124,6 +130,9 @@ function FigurePanel({ figure, onClose }) {
           .attr("fill",C.textMuted).attr("font-size",8).text(`${deg}°`);
       }
 
+      // Data group with clip
+      const dataG = g.append("g").attr("clip-path", `url(#${clipId})`);
+
       // Plot datasets
       figure.datasets.forEach((ds, idx) => {
         const color = parseStyleColor(ds.style) || COLORS[idx % COLORS.length];
@@ -133,9 +142,6 @@ function FigurePanel({ figure, onClose }) {
         const lw = ds.lineWidth || 2;
         const ms = ds.markerSize || 3;
 
-        // Polar to screen: apply thetaDir and thetaZeroLocation
-        // Data theta is in standard math radians (0=right, CCW)
-        // Screen: rotate by zeroOffset, apply direction sign
         const points = ds.x.map((theta, i) => {
           if (ds.y[i] === null) return null;
           const r = rScale(ds.y[i]);
@@ -144,12 +150,16 @@ function FigurePanel({ figure, onClose }) {
         }).filter(Boolean);
 
         if (hasLine && points.length > 1) {
-          const lineGen = d3.line().x(d => d[0]).y(d => d[1]).curve(d3.curveLinearClosed);
-          g.append("path").datum(points).attr("d", lineGen)
+          // Use curveLinear; only close if data spans ~full circle
+          const thetaRange = ds.x.length > 1 ? Math.abs(ds.x[ds.x.length - 1] - ds.x[0]) : 0;
+          const shouldClose = thetaRange >= Math.PI * 1.9; // ~342° or more
+          const curve = shouldClose ? d3.curveLinearClosed : d3.curveLinear;
+          const lineGen = d3.line().x(d => d[0]).y(d => d[1]).curve(curve);
+          dataG.append("path").datum(points).attr("d", lineGen)
             .attr("fill","none").attr("stroke",color).attr("stroke-width",lw)
             .attr("stroke-dasharray", dasharray);
         }
-        if (marker) points.forEach(p => drawMarker(g, p[0], p[1], marker, color, ms));
+        if (marker) points.forEach(p => drawMarker(dataG, p[0], p[1], marker, color, ms));
       });
 
       if (figure.config?.title) {
@@ -172,6 +182,12 @@ function FigurePanel({ figure, onClose }) {
     const ih = height - margin.top - margin.bottom - (hasLegend ? 24 : 0);
 
     svg.attr("width", width).attr("height", height);
+
+    // Clip path for cartesian plot area
+    const defs = svg.append("defs");
+    defs.append("clipPath").attr("id", clipId)
+      .append("rect").attr("x", 0).attr("y", 0).attr("width", iw).attr("height", ih);
+
     const g = svg.append("g").attr("transform", `translate(${margin.left},${margin.top})`);
 
     const allX = figure.datasets.flatMap(ds => ds.x).filter(v => v !== null);
@@ -183,7 +199,6 @@ function FigurePanel({ figure, onClose }) {
     if (figure.config?.ylim?.length >= 2) { yMin = figure.config.ylim[0]; yMax = figure.config.ylim[1]; }
     else { const yPad = (yMax - yMin) * 0.05 || 1; yMin -= yPad; yMax += yPad; }
 
-    // Axis mode adjustments
     const axisMode = figure.config?.axisMode;
     if (axisMode === 'equal') {
       const range = Math.max(xMax - xMin, yMax - yMin);
@@ -191,12 +206,10 @@ function FigurePanel({ figure, onClose }) {
       xMin = xMid - range / 2; xMax = xMid + range / 2;
       yMin = yMid - range / 2; yMax = yMid + range / 2;
     } else if (axisMode === 'tight') {
-      // No padding — use raw data extents
       const rawYMin = Math.min(...allY), rawYMax = Math.max(...allY);
       if (!figure.config?.ylim) { yMin = rawYMin; yMax = rawYMax; }
     }
 
-    // Create scales based on xscale/yscale
     const useLogX = figure.config?.xscale === 'log';
     const useLogY = figure.config?.yscale === 'log';
     const flipY = axisMode === 'ij';
@@ -235,6 +248,9 @@ function FigurePanel({ figure, onClose }) {
     g.append("g").call(d3.axisLeft(yScale).ticks(4))
       .selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
 
+    // Data group with clip — all datasets render inside this
+    const dataG = g.append("g").attr("clip-path", `url(#${clipId})`);
+
     // Datasets
     figure.datasets.forEach((ds, idx) => {
       const color = parseStyleColor(ds.style) || COLORS[idx % COLORS.length];
@@ -245,7 +261,6 @@ function FigurePanel({ figure, onClose }) {
       const lw = ds.lineWidth || 2;
       const ms = ds.markerSize || 3;
 
-      // Filter out non-positive values for log scales
       const validIdx = ds.x.map((x, i) => {
         if (ds.y[i] === null) return false;
         if (useLogX && x <= 0) return false;
@@ -260,25 +275,25 @@ function FigurePanel({ figure, onClose }) {
             .x((_, i) => xScale(ds.x[i]))
             .y((_, i) => yScale(ds.y[i]))
             .curve(d3.curveMonotoneX);
-          g.append("path").datum(ds.y).attr("d", lineGen)
+          dataG.append("path").datum(ds.y).attr("d", lineGen)
             .attr("fill","none").attr("stroke",color).attr("stroke-width",lw)
             .attr("stroke-dasharray", dasharray);
         }
         if (marker) {
           ds.x.forEach((x, i) => {
-            if (validIdx[i]) drawMarker(g, xScale(x), yScale(ds.y[i]), marker, color, ms);
+            if (validIdx[i]) drawMarker(dataG, xScale(x), yScale(ds.y[i]), marker, color, ms);
           });
         }
       } else if (plotType === "scatter") {
         ds.x.forEach((x, i) => {
-          if (validIdx[i]) drawMarker(g, xScale(x), yScale(ds.y[i]), marker || 'o', color, ms > 0 ? ms : 4);
+          if (validIdx[i]) drawMarker(dataG, xScale(x), yScale(ds.y[i]), marker || 'o', color, ms > 0 ? ms : 4);
         });
       } else if (plotType === "bar") {
         const bw = Math.max(2, iw / ds.x.length * 0.7);
         ds.x.forEach((x, i) => {
           if (ds.y[i] !== null) {
-            const y0 = yScale(0), y1 = yScale(ds.y[i]);
-            g.append("rect")
+            const y0 = yScale(useLogY ? yScale.domain()[0] : 0), y1 = yScale(ds.y[i]);
+            dataG.append("rect")
               .attr("x", xScale(x) - bw/2).attr("y", Math.min(y0, y1))
               .attr("width", bw).attr("height", Math.abs(y1 - y0))
               .attr("fill", color).attr("opacity", 0.85).attr("rx", 2);
@@ -288,11 +303,11 @@ function FigurePanel({ figure, onClose }) {
         const y0screen = yScale(useLogY ? yScale.domain()[0] : 0);
         ds.x.forEach((x, i) => {
           if (validIdx[i]) {
-            g.append("line")
+            dataG.append("line")
               .attr("x1", xScale(x)).attr("y1", y0screen)
               .attr("x2", xScale(x)).attr("y2", yScale(ds.y[i]))
               .attr("stroke", color).attr("stroke-width", lw > 2 ? lw * 0.75 : 1.5);
-            drawMarker(g, xScale(x), yScale(ds.y[i]), marker || 'o', color, ms);
+            drawMarker(dataG, xScale(x), yScale(ds.y[i]), marker || 'o', color, ms);
           }
         });
       } else if (plotType === "stairs") {
@@ -302,12 +317,12 @@ function FigurePanel({ figure, onClose }) {
             if (!validIdx[i] || !validIdx[i-1]) continue;
             pathD += ` H ${xScale(ds.x[i])} V ${yScale(ds.y[i])}`;
           }
-          g.append("path").attr("d", pathD)
+          dataG.append("path").attr("d", pathD)
             .attr("fill","none").attr("stroke",color).attr("stroke-width",lw)
             .attr("stroke-dasharray", dasharray);
           if (marker) {
             ds.x.forEach((x, i) => {
-              if (validIdx[i]) drawMarker(g, xScale(x), yScale(ds.y[i]), marker, color, ms);
+              if (validIdx[i]) drawMarker(dataG, xScale(x), yScale(ds.y[i]), marker, color, ms);
             });
           }
         }
@@ -354,7 +369,6 @@ export default function Figures({ figures, onSetFigures, onCloseFigure, onCloseA
     const id = figures[i].id;
     if (!seen.has(id)) { seen.add(id); deduped.unshift(figures[i]); }
   }
-
   const handleCloseFigure = (id) => {
     onSetFigures(prev => prev.filter(f => f.id !== id));
     if (onCloseFigure) onCloseFigure(id);
