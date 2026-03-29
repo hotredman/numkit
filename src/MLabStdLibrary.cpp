@@ -1566,6 +1566,32 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                                 return {r};
                             });
 
+    // --- logspace(a, b, n) — n points from 10^a to 10^b ---
+    engine.registerFunction("logspace",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                auto *alloc = &engine.allocator();
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "logspace requires at least 2 arguments");
+                                double a = args[0].toScalar();
+                                double b = args[1].toScalar();
+                                size_t n = args.size() >= 3
+                                               ? static_cast<size_t>(args[2].toScalar())
+                                               : 50;
+                                auto r = MValue::matrix(1, n, MType::DOUBLE, alloc);
+                                if (n == 1) {
+                                    r.doubleDataMut()[0] = std::pow(10.0, b);
+                                } else {
+                                    for (size_t i = 0; i < n; ++i) {
+                                        double exponent = a
+                                                          + (b - a) * static_cast<double>(i)
+                                                                / static_cast<double>(n - 1);
+                                        r.doubleDataMut()[i] = std::pow(10.0, exponent);
+                                    }
+                                }
+                                return {r};
+                            });
+
     // --- rand ---
     engine.registerFunction("rand",
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
