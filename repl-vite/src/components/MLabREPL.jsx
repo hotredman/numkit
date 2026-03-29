@@ -121,7 +121,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="niceworm/mlab" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource}/></div>}
+          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource}/></div>}
           {showCenter&&<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
             <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab}/>
             <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>
