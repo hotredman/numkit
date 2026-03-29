@@ -436,15 +436,22 @@ void StdLibrary::install(Engine &engine)
                                 return {MValue::empty()};
                             });
 
-    // --- grid on / grid off / grid ---
+    // --- grid on / grid off / grid / grid minor ---
     engine.registerFunction("grid",
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
                                 auto &ax = fm.currentAxes();
                                 if (args.empty()) {
-                                    ax.grid = !ax.grid;
+                                    // toggle: off → on → off
+                                    ax.gridMode = ax.gridMode.empty() ? "on" : "";
                                 } else {
-                                    ax.grid = (args[0].toString() == "on");
+                                    std::string arg = args[0].toString();
+                                    if (arg == "on")
+                                        ax.gridMode = "on";
+                                    else if (arg == "off")
+                                        ax.gridMode = "";
+                                    else if (arg == "minor")
+                                        ax.gridMode = "minor";
                                 }
                                 fm.current().modified = true;
                                 fm.emitModified();
@@ -545,14 +552,15 @@ void StdLibrary::install(Engine &engine)
                             });
 
     // Helper lambda for plot-like functions with name-value pair support
-    auto parsePlotArgs = [](const std::vector<MValue> &args, size_t startIdx,
-                            DatasetInfo &ds) {
+    auto parsePlotArgs = [](const std::vector<MValue> &args, size_t startIdx, DatasetInfo &ds) {
         // Parse name-value pairs after style string
         for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
-            if (!args[i].isChar()) continue;
+            if (!args[i].isChar())
+                continue;
             std::string key = args[i].toString();
             // Case-insensitive comparison
-            for (auto &c : key) c = std::tolower(c);
+            for (auto &c : key)
+                c = std::tolower(c);
             if (key == "linewidth") {
                 ds.lineWidth = args[i + 1].toScalar();
             } else if (key == "markersize") {
@@ -778,8 +786,8 @@ void StdLibrary::install(Engine &engine)
 
     // Re-register polarplot with name-value pair support
     engine.registerFunction("polarplot",
-                            [vecToJson, parsePlotArgs,
-                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
                                 if (args.size() < 2)
                                     return {MValue::empty()};
                                 auto &fm = engine.figureManager();
@@ -1548,7 +1556,8 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
-                                    throw std::runtime_error("logspace requires at least 2 arguments");
+                                    throw std::runtime_error(
+                                        "logspace requires at least 2 arguments");
                                 double a = args[0].toScalar();
                                 double b = args[1].toScalar();
                                 size_t n = args.size() >= 3

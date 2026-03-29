@@ -112,14 +112,31 @@ function renderAxes(svg,ax,ox,oy,availW,availH){
 
   defs.append("clipPath").attr("id",clipId).append("rect").attr("x",0).attr("y",0).attr("width",iw).attr("height",ih);
 
-  if(cfg.grid){
-    g.append("g").selectAll("line").data(yScale.ticks(5)).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.6);
-    g.append("g").selectAll("line").data(xScale.ticks(5)).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.6);
-  }else{
-    g.append("g").selectAll("line").data(yScale.ticks(4)).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","2,4");
+  // Compute tick counts for consistency between grid and axes
+  const xTickCount=Math.max(2,Math.floor(iw/60));
+  const yTickCount=Math.max(2,Math.floor(ih/40));
+  const xTicks=xScale.ticks(xTickCount);
+  const yTicks=yScale.ticks(yTickCount);
+
+  // Grid: "" = off, "on" = major, "minor" = major + minor, true = major (legacy)
+  const gridMode=cfg.grid===true?'on':(cfg.grid||'');
+  if(gridMode==='on'||gridMode==='minor'){
+    // Major grid lines — aligned with axis ticks
+    g.append("g").selectAll("line").data(yTicks).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.5);
+    g.append("g").selectAll("line").data(xTicks).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.border).attr("stroke-dasharray","3,3").attr("opacity",0.5);
+    if(gridMode==='minor'){
+      // Minor grid lines — subdivide between major ticks
+      const xMinor=[],yMinor=[];
+      for(let i=0;i<xTicks.length-1;i++){const a=xTicks[i],b=xTicks[i+1];const step=(b-a)/5;for(let j=1;j<5;j++)xMinor.push(a+step*j);}
+      for(let i=0;i<yTicks.length-1;i++){const a=yTicks[i],b=yTicks[i+1];const step=(b-a)/5;for(let j=1;j<5;j++)yMinor.push(a+step*j);}
+      g.append("g").selectAll("line").data(yMinor).enter().append("line").attr("x1",0).attr("x2",iw).attr("y1",d=>yScale(d)).attr("y2",d=>yScale(d)).attr("stroke",C.border).attr("stroke-dasharray","1,3").attr("opacity",0.25);
+      g.append("g").selectAll("line").data(xMinor).enter().append("line").attr("x1",d=>xScale(d)).attr("x2",d=>xScale(d)).attr("y1",0).attr("y2",ih).attr("stroke",C.border).attr("stroke-dasharray","1,3").attr("opacity",0.25);
+    }
   }
-  g.append("g").attr("transform",`translate(0,${ih})`).call(d3.axisBottom(xScale).ticks(Math.max(2,Math.floor(iw/60)))).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
-  g.append("g").call(d3.axisLeft(yScale).ticks(Math.max(2,Math.floor(ih/40)))).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
+  // grid off → no grid lines at all
+
+  g.append("g").attr("transform",`translate(0,${ih})`).call(d3.axisBottom(xScale).ticks(xTickCount)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
+  g.append("g").call(d3.axisLeft(yScale).ticks(yTickCount)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
 
   const dataG=g.append("g").attr("clip-path",`url(#${clipId})`);
 
