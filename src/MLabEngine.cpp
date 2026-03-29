@@ -1608,7 +1608,7 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
 }
 
 // ============================================================
-// Built-in constant names (protected from clear)
+// Built-in constant names (protected from clear, hidden from who/whos)
 // ============================================================
 static const std::unordered_set<std::string> kBuiltinNames = {"pi",
                                                               "eps",
@@ -1640,7 +1640,6 @@ bool Engine::tryBuiltinCall(const std::string &name,
         } else {
             std::string first = args[0].isChar() ? args[0].toString() : "";
             if (first == "all" || first == "classes") {
-                // clear all / clear classes
                 env->clearAll();
                 userFuncs_.clear();
                 figureManager_.closeAll();
@@ -1670,7 +1669,7 @@ bool Engine::tryBuiltinCall(const std::string &name,
         auto names = env->localNames();
         std::sort(names.begin(), names.end());
         for (auto &n : names) {
-            if (n == "ans" || n == "nargin" || n == "nargout")
+            if (kBuiltinNames.count(n))
                 continue;
             os << "  " << n << "\n";
         }
@@ -1685,7 +1684,7 @@ bool Engine::tryBuiltinCall(const std::string &name,
         auto names = env->localNames();
         std::sort(names.begin(), names.end());
         for (auto &n : names) {
-            if (n == "ans" || n == "nargin" || n == "nargout")
+            if (kBuiltinNames.count(n))
                 continue;
             auto *val = env->get(n);
             if (!val)
