@@ -278,11 +278,13 @@ function parseStyleDash(style) {
  * New figures with the same ID replace old ones (MATLAB behavior).
  *
  * Props:
- *   figures      — array of figure objects from engine
- *   onSetFigures — state setter
- *   onClose      — close panel
+ *   figures        — array of figure objects from engine
+ *   onSetFigures   — state setter
+ *   onCloseFigure  — callback(id) to notify engine when a figure is closed
+ *   onCloseAll     — callback() to notify engine when all figures are closed
+ *   onClose        — close the panel
  */
-export default function Figures({ figures, onSetFigures, onClose }) {
+export default function Figures({ figures, onSetFigures, onCloseFigure, onCloseAll, onClose }) {
   // Deduplicate by ID — keep latest version of each figure
   const deduped = [];
   const seen = new Set();
@@ -294,14 +296,24 @@ export default function Figures({ figures, onSetFigures, onClose }) {
     }
   }
 
+  const handleCloseFigure = (id) => {
+    onSetFigures(prev => prev.filter(f => f.id !== id));
+    if (onCloseFigure) onCloseFigure(id);
+  };
+
+  const handleCloseAll = () => {
+    onSetFigures([]);
+    if (onCloseAll) onCloseAll();
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       <div style={{ padding: "7px 10px", borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "center", flexShrink: 0 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontFamily: FONT_UI }}>📊 Figures</span>
         <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
           {deduped.length > 0 && (
-            <button onClick={() => onSetFigures([])} title="Clear all figures"
-              style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 10, fontFamily: FONT_UI }}>Clear all</button>
+            <button onClick={handleCloseAll} title="Close all figures"
+              style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 10, fontFamily: FONT_UI }}>Close all</button>
           )}
           <button onClick={onClose} style={{ background: "none", border: "none", color: C.textMuted, cursor: "pointer", fontSize: 16, lineHeight: 1 }}>×</button>
         </div>
@@ -314,7 +326,7 @@ export default function Figures({ figures, onSetFigures, onClose }) {
         ) : (
           deduped.map((fig) => (
             <FigurePanel key={fig.id} figure={fig}
-              onClose={() => onSetFigures(prev => prev.filter(f => f.id !== fig.id))} />
+              onClose={() => handleCloseFigure(fig.id)} />
           ))
         )}
       </div>

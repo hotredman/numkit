@@ -58,25 +58,23 @@ public:
         return figures_[currentFigure_];
     }
 
-    /** figure() — create a new figure, return its ID */
+    /** figure() — create a new figure, return its ID (smallest free ID) */
     int newFigure()
     {
-        while (figures_.find(nextAutoId_) != figures_.end())
-            nextAutoId_++;
-        currentFigure_ = nextAutoId_;
+        int id = 1;
+        while (figures_.find(id) != figures_.end())
+            id++;
+        currentFigure_ = id;
         FigureState fs;
-        fs.id = currentFigure_;
-        figures_[currentFigure_] = fs;
-        nextAutoId_++;
-        return currentFigure_;
+        fs.id = id;
+        figures_[id] = fs;
+        return id;
     }
 
     /** figure(n) — switch to figure n, create if needed */
     int setFigure(int n)
     {
         currentFigure_ = n;
-        if (n >= nextAutoId_)
-            nextAutoId_ = n + 1;
         return n;
     }
 
@@ -149,7 +147,6 @@ public:
     {
         figures_.clear();
         currentFigure_ = 1;
-        nextAutoId_ = 1;
     }
 
     /** Get the figures map (for inspection) */
@@ -158,7 +155,6 @@ public:
 private:
     std::map<int, FigureState> figures_;
     int currentFigure_ = 1;
-    int nextAutoId_ = 1;
 };
 
 } // namespace mlab

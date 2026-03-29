@@ -110,6 +110,15 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if (id === "console") setConsoleNotify(false);
   }, []);
 
+  // Figure close callbacks — sync with engine
+  const handleCloseFigure = useCallback((id) => {
+    engine.execute(`close(${id})`);
+  }, [engine]);
+
+  const handleCloseAllFigures = useCallback(() => {
+    engine.execute("close('all')");
+  }, [engine]);
+
   // Tabs
   const newTab = useCallback(() => { tabCountRef.current++; const id=String(tabCountRef.current); setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]); setActiveTab(id); }, []);
   const closeTab = useCallback(id => { setTabs(p=>{const n=p.filter(t=>t.id!==id);if(!n.length)return p;if(activeTab===id)setActiveTab(n[n.length-1].id);return n;}); }, [activeTab]);
@@ -303,7 +312,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                 onMouseEnter={e=>e.currentTarget.style.background=C.accent}
                 onMouseLeave={e=>{if(!resizingRightRef.current)e.currentTarget.style.background=C.border;}} />
               <div style={{ width:figuresWidth,minWidth:200,flexShrink:0,background:C.bg1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-                <Figures figures={figures} onSetFigures={setFigures} onClose={()=>setShowRight(false)} />
+                <Figures figures={figures} onSetFigures={setFigures}
+                  onCloseFigure={handleCloseFigure}
+                  onCloseAll={handleCloseAllFigures}
+                  onClose={()=>setShowRight(false)} />
               </div>
             </>
           )}
