@@ -12,9 +12,11 @@ struct DatasetInfo
 {
     std::string xJson;
     std::string yJson;
-    std::string type;  // "line", "bar", "scatter"
-    std::string label; // for legend
-    std::string style; // MATLAB style hint, e.g. "r--", "b:", "g-."
+    std::string type;      // "line", "bar", "scatter", "stem", "stairs"
+    std::string label;     // for legend
+    std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
+    double lineWidth = 0;  // 0 = default
+    double markerSize = 0; // 0 = default
 };
 
 struct FigureState
@@ -26,24 +28,50 @@ struct FigureState
     std::string ylabel;
     std::string xlimJson; // "" or "[min,max]"
     std::string ylimJson;
+    std::string rlimJson;     // polar: radial limits
+    std::string thetalimJson; // polar: angular limits (degrees)
     bool grid = false;
     bool polar = false;
     bool holdOn = false;
     bool modified = false;
     std::vector<std::string> legendLabels;
+
+    // Scale types: "linear" or "log"
+    std::string xscale = "linear";
+    std::string yscale = "linear";
+
+    // Axis mode: "" (default/auto), "equal", "tight", "ij", "xy"
+    std::string axisMode;
+
+    // Polar axis config
+    std::string thetaDir = "counterclockwise";
+    std::string thetaZeroLocation = "right";
+
+    // Subplot layout: 0 = not a subplot
+    int subplotRows = 0;
+    int subplotCols = 0;
+    int subplotIndex = 0;
 };
+
+static std::string jsonEscapeFig(const std::string &s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (char c : s) {
+        if (c == '"')
+            out += "\\\"";
+        else if (c == '\\')
+            out += "\\\\";
+        else if (c == '\n')
+            out += "\\n";
+        else
+            out += c;
+    }
+    return out;
+}
 
 /**
  * FigureManager — tracks multiple figures with MATLAB-like semantics.
- *
- * - figure()    creates a new figure
- * - figure(n)   switches to figure n (creates if needed)
- * - plot/bar/scatter/hist add datasets to the current figure
- * - hold on/off controls whether new plots replace or append
- * - title/xlabel/ylabel/xlim/ylim/grid/legend modify current figure
- * - emitModified() outputs __FIGURE_DATA__ JSON for all changed figures
- *
- * Owned by Engine — destroyed and recreated on reset.
  */
 class FigureManager
 {
@@ -107,27 +135,47 @@ public:
                 os << "{\"x\":" << ds.xJson << ",\"y\":" << ds.yJson << ",\"type\":\"" << ds.type
                    << "\"";
                 if (!ds.label.empty())
-                    os << ",\"label\":\"" << ds.label << "\"";
+                    os << ",\"label\":\"" << jsonEscapeFig(ds.label) << "\"";
                 if (!ds.style.empty())
                     os << ",\"style\":\"" << ds.style << "\"";
+                if (ds.lineWidth > 0)
+                    os << ",\"lineWidth\":" << ds.lineWidth;
+                if (ds.markerSize > 0)
+                    os << ",\"markerSize\":" << ds.markerSize;
                 os << "}";
             }
             os << "],\"config\":{";
-            os << "\"title\":\"" << fig.title << "\"";
-            os << ",\"xlabel\":\"" << fig.xlabel << "\"";
-            os << ",\"ylabel\":\"" << fig.ylabel << "\"";
+            os << "\"title\":\"" << jsonEscapeFig(fig.title) << "\"";
+            os << ",\"xlabel\":\"" << jsonEscapeFig(fig.xlabel) << "\"";
+            os << ",\"ylabel\":\"" << jsonEscapeFig(fig.ylabel) << "\"";
             if (!fig.xlimJson.empty())
                 os << ",\"xlim\":" << fig.xlimJson;
             if (!fig.ylimJson.empty())
                 os << ",\"ylim\":" << fig.ylimJson;
+            if (!fig.rlimJson.empty())
+                os << ",\"rlim\":" << fig.rlimJson;
+            if (!fig.thetalimJson.empty())
+                os << ",\"thetalim\":" << fig.thetalimJson;
             os << ",\"grid\":" << (fig.grid ? "true" : "false");
             os << ",\"polar\":" << (fig.polar ? "true" : "false");
+            os << ",\"xscale\":\"" << fig.xscale << "\"";
+            os << ",\"yscale\":\"" << fig.yscale << "\"";
+            if (!fig.axisMode.empty())
+                os << ",\"axisMode\":\"" << fig.axisMode << "\"";
+            if (fig.polar) {
+                os << ",\"thetaDir\":\"" << fig.thetaDir << "\"";
+                os << ",\"thetaZeroLocation\":\"" << fig.thetaZeroLocation << "\"";
+            }
+            if (fig.subplotRows > 0) {
+                os << ",\"subplot\":[" << fig.subplotRows << "," << fig.subplotCols << ","
+                   << fig.subplotIndex << "]";
+            }
             if (!fig.legendLabels.empty()) {
                 os << ",\"legend\":[";
                 for (size_t i = 0; i < fig.legendLabels.size(); ++i) {
                     if (i)
                         os << ",";
-                    os << "\"" << fig.legendLabels[i] << "\"";
+                    os << "\"" << jsonEscapeFig(fig.legendLabels[i]) << "\"";
                 }
                 os << "]";
             }
@@ -141,7 +189,6 @@ public:
     {
         figures_.erase(id);
         if (currentFigure_ == id) {
-            // Switch to the highest remaining figure, or reset to 1
             if (!figures_.empty())
                 currentFigure_ = figures_.rbegin()->first;
             else

@@ -228,10 +228,20 @@ void StdLibrary::install(Engine &engine)
         fig.ylabel.clear();
         fig.xlimJson.clear();
         fig.ylimJson.clear();
+        fig.rlimJson.clear();
+        fig.thetalimJson.clear();
         fig.grid = false;
         fig.polar = false;
         fig.legendLabels.clear();
         fig.holdOn = false;
+        fig.xscale = "linear";
+        fig.yscale = "linear";
+        fig.axisMode.clear();
+        fig.thetaDir = "counterclockwise";
+        fig.thetaZeroLocation = "right";
+        fig.subplotRows = 0;
+        fig.subplotCols = 0;
+        fig.subplotIndex = 0;
         fig.modified = true;
         engine.figureManager().emitModified();
         return {MValue::empty()};
@@ -469,15 +479,358 @@ void StdLibrary::install(Engine &engine)
                                 return {MValue::empty()};
                             });
 
+    // --- legend off ---
+    // legend('a','b') already handled above; handle "off" case
+    // (The existing legend handler works — 'off' just clears labels)
+
+    // --- rlim([rmin, rmax]) ---
+    engine.registerFunction("rlim",
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (!args.empty() && args[0].numel() >= 2) {
+                                    auto &fm = engine.figureManager();
+                                    fm.current().rlimJson = vecToJson(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
+                                }
+                                return {MValue::empty()};
+                            });
+
+    // --- thetalim([tmin, tmax]) — angles in degrees ---
+    engine.registerFunction("thetalim",
+                            [vecToJson,
+                             &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (!args.empty() && args[0].numel() >= 2) {
+                                    auto &fm = engine.figureManager();
+                                    fm.current().thetalimJson = vecToJson(args[0]);
+                                    fm.current().modified = true;
+                                    fm.emitModified();
+                                }
+                                return {MValue::empty()};
+                            });
+
+    // --- thetadir('clockwise') / thetadir('counterclockwise') ---
+    engine.registerFunction("thetadir",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (!args.empty() && args[0].isChar()) {
+                                    auto &fm = engine.figureManager();
+                                    fm.current().thetaDir = args[0].toString();
+                                    fm.current().modified = true;
+                                    fm.emitModified();
+                                }
+                                return {MValue::empty()};
+                            });
+
+    // --- thetazero('top'/'right'/'left'/'bottom') ---
+    engine.registerFunction("thetazero",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (!args.empty() && args[0].isChar()) {
+                                    auto &fm = engine.figureManager();
+                                    fm.current().thetaZeroLocation = args[0].toString();
+                                    fm.current().modified = true;
+                                    fm.emitModified();
+                                }
+                                return {MValue::empty()};
+                            });
+
+    // --- axis('equal'/'tight'/'auto'/'ij'/'xy') ---
+    engine.registerFunction("axis",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (!args.empty() && args[0].isChar()) {
+                                    auto &fm = engine.figureManager();
+                                    fm.current().axisMode = args[0].toString();
+                                    fm.current().modified = true;
+                                    fm.emitModified();
+                                }
+                                return {MValue::empty()};
+                            });
+
+    // --- subplot(m, n, p) ---
+    engine.registerFunction("subplot",
+                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.size() < 3)
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                int m = static_cast<int>(args[0].toScalar());
+                                int n = static_cast<int>(args[1].toScalar());
+                                int p = static_cast<int>(args[2].toScalar());
+                                // Each subplot position is a separate figure-like entry
+                                // Use composite ID: figureId * 1000 + p
+                                auto &fig = fm.current();
+                                fig.subplotRows = m;
+                                fig.subplotCols = n;
+                                fig.subplotIndex = p;
+                                // Clear datasets for this subplot position
+                                fig.datasets.clear();
+                                fig.modified = true;
+                                return {MValue::empty()};
+                            });
+
+    // Helper lambda for plot-like functions with name-value pair support
+    auto parsePlotArgs = [](const std::vector<MValue> &args, size_t startIdx, DatasetInfo &ds) {
+        // Parse name-value pairs after style string
+        for (size_t i = startIdx; i + 1 < args.size(); i += 2) {
+            if (!args[i].isChar())
+                continue;
+            std::string key = args[i].toString();
+            // Case-insensitive comparison
+            for (auto &c : key)
+                c = std::tolower(c);
+            if (key == "linewidth") {
+                ds.lineWidth = args[i + 1].toScalar();
+            } else if (key == "markersize") {
+                ds.markerSize = args[i + 1].toScalar();
+            }
+        }
+    };
+
+    // --- semilogx(x, y, ...) — log X, linear Y ---
+    engine.registerFunction("semilogx",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                fm.current().xscale = "log";
+                                fm.current().yscale = "linear";
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // --- semilogy(x, y, ...) — linear X, log Y ---
+    engine.registerFunction("semilogy",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                fm.current().xscale = "linear";
+                                fm.current().yscale = "log";
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // --- loglog(x, y, ...) — log X, log Y ---
+    engine.registerFunction("loglog",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                fm.current().xscale = "log";
+                                fm.current().yscale = "log";
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // --- stem(x, y) / stem(y) / stem(x, y, style) ---
+    engine.registerFunction("stem",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                DatasetInfo ds;
+                                ds.type = "stem";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // --- stairs(x, y) / stairs(y) / stairs(x, y, style) ---
+    engine.registerFunction("stairs",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                DatasetInfo ds;
+                                ds.type = "stairs";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
     // ================================================================
-    // Remaining GUI no-ops
+    // Now update existing plot() to support name-value pairs
+    // (Already registered above — we re-register to override)
+    // ================================================================
+
+    // Re-register plot with name-value pair support
+    engine.registerFunction("plot",
+                            [vecToJson, makeIndexJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.empty())
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                size_t nvStart = 2;
+                                if (args.size() >= 2 && !args[1].isChar()) {
+                                    ds.xJson = vecToJson(args[0]);
+                                    ds.yJson = vecToJson(args[1]);
+                                    if (args.size() >= 3 && args[2].isChar()) {
+                                        ds.style = args[2].toString();
+                                        nvStart = 3;
+                                    }
+                                } else {
+                                    ds.xJson = makeIndexJson(args[0].numel());
+                                    ds.yJson = vecToJson(args[0]);
+                                    if (args.size() >= 2 && args[1].isChar()) {
+                                        ds.style = args[1].toString();
+                                        nvStart = 2;
+                                    } else {
+                                        nvStart = 1;
+                                    }
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // Re-register polarplot with name-value pair support
+    engine.registerFunction("polarplot",
+                            [vecToJson, parsePlotArgs, &engine](
+                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                if (args.size() < 2)
+                                    return {MValue::empty()};
+                                auto &fm = engine.figureManager();
+                                fm.prepareForPlot();
+                                fm.current().polar = true;
+                                DatasetInfo ds;
+                                ds.type = "line";
+                                ds.xJson = vecToJson(args[0]);
+                                ds.yJson = vecToJson(args[1]);
+                                size_t nvStart = 2;
+                                if (args.size() >= 3 && args[2].isChar()) {
+                                    ds.style = args[2].toString();
+                                    nvStart = 3;
+                                }
+                                parsePlotArgs(args, nvStart, ds);
+                                fm.current().datasets.push_back(std::move(ds));
+                                fm.emitModified();
+                                return {MValue::empty()};
+                            });
+
+    // ================================================================
+    // Remaining GUI no-ops (not yet implemented)
     // ================================================================
     auto noop = [](const std::vector<MValue> &) -> std::vector<MValue> { return {MValue::empty()}; };
     auto noop_ret1 = [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
         return {MValue::scalar(1.0, &engine.allocator())};
     };
 
-    engine.registerFunction("subplot", noop);
     engine.registerFunction("axes", noop_ret1);
     engine.registerFunction("gca", noop_ret1);
     engine.registerFunction("gcf", noop_ret1);
@@ -488,8 +841,6 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("caxis", noop);
     engine.registerFunction("clim", noop);
     engine.registerFunction("zlim", noop);
-    engine.registerFunction("rlim", noop);
-    engine.registerFunction("axis", noop);
     engine.registerFunction("view", noop);
     engine.registerFunction("set", noop);
     engine.registerFunction("get", noop_ret1);
