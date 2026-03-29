@@ -137,10 +137,20 @@ public:
     }
 
     /** Remove a single figure */
-    void closeFigure(int id) { figures_.erase(id); }
+    void closeFigure(int id)
+    {
+        figures_.erase(id);
+        if (currentFigure_ == id) {
+            // Switch to the highest remaining figure, or reset to 1
+            if (!figures_.empty())
+                currentFigure_ = figures_.rbegin()->first;
+            else
+                currentFigure_ = 1;
+        }
+    }
 
     /** Close current figure */
-    void closeCurrent() { figures_.erase(currentFigure_); }
+    void closeCurrent() { closeFigure(currentFigure_); }
 
     /** Close all figures and reset state */
     void closeAll()
