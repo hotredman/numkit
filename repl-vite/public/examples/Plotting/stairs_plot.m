@@ -1,8 +1,8 @@
-clear
-
 % Stairs Plot — Staircase function
 % Displays data as a step function, typical for digital signals
 % or zero-order hold representations.
+clear
+close all
 
 t = 0:0.5:5;
 y = round(3 * sin(t));

@@ -1,9 +1,9 @@
-clear
-
 % Styled Plot — Line styles, markers, and name-value pairs
 % MATLAB style strings: color (r,g,b,...), line (-,--,:,-.)
 % and markers (o,s,d,^,*,+,x,.).
 % Name-value pairs: 'LineWidth', 'MarkerSize'.
+clear
+close all
 
 x = linspace(0, 2*pi, 30);
 

@@ -1,9 +1,9 @@
-clear
-
 % Axis Modes — equal, tight, ij
 % axis('equal')  makes units equal on both axes (circles look round).
 % axis('tight')  removes padding around data.
 % axis('ij')     flips Y axis (origin top-left, like image coordinates).
+clear
+close all
 
 % Draw a unit circle — needs axis equal to look round
 t = linspace(0, 2*pi, 100);

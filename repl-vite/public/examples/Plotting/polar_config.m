@@ -1,11 +1,11 @@
-clear
-
 % Polar Config — Theta direction, zero location, rlim
 % Customize polar plot orientation and radial limits.
 %
 %   thetazero('top')           — 0 degrees at top (compass style)
 %   thetadir('clockwise')      — angles increase clockwise
 %   rlim([rmin rmax])          — set radial axis limits
+clear
+close all
 
 theta = linspace(0, 2*pi, 360);
 rho = abs(cos(2 * theta));  % four-leaf clover

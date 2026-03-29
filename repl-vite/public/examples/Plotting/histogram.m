@@ -1,7 +1,7 @@
-clear
-
 % Histogram — Distribution of random data
 % Generate normally-distributed samples and visualize with hist().
+clear
+close all
 
 data = randn(1, 500);
 figure

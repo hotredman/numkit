@@ -1,8 +1,8 @@
-clear
-
 % Log Scale — Logarithmic axes
 % Demonstrates semilogy for exponential data and loglog for
 % power-law relationships.
+clear
+close all
 
 % Exponential growth on semilogy
 x = 1:10;

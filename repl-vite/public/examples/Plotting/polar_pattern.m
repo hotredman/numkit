@@ -1,8 +1,8 @@
-clear
-
 % Polar Pattern — Antenna array radiation
 % 8-element linear array with uniform spacing d = lambda/2.
 % Demonstrates polarplot with normalized amplitude.
+clear
+close all
 
 N = 8;
 d = 0.5;

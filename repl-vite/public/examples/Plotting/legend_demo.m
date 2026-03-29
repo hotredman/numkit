@@ -1,7 +1,7 @@
-clear
-
 % Legend Demo — Labeling multiple datasets
 % Use legend() after plotting to add a legend box.
+clear
+close all
 
 x = linspace(0, 4*pi, 200);
 

@@ -1,4 +1,7 @@
 % Fibonacci — Recursive Fibonacci sequence
+% Compute the first 10 Fibonacci numbers using recursion.
+clear
+
 function r = fib(n)
     if n <= 1
         r = n;

@@ -1,4 +1,7 @@
-% Statistical Analysis — Mean, variance, std
+% Statistical Analysis — Mean, variance, standard deviation
+% Compute basic statistics from scratch using loops.
+clear
+
 data = [4 8 15 16 23 42];
 n = length(data);
 m = sum(data) / n;
