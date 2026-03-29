@@ -1635,6 +1635,7 @@ bool Engine::tryBuiltinCall(const std::string &name,
             // clear (no args) — same as clear all
             env->clearAll();
             userFuncs_.clear();
+            figureManager_.closeAll();
             reinstallConstants();
         } else {
             std::string first = args[0].isChar() ? args[0].toString() : "";
@@ -1642,14 +1643,14 @@ bool Engine::tryBuiltinCall(const std::string &name,
                 // clear all / clear classes
                 env->clearAll();
                 userFuncs_.clear();
+                figureManager_.closeAll();
                 reinstallConstants();
             } else if (first == "functions") {
-                // clear functions
                 userFuncs_.clear();
             } else if (first == "global") {
-                // clear global — TODO
+                // TODO
             } else {
-                // clear x y z — remove by name, protect constants
+                // clear x y z — protect constants
                 for (auto &a : args) {
                     if (a.isChar()) {
                         std::string varName = a.toString();
