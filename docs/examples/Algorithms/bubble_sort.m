@@ -1,4 +1,7 @@
 % Bubble Sort — Sort with swap counter
+% Classic O(n^2) sorting algorithm that counts the number of swaps.
+clear
+
 function result = bubbleSort(arr)
     n = length(arr);
     swaps = 0;

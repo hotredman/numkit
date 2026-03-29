@@ -1,4 +1,7 @@
 % Multiple Returns — Function returning min and max
+% A function that returns two output values.
+clear
+
 function [mn, mx] = minmax(v)
     mn = v(1); mx = v(1);
     for i = 2:length(v)
