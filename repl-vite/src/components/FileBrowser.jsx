@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import vfs from '../vfs';
-import C, { FONT, FONT_UI } from '../theme';
+import { useTheme, FONT, FONT_UI } from '../theme';
 
 const isMFile = name => name.endsWith('.m');
 const isTextFile = name => {
@@ -8,7 +8,7 @@ const isTextFile = name => {
   return exts.some(e => name.endsWith(e));
 };
 
-function rowStyle(isSel, isDir, name, depth) {
+function rowStyle(isSel, isDir, name, depth, C) {
   return {
     display: 'flex', alignItems: 'center', gap: 4,
     padding: '2px 6px', paddingLeft: depth * 14 + 6,
@@ -21,6 +21,7 @@ function rowStyle(isSel, isDir, name, depth) {
 }
 
 function ContextMenu({ x, y, items, onClose }) {
+  const C = useTheme();
   const ref = useRef(null);
   useEffect(() => {
     const handler = e => { if (ref.current && !ref.current.contains(e.target)) onClose(); };
@@ -31,7 +32,7 @@ function ContextMenu({ x, y, items, onClose }) {
     <div ref={ref} style={{
       position: 'fixed', left: x, top: y, zIndex: 1000,
       background: C.bg3, border: `1px solid ${C.borderHi}`, borderRadius: 5,
-      boxShadow: '0 4px 16px rgba(0,0,0,0.5)', minWidth: 140, padding: '4px 0',
+      boxShadow: '0 4px 16px rgba(0,0,0,0.3)', minWidth: 140, padding: '4px 0',
     }}>
       {items.map((item, i) => item.separator ? (
         <div key={i} style={{ height: 1, background: C.border, margin: '3px 8px' }} />
@@ -48,6 +49,7 @@ function ContextMenu({ x, y, items, onClose }) {
 }
 
 function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
+  const C = useTheme();
   const [val, setVal] = useState(defaultValue || '');
   const ref = useRef(null);
   useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
@@ -59,10 +61,8 @@ function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
   );
 }
 
-// ════════════════════════════════════════
-// LocalBrowser — root = user workspace
-// ════════════════════════════════════════
 function LocalBrowser({ onOpenFile, onRefreshKey }) {
+  const C = useTheme();
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = useState({});
   const [selected, setSelected] = useState(null);
@@ -73,40 +73,25 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
   const loadTree = useCallback(async () => {
     try { setTree(await vfs.listTree()); } catch (e) { console.error('[VFS]', e); }
   }, []);
-
   useEffect(() => { loadTree(); }, [loadTree, onRefreshKey]);
 
   const handleFileDoubleClick = useCallback(async (node) => {
-    if (node.type === 'file') {
-      const content = await vfs.readFile(node.path);
-      onOpenFile(node.name, content !== null ? content : '', node.path, 'local');
-    }
+    if (node.type === 'file') { const content = await vfs.readFile(node.path); onOpenFile(node.name, content !== null ? content : '', node.path, 'local'); }
   }, [onOpenFile]);
 
   const handleDuplicate = useCallback(async (node) => {
     if (node.type !== 'file') return;
-    const content = await vfs.readFile(node.path);
-    if (content === null) return;
+    const content = await vfs.readFile(node.path); if (content === null) return;
     const parent = node.path.substring(0, node.path.lastIndexOf('/'));
-    const name = node.name;
-    const ext = name.includes('.') ? name.substring(name.lastIndexOf('.')) : '';
-    const base = ext ? name.substring(0, name.lastIndexOf('.')) : name;
-    // Generate unique name: file_copy.m, file_copy2.m, file_copy3.m ...
-    let copyName = `${base}_copy${ext}`;
-    let copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`;
-    let counter = 2;
-    while (await vfs.exists(copyPath)) {
-      copyName = `${base}_copy${counter}${ext}`;
-      copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`;
-      counter++;
-    }
-    await vfs.writeFile(copyPath, content);
-    loadTree();
+    const ext = node.name.includes('.') ? node.name.substring(node.name.lastIndexOf('.')) : '';
+    const base = ext ? node.name.substring(0, node.name.lastIndexOf('.')) : node.name;
+    let copyName = `${base}_copy${ext}`, copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`, counter = 2;
+    while (await vfs.exists(copyPath)) { copyName = `${base}_copy${counter}${ext}`; copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`; counter++; }
+    await vfs.writeFile(copyPath, content); loadTree();
   }, [loadTree]);
 
   const handleContextMenu = (e, node) => {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     const items = [];
     if (node.type === 'folder') {
       items.push({ icon: '📄', label: 'New File', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
@@ -119,21 +104,16 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
       items.push({ separator: true });
     }
     items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
-    items.push({ icon: '🗑', label: 'Delete', danger: true, action: async () => {
-      if (confirm(`Delete "${node.name}"?`)) { await vfs.remove(node.path); loadTree(); }
-    }});
+    items.push({ icon: '🗑', label: 'Delete', danger: true, action: async () => { if (confirm(`Delete "${node.name}"?`)) { await vfs.remove(node.path); loadTree(); } } });
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   };
 
   const handleRootContextMenu = (e) => {
     e.preventDefault();
-    setContextMenu({
-      x: e.clientX, y: e.clientY,
-      items: [
-        { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
-        { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
-      ],
-    });
+    setContextMenu({ x: e.clientX, y: e.clientY, items: [
+      { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
+      { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
+    ]});
   };
 
   const handleCreate = async name => {
@@ -141,11 +121,7 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     const parent = creating.parentPath || '';
     const path = parent ? `${parent}/${name}` : `/${name}`;
     if (creating.type === 'folder') await vfs.mkdir(path);
-    else {
-      const fileName = name.includes('.') ? name : name + '.m';
-      const filePath = parent ? `${parent}/${fileName}` : `/${fileName}`;
-      await vfs.writeFile(filePath, `% ${fileName}\n`);
-    }
+    else { const fn = name.includes('.') ? name : name + '.m'; const fp = parent ? `${parent}/${fn}` : `/${fn}`; await vfs.writeFile(fp, `% ${fn}\n`); }
     setCreating(null); loadTree();
   };
 
@@ -157,20 +133,14 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
   };
 
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
-    if (renaming === node.path) {
-      return <div key={node.path} style={{ padding: '2px 6px', paddingLeft: depth * 14 + 6 }}>
-        <InlineInput defaultValue={node.name} onSubmit={handleRename} onCancel={() => setRenaming(null)} />
-      </div>;
-    }
-    const isDir = node.type === 'folder';
-    const isExp = expanded[node.path];
-    const isSel = selected === node.path;
+    if (renaming === node.path) return <div key={node.path} style={{ padding: '2px 6px', paddingLeft: depth * 14 + 6 }}><InlineInput defaultValue={node.name} onSubmit={handleRename} onCancel={() => setRenaming(null)} /></div>;
+    const isDir = node.type === 'folder', isExp = expanded[node.path], isSel = selected === node.path;
     return (
       <div key={node.path}>
         <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : setSelected(node.path)}
           onDoubleClick={() => !isDir && handleFileDoubleClick(node)}
           onContextMenu={e => handleContextMenu(e, node)}
-          style={rowStyle(isSel, isDir, node.name, depth)}
+          style={rowStyle(isSel, isDir, node.name, depth, C)}
           onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
           onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
           {isDir ? <span style={{ fontSize: 9, width: 12, textAlign: 'center', color: C.textMuted }}>{isExp ? '▼' : '▶'}</span>
@@ -178,16 +148,10 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
           <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isDir ? '📁 ' : ''}{node.name}</span>
           {!isDir && isMFile(node.name) && <span style={{ fontSize: 7, padding: '0 3px', borderRadius: 2, background: `${C.green}22`, color: C.green }}>M</span>}
         </div>
-        {isDir && isExp && (
-          <>
-            {creating && creating.parentPath === node.path && (
-              <div style={{ padding: '2px 6px', paddingLeft: (depth + 1) * 14 + 6 }}>
-                <InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} />
-              </div>
-            )}
-            {node.children && renderTree(node.children, depth + 1)}
-          </>
-        )}
+        {isDir && isExp && (<>
+          {creating && creating.parentPath === node.path && <div style={{ padding: '2px 6px', paddingLeft: (depth + 1) * 14 + 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
+          {node.children && renderTree(node.children, depth + 1)}
+        </>)}
       </div>
     );
   });
@@ -195,35 +159,22 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ display: 'flex', gap: 3, padding: '6px 8px', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
-        <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file"
-          style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
-        <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder"
-          style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
+        <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
+        <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
         <div style={{ flex: 1 }} />
-        <button onClick={async () => { if (confirm('Clear all local files?')) { await vfs.clear(); loadTree(); } }} title="Clear all"
-          style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>🗑</button>
+        <button onClick={async () => { if (confirm('Clear all local files?')) { await vfs.clear(); loadTree(); } }} title="Clear all" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>🗑</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>
-        {tree.length === 0
-          ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>
-              No files yet.<br />Click 📄+ to create a file<br />or right-click for options.
-            </div>
-          : renderTree(tree)}
-        {creating && (creating.parentPath === '' || creating.parentPath === '/') && (
-          <div style={{ padding: '2px 6px', paddingLeft: 6 }}>
-            <InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} />
-          </div>
-        )}
+        {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No files yet.<br />Click 📄+ to create a file.</div> : renderTree(tree)}
+        {creating && (creating.parentPath === '' || creating.parentPath === '/') && <div style={{ padding: '2px 6px', paddingLeft: 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
       </div>
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />}
     </div>
   );
 }
 
-// ════════════════════════════════════════
-// ExamplesBrowser — read-only from manifest
-// ════════════════════════════════════════
 function ExamplesBrowser({ onOpenFile }) {
+  const C = useTheme();
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = useState({});
   const [selected, setSelected] = useState(null);
@@ -237,13 +188,8 @@ function ExamplesBrowser({ onOpenFile }) {
         if (!res.ok) throw new Error('manifest not found');
         const manifest = await res.json();
         const nodes = manifest.folders.map(folder => ({
-          name: folder.name.replace(/_/g, ' '),
-          path: `/examples/${folder.name}`,
-          type: 'folder',
-          children: folder.files.map(f => ({
-            name: f, path: `/examples/${folder.name}/${f}`, type: 'file',
-            _fetchPath: `${base}examples/${folder.name}/${f}`,
-          })),
+          name: folder.name.replace(/_/g, ' '), path: `/examples/${folder.name}`, type: 'folder',
+          children: folder.files.map(f => ({ name: f, path: `/examples/${folder.name}/${f}`, type: 'file', _fetchPath: `${base}examples/${folder.name}/${f}` })),
         }));
         setTree(nodes);
         if (nodes.length > 0) setExpanded({ [nodes[0].path]: true });
@@ -254,23 +200,16 @@ function ExamplesBrowser({ onOpenFile }) {
 
   const handleFileDoubleClick = useCallback(async (node) => {
     if (node.type !== 'file' || !node._fetchPath) return;
-    try {
-      const res = await fetch(node._fetchPath);
-      if (!res.ok) throw new Error('fetch failed');
-      const content = await res.text();
-      onOpenFile(node.name, content, null, 'examples');
-    } catch (e) { console.error('[Examples]', e); }
+    try { const res = await fetch(node._fetchPath); if (!res.ok) throw new Error('fetch failed'); const content = await res.text(); onOpenFile(node.name, content, null, 'examples'); } catch (e) { console.error('[Examples]', e); }
   }, [onOpenFile]);
 
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
-    const isDir = node.type === 'folder';
-    const isExp = expanded[node.path];
-    const isSel = selected === node.path;
+    const isDir = node.type === 'folder', isExp = expanded[node.path], isSel = selected === node.path;
     return (
       <div key={node.path}>
         <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : setSelected(node.path)}
           onDoubleClick={() => !isDir && handleFileDoubleClick(node)}
-          style={rowStyle(isSel, isDir, node.name, depth)}
+          style={rowStyle(isSel, isDir, node.name, depth, C)}
           onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
           onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
           {isDir ? <span style={{ fontSize: 9, width: 12, textAlign: 'center', color: C.textMuted }}>{isExp ? '▼' : '▶'}</span>
@@ -286,17 +225,14 @@ function ExamplesBrowser({ onOpenFile }) {
   if (loading) return <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 11 }}>Loading…</div>;
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }}>
-      {tree.length === 0
-        ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10 }}>No examples found.</div>
+      {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10 }}>No examples found.</div>
         : <><div style={{ padding: '4px 8px', fontSize: 9, color: C.textMuted, fontStyle: 'italic' }}>Double-click to open in editor</div>{renderTree(tree)}</>}
     </div>
   );
 }
 
-// ════════════════════════════════════════
-// GitHubBrowser
-// ════════════════════════════════════════
 function GitHubBrowser({ onOpenFile, defaultRepo }) {
+  const C = useTheme();
   const [repoUrl, setRepoUrl] = useState(defaultRepo || '');
   const [tree, setTree] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -310,101 +246,57 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
   const [previewContent, setPreviewContent] = useState('');
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  const parseRepo = url => {
-    const c = url.trim().replace(/\/+$/, '').replace(/\.git$/, '');
-    let m = c.match(/github\.com\/([^/]+)\/([^/]+)/);
-    if (m) return { owner: m[1], repo: m[2] };
-    m = c.match(/^([^/\s]+)\/([^/\s]+)$/);
-    if (m) return { owner: m[1], repo: m[2] };
-    return null;
-  };
+  const parseRepo = url => { const c = url.trim().replace(/\/+$/, '').replace(/\.git$/, ''); let m = c.match(/github\.com\/([^/]+)\/([^/]+)/); if (m) return { owner: m[1], repo: m[2] }; m = c.match(/^([^/\s]+)\/([^/\s]+)$/); if (m) return { owner: m[1], repo: m[2] }; return null; };
 
   const fetchRepo = useCallback(async (urlOverride) => {
-    const url = urlOverride || repoUrl;
-    const p = parseRepo(url);
+    const url = urlOverride || repoUrl; const p = parseRepo(url);
     if (!p) { setError('Use: owner/repo'); return; }
     setLoading(true); setError(''); setTree(null); setPreviewFile(null);
     try {
       const infoRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}`);
       if (!infoRes.ok) throw new Error(infoRes.status === 404 ? 'Repository not found' : `API error: ${infoRes.status}`);
-      const info = await infoRes.json();
-      setRepoInfo(info);
+      const info = await infoRes.json(); setRepoInfo(info);
       const brRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/branches?per_page=20`);
       if (brRes.ok) setBranches((await brRes.json()).map(b => b.name));
       const treeRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${info.default_branch || 'main'}?recursive=1`);
       if (!treeRes.ok) throw new Error('Failed to fetch file tree');
-      setTree((await treeRes.json()).tree || []);
-      setBranch(info.default_branch || 'main');
+      setTree((await treeRes.json()).tree || []); setBranch(info.default_branch || 'main');
     } catch (err) { setError(err.message); } finally { setLoading(false); }
   }, [repoUrl]);
 
   useEffect(() => { if (defaultRepo) fetchRepo(defaultRepo); }, []); // eslint-disable-line
 
   const fetchBranch = async branchName => {
-    const p = parseRepo(repoUrl);
-    if (!p) return;
+    const p = parseRepo(repoUrl); if (!p) return;
     setLoading(true); setError(''); setBranch(branchName); setPreviewFile(null);
-    try {
-      const treeRes = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${branchName}?recursive=1`);
-      if (!treeRes.ok) throw new Error('Failed to fetch branch');
-      setTree((await treeRes.json()).tree || []);
-    } catch (err) { setError(err.message); } finally { setLoading(false); }
+    try { const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/git/trees/${branchName}?recursive=1`); if (!r.ok) throw new Error('Failed'); setTree((await r.json()).tree || []); } catch (err) { setError(err.message); } finally { setLoading(false); }
   };
 
   const fetchFileContent = useCallback(async (path) => {
-    const p = parseRepo(repoUrl);
-    if (!p) return;
-    setPreviewLoading(true); setPreviewFile(path);
-    try {
-      const res = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`);
-      if (!res.ok) throw new Error('Failed to fetch file');
-      const data = await res.json();
-      setPreviewContent(data.encoding === 'base64' ? atob(data.content) : data.content || '');
-    } catch (e) { setPreviewContent(`Error: ${e.message}`); } finally { setPreviewLoading(false); }
+    const p = parseRepo(repoUrl); if (!p) return; setPreviewLoading(true); setPreviewFile(path);
+    try { const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`); if (!r.ok) throw new Error('Failed'); const d = await r.json(); setPreviewContent(d.encoding === 'base64' ? atob(d.content) : d.content || ''); } catch (e) { setPreviewContent(`Error: ${e.message}`); } finally { setPreviewLoading(false); }
   }, [repoUrl, branch]);
 
   const handleFileDoubleClick = useCallback(async (path, name) => {
-    const p = parseRepo(repoUrl);
-    if (!p) return;
-    try {
-      const res = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`);
-      if (!res.ok) throw new Error('Failed to fetch file');
-      const data = await res.json();
-      const content = data.encoding === 'base64' ? atob(data.content) : data.content || '';
-      onOpenFile(name, content, null, 'github');
-    } catch (e) { console.error('[GitHub]', e); }
+    const p = parseRepo(repoUrl); if (!p) return;
+    try { const r = await fetch(`https://api.github.com/repos/${p.owner}/${p.repo}/contents/${path}?ref=${branch}`); if (!r.ok) throw new Error('Failed'); const d = await r.json(); onOpenFile(name, d.encoding === 'base64' ? atob(d.content) : d.content || '', null, 'github'); } catch (e) { console.error('[GitHub]', e); }
   }, [repoUrl, branch, onOpenFile]);
 
   const nested = useMemo(() => {
     if (!tree) return [];
     const root = { children: {} };
-    for (const item of tree) {
-      const parts = item.path.split('/');
-      let node = root;
-      for (let i = 0; i < parts.length; i++) {
-        if (!node.children[parts[i]]) {
-          node.children[parts[i]] = { name: parts[i], path: parts.slice(0, i + 1).join('/'), type: i === parts.length - 1 ? item.type : 'tree', children: {} };
-        }
-        node = node.children[parts[i]];
-      }
-    }
-    const flatten = obj => Object.values(obj).sort((a, b) => {
-      if (a.type === 'tree' && b.type !== 'tree') return -1;
-      if (a.type !== 'tree' && b.type === 'tree') return 1;
-      return a.name.localeCompare(b.name);
-    }).map(n => ({ ...n, children: n.children ? flatten(n.children) : undefined }));
+    for (const item of tree) { const parts = item.path.split('/'); let node = root; for (let i = 0; i < parts.length; i++) { if (!node.children[parts[i]]) node.children[parts[i]] = { name: parts[i], path: parts.slice(0, i + 1).join('/'), type: i === parts.length - 1 ? item.type : 'tree', children: {} }; node = node.children[parts[i]]; } }
+    const flatten = obj => Object.values(obj).sort((a, b) => { if (a.type === 'tree' && b.type !== 'tree') return -1; if (a.type !== 'tree' && b.type === 'tree') return 1; return a.name.localeCompare(b.name); }).map(n => ({ ...n, children: n.children ? flatten(n.children) : undefined }));
     return flatten(root.children);
   }, [tree]);
 
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
-    const isDir = node.type === 'tree';
-    const isExp = expanded[node.path];
-    const isSel = selected === node.path;
+    const isDir = node.type === 'tree', isExp = expanded[node.path], isSel = selected === node.path;
     return (
       <div key={node.path}>
         <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : (() => { setSelected(node.path); if (isTextFile(node.name)) fetchFileContent(node.path); })()}
           onDoubleClick={() => !isDir && isTextFile(node.name) && handleFileDoubleClick(node.path, node.name)}
-          style={rowStyle(isSel, isDir, node.name, depth)}
+          style={rowStyle(isSel, isDir, node.name, depth, C)}
           onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
           onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
           {isDir ? <span style={{ fontSize: 9, width: 12, textAlign: 'center', color: C.textMuted }}>{isExp ? '▼' : '▶'}</span>
@@ -437,10 +329,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
             </select>
           </div>
         )}
-        {repoInfo && <div style={{ marginTop: 4, fontSize: 9, color: C.textMuted, display: 'flex', gap: 6 }}>
-          <span>⭐ {repoInfo.stargazers_count}</span><span>🍴 {repoInfo.forks_count}</span>
-          {repoInfo.language && <span>💻 {repoInfo.language}</span>}
-        </div>}
+        {repoInfo && <div style={{ marginTop: 4, fontSize: 9, color: C.textMuted, display: 'flex', gap: 6 }}><span>⭐ {repoInfo.stargazers_count}</span><span>🍴 {repoInfo.forks_count}</span>{repoInfo.language && <span>💻 {repoInfo.language}</span>}</div>}
         {error && <div style={{ color: C.red, fontSize: 10, marginTop: 4 }}>{error}</div>}
       </div>
       <div style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}>
@@ -468,10 +357,8 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
   );
 }
 
-// ════════════════════════════════════════
-// FileBrowser — main export
-// ════════════════════════════════════════
 export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey }) {
+  const C = useTheme();
   const [source, setSource] = useState('local');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>

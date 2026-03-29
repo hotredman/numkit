@@ -1,12 +1,9 @@
 import { useState, useEffect, useRef, useCallback, forwardRef, useImperativeHandle } from "react";
 import HELP_DB from "../data/help";
-import C, { FONT } from "../theme";
+import { useTheme, FONT } from "../theme";
 
-/**
- * Console — terminal with input, output, help, autocomplete.
- * Plots have been moved to the Figures panel.
- */
 const Console = forwardRef(function Console({ engine, output, onAddOutput, onRunCode, helpTopic, onSetHelpTopic }, ref) {
+  const C = useTheme();
   const [inputVal, setInputVal] = useState("");
   const [history, setHistory] = useState([]);
   const [histIdx, setHistIdx] = useState(-1);
@@ -18,9 +15,7 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
   const outputRef = useRef(null);
   const inputRef = useRef(null);
 
-  useImperativeHandle(ref, () => ({
-    focus: () => inputRef.current?.focus(),
-  }));
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }));
 
   useEffect(() => {
     requestAnimationFrame(() => { if (outputRef.current) outputRef.current.scrollTop = outputRef.current.scrollHeight; });
@@ -73,7 +68,7 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
         <span style={{color:C.green,fontWeight:700,marginRight:6,marginTop:2,userSelect:"none",flexShrink:0,fontSize:13}}>&gt;&gt;</span>
         <div style={{flex:1,position:"relative"}}>
           {acItems.length>1&&(
-            <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:0,minWidth:160,maxWidth:320,maxHeight:160,overflowY:"auto",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:5,boxShadow:"0 -4px 16px rgba(0,0,0,0.5)",zIndex:100}}>
+            <div style={{position:"absolute",bottom:"calc(100% + 4px)",left:0,minWidth:160,maxWidth:320,maxHeight:160,overflowY:"auto",background:C.bg3,border:`1px solid ${C.border}`,borderRadius:5,boxShadow:"0 -4px 16px rgba(0,0,0,0.3)",zIndex:100}}>
               {acItems.map((item,i)=>(
                 <div key={item} onClick={()=>{const val=inputVal,cur=inputRef.current?.selectionStart||val.length;let ws=cur-1;while(ws>=0&&/[a-zA-Z0-9_]/.test(val[ws]))ws--;ws++;setInputVal(val.substring(0,ws)+item+val.substring(cur));setAcItems([]);inputRef.current?.focus();}}
                   style={{padding:"4px 8px",cursor:"pointer",fontSize:11,color:i===acIdx?C.text:C.textDim,background:i===acIdx?C.border:"transparent"}}>

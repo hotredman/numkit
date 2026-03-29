@@ -1,10 +1,8 @@
 import CHEAT_SHEET from "../data/cheatsheet";
-import C from "../theme";
+import { useTheme } from "../theme";
 
-/**
- * Reference — quick cheat sheet panel with categorised entries.
- */
 export default function Reference() {
+  const C = useTheme();
   return (
     <div style={{ padding: 10, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, alignContent: "start", overflowY: "auto", flex: 1 }}>
       {CHEAT_SHEET.map(section => (

@@ -1,10 +1,7 @@
-import C, { FONT } from "../theme";
+import { useTheme, FONT } from "../theme";
 
-/**
- * Workspace — adaptive multi-column variable inspector.
- * Props: variables — object map of variable name → value
- */
 export default function Workspace({ variables }) {
+  const C = useTheme();
   const entries = Object.entries(variables);
 
   const getType = v => {
@@ -13,20 +10,14 @@ export default function Workspace({ variables }) {
     if (typeof v === "object" && v !== null) return "struct";
     return "double";
   };
-
   const getSize = v => {
     if (Array.isArray(v)) { if (v.length && Array.isArray(v[0])) return `${v.length}×${v[0].length}`; return `1×${v.length}`; }
     if (typeof v === "string") return `1×${v.length}`;
     if (typeof v === "object" && v !== null) return `1×${Object.keys(v).length}`;
     return "1×1";
   };
-
   const getPreview = v => {
-    if (Array.isArray(v)) {
-      const f = v.flat();
-      if (f.length <= 6) return `[${f.map(x => typeof x === "number" ? (Number.isInteger(x) ? x : x.toFixed(3)) : x).join(", ")}]`;
-      return `[${f.slice(0, 4).map(x => typeof x === "number" ? (Number.isInteger(x) ? x : x.toFixed(3)) : x).join(", ")}, …]`;
-    }
+    if (Array.isArray(v)) { const f = v.flat(); if (f.length <= 6) return `[${f.map(x => typeof x === "number" ? (Number.isInteger(x) ? x : x.toFixed(3)) : x).join(", ")}]`; return `[${f.slice(0, 4).map(x => typeof x === "number" ? (Number.isInteger(x) ? x : x.toFixed(3)) : x).join(", ")}, …]`; }
     if (typeof v === "string") return `'${v}'`;
     if (typeof v === "object" && v !== null) return `{${Object.keys(v).join(", ")}}`;
     if (typeof v === "number") return Number.isInteger(v) ? String(v) : v.toFixed(6);
