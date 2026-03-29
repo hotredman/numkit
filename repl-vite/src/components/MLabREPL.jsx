@@ -4,11 +4,12 @@ import Console from "./Console";
 import Workspace from "./Workspace";
 import Reference from "./Reference";
 import Figures from "./Figures";
+import SyntaxEditor from "./SyntaxEditor";
 import vfs from "../vfs";
-import C, { FONT, FONT_UI } from "../theme";
+import { getTheme, applyTheme, getThemeName, FONT, FONT_UI } from "../theme";
 
 // ── Tab Bar ──
-function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
+function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, C }) {
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
   return (
@@ -42,6 +43,18 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename }) {
 // Main IDE
 // ═══════════════════════════════════════════
 export default function MLabREPL({ engine: engineProp, status: statusProp }) {
+  const [themeName, setThemeName] = useState(() => getThemeName());
+  const C = getTheme();
+
+  // Apply theme on mount and change
+  useEffect(() => { applyTheme(themeName); }, [themeName]);
+
+  const toggleTheme = useCallback(() => {
+    const next = themeName === 'dark' ? 'light' : 'dark';
+    setThemeName(next);
+    applyTheme(next);
+  }, [themeName]);
+
   const [showLeft, setShowLeft] = useState(true);
   const [showCenter, setShowCenter] = useState(true);
   const [showRight, setShowRight] = useState(false);
@@ -86,48 +99,22 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       if (line === "__CLEAR__") { setOutput([]); continue; }
       items.push({ type: /^Error/.test(line) ? "error" : /^Warning:/.test(line) ? "warning" : "result", text: line });
     }
-    if (items.length) {
-      addOutput(items);
-      // Notify console tab if not active
-      setConsoleNotify(true);
-    }
-    // Handle figure closes from engine (close, close all, close(n))
-    if (result.closeAllFigures) {
-      setFigures([]);
-    } else if (result.closedFigureIds?.length) {
-      const closed = new Set(result.closedFigureIds);
-      setFigures(prev => prev.filter(f => !closed.has(f.id)));
-    }
-    // Handle new/updated figures
+    if (items.length) { addOutput(items); setConsoleNotify(true); }
+    if (result.closeAllFigures) { setFigures([]); }
+    else if (result.closedFigureIds?.length) { const closed = new Set(result.closedFigureIds); setFigures(prev => prev.filter(f => !closed.has(f.id))); }
     if (result.figures?.length) {
-      setFigures(prev => {
-        // Replace figures with same ID, append new ones
-        const map = new Map(prev.map(f => [f.id, f]));
-        for (const fig of result.figures) map.set(fig.id, fig);
-        return Array.from(map.values());
-      });
+      setFigures(prev => { const map = new Map(prev.map(f => [f.id, f])); for (const fig of result.figures) map.set(fig.id, fig); return Array.from(map.values()); });
       setShowRight(true);
     }
     if (result.errorLine) setErrorLine(result.errorLine);
     setVariables(engine.getVars());
   }, [engine, addOutput]);
 
-  // Clear console notification when switching to console tab
-  const handleBottomTabChange = useCallback((id) => {
-    setBottomTab(id);
-    if (id === "console") setConsoleNotify(false);
-  }, []);
+  const handleBottomTabChange = useCallback((id) => { setBottomTab(id); if (id === "console") setConsoleNotify(false); }, []);
 
-  // Figure close callbacks — sync with engine
-  const handleCloseFigure = useCallback((id) => {
-    engine.execute(`close(${id})`);
-  }, [engine]);
+  const handleCloseFigure = useCallback((id) => { engine.execute(`close(${id})`); }, [engine]);
+  const handleCloseAllFigures = useCallback(() => { engine.execute("close('all')"); }, [engine]);
 
-  const handleCloseAllFigures = useCallback(() => {
-    engine.execute("close('all')");
-  }, [engine]);
-
-  // Tabs
   const newTab = useCallback(() => { tabCountRef.current++; const id=String(tabCountRef.current); setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]); setActiveTab(id); }, []);
   const closeTab = useCallback(id => { setTabs(p=>{const n=p.filter(t=>t.id!==id);if(!n.length)return p;if(activeTab===id)setActiveTab(n[n.length-1].id);return n;}); }, [activeTab]);
   const renameTab = useCallback((id,name) => { if(!name.trim())return; setTabs(p=>p.map(t=>t.id===id?{...t,name:name.trim()}:t)); }, []);
@@ -136,7 +123,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   const runActiveTab = useCallback(() => {
     const tab = tabs.find(t=>t.id===activeTab); if(!tab||!tab.code.trim()) return;
-    // Don't auto-switch tabs — just ensure bottom panel is visible
     setShowBottom(true);
     addOutput([{ type: "system", text: `── Running ${tab.name} ──` }, { type: "input", text: tab.code }]);
     setConsoleNotify(true);
@@ -144,7 +130,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));
   }, [tabs, activeTab, addOutput, runCode]);
 
-  // File operations
   const handleOpenFile = useCallback((filename, content, vfsPath, source) => {
     const existing = tabs.find(t => t.vfsPath && t.vfsPath === vfsPath);
     if (existing) { setActiveTab(existing.id); return; }
@@ -159,8 +144,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     await vfs.writeFile(fullPath, tab.code);
     setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'local'}:t));
     setVfsRefreshKey(k=>k+1);
-    addOutput([{ type: "system", text: `Saved ${name||tab.name}` }]);
-    setConsoleNotify(true);
+    addOutput([{ type: "system", text: `Saved ${name||tab.name}` }]); setConsoleNotify(true);
   }, [tabs, activeTab, addOutput]);
 
   const handleSave = useCallback(() => {
@@ -195,57 +179,53 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         await vfs.writeFile(vfsPath, content);
         setVfsRefreshKey(k => k + 1);
         handleOpenFile(name, content, vfsPath, 'local');
-        setShowLeft(true);
-        setForceExplorerSource('local');
+        setShowLeft(true); setForceExplorerSource('local');
         setTimeout(() => setForceExplorerSource(null), 100);
-        addOutput([{ type: "system", text: `Imported ${name} to Local Files` }]);
-        setConsoleNotify(true);
+        addOutput([{ type: "system", text: `Imported ${name} to Local Files` }]); setConsoleNotify(true);
       };
       r.readAsText(file);
     };
     input.click();
   }, [handleOpenFile, addOutput]);
 
-  // Ctrl+S
   useEffect(() => {
     const h = e => { if ((e.ctrlKey||e.metaKey) && e.key === 's') { e.preventDefault(); handleSave(); } };
     window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h);
   }, [handleSave]);
 
-  // Bottom panel resize
   const handleResizeStart = useCallback((e) => {
-    e.preventDefault();
-    resizingRef.current = true;
-    const startY = e.clientY;
-    const startH = bottomHeight;
+    e.preventDefault(); resizingRef.current = true;
+    const startY = e.clientY, startH = bottomHeight;
     const onMove = (ev) => { if (!resizingRef.current) return; setBottomHeight(Math.max(100, Math.min(window.innerHeight * 0.7, startH + startY - ev.clientY))); };
     const onUp = () => { resizingRef.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
   }, [bottomHeight]);
 
-  // Figures panel resize (horizontal)
   const handleRightResizeStart = useCallback((e) => {
-    e.preventDefault();
-    resizingRightRef.current = true;
-    const startX = e.clientX;
-    const startW = figuresWidth;
+    e.preventDefault(); resizingRightRef.current = true;
+    const startX = e.clientX, startW = figuresWidth;
     const onMove = (ev) => { if (!resizingRightRef.current) return; setFiguresWidth(Math.max(200, Math.min(window.innerWidth * 0.5, startW + startX - ev.clientX))); };
     const onUp = () => { resizingRightRef.current = false; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
   }, [figuresWidth]);
 
-  // UI helpers
+  // Gutter scroll sync
+  const handleEditorScroll = useCallback((scrollTop) => {
+    if (gutterRef.current) gutterRef.current.scrollTop = scrollTop;
+  }, []);
+
   const PanelBtn = ({ active, onClick, icon, label, title, notify }) => (
-    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4, background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted, fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative" }}
+    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4,
+      background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted,
+      fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative" }}
     onMouseEnter={e=>{if(!active)e.currentTarget.style.background=C.bg3;}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}>
       <span style={{fontSize:13}}>{icon}</span>{label}
       {notify&&<span style={{width:6,height:6,borderRadius:"50%",background:C.green,position:"absolute",top:2,right:2}}/>}
     </button>
   );
   const ActBtn = ({ onClick, icon, label, color, title }) => (
-    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4, background:C.bg2,color:color||C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}
+    <button onClick={onClick} title={title} style={{ display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4,
+      background:C.bg2,color:color||C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap" }}
     onMouseEnter={e=>e.currentTarget.style.borderColor=C.borderHi} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}>
       <span style={{fontSize:12}}>{icon}</span>{label}
     </button>
@@ -283,36 +263,42 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           {showCenter && <ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download to disk" />}
           <ActBtn onClick={()=>{setOutput([]);}} icon="🗑" label="Clear" title="Clear console" />
           <ActBtn onClick={()=>{engine.reset();setVariables({});addOutput([{type:"system",text:"Workspace cleared."}]);setConsoleNotify(true);}} icon="🔄" label="Reset" title="Reset workspace" />
+          <button onClick={toggleTheme} title={`Switch to ${themeName==='dark'?'light':'dark'} theme`}
+            style={{display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4,
+            background:C.bg2,color:C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
+            <span style={{fontSize:12}}>{themeName==='dark'?'☀️':'🌙'}</span>{themeName==='dark'?'Light':'Dark'}
+          </button>
         </div>
       </div>
 
       {/* Main */}
       <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
         <div style={{ flex:1,display:"flex",overflow:"hidden",minHeight:0 }}>
-          {/* Left: Explorer */}
           {showLeft && (
             <div style={{ width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-              <FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource} />
+              <FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="niceworm/mlab" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource} />
             </div>
           )}
-          {/* Center: Editor */}
           {showCenter && (
             <div style={{ flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0 }}>
-              <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} />
+              <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} C={C} />
               <div style={{ flex:1,display:"flex",overflow:"hidden",position:"relative" }}>
                 <div ref={gutterRef} style={{ padding:"8px 0",background:C.bg0,borderRight:`1px solid ${C.border}`,userSelect:"none",minWidth:34,textAlign:"right",overflowY:"hidden",flexShrink:0 }}>
                   {(activeTabData?.code||"").split("\n").map((_,i)=>{const ln=i+1,isErr=errorLine===ln;return<div key={i} style={{fontSize:10,padding:"0 6px",lineHeight:"20px",color:isErr?C.red:C.textMuted,background:isErr?`${C.red}18`:"transparent",fontWeight:isErr?700:400}}>{ln}</div>;})}
                 </div>
-                <div style={{ flex:1,position:"relative",overflow:"hidden" }}>
-                  {errorLine&&<div style={{position:"absolute",left:0,right:0,top:(errorLine-1)*20+8,height:20,background:`${C.red}12`,borderLeft:`2px solid ${C.red}`,pointerEvents:"none",zIndex:1}}/>}
-                  <textarea ref={editorRef} value={activeTabData?.code||""} onChange={e=>{updateTabCode(e.target.value);setErrorLine(null);}} spellCheck={false}
-                    onScroll={e=>{if(gutterRef.current)gutterRef.current.scrollTop=e.target.scrollTop;}}
-                    style={{width:"100%",height:"100%",background:C.bg1,color:C.text,border:"none",outline:"none",fontFamily:FONT,fontSize:13,lineHeight:"20px",padding:8,resize:"none",caretColor:C.accent,overflow:"auto",position:"relative",zIndex:2}}/>
+                <div style={{ flex:1,overflow:"hidden",background:C.bg1 }}>
+                  <SyntaxEditor
+                    ref={editorRef}
+                    value={activeTabData?.code||""}
+                    onChange={val=>{updateTabCode(val);setErrorLine(null);}}
+                    onScroll={handleEditorScroll}
+                    errorLine={errorLine}
+                    theme={C}
+                  />
                 </div>
               </div>
             </div>
           )}
-          {/* Right: Figures with resize handle */}
           {showRight && (
             <>
               <div onMouseDown={handleRightResizeStart}
@@ -320,17 +306,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                 onMouseEnter={e=>e.currentTarget.style.background=C.accent}
                 onMouseLeave={e=>{if(!resizingRightRef.current)e.currentTarget.style.background=C.border;}} />
               <div style={{ width:figuresWidth,minWidth:200,flexShrink:0,background:C.bg1,display:"flex",flexDirection:"column",overflow:"hidden" }}>
-                <Figures figures={figures} onSetFigures={setFigures}
-                  onCloseFigure={handleCloseFigure}
-                  onCloseAll={handleCloseAllFigures}
-                  onClose={()=>setShowRight(false)} />
+                <Figures figures={figures} onSetFigures={setFigures} onCloseFigure={handleCloseFigure} onCloseAll={handleCloseAllFigures} onClose={()=>setShowRight(false)} />
               </div>
             </>
           )}
           {!showLeft&&!showCenter&&!showRight&&<div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:C.textMuted,fontSize:12,fontFamily:FONT_UI}}>Toggle panels from the toolbar</div>}
         </div>
 
-        {/* Bottom Panel */}
         {showBottom && (
           <div style={{ height:bottomHeight,minHeight:100,display:"flex",flexDirection:"column",overflow:"hidden",flexShrink:0 }}>
             <div onMouseDown={handleResizeStart}
@@ -354,7 +336,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         )}
       </div>
 
-      {/* Save Dialog */}
       {showSaveDialog&&(
         <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000}} onClick={()=>setShowSaveDialog(false)}>
           <div onClick={e=>e.stopPropagation()} style={{background:C.bg2,border:`1px solid ${C.borderHi}`,borderRadius:8,padding:20,width:320,boxShadow:"0 8px 32px rgba(0,0,0,0.5)"}}>

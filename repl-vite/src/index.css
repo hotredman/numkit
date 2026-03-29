@@ -10,28 +10,35 @@ html, body, #root {
 }
 
 body {
-  font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code',
-               'SF Mono', 'Cascadia Code', Consolas, monospace;
+  font-family: var(--font-mono, 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code',
+               'SF Mono', 'Cascadia Code', Consolas, monospace);
   font-size: 13px;
   line-height: 1.6;
-  background: #0f0f17;
-  color: #d4d4f0;
+  background: var(--c-bg0, #0f0f17);
+  color: var(--c-text, #d4d4f0);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background 0.2s, color 0.2s;
 }
 
-/* Scrollbar styling */
+/* Scrollbar styling — adapts to theme */
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: #363658;
+  background: var(--c-border, #363658);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #4a4a7a;
+  background: var(--c-borderHi, #4a4a7a);
 }
 
-/* Spinner animation for git loading */
+/* Spinner animation */
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+/* Selection color */
+::selection {
+  background: var(--c-accent, #7c6ff0);
+  color: #fff;
 }
