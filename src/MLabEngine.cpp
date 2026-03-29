@@ -1664,14 +1664,33 @@ bool Engine::tryBuiltinCall(const std::string &name,
     }
 
     if (name == "who") {
-        std::ostringstream os;
-        os << "Your variables are:\n";
-        auto names = env->localNames();
+        // Collect variable names to display
+        std::vector<std::string> names;
+        if (args.empty()) {
+            // who — list all user variables
+            auto all = env->localNames();
+            for (auto &n : all) {
+                if (kBuiltinNames.count(n) == 0)
+                    names.push_back(n);
+            }
+        } else {
+            // who x y z — list only those that exist as variables
+            for (auto &a : args) {
+                if (a.isChar()) {
+                    std::string varName = a.toString();
+                    if (env->has(varName))
+                        names.push_back(varName);
+                }
+            }
+        }
         std::sort(names.begin(), names.end());
-        for (auto &n : names) {
-            if (kBuiltinNames.count(n))
-                continue;
-            os << "  " << n << "\n";
+
+        std::ostringstream os;
+        if (!names.empty()) {
+            os << "\nYour variables are:\n\n";
+            for (auto &n : names)
+                os << n << "  ";
+            os << "\n\n";
         }
         output(os.str());
         result = MValue::empty();
@@ -1679,30 +1698,79 @@ bool Engine::tryBuiltinCall(const std::string &name,
     }
 
     if (name == "whos") {
-        std::ostringstream os;
-        os << "  Name              Size            Bytes  Class\n";
-        auto names = env->localNames();
+        // Collect variable names to display
+        std::vector<std::string> names;
+        if (args.empty()) {
+            // whos — list all user variables
+            auto all = env->localNames();
+            for (auto &n : all) {
+                if (kBuiltinNames.count(n) == 0)
+                    names.push_back(n);
+            }
+        } else {
+            // whos x y z — list only those that exist
+            for (auto &a : args) {
+                if (a.isChar()) {
+                    std::string varName = a.toString();
+                    if (env->has(varName))
+                        names.push_back(varName);
+                }
+            }
+        }
         std::sort(names.begin(), names.end());
-        for (auto &n : names) {
-            if (kBuiltinNames.count(n))
-                continue;
-            auto *val = env->get(n);
-            if (!val)
-                continue;
-            auto &d = val->dims();
-            std::string sizeStr = std::to_string(d.rows()) + "x" + std::to_string(d.cols());
-            if (d.is3D())
-                sizeStr += "x" + std::to_string(d.pages());
-            os << "  " << n;
-            for (size_t i = n.size(); i < 18; ++i)
-                os << " ";
-            os << sizeStr;
-            for (size_t i = sizeStr.size(); i < 16; ++i)
-                os << " ";
-            os << val->rawBytes();
-            for (size_t pad = std::to_string(val->rawBytes()).size(); pad < 7; ++pad)
-                os << " ";
-            os << mtypeName(val->type()) << "\n";
+
+        std::ostringstream os;
+        if (!names.empty()) {
+            os << "  Name" << std::string(6, ' ') << "Size" << std::string(13, ' ')
+               << "Bytes  Class" << std::string(5, ' ') << "Attributes\n\n";
+            for (auto &n : names) {
+                auto *val = env->get(n);
+                if (!val)
+                    continue;
+                auto &d = val->dims();
+                std::string sizeStr = std::to_string(d.rows()) + "x" + std::to_string(d.cols());
+                if (d.is3D())
+                    sizeStr += "x" + std::to_string(d.pages());
+                std::string bytesStr = std::to_string(val->rawBytes());
+                std::string classStr = mtypeName(val->type());
+
+                os << "  " << n;
+                // Pad name to column 10
+                for (size_t i = n.size(); i < 10; ++i)
+                    os << " ";
+                os << sizeStr;
+                // Pad size to column 17
+                for (size_t i = sizeStr.size(); i < 17; ++i)
+                    os << " ";
+                // Right-align bytes in 5 chars
+                for (size_t i = bytesStr.size(); i < 5; ++i)
+                    os << " ";
+                os << bytesStr << "  " << classStr;
+                // Pad class to column 10
+                for (size_t i = classStr.size(); i < 10; ++i)
+                    os << " ";
+                os << "\n";
+            }
+            os << "\n";
+        }
+        output(os.str());
+        result = MValue::empty();
+        return true;
+    }
+
+    if (name == "which") {
+        if (args.empty())
+            throw std::runtime_error("which requires a name argument");
+        std::string qname = args[0].isChar() ? args[0].toString() : "";
+        std::ostringstream os;
+        if (env->has(qname)) {
+            os << qname << " is a variable.\n";
+        } else if (userFuncs_.count(qname)) {
+            os << qname << " is a user-defined function.\n";
+        } else if (externalFuncs_.count(qname)) {
+            os << "built-in (" << qname << ")\n";
+        } else {
+            os << "'" << qname << "' not found.\n";
         }
         output(os.str());
         result = MValue::empty();
