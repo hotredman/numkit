@@ -28,8 +28,18 @@ set(MLAB_SOURCES
     src/MLabParser.cpp
     src/MLabEnvironment.cpp
     src/MLabEngine.cpp
-    src/MLabStdLibrary.cpp
     src/MLabAst.cpp
+    src/stdlib/MLabStdLibrary.cpp
+    src/stdlib/MLabStdBinaryOps.cpp
+    src/stdlib/MLabStdUnaryOps.cpp
+    src/stdlib/MLabStdMath.cpp
+    src/stdlib/MLabStdMatrix.cpp
+    src/stdlib/MLabStdIO.cpp
+    src/stdlib/MLabStdTypes.cpp
+    src/stdlib/MLabStdCellStruct.cpp
+    src/stdlib/MLabStdStrings.cpp
+    src/stdlib/MLabStdComplex.cpp
+    src/stdlib/MLabPlotLibrary.cpp
 )
 
 set(MLAB_HEADERS
@@ -41,6 +51,8 @@ set(MLAB_HEADERS
     include/MLabEnvironment.hpp
     include/MLabEngine.hpp
     include/MLabStdLibrary.hpp
+    include/MLabStdHelpers.hpp
+    include/MLabPlotLibrary.hpp
     include/MLabFigureManager.hpp
 )
 
