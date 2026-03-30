@@ -45,6 +45,15 @@
       ]
     },
     {
+      "name": "Interpolation",
+      "files": [
+        "interp1_methods.m",
+        "polyfit_demo.m",
+        "spline_smooth.m",
+        "trapz_demo.m"
+      ]
+    },
+    {
       "name": "Matrices",
       "files": [
         "create_and_index.m",
@@ -59,6 +68,9 @@
         "axis_modes.m",
         "bar_chart.m",
         "histogram.m",
+        "imagesc_basic.m",
+        "imagesc_clim.m",
+        "imagesc_colormaps.m",
         "legend_demo.m",
         "log_scale.m",
         "multiple_curves.m",
@@ -70,6 +82,26 @@
         "stem_plot.m",
         "styled_plot.m",
         "subplot_demo.m"
+      ]
+    },
+    {
+      "name": "Signal_Processing",
+      "files": [
+        "butterworth_filter.m",
+        "convolution_demo.m",
+        "deconv_demo.m",
+        "envelope_detection.m",
+        "fft_roundtrip.m",
+        "fft_spectrum.m",
+        "filtfilt_demo.m",
+        "fir_filter.m",
+        "periodogram_demo.m",
+        "pwelch_demo.m",
+        "resampling_demo.m",
+        "spectrogram_chirp.m",
+        "unwrap_demo.m",
+        "window_functions.m",
+        "xcorr_demo.m"
       ]
     },
     {
