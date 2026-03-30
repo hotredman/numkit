@@ -12,7 +12,8 @@ struct DatasetInfo
 {
     std::string xJson;
     std::string yJson;
-    std::string type;      // "line", "bar", "scatter", "stem", "stairs"
+    std::string zJson;     // 2D matrix for imagesc, e.g. [[1,2],[3,4]]
+    std::string type;      // "line", "bar", "scatter", "stem", "stairs", "imagesc"
     std::string label;     // for legend
     std::string style;     // MATLAB style hint, e.g. "r--o", "b:", "g-."
     double lineWidth = 0;  // 0 = default
@@ -30,6 +31,8 @@ struct AxesState
     std::string ylimJson;
     std::string rlimJson;
     std::string thetalimJson;
+    std::string climJson;     // color limits for imagesc, e.g. "[0,1]"
+    std::string colormapName; // "parula","jet","hot","cool","gray","viridis","turbo","hsv"
     bool polar = false;
     bool holdOn = false;
     std::string gridMode; // "" = off, "on" = major, "minor" = major+minor
@@ -198,6 +201,8 @@ public:
                         os << ",\"lineWidth\":" << ds.lineWidth;
                     if (ds.markerSize > 0)
                         os << ",\"markerSize\":" << ds.markerSize;
+                    if (!ds.zJson.empty())
+                        os << ",\"z\":" << ds.zJson;
                     os << "}";
                 }
                 os << "],\"config\":{";
@@ -212,6 +217,10 @@ public:
                     os << ",\"rlim\":" << ax.rlimJson;
                 if (!ax.thetalimJson.empty())
                     os << ",\"thetalim\":" << ax.thetalimJson;
+                if (!ax.climJson.empty())
+                    os << ",\"clim\":" << ax.climJson;
+                if (!ax.colormapName.empty())
+                    os << ",\"colormap\":\"" << ax.colormapName << "\"";
                 os << ",\"grid\":\"" << ax.gridMode << "\"";
                 os << ",\"polar\":" << (ax.polar ? "true" : "false");
                 os << ",\"xscale\":\"" << ax.xscale << "\"";
