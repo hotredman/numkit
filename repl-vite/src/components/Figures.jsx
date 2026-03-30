@@ -5,12 +5,10 @@ import { useTheme, FONT_UI } from "../theme";
 const COLORS = ['#7c6ff0','#60d0f0','#6ee7a0','#f0a060','#e070c0','#e8d060','#f07070','#70b0f0'];
 
 // ════════════════════════════════════════════════════════════════════
-// Custom MATLAB-style colormaps (piecewise-linear RGB interpolators)
-// Each takes t ∈ [0,1] and returns an "rgb(r,g,b)" string.
+// Custom MATLAB-style colormaps
 // ════════════════════════════════════════════════════════════════════
 
 function lerpColor(stops, t) {
-  // stops: [[pos, r, g, b], ...] sorted by pos, r/g/b in [0,1]
   t = Math.max(0, Math.min(1, t));
   if (t <= stops[0][0]) return stops[0];
   if (t >= stops[stops.length - 1][0]) return stops[stops.length - 1];
@@ -32,6 +30,22 @@ function makeInterpolator(stops) {
   };
 }
 
+// Build a 256-entry LUT [r,g,b,r,g,b,...] for a given interpolator (fast path)
+function buildLUT(interpolator) {
+  const lut = new Uint8Array(256 * 3);
+  for (let i = 0; i < 256; i++) {
+    const c = interpolator(i / 255);
+    // parse "rgb(r,g,b)" or d3 color string
+    const m = c.match(/(\d+)/g);
+    if (m && m.length >= 3) {
+      lut[i * 3]     = parseInt(m[0]);
+      lut[i * 3 + 1] = parseInt(m[1]);
+      lut[i * 3 + 2] = parseInt(m[2]);
+    }
+  }
+  return lut;
+}
+
 // ── parula (MATLAB default, approximated) ──
 const interpolateParula = makeInterpolator([
   [0.00, 0.2422, 0.1504, 0.6603],
@@ -46,111 +60,53 @@ const interpolateParula = makeInterpolator([
   [0.90, 0.9926, 0.7993, 0.1672],
   [1.00, 0.9769, 0.9839, 0.0805],
 ]);
-
-// ── jet ──
 const interpolateJet = makeInterpolator([
-  [0.000, 0.0, 0.0, 0.5],
-  [0.125, 0.0, 0.0, 1.0],
-  [0.250, 0.0, 0.5, 1.0],
-  [0.375, 0.0, 1.0, 1.0],
-  [0.500, 0.5, 1.0, 0.5],
-  [0.625, 1.0, 1.0, 0.0],
-  [0.750, 1.0, 0.5, 0.0],
-  [0.875, 1.0, 0.0, 0.0],
-  [1.000, 0.5, 0.0, 0.0],
+  [0.000, 0.0, 0.0, 0.5],[0.125, 0.0, 0.0, 1.0],[0.250, 0.0, 0.5, 1.0],
+  [0.375, 0.0, 1.0, 1.0],[0.500, 0.5, 1.0, 0.5],[0.625, 1.0, 1.0, 0.0],
+  [0.750, 1.0, 0.5, 0.0],[0.875, 1.0, 0.0, 0.0],[1.000, 0.5, 0.0, 0.0],
 ]);
-
-// ── hot ──
 const interpolateHot = makeInterpolator([
-  [0.000, 0.04, 0.0, 0.0],
-  [0.375, 1.0,  0.0, 0.0],
-  [0.750, 1.0,  1.0, 0.0],
-  [1.000, 1.0,  1.0, 1.0],
+  [0.000, 0.04, 0.0, 0.0],[0.375, 1.0, 0.0, 0.0],
+  [0.750, 1.0, 1.0, 0.0],[1.000, 1.0, 1.0, 1.0],
 ]);
-
-// ── cool ──
-const interpolateCool = makeInterpolator([
-  [0.0, 0.0, 1.0, 1.0],
-  [1.0, 1.0, 0.0, 1.0],
-]);
-
-// ── gray / grey ──
-const interpolateGray = makeInterpolator([
-  [0.0, 0.0, 0.0, 0.0],
-  [1.0, 1.0, 1.0, 1.0],
-]);
-
-// ── hsv ──
+const interpolateCool = makeInterpolator([[0.0,0.0,1.0,1.0],[1.0,1.0,0.0,1.0]]);
+const interpolateGray = makeInterpolator([[0.0,0.0,0.0,0.0],[1.0,1.0,1.0,1.0]]);
 function interpolateHsv(t) {
   t = Math.max(0, Math.min(1, t));
-  // HSV with H cycling 0→1, S=1, V=1
-  const h = t * 360;
-  const s = 1, v = 1;
-  const c = v * s;
-  const x = c * (1 - Math.abs((h / 60) % 2 - 1));
-  const m = v - c;
+  const h = t * 360, c = 1, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = 0;
   let r, g, b;
-  if (h < 60)       { r = c; g = x; b = 0; }
-  else if (h < 120) { r = x; g = c; b = 0; }
-  else if (h < 180) { r = 0; g = c; b = x; }
-  else if (h < 240) { r = 0; g = x; b = c; }
-  else if (h < 300) { r = x; g = 0; b = c; }
-  else              { r = c; g = 0; b = x; }
-  return `rgb(${Math.round((r + m) * 255)},${Math.round((g + m) * 255)},${Math.round((b + m) * 255)})`;
+  if (h < 60)       { r=c;g=x;b=0; } else if (h<120) { r=x;g=c;b=0; }
+  else if (h < 180) { r=0;g=c;b=x; } else if (h<240) { r=0;g=x;b=c; }
+  else if (h < 300) { r=x;g=0;b=c; } else             { r=c;g=0;b=x; }
+  return `rgb(${Math.round((r+m)*255)},${Math.round((g+m)*255)},${Math.round((b+m)*255)})`;
+}
+const interpolateBone = makeInterpolator([
+  [0.000,0.0,0.0,0.0],[0.375,0.3215,0.3215,0.4460],
+  [0.750,0.6540,0.7840,0.7840],[1.000,1.0,1.0,1.0],
+]);
+const interpolateCopper = makeInterpolator([[0.0,0.0,0.0,0.0],[0.8,1.0,0.504,0.320],[1.0,1.0,0.630,0.400]]);
+const interpolateSpring = makeInterpolator([[0.0,1.0,0.0,1.0],[1.0,1.0,1.0,0.0]]);
+const interpolateSummer = makeInterpolator([[0.0,0.0,0.5,0.4],[1.0,1.0,1.0,0.4]]);
+const interpolateAutumn = makeInterpolator([[0.0,1.0,0.0,0.0],[1.0,1.0,1.0,0.0]]);
+const interpolateWinter = makeInterpolator([[0.0,0.0,0.0,1.0],[1.0,0.0,1.0,0.5]]);
+
+// ── LUT cache ──
+const lutCache = new Map();
+function getLUT(interpolator) {
+  if (lutCache.has(interpolator)) return lutCache.get(interpolator);
+  const lut = buildLUT(interpolator);
+  lutCache.set(interpolator, lut);
+  return lut;
 }
 
-// ── bone ──
-const interpolateBone = makeInterpolator([
-  [0.000, 0.0,    0.0,    0.0],
-  [0.375, 0.3215, 0.3215, 0.4460],
-  [0.750, 0.6540, 0.7840, 0.7840],
-  [1.000, 1.0,    1.0,    1.0],
-]);
-
-// ── copper ──
-const interpolateCopper = makeInterpolator([
-  [0.0, 0.0,  0.0,   0.0],
-  [0.8, 1.0,  0.504, 0.320],
-  [1.0, 1.0,  0.630, 0.400],
-]);
-
-// ── spring ──
-const interpolateSpring = makeInterpolator([
-  [0.0, 1.0, 0.0, 1.0],
-  [1.0, 1.0, 1.0, 0.0],
-]);
-
-// ── summer ──
-const interpolateSummer = makeInterpolator([
-  [0.0, 0.0, 0.5, 0.4],
-  [1.0, 1.0, 1.0, 0.4],
-]);
-
-// ── autumn ──
-const interpolateAutumn = makeInterpolator([
-  [0.0, 1.0, 0.0, 0.0],
-  [1.0, 1.0, 1.0, 0.0],
-]);
-
-// ── winter ──
-const interpolateWinter = makeInterpolator([
-  [0.0, 0.0, 0.0, 1.0],
-  [1.0, 0.0, 1.0, 0.5],
-]);
-
-/**
- * Resolve colormap name → interpolator function
- * Returns a function: t ∈ [0,1] → color string
- */
 function getColormapInterpolator(name) {
-  if (!name) return d3.interpolateViridis;  // default
+  if (!name) return d3.interpolateViridis;
   switch (name.toLowerCase()) {
     case 'parula':    return interpolateParula;
     case 'jet':       return interpolateJet;
     case 'hot':       return interpolateHot;
     case 'cool':      return interpolateCool;
-    case 'gray':
-    case 'grey':      return interpolateGray;
+    case 'gray': case 'grey': return interpolateGray;
     case 'bone':      return interpolateBone;
     case 'copper':    return interpolateCopper;
     case 'spring':    return interpolateSpring;
@@ -166,6 +122,46 @@ function getColormapInterpolator(name) {
     case 'cividis':   return d3.interpolateCividis;
     default:          return d3.interpolateViridis;
   }
+}
+
+/**
+ * Render a 2D matrix to a data-URL via offscreen Canvas + ImageData.
+ * Returns a data:image/png;base64,... string.
+ * This is O(rows*cols) in pure typed-array ops — no DOM elements.
+ */
+function renderImagescToDataURL(z, numRows, numCols, cmin, cmax, cmapInterp) {
+  const canvas = document.createElement('canvas');
+  canvas.width = numCols;
+  canvas.height = numRows;
+  const ctx = canvas.getContext('2d');
+  const imgData = ctx.createImageData(numCols, numRows);
+  const pixels = imgData.data; // Uint8ClampedArray [r,g,b,a, r,g,b,a, ...]
+  const lut = getLUT(cmapInterp);
+  const range = cmax - cmin || 1;
+  const inv = 255 / range;
+
+  for (let r = 0; r < numRows; r++) {
+    const row = z[r];
+    const rowOff = r * numCols * 4;
+    for (let c = 0; c < numCols; c++) {
+      const v = row[c];
+      const off = rowOff + c * 4;
+      if (v === null || v === undefined) {
+        pixels[off] = 0; pixels[off+1] = 0; pixels[off+2] = 0; pixels[off+3] = 0;
+      } else {
+        // Map value to LUT index [0..255]
+        let idx = ((v - cmin) * inv) | 0;
+        if (idx < 0) idx = 0; else if (idx > 255) idx = 255;
+        const li = idx * 3;
+        pixels[off]     = lut[li];
+        pixels[off + 1] = lut[li + 1];
+        pixels[off + 2] = lut[li + 2];
+        pixels[off + 3] = 255;
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  return canvas.toDataURL();
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -235,7 +231,6 @@ function renderAxes(svg,ax,ox,oy,availW,availH,C){
   g.append("g").call(d3.axisLeft(yScale).ticks(yTC)).selectAll("text,line,path").attr("fill",C.textMuted).attr("stroke",C.textMuted);
   const dataG=g.append("g").attr("clip-path",`url(#${clipId})`);
 
-  // Resolve colormap for this axes (used by imagesc)
   const cmapInterp = getColormapInterpolator(cfg.colormap);
 
   (ax.datasets||[]).forEach((ds,idx)=>{const color=parseStyleColor(ds.style)||COLORS[idx%COLORS.length];const dasharray=parseStyleDash(ds.style);const marker=parseStyleMarker(ds.style);const hasLine=parseStyleHasLine(ds.style);const plotType=ds.type||'line';const lw=ds.lineWidth||2;const ms=ds.markerSize||3;
@@ -250,13 +245,32 @@ function renderAxes(svg,ax,ox,oy,availW,availH,C){
       if(cfg.clim&&cfg.clim.length>=2){cmin=cfg.clim[0];cmax=cfg.clim[1];}
       else{for(let r=0;r<numRows;r++)for(let c=0;c<numCols;c++){const v=z[r][c];if(v!==null&&v!==undefined){if(v<cmin)cmin=v;if(v>cmax)cmax=v;}}}
       if(cmin===cmax){cmin-=0.5;cmax+=0.5;}
-      const colorScale=d3.scaleSequential(cmapInterp).domain([cmin,cmax]);
+
+      // ── Canvas fast path: render matrix → PNG data URL → single <image> ──
+      const dataURL = renderImagescToDataURL(z, numRows, numCols, cmin, cmax, cmapInterp);
       const cellW=numCols>1?(x1-x0)/(numCols-1):1,cellH=numRows>1?(y1-y0)/(numRows-1):1;
-      for(let r=0;r<numRows;r++){for(let c=0;c<numCols;c++){const v=z[r][c];if(v===null||v===undefined)continue;const cx2=numCols>1?x0+c*(x1-x0)/(numCols-1):x0;const cy2=numRows>1?y0+r*(y1-y0)/(numRows-1):y0;const px1=xScale(cx2-cellW/2),px2=xScale(cx2+cellW/2),py1=yScale(cy2-cellH/2),py2=yScale(cy2+cellH/2);dataG.append("rect").attr("x",Math.min(px1,px2)).attr("y",Math.min(py1,py2)).attr("width",Math.max(Math.abs(px2-px1),0.5)).attr("height",Math.max(Math.abs(py2-py1),0.5)).attr("fill",colorScale(v)).attr("stroke","none").attr("shape-rendering","crispEdges");}}
-      // Colorbar
-      if(colorbarWidth>0){const cbW=12,cbH=ih,cbX=iw+10,cbY=0,cbSteps=64,cbStepH=cbH/cbSteps;for(let i=0;i<cbSteps;i++){const t=1-i/cbSteps;dataG.append("rect").attr("x",cbX).attr("y",cbY+i*cbStepH).attr("width",cbW).attr("height",cbStepH+0.5).attr("fill",colorScale(cmin+t*(cmax-cmin))).attr("stroke","none").attr("shape-rendering","crispEdges");}
-      dataG.append("rect").attr("x",cbX).attr("y",cbY).attr("width",cbW).attr("height",cbH).attr("fill","none").attr("stroke",C.textMuted).attr("stroke-width",0.5);
-      const cbScale=d3.scaleLinear().domain([cmin,cmax]).range([cbH,0]);cbScale.ticks(5).forEach(t=>{const ty=cbScale(t);dataG.append("line").attr("x1",cbX+cbW).attr("y1",ty).attr("x2",cbX+cbW+3).attr("y2",ty).attr("stroke",C.textMuted).attr("stroke-width",0.5);dataG.append("text").attr("x",cbX+cbW+5).attr("y",ty).attr("fill",C.textMuted).attr("font-size",7).attr("alignment-baseline","middle").text(t%1===0?t:t.toFixed(2));});}
+      const imgX = xScale(x0 - cellW/2);
+      const imgY = yScale(flipY ? (y0 - cellH/2) : (y1 + cellH/2));
+      const imgW = Math.abs(xScale(x1 + cellW/2) - xScale(x0 - cellW/2));
+      const imgH = Math.abs(yScale(y1 + cellH/2) - yScale(y0 - cellH/2));
+
+      dataG.append("image")
+        .attr("href", dataURL)
+        .attr("x", imgX)
+        .attr("y", Math.min(imgY, yScale(flipY ? (y1 + cellH/2) : (y0 - cellH/2))))
+        .attr("width", imgW)
+        .attr("height", imgH)
+        .attr("preserveAspectRatio", "none")
+        .style("image-rendering", "pixelated");
+
+      // ── Colorbar (SVG — only ~64 rects, fast) ──
+      if(colorbarWidth>0){
+        const cbW=12,cbH=ih,cbX=iw+10,cbY=0,cbSteps=64,cbStepH=cbH/cbSteps;
+        const colorScale=d3.scaleSequential(cmapInterp).domain([cmin,cmax]);
+        for(let i=0;i<cbSteps;i++){const t=1-i/cbSteps;dataG.append("rect").attr("x",cbX).attr("y",cbY+i*cbStepH).attr("width",cbW).attr("height",cbStepH+0.5).attr("fill",colorScale(cmin+t*(cmax-cmin))).attr("stroke","none").attr("shape-rendering","crispEdges");}
+        dataG.append("rect").attr("x",cbX).attr("y",cbY).attr("width",cbW).attr("height",cbH).attr("fill","none").attr("stroke",C.textMuted).attr("stroke-width",0.5);
+        const cbScale=d3.scaleLinear().domain([cmin,cmax]).range([cbH,0]);cbScale.ticks(5).forEach(t=>{const ty=cbScale(t);dataG.append("line").attr("x1",cbX+cbW).attr("y1",ty).attr("x2",cbX+cbW+3).attr("y2",ty).attr("stroke",C.textMuted).attr("stroke-width",0.5);dataG.append("text").attr("x",cbX+cbW+5).attr("y",ty).attr("fill",C.textMuted).attr("font-size",7).attr("alignment-baseline","middle").text(t%1===0?t:t.toFixed(2));});
+      }
     }
     else if(plotType==="line"){if(hasLine){dataG.append("path").datum(ds.y).attr("d",d3.line().defined((_,i)=>valid[i]).x((_,i)=>xScale(ds.x[i])).y((_,i)=>yScale(ds.y[i])).curve(d3.curveMonotoneX)).attr("fill","none").attr("stroke",color).attr("stroke-width",lw).attr("stroke-dasharray",dasharray);}if(marker)ds.x.forEach((x,i)=>{if(valid[i])drawMarker(dataG,xScale(x),yScale(ds.y[i]),marker,color,ms);});}
     else if(plotType==="scatter"){ds.x.forEach((x,i)=>{if(valid[i])drawMarker(dataG,xScale(x),yScale(ds.y[i]),marker||'o',color,ms>0?ms:4);});}
