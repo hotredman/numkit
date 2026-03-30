@@ -39,6 +39,15 @@ set(MLAB_SOURCES
     src/stdlib/MLabStdCellStruct.cpp
     src/stdlib/MLabStdStrings.cpp
     src/stdlib/MLabStdComplex.cpp
+    src/stdlib/MLabStdSignalCore.cpp
+    src/stdlib/MLabStdConvolution.cpp
+    src/stdlib/MLabStdWindows.cpp
+    src/stdlib/MLabStdFilter.cpp
+    src/stdlib/MLabStdFilterDesign.cpp
+    src/stdlib/MLabStdSpectral.cpp
+    src/stdlib/MLabStdResample.cpp
+    src/stdlib/MLabStdTransform.cpp
+    src/stdlib/MLabStdInterp.cpp
     src/stdlib/MLabPlotLibrary.cpp
 )
 
@@ -52,6 +61,7 @@ set(MLAB_HEADERS
     include/MLabEngine.hpp
     include/MLabStdLibrary.hpp
     include/MLabStdHelpers.hpp
+    include/MLabSignalHelpers.hpp
     include/MLabPlotLibrary.hpp
     include/MLabFigureManager.hpp
 )
@@ -109,6 +119,15 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
         tests/engine_advanced_test.cpp
         tests/command_style_test.cpp
         tests/figure_test.cpp
+        tests/signal_core_test.cpp
+        tests/convolution_test.cpp
+        tests/windows_test.cpp
+        tests/filter_test.cpp
+        tests/filter_design_test.cpp
+        tests/spectral_test.cpp
+        tests/resample_test.cpp
+        tests/transform_test.cpp
+        tests/interp_test.cpp
     )
 
     target_link_libraries(mlab_tests
