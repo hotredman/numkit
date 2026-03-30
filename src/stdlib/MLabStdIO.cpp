@@ -9,7 +9,7 @@ namespace mlab {
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
     engine.registerFunction("disp",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 for (auto &a : args) {
                                     std::ostringstream os;
                                     if (a.isChar()) {
@@ -99,26 +99,26 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                             });
 
     engine.registerFunction("fprintf",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar())
                                     engine.outputText(args[0].toString());
                                 return {};
                             });
 
     engine.registerFunction("sprintf",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (!args.empty() && args[0].isChar())
                                     return {MValue::fromString(args[0].toString(), alloc)};
                                 return {MValue::fromString("", alloc)};
                             });
 
-    engine.registerFunction("error", [](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("error", [](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         std::string msg = args.empty() ? "Error" : args[0].toString();
         throw std::runtime_error(msg);
     });
 
-    engine.registerFunction("warning", [](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("warning", [](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         if (!args.empty() && args[0].isChar())
             std::cerr << "Warning: " << args[0].toString() << "\n";
         return {};

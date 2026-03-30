@@ -7,7 +7,7 @@ namespace mlab {
 void StdLibrary::registerTypeFunctions(Engine &engine)
 {
     engine.registerFunction("double",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.type() == MType::DOUBLE) return {a};
@@ -19,7 +19,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                             });
 
     engine.registerFunction("logical",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isLogical()) return {a};
@@ -31,7 +31,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                             });
 
     engine.registerFunction("char",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isChar()) return {a};
@@ -43,47 +43,47 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                             });
 
     engine.registerFunction("isnumeric",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isNumeric(), &engine.allocator())};
                             });
 
     engine.registerFunction("islogical",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isLogical(), &engine.allocator())};
                             });
 
     engine.registerFunction("ischar",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isChar(), &engine.allocator())};
                             });
 
     engine.registerFunction("iscell",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isCell(), &engine.allocator())};
                             });
 
     engine.registerFunction("isstruct",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isStruct(), &engine.allocator())};
                             });
 
     engine.registerFunction("isempty",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isEmpty(), &engine.allocator())};
                             });
 
     engine.registerFunction("isscalar",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(args[0].isScalar(), &engine.allocator())};
                             });
 
     engine.registerFunction("isreal",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 return {MValue::logicalScalar(!args[0].isComplex(), &engine.allocator())};
                             });
 
     engine.registerFunction("isnan",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isScalar())
@@ -95,7 +95,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                             });
 
     engine.registerFunction("isinf",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isScalar())

@@ -209,7 +209,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 {
     // --- interp1(x, y, xq) / interp1(x, y, xq, method) ---
     engine.registerFunction("interp1",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("interp1 requires at least 3 arguments");
@@ -255,7 +255,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 
     // --- spline(x, y, xq) — shortcut for interp1(..., 'spline') ---
     engine.registerFunction("spline",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("spline requires 3 arguments");
@@ -284,7 +284,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 
     // --- pchip(x, y, xq) — shortcut for interp1(..., 'pchip') ---
     engine.registerFunction("pchip",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("pchip requires 3 arguments");
@@ -314,7 +314,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
     // --- polyfit(x, y, n) — polynomial least-squares fit ---
     // Uses normal equations: (A'A) p = A'y
     engine.registerFunction("polyfit",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("polyfit requires 3 arguments");
@@ -408,7 +408,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 
     // --- polyval(p, x) — evaluate polynomial using Horner's scheme ---
     engine.registerFunction("polyval",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("polyval requires 2 arguments");
@@ -433,7 +433,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 
     // --- trapz(y) / trapz(x, y) — trapezoidal numerical integration ---
     engine.registerFunction("trapz",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("trapz requires at least 1 argument");

@@ -95,7 +95,7 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 {
     // --- butter(N, Wn) / butter(N, Wn, 'high') ---
     engine.registerFunction("butter",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("butter requires at least 2 arguments");
@@ -127,7 +127,7 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 
     // --- fir1(N, Wn) / fir1(N, Wn, 'high') ---
     engine.registerFunction("fir1",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("fir1 requires at least 2 arguments");
@@ -170,7 +170,7 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 
     // --- freqz(b, a, N) --- frequency response
     engine.registerFunction("freqz",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("freqz requires at least 2 arguments");

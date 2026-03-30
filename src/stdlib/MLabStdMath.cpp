@@ -10,7 +10,7 @@ namespace mlab {
 void StdLibrary::registerMathFunctions(Engine &engine)
 {
     // --- sqrt ---
-    engine.registerFunction("sqrt", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("sqrt", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -21,7 +21,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
     });
 
     // --- abs ---
-    engine.registerFunction("abs", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("abs", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex()) {
@@ -36,7 +36,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
     });
 
     // --- Trig functions ---
-    engine.registerFunction("sin", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("sin", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -44,7 +44,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::sin(x); }, alloc)};
     });
 
-    engine.registerFunction("cos", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("cos", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -52,7 +52,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::cos(x); }, alloc)};
     });
 
-    engine.registerFunction("tan", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("tan", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -60,7 +60,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::tan(x); }, alloc)};
     });
 
-    engine.registerFunction("asin", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("asin", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -68,7 +68,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::asin(x); }, alloc)};
     });
 
-    engine.registerFunction("acos", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("acos", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -76,7 +76,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::acos(x); }, alloc)};
     });
 
-    engine.registerFunction("atan", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("atan", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -85,7 +85,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
     });
 
     engine.registerFunction("atan2",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("atan2 requires 2 arguments");
@@ -95,7 +95,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             });
 
     // --- exp / log ---
-    engine.registerFunction("exp", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("exp", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -103,7 +103,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::exp(x); }, alloc)};
     });
 
-    engine.registerFunction("log", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("log", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -113,60 +113,60 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {unaryDouble(a, [](double x) { return std::log(x); }, alloc)};
     });
 
-    engine.registerFunction("log2", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("log2", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::log2(x); }, alloc)};
     });
 
-    engine.registerFunction("log10", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("log10", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::log10(x); }, alloc)};
     });
 
     // --- Rounding ---
-    engine.registerFunction("floor", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("floor", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::floor(x); }, alloc)};
     });
 
-    engine.registerFunction("ceil", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("ceil", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::ceil(x); }, alloc)};
     });
 
-    engine.registerFunction("round", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("round", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::round(x); }, alloc)};
     });
 
-    engine.registerFunction("fix", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("fix", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(args[0], [](double x) { return std::trunc(x); }, alloc)};
     });
 
     // --- mod / rem ---
-    engine.registerFunction("mod", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("mod", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {elementwiseDouble(
             args[0], args[1],
             [](double a, double b) { return b != 0 ? a - std::floor(a / b) * b : a; }, alloc)};
     });
 
-    engine.registerFunction("rem", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("rem", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {elementwiseDouble(
             args[0], args[1], [](double a, double b) { return std::fmod(a, b); }, alloc)};
     });
 
     // --- sign ---
-    engine.registerFunction("sign", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("sign", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         return {unaryDouble(
             args[0], [](double x) { return (x > 0) ? 1.0 : (x < 0 ? -1.0 : 0.0); }, alloc)};
     });
 
     // --- max / min ---
-    engine.registerFunction("max", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("max", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         if (args.size() == 2)
             return {elementwiseDouble(
@@ -189,7 +189,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {r};
     });
 
-    engine.registerFunction("min", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("min", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         if (args.size() == 2)
             return {elementwiseDouble(
@@ -213,7 +213,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
     });
 
     // --- Reductions: sum, prod, mean ---
-    engine.registerFunction("sum", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("sum", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.dims().isVector() || a.isScalar()) {
@@ -231,7 +231,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {r};
     });
 
-    engine.registerFunction("prod", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("prod", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.dims().isVector() || a.isScalar()) {
@@ -249,7 +249,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         return {r};
     });
 
-    engine.registerFunction("mean", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("mean", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.dims().isVector() || a.isScalar()) {
@@ -269,7 +269,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
 
     // --- linspace / logspace ---
     engine.registerFunction("linspace",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 double a = args[0].toScalar();
                                 double b = args[1].toScalar();
@@ -287,7 +287,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             });
 
     engine.registerFunction("logspace",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("logspace requires at least 2 arguments");
@@ -310,7 +310,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
 
     // --- rand / randn ---
     engine.registerFunction("rand",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 static std::mt19937 gen(std::random_device{}());
                                 static std::uniform_real_distribution<double> dist(0.0, 1.0);
@@ -323,7 +323,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             });
 
     engine.registerFunction("randn",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 static std::mt19937 gen(std::random_device{}());
                                 static std::normal_distribution<double> dist(0.0, 1.0);
@@ -337,7 +337,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
 
     // --- Angle conversions ---
     engine.registerFunction("deg2rad",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 return {unaryDouble(
                                     args[0],
@@ -346,7 +346,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                             });
 
     engine.registerFunction("rad2deg",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 return {unaryDouble(
                                     args[0],

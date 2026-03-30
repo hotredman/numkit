@@ -15,7 +15,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 {
     // --- downsample(x, n) ---
     engine.registerFunction("downsample",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("downsample requires 2 arguments");
@@ -34,7 +34,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 
     // --- upsample(x, n) ---
     engine.registerFunction("upsample",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("upsample requires 2 arguments");
@@ -55,7 +55,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 
     // --- decimate(x, r) --- downsample with anti-aliasing FIR
     engine.registerFunction("decimate",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("decimate requires 2 arguments");
@@ -105,7 +105,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 
     // --- resample(x, p, q) --- rational rate change p/q
     engine.registerFunction("resample",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("resample requires 3 arguments");

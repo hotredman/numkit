@@ -9,7 +9,7 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 {
     // --- nextpow2(n) ---
     engine.registerFunction("nextpow2",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 double n = args[0].toScalar();
                                 if (n <= 0)
@@ -19,7 +19,7 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 
     // --- fft(x) / fft(x, N) ---
     engine.registerFunction("fft",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("fft requires at least 1 argument");
@@ -38,7 +38,7 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 
     // --- ifft(X) / ifft(X, N) ---
     engine.registerFunction("ifft",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("ifft requires at least 1 argument");
@@ -75,7 +75,7 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 
     // --- fftshift(X) ---
     engine.registerFunction("fftshift",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("fftshift requires 1 argument");
@@ -101,7 +101,7 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 
     // --- ifftshift(X) ---
     engine.registerFunction("ifftshift",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("ifftshift requires 1 argument");

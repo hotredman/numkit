@@ -88,7 +88,7 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("figure",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &fm = engine.figureManager();
                                 int id;
@@ -102,7 +102,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("close",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
                                 if (args.empty()) {
                                     int id = fm.currentFigureId();
@@ -119,7 +119,7 @@ void PlotLibrary::install(Engine &engine)
                                 return {MValue::empty()};
                             });
 
-    engine.registerFunction("clf", [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
+    engine.registerFunction("clf", [&engine](const std::vector<MValue> &, size_t /*nargout*/) -> std::vector<MValue> {
         auto &fm = engine.figureManager();
         auto &fig = fm.current();
         fig.axes.clear();
@@ -133,7 +133,7 @@ void PlotLibrary::install(Engine &engine)
     });
 
     engine.registerFunction("hold",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto &ax = engine.figureManager().currentAxes();
                                 if (args.empty())
                                     ax.holdOn = !ax.holdOn;
@@ -143,7 +143,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("subplot",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.size() < 3) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 int m = static_cast<int>(args[0].toScalar());
@@ -159,7 +159,7 @@ void PlotLibrary::install(Engine &engine)
 
     engine.registerFunction("plot",
                             [parsePlotXYStyle, parsePlotArgs, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.empty()) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -174,7 +174,7 @@ void PlotLibrary::install(Engine &engine)
 
     engine.registerFunction("bar",
                             [vecToJson, makeIndexJson, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.empty()) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -193,7 +193,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("scatter",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.size() < 2) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -207,7 +207,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("hist",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty()) return {MValue::empty()};
                                 auto &data = args[0];
@@ -242,7 +242,7 @@ void PlotLibrary::install(Engine &engine)
 
     engine.registerFunction("polarplot",
                             [vecToJson, parsePlotArgs, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.size() < 2) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -264,7 +264,7 @@ void PlotLibrary::install(Engine &engine)
 
     engine.registerFunction("stem",
                             [parsePlotXYStyle, parsePlotArgs, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.empty()) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -279,7 +279,7 @@ void PlotLibrary::install(Engine &engine)
 
     engine.registerFunction("stairs",
                             [parsePlotXYStyle, parsePlotArgs, &engine](
-                                const std::vector<MValue> &args) -> std::vector<MValue> {
+                                const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.empty()) return {MValue::empty()};
                                 auto &fm = engine.figureManager();
                                 fm.prepareForPlot();
@@ -300,7 +300,7 @@ void PlotLibrary::install(Engine &engine)
                                const std::string &yscale) {
         engine.registerFunction(name,
                                 [parsePlotXYStyle, parsePlotArgs, xscale, yscale, &engine](
-                                    const std::vector<MValue> &args) -> std::vector<MValue> {
+                                    const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                     if (args.empty()) return {MValue::empty()};
                                     auto &fm = engine.figureManager();
                                     fm.prepareForPlot();
@@ -325,7 +325,7 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("title",
-                            [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().title = argStr(args[0]);
@@ -336,7 +336,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("xlabel",
-                            [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().xlabel = argStr(args[0]);
@@ -347,7 +347,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("ylabel",
-                            [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().ylabel = argStr(args[0]);
@@ -358,7 +358,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("xlim",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().xlimJson = vecToJson(args[0]);
@@ -369,7 +369,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("ylim",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().ylimJson = vecToJson(args[0]);
@@ -380,7 +380,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("grid",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
                                 auto &ax = fm.currentAxes();
                                 if (args.empty()) {
@@ -397,7 +397,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("legend",
-                            [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [argStr, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto &fm = engine.figureManager();
                                 auto &ax = fm.currentAxes();
                                 ax.legendLabels.clear();
@@ -409,7 +409,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("axis",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().axisMode = args[0].toString();
@@ -424,7 +424,7 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("rlim",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().rlimJson = vecToJson(args[0]);
@@ -435,7 +435,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("thetalim",
-                            [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [vecToJson, &engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].numel() >= 2) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().thetalimJson = vecToJson(args[0]);
@@ -446,7 +446,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("thetadir",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().thetaDir = args[0].toString();
@@ -457,7 +457,7 @@ void PlotLibrary::install(Engine &engine)
                             });
 
     engine.registerFunction("thetazero",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (!args.empty() && args[0].isChar()) {
                                     auto &fm = engine.figureManager();
                                     fm.currentAxes().thetaZeroLocation = args[0].toString();
@@ -471,8 +471,8 @@ void PlotLibrary::install(Engine &engine)
     // GUI no-ops (not yet implemented)
     // ================================================================
 
-    auto noop = [](const std::vector<MValue> &) -> std::vector<MValue> { return {MValue::empty()}; };
-    auto noop_ret1 = [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
+    auto noop = [](const std::vector<MValue> &, size_t /*nargout*/) -> std::vector<MValue> { return {MValue::empty()}; };
+    auto noop_ret1 = [&engine](const std::vector<MValue> &, size_t /*nargout*/) -> std::vector<MValue> {
         return {MValue::scalar(1.0, &engine.allocator())};
     };
 

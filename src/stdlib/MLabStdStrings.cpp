@@ -9,7 +9,7 @@ namespace mlab {
 void StdLibrary::registerStringFunctions(Engine &engine)
 {
     engine.registerFunction("num2str",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::ostringstream os;
                                 os << args[0].toScalar();
@@ -17,7 +17,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("str2num",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 try {
                                     return {MValue::scalar(std::stod(args[0].toString()), alloc)};
@@ -27,7 +27,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("str2double",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 try {
                                     return {MValue::scalar(std::stod(args[0].toString()), alloc)};
@@ -37,13 +37,13 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("strcmp",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 return {MValue::logicalScalar(args[0].toString() == args[1].toString(), alloc)};
                             });
 
     engine.registerFunction("strcmpi",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string a = args[0].toString(), b = args[1].toString();
                                 std::transform(a.begin(), a.end(), a.begin(), ::tolower);
@@ -52,7 +52,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("upper",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string s = args[0].toString();
                                 std::transform(s.begin(), s.end(), s.begin(), ::toupper);
@@ -60,7 +60,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("lower",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string s = args[0].toString();
                                 std::transform(s.begin(), s.end(), s.begin(), ::tolower);
@@ -68,7 +68,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("strtrim",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string s = args[0].toString();
                                 size_t start = s.find_first_not_of(" \t\r\n");
@@ -79,7 +79,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("strsplit",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string s = args[0].toString();
                                 char delim = args.size() >= 2 ? args[1].toString()[0] : ' ';
@@ -95,7 +95,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                             });
 
     engine.registerFunction("strcat",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 std::string result;
                                 for (auto &a : args) result += a.toString();

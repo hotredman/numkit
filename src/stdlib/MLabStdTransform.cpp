@@ -9,7 +9,7 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
 {
     // --- unwrap(phase) --- unwrap radian phase angles
     engine.registerFunction("unwrap",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("unwrap requires 1 argument");
@@ -30,7 +30,7 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
 
     // --- hilbert(x) --- analytic signal via FFT
     engine.registerFunction("hilbert",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("hilbert requires 1 argument");
@@ -58,7 +58,7 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
 
     // --- envelope(x) --- amplitude envelope via Hilbert transform
     engine.registerFunction("envelope",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("envelope requires 1 argument");

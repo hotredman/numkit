@@ -9,7 +9,7 @@ namespace mlab {
 void StdLibrary::registerComplexFunctions(Engine &engine)
 {
     engine.registerFunction("real",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isComplex()) {
@@ -24,7 +24,7 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
                             });
 
     engine.registerFunction("imag",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 auto &a = args[0];
                                 if (a.isComplex()) {
@@ -38,7 +38,7 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
                                 return {MValue::scalar(0.0, alloc)};
                             });
 
-    engine.registerFunction("conj", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("conj", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex())
@@ -47,14 +47,14 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
     });
 
     engine.registerFunction("complex",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() == 1)
                                     return {MValue::complexScalar(args[0].toScalar(), 0.0, alloc)};
                                 return {MValue::complexScalar(args[0].toScalar(), args[1].toScalar(), alloc)};
                             });
 
-    engine.registerFunction("angle", [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    engine.registerFunction("angle", [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         auto &a = args[0];
         if (a.isComplex()) {

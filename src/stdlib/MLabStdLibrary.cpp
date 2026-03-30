@@ -28,7 +28,7 @@ void StdLibrary::install(Engine &engine)
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 if (args.size() < 2)
                                     throw std::runtime_error(
                                         "arrayfun requires at least 2 arguments");

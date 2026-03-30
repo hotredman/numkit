@@ -10,7 +10,7 @@ void StdLibrary::registerFilterFunctions(Engine &engine)
 {
     // --- filter(b, a, x) --- Direct Form II transposed
     engine.registerFunction("filter",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("filter requires 3 arguments");
@@ -49,7 +49,7 @@ void StdLibrary::registerFilterFunctions(Engine &engine)
 
     // --- filtfilt(b, a, x) --- Zero-phase filtering (forward-backward)
     engine.registerFunction("filtfilt",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("filtfilt requires 3 arguments");

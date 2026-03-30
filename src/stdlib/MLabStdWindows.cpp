@@ -13,7 +13,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
 {
     // --- hamming(N) ---
     engine.registerFunction("hamming",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 size_t N = static_cast<size_t>(args[0].toScalar());
                                 auto r = MValue::matrix(N, 1, MType::DOUBLE, alloc);
@@ -23,7 +23,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
                             });
 
     // --- hanning(N) / hann(N) ---
-    auto hannFunc = [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+    auto hannFunc = [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
         auto *alloc = &engine.allocator();
         size_t N = static_cast<size_t>(args[0].toScalar());
         auto r = MValue::matrix(N, 1, MType::DOUBLE, alloc);
@@ -36,7 +36,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
 
     // --- blackman(N) ---
     engine.registerFunction("blackman",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 size_t N = static_cast<size_t>(args[0].toScalar());
                                 auto r = MValue::matrix(N, 1, MType::DOUBLE, alloc);
@@ -49,7 +49,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
 
     // --- kaiser(N, beta) ---
     engine.registerFunction("kaiser",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 size_t N = static_cast<size_t>(args[0].toScalar());
                                 double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
@@ -74,7 +74,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
 
     // --- rectwin(N) ---
     engine.registerFunction("rectwin",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 size_t N = static_cast<size_t>(args[0].toScalar());
                                 auto r = MValue::matrix(N, 1, MType::DOUBLE, alloc);
@@ -85,7 +85,7 @@ void StdLibrary::registerWindowFunctions(Engine &engine)
 
     // --- bartlett(N) ---
     engine.registerFunction("bartlett",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 size_t N = static_cast<size_t>(args[0].toScalar());
                                 auto r = MValue::matrix(N, 1, MType::DOUBLE, alloc);

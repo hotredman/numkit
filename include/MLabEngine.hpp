@@ -16,7 +16,7 @@
 
 namespace mlab {
 
-using ExternalFunc = std::function<std::vector<MValue>(const std::vector<MValue> &)>;
+using ExternalFunc = std::function<std::vector<MValue>(const std::vector<MValue> &, size_t)>;
 using BinaryOpFunc = std::function<MValue(const MValue &, const MValue &)>;
 using UnaryOpFunc = std::function<MValue(const MValue &)>;
 

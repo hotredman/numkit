@@ -10,7 +10,7 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
 {
     // --- conv(a, b) / conv(a, b, shape) ---
     engine.registerFunction("conv",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("conv requires at least 2 arguments");
@@ -47,7 +47,7 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
 
     // --- deconv(b, a) --- polynomial long division
     engine.registerFunction("deconv",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("deconv requires 2 arguments");
@@ -88,7 +88,7 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
 
     // --- xcorr(x) / xcorr(x, y) --- cross-correlation via conv
     engine.registerFunction("xcorr",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("xcorr requires at least 1 argument");

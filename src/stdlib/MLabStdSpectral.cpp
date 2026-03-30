@@ -10,7 +10,7 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
 {
     // --- periodogram(x) / periodogram(x, window, nfft) ---
     engine.registerFunction("periodogram",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("periodogram requires at least 1 argument");
@@ -55,7 +55,7 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
 
     // --- pwelch(x) / pwelch(x, window, noverlap, nfft) ---
     engine.registerFunction("pwelch",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("pwelch requires at least 1 argument");
@@ -119,7 +119,7 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
 
     // --- spectrogram(x, window, noverlap, nfft) ---
     engine.registerFunction("spectrogram",
-                            [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("spectrogram requires at least 1 argument");

@@ -315,8 +315,8 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
             return MValue::fromString(node->strValue, &allocator_);
         case NodeType::BOOL_LITERAL:
             return MValue::logicalScalar(node->boolValue, &allocator_);
-        case NodeType::IMAG_LITERAL:                                        // ← добавить
-            return MValue::complexScalar(0.0, node->numValue, &allocator_); // ← добавить
+        case NodeType::IMAG_LITERAL:
+            return MValue::complexScalar(0.0, node->numValue, &allocator_);
         case NodeType::IDENTIFIER:
             return execIdentifier(node, env);
         case NodeType::ASSIGN:
@@ -382,7 +382,6 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
         }
 
     } catch (const MLabError &) {
-        // Already annotated — re-throw as-is
         throw;
     } catch (const BreakSignal &) {
         throw;
@@ -391,7 +390,6 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
     } catch (const ReturnSignal &) {
         throw;
     } catch (const std::runtime_error &e) {
-        // Annotate with line/col from this AST node
         if (node->line > 0)
             throw MLabError(e.what(), node->line, node->col);
         throw;
@@ -423,7 +421,7 @@ MValue Engine::execIdentifier(const ASTNode *node, std::shared_ptr<Environment> 
         return result;
 
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name]({});
+        auto res = externalFuncs_[name]({}, 1);    // ← nargout = 1
         return res.empty() ? MValue::empty() : res[0];
     }
     if (userFuncs_.count(name))
@@ -572,7 +570,6 @@ void Engine::execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_p
 
     auto *var = env->get(target->strValue);
     if (!var) {
-        // Create empty cell if variable doesn't exist
         env->set(target->strValue, MValue::cell(0, 0));
         var = env->get(target->strValue);
     }
@@ -584,7 +581,6 @@ void Engine::execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_p
 
     size_t i = static_cast<size_t>(idx.toScalar()) - 1;
 
-    // Auto-expand cell array if index is out of bounds
     if (i >= var->numel()) {
         size_t newSize = i + 1;
         auto newCell = MValue::cell(1, newSize);
@@ -634,7 +630,7 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
         return callFuncHandleMulti(*var, args, env, nout);
 
     if (externalFuncs_.count(funcName))
-        return externalFuncs_[funcName](args);
+        return externalFuncs_[funcName](args, nout);    // ← nargout = nout
     if (userFuncs_.count(funcName))
         return callUserFunctionMulti(userFuncs_[funcName], args, env, nout);
 
@@ -786,7 +782,7 @@ std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
 {
     const std::string &name = handle.funcHandleName();
     if (externalFuncs_.count(name))
-        return externalFuncs_[name](args);
+        return externalFuncs_[name](args, nout);    // ← nargout = nout
     if (userFuncs_.count(name))
         return callUserFunctionMulti(userFuncs_[name], args, env, nout);
     throw std::runtime_error("Undefined function in handle: @" + name);
@@ -796,8 +792,6 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
 {
     auto *funcNode = node->children[0].get();
 
-    // FIX #1: Поддержка chain calls — target может быть любым выражением
-    // Если target — не идентификатор, вычисляем его и пытаемся вызвать/проиндексировать
     if (funcNode->type != NodeType::IDENTIFIER) {
         auto target = execNode(funcNode, env);
 
@@ -809,7 +803,6 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
             return callFuncHandle(target, args, env);
         }
 
-        // Если результат — массив/cell/etc., трактуем как индексацию
         if (target.isNumeric() || target.isLogical() || target.isChar() || target.isCell())
             return execIndexAccess(target, node, env);
 
@@ -846,7 +839,7 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
 
         // Reuse already-built args for external/user functions
         if (externalFuncs_.count(name)) {
-            auto res = externalFuncs_[name](args);
+            auto res = externalFuncs_[name](args, 1);    // ← nargout = 1
             return res.empty() ? MValue::empty() : res[0];
         }
         if (userFuncs_.count(name)) {
@@ -868,7 +861,6 @@ MValue Engine::execIndexAccess(const MValue &var,
 {
     size_t nargs = callNode->children.size() - 1;
 
-    // FIX #7: Bounds check helper for read-access
     auto checkBounds = [](const std::vector<size_t> &indices, size_t limit, const char *ctx) {
         for (auto idx : indices) {
             if (idx >= limit)
@@ -1044,7 +1036,6 @@ MValue Engine::execMatrixLiteral(const ASTNode *node, std::shared_ptr<Environmen
         for (auto &elemNode : rowNode->children) {
             auto val = execNode(elemNode.get(), env);
 
-            // Skip empty values — MATLAB concatenation ignores []
             if (val.isEmpty())
                 continue;
 
@@ -1069,12 +1060,10 @@ MValue Engine::execMatrixLiteral(const ASTNode *node, std::shared_ptr<Environmen
                 ri.rowHeight = eR;
             ri.elems.push_back({std::move(val), eR, eC});
         }
-        // Skip entirely empty rows
         if (!ri.elems.empty())
             matRows.push_back(std::move(ri));
     }
 
-    // All elements were empty
     if (matRows.empty())
         return MValue::empty();
 
@@ -1159,24 +1148,18 @@ MValue Engine::execCellLiteral(const ASTNode *node, std::shared_ptr<Environment>
     if (node->children.empty())
         return MValue::cell(0, 0);
 
-    // Проверяем: если children содержат BLOCK-ноды — это 2D cell {a b; c d}
-    // Если children содержат выражения напрямую — это старый формат (не должен
-    // возникать с новым парсером, но для безопасности)
     bool is2D = !node->children.empty() && node->children[0]->type == NodeType::BLOCK;
 
     if (!is2D) {
-        // Fallback: flat list — 1×N cell
         auto cell = MValue::cell(1, node->children.size());
         for (size_t i = 0; i < node->children.size(); ++i)
             cell.cellAt(i) = execNode(node->children[i].get(), env);
         return cell;
     }
 
-    // 2D cell: каждый child — строка (BLOCK), внутри — элементы
     size_t numRows = node->children.size();
     size_t numCols = 0;
 
-    // Определяем количество столбцов (по первой строке)
     for (auto &rowNode : node->children) {
         size_t cols = rowNode->children.size();
         if (numCols == 0) {
@@ -1364,7 +1347,6 @@ MValue Engine::execSwitch(const ASTNode *node, std::shared_ptr<Environment> env)
         bool matched = false;
 
         if (cv.isCell()) {
-            // Cell case: match if any element matches
             for (size_t i = 0; i < cv.numel() && !matched; ++i) {
                 const auto &elem = cv.cellAt(i);
                 if (sv.isNumeric() && elem.isNumeric()) {
@@ -1378,7 +1360,6 @@ MValue Engine::execSwitch(const ASTNode *node, std::shared_ptr<Environment> env)
                 }
             }
         } else {
-            // Scalar case: direct comparison
             if (sv.isNumeric() && cv.isNumeric()) {
                 if (sv.isScalar() && cv.isScalar())
                     matched = sv.toScalar() == cv.toScalar();
@@ -1408,7 +1389,6 @@ MValue Engine::execFunctionDef(const ASTNode *node, std::shared_ptr<Environment>
     func.name = node->strValue;
     func.params = node->paramNames;
     func.returns = node->returnNames;
-    // Clone the body into a shared_ptr for storage in userFuncs_
     func.body = std::shared_ptr<const ASTNode>(cloneNode(node->children[0].get()));
     func.closureEnv = nullptr;
     userFuncs_[func.name] = std::move(func);
@@ -1426,27 +1406,18 @@ MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> en
 }
 
 // ============================================================
-// Command-style call: clear all, grid on, load data.mat x y …
-//
-// COMMAND_CALL node layout:
-//   strValue   = имя функции
-//   children[] = STRING_LITERAL аргументы
-//
-// Семантика MATLAB: command syntax ≡ вызов со строковыми аргументами
-//   clear all       →  clear('all')
-//   load data.mat x →  load('data.mat','x')
+// Command-style call
 // ============================================================
 MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment> env)
 {
     const std::string &name = node->strValue;
 
-    // Все children — STRING_LITERAL → превращаем в CHAR MValue
     std::vector<MValue> args;
     args.reserve(node->children.size());
     for (auto &child : node->children)
         args.push_back(MValue::fromString(child->strValue, &allocator_));
 
-    // 1. Встроенные команды (clear, who, whos, exist, class)
+    // 1. Built-in commands
     MValue result;
     if (tryBuiltinCall(name, args, env, result)) {
         if (!node->suppressOutput && !result.isEmpty()) {
@@ -1456,9 +1427,9 @@ MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment>
         return result;
     }
 
-    // 2. Внешние зарегистрированные функции
+    // 2. External registered functions
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name](args);
+        auto res = externalFuncs_[name](args, 1);    // ← nargout = 1
         result = res.empty() ? MValue::empty() : res[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
@@ -1467,7 +1438,7 @@ MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment>
         return result;
     }
 
-    // 3. Пользовательские функции
+    // 3. User functions
     if (userFuncs_.count(name)) {
         result = callUserFunction(userFuncs_[name], args, env);
         if (!node->suppressOutput && !result.isEmpty()) {
@@ -1496,7 +1467,6 @@ MValue Engine::execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> en
     uf.params = node->paramNames;
     uf.returns = {"__result__"};
 
-    // Build body block: __result__ = <cloned expression>
     auto bodyBlock = std::make_shared<ASTNode>(NodeType::BLOCK);
 
     auto assignNode = std::make_unique<ASTNode>(NodeType::ASSIGN);
@@ -1573,7 +1543,6 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
 
-    // Check for too many arguments
     if (args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
 
@@ -1608,7 +1577,7 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
 }
 
 // ============================================================
-// Built-in constant names (protected from clear, hidden from who/whos)
+// Built-in constant names
 // ============================================================
 static const std::unordered_set<std::string> kBuiltinNames = {"pi",
                                                               "eps",
@@ -1632,7 +1601,6 @@ bool Engine::tryBuiltinCall(const std::string &name,
 {
     if (name == "clear") {
         if (args.empty()) {
-            // clear (no args) — same as clear all
             env->clearAll();
             userFuncs_.clear();
             figureManager_.closeAll();
@@ -1649,7 +1617,6 @@ bool Engine::tryBuiltinCall(const std::string &name,
             } else if (first == "global") {
                 // TODO
             } else {
-                // clear x y z — protect constants
                 for (auto &a : args) {
                     if (a.isChar()) {
                         std::string varName = a.toString();
@@ -1664,17 +1631,14 @@ bool Engine::tryBuiltinCall(const std::string &name,
     }
 
     if (name == "who") {
-        // Collect variable names to display
         std::vector<std::string> names;
         if (args.empty()) {
-            // who — list all user variables
             auto all = env->localNames();
             for (auto &n : all) {
                 if (kBuiltinNames.count(n) == 0)
                     names.push_back(n);
             }
         } else {
-            // who x y z — list only those that exist as variables
             for (auto &a : args) {
                 if (a.isChar()) {
                     std::string varName = a.toString();
@@ -1698,17 +1662,14 @@ bool Engine::tryBuiltinCall(const std::string &name,
     }
 
     if (name == "whos") {
-        // Collect variable names to display
         std::vector<std::string> names;
         if (args.empty()) {
-            // whos — list all user variables
             auto all = env->localNames();
             for (auto &n : all) {
                 if (kBuiltinNames.count(n) == 0)
                     names.push_back(n);
             }
         } else {
-            // whos x y z — list only those that exist
             for (auto &a : args) {
                 if (a.isChar()) {
                     std::string varName = a.toString();
@@ -1735,18 +1696,14 @@ bool Engine::tryBuiltinCall(const std::string &name,
                 std::string classStr = mtypeName(val->type());
 
                 os << "  " << n;
-                // Pad name to column 10
                 for (size_t i = n.size(); i < 10; ++i)
                     os << " ";
                 os << sizeStr;
-                // Pad size to column 17
                 for (size_t i = sizeStr.size(); i < 17; ++i)
                     os << " ";
-                // Right-align bytes in 5 chars
                 for (size_t i = bytesStr.size(); i < 5; ++i)
                     os << " ";
                 os << bytesStr << "  " << classStr;
-                // Pad class to column 10
                 for (size_t i = classStr.size(); i < 10; ++i)
                     os << " ";
                 os << "\n";
@@ -1783,9 +1740,9 @@ bool Engine::tryBuiltinCall(const std::string &name,
         std::string varName = args[0].toString();
         double code = 0;
         if (env->has(varName))
-            code = 1; // variable
+            code = 1;
         else if (externalFuncs_.count(varName) || userFuncs_.count(varName))
-            code = 5; // function (built-in or user)
+            code = 5;
         result = MValue::scalar(code, &allocator_);
         return true;
     }
@@ -1852,17 +1809,13 @@ std::string Engine::workspaceJSON() const
         first = false;
 
         os << "\"" << jsonEscape(name) << "\":{";
-        // type
         os << "\"type\":\"" << mtypeName(val->type()) << "\"";
-        // size
         auto &d = val->dims();
         os << ",\"size\":\"" << d.rows() << "x" << d.cols();
         if (d.is3D())
             os << "x" << d.pages();
         os << "\"";
-        // bytes
         os << ",\"bytes\":" << val->rawBytes();
-        // preview value (scalar/small vector only)
         os << ",\"preview\":";
         if (val->type() == MType::DOUBLE && val->isScalar()) {
             double v = val->toScalar();
