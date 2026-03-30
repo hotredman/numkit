@@ -309,8 +309,8 @@ void PlotLibrary::install(Engine &engine)
                                 if (!C_arg)
                                     return {MValue::empty()};
 
-                                size_t rows = C_arg->rows();
-                                size_t cols = C_arg->cols();
+                                size_t rows = C_arg->dims().rows();
+                                size_t cols = C_arg->dims().cols();
                                 if (rows == 0 || cols == 0)
                                     return {MValue::empty()};
 
