@@ -486,8 +486,92 @@ MValue Engine::execNode(const ASTNode *node, const std::shared_ptr<Environment> 
 MValue Engine::execBlock(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     MValue last = MValue::empty();
-    for (auto &child : node->children)
+    for (auto &child : node->children) {
+        // ── Fast path: x = <scalar expr> with suppressed output ──
+        // Inline the entire ASSIGN + BINARY_OP + IDENTIFIER/NUMBER chain
+        // to avoid 4-5 recursive execNode calls per statement.
+        if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
+            && child->children[0]->type == NodeType::IDENTIFIER) {
+            const auto *rhs = child->children[1].get();
+            const std::string &lhsName = child->children[0]->strValue;
+
+            // Case 1: x = <number>
+            if (rhs->type == NodeType::NUMBER_LITERAL) {
+                MValue *existing = env->getLocal(lhsName);
+                if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
+                    *existing->doubleDataMut() = rhs->numValue;
+                } else {
+                    env->set(lhsName, MValue::scalar(rhs->numValue, &allocator_));
+                }
+                continue;
+            }
+
+            // Case 2: x = <identifier>
+            if (rhs->type == NodeType::IDENTIFIER) {
+                MValue *src = env->get(rhs->strValue);
+                if (src) {
+                    env->set(lhsName, *src);
+                    continue;
+                }
+                // fall through to generic path
+            }
+
+            // Case 3: x = <a op b> where a,b are identifiers or numbers
+            if (rhs->type == NodeType::BINARY_OP && rhs->cachedOp && rhs->children.size() == 2) {
+                const auto *lOp = rhs->children[0].get();
+                const auto *rOp = rhs->children[1].get();
+
+                double lv, rv;
+                bool lOk = false, rOk = false;
+
+                // Resolve left operand
+                if (lOp->type == NodeType::NUMBER_LITERAL) {
+                    lv = lOp->numValue;
+                    lOk = true;
+                } else if (lOp->type == NodeType::IDENTIFIER) {
+                    MValue *v = env->get(lOp->strValue);
+                    if (v && v->isScalar() && v->type() == MType::DOUBLE) {
+                        lv = v->toScalar();
+                        lOk = true;
+                    }
+                }
+
+                // Resolve right operand
+                if (rOp->type == NodeType::NUMBER_LITERAL) {
+                    rv = rOp->numValue;
+                    rOk = true;
+                } else if (rOp->type == NodeType::IDENTIFIER) {
+                    MValue *v = env->get(rOp->strValue);
+                    if (v && v->isScalar() && v->type() == MType::DOUBLE) {
+                        rv = v->toScalar();
+                        rOk = true;
+                    }
+                }
+
+                if (lOk && rOk) {
+                    MValue lm = MValue::scalar(lv, &allocator_);
+                    MValue rm = MValue::scalar(rv, &allocator_);
+                    MValue result = (*static_cast<const BinaryOpFunc *>(rhs->cachedOp))(lm, rm);
+
+                    if (result.isScalar() && result.type() == MType::DOUBLE) {
+                        MValue *existing = env->getLocal(lhsName);
+                        if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
+                            *existing->doubleDataMut() = result.toScalar();
+                        } else {
+                            env->set(lhsName, std::move(result));
+                        }
+                        continue;
+                    }
+                    // Non-scalar result (e.g. matrix op) — fall through
+                    env->set(lhsName, std::move(result));
+                    continue;
+                }
+                // Couldn't resolve operands as scalars — fall through
+            }
+        }
+
         last = execNode(child.get(), env);
+    }
     return last;
 }
 
