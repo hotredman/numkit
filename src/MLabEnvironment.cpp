@@ -44,6 +44,11 @@ const MValue *Environment::sboFind(const std::string &name) const
 
 void Environment::sboSet(const std::string &name, MValue val)
 {
+    // If already overflowed, use map directly
+    if (!vars_.empty()) {
+        vars_[name] = std::move(val);
+        return;
+    }
     // Try to update existing slot
     for (size_t i = 0; i < sboCount_; ++i) {
         if (sbo_[i].used && sbo_[i].name == name) {
@@ -59,7 +64,14 @@ void Environment::sboSet(const std::string &name, MValue val)
         sboCount_++;
         return;
     }
-    // Overflow to map
+    // Overflow: migrate all SBO slots to map, then add new entry
+    for (size_t i = 0; i < sboCount_; ++i) {
+        if (sbo_[i].used) {
+            vars_[std::move(sbo_[i].name)] = std::move(sbo_[i].value);
+            sbo_[i].used = false;
+        }
+    }
+    sboCount_ = 0;
     vars_[name] = std::move(val);
 }
 
@@ -84,12 +96,16 @@ MValue *Environment::get(const std::string &name)
 {
     if (hasGlobals_ && globals_.count(name) && globalStore_)
         return globalStore_->get(name);
-    MValue *v = sboFind(name);
-    if (v)
-        return v;
-    auto it = vars_.find(name);
-    if (it != vars_.end())
-        return &it->second;
+    if (!vars_.empty()) {
+        // Overflowed — use map only
+        auto it = vars_.find(name);
+        if (it != vars_.end())
+            return &it->second;
+    } else if (sboCount_ > 0) {
+        MValue *v = sboFind(name);
+        if (v)
+            return v;
+    }
     if (parent_)
         return parent_->get(name);
     return nullptr;
@@ -99,10 +115,12 @@ bool Environment::has(const std::string &name) const
 {
     if (hasGlobals_ && globals_.count(name) && globalStore_)
         return globalStore_->get(name) != nullptr;
-    if (sboFind(name))
+    if (!vars_.empty()) {
+        if (vars_.count(name))
+            return true;
+    } else if (sboFind(name)) {
         return true;
-    if (vars_.count(name))
-        return true;
+    }
     if (parent_)
         return parent_->has(name);
     return false;
@@ -115,11 +133,11 @@ void Environment::setLocal(const std::string &name, MValue val)
 
 MValue *Environment::getLocal(const std::string &name)
 {
-    MValue *v = sboFind(name);
-    if (v)
-        return v;
-    auto it = vars_.find(name);
-    return (it != vars_.end()) ? &it->second : nullptr;
+    if (!vars_.empty()) {
+        auto it = vars_.find(name);
+        return (it != vars_.end()) ? &it->second : nullptr;
+    }
+    return sboFind(name);
 }
 
 MValue *Environment::getLocalFast(const std::string &name)
