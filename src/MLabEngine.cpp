@@ -1426,6 +1426,21 @@ MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> en
         }
     }
 
+    // Bare identifier in statement context (e.g. `tic` without parens)
+    if (child->type == NodeType::IDENTIFIER) {
+        const std::string &name = child->strValue;
+        if (!env->get(name)) {
+            MValue result;
+            if (tryBuiltinCall(name, {}, env, result, 0)) {
+                if (!node->suppressOutput && !result.isEmpty()) {
+                    env->set("ans", result);
+                    displayValue("ans", result);
+                }
+                return result;
+            }
+        }
+    }
+
     auto val = execNode(child, env);
     if (!node->suppressOutput && !val.isEmpty()) {
         env->set("ans", val);
