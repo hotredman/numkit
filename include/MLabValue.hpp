@@ -186,6 +186,9 @@ public:
     void resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator *alloc = nullptr);
     void ensureSize(size_t linearIdx, Allocator *alloc = nullptr);
 
+    // Append a scalar to a row vector with amortized O(1) growth
+    void appendScalar(double v, Allocator *alloc = nullptr);
+
     // Promote double → complex
     void promoteToComplex(Allocator *alloc = nullptr);
 

@@ -1210,6 +1210,39 @@ MValue Engine::execMatrixLiteral(const ASTNode *node, const std::shared_ptr<Envi
     if (node->children.empty())
         return MValue::empty();
 
+    // ── Fast path: [A, x] or [A, x, y, ...] row vector append ──
+    // When appending scalars/vectors to a row vector, use amortized growth.
+    if (node->children.size() == 1) {
+        auto &rowChildren = node->children[0]->children;
+        if (rowChildren.size() >= 2 && rowChildren[0]->type == NodeType::IDENTIFIER) {
+            MValue *varPtr = env->get(rowChildren[0]->strValue);
+            if (varPtr && varPtr->type() == MType::DOUBLE && varPtr->dims().rows() == 1
+                && varPtr->dims().cols() > 0) {
+                // Evaluate all appended elements
+                std::vector<double> appended;
+                bool allDoubles = true;
+                for (size_t i = 1; i < rowChildren.size(); ++i) {
+                    auto val = execNode(rowChildren[i].get(), env);
+                    if (val.isScalar() && val.type() == MType::DOUBLE) {
+                        appended.push_back(val.toScalar());
+                    } else if (val.type() == MType::DOUBLE && val.dims().rows() == 1) {
+                        const double *dd = val.doubleData();
+                        for (size_t j = 0; j < val.numel(); ++j)
+                            appended.push_back(dd[j]);
+                    } else {
+                        allDoubles = false;
+                        break;
+                    }
+                }
+                if (allDoubles && !appended.empty()) {
+                    for (double v : appended)
+                        varPtr->appendScalar(v, &allocator_);
+                    return *varPtr;
+                }
+            }
+        }
+    }
+
     struct ElemInfo
     {
         MValue val;

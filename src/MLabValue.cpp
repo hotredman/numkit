@@ -928,6 +928,56 @@ void MValue::ensureSize(size_t linearIdx, Allocator *alloc)
     }
 }
 
+void MValue::appendScalar(double v, Allocator *alloc)
+{
+    if (!alloc)
+        alloc = allocator_;
+
+    size_t oldN = numel();
+    size_t newN = oldN + 1;
+
+    // Check if buffer has spare capacity
+    size_t capacity = 0;
+    if (useSBO_) {
+        capacity = SBO_SIZE / sizeof(double); // 2 for 16-byte SBO
+    } else if (buffer_) {
+        capacity = buffer_->bytes() / sizeof(double);
+    }
+
+    if (newN <= capacity && (useSBO_ || (buffer_ && buffer_->refCount() <= 1))) {
+        // We have room — just write and update dims
+        if (useSBO_)
+            reinterpret_cast<double *>(sbo_)[oldN] = v;
+        else
+            static_cast<double *>(buffer_->data())[oldN] = v;
+        dims_ = {1, newN};
+        return;
+    }
+
+    // Need to grow — allocate with 2x amortized strategy
+    size_t newCapacity = std::max(newN, capacity * 2);
+    if (newCapacity < 8)
+        newCapacity = 8;
+    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(newCapacity * sizeof(double), alloc));
+    double *dst = static_cast<double *>(newBuf->data());
+    std::memset(dst, 0, newCapacity * sizeof(double));
+
+    // Copy old data
+    if (oldN > 0) {
+        const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
+                                      : (buffer_ ? buffer_->data() : nullptr);
+        if (oldData)
+            std::memcpy(dst, oldData, oldN * sizeof(double));
+    }
+    dst[oldN] = v;
+
+    releaseBuffer();
+    buffer_ = newBuf.release();
+    useSBO_ = false;
+    allocator_ = alloc;
+    dims_ = {1, newN};
+}
+
 // ============================================================
 // Cell
 // ============================================================
