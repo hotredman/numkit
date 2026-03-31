@@ -1632,9 +1632,10 @@ bool Engine::tryBuiltinCall(const std::string &name,
     // ── tic / toc ──────────────────────────────────────────────
     if (name == "tic") {
         auto now = Clock::now();
-        ticStack_.push_back(now);
+        ticBase_ = now;
+        ticCalled_ = true;
         if (nargout > 0) {
-            // t = tic  →  return timer id (epoch microseconds as double)
+            // t = tic  →  return timer value (epoch microseconds as double)
             double id = static_cast<double>(
                 std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch())
                     .count());
@@ -1649,12 +1650,12 @@ bool Engine::tryBuiltinCall(const std::string &name,
         auto now = Clock::now();
         TimePoint start;
         if (!args.empty() && args[0].isScalar()) {
-            // toc(t)  →  elapsed since specific tic id
+            // toc(t)  →  elapsed since specific tic value
             auto us = static_cast<long long>(args[0].toScalar());
             start = TimePoint(std::chrono::microseconds(us));
-        } else if (!ticStack_.empty()) {
-            start = ticStack_.back();
-            ticStack_.pop_back();
+        } else if (ticCalled_) {
+            // toc  →  elapsed since last tic (does NOT consume it)
+            start = ticBase_;
         } else {
             throw MLabError("toc: You must call 'tic' before calling 'toc'.");
         }

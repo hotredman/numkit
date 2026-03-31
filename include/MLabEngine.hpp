@@ -112,7 +112,8 @@ private:
     // Tic/toc timer support
     using Clock = std::chrono::high_resolution_clock;
     using TimePoint = Clock::time_point;
-    std::vector<TimePoint> ticStack_;
+    TimePoint ticBase_{};
+    bool ticCalled_ = false;
 
     struct IndexContext
     {
