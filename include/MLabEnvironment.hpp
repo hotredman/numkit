@@ -52,8 +52,6 @@ public:
     void forEachLocal(const std::function<void(const std::string &, const MValue &)> &fn) const;
 
     // Create a deep snapshot of this environment and its parent chain
-    // (up to but not including the globalEnv root).
-    // The snapshot captures all variable values at this moment.
     std::shared_ptr<Environment> snapshot(std::shared_ptr<Environment> newParent,
                                           GlobalStore *gs) const;
 
@@ -64,11 +62,29 @@ public:
     std::vector<std::string> localNames() const;
 
 private:
+    // Small buffer: inline storage for first N variables (avoids unordered_map for small scopes)
+    static constexpr size_t SBO_SLOTS = 8;
+    struct Slot
+    {
+        std::string name;
+        MValue value;
+        bool used = false;
+    };
+    Slot sbo_[SBO_SLOTS];
+    size_t sboCount_ = 0;
+
+    // Overflow map for large scopes
     std::unordered_map<std::string, MValue> vars_;
+
     std::unordered_set<std::string> globals_;
     std::shared_ptr<Environment> parent_;
     GlobalStore *globalStore_ = nullptr;
-    bool hasGlobals_ = false; // fast check to skip globals_.count()
+    bool hasGlobals_ = false;
+
+    // Internal helpers
+    MValue *sboFind(const std::string &name);
+    const MValue *sboFind(const std::string &name) const;
+    void sboSet(const std::string &name, MValue val);
 };
 
 } // namespace mlab
