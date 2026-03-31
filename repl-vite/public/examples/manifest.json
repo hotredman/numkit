@@ -28,6 +28,12 @@
       ]
     },
     {
+      "name": "Benchmark",
+      "files": [
+        "benchmark.m"
+      ]
+    },
+    {
       "name": "Control_Flow",
       "files": [
         "for_loop.m",
