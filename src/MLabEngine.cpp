@@ -4,6 +4,7 @@
 #include "MLabParser.hpp"
 #include "MLabStdLibrary.hpp"
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <iostream>
@@ -86,7 +87,8 @@ void Engine::setMaxRecursionDepth(int d)
 
 bool Engine::isKnownFunction(const std::string &name) const
 {
-    return externalFuncs_.count(name) || userFuncs_.count(name);
+    static const std::unordered_set<std::string> kBuiltinFuncs = {"tic", "toc"};
+    return externalFuncs_.count(name) || userFuncs_.count(name) || kBuiltinFuncs.count(name);
 }
 
 // ============================================================
@@ -417,11 +419,11 @@ MValue Engine::execIdentifier(const ASTNode *node, std::shared_ptr<Environment> 
 
     // Try built-in with zero args
     MValue result;
-    if (tryBuiltinCall(name, {}, env, result))
+    if (tryBuiltinCall(name, {}, env, result, 1))
         return result;
 
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name]({}, 1);    // ← nargout = 1
+        auto res = externalFuncs_[name]({}, 1); // ← nargout = 1
         return res.empty() ? MValue::empty() : res[0];
     }
     if (userFuncs_.count(name))
@@ -629,8 +631,15 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
     if (var && var->isFuncHandle())
         return callFuncHandleMulti(*var, args, env, nout);
 
+    // Try built-in commands
+    {
+        MValue result;
+        if (tryBuiltinCall(funcName, args, env, result, nout))
+            return {result};
+    }
+
     if (externalFuncs_.count(funcName))
-        return externalFuncs_[funcName](args, nout);    // ← nargout = nout
+        return externalFuncs_[funcName](args, nout); // ← nargout = nout
     if (userFuncs_.count(funcName))
         return callUserFunctionMulti(userFuncs_[funcName], args, env, nout);
 
@@ -782,7 +791,7 @@ std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
 {
     const std::string &name = handle.funcHandleName();
     if (externalFuncs_.count(name))
-        return externalFuncs_[name](args, nout);    // ← nargout = nout
+        return externalFuncs_[name](args, nout); // ← nargout = nout
     if (userFuncs_.count(name))
         return callUserFunctionMulti(userFuncs_[name], args, env, nout);
     throw std::runtime_error("Undefined function in handle: @" + name);
@@ -834,12 +843,12 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
     {
         auto args = buildArgs();
         MValue result;
-        if (tryBuiltinCall(name, args, env, result))
+        if (tryBuiltinCall(name, args, env, result, 1))
             return result;
 
         // Reuse already-built args for external/user functions
         if (externalFuncs_.count(name)) {
-            auto res = externalFuncs_[name](args, 1);    // ← nargout = 1
+            auto res = externalFuncs_[name](args, 1); // ← nargout = 1
             return res.empty() ? MValue::empty() : res[0];
         }
         if (userFuncs_.count(name)) {
@@ -1397,7 +1406,27 @@ MValue Engine::execFunctionDef(const ASTNode *node, std::shared_ptr<Environment>
 
 MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> env)
 {
-    auto val = execNode(node->children[0].get(), env);
+    // For bare function calls in statement context, try builtins with nargout=0
+    // so that e.g. `toc;` prints elapsed time instead of returning silently.
+    auto *child = node->children[0].get();
+    if (child->type == NodeType::CALL && !child->children.empty()
+        && child->children[0]->type == NodeType::IDENTIFIER) {
+        const std::string &name = child->children[0]->strValue;
+        std::vector<MValue> args;
+        args.reserve(child->children.size() - 1);
+        for (size_t i = 1; i < child->children.size(); ++i)
+            args.push_back(execNode(child->children[i].get(), env));
+        MValue result;
+        if (tryBuiltinCall(name, args, env, result, 0)) {
+            if (!node->suppressOutput && !result.isEmpty()) {
+                env->set("ans", result);
+                displayValue("ans", result);
+            }
+            return result;
+        }
+    }
+
+    auto val = execNode(child, env);
     if (!node->suppressOutput && !val.isEmpty()) {
         env->set("ans", val);
         displayValue("ans", val);
@@ -1419,7 +1448,7 @@ MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment>
 
     // 1. Built-in commands
     MValue result;
-    if (tryBuiltinCall(name, args, env, result)) {
+    if (tryBuiltinCall(name, args, env, result, 0)) {
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
             displayValue("ans", result);
@@ -1429,7 +1458,7 @@ MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment>
 
     // 2. External registered functions
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name](args, 1);    // ← nargout = 1
+        auto res = externalFuncs_[name](args, 1); // ← nargout = 1
         result = res.empty() ? MValue::empty() : res[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
@@ -1597,8 +1626,52 @@ static const std::unordered_set<std::string> kBuiltinNames = {"pi",
 bool Engine::tryBuiltinCall(const std::string &name,
                             const std::vector<MValue> &args,
                             std::shared_ptr<Environment> env,
-                            MValue &result)
+                            MValue &result,
+                            size_t nargout)
 {
+    // ── tic / toc ──────────────────────────────────────────────
+    if (name == "tic") {
+        auto now = Clock::now();
+        ticStack_.push_back(now);
+        if (nargout > 0) {
+            // t = tic  →  return timer id (epoch microseconds as double)
+            double id = static_cast<double>(
+                std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch())
+                    .count());
+            result = MValue::scalar(id, &allocator_);
+        } else {
+            result = MValue::empty();
+        }
+        return true;
+    }
+
+    if (name == "toc") {
+        auto now = Clock::now();
+        TimePoint start;
+        if (!args.empty() && args[0].isScalar()) {
+            // toc(t)  →  elapsed since specific tic id
+            auto us = static_cast<long long>(args[0].toScalar());
+            start = TimePoint(std::chrono::microseconds(us));
+        } else if (!ticStack_.empty()) {
+            start = ticStack_.back();
+            ticStack_.pop_back();
+        } else {
+            throw MLabError("toc: You must call 'tic' before calling 'toc'.");
+        }
+        double elapsed = std::chrono::duration<double>(now - start).count();
+        if (nargout > 0) {
+            // t = toc  →  return elapsed, don't print
+            result = MValue::scalar(elapsed, &allocator_);
+        } else {
+            // toc  →  print elapsed time
+            std::ostringstream os;
+            os << "Elapsed time is " << elapsed << " seconds.\n";
+            output(os.str());
+            result = MValue::empty();
+        }
+        return true;
+    }
+
     if (name == "clear") {
         if (args.empty()) {
             env->clearAll();

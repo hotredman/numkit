@@ -7,6 +7,7 @@
 #include "MLabValue.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -107,6 +108,11 @@ private:
     std::atomic<int> anonCounter_{0};
 
     FigureManager figureManager_;
+
+    // Tic/toc timer support
+    using Clock = std::chrono::high_resolution_clock;
+    using TimePoint = Clock::time_point;
+    std::vector<TimePoint> ticStack_;
 
     struct IndexContext
     {
@@ -220,7 +226,8 @@ private:
     bool tryBuiltinCall(const std::string &name,
                         const std::vector<MValue> &args,
                         std::shared_ptr<Environment> env,
-                        MValue &result);
+                        MValue &result,
+                        size_t nargout = 0);
 };
 
 } // namespace mlab
