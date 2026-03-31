@@ -745,6 +745,12 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
     if (var && var->isFuncHandle())
         return callFuncHandleMulti(*var, args, env, nout);
 
+    // Fast path: cached function pointer
+    auto *funcNode = node->children[0].get();
+    if (funcNode->cachedOp) {
+        return (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, nout);
+    }
+
     // Try built-in commands
     {
         MValue result;
@@ -752,8 +758,11 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
             return {result};
     }
 
-    if (externalFuncs_.count(funcName))
-        return externalFuncs_[funcName](args, nout); // ← nargout = nout
+    auto it = externalFuncs_.find(funcName);
+    if (it != externalFuncs_.end()) {
+        funcNode->cachedOp = &it->second;
+        return it->second(args, nout);
+    }
     if (userFuncs_.count(funcName))
         return callUserFunctionMulti(userFuncs_[funcName], args, env, nout);
 
@@ -970,13 +979,22 @@ MValue Engine::execCall(const ASTNode *node, const std::shared_ptr<Environment> 
     // Try built-in commands (need env access)
     {
         auto args = buildArgs();
+
+        // Fast path: use cached function pointer from AST node
+        if (funcNode->cachedOp) {
+            auto res = (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, 1);
+            return res.empty() ? MValue::empty() : res[0];
+        }
+
         MValue result;
         if (tryBuiltinCall(name, args, env, result, 1))
             return result;
 
-        // Reuse already-built args for external/user functions
-        if (externalFuncs_.count(name)) {
-            auto res = externalFuncs_[name](args, 1); // ← nargout = 1
+        // Slow path: look up and cache
+        auto it = externalFuncs_.find(name);
+        if (it != externalFuncs_.end()) {
+            funcNode->cachedOp = &it->second;
+            auto res = it->second(args, 1);
             return res.empty() ? MValue::empty() : res[0];
         }
         if (userFuncs_.count(name)) {
