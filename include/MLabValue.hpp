@@ -214,6 +214,11 @@ private:
     DataBuffer *buffer_ = nullptr;
     Allocator *allocator_ = nullptr;
 
+    // Small buffer optimization: store scalars inline (avoids heap alloc)
+    static constexpr size_t SBO_SIZE = sizeof(Complex); // 16 bytes — fits double, complex, int64
+    alignas(Complex) char sbo_[SBO_SIZE] = {};
+    bool useSBO_ = false;
+
     std::vector<MValue> cellData_;
     std::map<std::string, MValue> structData_;
     std::string funcHandleName_;

@@ -230,6 +230,11 @@ int DataBuffer::refCount() const
 // ============================================================
 void MValue::releaseBuffer()
 {
+    if (useSBO_) {
+        buffer_ = nullptr;
+        useSBO_ = false;
+        return;
+    }
     if (buffer_) {
         if (buffer_->release())
             delete buffer_;
@@ -239,6 +244,8 @@ void MValue::releaseBuffer()
 
 void MValue::detach()
 {
+    if (useSBO_)
+        return; // SBO data is always exclusively owned
     if (!buffer_ || buffer_->refCount() <= 1)
         return;
     DataBuffer *oldBuf = buffer_;
@@ -263,12 +270,17 @@ MValue::MValue(const MValue &other)
     , dims_(other.dims_)
     , buffer_(other.buffer_)
     , allocator_(other.allocator_)
+    , useSBO_(other.useSBO_)
     , cellData_(other.cellData_)
     , structData_(other.structData_)
     , funcHandleName_(other.funcHandleName_)
 {
-    if (buffer_)
+    if (useSBO_) {
+        std::memcpy(sbo_, other.sbo_, SBO_SIZE);
+        buffer_ = nullptr; // SBO doesn't use buffer
+    } else if (buffer_) {
         buffer_->addRef();
+    }
 }
 
 MValue &MValue::operator=(const MValue &other)
@@ -285,13 +297,19 @@ MValue::MValue(MValue &&other)
     , dims_(other.dims_)
     , buffer_(other.buffer_)
     , allocator_(other.allocator_)
+    , useSBO_(other.useSBO_)
     , cellData_(std::move(other.cellData_))
     , structData_(std::move(other.structData_))
     , funcHandleName_(std::move(other.funcHandleName_))
 {
+    if (useSBO_) {
+        std::memcpy(sbo_, other.sbo_, SBO_SIZE);
+        buffer_ = nullptr;
+    }
     other.buffer_ = nullptr;
     other.type_ = MType::EMPTY;
     other.dims_ = Dims();
+    other.useSBO_ = false;
 }
 
 MValue &MValue::operator=(MValue &&other)
@@ -309,6 +327,11 @@ void MValue::swap(MValue &other) noexcept
     std::swap(dims_, other.dims_);
     std::swap(buffer_, other.buffer_);
     std::swap(allocator_, other.allocator_);
+    std::swap(useSBO_, other.useSBO_);
+    char tmp[SBO_SIZE];
+    std::memcpy(tmp, sbo_, SBO_SIZE);
+    std::memcpy(sbo_, other.sbo_, SBO_SIZE);
+    std::memcpy(other.sbo_, tmp, SBO_SIZE);
     cellData_.swap(other.cellData_);
     structData_.swap(other.structData_);
     funcHandleName_.swap(other.funcHandleName_);
@@ -323,8 +346,9 @@ MValue MValue::scalar(double v, Allocator *alloc)
     m.type_ = MType::DOUBLE;
     m.dims_ = {1, 1};
     m.allocator_ = alloc;
-    m.buffer_ = new DataBuffer(sizeof(double), alloc);
-    *static_cast<double *>(m.buffer_->data()) = v;
+    m.useSBO_ = true;
+    m.buffer_ = nullptr;
+    *reinterpret_cast<double *>(m.sbo_) = v;
     return m;
 }
 
@@ -334,8 +358,9 @@ MValue MValue::logicalScalar(bool v, Allocator *alloc)
     m.type_ = MType::LOGICAL;
     m.dims_ = {1, 1};
     m.allocator_ = alloc;
-    m.buffer_ = new DataBuffer(sizeof(uint8_t), alloc);
-    *static_cast<uint8_t *>(m.buffer_->data()) = v ? 1 : 0;
+    m.useSBO_ = true;
+    m.buffer_ = nullptr;
+    m.sbo_[0] = v ? 1 : 0;
     return m;
 }
 
@@ -421,8 +446,9 @@ MValue MValue::complexScalar(Complex v, Allocator *alloc)
     m.type_ = MType::COMPLEX;
     m.dims_ = {1, 1};
     m.allocator_ = alloc;
-    m.buffer_ = new DataBuffer(sizeof(Complex), alloc);
-    *static_cast<Complex *>(m.buffer_->data()) = v;
+    m.useSBO_ = true;
+    m.buffer_ = nullptr;
+    *reinterpret_cast<Complex *>(m.sbo_) = v;
     return m;
 }
 
@@ -505,10 +531,14 @@ bool MValue::isFuncHandle() const
 // ============================================================
 const void *MValue::rawData() const
 {
+    if (useSBO_)
+        return sbo_;
     return buffer_ ? buffer_->data() : nullptr;
 }
 size_t MValue::rawBytes() const
 {
+    if (useSBO_)
+        return elementSize(type_) * dims_.numel();
     return buffer_ ? buffer_->bytes() : 0;
 }
 
@@ -519,6 +549,8 @@ const double *MValue::doubleData() const
 {
     if (type_ != MType::DOUBLE)
         throw std::runtime_error("Not a double array");
+    if (useSBO_)
+        return reinterpret_cast<const double *>(sbo_);
     return buffer_ ? static_cast<const double *>(buffer_->data()) : nullptr;
 }
 
@@ -526,6 +558,8 @@ const uint8_t *MValue::logicalData() const
 {
     if (type_ != MType::LOGICAL)
         throw std::runtime_error("Not a logical array");
+    if (useSBO_)
+        return reinterpret_cast<const uint8_t *>(sbo_);
     return buffer_ ? static_cast<const uint8_t *>(buffer_->data()) : nullptr;
 }
 
@@ -533,39 +567,46 @@ const char *MValue::charData() const
 {
     if (type_ != MType::CHAR)
         throw std::runtime_error("Not a char array");
+    if (useSBO_)
+        return sbo_;
     return buffer_ ? static_cast<const char *>(buffer_->data()) : nullptr;
 }
 
 double MValue::toScalar() const
 {
-    if (type_ == MType::DOUBLE && isScalar() && buffer_)
-        return *static_cast<const double *>(buffer_->data());
-    if (type_ == MType::COMPLEX && isScalar() && buffer_) {
-        auto c = *static_cast<const Complex *>(buffer_->data());
+    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
+                            : (buffer_ ? buffer_->data() : nullptr);
+    if (!p)
+        throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to scalar");
+    if (type_ == MType::DOUBLE && isScalar())
+        return *static_cast<const double *>(p);
+    if (type_ == MType::COMPLEX && isScalar()) {
+        auto c = *static_cast<const Complex *>(p);
         if (c.imag() != 0.0)
             throw std::runtime_error(
                 "Cannot convert complex with nonzero imaginary part to double scalar");
         return c.real();
     }
-    if (type_ == MType::LOGICAL && isScalar() && buffer_)
-        return static_cast<double>(*static_cast<const uint8_t *>(buffer_->data()));
-    if (type_ == MType::CHAR && isScalar() && buffer_)
-        return static_cast<double>(
-            static_cast<unsigned char>(*static_cast<const char *>(buffer_->data())));
+    if (type_ == MType::LOGICAL && isScalar())
+        return static_cast<double>(*static_cast<const uint8_t *>(p));
+    if (type_ == MType::CHAR && isScalar())
+        return static_cast<double>(static_cast<unsigned char>(*static_cast<const char *>(p)));
     throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to scalar");
 }
 
 bool MValue::toBool() const
 {
-    if (type_ == MType::LOGICAL && isScalar() && buffer_)
-        return *static_cast<const uint8_t *>(buffer_->data()) != 0;
-    if (type_ == MType::DOUBLE && isScalar() && buffer_)
-        return *static_cast<const double *>(buffer_->data()) != 0.0;
-    if (type_ == MType::COMPLEX && isScalar() && buffer_) {
-        auto c = *static_cast<const Complex *>(buffer_->data());
+    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
+                            : (buffer_ ? buffer_->data() : nullptr);
+    if (type_ == MType::LOGICAL && isScalar() && p)
+        return *static_cast<const uint8_t *>(p) != 0;
+    if (type_ == MType::DOUBLE && isScalar() && p)
+        return *static_cast<const double *>(p) != 0.0;
+    if (type_ == MType::COMPLEX && isScalar() && p) {
+        auto c = *static_cast<const Complex *>(p);
         return c.real() != 0.0 || c.imag() != 0.0;
     }
-    if (type_ == MType::DOUBLE && buffer_) {
+    if (type_ == MType::DOUBLE && (buffer_ || useSBO_)) {
         const double *dd = doubleData();
         for (size_t i = 0; i < numel(); ++i)
             if (dd[i] == 0.0)
@@ -577,8 +618,12 @@ bool MValue::toBool() const
 
 std::string MValue::toString() const
 {
-    if (type_ == MType::CHAR && buffer_)
-        return std::string(static_cast<const char *>(buffer_->data()), dims_.numel());
+    if (type_ == MType::CHAR) {
+        const char *p = useSBO_ ? sbo_
+                                : (buffer_ ? static_cast<const char *>(buffer_->data()) : nullptr);
+        if (p)
+            return std::string(p, dims_.numel());
+    }
     if (type_ == MType::FUNC_HANDLE)
         return funcHandleName_;
     throw std::runtime_error("Not a char array");
@@ -596,17 +641,21 @@ const Complex *MValue::complexData() const
 {
     if (type_ != MType::COMPLEX)
         throw std::runtime_error("Not a complex array");
+    if (useSBO_)
+        return reinterpret_cast<const Complex *>(sbo_);
     return buffer_ ? static_cast<const Complex *>(buffer_->data()) : nullptr;
 }
 
 Complex MValue::toComplex() const
 {
-    if (type_ == MType::COMPLEX && isScalar() && buffer_)
-        return *static_cast<const Complex *>(buffer_->data());
-    if (type_ == MType::DOUBLE && isScalar() && buffer_)
-        return Complex(*static_cast<const double *>(buffer_->data()), 0.0);
-    if (type_ == MType::LOGICAL && isScalar() && buffer_)
-        return Complex(static_cast<double>(*static_cast<const uint8_t *>(buffer_->data())), 0.0);
+    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
+                            : (buffer_ ? buffer_->data() : nullptr);
+    if (type_ == MType::COMPLEX && isScalar() && p)
+        return *static_cast<const Complex *>(p);
+    if (type_ == MType::DOUBLE && isScalar() && p)
+        return Complex(*static_cast<const double *>(p), 0.0);
+    if (type_ == MType::LOGICAL && isScalar() && p)
+        return Complex(static_cast<double>(*static_cast<const uint8_t *>(p)), 0.0);
     throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to complex");
 }
 
@@ -629,6 +678,8 @@ double *MValue::doubleDataMut()
 {
     if (type_ != MType::DOUBLE)
         throw std::runtime_error("Not a double array");
+    if (useSBO_)
+        return reinterpret_cast<double *>(sbo_);
     detach();
     return buffer_ ? static_cast<double *>(buffer_->data()) : nullptr;
 }
@@ -637,6 +688,8 @@ uint8_t *MValue::logicalDataMut()
 {
     if (type_ != MType::LOGICAL)
         throw std::runtime_error("Not a logical array");
+    if (useSBO_)
+        return reinterpret_cast<uint8_t *>(sbo_);
     detach();
     return buffer_ ? static_cast<uint8_t *>(buffer_->data()) : nullptr;
 }
@@ -645,12 +698,16 @@ char *MValue::charDataMut()
 {
     if (type_ != MType::CHAR)
         throw std::runtime_error("Not a char array");
+    if (useSBO_)
+        return sbo_;
     detach();
     return buffer_ ? static_cast<char *>(buffer_->data()) : nullptr;
 }
 
 void *MValue::rawDataMut()
 {
+    if (useSBO_)
+        return sbo_;
     detach();
     return buffer_ ? buffer_->data() : nullptr;
 }
@@ -659,6 +716,8 @@ Complex *MValue::complexDataMut()
 {
     if (type_ != MType::COMPLEX)
         throw std::runtime_error("Not a complex array");
+    if (useSBO_)
+        return reinterpret_cast<Complex *>(sbo_);
     detach();
     return buffer_ ? static_cast<Complex *>(buffer_->data()) : nullptr;
 }
@@ -676,11 +735,20 @@ void MValue::promoteToComplex(Allocator *alloc)
         alloc = allocator_;
 
     size_t n = numel();
+
+    // Scalar SBO: promote in-place (double → Complex both fit in SBO)
+    if (useSBO_ && n == 1) {
+        double v = *reinterpret_cast<const double *>(sbo_);
+        *reinterpret_cast<Complex *>(sbo_) = Complex(v, 0.0);
+        type_ = MType::COMPLEX;
+        return;
+    }
+
     auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(n * sizeof(Complex), alloc));
     Complex *dst = static_cast<Complex *>(newBuf->data());
 
-    if (buffer_ && n > 0) {
-        const double *src = static_cast<const double *>(buffer_->data());
+    const double *src = doubleData();
+    if (src && n > 0) {
         for (size_t i = 0; i < n; ++i)
             dst[i] = Complex(src[i], 0.0);
     } else {
@@ -689,6 +757,7 @@ void MValue::promoteToComplex(Allocator *alloc)
 
     releaseBuffer();
     buffer_ = newBuf.release();
+    useSBO_ = false;
     allocator_ = alloc;
     type_ = MType::COMPLEX;
 }
@@ -764,24 +833,20 @@ void MValue::resize(size_t newRows, size_t newCols, Allocator *alloc)
     if (newBytes > 0)
         std::memset(newBuf->data(), 0, newBytes);
 
-    if (buffer_ && es > 0) {
+    const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
+                                  : (buffer_ ? buffer_->data() : nullptr);
+    if (oldData && es > 0) {
         size_t copyRows = std::min(oldRows, newRows);
         size_t copyCols = std::min(oldCols, newCols);
-        if (type_ == MType::DOUBLE || type_ == MType::COMPLEX) {
-            const char *src = static_cast<const char *>(buffer_->data());
-            char *dst = static_cast<char *>(newBuf->data());
-            for (size_t c = 0; c < copyCols; ++c)
-                std::memcpy(dst + c * newRows * es, src + c * oldRows * es, copyRows * es);
-        } else {
-            const char *src = static_cast<const char *>(buffer_->data());
-            char *dst = static_cast<char *>(newBuf->data());
-            for (size_t c = 0; c < copyCols; ++c)
-                std::memcpy(dst + c * newRows * es, src + c * oldRows * es, copyRows * es);
-        }
+        const char *src = static_cast<const char *>(oldData);
+        char *dst = static_cast<char *>(newBuf->data());
+        for (size_t c = 0; c < copyCols; ++c)
+            std::memcpy(dst + c * newRows * es, src + c * oldRows * es, copyRows * es);
     }
 
     releaseBuffer();
     buffer_ = newBuf.release();
+    useSBO_ = false;
     allocator_ = alloc;
     dims_ = {newRows, newCols};
 }
@@ -810,7 +875,9 @@ void MValue::resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator
     if (newBytes > 0)
         std::memset(newBuf->data(), 0, newBytes);
 
-    if (buffer_ && es > 0) {
+    const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
+                                  : (buffer_ ? buffer_->data() : nullptr);
+    if (oldData && es > 0) {
         size_t copyRows = std::min(oldRows, newRows);
         size_t copyCols = std::min(oldCols, newCols);
         size_t copyPages = std::min(oldPages, newPages);
@@ -818,7 +885,7 @@ void MValue::resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator
         size_t oldPageStride = oldRows * oldCols;
         size_t newPageStride = newRows * newCols;
 
-        const char *src = static_cast<const char *>(buffer_->data());
+        const char *src = static_cast<const char *>(oldData);
         char *dst = static_cast<char *>(newBuf->data());
         for (size_t p = 0; p < copyPages; ++p)
             for (size_t c = 0; c < copyCols; ++c)
@@ -829,6 +896,7 @@ void MValue::resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator
 
     releaseBuffer();
     buffer_ = newBuf.release();
+    useSBO_ = false;
     allocator_ = alloc;
     dims_ = {newRows, newCols, newPages};
 }
@@ -843,8 +911,10 @@ void MValue::ensureSize(size_t linearIdx, Allocator *alloc)
         dims_ = {1, 1};
         if (!alloc)
             alloc = allocator_;
-        buffer_ = new DataBuffer(sizeof(double), alloc);
-        std::memset(buffer_->data(), 0, sizeof(double));
+        // Start as SBO scalar
+        useSBO_ = true;
+        buffer_ = nullptr;
+        *reinterpret_cast<double *>(sbo_) = 0.0;
         allocator_ = alloc;
     }
     size_t needed = linearIdx + 1;
@@ -931,7 +1001,7 @@ std::string MValue::debugString() const
     if (dims_.is3D())
         os << "x" << dims_.pages();
     os << "]";
-    if (type_ == MType::DOUBLE && numel() <= 20 && numel() > 0 && buffer_) {
+    if (type_ == MType::DOUBLE && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
         os << " = ";
         const double *dd = doubleData();
         if (isScalar()) {
@@ -946,7 +1016,7 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::COMPLEX && numel() <= 20 && numel() > 0 && buffer_) {
+    if (type_ == MType::COMPLEX && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
         os << " = ";
         const Complex *cd = complexData();
         if (isScalar()) {
@@ -967,7 +1037,7 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::LOGICAL && numel() <= 20 && numel() > 0 && buffer_) {
+    if (type_ == MType::LOGICAL && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
         os << " = ";
         const uint8_t *ld = logicalData();
         if (isScalar()) {
@@ -982,7 +1052,7 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::CHAR && buffer_)
+    if (type_ == MType::CHAR && (buffer_ || useSBO_))
         os << " = '" << toString() << "'";
     if (type_ == MType::FUNC_HANDLE)
         os << " = @" << funcHandleName_;
