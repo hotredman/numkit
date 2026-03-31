@@ -503,12 +503,73 @@ bool Engine::tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environmen
     }
 
     case NodeType::BINARY_OP: {
-        if (!expr->cachedOp || expr->children.size() != 2)
+        if (expr->children.size() != 2)
             return false;
         double lv, rv;
         if (!tryEvalScalar(expr->children[0].get(), env, lv))
             return false;
         if (!tryEvalScalar(expr->children[1].get(), env, rv))
+            return false;
+
+        // Direct scalar arithmetic — bypass std::function overhead
+        const std::string &op = expr->strValue;
+        if (op.size() == 1) {
+            switch (op[0]) {
+            case '+':
+                out = lv + rv;
+                return true;
+            case '-':
+                out = lv - rv;
+                return true;
+            case '*':
+                out = lv * rv;
+                return true;
+            case '/':
+                out = lv / rv;
+                return true;
+            case '^':
+                out = std::pow(lv, rv);
+                return true;
+            case '<':
+                out = (lv < rv) ? 1.0 : 0.0;
+                return true;
+            case '>':
+                out = (lv > rv) ? 1.0 : 0.0;
+                return true;
+            default:
+                break;
+            }
+        } else if (op == "<=") {
+            out = (lv <= rv) ? 1.0 : 0.0;
+            return true;
+        } else if (op == ">=") {
+            out = (lv >= rv) ? 1.0 : 0.0;
+            return true;
+        } else if (op == "==") {
+            out = (lv == rv) ? 1.0 : 0.0;
+            return true;
+        } else if (op == "~=") {
+            out = (lv != rv) ? 1.0 : 0.0;
+            return true;
+        } else if (op == ".*") {
+            out = lv * rv;
+            return true;
+        } else if (op == "./") {
+            out = lv / rv;
+            return true;
+        } else if (op == ".^") {
+            out = std::pow(lv, rv);
+            return true;
+        } else if (op == "&&") {
+            out = (lv != 0.0 && rv != 0.0) ? 1.0 : 0.0;
+            return true;
+        } else if (op == "||") {
+            out = (lv != 0.0 || rv != 0.0) ? 1.0 : 0.0;
+            return true;
+        }
+
+        // Unknown op — fall back to cached BinaryOpFunc
+        if (!expr->cachedOp)
             return false;
         MValue lm = MValue::scalar(lv, &allocator_);
         MValue rm = MValue::scalar(rv, &allocator_);
@@ -521,10 +582,27 @@ bool Engine::tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environmen
     }
 
     case NodeType::UNARY_OP: {
-        if (!expr->cachedOp || expr->children.size() != 1)
+        if (expr->children.size() != 1)
             return false;
         double operand;
         if (!tryEvalScalar(expr->children[0].get(), env, operand))
+            return false;
+
+        const std::string &op = expr->strValue;
+        if (op == "-") {
+            out = -operand;
+            return true;
+        }
+        if (op == "+") {
+            out = operand;
+            return true;
+        }
+        if (op == "~") {
+            out = (operand == 0.0) ? 1.0 : 0.0;
+            return true;
+        }
+
+        if (!expr->cachedOp)
             return false;
         MValue om = MValue::scalar(operand, &allocator_);
         MValue result = (*static_cast<const UnaryOpFunc *>(expr->cachedOp))(om);
