@@ -198,6 +198,12 @@ private:
                         const std::shared_ptr<Environment> &env);
     MValue &resolveFieldLValue(const ASTNode *node, const std::shared_ptr<Environment> &env);
 
+    bool tryResolveScalarIndex(const ASTNode *indexExpr,
+                               const MValue &array,
+                               int dim,
+                               int ndims,
+                               const std::shared_ptr<Environment> &env,
+                               size_t &outIdx);
     std::vector<size_t> resolveIndex(const ASTNode *indexExpr,
                                      const MValue &array,
                                      int dim,

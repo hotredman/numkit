@@ -244,6 +244,91 @@ double Engine::colonCount(double start, double step, double stop) const
 // ============================================================
 // resolveIndex
 // ============================================================
+
+// Fast path: try to resolve a single scalar index without allocating a vector.
+// Returns true and sets `outIdx` if the index expression evaluates to a scalar integer.
+bool Engine::tryResolveScalarIndex(const ASTNode *indexExpr,
+                                   const MValue &array,
+                                   int dim,
+                                   int ndims,
+                                   const std::shared_ptr<Environment> &env,
+                                   size_t &outIdx)
+{
+    // Fast path for number literals: B(3)
+    if (indexExpr->type == NodeType::NUMBER_LITERAL) {
+        double v = indexExpr->numValue;
+        if (v >= 1.0 && v == std::floor(v)) {
+            outIdx = static_cast<size_t>(v) - 1;
+            return true;
+        }
+        return false;
+    }
+
+    // Fast path for simple identifiers: B(i)
+    if (indexExpr->type == NodeType::IDENTIFIER) {
+        const std::string &name = indexExpr->strValue;
+        if (name == "end") {
+            outIdx = ((ndims == 1) ? array.numel() : array.dims().dimSize(dim)) - 1;
+            return true;
+        }
+        auto *val = env->get(name);
+        if (val && val->isScalar() && val->type() == MType::DOUBLE) {
+            double v = val->toScalar();
+            if (v >= 1.0 && v == std::floor(v)) {
+                outIdx = static_cast<size_t>(v) - 1;
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // Fast path for simple binary expressions on scalars: B(i+1), B(2*j)
+    if (indexExpr->type == NodeType::BINARY_OP && indexExpr->cachedOp) {
+        auto *left = indexExpr->children[0].get();
+        auto *right = indexExpr->children[1].get();
+
+        // Only handle two-identifier or identifier-literal combos
+        double lv, rv;
+        bool lOk = false, rOk = false;
+
+        if (left->type == NodeType::NUMBER_LITERAL) {
+            lv = left->numValue;
+            lOk = true;
+        } else if (left->type == NodeType::IDENTIFIER) {
+            auto *val = env->get(left->strValue);
+            if (val && val->isScalar() && val->type() == MType::DOUBLE) {
+                lv = val->toScalar();
+                lOk = true;
+            }
+        }
+        if (right->type == NodeType::NUMBER_LITERAL) {
+            rv = right->numValue;
+            rOk = true;
+        } else if (right->type == NodeType::IDENTIFIER) {
+            auto *val = env->get(right->strValue);
+            if (val && val->isScalar() && val->type() == MType::DOUBLE) {
+                rv = val->toScalar();
+                rOk = true;
+            }
+        }
+
+        if (lOk && rOk) {
+            MValue lm = MValue::scalar(lv, &allocator_);
+            MValue rm = MValue::scalar(rv, &allocator_);
+            MValue result = (*static_cast<const BinaryOpFunc *>(indexExpr->cachedOp))(lm, rm);
+            if (result.isScalar()) {
+                double v = result.toScalar();
+                if (v >= 1.0 && v == std::floor(v)) {
+                    outIdx = static_cast<size_t>(v) - 1;
+                    return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
 std::vector<size_t> Engine::resolveIndex(const ASTNode *indexExpr,
                                          const MValue &array,
                                          int dim,
@@ -489,6 +574,16 @@ void Engine::execIndexedAssign(const ASTNode *lhs,
     }
 
     if (nargs == 1) {
+        // ── scalar fast path: B(i) = scalar ──
+        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+            size_t scalarIdx;
+            if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 1, env, scalarIdx)) {
+                var->ensureSize(scalarIdx, &allocator_);
+                var->doubleDataMut()[scalarIdx] = rhs.toScalar();
+                return;
+            }
+        }
+
         auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
         for (auto idx : indices)
             var->ensureSize(idx, &allocator_);
@@ -504,6 +599,21 @@ void Engine::execIndexedAssign(const ASTNode *lhs,
                 dst[indices[i]] = src[i];
         }
     } else if (nargs == 2) {
+        // ── scalar fast path: M(i,j) = scalar ──
+        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+            size_t ri, ci;
+            if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 2, env, ri)
+                && tryResolveScalarIndex(lhs->children[2].get(), *var, 1, 2, env, ci)) {
+                size_t needR = ri + 1, needC = ci + 1;
+                if (needR > var->dims().rows() || needC > var->dims().cols())
+                    var->resize(std::max(var->dims().rows(), needR),
+                                std::max(var->dims().cols(), needC),
+                                &allocator_);
+                var->doubleDataMut()[var->dims().sub2ind(ri, ci)] = rhs.toScalar();
+                return;
+            }
+        }
+
         auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 2, env);
         auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 2, env);
 
@@ -938,6 +1048,17 @@ MValue Engine::execIndexAccess(const MValue &var,
     }
 
     if (nargs == 1) {
+        // ── scalar fast path: skip resolveIndex + vector<size_t> entirely ──
+        size_t scalarIdx;
+        if (var.type() == MType::DOUBLE
+            && tryResolveScalarIndex(callNode->children[1].get(), var, 0, 1, env, scalarIdx)) {
+            if (scalarIdx >= var.numel())
+                throw std::runtime_error("Index exceeds array dimensions (linear index: "
+                                         + std::to_string(scalarIdx + 1) + " > "
+                                         + std::to_string(var.numel()) + ")");
+            return MValue::scalar(var.doubleData()[scalarIdx], &allocator_);
+        }
+
         auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
         checkBounds(indices, var.numel(), "linear index");
         if (var.isLogical()) {
@@ -960,6 +1081,23 @@ MValue Engine::execIndexAccess(const MValue &var,
         return result;
     }
     if (nargs == 2) {
+        // ── scalar fast path: M(i, j) ──
+        if (var.type() == MType::DOUBLE) {
+            size_t ri, ci;
+            if (tryResolveScalarIndex(callNode->children[1].get(), var, 0, 2, env, ri)
+                && tryResolveScalarIndex(callNode->children[2].get(), var, 1, 2, env, ci)) {
+                if (ri >= var.dims().rows())
+                    throw std::runtime_error("Index exceeds array dimensions (row index: "
+                                             + std::to_string(ri + 1) + " > "
+                                             + std::to_string(var.dims().rows()) + ")");
+                if (ci >= var.dims().cols())
+                    throw std::runtime_error("Index exceeds array dimensions (column index: "
+                                             + std::to_string(ci + 1) + " > "
+                                             + std::to_string(var.dims().cols()) + ")");
+                return MValue::scalar(var(ri, ci), &allocator_);
+            }
+        }
+
         auto ri = resolveIndex(callNode->children[1].get(), var, 0, 2, env);
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 2, env);
         checkBounds(ri, var.dims().rows(), "row index");
