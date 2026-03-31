@@ -483,90 +483,157 @@ MValue Engine::execNode(const ASTNode *node, const std::shared_ptr<Environment> 
     }
 }
 
+// ── Inline scalar expression evaluator ──
+// Tries to evaluate an expression tree as a scalar double without calling execNode.
+// Returns true and sets `out` on success, false on failure (caller falls back to execNode).
+bool Engine::tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environment> &env, double &out)
+{
+    switch (expr->type) {
+    case NodeType::NUMBER_LITERAL:
+        out = expr->numValue;
+        return true;
+
+    case NodeType::IDENTIFIER: {
+        MValue *v = env->get(expr->strValue);
+        if (v && v->isScalar() && v->type() == MType::DOUBLE) {
+            out = v->toScalar();
+            return true;
+        }
+        return false;
+    }
+
+    case NodeType::BINARY_OP: {
+        if (!expr->cachedOp || expr->children.size() != 2)
+            return false;
+        double lv, rv;
+        if (!tryEvalScalar(expr->children[0].get(), env, lv))
+            return false;
+        if (!tryEvalScalar(expr->children[1].get(), env, rv))
+            return false;
+        MValue lm = MValue::scalar(lv, &allocator_);
+        MValue rm = MValue::scalar(rv, &allocator_);
+        MValue result = (*static_cast<const BinaryOpFunc *>(expr->cachedOp))(lm, rm);
+        if (result.isScalar() && result.type() == MType::DOUBLE) {
+            out = result.toScalar();
+            return true;
+        }
+        return false;
+    }
+
+    case NodeType::UNARY_OP: {
+        if (!expr->cachedOp || expr->children.size() != 1)
+            return false;
+        double operand;
+        if (!tryEvalScalar(expr->children[0].get(), env, operand))
+            return false;
+        MValue om = MValue::scalar(operand, &allocator_);
+        MValue result = (*static_cast<const UnaryOpFunc *>(expr->cachedOp))(om);
+        if (result.isScalar() && result.type() == MType::DOUBLE) {
+            out = result.toScalar();
+            return true;
+        }
+        return false;
+    }
+
+    case NodeType::CALL: {
+        // func(a, b, ...) where func is a cached external and all args are scalar
+        if (expr->children.empty())
+            return false;
+        auto *funcNode = expr->children[0].get();
+        if (!funcNode->cachedOp)
+            return false;
+        // Build scalar args
+        size_t nargs = expr->children.size() - 1;
+        // Use small inline buffer to avoid vector allocation for <= 4 args
+        double argVals[4];
+        if (nargs > 4)
+            return false;
+        for (size_t i = 0; i < nargs; ++i) {
+            if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
+                return false;
+        }
+        std::vector<MValue> args;
+        args.reserve(nargs);
+        for (size_t i = 0; i < nargs; ++i)
+            args.push_back(MValue::scalar(argVals[i], &allocator_));
+        auto res = (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, 1);
+        if (!res.empty() && res[0].isScalar() && res[0].type() == MType::DOUBLE) {
+            out = res[0].toScalar();
+            return true;
+        }
+        return false;
+    }
+
+    default:
+        return false;
+    }
+}
+
 MValue Engine::execBlock(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     MValue last = MValue::empty();
     for (auto &child : node->children) {
         // ── Fast path: x = <scalar expr> with suppressed output ──
-        // Inline the entire ASSIGN + BINARY_OP + IDENTIFIER/NUMBER chain
-        // to avoid 4-5 recursive execNode calls per statement.
         if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
             && child->children[0]->type == NodeType::IDENTIFIER) {
+            const auto *lhs = child->children[0].get();
             const auto *rhs = child->children[1].get();
-            const std::string &lhsName = child->children[0]->strValue;
+            const std::string &lhsName = lhs->strValue;
 
-            // Case 1: x = <number>
-            if (rhs->type == NodeType::NUMBER_LITERAL) {
+            // Try to evaluate RHS as scalar double
+            double val;
+            if (tryEvalScalar(rhs, env, val)) {
                 MValue *existing = env->getLocal(lhsName);
                 if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
-                    *existing->doubleDataMut() = rhs->numValue;
+                    *existing->doubleDataMut() = val;
                 } else {
-                    env->set(lhsName, MValue::scalar(rhs->numValue, &allocator_));
+                    env->set(lhsName, MValue::scalar(val, &allocator_));
                 }
                 continue;
             }
 
-            // Case 2: x = <identifier>
-            if (rhs->type == NodeType::IDENTIFIER) {
-                MValue *src = env->get(rhs->strValue);
-                if (src) {
-                    env->set(lhsName, *src);
-                    continue;
-                }
-                // fall through to generic path
-            }
-
-            // Case 3: x = <a op b> where a,b are identifiers or numbers
-            if (rhs->type == NodeType::BINARY_OP && rhs->cachedOp && rhs->children.size() == 2) {
-                const auto *lOp = rhs->children[0].get();
-                const auto *rOp = rhs->children[1].get();
-
-                double lv, rv;
-                bool lOk = false, rOk = false;
-
-                // Resolve left operand
-                if (lOp->type == NodeType::NUMBER_LITERAL) {
-                    lv = lOp->numValue;
-                    lOk = true;
-                } else if (lOp->type == NodeType::IDENTIFIER) {
-                    MValue *v = env->get(lOp->strValue);
-                    if (v && v->isScalar() && v->type() == MType::DOUBLE) {
-                        lv = v->toScalar();
-                        lOk = true;
-                    }
-                }
-
-                // Resolve right operand
-                if (rOp->type == NodeType::NUMBER_LITERAL) {
-                    rv = rOp->numValue;
-                    rOk = true;
-                } else if (rOp->type == NodeType::IDENTIFIER) {
-                    MValue *v = env->get(rOp->strValue);
-                    if (v && v->isScalar() && v->type() == MType::DOUBLE) {
-                        rv = v->toScalar();
-                        rOk = true;
-                    }
-                }
-
-                if (lOk && rOk) {
-                    MValue lm = MValue::scalar(lv, &allocator_);
-                    MValue rm = MValue::scalar(rv, &allocator_);
-                    MValue result = (*static_cast<const BinaryOpFunc *>(rhs->cachedOp))(lm, rm);
-
-                    if (result.isScalar() && result.type() == MType::DOUBLE) {
-                        MValue *existing = env->getLocal(lhsName);
-                        if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
-                            *existing->doubleDataMut() = result.toScalar();
-                        } else {
-                            env->set(lhsName, std::move(result));
+            // Fast path: x = A(i) — scalar indexed read
+            if (rhs->type == NodeType::CALL && rhs->children.size() == 2
+                && rhs->children[0]->type == NodeType::IDENTIFIER) {
+                MValue *arr = env->get(rhs->children[0]->strValue);
+                if (arr && arr->type() == MType::DOUBLE) {
+                    double idxVal;
+                    if (tryEvalScalar(rhs->children[1].get(), env, idxVal)) {
+                        size_t idx = static_cast<size_t>(idxVal) - 1;
+                        if (idx < arr->numel()) {
+                            double v = arr->doubleData()[idx];
+                            MValue *existing = env->getLocal(lhsName);
+                            if (existing && existing->isScalar()
+                                && existing->type() == MType::DOUBLE) {
+                                *existing->doubleDataMut() = v;
+                            } else {
+                                env->set(lhsName, MValue::scalar(v, &allocator_));
+                            }
+                            continue;
                         }
-                        continue;
                     }
-                    // Non-scalar result (e.g. matrix op) — fall through
-                    env->set(lhsName, std::move(result));
+                }
+            }
+        }
+
+        // ── Fast path: A(i) = <scalar expr> with suppressed output ──
+        if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
+            && child->children[0]->type == NodeType::CALL
+            && child->children[0]->children.size() == 2
+            && child->children[0]->children[0]->type == NodeType::IDENTIFIER) {
+            const auto *callNode = child->children[0].get();
+            const std::string &arrName = callNode->children[0]->strValue;
+            MValue *arr = env->get(arrName);
+
+            if (arr && arr->type() == MType::DOUBLE && arr->dims().rows() == 1) {
+                double idxVal, rhsVal;
+                if (tryEvalScalar(callNode->children[1].get(), env, idxVal)
+                    && tryEvalScalar(child->children[1].get(), env, rhsVal)) {
+                    size_t idx = static_cast<size_t>(idxVal) - 1;
+                    arr->ensureSize(idx, &allocator_);
+                    arr->doubleDataMut()[idx] = rhsVal;
                     continue;
                 }
-                // Couldn't resolve operands as scalars — fall through
             }
         }
 

@@ -164,6 +164,7 @@ private:
 
     MValue execNode(const ASTNode *node, const std::shared_ptr<Environment> &env);
     MValue execBlock(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    bool tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environment> &env, double &out);
     MValue execIdentifier(const ASTNode *node, const std::shared_ptr<Environment> &env);
     MValue execAssign(const ASTNode *node, const std::shared_ptr<Environment> &env);
     MValue execMultiAssign(const ASTNode *node, const std::shared_ptr<Environment> &env);
