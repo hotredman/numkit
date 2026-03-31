@@ -1434,22 +1434,55 @@ MValue Engine::execFor(const ASTNode *node, const std::shared_ptr<Environment> &
 
     if (rangeVal.type() == MType::DOUBLE) {
         auto dims = rangeVal.dims();
-        for (size_t c = 0; c < dims.cols(); ++c) {
-            if (dims.rows() == 1) {
-                env->set(varName, MValue::scalar(rangeVal(0, c), &allocator_));
-            } else {
+        if (dims.rows() == 1) {
+            // ── Fast path: scalar iteration over row vector ──
+            // Set the variable once, then update its value in-place
+            // to avoid env->set() hash lookup + MValue creation each iteration.
+            const double *src = rangeVal.doubleData();
+            env->set(varName, MValue::scalar(0.0, &allocator_));
+            MValue *varPtr = env->get(varName);
+            double *slot = varPtr->doubleDataMut();
+            for (size_t c = 0; c < dims.cols(); ++c) {
+                *slot = src[c];
+                try {
+                    execNode(node->children[1].get(), env);
+                } catch (BreakSignal &) {
+                    break;
+                } catch (ContinueSignal &) {
+                    continue;
+                }
+                // Re-fetch pointer: body may have reassigned the loop variable
+                varPtr = env->get(varName);
+                if (!varPtr || !varPtr->isScalar() || varPtr->type() != MType::DOUBLE) {
+                    // Variable was changed to non-scalar — fall back to slow path
+                    for (size_t c2 = c + 1; c2 < dims.cols(); ++c2) {
+                        env->set(varName, MValue::scalar(src[c2], &allocator_));
+                        try {
+                            execNode(node->children[1].get(), env);
+                        } catch (BreakSignal &) {
+                            return MValue::empty();
+                        } catch (ContinueSignal &) {
+                            continue;
+                        }
+                    }
+                    return MValue::empty();
+                }
+                slot = varPtr->doubleDataMut();
+            }
+        } else {
+            for (size_t c = 0; c < dims.cols(); ++c) {
                 auto col = MValue::matrix(dims.rows(), 1, MType::DOUBLE, &allocator_);
                 double *dst = col.doubleDataMut();
                 for (size_t r = 0; r < dims.rows(); ++r)
                     dst[r] = rangeVal(r, c);
                 env->set(varName, col);
-            }
-            try {
-                execNode(node->children[1].get(), env);
-            } catch (BreakSignal &) {
-                break;
-            } catch (ContinueSignal &) {
-                continue;
+                try {
+                    execNode(node->children[1].get(), env);
+                } catch (BreakSignal &) {
+                    break;
+                } catch (ContinueSignal &) {
+                    continue;
+                }
             }
         }
         return MValue::empty();
