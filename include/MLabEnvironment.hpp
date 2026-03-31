@@ -34,6 +34,15 @@ public:
     void setLocal(const std::string &name, MValue val);
     MValue *getLocal(const std::string &name);
 
+    // Fast path: get pointer for an existing variable, assign in-place.
+    // Returns pointer to the MValue if found locally (single hash lookup).
+    // Returns nullptr if not found locally.
+    MValue *getLocalFast(const std::string &name);
+
+    // Fast path: set an existing local variable without hash lookup for globals.
+    // Caller must ensure the variable already exists locally.
+    void setLocalFast(const std::string &name, MValue val);
+
     void declareGlobal(const std::string &name);
     bool isGlobal(const std::string &name) const;
 
@@ -59,6 +68,7 @@ private:
     std::unordered_set<std::string> globals_;
     std::shared_ptr<Environment> parent_;
     GlobalStore *globalStore_ = nullptr;
+    bool hasGlobals_ = false; // fast check to skip globals_.count()
 };
 
 } // namespace mlab

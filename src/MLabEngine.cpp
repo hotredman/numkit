@@ -525,6 +525,17 @@ MValue Engine::execAssign(const ASTNode *node, const std::shared_ptr<Environment
     auto rhs = execNode(node->children[1].get(), env);
 
     if (lhs->type == NodeType::IDENTIFIER) {
+        // Fast path: if variable already exists as a scalar double
+        // and rhs is scalar double, write in-place (no hash lookup for set)
+        if (rhs.isScalar() && rhs.type() == MType::DOUBLE) {
+            MValue *existing = env->getLocal(lhs->strValue);
+            if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
+                *existing->doubleDataMut() = rhs.toScalar();
+                if (!node->suppressOutput)
+                    displayValue(lhs->strValue, *existing);
+                return *existing;
+            }
+        }
         env->set(lhs->strValue, rhs);
         if (!node->suppressOutput)
             displayValue(lhs->strValue, rhs);

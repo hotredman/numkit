@@ -33,7 +33,7 @@ Environment::Environment(std::shared_ptr<Environment> parent, GlobalStore *globa
 
 void Environment::set(const std::string &name, MValue val)
 {
-    if (globals_.count(name) && globalStore_) {
+    if (hasGlobals_ && globals_.count(name) && globalStore_) {
         globalStore_->set(name, std::move(val));
     } else {
         vars_[name] = std::move(val);
@@ -42,7 +42,7 @@ void Environment::set(const std::string &name, MValue val)
 
 MValue *Environment::get(const std::string &name)
 {
-    if (globals_.count(name) && globalStore_)
+    if (hasGlobals_ && globals_.count(name) && globalStore_)
         return globalStore_->get(name);
     auto it = vars_.find(name);
     if (it != vars_.end())
@@ -54,7 +54,7 @@ MValue *Environment::get(const std::string &name)
 
 bool Environment::has(const std::string &name) const
 {
-    if (globals_.count(name) && globalStore_)
+    if (hasGlobals_ && globals_.count(name) && globalStore_)
         return globalStore_->get(name) != nullptr;
     if (vars_.count(name))
         return true;
@@ -77,11 +77,23 @@ MValue *Environment::getLocal(const std::string &name)
 void Environment::declareGlobal(const std::string &name)
 {
     globals_.insert(name);
+    hasGlobals_ = true;
 }
 
 bool Environment::isGlobal(const std::string &name) const
 {
-    return globals_.count(name) > 0;
+    return hasGlobals_ && globals_.count(name) > 0;
+}
+
+MValue *Environment::getLocalFast(const std::string &name)
+{
+    auto it = vars_.find(name);
+    return (it != vars_.end()) ? &it->second : nullptr;
+}
+
+void Environment::setLocalFast(const std::string &name, MValue val)
+{
+    vars_[name] = std::move(val);
 }
 
 void Environment::forEachLocal(
@@ -114,6 +126,7 @@ std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> 
 
     // Копируем объявления global
     snap->globals_ = globals_;
+    snap->hasGlobals_ = hasGlobals_;
 
     return snap;
 }
@@ -128,6 +141,7 @@ void Environment::clearAll()
 {
     vars_.clear();
     globals_.clear();
+    hasGlobals_ = false;
 }
 
 std::vector<std::string> Environment::localNames() const
