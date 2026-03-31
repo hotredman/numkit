@@ -162,61 +162,67 @@ private:
     void output(const std::string &s);
     void displayValue(const std::string &name, const MValue &val);
 
-    MValue execNode(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execBlock(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execIdentifier(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execAssign(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execMultiAssign(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execBinaryOp(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execUnaryOp(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execCall(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execCellIndex(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execFieldAccess(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execMatrixLiteral(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execCellLiteral(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execColonExpr(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execIf(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execFor(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execWhile(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execSwitch(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execFunctionDef(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execExprStmt(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execCommandCall(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execTryCatch(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execDeleteAssign(const ASTNode *node, std::shared_ptr<Environment> env);
-    MValue execGlobalPersistent(const ASTNode *node, std::shared_ptr<Environment> env);
+    MValue execNode(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execBlock(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execIdentifier(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execAssign(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execMultiAssign(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execBinaryOp(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execUnaryOp(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execCall(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execCellIndex(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execFieldAccess(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execMatrixLiteral(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execCellLiteral(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execColonExpr(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execIf(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execFor(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execWhile(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execSwitch(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execFunctionDef(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execExprStmt(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execCommandCall(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execAnonFunc(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execTryCatch(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execDeleteAssign(const ASTNode *node, const std::shared_ptr<Environment> &env);
+    MValue execGlobalPersistent(const ASTNode *node, const std::shared_ptr<Environment> &env);
 
-    void execIndexedAssign(const ASTNode *lhs, const MValue &rhs, std::shared_ptr<Environment> env);
-    void execFieldAssign(const ASTNode *lhs, const MValue &rhs, std::shared_ptr<Environment> env);
-    void execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_ptr<Environment> env);
-    MValue &resolveFieldLValue(const ASTNode *node, std::shared_ptr<Environment> env);
+    void execIndexedAssign(const ASTNode *lhs,
+                           const MValue &rhs,
+                           const std::shared_ptr<Environment> &env);
+    void execFieldAssign(const ASTNode *lhs,
+                         const MValue &rhs,
+                         const std::shared_ptr<Environment> &env);
+    void execCellAssign(const ASTNode *lhs,
+                        const MValue &rhs,
+                        const std::shared_ptr<Environment> &env);
+    MValue &resolveFieldLValue(const ASTNode *node, const std::shared_ptr<Environment> &env);
 
     std::vector<size_t> resolveIndex(const ASTNode *indexExpr,
                                      const MValue &array,
                                      int dim,
                                      int ndims,
-                                     std::shared_ptr<Environment> env);
+                                     const std::shared_ptr<Environment> &env);
     MValue execIndexAccess(const MValue &var,
                            const ASTNode *callNode,
-                           std::shared_ptr<Environment> env);
+                           const std::shared_ptr<Environment> &env);
     std::vector<MValue> execCallMulti(const ASTNode *node,
-                                      std::shared_ptr<Environment> env,
+                                      const std::shared_ptr<Environment> &env,
                                       size_t nout);
 
     MValue callUserFunction(const UserFunction &func,
                             const std::vector<MValue> &args,
-                            std::shared_ptr<Environment> env);
+                            const std::shared_ptr<Environment> &env);
     std::vector<MValue> callUserFunctionMulti(const UserFunction &func,
                                               const std::vector<MValue> &args,
-                                              std::shared_ptr<Environment> env,
+                                              const std::shared_ptr<Environment> &env,
                                               size_t nout);
     MValue callFuncHandle(const MValue &handle,
                           const std::vector<MValue> &args,
-                          std::shared_ptr<Environment> env);
+                          const std::shared_ptr<Environment> &env);
     std::vector<MValue> callFuncHandleMulti(const MValue &handle,
                                             const std::vector<MValue> &args,
-                                            std::shared_ptr<Environment> env,
+                                            const std::shared_ptr<Environment> &env,
                                             size_t nout);
 
     bool isKnownFunction(const std::string &name) const;
@@ -226,7 +232,7 @@ private:
 private:
     bool tryBuiltinCall(const std::string &name,
                         const std::vector<MValue> &args,
-                        std::shared_ptr<Environment> env,
+                        const std::shared_ptr<Environment> &env,
                         MValue &result,
                         size_t nargout = 0);
 };

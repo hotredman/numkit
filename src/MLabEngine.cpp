@@ -248,7 +248,7 @@ std::vector<size_t> Engine::resolveIndex(const ASTNode *indexExpr,
                                          const MValue &array,
                                          int dim,
                                          int ndims,
-                                         std::shared_ptr<Environment> env)
+                                         const std::shared_ptr<Environment> &env)
 {
     IndexContextGuard guard(indexContextStack_, {&array, dim, ndims});
 
@@ -302,7 +302,7 @@ std::vector<size_t> Engine::resolveIndex(const ASTNode *indexExpr,
 // ============================================================
 // execNode — main dispatch
 // ============================================================
-MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execNode(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     if (!node)
         return MValue::empty();
@@ -398,7 +398,7 @@ MValue Engine::execNode(const ASTNode *node, std::shared_ptr<Environment> env)
     }
 }
 
-MValue Engine::execBlock(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execBlock(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     MValue last = MValue::empty();
     for (auto &child : node->children)
@@ -409,7 +409,7 @@ MValue Engine::execBlock(const ASTNode *node, std::shared_ptr<Environment> env)
 // ============================================================
 // Identifier
 // ============================================================
-MValue Engine::execIdentifier(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execIdentifier(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     const std::string &name = node->strValue;
 
@@ -434,7 +434,7 @@ MValue Engine::execIdentifier(const ASTNode *node, std::shared_ptr<Environment> 
 // ============================================================
 // Assignment
 // ============================================================
-MValue Engine::execAssign(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execAssign(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto *lhs = node->children[0].get();
     auto rhs = execNode(node->children[1].get(), env);
@@ -457,7 +457,7 @@ MValue Engine::execAssign(const ASTNode *node, std::shared_ptr<Environment> env)
 
 void Engine::execIndexedAssign(const ASTNode *lhs,
                                const MValue &rhs,
-                               std::shared_ptr<Environment> env)
+                               const std::shared_ptr<Environment> &env)
 {
     auto *target = lhs->children[0].get();
     if (target->type != NodeType::IDENTIFIER)
@@ -535,7 +535,7 @@ void Engine::execIndexedAssign(const ASTNode *lhs,
     }
 }
 
-MValue &Engine::resolveFieldLValue(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue &Engine::resolveFieldLValue(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto *objNode = node->children[0].get();
     const std::string &fieldName = node->strValue;
@@ -559,12 +559,16 @@ MValue &Engine::resolveFieldLValue(const ASTNode *node, std::shared_ptr<Environm
     throw std::runtime_error("Invalid field assignment target");
 }
 
-void Engine::execFieldAssign(const ASTNode *lhs, const MValue &rhs, std::shared_ptr<Environment> env)
+void Engine::execFieldAssign(const ASTNode *lhs,
+                             const MValue &rhs,
+                             const std::shared_ptr<Environment> &env)
 {
     resolveFieldLValue(lhs, env) = rhs;
 }
 
-void Engine::execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_ptr<Environment> env)
+void Engine::execCellAssign(const ASTNode *lhs,
+                            const MValue &rhs,
+                            const std::shared_ptr<Environment> &env)
 {
     auto *target = lhs->children[0].get();
     if (target->type != NodeType::IDENTIFIER)
@@ -597,7 +601,7 @@ void Engine::execCellAssign(const ASTNode *lhs, const MValue &rhs, std::shared_p
 // ============================================================
 // Multi-assignment
 // ============================================================
-MValue Engine::execMultiAssign(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execMultiAssign(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto results = execCallMulti(node->children[0].get(), env, node->returnNames.size());
 
@@ -614,7 +618,7 @@ MValue Engine::execMultiAssign(const ASTNode *node, std::shared_ptr<Environment>
 }
 
 std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
-                                          std::shared_ptr<Environment> env,
+                                          const std::shared_ptr<Environment> &env,
                                           size_t nout)
 {
     if (node->type != NodeType::CALL)
@@ -649,7 +653,7 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
 // ============================================================
 // Delete: A(idx) = []
 // ============================================================
-MValue Engine::execDeleteAssign(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execDeleteAssign(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto *lhs = node->children[0].get();
     if (lhs->type != NodeType::CALL || lhs->children.empty())
@@ -737,7 +741,7 @@ MValue Engine::execDeleteAssign(const ASTNode *node, std::shared_ptr<Environment
 // ============================================================
 // Binary & unary operators
 // ============================================================
-MValue Engine::execBinaryOp(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execBinaryOp(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     const std::string &op = node->strValue;
 
@@ -764,7 +768,7 @@ MValue Engine::execBinaryOp(const ASTNode *node, std::shared_ptr<Environment> en
     throw std::runtime_error("Undefined binary operator: " + op);
 }
 
-MValue Engine::execUnaryOp(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execUnaryOp(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto operand = execNode(node->children[0].get(), env);
     auto it = unaryOps_.find(node->strValue);
@@ -778,7 +782,7 @@ MValue Engine::execUnaryOp(const ASTNode *node, std::shared_ptr<Environment> env
 // ============================================================
 MValue Engine::callFuncHandle(const MValue &handle,
                               const std::vector<MValue> &args,
-                              std::shared_ptr<Environment> env)
+                              const std::shared_ptr<Environment> &env)
 {
     auto results = callFuncHandleMulti(handle, args, env, 1);
     return results.empty() ? MValue::empty() : results[0];
@@ -786,7 +790,7 @@ MValue Engine::callFuncHandle(const MValue &handle,
 
 std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
                                                 const std::vector<MValue> &args,
-                                                std::shared_ptr<Environment> env,
+                                                const std::shared_ptr<Environment> &env,
                                                 size_t nout)
 {
     const std::string &name = handle.funcHandleName();
@@ -797,7 +801,7 @@ std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
-MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execCall(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto *funcNode = node->children[0].get();
 
@@ -866,7 +870,7 @@ MValue Engine::execCall(const ASTNode *node, std::shared_ptr<Environment> env)
 
 MValue Engine::execIndexAccess(const MValue &var,
                                const ASTNode *callNode,
-                               std::shared_ptr<Environment> env)
+                               const std::shared_ptr<Environment> &env)
 {
     size_t nargs = callNode->children.size() - 1;
 
@@ -976,7 +980,7 @@ MValue Engine::execIndexAccess(const MValue &var,
 // ============================================================
 // Cell {}-indexing
 // ============================================================
-MValue Engine::execCellIndex(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execCellIndex(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto obj = execNode(node->children[0].get(), env);
     if (!obj.isCell())
@@ -1006,7 +1010,7 @@ MValue Engine::execCellIndex(const ASTNode *node, std::shared_ptr<Environment> e
     throw std::runtime_error("Cell indexing with more than 2 dimensions not supported");
 }
 
-MValue Engine::execFieldAccess(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execFieldAccess(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto obj = execNode(node->children[0].get(), env);
     if (!obj.isStruct())
@@ -1020,7 +1024,7 @@ MValue Engine::execFieldAccess(const ASTNode *node, std::shared_ptr<Environment>
 // ============================================================
 // Matrix literal
 // ============================================================
-MValue Engine::execMatrixLiteral(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execMatrixLiteral(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     if (node->children.empty())
         return MValue::empty();
@@ -1152,7 +1156,7 @@ MValue Engine::execMatrixLiteral(const ASTNode *node, std::shared_ptr<Environmen
     return result;
 }
 
-MValue Engine::execCellLiteral(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execCellLiteral(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     if (node->children.empty())
         return MValue::cell(0, 0);
@@ -1193,7 +1197,7 @@ MValue Engine::execCellLiteral(const ASTNode *node, std::shared_ptr<Environment>
 // ============================================================
 // Colon expression
 // ============================================================
-MValue Engine::execColonExpr(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execColonExpr(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     if (node->children.empty())
         return MValue::fromString(":", &allocator_);
@@ -1238,7 +1242,7 @@ MValue Engine::execColonExpr(const ASTNode *node, std::shared_ptr<Environment> e
 // ============================================================
 // Control flow
 // ============================================================
-MValue Engine::execIf(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execIf(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     for (auto &[cond, body] : node->branches)
         if (execNode(cond.get(), env).toBool())
@@ -1248,7 +1252,7 @@ MValue Engine::execIf(const ASTNode *node, std::shared_ptr<Environment> env)
     return MValue::empty();
 }
 
-MValue Engine::execFor(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execFor(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     const std::string &varName = node->strValue;
     auto rangeVal = execNode(node->children[0].get(), env);
@@ -1333,7 +1337,7 @@ MValue Engine::execFor(const ASTNode *node, std::shared_ptr<Environment> env)
                              + std::string(mtypeName(rangeVal.type())));
 }
 
-MValue Engine::execWhile(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execWhile(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     while (execNode(node->children[0].get(), env).toBool()) {
         try {
@@ -1347,7 +1351,7 @@ MValue Engine::execWhile(const ASTNode *node, std::shared_ptr<Environment> env)
     return MValue::empty();
 }
 
-MValue Engine::execSwitch(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execSwitch(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto sv = execNode(node->children[0].get(), env);
 
@@ -1392,7 +1396,7 @@ MValue Engine::execSwitch(const ASTNode *node, std::shared_ptr<Environment> env)
 // ============================================================
 // Function definition
 // ============================================================
-MValue Engine::execFunctionDef(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execFunctionDef(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     UserFunction func;
     func.name = node->strValue;
@@ -1404,7 +1408,7 @@ MValue Engine::execFunctionDef(const ASTNode *node, std::shared_ptr<Environment>
     return MValue::empty();
 }
 
-MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execExprStmt(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     // For bare function calls in statement context, try builtins with nargout=0
     // so that e.g. `toc;` prints elapsed time instead of returning silently.
@@ -1452,7 +1456,7 @@ MValue Engine::execExprStmt(const ASTNode *node, std::shared_ptr<Environment> en
 // ============================================================
 // Command-style call
 // ============================================================
-MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execCommandCall(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     const std::string &name = node->strValue;
 
@@ -1498,7 +1502,7 @@ MValue Engine::execCommandCall(const ASTNode *node, std::shared_ptr<Environment>
 // ============================================================
 // Anonymous functions
 // ============================================================
-MValue Engine::execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execAnonFunc(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     if (!node->strValue.empty() && node->children.empty())
         return MValue::funcHandle(node->strValue, &allocator_);
@@ -1532,7 +1536,7 @@ MValue Engine::execAnonFunc(const ASTNode *node, std::shared_ptr<Environment> en
 // ============================================================
 // try/catch
 // ============================================================
-MValue Engine::execTryCatch(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execTryCatch(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     try {
         return execNode(node->children[0].get(), env);
@@ -1559,7 +1563,7 @@ MValue Engine::execTryCatch(const ASTNode *node, std::shared_ptr<Environment> en
 // ============================================================
 // global / persistent
 // ============================================================
-MValue Engine::execGlobalPersistent(const ASTNode *node, std::shared_ptr<Environment> env)
+MValue Engine::execGlobalPersistent(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     for (auto &name : node->paramNames) {
         env->declareGlobal(name);
@@ -1574,7 +1578,7 @@ MValue Engine::execGlobalPersistent(const ASTNode *node, std::shared_ptr<Environ
 // ============================================================
 MValue Engine::callUserFunction(const UserFunction &func,
                                 const std::vector<MValue> &args,
-                                std::shared_ptr<Environment> env)
+                                const std::shared_ptr<Environment> &env)
 {
     auto results = callUserFunctionMulti(func, args, env, std::max(func.returns.size(), size_t(1)));
     return results.empty() ? MValue::empty() : results[0];
@@ -1582,7 +1586,7 @@ MValue Engine::callUserFunction(const UserFunction &func,
 
 std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
                                                   const std::vector<MValue> &args,
-                                                  std::shared_ptr<Environment> env,
+                                                  const std::shared_ptr<Environment> &env,
                                                   size_t nout)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
@@ -1640,7 +1644,7 @@ static const std::unordered_set<std::string> kBuiltinNames = {"pi",
 
 bool Engine::tryBuiltinCall(const std::string &name,
                             const std::vector<MValue> &args,
-                            std::shared_ptr<Environment> env,
+                            const std::shared_ptr<Environment> &env,
                             MValue &result,
                             size_t nargout)
 {
