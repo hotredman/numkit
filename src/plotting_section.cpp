@@ -50,7 +50,7 @@
 
     // --- figure() / figure(n) ---
     engine.registerFunction("figure",
-        [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [&engine](Span<const MValue> args) -> std::vector<MValue> {
             auto *alloc = &engine.allocator();
             auto &fm = engine.figureManager();
             int id;
@@ -60,12 +60,12 @@
                 id = static_cast<int>(args[0].toScalar());
                 fm.setFigure(id);
             }
-            return {MValue::scalar(static_cast<double>(id), alloc)};
+            out[0] = MValue::scalar(static_cast<double>(id), alloc); return;
         });
 
     // --- close() / close(n) / close('all') ---
     engine.registerFunction("close",
-        [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [&engine](Span<const MValue> args) -> std::vector<MValue> {
             auto &fm = engine.figureManager();
             if (args.empty()) {
                 fm.closeCurrent();
@@ -74,7 +74,7 @@
             } else {
                 fm.closeFigure(static_cast<int>(args[0].toScalar()));
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- clf ---
@@ -88,25 +88,25 @@
             fig.holdOn = false;
             fig.modified = true;
             engine.figureManager().emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- hold on / hold off / hold ---
     engine.registerFunction("hold",
-        [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [&engine](Span<const MValue> args) -> std::vector<MValue> {
             auto &fig = engine.figureManager().current();
             if (args.empty()) {
                 fig.holdOn = !fig.holdOn;
             } else {
                 fig.holdOn = (args[0].toString() == "on");
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- plot(x, y) / plot(y) / plot(x, y, style) ---
     engine.registerFunction("plot",
-        [vecToJson, makeIndexJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
-            if (args.empty()) return {MValue::empty()};
+        [vecToJson, makeIndexJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
+            if (args.empty()) out[0] = MValue::empty(); return;
             auto &fm = engine.figureManager();
             fm.prepareForPlot();
             DatasetInfo ds;
@@ -124,13 +124,13 @@
             }
             fm.current().datasets.push_back(std::move(ds));
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- bar(y) / bar(x, y) ---
     engine.registerFunction("bar",
-        [vecToJson, makeIndexJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
-            if (args.empty()) return {MValue::empty()};
+        [vecToJson, makeIndexJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
+            if (args.empty()) out[0] = MValue::empty(); return;
             auto &fm = engine.figureManager();
             fm.prepareForPlot();
             DatasetInfo ds;
@@ -144,13 +144,13 @@
             }
             fm.current().datasets.push_back(std::move(ds));
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- scatter(x, y) ---
     engine.registerFunction("scatter",
-        [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
-            if (args.size() < 2) return {MValue::empty()};
+        [vecToJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
+            if (args.size() < 2) out[0] = MValue::empty(); return;
             auto &fm = engine.figureManager();
             fm.prepareForPlot();
             DatasetInfo ds;
@@ -159,14 +159,14 @@
             ds.yJson = vecToJson(args[1]);
             fm.current().datasets.push_back(std::move(ds));
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- hist(data, bins) ---
     engine.registerFunction("hist",
-        [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [vecToJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
             auto *alloc = &engine.allocator();
-            if (args.empty()) return {MValue::empty()};
+            if (args.empty()) out[0] = MValue::empty(); return;
             auto &data = args[0];
             int bins = (args.size() >= 2) ? static_cast<int>(args[1].toScalar()) : 10;
             double mn = data.doubleData()[0], mx = data.doubleData()[0];
@@ -194,13 +194,13 @@
             ds.yJson = vecToJson(counts);
             fm.current().datasets.push_back(std::move(ds));
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- polarplot(theta, rho) / polarplot(theta, rho, style) ---
     engine.registerFunction("polarplot",
-        [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
-            if (args.size() < 2) return {MValue::empty()};
+        [vecToJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
+            if (args.size() < 2) out[0] = MValue::empty(); return;
             auto &fm = engine.figureManager();
             fm.prepareForPlot();
             fm.current().polar = true;
@@ -212,72 +212,72 @@
                 ds.style = args[2].toString();
             fm.current().datasets.push_back(std::move(ds));
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- title('text') ---
     engine.registerFunction("title",
-        [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [argStr, &engine](Span<const MValue> args) -> std::vector<MValue> {
             if (!args.empty()) {
                 auto &fm = engine.figureManager();
                 fm.current().title = argStr(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- xlabel('text') ---
     engine.registerFunction("xlabel",
-        [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [argStr, &engine](Span<const MValue> args) -> std::vector<MValue> {
             if (!args.empty()) {
                 auto &fm = engine.figureManager();
                 fm.current().xlabel = argStr(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- ylabel('text') ---
     engine.registerFunction("ylabel",
-        [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [argStr, &engine](Span<const MValue> args) -> std::vector<MValue> {
             if (!args.empty()) {
                 auto &fm = engine.figureManager();
                 fm.current().ylabel = argStr(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- xlim([min, max]) ---
     engine.registerFunction("xlim",
-        [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [vecToJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = engine.figureManager();
                 fm.current().xlimJson = vecToJson(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- ylim([min, max]) ---
     engine.registerFunction("ylim",
-        [vecToJson, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [vecToJson, &engine](Span<const MValue> args) -> std::vector<MValue> {
             if (!args.empty() && args[0].numel() >= 2) {
                 auto &fm = engine.figureManager();
                 fm.current().ylimJson = vecToJson(args[0]);
                 fm.current().modified = true;
                 fm.emitModified();
             }
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- grid on / grid off / grid ---
     engine.registerFunction("grid",
-        [&engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [&engine](Span<const MValue> args) -> std::vector<MValue> {
             auto &fm = engine.figureManager();
             auto &fig = fm.current();
             if (args.empty()) {
@@ -287,12 +287,12 @@
             }
             fig.modified = true;
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // --- legend('a', 'b', ...) ---
     engine.registerFunction("legend",
-        [argStr, &engine](const std::vector<MValue> &args) -> std::vector<MValue> {
+        [argStr, &engine](Span<const MValue> args) -> std::vector<MValue> {
             auto &fm = engine.figureManager();
             auto &fig = fm.current();
             fig.legendLabels.clear();
@@ -300,15 +300,15 @@
                 fig.legendLabels.push_back(argStr(a));
             fig.modified = true;
             fm.emitModified();
-            return {MValue::empty()};
+            out[0] = MValue::empty(); return;
         });
 
     // ================================================================
     // Remaining GUI no-ops
     // ================================================================
-    auto noop = [](const std::vector<MValue> &) -> std::vector<MValue> { return {MValue::empty()}; };
+    auto noop = [](const std::vector<MValue> &) -> std::vector<MValue> { out[0] = MValue::empty(); return; };
     auto noop_ret1 = [&engine](const std::vector<MValue> &) -> std::vector<MValue> {
-        return {MValue::scalar(1.0, &engine.allocator())};
+        out[0] = MValue::scalar(1.0, &engine.allocator()); return;
     };
 
     engine.registerFunction("subplot", noop);

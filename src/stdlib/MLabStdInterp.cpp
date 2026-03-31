@@ -209,7 +209,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
 {
     // --- interp1(x, y, xq) / interp1(x, y, xq, method) ---
     engine.registerFunction("interp1",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("interp1 requires at least 3 arguments");
@@ -250,12 +250,12 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                                : MValue::matrix(nq, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < nq; ++i)
                                     r.doubleDataMut()[i] = yq[i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- spline(x, y, xq) — shortcut for interp1(..., 'spline') ---
     engine.registerFunction("spline",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("spline requires 3 arguments");
@@ -279,12 +279,12 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                                : MValue::matrix(nq, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < nq; ++i)
                                     r.doubleDataMut()[i] = yq[i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- pchip(x, y, xq) — shortcut for interp1(..., 'pchip') ---
     engine.registerFunction("pchip",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("pchip requires 3 arguments");
@@ -308,13 +308,13 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                                : MValue::matrix(nq, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < nq; ++i)
                                     r.doubleDataMut()[i] = yq[i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- polyfit(x, y, n) — polynomial least-squares fit ---
     // Uses normal equations: (A'A) p = A'y
     engine.registerFunction("polyfit",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("polyfit requires 3 arguments");
@@ -403,12 +403,12 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                 auto p = MValue::matrix(1, np, MType::DOUBLE, alloc);
                                 for (int j = 0; j < np; ++j)
                                     p.doubleDataMut()[j] = aug[j * (np + 1) + np];
-                                return {p};
+                                { outs[0] = p; return; }
                             });
 
     // --- polyval(p, x) — evaluate polynomial using Horner's scheme ---
     engine.registerFunction("polyval",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("polyval requires 2 arguments");
@@ -428,12 +428,12 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                         val = val * x[i] + p[j];
                                     r.doubleDataMut()[i] = val;
                                 }
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- trapz(y) / trapz(x, y) — trapezoidal numerical integration ---
     engine.registerFunction("trapz",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("trapz requires at least 1 argument");
@@ -449,7 +449,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                     double s = 0.0;
                                     for (size_t i = 1; i < n; ++i)
                                         s += 0.5 * (y[i - 1] + y[i]);
-                                    return {MValue::scalar(s, alloc)};
+                                    { outs[0] = MValue::scalar(s, alloc); return; }
                                 }
 
                                 // trapz(x, y)
@@ -462,7 +462,7 @@ void StdLibrary::registerInterpFunctions(Engine &engine)
                                 double s = 0.0;
                                 for (size_t i = 1; i < n; ++i)
                                     s += 0.5 * (y[i - 1] + y[i]) * (x[i] - x[i - 1]);
-                                return {MValue::scalar(s, alloc)};
+                                { outs[0] = MValue::scalar(s, alloc); return; }
                             });
 }
 

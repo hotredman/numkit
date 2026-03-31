@@ -9,7 +9,7 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
 {
     // --- unwrap(phase) --- unwrap radian phase angles
     engine.registerFunction("unwrap",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("unwrap requires 1 argument");
@@ -25,12 +25,12 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
                                     d = d - 2.0 * M_PI * std::round(d / (2.0 * M_PI));
                                     out[i] = out[i - 1] + d;
                                 }
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- hilbert(x) --- analytic signal via FFT
     engine.registerFunction("hilbert",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("hilbert requires 1 argument");
@@ -53,12 +53,12 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
                                 double invN = 1.0 / static_cast<double>(fftLen);
                                 for (auto &v : buf) v = std::conj(v) * invN;
 
-                                return {packComplexResult(buf, N, alloc)};
+                                { outs[0] = packComplexResult(buf, N, alloc); return; }
                             });
 
     // --- envelope(x) --- amplitude envelope via Hilbert transform
     engine.registerFunction("envelope",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("envelope requires 1 argument");
@@ -82,7 +82,7 @@ void StdLibrary::registerTransformFunctions(Engine &engine)
                                 auto r = MValue::matrix(xv.dims().rows(), xv.dims().cols(), MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < N; ++i)
                                     r.doubleDataMut()[i] = std::abs(buf[i]);
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 }
 

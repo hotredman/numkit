@@ -9,8 +9,7 @@ namespace mlab {
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
     engine.registerFunction("disp",
-                            [&engine](const std::vector<MValue> &args,
-                                      size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 for (auto &a : args) {
                                     std::ostringstream os;
                                     if (a.isChar()) {
@@ -104,7 +103,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                     os << "\n";
                                     engine.outputText(os.str());
                                 }
-                                return {};
+                                return;
                             });
 
     // ── shared printf-style formatter ──────────────────────────
@@ -113,7 +112,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     //           \n \t \\ \'
     // Arguments are consumed cyclically (MATLAB behaviour).
     auto mlab_sprintf = [](const std::string &fmt,
-                           const std::vector<MValue> &args,
+                           Span<const MValue> args,
                            size_t argStart) -> std::string {
         std::ostringstream out;
         size_t ai = argStart; // current argument index
@@ -270,46 +269,42 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     };
 
     engine.registerFunction("fprintf",
-                            [&engine, mlab_sprintf](const std::vector<MValue> &args,
-                                                    size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine, mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 if (args.empty())
-                                    return {};
+                                    return;
                                 size_t fmtIdx = 0;
                                 // Skip optional file id (1 = stdout, 2 = stderr)
                                 if (args.size() >= 2 && args[0].isScalar() && args[1].isChar())
                                     fmtIdx = 1;
                                 if (!args[fmtIdx].isChar())
-                                    return {};
+                                    return;
                                 std::string result = mlab_sprintf(args[fmtIdx].toString(),
                                                                   args,
                                                                   fmtIdx + 1);
                                 engine.outputText(result);
-                                return {};
+                                return;
                             });
 
     engine.registerFunction("sprintf",
-                            [&engine, mlab_sprintf](const std::vector<MValue> &args,
-                                                    size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine, mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty() || !args[0].isChar())
-                                    return {MValue::fromString("", alloc)};
+                                    { outs[0] = MValue::fromString("", alloc); return; }
                                 std::string result = mlab_sprintf(args[0].toString(), args, 1);
-                                return {MValue::fromString(result, alloc)};
+                                { outs[0] = MValue::fromString(result, alloc); return; }
                             });
 
     engine.registerFunction("error",
-                            [](const std::vector<MValue> &args,
-                               size_t /*nargout*/) -> std::vector<MValue> {
+                            [](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 std::string msg = args.empty() ? "Error" : args[0].toString();
                                 throw std::runtime_error(msg);
                             });
 
     engine.registerFunction("warning",
-                            [](const std::vector<MValue> &args,
-                               size_t /*nargout*/) -> std::vector<MValue> {
+                            [](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 if (!args.empty() && args[0].isChar())
                                     std::cerr << "Warning: " << args[0].toString() << "\n";
-                                return {};
+                                return;
                             });
 }
 

@@ -64,6 +64,7 @@ set(MLAB_HEADERS
     include/MLabSignalHelpers.hpp
     include/MLabPlotLibrary.hpp
     include/MLabFigureManager.hpp
+    include/MLabSpan.hpp
 )
 
 if(MLAB_BUILD_SHARED)

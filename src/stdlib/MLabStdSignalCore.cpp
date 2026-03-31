@@ -9,17 +9,17 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 {
     // --- nextpow2(n) ---
     engine.registerFunction("nextpow2",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 double n = args[0].toScalar();
                                 if (n <= 0)
-                                    return {MValue::scalar(0.0, alloc)};
-                                return {MValue::scalar(std::ceil(std::log2(n)), alloc)};
+                                    { outs[0] = MValue::scalar(0.0, alloc); return; }
+                                { outs[0] = MValue::scalar(std::ceil(std::log2(n)), alloc); return; }
                             });
 
     // --- fft(x) / fft(x, N) ---
     engine.registerFunction("fft",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("fft requires at least 1 argument");
@@ -33,12 +33,12 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
 
                                 auto buf = prepareFFTBuffer(x, useLen, fftLen);
                                 fftRadix2(buf, 1);
-                                return {packComplexResult(buf, outLen, alloc)};
+                                { outs[0] = packComplexResult(buf, outLen, alloc); return; }
                             });
 
     // --- ifft(X) / ifft(X, N) ---
     engine.registerFunction("ifft",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("ifft requires at least 1 argument");
@@ -68,14 +68,14 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
                                     auto r = MValue::matrix(1, outLen, MType::DOUBLE, alloc);
                                     for (size_t i = 0; i < outLen; ++i)
                                         r.doubleDataMut()[i] = buf[i].real();
-                                    return {r};
+                                    { outs[0] = r; return; }
                                 }
-                                return {packComplexResult(buf, outLen, alloc)};
+                                { outs[0] = packComplexResult(buf, outLen, alloc); return; }
                             });
 
     // --- fftshift(X) ---
     engine.registerFunction("fftshift",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("fftshift requires 1 argument");
@@ -89,19 +89,19 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
                                     Complex *dst = r.complexDataMut();
                                     for (size_t i = 0; i < N; ++i)
                                         dst[i] = src[(i + shift) % N];
-                                    return {r};
+                                    { outs[0] = r; return; }
                                 }
                                 auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, alloc);
                                 const double *src = x.doubleData();
                                 double *dst = r.doubleDataMut();
                                 for (size_t i = 0; i < N; ++i)
                                     dst[i] = src[(i + shift) % N];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- ifftshift(X) ---
     engine.registerFunction("ifftshift",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("ifftshift requires 1 argument");
@@ -115,14 +115,14 @@ void StdLibrary::registerSignalCoreFunctions(Engine &engine)
                                     Complex *dst = r.complexDataMut();
                                     for (size_t i = 0; i < N; ++i)
                                         dst[i] = src[(i + shift) % N];
-                                    return {r};
+                                    { outs[0] = r; return; }
                                 }
                                 auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, alloc);
                                 const double *src = x.doubleData();
                                 double *dst = r.doubleDataMut();
                                 for (size_t i = 0; i < N; ++i)
                                     dst[i] = src[(i + shift) % N];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 }
 

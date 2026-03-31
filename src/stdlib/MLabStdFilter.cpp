@@ -10,7 +10,7 @@ void StdLibrary::registerFilterFunctions(Engine &engine)
 {
     // --- filter(b, a, x) --- Direct Form II transposed
     engine.registerFunction("filter",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("filter requires 3 arguments");
@@ -44,12 +44,12 @@ void StdLibrary::registerFilterFunctions(Engine &engine)
                                                   + (i < nfilt - 1 ? z[i] : 0.0);
                                     }
                                 }
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- filtfilt(b, a, x) --- Zero-phase filtering (forward-backward)
     engine.registerFunction("filtfilt",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("filtfilt requires 3 arguments");
@@ -109,7 +109,7 @@ void StdLibrary::registerFilterFunctions(Engine &engine)
                                 auto r = MValue::matrix(xv.dims().rows(), xv.dims().cols(), MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < nx; ++i)
                                     r.doubleDataMut()[i] = bwd[nEdge + i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 }
 

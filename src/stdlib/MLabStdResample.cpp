@@ -15,7 +15,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 {
     // --- downsample(x, n) ---
     engine.registerFunction("downsample",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("downsample requires 2 arguments");
@@ -29,12 +29,12 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                                : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < outLen; ++i)
                                     r.doubleDataMut()[i] = xv.doubleData()[i * n];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- upsample(x, n) ---
     engine.registerFunction("upsample",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("upsample requires 2 arguments");
@@ -50,12 +50,12 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                     r.doubleDataMut()[i] = 0.0;
                                 for (size_t i = 0; i < nx; ++i)
                                     r.doubleDataMut()[i * n] = xv.doubleData()[i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- decimate(x, r) --- downsample with anti-aliasing FIR
     engine.registerFunction("decimate",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("decimate requires 2 arguments");
@@ -100,12 +100,12 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                                : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < outLen; ++i)
                                     r.doubleDataMut()[i] = filtered[i * factor];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- resample(x, p, q) --- rational rate change p/q
     engine.registerFunction("resample",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("resample requires 3 arguments");
@@ -159,7 +159,7 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                     size_t idx = i * q;
                                     r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
                                 }
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 }
 

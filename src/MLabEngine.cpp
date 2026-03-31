@@ -620,9 +620,7 @@ bool Engine::tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environmen
         auto *funcNode = expr->children[0].get();
         if (!funcNode->cachedOp)
             return false;
-        // Build scalar args
         size_t nargs = expr->children.size() - 1;
-        // Use small inline buffer to avoid vector allocation for <= 4 args
         double argVals[4];
         if (nargs > 4)
             return false;
@@ -630,13 +628,15 @@ bool Engine::tryEvalScalar(const ASTNode *expr, const std::shared_ptr<Environmen
             if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
                 return false;
         }
-        std::vector<MValue> args;
-        args.reserve(nargs);
+        // Reuse engine-owned buffer to avoid heap allocation per call
+        callArgsBuf_.clear();
         for (size_t i = 0; i < nargs; ++i)
-            args.push_back(MValue::scalar(argVals[i], &allocator_));
-        auto res = (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, 1);
-        if (!res.empty() && res[0].isScalar() && res[0].type() == MType::DOUBLE) {
-            out = res[0].toScalar();
+            callArgsBuf_.push_back(MValue::scalar(argVals[i], &allocator_));
+        MValue outBuf[1];
+        (*static_cast<const ExternalFunc *>(
+            funcNode->cachedOp))(callArgsBuf_, 1, Span<MValue>(outBuf, 1));
+        if (outBuf[0].isScalar() && outBuf[0].type() == MType::DOUBLE) {
+            out = outBuf[0].toScalar();
             return true;
         }
         return false;
@@ -737,8 +737,9 @@ MValue Engine::execIdentifier(const ASTNode *node, const std::shared_ptr<Environ
         return result;
 
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name]({}, 1); // ← nargout = 1
-        return res.empty() ? MValue::empty() : res[0];
+        MValue outBuf[1];
+        externalFuncs_[name]({}, 1, Span<MValue>(outBuf, 1));
+        return outBuf[0].isEmpty() ? MValue::empty() : outBuf[0];
     }
     if (userFuncs_.count(name))
         return callUserFunction(userFuncs_[name], {}, env);
@@ -988,7 +989,9 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
     // Fast path: cached function pointer
     auto *funcNode = node->children[0].get();
     if (funcNode->cachedOp) {
-        return (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, nout);
+        std::vector<MValue> outBuf(nout);
+        (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, nout, Span<MValue>(outBuf));
+        return outBuf;
     }
 
     // Try built-in commands
@@ -1001,7 +1004,9 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node,
     auto it = externalFuncs_.find(funcName);
     if (it != externalFuncs_.end()) {
         funcNode->cachedOp = &it->second;
-        return it->second(args, nout);
+        std::vector<MValue> outBuf(nout);
+        it->second(args, nout, Span<MValue>(outBuf));
+        return outBuf;
     }
     if (userFuncs_.count(funcName))
         return callUserFunctionMulti(userFuncs_[funcName], args, env, nout);
@@ -1154,7 +1159,7 @@ MValue Engine::execUnaryOp(const ASTNode *node, const std::shared_ptr<Environmen
 // Function call / indexing
 // ============================================================
 MValue Engine::callFuncHandle(const MValue &handle,
-                              const std::vector<MValue> &args,
+                              Span<const MValue> args,
                               const std::shared_ptr<Environment> &env)
 {
     auto results = callFuncHandleMulti(handle, args, env, 1);
@@ -1162,13 +1167,16 @@ MValue Engine::callFuncHandle(const MValue &handle,
 }
 
 std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
-                                                const std::vector<MValue> &args,
+                                                Span<const MValue> args,
                                                 const std::shared_ptr<Environment> &env,
                                                 size_t nout)
 {
     const std::string &name = handle.funcHandleName();
-    if (externalFuncs_.count(name))
-        return externalFuncs_[name](args, nout); // ← nargout = nout
+    if (externalFuncs_.count(name)) {
+        std::vector<MValue> outBuf(nout);
+        externalFuncs_[name](args, nout, Span<MValue>(outBuf));
+        return outBuf;
+    }
     if (userFuncs_.count(name))
         return callUserFunctionMulti(userFuncs_[name], args, env, nout);
     throw std::runtime_error("Undefined function in handle: @" + name);
@@ -1222,8 +1230,10 @@ MValue Engine::execCall(const ASTNode *node, const std::shared_ptr<Environment> 
 
         // Fast path: use cached function pointer from AST node
         if (funcNode->cachedOp) {
-            auto res = (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, 1);
-            return res.empty() ? MValue::empty() : res[0];
+            MValue outBuf[1];
+            (*static_cast<const ExternalFunc *>(
+                funcNode->cachedOp))(args, 1, Span<MValue>(outBuf, 1));
+            return outBuf[0];
         }
 
         MValue result;
@@ -1234,8 +1244,9 @@ MValue Engine::execCall(const ASTNode *node, const std::shared_ptr<Environment> 
         auto it = externalFuncs_.find(name);
         if (it != externalFuncs_.end()) {
             funcNode->cachedOp = &it->second;
-            auto res = it->second(args, 1);
-            return res.empty() ? MValue::empty() : res[0];
+            MValue outBuf[1];
+            it->second(args, 1, Span<MValue>(outBuf, 1));
+            return outBuf[0];
         }
         if (userFuncs_.count(name)) {
             return callUserFunction(userFuncs_[name], args, env);
@@ -1953,8 +1964,9 @@ MValue Engine::execCommandCall(const ASTNode *node, const std::shared_ptr<Enviro
 
     // 2. External registered functions
     if (externalFuncs_.count(name)) {
-        auto res = externalFuncs_[name](args, 1); // ← nargout = 1
-        result = res.empty() ? MValue::empty() : res[0];
+        MValue outBuf[1];
+        externalFuncs_[name](args, 1, Span<MValue>(outBuf, 1));
+        result = outBuf[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
             displayValue("ans", result);
@@ -2053,7 +2065,7 @@ MValue Engine::execGlobalPersistent(const ASTNode *node, const std::shared_ptr<E
 // User function calls
 // ============================================================
 MValue Engine::callUserFunction(const UserFunction &func,
-                                const std::vector<MValue> &args,
+                                Span<const MValue> args,
                                 const std::shared_ptr<Environment> &env)
 {
     auto results = callUserFunctionMulti(func, args, env, std::max(func.returns.size(), size_t(1)));
@@ -2061,7 +2073,7 @@ MValue Engine::callUserFunction(const UserFunction &func,
 }
 
 std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
-                                                  const std::vector<MValue> &args,
+                                                  Span<const MValue> args,
                                                   const std::shared_ptr<Environment> &env,
                                                   size_t nout)
 {
@@ -2119,7 +2131,7 @@ static const std::unordered_set<std::string> kBuiltinNames = {"pi",
                                                               "end"};
 
 bool Engine::tryBuiltinCall(const std::string &name,
-                            const std::vector<MValue> &args,
+                            Span<const MValue> args,
                             const std::shared_ptr<Environment> &env,
                             MValue &result,
                             size_t nargout)

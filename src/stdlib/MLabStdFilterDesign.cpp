@@ -95,7 +95,7 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 {
     // --- butter(N, Wn) / butter(N, Wn, 'high') ---
     engine.registerFunction("butter",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("butter requires at least 2 arguments");
@@ -122,12 +122,12 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
                                 auto av = MValue::matrix(1, a.size(), MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < b.size(); ++i) bv.doubleDataMut()[i] = b[i];
                                 for (size_t i = 0; i < a.size(); ++i) av.doubleDataMut()[i] = a[i];
-                                return {bv, av};
+                                { outs[0] = bv; if (nargout > 1) outs[1] = av; return; }
                             });
 
     // --- fir1(N, Wn) / fir1(N, Wn, 'high') ---
     engine.registerFunction("fir1",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("fir1 requires at least 2 arguments");
@@ -165,12 +165,12 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 
                                 auto bv = MValue::matrix(1, filtLen, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < filtLen; ++i) bv.doubleDataMut()[i] = h[i];
-                                return {bv};
+                                { outs[0] = bv; return; }
                             });
 
     // --- freqz(b, a, N) --- frequency response
     engine.registerFunction("freqz",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("freqz requires at least 2 arguments");
@@ -205,7 +205,7 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
                                     }
                                     H.complexDataMut()[k] = num / den;
                                 }
-                                return {H, W};
+                                { outs[0] = H; if (nargout > 1) outs[1] = W; return; }
                             });
 }
 

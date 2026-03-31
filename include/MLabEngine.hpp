@@ -4,6 +4,7 @@
 #include "MLabAst.hpp"
 #include "MLabEnvironment.hpp"
 #include "MLabFigureManager.hpp"
+#include "MLabSpan.hpp"
 #include "MLabValue.hpp"
 
 #include <atomic>
@@ -17,7 +18,7 @@
 
 namespace mlab {
 
-using ExternalFunc = std::function<std::vector<MValue>(const std::vector<MValue> &, size_t)>;
+using ExternalFunc = std::function<void(Span<const MValue> args, size_t nargout, Span<MValue> outs)>;
 using BinaryOpFunc = std::function<MValue(const MValue &, const MValue &)>;
 using UnaryOpFunc = std::function<MValue(const MValue &)>;
 
@@ -123,6 +124,9 @@ private:
     };
     std::vector<IndexContext> indexContextStack_;
 
+    // Reusable buffer for small function call args (avoids heap alloc per call)
+    std::vector<MValue> callArgsBuf_;
+
     class IndexContextGuard
     {
     public:
@@ -218,17 +222,17 @@ private:
                                       size_t nout);
 
     MValue callUserFunction(const UserFunction &func,
-                            const std::vector<MValue> &args,
+                            Span<const MValue> args,
                             const std::shared_ptr<Environment> &env);
     std::vector<MValue> callUserFunctionMulti(const UserFunction &func,
-                                              const std::vector<MValue> &args,
+                                              Span<const MValue> args,
                                               const std::shared_ptr<Environment> &env,
                                               size_t nout);
     MValue callFuncHandle(const MValue &handle,
-                          const std::vector<MValue> &args,
+                          Span<const MValue> args,
                           const std::shared_ptr<Environment> &env);
     std::vector<MValue> callFuncHandleMulti(const MValue &handle,
-                                            const std::vector<MValue> &args,
+                                            Span<const MValue> args,
                                             const std::shared_ptr<Environment> &env,
                                             size_t nout);
 
@@ -238,7 +242,7 @@ private:
 
 private:
     bool tryBuiltinCall(const std::string &name,
-                        const std::vector<MValue> &args,
+                        Span<const MValue> args,
                         const std::shared_ptr<Environment> &env,
                         MValue &result,
                         size_t nargout = 0);

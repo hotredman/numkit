@@ -10,7 +10,7 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
 {
     // --- periodogram(x) / periodogram(x, window, nfft) ---
     engine.registerFunction("periodogram",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("periodogram requires at least 1 argument");
@@ -50,12 +50,12 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
                                     Pxx.doubleDataMut()[i] = mag2 * scale;
                                     F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
                                 }
-                                return {Pxx, F};
+                                { outs[0] = Pxx; if (nargout > 1) outs[1] = F; return; }
                             });
 
     // --- pwelch(x) / pwelch(x, window, noverlap, nfft) ---
     engine.registerFunction("pwelch",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("pwelch requires at least 1 argument");
@@ -114,12 +114,12 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
                                     Pxx.doubleDataMut()[i] = psd[i] * scale;
                                     F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
                                 }
-                                return {Pxx, F};
+                                { outs[0] = Pxx; if (nargout > 1) outs[1] = F; return; }
                             });
 
     // --- spectrogram(x, window, noverlap, nfft) ---
     engine.registerFunction("spectrogram",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("spectrogram requires at least 1 argument");
@@ -185,7 +185,7 @@ void StdLibrary::registerSpectralFunctions(Engine &engine)
                                 for (size_t i = 0; i < nFreqs; ++i)
                                     F.doubleDataMut()[i] = M_PI * i / (nFreqs - 1);
 
-                                return {S, F, T};
+                                { outs[0] = S; if (nargout > 1) outs[1] = F; if (nargout > 2) outs[2] = T; return; }
                             });
 }
 

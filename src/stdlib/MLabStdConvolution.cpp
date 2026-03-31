@@ -10,7 +10,7 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
 {
     // --- conv(a, b) / conv(a, b, shape) ---
     engine.registerFunction("conv",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("conv requires at least 2 arguments");
@@ -42,12 +42,12 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
                                 auto r = MValue::matrix(1, outLen, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < outLen; ++i)
                                     r.doubleDataMut()[i] = c[outStart + i];
-                                return {r};
+                                { outs[0] = r; return; }
                             });
 
     // --- deconv(b, a) --- polynomial long division
     engine.registerFunction("deconv",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("deconv requires 2 arguments");
@@ -83,12 +83,12 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
                                 for (size_t i = 0; i < nb; ++i)
                                     rv.doubleDataMut()[i] = rem[i];
 
-                                return {qv, rv};
+                                { outs[0] = qv; if (nargout > 1) outs[1] = rv; return; }
                             });
 
     // --- xcorr(x) / xcorr(x, y) --- cross-correlation via conv
     engine.registerFunction("xcorr",
-                            [&engine](const std::vector<MValue> &args, size_t /*nargout*/) -> std::vector<MValue> {
+                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
                                 if (args.empty())
                                     throw std::runtime_error("xcorr requires at least 1 argument");
@@ -130,7 +130,7 @@ void StdLibrary::registerConvolutionFunctions(Engine &engine)
                                 for (size_t i = 0; i < nc; ++i)
                                     lags.doubleDataMut()[i] = static_cast<double>(static_cast<int>(i) - maxLag);
 
-                                return {r, lags};
+                                { outs[0] = r; if (nargout > 1) outs[1] = lags; return; }
                             });
 }
 
