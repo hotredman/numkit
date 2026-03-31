@@ -761,9 +761,16 @@ MValue Engine::execBinaryOp(const ASTNode *node, const std::shared_ptr<Environme
     auto left = execNode(node->children[0].get(), env);
     auto right = execNode(node->children[1].get(), env);
 
+    // Use cached function pointer if available
+    if (node->cachedOp) {
+        return (*static_cast<const BinaryOpFunc *>(node->cachedOp))(left, right);
+    }
+
     auto it = binaryOps_.find(op);
-    if (it != binaryOps_.end())
+    if (it != binaryOps_.end()) {
+        node->cachedOp = &it->second;
         return it->second(left, right);
+    }
 
     throw std::runtime_error("Undefined binary operator: " + op);
 }
@@ -771,9 +778,16 @@ MValue Engine::execBinaryOp(const ASTNode *node, const std::shared_ptr<Environme
 MValue Engine::execUnaryOp(const ASTNode *node, const std::shared_ptr<Environment> &env)
 {
     auto operand = execNode(node->children[0].get(), env);
+
+    if (node->cachedOp) {
+        return (*static_cast<const UnaryOpFunc *>(node->cachedOp))(operand);
+    }
+
     auto it = unaryOps_.find(node->strValue);
-    if (it != unaryOps_.end())
+    if (it != unaryOps_.end()) {
+        node->cachedOp = &it->second;
         return it->second(operand);
+    }
     throw std::runtime_error("Undefined unary operator: " + node->strValue);
 }
 

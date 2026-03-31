@@ -64,6 +64,9 @@ struct ASTNode
     std::vector<std::pair<ASTNodePtr, ASTNodePtr>> branches;
     ASTNodePtr elseBranch;
 
+    // Cached operator function pointer (set on first eval, avoids hash lookup)
+    mutable const void *cachedOp = nullptr;
+
     ASTNode()
         : type(NodeType::NUMBER_LITERAL)
     {}
