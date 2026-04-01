@@ -840,83 +840,84 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
 {
     MValue last = MValue::empty();
     for (auto &child : node->children) {
-        // ── Fast path: x = <scalar expr> with suppressed output ──
-        if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
-            && child->children[0]->type == NodeType::IDENTIFIER) {
-            const auto *lhs = child->children[0].get();
-            const auto *rhs = child->children[1].get();
-            const std::string &lhsName = lhs->strValue;
+        // ── Fast paths for ASSIGN with suppressed output ──
+        if (child->type == NodeType::ASSIGN && child->suppressOutput
+            && child->children.size() == 2) {
+            const auto *lhsNode = child->children[0].get();
+            const auto *rhsNode = child->children[1].get();
 
-            // Try to evaluate RHS as scalar double
-            double val;
-            if (tryEvalScalar(rhs, env, val)) {
-                MValue *existing = env->getLocal(lhsName);
-                if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
-                    *existing->doubleDataMut() = val;
-                } else {
-                    env->set(lhsName, MValue::scalar(val, &allocator_));
+            // x = <scalar expr>
+            if (lhsNode->type == NodeType::IDENTIFIER) {
+                const std::string &lhsName = lhsNode->strValue;
+                double val;
+                if (tryEvalScalar(rhsNode, env, val)) {
+                    MValue *existing = env->getLocal(lhsName);
+                    if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
+                        *existing->doubleDataMut() = val;
+                    } else {
+                        env->set(lhsName, MValue::scalar(val, &allocator_));
+                    }
+                    continue;
                 }
-                continue;
-            }
-
-            // Fast path: x = A(i) — scalar indexed read
-            if (rhs->type == NodeType::CALL && rhs->children.size() == 2
-                && rhs->children[0]->type == NodeType::IDENTIFIER) {
-                MValue *arr = env->get(rhs->children[0]->strValue);
-                if (arr && arr->type() == MType::DOUBLE) {
-                    double idxVal;
-                    if (tryEvalScalar(rhs->children[1].get(), env, idxVal)) {
-                        size_t idx = static_cast<size_t>(idxVal) - 1;
-                        if (idx < arr->numel()) {
-                            double v = arr->doubleData()[idx];
-                            MValue *existing = env->getLocal(lhsName);
-                            if (existing && existing->isScalar()
-                                && existing->type() == MType::DOUBLE) {
-                                *existing->doubleDataMut() = v;
-                            } else {
-                                env->set(lhsName, MValue::scalar(v, &allocator_));
+                // x = A(i) — scalar indexed read
+                if (rhsNode->type == NodeType::CALL && rhsNode->children.size() == 2
+                    && rhsNode->children[0]->type == NodeType::IDENTIFIER) {
+                    MValue *arr = env->get(rhsNode->children[0]->strValue);
+                    if (arr && arr->type() == MType::DOUBLE) {
+                        double idxVal;
+                        if (tryEvalScalar(rhsNode->children[1].get(), env, idxVal)) {
+                            size_t idx = static_cast<size_t>(idxVal) - 1;
+                            if (idx < arr->numel()) {
+                                double v = arr->doubleData()[idx];
+                                MValue *existing = env->getLocal(lhsName);
+                                if (existing && existing->isScalar()
+                                    && existing->type() == MType::DOUBLE) {
+                                    *existing->doubleDataMut() = v;
+                                } else {
+                                    env->set(lhsName, MValue::scalar(v, &allocator_));
+                                }
+                                continue;
                             }
-                            continue;
                         }
                     }
                 }
             }
-        }
 
-        // ── Fast path: A(i) = <scalar expr> or A(i,j) = <scalar expr> ──
-        if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
-            && child->children[0]->type == NodeType::CALL
-            && child->children[0]->children.size() >= 2 && child->children[0]->children.size() <= 3
-            && child->children[0]->children[0]->type == NodeType::IDENTIFIER) {
-            const auto *callNode = child->children[0].get();
-            const std::string &arrName = callNode->children[0]->strValue;
-            MValue *arr = env->get(arrName);
+            // A(i) = <scalar> or A(i,j) = <scalar>
+            if (lhsNode->type == NodeType::CALL
+                && lhsNode->children[0]->type == NodeType::IDENTIFIER) {
+                size_t lhsArgs = lhsNode->children.size();
+                const std::string &arrName = lhsNode->children[0]->strValue;
+                MValue *arr = env->get(arrName);
 
-            if (arr && arr->type() == MType::DOUBLE && arr->dims().rows() == 1) {
-                double idxVal, rhsVal;
-                if (tryEvalScalar(callNode->children[1].get(), env, idxVal)
-                    && tryEvalScalar(child->children[1].get(), env, rhsVal)) {
-                    size_t idx = static_cast<size_t>(idxVal) - 1;
-                    if (idx < arr->numel()) {
-                        arr->doubleDataMut()[idx] = rhsVal;
-                    } else {
-                        arr->ensureSize(idx, &allocator_);
-                        arr->doubleDataMut()[idx] = rhsVal;
-                    }
-                    continue;
-                }
-            }
-            // 2D fast path: A(i,j) = <scalar>
-            if (arr && arr->type() == MType::DOUBLE && callNode->children.size() == 3) {
-                double rowVal, colVal, rhsVal;
-                if (tryEvalScalar(callNode->children[1].get(), env, rowVal)
-                    && tryEvalScalar(callNode->children[2].get(), env, colVal)
-                    && tryEvalScalar(child->children[1].get(), env, rhsVal)) {
-                    size_t r = static_cast<size_t>(rowVal) - 1;
-                    size_t c = static_cast<size_t>(colVal) - 1;
-                    if (r < arr->dims().rows() && c < arr->dims().cols()) {
-                        arr->doubleDataMut()[arr->dims().sub2ind(r, c)] = rhsVal;
-                        continue;
+                if (arr && arr->type() == MType::DOUBLE) {
+                    if (lhsArgs == 2) {
+                        // 1D: A(i) = val
+                        double idxVal, rhsVal;
+                        if (tryEvalScalar(lhsNode->children[1].get(), env, idxVal)
+                            && tryEvalScalar(rhsNode, env, rhsVal)) {
+                            size_t idx = static_cast<size_t>(idxVal) - 1;
+                            if (idx < arr->numel()) {
+                                arr->doubleDataMut()[idx] = rhsVal;
+                            } else {
+                                arr->ensureSize(idx, &allocator_);
+                                arr->doubleDataMut()[idx] = rhsVal;
+                            }
+                            continue;
+                        }
+                    } else if (lhsArgs == 3) {
+                        // 2D: A(i,j) = val
+                        double rowVal, colVal, rhsVal;
+                        if (tryEvalScalar(lhsNode->children[1].get(), env, rowVal)
+                            && tryEvalScalar(lhsNode->children[2].get(), env, colVal)
+                            && tryEvalScalar(rhsNode, env, rhsVal)) {
+                            size_t r = static_cast<size_t>(rowVal) - 1;
+                            size_t c = static_cast<size_t>(colVal) - 1;
+                            if (r < arr->dims().rows() && c < arr->dims().cols()) {
+                                arr->doubleDataMut()[arr->dims().sub2ind(r, c)] = rhsVal;
+                                continue;
+                            }
+                        }
                     }
                 }
             }
