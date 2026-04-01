@@ -2240,6 +2240,26 @@ MValue Engine::execGlobalPersistent(const ASTNode *node, Environment *env)
 // ============================================================
 // User function calls
 // ============================================================
+static bool astUsesIdentifier(const ASTNode *node, const char *name1, const char *name2)
+{
+    if (!node)
+        return false;
+    if (node->type == NodeType::IDENTIFIER && (node->strValue == name1 || node->strValue == name2))
+        return true;
+    for (auto &c : node->children)
+        if (astUsesIdentifier(c.get(), name1, name2))
+            return true;
+    for (auto &[cond, body] : node->branches) {
+        if (astUsesIdentifier(cond.get(), name1, name2))
+            return true;
+        if (astUsesIdentifier(body.get(), name1, name2))
+            return true;
+    }
+    if (node->elseBranch && astUsesIdentifier(node->elseBranch.get(), name1, name2))
+        return true;
+    return false;
+}
+
 MValue Engine::callUserFunction(const UserFunction &func, Span<const MValue> args, Environment *env)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
@@ -2253,13 +2273,14 @@ MValue Engine::callUserFunction(const UserFunction &func, Span<const MValue> arg
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
 
-    size_t nout = std::max(func.returns.size(), size_t(1));
-    localEnv.setLocal("nargin", MValue::scalar(static_cast<double>(args.size()), &allocator_));
-    localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
-
-    for (auto &retName : func.returns)
-        if (!localEnv.getLocal(retName))
-            localEnv.setLocal(retName, MValue::empty());
+    // Lazy: only set nargin/nargout if the function body actually references them
+    if (func.usesNarginNargout == -1)
+        func.usesNarginNargout = astUsesIdentifier(func.body.get(), "nargin", "nargout") ? 1 : 0;
+    if (func.usesNarginNargout) {
+        size_t nout = std::max(func.returns.size(), size_t(1));
+        localEnv.setLocal("nargin", MValue::scalar(static_cast<double>(args.size()), &allocator_));
+        localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
+    }
 
     try {
         execNode(func.body.get(), &localEnv);
@@ -2291,8 +2312,12 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
 
-    localEnv.setLocal("nargin", MValue::scalar(static_cast<double>(args.size()), &allocator_));
-    localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
+    if (func.usesNarginNargout == -1)
+        func.usesNarginNargout = astUsesIdentifier(func.body.get(), "nargin", "nargout") ? 1 : 0;
+    if (func.usesNarginNargout) {
+        localEnv.setLocal("nargin", MValue::scalar(static_cast<double>(args.size()), &allocator_));
+        localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
+    }
 
     for (auto &retName : func.returns)
         if (!localEnv.getLocal(retName))

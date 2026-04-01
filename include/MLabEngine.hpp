@@ -53,6 +53,9 @@ struct UserFunction
     std::vector<std::string> returns;
     std::shared_ptr<const ASTNode> body;
     std::shared_ptr<Environment> closureEnv;
+
+    // Cached flags (resolved on first call)
+    mutable int8_t usesNarginNargout = -1; // -1=unknown, 0=no, 1=yes
 };
 
 class Engine
