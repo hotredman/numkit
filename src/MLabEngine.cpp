@@ -928,8 +928,11 @@ MValue Engine::execIdentifier(const ASTNode *node, Environment *env)
         externalFuncs_[name]({}, 1, Span<MValue>(outBuf, 1));
         return outBuf[0].isEmpty() ? MValue::empty() : outBuf[0];
     }
-    if (userFuncs_.count(name))
-        return callUserFunction(userFuncs_[name], {}, env);
+    {
+        auto _uit = userFuncs_.find(name);
+        if (_uit != userFuncs_.end())
+            return callUserFunction(_uit->second, {}, env);
+    }
 
     throw std::runtime_error("Undefined variable or function: " + name);
 }
@@ -1187,8 +1190,11 @@ std::vector<MValue> Engine::execCallMulti(const ASTNode *node, Environment *env,
         it->second(args, nout, Span<MValue>(outBuf));
         return outBuf;
     }
-    if (userFuncs_.count(funcName))
-        return callUserFunctionMulti(userFuncs_[funcName], args, env, nout);
+    {
+        auto _uit = userFuncs_.find(funcName);
+        if (_uit != userFuncs_.end())
+            return callUserFunctionMulti(_uit->second, args, env, nout);
+    }
 
     throw std::runtime_error("Undefined function: " + funcName);
 }
@@ -1354,8 +1360,11 @@ std::vector<MValue> Engine::callFuncHandleMulti(const MValue &handle,
         externalFuncs_[name](args, nout, Span<MValue>(outBuf));
         return outBuf;
     }
-    if (userFuncs_.count(name))
-        return callUserFunctionMulti(userFuncs_[name], args, env, nout);
+    {
+        auto _uit = userFuncs_.find(name);
+        if (_uit != userFuncs_.end())
+            return callUserFunctionMulti(_uit->second, args, env, nout);
+    }
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
@@ -1417,6 +1426,13 @@ MValue Engine::execCall(const ASTNode *node, Environment *env)
         if (tryBuiltinCall(name, args, env, result, 1))
             return result;
 
+        // Check cached user function pointer
+        if (funcNode->cachedUserFunc) {
+            return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
+                                    args,
+                                    env);
+        }
+
         // Slow path: look up and cache
         auto it = externalFuncs_.find(name);
         if (it != externalFuncs_.end()) {
@@ -1425,8 +1441,12 @@ MValue Engine::execCall(const ASTNode *node, Environment *env)
             it->second(args, 1, Span<MValue>(outBuf, 1));
             return outBuf[0];
         }
-        if (userFuncs_.count(name)) {
-            return callUserFunction(userFuncs_[name], args, env);
+        {
+            auto uit = userFuncs_.find(name);
+            if (uit != userFuncs_.end()) {
+                funcNode->cachedUserFunc = &uit->second;
+                return callUserFunction(uit->second, args, env);
+            }
         }
     }
 
@@ -2194,13 +2214,16 @@ MValue Engine::execCommandCall(const ASTNode *node, Environment *env)
     }
 
     // 3. User functions
-    if (userFuncs_.count(name)) {
-        result = callUserFunction(userFuncs_[name], args, env);
-        if (!node->suppressOutput && !result.isEmpty()) {
-            env->set("ans", result);
-            displayValue("ans", result);
+    {
+        auto _uit = userFuncs_.find(name);
+        if (_uit != userFuncs_.end()) {
+            result = callUserFunction(_uit->second, args, env);
+            if (!node->suppressOutput && !result.isEmpty()) {
+                env->set("ans", result);
+                displayValue("ans", result);
+            }
+            return result;
         }
-        return result;
     }
 
     throw std::runtime_error("Undefined function: " + name);

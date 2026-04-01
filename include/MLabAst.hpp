@@ -68,6 +68,8 @@ struct ASTNode
     mutable const void *cachedOp = nullptr;
     // Cached builtin ID for inline scalar evaluation (0 = not resolved, -1 = not a builtin)
     mutable int8_t cachedBuiltinId = 0;
+    // Cached pointer to UserFunction (for user-defined function calls)
+    mutable const void *cachedUserFunc = nullptr;
 
     ASTNode()
         : type(NodeType::NUMBER_LITERAL)
