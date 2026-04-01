@@ -1856,9 +1856,16 @@ MValue Engine::execColonExpr(const ASTNode *node, Environment *env)
 // ============================================================
 MValue Engine::execIf(const ASTNode *node, Environment *env)
 {
-    for (auto &[cond, body] : node->branches)
-        if (execNode(cond.get(), env).toBool())
+    for (auto &[cond, body] : node->branches) {
+        double condVal;
+        bool taken;
+        if (tryEvalScalar(cond.get(), env, condVal))
+            taken = (condVal != 0.0);
+        else
+            taken = execNode(cond.get(), env).toBool();
+        if (taken)
             return execNode(body.get(), env);
+    }
     if (node->elseBranch)
         return execNode(node->elseBranch.get(), env);
     return MValue::empty();
@@ -1984,7 +1991,16 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
 
 MValue Engine::execWhile(const ASTNode *node, Environment *env)
 {
-    while (execNode(node->children[0].get(), env).toBool()) {
+    auto *condNode = node->children[0].get();
+    for (;;) {
+        double condVal;
+        bool cond;
+        if (tryEvalScalar(condNode, env, condVal))
+            cond = (condVal != 0.0);
+        else
+            cond = execNode(condNode, env).toBool();
+        if (!cond)
+            break;
         try {
             execNode(node->children[1].get(), env);
         } catch (BreakSignal &) {
