@@ -29,6 +29,7 @@ set(MLAB_SOURCES
     src/MLabEnvironment.cpp
     src/MLabEngine.cpp
     src/MLabAst.cpp
+    src/MLabTreeWalker.cpp
     src/stdlib/MLabStdLibrary.cpp
     src/stdlib/MLabStdBinaryOps.cpp
     src/stdlib/MLabStdUnaryOps.cpp
@@ -52,6 +53,8 @@ set(MLAB_SOURCES
 )
 
 set(MLAB_HEADERS
+    include/MLabTypes.hpp
+    include/MLabTreeWalker.hpp
     include/MLabAllocator.hpp
     include/MLabValue.hpp
     include/MLabLexer.hpp
