@@ -132,6 +132,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
         tests/resample_test.cpp
         tests/transform_test.cpp
         tests/interp_test.cpp
+        tests/tree_walker_test.cpp
     )
 
     target_link_libraries(mlab_tests

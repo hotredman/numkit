@@ -579,7 +579,10 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
             switch (bid) {
             case 1:
                 if (nargs == 2) {
-                    out = std::fmod(argVals[0], argVals[1]);
+                    double m = std::fmod(argVals[0], argVals[1]);
+                    if (m != 0 && ((m < 0) != (argVals[1] < 0)))
+                        m += argVals[1];
+                    out = m;
                     return true;
                 }
                 break;
