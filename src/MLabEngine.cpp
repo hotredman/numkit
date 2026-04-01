@@ -791,8 +791,23 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
             // nargs mismatch — fall through to ExternalFunc path
         }
 
-        if (!funcNode->cachedOp)
+        if (!funcNode->cachedOp) {
+            // Try array scalar indexing: A(i) where A is a double array
+            if (nargs == 1 && funcNode->type == NodeType::IDENTIFIER) {
+                double idxVal;
+                if (tryEvalScalar(expr->children[1].get(), env, idxVal)) {
+                    MValue *arr = env->get(funcNode->strValue);
+                    if (arr && arr->type() == MType::DOUBLE) {
+                        size_t idx = static_cast<size_t>(idxVal) - 1;
+                        if (idx < arr->numel()) {
+                            out = arr->doubleData()[idx];
+                            return true;
+                        }
+                    }
+                }
+            }
             return false;
+        }
         double argVals[4];
         for (size_t i = 0; i < nargs; ++i) {
             if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
@@ -878,8 +893,12 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
                 if (tryEvalScalar(callNode->children[1].get(), env, idxVal)
                     && tryEvalScalar(child->children[1].get(), env, rhsVal)) {
                     size_t idx = static_cast<size_t>(idxVal) - 1;
-                    arr->ensureSize(idx, &allocator_);
-                    arr->doubleDataMut()[idx] = rhsVal;
+                    if (idx < arr->numel()) {
+                        arr->doubleDataMut()[idx] = rhsVal;
+                    } else {
+                        arr->ensureSize(idx, &allocator_);
+                        arr->doubleDataMut()[idx] = rhsVal;
+                    }
                     continue;
                 }
             }
