@@ -615,8 +615,6 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
         if (expr->children.empty())
             return false;
         auto *funcNode = expr->children[0].get();
-        if (!funcNode->cachedOp)
-            return false;
         size_t nargs = expr->children.size() - 1;
         double argVals[4];
         if (nargs > 4)
@@ -625,6 +623,95 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
             if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
                 return false;
         }
+
+        // Inline fast paths for common scalar builtins (avoid ExternalFunc overhead)
+        if (funcNode->type == NodeType::IDENTIFIER) {
+            const auto &fn = funcNode->strValue;
+            if (nargs == 2) {
+                if (fn == "mod") {
+                    out = std::fmod(argVals[0], argVals[1]);
+                    return true;
+                }
+                if (fn == "min") {
+                    out = std::fmin(argVals[0], argVals[1]);
+                    return true;
+                }
+                if (fn == "max") {
+                    out = std::fmax(argVals[0], argVals[1]);
+                    return true;
+                }
+                if (fn == "rem") {
+                    out = std::remainder(argVals[0], argVals[1]);
+                    return true;
+                }
+                if (fn == "pow" || fn == "power") {
+                    out = std::pow(argVals[0], argVals[1]);
+                    return true;
+                }
+            } else if (nargs == 1) {
+                if (fn == "abs") {
+                    out = std::abs(argVals[0]);
+                    return true;
+                }
+                if (fn == "sqrt") {
+                    if (argVals[0] < 0)
+                        return false;
+                    out = std::sqrt(argVals[0]);
+                    return true;
+                }
+                if (fn == "floor") {
+                    out = std::floor(argVals[0]);
+                    return true;
+                }
+                if (fn == "ceil") {
+                    out = std::ceil(argVals[0]);
+                    return true;
+                }
+                if (fn == "round") {
+                    out = std::round(argVals[0]);
+                    return true;
+                }
+                if (fn == "fix") {
+                    out = std::trunc(argVals[0]);
+                    return true;
+                }
+                if (fn == "sin") {
+                    out = std::sin(argVals[0]);
+                    return true;
+                }
+                if (fn == "cos") {
+                    out = std::cos(argVals[0]);
+                    return true;
+                }
+                if (fn == "tan") {
+                    out = std::tan(argVals[0]);
+                    return true;
+                }
+                if (fn == "exp") {
+                    out = std::exp(argVals[0]);
+                    return true;
+                }
+                if (fn == "log") {
+                    out = std::log(argVals[0]);
+                    return true;
+                }
+                if (fn == "log2") {
+                    out = std::log2(argVals[0]);
+                    return true;
+                }
+                if (fn == "log10") {
+                    out = std::log10(argVals[0]);
+                    return true;
+                }
+                if (fn == "sign") {
+                    out = (argVals[0] > 0) ? 1.0 : (argVals[0] < 0) ? -1.0 : 0.0;
+                    return true;
+                }
+            }
+        }
+
+        if (!funcNode->cachedOp)
+            return false;
         // Reuse engine-owned buffer to avoid heap allocation per call
         callArgsBuf_.clear();
         for (size_t i = 0; i < nargs; ++i)
@@ -2053,8 +2140,37 @@ MValue Engine::execGlobalPersistent(const ASTNode *node, Environment *env)
 // ============================================================
 MValue Engine::callUserFunction(const UserFunction &func, Span<const MValue> args, Environment *env)
 {
-    auto results = callUserFunctionMulti(func, args, env, std::max(func.returns.size(), size_t(1)));
-    return results.empty() ? MValue::empty() : results[0];
+    RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
+
+    if (args.size() > func.params.size())
+        throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
+
+    Environment *parentEnv = func.closureEnv ? func.closureEnv.get() : globalEnv_.get();
+    Environment localEnv(parentEnv, &globalStore_);
+
+    for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
+        localEnv.setLocal(func.params[i], args[i]);
+
+    size_t nout = std::max(func.returns.size(), size_t(1));
+    localEnv.setLocal("nargin", MValue::scalar(static_cast<double>(args.size()), &allocator_));
+    localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
+
+    for (auto &retName : func.returns)
+        if (!localEnv.getLocal(retName))
+            localEnv.setLocal(retName, MValue::empty());
+
+    try {
+        execNode(func.body.get(), &localEnv);
+    } catch (ReturnSignal &) {
+    }
+
+    if (func.returns.empty())
+        return MValue::empty();
+
+    auto *val = localEnv.getLocal(func.returns[0]);
+    if (!val)
+        val = localEnv.get(func.returns[0]);
+    return val ? std::move(*val) : MValue::empty();
 }
 
 std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
