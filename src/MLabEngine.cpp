@@ -487,6 +487,21 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
         return false;
     }
 
+    case NodeType::FIELD_ACCESS: {
+        // p.x where p is a struct and p.x is a scalar double
+        if (expr->children.size() == 1 && expr->children[0]->type == NodeType::IDENTIFIER) {
+            MValue *obj = env->get(expr->children[0]->strValue);
+            if (obj && obj->isStruct() && obj->hasField(expr->strValue)) {
+                const MValue &fv = obj->field(expr->strValue);
+                if (fv.isScalar() && fv.type() == MType::DOUBLE) {
+                    out = fv.toScalar();
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     case NodeType::BINARY_OP: {
         if (expr->children.size() != 2)
             return false;
@@ -918,6 +933,24 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
                                 continue;
                             }
                         }
+                    }
+                }
+            }
+
+            // p.x = <scalar> — struct field scalar assign
+            if (lhsNode->type == NodeType::FIELD_ACCESS && lhsNode->children.size() == 1
+                && lhsNode->children[0]->type == NodeType::IDENTIFIER) {
+                double val;
+                if (tryEvalScalar(rhsNode, env, val)) {
+                    MValue *obj = env->get(lhsNode->children[0]->strValue);
+                    if (obj && obj->isStruct()) {
+                        MValue &fv = obj->field(lhsNode->strValue);
+                        if (fv.isScalar() && fv.type() == MType::DOUBLE) {
+                            *fv.doubleDataMut() = val;
+                            continue;
+                        }
+                        fv = MValue::scalar(val, &allocator_);
+                        continue;
                     }
                 }
             }
