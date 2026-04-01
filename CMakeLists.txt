@@ -30,6 +30,8 @@ set(MLAB_SOURCES
     src/MLabEngine.cpp
     src/MLabAst.cpp
     src/MLabTreeWalker.cpp
+    src/MLabCompiler.cpp
+    src/MLabVM.cpp
     src/stdlib/MLabStdLibrary.cpp
     src/stdlib/MLabStdBinaryOps.cpp
     src/stdlib/MLabStdUnaryOps.cpp
@@ -69,6 +71,8 @@ set(MLAB_HEADERS
     include/MLabFigureManager.hpp
     include/MLabSpan.hpp
     include/MLabBytecode.hpp
+    include/MLabCompiler.hpp
+    include/MLabVM.hpp
 )
 
 if(MLAB_BUILD_SHARED)
@@ -134,6 +138,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
         tests/transform_test.cpp
         tests/interp_test.cpp
         tests/tree_walker_test.cpp
+        tests/vm_test.cpp
     )
 
     target_link_libraries(mlab_tests

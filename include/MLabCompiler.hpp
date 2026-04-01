@@ -1,0 +1,71 @@
+// include/MLabCompiler.hpp
+#pragma once
+
+#include "MLabAst.hpp"
+#include "MLabBytecode.hpp"
+
+#include <string>
+#include <unordered_map>
+#include <vector>
+
+namespace mlab {
+
+class Engine;
+
+class Compiler
+{
+public:
+    explicit Compiler(Engine &engine);
+
+    BytecodeChunk compile(const ASTNode *ast);
+
+    // Debug: dump bytecode
+    static std::string disassemble(const BytecodeChunk &chunk);
+
+private:
+    Engine &engine_;
+
+    // Current chunk being compiled
+    BytecodeChunk chunk_;
+
+    // Register allocation: variable name → register index
+    std::unordered_map<std::string, uint8_t> varRegisters_;
+    uint8_t nextReg_ = 0;
+
+    // Allocate a register for a variable (or return existing)
+    uint8_t varReg(const std::string &name);
+    // Allocate a temporary register
+    uint8_t tempReg();
+
+    // Emit instructions
+    void emit(Instruction instr);
+    void emitABC(OpCode op, uint8_t a, uint8_t b, uint8_t c);
+    void emitAB(OpCode op, uint8_t a, uint8_t b);
+    void emitAD(OpCode op, uint8_t a, int16_t d);
+    void emitA(OpCode op, uint8_t a);
+    void emitD(OpCode op, int16_t d);
+    void emitNone(OpCode op);
+
+    // Current instruction index (for patching jumps)
+    size_t currentPos() const;
+    // Patch a jump instruction's offset at given position
+    void patchJump(size_t instrPos, int16_t offset);
+
+    // Add constant to pool, return index
+    int16_t addConstant(double value);
+    int16_t addStringConstant(const std::string &s);
+
+    // Compile AST nodes — return register holding result
+    uint8_t compileNode(const ASTNode *node);
+    uint8_t compileBlock(const ASTNode *node);
+    uint8_t compileNumber(const ASTNode *node);
+    uint8_t compileString(const ASTNode *node);
+    uint8_t compileBool(const ASTNode *node);
+    uint8_t compileIdentifier(const ASTNode *node);
+    uint8_t compileAssign(const ASTNode *node);
+    uint8_t compileBinaryOp(const ASTNode *node);
+    uint8_t compileUnaryOp(const ASTNode *node);
+    uint8_t compileExprStmt(const ASTNode *node);
+};
+
+} // namespace mlab

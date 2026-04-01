@@ -72,6 +72,8 @@ private:
 
     void reinstallConstants();
     friend class TreeWalker;
+    friend class VM;
+    friend class Compiler;
 };
 
 } // namespace mlab
