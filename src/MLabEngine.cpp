@@ -432,11 +432,14 @@ MValue Engine::execNode(const ASTNode *node, Environment *env)
         case NodeType::SWITCH_STMT:
             return execSwitch(node, env);
         case NodeType::BREAK_STMT:
-            throw BreakSignal{};
+            flowSignal_ = FlowSignal::BREAK;
+            return MValue::empty();
         case NodeType::CONTINUE_STMT:
-            throw ContinueSignal{};
+            flowSignal_ = FlowSignal::CONTINUE;
+            return MValue::empty();
         case NodeType::RETURN_STMT:
-            throw ReturnSignal{};
+            flowSignal_ = FlowSignal::RETURN;
+            return MValue::empty();
         case NodeType::FUNCTION_DEF:
             return execFunctionDef(node, env);
         case NodeType::EXPR_STMT:
@@ -466,12 +469,6 @@ MValue Engine::execNode(const ASTNode *node, Environment *env)
         }
 
     } catch (const MLabError &) {
-        throw;
-    } catch (const BreakSignal &) {
-        throw;
-    } catch (const ContinueSignal &) {
-        throw;
-    } catch (const ReturnSignal &) {
         throw;
     } catch (const std::runtime_error &e) {
         if (node->line > 0)
@@ -905,6 +902,8 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
         }
 
         last = execNode(child.get(), env);
+        if (flowSignal_ != FlowSignal::NONE)
+            return last;
     }
     return last;
 }
@@ -1907,13 +1906,17 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
                     col.cellAt(r) = rangeVal.cellAt(rangeVal.dims().sub2ind(r, c));
                 env->set(varName, col);
             }
-            try {
-                execNode(node->children[1].get(), env);
-            } catch (BreakSignal &) {
+            execNode(node->children[1].get(), env);
+            if (flowSignal_ == FlowSignal::BREAK) {
+                flowSignal_ = FlowSignal::NONE;
                 break;
-            } catch (ContinueSignal &) {
+            }
+            if (flowSignal_ == FlowSignal::CONTINUE) {
+                flowSignal_ = FlowSignal::NONE;
                 continue;
             }
+            if (flowSignal_ == FlowSignal::RETURN)
+                return MValue::empty();
         }
         return MValue::empty();
     }
@@ -1930,26 +1933,34 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
             double *slot = varPtr->doubleDataMut();
             for (size_t c = 0; c < dims.cols(); ++c) {
                 *slot = src[c];
-                try {
-                    execNode(node->children[1].get(), env);
-                } catch (BreakSignal &) {
+                execNode(node->children[1].get(), env);
+                if (flowSignal_ == FlowSignal::BREAK) {
+                    flowSignal_ = FlowSignal::NONE;
                     break;
-                } catch (ContinueSignal &) {
+                }
+                if (flowSignal_ == FlowSignal::CONTINUE) {
+                    flowSignal_ = FlowSignal::NONE;
                     continue;
                 }
+                if (flowSignal_ == FlowSignal::RETURN)
+                    return MValue::empty();
                 // Re-fetch pointer: body may have reassigned the loop variable
                 varPtr = env->get(varName);
                 if (!varPtr || !varPtr->isScalar() || varPtr->type() != MType::DOUBLE) {
                     // Variable was changed to non-scalar — fall back to slow path
                     for (size_t c2 = c + 1; c2 < dims.cols(); ++c2) {
                         env->set(varName, MValue::scalar(src[c2], &allocator_));
-                        try {
-                            execNode(node->children[1].get(), env);
-                        } catch (BreakSignal &) {
+                        execNode(node->children[1].get(), env);
+                        if (flowSignal_ == FlowSignal::BREAK) {
+                            flowSignal_ = FlowSignal::NONE;
                             return MValue::empty();
-                        } catch (ContinueSignal &) {
+                        }
+                        if (flowSignal_ == FlowSignal::CONTINUE) {
+                            flowSignal_ = FlowSignal::NONE;
                             continue;
                         }
+                        if (flowSignal_ == FlowSignal::RETURN)
+                            return MValue::empty();
                     }
                     return MValue::empty();
                 }
@@ -1962,13 +1973,17 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
                 for (size_t r = 0; r < dims.rows(); ++r)
                     dst[r] = rangeVal(r, c);
                 env->set(varName, col);
-                try {
-                    execNode(node->children[1].get(), env);
-                } catch (BreakSignal &) {
+                execNode(node->children[1].get(), env);
+                if (flowSignal_ == FlowSignal::BREAK) {
+                    flowSignal_ = FlowSignal::NONE;
                     break;
-                } catch (ContinueSignal &) {
+                }
+                if (flowSignal_ == FlowSignal::CONTINUE) {
+                    flowSignal_ = FlowSignal::NONE;
                     continue;
                 }
+                if (flowSignal_ == FlowSignal::RETURN)
+                    return MValue::empty();
             }
         }
         return MValue::empty();
@@ -1978,13 +1993,17 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
         const char *cd = rangeVal.charData();
         for (size_t i = 0; i < rangeVal.numel(); ++i) {
             env->set(varName, MValue::fromString(std::string(1, cd[i]), &allocator_));
-            try {
-                execNode(node->children[1].get(), env);
-            } catch (BreakSignal &) {
+            execNode(node->children[1].get(), env);
+            if (flowSignal_ == FlowSignal::BREAK) {
+                flowSignal_ = FlowSignal::NONE;
                 break;
-            } catch (ContinueSignal &) {
+            }
+            if (flowSignal_ == FlowSignal::CONTINUE) {
+                flowSignal_ = FlowSignal::NONE;
                 continue;
             }
+            if (flowSignal_ == FlowSignal::RETURN)
+                return MValue::empty();
         }
         return MValue::empty();
     }
@@ -1993,13 +2012,17 @@ MValue Engine::execFor(const ASTNode *node, Environment *env)
         const uint8_t *ld = rangeVal.logicalData();
         for (size_t i = 0; i < rangeVal.numel(); ++i) {
             env->set(varName, MValue::scalar(static_cast<double>(ld[i]), &allocator_));
-            try {
-                execNode(node->children[1].get(), env);
-            } catch (BreakSignal &) {
+            execNode(node->children[1].get(), env);
+            if (flowSignal_ == FlowSignal::BREAK) {
+                flowSignal_ = FlowSignal::NONE;
                 break;
-            } catch (ContinueSignal &) {
+            }
+            if (flowSignal_ == FlowSignal::CONTINUE) {
+                flowSignal_ = FlowSignal::NONE;
                 continue;
             }
+            if (flowSignal_ == FlowSignal::RETURN)
+                return MValue::empty();
         }
         return MValue::empty();
     }
@@ -2020,13 +2043,17 @@ MValue Engine::execWhile(const ASTNode *node, Environment *env)
             cond = execNode(condNode, env).toBool();
         if (!cond)
             break;
-        try {
-            execNode(node->children[1].get(), env);
-        } catch (BreakSignal &) {
+        execNode(node->children[1].get(), env);
+        if (flowSignal_ == FlowSignal::BREAK) {
+            flowSignal_ = FlowSignal::NONE;
             break;
-        } catch (ContinueSignal &) {
+        }
+        if (flowSignal_ == FlowSignal::CONTINUE) {
+            flowSignal_ = FlowSignal::NONE;
             continue;
         }
+        if (flowSignal_ == FlowSignal::RETURN)
+            return MValue::empty();
     }
     return MValue::empty();
 }
@@ -2222,13 +2249,11 @@ MValue Engine::execAnonFunc(const ASTNode *node, Environment *env)
 MValue Engine::execTryCatch(const ASTNode *node, Environment *env)
 {
     try {
-        return execNode(node->children[0].get(), env);
-    } catch (const BreakSignal &) {
-        throw;
-    } catch (const ContinueSignal &) {
-        throw;
-    } catch (const ReturnSignal &) {
-        throw;
+        auto result = execNode(node->children[0].get(), env);
+        // Propagate flow signals — try/catch doesn't intercept break/continue/return
+        if (flowSignal_ != FlowSignal::NONE)
+            return result;
+        return result;
     } catch (const std::exception &e) {
         if (node->children.size() > 1) {
             if (!node->strValue.empty()) {
@@ -2301,10 +2326,9 @@ MValue Engine::callUserFunction(const UserFunction &func, Span<const MValue> arg
         localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &allocator_));
     }
 
-    try {
-        execNode(func.body.get(), &localEnv);
-    } catch (ReturnSignal &) {
-    }
+    execNode(func.body.get(), &localEnv);
+    if (flowSignal_ == FlowSignal::RETURN)
+        flowSignal_ = FlowSignal::NONE;
 
     if (func.returns.empty())
         return MValue::empty();
@@ -2342,11 +2366,9 @@ std::vector<MValue> Engine::callUserFunctionMulti(const UserFunction &func,
         if (!localEnv.getLocal(retName))
             localEnv.setLocal(retName, MValue::empty());
 
-    try {
-        execNode(func.body.get(), &localEnv);
-    } catch (ReturnSignal &) {
-        // Normal return
-    }
+    execNode(func.body.get(), &localEnv);
+    if (flowSignal_ == FlowSignal::RETURN)
+        flowSignal_ = FlowSignal::NONE;
 
     std::vector<MValue> results;
     results.reserve(std::min(func.returns.size(), nout));

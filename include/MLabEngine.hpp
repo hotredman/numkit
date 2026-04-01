@@ -29,6 +29,8 @@ struct ContinueSignal
 struct ReturnSignal
 {};
 
+enum class FlowSignal : uint8_t { NONE = 0, BREAK, CONTINUE, RETURN };
+
 /** Runtime error with source location info */
 class MLabError : public std::runtime_error
 {
@@ -109,6 +111,7 @@ private:
     OutputFunc outputFunc_;
     int maxRecursionDepth_ = 500;
     int currentRecursionDepth_ = 0;
+    FlowSignal flowSignal_ = FlowSignal::NONE;
     std::atomic<int> anonCounter_{0};
 
     FigureManager figureManager_;
