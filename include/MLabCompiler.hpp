@@ -73,6 +73,13 @@ private:
     uint8_t compileBreak(const ASTNode *node);
     uint8_t compileContinue(const ASTNode *node);
 
+    // Phase 3: for-loop, colon, arrays
+    uint8_t compileFor(const ASTNode *node);
+    uint8_t compileColonExpr(const ASTNode *node);
+    uint8_t compileMatrixLiteral(const ASTNode *node);
+    uint8_t compileIndexExpr(const ASTNode *node);
+    uint8_t compileIndexAssign(const ASTNode *node);
+
     // Break/continue loop patching
     struct LoopContext
     {

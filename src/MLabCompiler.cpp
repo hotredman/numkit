@@ -158,6 +158,15 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileBreak(node);
     case NodeType::CONTINUE_STMT:
         return compileContinue(node);
+    case NodeType::FOR_STMT:
+        return compileFor(node);
+    case NodeType::COLON_EXPR:
+        return compileColonExpr(node);
+    case NodeType::MATRIX_LITERAL:
+        return compileMatrixLiteral(node);
+    case NodeType::INDEX:
+    case NodeType::CALL:
+        return compileIndexExpr(node);
     default:
         throw std::runtime_error("Compiler: unsupported node type "
                                  + std::to_string(static_cast<int>(node->type)));
@@ -222,7 +231,10 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
         return dst;
     }
 
-    // TODO: indexed assign, field assign, cell assign
+    if (lhs->type == NodeType::INDEX || lhs->type == NodeType::CALL) {
+        return compileIndexAssign(node);
+    }
+
     throw std::runtime_error("Compiler: unsupported assignment target");
 }
 
@@ -461,6 +473,247 @@ uint8_t Compiler::compileContinue(const ASTNode * /*node*/)
     return 0;
 }
 
+// ============================================================
+// Phase 3: For-loop, colon, arrays, indexing
+// ============================================================
+
+uint8_t Compiler::compileFor(const ASTNode *node)
+{
+    // node->strValue = loop variable name
+    // children[0] = range expression
+    // children[1] = body
+    //
+    // Compiled as:
+    //   eval range → rangeReg
+    //   FOR_INIT varReg, rangeReg, endOffset(placeholder)
+    // L_body:
+    //   body
+    // L_continue:
+    //   FOR_NEXT varReg, backOffset  (jumps to L_body or falls through)
+    // L_end:
+
+    uint8_t rangeReg = compileNode(node->children[0].get());
+    uint8_t vReg = varReg(node->strValue);
+
+    loopStack_.push_back(LoopContext{});
+
+    size_t forInitPos = currentPos();
+    // FOR_INIT: a=varReg, b=rangeReg, d=endOffset(placeholder)
+    emit(Instruction::make_abd(OpCode::FOR_INIT, vReg, rangeReg, 0));
+
+    size_t bodyStart = currentPos();
+
+    // Compile body
+    compileNode(node->children[1].get());
+
+    // Patch continue targets → jump to FOR_NEXT
+    size_t forNextPos = currentPos();
+    for (size_t pos : loopStack_.back().continuePatches) {
+        patchJump(pos, static_cast<int16_t>(forNextPos - pos));
+    }
+
+    // FOR_NEXT: a=varReg, d=backOffset (negative, jumps to bodyStart)
+    emitAD(OpCode::FOR_NEXT, vReg, static_cast<int16_t>(bodyStart - (currentPos() + 1)));
+    // +1 because offset is relative to the FOR_NEXT instruction itself,
+    // but ip will be at FOR_NEXT when it executes. We want ip+d = bodyStart.
+    // Actually: ip += d then continue (no ++ip). So d = bodyStart - forNextPos.
+    // Let me fix: FOR_NEXT is at forNextPos = currentPos()-1 (just emitted)
+    // We want ip = bodyStart, so d = bodyStart - (currentPos()-1)
+    // Rewrite:
+    chunk_.code.back().d = static_cast<int16_t>(bodyStart - (currentPos() - 1));
+
+    // Patch FOR_INIT endOffset → jump past FOR_NEXT
+    patchJump(forInitPos, static_cast<int16_t>(currentPos() - forInitPos));
+
+    // Patch break targets → jump to here (after loop)
+    for (size_t pos : loopStack_.back().breakPatches) {
+        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+    }
+
+    loopStack_.pop_back();
+    return 0;
+}
+
+uint8_t Compiler::compileColonExpr(const ASTNode *node)
+{
+    // No children = bare ":" (colon-all marker)
+    if (node->children.empty()) {
+        uint8_t dst = tempReg();
+        emitA(OpCode::COLON_ALL, dst);
+        return dst;
+    }
+
+    // 2 children: start:stop
+    if (node->children.size() == 2) {
+        uint8_t start = compileNode(node->children[0].get());
+        uint8_t stop = compileNode(node->children[1].get());
+        uint8_t dst = tempReg();
+        emitABC(OpCode::COLON, dst, start, stop);
+        return dst;
+    }
+
+    // 3 children: start:step:stop
+    if (node->children.size() == 3) {
+        uint8_t start = compileNode(node->children[0].get());
+        uint8_t step = compileNode(node->children[1].get());
+        uint8_t stop = compileNode(node->children[2].get());
+        uint8_t dst = tempReg();
+        // COLON3: dst, start, step, stop — need 4 regs
+        // Use: a=dst, b=start, c=step, d is not suitable (int16), e=stop
+        emit(Instruction::make_abcde(OpCode::COLON3, dst, start, step, 0, stop));
+        return dst;
+    }
+
+    throw std::runtime_error("Compiler: invalid colon expression");
+}
+
+uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
+{
+    // node->children = rows
+    // Each row's children = elements
+
+    if (node->children.empty()) {
+        uint8_t dst = tempReg();
+        emitA(OpCode::LOAD_EMPTY, dst);
+        return dst;
+    }
+
+    // Compile each row into a single register
+    std::vector<uint8_t> rowRegs;
+    for (auto &row : node->children) {
+        if (row->children.empty()) {
+            uint8_t dst = tempReg();
+            emitA(OpCode::LOAD_EMPTY, dst);
+            rowRegs.push_back(dst);
+            continue;
+        }
+
+        if (row->children.size() == 1) {
+            rowRegs.push_back(compileNode(row->children[0].get()));
+            continue;
+        }
+
+        // Multi-element row: compile each, move into consecutive block, HORZCAT
+        std::vector<uint8_t> elemRegs;
+        for (auto &elem : row->children) {
+            elemRegs.push_back(compileNode(elem.get()));
+        }
+
+        uint8_t hBase = nextReg_;
+        for (size_t i = 0; i < elemRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (elemRegs[i] != slot) {
+                emitAB(OpCode::MOVE, slot, elemRegs[i]);
+            }
+        }
+
+        uint8_t dst = tempReg();
+        emitABC(OpCode::HORZCAT, dst, hBase, static_cast<uint8_t>(elemRegs.size()));
+        rowRegs.push_back(dst);
+    }
+
+    if (rowRegs.size() == 1) {
+        return rowRegs[0];
+    }
+
+    // Multiple rows: move into consecutive block, VERTCAT
+    uint8_t vBase = nextReg_;
+    for (size_t i = 0; i < rowRegs.size(); ++i) {
+        uint8_t slot = tempReg();
+        if (rowRegs[i] != slot) {
+            emitAB(OpCode::MOVE, slot, rowRegs[i]);
+        }
+    }
+
+    uint8_t dst = tempReg();
+    emitABC(OpCode::VERTCAT, dst, vBase, static_cast<uint8_t>(rowRegs.size()));
+    return dst;
+}
+
+uint8_t Compiler::compileIndexExpr(const ASTNode *node)
+{
+    // For CALL nodes: children[0] = base identifier, children[1..] = index args
+    // For INDEX nodes: strValue = name, children = index args
+
+    std::string name;
+    size_t nargs;
+    size_t argOffset; // first index arg in children[]
+
+    if (node->type == NodeType::CALL) {
+        name = node->children[0]->strValue;
+        nargs = node->children.size() - 1;
+        argOffset = 1;
+    } else {
+        name = node->strValue;
+        nargs = node->children.size();
+        argOffset = 0;
+    }
+
+    uint8_t arr = varReg(name);
+
+    if (nargs == 1) {
+        uint8_t idx = compileNode(node->children[argOffset].get());
+        uint8_t dst = tempReg();
+        emitABC(OpCode::INDEX_GET, dst, arr, idx);
+        return dst;
+    }
+
+    if (nargs == 2) {
+        uint8_t row = compileNode(node->children[argOffset].get());
+        uint8_t col = compileNode(node->children[argOffset + 1].get());
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::INDEX_GET_2D, dst, arr, row, 0, col));
+        return dst;
+    }
+
+    throw std::runtime_error("Compiler: ND indexing not yet supported");
+}
+
+uint8_t Compiler::compileIndexAssign(const ASTNode *node)
+{
+    // node->children[0] = lhs (CALL or INDEX node)
+    // node->children[1] = rhs
+    auto *lhs = node->children[0].get();
+    auto *rhs = node->children[1].get();
+
+    // For CALL: children[0] = IDENTIFIER, children[1..] = indices
+    // For INDEX: strValue = name, children = indices
+    std::string name;
+    size_t nargs;
+    size_t argOffset;
+
+    if (lhs->type == NodeType::CALL) {
+        name = lhs->children[0]->strValue;
+        nargs = lhs->children.size() - 1;
+        argOffset = 1;
+    } else {
+        name = lhs->strValue;
+        nargs = lhs->children.size();
+        argOffset = 0;
+    }
+
+    uint8_t arr = varReg(name);
+    uint8_t val = compileNode(rhs);
+
+    if (nargs == 1) {
+        uint8_t idx = compileNode(lhs->children[argOffset].get());
+        emitABC(OpCode::INDEX_SET, arr, idx, val);
+    } else if (nargs == 2) {
+        uint8_t row = compileNode(lhs->children[argOffset].get());
+        uint8_t col = compileNode(lhs->children[argOffset + 1].get());
+        emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, arr, row, col, 0, val));
+    } else {
+        throw std::runtime_error("Compiler: ND indexed assign not yet supported");
+    }
+
+    if (!node->suppressOutput) {
+        int16_t nameIdx = addStringConstant(name);
+        emitAD(OpCode::DISPLAY, arr, nameIdx);
+    }
+
+    return arr;
+}
+
 std::string Compiler::disassemble(const BytecodeChunk &chunk)
 {
     std::ostringstream os;
@@ -524,6 +777,28 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "JMP_TRUE";
         case OpCode::JMP_FALSE:
             return "JMP_FALSE";
+        case OpCode::FOR_INIT:
+            return "FOR_INIT";
+        case OpCode::FOR_NEXT:
+            return "FOR_NEXT";
+        case OpCode::COLON:
+            return "COLON";
+        case OpCode::COLON3:
+            return "COLON3";
+        case OpCode::COLON_ALL:
+            return "COLON_ALL";
+        case OpCode::HORZCAT:
+            return "HORZCAT";
+        case OpCode::VERTCAT:
+            return "VERTCAT";
+        case OpCode::INDEX_GET:
+            return "INDEX_GET";
+        case OpCode::INDEX_GET_2D:
+            return "INDEX_GET_2D";
+        case OpCode::INDEX_SET:
+            return "INDEX_SET";
+        case OpCode::INDEX_SET_2D:
+            return "INDEX_SET_2D";
         case OpCode::CTRANSPOSE:
             return "CTRANSPOSE";
         case OpCode::TRANSPOSE:

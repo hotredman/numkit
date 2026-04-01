@@ -396,3 +396,160 @@ TEST_F(VMTest, WhileBreakNested)
                                "1; if j == 2; break; end; s = s + 1; end; end; s;"),
                      3.0);
 }
+
+// ============================================================
+// Phase 3: for-loop
+// ============================================================
+
+TEST_F(VMTest, ForBasicRange)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:5; s = s + i; end; s;"), 15.0);
+}
+
+TEST_F(VMTest, ForStepRange)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:2:9; s = s + i; end; s;"), 25.0);
+}
+
+TEST_F(VMTest, ForSingleElement)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 5; s = s + i; end; s;"), 5.0);
+}
+
+TEST_F(VMTest, ForEmptyRange)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 99; for i = 5:1; s = 0; end; s;"), 99.0);
+}
+
+TEST_F(VMTest, ForBreak)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:10; if i == 4; break; end; s = s + i; end; s;"),
+                     6.0);
+}
+
+TEST_F(VMTest, ForContinue)
+{
+    // Skip i == 3
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:5; if i == 3; continue; end; s = s + i; end; s;"),
+                     12.0);
+}
+
+TEST_F(VMTest, ForNested)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:3; for j = 1:4; s = s + 1; end; end; s;"), 12.0);
+}
+
+// ============================================================
+// Phase 3: colon expressions
+// ============================================================
+
+TEST_F(VMTest, ColonBasic)
+{
+    auto result = run("x = 1:5;");
+    EXPECT_EQ(result.numel(), 5u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[4], 5.0);
+}
+
+TEST_F(VMTest, ColonStep)
+{
+    auto result = run("x = 0:0.5:2;");
+    EXPECT_EQ(result.numel(), 5u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[4], 2.0);
+}
+
+TEST_F(VMTest, ColonEmpty)
+{
+    auto result = run("x = 10:1;");
+    EXPECT_EQ(result.numel(), 0u);
+}
+
+// ============================================================
+// Phase 3: matrix literals
+// ============================================================
+
+TEST_F(VMTest, RowVector)
+{
+    auto result = run("x = [1, 2, 3];");
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[2], 3.0);
+}
+
+TEST_F(VMTest, ColumnVector)
+{
+    auto result = run("x = [1; 2; 3];");
+    EXPECT_EQ(result.dims().rows(), 3u);
+    EXPECT_EQ(result.dims().cols(), 1u);
+}
+
+TEST_F(VMTest, Matrix2x3)
+{
+    auto result = run("x = [1, 2, 3; 4, 5, 6];");
+    EXPECT_EQ(result.dims().rows(), 2u);
+    EXPECT_EQ(result.dims().cols(), 3u);
+    // Column-major: x(1,1)=1, x(2,1)=4, x(1,2)=2, x(2,2)=5, ...
+    const double *d = result.doubleData();
+    EXPECT_DOUBLE_EQ(d[0], 1.0); // (1,1)
+    EXPECT_DOUBLE_EQ(d[1], 4.0); // (2,1)
+    EXPECT_DOUBLE_EQ(d[2], 2.0); // (1,2)
+    EXPECT_DOUBLE_EQ(d[3], 5.0); // (2,2)
+}
+
+TEST_F(VMTest, EmptyMatrix)
+{
+    auto result = run("x = [];");
+    EXPECT_TRUE(result.isEmpty());
+}
+
+// ============================================================
+// Phase 3: array indexing
+// ============================================================
+
+TEST_F(VMTest, IndexGet1D)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = [10, 20, 30]; x(2);"), 20.0);
+}
+
+TEST_F(VMTest, IndexSet1D)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = [10, 20, 30]; x(2) = 99; x(2);"), 99.0);
+}
+
+TEST_F(VMTest, IndexGet2D)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = [1, 2, 3; 4, 5, 6]; x(2, 3);"), 6.0);
+}
+
+TEST_F(VMTest, IndexSet2D)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = [1, 2, 3; 4, 5, 6]; x(1, 2) = 99; x(1, 2);"), 99.0);
+}
+
+TEST_F(VMTest, IndexAutoGrow)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = [1, 2, 3]; x(5) = 10; x(5);"), 10.0);
+}
+
+// ============================================================
+// Phase 3: combined for + array
+// ============================================================
+
+TEST_F(VMTest, ForOverArray)
+{
+    // for i = [10, 20, 30] iterates over columns
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = [10, 20, 30]; s = s + i; end; s;"), 60.0);
+}
+
+TEST_F(VMTest, ForFillArray)
+{
+    auto result = run("x = [0, 0, 0, 0, 0]; for i = 1:5; x(i) = i * i; end; x;");
+    EXPECT_EQ(result.numel(), 5u);
+    const double *d = result.doubleData();
+    EXPECT_DOUBLE_EQ(d[0], 1.0);
+    EXPECT_DOUBLE_EQ(d[1], 4.0);
+    EXPECT_DOUBLE_EQ(d[2], 9.0);
+    EXPECT_DOUBLE_EQ(d[3], 16.0);
+    EXPECT_DOUBLE_EQ(d[4], 25.0);
+}
