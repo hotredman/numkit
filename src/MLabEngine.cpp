@@ -883,10 +883,10 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
             }
         }
 
-        // ── Fast path: A(i) = <scalar expr> with suppressed output ──
+        // ── Fast path: A(i) = <scalar expr> or A(i,j) = <scalar expr> ──
         if (child->type == NodeType::ASSIGN && child->suppressOutput && child->children.size() == 2
             && child->children[0]->type == NodeType::CALL
-            && child->children[0]->children.size() == 2
+            && child->children[0]->children.size() >= 2 && child->children[0]->children.size() <= 3
             && child->children[0]->children[0]->type == NodeType::IDENTIFIER) {
             const auto *callNode = child->children[0].get();
             const std::string &arrName = callNode->children[0]->strValue;
