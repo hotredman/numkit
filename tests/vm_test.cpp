@@ -68,6 +68,17 @@ TEST_F(VMTest, NegativeLiteral)
 
 TEST_F(VMTest, Addition)
 {
+    // Debug dump
+    {
+        Lexer lexer("2 + 3;");
+        auto tokens = lexer.tokenize();
+        Parser parser(tokens);
+        auto ast = parser.parse();
+        auto chunk = compiler.compile(ast.get());
+        std::cerr << Compiler::disassemble(chunk);
+        auto result = vm.execute(chunk);
+        std::cerr << "Result register value: " << result.toScalar() << "\n";
+    }
     EXPECT_DOUBLE_EQ(runScalar("2 + 3;"), 5.0);
 }
 
@@ -283,4 +294,105 @@ TEST_F(VMTest, PowerRightAssoc)
 {
     // 2^3^2 = 2^(3^2) = 512
     EXPECT_DOUBLE_EQ(runScalar("2^3^2;"), 512.0);
+}
+
+// ============================================================
+// Phase 2: if/elseif/else
+// ============================================================
+
+TEST_F(VMTest, IfTrue)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 1; x = 42; end; x;"), 42.0);
+}
+
+TEST_F(VMTest, IfFalse)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 0; x = 42; end; x;"), 0.0);
+}
+
+TEST_F(VMTest, IfElse)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 0; x = 1; else; x = 2; end; x;"), 2.0);
+}
+
+TEST_F(VMTest, IfElseTrue)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 1; x = 1; else; x = 2; end; x;"), 1.0);
+}
+
+TEST_F(VMTest, IfElseifElse)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 0; x = 1; elseif 1; x = 2; else; x = 3; end; x;"), 2.0);
+}
+
+TEST_F(VMTest, IfElseifFallthrough)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 0; x = 1; elseif 0; x = 2; else; x = 3; end; x;"), 3.0);
+}
+
+TEST_F(VMTest, IfWithExpression)
+{
+    EXPECT_DOUBLE_EQ(runScalar("a = 5; b = 3; if a > b; x = a - b; else; x = b - a; end; x;"), 2.0);
+}
+
+TEST_F(VMTest, NestedIf)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; if 1; if 0; x = 1; else; x = 2; end; end; x;"), 2.0);
+}
+
+// ============================================================
+// Phase 2: while
+// ============================================================
+
+TEST_F(VMTest, WhileBasic)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; while x < 5; x = x + 1; end; x;"), 5.0);
+}
+
+TEST_F(VMTest, WhileNever)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 10; while 0; x = 0; end; x;"), 10.0);
+}
+
+TEST_F(VMTest, WhileCountdown)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 10; while x > 0; x = x - 1; end; x;"), 0.0);
+}
+
+TEST_F(VMTest, WhileAccumulate)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; i = 1; while i <= 10; s = s + i; i = i + 1; end; s;"), 55.0);
+}
+
+TEST_F(VMTest, NestedWhile)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; i = 0; while i < 3; j = 0; while j < 4; s = s + 1; j = j + "
+                               "1; end; i = i + 1; end; s;"),
+                     12.0);
+}
+
+// ============================================================
+// Phase 2: break and continue
+// ============================================================
+
+TEST_F(VMTest, WhileBreak)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 0; while 1; x = x + 1; if x == 5; break; end; end; x;"), 5.0);
+}
+
+TEST_F(VMTest, WhileContinue)
+{
+    // Skip iteration when x == 3
+    EXPECT_DOUBLE_EQ(
+        runScalar(
+            "s = 0; i = 0; while i < 5; i = i + 1; if i == 3; continue; end; s = s + i; end; s;"),
+        12.0);
+}
+
+TEST_F(VMTest, WhileBreakNested)
+{
+    // Break only exits inner loop
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; i = 0; while i < 3; i = i + 1; j = 0; while j < 10; j = j + "
+                               "1; if j == 2; break; end; s = s + 1; end; end; s;"),
+                     3.0);
 }

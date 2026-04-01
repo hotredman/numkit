@@ -15,6 +15,7 @@ BytecodeChunk Compiler::compile(const ASTNode *ast)
     chunk_ = BytecodeChunk{};
     chunk_.name = "<script>";
     varRegisters_.clear();
+    loopStack_.clear();
     nextReg_ = 0;
 
     uint8_t lastReg = compileNode(ast);
@@ -149,6 +150,14 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileUnaryOp(node);
     case NodeType::EXPR_STMT:
         return compileExprStmt(node);
+    case NodeType::IF_STMT:
+        return compileIf(node);
+    case NodeType::WHILE_STMT:
+        return compileWhile(node);
+    case NodeType::BREAK_STMT:
+        return compileBreak(node);
+    case NodeType::CONTINUE_STMT:
+        return compileContinue(node);
     default:
         throw std::runtime_error("Compiler: unsupported node type "
                                  + std::to_string(static_cast<int>(node->type)));
@@ -326,6 +335,130 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         emitAD(OpCode::DISPLAY, reg, nameIdx);
     }
     return reg;
+}
+
+// ============================================================
+// Phase 2: Control flow
+// ============================================================
+
+uint8_t Compiler::compileIf(const ASTNode *node)
+{
+    // branches: vector<pair<condition, body>>
+    // elseBranch: optional else body
+    //
+    // Compiled as:
+    //   eval cond1
+    //   JMP_FALSE cond1 → L_next1
+    //   body1
+    //   JMP → L_end
+    // L_next1:
+    //   eval cond2
+    //   JMP_FALSE cond2 → L_next2
+    //   body2
+    //   JMP → L_end
+    // L_next2:
+    //   else body
+    // L_end:
+
+    std::vector<size_t> endJumps; // positions of JMP → L_end
+
+    for (size_t i = 0; i < node->branches.size(); ++i) {
+        auto &[cond, body] = node->branches[i];
+
+        // Compile condition
+        uint8_t condReg = compileNode(cond.get());
+
+        // JMP_FALSE to next branch (placeholder)
+        size_t skipPos = currentPos();
+        emitAD(OpCode::JMP_FALSE, condReg, 0);
+
+        // Compile body
+        compileNode(body.get());
+
+        // JMP to end (skip remaining branches) — unless this is the last branch with no else
+        if (i < node->branches.size() - 1 || node->elseBranch) {
+            endJumps.push_back(currentPos());
+            emitD(OpCode::JMP, 0); // placeholder
+        }
+
+        // Patch the JMP_FALSE to jump here (next branch)
+        patchJump(skipPos, static_cast<int16_t>(currentPos() - skipPos));
+    }
+
+    // Compile else branch if present
+    if (node->elseBranch) {
+        compileNode(node->elseBranch.get());
+    }
+
+    // Patch all end jumps to here
+    for (size_t pos : endJumps) {
+        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+    }
+
+    return 0;
+}
+
+uint8_t Compiler::compileWhile(const ASTNode *node)
+{
+    // children[0] = condition, children[1] = body
+    //
+    // L_start:
+    //   eval condition
+    //   JMP_FALSE → L_end
+    //   body
+    //   JMP → L_start
+    // L_end:
+
+    loopStack_.push_back(LoopContext{});
+
+    size_t loopStart = currentPos();
+
+    // Compile condition
+    uint8_t condReg = compileNode(node->children[0].get());
+
+    // JMP_FALSE to end (placeholder)
+    size_t exitPos = currentPos();
+    emitAD(OpCode::JMP_FALSE, condReg, 0);
+
+    // Compile body
+    compileNode(node->children[1].get());
+
+    // Patch continue targets → jump to loopStart (re-evaluate condition)
+    for (size_t pos : loopStack_.back().continuePatches) {
+        patchJump(pos, static_cast<int16_t>(loopStart - pos));
+    }
+
+    // JMP back to start
+    emitD(OpCode::JMP, static_cast<int16_t>(loopStart - currentPos()));
+
+    // Patch JMP_FALSE exit
+    patchJump(exitPos, static_cast<int16_t>(currentPos() - exitPos));
+
+    // Patch break targets → jump to here (after loop)
+    for (size_t pos : loopStack_.back().breakPatches) {
+        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+    }
+
+    loopStack_.pop_back();
+    return 0;
+}
+
+uint8_t Compiler::compileBreak(const ASTNode * /*node*/)
+{
+    if (loopStack_.empty())
+        throw std::runtime_error("Compiler: break outside of loop");
+    loopStack_.back().breakPatches.push_back(currentPos());
+    emitD(OpCode::JMP, 0); // placeholder — patched when loop ends
+    return 0;
+}
+
+uint8_t Compiler::compileContinue(const ASTNode * /*node*/)
+{
+    if (loopStack_.empty())
+        throw std::runtime_error("Compiler: continue outside of loop");
+    loopStack_.back().continuePatches.push_back(currentPos());
+    emitD(OpCode::JMP, 0); // placeholder — patched when loop ends
+    return 0;
 }
 
 std::string Compiler::disassemble(const BytecodeChunk &chunk)

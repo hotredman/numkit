@@ -66,6 +66,20 @@ private:
     uint8_t compileBinaryOp(const ASTNode *node);
     uint8_t compileUnaryOp(const ASTNode *node);
     uint8_t compileExprStmt(const ASTNode *node);
+
+    // Phase 2: control flow
+    uint8_t compileIf(const ASTNode *node);
+    uint8_t compileWhile(const ASTNode *node);
+    uint8_t compileBreak(const ASTNode *node);
+    uint8_t compileContinue(const ASTNode *node);
+
+    // Break/continue loop patching
+    struct LoopContext
+    {
+        std::vector<size_t> breakPatches;
+        std::vector<size_t> continuePatches;
+    };
+    std::vector<LoopContext> loopStack_;
 };
 
 } // namespace mlab
