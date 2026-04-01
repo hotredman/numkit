@@ -1392,6 +1392,40 @@ MValue Engine::execCall(const ASTNode *node, Environment *env)
 
     const std::string &name = funcNode->strValue;
 
+    // ── Fast path: cached function pointers (skip env lookup and hash tables) ──
+    if (funcNode->cachedUserFunc) {
+        MValue argsBuf[4];
+        size_t nargs = node->children.size() - 1;
+        if (nargs <= 4) {
+            for (size_t i = 0; i < nargs; ++i)
+                argsBuf[i] = execNode(node->children[i + 1].get(), env);
+            return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
+                                    Span<const MValue>(argsBuf, nargs),
+                                    env);
+        }
+        // >4 args — fall through to vector path
+        std::vector<MValue> args;
+        args.reserve(nargs);
+        for (size_t i = 1; i < node->children.size(); ++i)
+            args.push_back(execNode(node->children[i].get(), env));
+        return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
+                                args,
+                                env);
+    }
+
+    if (funcNode->cachedOp) {
+        size_t nargs = node->children.size() - 1;
+        MValue argsBuf[4];
+        if (nargs <= 4) {
+            for (size_t i = 0; i < nargs; ++i)
+                argsBuf[i] = execNode(node->children[i + 1].get(), env);
+            MValue outBuf[1];
+            (*static_cast<const ExternalFunc *>(
+                funcNode->cachedOp))(Span<const MValue>(argsBuf, nargs), 1, Span<MValue>(outBuf, 1));
+            return outBuf[0];
+        }
+    }
+
     auto buildArgs = [&]() {
         std::vector<MValue> args;
         args.reserve(node->children.size() - 1);
@@ -1410,11 +1444,10 @@ MValue Engine::execCall(const ASTNode *node, Environment *env)
             return execIndexAccess(*var, node, env);
     }
 
-    // Try built-in commands (need env access)
+    // Slow path: look up, cache, and call
     {
         auto args = buildArgs();
 
-        // Fast path: use cached function pointer from AST node
         if (funcNode->cachedOp) {
             MValue outBuf[1];
             (*static_cast<const ExternalFunc *>(
@@ -1425,13 +1458,6 @@ MValue Engine::execCall(const ASTNode *node, Environment *env)
         MValue result;
         if (tryBuiltinCall(name, args, env, result, 1))
             return result;
-
-        // Check cached user function pointer
-        if (funcNode->cachedUserFunc) {
-            return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
-                                    args,
-                                    env);
-        }
 
         // Slow path: look up and cache
         auto it = externalFuncs_.find(name);
