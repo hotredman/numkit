@@ -780,16 +780,32 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
         }
 
         if (!funcNode->cachedOp) {
-            // Try array scalar indexing: A(i) where A is a double array
-            if (nargs == 1 && funcNode->type == NodeType::IDENTIFIER) {
-                double idxVal;
-                if (tryEvalScalar(expr->children[1].get(), env, idxVal)) {
-                    MValue *arr = env->get(funcNode->strValue);
-                    if (arr && arr->type() == MType::DOUBLE) {
-                        size_t idx = static_cast<size_t>(idxVal) - 1;
-                        if (idx < arr->numel()) {
-                            out = arr->doubleData()[idx];
-                            return true;
+            // Try array scalar indexing: A(i) or A(i,j) where A is a double array
+            if (funcNode->type == NodeType::IDENTIFIER) {
+                if (nargs == 1) {
+                    double idxVal;
+                    if (tryEvalScalar(expr->children[1].get(), env, idxVal)) {
+                        MValue *arr = env->get(funcNode->strValue);
+                        if (arr && arr->type() == MType::DOUBLE) {
+                            size_t idx = static_cast<size_t>(idxVal) - 1;
+                            if (idx < arr->numel()) {
+                                out = arr->doubleData()[idx];
+                                return true;
+                            }
+                        }
+                    }
+                } else if (nargs == 2) {
+                    double rowVal, colVal;
+                    if (tryEvalScalar(expr->children[1].get(), env, rowVal)
+                        && tryEvalScalar(expr->children[2].get(), env, colVal)) {
+                        MValue *arr = env->get(funcNode->strValue);
+                        if (arr && arr->type() == MType::DOUBLE) {
+                            size_t r = static_cast<size_t>(rowVal) - 1;
+                            size_t c = static_cast<size_t>(colVal) - 1;
+                            if (r < arr->dims().rows() && c < arr->dims().cols()) {
+                                out = arr->doubleData()[arr->dims().sub2ind(r, c)];
+                                return true;
+                            }
                         }
                     }
                 }
@@ -888,6 +904,20 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
                         arr->doubleDataMut()[idx] = rhsVal;
                     }
                     continue;
+                }
+            }
+            // 2D fast path: A(i,j) = <scalar>
+            if (arr && arr->type() == MType::DOUBLE && callNode->children.size() == 3) {
+                double rowVal, colVal, rhsVal;
+                if (tryEvalScalar(callNode->children[1].get(), env, rowVal)
+                    && tryEvalScalar(callNode->children[2].get(), env, colVal)
+                    && tryEvalScalar(child->children[1].get(), env, rhsVal)) {
+                    size_t r = static_cast<size_t>(rowVal) - 1;
+                    size_t c = static_cast<size_t>(colVal) - 1;
+                    if (r < arr->dims().rows() && c < arr->dims().cols()) {
+                        arr->doubleDataMut()[arr->dims().sub2ind(r, c)] = rhsVal;
+                        continue;
+                    }
                 }
             }
         }
