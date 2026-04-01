@@ -78,8 +78,14 @@ void Environment::sboSet(const std::string &name, MValue val)
 // ============================================================
 // Environment
 // ============================================================
-Environment::Environment(std::shared_ptr<Environment> parent, GlobalStore *globalStore)
-    : parent_(std::move(parent))
+Environment::Environment(Environment *parent, GlobalStore *globalStore)
+    : parent_(parent)
+    , globalStore_(globalStore)
+{}
+
+Environment::Environment(std::shared_ptr<Environment> owningParent, GlobalStore *globalStore)
+    : parent_(owningParent.get())
+    , owningParent_(std::move(owningParent))
     , globalStore_(globalStore)
 {}
 
@@ -225,6 +231,22 @@ void Environment::clearAll()
     vars_.clear();
     globals_.clear();
     hasGlobals_ = false;
+}
+
+void Environment::reset(Environment *parent, GlobalStore *gs)
+{
+    for (size_t i = 0; i < sboCount_; ++i) {
+        sbo_[i].name.clear();
+        sbo_[i].value = MValue();
+        sbo_[i].used = false;
+    }
+    sboCount_ = 0;
+    vars_.clear();
+    globals_.clear();
+    hasGlobals_ = false;
+    parent_ = parent;
+    owningParent_.reset();
+    globalStore_ = gs;
 }
 
 std::vector<std::string> Environment::localNames() const

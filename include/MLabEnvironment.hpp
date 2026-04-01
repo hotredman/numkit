@@ -24,8 +24,11 @@ private:
 class Environment
 {
 public:
-    explicit Environment(std::shared_ptr<Environment> parent = nullptr,
-                         GlobalStore *globalStore = nullptr);
+    // For normal execution: raw parent pointer (caller guarantees lifetime)
+    explicit Environment(Environment *parent = nullptr, GlobalStore *globalStore = nullptr);
+
+    // For snapshots/closures: owning parent
+    explicit Environment(std::shared_ptr<Environment> owningParent, GlobalStore *globalStore);
 
     void set(const std::string &name, MValue val);
     MValue *get(const std::string &name);
@@ -59,6 +62,9 @@ public:
 
     void clearAll();
 
+    // Reset for reuse — clears all data and sets new parent/globalStore
+    void reset(Environment *parent, GlobalStore *gs);
+
     std::vector<std::string> localNames() const;
 
 private:
@@ -77,7 +83,8 @@ private:
     std::unordered_map<std::string, MValue> vars_;
 
     std::unordered_set<std::string> globals_;
-    std::shared_ptr<Environment> parent_;
+    Environment *parent_ = nullptr;             // non-owning, for lookup
+    std::shared_ptr<Environment> owningParent_; // owning, for snapshots only
     GlobalStore *globalStore_ = nullptr;
     bool hasGlobals_ = false;
 
