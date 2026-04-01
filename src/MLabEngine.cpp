@@ -611,107 +611,193 @@ bool Engine::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
     }
 
     case NodeType::CALL: {
-        // func(a, b, ...) where func is a cached external and all args are scalar
+        // func(a, b, ...) where all args are scalar
         if (expr->children.empty())
             return false;
         auto *funcNode = expr->children[0].get();
         size_t nargs = expr->children.size() - 1;
-        double argVals[4];
         if (nargs > 4)
             return false;
-        for (size_t i = 0; i < nargs; ++i) {
-            if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
-                return false;
+
+        // Resolve builtin ID on first call (0 = unresolved)
+        if (funcNode->cachedBuiltinId == 0 && funcNode->type == NodeType::IDENTIFIER) {
+            const auto &fn = funcNode->strValue;
+            // IDs: 1-19 = known builtins, -1 = not a scalar builtin
+            if (fn == "mod")
+                funcNode->cachedBuiltinId = 1;
+            else if (fn == "abs")
+                funcNode->cachedBuiltinId = 2;
+            else if (fn == "floor")
+                funcNode->cachedBuiltinId = 3;
+            else if (fn == "ceil")
+                funcNode->cachedBuiltinId = 4;
+            else if (fn == "round")
+                funcNode->cachedBuiltinId = 5;
+            else if (fn == "fix")
+                funcNode->cachedBuiltinId = 6;
+            else if (fn == "sin")
+                funcNode->cachedBuiltinId = 7;
+            else if (fn == "cos")
+                funcNode->cachedBuiltinId = 8;
+            else if (fn == "sqrt")
+                funcNode->cachedBuiltinId = 9;
+            else if (fn == "exp")
+                funcNode->cachedBuiltinId = 10;
+            else if (fn == "log")
+                funcNode->cachedBuiltinId = 11;
+            else if (fn == "min")
+                funcNode->cachedBuiltinId = 12;
+            else if (fn == "max")
+                funcNode->cachedBuiltinId = 13;
+            else if (fn == "sign")
+                funcNode->cachedBuiltinId = 14;
+            else if (fn == "tan")
+                funcNode->cachedBuiltinId = 15;
+            else if (fn == "log2")
+                funcNode->cachedBuiltinId = 16;
+            else if (fn == "log10")
+                funcNode->cachedBuiltinId = 17;
+            else if (fn == "rem")
+                funcNode->cachedBuiltinId = 18;
+            else
+                funcNode->cachedBuiltinId = -1;
         }
 
-        // Inline fast paths for common scalar builtins (avoid ExternalFunc overhead)
-        if (funcNode->type == NodeType::IDENTIFIER) {
-            const auto &fn = funcNode->strValue;
-            if (nargs == 2) {
-                if (fn == "mod") {
+        int8_t bid = funcNode->cachedBuiltinId;
+        if (bid > 0) {
+            double argVals[4];
+            for (size_t i = 0; i < nargs; ++i) {
+                if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
+                    return false;
+            }
+            switch (bid) {
+            case 1:
+                if (nargs == 2) {
                     out = std::fmod(argVals[0], argVals[1]);
                     return true;
                 }
-                if (fn == "min") {
-                    out = std::fmin(argVals[0], argVals[1]);
-                    return true;
-                }
-                if (fn == "max") {
-                    out = std::fmax(argVals[0], argVals[1]);
-                    return true;
-                }
-                if (fn == "rem") {
-                    out = std::remainder(argVals[0], argVals[1]);
-                    return true;
-                }
-                if (fn == "pow" || fn == "power") {
-                    out = std::pow(argVals[0], argVals[1]);
-                    return true;
-                }
-            } else if (nargs == 1) {
-                if (fn == "abs") {
+                break;
+            case 2:
+                if (nargs == 1) {
                     out = std::abs(argVals[0]);
                     return true;
                 }
-                if (fn == "sqrt") {
-                    if (argVals[0] < 0)
-                        return false;
-                    out = std::sqrt(argVals[0]);
-                    return true;
-                }
-                if (fn == "floor") {
+                break;
+            case 3:
+                if (nargs == 1) {
                     out = std::floor(argVals[0]);
                     return true;
                 }
-                if (fn == "ceil") {
+                break;
+            case 4:
+                if (nargs == 1) {
                     out = std::ceil(argVals[0]);
                     return true;
                 }
-                if (fn == "round") {
+                break;
+            case 5:
+                if (nargs == 1) {
                     out = std::round(argVals[0]);
                     return true;
                 }
-                if (fn == "fix") {
+                break;
+            case 6:
+                if (nargs == 1) {
                     out = std::trunc(argVals[0]);
                     return true;
                 }
-                if (fn == "sin") {
+                break;
+            case 7:
+                if (nargs == 1) {
                     out = std::sin(argVals[0]);
                     return true;
                 }
-                if (fn == "cos") {
+                break;
+            case 8:
+                if (nargs == 1) {
                     out = std::cos(argVals[0]);
                     return true;
                 }
-                if (fn == "tan") {
-                    out = std::tan(argVals[0]);
+                break;
+            case 9:
+                if (nargs == 1 && argVals[0] >= 0) {
+                    out = std::sqrt(argVals[0]);
                     return true;
                 }
-                if (fn == "exp") {
+                break;
+            case 10:
+                if (nargs == 1) {
                     out = std::exp(argVals[0]);
                     return true;
                 }
-                if (fn == "log") {
+                break;
+            case 11:
+                if (nargs == 1) {
                     out = std::log(argVals[0]);
                     return true;
                 }
-                if (fn == "log2") {
-                    out = std::log2(argVals[0]);
+                break;
+            case 12:
+                if (nargs == 2) {
+                    out = std::fmin(argVals[0], argVals[1]);
                     return true;
                 }
-                if (fn == "log10") {
-                    out = std::log10(argVals[0]);
+                if (nargs == 1) {
+                    out = argVals[0];
                     return true;
                 }
-                if (fn == "sign") {
+                break;
+            case 13:
+                if (nargs == 2) {
+                    out = std::fmax(argVals[0], argVals[1]);
+                    return true;
+                }
+                if (nargs == 1) {
+                    out = argVals[0];
+                    return true;
+                }
+                break;
+            case 14:
+                if (nargs == 1) {
                     out = (argVals[0] > 0) ? 1.0 : (argVals[0] < 0) ? -1.0 : 0.0;
                     return true;
                 }
+                break;
+            case 15:
+                if (nargs == 1) {
+                    out = std::tan(argVals[0]);
+                    return true;
+                }
+                break;
+            case 16:
+                if (nargs == 1) {
+                    out = std::log2(argVals[0]);
+                    return true;
+                }
+                break;
+            case 17:
+                if (nargs == 1) {
+                    out = std::log10(argVals[0]);
+                    return true;
+                }
+                break;
+            case 18:
+                if (nargs == 2) {
+                    out = std::remainder(argVals[0], argVals[1]);
+                    return true;
+                }
+                break;
             }
+            // nargs mismatch — fall through to ExternalFunc path
         }
 
         if (!funcNode->cachedOp)
             return false;
+        double argVals[4];
+        for (size_t i = 0; i < nargs; ++i) {
+            if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
+                return false;
+        }
         // Reuse engine-owned buffer to avoid heap allocation per call
         callArgsBuf_.clear();
         for (size_t i = 0; i < nargs; ++i)
