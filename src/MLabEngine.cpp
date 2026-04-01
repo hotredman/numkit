@@ -389,91 +389,82 @@ MValue Engine::execNode(const ASTNode *node, Environment *env)
     if (!node)
         return MValue::empty();
 
-    try {
-        switch (node->type) {
-        case NodeType::BLOCK:
-            return execBlock(node, env);
-        case NodeType::NUMBER_LITERAL:
-            return MValue::scalar(node->numValue, &allocator_);
-        case NodeType::STRING_LITERAL:
-            return MValue::fromString(node->strValue, &allocator_);
-        case NodeType::BOOL_LITERAL:
-            return MValue::logicalScalar(node->boolValue, &allocator_);
-        case NodeType::IMAG_LITERAL:
-            return MValue::complexScalar(0.0, node->numValue, &allocator_);
-        case NodeType::IDENTIFIER:
-            return execIdentifier(node, env);
-        case NodeType::ASSIGN:
-            return execAssign(node, env);
-        case NodeType::MULTI_ASSIGN:
-            return execMultiAssign(node, env);
-        case NodeType::BINARY_OP:
-            return execBinaryOp(node, env);
-        case NodeType::UNARY_OP:
-            return execUnaryOp(node, env);
-        case NodeType::CALL:
-            return execCall(node, env);
-        case NodeType::CELL_INDEX:
-            return execCellIndex(node, env);
-        case NodeType::FIELD_ACCESS:
-            return execFieldAccess(node, env);
-        case NodeType::MATRIX_LITERAL:
-            return execMatrixLiteral(node, env);
-        case NodeType::CELL_LITERAL:
-            return execCellLiteral(node, env);
-        case NodeType::COLON_EXPR:
-            return execColonExpr(node, env);
-        case NodeType::IF_STMT:
-            return execIf(node, env);
-        case NodeType::FOR_STMT:
-            return execFor(node, env);
-        case NodeType::WHILE_STMT:
-            return execWhile(node, env);
-        case NodeType::SWITCH_STMT:
-            return execSwitch(node, env);
-        case NodeType::BREAK_STMT:
-            flowSignal_ = FlowSignal::BREAK;
-            return MValue::empty();
-        case NodeType::CONTINUE_STMT:
-            flowSignal_ = FlowSignal::CONTINUE;
-            return MValue::empty();
-        case NodeType::RETURN_STMT:
-            flowSignal_ = FlowSignal::RETURN;
-            return MValue::empty();
-        case NodeType::FUNCTION_DEF:
-            return execFunctionDef(node, env);
-        case NodeType::EXPR_STMT:
-            return execExprStmt(node, env);
-        case NodeType::ANON_FUNC:
-            return execAnonFunc(node, env);
-        case NodeType::TRY_STMT:
-            return execTryCatch(node, env);
-        case NodeType::DELETE_ASSIGN:
-            return execDeleteAssign(node, env);
-        case NodeType::GLOBAL_STMT:
-        case NodeType::PERSISTENT_STMT:
-            return execGlobalPersistent(node, env);
-        case NodeType::COMMAND_CALL:
-            return execCommandCall(node, env);
-        case NodeType::END_VAL: {
-            if (!indexContextStack_.empty()) {
-                auto &ctx = indexContextStack_.back();
-                size_t sz = (ctx.ndims == 1) ? ctx.array->numel()
-                                             : ctx.array->dims().dimSize(ctx.dimension);
-                return MValue::scalar(static_cast<double>(sz), &allocator_);
-            }
-            throw std::runtime_error("'end' used outside of indexing context");
+    switch (node->type) {
+    case NodeType::BLOCK:
+        return execBlock(node, env);
+    case NodeType::NUMBER_LITERAL:
+        return MValue::scalar(node->numValue, &allocator_);
+    case NodeType::STRING_LITERAL:
+        return MValue::fromString(node->strValue, &allocator_);
+    case NodeType::BOOL_LITERAL:
+        return MValue::logicalScalar(node->boolValue, &allocator_);
+    case NodeType::IMAG_LITERAL:
+        return MValue::complexScalar(0.0, node->numValue, &allocator_);
+    case NodeType::IDENTIFIER:
+        return execIdentifier(node, env);
+    case NodeType::ASSIGN:
+        return execAssign(node, env);
+    case NodeType::MULTI_ASSIGN:
+        return execMultiAssign(node, env);
+    case NodeType::BINARY_OP:
+        return execBinaryOp(node, env);
+    case NodeType::UNARY_OP:
+        return execUnaryOp(node, env);
+    case NodeType::CALL:
+        return execCall(node, env);
+    case NodeType::CELL_INDEX:
+        return execCellIndex(node, env);
+    case NodeType::FIELD_ACCESS:
+        return execFieldAccess(node, env);
+    case NodeType::MATRIX_LITERAL:
+        return execMatrixLiteral(node, env);
+    case NodeType::CELL_LITERAL:
+        return execCellLiteral(node, env);
+    case NodeType::COLON_EXPR:
+        return execColonExpr(node, env);
+    case NodeType::IF_STMT:
+        return execIf(node, env);
+    case NodeType::FOR_STMT:
+        return execFor(node, env);
+    case NodeType::WHILE_STMT:
+        return execWhile(node, env);
+    case NodeType::SWITCH_STMT:
+        return execSwitch(node, env);
+    case NodeType::BREAK_STMT:
+        flowSignal_ = FlowSignal::BREAK;
+        return MValue::empty();
+    case NodeType::CONTINUE_STMT:
+        flowSignal_ = FlowSignal::CONTINUE;
+        return MValue::empty();
+    case NodeType::RETURN_STMT:
+        flowSignal_ = FlowSignal::RETURN;
+        return MValue::empty();
+    case NodeType::FUNCTION_DEF:
+        return execFunctionDef(node, env);
+    case NodeType::EXPR_STMT:
+        return execExprStmt(node, env);
+    case NodeType::ANON_FUNC:
+        return execAnonFunc(node, env);
+    case NodeType::TRY_STMT:
+        return execTryCatch(node, env);
+    case NodeType::DELETE_ASSIGN:
+        return execDeleteAssign(node, env);
+    case NodeType::GLOBAL_STMT:
+    case NodeType::PERSISTENT_STMT:
+        return execGlobalPersistent(node, env);
+    case NodeType::COMMAND_CALL:
+        return execCommandCall(node, env);
+    case NodeType::END_VAL: {
+        if (!indexContextStack_.empty()) {
+            auto &ctx = indexContextStack_.back();
+            size_t sz = (ctx.ndims == 1) ? ctx.array->numel()
+                                         : ctx.array->dims().dimSize(ctx.dimension);
+            return MValue::scalar(static_cast<double>(sz), &allocator_);
         }
-        default:
-            throw std::runtime_error("Unknown AST node type");
-        }
-
-    } catch (const MLabError &) {
-        throw;
-    } catch (const std::runtime_error &e) {
-        if (node->line > 0)
-            throw MLabError(e.what(), node->line, node->col);
-        throw;
+        throw std::runtime_error("'end' used outside of indexing context");
+    }
+    default:
+        throw std::runtime_error("Unknown AST node type");
     }
 }
 
@@ -901,7 +892,15 @@ MValue Engine::execBlock(const ASTNode *node, Environment *env)
             }
         }
 
-        last = execNode(child.get(), env);
+        try {
+            last = execNode(child.get(), env);
+        } catch (const MLabError &) {
+            throw;
+        } catch (const std::runtime_error &e) {
+            if (child->line > 0)
+                throw MLabError(e.what(), child->line, child->col);
+            throw;
+        }
         if (flowSignal_ != FlowSignal::NONE)
             return last;
     }
