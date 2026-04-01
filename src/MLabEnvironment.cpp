@@ -29,7 +29,7 @@ const MValue *GlobalStore::get(const std::string &name) const
 MValue *Environment::sboFind(const std::string &name)
 {
     for (size_t i = 0; i < sboCount_; ++i)
-        if (sbo_[i].used && sbo_[i].name == name)
+        if (sbo_[i].name == name)
             return &sbo_[i].value;
     return nullptr;
 }
@@ -37,7 +37,7 @@ MValue *Environment::sboFind(const std::string &name)
 const MValue *Environment::sboFind(const std::string &name) const
 {
     for (size_t i = 0; i < sboCount_; ++i)
-        if (sbo_[i].used && sbo_[i].name == name)
+        if (sbo_[i].name == name)
             return &sbo_[i].value;
     return nullptr;
 }
@@ -51,7 +51,7 @@ void Environment::sboSet(const std::string &name, MValue val)
     }
     // Try to update existing slot
     for (size_t i = 0; i < sboCount_; ++i) {
-        if (sbo_[i].used && sbo_[i].name == name) {
+        if (sbo_[i].name == name) {
             sbo_[i].value = std::move(val);
             return;
         }
@@ -60,16 +60,12 @@ void Environment::sboSet(const std::string &name, MValue val)
     if (sboCount_ < SBO_SLOTS) {
         sbo_[sboCount_].name = name;
         sbo_[sboCount_].value = std::move(val);
-        sbo_[sboCount_].used = true;
         sboCount_++;
         return;
     }
     // Overflow: migrate all SBO slots to map, then add new entry
     for (size_t i = 0; i < sboCount_; ++i) {
-        if (sbo_[i].used) {
-            vars_[std::move(sbo_[i].name)] = std::move(sbo_[i].value);
-            sbo_[i].used = false;
-        }
+        vars_[std::move(sbo_[i].name)] = std::move(sbo_[i].value);
     }
     sboCount_ = 0;
     vars_[name] = std::move(val);
@@ -171,8 +167,7 @@ void Environment::forEachLocal(
     const std::function<void(const std::string &, const MValue &)> &fn) const
 {
     for (size_t i = 0; i < sboCount_; ++i)
-        if (sbo_[i].used)
-            fn(sbo_[i].name, sbo_[i].value);
+        fn(sbo_[i].name, sbo_[i].value);
     for (auto &[k, v] : vars_)
         fn(k, v);
 }
@@ -190,12 +185,9 @@ std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> 
     auto snap = std::make_shared<Environment>(std::move(snappedParent), gs);
 
     for (size_t i = 0; i < sboCount_; ++i) {
-        if (sbo_[i].used) {
-            snap->sbo_[snap->sboCount_].name = sbo_[i].name;
-            snap->sbo_[snap->sboCount_].value = sbo_[i].value;
-            snap->sbo_[snap->sboCount_].used = true;
-            snap->sboCount_++;
-        }
+        snap->sbo_[snap->sboCount_].name = sbo_[i].name;
+        snap->sbo_[snap->sboCount_].value = sbo_[i].value;
+        snap->sboCount_++;
     }
 
     for (auto &[k, v] : vars_)
@@ -210,8 +202,7 @@ std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> 
 void Environment::remove(const std::string &name)
 {
     for (size_t i = 0; i < sboCount_; ++i) {
-        if (sbo_[i].used && sbo_[i].name == name) {
-            sbo_[i].used = false;
+        if (sbo_[i].name == name) {
             if (i < sboCount_ - 1)
                 std::swap(sbo_[i], sbo_[sboCount_ - 1]);
             sboCount_--;
@@ -225,8 +216,6 @@ void Environment::remove(const std::string &name)
 
 void Environment::clearAll()
 {
-    for (size_t i = 0; i < sboCount_; ++i)
-        sbo_[i].used = false;
     sboCount_ = 0;
     vars_.clear();
     globals_.clear();
@@ -238,7 +227,6 @@ void Environment::reset(Environment *parent, GlobalStore *gs)
     for (size_t i = 0; i < sboCount_; ++i) {
         sbo_[i].name.clear();
         sbo_[i].value = MValue();
-        sbo_[i].used = false;
     }
     sboCount_ = 0;
     vars_.clear();
@@ -254,8 +242,7 @@ std::vector<std::string> Environment::localNames() const
     std::vector<std::string> names;
     names.reserve(sboCount_ + vars_.size());
     for (size_t i = 0; i < sboCount_; ++i)
-        if (sbo_[i].used)
-            names.push_back(sbo_[i].name);
+        names.push_back(sbo_[i].name);
     for (auto &[k, v] : vars_)
         names.push_back(k);
     return names;

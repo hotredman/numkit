@@ -74,7 +74,6 @@ private:
     {
         std::string name;
         MValue value;
-        bool used = false;
     };
     Slot sbo_[SBO_SLOTS];
     size_t sboCount_ = 0;
