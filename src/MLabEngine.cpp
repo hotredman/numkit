@@ -132,10 +132,20 @@ MValue Engine::eval(const std::string &code)
     Parser parser(tokens);
     auto ast = parser.parse();
 
-    if (backend_ == Backend::VM) {
-        auto chunk = compiler_->compile(ast.get());
-        vm_->setCompiledFuncs(&compiler_->compiledFuncs());
-        return vm_->execute(chunk);
+    if (backend_ != Backend::TreeWalker) {
+        try {
+            auto chunk = compiler_->compile(ast.get());
+            vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+            MValue result = vm_->execute(chunk);
+
+            // Export script-level variables to global environment
+            for (auto &[name, val] : vm_->lastVarMap())
+                globalEnv_->set(name, val);
+
+            return result;
+        } catch (...) {
+            // VM compilation/execution failed — fallback to TreeWalker
+        }
     }
 
     return treeWalker_->execute(ast.get(), globalEnv_.get());

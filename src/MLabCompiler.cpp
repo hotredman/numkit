@@ -3,6 +3,7 @@
 #include "MLabEngine.hpp"
 
 #include <stdexcept>
+#include <unordered_set>
 
 namespace mlab {
 
@@ -17,11 +18,18 @@ BytecodeChunk Compiler::compile(const ASTNode *ast)
     varRegisters_.clear();
     loopStack_.clear();
     nextReg_ = 0;
+    isTopLevel_ = true;
 
     uint8_t lastReg = compileNode(ast);
     emitA(OpCode::RET, lastReg);
 
     chunk_.numRegisters = nextReg_;
+
+    // Save variable→register mapping for environment export
+    for (auto &[name, reg] : varRegisters_)
+        chunk_.varMap.push_back({name, reg});
+
+    isTopLevel_ = false;
     return std::move(chunk_);
 }
 
@@ -36,6 +44,18 @@ uint8_t Compiler::varReg(const std::string &name)
         return it->second;
     uint8_t r = nextReg_++;
     varRegisters_[name] = r;
+
+    // If compiling a top-level script and variable exists in globalEnv,
+    // emit LOAD_CONST to initialize register with its current value
+    if (isTopLevel_ && chunk_.name == "<script>") {
+        MValue *existing = engine_.getVariable(name);
+        if (existing && !existing->isEmpty()) {
+            int16_t idx = static_cast<int16_t>(chunk_.constants.size());
+            chunk_.constants.push_back(*existing);
+            emitAD(OpCode::LOAD_CONST, r, idx);
+        }
+    }
+
     return r;
 }
 
@@ -433,7 +453,20 @@ uint8_t Compiler::compileUnaryOp(const ASTNode *node)
 
 uint8_t Compiler::compileExprStmt(const ASTNode *node)
 {
-    uint8_t reg = compileNode(node->children[0].get());
+    // Check for bare builtin commands that VM can't handle
+    // (e.g. 'clear', 'who', 'whos', 'clc') — force fallback to TreeWalker
+    auto *child = node->children[0].get();
+    if (child->type == NodeType::IDENTIFIER) {
+        static const std::unordered_set<std::string> kBuiltinCommands
+            = {"clear",   "who",   "whos",   "clc",    "close",  "hold",   "grid", "figure",
+               "subplot", "title", "xlabel", "ylabel", "zlabel", "legend", "axis", "format",
+               "diary",   "cd",    "pwd",    "ls",     "dir",    "tic",    "toc"};
+        if (kBuiltinCommands.count(child->strValue))
+            throw std::runtime_error("Compiler: builtin command '" + child->strValue
+                                     + "' requires TreeWalker");
+    }
+
+    uint8_t reg = compileNode(child);
 
     // Display if no semicolon
     if (!node->suppressOutput) {
@@ -1395,9 +1428,18 @@ uint8_t Compiler::compileFunctionDef(const ASTNode *node)
 {
     // Compile function body into a separate BytecodeChunk
     // and store in compiledFuncs_ table
-
     BytecodeChunk funcChunk = compileFunction(node);
     compiledFuncs_[node->strValue] = std::move(funcChunk);
+
+    // Also register in engine.userFuncs_ for TreeWalker fallback compatibility
+    UserFunction uf;
+    uf.name = node->strValue;
+    uf.params = node->paramNames;
+    uf.returns = node->returnNames;
+    uf.body = std::shared_ptr<const ASTNode>(cloneNode(node->children[0].get()));
+    uf.closureEnv = nullptr;
+    engine_.userFuncs_[node->strValue] = std::move(uf);
+
     return 0;
 }
 
@@ -1408,6 +1450,8 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     auto savedVarRegs = std::move(varRegisters_);
     auto savedLoopStack = std::move(loopStack_);
     uint8_t savedNextReg = nextReg_;
+    bool savedTopLevel = isTopLevel_;
+    isTopLevel_ = false;
 
     // Start fresh for function
     chunk_ = BytecodeChunk{};
@@ -1456,6 +1500,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     varRegisters_ = std::move(savedVarRegs);
     loopStack_ = std::move(savedLoopStack);
     nextReg_ = savedNextReg;
+    isTopLevel_ = savedTopLevel;
 
     return result;
 }

@@ -47,6 +47,14 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
     }
 
     MValue result = executeInternal(chunk);
+
+    // Export script-level variables to lastVarMap_ for environment sync
+    lastVarMap_.clear();
+    for (auto &[name, reg] : chunk.varMap) {
+        if (reg < chunk.numRegisters && !R_[reg].isEmpty())
+            lastVarMap_.push_back({name, R_[reg]});
+    }
+
     regStackTop_ = 0;
     R_ = nullptr;
     return result;
