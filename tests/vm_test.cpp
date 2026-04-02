@@ -37,6 +37,7 @@ public:
         Parser parser(tokens);
         auto ast = parser.parse();
         auto chunk = compiler.compile(ast.get());
+        vm.setCompiledFuncs(&compiler.compiledFuncs());
         return vm.execute(chunk);
     }
 
@@ -625,4 +626,73 @@ TEST_F(VMTest, CallInExpr)
 TEST_F(VMTest, CallInLoop)
 {
     EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:5; s = s + abs(3 - i); end; s;"), 6.0);
+}
+
+// ============================================================
+// Phase 5a: user-defined functions
+// ============================================================
+
+TEST_F(VMTest, UserFuncSimple)
+{
+    EXPECT_DOUBLE_EQ(runScalar("function r = double_it(x); r = x * 2; end; double_it(5);"), 10.0);
+}
+
+TEST_F(VMTest, UserFuncNoArgs)
+{
+    EXPECT_DOUBLE_EQ(runScalar("function r = seven(); r = 7; end; seven();"), 7.0);
+}
+
+TEST_F(VMTest, UserFuncMultipleArgs)
+{
+    EXPECT_DOUBLE_EQ(runScalar("function r = add3(a, b, c); r = a + b + c; end; add3(1, 2, 3);"),
+                     6.0);
+}
+
+TEST_F(VMTest, UserFuncWithLocals)
+{
+    EXPECT_DOUBLE_EQ(runScalar(
+                         "function r = hyp(a, b); c2 = a*a + b*b; r = sqrt(c2); end; hyp(3, 4);"),
+                     5.0);
+}
+
+TEST_F(VMTest, UserFuncCalledInLoop)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar("function r = sq(x); r = x * x; end; s = 0; for i = 1:5; s = s + sq(i); end; s;"),
+        55.0);
+}
+
+TEST_F(VMTest, UserFuncCalledMultipleTimes)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar("function r = inc(x); r = x + 1; end; a = inc(1); b = inc(a); c = inc(b); c;"),
+        4.0);
+}
+
+TEST_F(VMTest, UserFuncRecursiveFib)
+{
+    EXPECT_DOUBLE_EQ(runScalar("function r = fib(n); if n <= 1; r = n; else; r = fib(n-1) + "
+                               "fib(n-2); end; end; fib(10);"),
+                     55.0);
+}
+
+TEST_F(VMTest, UserFuncRecursiveFactorial)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar(
+            "function r = fact(n); if n <= 1; r = 1; else; r = n * fact(n-1); end; end; fact(6);"),
+        720.0);
+}
+
+TEST_F(VMTest, UserFuncWithReturn)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar(
+            "function r = early(x); r = 0; if x > 0; r = x; return; end; r = -1; end; early(5);"),
+        5.0);
+}
+
+TEST_F(VMTest, UserFuncCallsBuiltin)
+{
+    EXPECT_DOUBLE_EQ(runScalar("function r = myabs(x); r = abs(x); end; myabs(-42);"), 42.0);
 }
