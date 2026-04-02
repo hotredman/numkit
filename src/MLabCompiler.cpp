@@ -47,8 +47,7 @@ uint8_t Compiler::varReg(const std::string &name)
 
     // If compiling a top-level script and variable exists in globalEnv,
     // emit LOAD_CONST to initialize register with its current value.
-    // Skip builtin constants (pi, i, j, etc.) — they get overwritten by user code.
-    if (isTopLevel_ && chunk_.name == "<script>" && !kBuiltinNames.count(name)) {
+    if (isTopLevel_ && chunk_.name == "<script>") {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());
