@@ -14,11 +14,18 @@ VM::VM(Engine &engine)
     : engine_(engine)
 {}
 
-MValue VM::execute(const BytecodeChunk &chunk)
+MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
 {
     registers_.resize(chunk.numRegisters);
     for (auto &r : registers_)
         r = MValue::empty();
+
+    // Load function arguments into first registers
+    if (args) {
+        uint8_t paramCount = std::min(nargs, chunk.numParams);
+        for (uint8_t i = 0; i < paramCount; ++i)
+            registers_[i] = args[i];
+    }
 
     const Instruction *ip = chunk.code.data();
     const Instruction *end = ip + chunk.code.size();
@@ -293,16 +300,21 @@ MValue VM::execute(const BytecodeChunk &chunk)
             uint8_t argBase = instr.b;
             uint8_t nargs = instr.c;
 
-            // Lookup external function
+            // 1. Try compiled user function
+            if (compiledFuncs_) {
+                auto cfIt = compiledFuncs_->find(funcName);
+                if (cfIt != compiledFuncs_->end()) {
+                    registers_[instr.a] = executeCall(cfIt->second, &registers_[argBase], nargs);
+                    break;
+                }
+            }
+
+            // 2. Try external/builtin function
             auto extIt = engine_.externalFuncs_.find(funcName);
             if (extIt != engine_.externalFuncs_.end()) {
-                // Build args span from registers
                 Span<const MValue> argsSpan(&registers_[argBase], nargs);
-
-                // Output buffer (single return for now)
                 MValue outBuf[1];
                 Span<MValue> outsSpan(outBuf, 1);
-
                 extIt->second(argsSpan, 1, outsSpan);
                 registers_[instr.a] = std::move(outBuf[0]);
                 break;
@@ -704,6 +716,38 @@ void VM::forSetVar(MValue &varReg, const ForState &fs)
     }
 
     throw std::runtime_error("VM: unsupported type in for-loop range");
+}
+
+// ============================================================
+// Function call helper
+// ============================================================
+
+MValue VM::executeCall(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs)
+{
+    if (++recursionDepth_ > kMaxRecursion) {
+        --recursionDepth_;
+        throw std::runtime_error("VM: maximum recursion depth exceeded");
+    }
+
+    // Copy arguments BEFORE moving caller registers (args points into registers_)
+    uint8_t paramCount = std::min(nargs, funcChunk.numParams);
+    std::vector<MValue> argsCopy(paramCount);
+    for (uint8_t i = 0; i < paramCount; ++i)
+        argsCopy[i] = args[i];
+
+    // Save caller state
+    auto savedRegs = std::move(registers_);
+    auto savedForStack = std::move(forStack_);
+
+    // Execute function body (args loaded inside execute after init)
+    MValue result = execute(funcChunk, argsCopy.data(), paramCount);
+
+    // Restore caller state
+    registers_ = std::move(savedRegs);
+    forStack_ = std::move(savedForStack);
+    --recursionDepth_;
+
+    return result;
 }
 
 } // namespace mlab

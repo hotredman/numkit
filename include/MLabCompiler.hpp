@@ -19,6 +19,15 @@ public:
 
     BytecodeChunk compile(const ASTNode *ast);
 
+    // Compile a function definition into a BytecodeChunk
+    BytecodeChunk compileFunction(const ASTNode *funcDef);
+
+    // Access compiled function table
+    const std::unordered_map<std::string, BytecodeChunk> &compiledFuncs() const
+    {
+        return compiledFuncs_;
+    }
+
     // Debug: dump bytecode
     static std::string disassemble(const BytecodeChunk &chunk);
 
@@ -31,6 +40,9 @@ private:
     // Register allocation: variable name → register index
     std::unordered_map<std::string, uint8_t> varRegisters_;
     uint8_t nextReg_ = 0;
+
+    // Compiled function table (persists across compile() calls)
+    std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
 
     // Allocate a register for a variable (or return existing)
     uint8_t varReg(const std::string &name);
@@ -80,7 +92,7 @@ private:
     uint8_t compileIndexExpr(const ASTNode *node);
     uint8_t compileIndexAssign(const ASTNode *node);
 
-    // Phase 4: function calls
+    // Phase 4+5: function calls
     uint8_t compileCall(const ASTNode *node);
     uint8_t compileFunctionDef(const ASTNode *node);
     uint8_t compileReturn(const ASTNode *node);

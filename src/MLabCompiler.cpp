@@ -765,33 +765,91 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
 uint8_t Compiler::compileFunctionDef(const ASTNode *node)
 {
-    // For now, just register the function in Engine — don't compile to bytecode
-    // The TreeWalker already handles function definitions
-    // VM will call user functions through Engine's userFuncs_ table
+    // Compile function body into a separate BytecodeChunk
+    // and store in compiledFuncs_ table
 
-    // node->strValue = function name
-    // node->returnNames = output parameter names
-    // node->children[0] = body
-    // node->params = input parameter names (stored in node)
-
-    // Store as UserFunction in Engine (same as TreeWalker does)
-    // This is done at compile-time, not runtime
-    // For now, skip — user functions executed via TreeWalker fallback
+    BytecodeChunk funcChunk = compileFunction(node);
+    compiledFuncs_[node->strValue] = std::move(funcChunk);
     return 0;
+}
+
+BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
+{
+    // Save current compilation state
+    auto savedChunk = std::move(chunk_);
+    auto savedVarRegs = std::move(varRegisters_);
+    auto savedLoopStack = std::move(loopStack_);
+    uint8_t savedNextReg = nextReg_;
+
+    // Start fresh for function
+    chunk_ = BytecodeChunk{};
+    chunk_.name = funcDef->strValue;
+    chunk_.paramNames = funcDef->paramNames;
+    chunk_.returnNames = funcDef->returnNames;
+    chunk_.numParams = static_cast<uint8_t>(funcDef->paramNames.size());
+    chunk_.numReturns = static_cast<uint8_t>(funcDef->returnNames.size());
+    varRegisters_.clear();
+    loopStack_.clear();
+    nextReg_ = 0;
+
+    // Allocate registers for parameters (they come pre-loaded by VM)
+    for (auto &param : funcDef->paramNames) {
+        varReg(param);
+    }
+
+    // Allocate registers for return variables
+    for (auto &ret : funcDef->returnNames) {
+        uint8_t r = varReg(ret);
+        // Initialize return vars to empty
+        emitA(OpCode::LOAD_EMPTY, r);
+    }
+
+    // Compile body
+    compileNode(funcDef->children[0].get());
+
+    // Emit return: collect return values
+    if (funcDef->returnNames.size() == 1) {
+        uint8_t retReg = varReg(funcDef->returnNames[0]);
+        emitA(OpCode::RET, retReg);
+    } else if (funcDef->returnNames.empty()) {
+        emitNone(OpCode::RET_EMPTY);
+    } else {
+        // Multi-return: RET_MULTI base, count
+        // Return vars are in their registers
+        uint8_t base = varReg(funcDef->returnNames[0]);
+        emitAB(OpCode::RET_MULTI, base, static_cast<uint8_t>(funcDef->returnNames.size()));
+    }
+
+    chunk_.numRegisters = nextReg_;
+    BytecodeChunk result = std::move(chunk_);
+
+    // Restore previous state
+    chunk_ = std::move(savedChunk);
+    varRegisters_ = std::move(savedVarRegs);
+    loopStack_ = std::move(savedLoopStack);
+    nextReg_ = savedNextReg;
+
+    return result;
 }
 
 uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
 {
-    // In MATLAB, return exits the current function
-    // For scripts, it's like HALT
-    emitNone(OpCode::RET_EMPTY);
+    // In a function context, return the return variables
+    // For now, emit RET with first return var if known, else RET_EMPTY
+    if (!chunk_.returnNames.empty()) {
+        uint8_t retReg = varReg(chunk_.returnNames[0]);
+        emitA(OpCode::RET, retReg);
+    } else {
+        emitNone(OpCode::RET_EMPTY);
+    }
     return 0;
 }
 
 std::string Compiler::disassemble(const BytecodeChunk &chunk)
 {
     std::ostringstream os;
-    os << "=== " << chunk.name << " (regs=" << (int) chunk.numRegisters << ") ===\n";
+    os << "=== " << chunk.name << " (regs=" << (int) chunk.numRegisters
+       << " params=" << (int) chunk.numParams << " returns=" << (int) chunk.numReturns << ") ===\n";
 
     auto opName = [](OpCode op) -> const char * {
         switch (op) {
