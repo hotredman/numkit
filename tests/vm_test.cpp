@@ -604,6 +604,21 @@ TEST_F(VMTest, PersistentDecl)
     EXPECT_DOUBLE_EQ(runScalar("persistent y; y = 7; y;"), 7.0);
 }
 
+// ============================================================
+// 3D indexing
+// ============================================================
+
+TEST_F(VMTest, Array3DGetSet)
+{
+    EXPECT_DOUBLE_EQ(runScalar("A = zeros(2, 3, 4); A(2, 3, 4) = 99; A(2, 3, 4);"), 99.0);
+}
+
+TEST_F(VMTest, Array3DLoop)
+{
+    // Test that zeros(2,2,2) creates a 3D array and we can write/read
+    EXPECT_DOUBLE_EQ(runScalar("A = zeros(2, 2, 2); A(1,1,1) = 5; A(1,1,1);"), 5.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

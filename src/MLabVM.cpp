@@ -358,6 +358,67 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 break;
             }
 
+            // ── ND array/cell indexing (3D+) ─────────────────────
+            case OpCode::INDEX_GET_ND: {
+                // a=dst, b=arr/cell, c=base, e=ndims
+                uint8_t base = I.c, ndims = I.e;
+                if (R[I.b].isCell()) {
+                    // Cell ND indexing → linear index via sub2ind
+                    size_t idx;
+                    if (ndims == 3) {
+                        size_t r = (size_t) R[base].toScalar() - 1;
+                        size_t c = (size_t) R[base + 1].toScalar() - 1;
+                        size_t p = (size_t) R[base + 2].toScalar() - 1;
+                        idx = R[I.b].dims().sub2ind(r, c, p);
+                    } else {
+                        idx = (size_t) R[base].toScalar() - 1; // fallback linear
+                    }
+                    R[I.a] = R[I.b].cellAt(idx);
+                } else {
+                    // Double array ND indexing
+                    const double *data = R[I.b].doubleData();
+                    size_t idx;
+                    if (ndims == 3) {
+                        size_t r = (size_t) R[base].toScalar() - 1;
+                        size_t c = (size_t) R[base + 1].toScalar() - 1;
+                        size_t p = (size_t) R[base + 2].toScalar() - 1;
+                        idx = R[I.b].dims().sub2ind(r, c, p);
+                    } else {
+                        idx = (size_t) R[base].toScalar() - 1;
+                    }
+                    R[I.a] = MValue::scalar(data[idx], &engine_.allocator_);
+                }
+                break;
+            }
+            case OpCode::INDEX_SET_ND: {
+                // a=arr/cell, b=base, c=ndims, e=val
+                uint8_t base = I.b, ndims = I.c;
+                if (R[I.a].isCell()) {
+                    size_t idx;
+                    if (ndims == 3) {
+                        size_t r = (size_t) R[base].toScalar() - 1;
+                        size_t c = (size_t) R[base + 1].toScalar() - 1;
+                        size_t p = (size_t) R[base + 2].toScalar() - 1;
+                        idx = R[I.a].dims().sub2ind(r, c, p);
+                    } else {
+                        idx = (size_t) R[base].toScalar() - 1;
+                    }
+                    R[I.a].cellAt(idx) = R[I.e];
+                } else {
+                    size_t idx;
+                    if (ndims == 3) {
+                        size_t r = (size_t) R[base].toScalar() - 1;
+                        size_t c = (size_t) R[base + 1].toScalar() - 1;
+                        size_t p = (size_t) R[base + 2].toScalar() - 1;
+                        idx = R[I.a].dims().sub2ind(r, c, p);
+                    } else {
+                        idx = (size_t) R[base].toScalar() - 1;
+                    }
+                    R[I.a].doubleDataMut()[idx] = R[I.e].toScalar();
+                }
+                break;
+            }
+
             // ── Struct field access ──────────────────────────────
             case OpCode::FIELD_GET: {
                 // a=dst, b=obj, d=nameIdx
@@ -682,6 +743,17 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                     const MValue &mv = R[fhReg];
                     R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c)],
                                             &engine_.allocator_);
+                } else if (na == 3) {
+                    size_t r = (size_t) R[argBase].toScalar() - 1;
+                    size_t c = (size_t) R[argBase + 1].toScalar() - 1;
+                    size_t p = (size_t) R[argBase + 2].toScalar() - 1;
+                    const MValue &mv = R[fhReg];
+                    if (mv.isCell()) {
+                        R[I.a] = mv.cellAt(mv.dims().sub2ind(r, c, p));
+                    } else {
+                        R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c, p)],
+                                                &engine_.allocator_);
+                    }
                 } else {
                     throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
                                              + std::to_string(na) + " args");

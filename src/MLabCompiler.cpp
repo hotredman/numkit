@@ -901,7 +901,26 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
         return dst;
     }
 
-    throw std::runtime_error("Compiler: ND indexing not yet supported");
+    // ND indexing (3D+): compile indices into consecutive registers
+    {
+        std::vector<uint8_t> idxRegs;
+        for (size_t i = 0; i < nargs; ++i)
+            idxRegs.push_back(compileNode(node->children[argOffset + i].get()));
+        uint8_t base = nextReg_;
+        for (size_t i = 0; i < nargs; ++i) {
+            uint8_t slot = tempReg();
+            if (idxRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, idxRegs[i]);
+        }
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::INDEX_GET_ND,
+                                     dst,
+                                     arr,
+                                     base,
+                                     0,
+                                     static_cast<uint8_t>(nargs)));
+        return dst;
+    }
 }
 
 uint8_t Compiler::compileIndexAssign(const ASTNode *node)
@@ -938,7 +957,27 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
         uint8_t col = compileNode(lhs->children[argOffset + 1].get());
         emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, arr, row, col, 0, val));
     } else {
-        throw std::runtime_error("Compiler: ND indexed assign not yet supported");
+        // ND indexed assign (3D+)
+        // Compile indices first
+        std::vector<uint8_t> idxRegs;
+        for (size_t i = 0; i < nargs; ++i)
+            idxRegs.push_back(compileNode(lhs->children[argOffset + i].get()));
+        uint8_t base = nextReg_;
+        for (size_t i = 0; i < nargs; ++i) {
+            uint8_t slot = tempReg();
+            if (idxRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, idxRegs[i]);
+        }
+        // Ensure val is in a safe register (not overlapping with index slots)
+        uint8_t safeVal = tempReg();
+        if (val != safeVal)
+            emitAB(OpCode::MOVE, safeVal, val);
+        emit(Instruction::make_abcde(OpCode::INDEX_SET_ND,
+                                     arr,
+                                     base,
+                                     static_cast<uint8_t>(nargs),
+                                     0,
+                                     safeVal));
     }
 
     if (!node->suppressOutput) {
@@ -1056,7 +1095,26 @@ uint8_t Compiler::compileCellIndex(const ASTNode *node)
         emit(Instruction::make_abcde(OpCode::CELL_GET_2D, dst, cell, row, 0, col));
         return dst;
     }
-    throw std::runtime_error("Compiler: cell indexing with >2 dims not supported");
+    // ND cell indexing (3D+): use INDEX_GET_ND — VM checks type at runtime
+    {
+        std::vector<uint8_t> idxRegs;
+        for (size_t i = 0; i < nidx; ++i)
+            idxRegs.push_back(compileNode(node->children[1 + i].get()));
+        uint8_t base = nextReg_;
+        for (size_t i = 0; i < nidx; ++i) {
+            uint8_t slot = tempReg();
+            if (idxRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, idxRegs[i]);
+        }
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::INDEX_GET_ND,
+                                     dst,
+                                     cell,
+                                     base,
+                                     0,
+                                     static_cast<uint8_t>(nidx)));
+        return dst;
+    }
 }
 
 uint8_t Compiler::compileCellAssign(const ASTNode *node)
@@ -1080,7 +1138,25 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
         uint8_t col = compileNode(lhs->children[2].get());
         emit(Instruction::make_abcde(OpCode::CELL_SET_2D, cell, row, col, 0, val));
     } else {
-        throw std::runtime_error("Compiler: cell assign with >2 dims not supported");
+        // ND cell assign
+        std::vector<uint8_t> idxRegs;
+        for (size_t i = 0; i < nidx; ++i)
+            idxRegs.push_back(compileNode(lhs->children[1 + i].get()));
+        uint8_t base = nextReg_;
+        for (size_t i = 0; i < nidx; ++i) {
+            uint8_t slot = tempReg();
+            if (idxRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, idxRegs[i]);
+        }
+        uint8_t safeVal = tempReg();
+        if (val != safeVal)
+            emitAB(OpCode::MOVE, safeVal, val);
+        emit(Instruction::make_abcde(OpCode::INDEX_SET_ND,
+                                     cell,
+                                     base,
+                                     static_cast<uint8_t>(nidx),
+                                     0,
+                                     safeVal));
     }
 
     if (!node->suppressOutput) {
@@ -1541,6 +1617,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "INDEX_SET";
         case OpCode::INDEX_SET_2D:
             return "INDEX_SET_2D";
+        case OpCode::INDEX_GET_ND:
+            return "INDEX_GET_ND";
+        case OpCode::INDEX_SET_ND:
+            return "INDEX_SET_ND";
         case OpCode::CALL:
             return "CALL";
         case OpCode::CALL_BUILTIN:
