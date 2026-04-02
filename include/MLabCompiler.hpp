@@ -80,6 +80,11 @@ private:
     uint8_t compileIndexExpr(const ASTNode *node);
     uint8_t compileIndexAssign(const ASTNode *node);
 
+    // Phase 4: function calls
+    uint8_t compileCall(const ASTNode *node);
+    uint8_t compileFunctionDef(const ASTNode *node);
+    uint8_t compileReturn(const ASTNode *node);
+
     // Break/continue loop patching
     struct LoopContext
     {

@@ -553,3 +553,76 @@ TEST_F(VMTest, ForFillArray)
     EXPECT_DOUBLE_EQ(d[3], 16.0);
     EXPECT_DOUBLE_EQ(d[4], 25.0);
 }
+
+// ============================================================
+// Phase 4: builtin function calls
+// ============================================================
+
+TEST_F(VMTest, CallFloor)
+{
+    EXPECT_DOUBLE_EQ(runScalar("floor(3.7);"), 3.0);
+}
+
+TEST_F(VMTest, CallCeil)
+{
+    EXPECT_DOUBLE_EQ(runScalar("ceil(3.2);"), 4.0);
+}
+
+TEST_F(VMTest, CallAbs)
+{
+    EXPECT_DOUBLE_EQ(runScalar("abs(-5);"), 5.0);
+}
+
+TEST_F(VMTest, CallSqrt)
+{
+    EXPECT_DOUBLE_EQ(runScalar("sqrt(16);"), 4.0);
+}
+
+TEST_F(VMTest, CallMod)
+{
+    EXPECT_DOUBLE_EQ(runScalar("mod(7, 3);"), 1.0);
+}
+
+TEST_F(VMTest, CallMax)
+{
+    EXPECT_DOUBLE_EQ(runScalar("max(3, 7);"), 7.0);
+}
+
+TEST_F(VMTest, CallMin)
+{
+    EXPECT_DOUBLE_EQ(runScalar("min(3, 7);"), 3.0);
+}
+
+TEST_F(VMTest, CallZeros)
+{
+    auto result = run("x = zeros(1, 3);");
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 0.0);
+}
+
+TEST_F(VMTest, CallOnes)
+{
+    auto result = run("x = ones(1, 4);");
+    EXPECT_EQ(result.numel(), 4u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[3], 1.0);
+}
+
+TEST_F(VMTest, CallLength)
+{
+    EXPECT_DOUBLE_EQ(runScalar("length([1, 2, 3, 4]);"), 4.0);
+}
+
+TEST_F(VMTest, CallNested)
+{
+    EXPECT_DOUBLE_EQ(runScalar("abs(floor(-3.7));"), 4.0);
+}
+
+TEST_F(VMTest, CallInExpr)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 2 + sqrt(9);"), 5.0);
+}
+
+TEST_F(VMTest, CallInLoop)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:5; s = s + abs(3 - i); end; s;"), 6.0);
+}

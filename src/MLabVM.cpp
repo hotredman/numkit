@@ -1,6 +1,7 @@
 // src/MLabVM.cpp
 #include "MLabVM.hpp"
 #include "MLabEngine.hpp"
+#include "MLabSpan.hpp"
 
 #include <cmath>
 #include <iostream>
@@ -283,6 +284,31 @@ MValue VM::execute(const BytecodeChunk &chunk)
                 throw std::runtime_error("VM: unsupported type for 2D index set");
             }
             break;
+        }
+
+        // ── Function calls ────────────────────────────────────
+        case OpCode::CALL: {
+            // dst=a, argBase=b, nargs=c, funcIdx=d
+            const std::string &funcName = chunk.strings[instr.d];
+            uint8_t argBase = instr.b;
+            uint8_t nargs = instr.c;
+
+            // Lookup external function
+            auto extIt = engine_.externalFuncs_.find(funcName);
+            if (extIt != engine_.externalFuncs_.end()) {
+                // Build args span from registers
+                Span<const MValue> argsSpan(&registers_[argBase], nargs);
+
+                // Output buffer (single return for now)
+                MValue outBuf[1];
+                Span<MValue> outsSpan(outBuf, 1);
+
+                extIt->second(argsSpan, 1, outsSpan);
+                registers_[instr.a] = std::move(outBuf[0]);
+                break;
+            }
+
+            throw std::runtime_error("VM: undefined function '" + funcName + "'");
         }
 
         // ── Display ──────────────────────────────────────────

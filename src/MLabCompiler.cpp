@@ -165,8 +165,13 @@ uint8_t Compiler::compileNode(const ASTNode *node)
     case NodeType::MATRIX_LITERAL:
         return compileMatrixLiteral(node);
     case NodeType::INDEX:
-    case NodeType::CALL:
         return compileIndexExpr(node);
+    case NodeType::CALL:
+        return compileCall(node);
+    case NodeType::FUNCTION_DEF:
+        return compileFunctionDef(node);
+    case NodeType::RETURN_STMT:
+        return compileReturn(node);
     default:
         throw std::runtime_error("Compiler: unsupported node type "
                                  + std::to_string(static_cast<int>(node->type)));
@@ -714,6 +719,75 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
     return arr;
 }
 
+// ============================================================
+// Phase 4: Function calls
+// ============================================================
+
+uint8_t Compiler::compileCall(const ASTNode *node)
+{
+    // CALL node: children[0] = identifier, children[1..] = arguments
+    // Could be: function call OR array indexing
+    // Strategy: if name is a known variable → index, else → function call
+
+    const std::string &name = node->children[0]->strValue;
+    size_t nargs = node->children.size() - 1;
+
+    // Check if it's a known variable (already assigned in this scope)
+    auto it = varRegisters_.find(name);
+    if (it != varRegisters_.end()) {
+        // Treat as array indexing
+        return compileIndexExpr(node);
+    }
+
+    // It's a function call — compile arguments into consecutive registers
+    std::vector<uint8_t> argRegs;
+    for (size_t i = 1; i < node->children.size(); ++i) {
+        argRegs.push_back(compileNode(node->children[i].get()));
+    }
+
+    // Move args into consecutive block
+    uint8_t argBase = nextReg_;
+    for (size_t i = 0; i < argRegs.size(); ++i) {
+        uint8_t slot = tempReg();
+        if (argRegs[i] != slot) {
+            emitAB(OpCode::MOVE, slot, argRegs[i]);
+        }
+    }
+
+    uint8_t dst = tempReg();
+    int16_t funcIdx = addStringConstant(name);
+
+    // CALL: dst=a, funcIdx=d, argBase=b, nargs=c
+    emit(
+        Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
+    return dst;
+}
+
+uint8_t Compiler::compileFunctionDef(const ASTNode *node)
+{
+    // For now, just register the function in Engine — don't compile to bytecode
+    // The TreeWalker already handles function definitions
+    // VM will call user functions through Engine's userFuncs_ table
+
+    // node->strValue = function name
+    // node->returnNames = output parameter names
+    // node->children[0] = body
+    // node->params = input parameter names (stored in node)
+
+    // Store as UserFunction in Engine (same as TreeWalker does)
+    // This is done at compile-time, not runtime
+    // For now, skip — user functions executed via TreeWalker fallback
+    return 0;
+}
+
+uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
+{
+    // In MATLAB, return exits the current function
+    // For scripts, it's like HALT
+    emitNone(OpCode::RET_EMPTY);
+    return 0;
+}
+
 std::string Compiler::disassemble(const BytecodeChunk &chunk)
 {
     std::ostringstream os;
@@ -799,6 +873,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "INDEX_SET";
         case OpCode::INDEX_SET_2D:
             return "INDEX_SET_2D";
+        case OpCode::CALL:
+            return "CALL";
         case OpCode::CTRANSPOSE:
             return "CTRANSPOSE";
         case OpCode::TRANSPOSE:
