@@ -280,7 +280,11 @@ public:
         scalar_ = v;
         heap_ = nullptr;
     }
-    void setScalarFast(double v) { scalar_ = v; } // caller guarantees heap_==nullptr already
+    void setScalarFast(double v)
+    {
+        scalar_ = v;
+        heap_ = nullptr;
+    } // caller guarantees no heap to release
 
 private:
     // ── 16-byte layout ───────────────────────────────────────

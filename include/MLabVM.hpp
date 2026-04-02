@@ -2,7 +2,7 @@
 #pragma once
 
 #include "MLabBytecode.hpp"
-#include "MLabVMValue.hpp"
+#include "MLabValue.hpp"
 
 #include <unordered_map>
 #include <vector>
@@ -27,21 +27,20 @@ private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
 
-    // Register stack — pre-allocated, no per-call allocation
-    // Each function call pushes a frame of numRegisters onto the stack
-    static constexpr size_t kRegStackSize = 256 * 500; // 256 regs × 500 recursion depth
-    std::vector<VMValue> regStack_;                    // allocated once in constructor
-    size_t regStackTop_ = 0;                           // current top of stack
-    VMValue *R_ = nullptr;                             // pointer to current frame base
+    // Register stack — MValue directly (16 bytes each)
+    static constexpr size_t kRegStackSize = 256 * 500;
+    std::vector<MValue> regStack_;
+    size_t regStackTop_ = 0;
+    MValue *R_ = nullptr;
 
     // For-loop state
     struct ForState
     {
         MValue range;
-        const double *data = nullptr; // cached doubleData() pointer
+        const double *data = nullptr;
         size_t index = 0;
         size_t count = 0;
-        size_t rows = 0; // 0 = scalar, 1 = row vector, >1 = matrix columns
+        size_t rows = 0;
     };
     std::vector<ForState> forStack_;
 
@@ -49,19 +48,19 @@ private:
     int recursionDepth_ = 0;
     static constexpr int kMaxRecursion = 500;
 
-    // Per-chunk call target cache (shared across recursive calls)
+    // Per-chunk call target cache
     std::unordered_map<const BytecodeChunk *, std::vector<const BytecodeChunk *>> chunkCallCache_;
 
-    // Internal execute — operates on R_ (current frame)
-    VMValue executeInternal(const BytecodeChunk &chunk);
+    // Internal dispatch
+    MValue executeInternal(const BytecodeChunk &chunk);
 
     // User function call
-    VMValue callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, uint8_t nargs);
+    MValue callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs);
 
     // Helpers
-    void executeHorzcat(VMValue &dst, const VMValue *regs, uint8_t count);
-    void executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count);
-    void forSetVar(VMValue &varReg, const ForState &fs);
+    void executeHorzcat(MValue &dst, const MValue *regs, uint8_t count);
+    void executeVertcat(MValue &dst, const MValue *regs, uint8_t count);
+    void forSetVar(MValue &varReg, const ForState &fs);
 };
 
 } // namespace mlab
