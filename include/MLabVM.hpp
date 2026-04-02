@@ -23,12 +23,15 @@ public:
         compiledFuncs_ = funcs;
     }
 
+    // After execute(), get exported variables for environment sync
+    const std::vector<std::pair<std::string, MValue>> &lastVarMap() const { return lastVarMap_; }
+
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
 
     // Register stack — MValue directly (16 bytes each)
-    static constexpr size_t kRegStackSize = 256 * 500;
+    static constexpr size_t kRegStackSize = 256 * 50;
     std::vector<MValue> regStack_;
     size_t regStackTop_ = 0;
     MValue *R_ = nullptr;
@@ -54,10 +57,13 @@ private:
 
     // Recursion guard
     int recursionDepth_ = 0;
-    static constexpr int kMaxRecursion = 500;
+    static constexpr int kMaxRecursion = 50;
 
     // Per-chunk call target cache
     std::unordered_map<const BytecodeChunk *, std::vector<const BytecodeChunk *>> chunkCallCache_;
+
+    // Exported variables after execution
+    std::vector<std::pair<std::string, MValue>> lastVarMap_;
 
     // Internal dispatch
     MValue executeInternal(const BytecodeChunk &chunk);

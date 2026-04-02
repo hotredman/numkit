@@ -41,6 +41,7 @@ private:
     std::unordered_map<std::string, uint8_t> varRegisters_;
     uint8_t nextReg_ = 0;
     int anonCounter_ = 0;
+    bool isTopLevel_ = false;
 
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
@@ -117,6 +118,7 @@ private:
     {
         std::vector<size_t> breakPatches;
         std::vector<size_t> continuePatches;
+        bool isForLoop = false; // true for for-loops (need forStack_ pop on break)
     };
     std::vector<LoopContext> loopStack_;
 };

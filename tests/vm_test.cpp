@@ -658,6 +658,13 @@ TEST_F(VMTest, ForBreak)
                      6.0);
 }
 
+TEST_F(VMTest, ForBreakNested)
+{
+    EXPECT_DOUBLE_EQ(runScalar("count = 0; for i = 1:10; for j = 1:10; if j == 3; break; end; "
+                               "count = count + 1; end; end; count;"),
+                     20.0);
+}
+
 TEST_F(VMTest, ForContinue)
 {
     // Skip i == 3

@@ -140,7 +140,8 @@ MValue Engine::eval(const std::string &code)
 
             // Export script-level variables to global environment
             for (auto &[name, val] : vm_->lastVarMap())
-                globalEnv_->set(name, val);
+                if (!kBuiltinNames.count(name))
+                    globalEnv_->set(name, val);
 
             return result;
         } catch (...) {

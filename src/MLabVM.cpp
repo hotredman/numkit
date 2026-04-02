@@ -51,7 +51,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
     // Export script-level variables to lastVarMap_ for environment sync
     lastVarMap_.clear();
     for (auto &[name, reg] : chunk.varMap) {
-        if (reg < chunk.numRegisters && !R_[reg].isEmpty())
+        if (reg < chunk.numRegisters)
             lastVarMap_.push_back({name, R_[reg]});
     }
 
@@ -71,8 +71,9 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
     auto *R = R_;
     auto &resolvedFuncs = chunkCallCache_[&chunk];
 
-    while (ip < end) {
-        try {
+dispatch_loop:
+    try {
+        while (ip < end) {
             const Instruction &I = *ip;
 
             switch (I.op) {
@@ -802,6 +803,8 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
             case OpCode::HALT:
                 return MValue::empty();
             case OpCode::NOP:
+                if (I.a == 1 && !forStack_.empty())
+                    forStack_.pop_back(); // break from for-loop
                 break;
 
             // ── Try/catch ────────────────────────────────────────
@@ -921,25 +924,20 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
 
             } // switch
             ++ip;
-        } catch (const std::exception &ex) {
-            // If there's an active try handler, jump to catch block
-            if (!tryStack_.empty()) {
-                TryHandler th = tryStack_.back();
-                tryStack_.pop_back();
-
-                // Build error struct: e.message, e.identifier
-                MValue err = MValue::structure();
-                err.field("message") = MValue::fromString(ex.what(), &engine_.allocator_);
-                err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
-                R[th.exReg] = std::move(err);
-
-                // Jump to catch block
-                ip = th.catchIp;
-                continue;
-            }
-            throw; // re-throw if no handler
+        } // while
+    } catch (const std::exception &ex) {
+        if (!tryStack_.empty()) {
+            TryHandler th = tryStack_.back();
+            tryStack_.pop_back();
+            MValue err = MValue::structure();
+            err.field("message") = MValue::fromString(ex.what(), &engine_.allocator_);
+            err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
+            R[th.exReg] = std::move(err);
+            ip = th.catchIp;
+            goto dispatch_loop;
         }
-    } // while
+        throw;
+    }
 
     return MValue::empty();
 }

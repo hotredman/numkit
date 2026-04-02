@@ -46,8 +46,9 @@ uint8_t Compiler::varReg(const std::string &name)
     varRegisters_[name] = r;
 
     // If compiling a top-level script and variable exists in globalEnv,
-    // emit LOAD_CONST to initialize register with its current value
-    if (isTopLevel_ && chunk_.name == "<script>") {
+    // emit LOAD_CONST to initialize register with its current value.
+    // Skip builtin constants (pi, i, j, etc.) — they get overwritten by user code.
+    if (isTopLevel_ && chunk_.name == "<script>" && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());
@@ -727,6 +728,22 @@ uint8_t Compiler::compileBreak(const ASTNode * /*node*/)
 {
     if (loopStack_.empty())
         throw std::runtime_error("Compiler: break outside of loop");
+
+    // For for-loops, need to pop forStack_ before jumping out.
+    // Count how many for-loop levels we need to pop (usually 1 — the innermost)
+    if (loopStack_.back().isForLoop) {
+        // Emit FOR_NEXT with the loop's variable that will force-exit.
+        // Actually, simpler: emit a NOP that VM interprets as forStack pop.
+        // Use TRY_END as a safe NOP-like... no.
+        // Just emit a JMP to FOR_NEXT instead of past it.
+        // The FOR_NEXT will pop forStack when index >= count.
+        // But we need to set index = count first...
+
+        // Simplest: jump to a landing pad that pops forStack then jumps to end.
+        // We'll patch both: first a forStack pop placeholder, then JMP.
+        emitA(OpCode::NOP, 1); // NOP with a=1 means "pop forStack" — VM convention
+    }
+
     loopStack_.back().breakPatches.push_back(currentPos());
     emitD(OpCode::JMP, 0); // placeholder — patched when loop ends
     return 0;
@@ -763,7 +780,7 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     uint8_t rangeReg = compileNode(node->children[0].get());
     uint8_t vReg = varReg(node->strValue);
 
-    loopStack_.push_back(LoopContext{});
+    loopStack_.push_back(LoopContext{{}, {}, true});
 
     size_t forInitPos = currentPos();
     // FOR_INIT: a=varReg, b=rangeReg, d=endOffset(placeholder)
