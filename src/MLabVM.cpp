@@ -13,13 +13,6 @@ VM::VM(Engine &engine)
     : engine_(engine)
 {}
 
-// Helper: get scalar from register (inline, no allocation)
-static inline double regScalar(const VMValue &r)
-{
-    return r.scalar(); // asserts Tag::SCALAR
-}
-
-// Helper: colon count
 static inline size_t colonCount(double start, double step, double stop)
 {
     if (step == 0.0)
@@ -30,22 +23,34 @@ static inline size_t colonCount(double start, double step, double stop)
     return static_cast<size_t>(std::floor(n + 1e-10)) + 1;
 }
 
+// ============================================================
+// Public API: MValue boundary
+// ============================================================
+
 MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
 {
+    registers_.clear();
     registers_.resize(chunk.numRegisters);
-    for (auto &r : registers_)
-        r = VMValue();
 
-    // Load function arguments
     if (args) {
         uint8_t pc = std::min(nargs, chunk.numParams);
         for (uint8_t i = 0; i < pc; ++i)
             registers_[i] = VMValue::fromMValue(args[i]);
     }
 
+    VMValue result = executeInternal(chunk);
+    return result.toMValue(&engine_.allocator_);
+}
+
+// ============================================================
+// Internal execute — VMValue throughout, no MValue in hot path
+// ============================================================
+
+VMValue VM::executeInternal(const BytecodeChunk &chunk)
+{
     const Instruction *ip = chunk.code.data();
     const Instruction *end = ip + chunk.code.size();
-    auto &R = registers_; // alias for brevity
+    auto &R = registers_;
 
     while (ip < end) {
         const Instruction &I = *ip;
@@ -77,7 +82,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             R[I.a].setMValue(MValue::fromString(":", &engine_.allocator_));
             break;
 
-        // ── Scalar arithmetic (fast path — no MValue) ────────
+        // ── Scalar arithmetic ────────────────────────────────
         case OpCode::ADD:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(R[I.b].scalar() + R[I.c].scalar());
@@ -91,49 +96,27 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 goto binary_slow;
             break;
         case OpCode::MUL:
-            if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() * R[I.c].scalar());
-            } else
-                goto binary_slow;
-            break;
-        case OpCode::RDIV:
-            if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() / R[I.c].scalar());
-            } else
-                goto binary_slow;
-            break;
-        case OpCode::POW:
-            if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(std::pow(R[I.b].scalar(), R[I.c].scalar()));
-            } else
-                goto binary_slow;
-            break;
-        case OpCode::LDIV:
-            if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.c].scalar() / R[I.b].scalar());
-            } else
-                goto binary_slow;
-            break;
-
-        // Element-wise (same as regular for scalars)
         case OpCode::EMUL:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(R[I.b].scalar() * R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
+        case OpCode::RDIV:
         case OpCode::ERDIV:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(R[I.b].scalar() / R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
+        case OpCode::LDIV:
         case OpCode::ELDIV:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(R[I.c].scalar() / R[I.b].scalar());
             } else
                 goto binary_slow;
             break;
+        case OpCode::POW:
         case OpCode::EPOW:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(std::pow(R[I.b].scalar(), R[I.c].scalar()));
@@ -141,7 +124,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 goto binary_slow;
             break;
 
-        // ── Comparison (fast path) ───────────────────────────
+        // ── Comparison ───────────────────────────────────────
         case OpCode::EQ:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar(R[I.b].scalar() == R[I.c].scalar() ? 1.0 : 0.0);
@@ -178,8 +161,6 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             } else
                 goto binary_slow;
             break;
-
-        // ── Logical (fast path) ──────────────────────────────
         case OpCode::AND:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalar((R[I.b].scalar() != 0.0 && R[I.c].scalar() != 0.0) ? 1.0 : 0.0);
@@ -193,7 +174,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 goto binary_slow;
             break;
 
-        // ── Unary (fast path) ────────────────────────────────
+        // ── Unary ────────────────────────────────────────────
         case OpCode::NEG:
             if (R[I.b].isScalar()) {
                 R[I.a].setScalar(-R[I.b].scalar());
@@ -221,14 +202,12 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         case OpCode::JMP:
             ip += I.d;
             continue;
-
         case OpCode::JMP_TRUE:
             if (R[I.a].toBool()) {
                 ip += I.d;
                 continue;
             }
             break;
-
         case OpCode::JMP_FALSE:
             if (!R[I.a].toBool()) {
                 ip += I.d;
@@ -249,17 +228,14 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 fs.count = fs.range.dims().cols();
             }
             fs.index = 0;
-
             if (fs.count == 0) {
                 ip += I.d;
                 continue;
             }
-
             forStack_.push_back(std::move(fs));
             forSetVar(R[I.a], forStack_.back());
             break;
         }
-
         case OpCode::FOR_NEXT: {
             auto &fs = forStack_.back();
             fs.index++;
@@ -274,8 +250,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
 
         // ── Colon ────────────────────────────────────────────
         case OpCode::COLON: {
-            double start = R[I.b].toDouble();
-            double stop = R[I.c].toDouble();
+            double start = R[I.b].toDouble(), stop = R[I.c].toDouble();
             size_t cnt = colonCount(start, 1.0, stop);
             auto mat = MValue::matrix(1, cnt, MType::DOUBLE, &engine_.allocator_);
             if (cnt > 0) {
@@ -286,11 +261,8 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             R[I.a].setMValue(std::move(mat));
             break;
         }
-
         case OpCode::COLON3: {
-            double start = R[I.b].toDouble();
-            double step = R[I.c].toDouble();
-            double stop = R[I.e].toDouble();
+            double start = R[I.b].toDouble(), step = R[I.c].toDouble(), stop = R[I.e].toDouble();
             size_t cnt = colonCount(start, step, stop);
             auto mat = MValue::matrix(1, cnt, MType::DOUBLE, &engine_.allocator_);
             if (cnt > 0) {
@@ -311,34 +283,24 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         case OpCode::HORZCAT:
             executeHorzcat(R[I.a], &R[I.b], I.c);
             break;
-
         case OpCode::VERTCAT:
             executeVertcat(R[I.a], &R[I.b], I.c);
             break;
 
         // ── Array indexing ───────────────────────────────────
         case OpCode::INDEX_GET: {
-            const VMValue &arr = R[I.b];
-            const VMValue &idx = R[I.c];
-
-            if (arr.isScalar() && idx.isScalar()) {
-                R[I.a].setScalar(arr.scalar());
-            } else if (idx.isScalar() && arr.isMValue()) {
-                size_t i = (size_t) idx.scalar() - 1;
-                const MValue &mv = arr.mvalue();
-                if (mv.type() == MType::DOUBLE) {
-                    R[I.a].setScalar(mv.doubleData()[i]);
-                } else {
-                    throw std::runtime_error("VM: unsupported type for indexing");
-                }
-            } else if (idx.isMValue() && arr.isMValue()) {
-                const MValue &mv = arr.mvalue();
-                const MValue &ix = idx.mvalue();
+            if (R[I.b].isScalar() && R[I.c].isScalar()) {
+                R[I.a].setScalar(R[I.b].scalar());
+            } else if (R[I.c].isScalar() && R[I.b].isMValue()) {
+                size_t i = (size_t) R[I.c].scalar() - 1;
+                R[I.a].setScalar(R[I.b].mvalue().doubleData()[i]);
+            } else if (R[I.c].isMValue() && R[I.b].isMValue()) {
+                const MValue &mv = R[I.b].mvalue();
+                const MValue &ix = R[I.c].mvalue();
                 size_t n = ix.numel();
                 auto res = MValue::matrix(1, n, MType::DOUBLE, &engine_.allocator_);
                 double *dst = res.doubleDataMut();
-                const double *src = mv.doubleData();
-                const double *id = ix.doubleData();
+                const double *src = mv.doubleData(), *id = ix.doubleData();
                 for (size_t k = 0; k < n; ++k)
                     dst[k] = src[(size_t) id[k] - 1];
                 R[I.a].setMValue(std::move(res));
@@ -347,75 +309,61 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             }
             break;
         }
-
         case OpCode::INDEX_GET_2D: {
-            const VMValue &arr = R[I.b];
-            if (arr.isMValue() && R[I.c].isScalar() && R[I.e].isScalar()) {
-                size_t r = (size_t) R[I.c].scalar() - 1;
-                size_t c = (size_t) R[I.e].scalar() - 1;
-                const MValue &mv = arr.mvalue();
+            if (R[I.b].isMValue() && R[I.c].isScalar() && R[I.e].isScalar()) {
+                size_t r = (size_t) R[I.c].scalar() - 1, c = (size_t) R[I.e].scalar() - 1;
+                const MValue &mv = R[I.b].mvalue();
                 R[I.a].setScalar(mv.doubleData()[mv.dims().sub2ind(r, c)]);
             } else {
                 throw std::runtime_error("VM: non-scalar 2D indexing not supported");
             }
             break;
         }
-
         case OpCode::INDEX_SET: {
-            VMValue &arr = R[I.a];
             double val = R[I.c].toDouble();
             size_t i = (size_t) R[I.b].toDouble() - 1;
-
-            if (arr.isMValue()) {
-                MValue &mv = arr.mvalue();
+            if (R[I.a].isMValue()) {
+                MValue &mv = R[I.a].mvalue();
                 if (i >= mv.numel()) {
                     size_t ns = i + 1;
-                    auto grown = MValue::matrix(1, ns, MType::DOUBLE, &engine_.allocator_);
-                    double *dst = grown.doubleDataMut();
+                    auto g = MValue::matrix(1, ns, MType::DOUBLE, &engine_.allocator_);
+                    double *dst = g.doubleDataMut();
                     std::fill(dst, dst + ns, 0.0);
                     if (!mv.isEmpty()) {
-                        const double *src = mv.doubleData();
-                        std::copy(src, src + mv.numel(), dst);
+                        const double *s = mv.doubleData();
+                        std::copy(s, s + mv.numel(), dst);
                     }
-                    mv = std::move(grown);
+                    mv = std::move(g);
                 }
                 mv.doubleDataMut()[i] = val;
-            } else if (arr.isEmpty() || arr.isScalar()) {
+            } else {
                 size_t ns = i + 1;
                 auto mat = MValue::matrix(1, ns, MType::DOUBLE, &engine_.allocator_);
                 double *dst = mat.doubleDataMut();
                 std::fill(dst, dst + ns, 0.0);
-                if (arr.isScalar() && ns >= 1)
-                    dst[0] = arr.scalar();
+                if (R[I.a].isScalar() && ns >= 1)
+                    dst[0] = R[I.a].scalar();
                 dst[i] = val;
-                arr.setMValue(std::move(mat));
+                R[I.a].setMValue(std::move(mat));
             }
             break;
         }
-
         case OpCode::INDEX_SET_2D: {
-            VMValue &arr = R[I.a];
-            if (arr.isMValue()) {
-                size_t r = (size_t) R[I.b].toDouble() - 1;
-                size_t c = (size_t) R[I.c].toDouble() - 1;
-                double v = R[I.e].toDouble();
-                MValue &mv = arr.mvalue();
-                mv.doubleDataMut()[mv.dims().sub2ind(r, c)] = v;
+            if (R[I.a].isMValue()) {
+                size_t r = (size_t) R[I.b].toDouble() - 1, c = (size_t) R[I.c].toDouble() - 1;
+                MValue &mv = R[I.a].mvalue();
+                mv.doubleDataMut()[mv.dims().sub2ind(r, c)] = R[I.e].toDouble();
             }
             break;
         }
 
-        // ── Function calls ───────────────────────────────────
-        // ── Inline scalar builtins (numeric ID, zero string compare) ─
+        // ── Inline scalar builtins (CALL_BUILTIN) ────────────
         case OpCode::CALL_BUILTIN: {
-            uint8_t argBase = I.b;
-            uint8_t na = I.c;
+            uint8_t argBase = I.b, na = I.c;
             int16_t bid = I.d;
 
-            // 1-arg scalar builtins (IDs 0-15)
             if (na == 1 && R[argBase].isScalar()) {
-                double v = R[argBase].scalar();
-                double result;
+                double v = R[argBase].scalar(), result;
                 switch (bid) {
                 case 0:
                     result = std::fabs(v);
@@ -457,7 +405,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                     result = std::tan(v);
                     break;
                 case 13:
-                    result = (v > 0.0) ? 1.0 : (v < 0.0) ? -1.0 : 0.0;
+                    result = (v > 0) ? 1.0 : (v < 0) ? -1.0 : 0.0;
                     break;
                 case 14:
                     result = std::isnan(v) ? 1.0 : 0.0;
@@ -471,12 +419,8 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 R[I.a].setScalar(result);
                 break;
             }
-
-            // 2-arg scalar builtins (IDs 20-25)
             if (na == 2 && R[argBase].isScalar() && R[argBase + 1].isScalar()) {
-                double a = R[argBase].scalar();
-                double b = R[argBase + 1].scalar();
-                double result;
+                double a = R[argBase].scalar(), b = R[argBase + 1].scalar(), result;
                 switch (bid) {
                 case 20:
                     result = std::fmod(a, b);
@@ -505,27 +449,23 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                 break;
             }
 
-        // Non-scalar fallback: resolve name and call ExternalFunc
         builtin_fallback: {
-            // Resolve builtin ID back to name for ExternalFunc lookup
-            static const char *builtinNames[] = {"abs",   "floor", "ceil",  "round", "fix",
-                                                 "sqrt",  "exp",   "log",   "log2",  "log10",
-                                                 "sin",   "cos",   "tan",   "sign",  "isnan",
-                                                 "isinf", nullptr, nullptr, nullptr, nullptr,
-                                                 "mod",   "rem",   "max",   "min",   "pow",
-                                                 "atan2"};
-            const char *fname = (bid >= 0 && bid < 26) ? builtinNames[bid] : nullptr;
+            static const char *bn[] = {"abs",   "floor", "ceil",  "round", "fix",   "sqrt",  "exp",
+                                       "log",   "log2",  "log10", "sin",   "cos",   "tan",   "sign",
+                                       "isnan", "isinf", nullptr, nullptr, nullptr, nullptr, "mod",
+                                       "rem",   "max",   "min",   "pow",   "atan2"};
+            const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
             if (fname) {
                 auto extIt = engine_.externalFuncs_.find(fname);
                 if (extIt != engine_.externalFuncs_.end()) {
                     std::vector<MValue> margs(na);
                     for (uint8_t i = 0; i < na; ++i)
                         margs[i] = R[argBase + i].toMValue(&engine_.allocator_);
-                    Span<const MValue> argsSpan(margs.data(), na);
-                    MValue outBuf[1];
-                    Span<MValue> outsSpan(outBuf, 1);
-                    extIt->second(argsSpan, 1, outsSpan);
-                    R[I.a] = VMValue::fromMValue(std::move(outBuf[0]));
+                    Span<const MValue> as(margs.data(), na);
+                    MValue ob[1];
+                    Span<MValue> os(ob, 1);
+                    extIt->second(as, 1, os);
+                    R[I.a] = VMValue::fromMValue(std::move(ob[0]));
                     break;
                 }
             }
@@ -536,35 +476,28 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         // ── General function calls ───────────────────────────
         case OpCode::CALL: {
             const std::string &funcName = chunk.strings[I.d];
-            uint8_t argBase = I.b;
-            uint8_t na = I.c;
+            uint8_t argBase = I.b, na = I.c;
 
-            // 1. Compiled user function
+            // 1. Compiled user function — VMValue native, no MValue conversion
             if (compiledFuncs_) {
                 auto cfIt = compiledFuncs_->find(funcName);
                 if (cfIt != compiledFuncs_->end()) {
-                    std::vector<MValue> margs(na);
-                    for (uint8_t i = 0; i < na; ++i)
-                        margs[i] = R[argBase + i].toMValue(&engine_.allocator_);
-
-                    MValue result = executeCall(cfIt->second, margs.data(), na);
-                    R[I.a] = VMValue::fromMValue(std::move(result));
+                    R[I.a] = callUserFunc(cfIt->second, &R[argBase], na);
                     break;
                 }
             }
 
-            // 2. External/builtin function
+            // 2. External/builtin — needs MValue conversion
             auto extIt = engine_.externalFuncs_.find(funcName);
             if (extIt != engine_.externalFuncs_.end()) {
                 std::vector<MValue> margs(na);
                 for (uint8_t i = 0; i < na; ++i)
                     margs[i] = R[argBase + i].toMValue(&engine_.allocator_);
-
-                Span<const MValue> argsSpan(margs.data(), na);
-                MValue outBuf[1];
-                Span<MValue> outsSpan(outBuf, 1);
-                extIt->second(argsSpan, 1, outsSpan);
-                R[I.a] = VMValue::fromMValue(std::move(outBuf[0]));
+                Span<const MValue> as(margs.data(), na);
+                MValue ob[1];
+                Span<MValue> os(ob, 1);
+                extIt->second(as, 1, os);
+                R[I.a] = VMValue::fromMValue(std::move(ob[0]));
                 break;
             }
 
@@ -575,11 +508,11 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         case OpCode::DISPLAY: {
             const std::string &name = chunk.strings[I.d];
             std::ostringstream os;
-            if (R[I.a].isScalar()) {
+            if (R[I.a].isScalar())
                 os << name << " = " << R[I.a].scalar() << "\n\n";
-            } else if (R[I.a].isEmpty()) {
+            else if (R[I.a].isEmpty())
                 os << name << " = []\n\n";
-            } else {
+            else {
                 MValue mv = R[I.a].toMValue(&engine_.allocator_);
                 if (mv.isChar())
                     os << name << " = '" << mv.toString() << "'\n\n";
@@ -592,22 +525,18 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
 
         // ── Return ───────────────────────────────────────────
         case OpCode::RET:
-            return R[I.a].toMValue(&engine_.allocator_);
-
+            return R[I.a]; // return VMValue directly
         case OpCode::RET_EMPTY:
-            return MValue::empty();
-
+            return VMValue();
         case OpCode::HALT:
-            return MValue::empty();
-
+            return VMValue();
         case OpCode::NOP:
             break;
 
         default:
-            throw std::runtime_error("VM: unimplemented opcode "
-                                     + std::to_string(static_cast<int>(I.op)));
+            throw std::runtime_error("VM: unimplemented opcode " + std::to_string((int) I.op));
 
-        // ── Slow paths (array fallback) ──────────────────────
+        // ── Slow paths ───────────────────────────────────────
         binary_slow: {
             MValue a = R[I.b].toMValue(&engine_.allocator_);
             MValue b = R[I.c].toMValue(&engine_.allocator_);
@@ -677,9 +606,8 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
                     break;
                 }
             }
-            throw std::runtime_error("VM: unsupported binary op on arrays");
+            throw std::runtime_error("VM: unsupported binary op");
         }
-
         unary_slow: {
             MValue src = R[I.b].toMValue(&engine_.allocator_);
             const char *opStr = nullptr;
@@ -710,15 +638,51 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         }
 
         } // switch
-
         ++ip;
     }
 
-    return MValue::empty();
+    return VMValue();
 }
 
 // ============================================================
-// Array construction
+// User function call — VMValue native
+// ============================================================
+
+VMValue VM::callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, uint8_t nargs)
+{
+    if (++recursionDepth_ > kMaxRecursion) {
+        --recursionDepth_;
+        throw std::runtime_error("VM: maximum recursion depth exceeded");
+    }
+
+    // Copy args before moving registers (args points into registers_)
+    uint8_t pc = std::min(nargs, funcChunk.numParams);
+    VMValue argsCopy[16]; // stack buffer, no heap alloc for <= 16 args
+    for (uint8_t i = 0; i < pc; ++i)
+        argsCopy[i] = args[i];
+
+    // Save caller state
+    auto savedRegs = std::move(registers_);
+    auto savedForStack = std::move(forStack_);
+
+    // Setup callee
+    registers_.clear();
+    registers_.resize(funcChunk.numRegisters);
+    for (uint8_t i = 0; i < pc; ++i)
+        registers_[i] = std::move(argsCopy[i]);
+
+    // Execute
+    VMValue result = executeInternal(funcChunk);
+
+    // Restore
+    registers_ = std::move(savedRegs);
+    forStack_ = std::move(savedForStack);
+    --recursionDepth_;
+    return result;
+}
+
+// ============================================================
+// Array helpers
 // ============================================================
 
 void VM::executeHorzcat(VMValue &dst, const VMValue *regs, uint8_t count)
@@ -733,7 +697,6 @@ void VM::executeHorzcat(VMValue &dst, const VMValue *regs, uint8_t count)
         }
         total += regs[i].mvalue().numel();
     }
-
     auto result = MValue::matrix(1, total, MType::DOUBLE, &engine_.allocator_);
     double *d = result.doubleDataMut();
     size_t pos = 0;
@@ -742,13 +705,12 @@ void VM::executeHorzcat(VMValue &dst, const VMValue *regs, uint8_t count)
             continue;
         if (regs[i].isScalar()) {
             d[pos++] = regs[i].scalar();
-        } else {
-            const MValue &mv = regs[i].mvalue();
-            const double *src = mv.doubleData();
-            size_t n = mv.numel();
-            std::copy(src, src + n, d + pos);
-            pos += n;
+            continue;
         }
+        const double *src = regs[i].mvalue().doubleData();
+        size_t n = regs[i].mvalue().numel();
+        std::copy(src, src + n, d + pos);
+        pos += n;
     }
     dst.setMValue(std::move(result));
 }
@@ -774,7 +736,6 @@ void VM::executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count)
         dst = VMValue();
         return;
     }
-
     auto result = MValue::matrix(totalRows, cols, MType::DOUBLE, &engine_.allocator_);
     double *d = result.doubleDataMut();
     size_t rowOff = 0;
@@ -782,8 +743,7 @@ void VM::executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count)
         if (regs[i].isEmpty())
             continue;
         if (regs[i].isScalar()) {
-            d[rowOff] = regs[i].scalar();
-            rowOff++;
+            d[rowOff++] = regs[i].scalar();
             continue;
         }
         auto dims = regs[i].mvalue().dims();
@@ -796,10 +756,6 @@ void VM::executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count)
     dst.setMValue(std::move(result));
 }
 
-// ============================================================
-// For-loop helper
-// ============================================================
-
 void VM::forSetVar(VMValue &varReg, const ForState &fs)
 {
     const MValue &range = fs.range;
@@ -811,40 +767,18 @@ void VM::forSetVar(VMValue &varReg, const ForState &fs)
         auto dims = range.dims();
         if (dims.rows() == 1) {
             varReg.setScalar(range.doubleData()[fs.index]);
-        } else {
-            size_t rows = dims.rows();
-            auto col = MValue::matrix(rows, 1, MType::DOUBLE, &engine_.allocator_);
-            double *dst = col.doubleDataMut();
-            const double *src = range.doubleData();
-            for (size_t r = 0; r < rows; ++r)
-                dst[r] = src[r + fs.index * rows];
-            varReg.setMValue(std::move(col));
+            return;
         }
+        size_t rows = dims.rows();
+        auto col = MValue::matrix(rows, 1, MType::DOUBLE, &engine_.allocator_);
+        double *dst = col.doubleDataMut();
+        const double *src = range.doubleData();
+        for (size_t r = 0; r < rows; ++r)
+            dst[r] = src[r + fs.index * rows];
+        varReg.setMValue(std::move(col));
         return;
     }
     throw std::runtime_error("VM: unsupported type in for-loop range");
-}
-
-// ============================================================
-// Function call
-// ============================================================
-
-MValue VM::executeCall(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs)
-{
-    if (++recursionDepth_ > kMaxRecursion) {
-        --recursionDepth_;
-        throw std::runtime_error("VM: maximum recursion depth exceeded");
-    }
-
-    auto savedRegs = std::move(registers_);
-    auto savedForStack = std::move(forStack_);
-
-    MValue result = execute(funcChunk, args, nargs);
-
-    registers_ = std::move(savedRegs);
-    forStack_ = std::move(savedForStack);
-    --recursionDepth_;
-    return result;
 }
 
 } // namespace mlab

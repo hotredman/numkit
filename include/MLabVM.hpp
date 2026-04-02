@@ -16,6 +16,7 @@ class VM
 public:
     explicit VM(Engine &engine);
 
+    // Public API: MValue in/out
     MValue execute(const BytecodeChunk &chunk, const MValue *args = nullptr, uint8_t nargs = 0);
 
     void setCompiledFuncs(const std::unordered_map<std::string, BytecodeChunk> *funcs)
@@ -27,7 +28,7 @@ private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
 
-    // Register file — VMValue for fast scalar path
+    // Register file
     std::vector<VMValue> registers_;
 
     // For-loop state
@@ -43,11 +44,16 @@ private:
     int recursionDepth_ = 0;
     static constexpr int kMaxRecursion = 500;
 
+    // Internal execute — returns VMValue, no MValue conversion overhead
+    VMValue executeInternal(const BytecodeChunk &chunk);
+
+    // User function call — VMValue args, VMValue return, no MValue
+    VMValue callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, uint8_t nargs);
+
     // Helpers
     void executeHorzcat(VMValue &dst, const VMValue *regs, uint8_t count);
     void executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count);
     void forSetVar(VMValue &varReg, const ForState &fs);
-    MValue executeCall(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs);
 };
 
 } // namespace mlab
