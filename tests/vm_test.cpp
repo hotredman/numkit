@@ -564,6 +564,31 @@ TEST_F(VMTest, AnonFuncCapture)
     EXPECT_DOUBLE_EQ(runScalar("a = 10; f = @(x) x + a; f(5);"), 15.0);
 }
 
+// ============================================================
+// Multi-return
+// ============================================================
+
+TEST_F(VMTest, MultiReturnBasic)
+{
+    // swap(3,7) → a=7, b=3. p=7, q=3. p + q*10 = 37
+    EXPECT_DOUBLE_EQ(
+        runScalar(
+            "function [a, b] = swap(x, y); a = y; b = x; end; [p, q] = swap(3, 7); p + q * 10;"),
+        37.0);
+}
+
+TEST_F(VMTest, MultiReturnSize)
+{
+    EXPECT_DOUBLE_EQ(runScalar("[r, c] = size(zeros(3, 4)); r + c;"), 7.0);
+}
+
+TEST_F(VMTest, MultiReturnIgnore)
+{
+    EXPECT_DOUBLE_EQ(runScalar(
+                         "function [a, b] = pair(x); a = x; b = x * 2; end; [~, v] = pair(5); v;"),
+                     10.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

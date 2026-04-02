@@ -76,6 +76,7 @@ private:
     uint8_t compileBool(const ASTNode *node);
     uint8_t compileIdentifier(const ASTNode *node);
     uint8_t compileAssign(const ASTNode *node);
+    uint8_t compileMultiAssign(const ASTNode *node);
     uint8_t compileBinaryOp(const ASTNode *node);
     uint8_t compileUnaryOp(const ASTNode *node);
     uint8_t compileExprStmt(const ASTNode *node);

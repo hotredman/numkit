@@ -573,6 +573,37 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 throw std::runtime_error("VM: undefined function '" + funcName + "'");
             }
 
+            // ── Multi-return function call ──────────────────────
+            case OpCode::CALL_MULTI: {
+                // a=outBase, b=argBase, c=nargs, d=funcIdx, e=nout
+                uint8_t outBase = I.a, argBase = I.b, na = I.c, nout = I.e;
+                int16_t funcIdx = I.d;
+                const std::string &funcName = chunk.strings[funcIdx];
+
+                // Try compiled user function
+                if (compiledFuncs_) {
+                    auto cfIt = compiledFuncs_->find(funcName);
+                    if (cfIt != compiledFuncs_->end()) {
+                        auto results = callUserFuncMulti(cfIt->second, &R[argBase], na, nout);
+                        for (size_t i = 0; i < results.size() && i < nout; ++i)
+                            R[outBase + i] = std::move(results[i]);
+                        break;
+                    }
+                }
+                // External function with nout
+                auto extIt = engine_.externalFuncs_.find(funcName);
+                if (extIt != engine_.externalFuncs_.end()) {
+                    std::vector<MValue> outBuf(nout);
+                    Span<const MValue> as(&R[argBase], na);
+                    Span<MValue> os(outBuf.data(), nout);
+                    extIt->second(as, nout, os);
+                    for (size_t i = 0; i < nout; ++i)
+                        R[outBase + i] = std::move(outBuf[i]);
+                    break;
+                }
+                throw std::runtime_error("VM: undefined function '" + funcName + "'");
+            }
+
             // ── Indirect function call (func handle) or array indexing ─
             case OpCode::CALL_INDIRECT: {
                 // a=dst, b=fhReg, c=argBase, e=nargs
@@ -677,6 +708,15 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
             // ── Return ───────────────────────────────────────────
             case OpCode::RET:
                 return R[I.a];
+            case OpCode::RET_MULTI: {
+                // a=base, b=count — return values are in R[base..base+count-1]
+                // For multi-return, we store results in a cell so callUserFuncMulti can extract
+                uint8_t base = I.a, count = I.b;
+                auto cell = MValue::cell(1, count);
+                for (uint8_t i = 0; i < count; ++i)
+                    cell.cellAt(i) = R[base + i];
+                return cell;
+            }
             case OpCode::RET_EMPTY:
                 return MValue::empty();
             case OpCode::HALT:
@@ -869,6 +909,40 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
     forStack_.resize(savedForSize);
     --recursionDepth_;
     return result;
+}
+
+// ============================================================
+// Array helpers
+// ============================================================
+
+// ============================================================
+// Multi-return user function call
+// ============================================================
+
+std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
+                                          const MValue *args,
+                                          uint8_t nargs,
+                                          size_t nout)
+{
+    // Call the function — it returns a cell for multi-return (via RET_MULTI)
+    // or a single value (via RET)
+    MValue result = callUserFunc(funcChunk, args, nargs);
+
+    if (result.isCell() && result.numel() >= nout) {
+        // RET_MULTI packed results in a cell
+        std::vector<MValue> results;
+        results.reserve(nout);
+        for (size_t i = 0; i < nout; ++i)
+            results.push_back(result.cellAt(i));
+        return results;
+    }
+
+    // Single return — wrap in vector
+    std::vector<MValue> results;
+    results.push_back(std::move(result));
+    while (results.size() < nout)
+        results.push_back(MValue::empty());
+    return results;
 }
 
 // ============================================================

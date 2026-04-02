@@ -144,6 +144,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileIdentifier(node);
     case NodeType::ASSIGN:
         return compileAssign(node);
+    case NodeType::MULTI_ASSIGN:
+        return compileMultiAssign(node);
     case NodeType::BINARY_OP:
         return compileBinaryOp(node);
     case NodeType::UNARY_OP:
@@ -261,6 +263,70 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
     }
 
     throw std::runtime_error("Compiler: unsupported assignment target");
+}
+
+uint8_t Compiler::compileMultiAssign(const ASTNode *node)
+{
+    // [a, b, c] = func(args)
+    // node->returnNames = ["a", "b", "c"]  (~ means ignore)
+    // node->children[0] = CALL node
+    auto *callNode = node->children[0].get();
+    size_t nout = node->returnNames.size();
+
+    // Allocate destination registers for outputs
+    std::vector<uint8_t> outRegs;
+    for (auto &name : node->returnNames) {
+        if (name == "~")
+            outRegs.push_back(tempReg()); // throwaway
+        else
+            outRegs.push_back(varReg(name));
+    }
+
+    // Compile call arguments
+    std::vector<uint8_t> argRegs;
+    for (size_t i = 1; i < callNode->children.size(); ++i)
+        argRegs.push_back(compileNode(callNode->children[i].get()));
+
+    uint8_t argBase = nextReg_;
+    for (size_t i = 0; i < argRegs.size(); ++i) {
+        uint8_t slot = tempReg();
+        if (argRegs[i] != slot)
+            emitAB(OpCode::MOVE, slot, argRegs[i]);
+    }
+
+    // Allocate consecutive registers for output
+    uint8_t outBase = nextReg_;
+    for (size_t i = 0; i < nout; ++i)
+        tempReg();
+
+    const std::string &funcName = callNode->children[0]->strValue;
+    int16_t funcIdx = addStringConstant(funcName);
+
+    // CALL_MULTI: a=outBase, d=funcIdx, b=argBase, c=nargs, e=nout
+    emit(Instruction::make_abcde(OpCode::CALL_MULTI,
+                                 outBase,
+                                 argBase,
+                                 static_cast<uint8_t>(argRegs.size()),
+                                 funcIdx,
+                                 static_cast<uint8_t>(nout)));
+
+    // Move outputs to destination registers
+    for (size_t i = 0; i < nout; ++i) {
+        if (outRegs[i] != outBase + i)
+            emitAB(OpCode::MOVE, outRegs[i], outBase + static_cast<uint8_t>(i));
+    }
+
+    // Display if no semicolon
+    if (!node->suppressOutput) {
+        for (size_t i = 0; i < node->returnNames.size(); ++i) {
+            if (node->returnNames[i] != "~") {
+                int16_t nameIdx = addStringConstant(node->returnNames[i]);
+                emitAD(OpCode::DISPLAY, outRegs[i], nameIdx);
+            }
+        }
+    }
+
+    return outRegs.empty() ? 0 : outRegs[0];
 }
 
 uint8_t Compiler::compileBinaryOp(const ASTNode *node)

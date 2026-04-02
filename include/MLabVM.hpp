@@ -65,6 +65,11 @@ private:
     // User function call
     MValue callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs);
 
+    std::vector<MValue> callUserFuncMulti(const BytecodeChunk &funcChunk,
+                                          const MValue *args,
+                                          uint8_t nargs,
+                                          size_t nout);
+
     // Helpers
     void executeHorzcat(MValue &dst, const MValue *regs, uint8_t count);
     void executeVertcat(MValue &dst, const MValue *regs, uint8_t count);
