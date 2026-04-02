@@ -999,6 +999,7 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
     size_t savedTop = regStackTop_;
     MValue *savedR = R_;
     size_t savedForSize = forStack_.size();
+    size_t savedTrySize = tryStack_.size();
 
     uint8_t nregs = funcChunk.numRegisters;
     if (regStackTop_ + nregs > kRegStackSize) {
@@ -1048,6 +1049,7 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
     regStackTop_ = savedTop;
     R_ = savedR;
     forStack_.resize(savedForSize);
+    tryStack_.resize(savedTrySize);
     --recursionDepth_;
     return result;
 }
