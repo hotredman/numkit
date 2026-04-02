@@ -16,7 +16,6 @@ class VM
 public:
     explicit VM(Engine &engine);
 
-    // Public API: MValue in/out
     MValue execute(const BytecodeChunk &chunk, const MValue *args = nullptr, uint8_t nargs = 0);
 
     void setCompiledFuncs(const std::unordered_map<std::string, BytecodeChunk> *funcs)
@@ -28,8 +27,12 @@ private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
 
-    // Register file
-    std::vector<VMValue> registers_;
+    // Register stack — pre-allocated, no per-call allocation
+    // Each function call pushes a frame of numRegisters onto the stack
+    static constexpr size_t kRegStackSize = 256 * 500; // 256 regs × 500 recursion depth
+    std::vector<VMValue> regStack_;                    // allocated once in constructor
+    size_t regStackTop_ = 0;                           // current top of stack
+    VMValue *R_ = nullptr;                             // pointer to current frame base
 
     // For-loop state
     struct ForState
@@ -44,10 +47,10 @@ private:
     int recursionDepth_ = 0;
     static constexpr int kMaxRecursion = 500;
 
-    // Internal execute — returns VMValue, no MValue conversion overhead
+    // Internal execute — operates on R_ (current frame)
     VMValue executeInternal(const BytecodeChunk &chunk);
 
-    // User function call — VMValue args, VMValue return, no MValue
+    // User function call
     VMValue callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, uint8_t nargs);
 
     // Helpers

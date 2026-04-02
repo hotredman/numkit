@@ -11,7 +11,9 @@ namespace mlab {
 
 VM::VM(Engine &engine)
     : engine_(engine)
-{}
+{
+    regStack_.resize(kRegStackSize);
+}
 
 static inline size_t colonCount(double start, double step, double stop)
 {
@@ -29,16 +31,26 @@ static inline size_t colonCount(double start, double step, double stop)
 
 MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
 {
-    registers_.clear();
-    registers_.resize(chunk.numRegisters);
+    // Push frame onto register stack
+    regStackTop_ = 0;
+    R_ = regStack_.data();
 
+    // Clear registers for this frame
+    for (uint8_t i = 0; i < chunk.numRegisters; ++i)
+        R_[i] = VMValue();
+
+    regStackTop_ = chunk.numRegisters;
+
+    // Load arguments
     if (args) {
         uint8_t pc = std::min(nargs, chunk.numParams);
         for (uint8_t i = 0; i < pc; ++i)
-            registers_[i] = VMValue::fromMValue(args[i]);
+            R_[i] = VMValue::fromMValue(args[i]);
     }
 
     VMValue result = executeInternal(chunk);
+    regStackTop_ = 0;
+    R_ = nullptr;
     return result.toMValue(&engine_.allocator_);
 }
 
@@ -50,7 +62,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
 {
     const Instruction *ip = chunk.code.data();
     const Instruction *end = ip + chunk.code.size();
-    auto &R = registers_;
+    auto *R = R_; // local copy of frame pointer for speed
 
     while (ip < end) {
         const Instruction &I = *ip;
@@ -655,28 +667,45 @@ VMValue VM::callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, ui
         throw std::runtime_error("VM: maximum recursion depth exceeded");
     }
 
-    // Copy args before moving registers (args points into registers_)
+    // Copy args before changing R_ (args points into current frame)
     uint8_t pc = std::min(nargs, funcChunk.numParams);
-    VMValue argsCopy[16]; // stack buffer, no heap alloc for <= 16 args
+    VMValue argsCopy[16];
     for (uint8_t i = 0; i < pc; ++i)
         argsCopy[i] = args[i];
 
-    // Save caller state
-    auto savedRegs = std::move(registers_);
-    auto savedForStack = std::move(forStack_);
+    // Push new frame onto register stack
+    size_t savedTop = regStackTop_;
+    VMValue *savedR = R_;
+    size_t savedForSize = forStack_.size();
 
-    // Setup callee
-    registers_.clear();
-    registers_.resize(funcChunk.numRegisters);
+    if (regStackTop_ + funcChunk.numRegisters > kRegStackSize) {
+        --recursionDepth_;
+        throw std::runtime_error("VM: register stack overflow");
+    }
+
+    R_ = regStack_.data() + regStackTop_;
+
+    // Initialize callee registers
+    for (uint8_t i = 0; i < funcChunk.numRegisters; ++i)
+        R_[i] = VMValue();
+
+    // Load arguments
     for (uint8_t i = 0; i < pc; ++i)
-        registers_[i] = std::move(argsCopy[i]);
+        R_[i] = std::move(argsCopy[i]);
+
+    regStackTop_ += funcChunk.numRegisters;
 
     // Execute
     VMValue result = executeInternal(funcChunk);
 
-    // Restore
-    registers_ = std::move(savedRegs);
-    forStack_ = std::move(savedForStack);
+    // Clean up callee registers (release any MValue pointers)
+    for (uint8_t i = 0; i < funcChunk.numRegisters; ++i)
+        R_[i] = VMValue();
+
+    // Pop frame
+    regStackTop_ = savedTop;
+    R_ = savedR;
+    forStack_.resize(savedForSize);
     --recursionDepth_;
     return result;
 }
