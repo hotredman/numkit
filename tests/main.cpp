@@ -2,6 +2,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
-    //::testing::GTEST_FLAG(filter) = "EngineGlobalTest.GlobalVariable";
+    //::testing::GTEST_FLAG(filter) = "EngineCommandStyleTest.UserFuncCommandStyle";
     return RUN_ALL_TESTS();
 }
