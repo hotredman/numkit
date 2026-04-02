@@ -152,6 +152,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileExprStmt(node);
     case NodeType::IF_STMT:
         return compileIf(node);
+    case NodeType::SWITCH_STMT:
+        return compileSwitch(node);
     case NodeType::WHILE_STMT:
         return compileWhile(node);
     case NodeType::BREAK_STMT:
@@ -408,6 +410,79 @@ uint8_t Compiler::compileIf(const ASTNode *node)
     }
 
     // Patch all end jumps to here
+    for (size_t pos : endJumps) {
+        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+    }
+
+    return 0;
+}
+
+// ============================================================
+// Switch/case
+// ============================================================
+uint8_t Compiler::compileSwitch(const ASTNode *node)
+{
+    // AST: children[0] = switch expression
+    //      branches = vector<pair<case_expr, case_body>>
+    //      elseBranch = otherwise body (optional)
+    //
+    // Compiled as chain of EQ + JMP_FALSE (like if/elseif):
+    //   eval switch_val → rSV
+    //   eval case1_val → rCV
+    //   EQ rCmp, rSV, rCV
+    //   JMP_FALSE rCmp → L_next1
+    //   body1
+    //   JMP → L_end
+    // L_next1:
+    //   eval case2_val → rCV
+    //   EQ rCmp, rSV, rCV
+    //   JMP_FALSE rCmp → L_next2
+    //   body2
+    //   JMP → L_end
+    // L_next2:
+    //   otherwise body
+    // L_end:
+
+    // Compile switch expression
+    uint8_t switchReg = compileNode(node->children[0].get());
+
+    // Temp register for comparison result
+    uint8_t cmpReg = tempReg();
+
+    std::vector<size_t> endJumps;
+
+    for (size_t i = 0; i < node->branches.size(); ++i) {
+        auto &[caseExpr, caseBody] = node->branches[i];
+
+        // Compile case expression
+        uint8_t caseReg = compileNode(caseExpr.get());
+
+        // Compare: cmpReg = (switchReg == caseReg)
+        emitABC(OpCode::EQ, cmpReg, switchReg, caseReg);
+
+        // JMP_FALSE to next case
+        size_t skipPos = currentPos();
+        emitAD(OpCode::JMP_FALSE, cmpReg, 0);
+
+        // Compile case body
+        compileNode(caseBody.get());
+
+        // JMP to end
+        if (i < node->branches.size() - 1 || node->elseBranch) {
+            endJumps.push_back(currentPos());
+            emitD(OpCode::JMP, 0);
+        }
+
+        // Patch JMP_FALSE
+        patchJump(skipPos, static_cast<int16_t>(currentPos() - skipPos));
+    }
+
+    // Compile otherwise
+    if (node->elseBranch) {
+        compileNode(node->elseBranch.get());
+    }
+
+    // Patch end jumps
     for (size_t pos : endJumps) {
         patchJump(pos, static_cast<int16_t>(currentPos() - pos));
     }

@@ -390,6 +390,54 @@ TEST_F(VMTest, WhileContinue)
         12.0);
 }
 
+// ============================================================
+// Switch/case
+// ============================================================
+
+TEST_F(VMTest, SwitchCase1)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar("x = 2; switch x; case 1; r = 10; case 2; r = 20; case 3; r = 30; end; r;"), 20.0);
+}
+
+TEST_F(VMTest, SwitchCaseOtherwise)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar("x = 99; switch x; case 1; r = 10; case 2; r = 20; otherwise; r = -1; end; r;"),
+        -1.0);
+}
+
+TEST_F(VMTest, SwitchCaseFirst)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 1; switch x; case 1; r = 10; case 2; r = 20; end; r;"), 10.0);
+}
+
+TEST_F(VMTest, SwitchCaseLast)
+{
+    EXPECT_DOUBLE_EQ(
+        runScalar("x = 3; switch x; case 1; r = 10; case 2; r = 20; case 3; r = 30; end; r;"), 30.0);
+}
+
+TEST_F(VMTest, SwitchNoMatch)
+{
+    // No match, no otherwise — r stays at initial value
+    EXPECT_DOUBLE_EQ(runScalar("r = 0; x = 5; switch x; case 1; r = 10; case 2; r = 20; end; r;"),
+                     0.0);
+}
+
+TEST_F(VMTest, SwitchWithExpression)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 3; switch x + 1; case 3; r = 10; case 4; r = 20; end; r;"),
+                     20.0);
+}
+
+TEST_F(VMTest, SwitchInLoop)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s = 0; for i = 1:5; switch i; case 1; s = s + 10; case 3; s = s + "
+                               "30; otherwise; s = s + 1; end; end; s;"),
+                     10.0 + 1.0 + 30.0 + 1.0 + 1.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop
