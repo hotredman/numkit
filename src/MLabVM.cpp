@@ -678,29 +678,29 @@ VMValue VM::callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, ui
     VMValue *savedR = R_;
     size_t savedForSize = forStack_.size();
 
-    if (regStackTop_ + funcChunk.numRegisters > kRegStackSize) {
+    uint8_t nregs = funcChunk.numRegisters;
+    if (regStackTop_ + nregs > kRegStackSize) {
         --recursionDepth_;
         throw std::runtime_error("VM: register stack overflow");
     }
 
     R_ = regStack_.data() + regStackTop_;
+    regStackTop_ += nregs;
 
-    // Initialize callee registers
-    for (uint8_t i = 0; i < funcChunk.numRegisters; ++i)
-        R_[i] = VMValue();
-
-    // Load arguments
+    // Load arguments into first registers
+    // Other registers: left as-is from regStack (pre-init empty or stale scalar — safe).
+    // LOAD_EMPTY in bytecode handles return var init explicitly.
     for (uint8_t i = 0; i < pc; ++i)
         R_[i] = std::move(argsCopy[i]);
-
-    regStackTop_ += funcChunk.numRegisters;
 
     // Execute
     VMValue result = executeInternal(funcChunk);
 
-    // Clean up callee registers (release any MValue pointers)
-    for (uint8_t i = 0; i < funcChunk.numRegisters; ++i)
-        R_[i] = VMValue();
+    // Cleanup: only release MValue pointers (scalar/empty are free)
+    for (uint8_t i = 0; i < nregs; ++i) {
+        if (R_[i].isMValue())
+            R_[i] = VMValue();
+    }
 
     // Pop frame
     regStackTop_ = savedTop;
