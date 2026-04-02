@@ -358,6 +358,30 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 break;
             }
 
+            // ── Struct field access ──────────────────────────────
+            case OpCode::FIELD_GET: {
+                // a=dst, b=obj, d=nameIdx
+                const std::string &fname = chunk.strings[I.d];
+                if (!R[I.b].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                if (!R[I.b].hasField(fname))
+                    throw std::runtime_error("Reference to non-existent field '" + fname + "'");
+                R[I.a] = R[I.b].field(fname);
+                break;
+            }
+            case OpCode::FIELD_SET: {
+                // a=obj, b=val, d=nameIdx
+                const std::string &fname = chunk.strings[I.d];
+                // Auto-create struct if empty
+                if (R[I.a].isEmpty()) {
+                    R[I.a] = MValue::structure();
+                }
+                if (!R[I.a].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                R[I.a].field(fname) = R[I.b];
+                break;
+            }
+
             // ── Inline scalar builtins ───────────────────────────
             case OpCode::CALL_BUILTIN: {
                 uint8_t argBase = I.b, na = I.c;

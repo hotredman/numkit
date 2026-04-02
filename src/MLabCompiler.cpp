@@ -156,6 +156,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileSwitch(node);
     case NodeType::TRY_STMT:
         return compileTryCatch(node);
+    case NodeType::FIELD_ACCESS:
+        return compileFieldAccess(node);
     case NodeType::WHILE_STMT:
         return compileWhile(node);
     case NodeType::BREAK_STMT:
@@ -242,6 +244,10 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
     if (lhs->type == NodeType::INDEX || lhs->type == NodeType::CALL) {
         return compileIndexAssign(node);
+    }
+
+    if (lhs->type == NodeType::FIELD_ACCESS) {
+        return compileFieldAssign(node);
     }
 
     throw std::runtime_error("Compiler: unsupported assignment target");
@@ -848,6 +854,52 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
     }
 
     return arr;
+}
+
+// ============================================================
+// Struct field access and assignment
+// ============================================================
+
+uint8_t Compiler::compileFieldAccess(const ASTNode *node)
+{
+    // node->children[0] = object expression
+    // node->strValue = field name
+    uint8_t obj = compileNode(node->children[0].get());
+    uint8_t dst = tempReg();
+    int16_t nameIdx = addStringConstant(node->strValue);
+    emitABC(OpCode::FIELD_GET, dst, obj, 0);
+    // Store nameIdx in d field
+    chunk_.code.back().d = nameIdx;
+    return dst;
+}
+
+uint8_t Compiler::compileFieldAssign(const ASTNode *node)
+{
+    auto *lhs = node->children[0].get(); // FIELD_ACCESS node
+    auto *rhs = node->children[1].get();
+
+    // lhs->children[0] = object (IDENTIFIER)
+    // lhs->strValue = field name
+    auto *objNode = lhs->children[0].get();
+    if (objNode->type != NodeType::IDENTIFIER)
+        throw std::runtime_error("Compiler: nested field assign not yet supported");
+
+    uint8_t obj = varReg(objNode->strValue);
+
+    // If variable doesn't exist yet, initialize as struct
+    // (VM will create struct on first FIELD_SET to empty)
+
+    uint8_t val = compileNode(rhs);
+    int16_t nameIdx = addStringConstant(lhs->strValue);
+    emitABC(OpCode::FIELD_SET, obj, val, 0);
+    chunk_.code.back().d = nameIdx;
+
+    if (!node->suppressOutput) {
+        int16_t dispIdx = addStringConstant(objNode->strValue);
+        emitAD(OpCode::DISPLAY, obj, dispIdx);
+    }
+
+    return obj;
 }
 
 // ============================================================

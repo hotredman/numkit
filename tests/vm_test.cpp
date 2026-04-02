@@ -466,6 +466,36 @@ TEST_F(VMTest, TryCatchNoCatchBody)
     EXPECT_DOUBLE_EQ(runScalar("r = 5; try; error('fail'); end; r;"), 5.0);
 }
 
+// ============================================================
+// Structs
+// ============================================================
+
+TEST_F(VMTest, StructFieldSet)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s.x = 42; s.x;"), 42.0);
+}
+
+TEST_F(VMTest, StructMultipleFields)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s.x = 10; s.y = 20; s.x + s.y;"), 30.0);
+}
+
+TEST_F(VMTest, StructOverwrite)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s.x = 1; s.x = 99; s.x;"), 99.0);
+}
+
+TEST_F(VMTest, StructInLoop)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s.total = 0; for i = 1:5; s.total = s.total + i; end; s.total;"),
+                     15.0);
+}
+
+TEST_F(VMTest, StructFieldExpression)
+{
+    EXPECT_DOUBLE_EQ(runScalar("s.a = 3; s.b = 4; sqrt(s.a^2 + s.b^2);"), 5.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop
