@@ -59,6 +59,9 @@ public:
 
     bool hasFunction(const std::string &name) const;
 
+    // Clear user-defined functions from both TW and VM stores
+    void clearUserFunctions();
+
 private:
     Allocator allocator_;
     GlobalStore globalStore_;

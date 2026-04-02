@@ -122,6 +122,13 @@ bool Engine::hasFunction(const std::string &name) const
     return externalFuncs_.count(name) || userFuncs_.count(name) || kBuiltinFuncs.count(name);
 }
 
+void Engine::clearUserFunctions()
+{
+    userFuncs_.clear();
+    if (compiler_)
+        compiler_->clearCompiledFuncs();
+}
+
 // ============================================================
 // eval
 // ============================================================

@@ -2431,18 +2431,18 @@ bool TreeWalker::tryBuiltinCall(const std::string &name,
     if (name == "clear") {
         if (args.empty()) {
             env->clearAll();
-            engine_.userFuncs_.clear();
+            engine_.clearUserFunctions();
             engine_.figureManager_.closeAll();
             engine_.reinstallConstants();
         } else {
             std::string first = args[0].isChar() ? args[0].toString() : "";
             if (first == "all" || first == "classes") {
                 env->clearAll();
-                engine_.userFuncs_.clear();
+                engine_.clearUserFunctions();
                 engine_.figureManager_.closeAll();
                 engine_.reinstallConstants();
             } else if (first == "functions") {
-                engine_.userFuncs_.clear();
+                engine_.clearUserFunctions();
             } else if (first == "global") {
                 // TODO
             } else {

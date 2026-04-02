@@ -27,6 +27,7 @@ public:
     {
         return compiledFuncs_;
     }
+    void clearCompiledFuncs() { compiledFuncs_.clear(); }
 
     // Debug: dump bytecode
     static std::string disassemble(const BytecodeChunk &chunk);
