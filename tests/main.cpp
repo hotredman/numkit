@@ -2,6 +2,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
-    //::testing::GTEST_FLAG(filter) = "VMTest.ForBreakNested";
+    //::testing::GTEST_FLAG(filter) = "EngineGlobalTest.GlobalVariable";
     return RUN_ALL_TESTS();
 }

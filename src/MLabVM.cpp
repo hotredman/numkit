@@ -67,10 +67,16 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
     }
 
     // Export global declarations to globalStore
+    // Only write if register has a value (don't overwrite values set by called functions)
     for (auto &gname : chunk.globalNames) {
         for (auto &[vname, reg] : chunk.varMap) {
             if (vname == gname && reg < chunk.numRegisters) {
-                engine_.globalStore_.set(gname, R_[reg]);
+                if (!R_[reg].isEmpty())
+                    engine_.globalStore_.set(gname, R_[reg]);
+                // Also ensure globalEnv has the latest value from globalStore
+                MValue *gsVal = engine_.globalStore_.get(gname);
+                if (gsVal)
+                    engine_.globalEnv_->set(gname, *gsVal);
                 break;
             }
         }

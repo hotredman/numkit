@@ -146,9 +146,16 @@ MValue Engine::eval(const std::string &code)
             MValue result = vm_->execute(chunk);
 
             // Export script-level variables to global environment
-            for (auto &[name, val] : vm_->lastVarMap())
-                if (!kBuiltinNames.count(name))
+            for (auto &[name, val] : vm_->lastVarMap()) {
+                if (kBuiltinNames.count(name))
+                    continue;
+                // For global variables, prefer globalStore value (may have been set by called functions)
+                MValue *gsVal = globalStore_.get(name);
+                if (gsVal)
+                    globalEnv_->set(name, *gsVal);
+                else
                     globalEnv_->set(name, val);
+            }
 
             return result;
         } catch (...) {
