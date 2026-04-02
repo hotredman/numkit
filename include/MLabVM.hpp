@@ -38,8 +38,10 @@ private:
     struct ForState
     {
         MValue range;
+        const double *data = nullptr; // cached doubleData() pointer
         size_t index = 0;
         size_t count = 0;
+        size_t rows = 0; // 0 = scalar, 1 = row vector, >1 = matrix columns
     };
     std::vector<ForState> forStack_;
 

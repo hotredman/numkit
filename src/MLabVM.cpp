@@ -87,7 +87,11 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
             break;
 
         case OpCode::MOVE:
-            R[I.a] = R[I.b];
+            if (R[I.b].isScalar()) {
+                R[I.a].setScalarFast(R[I.b].scalar());
+            } else {
+                R[I.a] = R[I.b];
+            }
             break;
 
         case OpCode::COLON_ALL:
@@ -230,16 +234,21 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         // ── For-loop ─────────────────────────────────────────
         case OpCode::FOR_INIT: {
             ForState fs;
+            fs.index = 0;
             if (R[I.b].isScalar()) {
                 fs.range = MValue::scalar(R[I.b].scalar(), &engine_.allocator_);
                 fs.count = 1;
+                fs.rows = 0;
+                fs.data = nullptr;
             } else if (R[I.b].isEmpty()) {
                 fs.count = 0;
             } else {
                 fs.range = R[I.b].mvalue();
-                fs.count = fs.range.dims().cols();
+                auto dims = fs.range.dims();
+                fs.count = dims.cols();
+                fs.rows = dims.rows();
+                fs.data = fs.range.doubleData();
             }
-            fs.index = 0;
             if (fs.count == 0) {
                 ip += I.d;
                 continue;
@@ -787,27 +796,24 @@ void VM::executeVertcat(VMValue &dst, const VMValue *regs, uint8_t count)
 
 void VM::forSetVar(VMValue &varReg, const ForState &fs)
 {
-    const MValue &range = fs.range;
-    if (range.isScalar()) {
-        varReg.setScalar(range.toScalar());
+    if (fs.rows == 0) {
+        // Scalar range
+        varReg.setScalar(fs.range.toScalar());
         return;
     }
-    if (range.type() == MType::DOUBLE) {
-        auto dims = range.dims();
-        if (dims.rows() == 1) {
-            varReg.setScalar(range.doubleData()[fs.index]);
-            return;
-        }
-        size_t rows = dims.rows();
-        auto col = MValue::matrix(rows, 1, MType::DOUBLE, &engine_.allocator_);
-        double *dst = col.doubleDataMut();
-        const double *src = range.doubleData();
-        for (size_t r = 0; r < rows; ++r)
-            dst[r] = src[r + fs.index * rows];
-        varReg.setMValue(std::move(col));
+    if (fs.rows == 1) {
+        // Row vector — direct pointer access, no MValue calls
+        varReg.setScalar(fs.data[fs.index]);
         return;
     }
-    throw std::runtime_error("VM: unsupported type in for-loop range");
+    // Matrix columns
+    size_t rows = fs.rows;
+    auto col = MValue::matrix(rows, 1, MType::DOUBLE, &engine_.allocator_);
+    double *dst = col.doubleDataMut();
+    const double *src = fs.data + fs.index * rows;
+    for (size_t r = 0; r < rows; ++r)
+        dst[r] = src[r];
+    varReg.setMValue(std::move(col));
 }
 
 } // namespace mlab
