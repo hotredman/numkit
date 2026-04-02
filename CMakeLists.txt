@@ -73,7 +73,6 @@ set(MLAB_HEADERS
     include/MLabBytecode.hpp
     include/MLabCompiler.hpp
     include/MLabVM.hpp
-    include/MLabVMValue.hpp
 )
 
 if(MLAB_BUILD_SHARED)

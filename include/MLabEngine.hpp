@@ -13,6 +13,8 @@
 namespace mlab {
 
 class TreeWalker;
+class VM;
+class Compiler;
 
 class Engine
 {
@@ -36,7 +38,13 @@ public:
     void setVariable(const std::string &name, MValue val);
     MValue *getVariable(const std::string &name);
 
+    // Execute code — uses current backend (TreeWalker by default)
     MValue eval(const std::string &code);
+
+    // Backend selection
+    enum class Backend { TreeWalker, VM };
+    void setBackend(Backend b) { backend_ = b; }
+    Backend backend() const { return backend_; }
 
     using OutputFunc = std::function<void(const std::string &)>;
     void setOutputFunc(OutputFunc f);
@@ -69,6 +77,9 @@ private:
     bool ticCalled_ = false;
 
     std::unique_ptr<TreeWalker> treeWalker_;
+    std::unique_ptr<Compiler> compiler_;
+    std::unique_ptr<VM> vm_;
+    Backend backend_ = Backend::TreeWalker;
 
     void reinstallConstants();
     friend class TreeWalker;

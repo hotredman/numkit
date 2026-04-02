@@ -1,9 +1,11 @@
 // src/MLabEngine.cpp
 #include "MLabEngine.hpp"
+#include "MLabCompiler.hpp"
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
 #include "MLabStdLibrary.hpp"
 #include "MLabTreeWalker.hpp"
+#include "MLabVM.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -39,6 +41,8 @@ Engine::Engine()
     allocator_ = Allocator::defaultAllocator();
     globalEnv_ = std::make_unique<Environment>(nullptr, &globalStore_);
     treeWalker_ = std::make_unique<TreeWalker>(*this);
+    compiler_ = std::make_unique<Compiler>(*this);
+    vm_ = std::make_unique<VM>(*this);
 
     reinstallConstants();
     StdLibrary::install(*this);
@@ -127,6 +131,13 @@ MValue Engine::eval(const std::string &code)
     auto tokens = lexer.tokenize();
     Parser parser(tokens);
     auto ast = parser.parse();
+
+    if (backend_ == Backend::VM) {
+        auto chunk = compiler_->compile(ast.get());
+        vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+        return vm_->execute(chunk);
+    }
+
     return treeWalker_->execute(ast.get(), globalEnv_.get());
 }
 
