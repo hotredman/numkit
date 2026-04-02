@@ -406,81 +406,138 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         }
 
         // ── Function calls ───────────────────────────────────
+        // ── Inline scalar builtins (numeric ID, zero string compare) ─
+        case OpCode::CALL_BUILTIN: {
+            uint8_t argBase = I.b;
+            uint8_t na = I.c;
+            int16_t bid = I.d;
+
+            // 1-arg scalar builtins (IDs 0-15)
+            if (na == 1 && R[argBase].isScalar()) {
+                double v = R[argBase].scalar();
+                double result;
+                switch (bid) {
+                case 0:
+                    result = std::fabs(v);
+                    break;
+                case 1:
+                    result = std::floor(v);
+                    break;
+                case 2:
+                    result = std::ceil(v);
+                    break;
+                case 3:
+                    result = std::round(v);
+                    break;
+                case 4:
+                    result = std::trunc(v);
+                    break;
+                case 5:
+                    result = std::sqrt(v);
+                    break;
+                case 6:
+                    result = std::exp(v);
+                    break;
+                case 7:
+                    result = std::log(v);
+                    break;
+                case 8:
+                    result = std::log2(v);
+                    break;
+                case 9:
+                    result = std::log10(v);
+                    break;
+                case 10:
+                    result = std::sin(v);
+                    break;
+                case 11:
+                    result = std::cos(v);
+                    break;
+                case 12:
+                    result = std::tan(v);
+                    break;
+                case 13:
+                    result = (v > 0.0) ? 1.0 : (v < 0.0) ? -1.0 : 0.0;
+                    break;
+                case 14:
+                    result = std::isnan(v) ? 1.0 : 0.0;
+                    break;
+                case 15:
+                    result = std::isinf(v) ? 1.0 : 0.0;
+                    break;
+                default:
+                    goto builtin_fallback;
+                }
+                R[I.a].setScalar(result);
+                break;
+            }
+
+            // 2-arg scalar builtins (IDs 20-25)
+            if (na == 2 && R[argBase].isScalar() && R[argBase + 1].isScalar()) {
+                double a = R[argBase].scalar();
+                double b = R[argBase + 1].scalar();
+                double result;
+                switch (bid) {
+                case 20:
+                    result = std::fmod(a, b);
+                    if (result != 0.0 && ((result > 0) != (b > 0)))
+                        result += b;
+                    break;
+                case 21:
+                    result = std::fmod(a, b);
+                    break;
+                case 22:
+                    result = (a >= b) ? a : b;
+                    break;
+                case 23:
+                    result = (a <= b) ? a : b;
+                    break;
+                case 24:
+                    result = std::pow(a, b);
+                    break;
+                case 25:
+                    result = std::atan2(a, b);
+                    break;
+                default:
+                    goto builtin_fallback;
+                }
+                R[I.a].setScalar(result);
+                break;
+            }
+
+        // Non-scalar fallback: resolve name and call ExternalFunc
+        builtin_fallback: {
+            // Resolve builtin ID back to name for ExternalFunc lookup
+            static const char *builtinNames[] = {"abs",   "floor", "ceil",  "round", "fix",
+                                                 "sqrt",  "exp",   "log",   "log2",  "log10",
+                                                 "sin",   "cos",   "tan",   "sign",  "isnan",
+                                                 "isinf", nullptr, nullptr, nullptr, nullptr,
+                                                 "mod",   "rem",   "max",   "min",   "pow",
+                                                 "atan2"};
+            const char *fname = (bid >= 0 && bid < 26) ? builtinNames[bid] : nullptr;
+            if (fname) {
+                auto extIt = engine_.externalFuncs_.find(fname);
+                if (extIt != engine_.externalFuncs_.end()) {
+                    std::vector<MValue> margs(na);
+                    for (uint8_t i = 0; i < na; ++i)
+                        margs[i] = R[argBase + i].toMValue(&engine_.allocator_);
+                    Span<const MValue> argsSpan(margs.data(), na);
+                    MValue outBuf[1];
+                    Span<MValue> outsSpan(outBuf, 1);
+                    extIt->second(argsSpan, 1, outsSpan);
+                    R[I.a] = VMValue::fromMValue(std::move(outBuf[0]));
+                    break;
+                }
+            }
+            throw std::runtime_error("VM: unsupported builtin");
+        }
+        }
+
+        // ── General function calls ───────────────────────────
         case OpCode::CALL: {
             const std::string &funcName = chunk.strings[I.d];
             uint8_t argBase = I.b;
             uint8_t na = I.c;
-
-            // 0. Inline scalar builtins — zero allocation
-            if (na == 1 && R[argBase].isScalar()) {
-                double v = R[argBase].scalar();
-                bool handled = true;
-                double result;
-                if (funcName == "abs")
-                    result = std::fabs(v);
-                else if (funcName == "floor")
-                    result = std::floor(v);
-                else if (funcName == "ceil")
-                    result = std::ceil(v);
-                else if (funcName == "round")
-                    result = std::round(v);
-                else if (funcName == "fix")
-                    result = std::trunc(v);
-                else if (funcName == "sqrt")
-                    result = std::sqrt(v);
-                else if (funcName == "exp")
-                    result = std::exp(v);
-                else if (funcName == "log")
-                    result = std::log(v);
-                else if (funcName == "log2")
-                    result = std::log2(v);
-                else if (funcName == "log10")
-                    result = std::log10(v);
-                else if (funcName == "sin")
-                    result = std::sin(v);
-                else if (funcName == "cos")
-                    result = std::cos(v);
-                else if (funcName == "tan")
-                    result = std::tan(v);
-                else if (funcName == "sign")
-                    result = (v > 0.0) ? 1.0 : (v < 0.0) ? -1.0 : 0.0;
-                else if (funcName == "isnan")
-                    result = std::isnan(v) ? 1.0 : 0.0;
-                else if (funcName == "isinf")
-                    result = std::isinf(v) ? 1.0 : 0.0;
-                else
-                    handled = false;
-                if (handled) {
-                    R[I.a].setScalar(result);
-                    break;
-                }
-            }
-            if (na == 2 && R[argBase].isScalar() && R[argBase + 1].isScalar()) {
-                double a = R[argBase].scalar();
-                double b = R[argBase + 1].scalar();
-                bool handled = true;
-                double result;
-                if (funcName == "mod") {
-                    result = std::fmod(a, b);
-                    if (result != 0.0 && ((result > 0) != (b > 0)))
-                        result += b;
-                } else if (funcName == "rem")
-                    result = std::fmod(a, b);
-                else if (funcName == "max")
-                    result = (a >= b) ? a : b;
-                else if (funcName == "min")
-                    result = (a <= b) ? a : b;
-                else if (funcName == "pow")
-                    result = std::pow(a, b);
-                else if (funcName == "atan2")
-                    result = std::atan2(a, b);
-                else
-                    handled = false;
-                if (handled) {
-                    R[I.a].setScalar(result);
-                    break;
-                }
-            }
 
             // 1. Compiled user function
             if (compiledFuncs_) {

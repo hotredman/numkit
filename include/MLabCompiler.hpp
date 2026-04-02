@@ -96,6 +96,7 @@ private:
     uint8_t compileCall(const ASTNode *node);
     uint8_t compileFunctionDef(const ASTNode *node);
     uint8_t compileReturn(const ASTNode *node);
+    static int8_t resolveBuiltinId(const std::string &name, size_t nargs);
 
     // Break/continue loop patching
     struct LoopContext

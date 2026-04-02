@@ -725,27 +725,21 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
 
 uint8_t Compiler::compileCall(const ASTNode *node)
 {
-    // CALL node: children[0] = identifier, children[1..] = arguments
-    // Could be: function call OR array indexing
-    // Strategy: if name is a known variable → index, else → function call
-
     const std::string &name = node->children[0]->strValue;
     size_t nargs = node->children.size() - 1;
 
-    // Check if it's a known variable (already assigned in this scope)
+    // Check if it's a known variable → array indexing
     auto it = varRegisters_.find(name);
     if (it != varRegisters_.end()) {
-        // Treat as array indexing
         return compileIndexExpr(node);
     }
 
-    // It's a function call — compile arguments into consecutive registers
+    // Compile arguments into consecutive registers
     std::vector<uint8_t> argRegs;
     for (size_t i = 1; i < node->children.size(); ++i) {
         argRegs.push_back(compileNode(node->children[i].get()));
     }
 
-    // Move args into consecutive block
     uint8_t argBase = nextReg_;
     for (size_t i = 0; i < argRegs.size(); ++i) {
         uint8_t slot = tempReg();
@@ -755,9 +749,22 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     }
 
     uint8_t dst = tempReg();
-    int16_t funcIdx = addStringConstant(name);
 
-    // CALL: dst=a, funcIdx=d, argBase=b, nargs=c
+    // Try to resolve as inline scalar builtin (numeric ID)
+    int8_t builtinId = resolveBuiltinId(name, nargs);
+    if (builtinId >= 0) {
+        // CALL_BUILTIN: dst=a, builtinId=d, argBase=b, nargs=c
+        emit(Instruction::make_abcde(OpCode::CALL_BUILTIN,
+                                     dst,
+                                     argBase,
+                                     static_cast<uint8_t>(nargs),
+                                     static_cast<int16_t>(builtinId),
+                                     0));
+        return dst;
+    }
+
+    // General CALL
+    int16_t funcIdx = addStringConstant(name);
     emit(
         Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
     return dst;
@@ -843,6 +850,64 @@ uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
         emitNone(OpCode::RET_EMPTY);
     }
     return 0;
+}
+
+// ============================================================
+// Builtin ID resolution (compile-time)
+// ============================================================
+
+// Must match the switch in VM::execute CALL_BUILTIN handler
+int8_t Compiler::resolveBuiltinId(const std::string &name, size_t nargs)
+{
+    if (nargs == 1) {
+        if (name == "abs")
+            return 0;
+        if (name == "floor")
+            return 1;
+        if (name == "ceil")
+            return 2;
+        if (name == "round")
+            return 3;
+        if (name == "fix")
+            return 4;
+        if (name == "sqrt")
+            return 5;
+        if (name == "exp")
+            return 6;
+        if (name == "log")
+            return 7;
+        if (name == "log2")
+            return 8;
+        if (name == "log10")
+            return 9;
+        if (name == "sin")
+            return 10;
+        if (name == "cos")
+            return 11;
+        if (name == "tan")
+            return 12;
+        if (name == "sign")
+            return 13;
+        if (name == "isnan")
+            return 14;
+        if (name == "isinf")
+            return 15;
+    }
+    if (nargs == 2) {
+        if (name == "mod")
+            return 20;
+        if (name == "rem")
+            return 21;
+        if (name == "max")
+            return 22;
+        if (name == "min")
+            return 23;
+        if (name == "pow")
+            return 24;
+        if (name == "atan2")
+            return 25;
+    }
+    return -1; // not a known inline builtin
 }
 
 std::string Compiler::disassemble(const BytecodeChunk &chunk)
@@ -933,6 +998,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "INDEX_SET_2D";
         case OpCode::CALL:
             return "CALL";
+        case OpCode::CALL_BUILTIN:
+            return "CALL_BUILTIN";
         case OpCode::CTRANSPOSE:
             return "CTRANSPOSE";
         case OpCode::TRANSPOSE:
