@@ -40,6 +40,7 @@ private:
     // Register allocation: variable name → register index
     std::unordered_map<std::string, uint8_t> varRegisters_;
     uint8_t nextReg_ = 0;
+    int anonCounter_ = 0;
 
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
@@ -88,6 +89,7 @@ private:
     uint8_t compileCellLiteral(const ASTNode *node);
     uint8_t compileCellIndex(const ASTNode *node);
     uint8_t compileCellAssign(const ASTNode *node);
+    uint8_t compileAnonFunc(const ASTNode *node);
     uint8_t compileWhile(const ASTNode *node);
     uint8_t compileBreak(const ASTNode *node);
     uint8_t compileContinue(const ASTNode *node);

@@ -529,6 +529,33 @@ TEST_F(VMTest, CellMixed)
     EXPECT_DOUBLE_EQ(runScalar("c = {42, 'hello', 3.14}; c{1} + c{3};"), 45.14);
 }
 
+// ============================================================
+// Closures / Anonymous functions
+// ============================================================
+
+TEST_F(VMTest, FuncHandleNamed)
+{
+    // @sin — handle to builtin
+    EXPECT_DOUBLE_EQ(runScalar("f = @sin; f(0);"), 0.0);
+}
+
+TEST_F(VMTest, AnonFuncBasic)
+{
+    EXPECT_DOUBLE_EQ(runScalar("f = @(x) x^2; f(5);"), 25.0);
+}
+
+TEST_F(VMTest, AnonFuncTwoArgs)
+{
+    EXPECT_DOUBLE_EQ(runScalar("f = @(x, y) x + y; f(3, 4);"), 7.0);
+}
+
+TEST_F(VMTest, AnonFuncInLoop)
+{
+    EXPECT_DOUBLE_EQ(runScalar("f = @(x) x * 2; s = 0; for i = 1:5; s = s + f(i); end; s;"), 30.0);
+}
+
+// Note: Closure capture (@(x) f(x) where f is from outer scope) not yet supported in VM
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

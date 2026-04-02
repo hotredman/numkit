@@ -573,6 +573,64 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 throw std::runtime_error("VM: undefined function '" + funcName + "'");
             }
 
+            // ── Indirect function call (func handle) or array indexing ─
+            case OpCode::CALL_INDIRECT: {
+                // a=dst, b=fhReg, c=argBase, e=nargs
+                uint8_t fhReg = I.b, argBase = I.c, na = I.e;
+
+                // If it's a func handle → call the function
+                if (R[fhReg].isFuncHandle()) {
+                    const std::string &funcName = R[fhReg].funcHandleName();
+                    if (compiledFuncs_) {
+                        auto cfIt = compiledFuncs_->find(funcName);
+                        if (cfIt != compiledFuncs_->end()) {
+                            R[I.a] = callUserFunc(cfIt->second, &R[argBase], na);
+                            break;
+                        }
+                    }
+                    auto extIt = engine_.externalFuncs_.find(funcName);
+                    if (extIt != engine_.externalFuncs_.end()) {
+                        Span<const MValue> as(&R[argBase], na);
+                        MValue ob[1];
+                        Span<MValue> os(ob, 1);
+                        extIt->second(as, 1, os);
+                        R[I.a] = std::move(ob[0]);
+                        break;
+                    }
+                    throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
+                }
+
+                // Otherwise → array indexing fallback
+                if (na == 1) {
+                    if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
+                        R[I.a] = R[fhReg];
+                    } else if (R[argBase].isDoubleScalar()) {
+                        size_t i = (size_t) R[argBase].scalarVal() - 1;
+                        R[I.a] = MValue::scalar(R[fhReg].doubleData()[i], &engine_.allocator_);
+                    } else {
+                        const MValue &mv = R[fhReg];
+                        const MValue &ix = R[argBase];
+                        size_t n = ix.numel();
+                        auto res = MValue::matrix(1, n, MType::DOUBLE, &engine_.allocator_);
+                        double *dst = res.doubleDataMut();
+                        const double *src = mv.doubleData(), *id = ix.doubleData();
+                        for (size_t k = 0; k < n; ++k)
+                            dst[k] = src[(size_t) id[k] - 1];
+                        R[I.a] = std::move(res);
+                    }
+                } else if (na == 2) {
+                    size_t r = (size_t) R[argBase].toScalar() - 1,
+                           c = (size_t) R[argBase + 1].toScalar() - 1;
+                    const MValue &mv = R[fhReg];
+                    R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c)],
+                                            &engine_.allocator_);
+                } else {
+                    throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
+                                             + std::to_string(na) + " args");
+                }
+                break;
+            }
+
             // ── Display ──────────────────────────────────────────
             case OpCode::DISPLAY: {
                 const std::string &name = chunk.strings[I.d];

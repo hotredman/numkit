@@ -162,6 +162,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileCellIndex(node);
     case NodeType::CELL_LITERAL:
         return compileCellLiteral(node);
+    case NodeType::ANON_FUNC:
+        return compileAnonFunc(node);
     case NodeType::WHILE_STMT:
         return compileWhile(node);
     case NodeType::BREAK_STMT:
@@ -1012,13 +1014,56 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
 
 uint8_t Compiler::compileCall(const ASTNode *node)
 {
-    const std::string &name = node->children[0]->strValue;
+    auto *funcNode = node->children[0].get();
+
+    // Non-identifier call target (e.g. anonymous func expression called directly)
+    if (funcNode->type != NodeType::IDENTIFIER) {
+        uint8_t fhReg = compileNode(funcNode);
+        // Compile arguments
+        std::vector<uint8_t> argRegs;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            argRegs.push_back(compileNode(node->children[i].get()));
+        uint8_t argBase = nextReg_;
+        for (size_t i = 0; i < argRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (argRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, argRegs[i]);
+        }
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::CALL_INDIRECT,
+                                     dst,
+                                     fhReg,
+                                     argBase,
+                                     0,
+                                     static_cast<uint8_t>(argRegs.size())));
+        return dst;
+    }
+
+    const std::string &name = funcNode->strValue;
     size_t nargs = node->children.size() - 1;
 
-    // Check if it's a known variable → array indexing
+    // Check if it's a known variable → could be array indexing OR func handle call
+    // We can't know at compile time, so emit CALL_INDIRECT for runtime dispatch
     auto it = varRegisters_.find(name);
     if (it != varRegisters_.end()) {
-        return compileIndexExpr(node);
+        uint8_t fhReg = it->second;
+        std::vector<uint8_t> argRegs;
+        for (size_t i = 1; i < node->children.size(); ++i)
+            argRegs.push_back(compileNode(node->children[i].get()));
+        uint8_t argBase = nextReg_;
+        for (size_t i = 0; i < argRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (argRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, argRegs[i]);
+        }
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::CALL_INDIRECT,
+                                     dst,
+                                     fhReg,
+                                     argBase,
+                                     0,
+                                     static_cast<uint8_t>(argRegs.size())));
+        return dst;
     }
 
     // Compile arguments into consecutive registers
@@ -1040,7 +1085,6 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // Try to resolve as inline scalar builtin (numeric ID)
     int8_t builtinId = resolveBuiltinId(name, nargs);
     if (builtinId >= 0) {
-        // CALL_BUILTIN: dst=a, builtinId=d, argBase=b, nargs=c
         emit(Instruction::make_abcde(OpCode::CALL_BUILTIN,
                                      dst,
                                      argBase,
@@ -1054,6 +1098,59 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     int16_t funcIdx = addStringConstant(name);
     emit(
         Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
+    return dst;
+}
+
+uint8_t Compiler::compileAnonFunc(const ASTNode *node)
+{
+    // Case 1: @funcname — handle to existing function
+    if (!node->strValue.empty() && node->children.empty()) {
+        uint8_t dst = tempReg();
+        int16_t nameIdx = addStringConstant(node->strValue);
+        emitAD(OpCode::LOAD_STRING, dst, nameIdx);
+        // Create func handle from string name
+        // We'll use CLOSURE_MAKE with nameIdx
+        // Actually, simpler: just create funcHandle MValue
+        // Store name as constant and use LOAD_CONST with func handle
+        MValue fh = MValue::funcHandle(node->strValue, &engine_.allocator_);
+        int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
+        chunk_.constants.push_back(std::move(fh));
+        emitAD(OpCode::LOAD_CONST, dst, constIdx);
+        return dst;
+    }
+
+    // Case 2: @(params) expr — anonymous function
+    // Compile body as a separate function chunk
+    int id = anonCounter_++;
+    std::string anonName = "__anon_" + std::to_string(id);
+
+    // Build a synthetic function AST node
+    auto funcNode = makeNode(NodeType::FUNCTION_DEF);
+    funcNode->strValue = anonName;
+    funcNode->paramNames = node->paramNames;
+    funcNode->returnNames = {"__result__"};
+
+    // Body: __result__ = expr
+    auto bodyBlock = makeNode(NodeType::BLOCK);
+    auto assignNode = makeNode(NodeType::ASSIGN);
+    assignNode->suppressOutput = true;
+    auto resultId = makeNode(NodeType::IDENTIFIER);
+    resultId->strValue = "__result__";
+    assignNode->children.push_back(std::move(resultId));
+    assignNode->children.push_back(cloneNode(node->children[0].get()));
+    bodyBlock->children.push_back(std::move(assignNode));
+    funcNode->children.push_back(std::move(bodyBlock));
+
+    // Compile as separate chunk
+    BytecodeChunk funcChunk = compileFunction(funcNode.get());
+    compiledFuncs_[anonName] = std::move(funcChunk);
+
+    // Return func handle pointing to the compiled function
+    uint8_t dst = tempReg();
+    MValue fh = MValue::funcHandle(anonName, &engine_.allocator_);
+    int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
+    chunk_.constants.push_back(std::move(fh));
+    emitAD(OpCode::LOAD_CONST, dst, constIdx);
     return dst;
 }
 
@@ -1321,6 +1418,12 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "TRY_END";
         case OpCode::THROW:
             return "THROW";
+        case OpCode::CALL_INDIRECT:
+            return "CALL_INDIRECT";
+        case OpCode::CLOSURE_MAKE:
+            return "CLOSURE_MAKE";
+        case OpCode::CALL_MULTI:
+            return "CALL_MULTI";
         default:
             return "???";
         }
