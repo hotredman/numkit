@@ -27,13 +27,17 @@ class VMValue
 {
 public:
     enum class Tag : uint8_t {
-        EMPTY,      // no value
-        SCALAR,     // inline double
-        MVALUE,     // owned MValue on heap
+        EMPTY,  // no value
+        SCALAR, // inline double
+        MVALUE, // owned MValue on heap
     };
 
     // Default: empty
-    VMValue() : tag_(Tag::EMPTY), scalar_(0.0), mvalue_(nullptr) {}
+    VMValue()
+        : tag_(Tag::EMPTY)
+        , scalar_(0.0)
+        , mvalue_(nullptr)
+    {}
 
     // Construct from scalar — zero allocation
     static VMValue fromScalar(double v)
@@ -81,7 +85,9 @@ public:
 
     // Move
     VMValue(VMValue &&o) noexcept
-        : tag_(o.tag_), scalar_(o.scalar_), mvalue_(o.mvalue_)
+        : tag_(o.tag_)
+        , scalar_(o.scalar_)
+        , mvalue_(o.mvalue_)
     {
         o.tag_ = Tag::EMPTY;
         o.mvalue_ = nullptr;
@@ -90,7 +96,8 @@ public:
     VMValue &operator=(VMValue &&o) noexcept
     {
         if (this != &o) {
-            clear();
+            if (tag_ == Tag::MVALUE)
+                delete mvalue_;
             tag_ = o.tag_;
             scalar_ = o.scalar_;
             mvalue_ = o.mvalue_;
@@ -101,7 +108,10 @@ public:
     }
 
     // Copy
-    VMValue(const VMValue &o) : tag_(o.tag_), scalar_(o.scalar_), mvalue_(nullptr)
+    VMValue(const VMValue &o)
+        : tag_(o.tag_)
+        , scalar_(o.scalar_)
+        , mvalue_(nullptr)
     {
         if (o.tag_ == Tag::MVALUE && o.mvalue_)
             mvalue_ = new MValue(*o.mvalue_);
@@ -110,7 +120,8 @@ public:
     VMValue &operator=(const VMValue &o)
     {
         if (this != &o) {
-            clear();
+            if (tag_ == Tag::MVALUE)
+                delete mvalue_;
             tag_ = o.tag_;
             scalar_ = o.scalar_;
             if (o.tag_ == Tag::MVALUE && o.mvalue_)
@@ -132,13 +143,24 @@ public:
 
     double scalar() const
     {
-        assert(tag_ == Tag::SCALAR);
-        return scalar_;
+        return scalar_; // caller ensures tag_ == SCALAR
     }
 
+    // Safe setScalar — handles any previous state
     void setScalar(double v)
     {
-        clear();
+        if (tag_ == Tag::MVALUE) {
+            delete mvalue_;
+            mvalue_ = nullptr;
+        }
+        tag_ = Tag::SCALAR;
+        scalar_ = v;
+    }
+
+    // Fast setScalar — caller guarantees tag != MVALUE
+    // Use in dispatch loop where we know operands are scalar
+    void setScalarFast(double v)
+    {
         tag_ = Tag::SCALAR;
         scalar_ = v;
     }
@@ -201,9 +223,12 @@ public:
     MValue toMValue(Allocator *alloc = nullptr) const
     {
         switch (tag_) {
-        case Tag::SCALAR: return MValue::scalar(scalar_, alloc);
-        case Tag::MVALUE: return *mvalue_;
-        default: return MValue::empty();
+        case Tag::SCALAR:
+            return MValue::scalar(scalar_, alloc);
+        case Tag::MVALUE:
+            return *mvalue_;
+        default:
+            return MValue::empty();
         }
     }
 
@@ -211,15 +236,19 @@ public:
 
     double toDouble() const
     {
-        if (tag_ == Tag::SCALAR) return scalar_;
-        if (tag_ == Tag::MVALUE) return mvalue_->toScalar();
+        if (tag_ == Tag::SCALAR)
+            return scalar_;
+        if (tag_ == Tag::MVALUE)
+            return mvalue_->toScalar();
         return 0.0;
     }
 
     bool toBool() const
     {
-        if (tag_ == Tag::SCALAR) return scalar_ != 0.0;
-        if (tag_ == Tag::MVALUE) return mvalue_->toBool();
+        if (tag_ == Tag::SCALAR)
+            return scalar_ != 0.0;
+        if (tag_ == Tag::MVALUE)
+            return mvalue_->toBool();
         return false;
     }
 

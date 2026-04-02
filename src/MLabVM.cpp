@@ -60,7 +60,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         case OpCode::LOAD_CONST: {
             const MValue &cv = chunk.constants[I.d];
             if (cv.isScalar() && cv.type() == MType::DOUBLE)
-                R[I.a].setScalar(cv.toScalar());
+                R[I.a].setScalarFast(cv.toScalar());
             else
                 R[I.a] = VMValue::fromMValue(cv);
             break;
@@ -85,41 +85,41 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         // ── Scalar arithmetic ────────────────────────────────
         case OpCode::ADD:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() + R[I.c].scalar());
+                R[I.a].setScalarFast(R[I.b].scalar() + R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
         case OpCode::SUB:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() - R[I.c].scalar());
+                R[I.a].setScalarFast(R[I.b].scalar() - R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
         case OpCode::MUL:
         case OpCode::EMUL:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() * R[I.c].scalar());
+                R[I.a].setScalarFast(R[I.b].scalar() * R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
         case OpCode::RDIV:
         case OpCode::ERDIV:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() / R[I.c].scalar());
+                R[I.a].setScalarFast(R[I.b].scalar() / R[I.c].scalar());
             } else
                 goto binary_slow;
             break;
         case OpCode::LDIV:
         case OpCode::ELDIV:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.c].scalar() / R[I.b].scalar());
+                R[I.a].setScalarFast(R[I.c].scalar() / R[I.b].scalar());
             } else
                 goto binary_slow;
             break;
         case OpCode::POW:
         case OpCode::EPOW:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(std::pow(R[I.b].scalar(), R[I.c].scalar()));
+                R[I.a].setScalarFast(std::pow(R[I.b].scalar(), R[I.c].scalar()));
             } else
                 goto binary_slow;
             break;
@@ -127,49 +127,49 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         // ── Comparison ───────────────────────────────────────
         case OpCode::EQ:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() == R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() == R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::NE:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() != R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() != R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::LT:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() < R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() < R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::GT:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() > R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() > R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::LE:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() <= R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() <= R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::GE:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() >= R[I.c].scalar() ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() >= R[I.c].scalar() ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::AND:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar((R[I.b].scalar() != 0.0 && R[I.c].scalar() != 0.0) ? 1.0 : 0.0);
+                R[I.a].setScalarFast((R[I.b].scalar() != 0.0 && R[I.c].scalar() != 0.0) ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
         case OpCode::OR:
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar((R[I.b].scalar() != 0.0 || R[I.c].scalar() != 0.0) ? 1.0 : 0.0);
+                R[I.a].setScalarFast((R[I.b].scalar() != 0.0 || R[I.c].scalar() != 0.0) ? 1.0 : 0.0);
             } else
                 goto binary_slow;
             break;
@@ -177,7 +177,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         // ── Unary ────────────────────────────────────────────
         case OpCode::NEG:
             if (R[I.b].isScalar()) {
-                R[I.a].setScalar(-R[I.b].scalar());
+                R[I.a].setScalarFast(-R[I.b].scalar());
             } else
                 goto unary_slow;
             break;
@@ -186,7 +186,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
             break;
         case OpCode::NOT:
             if (R[I.b].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar() == 0.0 ? 1.0 : 0.0);
+                R[I.a].setScalarFast(R[I.b].scalar() == 0.0 ? 1.0 : 0.0);
             } else
                 goto unary_slow;
             break;
@@ -290,10 +290,10 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         // ── Array indexing ───────────────────────────────────
         case OpCode::INDEX_GET: {
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
-                R[I.a].setScalar(R[I.b].scalar());
+                R[I.a].setScalarFast(R[I.b].scalar());
             } else if (R[I.c].isScalar() && R[I.b].isMValue()) {
                 size_t i = (size_t) R[I.c].scalar() - 1;
-                R[I.a].setScalar(R[I.b].mvalue().doubleData()[i]);
+                R[I.a].setScalarFast(R[I.b].mvalue().doubleData()[i]);
             } else if (R[I.c].isMValue() && R[I.b].isMValue()) {
                 const MValue &mv = R[I.b].mvalue();
                 const MValue &ix = R[I.c].mvalue();
@@ -313,7 +313,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
             if (R[I.b].isMValue() && R[I.c].isScalar() && R[I.e].isScalar()) {
                 size_t r = (size_t) R[I.c].scalar() - 1, c = (size_t) R[I.e].scalar() - 1;
                 const MValue &mv = R[I.b].mvalue();
-                R[I.a].setScalar(mv.doubleData()[mv.dims().sub2ind(r, c)]);
+                R[I.a].setScalarFast(mv.doubleData()[mv.dims().sub2ind(r, c)]);
             } else {
                 throw std::runtime_error("VM: non-scalar 2D indexing not supported");
             }
@@ -416,7 +416,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                 default:
                     goto builtin_fallback;
                 }
-                R[I.a].setScalar(result);
+                R[I.a].setScalarFast(result);
                 break;
             }
             if (na == 2 && R[argBase].isScalar() && R[argBase + 1].isScalar()) {
@@ -445,7 +445,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                 default:
                     goto builtin_fallback;
                 }
-                R[I.a].setScalar(result);
+                R[I.a].setScalarFast(result);
                 break;
             }
 
