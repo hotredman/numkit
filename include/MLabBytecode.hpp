@@ -240,6 +240,9 @@ struct BytecodeChunk
     // Variable name → register mapping (for exporting to environment after execution)
     std::vector<std::pair<std::string, uint8_t>> varMap;
 
+    // Global variable names (declared with 'global' keyword)
+    std::vector<std::string> globalNames;
+
     // Source mapping (for error reporting)
     std::vector<int> lineNumbers; // line number per instruction index
 };

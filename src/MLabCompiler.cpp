@@ -641,11 +641,9 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 {
-    // In VM, global/persistent at top-level is a NOP (all vars are already "global").
-    // Inside functions, we just ensure the variable register exists.
-    // Full global store integration would require environment lookup.
     for (auto &name : node->paramNames) {
         varReg(name); // allocate register
+        chunk_.globalNames.push_back(name);
     }
     return 0;
 }
@@ -1550,6 +1548,11 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     }
 
     chunk_.numRegisters = nextReg_;
+
+    // Save variable→register mapping (needed for global var import/export)
+    for (auto &[name, reg] : varRegisters_)
+        chunk_.varMap.push_back({name, reg});
+
     BytecodeChunk result = std::move(chunk_);
 
     // Restore previous state

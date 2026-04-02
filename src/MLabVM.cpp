@@ -66,6 +66,16 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             lastVarMap_.push_back({name, R_[reg]});
     }
 
+    // Export global declarations to globalStore
+    for (auto &gname : chunk.globalNames) {
+        for (auto &[vname, reg] : chunk.varMap) {
+            if (vname == gname && reg < chunk.numRegisters) {
+                engine_.globalStore_.set(gname, R_[reg]);
+                break;
+            }
+        }
+    }
+
     regStackTop_ = 0;
     R_ = nullptr;
     return result;
@@ -996,7 +1006,32 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
     for (uint8_t i = 0; i < pc; ++i)
         R_[i] = std::move(argsCopy[i]);
 
+    // Import global variables from globalStore
+    for (auto &gname : funcChunk.globalNames) {
+        // Find register for this global
+        for (auto &[vname, reg] : funcChunk.varMap) {
+            if (vname == gname && reg < nregs) {
+                MValue *gval = engine_.globalStore_.get(gname);
+                if (gval)
+                    R_[reg] = *gval;
+                break;
+            }
+        }
+    }
+
     MValue result = executeInternal(funcChunk);
+
+    // Export global variables back to globalStore
+    for (auto &gname : funcChunk.globalNames) {
+        for (auto &[vname, reg] : funcChunk.varMap) {
+            if (vname == gname && reg < nregs) {
+                engine_.globalStore_.set(gname, R_[reg]);
+                // Also update globalEnv for getVariable() access
+                engine_.globalEnv_->set(gname, R_[reg]);
+                break;
+            }
+        }
+    }
 
     // Cleanup: release heap objects in callee frame
     for (uint8_t i = 0; i < nregs; ++i) {
