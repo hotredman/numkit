@@ -25,6 +25,17 @@ static inline size_t colonCount(double start, double step, double stop)
     return static_cast<size_t>(std::floor(n + 1e-10)) + 1;
 }
 
+static inline size_t checkedIndex(double idx, size_t numel)
+{
+    if (idx < 1.0 || idx != std::floor(idx))
+        throw std::runtime_error("Index must be a positive integer, got " + std::to_string(idx));
+    size_t i = static_cast<size_t>(idx) - 1;
+    if (i >= numel)
+        throw std::runtime_error("Index " + std::to_string((size_t) idx) + " exceeds array size "
+                                 + std::to_string(numel));
+    return i;
+}
+
 // ============================================================
 // Public API
 // ============================================================
@@ -328,7 +339,7 @@ dispatch_loop:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
                     R[I.a] = R[I.b]; // scalar(scalar) = scalar
                 } else if (R[I.c].isDoubleScalar()) {
-                    size_t i = (size_t) R[I.c].scalarVal() - 1;
+                    size_t i = checkedIndex(R[I.c].scalarVal(), R[I.b].numel());
                     R[I.a] = MValue::scalar(R[I.b].doubleData()[i], &engine_.allocator_);
                 } else {
                     const MValue &mv = R[I.b];
@@ -344,9 +355,9 @@ dispatch_loop:
                 break;
             }
             case OpCode::INDEX_GET_2D: {
-                size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
                 const MValue &mv = R[I.b];
-                R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c)],
+                size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
+                R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c)],
                                         &engine_.allocator_);
                 break;
             }
@@ -733,7 +744,7 @@ dispatch_loop:
                     if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
                         R[I.a] = R[fhReg];
                     } else if (R[argBase].isDoubleScalar()) {
-                        size_t i = (size_t) R[argBase].scalarVal() - 1;
+                        size_t i = checkedIndex(R[argBase].scalarVal(), R[fhReg].numel());
                         R[I.a] = MValue::scalar(R[fhReg].doubleData()[i], &engine_.allocator_);
                     } else {
                         const MValue &mv = R[fhReg];
@@ -743,14 +754,14 @@ dispatch_loop:
                         double *dst = res.doubleDataMut();
                         const double *src = mv.doubleData(), *id = ix.doubleData();
                         for (size_t k = 0; k < n; ++k)
-                            dst[k] = src[(size_t) id[k] - 1];
+                            dst[k] = src[checkedIndex(id[k], mv.numel())];
                         R[I.a] = std::move(res);
                     }
                 } else if (na == 2) {
+                    const MValue &mv = R[fhReg];
                     size_t r = (size_t) R[argBase].toScalar() - 1,
                            c = (size_t) R[argBase + 1].toScalar() - 1;
-                    const MValue &mv = R[fhReg];
-                    R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c)],
+                    R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c)],
                                             &engine_.allocator_);
                 } else if (na == 3) {
                     size_t r = (size_t) R[argBase].toScalar() - 1;
@@ -758,9 +769,9 @@ dispatch_loop:
                     size_t p = (size_t) R[argBase + 2].toScalar() - 1;
                     const MValue &mv = R[fhReg];
                     if (mv.isCell()) {
-                        R[I.a] = mv.cellAt(mv.dims().sub2ind(r, c, p));
+                        R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
                     } else {
-                        R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2ind(r, c, p)],
+                        R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c, p)],
                                                 &engine_.allocator_);
                     }
                 } else {
