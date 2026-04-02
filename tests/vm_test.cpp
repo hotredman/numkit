@@ -610,19 +610,15 @@ TEST_F(VMTest, PersistentDecl)
 
 TEST_F(VMTest, Array3DGetSet)
 {
-    // Use matrix3d via resize3d — test 3D indexing opcodes
-    // For now just test that ND opcode compilation works with 2D
-    EXPECT_DOUBLE_EQ(runScalar("A = zeros(4, 6); A(2, 3) = 99; A(2, 3);"), 99.0);
+    EXPECT_DOUBLE_EQ(runScalar("A = zeros(2, 3, 4); A(2, 3, 4) = 99; A(2, 3, 4);"), 99.0);
 }
 
 TEST_F(VMTest, Array3DLoop)
 {
-    // Note: zeros(r,c) only — zeros(r,c,p) not yet supported in stdlib
-    EXPECT_DOUBLE_EQ(runScalar("A = zeros(2, 2); A(1,1) = 5; A(1,1);"), 5.0);
+    EXPECT_DOUBLE_EQ(runScalar("A = zeros(2, 2, 2); v = 1; for p = 1:2; for c = 1:2; for r = 1:2; "
+                               "A(r,c,p) = v; v = v + 1; end; end; end; A(1,1,1) + A(2,2,2);"),
+                     9.0);
 }
-
-// TEST: Array3DLoopFill — disabled until zeros(r,c,p) supported in stdlib
-// zeros(2,2,2) currently creates 2D matrix, ignoring 3rd arg
 
 TEST_F(VMTest, WhileBreakNested)
 {
