@@ -382,6 +382,53 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 break;
             }
 
+            // ── Cell operations ──────────────────────────────────
+            case OpCode::CELL_LITERAL: {
+                uint8_t base = I.b, count = I.c;
+                auto cell = MValue::cell(1, count);
+                for (uint8_t i = 0; i < count; ++i)
+                    cell.cellAt(i) = R[base + i];
+                R[I.a] = std::move(cell);
+                break;
+            }
+            case OpCode::CELL_GET: {
+                if (!R[I.b].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                size_t i = (size_t) R[I.c].toScalar() - 1;
+                R[I.a] = R[I.b].cellAt(i);
+                break;
+            }
+            case OpCode::CELL_GET_2D: {
+                if (!R[I.b].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
+                R[I.a] = R[I.b].cellAt(R[I.b].dims().sub2ind(r, c));
+                break;
+            }
+            case OpCode::CELL_SET: {
+                if (R[I.a].isEmpty())
+                    R[I.a] = MValue::cell(0, 0);
+                if (!R[I.a].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                size_t i = (size_t) R[I.b].toScalar() - 1;
+                if (i >= R[I.a].numel()) {
+                    size_t ns = i + 1;
+                    auto nc = MValue::cell(1, ns);
+                    for (size_t k = 0; k < R[I.a].numel(); ++k)
+                        nc.cellAt(k) = R[I.a].cellAt(k);
+                    R[I.a] = std::move(nc);
+                }
+                R[I.a].cellAt(i) = R[I.c];
+                break;
+            }
+            case OpCode::CELL_SET_2D: {
+                if (!R[I.a].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                size_t r = (size_t) R[I.b].toScalar() - 1, c = (size_t) R[I.c].toScalar() - 1;
+                R[I.a].cellAt(R[I.a].dims().sub2ind(r, c)) = R[I.e];
+                break;
+            }
+
             // ── Inline scalar builtins ───────────────────────────
             case OpCode::CALL_BUILTIN: {
                 uint8_t argBase = I.b, na = I.c;

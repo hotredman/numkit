@@ -496,6 +496,39 @@ TEST_F(VMTest, StructFieldExpression)
     EXPECT_DOUBLE_EQ(runScalar("s.a = 3; s.b = 4; sqrt(s.a^2 + s.b^2);"), 5.0);
 }
 
+// ============================================================
+// Cells
+// ============================================================
+
+TEST_F(VMTest, CellLiteral)
+{
+    EXPECT_DOUBLE_EQ(runScalar("c = {10, 20, 30}; c{2};"), 20.0);
+}
+
+TEST_F(VMTest, CellAssign)
+{
+    EXPECT_DOUBLE_EQ(runScalar("c = {0, 0}; c{1} = 42; c{1};"), 42.0);
+}
+
+TEST_F(VMTest, CellGrow)
+{
+    // Auto-grow cell array
+    EXPECT_DOUBLE_EQ(runScalar("c{3} = 99; c{3};"), 99.0);
+}
+
+TEST_F(VMTest, CellInLoop)
+{
+    EXPECT_DOUBLE_EQ(runScalar(
+                         "c = {0, 0, 0}; for i = 1:3; c{i} = i * 10; end; c{1} + c{2} + c{3};"),
+                     60.0);
+}
+
+TEST_F(VMTest, CellMixed)
+{
+    // Cell with different types — read back numeric
+    EXPECT_DOUBLE_EQ(runScalar("c = {42, 'hello', 3.14}; c{1} + c{3};"), 45.14);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

@@ -158,6 +158,10 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileTryCatch(node);
     case NodeType::FIELD_ACCESS:
         return compileFieldAccess(node);
+    case NodeType::CELL_INDEX:
+        return compileCellIndex(node);
+    case NodeType::CELL_LITERAL:
+        return compileCellLiteral(node);
     case NodeType::WHILE_STMT:
         return compileWhile(node);
     case NodeType::BREAK_STMT:
@@ -248,6 +252,10 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
     if (lhs->type == NodeType::FIELD_ACCESS) {
         return compileFieldAssign(node);
+    }
+
+    if (lhs->type == NodeType::CELL_INDEX) {
+        return compileCellAssign(node);
     }
 
     throw std::runtime_error("Compiler: unsupported assignment target");
@@ -903,6 +911,102 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
 }
 
 // ============================================================
+// Cell operations
+// ============================================================
+
+uint8_t Compiler::compileCellLiteral(const ASTNode *node)
+{
+    if (node->children.empty()) {
+        uint8_t dst = tempReg();
+        emitABC(OpCode::CELL_LITERAL, dst, 0, 0);
+        return dst;
+    }
+
+    // Check if children are row-blocks (2D cell) or direct elements (1D cell)
+    // Parser wraps {a, b, c} as CELL_LITERAL with one BLOCK child containing a,b,c
+    const std::vector<ASTNodePtr> *elements = &node->children;
+    if (node->children.size() == 1 && node->children[0]->type == NodeType::BLOCK) {
+        elements = &node->children[0]->children;
+    }
+
+    size_t count = elements->size();
+
+    // Compile all elements first
+    std::vector<uint8_t> elemRegs;
+    elemRegs.reserve(count);
+    for (size_t i = 0; i < count; ++i) {
+        elemRegs.push_back(compileNode((*elements)[i].get()));
+    }
+
+    // Allocate consecutive registers and MOVE elements into them
+    uint8_t base = nextReg_;
+    for (size_t i = 0; i < count; ++i) {
+        uint8_t slot = tempReg();
+        if (elemRegs[i] != slot)
+            emitAB(OpCode::MOVE, slot, elemRegs[i]);
+    }
+
+    uint8_t dst = tempReg();
+    emitABC(OpCode::CELL_LITERAL, dst, base, (uint8_t) count);
+    return dst;
+}
+
+uint8_t Compiler::compileCellIndex(const ASTNode *node)
+{
+    // node->children[0] = cell variable
+    // node->children[1..] = indices
+    uint8_t cell = compileNode(node->children[0].get());
+    size_t nidx = node->children.size() - 1;
+
+    if (nidx == 1) {
+        uint8_t idx = compileNode(node->children[1].get());
+        uint8_t dst = tempReg();
+        emitABC(OpCode::CELL_GET, dst, cell, idx);
+        return dst;
+    }
+    if (nidx == 2) {
+        uint8_t row = compileNode(node->children[1].get());
+        uint8_t col = compileNode(node->children[2].get());
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::CELL_GET_2D, dst, cell, row, 0, col));
+        return dst;
+    }
+    throw std::runtime_error("Compiler: cell indexing with >2 dims not supported");
+}
+
+uint8_t Compiler::compileCellAssign(const ASTNode *node)
+{
+    auto *lhs = node->children[0].get(); // CELL_INDEX node
+    auto *rhs = node->children[1].get();
+
+    auto *target = lhs->children[0].get();
+    if (target->type != NodeType::IDENTIFIER)
+        throw std::runtime_error("Compiler: invalid cell assignment target");
+
+    uint8_t cell = varReg(target->strValue);
+    uint8_t val = compileNode(rhs);
+
+    size_t nidx = lhs->children.size() - 1;
+    if (nidx == 1) {
+        uint8_t idx = compileNode(lhs->children[1].get());
+        emitABC(OpCode::CELL_SET, cell, idx, val);
+    } else if (nidx == 2) {
+        uint8_t row = compileNode(lhs->children[1].get());
+        uint8_t col = compileNode(lhs->children[2].get());
+        emit(Instruction::make_abcde(OpCode::CELL_SET_2D, cell, row, col, 0, val));
+    } else {
+        throw std::runtime_error("Compiler: cell assign with >2 dims not supported");
+    }
+
+    if (!node->suppressOutput) {
+        int16_t nameIdx = addStringConstant(target->strValue);
+        emitAD(OpCode::DISPLAY, cell, nameIdx);
+    }
+
+    return cell;
+}
+
+// ============================================================
 // Phase 4: Function calls
 // ============================================================
 
@@ -1197,6 +1301,26 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "HALT";
         case OpCode::NOP:
             return "NOP";
+        case OpCode::FIELD_GET:
+            return "FIELD_GET";
+        case OpCode::FIELD_SET:
+            return "FIELD_SET";
+        case OpCode::CELL_LITERAL:
+            return "CELL_LITERAL";
+        case OpCode::CELL_GET:
+            return "CELL_GET";
+        case OpCode::CELL_GET_2D:
+            return "CELL_GET_2D";
+        case OpCode::CELL_SET:
+            return "CELL_SET";
+        case OpCode::CELL_SET_2D:
+            return "CELL_SET_2D";
+        case OpCode::TRY_BEGIN:
+            return "TRY_BEGIN";
+        case OpCode::TRY_END:
+            return "TRY_END";
+        case OpCode::THROW:
+            return "THROW";
         default:
             return "???";
         }

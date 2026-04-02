@@ -85,6 +85,9 @@ private:
     uint8_t compileTryCatch(const ASTNode *node);
     uint8_t compileFieldAccess(const ASTNode *node);
     uint8_t compileFieldAssign(const ASTNode *node);
+    uint8_t compileCellLiteral(const ASTNode *node);
+    uint8_t compileCellIndex(const ASTNode *node);
+    uint8_t compileCellAssign(const ASTNode *node);
     uint8_t compileWhile(const ASTNode *node);
     uint8_t compileBreak(const ASTNode *node);
     uint8_t compileContinue(const ASTNode *node);
