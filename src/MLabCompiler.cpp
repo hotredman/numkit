@@ -1277,11 +1277,23 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     const std::string &name = funcNode->strValue;
     size_t nargs = node->children.size() - 1;
 
-    // Check if it's a known variable → could be array indexing OR func handle call
-    // We can't know at compile time, so emit CALL_INDIRECT for runtime dispatch
+    // Check if it's a known variable (local or from globalEnv)
+    // → could be array indexing OR func handle call — emit CALL_INDIRECT
     auto it = varRegisters_.find(name);
-    if (it != varRegisters_.end()) {
-        uint8_t fhReg = it->second;
+    bool isKnownVar = (it != varRegisters_.end());
+
+    // Also check globalEnv for variables from previous eval() calls
+    if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
+        MValue *existing = engine_.getVariable(name);
+        if (existing && !existing->isEmpty() && !engine_.externalFuncs_.count(name)
+            && !engine_.hasFunction(name)) {
+            // Import variable and treat as CALL_INDIRECT
+            isKnownVar = true;
+        }
+    }
+
+    if (isKnownVar) {
+        uint8_t fhReg = varReg(name); // will import from globalEnv if needed
         std::vector<uint8_t> argRegs;
         for (size_t i = 1; i < node->children.size(); ++i)
             argRegs.push_back(compileNode(node->children[i].get()));
