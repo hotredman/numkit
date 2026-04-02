@@ -374,6 +374,12 @@ dispatch_loop:
             }
             case OpCode::INDEX_SET_2D: {
                 size_t r = (size_t) R[I.b].toScalar() - 1, c = (size_t) R[I.c].toScalar() - 1;
+                // Auto-expand if needed
+                if (r >= R[I.a].dims().rows() || c >= R[I.a].dims().cols()) {
+                    size_t newR = std::max(R[I.a].dims().rows(), r + 1);
+                    size_t newC = std::max(R[I.a].dims().cols(), c + 1);
+                    R[I.a].resize(newR, newC, &engine_.allocator_);
+                }
                 R[I.a].doubleDataMut()[R[I.a].dims().sub2ind(r, c)] = R[I.e].toScalar();
                 break;
             }
@@ -1040,30 +1046,82 @@ std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
 
 void VM::executeHorzcat(MValue &dst, const MValue *regs, uint8_t count)
 {
-    size_t total = 0;
+    // Determine output dimensions
+    size_t totalCols = 0;
+    size_t rows = 0;
+    bool allScalar = true;
     for (uint8_t i = 0; i < count; ++i) {
         if (regs[i].isEmpty())
             continue;
         if (regs[i].isDoubleScalar()) {
-            total++;
+            totalCols++;
+            if (!rows)
+                rows = 1;
+            allScalar = true;
             continue;
         }
-        total += regs[i].numel();
+        auto &dims = regs[i].dims();
+        totalCols += dims.cols();
+        if (!rows)
+            rows = dims.rows();
+        else if (rows != dims.rows() && dims.rows() != 1 && rows != 1)
+            throw std::runtime_error("Dimensions of arrays being concatenated are not consistent");
+        if (dims.rows() > 1)
+            rows = dims.rows();
+        allScalar = false;
     }
-    auto result = MValue::matrix(1, total, MType::DOUBLE, &engine_.allocator_);
+    if (!rows)
+        rows = 1;
+
+    if (rows == 1) {
+        // Simple 1D case — row vector
+        size_t total = 0;
+        for (uint8_t i = 0; i < count; ++i) {
+            if (regs[i].isEmpty())
+                continue;
+            if (regs[i].isDoubleScalar()) {
+                total++;
+                continue;
+            }
+            total += regs[i].numel();
+        }
+        auto result = MValue::matrix(1, total, MType::DOUBLE, &engine_.allocator_);
+        double *d = result.doubleDataMut();
+        size_t pos = 0;
+        for (uint8_t i = 0; i < count; ++i) {
+            if (regs[i].isEmpty())
+                continue;
+            if (regs[i].isDoubleScalar()) {
+                d[pos++] = regs[i].scalarVal();
+                continue;
+            }
+            const double *src = regs[i].doubleData();
+            size_t n = regs[i].numel();
+            std::copy(src, src + n, d + pos);
+            pos += n;
+        }
+        dst = std::move(result);
+        return;
+    }
+
+    // 2D case — concatenate columns
+    auto result = MValue::matrix(rows, totalCols, MType::DOUBLE, &engine_.allocator_);
     double *d = result.doubleDataMut();
-    size_t pos = 0;
+    size_t colOff = 0;
     for (uint8_t i = 0; i < count; ++i) {
         if (regs[i].isEmpty())
             continue;
         if (regs[i].isDoubleScalar()) {
-            d[pos++] = regs[i].scalarVal();
+            d[colOff * rows] = regs[i].scalarVal();
+            colOff++;
             continue;
         }
+        auto &dims = regs[i].dims();
         const double *src = regs[i].doubleData();
-        size_t n = regs[i].numel();
-        std::copy(src, src + n, d + pos);
-        pos += n;
+        for (size_t c = 0; c < dims.cols(); ++c)
+            for (size_t r = 0; r < dims.rows(); ++r)
+                d[r + (colOff + c) * rows] = src[r + c * dims.rows()];
+        colOff += dims.cols();
     }
     dst = std::move(result);
 }
