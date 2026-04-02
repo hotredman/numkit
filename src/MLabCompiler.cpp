@@ -484,9 +484,9 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
     auto *child = node->children[0].get();
     if (child->type == NodeType::IDENTIFIER) {
         static const std::unordered_set<std::string> kBuiltinCommands
-            = {"clear",   "who",   "whos",   "clc",    "close",  "hold",   "grid", "figure",
-               "subplot", "title", "xlabel", "ylabel", "zlabel", "legend", "axis", "format",
-               "diary",   "cd",    "pwd",    "ls",     "dir",    "tic",    "toc"};
+            = {"clear",  "who",     "whos",  "clc",    "clf",    "close",  "hold",   "grid",
+               "figure", "subplot", "title", "xlabel", "ylabel", "zlabel", "legend", "axis",
+               "format", "diary",   "cd",    "pwd",    "ls",     "dir",    "tic",    "toc"};
         if (kBuiltinCommands.count(child->strValue))
             throw std::runtime_error("Compiler: builtin command '" + child->strValue
                                      + "' requires TreeWalker");
