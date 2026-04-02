@@ -6,9 +6,8 @@
 #include <complex>
 #include <cstddef>
 #include <cstdint>
-#include <initializer_list>
+#include <cstring>
 #include <map>
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -16,7 +15,10 @@ namespace mlab {
 
 using Complex = std::complex<double>;
 
-enum class MType {
+// ============================================================
+// MType — element type enum
+// ============================================================
+enum class MType : uint8_t {
     EMPTY,
     DOUBLE,
     COMPLEX,
@@ -38,6 +40,9 @@ enum class MType {
 const char *mtypeName(MType t);
 size_t elementSize(MType t);
 
+// ============================================================
+// Dims — array dimensions
+// ============================================================
 struct Dims
 {
     size_t d[3] = {0, 0, 1};
@@ -67,6 +72,9 @@ struct Dims
     bool operator!=(const Dims &o) const;
 };
 
+// ============================================================
+// DataBuffer — raw memory block with ref-counting
+// ============================================================
 class DataBuffer
 {
 public:
@@ -92,6 +100,59 @@ private:
     Allocator *allocator_ = nullptr;
 };
 
+// ============================================================
+// HeapObject — ref-counted storage for non-scalar values
+//
+// Holds arrays, cells, structs, func handles.
+// Shared via COW (copy-on-write) through refCount.
+// ============================================================
+class MValue; // forward decl
+
+struct HeapObject
+{
+    std::atomic<int> refCount{1};
+    MType type = MType::EMPTY;
+    Dims dims;
+    Allocator *allocator = nullptr;
+
+    // Array data (DOUBLE, INT*, UINT*, LOGICAL, CHAR, COMPLEX)
+    DataBuffer *buffer = nullptr;
+
+    // Extended data — allocated only for CELL, STRUCT, FUNC_HANDLE
+    std::vector<MValue> *cellData = nullptr;
+    std::map<std::string, MValue> *structData = nullptr;
+    std::string *funcName = nullptr;
+
+    // Capacity for appendScalar amortization
+    size_t appendCapacity = 0;
+
+    HeapObject() = default;
+    ~HeapObject();
+
+    HeapObject(const HeapObject &) = delete;
+    HeapObject &operator=(const HeapObject &) = delete;
+
+    void addRef() { refCount.fetch_add(1, std::memory_order_relaxed); }
+    bool release() { return refCount.fetch_sub(1, std::memory_order_acq_rel) == 1; }
+
+    // Deep clone for COW
+    HeapObject *clone() const;
+};
+
+// ============================================================
+// MValue — 16-byte tagged pointer value
+//
+// Layout:
+//   double scalar_    (8 bytes) — inline scalar value
+//   HeapObject *heap_ (8 bytes) — tag / heap pointer
+//
+// Encoding:
+//   heap_ == nullptr          → double scalar (value in scalar_)
+//   heap_ == kEmptyTag        → empty
+//   heap_ == kLogicalTrueTag  → logical scalar true
+//   heap_ == kLogicalFalseTag → logical scalar false
+//   otherwise                 → heap-allocated object
+// ============================================================
 class MValue
 {
 public:
@@ -100,12 +161,12 @@ public:
 
     MValue(const MValue &other);
     MValue &operator=(const MValue &other);
-    MValue(MValue &&other);
-    MValue &operator=(MValue &&other);
+    MValue(MValue &&other) noexcept;
+    MValue &operator=(MValue &&other) noexcept;
 
     void swap(MValue &other) noexcept;
 
-    // Factories — real
+    // ── Factories — real ─────────────────────────────────────
     static MValue scalar(double v, Allocator *alloc = nullptr);
     static MValue logicalScalar(bool v, Allocator *alloc = nullptr);
     static MValue matrix(size_t rows,
@@ -123,12 +184,12 @@ public:
     static MValue funcHandle(const std::string &name, Allocator *alloc = nullptr);
     static MValue empty();
 
-    // Factories — complex
+    // ── Factories — complex ──────────────────────────────────
     static MValue complexScalar(Complex v, Allocator *alloc = nullptr);
     static MValue complexScalar(double re, double im, Allocator *alloc = nullptr);
     static MValue complexMatrix(size_t rows, size_t cols, Allocator *alloc = nullptr);
 
-    // Type queries
+    // ── Type queries ─────────────────────────────────────────
     MType type() const;
     const Dims &dims() const;
     size_t numel() const;
@@ -142,11 +203,11 @@ public:
     bool isStruct() const;
     bool isFuncHandle() const;
 
-    // Const raw access
+    // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;
     size_t rawBytes() const;
 
-    // Const typed access — double
+    // ── Const typed access — double ──────────────────────────
     const double *doubleData() const;
     const uint8_t *logicalData() const;
     const char *charData() const;
@@ -154,80 +215,103 @@ public:
     bool toBool() const;
     std::string toString() const;
 
-    // Const typed access — complex
+    // ── Const typed access — complex ─────────────────────────
     const Complex *complexData() const;
     Complex toComplex() const;
     Complex complexElem(size_t i) const;
     Complex complexElem(size_t r, size_t c) const;
 
-    // Mutable typed access (calls detach)
+    // ── Mutable typed access (calls detach for COW) ──────────
     double *doubleDataMut();
     uint8_t *logicalDataMut();
     char *charDataMut();
     void *rawDataMut();
     Complex *complexDataMut();
 
-    // Const indexing (column-major)
+    // ── Const indexing (column-major) ────────────────────────
     double operator()(size_t i) const;
     double operator()(size_t r, size_t c) const;
     double operator()(size_t r, size_t c, size_t p) const;
 
-    // Mutable indexing (calls detach)
+    // ── Mutable indexing (calls detach) ──────────────────────
     double &elem(size_t i);
     double &elem(size_t r, size_t c);
     double &elem(size_t r, size_t c, size_t p);
 
-    // Char element access
+    // ── Char element access ──────────────────────────────────
     char charElem(size_t i) const;
     char &charElemMut(size_t i);
 
-    // Resize
+    // ── Resize ───────────────────────────────────────────────
     void resize(size_t newRows, size_t newCols, Allocator *alloc = nullptr);
     void resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator *alloc = nullptr);
     void ensureSize(size_t linearIdx, Allocator *alloc = nullptr);
-
-    // Append a scalar to a row vector with amortized O(1) growth
     void appendScalar(double v, Allocator *alloc = nullptr);
 
-    // Promote double → complex
+    // ── Promote double → complex ─────────────────────────────
     void promoteToComplex(Allocator *alloc = nullptr);
 
-    // Cell
+    // ── Cell ─────────────────────────────────────────────────
     MValue &cellAt(size_t i);
     const MValue &cellAt(size_t i) const;
     std::vector<MValue> &cellDataVec();
     const std::vector<MValue> &cellDataVec() const;
 
-    // Struct
+    // ── Struct ───────────────────────────────────────────────
     MValue &field(const std::string &name);
     const MValue &field(const std::string &name) const;
     bool hasField(const std::string &name) const;
     std::map<std::string, MValue> &structFields();
     const std::map<std::string, MValue> &structFields() const;
 
-    // Func handle
+    // ── Func handle ──────────────────────────────────────────
     std::string funcHandleName() const;
 
-    // Debug
+    // ── Debug ────────────────────────────────────────────────
     std::string debugString() const;
 
+    // ── Fast scalar access for VM ────────────────────────────
+    // Caller must ensure isDoubleScalar() is true.
+    bool isDoubleScalar() const { return heap_ == nullptr; }
+    double scalarVal() const { return scalar_; }
+    void setScalarVal(double v)
+    {
+        releaseHeap();
+        scalar_ = v;
+        heap_ = nullptr;
+    }
+    void setScalarFast(double v) { scalar_ = v; } // caller guarantees heap_==nullptr already
+
 private:
-    MType type_ = MType::EMPTY;
-    Dims dims_;
-    DataBuffer *buffer_ = nullptr;
-    Allocator *allocator_ = nullptr;
+    // ── 16-byte layout ───────────────────────────────────────
+    double scalar_ = 0.0;
+    HeapObject *heap_;
 
-    // Small buffer optimization: store scalars inline (avoids heap alloc)
-    static constexpr size_t SBO_SIZE = sizeof(Complex); // 16 bytes — fits double, complex, int64
-    alignas(Complex) char sbo_[SBO_SIZE] = {};
-    bool useSBO_ = false;
+    // ── Sentinel tags ────────────────────────────────────────
+    static HeapObject sEmptyTag;
+    static HeapObject sLogicalTrue;
+    static HeapObject sLogicalFalse;
 
-    std::vector<MValue> cellData_;
-    std::map<std::string, MValue> structData_;
-    std::string funcHandleName_;
+    // ── Tag constants ────────────────────────────────────────
+    // Cannot use constexpr with address of static — use inline functions
+    static HeapObject *emptyTag() { return &sEmptyTag; }
+    static HeapObject *logicalTrueTag() { return &sLogicalTrue; }
+    static HeapObject *logicalFalseTag() { return &sLogicalFalse; }
 
+    // ── Internal helpers ─────────────────────────────────────
+    bool isTag() const
+    {
+        return heap_ == emptyTag() || heap_ == logicalTrueTag() || heap_ == logicalFalseTag();
+    }
+    bool isHeap() const { return heap_ != nullptr && !isTag(); }
+
+    void releaseHeap();
     void detach();
-    void releaseBuffer();
+    HeapObject *mutableHeap();
+
+    // Static dims for scalar returns
+    static const Dims sScalarDims;
+    static const Dims sEmptyDims;
 };
 
 } // namespace mlab

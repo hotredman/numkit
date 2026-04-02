@@ -49,6 +49,9 @@ private:
     int recursionDepth_ = 0;
     static constexpr int kMaxRecursion = 500;
 
+    // Per-chunk call target cache (shared across recursive calls)
+    std::unordered_map<const BytecodeChunk *, std::vector<const BytecodeChunk *>> chunkCallCache_;
+
     // Internal execute — operates on R_ (current frame)
     VMValue executeInternal(const BytecodeChunk &chunk);
 

@@ -1,5 +1,4 @@
 #include "MLabValue.hpp"
-
 #include <algorithm>
 #include <cstring>
 #include <sstream>
@@ -7,9 +6,6 @@
 
 namespace mlab {
 
-// ============================================================
-// MType helpers
-// ============================================================
 const char *mtypeName(MType t)
 {
     switch (t) {
@@ -48,18 +44,17 @@ const char *mtypeName(MType t)
     }
     return "unknown";
 }
-
 size_t elementSize(MType t)
 {
     switch (t) {
     case MType::DOUBLE:
-        return sizeof(double);
+        return 8;
     case MType::COMPLEX:
-        return sizeof(Complex);
+        return 16;
     case MType::LOGICAL:
-        return sizeof(uint8_t);
+        return 1;
     case MType::CHAR:
-        return sizeof(char);
+        return 1;
     case MType::INT8:
         return 1;
     case MType::INT16:
@@ -81,9 +76,6 @@ size_t elementSize(MType t)
     }
 }
 
-// ============================================================
-// Dims
-// ============================================================
 Dims::Dims()
 {
     d[0] = 0;
@@ -105,7 +97,6 @@ Dims::Dims(size_t r, size_t c, size_t p)
     d[2] = p;
     nd = 3;
 }
-
 int Dims::ndims() const
 {
     return nd;
@@ -146,7 +137,6 @@ size_t Dims::dimSize(int dim) const
 {
     return (dim >= 0 && dim < 3) ? d[dim] : 1;
 }
-
 size_t Dims::sub2ind(size_t r, size_t c) const
 {
     return c * d[0] + r;
@@ -155,26 +145,19 @@ size_t Dims::sub2ind(size_t r, size_t c, size_t p) const
 {
     return p * d[0] * d[1] + c * d[0] + r;
 }
-
 size_t Dims::sub2indChecked(size_t r, size_t c) const
 {
     if (r >= d[0] || c >= d[1])
         throw std::runtime_error("Index (" + std::to_string(r + 1) + "," + std::to_string(c + 1)
-                                 + ") exceeds array dimensions [" + std::to_string(d[0]) + "x"
-                                 + std::to_string(d[1]) + "]");
+                                 + ") exceeds dimensions");
     return c * d[0] + r;
 }
-
 size_t Dims::sub2indChecked(size_t r, size_t c, size_t p) const
 {
     if (r >= d[0] || c >= d[1] || p >= d[2])
-        throw std::runtime_error("Index (" + std::to_string(r + 1) + "," + std::to_string(c + 1)
-                                 + "," + std::to_string(p + 1) + ") exceeds array dimensions ["
-                                 + std::to_string(d[0]) + "x" + std::to_string(d[1]) + "x"
-                                 + std::to_string(d[2]) + "]");
+        throw std::runtime_error("Index exceeds dimensions");
     return p * d[0] * d[1] + c * d[0] + r;
 }
-
 bool Dims::operator==(const Dims &o) const
 {
     return d[0] == o.d[0] && d[1] == o.d[1] && d[2] == o.d[2];
@@ -184,9 +167,6 @@ bool Dims::operator!=(const Dims &o) const
     return !(*this == o);
 }
 
-// ============================================================
-// DataBuffer
-// ============================================================
 DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
     : bytes_(bytes)
     , refCount_(1)
@@ -198,10 +178,9 @@ DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
         else
             data_ = ::operator new(bytes);
         if (!data_)
-            throw std::bad_alloc();
+            throw std::runtime_error("DataBuffer: allocation failed");
     }
 }
-
 DataBuffer::~DataBuffer()
 {
     if (data_) {
@@ -211,7 +190,6 @@ DataBuffer::~DataBuffer()
             ::operator delete(data_);
     }
 }
-
 void DataBuffer::addRef()
 {
     refCount_.fetch_add(1, std::memory_order_relaxed);
@@ -225,581 +203,549 @@ int DataBuffer::refCount() const
     return refCount_.load(std::memory_order_acquire);
 }
 
-// ============================================================
-// MValue — buffer helpers
-// ============================================================
-void MValue::releaseBuffer()
+HeapObject::~HeapObject()
 {
-    if (useSBO_) {
-        buffer_ = nullptr;
-        useSBO_ = false;
-        return;
+    if (buffer) {
+        if (buffer->release())
+            delete buffer;
     }
-    if (buffer_) {
-        if (buffer_->release())
-            delete buffer_;
-        buffer_ = nullptr;
+    delete cellData;
+    delete structData;
+    delete funcName;
+}
+HeapObject *HeapObject::clone() const
+{
+    auto *h = new HeapObject();
+    h->type = type;
+    h->dims = dims;
+    h->allocator = allocator;
+    if (buffer) {
+        h->buffer = new DataBuffer(buffer->bytes(), allocator);
+        std::memcpy(h->buffer->data(), buffer->data(), buffer->bytes());
     }
+    if (cellData)
+        h->cellData = new std::vector<MValue>(*cellData);
+    if (structData)
+        h->structData = new std::map<std::string, MValue>(*structData);
+    if (funcName)
+        h->funcName = new std::string(*funcName);
+    return h;
 }
 
-void MValue::detach()
-{
-    if (useSBO_)
-        return; // SBO data is always exclusively owned
-    if (!buffer_ || buffer_->refCount() <= 1)
-        return;
-    DataBuffer *oldBuf = buffer_;
-    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(oldBuf->bytes(), allocator_));
-    std::memcpy(newBuf->data(), oldBuf->data(), oldBuf->bytes());
-    buffer_ = newBuf.release();
-    if (oldBuf->release())
-        delete oldBuf;
-}
+HeapObject MValue::sEmptyTag;
+HeapObject MValue::sLogicalTrue;
+HeapObject MValue::sLogicalFalse;
+const Dims MValue::sScalarDims{1, 1};
+const Dims MValue::sEmptyDims{};
 
-// ============================================================
-// Constructors / destructor / swap
-// ============================================================
-MValue::MValue() = default;
+MValue::MValue()
+    : scalar_(0.0)
+    , heap_(emptyTag())
+{}
 MValue::~MValue()
 {
-    releaseBuffer();
+    releaseHeap();
 }
-
-MValue::MValue(const MValue &other)
-    : type_(other.type_)
-    , dims_(other.dims_)
-    , buffer_(other.buffer_)
-    , allocator_(other.allocator_)
-    , useSBO_(other.useSBO_)
-    , cellData_(other.cellData_)
-    , structData_(other.structData_)
-    , funcHandleName_(other.funcHandleName_)
+MValue::MValue(const MValue &o)
+    : scalar_(o.scalar_)
+    , heap_(o.heap_)
 {
-    if (useSBO_) {
-        std::memcpy(sbo_, other.sbo_, SBO_SIZE);
-        buffer_ = nullptr; // SBO doesn't use buffer
-    } else if (buffer_) {
-        buffer_->addRef();
+    if (o.isHeap())
+        heap_->addRef();
+}
+MValue &MValue::operator=(const MValue &o)
+{
+    if (this != &o) {
+        releaseHeap();
+        scalar_ = o.scalar_;
+        heap_ = o.heap_;
+        if (isHeap())
+            heap_->addRef();
     }
-}
-
-MValue &MValue::operator=(const MValue &other)
-{
-    if (this == &other)
-        return *this;
-    MValue tmp(other);
-    swap(tmp);
     return *this;
 }
-
-MValue::MValue(MValue &&other)
-    : type_(other.type_)
-    , dims_(other.dims_)
-    , buffer_(other.buffer_)
-    , allocator_(other.allocator_)
-    , useSBO_(other.useSBO_)
-    , cellData_(std::move(other.cellData_))
-    , structData_(std::move(other.structData_))
-    , funcHandleName_(std::move(other.funcHandleName_))
+MValue::MValue(MValue &&o) noexcept
+    : scalar_(o.scalar_)
+    , heap_(o.heap_)
 {
-    if (useSBO_) {
-        std::memcpy(sbo_, other.sbo_, SBO_SIZE);
-        buffer_ = nullptr;
-    }
-    other.buffer_ = nullptr;
-    other.type_ = MType::EMPTY;
-    other.dims_ = Dims();
-    other.useSBO_ = false;
+    o.heap_ = emptyTag();
+    o.scalar_ = 0.0;
 }
-
-MValue &MValue::operator=(MValue &&other)
+MValue &MValue::operator=(MValue &&o) noexcept
 {
-    if (this == &other)
-        return *this;
-    MValue tmp(std::move(other));
-    swap(tmp);
+    if (this != &o) {
+        releaseHeap();
+        scalar_ = o.scalar_;
+        heap_ = o.heap_;
+        o.heap_ = emptyTag();
+        o.scalar_ = 0.0;
+    }
     return *this;
 }
-
-void MValue::swap(MValue &other) noexcept
+void MValue::swap(MValue &o) noexcept
 {
-    std::swap(type_, other.type_);
-    std::swap(dims_, other.dims_);
-    std::swap(buffer_, other.buffer_);
-    std::swap(allocator_, other.allocator_);
-    std::swap(useSBO_, other.useSBO_);
-    char tmp[SBO_SIZE];
-    std::memcpy(tmp, sbo_, SBO_SIZE);
-    std::memcpy(sbo_, other.sbo_, SBO_SIZE);
-    std::memcpy(other.sbo_, tmp, SBO_SIZE);
-    cellData_.swap(other.cellData_);
-    structData_.swap(other.structData_);
-    funcHandleName_.swap(other.funcHandleName_);
+    std::swap(scalar_, o.scalar_);
+    std::swap(heap_, o.heap_);
 }
-
-// ============================================================
-// Factories — real
-// ============================================================
-MValue MValue::scalar(double v, Allocator *alloc)
+void MValue::releaseHeap()
 {
-    MValue m;
-    m.type_ = MType::DOUBLE;
-    m.dims_ = {1, 1};
-    m.allocator_ = alloc;
-    m.useSBO_ = true;
-    m.buffer_ = nullptr;
-    *reinterpret_cast<double *>(m.sbo_) = v;
-    return m;
-}
-
-MValue MValue::logicalScalar(bool v, Allocator *alloc)
-{
-    MValue m;
-    m.type_ = MType::LOGICAL;
-    m.dims_ = {1, 1};
-    m.allocator_ = alloc;
-    m.useSBO_ = true;
-    m.buffer_ = nullptr;
-    m.sbo_[0] = v ? 1 : 0;
-    return m;
-}
-
-MValue MValue::matrix(size_t rows, size_t cols, MType t, Allocator *alloc)
-{
-    MValue m;
-    m.type_ = t;
-    m.dims_ = {rows, cols};
-    m.allocator_ = alloc;
-    size_t bytes = rows * cols * elementSize(t);
-    if (bytes > 0) {
-        m.buffer_ = new DataBuffer(bytes, alloc);
-        std::memset(m.buffer_->data(), 0, bytes);
+    if (isHeap()) {
+        if (heap_->release())
+            delete heap_;
     }
-    return m;
+    heap_ = emptyTag();
+}
+void MValue::detach()
+{
+    if (!isHeap())
+        return;
+    if (heap_->refCount.load(std::memory_order_acquire) <= 1)
+        return;
+    HeapObject *c = heap_->clone();
+    releaseHeap();
+    heap_ = c;
+}
+HeapObject *MValue::mutableHeap()
+{
+    detach();
+    return heap_;
 }
 
-MValue MValue::matrix3d(size_t rows, size_t cols, size_t pages, MType t, Allocator *alloc)
+MValue MValue::scalar(double v, Allocator *)
 {
     MValue m;
-    m.type_ = t;
-    m.dims_ = {rows, cols, pages};
-    m.allocator_ = alloc;
-    size_t bytes = rows * cols * pages * elementSize(t);
-    if (bytes > 0) {
-        m.buffer_ = new DataBuffer(bytes, alloc);
-        std::memset(m.buffer_->data(), 0, bytes);
-    }
+    m.scalar_ = v;
+    m.heap_ = nullptr;
     return m;
 }
-
-MValue MValue::fromString(const std::string &s, Allocator *alloc)
+MValue MValue::logicalScalar(bool v, Allocator *)
 {
     MValue m;
-    m.type_ = MType::CHAR;
-    m.dims_ = {1, s.size()};
-    m.allocator_ = alloc;
-    if (!s.empty()) {
-        m.buffer_ = new DataBuffer(s.size(), alloc);
-        std::memcpy(m.buffer_->data(), s.data(), s.size());
-    }
+    m.heap_ = v ? logicalTrueTag() : logicalFalseTag();
     return m;
 }
-
-MValue MValue::cell(size_t rows, size_t cols)
-{
-    MValue m;
-    m.type_ = MType::CELL;
-    m.dims_ = {rows, cols};
-    m.cellData_.resize(rows * cols);
-    return m;
-}
-
-MValue MValue::structure()
-{
-    MValue m;
-    m.type_ = MType::STRUCT;
-    m.dims_ = {1, 1};
-    return m;
-}
-
-MValue MValue::funcHandle(const std::string &name, Allocator *alloc)
-{
-    MValue m;
-    m.type_ = MType::FUNC_HANDLE;
-    m.dims_ = {1, 1};
-    m.allocator_ = alloc;
-    m.funcHandleName_ = name;
-    return m;
-}
-
 MValue MValue::empty()
 {
     return MValue();
 }
 
-// ============================================================
-// Factories — complex
-// ============================================================
+MValue MValue::matrix(size_t rows, size_t cols, MType t, Allocator *alloc)
+{
+    if (rows == 1 && cols == 1 && t == MType::DOUBLE)
+        return scalar(0.0, alloc);
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = t;
+    h->dims = {rows, cols};
+    h->allocator = alloc;
+    size_t bytes = rows * cols * elementSize(t);
+    if (bytes > 0) {
+        h->buffer = new DataBuffer(bytes, alloc);
+        std::memset(h->buffer->data(), 0, bytes);
+    }
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::matrix3d(size_t rows, size_t cols, size_t pages, MType t, Allocator *alloc)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = t;
+    h->dims = {rows, cols, pages};
+    h->allocator = alloc;
+    size_t bytes = rows * cols * pages * elementSize(t);
+    if (bytes > 0) {
+        h->buffer = new DataBuffer(bytes, alloc);
+        std::memset(h->buffer->data(), 0, bytes);
+    }
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::fromString(const std::string &s, Allocator *alloc)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::CHAR;
+    h->dims = {1, s.size()};
+    h->allocator = alloc;
+    if (!s.empty()) {
+        h->buffer = new DataBuffer(s.size(), alloc);
+        std::memcpy(h->buffer->data(), s.data(), s.size());
+    }
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::cell(size_t rows, size_t cols)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::CELL;
+    h->dims = {rows, cols};
+    h->cellData = new std::vector<MValue>(rows * cols);
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::structure()
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::STRUCT;
+    h->dims = {1, 1};
+    h->structData = new std::map<std::string, MValue>();
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::funcHandle(const std::string &name, Allocator *alloc)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::FUNC_HANDLE;
+    h->dims = {1, 1};
+    h->allocator = alloc;
+    h->funcName = new std::string(name);
+    m.heap_ = h;
+    return m;
+}
 MValue MValue::complexScalar(Complex v, Allocator *alloc)
 {
     MValue m;
-    m.type_ = MType::COMPLEX;
-    m.dims_ = {1, 1};
-    m.allocator_ = alloc;
-    m.useSBO_ = true;
-    m.buffer_ = nullptr;
-    *reinterpret_cast<Complex *>(m.sbo_) = v;
+    auto *h = new HeapObject();
+    h->type = MType::COMPLEX;
+    h->dims = {1, 1};
+    h->allocator = alloc;
+    h->buffer = new DataBuffer(sizeof(Complex), alloc);
+    *static_cast<Complex *>(h->buffer->data()) = v;
+    m.heap_ = h;
     return m;
 }
-
 MValue MValue::complexScalar(double re, double im, Allocator *alloc)
 {
     return complexScalar(Complex(re, im), alloc);
 }
-
 MValue MValue::complexMatrix(size_t rows, size_t cols, Allocator *alloc)
 {
-    MValue m;
-    m.type_ = MType::COMPLEX;
-    m.dims_ = {rows, cols};
-    m.allocator_ = alloc;
-    size_t bytes = rows * cols * sizeof(Complex);
-    if (bytes > 0) {
-        m.buffer_ = new DataBuffer(bytes, alloc);
-        std::memset(m.buffer_->data(), 0, bytes);
-    }
-    return m;
+    return matrix(rows, cols, MType::COMPLEX, alloc);
 }
 
-// ============================================================
-// Type queries
-// ============================================================
 MType MValue::type() const
 {
-    return type_;
+    if (heap_ == nullptr)
+        return MType::DOUBLE;
+    if (heap_ == emptyTag())
+        return MType::EMPTY;
+    if (heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return MType::LOGICAL;
+    return heap_->type;
 }
 const Dims &MValue::dims() const
 {
-    return dims_;
+    if (heap_ == nullptr)
+        return sScalarDims;
+    if (heap_ == emptyTag())
+        return sEmptyDims;
+    if (heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return sScalarDims;
+    return heap_->dims;
 }
 size_t MValue::numel() const
 {
-    return dims_.numel();
+    return dims().numel();
 }
 bool MValue::isScalar() const
 {
-    return dims_.isScalar();
+    if (heap_ == nullptr || heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return true;
+    if (heap_ == emptyTag())
+        return false;
+    return heap_->dims.isScalar();
 }
 bool MValue::isEmpty() const
 {
-    return type_ == MType::EMPTY || dims_.isEmpty();
+    if (heap_ == emptyTag())
+        return true;
+    if (heap_ == nullptr || heap_ == logicalTrueTag() || heap_ == logicalFalseTag())
+        return false;
+    return heap_->type == MType::EMPTY || heap_->dims.isEmpty();
 }
 bool MValue::isNumeric() const
 {
-    return type_ == MType::DOUBLE || type_ == MType::COMPLEX || type_ == MType::INT8
-           || type_ == MType::INT16 || type_ == MType::INT32 || type_ == MType::INT64
-           || type_ == MType::UINT8 || type_ == MType::UINT16 || type_ == MType::UINT32
-           || type_ == MType::UINT64;
+    MType t = type();
+    return t == MType::DOUBLE || t == MType::COMPLEX || t == MType::INT8 || t == MType::INT16
+           || t == MType::INT32 || t == MType::INT64 || t == MType::UINT8 || t == MType::UINT16
+           || t == MType::UINT32 || t == MType::UINT64;
 }
 bool MValue::isComplex() const
 {
-    return type_ == MType::COMPLEX;
+    return type() == MType::COMPLEX;
 }
 bool MValue::isLogical() const
 {
-    return type_ == MType::LOGICAL;
+    return type() == MType::LOGICAL;
 }
 bool MValue::isChar() const
 {
-    return type_ == MType::CHAR;
+    return type() == MType::CHAR;
 }
 bool MValue::isCell() const
 {
-    return type_ == MType::CELL;
+    return type() == MType::CELL;
 }
 bool MValue::isStruct() const
 {
-    return type_ == MType::STRUCT;
+    return type() == MType::STRUCT;
 }
 bool MValue::isFuncHandle() const
 {
-    return type_ == MType::FUNC_HANDLE;
+    return type() == MType::FUNC_HANDLE;
 }
 
-// ============================================================
-// Const data access — raw
-// ============================================================
 const void *MValue::rawData() const
 {
-    if (useSBO_)
-        return sbo_;
-    return buffer_ ? buffer_->data() : nullptr;
+    if (heap_ == nullptr)
+        return &scalar_;
+    if (isTag())
+        return nullptr;
+    return heap_->buffer ? heap_->buffer->data() : nullptr;
 }
 size_t MValue::rawBytes() const
 {
-    if (useSBO_)
-        return elementSize(type_) * dims_.numel();
-    return buffer_ ? buffer_->bytes() : 0;
+    if (heap_ == nullptr)
+        return sizeof(double);
+    if (isTag())
+        return 0;
+    return heap_->buffer ? heap_->buffer->bytes() : 0;
 }
 
-// ============================================================
-// Const data access — double
-// ============================================================
 const double *MValue::doubleData() const
 {
-    if (type_ != MType::DOUBLE)
+    if (heap_ == nullptr)
+        return &scalar_;
+    if (isTag())
         throw std::runtime_error("Not a double array");
-    if (useSBO_)
-        return reinterpret_cast<const double *>(sbo_);
-    return buffer_ ? static_cast<const double *>(buffer_->data()) : nullptr;
+    if (heap_->type != MType::DOUBLE)
+        throw std::runtime_error("Not a double array");
+    return heap_->buffer ? static_cast<const double *>(heap_->buffer->data()) : nullptr;
 }
-
 const uint8_t *MValue::logicalData() const
 {
-    if (type_ != MType::LOGICAL)
+    if (heap_ == logicalTrueTag()) {
+        static const uint8_t t = 1;
+        return &t;
+    }
+    if (heap_ == logicalFalseTag()) {
+        static const uint8_t f = 0;
+        return &f;
+    }
+    if (!isHeap() || heap_->type != MType::LOGICAL)
         throw std::runtime_error("Not a logical array");
-    if (useSBO_)
-        return reinterpret_cast<const uint8_t *>(sbo_);
-    return buffer_ ? static_cast<const uint8_t *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<const uint8_t *>(heap_->buffer->data()) : nullptr;
 }
-
 const char *MValue::charData() const
 {
-    if (type_ != MType::CHAR)
+    if (!isHeap() || heap_->type != MType::CHAR)
         throw std::runtime_error("Not a char array");
-    if (useSBO_)
-        return sbo_;
-    return buffer_ ? static_cast<const char *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<const char *>(heap_->buffer->data()) : nullptr;
 }
-
 double MValue::toScalar() const
 {
-    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
-                            : (buffer_ ? buffer_->data() : nullptr);
-    if (!p)
-        throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to scalar");
-    if (type_ == MType::DOUBLE && isScalar())
-        return *static_cast<const double *>(p);
-    if (type_ == MType::COMPLEX && isScalar()) {
-        auto c = *static_cast<const Complex *>(p);
+    if (heap_ == nullptr)
+        return scalar_;
+    if (heap_ == logicalTrueTag())
+        return 1.0;
+    if (heap_ == logicalFalseTag())
+        return 0.0;
+    if (!isHeap() || !heap_->buffer)
+        throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to scalar");
+    auto *h = heap_;
+    if (h->type == MType::DOUBLE && h->dims.isScalar())
+        return *static_cast<const double *>(h->buffer->data());
+    if (h->type == MType::COMPLEX && h->dims.isScalar()) {
+        auto c = *static_cast<const Complex *>(h->buffer->data());
         if (c.imag() != 0.0)
             throw std::runtime_error(
                 "Cannot convert complex with nonzero imaginary part to double scalar");
         return c.real();
     }
-    if (type_ == MType::LOGICAL && isScalar())
-        return static_cast<double>(*static_cast<const uint8_t *>(p));
-    if (type_ == MType::CHAR && isScalar())
-        return static_cast<double>(static_cast<unsigned char>(*static_cast<const char *>(p)));
-    throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to scalar");
+    if (h->type == MType::LOGICAL && h->dims.isScalar())
+        return (double) *static_cast<const uint8_t *>(h->buffer->data());
+    if (h->type == MType::CHAR && h->dims.isScalar())
+        return (double) (unsigned char) *static_cast<const char *>(h->buffer->data());
+    throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to scalar");
 }
-
 bool MValue::toBool() const
 {
-    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
-                            : (buffer_ ? buffer_->data() : nullptr);
-    if (type_ == MType::LOGICAL && isScalar() && p)
-        return *static_cast<const uint8_t *>(p) != 0;
-    if (type_ == MType::DOUBLE && isScalar() && p)
-        return *static_cast<const double *>(p) != 0.0;
-    if (type_ == MType::COMPLEX && isScalar() && p) {
-        auto c = *static_cast<const Complex *>(p);
+    if (heap_ == nullptr)
+        return scalar_ != 0.0;
+    if (heap_ == logicalTrueTag())
+        return true;
+    if (heap_ == logicalFalseTag())
+        return false;
+    if (heap_ == emptyTag())
+        throw std::runtime_error("Cannot convert empty to bool");
+    auto *h = heap_;
+    if (h->type == MType::LOGICAL && h->dims.isScalar() && h->buffer)
+        return *static_cast<const uint8_t *>(h->buffer->data()) != 0;
+    if (h->type == MType::DOUBLE && h->dims.isScalar() && h->buffer)
+        return *static_cast<const double *>(h->buffer->data()) != 0.0;
+    if (h->type == MType::COMPLEX && h->dims.isScalar() && h->buffer) {
+        auto c = *static_cast<const Complex *>(h->buffer->data());
         return c.real() != 0.0 || c.imag() != 0.0;
     }
-    if (type_ == MType::DOUBLE && (buffer_ || useSBO_)) {
-        const double *dd = doubleData();
-        for (size_t i = 0; i < numel(); ++i)
+    if (h->type == MType::DOUBLE && h->buffer) {
+        const double *dd = static_cast<const double *>(h->buffer->data());
+        size_t n = h->dims.numel();
+        for (size_t i = 0; i < n; ++i)
             if (dd[i] == 0.0)
                 return false;
-        return numel() > 0;
+        return n > 0;
     }
-    throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to bool");
+    throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to bool");
 }
-
 std::string MValue::toString() const
 {
-    if (type_ == MType::CHAR) {
-        const char *p = useSBO_ ? sbo_
-                                : (buffer_ ? static_cast<const char *>(buffer_->data()) : nullptr);
-        if (p)
-            return std::string(p, dims_.numel());
-    }
-    if (type_ == MType::FUNC_HANDLE)
-        return funcHandleName_;
+    if (isHeap() && heap_->type == MType::CHAR && heap_->buffer)
+        return std::string(static_cast<const char *>(heap_->buffer->data()), heap_->dims.numel());
+    if (isHeap() && heap_->type == MType::FUNC_HANDLE && heap_->funcName)
+        return *heap_->funcName;
     throw std::runtime_error("Not a char array");
 }
-
 std::string MValue::funcHandleName() const
 {
-    return funcHandleName_;
+    if (isHeap() && heap_->funcName)
+        return *heap_->funcName;
+    return "";
 }
 
-// ============================================================
-// Const data access — complex
-// ============================================================
 const Complex *MValue::complexData() const
 {
-    if (type_ != MType::COMPLEX)
+    if (!isHeap() || heap_->type != MType::COMPLEX)
         throw std::runtime_error("Not a complex array");
-    if (useSBO_)
-        return reinterpret_cast<const Complex *>(sbo_);
-    return buffer_ ? static_cast<const Complex *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<const Complex *>(heap_->buffer->data()) : nullptr;
 }
-
 Complex MValue::toComplex() const
 {
-    const void *p = useSBO_ ? static_cast<const void *>(sbo_)
-                            : (buffer_ ? buffer_->data() : nullptr);
-    if (type_ == MType::COMPLEX && isScalar() && p)
-        return *static_cast<const Complex *>(p);
-    if (type_ == MType::DOUBLE && isScalar() && p)
-        return Complex(*static_cast<const double *>(p), 0.0);
-    if (type_ == MType::LOGICAL && isScalar() && p)
-        return Complex(static_cast<double>(*static_cast<const uint8_t *>(p)), 0.0);
-    throw std::runtime_error("Cannot convert " + std::string(mtypeName(type_)) + " to complex");
+    if (heap_ == nullptr)
+        return Complex(scalar_, 0.0);
+    if (heap_ == logicalTrueTag())
+        return Complex(1.0, 0.0);
+    if (heap_ == logicalFalseTag())
+        return Complex(0.0, 0.0);
+    if (!isHeap() || !heap_->buffer)
+        throw std::runtime_error("Cannot convert to complex");
+    if (heap_->type == MType::COMPLEX && heap_->dims.isScalar())
+        return *static_cast<const Complex *>(heap_->buffer->data());
+    if (heap_->type == MType::DOUBLE && heap_->dims.isScalar())
+        return Complex(*static_cast<const double *>(heap_->buffer->data()), 0.0);
+    throw std::runtime_error("Cannot convert to complex");
 }
-
 Complex MValue::complexElem(size_t i) const
 {
     if (i >= numel())
         throw std::runtime_error("Complex index out of bounds");
     return complexData()[i];
 }
-
 Complex MValue::complexElem(size_t r, size_t c) const
 {
-    return complexData()[dims_.sub2indChecked(r, c)];
+    return complexData()[dims().sub2indChecked(r, c)];
 }
 
-// ============================================================
-// Mutable data access
-// ============================================================
 double *MValue::doubleDataMut()
 {
-    if (type_ != MType::DOUBLE)
+    if (heap_ == nullptr)
+        return &scalar_;
+    if (!isHeap() || heap_->type != MType::DOUBLE)
         throw std::runtime_error("Not a double array");
-    if (useSBO_)
-        return reinterpret_cast<double *>(sbo_);
     detach();
-    return buffer_ ? static_cast<double *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<double *>(heap_->buffer->data()) : nullptr;
 }
-
 uint8_t *MValue::logicalDataMut()
 {
-    if (type_ != MType::LOGICAL)
+    if (!isHeap() || heap_->type != MType::LOGICAL)
         throw std::runtime_error("Not a logical array");
-    if (useSBO_)
-        return reinterpret_cast<uint8_t *>(sbo_);
     detach();
-    return buffer_ ? static_cast<uint8_t *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<uint8_t *>(heap_->buffer->data()) : nullptr;
 }
-
 char *MValue::charDataMut()
 {
-    if (type_ != MType::CHAR)
+    if (!isHeap() || heap_->type != MType::CHAR)
         throw std::runtime_error("Not a char array");
-    if (useSBO_)
-        return sbo_;
     detach();
-    return buffer_ ? static_cast<char *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<char *>(heap_->buffer->data()) : nullptr;
 }
-
 void *MValue::rawDataMut()
 {
-    if (useSBO_)
-        return sbo_;
+    if (heap_ == nullptr)
+        return &scalar_;
+    if (!isHeap())
+        return nullptr;
     detach();
-    return buffer_ ? buffer_->data() : nullptr;
+    return heap_->buffer ? heap_->buffer->data() : nullptr;
 }
-
 Complex *MValue::complexDataMut()
 {
-    if (type_ != MType::COMPLEX)
+    if (!isHeap() || heap_->type != MType::COMPLEX)
         throw std::runtime_error("Not a complex array");
-    if (useSBO_)
-        return reinterpret_cast<Complex *>(sbo_);
     detach();
-    return buffer_ ? static_cast<Complex *>(buffer_->data()) : nullptr;
+    return heap_->buffer ? static_cast<Complex *>(heap_->buffer->data()) : nullptr;
 }
 
-// ============================================================
-// Promote double → complex
-// ============================================================
 void MValue::promoteToComplex(Allocator *alloc)
 {
-    if (type_ == MType::COMPLEX)
+    MType t = type();
+    if (t == MType::COMPLEX)
         return;
-    if (type_ != MType::DOUBLE)
+    if (t != MType::DOUBLE)
         throw std::runtime_error("Can only promote double to complex");
-    if (!alloc)
-        alloc = allocator_;
-
     size_t n = numel();
-
-    // Scalar SBO: promote in-place (double → Complex both fit in SBO)
-    if (useSBO_ && n == 1) {
-        double v = *reinterpret_cast<const double *>(sbo_);
-        *reinterpret_cast<Complex *>(sbo_) = Complex(v, 0.0);
-        type_ = MType::COMPLEX;
+    if (heap_ == nullptr) {
+        double v = scalar_;
+        *this = complexScalar(Complex(v, 0.0), alloc);
         return;
     }
-
-    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(n * sizeof(Complex), alloc));
+    if (!isHeap())
+        throw std::runtime_error("Cannot promote to complex");
+    if (!alloc)
+        alloc = heap_->allocator;
+    auto *newBuf = new DataBuffer(n * sizeof(Complex), alloc);
     Complex *dst = static_cast<Complex *>(newBuf->data());
-
-    const double *src = doubleData();
-    if (src && n > 0) {
-        for (size_t i = 0; i < n; ++i)
-            dst[i] = Complex(src[i], 0.0);
-    } else {
-        std::memset(dst, 0, n * sizeof(Complex));
-    }
-
-    releaseBuffer();
-    buffer_ = newBuf.release();
-    useSBO_ = false;
-    allocator_ = alloc;
-    type_ = MType::COMPLEX;
+    const double *src = static_cast<const double *>(heap_->buffer->data());
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = Complex(src[i], 0.0);
+    if (heap_->buffer->release())
+        delete heap_->buffer;
+    heap_->buffer = newBuf;
+    heap_->type = MType::COMPLEX;
 }
 
-// ============================================================
-// Indexing — double (bounds-checked)
-// ============================================================
 double MValue::operator()(size_t i) const
 {
     if (i >= numel())
-        throw std::runtime_error("Linear index " + std::to_string(i + 1) + " exceeds array size "
-                                 + std::to_string(numel()));
+        throw std::runtime_error("Index out of bounds");
     return doubleData()[i];
 }
 double MValue::operator()(size_t r, size_t c) const
 {
-    return doubleData()[dims_.sub2indChecked(r, c)];
+    return doubleData()[dims().sub2indChecked(r, c)];
 }
 double MValue::operator()(size_t r, size_t c, size_t p) const
 {
-    return doubleData()[dims_.sub2indChecked(r, c, p)];
+    return doubleData()[dims().sub2indChecked(r, c, p)];
 }
-
 double &MValue::elem(size_t i)
 {
     if (i >= numel())
-        throw std::runtime_error("Linear index " + std::to_string(i + 1) + " exceeds array size "
-                                 + std::to_string(numel()));
+        throw std::runtime_error("Index out of bounds");
     return doubleDataMut()[i];
 }
 double &MValue::elem(size_t r, size_t c)
 {
-    return doubleDataMut()[dims_.sub2indChecked(r, c)];
+    return doubleDataMut()[dims().sub2indChecked(r, c)];
 }
 double &MValue::elem(size_t r, size_t c, size_t p)
 {
-    return doubleDataMut()[dims_.sub2indChecked(r, c, p)];
+    return doubleDataMut()[dims().sub2indChecked(r, c, p)];
 }
 
-// ============================================================
-// Char element access (bounds-checked)
-// ============================================================
 char MValue::charElem(size_t i) const
 {
     if (i >= numel())
@@ -813,250 +759,224 @@ char &MValue::charElemMut(size_t i)
     return charDataMut()[i];
 }
 
-// ============================================================
-// Resize — 2D
-// ============================================================
 void MValue::resize(size_t newRows, size_t newCols, Allocator *alloc)
 {
-    if (dims_.is3D()) {
-        resize3d(newRows, newCols, dims_.pages(), alloc);
+    if (heap_ == nullptr) {
+        double v = scalar_;
+        auto *h = new HeapObject();
+        h->type = MType::DOUBLE;
+        h->dims = {1, 1};
+        h->allocator = alloc;
+        h->buffer = new DataBuffer(sizeof(double), alloc);
+        *static_cast<double *>(h->buffer->data()) = v;
+        heap_ = h;
+    }
+    if (!isHeap())
+        throw std::runtime_error("Cannot resize");
+    if (heap_->dims.is3D()) {
+        resize3d(newRows, newCols, heap_->dims.pages(), alloc);
         return;
     }
-
+    detach();
     if (!alloc)
-        alloc = allocator_;
-    size_t oldRows = dims_.rows(), oldCols = dims_.cols();
-    size_t es = elementSize(type_);
-    size_t newBytes = newRows * newCols * es;
-
-    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(newBytes, alloc));
-    if (newBytes > 0)
-        std::memset(newBuf->data(), 0, newBytes);
-
-    const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
-                                  : (buffer_ ? buffer_->data() : nullptr);
-    if (oldData && es > 0) {
-        size_t copyRows = std::min(oldRows, newRows);
-        size_t copyCols = std::min(oldCols, newCols);
-        const char *src = static_cast<const char *>(oldData);
-        char *dst = static_cast<char *>(newBuf->data());
-        for (size_t c = 0; c < copyCols; ++c)
-            std::memcpy(dst + c * newRows * es, src + c * oldRows * es, copyRows * es);
+        alloc = heap_->allocator;
+    size_t oldR = heap_->dims.rows(), oldC = heap_->dims.cols(), es = elementSize(heap_->type),
+           nb = newRows * newCols * es;
+    auto *nb2 = new DataBuffer(nb, alloc);
+    if (nb > 0)
+        std::memset(nb2->data(), 0, nb);
+    if (heap_->buffer && es > 0) {
+        size_t cr = std::min(oldR, newRows), cc = std::min(oldC, newCols);
+        const char *s = static_cast<const char *>(heap_->buffer->data());
+        char *d = static_cast<char *>(nb2->data());
+        for (size_t c = 0; c < cc; ++c)
+            std::memcpy(d + c * newRows * es, s + c * oldR * es, cr * es);
     }
-
-    releaseBuffer();
-    buffer_ = newBuf.release();
-    useSBO_ = false;
-    allocator_ = alloc;
-    dims_ = {newRows, newCols};
+    if (heap_->buffer && heap_->buffer->release())
+        delete heap_->buffer;
+    heap_->buffer = nb2;
+    heap_->allocator = alloc;
+    heap_->dims = {newRows, newCols};
+    heap_->appendCapacity = 0;
 }
 
-// ============================================================
-// Resize — 3D
-// ============================================================
-void MValue::resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator *alloc)
+void MValue::resize3d(size_t nr, size_t nc, size_t np, Allocator *alloc)
 {
-    if (newPages <= 1) {
-        dims_.nd = 2;
-        resize(newRows, newCols, alloc);
+    if (np <= 1) {
+        resize(nr, nc, alloc);
         return;
     }
-
+    if (!isHeap())
+        throw std::runtime_error("Cannot resize");
+    detach();
     if (!alloc)
-        alloc = allocator_;
-
-    size_t oldRows = dims_.rows();
-    size_t oldCols = dims_.cols();
-    size_t oldPages = dims_.pages();
-    size_t es = elementSize(type_);
-    size_t newBytes = newRows * newCols * newPages * es;
-
-    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(newBytes, alloc));
-    if (newBytes > 0)
-        std::memset(newBuf->data(), 0, newBytes);
-
-    const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
-                                  : (buffer_ ? buffer_->data() : nullptr);
-    if (oldData && es > 0) {
-        size_t copyRows = std::min(oldRows, newRows);
-        size_t copyCols = std::min(oldCols, newCols);
-        size_t copyPages = std::min(oldPages, newPages);
-
-        size_t oldPageStride = oldRows * oldCols;
-        size_t newPageStride = newRows * newCols;
-
-        const char *src = static_cast<const char *>(oldData);
-        char *dst = static_cast<char *>(newBuf->data());
-        for (size_t p = 0; p < copyPages; ++p)
-            for (size_t c = 0; c < copyCols; ++c)
-                std::memcpy(dst + (p * newPageStride + c * newRows) * es,
-                            src + (p * oldPageStride + c * oldRows) * es,
-                            copyRows * es);
+        alloc = heap_->allocator;
+    size_t oR = heap_->dims.rows(), oC = heap_->dims.cols(), oP = heap_->dims.pages(),
+           es = elementSize(heap_->type);
+    size_t nb = nr * nc * np * es;
+    auto *nb2 = new DataBuffer(nb, alloc);
+    if (nb > 0)
+        std::memset(nb2->data(), 0, nb);
+    if (heap_->buffer && es > 0) {
+        size_t cr = std::min(oR, nr), cc = std::min(oC, nc), cp = std::min(oP, np);
+        const char *s = static_cast<const char *>(heap_->buffer->data());
+        char *d = static_cast<char *>(nb2->data());
+        for (size_t p = 0; p < cp; ++p)
+            for (size_t c = 0; c < cc; ++c)
+                std::memcpy(d + (p * nr * nc + c * nr) * es,
+                            s + (p * oR * oC + c * oR) * es,
+                            cr * es);
     }
-
-    releaseBuffer();
-    buffer_ = newBuf.release();
-    useSBO_ = false;
-    allocator_ = alloc;
-    dims_ = {newRows, newCols, newPages};
+    if (heap_->buffer && heap_->buffer->release())
+        delete heap_->buffer;
+    heap_->buffer = nb2;
+    heap_->allocator = alloc;
+    heap_->dims = {nr, nc, np};
+    heap_->appendCapacity = 0;
 }
 
-// ============================================================
-// ensureSize
-// ============================================================
-void MValue::ensureSize(size_t linearIdx, Allocator *alloc)
+void MValue::ensureSize(size_t idx, Allocator *alloc)
 {
-    if (type_ == MType::EMPTY) {
-        type_ = MType::DOUBLE;
-        dims_ = {1, 1};
-        if (!alloc)
-            alloc = allocator_;
-        // Start as SBO scalar
-        useSBO_ = true;
-        buffer_ = nullptr;
-        *reinterpret_cast<double *>(sbo_) = 0.0;
-        allocator_ = alloc;
+    if (heap_ == emptyTag() || (heap_ == nullptr && idx > 0)) {
+        double old = (heap_ == nullptr) ? scalar_ : 0.0;
+        *this = matrix(1, idx + 1, MType::DOUBLE, alloc);
+        if (old != 0.0)
+            static_cast<double *>(heap_->buffer->data())[0] = old;
+        return;
     }
-    size_t needed = linearIdx + 1;
-    if (needed > numel()) {
-        if (dims_.isVector() || dims_.rows() <= 1)
-            resize(1, needed, alloc);
-        else {
-            size_t newCols = (needed + dims_.rows() - 1) / dims_.rows();
-            resize(dims_.rows(), newCols, alloc);
-        }
+    size_t need = idx + 1;
+    if (need > numel()) {
+        if (dims().isVector() || dims().rows() <= 1)
+            resize(1, need, alloc);
+        else
+            resize(dims().rows(), (need + dims().rows() - 1) / dims().rows(), alloc);
     }
 }
 
 void MValue::appendScalar(double v, Allocator *alloc)
 {
-    if (!alloc)
-        alloc = allocator_;
-
-    size_t oldN = numel();
-    size_t newN = oldN + 1;
-
-    // Check if buffer has spare capacity
-    size_t capacity = 0;
-    if (useSBO_) {
-        capacity = SBO_SIZE / sizeof(double); // 2 for 16-byte SBO
-    } else if (buffer_) {
-        capacity = buffer_->bytes() / sizeof(double);
-    }
-
-    if (newN <= capacity && (useSBO_ || (buffer_ && buffer_->refCount() <= 1))) {
-        // We have room — just write and update dims
-        if (useSBO_)
-            reinterpret_cast<double *>(sbo_)[oldN] = v;
-        else
-            static_cast<double *>(buffer_->data())[oldN] = v;
-        dims_ = {1, newN};
+    size_t oldN = numel(), newN = oldN + 1;
+    if (heap_ == nullptr) {
+        double old = scalar_;
+        size_t cap = std::max(size_t(8), newN * 2);
+        auto *h = new HeapObject();
+        h->type = MType::DOUBLE;
+        h->dims = {1, newN};
+        h->allocator = alloc;
+        h->buffer = new DataBuffer(cap * sizeof(double), alloc);
+        h->appendCapacity = cap;
+        double *d = static_cast<double *>(h->buffer->data());
+        std::memset(d, 0, cap * sizeof(double));
+        d[0] = old;
+        d[1] = v;
+        heap_ = h;
         return;
     }
-
-    // Need to grow — allocate with 2x amortized strategy
-    size_t newCapacity = std::max(newN, capacity * 2);
-    if (newCapacity < 8)
-        newCapacity = 8;
-    auto newBuf = std::unique_ptr<DataBuffer>(new DataBuffer(newCapacity * sizeof(double), alloc));
-    double *dst = static_cast<double *>(newBuf->data());
-    std::memset(dst, 0, newCapacity * sizeof(double));
-
-    // Copy old data
-    if (oldN > 0) {
-        const void *oldData = useSBO_ ? static_cast<const void *>(sbo_)
-                                      : (buffer_ ? buffer_->data() : nullptr);
-        if (oldData)
-            std::memcpy(dst, oldData, oldN * sizeof(double));
+    if (!isHeap())
+        throw std::runtime_error("Cannot append");
+    detach();
+    if (!alloc)
+        alloc = heap_->allocator;
+    size_t cap = heap_->appendCapacity;
+    if (!cap && heap_->buffer)
+        cap = heap_->buffer->bytes() / sizeof(double);
+    if (newN <= cap && heap_->buffer) {
+        static_cast<double *>(heap_->buffer->data())[oldN] = v;
+        heap_->dims = {1, newN};
+        return;
     }
-    dst[oldN] = v;
-
-    releaseBuffer();
-    buffer_ = newBuf.release();
-    useSBO_ = false;
-    allocator_ = alloc;
-    dims_ = {1, newN};
+    size_t nc = std::max(newN, cap * 2);
+    if (nc < 8)
+        nc = 8;
+    auto *nb = new DataBuffer(nc * sizeof(double), alloc);
+    double *d = static_cast<double *>(nb->data());
+    std::memset(d, 0, nc * sizeof(double));
+    if (oldN > 0 && heap_->buffer)
+        std::memcpy(d, heap_->buffer->data(), oldN * sizeof(double));
+    d[oldN] = v;
+    if (heap_->buffer && heap_->buffer->release())
+        delete heap_->buffer;
+    heap_->buffer = nb;
+    heap_->allocator = alloc;
+    heap_->dims = {1, newN};
+    heap_->appendCapacity = nc;
 }
 
-// ============================================================
-// Cell
-// ============================================================
 MValue &MValue::cellAt(size_t i)
 {
-    if (type_ != MType::CELL)
+    if (!isHeap() || !heap_->cellData)
         throw std::runtime_error("Not a cell");
-    if (i >= cellData_.size())
+    if (i >= heap_->cellData->size())
         throw std::runtime_error("Cell index out of bounds");
-    return cellData_[i];
+    return (*heap_->cellData)[i];
 }
-
 const MValue &MValue::cellAt(size_t i) const
 {
-    if (type_ != MType::CELL)
+    if (!isHeap() || !heap_->cellData)
         throw std::runtime_error("Not a cell");
-    if (i >= cellData_.size())
+    if (i >= heap_->cellData->size())
         throw std::runtime_error("Cell index out of bounds");
-    return cellData_[i];
+    return (*heap_->cellData)[i];
 }
-
 std::vector<MValue> &MValue::cellDataVec()
 {
-    return cellData_;
+    if (!isHeap() || !heap_->cellData)
+        throw std::runtime_error("Not a cell");
+    return *heap_->cellData;
 }
 const std::vector<MValue> &MValue::cellDataVec() const
 {
-    return cellData_;
+    if (!isHeap() || !heap_->cellData)
+        throw std::runtime_error("Not a cell");
+    return *heap_->cellData;
 }
 
-// ============================================================
-// Struct
-// ============================================================
-MValue &MValue::field(const std::string &name)
+MValue &MValue::field(const std::string &n)
 {
-    if (type_ != MType::STRUCT)
+    if (!isHeap() || !heap_->structData)
         throw std::runtime_error("Not a struct");
-    return structData_[name];
+    return (*heap_->structData)[n];
 }
-
-const MValue &MValue::field(const std::string &name) const
+const MValue &MValue::field(const std::string &n) const
 {
-    if (type_ != MType::STRUCT)
+    if (!isHeap() || !heap_->structData)
         throw std::runtime_error("Not a struct");
-    auto it = structData_.find(name);
-    if (it == structData_.end())
-        throw std::runtime_error("Field not found: " + name);
+    auto it = heap_->structData->find(n);
+    if (it == heap_->structData->end())
+        throw std::runtime_error("Field not found: " + n);
     return it->second;
 }
-
-bool MValue::hasField(const std::string &name) const
+bool MValue::hasField(const std::string &n) const
 {
-    return structData_.count(name) > 0;
+    return isHeap() && heap_->structData && heap_->structData->count(n) > 0;
 }
 std::map<std::string, MValue> &MValue::structFields()
 {
-    return structData_;
+    if (!isHeap() || !heap_->structData)
+        throw std::runtime_error("Not a struct");
+    return *heap_->structData;
 }
 const std::map<std::string, MValue> &MValue::structFields() const
 {
-    return structData_;
+    if (!isHeap() || !heap_->structData)
+        throw std::runtime_error("Not a struct");
+    return *heap_->structData;
 }
 
-// ============================================================
-// Debug
-// ============================================================
 std::string MValue::debugString() const
 {
     std::ostringstream os;
-    os << mtypeName(type_) << " [" << dims_.rows() << "x" << dims_.cols();
-    if (dims_.is3D())
-        os << "x" << dims_.pages();
+    MType t = type();
+    os << mtypeName(t) << " [" << dims().rows() << "x" << dims().cols();
+    if (dims().is3D())
+        os << "x" << dims().pages();
     os << "]";
-    if (type_ == MType::DOUBLE && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
+    if (t == MType::DOUBLE && numel() <= 20 && numel() > 0) {
         os << " = ";
         const double *dd = doubleData();
-        if (isScalar()) {
+        if (isScalar())
             os << dd[0];
-        } else {
+        else {
             os << "[";
             for (size_t i = 0; i < numel(); ++i) {
                 if (i)
@@ -1066,7 +986,7 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::COMPLEX && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
+    if (t == MType::COMPLEX && numel() <= 20 && numel() > 0 && isHeap() && heap_->buffer) {
         os << " = ";
         const Complex *cd = complexData();
         if (isScalar()) {
@@ -1087,12 +1007,12 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::LOGICAL && numel() <= 20 && numel() > 0 && (buffer_ || useSBO_)) {
+    if (t == MType::LOGICAL && numel() > 0) {
         os << " = ";
-        const uint8_t *ld = logicalData();
-        if (isScalar()) {
-            os << (ld[0] ? "true" : "false");
-        } else {
+        if (isScalar())
+            os << (toBool() ? "true" : "false");
+        else if (isHeap() && heap_->buffer) {
+            const uint8_t *ld = logicalData();
             os << "[";
             for (size_t i = 0; i < numel(); ++i) {
                 if (i)
@@ -1102,18 +1022,18 @@ std::string MValue::debugString() const
             os << "]";
         }
     }
-    if (type_ == MType::CHAR && (buffer_ || useSBO_))
+    if (t == MType::CHAR && isHeap() && heap_->buffer)
         os << " = '" << toString() << "'";
-    if (type_ == MType::FUNC_HANDLE)
-        os << " = @" << funcHandleName_;
-    if (type_ == MType::CELL) {
+    if (t == MType::FUNC_HANDLE)
+        os << " = @" << funcHandleName();
+    if (t == MType::CELL && isHeap() && heap_->cellData) {
         os << " {";
-        for (size_t i = 0; i < cellData_.size() && i < 10; ++i) {
+        for (size_t i = 0; i < heap_->cellData->size() && i < 10; ++i) {
             if (i)
                 os << ", ";
-            os << cellData_[i].debugString();
+            os << (*heap_->cellData)[i].debugString();
         }
-        if (cellData_.size() > 10)
+        if (heap_->cellData->size() > 10)
             os << ", ...";
         os << "}";
     }

@@ -31,6 +31,8 @@ static inline size_t colonCount(double start, double step, double stop)
 
 MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
 {
+    chunkCallCache_.clear();
+
     // Push frame onto register stack
     regStackTop_ = 0;
     R_ = regStack_.data();
@@ -58,11 +60,16 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
 // Internal execute — VMValue throughout, no MValue in hot path
 // ============================================================
 
+// ============================================================
+// Internal execute — VMValue throughout, no MValue in hot path
+// ============================================================
+
 VMValue VM::executeInternal(const BytecodeChunk &chunk)
 {
     const Instruction *ip = chunk.code.data();
     const Instruction *end = ip + chunk.code.size();
-    auto *R = R_; // local copy of frame pointer for speed
+    auto *R = R_;
+    auto &resolvedFuncs = chunkCallCache_[&chunk];
 
     while (ip < end) {
         const Instruction &I = *ip;
@@ -77,23 +84,18 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                 R[I.a] = VMValue::fromMValue(cv);
             break;
         }
-
         case OpCode::LOAD_EMPTY:
             R[I.a] = VMValue();
             break;
-
         case OpCode::LOAD_STRING:
             R[I.a].setMValue(MValue::fromString(chunk.strings[I.d], &engine_.allocator_));
             break;
-
         case OpCode::MOVE:
-            if (R[I.b].isScalar()) {
+            if (R[I.b].isScalar())
                 R[I.a].setScalarFast(R[I.b].scalar());
-            } else {
+            else
                 R[I.a] = R[I.b];
-            }
             break;
-
         case OpCode::COLON_ALL:
             R[I.a].setMValue(MValue::fromString(":", &engine_.allocator_));
             break;
@@ -313,8 +315,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
             if (R[I.b].isScalar() && R[I.c].isScalar()) {
                 R[I.a].setScalarFast(R[I.b].scalar());
             } else if (R[I.c].isScalar() && R[I.b].isMValue()) {
-                size_t i = (size_t) R[I.c].scalar() - 1;
-                R[I.a].setScalarFast(R[I.b].mvalue().doubleData()[i]);
+                R[I.a].setScalarFast(R[I.b].mvalue().doubleData()[(size_t) R[I.c].scalar() - 1]);
             } else if (R[I.c].isMValue() && R[I.b].isMValue()) {
                 const MValue &mv = R[I.b].mvalue();
                 const MValue &ix = R[I.c].mvalue();
@@ -351,8 +352,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                     double *dst = g.doubleDataMut();
                     std::fill(dst, dst + ns, 0.0);
                     if (!mv.isEmpty()) {
-                        const double *s = mv.doubleData();
-                        std::copy(s, s + mv.numel(), dst);
+                        std::copy(mv.doubleData(), mv.doubleData() + mv.numel(), dst);
                     }
                     mv = std::move(g);
                 }
@@ -372,17 +372,16 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
         case OpCode::INDEX_SET_2D: {
             if (R[I.a].isMValue()) {
                 size_t r = (size_t) R[I.b].toDouble() - 1, c = (size_t) R[I.c].toDouble() - 1;
-                MValue &mv = R[I.a].mvalue();
-                mv.doubleDataMut()[mv.dims().sub2ind(r, c)] = R[I.e].toDouble();
+                R[I.a].mvalue().doubleDataMut()[R[I.a].mvalue().dims().sub2ind(r, c)]
+                    = R[I.e].toDouble();
             }
             break;
         }
 
-        // ── Inline scalar builtins (CALL_BUILTIN) ────────────
+        // ── Inline scalar builtins ───────────────────────────
         case OpCode::CALL_BUILTIN: {
             uint8_t argBase = I.b, na = I.c;
             int16_t bid = I.d;
-
             if (na == 1 && R[argBase].isScalar()) {
                 double v = R[argBase].scalar(), result;
                 switch (bid) {
@@ -469,7 +468,6 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                 R[I.a].setScalarFast(result);
                 break;
             }
-
         builtin_fallback: {
             static const char *bn[] = {"abs",   "floor", "ceil",  "round", "fix",   "sqrt",  "exp",
                                        "log",   "log2",  "log10", "sin",   "cos",   "tan",   "sign",
@@ -496,19 +494,23 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
 
         // ── General function calls ───────────────────────────
         case OpCode::CALL: {
-            const std::string &funcName = chunk.strings[I.d];
             uint8_t argBase = I.b, na = I.c;
-
-            // 1. Compiled user function — VMValue native, no MValue conversion
+            int16_t funcIdx = I.d;
+            if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx]) {
+                R[I.a] = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na);
+                break;
+            }
+            const std::string &funcName = chunk.strings[funcIdx];
             if (compiledFuncs_) {
                 auto cfIt = compiledFuncs_->find(funcName);
                 if (cfIt != compiledFuncs_->end()) {
+                    if (funcIdx >= (int16_t) resolvedFuncs.size())
+                        resolvedFuncs.resize(funcIdx + 1, nullptr);
+                    resolvedFuncs[funcIdx] = &cfIt->second;
                     R[I.a] = callUserFunc(cfIt->second, &R[argBase], na);
                     break;
                 }
             }
-
-            // 2. External/builtin — needs MValue conversion
             auto extIt = engine_.externalFuncs_.find(funcName);
             if (extIt != engine_.externalFuncs_.end()) {
                 std::vector<MValue> margs(na);
@@ -521,7 +523,6 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
                 R[I.a] = VMValue::fromMValue(std::move(ob[0]));
                 break;
             }
-
             throw std::runtime_error("VM: undefined function '" + funcName + "'");
         }
 
@@ -546,7 +547,7 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
 
         // ── Return ───────────────────────────────────────────
         case OpCode::RET:
-            return R[I.a]; // return VMValue directly
+            return R[I.a];
         case OpCode::RET_EMPTY:
             return VMValue();
         case OpCode::HALT:
@@ -660,14 +661,10 @@ VMValue VM::executeInternal(const BytecodeChunk &chunk)
 
         } // switch
         ++ip;
-    }
+    } // while
 
     return VMValue();
 }
-
-// ============================================================
-// User function call — VMValue native
-// ============================================================
 
 VMValue VM::callUserFunc(const BytecodeChunk &funcChunk, const VMValue *args, uint8_t nargs)
 {
