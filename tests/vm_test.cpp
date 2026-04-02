@@ -438,6 +438,34 @@ TEST_F(VMTest, SwitchInLoop)
                      10.0 + 1.0 + 30.0 + 1.0 + 1.0);
 }
 
+// ============================================================
+// Try/catch
+// ============================================================
+
+TEST_F(VMTest, TryCatchBasic)
+{
+    // Error in try → catch executes
+    EXPECT_DOUBLE_EQ(runScalar("r = 0; try; x = 1/0 + 'abc'; r = 1; catch; r = 2; end; r;"), 2.0);
+}
+
+TEST_F(VMTest, TryCatchNoError)
+{
+    // No error → catch skipped
+    EXPECT_DOUBLE_EQ(runScalar("r = 0; try; r = 42; catch; r = -1; end; r;"), 42.0);
+}
+
+TEST_F(VMTest, TryCatchWithVariable)
+{
+    // Catch variable receives error struct
+    EXPECT_DOUBLE_EQ(runScalar("r = 0; try; error('test'); catch e; r = 1; end; r;"), 1.0);
+}
+
+TEST_F(VMTest, TryCatchNoCatchBody)
+{
+    // Try with error, no catch body — just swallow
+    EXPECT_DOUBLE_EQ(runScalar("r = 5; try; error('fail'); end; r;"), 5.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

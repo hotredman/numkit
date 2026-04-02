@@ -44,6 +44,14 @@ private:
     };
     std::vector<ForState> forStack_;
 
+    // Try/catch handler stack
+    struct TryHandler
+    {
+        const Instruction *catchIp; // where to jump on exception
+        uint8_t exReg;              // register for exception struct
+    };
+    std::vector<TryHandler> tryStack_;
+
     // Recursion guard
     int recursionDepth_ = 0;
     static constexpr int kMaxRecursion = 500;

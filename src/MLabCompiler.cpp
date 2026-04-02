@@ -154,6 +154,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileIf(node);
     case NodeType::SWITCH_STMT:
         return compileSwitch(node);
+    case NodeType::TRY_STMT:
+        return compileTryCatch(node);
     case NodeType::WHILE_STMT:
         return compileWhile(node);
     case NodeType::BREAK_STMT:
@@ -486,6 +488,60 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
     for (size_t pos : endJumps) {
         patchJump(pos, static_cast<int16_t>(currentPos() - pos));
     }
+
+    return 0;
+}
+
+// ============================================================
+// Try/catch
+// ============================================================
+uint8_t Compiler::compileTryCatch(const ASTNode *node)
+{
+    // AST: children[0] = try body
+    //      children[1] = catch body (optional)
+    //      strValue = catch variable name (e.g. "e")
+    //
+    // Compiled as:
+    //   TRY_BEGIN catchOffset, exReg
+    //   ... try body ...
+    //   TRY_END
+    //   JMP → L_end
+    // L_catch:
+    //   ... catch body ...
+    // L_end:
+
+    // Register for exception variable (if named)
+    uint8_t exReg = 0;
+    if (!node->strValue.empty()) {
+        exReg = varReg(node->strValue);
+    } else {
+        exReg = tempReg();
+    }
+
+    // TRY_BEGIN: d = catchOffset (placeholder), a = exReg
+    size_t tryBeginPos = currentPos();
+    emitAD(OpCode::TRY_BEGIN, exReg, 0);
+
+    // Compile try body
+    compileNode(node->children[0].get());
+
+    // TRY_END
+    emitA(OpCode::TRY_END, 0);
+
+    // JMP past catch body
+    size_t endJmpPos = currentPos();
+    emitD(OpCode::JMP, 0);
+
+    // Patch TRY_BEGIN to jump here on exception
+    patchJump(tryBeginPos, static_cast<int16_t>(currentPos() - tryBeginPos));
+
+    // Compile catch body
+    if (node->children.size() > 1) {
+        compileNode(node->children[1].get());
+    }
+
+    // Patch JMP to end
+    patchJump(endJmpPos, static_cast<int16_t>(currentPos() - endJmpPos));
 
     return 0;
 }

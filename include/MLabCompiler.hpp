@@ -82,6 +82,7 @@ private:
     // Phase 2: control flow
     uint8_t compileIf(const ASTNode *node);
     uint8_t compileSwitch(const ASTNode *node);
+    uint8_t compileTryCatch(const ASTNode *node);
     uint8_t compileWhile(const ASTNode *node);
     uint8_t compileBreak(const ASTNode *node);
     uint8_t compileContinue(const ASTNode *node);
