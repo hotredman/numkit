@@ -48,6 +48,8 @@ private:
 
     // Allocate a register for a variable (or return existing)
     uint8_t varReg(const std::string &name);
+    // Read-only access — throws if variable undefined (triggers TW fallback)
+    uint8_t varRegRead(const std::string &name);
     // Allocate a temporary register
     uint8_t tempReg();
 

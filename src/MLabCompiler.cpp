@@ -60,6 +60,32 @@ uint8_t Compiler::varReg(const std::string &name)
     return r;
 }
 
+uint8_t Compiler::varRegRead(const std::string &name)
+{
+    // Check if variable is already known (local scope)
+    auto it = varRegisters_.find(name);
+    if (it != varRegisters_.end())
+        return it->second;
+
+    // Check globalEnv
+    if (isTopLevel_ && !kBuiltinNames.count(name)) {
+        MValue *existing = engine_.getVariable(name);
+        if (existing && !existing->isEmpty())
+            return varReg(name); // will import from globalEnv
+    }
+
+    // Check if it's a builtin constant
+    if (kBuiltinNames.count(name))
+        return varReg(name);
+
+    // Check if it's a known function — don't throw, let CALL handle it
+    if (engine_.hasFunction(name) || engine_.externalFuncs_.count(name))
+        return varReg(name);
+
+    // Unknown variable — throw to trigger TW fallback
+    throw std::runtime_error("Undefined variable: " + name);
+}
+
 uint8_t Compiler::tempReg()
 {
     return nextReg_++;
@@ -251,7 +277,7 @@ uint8_t Compiler::compileBool(const ASTNode *node)
 
 uint8_t Compiler::compileIdentifier(const ASTNode *node)
 {
-    return varReg(node->strValue);
+    return varRegRead(node->strValue);
 }
 
 uint8_t Compiler::compileAssign(const ASTNode *node)
