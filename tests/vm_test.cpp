@@ -696,3 +696,102 @@ TEST_F(VMTest, UserFuncCallsBuiltin)
 {
     EXPECT_DOUBLE_EQ(runScalar("function r = myabs(x); r = abs(x); end; myabs(-42);"), 42.0);
 }
+
+// ============================================================
+// VM Benchmark: compare VM vs TreeWalker
+// ============================================================
+
+TEST_F(VMTest, BenchNestedLoop)
+{
+    const char *code = R"(
+        s = 0;
+        for i = 1:200
+            for j = 1:200
+                s = s + 1;
+            end
+        end
+        s;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 40000.0);
+}
+
+TEST_F(VMTest, BenchScalarMath)
+{
+    const char *code = R"(
+        x = 0;
+        for i = 1:20000
+            x = x + i * 0.5 - i / 3.0 + i * i * 0.001;
+        end
+        x;
+    )";
+    auto result = run(code);
+    EXPECT_TRUE(result.isScalar());
+}
+
+TEST_F(VMTest, BenchFunctionCalls)
+{
+    const char *code = R"(
+        function r = increment(x)
+            r = x + 1;
+        end
+        v = 0;
+        for i = 1:5000
+            v = increment(v);
+        end
+        v;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 5000.0);
+}
+
+TEST_F(VMTest, BenchRecursiveFib)
+{
+    const char *code = R"(
+        function r = fib(n)
+            if n <= 1
+                r = n;
+            else
+                r = fib(n-1) + fib(n-2);
+            end
+        end
+        fib(20);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 6765.0);
+}
+
+TEST_F(VMTest, BenchArrayIndexRW)
+{
+    const char *code = R"(
+        x = zeros(1, 1000);
+        for i = 1:1000
+            x(i) = i;
+        end
+        s = 0;
+        for i = 1:1000
+            s = s + x(i);
+        end
+        s;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 500500.0);
+}
+
+TEST_F(VMTest, BenchBranching)
+{
+    const char *code = R"(
+        c = 0;
+        for i = 1:20000
+            if mod(i, 3) == 0
+                c = c + 1;
+            elseif mod(i, 5) == 0
+                c = c + 2;
+            else
+                c = c + 3;
+            end
+        end
+        c;
+    )";
+    // mod(i,3)==0: 6666 times → +6666
+    // mod(i,5)==0 but not mod(i,3): 2667 times → +5334
+    // else: 10667 times → +32001
+    // total = 6666 + 5334 + 32001 = 44001
+    EXPECT_DOUBLE_EQ(runScalar(code), 44001.0);
+}

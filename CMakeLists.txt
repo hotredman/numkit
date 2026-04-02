@@ -73,6 +73,7 @@ set(MLAB_HEADERS
     include/MLabBytecode.hpp
     include/MLabCompiler.hpp
     include/MLabVM.hpp
+    include/MLabVMValue.hpp
 )
 
 if(MLAB_BUILD_SHARED)
@@ -139,6 +140,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
         tests/interp_test.cpp
         tests/tree_walker_test.cpp
         tests/vm_test.cpp
+        tests/vm_benchmark.cpp
     )
 
     target_link_libraries(mlab_tests
