@@ -1524,10 +1524,13 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     }
 
     // Allocate registers for return variables
+    // Skip LOAD_EMPTY if return var is also a parameter (already loaded by caller)
+    std::unordered_set<std::string> paramSet(funcDef->paramNames.begin(), funcDef->paramNames.end());
     for (auto &ret : funcDef->returnNames) {
         uint8_t r = varReg(ret);
-        // Initialize return vars to empty
-        emitA(OpCode::LOAD_EMPTY, r);
+        if (!paramSet.count(ret)) {
+            emitA(OpCode::LOAD_EMPTY, r);
+        }
     }
 
     // Compile body
