@@ -589,6 +589,21 @@ TEST_F(VMTest, MultiReturnIgnore)
                      10.0);
 }
 
+// ============================================================
+// Global / Persistent
+// ============================================================
+
+TEST_F(VMTest, GlobalDecl)
+{
+    // global at top level — just declares variable, doesn't crash
+    EXPECT_DOUBLE_EQ(runScalar("global x; x = 42; x;"), 42.0);
+}
+
+TEST_F(VMTest, PersistentDecl)
+{
+    EXPECT_DOUBLE_EQ(runScalar("persistent y; y = 7; y;"), 7.0);
+}
+
 TEST_F(VMTest, WhileBreakNested)
 {
     // Break only exits inner loop

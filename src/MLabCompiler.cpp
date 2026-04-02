@@ -158,6 +158,9 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileSwitch(node);
     case NodeType::TRY_STMT:
         return compileTryCatch(node);
+    case NodeType::GLOBAL_STMT:
+    case NodeType::PERSISTENT_STMT:
+        return compileGlobalPersistent(node);
     case NodeType::FIELD_ACCESS:
         return compileFieldAccess(node);
     case NodeType::CELL_INDEX:
@@ -571,6 +574,20 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
         patchJump(pos, static_cast<int16_t>(currentPos() - pos));
     }
 
+    return 0;
+}
+
+// ============================================================
+// Global / Persistent
+// ============================================================
+uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
+{
+    // In VM, global/persistent at top-level is a NOP (all vars are already "global").
+    // Inside functions, we just ensure the variable register exists.
+    // Full global store integration would require environment lookup.
+    for (auto &name : node->paramNames) {
+        varReg(name); // allocate register
+    }
     return 0;
 }
 
