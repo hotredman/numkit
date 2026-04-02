@@ -68,9 +68,18 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
 
         switch (I.op) {
         // ── Data movement ────────────────────────────────────
-        case OpCode::LOAD_CONST:
-            R[I.a] = chunk.constants[I.d];
+        case OpCode::LOAD_CONST: {
+            const MValue &cv = chunk.constants[I.d];
+            if (cv.isDoubleScalar()) {
+                if (R[I.a].isDoubleScalar())
+                    R[I.a].setScalarFast(cv.scalarVal());
+                else
+                    R[I.a].setScalarVal(cv.scalarVal());
+            } else {
+                R[I.a] = cv;
+            }
             break;
+        }
         case OpCode::LOAD_EMPTY:
             R[I.a] = MValue::empty();
             break;
@@ -78,7 +87,14 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
             R[I.a] = MValue::fromString(chunk.strings[I.d], &engine_.allocator_);
             break;
         case OpCode::MOVE:
-            R[I.a] = R[I.b];
+            if (R[I.b].isDoubleScalar()) {
+                if (R[I.a].isDoubleScalar())
+                    R[I.a].setScalarFast(R[I.b].scalarVal());
+                else
+                    R[I.a].setScalarVal(R[I.b].scalarVal());
+            } else {
+                R[I.a] = R[I.b];
+            }
             break;
         case OpCode::COLON_ALL:
             R[I.a] = MValue::fromString(":", &engine_.allocator_);
@@ -741,11 +757,19 @@ void VM::executeVertcat(MValue &dst, const MValue *regs, uint8_t count)
 void VM::forSetVar(MValue &varReg, const ForState &fs)
 {
     if (fs.rows == 0) {
-        varReg.setScalarVal(fs.range.scalarVal());
+        // Scalar range — only one iteration, use safe path
+        if (varReg.isDoubleScalar())
+            varReg.setScalarFast(fs.range.scalarVal());
+        else
+            varReg.setScalarVal(fs.range.scalarVal());
         return;
     }
     if (fs.rows == 1) {
-        varReg.setScalarVal(fs.data[fs.index]);
+        // Row vector — most common. After first iteration, varReg is always scalar.
+        if (varReg.isDoubleScalar())
+            varReg.setScalarFast(fs.data[fs.index]);
+        else
+            varReg.setScalarVal(fs.data[fs.index]);
         return;
     }
     size_t rows = fs.rows;
