@@ -970,6 +970,11 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
         throw std::runtime_error("VM: maximum recursion depth exceeded");
     }
 
+    if (nargs > funcChunk.numParams) {
+        --recursionDepth_;
+        throw std::runtime_error("Too many input arguments for function '" + funcChunk.name + "'");
+    }
+
     uint8_t pc = std::min(nargs, funcChunk.numParams);
     MValue argsCopy[16];
     for (uint8_t i = 0; i < pc; ++i)
