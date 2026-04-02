@@ -578,19 +578,45 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                 // a=dst, b=fhReg, c=argBase, e=nargs
                 uint8_t fhReg = I.b, argBase = I.c, na = I.e;
 
-                // If it's a func handle → call the function
-                if (R[fhReg].isFuncHandle()) {
-                    const std::string &funcName = R[fhReg].funcHandleName();
+                // Check if it's a closure cell: {funcHandle, cap1, cap2, ...}
+                MValue funcHandleVal;
+                const MValue *capturedVals = nullptr;
+                size_t numCaptures = 0;
+
+                if (R[fhReg].isCell() && R[fhReg].numel() >= 1
+                    && R[fhReg].cellAt(0).isFuncHandle()) {
+                    // Closure cell — unpack
+                    funcHandleVal = R[fhReg].cellAt(0);
+                    numCaptures = R[fhReg].numel() - 1;
+                } else if (R[fhReg].isFuncHandle()) {
+                    funcHandleVal = R[fhReg];
+                } else {
+                    // Array indexing fallback
+                    goto call_indirect_index;
+                }
+
+                {
+                    const std::string &funcName = funcHandleVal.funcHandleName();
+
+                    // Build args: user args + captured values
+                    // Copy user args + captures into a temp buffer
+                    MValue argsBuffer[32];
+                    for (uint8_t i = 0; i < na; ++i)
+                        argsBuffer[i] = R[argBase + i];
+                    for (size_t i = 0; i < numCaptures; ++i)
+                        argsBuffer[na + i] = R[fhReg].cellAt(1 + i);
+                    uint8_t totalArgs = na + static_cast<uint8_t>(numCaptures);
+
                     if (compiledFuncs_) {
                         auto cfIt = compiledFuncs_->find(funcName);
                         if (cfIt != compiledFuncs_->end()) {
-                            R[I.a] = callUserFunc(cfIt->second, &R[argBase], na);
+                            R[I.a] = callUserFunc(cfIt->second, argsBuffer, totalArgs);
                             break;
                         }
                     }
                     auto extIt = engine_.externalFuncs_.find(funcName);
                     if (extIt != engine_.externalFuncs_.end()) {
-                        Span<const MValue> as(&R[argBase], na);
+                        Span<const MValue> as(argsBuffer, na); // only user args for external
                         MValue ob[1];
                         Span<MValue> os(ob, 1);
                         extIt->second(as, 1, os);
@@ -600,7 +626,8 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
                     throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
                 }
 
-                // Otherwise → array indexing fallback
+            call_indirect_index:
+                // Array indexing fallback
                 if (na == 1) {
                     if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
                         R[I.a] = R[fhReg];

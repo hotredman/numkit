@@ -90,6 +90,9 @@ private:
     uint8_t compileCellIndex(const ASTNode *node);
     uint8_t compileCellAssign(const ASTNode *node);
     uint8_t compileAnonFunc(const ASTNode *node);
+    void collectFreeVars(const ASTNode *node,
+                         const std::vector<std::string> &params,
+                         std::vector<std::string> &freeVars);
     uint8_t compileWhile(const ASTNode *node);
     uint8_t compileBreak(const ASTNode *node);
     uint8_t compileContinue(const ASTNode *node);

@@ -554,7 +554,15 @@ TEST_F(VMTest, AnonFuncInLoop)
     EXPECT_DOUBLE_EQ(runScalar("f = @(x) x * 2; s = 0; for i = 1:5; s = s + f(i); end; s;"), 30.0);
 }
 
-// Note: Closure capture (@(x) f(x) where f is from outer scope) not yet supported in VM
+TEST_F(VMTest, AnonFuncNested)
+{
+    EXPECT_DOUBLE_EQ(runScalar("f = @(x) x + 1; g = @(x) f(x) * 2; g(3);"), 8.0);
+}
+
+TEST_F(VMTest, AnonFuncCapture)
+{
+    EXPECT_DOUBLE_EQ(runScalar("a = 10; f = @(x) x + a; f(5);"), 15.0);
+}
 
 TEST_F(VMTest, WhileBreakNested)
 {

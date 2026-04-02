@@ -1101,17 +1101,50 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     return dst;
 }
 
+// Collect free variables in AST node — identifiers used but not in params/locals
+void Compiler::collectFreeVars(const ASTNode *node,
+                               const std::vector<std::string> &params,
+                               std::vector<std::string> &freeVars)
+{
+    if (!node)
+        return;
+
+    if (node->type == NodeType::IDENTIFIER) {
+        const std::string &name = node->strValue;
+        // Skip if it's a parameter
+        for (auto &p : params)
+            if (p == name)
+                return;
+        // Skip if already collected
+        for (auto &f : freeVars)
+            if (f == name)
+                return;
+        // Skip __result__ (synthetic return var)
+        if (name == "__result__")
+            return;
+        // Check if exists in outer scope
+        if (varRegisters_.count(name)) {
+            freeVars.push_back(name);
+        }
+        return;
+    }
+
+    // Recurse into children
+    for (auto &child : node->children)
+        collectFreeVars(child.get(), params, freeVars);
+    for (auto &[a, b] : node->branches) {
+        collectFreeVars(a.get(), params, freeVars);
+        collectFreeVars(b.get(), params, freeVars);
+    }
+    if (node->elseBranch)
+        collectFreeVars(node->elseBranch.get(), params, freeVars);
+}
+
 uint8_t Compiler::compileAnonFunc(const ASTNode *node)
 {
     // Case 1: @funcname — handle to existing function
     if (!node->strValue.empty() && node->children.empty()) {
         uint8_t dst = tempReg();
-        int16_t nameIdx = addStringConstant(node->strValue);
-        emitAD(OpCode::LOAD_STRING, dst, nameIdx);
-        // Create func handle from string name
-        // We'll use CLOSURE_MAKE with nameIdx
-        // Actually, simpler: just create funcHandle MValue
-        // Store name as constant and use LOAD_CONST with func handle
         MValue fh = MValue::funcHandle(node->strValue, &engine_.allocator_);
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
@@ -1119,8 +1152,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
         return dst;
     }
 
-    // Case 2: @(params) expr — anonymous function
-    // Compile body as a separate function chunk
+    // Case 2: @(params) expr — anonymous function with possible closure capture
     int id = anonCounter_++;
     std::string anonName = "__anon_" + std::to_string(id);
 
@@ -1141,16 +1173,62 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     bodyBlock->children.push_back(std::move(assignNode));
     funcNode->children.push_back(std::move(bodyBlock));
 
+    // Find free variables in body that exist in outer scope but are not params
+    std::vector<std::string> capturedNames;
+    std::vector<uint8_t> capturedOuterRegs;
+    collectFreeVars(node->children[0].get(), node->paramNames, capturedNames);
+
+    // Add captured vars as extra hidden parameters
+    for (auto &name : capturedNames) {
+        auto it = varRegisters_.find(name);
+        if (it != varRegisters_.end()) {
+            capturedOuterRegs.push_back(it->second);
+            funcNode->paramNames.push_back(name);
+        }
+    }
+
     // Compile as separate chunk
     BytecodeChunk funcChunk = compileFunction(funcNode.get());
+    funcChunk.capturedRegisters = capturedOuterRegs;
     compiledFuncs_[anonName] = std::move(funcChunk);
 
-    // Return func handle pointing to the compiled function
-    uint8_t dst = tempReg();
+    if (capturedOuterRegs.empty()) {
+        // No captures — simple func handle
+        uint8_t dst = tempReg();
+        MValue fh = MValue::funcHandle(anonName, &engine_.allocator_);
+        int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
+        chunk_.constants.push_back(std::move(fh));
+        emitAD(OpCode::LOAD_CONST, dst, constIdx);
+        return dst;
+    }
+
+    // Has captures — create a cell: {funcHandle, cap1, cap2, ...}
+    size_t totalSlots = 1 + capturedOuterRegs.size();
+
+    // Compile elements: funcHandle, then captured values
+    std::vector<uint8_t> elemRegs;
+    // funcHandle constant
+    uint8_t fhReg = tempReg();
     MValue fh = MValue::funcHandle(anonName, &engine_.allocator_);
     int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
     chunk_.constants.push_back(std::move(fh));
-    emitAD(OpCode::LOAD_CONST, dst, constIdx);
+    emitAD(OpCode::LOAD_CONST, fhReg, constIdx);
+    elemRegs.push_back(fhReg);
+
+    for (uint8_t outerReg : capturedOuterRegs) {
+        elemRegs.push_back(outerReg);
+    }
+
+    // Pack into consecutive registers for CELL_LITERAL
+    uint8_t base = nextReg_;
+    for (size_t i = 0; i < totalSlots; ++i) {
+        uint8_t slot = tempReg();
+        if (elemRegs[i] != slot)
+            emitAB(OpCode::MOVE, slot, elemRegs[i]);
+    }
+
+    uint8_t dst = tempReg();
+    emitABC(OpCode::CELL_LITERAL, dst, base, static_cast<uint8_t>(totalSlots));
     return dst;
 }
 
