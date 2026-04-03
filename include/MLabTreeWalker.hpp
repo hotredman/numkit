@@ -18,6 +18,9 @@ public:
     MValue execute(const ASTNode *ast, Environment *env);
     void setMaxRecursionDepth(int d) { maxRecursionDepth_ = d; }
 
+    // True when executing inside a user function (not top-level script)
+    int callDepth() const { return currentRecursionDepth_; }
+
 private:
     Engine &engine_;
 
@@ -109,24 +112,35 @@ private:
     MValue &resolveFieldLValue(const ASTNode *node, Environment *env);
 
     // Indexing helpers
-    bool tryResolveScalarIndex(const ASTNode *indexExpr, const MValue &array,
-                               int dim, int ndims, Environment *env, size_t &outIdx);
-    std::vector<size_t> resolveIndex(const ASTNode *indexExpr, const MValue &array,
-                                     int dim, int ndims, Environment *env);
+    bool tryResolveScalarIndex(const ASTNode *indexExpr,
+                               const MValue &array,
+                               int dim,
+                               int ndims,
+                               Environment *env,
+                               size_t &outIdx);
+    std::vector<size_t> resolveIndex(
+        const ASTNode *indexExpr, const MValue &array, int dim, int ndims, Environment *env);
     MValue execIndexAccess(const MValue &var, const ASTNode *callNode, Environment *env);
     std::vector<MValue> execCallMulti(const ASTNode *node, Environment *env, size_t nout);
 
     // Function call
     MValue callUserFunction(const UserFunction &func, Span<const MValue> args, Environment *env);
-    std::vector<MValue> callUserFunctionMulti(const UserFunction &func, Span<const MValue> args,
-                                              Environment *env, size_t nout);
+    std::vector<MValue> callUserFunctionMulti(const UserFunction &func,
+                                              Span<const MValue> args,
+                                              Environment *env,
+                                              size_t nout);
     MValue callFuncHandle(const MValue &handle, Span<const MValue> args, Environment *env);
-    std::vector<MValue> callFuncHandleMulti(const MValue &handle, Span<const MValue> args,
-                                            Environment *env, size_t nout);
+    std::vector<MValue> callFuncHandleMulti(const MValue &handle,
+                                            Span<const MValue> args,
+                                            Environment *env,
+                                            size_t nout);
 
     // Builtins
-    bool tryBuiltinCall(const std::string &name, Span<const MValue> args,
-                        Environment *env, MValue &result, size_t nargout = 0);
+    bool tryBuiltinCall(const std::string &name,
+                        Span<const MValue> args,
+                        Environment *env,
+                        MValue &result,
+                        size_t nargout = 0);
 
     // Utilities
     bool isKnownFunction(const std::string &name) const;

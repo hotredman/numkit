@@ -283,6 +283,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileIndexExpr(node);
     case NodeType::CALL:
         return compileCall(node);
+    case NodeType::COMMAND_CALL:
+        return compileCommandCall(node);
     case NodeType::FUNCTION_DEF:
         return compileFunctionDef(node);
     case NodeType::RETURN_STMT:
@@ -531,17 +533,41 @@ uint8_t Compiler::compileUnaryOp(const ASTNode *node)
 
 uint8_t Compiler::compileExprStmt(const ASTNode *node)
 {
-    // Check for bare builtin commands that VM can't handle
-    // (e.g. 'clear', 'who', 'whos', 'clc') — force fallback to TreeWalker
     auto *child = node->children[0].get();
+
+    // ── Bare zero-arg function call ──────────────────────────────
+    // When the parser sees `clear` or `figure` alone on a line (followed
+    // by a terminator), it produces EXPR_STMT → IDENTIFIER.  The parser's
+    // isCommandStyleCall() only fires when there IS a following argument
+    // token.  So bare no-arg commands land here.
+    //
+    // If the identifier is NOT a known variable but IS a registered
+    // function (external or user-defined), compile it as CALL with 0 args
+    // instead of treating it as a variable read.
     if (child->type == NodeType::IDENTIFIER) {
-        static const std::unordered_set<std::string> kBuiltinCommands
-            = {"clear",  "who",     "whos",  "clc",    "clf",    "close",  "hold",   "grid",
-               "figure", "subplot", "title", "xlabel", "ylabel", "zlabel", "legend", "axis",
-               "format", "diary",   "cd",    "pwd",    "ls",     "dir",    "tic",    "toc"};
-        if (kBuiltinCommands.count(child->strValue))
-            throw std::runtime_error("Compiler: builtin command '" + child->strValue
-                                     + "' requires TreeWalker");
+        const std::string &name = child->strValue;
+        bool isKnownVar = varRegisters_.count(name) > 0;
+
+        // Also check globalEnv for variables from previous eval() calls
+        if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
+            MValue *existing = engine_.getVariable(name);
+            if (existing && !existing->isEmpty())
+                isKnownVar = true;
+        }
+
+        if (!isKnownVar && (engine_.externalFuncs_.count(name) || engine_.hasFunction(name))) {
+            // Compile as zero-arg CALL
+            uint8_t argBase = nextReg_; // no args, but CALL needs a base
+            uint8_t dst = tempReg();
+            int16_t funcIdx = addStringConstant(name);
+            emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
+
+            if (!node->suppressOutput) {
+                int16_t nameIdx = addStringConstant("ans");
+                emitAD(OpCode::DISPLAY, dst, nameIdx);
+            }
+            return dst;
+        }
     }
 
     uint8_t reg = compileNode(child);
@@ -1399,6 +1425,44 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     int16_t funcIdx = addStringConstant(name);
     emit(
         Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
+    return dst;
+}
+
+// ============================================================
+// Command-style calls: clear all, hold on, grid on, etc.
+//
+// The parser generates COMMAND_CALL nodes with:
+//   strValue   = function name
+//   children[] = arguments (all STRING_LITERAL)
+//
+// We compile these as standard CALL opcodes with string args,
+// which the VM dispatches through externalFuncs_ like any other call.
+// ============================================================
+
+uint8_t Compiler::compileCommandCall(const ASTNode *node)
+{
+    const std::string &name = node->strValue;
+    size_t nargs = node->children.size();
+
+    // Compile arguments: each child is a STRING_LITERAL
+    uint8_t argBase = nextReg_;
+    for (size_t i = 0; i < nargs; ++i) {
+        uint8_t slot = tempReg();
+        int16_t strIdx = addStringConstant(node->children[i]->strValue);
+        emitAD(OpCode::LOAD_STRING, slot, strIdx);
+    }
+
+    uint8_t dst = tempReg();
+    int16_t funcIdx = addStringConstant(name);
+    emit(
+        Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
+
+    // Display result if no semicolon (rare for commands, but correct)
+    if (!node->suppressOutput) {
+        int16_t nameIdx = addStringConstant("ans");
+        emitAD(OpCode::DISPLAY, dst, nameIdx);
+    }
+
     return dst;
 }
 

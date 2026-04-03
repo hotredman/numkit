@@ -26,6 +26,9 @@ public:
     // After execute(), get exported variables for environment sync
     const std::vector<std::pair<std::string, MValue>> &lastVarMap() const { return lastVarMap_; }
 
+    // True when executing inside a user function (not top-level script)
+    int callDepth() const { return recursionDepth_; }
+
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;

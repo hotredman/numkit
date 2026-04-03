@@ -127,8 +127,26 @@ void Engine::outputText(const std::string &s)
 
 bool Engine::hasFunction(const std::string &name) const
 {
-    static const std::unordered_set<std::string> kBuiltinFuncs = {"tic", "toc"};
-    return externalFuncs_.count(name) || userFuncs_.count(name) || kBuiltinFuncs.count(name);
+    return externalFuncs_.count(name) || userFuncs_.count(name);
+}
+
+bool Engine::hasUserFunction(const std::string &name) const
+{
+    return userFuncs_.count(name) > 0;
+}
+
+bool Engine::hasExternalFunction(const std::string &name) const
+{
+    return externalFuncs_.count(name) > 0;
+}
+
+bool Engine::isInsideFunctionCall() const
+{
+    if (vm_ && backend_ != Backend::TreeWalker)
+        return vm_->callDepth() > 0;
+    if (treeWalker_)
+        return treeWalker_->callDepth() > 0;
+    return false;
 }
 
 void Engine::clearUserFunctions()
@@ -150,20 +168,29 @@ MValue Engine::eval(const std::string &code)
 
     if (backend_ != Backend::TreeWalker) {
         try {
+            // Reset clear tracking for this execution
+            clearedVars_.clear();
+            clearAllCalled_ = false;
+
             auto chunk = compiler_->compile(ast.get());
             vm_->setCompiledFuncs(&compiler_->compiledFuncs());
             MValue result = vm_->execute(chunk);
 
-            // Export script-level variables to global environment
-            for (auto &[name, val] : vm_->lastVarMap()) {
-                if (kBuiltinNames.count(name))
-                    continue;
-                // For global variables, prefer globalStore value (may have been set by called functions)
-                MValue *gsVal = globalStore_.get(name);
-                if (gsVal)
-                    globalEnv_->set(name, *gsVal);
-                else
-                    globalEnv_->set(name, val);
+            // Export script-level variables to global environment,
+            // but skip any that were cleared mid-execution.
+            if (!clearAllCalled_) {
+                for (auto &[name, val] : vm_->lastVarMap()) {
+                    if (kBuiltinNames.count(name))
+                        continue;
+                    if (clearedVars_.count(name))
+                        continue;
+                    // For global variables, prefer globalStore value (may have been set by called functions)
+                    MValue *gsVal = globalStore_.get(name);
+                    if (gsVal)
+                        globalEnv_->set(name, *gsVal);
+                    else
+                        globalEnv_->set(name, val);
+                }
             }
 
             return result;

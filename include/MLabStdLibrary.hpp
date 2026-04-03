@@ -10,6 +10,7 @@ public:
     static void install(Engine &engine);
 
 private:
+    // Category registrators (implemented in separate TUs)
     static void registerBinaryOps(Engine &engine);
     static void registerUnaryOps(Engine &engine);
     static void registerMathFunctions(Engine &engine);
@@ -28,6 +29,9 @@ private:
     static void registerResampleFunctions(Engine &engine);
     static void registerTransformFunctions(Engine &engine);
     static void registerInterpFunctions(Engine &engine);
+
+    // Workspace / session builtins (clear, who, whos, tic, toc, etc.)
+    static void registerWorkspaceBuiltins(Engine &engine);
 };
 
 } // namespace mlab
