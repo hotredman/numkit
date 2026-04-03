@@ -564,6 +564,22 @@ TEST_F(VMTest, AnonFuncCapture)
     EXPECT_DOUBLE_EQ(runScalar("a = 10; f = @(x) x + a; f(5);"), 15.0);
 }
 
+TEST_F(VMTest, ReturnInsideTryCatch)
+{
+    EXPECT_DOUBLE_EQ(runScalar(R"(
+        function r = safe_div(a, b)
+            try
+                if b == 0; r = inf; return; end
+                r = a / b;
+            catch
+                r = nan;
+            end
+        end
+        safe_div(10, 2);
+    )"),
+                     5.0);
+}
+
 // ============================================================
 // Multi-return
 // ============================================================

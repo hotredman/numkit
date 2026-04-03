@@ -45,9 +45,16 @@ uint8_t Compiler::varReg(const std::string &name)
     uint8_t r = nextReg_++;
     varRegisters_[name] = r;
 
-    // If compiling a top-level script and variable exists in globalEnv,
-    // emit LOAD_CONST to initialize register with its current value.
-    if (isTopLevel_ && chunk_.name == "<script>") {
+    // Import variable from globalEnv if it exists
+    // For top-level scripts: import all non-builtin variables
+    // For function bodies: import only builtin constants (inf, nan, pi, etc.)
+    bool shouldImport = false;
+    if (isTopLevel_ && chunk_.name == "<script>")
+        shouldImport = true;
+    else if (kBuiltinNames.count(name))
+        shouldImport = true;
+
+    if (shouldImport) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());

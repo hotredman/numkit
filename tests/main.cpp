@@ -2,6 +2,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
-    ::testing::GTEST_FLAG(filter) = "OptimizationRegressionTest.ReturnInsideTryCatch";
+    //::testing::GTEST_FLAG(filter) = "VMTest.ReturnInsideTryCatch";
     return RUN_ALL_TESTS();
 }
