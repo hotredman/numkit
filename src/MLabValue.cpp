@@ -385,6 +385,16 @@ MValue MValue::cell(size_t rows, size_t cols)
     m.heap_ = h;
     return m;
 }
+MValue MValue::cell3D(size_t rows, size_t cols, size_t pages)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::CELL;
+    h->dims = {rows, cols, pages};
+    h->cellData = new std::vector<MValue>(rows * cols * pages);
+    m.heap_ = h;
+    return m;
+}
 MValue MValue::structure()
 {
     MValue m;

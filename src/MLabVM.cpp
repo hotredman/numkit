@@ -977,7 +977,9 @@ dispatch_loop:
                         R[I.a] = R[fhReg];
                     } else if (R[argBase].isDoubleScalar()) {
                         size_t i = checkedIndex(R[argBase].scalarVal(), R[fhReg].numel());
-                        if (R[fhReg].type() == MType::CHAR) {
+                        if (R[fhReg].isCell()) {
+                            R[I.a] = R[fhReg].cellAt(i);
+                        } else if (R[fhReg].type() == MType::CHAR) {
                             char ch = R[fhReg].charData()[i];
                             R[I.a] = MValue::fromString(std::string(1, ch), &engine_.allocator_);
                         } else {
@@ -1014,34 +1016,83 @@ dispatch_loop:
                     const MValue &ri = R[argBase];
                     const MValue &ci = R[argBase + 1];
                     size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
-                    const double *src = mv.doubleData();
 
                     auto rowIds = resolveSlice(ri, Rows);
                     auto colIds = resolveSlice(ci, Cols);
 
-                    if (rowIds.size() == 1 && colIds.size() == 1) {
-                        // Scalar result — bounds already checked by resolveSlice
-                        R[I.a] = MValue::scalar(src[rowIds[0] + colIds[0] * Rows],
-                                                &engine_.allocator_);
+                    if (mv.isCell()) {
+                        if (rowIds.size() == 1 && colIds.size() == 1) {
+                            R[I.a] = mv.cellAt(rowIds[0] + colIds[0] * Rows);
+                        } else {
+                            size_t nR = rowIds.size(), nC = colIds.size();
+                            auto res = MValue::cell(nR, nC);
+                            for (size_t c = 0; c < nC; ++c)
+                                for (size_t r = 0; r < nR; ++r)
+                                    res.cellAt(r + c * nR) = mv.cellAt(rowIds[r] + colIds[c] * Rows);
+                            R[I.a] = std::move(res);
+                        }
                     } else {
-                        size_t nR = rowIds.size(), nC = colIds.size();
-                        auto res = MValue::matrix(nR, nC, MType::DOUBLE, &engine_.allocator_);
-                        double *dst = res.doubleDataMut();
-                        for (size_t c = 0; c < nC; ++c)
-                            for (size_t r = 0; r < nR; ++r)
-                                dst[r + c * nR] = src[rowIds[r] + colIds[c] * Rows];
-                        R[I.a] = std::move(res);
+                        const double *src = mv.doubleData();
+                        if (rowIds.size() == 1 && colIds.size() == 1) {
+                            R[I.a] = MValue::scalar(src[rowIds[0] + colIds[0] * Rows],
+                                                    &engine_.allocator_);
+                        } else {
+                            size_t nR = rowIds.size(), nC = colIds.size();
+                            auto res = MValue::matrix(nR, nC, MType::DOUBLE, &engine_.allocator_);
+                            double *dst = res.doubleDataMut();
+                            for (size_t c = 0; c < nC; ++c)
+                                for (size_t r = 0; r < nR; ++r)
+                                    dst[r + c * nR] = src[rowIds[r] + colIds[c] * Rows];
+                            R[I.a] = std::move(res);
+                        }
                     }
                 } else if (na == 3) {
-                    size_t r = (size_t) R[argBase].toScalar() - 1;
-                    size_t c = (size_t) R[argBase + 1].toScalar() - 1;
-                    size_t p = (size_t) R[argBase + 2].toScalar() - 1;
                     const MValue &mv = R[fhReg];
-                    if (mv.isCell()) {
-                        R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
+                    const MValue &ri = R[argBase];
+                    const MValue &ci = R[argBase + 1];
+                    const MValue &pi = R[argBase + 2];
+                    size_t Rows = mv.dims().rows(), Cols = mv.dims().cols(),
+                           Pages = mv.dims().pages();
+
+                    auto rowIds = resolveSlice(ri, Rows);
+                    auto colIds = resolveSlice(ci, Cols);
+                    auto pageIds = resolveSlice(pi, Pages);
+
+                    if (rowIds.size() == 1 && colIds.size() == 1 && pageIds.size() == 1) {
+                        size_t idx = mv.dims().sub2indChecked(rowIds[0], colIds[0], pageIds[0]);
+                        if (mv.isCell())
+                            R[I.a] = mv.cellAt(idx);
+                        else
+                            R[I.a] = MValue::scalar(mv.doubleData()[idx], &engine_.allocator_);
                     } else {
-                        R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c, p)],
-                                                &engine_.allocator_);
+                        // Multi-element 3D indexing — return sub-array
+                        size_t nR = rowIds.size(), nC = colIds.size(), nP = pageIds.size();
+                        if (mv.isCell()) {
+                            // Return cell for multi-element cell indexing
+                            auto res = MValue::cell(1, nR * nC * nP);
+                            size_t k = 0;
+                            for (size_t p = 0; p < nP; ++p)
+                                for (size_t c = 0; c < nC; ++c)
+                                    for (size_t r = 0; r < nR; ++r)
+                                        res.cellAt(k++) = mv.cellAt(
+                                            mv.dims().sub2ind(rowIds[r], colIds[c], pageIds[p]));
+                            R[I.a] = std::move(res);
+                        } else {
+                            auto res = MValue::matrix3d(nR,
+                                                        nC,
+                                                        nP,
+                                                        MType::DOUBLE,
+                                                        &engine_.allocator_);
+                            double *dst = res.doubleDataMut();
+                            const double *src = mv.doubleData();
+                            size_t k = 0;
+                            for (size_t p = 0; p < nP; ++p)
+                                for (size_t c = 0; c < nC; ++c)
+                                    for (size_t r = 0; r < nR; ++r)
+                                        dst[k++]
+                                            = src[mv.dims().sub2ind(rowIds[r], colIds[c], pageIds[p])];
+                            R[I.a] = std::move(res);
+                        }
                     }
                 } else {
                     throw std::runtime_error("VM: unsupported CALL_INDIRECT with "

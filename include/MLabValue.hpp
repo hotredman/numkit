@@ -180,6 +180,7 @@ public:
                            Allocator *alloc = nullptr);
     static MValue fromString(const std::string &s, Allocator *alloc = nullptr);
     static MValue cell(size_t rows, size_t cols);
+    static MValue cell3D(size_t rows, size_t cols, size_t pages);
     static MValue structure();
     static MValue funcHandle(const std::string &name, Allocator *alloc = nullptr);
     static MValue empty();

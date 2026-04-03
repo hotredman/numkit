@@ -9,7 +9,8 @@ using namespace mlab_test;
 // Matrix construction
 // ============================================================
 
-class MatrixTest : public DualEngineTest {};
+class MatrixTest : public DualEngineTest
+{};
 
 TEST_P(MatrixTest, RowVector)
 {
@@ -86,7 +87,8 @@ INSTANTIATE_DUAL(MatrixTest);
 // Bounds checking
 // ============================================================
 
-class BoundsTest : public DualEngineTest {};
+class BoundsTest : public DualEngineTest
+{};
 
 TEST_P(BoundsTest, OutOfBoundsLinear)
 {
@@ -124,7 +126,8 @@ INSTANTIATE_DUAL(BoundsTest);
 // Colon expressions
 // ============================================================
 
-class ColonTest : public DualEngineTest {};
+class ColonTest : public DualEngineTest
+{};
 
 TEST_P(ColonTest, SimpleRange)
 {
@@ -176,7 +179,8 @@ INSTANTIATE_DUAL(ColonTest);
 // Chain calls / function handles
 // ============================================================
 
-class ChainCallTest : public DualEngineTest {};
+class ChainCallTest : public DualEngineTest
+{};
 
 TEST_P(ChainCallTest, FuncHandleCall)
 {
@@ -208,7 +212,8 @@ INSTANTIATE_DUAL(ChainCallTest);
 // End keyword in indexing
 // ============================================================
 
-class EndKeywordTest : public DualEngineTest {};
+class EndKeywordTest : public DualEngineTest
+{};
 
 TEST_P(EndKeywordTest, EndInIndex)
 {
@@ -231,3 +236,125 @@ TEST_P(EndKeywordTest, EndInRange)
 }
 
 INSTANTIATE_DUAL(EndKeywordTest);
+
+// ============================================================
+// 3D array indexing
+// ============================================================
+
+class Array3DTest : public DualEngineTest
+{};
+
+TEST_P(Array3DTest, Create3DAndIndex)
+{
+    eval("A = zeros(2, 3, 2); A(1,1,1) = 1; A(2,3,2) = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2,3,2);"), 99.0);
+}
+
+TEST_P(Array3DTest, LinearIndexInto3D)
+{
+    eval("A = zeros(2, 3, 2); A(2,3,2) = 42;");
+    // linear index of (2,3,2) in 2x3x2 = 2 + (3-1)*2 + (2-1)*6 = 12
+    EXPECT_DOUBLE_EQ(evalScalar("A(12);"), 42.0);
+}
+
+TEST_P(Array3DTest, ScalarAssign3D)
+{
+    eval("A = zeros(2, 2, 2); A(1,2,2) = 77;");
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,2,2);"), 77.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,1,1);"), 0.0);
+}
+
+INSTANTIATE_DUAL(Array3DTest);
+
+// ============================================================
+// Cell array multi-dimensional indexing
+// ============================================================
+
+class CellIndexTest : public DualEngineTest
+{};
+
+TEST_P(CellIndexTest, Cell1DGetSet)
+{
+    eval("c = {10, 'hello', [1 2 3]};");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1};"), 10.0);
+}
+
+TEST_P(CellIndexTest, Cell1DAssign)
+{
+    eval("c = {1, 2, 3}; c{2} = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("c{2};"), 99.0);
+}
+
+TEST_P(CellIndexTest, Cell2DGet)
+{
+    eval("c = cell(2, 2); c{1,1} = 10; c{2,1} = 20; c{1,2} = 30; c{2,2} = 40;");
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2};"), 40.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2};"), 30.0);
+}
+
+TEST_P(CellIndexTest, Cell2DSet)
+{
+    eval("c = cell(2, 3); c{1,3} = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,3};"), 99.0);
+}
+
+TEST_P(CellIndexTest, Cell3DGet)
+{
+    eval("c = cell(2, 2, 2); c{2,2,2} = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("c{2,2,2};"), 42.0);
+}
+
+TEST_P(CellIndexTest, Cell3DSet)
+{
+    eval("c = cell(2, 2, 2); c{1,2,2} = 77;");
+    EXPECT_DOUBLE_EQ(evalScalar("c{1,2,2};"), 77.0);
+}
+
+TEST_P(CellIndexTest, CellLinearIndex)
+{
+    eval("c = {10, 20, 30, 40};");
+    EXPECT_DOUBLE_EQ(evalScalar("c{3};"), 30.0);
+}
+
+INSTANTIATE_DUAL(CellIndexTest);
+
+// ============================================================
+// Colon-all with different types
+// ============================================================
+
+class ColonAllTest : public DualEngineTest
+{};
+
+TEST_P(ColonAllTest, ColonAllRows)
+{
+    eval("A = [1 2; 3 4]; r = A(:, 1);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->numel(), 2u);
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[1], 3.0);
+}
+
+TEST_P(ColonAllTest, ColonAllCols)
+{
+    eval("A = [1 2 3; 4 5 6]; r = A(2, :);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->numel(), 3u);
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[1], 5.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[2], 6.0);
+}
+
+TEST_P(ColonAllTest, ColonAllLinearize)
+{
+    eval("A = [1 2; 3 4]; r = A(:);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->numel(), 4u);
+    // Column-major: 1, 3, 2, 4
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[3], 4.0);
+}
+
+INSTANTIATE_DUAL(ColonAllTest);

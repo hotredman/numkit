@@ -1135,6 +1135,59 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                     if (k < rhs.numel())
                         dst[dims.sub2ind(rowIdx[ri], colIdx[ci])] = src[k++];
         }
+    } else if (nargs == 3) {
+        // 3D: A(r, c, p) = val
+        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+            size_t ri, ci, pi;
+            if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 3, env, ri)
+                && tryResolveScalarIndex(lhs->children[2].get(), *var, 1, 3, env, ci)
+                && tryResolveScalarIndex(lhs->children[3].get(), *var, 2, 3, env, pi)) {
+                size_t needR = ri + 1, needC = ci + 1, needP = pi + 1;
+                if (needR > var->dims().rows() || needC > var->dims().cols()
+                    || needP > var->dims().pages())
+                    var->resize3d(std::max(var->dims().rows(), needR),
+                                  std::max(var->dims().cols(), needC),
+                                  std::max(var->dims().pages(), needP),
+                                  &engine_.allocator_);
+                var->doubleDataMut()[var->dims().sub2ind(ri, ci, pi)] = rhs.toScalar();
+                return;
+            }
+        }
+
+        auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 3, env);
+        auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 3, env);
+        auto pageIdx = resolveIndex(lhs->children[3].get(), *var, 2, 3, env);
+
+        size_t maxR = 0, maxC = 0, maxP = 0;
+        for (auto r : rowIdx)
+            maxR = std::max(maxR, r + 1);
+        for (auto c : colIdx)
+            maxC = std::max(maxC, c + 1);
+        for (auto p : pageIdx)
+            maxP = std::max(maxP, p + 1);
+        if (maxR > var->dims().rows() || maxC > var->dims().cols() || maxP > var->dims().pages())
+            var->resize3d(std::max(var->dims().rows(), maxR),
+                          std::max(var->dims().cols(), maxC),
+                          std::max(var->dims().pages(), maxP),
+                          &engine_.allocator_);
+
+        double *dst = var->doubleDataMut();
+        auto &dims = var->dims();
+        if (rhs.isScalar()) {
+            double sv = rhs.toScalar();
+            for (auto p : pageIdx)
+                for (auto c : colIdx)
+                    for (auto r : rowIdx)
+                        dst[dims.sub2ind(r, c, p)] = sv;
+        } else if (rhs.type() == MType::DOUBLE) {
+            const double *src = rhs.doubleData();
+            size_t k = 0;
+            for (auto p : pageIdx)
+                for (size_t ci = 0; ci < colIdx.size(); ++ci)
+                    for (size_t ri = 0; ri < rowIdx.size(); ++ri)
+                        if (k < rhs.numel())
+                            dst[dims.sub2ind(rowIdx[ri], colIdx[ci], p)] = src[k++];
+        }
     }
 }
 
@@ -1181,20 +1234,57 @@ void TreeWalker::execCellAssign(const ASTNode *lhs, const MValue &rhs, Environme
     if (!var->isCell())
         throw std::runtime_error("Cell indexing on non-cell variable: " + target->strValue);
 
-    IndexContextGuard guard(indexContextStack_, {var, 0, 1});
-    MValue idx = execNode(lhs->children[1].get(), env);
+    size_t nidx = lhs->children.size() - 1;
 
-    size_t i = static_cast<size_t>(idx.toScalar()) - 1;
+    if (nidx == 1) {
+        IndexContextGuard guard(indexContextStack_, {var, 0, 1});
+        MValue idx = execNode(lhs->children[1].get(), env);
+        size_t i = static_cast<size_t>(idx.toScalar()) - 1;
 
-    if (i >= var->numel()) {
-        size_t newSize = i + 1;
-        auto newCell = MValue::cell(1, newSize);
-        for (size_t k = 0; k < var->numel(); ++k)
-            newCell.cellAt(k) = var->cellAt(k);
-        *var = newCell;
+        if (i >= var->numel()) {
+            size_t newSize = i + 1;
+            auto newCell = MValue::cell(1, newSize);
+            for (size_t k = 0; k < var->numel(); ++k)
+                newCell.cellAt(k) = var->cellAt(k);
+            *var = newCell;
+        }
+        var->cellAt(i) = rhs;
+    } else if (nidx == 2) {
+        MValue ridx, cidx;
+        {
+            IndexContextGuard guard(indexContextStack_, {var, 0, 2});
+            ridx = execNode(lhs->children[1].get(), env);
+        }
+        {
+            IndexContextGuard guard(indexContextStack_, {var, 1, 2});
+            cidx = execNode(lhs->children[2].get(), env);
+        }
+        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
+        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
+        size_t idx = var->dims().sub2indChecked(r, c);
+        var->cellAt(idx) = rhs;
+    } else if (nidx == 3) {
+        MValue ridx, cidx, pidx;
+        {
+            IndexContextGuard guard(indexContextStack_, {var, 0, 3});
+            ridx = execNode(lhs->children[1].get(), env);
+        }
+        {
+            IndexContextGuard guard(indexContextStack_, {var, 1, 3});
+            cidx = execNode(lhs->children[2].get(), env);
+        }
+        {
+            IndexContextGuard guard(indexContextStack_, {var, 2, 3});
+            pidx = execNode(lhs->children[3].get(), env);
+        }
+        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
+        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
+        size_t p = static_cast<size_t>(pidx.toScalar()) - 1;
+        size_t idx = var->dims().sub2indChecked(r, c, p);
+        var->cellAt(idx) = rhs;
+    } else {
+        throw std::runtime_error("Cell assignment with more than 3 indices not supported");
     }
-
-    var->cellAt(i) = rhs;
 }
 
 // ============================================================
@@ -1709,7 +1799,26 @@ MValue TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
         size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
         return obj.cellAt(obj.dims().sub2indChecked(r, c));
     }
-    throw std::runtime_error("Cell indexing with more than 2 dimensions not supported");
+    if (nidx == 3) {
+        MValue ridx, cidx, pidx;
+        {
+            IndexContextGuard guard(indexContextStack_, {&obj, 0, 3});
+            ridx = execNode(node->children[1].get(), env);
+        }
+        {
+            IndexContextGuard guard(indexContextStack_, {&obj, 1, 3});
+            cidx = execNode(node->children[2].get(), env);
+        }
+        {
+            IndexContextGuard guard(indexContextStack_, {&obj, 2, 3});
+            pidx = execNode(node->children[3].get(), env);
+        }
+        size_t r = static_cast<size_t>(ridx.toScalar()) - 1;
+        size_t c = static_cast<size_t>(cidx.toScalar()) - 1;
+        size_t p = static_cast<size_t>(pidx.toScalar()) - 1;
+        return obj.cellAt(obj.dims().sub2indChecked(r, c, p));
+    }
+    throw std::runtime_error("Cell indexing with more than 3 dimensions not supported");
 }
 
 MValue TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)
