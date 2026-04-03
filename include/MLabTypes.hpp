@@ -27,7 +27,25 @@ using TimePoint = Clock::time_point;
 // ============================================================
 using BinaryOpFunc = std::function<MValue(const MValue &, const MValue &)>;
 using UnaryOpFunc = std::function<MValue(const MValue &)>;
-using ExternalFunc = std::function<void(Span<const MValue> args, size_t nargout, Span<MValue> outs)>;
+
+// Forward declaration for CallContext
+class Engine;
+
+// ============================================================
+// CallContext — passed to all external functions
+//
+// Provides controlled access to the interpreter state:
+//   engine — allocator, outputText, figureManager, hasFunction, etc.
+//   env    — current scope (global for scripts, local for functions)
+// ============================================================
+struct CallContext
+{
+    Engine *engine;
+    Environment *env;
+};
+
+using ExternalFunc = std::function<
+    void(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)>;
 
 // ============================================================
 // Control flow signals
