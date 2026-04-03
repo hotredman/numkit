@@ -50,6 +50,35 @@ private:
     uint8_t indexContextDim_ = 0;
     uint8_t indexContextNdims_ = 1;
 
+    // RAII guard for index context save/restore
+    class IndexContextGuard
+    {
+    public:
+        IndexContextGuard(Compiler &c, uint8_t arr, uint8_t ndims)
+            : c_(c)
+            , savedArr_(c.indexContextArr_)
+            , savedDim_(c.indexContextDim_)
+            , savedNd_(c.indexContextNdims_)
+        {
+            c_.indexContextArr_ = arr;
+            c_.indexContextNdims_ = ndims;
+            c_.indexContextDim_ = 0;
+        }
+        ~IndexContextGuard()
+        {
+            c_.indexContextArr_ = savedArr_;
+            c_.indexContextDim_ = savedDim_;
+            c_.indexContextNdims_ = savedNd_;
+        }
+        void setDim(uint8_t d) { c_.indexContextDim_ = d; }
+        IndexContextGuard(const IndexContextGuard &) = delete;
+        IndexContextGuard &operator=(const IndexContextGuard &) = delete;
+
+    private:
+        Compiler &c_;
+        uint8_t savedArr_, savedDim_, savedNd_;
+    };
+
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
 

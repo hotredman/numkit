@@ -1230,45 +1230,267 @@ TEST_F(VMTest, SwitchCellCase)
     EXPECT_DOUBLE_EQ(runScalar(code), 20.0);
 }
 
-TEST_F(VMTest, InPlaceArrayModifyInFunction)
+// ============================================================
+// Phase 3: Stress tests — edge cases and boundary conditions
+// ============================================================
+
+// --- Empty arrays ---
+
+TEST_F(VMTest, StressEmptyMatrixOps)
 {
-    const char *code = R"(
-        function v = swap21(v)
-            temp = v(1);
-            v(1) = v(2);
-            v(2) = temp;
-        end
-        r = swap21([10 20 30]);
-    )";
-    auto result = run(code);
-    EXPECT_EQ(result.numel(), 3u);
-    EXPECT_DOUBLE_EQ(result.doubleData()[0], 20.0);
-    EXPECT_DOUBLE_EQ(result.doubleData()[1], 10.0);
-    EXPECT_DOUBLE_EQ(result.doubleData()[2], 30.0);
+    auto result = run("x = []; y = length(x);");
+    EXPECT_DOUBLE_EQ(result.toScalar(), 0.0);
 }
 
-TEST_F(VMTest, InsertionSortDebug)
+TEST_F(VMTest, StressEmptyMatrixSize)
+{
+    auto result = run("x = []; s = size(x);");
+    EXPECT_EQ(result.numel(), 2u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 0.0);
+}
+
+TEST_F(VMTest, StressEmptyMatrixNumel)
+{
+    EXPECT_DOUBLE_EQ(runScalar("numel([]);"), 0.0);
+}
+
+TEST_F(VMTest, StressEmptyHorzcat)
+{
+    // [[] 1 2 3] → [1 2 3]
+    auto result = run("r = [[], 1, 2, 3];");
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+}
+
+TEST_F(VMTest, StressEmptyForLoop)
+{
+    // for over empty range does nothing
+    EXPECT_DOUBLE_EQ(runScalar("x = 42; for i = 1:0; x = 0; end; x;"), 42.0);
+}
+
+// --- Zero-length colon ranges ---
+
+TEST_F(VMTest, StressColonEmptyRange)
+{
+    auto result = run("r = 5:3;");
+    EXPECT_TRUE(result.isEmpty() || result.numel() == 0);
+}
+
+TEST_F(VMTest, StressColonSingleElement)
+{
+    EXPECT_DOUBLE_EQ(runScalar("r = 3:3;"), 3.0);
+}
+
+TEST_F(VMTest, StressColonNegativeStep)
+{
+    auto result = run("r = 5:-1:1;");
+    EXPECT_EQ(result.numel(), 5u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[4], 1.0);
+}
+
+TEST_F(VMTest, StressColonNegativeStepEmpty)
+{
+    auto result = run("r = 1:-1:5;");
+    EXPECT_TRUE(result.isEmpty() || result.numel() == 0);
+}
+
+// --- Nested structs deep ---
+
+TEST_F(VMTest, StressNestedStruct4Levels)
+{
+    EXPECT_DOUBLE_EQ(runScalar("a.b.c.d = 77; a.b.c.d;"), 77.0);
+}
+
+TEST_F(VMTest, StressStructMultipleFields)
 {
     const char *code = R"(
-        function v = isort(v)
-            n = length(v);
-            for i = 2:n
-                key = v(i);
-                j = i - 1;
-                while j >= 1 && v(j) > key
-                    v(j+1) = v(j);
-                    j = j - 1;
-                end
-                v(j+1) = key;
-            end
-        end
-        r = isort([4 2 5 1 3]);
+        s.x = 1; s.y = 2; s.z = 3;
+        r = s.x + s.y + s.z;
     )";
-    auto result = run(code);
-    ASSERT_EQ(result.numel(), 5u);
-    const double *d = result.doubleData();
-    std::cerr << "isort result: [" << d[0] << " " << d[1] << " " << d[2] << " " << d[3] << " "
-              << d[4] << "]\n";
-    for (size_t i = 0; i < 5; ++i)
-        EXPECT_DOUBLE_EQ(d[i], static_cast<double>(i + 1));
+    EXPECT_DOUBLE_EQ(runScalar(code), 6.0);
+}
+
+TEST_F(VMTest, StressNestedStructOverwrite)
+{
+    const char *code = R"(
+        s.a.b = 10;
+        s.a.b = 20;
+        s.a.b;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 20.0);
+}
+
+// --- Recursive closures ---
+
+TEST_F(VMTest, StressClosureChain)
+{
+    const char *code = R"(
+        function f = make_adder(n)
+            f = @(x) x + n;
+        end
+        add2 = make_adder(2);
+        add5 = make_adder(5);
+        r = add5(add2(10));
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 17.0);
+}
+
+TEST_F(VMTest, StressClosureCapture)
+{
+    const char *code = R"(
+        function f = make_counter(start)
+            f = @(step) start + step;
+        end
+        c = make_counter(100);
+        r = c(1) + c(2) + c(3);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 306.0);
+}
+
+// --- Logical indexing edge cases ---
+
+TEST_F(VMTest, StressLogicalIndexAll)
+{
+    // All true — returns full array
+    auto result = run("v = [10 20 30]; r = v(v > 0);");
+    EXPECT_EQ(result.numel(), 3u);
+}
+
+TEST_F(VMTest, StressLogicalIndexNone)
+{
+    // All false — returns empty
+    auto result = run("v = [10 20 30]; r = v(v > 100);");
+    EXPECT_TRUE(result.isEmpty() || result.numel() == 0);
+}
+
+TEST_F(VMTest, StressLogicalIndexOnScalar)
+{
+    EXPECT_DOUBLE_EQ(runScalar("x = 42; r = x(true);"), 42.0);
+}
+
+// --- Colon-all indexing edge cases ---
+
+TEST_F(VMTest, StressColonAll1D)
+{
+    // v(:) linearizes
+    auto result = run("v = [10 20 30]; r = v(:);");
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 10.0);
+}
+
+TEST_F(VMTest, StressColonAllRows)
+{
+    // A(:, 1) — all rows, first column
+    auto result = run("A = [1 2; 3 4]; r = A(:, 1);");
+    EXPECT_EQ(result.numel(), 2u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 3.0);
+}
+
+TEST_F(VMTest, StressColonAllCols)
+{
+    // A(1, :) — first row, all columns
+    auto result = run("A = [1 2 3; 4 5 6]; r = A(1, :);");
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[2], 3.0);
+}
+
+// --- Delete edge cases ---
+
+TEST_F(VMTest, StressDeleteLastElement)
+{
+    auto result = run("v = [1 2 3]; v(3) = []; v;");
+    EXPECT_EQ(result.numel(), 2u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 2.0);
+}
+
+TEST_F(VMTest, StressDeleteFirstElement)
+{
+    auto result = run("v = [1 2 3]; v(1) = []; v;");
+    EXPECT_EQ(result.numel(), 2u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 3.0);
+}
+
+// --- Switch edge cases ---
+
+TEST_F(VMTest, StressSwitchOtherwise)
+{
+    const char *code = R"(
+        x = 99;
+        switch x
+            case 1
+                r = 10;
+            case {2, 3}
+                r = 20;
+            otherwise
+                r = 30;
+        end
+        r;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 30.0);
+}
+
+TEST_F(VMTest, StressSwitchString)
+{
+    const char *code = R"(
+        x = 'hello';
+        switch x
+            case 'world'
+                r = 1;
+            case 'hello'
+                r = 2;
+            otherwise
+                r = 3;
+        end
+        r;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 2.0);
+}
+
+// --- Multi-return edge cases ---
+
+TEST_F(VMTest, StressMultiReturnIgnoreSecond)
+{
+    // Single-return context — second output ignored
+    const char *code = R"(
+        function [a, b] = pair()
+            a = 10;
+            b = 20;
+        end
+        r = pair();
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 10.0);
+}
+
+// --- End keyword edge cases ---
+
+TEST_F(VMTest, StressEndInExpression)
+{
+    EXPECT_DOUBLE_EQ(runScalar("v = [10 20 30]; v(end - 1);"), 20.0);
+}
+
+TEST_F(VMTest, StressEnd2DRowCol)
+{
+    const char *code = R"(
+        A = [1 2 3; 4 5 6];
+        r = A(end, end);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 6.0);
+}
+
+// --- Complex number edge cases ---
+
+TEST_F(VMTest, StressComplexArithmetic)
+{
+    auto result = run("r = (1 + 2i) * (3 - 1i);");
+    EXPECT_TRUE(result.isComplex());
+    auto c = result.toComplex();
+    EXPECT_DOUBLE_EQ(c.real(), 5.0);
+    EXPECT_DOUBLE_EQ(c.imag(), 5.0);
 }

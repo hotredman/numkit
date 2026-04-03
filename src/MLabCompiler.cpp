@@ -1081,33 +1081,18 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
     uint8_t arr = varReg(name);
 
     if (nargs == 1) {
-        // Set index context so END_VAL knows the array and dimension
-        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
-                savedNd = indexContextNdims_;
-        indexContextArr_ = arr;
-        indexContextDim_ = 0;
-        indexContextNdims_ = 1;
+        IndexContextGuard guard(*this, arr, 1);
         uint8_t idx = compileNode(node->children[argOffset].get());
-        indexContextArr_ = savedArr;
-        indexContextDim_ = savedDim;
-        indexContextNdims_ = savedNd;
         uint8_t dst = tempReg();
         emitABC(OpCode::INDEX_GET, dst, arr, idx);
         return dst;
     }
 
     if (nargs == 2) {
-        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
-                savedNd = indexContextNdims_;
-        indexContextArr_ = arr;
-        indexContextNdims_ = 2;
-        indexContextDim_ = 0;
+        IndexContextGuard guard(*this, arr, 2);
         uint8_t row = compileNode(node->children[argOffset].get());
-        indexContextDim_ = 1;
+        guard.setDim(1);
         uint8_t col = compileNode(node->children[argOffset + 1].get());
-        indexContextArr_ = savedArr;
-        indexContextDim_ = savedDim;
-        indexContextNdims_ = savedNd;
         uint8_t dst = tempReg();
         emit(Instruction::make_abcde(OpCode::INDEX_GET_2D, dst, arr, row, 0, col));
         return dst;
@@ -1161,50 +1146,39 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
     uint8_t arr = varReg(name);
     uint8_t val = compileNode(rhs);
 
-    // Save/restore index context for END_VAL support
-    uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_, savedNd = indexContextNdims_;
-    indexContextArr_ = arr;
+    {
+        IndexContextGuard guard(*this, arr, static_cast<uint8_t>(nargs));
 
-    if (nargs == 1) {
-        indexContextNdims_ = 1;
-        indexContextDim_ = 0;
-        uint8_t idx = compileNode(lhs->children[argOffset].get());
-        emitABC(OpCode::INDEX_SET, arr, idx, val);
-    } else if (nargs == 2) {
-        indexContextNdims_ = 2;
-        indexContextDim_ = 0;
-        uint8_t row = compileNode(lhs->children[argOffset].get());
-        indexContextDim_ = 1;
-        uint8_t col = compileNode(lhs->children[argOffset + 1].get());
-        emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, arr, row, col, 0, val));
-    } else {
-        // ND indexed assign (3D+)
-        // Compile indices first
-        std::vector<uint8_t> idxRegs;
-        for (size_t i = 0; i < nargs; ++i)
-            idxRegs.push_back(compileNode(lhs->children[argOffset + i].get()));
-        uint8_t base = nextReg_;
-        for (size_t i = 0; i < nargs; ++i) {
-            uint8_t slot = tempReg();
-            if (idxRegs[i] != slot)
-                emitAB(OpCode::MOVE, slot, idxRegs[i]);
+        if (nargs == 1) {
+            uint8_t idx = compileNode(lhs->children[argOffset].get());
+            emitABC(OpCode::INDEX_SET, arr, idx, val);
+        } else if (nargs == 2) {
+            uint8_t row = compileNode(lhs->children[argOffset].get());
+            guard.setDim(1);
+            uint8_t col = compileNode(lhs->children[argOffset + 1].get());
+            emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, arr, row, col, 0, val));
+        } else {
+            // ND indexed assign (3D+)
+            std::vector<uint8_t> idxRegs;
+            for (size_t i = 0; i < nargs; ++i)
+                idxRegs.push_back(compileNode(lhs->children[argOffset + i].get()));
+            uint8_t base = nextReg_;
+            for (size_t i = 0; i < nargs; ++i) {
+                uint8_t slot = tempReg();
+                if (idxRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, idxRegs[i]);
+            }
+            uint8_t safeVal = tempReg();
+            if (val != safeVal)
+                emitAB(OpCode::MOVE, safeVal, val);
+            emit(Instruction::make_abcde(OpCode::INDEX_SET_ND,
+                                         arr,
+                                         base,
+                                         static_cast<uint8_t>(nargs),
+                                         0,
+                                         safeVal));
         }
-        // Ensure val is in a safe register (not overlapping with index slots)
-        uint8_t safeVal = tempReg();
-        if (val != safeVal)
-            emitAB(OpCode::MOVE, safeVal, val);
-        emit(Instruction::make_abcde(OpCode::INDEX_SET_ND,
-                                     arr,
-                                     base,
-                                     static_cast<uint8_t>(nargs),
-                                     0,
-                                     safeVal));
-    }
-
-    // Restore index context
-    indexContextArr_ = savedArr;
-    indexContextDim_ = savedDim;
-    indexContextNdims_ = savedNd;
+    } // guard restores index context
 
     if (!node->suppressOutput) {
         int16_t nameIdx = addStringConstant(name);
@@ -1490,23 +1464,16 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     }
 
     if (isKnownVar) {
-        uint8_t fhReg = varReg(name); // will import from globalEnv if needed
+        uint8_t fhReg = varReg(name);
 
-        // Set index context for END_VAL (this could be array indexing)
-        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
-                savedNd = indexContextNdims_;
-        indexContextArr_ = fhReg;
-        indexContextNdims_ = static_cast<uint8_t>(nargs);
+        IndexContextGuard guard(*this, fhReg, static_cast<uint8_t>(nargs));
 
         std::vector<uint8_t> argRegs;
         for (size_t i = 1; i < node->children.size(); ++i) {
-            indexContextDim_ = static_cast<uint8_t>(i - 1);
+            guard.setDim(static_cast<uint8_t>(i - 1));
             argRegs.push_back(compileNode(node->children[i].get()));
         }
-
-        indexContextArr_ = savedArr;
-        indexContextDim_ = savedDim;
-        indexContextNdims_ = savedNd;
+        // guard restores here (but we can let it live until return — same scope)
 
         uint8_t argBase = nextReg_;
         for (size_t i = 0; i < argRegs.size(); ++i) {
@@ -1845,29 +1812,22 @@ uint8_t Compiler::compileDeleteAssign(const ASTNode *node)
     uint8_t arr = varReg(target->strValue);
     size_t nargs = lhs->children.size() - 1;
 
-    // Set index context for END_VAL
-    uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_, savedNd = indexContextNdims_;
-    indexContextArr_ = arr;
+    {
+        IndexContextGuard guard(*this, arr, static_cast<uint8_t>(nargs));
 
-    if (nargs == 1) {
-        indexContextNdims_ = 1;
-        indexContextDim_ = 0;
-        uint8_t idx = compileNode(lhs->children[1].get());
-        emitAB(OpCode::INDEX_DELETE, arr, idx);
-    } else if (nargs == 2) {
-        indexContextNdims_ = 2;
-        indexContextDim_ = 0;
-        uint8_t row = compileNode(lhs->children[1].get());
-        indexContextDim_ = 1;
-        uint8_t col = compileNode(lhs->children[2].get());
-        emitABC(OpCode::INDEX_DELETE_2D, arr, row, col);
-    } else {
-        throw std::runtime_error("Compiler: delete with more than 2 indices not supported");
+        if (nargs == 1) {
+            uint8_t idx = compileNode(lhs->children[1].get());
+            emitAB(OpCode::INDEX_DELETE, arr, idx);
+        } else if (nargs == 2) {
+            uint8_t row = compileNode(lhs->children[1].get());
+            guard.setDim(1);
+            uint8_t col = compileNode(lhs->children[2].get());
+            emitABC(OpCode::INDEX_DELETE_2D, arr, row, col);
+        } else {
+            throw std::runtime_error("Compiler: delete with more than 2 indices not supported");
+        }
     }
 
-    indexContextArr_ = savedArr;
-    indexContextDim_ = savedDim;
-    indexContextNdims_ = savedNd;
     return arr;
 }
 
