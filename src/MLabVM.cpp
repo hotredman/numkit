@@ -11,6 +11,39 @@
 
 namespace mlab {
 
+// ============================================================
+// Shared helper: resolve an index operand to 0-based indices
+// ============================================================
+static std::vector<size_t> resolveSlice(const MValue &idx, size_t dimSize)
+{
+    std::vector<size_t> out;
+    if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
+        // Colon-all
+        out.resize(dimSize);
+        for (size_t i = 0; i < dimSize; ++i)
+            out[i] = i;
+    } else if (idx.isLogical()) {
+        const uint8_t *m = idx.logicalData();
+        for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
+            if (m[i])
+                out.push_back(i);
+    } else if (idx.isDoubleScalar()) {
+        size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
+        if (ii >= dimSize)
+            throw std::runtime_error("Index exceeds array dimensions");
+        out.push_back(ii);
+    } else {
+        const double *d = idx.doubleData();
+        for (size_t i = 0; i < idx.numel(); ++i) {
+            size_t ii = static_cast<size_t>(d[i]) - 1;
+            if (ii >= dimSize)
+                throw std::runtime_error("Index exceeds array dimensions");
+            out.push_back(ii);
+        }
+    }
+    return out;
+}
+
 VM::VM(Engine &engine)
     : engine_(engine)
 {
@@ -566,29 +599,8 @@ dispatch_loop:
 
                 size_t Rows = arr.dims().rows(), Cols = arr.dims().cols();
 
-                // Resolve row and col indices
-                auto resolveIdx = [](const MValue &v, size_t dimSize) {
-                    std::vector<size_t> out;
-                    if (v.isChar() && v.toString() == ":") {
-                        for (size_t i = 0; i < dimSize; ++i)
-                            out.push_back(i);
-                    } else if (v.isLogical()) {
-                        const uint8_t *ld = v.logicalData();
-                        for (size_t i = 0; i < v.numel() && i < dimSize; ++i)
-                            if (ld[i])
-                                out.push_back(i);
-                    } else if (v.isDoubleScalar()) {
-                        out.push_back(static_cast<size_t>(v.scalarVal()) - 1);
-                    } else {
-                        const double *d = v.doubleData();
-                        size_t n = v.numel();
-                        for (size_t i = 0; i < n; ++i)
-                            out.push_back(static_cast<size_t>(d[i]) - 1);
-                    }
-                    return out;
-                };
-                auto rowIdx = resolveIdx(R[I.b], Rows);
-                auto colIdx = resolveIdx(R[I.c], Cols);
+                auto rowIdx = resolveSlice(R[I.b], Rows);
+                auto colIdx = resolveSlice(R[I.c], Cols);
 
                 if (colIdx.size() == Cols) {
                     // Delete rows
@@ -635,16 +647,23 @@ dispatch_loop:
 
             // ── Struct field access ──────────────────────────────
             case OpCode::FIELD_GET: {
-                // a=dst, b=obj, d=nameIdx
+                // a=dst, b=obj, d=nameIdx — strict: throws if field missing
                 const std::string &fname = chunk.strings[I.d];
-                // Auto-create struct if empty (needed for nested field assign: s.a.b = 42)
+                if (!R[I.b].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                if (!R[I.b].hasField(fname))
+                    throw std::runtime_error("Reference to non-existent field '" + fname + "'");
+                R[I.a] = R[I.b].field(fname);
+                break;
+            }
+            case OpCode::FIELD_GET_OR_CREATE: {
+                // a=dst, b=obj, d=nameIdx — lvalue: auto-creates struct and field
+                const std::string &fname = chunk.strings[I.d];
                 if (R[I.b].isEmpty())
                     R[I.b] = MValue::structure();
                 if (!R[I.b].isStruct())
                     throw std::runtime_error("Dot indexing requires a struct");
-                // Auto-create field if it doesn't exist (returns reference to new empty MValue)
-                // MValue::field() creates the key if missing, so just read it.
-                R[I.a] = R[I.b].field(fname);
+                R[I.a] = R[I.b].field(fname); // field() auto-creates if missing
                 break;
             }
             case OpCode::FIELD_SET: {
@@ -997,43 +1016,6 @@ dispatch_loop:
                     size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
                     const double *src = mv.doubleData();
 
-                    // Helper: is this a colon-all marker?
-                    auto isColonAll = [](const MValue &v) {
-                        return v.isChar() && v.numel() == 1 && v.charData()[0] == ':';
-                    };
-
-                    // Resolve index dimension to a list of 0-based indices (with bounds check)
-                    auto resolveSlice = [](const MValue &idx,
-                                           size_t dimSize) -> std::vector<size_t> {
-                        std::vector<size_t> out;
-                        if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
-                            out.resize(dimSize);
-                            for (size_t i = 0; i < dimSize; ++i)
-                                out[i] = i;
-                        } else if (idx.isLogical()) {
-                            const uint8_t *m = idx.logicalData();
-                            for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
-                                if (m[i])
-                                    out.push_back(i);
-                        } else if (idx.isDoubleScalar()) {
-                            size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
-                            if (ii >= dimSize)
-                                throw std::runtime_error("Index (" + std::to_string(ii + 1) + ","
-                                                         + std::to_string(1)
-                                                         + ") exceeds dimensions");
-                            out.push_back(ii);
-                        } else {
-                            const double *d = idx.doubleData();
-                            for (size_t i = 0; i < idx.numel(); ++i) {
-                                size_t ii = static_cast<size_t>(d[i]) - 1;
-                                if (ii >= dimSize)
-                                    throw std::runtime_error("Index exceeds array dimensions");
-                                out.push_back(ii);
-                            }
-                        }
-                        return out;
-                    };
-
                     auto rowIds = resolveSlice(ri, Rows);
                     auto colIds = resolveSlice(ci, Cols);
 
@@ -1088,13 +1070,12 @@ dispatch_loop:
             case OpCode::RET:
                 return R[I.a];
             case OpCode::RET_MULTI: {
-                // a=base, b=count — return values are in R[base..base+count-1]
-                // For multi-return, we store results in a cell so callUserFuncMulti can extract
+                // a=base, b=count — store return values in returnBuf_
                 uint8_t base = I.a, count = I.b;
-                auto cell = MValue::cell(1, count);
-                for (uint8_t i = 0; i < count; ++i)
-                    cell.cellAt(i) = R[base + i];
-                return cell;
+                returnCount_ = count;
+                for (uint8_t i = 0; i < count && i < kMaxReturns; ++i)
+                    returnBuf_[i] = R[base + i];
+                return R[base]; // return first value for single-return callers
             }
             case OpCode::RET_EMPTY:
                 return MValue::empty();
@@ -1327,15 +1308,6 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk,
     forStack_.resize(savedForSize);
     tryStack_.resize(savedTrySize);
     --recursionDepth_;
-
-    // If nargout==1 and function returned a RET_MULTI cell, unwrap first element.
-    // Distinguish from closure cells: RET_MULTI cells have numReturns > 1 and
-    // their first element is NOT a funcHandle.
-    if (nargout <= 1 && result.isCell() && funcChunk.numReturns > 1 && result.numel() >= 1
-        && !result.cellAt(0).isFuncHandle()) {
-        return result.cellAt(0);
-    }
-
     return result;
 }
 
@@ -1352,22 +1324,24 @@ std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
                                           uint8_t nargs,
                                           size_t nout)
 {
-    // Call the function — it returns a cell for multi-return (via RET_MULTI)
-    // or a single value (via RET)
-    MValue result = callUserFunc(funcChunk, args, nargs, nout);
+    returnCount_ = 0;
+    MValue first = callUserFunc(funcChunk, args, nargs, nout);
 
-    if (result.isCell() && result.numel() >= nout) {
-        // RET_MULTI packed results in a cell
-        std::vector<MValue> results;
+    std::vector<MValue> results;
+    if (returnCount_ > 0) {
+        // RET_MULTI was used — read from returnBuf_
         results.reserve(nout);
-        for (size_t i = 0; i < nout; ++i)
-            results.push_back(result.cellAt(i));
-        return results;
+        for (size_t i = 0; i < nout && i < returnCount_; ++i)
+            results.push_back(std::move(returnBuf_[i]));
+        // Clear buffer entries
+        for (uint8_t i = 0; i < returnCount_; ++i)
+            returnBuf_[i] = MValue::empty();
+        returnCount_ = 0;
+    } else {
+        // Single return via RET
+        results.push_back(std::move(first));
     }
 
-    // Single return — wrap in vector
-    std::vector<MValue> results;
-    results.push_back(std::move(result));
     while (results.size() < nout)
         results.push_back(MValue::empty());
     return results;

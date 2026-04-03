@@ -76,10 +76,11 @@ enum class OpCode : uint8_t {
     INDEX_DELETE_2D, // arr, row, col          R[arr](R[row], R[col]) = []     2D
 
     // ── Struct field access ──────────────────────────────────
-    FIELD_GET,     // dst, obj, nameIdx      R[dst] = R[obj].fields[nameIdx]
-    FIELD_SET,     // obj, nameIdx, val      R[obj].fields[nameIdx] = R[val]
-    FIELD_GET_DYN, // dst, obj, nameReg      R[dst] = R[obj].(R[nameReg])
-    FIELD_SET_DYN, // obj, nameReg, val      R[obj].(R[nameReg]) = R[val]
+    FIELD_GET,           // dst, obj, nameIdx      R[dst] = R[obj].fields[nameIdx]
+    FIELD_GET_OR_CREATE, // dst, obj, nameIdx      like FIELD_GET but auto-creates struct/field
+    FIELD_SET,           // obj, nameIdx, val      R[obj].fields[nameIdx] = R[val]
+    FIELD_GET_DYN,       // dst, obj, nameReg      R[dst] = R[obj].(R[nameReg])
+    FIELD_SET_DYN,       // obj, nameReg, val      R[obj].(R[nameReg]) = R[val]
 
     // ── Cell array access ────────────────────────────────────
     CELL_GET,    // dst, cell, idx         R[dst] = R[cell]{R[idx]}        1D

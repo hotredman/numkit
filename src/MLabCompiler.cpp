@@ -1271,7 +1271,7 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
             uint8_t src = intermediates.back();
             uint8_t dst = tempReg();
             int16_t nameIdx = addStringConstant(fieldChain[i]);
-            emitABC(OpCode::FIELD_GET, dst, src, 0);
+            emitABC(OpCode::FIELD_GET_OR_CREATE, dst, src, 0);
             chunk_.code.back().d = nameIdx;
             intermediates.push_back(dst);
         }
@@ -2045,6 +2045,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "NOP";
         case OpCode::FIELD_GET:
             return "FIELD_GET";
+        case OpCode::FIELD_GET_OR_CREATE:
+            return "FIELD_GET_OR_CREATE";
         case OpCode::FIELD_SET:
             return "FIELD_SET";
         case OpCode::CELL_LITERAL:

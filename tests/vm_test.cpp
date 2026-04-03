@@ -1099,3 +1099,133 @@ TEST_F(VMTest, BenchBranching)
     // total = 6666 + 5334 + 32001 = 44001
     EXPECT_DOUBLE_EQ(runScalar(code), 44001.0);
 }
+
+// ============================================================
+// Phase 1 hardening: FIELD_GET strict, RET_MULTI, resolveSlice
+// ============================================================
+
+TEST_F(VMTest, FieldGetStrictThrowsOnMissingField)
+{
+    // FIELD_GET (rvalue) must throw on non-existent field
+    run("s.x = 1;");
+    EXPECT_THROW(run("y = s.typo;"), std::runtime_error);
+}
+
+TEST_F(VMTest, FieldGetOrCreateForNestedAssign)
+{
+    // Nested field assign uses FIELD_GET_OR_CREATE — should not throw
+    // and the value should be accessible in the same execution
+    EXPECT_DOUBLE_EQ(runScalar("s.a.b = 42; s.a.b;"), 42.0);
+}
+
+TEST_F(VMTest, NestedFieldAssignThreeLevels)
+{
+    EXPECT_DOUBLE_EQ(runScalar("p.x.y.z = 99; p.x.y.z;"), 99.0);
+}
+
+TEST_F(VMTest, RetMultiFuncHandleFirstReturn)
+{
+    // Function returns @sin as first output — must not be confused with closure cell
+    const char *code = R"(
+        function [h, v] = get_handle()
+            h = @sin;
+            v = 42;
+        end
+        [h, v] = get_handle();
+        v;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 42.0);
+}
+
+TEST_F(VMTest, RetMultiSingleReturnContext)
+{
+    // Multi-return function called in single-return context returns first value
+    const char *code = R"(
+        function [a, b] = two_vals()
+            a = 10;
+            b = 20;
+        end
+        two_vals();
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 10.0);
+}
+
+TEST_F(VMTest, RetMultiWithNargout)
+{
+    const char *code = R"(
+        function [a, b] = maybe_two(x)
+            a = x;
+            if nargout > 1
+                b = x * 2;
+            end
+        end
+        [p, q] = maybe_two(5);
+        q;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 10.0);
+}
+
+TEST_F(VMTest, ClosureNotBrokenByRetMulti)
+{
+    // Closure returns a cell {funcHandle, captures} — must pass through intact
+    const char *code = R"(
+        function f = make_adder(n)
+            f = @(x) x + n;
+        end
+        add3 = make_adder(3);
+        add3(10);
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 13.0);
+}
+
+TEST_F(VMTest, BoundsCheck2DColonAll)
+{
+    // A(:, 2) on 2x3 matrix — should work
+    auto result = run("A = [1 2 3; 4 5 6]; r = A(:, 2);");
+    EXPECT_EQ(result.dims().rows(), 2u);
+    EXPECT_DOUBLE_EQ(result(0), 2.0);
+    EXPECT_DOUBLE_EQ(result(1), 5.0);
+}
+
+TEST_F(VMTest, BoundsCheck2DOutOfRange)
+{
+    // A(3, 1) on 2x3 matrix — row 3 doesn't exist
+    run("A = [1 2 3; 4 5 6];");
+    EXPECT_THROW(run("A(3, 1);"), std::runtime_error);
+}
+
+TEST_F(VMTest, BoundsCheck2DColOutOfRange)
+{
+    run("A = [1 2 3; 4 5 6];");
+    EXPECT_THROW(run("A(1, 5);"), std::runtime_error);
+}
+
+TEST_F(VMTest, LogicalIndexing)
+{
+    const char *code = R"(
+        v = [10 20 30 40 50];
+        r = v(v > 25);
+    )";
+    auto result = run(code);
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 30.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 40.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[2], 50.0);
+}
+
+TEST_F(VMTest, SwitchCellCase)
+{
+    const char *code = R"(
+        x = 2;
+        switch x
+            case 1
+                r = 10;
+            case {2, 3}
+                r = 20;
+            otherwise
+                r = 30;
+        end
+        r;
+    )";
+    EXPECT_DOUBLE_EQ(runScalar(code), 20.0);
+}

@@ -70,6 +70,11 @@ private:
     // Exported variables after execution
     std::vector<std::pair<std::string, MValue>> lastVarMap_;
 
+    // Multi-return buffer: RET_MULTI stores values here instead of cell-packing
+    static constexpr size_t kMaxReturns = 16;
+    MValue returnBuf_[kMaxReturns];
+    uint8_t returnCount_ = 0;
+
     // Internal dispatch
     MValue executeInternal(const BytecodeChunk &chunk);
 
