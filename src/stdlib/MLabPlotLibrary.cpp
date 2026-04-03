@@ -106,9 +106,12 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("figure",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                auto &fm = engine.figureManager();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
+                                auto &fm = ctx.engine->figureManager();
                                 int id;
                                 if (args.empty()) {
                                     id = fm.newFigure();
@@ -116,12 +119,18 @@ void PlotLibrary::install(Engine &engine)
                                     id = static_cast<int>(args[0].toScalar());
                                     fm.setFigure(id);
                                 }
-                                { outs[0] = MValue::scalar(static_cast<double>(id), alloc); return; }
+                                {
+                                    outs[0] = MValue::scalar(static_cast<double>(id), alloc);
+                                    return;
+                                }
                             });
 
     engine.registerFunction("close",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto &fm = engine.figureManager();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto &fm = ctx.engine->figureManager();
                                 if (args.empty()) {
                                     int id = fm.currentFigureId();
                                     fm.closeCurrent();
@@ -134,12 +143,18 @@ void PlotLibrary::install(Engine &engine)
                                     fm.closeFigure(id);
                                     std::cout << "__FIGURE_CLOSE__:" << id << "\n";
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("clf",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto &fm = engine.figureManager();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto &fm = ctx.engine->figureManager();
                                 auto &fig = fm.current();
                                 fig.axes.clear();
                                 fig.axes.push_back(AxesState{});
@@ -148,29 +163,46 @@ void PlotLibrary::install(Engine &engine)
                                 fig.subplotCols = 0;
                                 fig.modified = true;
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("hold",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto &ax = engine.figureManager().currentAxes();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto &ax = ctx.engine->figureManager().currentAxes();
                                 if (args.empty())
                                     ax.holdOn = !ax.holdOn;
                                 else
                                     ax.holdOn = (args[0].toString() == "on");
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("subplot",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.size() < 3)
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                if (args.size() < 3) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 int m = static_cast<int>(args[0].toScalar());
                                 int n = static_cast<int>(args[1].toScalar());
                                 int p = static_cast<int>(args[2].toScalar());
                                 fm.setSubplot(m, n, p);
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
@@ -178,12 +210,15 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("plot",
-                            [parsePlotXYStyle,
-                             parsePlotArgs,
-                             &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [parsePlotXYStyle, parsePlotArgs](Span<const MValue> args,
+                                                              size_t nargout,
+                                                              Span<MValue> outs,
+                                                              CallContext &ctx) {
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "line";
@@ -191,14 +226,22 @@ void PlotLibrary::install(Engine &engine)
                                 parsePlotArgs(args, nvStart, ds);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("bar",
-                            [vecToJson, makeIndexJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [vecToJson, makeIndexJson](Span<const MValue> args,
+                                                       size_t nargout,
+                                                       Span<MValue> outs,
+                                                       CallContext &ctx) {
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "bar";
@@ -211,14 +254,22 @@ void PlotLibrary::install(Engine &engine)
                                 }
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("scatter",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.size() < 2)
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
+                                if (args.size() < 2) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "scatter";
@@ -226,14 +277,22 @@ void PlotLibrary::install(Engine &engine)
                                 ds.yJson = vecToJson(args[1]);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("hist",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                                 auto &data = args[0];
                                 int bins = (args.size() >= 2) ? static_cast<int>(args[1].toScalar())
                                                               : 10;
@@ -257,7 +316,7 @@ void PlotLibrary::install(Engine &engine)
                                         b = 0;
                                     counts.doubleDataMut()[b] += 1;
                                 }
-                                auto &fm = engine.figureManager();
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "bar";
@@ -265,7 +324,10 @@ void PlotLibrary::install(Engine &engine)
                                 ds.yJson = vecToJson(counts);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
@@ -273,10 +335,15 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("imagesc",
-                            [vecToJson, doubleToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [vecToJson, doubleToJson](Span<const MValue> args,
+                                                      size_t nargout,
+                                                      Span<MValue> outs,
+                                                      CallContext &ctx) {
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
 
                                 const MValue *C_arg = nullptr;
@@ -297,13 +364,17 @@ void PlotLibrary::install(Engine &engine)
                                     }
                                 }
 
-                                if (!C_arg)
-                                    { outs[0] = MValue::empty(); return; }
+                                if (!C_arg) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
 
                                 size_t rows = C_arg->dims().rows();
                                 size_t cols = C_arg->dims().cols();
-                                if (rows == 0 || cols == 0)
-                                    { outs[0] = MValue::empty(); return; }
+                                if (rows == 0 || cols == 0) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
 
                                 std::ostringstream zs;
                                 zs << "[";
@@ -350,14 +421,22 @@ void PlotLibrary::install(Engine &engine)
                                     fm.currentAxes().axisMode = "ij";
                                 }
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("polarplot",
-                            [vecToJson, parsePlotArgs, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.size() < 2)
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [vecToJson, parsePlotArgs](Span<const MValue> args,
+                                                       size_t nargout,
+                                                       Span<MValue> outs,
+                                                       CallContext &ctx) {
+                                if (args.size() < 2) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 fm.currentAxes().polar = true;
                                 DatasetInfo ds;
@@ -372,16 +451,22 @@ void PlotLibrary::install(Engine &engine)
                                 parsePlotArgs(args, nvStart, ds);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("stem",
-                            [parsePlotXYStyle,
-                             parsePlotArgs,
-                             &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [parsePlotXYStyle, parsePlotArgs](Span<const MValue> args,
+                                                              size_t nargout,
+                                                              Span<MValue> outs,
+                                                              CallContext &ctx) {
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "stem";
@@ -389,16 +474,22 @@ void PlotLibrary::install(Engine &engine)
                                 parsePlotArgs(args, nvStart, ds);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("stairs",
-                            [parsePlotXYStyle,
-                             parsePlotArgs,
-                             &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                if (args.empty())
-                                    { outs[0] = MValue::empty(); return; }
-                                auto &fm = engine.figureManager();
+                            [parsePlotXYStyle, parsePlotArgs](Span<const MValue> args,
+                                                              size_t nargout,
+                                                              Span<MValue> outs,
+                                                              CallContext &ctx) {
+                                if (args.empty()) {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
+                                auto &fm = ctx.engine->figureManager();
                                 fm.prepareForPlot();
                                 DatasetInfo ds;
                                 ds.type = "stairs";
@@ -406,7 +497,10 @@ void PlotLibrary::install(Engine &engine)
                                 parsePlotArgs(args, nvStart, ds);
                                 fm.currentAxes().datasets.push_back(std::move(ds));
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
@@ -419,11 +513,15 @@ void PlotLibrary::install(Engine &engine)
                                     [parsePlotXYStyle,
                                      parsePlotArgs,
                                      xscale,
-                                     yscale,
-                                     &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                        if (args.empty())
-                                            { outs[0] = MValue::empty(); return; }
-                                        auto &fm = engine.figureManager();
+                                     yscale](Span<const MValue> args,
+                                             size_t nargout,
+                                             Span<MValue> outs,
+                                             CallContext &ctx) {
+                                        if (args.empty()) {
+                                            outs[0] = MValue::empty();
+                                            return;
+                                        }
+                                        auto &fm = ctx.engine->figureManager();
                                         fm.prepareForPlot();
                                         fm.currentAxes().xscale = xscale;
                                         fm.currentAxes().yscale = yscale;
@@ -433,7 +531,10 @@ void PlotLibrary::install(Engine &engine)
                                         parsePlotArgs(args, nvStart, ds);
                                         fm.currentAxes().datasets.push_back(std::move(ds));
                                         fm.emitModified();
-                                        { outs[0] = MValue::empty(); return; }
+                                        {
+                                            outs[0] = MValue::empty();
+                                            return;
+                                        }
                                     });
         };
 
@@ -446,63 +547,96 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("title",
-                            [argStr, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [argStr](Span<const MValue> args,
+                                     size_t nargout,
+                                     Span<MValue> outs,
+                                     CallContext &ctx) {
                                 if (!args.empty()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().title = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("xlabel",
-                            [argStr, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [argStr](Span<const MValue> args,
+                                     size_t nargout,
+                                     Span<MValue> outs,
+                                     CallContext &ctx) {
                                 if (!args.empty()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().xlabel = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("ylabel",
-                            [argStr, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [argStr](Span<const MValue> args,
+                                     size_t nargout,
+                                     Span<MValue> outs,
+                                     CallContext &ctx) {
                                 if (!args.empty()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().ylabel = argStr(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("xlim",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().xlimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("ylim",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().ylimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("grid",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto &fm = engine.figureManager();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto &fm = ctx.engine->figureManager();
                                 auto &ax = fm.currentAxes();
                                 if (args.empty())
                                     ax.gridMode = ax.gridMode.empty() ? "on" : "";
@@ -517,30 +651,45 @@ void PlotLibrary::install(Engine &engine)
                                 }
                                 fm.current().modified = true;
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("legend",
-                            [argStr, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto &fm = engine.figureManager();
+                            [argStr](Span<const MValue> args,
+                                     size_t nargout,
+                                     Span<MValue> outs,
+                                     CallContext &ctx) {
+                                auto &fm = ctx.engine->figureManager();
                                 auto &ax = fm.currentAxes();
                                 ax.legendLabels.clear();
                                 for (auto &a : args)
                                     ax.legendLabels.push_back(argStr(a));
                                 fm.current().modified = true;
                                 fm.emitModified();
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("axis",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 if (!args.empty() && args[0].isChar()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().axisMode = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
@@ -548,47 +697,71 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("rlim",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().rlimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("thetalim",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().thetalimJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("thetadir",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 if (!args.empty() && args[0].isChar()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().thetaDir = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("thetazero",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 if (!args.empty() && args[0].isChar()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().thetaZeroLocation = args[0].toString();
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
@@ -596,31 +769,46 @@ void PlotLibrary::install(Engine &engine)
     // ================================================================
 
     engine.registerFunction("caxis",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().climJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("clim",
-                            [vecToJson, &engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [vecToJson](Span<const MValue> args,
+                                        size_t nargout,
+                                        Span<MValue> outs,
+                                        CallContext &ctx) {
                                 if (!args.empty() && args[0].numel() >= 2) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     fm.currentAxes().climJson = vecToJson(args[0]);
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     engine.registerFunction("colormap",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 if (!args.empty() && args[0].isChar()) {
-                                    auto &fm = engine.figureManager();
+                                    auto &fm = ctx.engine->figureManager();
                                     std::string name = args[0].toString();
                                     // normalize to lowercase
                                     for (auto &c : name)
@@ -629,19 +817,29 @@ void PlotLibrary::install(Engine &engine)
                                     fm.current().modified = true;
                                     fm.emitModified();
                                 }
-                                { outs[0] = MValue::empty(); return; }
+                                {
+                                    outs[0] = MValue::empty();
+                                    return;
+                                }
                             });
 
     // ================================================================
     // GUI no-ops (not yet implemented)
     // ================================================================
 
-    auto noop = [](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-        { outs[0] = MValue::empty(); return; }
+    auto noop = [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+        {
+            outs[0] = MValue::empty();
+            return;
+        }
     };
-    auto noop_ret1 = [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-        { outs[0] = MValue::scalar(1.0, &engine.allocator()); return; }
-    };
+    auto noop_ret1 =
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            {
+                outs[0] = MValue::scalar(1.0, &ctx.engine->allocator());
+                return;
+            }
+        };
 
     engine.registerFunction("axes", noop_ret1);
     engine.registerFunction("gca", noop_ret1);

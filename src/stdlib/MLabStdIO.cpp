@@ -9,7 +9,10 @@ namespace mlab {
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
     engine.registerFunction("disp",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 for (auto &a : args) {
                                     std::ostringstream os;
                                     if (a.isChar()) {
@@ -101,24 +104,18 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                         os << a.debugString();
                                     }
                                     os << "\n";
-                                    engine.outputText(os.str());
+                                    ctx.engine->outputText(os.str());
                                 }
                                 return;
                             });
 
     // ── shared printf-style formatter ──────────────────────────
-    // Supports: %d %i %f %e %g %s %c %% %u %x %o
-    //           width, precision, flags (-, +, 0, space)
-    //           \n \t \\ \'
-    // Arguments are consumed cyclically (MATLAB behaviour).
-    auto mlab_sprintf = [](const std::string &fmt,
-                           Span<const MValue> args,
-                           size_t argStart) -> std::string {
+    auto mlab_sprintf =
+        [](const std::string &fmt, Span<const MValue> args, size_t argStart) -> std::string {
         std::ostringstream out;
-        size_t ai = argStart; // current argument index
+        size_t ai = argStart;
 
         for (size_t i = 0; i < fmt.size(); ++i) {
-            // ── escape sequences ──
             if (fmt[i] == '\\' && i + 1 < fmt.size()) {
                 char next = fmt[i + 1];
                 if (next == 'n') {
@@ -145,7 +142,6 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 continue;
             }
 
-            // ── format specifier ──
             if (fmt[i] == '%') {
                 if (i + 1 < fmt.size() && fmt[i + 1] == '%') {
                     out << '%';
@@ -153,23 +149,19 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     continue;
                 }
 
-                // Collect the full specifier: %[flags][width][.prec]type
                 size_t start = i;
-                i++; // skip '%'
+                i++;
 
-                // flags
                 while (i < fmt.size()
                        && (fmt[i] == '-' || fmt[i] == '+' || fmt[i] == '0' || fmt[i] == ' '
                            || fmt[i] == '#'))
                     i++;
-                // width (may be '*')
                 if (i < fmt.size() && fmt[i] == '*') {
                     i++;
                 } else {
                     while (i < fmt.size() && fmt[i] >= '0' && fmt[i] <= '9')
                         i++;
                 }
-                // precision
                 if (i < fmt.size() && fmt[i] == '.') {
                     i++;
                     if (i < fmt.size() && fmt[i] == '*') {
@@ -179,7 +171,6 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                             i++;
                     }
                 }
-                // length modifiers (skip)
                 while (i < fmt.size() && (fmt[i] == 'l' || fmt[i] == 'h'))
                     i++;
 
@@ -206,7 +197,6 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 } else if (type == 'd' || type == 'i') {
                     if (ai < args.size()) {
                         char buf[64];
-                        // Replace 'd'/'i' with lld for long long
                         std::string ispec = spec.substr(0, spec.size() - 1) + "lld";
                         std::snprintf(buf,
                                       sizeof(buf),
@@ -256,24 +246,24 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     }
                     ai++;
                 } else {
-                    // Unknown specifier — output as-is
                     out << spec;
                 }
                 continue;
             }
 
-            // ── ordinary character ──
             out << fmt[i];
         }
         return out.str();
     };
 
     engine.registerFunction("fprintf",
-                            [&engine, mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [mlab_sprintf](Span<const MValue> args,
+                                           size_t nargout,
+                                           Span<MValue> outs,
+                                           CallContext &ctx) {
                                 if (args.empty())
                                     return;
                                 size_t fmtIdx = 0;
-                                // Skip optional file id (1 = stdout, 2 = stderr)
                                 if (args.size() >= 2 && args[0].isScalar() && args[1].isChar())
                                     fmtIdx = 1;
                                 if (!args[fmtIdx].isChar())
@@ -281,27 +271,41 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                 std::string result = mlab_sprintf(args[fmtIdx].toString(),
                                                                   args,
                                                                   fmtIdx + 1);
-                                engine.outputText(result);
+                                ctx.engine->outputText(result);
                                 return;
                             });
 
     engine.registerFunction("sprintf",
-                            [&engine, mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                if (args.empty() || !args[0].isChar())
-                                    { outs[0] = MValue::fromString("", alloc); return; }
+                            [mlab_sprintf](Span<const MValue> args,
+                                           size_t nargout,
+                                           Span<MValue> outs,
+                                           CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
+                                if (args.empty() || !args[0].isChar()) {
+                                    outs[0] = MValue::fromString("", alloc);
+                                    return;
+                                }
                                 std::string result = mlab_sprintf(args[0].toString(), args, 1);
-                                { outs[0] = MValue::fromString(result, alloc); return; }
+                                {
+                                    outs[0] = MValue::fromString(result, alloc);
+                                    return;
+                                }
                             });
 
     engine.registerFunction("error",
-                            [](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 std::string msg = args.empty() ? "Error" : args[0].toString();
                                 throw std::runtime_error(msg);
                             });
 
     engine.registerFunction("warning",
-                            [](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
                                 if (!args.empty() && args[0].isChar())
                                     std::cerr << "Warning: " << args[0].toString() << "\n";
                                 return;

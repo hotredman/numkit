@@ -15,8 +15,11 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 {
     // --- downsample(x, n) ---
     engine.registerFunction("downsample",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("downsample requires 2 arguments");
                                 auto &xv = args[0];
@@ -29,13 +32,19 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                                : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < outLen; ++i)
                                     r.doubleDataMut()[i] = xv.doubleData()[i * n];
-                                { outs[0] = r; return; }
+                                {
+                                    outs[0] = r;
+                                    return;
+                                }
                             });
 
     // --- upsample(x, n) ---
     engine.registerFunction("upsample",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("upsample requires 2 arguments");
                                 auto &xv = args[0];
@@ -50,13 +59,19 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                     r.doubleDataMut()[i] = 0.0;
                                 for (size_t i = 0; i < nx; ++i)
                                     r.doubleDataMut()[i * n] = xv.doubleData()[i];
-                                { outs[0] = r; return; }
+                                {
+                                    outs[0] = r;
+                                    return;
+                                }
                             });
 
     // --- decimate(x, r) --- downsample with anti-aliasing FIR
     engine.registerFunction("decimate",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("decimate requires 2 arguments");
                                 auto &xv = args[0];
@@ -66,7 +81,8 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 
                                 // FIR lowpass: windowed-sinc, cutoff at 1/(2*factor)
                                 size_t filtOrder = 8 * factor;
-                                if (filtOrder >= nx) filtOrder = nx - 1;
+                                if (filtOrder >= nx)
+                                    filtOrder = nx - 1;
                                 size_t filtLen = filtOrder + 1;
                                 double wc = M_PI / factor;
 
@@ -76,13 +92,14 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                 for (size_t i = 0; i < filtLen; ++i) {
                                     double n = i - half;
                                     double sinc = (std::abs(n) < 1e-12)
-                                                  ? wc / M_PI
-                                                  : std::sin(wc * n) / (M_PI * n);
+                                                      ? wc / M_PI
+                                                      : std::sin(wc * n) / (M_PI * n);
                                     double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / filtOrder);
                                     h[i] = sinc * win;
                                     hSum += h[i];
                                 }
-                                for (size_t i = 0; i < filtLen; ++i) h[i] /= hSum;
+                                for (size_t i = 0; i < filtLen; ++i)
+                                    h[i] /= hSum;
 
                                 // Apply FIR filter (Direct Form II transposed)
                                 std::vector<double> filtered(nx);
@@ -100,13 +117,19 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                                : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < outLen; ++i)
                                     r.doubleDataMut()[i] = filtered[i * factor];
-                                { outs[0] = r; return; }
+                                {
+                                    outs[0] = r;
+                                    return;
+                                }
                             });
 
     // --- resample(x, p, q) --- rational rate change p/q
     engine.registerFunction("resample",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 3)
                                     throw std::runtime_error("resample requires 3 arguments");
                                 auto &xv = args[0];
@@ -123,7 +146,8 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
 
                                 // Anti-aliasing FIR lowpass
                                 size_t filtOrder = 10 * std::max(p, q);
-                                if (filtOrder >= upLen) filtOrder = upLen - 1;
+                                if (filtOrder >= upLen)
+                                    filtOrder = upLen - 1;
                                 size_t filtLen = filtOrder + 1;
                                 double wc = M_PI / std::max(p, q);
 
@@ -133,13 +157,14 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                 for (size_t i = 0; i < filtLen; ++i) {
                                     double n = i - half;
                                     double sinc = (std::abs(n) < 1e-12)
-                                                  ? wc / M_PI
-                                                  : std::sin(wc * n) / (M_PI * n);
+                                                      ? wc / M_PI
+                                                      : std::sin(wc * n) / (M_PI * n);
                                     double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / filtOrder);
                                     h[i] = sinc * win;
                                     hSum += h[i];
                                 }
-                                for (size_t i = 0; i < filtLen; ++i) h[i] /= hSum;
+                                for (size_t i = 0; i < filtLen; ++i)
+                                    h[i] /= hSum;
 
                                 // Apply FIR
                                 std::vector<double> filtered(upLen);
@@ -159,7 +184,10 @@ void StdLibrary::registerResampleFunctions(Engine &engine)
                                     size_t idx = i * q;
                                     r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
                                 }
-                                { outs[0] = r; return; }
+                                {
+                                    outs[0] = r;
+                                    return;
+                                }
                             });
 }
 

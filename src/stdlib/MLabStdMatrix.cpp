@@ -10,8 +10,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 {
     // --- zeros ---
     engine.registerFunction("zeros",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 size_t r = static_cast<size_t>(args[0].toScalar());
                                 size_t c = args.size() >= 2
                                                ? static_cast<size_t>(args[1].toScalar())
@@ -27,8 +30,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- ones ---
     engine.registerFunction("ones",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 size_t r = static_cast<size_t>(args[0].toScalar());
                                 size_t c = args.size() >= 2
                                                ? static_cast<size_t>(args[1].toScalar())
@@ -49,8 +55,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- eye ---
     engine.registerFunction("eye",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 size_t r = static_cast<size_t>(args[0].toScalar());
                                 size_t c = args.size() >= 2
                                                ? static_cast<size_t>(args[1].toScalar())
@@ -66,20 +75,18 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- size ---
     engine.registerFunction(
-        "size", [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-            auto *alloc = &engine.allocator();
+        "size", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
             auto &a = args[0];
             auto &dims = a.dims();
 
             if (args.size() >= 2) {
-                // size(A, dim) — return scalar
                 int dim = static_cast<int>(args[1].toScalar());
                 outs[0] = MValue::scalar(static_cast<double>(dims.dimSize(dim - 1)), alloc);
                 return;
             }
 
             if (nargout > 1) {
-                // [r, c] = size(A) or [r, c, p] = size(A)
                 outs[0] = MValue::scalar(static_cast<double>(dims.rows()), alloc);
                 if (nargout > 1)
                     outs[1] = MValue::scalar(static_cast<double>(dims.cols()), alloc);
@@ -88,7 +95,6 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                 return;
             }
 
-            // s = size(A) — return row vector [rows, cols] or [rows, cols, pages]
             if (dims.is3D()) {
                 auto sv = MValue::matrix(1, 3, MType::DOUBLE, alloc);
                 double *d = sv.doubleDataMut();
@@ -108,8 +114,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- length ---
     engine.registerFunction("length",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
                                 if (a.isEmpty() || a.numel() == 0) {
                                     outs[0] = MValue::scalar(0.0, alloc);
@@ -124,8 +133,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- numel ---
     engine.registerFunction("numel",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 {
                                     outs[0] = MValue::scalar(static_cast<double>(args[0].numel()),
                                                              alloc);
@@ -134,21 +146,22 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                             });
 
     // --- ndims ---
-    engine.registerFunction("ndims",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                {
-                                    outs[0] = MValue::scalar(static_cast<double>(
-                                                                 args[0].dims().ndims()),
-                                                             alloc);
-                                    return;
-                                }
-                            });
+    engine.registerFunction(
+        "ndims", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            {
+                outs[0] = MValue::scalar(static_cast<double>(args[0].dims().ndims()), alloc);
+                return;
+            }
+        });
 
     // --- reshape ---
     engine.registerFunction("reshape",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
                                 size_t newR = static_cast<size_t>(args[1].toScalar());
                                 size_t newC = static_cast<size_t>(args[2].toScalar());
@@ -166,8 +179,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- transpose (function form) ---
     engine.registerFunction("transpose",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
                                 size_t rows = a.dims().rows(), cols = a.dims().cols();
                                 auto r = MValue::matrix(cols, rows, MType::DOUBLE, alloc);
@@ -182,8 +198,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- diag ---
     engine.registerFunction("diag",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
                                 if (a.dims().isVector()) {
                                     size_t n = a.numel();
@@ -206,29 +225,29 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                             });
 
     // --- sort ---
-    engine.registerFunction("sort",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                auto &a = args[0];
-                                std::vector<double> vals(a.doubleData(), a.doubleData() + a.numel());
-                                std::sort(vals.begin(), vals.end());
-                                bool isRow = a.dims().rows() == 1;
-                                auto r = isRow
-                                             ? MValue::matrix(1, vals.size(), MType::DOUBLE, alloc)
-                                             : MValue::matrix(vals.size(), 1, MType::DOUBLE, alloc);
-                                std::memcpy(r.doubleDataMut(),
-                                            vals.data(),
-                                            vals.size() * sizeof(double));
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
+    engine.registerFunction(
+        "sort", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            auto &a = args[0];
+            std::vector<double> vals(a.doubleData(), a.doubleData() + a.numel());
+            std::sort(vals.begin(), vals.end());
+            bool isRow = a.dims().rows() == 1;
+            auto r = isRow ? MValue::matrix(1, vals.size(), MType::DOUBLE, alloc)
+                           : MValue::matrix(vals.size(), 1, MType::DOUBLE, alloc);
+            std::memcpy(r.doubleDataMut(), vals.data(), vals.size() * sizeof(double));
+            {
+                outs[0] = r;
+                return;
+            }
+        });
 
     // --- find ---
     engine.registerFunction("find",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
                                 std::vector<double> indices;
                                 if (a.isLogical()) {
@@ -255,8 +274,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- horzcat ---
     engine.registerFunction("horzcat",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.empty()) {
                                     outs[0] = MValue::empty();
                                     return;
@@ -285,8 +307,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- vertcat ---
     engine.registerFunction("vertcat",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.empty()) {
                                     outs[0] = MValue::empty();
                                     return;
@@ -315,8 +340,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- meshgrid ---
     engine.registerFunction("meshgrid",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("meshgrid requires 2 arguments");
                                 auto &xv = args[0];
@@ -338,44 +366,44 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                             });
 
     // --- cumsum ---
-    engine.registerFunction("cumsum",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
-                                auto &a = args[0];
-                                if (a.dims().isVector() || a.isScalar()) {
-                                    auto r = MValue::matrix(a.dims().rows(),
-                                                            a.dims().cols(),
-                                                            MType::DOUBLE,
-                                                            alloc);
-                                    double s = 0;
-                                    for (size_t i = 0; i < a.numel(); ++i) {
-                                        s += a.doubleData()[i];
-                                        r.doubleDataMut()[i] = s;
-                                    }
-                                    {
-                                        outs[0] = r;
-                                        return;
-                                    }
-                                }
-                                size_t R = a.dims().rows(), C = a.dims().cols();
-                                auto r = MValue::matrix(R, C, MType::DOUBLE, alloc);
-                                for (size_t c = 0; c < C; ++c) {
-                                    double s = 0;
-                                    for (size_t rr = 0; rr < R; ++rr) {
-                                        s += a(rr, c);
-                                        r.elem(rr, c) = s;
-                                    }
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
+    engine.registerFunction(
+        "cumsum", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            auto &a = args[0];
+            if (a.dims().isVector() || a.isScalar()) {
+                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+                double s = 0;
+                for (size_t i = 0; i < a.numel(); ++i) {
+                    s += a.doubleData()[i];
+                    r.doubleDataMut()[i] = s;
+                }
+                {
+                    outs[0] = r;
+                    return;
+                }
+            }
+            size_t R = a.dims().rows(), C = a.dims().cols();
+            auto r = MValue::matrix(R, C, MType::DOUBLE, alloc);
+            for (size_t c = 0; c < C; ++c) {
+                double s = 0;
+                for (size_t rr = 0; rr < R; ++rr) {
+                    s += a(rr, c);
+                    r.elem(rr, c) = s;
+                }
+            }
+            {
+                outs[0] = r;
+                return;
+            }
+        });
 
     // --- cross ---
     engine.registerFunction("cross",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("cross requires 2 arguments");
                                 auto &a = args[0];
@@ -397,8 +425,11 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- dot ---
     engine.registerFunction("dot",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("dot requires 2 arguments");
                                 auto &a = args[0];

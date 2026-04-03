@@ -11,9 +11,6 @@
 
 namespace mlab {
 
-// ============================================================
-// Internal: Butterworth analog prototype poles (s-plane)
-// ============================================================
 static std::vector<Complex> butterworthPoles(int N)
 {
     std::vector<Complex> poles;
@@ -24,9 +21,6 @@ static std::vector<Complex> butterworthPoles(int N)
     return poles;
 }
 
-// ============================================================
-// Internal: expand complex roots into real polynomial coefficients
-// ============================================================
 static std::vector<double> expandPoly(const std::vector<Complex> &roots)
 {
     int n = static_cast<int>(roots.size());
@@ -41,64 +35,67 @@ static std::vector<double> expandPoly(const std::vector<Complex> &roots)
     return result;
 }
 
-// ============================================================
-// Internal: bilinear transform s -> z for lowpass Butterworth
-// ============================================================
-static void bilinearTransform(const std::vector<Complex> &sPoles, double Wn,
-                              std::vector<double> &bOut, std::vector<double> &aOut)
+static void bilinearTransform(const std::vector<Complex> &sPoles,
+                              double Wn,
+                              std::vector<double> &bOut,
+                              std::vector<double> &aOut)
 {
     int N = static_cast<int>(sPoles.size());
 
-    // Scale poles to cutoff and bilinear transform: zp = (1 + sp/2) / (1 - sp/2)
     std::vector<Complex> zPoles(N);
     for (int i = 0; i < N; ++i) {
         Complex sp = sPoles[i] * Wn;
         zPoles[i] = (1.0 + sp / 2.0) / (1.0 - sp / 2.0);
     }
 
-    // All-pole lowpass: all zeros at z = -1
     std::vector<Complex> zZeros(N, Complex(-1.0, 0.0));
 
     aOut = expandPoly(zPoles);
     bOut = expandPoly(zZeros);
 
-    // Normalize for unity DC gain
     Complex numDC(0, 0), denDC(0, 0);
-    for (size_t i = 0; i < bOut.size(); ++i) numDC += bOut[i];
-    for (size_t i = 0; i < aOut.size(); ++i) denDC += aOut[i];
+    for (size_t i = 0; i < bOut.size(); ++i)
+        numDC += bOut[i];
+    for (size_t i = 0; i < aOut.size(); ++i)
+        denDC += aOut[i];
     double dcGain = std::abs(numDC / denDC);
     if (dcGain > 0.0)
-        for (auto &v : bOut) v /= dcGain;
+        for (auto &v : bOut)
+            v /= dcGain;
 }
 
-// ============================================================
-// Internal: lowpass → highpass by z -> -z substitution
-// ============================================================
 static void lpToHp(std::vector<double> &b, std::vector<double> &a)
 {
-    for (size_t i = 0; i < b.size(); ++i) if (i % 2 == 1) b[i] = -b[i];
-    for (size_t i = 0; i < a.size(); ++i) if (i % 2 == 1) a[i] = -a[i];
+    for (size_t i = 0; i < b.size(); ++i)
+        if (i % 2 == 1)
+            b[i] = -b[i];
+    for (size_t i = 0; i < a.size(); ++i)
+        if (i % 2 == 1)
+            a[i] = -a[i];
 
-    // Re-normalize at Nyquist (z = -1)
     Complex numNyq(0, 0), denNyq(0, 0);
-    for (size_t i = 0; i < b.size(); ++i) numNyq += b[i] * ((i % 2 == 0) ? 1.0 : -1.0);
-    for (size_t i = 0; i < a.size(); ++i) denNyq += a[i] * ((i % 2 == 0) ? 1.0 : -1.0);
+    for (size_t i = 0; i < b.size(); ++i)
+        numNyq += b[i] * ((i % 2 == 0) ? 1.0 : -1.0);
+    for (size_t i = 0; i < a.size(); ++i)
+        denNyq += a[i] * ((i % 2 == 0) ? 1.0 : -1.0);
     double nyqGain = std::abs(numNyq / denNyq);
     if (nyqGain > 0.0)
-        for (auto &v : b) v /= nyqGain;
+        for (auto &v : b)
+            v /= nyqGain;
 }
 
-// ============================================================
-// Register filter design functions
-// ============================================================
 void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 {
     // --- butter(N, Wn) / butter(N, Wn, 'high') ---
     engine.registerFunction("butter",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
-                                    throw std::runtime_error("butter requires at least 2 arguments");
+                                    throw std::runtime_error(
+                                        "butter requires at least 2 arguments");
 
                                 int N = static_cast<int>(args[0].toScalar());
                                 double Wn = args[1].toScalar();
@@ -120,15 +117,25 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
 
                                 auto bv = MValue::matrix(1, b.size(), MType::DOUBLE, alloc);
                                 auto av = MValue::matrix(1, a.size(), MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < b.size(); ++i) bv.doubleDataMut()[i] = b[i];
-                                for (size_t i = 0; i < a.size(); ++i) av.doubleDataMut()[i] = a[i];
-                                { outs[0] = bv; if (nargout > 1) outs[1] = av; return; }
+                                for (size_t i = 0; i < b.size(); ++i)
+                                    bv.doubleDataMut()[i] = b[i];
+                                for (size_t i = 0; i < a.size(); ++i)
+                                    av.doubleDataMut()[i] = a[i];
+                                {
+                                    outs[0] = bv;
+                                    if (nargout > 1)
+                                        outs[1] = av;
+                                    return;
+                                }
                             });
 
     // --- fir1(N, Wn) / fir1(N, Wn, 'high') ---
     engine.registerFunction("fir1",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("fir1 requires at least 2 arguments");
 
@@ -148,37 +155,48 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
                                 for (size_t i = 0; i < filtLen; ++i) {
                                     double n = i - half;
                                     double sinc = (std::abs(n) < 1e-12)
-                                                  ? wc / M_PI
-                                                  : std::sin(wc * n) / (M_PI * n);
+                                                      ? wc / M_PI
+                                                      : std::sin(wc * n) / (M_PI * n);
                                     double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / N);
                                     h[i] = sinc * win;
                                     hSum += h[i];
                                 }
 
                                 if (type == "low") {
-                                    for (size_t i = 0; i < filtLen; ++i) h[i] /= hSum;
+                                    for (size_t i = 0; i < filtLen; ++i)
+                                        h[i] /= hSum;
                                 } else if (type == "high") {
-                                    for (size_t i = 0; i < filtLen; ++i) h[i] /= hSum;
-                                    for (size_t i = 0; i < filtLen; ++i) h[i] = -h[i];
+                                    for (size_t i = 0; i < filtLen; ++i)
+                                        h[i] /= hSum;
+                                    for (size_t i = 0; i < filtLen; ++i)
+                                        h[i] = -h[i];
                                     h[static_cast<size_t>(half)] += 1.0;
                                 }
 
                                 auto bv = MValue::matrix(1, filtLen, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < filtLen; ++i) bv.doubleDataMut()[i] = h[i];
-                                { outs[0] = bv; return; }
+                                for (size_t i = 0; i < filtLen; ++i)
+                                    bv.doubleDataMut()[i] = h[i];
+                                {
+                                    outs[0] = bv;
+                                    return;
+                                }
                             });
 
-    // --- freqz(b, a, N) --- frequency response
+    // --- freqz(b, a, N) ---
     engine.registerFunction("freqz",
-                            [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
-                                auto *alloc = &engine.allocator();
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                auto *alloc = &ctx.engine->allocator();
                                 if (args.size() < 2)
                                     throw std::runtime_error("freqz requires at least 2 arguments");
 
                                 auto &bv = args[0];
                                 auto &av = args[1];
                                 size_t npts = (args.size() >= 3)
-                                              ? static_cast<size_t>(args[2].toScalar()) : 512;
+                                                  ? static_cast<size_t>(args[2].toScalar())
+                                                  : 512;
 
                                 const double *b = bv.doubleData();
                                 const double *a = av.doubleData();
@@ -205,7 +223,12 @@ void StdLibrary::registerFilterDesignFunctions(Engine &engine)
                                     }
                                     H.complexDataMut()[k] = num / den;
                                 }
-                                { outs[0] = H; if (nargout > 1) outs[1] = W; return; }
+                                {
+                                    outs[0] = H;
+                                    if (nargout > 1)
+                                        outs[1] = W;
+                                    return;
+                                }
                             });
 }
 

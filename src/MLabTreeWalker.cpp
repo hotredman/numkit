@@ -811,8 +811,9 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, MValue &out)
         for (size_t i = 0; i < nargs; ++i)
             callArgsBuf_.push_back(MValue::scalar(argVals[i], &engine_.allocator_));
         MValue outBuf[1];
+        CallContext ctx{&engine_, env};
         (*static_cast<const ExternalFunc *>(
-            funcNode->cachedOp))(callArgsBuf_, 1, Span<MValue>(outBuf, 1));
+            funcNode->cachedOp))(callArgsBuf_, 1, Span<MValue>(outBuf, 1), ctx);
         if (outBuf[0].isScalar()) {
             MType t = outBuf[0].type();
             if (t == MType::DOUBLE || t == MType::LOGICAL) {
@@ -990,7 +991,8 @@ MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env)
 
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
-        engine_.externalFuncs_[name]({}, 1, Span<MValue>(outBuf, 1));
+        CallContext ctx{&engine_, env};
+        engine_.externalFuncs_[name]({}, 1, Span<MValue>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? MValue::empty() : outBuf[0];
     }
     {
@@ -1324,7 +1326,9 @@ std::vector<MValue> TreeWalker::execCallMulti(const ASTNode *node, Environment *
     auto *funcNode = node->children[0].get();
     if (funcNode->cachedOp) {
         std::vector<MValue> outBuf(nout);
-        (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(args, nout, Span<MValue>(outBuf));
+        CallContext ctx{&engine_, env};
+        (*static_cast<const ExternalFunc *>(
+            funcNode->cachedOp))(args, nout, Span<MValue>(outBuf), ctx);
         return outBuf;
     }
 
@@ -1339,7 +1343,8 @@ std::vector<MValue> TreeWalker::execCallMulti(const ASTNode *node, Environment *
     if (it != engine_.externalFuncs_.end()) {
         funcNode->cachedOp = &it->second;
         std::vector<MValue> outBuf(nout);
-        it->second(args, nout, Span<MValue>(outBuf));
+        CallContext ctx{&engine_, env};
+        it->second(args, nout, Span<MValue>(outBuf), ctx);
         return outBuf;
     }
     {
@@ -1505,7 +1510,8 @@ std::vector<MValue> TreeWalker::callFuncHandleMulti(const MValue &handle,
     const std::string &name = handle.funcHandleName();
     if (engine_.externalFuncs_.count(name)) {
         std::vector<MValue> outBuf(nout);
-        engine_.externalFuncs_[name](args, nout, Span<MValue>(outBuf));
+        CallContext ctx{&engine_, env};
+        engine_.externalFuncs_[name](args, nout, Span<MValue>(outBuf), ctx);
         return outBuf;
     }
     {
@@ -1568,8 +1574,12 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
             for (size_t i = 0; i < nargs; ++i)
                 argsBuf[i] = execNode(node->children[i + 1].get(), env);
             MValue outBuf[1];
-            (*static_cast<const ExternalFunc *>(
-                funcNode->cachedOp))(Span<const MValue>(argsBuf, nargs), 1, Span<MValue>(outBuf, 1));
+            CallContext ctx{&engine_, env};
+            (*static_cast<const ExternalFunc *>(funcNode->cachedOp))(Span<const MValue>(argsBuf,
+                                                                                        nargs),
+                                                                     1,
+                                                                     Span<MValue>(outBuf, 1),
+                                                                     ctx);
             return outBuf[0];
         }
     }
@@ -1598,8 +1608,9 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
 
         if (funcNode->cachedOp) {
             MValue outBuf[1];
+            CallContext ctx{&engine_, env};
             (*static_cast<const ExternalFunc *>(
-                funcNode->cachedOp))(args, 1, Span<MValue>(outBuf, 1));
+                funcNode->cachedOp))(args, 1, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
 
@@ -1612,7 +1623,8 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
         if (it != engine_.externalFuncs_.end()) {
             funcNode->cachedOp = &it->second;
             MValue outBuf[1];
-            it->second(args, 1, Span<MValue>(outBuf, 1));
+            CallContext ctx{&engine_, env};
+            it->second(args, 1, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
         {
@@ -2390,7 +2402,8 @@ MValue TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     // 2. External registered functions
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
-        engine_.externalFuncs_[name](args, 1, Span<MValue>(outBuf, 1));
+        CallContext ctx{&engine_, env};
+        engine_.externalFuncs_[name](args, 1, Span<MValue>(outBuf, 1), ctx);
         result = outBuf[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);

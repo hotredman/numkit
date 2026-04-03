@@ -829,7 +829,8 @@ dispatch_loop:
                         Span<const MValue> as(&R[argBase], na);
                         MValue ob[1];
                         Span<MValue> os(ob, 1);
-                        extIt->second(as, 1, os);
+                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        extIt->second(as, 1, os, ctx);
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
@@ -867,7 +868,8 @@ dispatch_loop:
                             Span<const MValue> as(&R[argBase], na);
                             MValue ob[1];
                             Span<MValue> os(ob, 1);
-                            extIt->second(as, 1, os);
+                            CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                            extIt->second(as, 1, os, ctx);
                             R[I.a] = std::move(ob[0]);
                             break;
                         }
@@ -901,7 +903,8 @@ dispatch_loop:
                     std::vector<MValue> outBuf(nout);
                     Span<const MValue> as(&R[argBase], na);
                     Span<MValue> os(outBuf.data(), nout);
-                    extIt->second(as, nout, os);
+                    CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                    extIt->second(as, nout, os, ctx);
                     for (size_t i = 0; i < nout; ++i)
                         R[outBase + i] = std::move(outBuf[i]);
                     break;
@@ -955,7 +958,8 @@ dispatch_loop:
                         Span<const MValue> as(argsBuffer, na); // only user args for external
                         MValue ob[1];
                         Span<MValue> os(ob, 1);
-                        extIt->second(as, 1, os);
+                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        extIt->second(as, 1, os, ctx);
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
