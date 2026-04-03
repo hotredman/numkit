@@ -16,8 +16,8 @@ enum class OpCode : uint8_t {
     MOVE,         // dst, src               R[dst] = R[src]
     LOAD_END,     // dst, arrReg, dim       R[dst] = size(R[arrReg], dim)
     COLON_ALL,    // dst                    R[dst] = <colon-all marker>
-    LOAD_NARGIN,  // dst                    R[dst] = nargin
-    LOAD_NARGOUT, // dst                    R[dst] = nargout
+    LOAD_NARGIN,  // [reserved] compiler injects nargin via varMap instead
+    LOAD_NARGOUT, // [reserved] compiler injects nargout via varMap instead
 
     // ── Arithmetic ───────────────────────────────────────────
     ADD,   // dst, a, b              R[dst] = R[a] + R[b]
@@ -47,8 +47,8 @@ enum class OpCode : uint8_t {
     AND,    // dst, a, b              R[dst] = R[a] & R[b]
     OR,     // dst, a, b              R[dst] = R[a] | R[b]
     NOT,    // dst, src               R[dst] = ~R[src]
-    AND_SC, // dst, a, b, skipOffset  && short-circuit
-    OR_SC,  // dst, a, b, skipOffset  || short-circuit
+    AND_SC, // [reserved] && short-circuit — compiler uses JMP_FALSE chain instead
+    OR_SC,  // [reserved] || short-circuit — compiler uses JMP_TRUE chain instead
 
     // ── Control flow ─────────────────────────────────────────
     JMP,       // offset(int16)          unconditional jump
@@ -97,7 +97,7 @@ enum class OpCode : uint8_t {
     COLON3,       // dst, start, step, stop R[dst] = R[start]:R[step]:R[stop]
     HORZCAT,      // dst, base, count       R[dst] = [R[base], ..., R[base+count-1]]
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
-    MATRIX_BUILD, // dst, base, nrows, ncols  build 2D from scalars
+    MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}
 
     // ── Display ──────────────────────────────────────────────
@@ -107,8 +107,8 @@ enum class OpCode : uint8_t {
     RET,       // reg                    return R[reg]
     RET_MULTI, // base, count            return R[base..base+count-1]
     RET_EMPTY, //                        return empty
-    BREAK,     //                        break from loop
-    CONTINUE,  //                        continue loop
+    BREAK,     // [reserved] compiler uses JMP + NOP(flag) instead
+    CONTINUE,  // [reserved] compiler uses JMP + NOP(flag) instead
 
     // ── Error handling ───────────────────────────────────────
     TRY_BEGIN, // catchOffset, exReg     setup try, on catch: R[exReg] = exception
@@ -116,9 +116,9 @@ enum class OpCode : uint8_t {
     THROW,     // reg                    error(R[reg])
 
     // ── Scope ────────────────────────────────────────────────
-    GLOBAL_DECL,     // nameIdx                declare global variable
-    PERSISTENT_DECL, // nameIdx                declare persistent variable
-    CLOSURE_MAKE,    // dst, funcIdx           R[dst] = @funcname or @(args) expr
+    GLOBAL_DECL,     // [reserved] compiler writes to chunk.globalNames instead
+    PERSISTENT_DECL, // [reserved] compiler writes to chunk.globalNames instead
+    CLOSURE_MAKE,    // [reserved] compiler uses cell-packing {funcHandle, captures} instead
 
     // ── Utility ──────────────────────────────────────────────
     NOP, //                        no-op (patching, alignment)

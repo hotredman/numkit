@@ -2031,6 +2031,24 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CLOSURE_MAKE";
         case OpCode::CALL_MULTI:
             return "CALL_MULTI";
+        case OpCode::AND_SC:
+            return "AND_SC";
+        case OpCode::OR_SC:
+            return "OR_SC";
+        case OpCode::LOAD_NARGIN:
+            return "LOAD_NARGIN";
+        case OpCode::LOAD_NARGOUT:
+            return "LOAD_NARGOUT";
+        case OpCode::MATRIX_BUILD:
+            return "MATRIX_BUILD";
+        case OpCode::BREAK:
+            return "BREAK";
+        case OpCode::CONTINUE:
+            return "CONTINUE";
+        case OpCode::GLOBAL_DECL:
+            return "GLOBAL_DECL";
+        case OpCode::PERSISTENT_DECL:
+            return "PERSISTENT_DECL";
         default:
             return "???";
         }
