@@ -110,7 +110,12 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
     engine.registerFunction("length",
                             [&engine](Span<const MValue> args, size_t nargout, Span<MValue> outs) {
                                 auto *alloc = &engine.allocator();
-                                auto &dims = args[0].dims();
+                                auto &a = args[0];
+                                if (a.isEmpty() || a.numel() == 0) {
+                                    outs[0] = MValue::scalar(0.0, alloc);
+                                    return;
+                                }
+                                auto &dims = a.dims();
                                 double len = static_cast<double>(
                                     std::max({dims.rows(), dims.cols(), dims.pages()}));
                                 outs[0] = MValue::scalar(len, alloc);

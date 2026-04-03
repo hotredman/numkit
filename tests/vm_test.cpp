@@ -1229,3 +1229,46 @@ TEST_F(VMTest, SwitchCellCase)
     )";
     EXPECT_DOUBLE_EQ(runScalar(code), 20.0);
 }
+
+TEST_F(VMTest, InPlaceArrayModifyInFunction)
+{
+    const char *code = R"(
+        function v = swap21(v)
+            temp = v(1);
+            v(1) = v(2);
+            v(2) = temp;
+        end
+        r = swap21([10 20 30]);
+    )";
+    auto result = run(code);
+    EXPECT_EQ(result.numel(), 3u);
+    EXPECT_DOUBLE_EQ(result.doubleData()[0], 20.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[1], 10.0);
+    EXPECT_DOUBLE_EQ(result.doubleData()[2], 30.0);
+}
+
+TEST_F(VMTest, InsertionSortDebug)
+{
+    const char *code = R"(
+        function v = isort(v)
+            n = length(v);
+            for i = 2:n
+                key = v(i);
+                j = i - 1;
+                while j >= 1 && v(j) > key
+                    v(j+1) = v(j);
+                    j = j - 1;
+                end
+                v(j+1) = key;
+            end
+        end
+        r = isort([4 2 5 1 3]);
+    )";
+    auto result = run(code);
+    ASSERT_EQ(result.numel(), 5u);
+    const double *d = result.doubleData();
+    std::cerr << "isort result: [" << d[0] << " " << d[1] << " " << d[2] << " " << d[3] << " "
+              << d[4] << "]\n";
+    for (size_t i = 0; i < 5; ++i)
+        EXPECT_DOUBLE_EQ(d[i], static_cast<double>(i + 1));
+}

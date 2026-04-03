@@ -72,7 +72,7 @@ TEST_P(KnownIssueShortCircuit, InsertionSortWithShortCircuit)
             end
         end
     )");
-    eval("r = isort([4 2 7 1 3]);");
+    eval("r = isort([4 2 5 1 3]);");
     auto *r = getVarPtr("r");
     ASSERT_EQ(r->numel(), 5u);
     for (size_t i = 0; i < 5; ++i)
