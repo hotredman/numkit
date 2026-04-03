@@ -580,6 +580,41 @@ TEST_F(VMTest, ReturnInsideTryCatch)
                      5.0);
 }
 
+TEST_F(VMTest, CounterWithClosure)
+{
+    EXPECT_DOUBLE_EQ(runScalar(R"(
+        function [inc, get] = make_counter()
+            count = 0;
+            inc = @() count + 1;
+            get = @() count;
+        end
+        [inc, get] = make_counter();
+        get();
+    )"),
+                     0.0);
+}
+
+TEST_F(VMTest, CounterWithClosureMultiEval)
+{
+    engine.setBackend(Engine::Backend::VM);
+
+    engine.eval(R"(
+        function [inc, get] = make_counter()
+            count = 0;
+            inc = @() count + 1;
+            get = @() count;
+        end
+    )");
+    engine.eval("[inc, get] = make_counter();");
+
+    auto *gv = engine.getVariable("get");
+    std::cerr << "get var = " << (gv ? gv->debugString() : "null") << "\n";
+
+    MValue r = engine.eval("get();");
+    std::cerr << "get() = " << r.debugString() << "\n";
+    EXPECT_DOUBLE_EQ(r.toScalar(), 0.0);
+}
+
 // ============================================================
 // Multi-return
 // ============================================================

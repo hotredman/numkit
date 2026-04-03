@@ -1289,10 +1289,15 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // Also check globalEnv for variables from previous eval() calls
     if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
-        if (existing && !existing->isEmpty() && !engine_.externalFuncs_.count(name)
-            && !engine_.hasFunction(name)) {
-            // Import variable and treat as CALL_INDIRECT
-            isKnownVar = true;
+        if (existing && !existing->isEmpty()) {
+            // Variable exists — check if it's a callable (funcHandle or closure cell)
+            // Callable variables take priority over same-name external functions
+            bool isCallable = existing->isFuncHandle()
+                              || (existing->isCell() && existing->numel() >= 1
+                                  && existing->cellAt(0).isFuncHandle());
+            if (isCallable || (!engine_.externalFuncs_.count(name) && !engine_.hasFunction(name))) {
+                isKnownVar = true;
+            }
         }
     }
 
@@ -1788,7 +1793,13 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
            << " c=" << (int) ins.c << " d=" << ins.d << " e=" << (int) ins.e;
 
         if (ins.op == OpCode::LOAD_CONST && ins.d < (int16_t) chunk.constants.size()) {
-            os << "  ; val=" << chunk.constants[ins.d].toScalar();
+            if (ins.d >= 0 && ins.d < (int16_t) chunk.constants.size()) {
+                auto &cv = chunk.constants[ins.d];
+                if (cv.isDoubleScalar())
+                    os << "  ; val=" << cv.scalarVal();
+                else
+                    os << "  ; " << cv.debugString();
+            }
         }
         os << "\n";
     }

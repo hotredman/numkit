@@ -81,8 +81,13 @@ private:
 
     std::unique_ptr<TreeWalker> treeWalker_;
     std::unique_ptr<Compiler> compiler_;
+
+public:
+    Compiler *compilerPtr() { return compiler_.get(); }
+
+private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::VM;
+    Backend backend_ = Backend::TreeWalker;
 
     void reinstallConstants();
     friend class TreeWalker;
