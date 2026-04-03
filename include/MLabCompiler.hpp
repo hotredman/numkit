@@ -45,6 +45,11 @@ private:
     int anonCounter_ = 0;
     bool isTopLevel_ = false;
 
+    // Index context for END_VAL compilation
+    uint8_t indexContextArr_ = 0;
+    uint8_t indexContextDim_ = 0;
+    uint8_t indexContextNdims_ = 1;
+
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
 
@@ -119,6 +124,7 @@ private:
     uint8_t compileCommandCall(const ASTNode *node);
     uint8_t compileFunctionDef(const ASTNode *node);
     uint8_t compileReturn(const ASTNode *node);
+    uint8_t compileDeleteAssign(const ASTNode *node);
     static int8_t resolveBuiltinId(const std::string &name, size_t nargs);
 
     // Break/continue loop patching

@@ -374,31 +374,67 @@ MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
 }
 
 // Returns true and sets `out` on success, false on failure (caller falls back to execNode).
-bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &out)
+// ============================================================
+// tryEvalFast — fast-path evaluation returning MValue
+//
+// Handles double scalars, logical scalars, and comparison ops
+// without falling through to the full execNode path.
+// Returns true if the expression was evaluated successfully.
+// ============================================================
+
+// Helper: extract a double scalar from an MValue (double or logical)
+static inline bool asDouble(const MValue &v, double &d)
+{
+    if (v.isDoubleScalar()) {
+        d = v.scalarVal();
+        return true;
+    }
+    if (v.isLogicalScalar()) {
+        d = v.fastScalarVal();
+        return true;
+    }
+    return false;
+}
+
+bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, MValue &out)
 {
     switch (expr->type) {
     case NodeType::NUMBER_LITERAL:
-        out = expr->numValue;
+        out.setScalarFast(expr->numValue);
         return true;
 
     case NodeType::IDENTIFIER: {
         MValue *v = env->get(expr->strValue);
-        if (v && v->isScalar() && v->type() == MType::DOUBLE) {
-            out = v->toScalar();
-            return true;
+        if (v && v->isScalar()) {
+            MType t = v->type();
+            if (t == MType::DOUBLE) {
+                out.setScalarFast(v->toScalar());
+                return true;
+            }
+            if (t == MType::LOGICAL) {
+                out.setLogicalFast(v->toBool());
+                return true;
+            }
         }
         return false;
     }
 
     case NodeType::FIELD_ACCESS: {
-        // p.x where p is a struct and p.x is a scalar double
+        // p.x where p is a struct and p.x is a scalar double/logical
         if (expr->children.size() == 1 && expr->children[0]->type == NodeType::IDENTIFIER) {
             MValue *obj = env->get(expr->children[0]->strValue);
             if (obj && obj->isStruct() && obj->hasField(expr->strValue)) {
                 const MValue &fv = obj->field(expr->strValue);
-                if (fv.isScalar() && fv.type() == MType::DOUBLE) {
-                    out = fv.toScalar();
-                    return true;
+                if (fv.isScalar()) {
+                    MType t = fv.type();
+                    if (t == MType::DOUBLE) {
+                        out.setScalarFast(fv.toScalar());
+                        return true;
+                    }
+                    if (t == MType::LOGICAL) {
+                        out.setLogicalFast(fv.toBool());
+                        return true;
+                    }
                 }
             }
         }
@@ -408,78 +444,87 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
     case NodeType::BINARY_OP: {
         if (expr->children.size() != 2)
             return false;
-        double lv, rv;
-        if (!tryEvalScalar(expr->children[0].get(), env, lv))
+        // Short-circuit operators must NOT use fast-path
+        // (both operands would be evaluated before checking the operator)
+        const std::string &opStr = expr->strValue;
+        if (opStr == "&&" || opStr == "||")
             return false;
-        if (!tryEvalScalar(expr->children[1].get(), env, rv))
+
+        MValue lm, rm;
+        if (!tryEvalFast(expr->children[0].get(), env, lm))
+            return false;
+        if (!tryEvalFast(expr->children[1].get(), env, rm))
+            return false;
+
+        // Extract double values for arithmetic (works for both double and logical scalars)
+        double lv, rv;
+        bool lOk = asDouble(lm, lv);
+        bool rOk = asDouble(rm, rv);
+        if (!lOk || !rOk)
             return false;
 
         // Direct scalar arithmetic — bypass std::function overhead
-        const std::string &op = expr->strValue;
-        if (op.size() == 1) {
-            switch (op[0]) {
+        if (opStr.size() == 1) {
+            switch (opStr[0]) {
             case '+':
-                out = lv + rv;
+                out.setScalarFast(lv + rv);
                 return true;
             case '-':
-                out = lv - rv;
+                out.setScalarFast(lv - rv);
                 return true;
             case '*':
-                out = lv * rv;
+                out.setScalarFast(lv * rv);
                 return true;
             case '/':
-                out = lv / rv;
+                out.setScalarFast(lv / rv);
                 return true;
             case '^':
-                out = std::pow(lv, rv);
+                out.setScalarFast(std::pow(lv, rv));
                 return true;
             case '<':
-                out = (lv < rv) ? 1.0 : 0.0;
+                out.setLogicalFast(lv < rv);
                 return true;
             case '>':
-                out = (lv > rv) ? 1.0 : 0.0;
+                out.setLogicalFast(lv > rv);
                 return true;
             default:
                 break;
             }
-        } else if (op == "<=") {
-            out = (lv <= rv) ? 1.0 : 0.0;
+        } else if (opStr == ".*") {
+            out.setScalarFast(lv * rv);
             return true;
-        } else if (op == ">=") {
-            out = (lv >= rv) ? 1.0 : 0.0;
+        } else if (opStr == "./") {
+            out.setScalarFast(lv / rv);
             return true;
-        } else if (op == "==") {
-            out = (lv == rv) ? 1.0 : 0.0;
+        } else if (opStr == ".^") {
+            out.setScalarFast(std::pow(lv, rv));
             return true;
-        } else if (op == "~=") {
-            out = (lv != rv) ? 1.0 : 0.0;
+        } else if (opStr == "<=") {
+            out.setLogicalFast(lv <= rv);
             return true;
-        } else if (op == ".*") {
-            out = lv * rv;
+        } else if (opStr == ">=") {
+            out.setLogicalFast(lv >= rv);
             return true;
-        } else if (op == "./") {
-            out = lv / rv;
+        } else if (opStr == "==") {
+            out.setLogicalFast(lv == rv);
             return true;
-        } else if (op == ".^") {
-            out = std::pow(lv, rv);
-            return true;
-        } else if (op == "&&") {
-            out = (lv != 0.0 && rv != 0.0) ? 1.0 : 0.0;
-            return true;
-        } else if (op == "||") {
-            out = (lv != 0.0 || rv != 0.0) ? 1.0 : 0.0;
+        } else if (opStr == "~=") {
+            out.setLogicalFast(lv != rv);
             return true;
         }
 
         // Unknown op — fall back to cached BinaryOpFunc
         if (!expr->cachedOp)
             return false;
-        MValue lm = MValue::scalar(lv, &engine_.allocator_);
-        MValue rm = MValue::scalar(rv, &engine_.allocator_);
-        MValue result = (*static_cast<const BinaryOpFunc *>(expr->cachedOp))(lm, rm);
-        if (result.isScalar() && result.type() == MType::DOUBLE) {
-            out = result.toScalar();
-            return true;
+        MValue lArg = MValue::scalar(lv, &engine_.allocator_);
+        MValue rArg = MValue::scalar(rv, &engine_.allocator_);
+        MValue result = (*static_cast<const BinaryOpFunc *>(expr->cachedOp))(lArg, rArg);
+        if (result.isScalar()) {
+            MType t = result.type();
+            if (t == MType::DOUBLE || t == MType::LOGICAL) {
+                out = std::move(result);
+                return true;
+            }
         }
         return false;
     }
@@ -487,21 +532,25 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
     case NodeType::UNARY_OP: {
         if (expr->children.size() != 1)
             return false;
+        MValue operandM;
+        if (!tryEvalFast(expr->children[0].get(), env, operandM))
+            return false;
+
         double operand;
-        if (!tryEvalScalar(expr->children[0].get(), env, operand))
+        if (!asDouble(operandM, operand))
             return false;
 
         const std::string &op = expr->strValue;
         if (op == "-") {
-            out = -operand;
+            out.setScalarFast(-operand);
             return true;
         }
         if (op == "+") {
-            out = operand;
+            out.setScalarFast(operand);
             return true;
         }
         if (op == "~") {
-            out = (operand == 0.0) ? 1.0 : 0.0;
+            out.setLogicalFast(operand == 0.0);
             return true;
         }
 
@@ -509,9 +558,12 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
             return false;
         MValue om = MValue::scalar(operand, &engine_.allocator_);
         MValue result = (*static_cast<const UnaryOpFunc *>(expr->cachedOp))(om);
-        if (result.isScalar() && result.type() == MType::DOUBLE) {
-            out = result.toScalar();
-            return true;
+        if (result.isScalar()) {
+            MType t = result.type();
+            if (t == MType::DOUBLE || t == MType::LOGICAL) {
+                out = std::move(result);
+                return true;
+            }
         }
         return false;
     }
@@ -571,131 +623,137 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
 
         int8_t bid = funcNode->cachedBuiltinId;
         if (bid > 0) {
+            MValue argMs[4];
             double argVals[4];
             for (size_t i = 0; i < nargs; ++i) {
-                if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
+                if (!tryEvalFast(expr->children[i + 1].get(), env, argMs[i]))
+                    return false;
+                if (!asDouble(argMs[i], argVals[i]))
                     return false;
             }
+            double r;
+            bool ok = false;
             switch (bid) {
             case 1:
                 if (nargs == 2) {
-                    double m = std::fmod(argVals[0], argVals[1]);
-                    if (m != 0 && ((m < 0) != (argVals[1] < 0)))
-                        m += argVals[1];
-                    out = m;
-                    return true;
+                    r = std::fmod(argVals[0], argVals[1]);
+                    if (r != 0 && ((r < 0) != (argVals[1] < 0)))
+                        r += argVals[1];
+                    ok = true;
                 }
                 break;
             case 2:
                 if (nargs == 1) {
-                    out = std::abs(argVals[0]);
-                    return true;
+                    r = std::abs(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 3:
                 if (nargs == 1) {
-                    out = std::floor(argVals[0]);
-                    return true;
+                    r = std::floor(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 4:
                 if (nargs == 1) {
-                    out = std::ceil(argVals[0]);
-                    return true;
+                    r = std::ceil(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 5:
                 if (nargs == 1) {
-                    out = std::round(argVals[0]);
-                    return true;
+                    r = std::round(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 6:
                 if (nargs == 1) {
-                    out = std::trunc(argVals[0]);
-                    return true;
+                    r = std::trunc(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 7:
                 if (nargs == 1) {
-                    out = std::sin(argVals[0]);
-                    return true;
+                    r = std::sin(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 8:
                 if (nargs == 1) {
-                    out = std::cos(argVals[0]);
-                    return true;
+                    r = std::cos(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 9:
                 if (nargs == 1 && argVals[0] >= 0) {
-                    out = std::sqrt(argVals[0]);
-                    return true;
+                    r = std::sqrt(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 10:
                 if (nargs == 1) {
-                    out = std::exp(argVals[0]);
-                    return true;
+                    r = std::exp(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 11:
                 if (nargs == 1) {
-                    out = std::log(argVals[0]);
-                    return true;
+                    r = std::log(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 12:
                 if (nargs == 2) {
-                    out = std::fmin(argVals[0], argVals[1]);
-                    return true;
-                }
-                if (nargs == 1) {
-                    out = argVals[0];
-                    return true;
+                    r = std::fmin(argVals[0], argVals[1]);
+                    ok = true;
+                } else if (nargs == 1) {
+                    r = argVals[0];
+                    ok = true;
                 }
                 break;
             case 13:
                 if (nargs == 2) {
-                    out = std::fmax(argVals[0], argVals[1]);
-                    return true;
-                }
-                if (nargs == 1) {
-                    out = argVals[0];
-                    return true;
+                    r = std::fmax(argVals[0], argVals[1]);
+                    ok = true;
+                } else if (nargs == 1) {
+                    r = argVals[0];
+                    ok = true;
                 }
                 break;
             case 14:
                 if (nargs == 1) {
-                    out = (argVals[0] > 0) ? 1.0 : (argVals[0] < 0) ? -1.0 : 0.0;
-                    return true;
+                    r = (argVals[0] > 0) ? 1.0 : (argVals[0] < 0) ? -1.0 : 0.0;
+                    ok = true;
                 }
                 break;
             case 15:
                 if (nargs == 1) {
-                    out = std::tan(argVals[0]);
-                    return true;
+                    r = std::tan(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 16:
                 if (nargs == 1) {
-                    out = std::log2(argVals[0]);
-                    return true;
+                    r = std::log2(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 17:
                 if (nargs == 1) {
-                    out = std::log10(argVals[0]);
-                    return true;
+                    r = std::log10(argVals[0]);
+                    ok = true;
                 }
                 break;
             case 18:
                 if (nargs == 2) {
-                    out = std::remainder(argVals[0], argVals[1]);
-                    return true;
+                    r = std::remainder(argVals[0], argVals[1]);
+                    ok = true;
                 }
                 break;
+            }
+            if (ok) {
+                out.setScalarFast(r);
+                return true;
             }
             // nargs mismatch — fall through to ExternalFunc path
         }
@@ -704,28 +762,34 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
             // Try array scalar indexing: A(i) or A(i,j) where A is a double array
             if (funcNode->type == NodeType::IDENTIFIER) {
                 if (nargs == 1) {
-                    double idxVal;
-                    if (tryEvalScalar(expr->children[1].get(), env, idxVal)) {
-                        MValue *arr = env->get(funcNode->strValue);
-                        if (arr && arr->type() == MType::DOUBLE) {
-                            size_t idx = static_cast<size_t>(idxVal) - 1;
-                            if (idx < arr->numel()) {
-                                out = arr->doubleData()[idx];
-                                return true;
+                    MValue idxM;
+                    if (tryEvalFast(expr->children[1].get(), env, idxM)) {
+                        double idxVal;
+                        if (asDouble(idxM, idxVal)) {
+                            MValue *arr = env->get(funcNode->strValue);
+                            if (arr && arr->type() == MType::DOUBLE) {
+                                size_t idx = static_cast<size_t>(idxVal) - 1;
+                                if (idx < arr->numel()) {
+                                    out.setScalarFast(arr->doubleData()[idx]);
+                                    return true;
+                                }
                             }
                         }
                     }
                 } else if (nargs == 2) {
-                    double rowVal, colVal;
-                    if (tryEvalScalar(expr->children[1].get(), env, rowVal)
-                        && tryEvalScalar(expr->children[2].get(), env, colVal)) {
-                        MValue *arr = env->get(funcNode->strValue);
-                        if (arr && arr->type() == MType::DOUBLE) {
-                            size_t r = static_cast<size_t>(rowVal) - 1;
-                            size_t c = static_cast<size_t>(colVal) - 1;
-                            if (r < arr->dims().rows() && c < arr->dims().cols()) {
-                                out = arr->doubleData()[arr->dims().sub2ind(r, c)];
-                                return true;
+                    MValue rowM, colM;
+                    if (tryEvalFast(expr->children[1].get(), env, rowM)
+                        && tryEvalFast(expr->children[2].get(), env, colM)) {
+                        double rowVal, colVal;
+                        if (asDouble(rowM, rowVal) && asDouble(colM, colVal)) {
+                            MValue *arr = env->get(funcNode->strValue);
+                            if (arr && arr->type() == MType::DOUBLE) {
+                                size_t r = static_cast<size_t>(rowVal) - 1;
+                                size_t c = static_cast<size_t>(colVal) - 1;
+                                if (r < arr->dims().rows() && c < arr->dims().cols()) {
+                                    out.setScalarFast(arr->doubleData()[arr->dims().sub2ind(r, c)]);
+                                    return true;
+                                }
                             }
                         }
                     }
@@ -733,9 +797,13 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
             }
             return false;
         }
+        // ExternalFunc fast path — all args must be scalar doubles
+        MValue argMs[4];
         double argVals[4];
         for (size_t i = 0; i < nargs; ++i) {
-            if (!tryEvalScalar(expr->children[i + 1].get(), env, argVals[i]))
+            if (!tryEvalFast(expr->children[i + 1].get(), env, argMs[i]))
+                return false;
+            if (!asDouble(argMs[i], argVals[i]))
                 return false;
         }
         // Reuse engine-owned buffer to avoid heap allocation per call
@@ -745,9 +813,12 @@ bool TreeWalker::tryEvalScalar(const ASTNode *expr, Environment *env, double &ou
         MValue outBuf[1];
         (*static_cast<const ExternalFunc *>(
             funcNode->cachedOp))(callArgsBuf_, 1, Span<MValue>(outBuf, 1));
-        if (outBuf[0].isScalar() && outBuf[0].type() == MType::DOUBLE) {
-            out = outBuf[0].toScalar();
-            return true;
+        if (outBuf[0].isScalar()) {
+            MType t = outBuf[0].type();
+            if (t == MType::DOUBLE || t == MType::LOGICAL) {
+                out = std::move(outBuf[0]);
+                return true;
+            }
         }
         return false;
     }
@@ -770,13 +841,20 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
             // x = <scalar expr>
             if (lhsNode->type == NodeType::IDENTIFIER) {
                 const std::string &lhsName = lhsNode->strValue;
-                double val;
-                if (tryEvalScalar(rhsNode, env, val)) {
-                    MValue *existing = env->getLocal(lhsName);
-                    if (existing && existing->isScalar() && existing->type() == MType::DOUBLE) {
-                        *existing->doubleDataMut() = val;
+                MValue fastVal;
+                if (tryEvalFast(rhsNode, env, fastVal)) {
+                    if (fastVal.isDoubleScalar()) {
+                        // Double scalar — try in-place update
+                        double dv = fastVal.scalarVal();
+                        MValue *existing = env->getLocal(lhsName);
+                        if (existing && existing->isDoubleScalar()) {
+                            existing->setScalarVal(dv);
+                        } else {
+                            env->set(lhsName, MValue::scalar(dv, &engine_.allocator_));
+                        }
                     } else {
-                        env->set(lhsName, MValue::scalar(val, &engine_.allocator_));
+                        // Logical scalar — preserve type
+                        env->set(lhsName, std::move(fastVal));
                     }
                     continue;
                 }
@@ -785,19 +863,21 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
                     && rhsNode->children[0]->type == NodeType::IDENTIFIER) {
                     MValue *arr = env->get(rhsNode->children[0]->strValue);
                     if (arr && arr->type() == MType::DOUBLE) {
-                        double idxVal;
-                        if (tryEvalScalar(rhsNode->children[1].get(), env, idxVal)) {
-                            size_t idx = static_cast<size_t>(idxVal) - 1;
-                            if (idx < arr->numel()) {
-                                double v = arr->doubleData()[idx];
-                                MValue *existing = env->getLocal(lhsName);
-                                if (existing && existing->isScalar()
-                                    && existing->type() == MType::DOUBLE) {
-                                    *existing->doubleDataMut() = v;
-                                } else {
-                                    env->set(lhsName, MValue::scalar(v, &engine_.allocator_));
+                        MValue idxM;
+                        if (tryEvalFast(rhsNode->children[1].get(), env, idxM)) {
+                            double idxVal;
+                            if (asDouble(idxM, idxVal)) {
+                                size_t idx = static_cast<size_t>(idxVal) - 1;
+                                if (idx < arr->numel()) {
+                                    double v = arr->doubleData()[idx];
+                                    MValue *existing = env->getLocal(lhsName);
+                                    if (existing && existing->isDoubleScalar()) {
+                                        existing->setScalarVal(v);
+                                    } else {
+                                        env->set(lhsName, MValue::scalar(v, &engine_.allocator_));
+                                    }
+                                    continue;
                                 }
-                                continue;
                             }
                         }
                     }
@@ -814,29 +894,36 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
                 if (arr && arr->type() == MType::DOUBLE) {
                     if (lhsArgs == 2) {
                         // 1D: A(i) = val
-                        double idxVal, rhsVal;
-                        if (tryEvalScalar(lhsNode->children[1].get(), env, idxVal)
-                            && tryEvalScalar(rhsNode, env, rhsVal)) {
-                            size_t idx = static_cast<size_t>(idxVal) - 1;
-                            if (idx < arr->numel()) {
-                                arr->doubleDataMut()[idx] = rhsVal;
-                            } else {
-                                arr->ensureSize(idx, &engine_.allocator_);
-                                arr->doubleDataMut()[idx] = rhsVal;
+                        MValue idxM, rhsM;
+                        if (tryEvalFast(lhsNode->children[1].get(), env, idxM)
+                            && tryEvalFast(rhsNode, env, rhsM)) {
+                            double idxVal, rhsVal;
+                            if (asDouble(idxM, idxVal) && asDouble(rhsM, rhsVal)) {
+                                size_t idx = static_cast<size_t>(idxVal) - 1;
+                                if (idx < arr->numel()) {
+                                    arr->doubleDataMut()[idx] = rhsVal;
+                                } else {
+                                    arr->ensureSize(idx, &engine_.allocator_);
+                                    arr->doubleDataMut()[idx] = rhsVal;
+                                }
+                                continue;
                             }
-                            continue;
                         }
                     } else if (lhsArgs == 3) {
                         // 2D: A(i,j) = val
-                        double rowVal, colVal, rhsVal;
-                        if (tryEvalScalar(lhsNode->children[1].get(), env, rowVal)
-                            && tryEvalScalar(lhsNode->children[2].get(), env, colVal)
-                            && tryEvalScalar(rhsNode, env, rhsVal)) {
-                            size_t r = static_cast<size_t>(rowVal) - 1;
-                            size_t c = static_cast<size_t>(colVal) - 1;
-                            if (r < arr->dims().rows() && c < arr->dims().cols()) {
-                                arr->doubleDataMut()[arr->dims().sub2ind(r, c)] = rhsVal;
-                                continue;
+                        MValue rowM, colM, rhsM;
+                        if (tryEvalFast(lhsNode->children[1].get(), env, rowM)
+                            && tryEvalFast(lhsNode->children[2].get(), env, colM)
+                            && tryEvalFast(rhsNode, env, rhsM)) {
+                            double rowVal, colVal, rhsVal;
+                            if (asDouble(rowM, rowVal) && asDouble(colM, colVal)
+                                && asDouble(rhsM, rhsVal)) {
+                                size_t r = static_cast<size_t>(rowVal) - 1;
+                                size_t c = static_cast<size_t>(colVal) - 1;
+                                if (r < arr->dims().rows() && c < arr->dims().cols()) {
+                                    arr->doubleDataMut()[arr->dims().sub2ind(r, c)] = rhsVal;
+                                    continue;
+                                }
                             }
                         }
                     }
@@ -846,17 +933,27 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
             // p.x = <scalar> — struct field scalar assign
             if (lhsNode->type == NodeType::FIELD_ACCESS && lhsNode->children.size() == 1
                 && lhsNode->children[0]->type == NodeType::IDENTIFIER) {
-                double val;
-                if (tryEvalScalar(rhsNode, env, val)) {
-                    MValue *obj = env->get(lhsNode->children[0]->strValue);
-                    if (obj && obj->isStruct()) {
-                        MValue &fv = obj->field(lhsNode->strValue);
-                        if (fv.isScalar() && fv.type() == MType::DOUBLE) {
-                            *fv.doubleDataMut() = val;
+                MValue fastVal;
+                if (tryEvalFast(rhsNode, env, fastVal)) {
+                    if (fastVal.isDoubleScalar()) {
+                        double dv = fastVal.scalarVal();
+                        MValue *obj = env->get(lhsNode->children[0]->strValue);
+                        if (obj && obj->isStruct()) {
+                            MValue &fv = obj->field(lhsNode->strValue);
+                            if (fv.isScalar() && fv.type() == MType::DOUBLE) {
+                                *fv.doubleDataMut() = dv;
+                                continue;
+                            }
+                            fv = MValue::scalar(dv, &engine_.allocator_);
                             continue;
                         }
-                        fv = MValue::scalar(val, &engine_.allocator_);
-                        continue;
+                    } else {
+                        // Logical or other fast type — set directly
+                        MValue *obj = env->get(lhsNode->children[0]->strValue);
+                        if (obj && obj->isStruct()) {
+                            obj->field(lhsNode->strValue) = std::move(fastVal);
+                            continue;
+                        }
                     }
                 }
             }
@@ -1878,10 +1975,10 @@ MValue TreeWalker::execColonExpr(const ASTNode *node, Environment *env)
 MValue TreeWalker::execIf(const ASTNode *node, Environment *env)
 {
     for (auto &[cond, body] : node->branches) {
-        double condVal;
+        MValue condM;
         bool taken;
-        if (tryEvalScalar(cond.get(), env, condVal))
-            taken = (condVal != 0.0);
+        if (tryEvalFast(cond.get(), env, condM))
+            taken = (condM.fastScalarVal() != 0.0);
         else
             taken = execNode(cond.get(), env).toBool();
         if (taken)
@@ -2038,10 +2135,10 @@ MValue TreeWalker::execWhile(const ASTNode *node, Environment *env)
 {
     auto *condNode = node->children[0].get();
     for (;;) {
-        double condVal;
+        MValue condM;
         bool cond;
-        if (tryEvalScalar(condNode, env, condVal))
-            cond = (condVal != 0.0);
+        if (tryEvalFast(condNode, env, condM))
+            cond = (condM.fastScalarVal() != 0.0);
         else
             cond = execNode(condNode, env).toBool();
         if (!cond)

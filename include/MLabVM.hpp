@@ -29,6 +29,8 @@ public:
     // True when executing inside a user function (not top-level script)
     int callDepth() const { return recursionDepth_; }
 
+    void setMaxRecursionDepth(int d) { maxRecursion_ = d; }
+
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
@@ -60,7 +62,7 @@ private:
 
     // Recursion guard
     int recursionDepth_ = 0;
-    static constexpr int kMaxRecursion = 50;
+    int maxRecursion_ = 200;
 
     // Per-chunk call target cache
     std::unordered_map<const BytecodeChunk *, std::vector<const BytecodeChunk *>> chunkCallCache_;
@@ -72,7 +74,10 @@ private:
     MValue executeInternal(const BytecodeChunk &chunk);
 
     // User function call
-    MValue callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs);
+    MValue callUserFunc(const BytecodeChunk &funcChunk,
+                        const MValue *args,
+                        uint8_t nargs,
+                        size_t nargout = 1);
 
     std::vector<MValue> callUserFuncMulti(const BytecodeChunk &funcChunk,
                                           const MValue *args,

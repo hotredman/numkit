@@ -3,7 +3,9 @@
 #include "MLabEngine.hpp"
 #include "MLabSpan.hpp"
 
+#include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <sstream>
 #include <stdexcept>
 
@@ -23,6 +25,17 @@ static inline size_t colonCount(double start, double step, double stop)
     if (n < 0)
         return 0;
     return static_cast<size_t>(std::floor(n + 1e-10)) + 1;
+}
+
+// Fast scalar check for VM arithmetic — accepts double scalars AND logical scalar tags
+static inline bool isArithScalar(const MValue &v)
+{
+    return v.isDoubleScalar() || v.isLogicalScalar();
+}
+
+static inline double asScalar(const MValue &v)
+{
+    return v.fastScalarVal();
 }
 
 static inline size_t checkedIndex(double idx, size_t numel)
@@ -136,83 +149,98 @@ dispatch_loop:
             case OpCode::COLON_ALL:
                 R[I.a] = MValue::fromString(":", &engine_.allocator_);
                 break;
+            case OpCode::LOAD_END: {
+                // a=dst, b=arrReg, c=dim (0-based), d=ndims
+                const MValue &arr = R[I.b];
+                size_t sz;
+                int ndims = I.d;
+                if (ndims <= 1) {
+                    // Linear indexing: end = numel
+                    sz = arr.numel();
+                } else {
+                    // Dimensional indexing: end = size along dimension c
+                    sz = arr.dims().dimSize(I.c);
+                }
+                R[I.a] = MValue::scalar(static_cast<double>(sz), &engine_.allocator_);
+                break;
+            }
 
             // ── Scalar arithmetic ────────────────────────────────
             case OpCode::ADD:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() + R[I.c].scalarVal());
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) + asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::SUB:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() - R[I.c].scalarVal());
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) - asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::MUL:
             case OpCode::EMUL:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() * R[I.c].scalarVal());
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::RDIV:
             case OpCode::ERDIV:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() / R[I.c].scalarVal());
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::LDIV:
             case OpCode::ELDIV:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.c].scalarVal() / R[I.b].scalarVal());
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.c]) / asScalar(R[I.b]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::POW:
             case OpCode::EPOW:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(std::pow(R[I.b].scalarVal(), R[I.c].scalarVal()));
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(std::pow(asScalar(R[I.b]), asScalar(R[I.c])));
                 } else
                     goto binary_slow;
                 break;
 
             // ── Comparison ───────────────────────────────────────
             case OpCode::EQ:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() == R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) == asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::NE:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() != R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) != asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::LT:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() < R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) < asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::GT:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() > R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) > asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::LE:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() <= R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) <= asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
             case OpCode::GE:
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() >= R[I.c].scalarVal() ? 1.0 : 0.0);
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setLogicalFast(asScalar(R[I.b]) >= asScalar(R[I.c]));
                 } else
                     goto binary_slow;
                 break;
@@ -356,7 +384,29 @@ dispatch_loop:
                     R[I.a] = R[I.b]; // scalar(scalar) = scalar
                 } else if (R[I.c].isDoubleScalar()) {
                     size_t i = checkedIndex(R[I.c].scalarVal(), R[I.b].numel());
-                    R[I.a] = MValue::scalar(R[I.b].doubleData()[i], &engine_.allocator_);
+                    if (R[I.b].type() == MType::CHAR) {
+                        char ch = R[I.b].charData()[i];
+                        std::string s(1, ch);
+                        R[I.a] = MValue::fromString(s, &engine_.allocator_);
+                    } else {
+                        R[I.a] = MValue::scalar(R[I.b].doubleData()[i], &engine_.allocator_);
+                    }
+                } else if (R[I.c].isLogical()) {
+                    // Logical indexing: v(v > 3)
+                    const MValue &mv = R[I.b];
+                    const MValue &ix = R[I.c];
+                    const uint8_t *mask = ix.logicalData();
+                    size_t n = ix.numel();
+                    std::vector<double> selected;
+                    const double *src = mv.doubleData();
+                    for (size_t k = 0; k < n && k < mv.numel(); ++k)
+                        if (mask[k])
+                            selected.push_back(src[k]);
+                    size_t sn = selected.size();
+                    auto res = MValue::matrix(1, sn, MType::DOUBLE, &engine_.allocator_);
+                    if (sn > 0)
+                        std::memcpy(res.doubleDataMut(), selected.data(), sn * sizeof(double));
+                    R[I.a] = std::move(res);
                 } else {
                     const MValue &mv = R[I.b];
                     const MValue &ix = R[I.c];
@@ -461,14 +511,139 @@ dispatch_loop:
                 break;
             }
 
+            // ── Index delete (v(idx) = []) ──────────────────────
+            case OpCode::INDEX_DELETE: {
+                // a=arr, b=idx
+                MValue &arr = R[I.a];
+                const MValue &idx = R[I.b];
+                if (arr.type() != MType::DOUBLE)
+                    throw std::runtime_error("Delete indexing only supported for double arrays");
+
+                // Build deletion mask
+                size_t n = arr.numel();
+                std::vector<bool> del(n, false);
+                if (idx.isLogical()) {
+                    const uint8_t *ld = idx.logicalData();
+                    size_t ln = idx.numel();
+                    for (size_t k = 0; k < ln && k < n; ++k)
+                        if (ld[k])
+                            del[k] = true;
+                } else if (idx.isDoubleScalar()) {
+                    size_t ii = static_cast<size_t>(idx.scalarVal()) - 1;
+                    if (ii < n)
+                        del[ii] = true;
+                } else {
+                    const double *id = idx.doubleData();
+                    size_t ni = idx.numel();
+                    for (size_t k = 0; k < ni; ++k) {
+                        size_t ii = static_cast<size_t>(id[k]) - 1;
+                        if (ii < n)
+                            del[ii] = true;
+                    }
+                }
+
+                const double *src = arr.doubleData();
+                std::vector<double> remaining;
+                remaining.reserve(n);
+                for (size_t k = 0; k < n; ++k)
+                    if (!del[k])
+                        remaining.push_back(src[k]);
+
+                bool isRow = arr.dims().rows() == 1;
+                size_t rn = remaining.size();
+                auto result = isRow ? MValue::matrix(1, rn, MType::DOUBLE, &engine_.allocator_)
+                                    : MValue::matrix(rn, 1, MType::DOUBLE, &engine_.allocator_);
+                if (rn > 0)
+                    std::memcpy(result.doubleDataMut(), remaining.data(), rn * sizeof(double));
+                arr = std::move(result);
+                break;
+            }
+            case OpCode::INDEX_DELETE_2D: {
+                // a=arr, b=row, c=col
+                MValue &arr = R[I.a];
+                if (arr.type() != MType::DOUBLE)
+                    throw std::runtime_error("Delete indexing only supported for double arrays");
+
+                size_t Rows = arr.dims().rows(), Cols = arr.dims().cols();
+
+                // Resolve row and col indices
+                auto resolveIdx = [](const MValue &v, size_t dimSize) {
+                    std::vector<size_t> out;
+                    if (v.isChar() && v.toString() == ":") {
+                        for (size_t i = 0; i < dimSize; ++i)
+                            out.push_back(i);
+                    } else if (v.isLogical()) {
+                        const uint8_t *ld = v.logicalData();
+                        for (size_t i = 0; i < v.numel() && i < dimSize; ++i)
+                            if (ld[i])
+                                out.push_back(i);
+                    } else if (v.isDoubleScalar()) {
+                        out.push_back(static_cast<size_t>(v.scalarVal()) - 1);
+                    } else {
+                        const double *d = v.doubleData();
+                        size_t n = v.numel();
+                        for (size_t i = 0; i < n; ++i)
+                            out.push_back(static_cast<size_t>(d[i]) - 1);
+                    }
+                    return out;
+                };
+                auto rowIdx = resolveIdx(R[I.b], Rows);
+                auto colIdx = resolveIdx(R[I.c], Cols);
+
+                if (colIdx.size() == Cols) {
+                    // Delete rows
+                    std::vector<bool> delR(Rows, false);
+                    for (auto r : rowIdx)
+                        if (r < Rows)
+                            delR[r] = true;
+                    size_t newR = std::count(delR.begin(), delR.end(), false);
+                    auto result = MValue::matrix(newR, Cols, MType::DOUBLE, &engine_.allocator_);
+                    double *dst = result.doubleDataMut();
+                    size_t ri = 0;
+                    for (size_t r = 0; r < Rows; ++r) {
+                        if (!delR[r]) {
+                            for (size_t c = 0; c < Cols; ++c)
+                                dst[c * newR + ri] = arr(r, c);
+                            ri++;
+                        }
+                    }
+                    arr = std::move(result);
+                } else if (rowIdx.size() == Rows) {
+                    // Delete columns
+                    std::vector<bool> delC(Cols, false);
+                    for (auto c : colIdx)
+                        if (c < Cols)
+                            delC[c] = true;
+                    size_t newC = std::count(delC.begin(), delC.end(), false);
+                    auto result = MValue::matrix(Rows, newC, MType::DOUBLE, &engine_.allocator_);
+                    double *dst = result.doubleDataMut();
+                    size_t ci = 0;
+                    for (size_t c = 0; c < Cols; ++c) {
+                        if (!delC[c]) {
+                            for (size_t r = 0; r < Rows; ++r)
+                                dst[ci * Rows + r] = arr(r, c);
+                            ci++;
+                        }
+                    }
+                    arr = std::move(result);
+                } else {
+                    throw std::runtime_error(
+                        "Cannot delete from both rows and columns simultaneously");
+                }
+                break;
+            }
+
             // ── Struct field access ──────────────────────────────
             case OpCode::FIELD_GET: {
                 // a=dst, b=obj, d=nameIdx
                 const std::string &fname = chunk.strings[I.d];
+                // Auto-create struct if empty (needed for nested field assign: s.a.b = 42)
+                if (R[I.b].isEmpty())
+                    R[I.b] = MValue::structure();
                 if (!R[I.b].isStruct())
                     throw std::runtime_error("Dot indexing requires a struct");
-                if (!R[I.b].hasField(fname))
-                    throw std::runtime_error("Reference to non-existent field '" + fname + "'");
+                // Auto-create field if it doesn't exist (returns reference to new empty MValue)
+                // MValue::field() creates the key if missing, so just read it.
                 R[I.a] = R[I.b].field(fname);
                 break;
             }
@@ -648,32 +823,40 @@ dispatch_loop:
             case OpCode::CALL: {
                 uint8_t argBase = I.b, na = I.c;
                 int16_t funcIdx = I.d;
+                MValue callResult;
+                bool resolved = false;
                 if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx]) {
-                    R[I.a] = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na);
-                    break;
+                    callResult = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na);
+                    resolved = true;
                 }
-                const std::string &funcName = chunk.strings[funcIdx];
-                if (compiledFuncs_) {
-                    auto cfIt = compiledFuncs_->find(funcName);
-                    if (cfIt != compiledFuncs_->end()) {
-                        if (funcIdx >= (int16_t) resolvedFuncs.size())
-                            resolvedFuncs.resize(funcIdx + 1, nullptr);
-                        resolvedFuncs[funcIdx] = &cfIt->second;
-                        R[I.a] = callUserFunc(cfIt->second, &R[argBase], na);
-                        break;
+                if (!resolved) {
+                    const std::string &funcName = chunk.strings[funcIdx];
+                    if (compiledFuncs_) {
+                        auto cfIt = compiledFuncs_->find(funcName);
+                        if (cfIt != compiledFuncs_->end()) {
+                            if (funcIdx >= (int16_t) resolvedFuncs.size())
+                                resolvedFuncs.resize(funcIdx + 1, nullptr);
+                            resolvedFuncs[funcIdx] = &cfIt->second;
+                            callResult = callUserFunc(cfIt->second, &R[argBase], na);
+                            resolved = true;
+                        }
+                    }
+                    if (!resolved) {
+                        // External func
+                        auto extIt = engine_.externalFuncs_.find(funcName);
+                        if (extIt != engine_.externalFuncs_.end()) {
+                            Span<const MValue> as(&R[argBase], na);
+                            MValue ob[1];
+                            Span<MValue> os(ob, 1);
+                            extIt->second(as, 1, os);
+                            R[I.a] = std::move(ob[0]);
+                            break;
+                        }
+                        throw std::runtime_error("VM: undefined function '" + funcName + "'");
                     }
                 }
-                // External func — args already in register file, pass directly
-                auto extIt = engine_.externalFuncs_.find(funcName);
-                if (extIt != engine_.externalFuncs_.end()) {
-                    Span<const MValue> as(&R[argBase], na);
-                    MValue ob[1];
-                    Span<MValue> os(ob, 1);
-                    extIt->second(as, 1, os);
-                    R[I.a] = std::move(ob[0]);
-                    break;
-                }
-                throw std::runtime_error("VM: undefined function '" + funcName + "'");
+                R[I.a] = std::move(callResult);
+                break;
             }
 
             // ── Multi-return function call ──────────────────────
@@ -763,11 +946,39 @@ dispatch_loop:
             call_indirect_index:
                 // Array indexing fallback
                 if (na == 1) {
-                    if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
+                    // Check for colon-all: A(:) → linearize
+                    if (R[argBase].isChar() && R[argBase].numel() == 1
+                        && R[argBase].charData()[0] == ':') {
+                        const MValue &mv = R[fhReg];
+                        size_t n = mv.numel();
+                        auto res = MValue::matrix(n, 1, MType::DOUBLE, &engine_.allocator_);
+                        std::memcpy(res.doubleDataMut(), mv.doubleData(), n * sizeof(double));
+                        R[I.a] = std::move(res);
+                    } else if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
                         R[I.a] = R[fhReg];
                     } else if (R[argBase].isDoubleScalar()) {
                         size_t i = checkedIndex(R[argBase].scalarVal(), R[fhReg].numel());
-                        R[I.a] = MValue::scalar(R[fhReg].doubleData()[i], &engine_.allocator_);
+                        if (R[fhReg].type() == MType::CHAR) {
+                            char ch = R[fhReg].charData()[i];
+                            R[I.a] = MValue::fromString(std::string(1, ch), &engine_.allocator_);
+                        } else {
+                            R[I.a] = MValue::scalar(R[fhReg].doubleData()[i], &engine_.allocator_);
+                        }
+                    } else if (R[argBase].isLogical()) {
+                        // Logical indexing: v(v > 3)
+                        const MValue &mv = R[fhReg];
+                        const uint8_t *mask = R[argBase].logicalData();
+                        size_t n = R[argBase].numel();
+                        const double *src = mv.doubleData();
+                        std::vector<double> selected;
+                        for (size_t k = 0; k < n && k < mv.numel(); ++k)
+                            if (mask[k])
+                                selected.push_back(src[k]);
+                        size_t sn = selected.size();
+                        auto res = MValue::matrix(1, sn, MType::DOUBLE, &engine_.allocator_);
+                        if (sn > 0)
+                            std::memcpy(res.doubleDataMut(), selected.data(), sn * sizeof(double));
+                        R[I.a] = std::move(res);
                     } else {
                         const MValue &mv = R[fhReg];
                         const MValue &ix = R[argBase];
@@ -781,10 +992,64 @@ dispatch_loop:
                     }
                 } else if (na == 2) {
                     const MValue &mv = R[fhReg];
-                    size_t r = (size_t) R[argBase].toScalar() - 1,
-                           c = (size_t) R[argBase + 1].toScalar() - 1;
-                    R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c)],
-                                            &engine_.allocator_);
+                    const MValue &ri = R[argBase];
+                    const MValue &ci = R[argBase + 1];
+                    size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
+                    const double *src = mv.doubleData();
+
+                    // Helper: is this a colon-all marker?
+                    auto isColonAll = [](const MValue &v) {
+                        return v.isChar() && v.numel() == 1 && v.charData()[0] == ':';
+                    };
+
+                    // Resolve index dimension to a list of 0-based indices (with bounds check)
+                    auto resolveSlice = [](const MValue &idx,
+                                           size_t dimSize) -> std::vector<size_t> {
+                        std::vector<size_t> out;
+                        if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
+                            out.resize(dimSize);
+                            for (size_t i = 0; i < dimSize; ++i)
+                                out[i] = i;
+                        } else if (idx.isLogical()) {
+                            const uint8_t *m = idx.logicalData();
+                            for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
+                                if (m[i])
+                                    out.push_back(i);
+                        } else if (idx.isDoubleScalar()) {
+                            size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
+                            if (ii >= dimSize)
+                                throw std::runtime_error("Index (" + std::to_string(ii + 1) + ","
+                                                         + std::to_string(1)
+                                                         + ") exceeds dimensions");
+                            out.push_back(ii);
+                        } else {
+                            const double *d = idx.doubleData();
+                            for (size_t i = 0; i < idx.numel(); ++i) {
+                                size_t ii = static_cast<size_t>(d[i]) - 1;
+                                if (ii >= dimSize)
+                                    throw std::runtime_error("Index exceeds array dimensions");
+                                out.push_back(ii);
+                            }
+                        }
+                        return out;
+                    };
+
+                    auto rowIds = resolveSlice(ri, Rows);
+                    auto colIds = resolveSlice(ci, Cols);
+
+                    if (rowIds.size() == 1 && colIds.size() == 1) {
+                        // Scalar result — bounds already checked by resolveSlice
+                        R[I.a] = MValue::scalar(src[rowIds[0] + colIds[0] * Rows],
+                                                &engine_.allocator_);
+                    } else {
+                        size_t nR = rowIds.size(), nC = colIds.size();
+                        auto res = MValue::matrix(nR, nC, MType::DOUBLE, &engine_.allocator_);
+                        double *dst = res.doubleDataMut();
+                        for (size_t c = 0; c < nC; ++c)
+                            for (size_t r = 0; r < nR; ++r)
+                                dst[r + c * nR] = src[rowIds[r] + colIds[c] * Rows];
+                        R[I.a] = std::move(res);
+                    }
                 } else if (na == 3) {
                     size_t r = (size_t) R[argBase].toScalar() - 1;
                     size_t c = (size_t) R[argBase + 1].toScalar() - 1;
@@ -979,9 +1244,12 @@ dispatch_loop:
 // User function call — no VMValue conversion needed
 // ============================================================
 
-MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs)
+MValue VM::callUserFunc(const BytecodeChunk &funcChunk,
+                        const MValue *args,
+                        uint8_t nargs,
+                        size_t nargout)
 {
-    if (++recursionDepth_ > kMaxRecursion) {
+    if (++recursionDepth_ > maxRecursion_) {
         --recursionDepth_;
         throw std::runtime_error("VM: maximum recursion depth exceeded");
     }
@@ -1012,6 +1280,14 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
 
     for (uint8_t i = 0; i < pc; ++i)
         R_[i] = std::move(argsCopy[i]);
+
+    // Inject nargin/nargout into function scope
+    for (auto &[vname, reg] : funcChunk.varMap) {
+        if (vname == "nargin" && reg < nregs)
+            R_[reg] = MValue::scalar(static_cast<double>(nargs), nullptr);
+        else if (vname == "nargout" && reg < nregs)
+            R_[reg] = MValue::scalar(static_cast<double>(nargout), nullptr);
+    }
 
     // Import global variables from globalStore
     for (auto &gname : funcChunk.globalNames) {
@@ -1051,6 +1327,15 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk, const MValue *args, uint
     forStack_.resize(savedForSize);
     tryStack_.resize(savedTrySize);
     --recursionDepth_;
+
+    // If nargout==1 and function returned a RET_MULTI cell, unwrap first element.
+    // Distinguish from closure cells: RET_MULTI cells have numReturns > 1 and
+    // their first element is NOT a funcHandle.
+    if (nargout <= 1 && result.isCell() && funcChunk.numReturns > 1 && result.numel() >= 1
+        && !result.cellAt(0).isFuncHandle()) {
+        return result.cellAt(0);
+    }
+
     return result;
 }
 
@@ -1069,7 +1354,7 @@ std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
 {
     // Call the function — it returns a cell for multi-return (via RET_MULTI)
     // or a single value (via RET)
-    MValue result = callUserFunc(funcChunk, args, nargs);
+    MValue result = callUserFunc(funcChunk, args, nargs, nout);
 
     if (result.isCell() && result.numel() >= nout) {
         // RET_MULTI packed results in a cell
@@ -1094,6 +1379,32 @@ std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
 
 void VM::executeHorzcat(MValue &dst, const MValue *regs, uint8_t count)
 {
+    // Check if any element is a char (string concatenation)
+    bool hasChar = false;
+    for (uint8_t i = 0; i < count; ++i) {
+        if (!regs[i].isEmpty() && regs[i].type() == MType::CHAR) {
+            hasChar = true;
+            break;
+        }
+    }
+
+    if (hasChar) {
+        // String concatenation: ['hello' ' ' 'world'] → 'hello world'
+        std::string result;
+        for (uint8_t i = 0; i < count; ++i) {
+            if (regs[i].isEmpty())
+                continue;
+            if (regs[i].type() == MType::CHAR)
+                result += regs[i].toString();
+            else if (regs[i].isDoubleScalar())
+                result += static_cast<char>(static_cast<int>(regs[i].toScalar()));
+            else
+                throw std::runtime_error("Cannot concatenate char and non-char arrays");
+        }
+        dst = MValue::fromString(result, &engine_.allocator_);
+        return;
+    }
+
     // Determine output dimensions
     size_t totalCols = 0;
     size_t rows = 0;

@@ -115,7 +115,6 @@ void Engine::setOutputFunc(OutputFunc f)
 void Engine::setMaxRecursionDepth(int d)
 {
     treeWalker_->setMaxRecursionDepth(d);
-    vm_->setMaxRecursionDepth(d);
 }
 
 void Engine::outputText(const std::string &s)
@@ -143,7 +142,7 @@ bool Engine::hasExternalFunction(const std::string &name) const
 
 bool Engine::isInsideFunctionCall() const
 {
-    if (vm_ && (backend_ == Backend::VM || backend_ == Backend::AutoFallback))
+    if (vm_ && (backend_ == Backend::VM || backend_ == Backend::Auto))
         return vm_->callDepth() > 0;
     if (treeWalker_)
         return treeWalker_->callDepth() > 0;
@@ -181,6 +180,8 @@ MValue Engine::eval(const std::string &code)
             // but skip any that were cleared mid-execution.
             if (!clearAllCalled_) {
                 for (auto &[name, val] : vm_->lastVarMap()) {
+                    if (kBuiltinNames.count(name))
+                        continue;
                     if (clearedVars_.count(name))
                         continue;
                     // For global variables, prefer globalStore value (may have been set by called functions)
@@ -197,7 +198,7 @@ MValue Engine::eval(const std::string &code)
             // Backend::VM (strict) — rethrow, no fallback
             if (backend_ == Backend::VM)
                 throw;
-            // Backend::AutoFallback — silent fallback to TreeWalker
+            // Backend::Auto — silent fallback to TreeWalker
         }
     }
 

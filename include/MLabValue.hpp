@@ -286,6 +286,26 @@ public:
         heap_ = nullptr;
     } // caller guarantees no heap to release
 
+    // Fast logical set for VM comparison fast-path — tag-based, zero allocation
+    void setLogicalFast(bool v)
+    {
+        scalar_ = 0.0;
+        heap_ = v ? logicalTrueTag() : logicalFalseTag();
+    } // caller guarantees no heap to release
+
+    // Fast check: is this a logical scalar (tag-based)?
+    bool isLogicalScalar() const { return heap_ == logicalTrueTag() || heap_ == logicalFalseTag(); }
+
+    // Fast scalar value for both double and logical scalars
+    // Caller must ensure isDoubleScalar() || isLogicalScalar()
+    double fastScalarVal() const
+    {
+        if (heap_ == nullptr)
+            return scalar_;
+        // logical tag
+        return heap_ == logicalTrueTag() ? 1.0 : 0.0;
+    }
+
 private:
     // ── 16-byte layout ───────────────────────────────────────
     double scalar_ = 0.0;

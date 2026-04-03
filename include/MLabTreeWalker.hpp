@@ -79,7 +79,7 @@ private:
     // Core dispatch
     MValue execNode(const ASTNode *node, Environment *env);
     MValue execBlock(const ASTNode *node, Environment *env);
-    bool tryEvalScalar(const ASTNode *expr, Environment *env, double &out);
+    bool tryEvalFast(const ASTNode *expr, Environment *env, MValue &out);
 
     // Statements
     MValue execIdentifier(const ASTNode *node, Environment *env);

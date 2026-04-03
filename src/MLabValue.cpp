@@ -603,8 +603,12 @@ bool MValue::toBool() const
 }
 std::string MValue::toString() const
 {
-    if (isHeap() && heap_->type == MType::CHAR && heap_->buffer)
-        return std::string(static_cast<const char *>(heap_->buffer->data()), heap_->dims.numel());
+    if (isHeap() && heap_->type == MType::CHAR) {
+        if (heap_->buffer)
+            return std::string(static_cast<const char *>(heap_->buffer->data()),
+                               heap_->dims.numel());
+        return std::string(); // empty string (1x0 char)
+    }
     if (isHeap() && heap_->type == MType::FUNC_HANDLE && heap_->funcName)
         return *heap_->funcName;
     throw std::runtime_error("Not a char array");

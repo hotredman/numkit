@@ -234,6 +234,14 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileBlock(node);
     case NodeType::NUMBER_LITERAL:
         return compileNumber(node);
+    case NodeType::IMAG_LITERAL: {
+        // 3i → complexScalar(0, 3)
+        uint8_t dst = tempReg();
+        int16_t idx = static_cast<int16_t>(chunk_.constants.size());
+        chunk_.constants.push_back(MValue::complexScalar(0.0, node->numValue, nullptr));
+        emitAD(OpCode::LOAD_CONST, dst, idx);
+        return dst;
+    }
     case NodeType::STRING_LITERAL:
         return compileString(node);
     case NodeType::BOOL_LITERAL:
@@ -289,6 +297,20 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileFunctionDef(node);
     case NodeType::RETURN_STMT:
         return compileReturn(node);
+    case NodeType::END_VAL: {
+        // 'end' in indexing context — emit LOAD_END
+        // a=dst, b=arrReg, c=dim, d=ndims
+        uint8_t dst = tempReg();
+        emit(Instruction::make_abcde(OpCode::LOAD_END,
+                                     dst,
+                                     indexContextArr_,
+                                     indexContextDim_,
+                                     static_cast<int16_t>(indexContextNdims_),
+                                     0));
+        return dst;
+    }
+    case NodeType::DELETE_ASSIGN:
+        return compileDeleteAssign(node);
     default:
         throw std::runtime_error("Compiler: unsupported node type "
                                  + std::to_string(static_cast<int>(node->type)));
@@ -323,7 +345,9 @@ uint8_t Compiler::compileString(const ASTNode *node)
 uint8_t Compiler::compileBool(const ASTNode *node)
 {
     uint8_t dst = tempReg();
-    int16_t idx = addConstant(node->boolValue ? 1.0 : 0.0);
+    // Store as logical (tag-based, no heap allocation) for islogical() correctness
+    int16_t idx = static_cast<int16_t>(chunk_.constants.size());
+    chunk_.constants.push_back(MValue::logicalScalar(node->boolValue, nullptr));
     emitAD(OpCode::LOAD_CONST, dst, idx);
     return dst;
 }
@@ -678,11 +702,30 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
     for (size_t i = 0; i < node->branches.size(); ++i) {
         auto &[caseExpr, caseBody] = node->branches[i];
 
-        // Compile case expression
-        uint8_t caseReg = compileNode(caseExpr.get());
+        if (caseExpr->type == NodeType::CELL_LITERAL) {
+            // Cell case {val1, val2, ...}: match if switchReg == any element
+            // Get cell elements: may be wrapped in a BLOCK child
+            const std::vector<ASTNodePtr> *elements = &caseExpr->children;
+            if (caseExpr->children.size() == 1 && caseExpr->children[0]->type == NodeType::BLOCK) {
+                elements = &caseExpr->children[0]->children;
+            }
 
-        // Compare: cmpReg = (switchReg == caseReg)
-        emitABC(OpCode::EQ, cmpReg, switchReg, caseReg);
+            // Compile: cmpReg = (sv==el1) | (sv==el2) | ...
+            uint8_t tmpCmp = tempReg();
+            // Start with false
+            int16_t zeroIdx = addConstant(0.0);
+            emitAD(OpCode::LOAD_CONST, cmpReg, zeroIdx);
+
+            for (size_t ei = 0; ei < elements->size(); ++ei) {
+                uint8_t elReg = compileNode((*elements)[ei].get());
+                emitABC(OpCode::EQ, tmpCmp, switchReg, elReg);
+                emitABC(OpCode::OR, cmpReg, cmpReg, tmpCmp);
+            }
+        } else {
+            // Simple case: scalar comparison
+            uint8_t caseReg = compileNode(caseExpr.get());
+            emitABC(OpCode::EQ, cmpReg, switchReg, caseReg);
+        }
 
         // JMP_FALSE to next case
         size_t skipPos = currentPos();
@@ -1038,15 +1081,33 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
     uint8_t arr = varReg(name);
 
     if (nargs == 1) {
+        // Set index context so END_VAL knows the array and dimension
+        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
+                savedNd = indexContextNdims_;
+        indexContextArr_ = arr;
+        indexContextDim_ = 0;
+        indexContextNdims_ = 1;
         uint8_t idx = compileNode(node->children[argOffset].get());
+        indexContextArr_ = savedArr;
+        indexContextDim_ = savedDim;
+        indexContextNdims_ = savedNd;
         uint8_t dst = tempReg();
         emitABC(OpCode::INDEX_GET, dst, arr, idx);
         return dst;
     }
 
     if (nargs == 2) {
+        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
+                savedNd = indexContextNdims_;
+        indexContextArr_ = arr;
+        indexContextNdims_ = 2;
+        indexContextDim_ = 0;
         uint8_t row = compileNode(node->children[argOffset].get());
+        indexContextDim_ = 1;
         uint8_t col = compileNode(node->children[argOffset + 1].get());
+        indexContextArr_ = savedArr;
+        indexContextDim_ = savedDim;
+        indexContextNdims_ = savedNd;
         uint8_t dst = tempReg();
         emit(Instruction::make_abcde(OpCode::INDEX_GET_2D, dst, arr, row, 0, col));
         return dst;
@@ -1100,11 +1161,20 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
     uint8_t arr = varReg(name);
     uint8_t val = compileNode(rhs);
 
+    // Save/restore index context for END_VAL support
+    uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_, savedNd = indexContextNdims_;
+    indexContextArr_ = arr;
+
     if (nargs == 1) {
+        indexContextNdims_ = 1;
+        indexContextDim_ = 0;
         uint8_t idx = compileNode(lhs->children[argOffset].get());
         emitABC(OpCode::INDEX_SET, arr, idx, val);
     } else if (nargs == 2) {
+        indexContextNdims_ = 2;
+        indexContextDim_ = 0;
         uint8_t row = compileNode(lhs->children[argOffset].get());
+        indexContextDim_ = 1;
         uint8_t col = compileNode(lhs->children[argOffset + 1].get());
         emit(Instruction::make_abcde(OpCode::INDEX_SET_2D, arr, row, col, 0, val));
     } else {
@@ -1130,6 +1200,11 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
                                      0,
                                      safeVal));
     }
+
+    // Restore index context
+    indexContextArr_ = savedArr;
+    indexContextDim_ = savedDim;
+    indexContextNdims_ = savedNd;
 
     if (!node->suppressOutput) {
         int16_t nameIdx = addStringConstant(name);
@@ -1161,28 +1236,70 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
     auto *lhs = node->children[0].get(); // FIELD_ACCESS node
     auto *rhs = node->children[1].get();
 
-    // lhs->children[0] = object (IDENTIFIER)
-    // lhs->strValue = field name
-    auto *objNode = lhs->children[0].get();
-    if (objNode->type != NodeType::IDENTIFIER)
-        throw std::runtime_error("Compiler: nested field assign not yet supported");
+    // Collect the field chain: s.a.b → ["b", "a"] (outermost first)
+    // Walk from outermost FIELD_ACCESS inward to find root IDENTIFIER
+    std::vector<std::string> fieldChain;
+    const ASTNode *cur = lhs;
+    while (cur->type == NodeType::FIELD_ACCESS) {
+        fieldChain.push_back(cur->strValue);
+        cur = cur->children[0].get();
+    }
+    if (cur->type != NodeType::IDENTIFIER)
+        throw std::runtime_error("Compiler: invalid nested field assign target");
 
-    uint8_t obj = varReg(objNode->strValue);
-
-    // If variable doesn't exist yet, initialize as struct
-    // (VM will create struct on first FIELD_SET to empty)
-
+    // fieldChain is in reverse: ["b", "a"] for s.a.b
+    // Root variable
+    uint8_t rootReg = varReg(cur->strValue);
     uint8_t val = compileNode(rhs);
-    int16_t nameIdx = addStringConstant(lhs->strValue);
-    emitABC(OpCode::FIELD_SET, obj, val, 0);
-    chunk_.code.back().d = nameIdx;
 
-    if (!node->suppressOutput) {
-        int16_t dispIdx = addStringConstant(objNode->strValue);
-        emitAD(OpCode::DISPLAY, obj, dispIdx);
+    if (fieldChain.size() == 1) {
+        // Simple: s.x = val
+        int16_t nameIdx = addStringConstant(fieldChain[0]);
+        emitABC(OpCode::FIELD_SET, rootReg, val, 0);
+        chunk_.code.back().d = nameIdx;
+    } else {
+        // Nested: s.a.b = val  →  fieldChain = ["b", "a"]
+        // Step 1: FIELD_GET chain from root to second-to-last
+        //   intermediates[0] = s (rootReg)
+        //   intermediates[1] = FIELD_GET s."a" → t1
+        //   For s.a.b.c: intermediates[2] = FIELD_GET t1."b" → t2
+        std::vector<uint8_t> intermediates;
+        intermediates.push_back(rootReg);
+
+        // Walk from deepest to shallowest: fieldChain reversed = ["a", "b"]
+        for (size_t i = fieldChain.size() - 1; i >= 1; --i) {
+            uint8_t src = intermediates.back();
+            uint8_t dst = tempReg();
+            int16_t nameIdx = addStringConstant(fieldChain[i]);
+            emitABC(OpCode::FIELD_GET, dst, src, 0);
+            chunk_.code.back().d = nameIdx;
+            intermediates.push_back(dst);
+        }
+
+        // Step 2: FIELD_SET on the deepest intermediate
+        uint8_t deepest = intermediates.back();
+        int16_t leafIdx = addStringConstant(fieldChain[0]);
+        emitABC(OpCode::FIELD_SET, deepest, val, 0);
+        chunk_.code.back().d = leafIdx;
+
+        // Step 3: Write back chain (reverse order)
+        for (size_t i = intermediates.size() - 1; i >= 1; --i) {
+            uint8_t child = intermediates[i];
+            uint8_t parent = intermediates[i - 1];
+            // fieldChain index: fieldChain[intermediates.size() - i]
+            size_t fi = fieldChain.size() - i;
+            int16_t nameIdx = addStringConstant(fieldChain[fi]);
+            emitABC(OpCode::FIELD_SET, parent, child, 0);
+            chunk_.code.back().d = nameIdx;
+        }
     }
 
-    return obj;
+    if (!node->suppressOutput) {
+        int16_t dispIdx = addStringConstant(cur->strValue);
+        emitAD(OpCode::DISPLAY, rootReg, dispIdx);
+    }
+
+    return rootReg;
 }
 
 // ============================================================
@@ -1374,9 +1491,23 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
     if (isKnownVar) {
         uint8_t fhReg = varReg(name); // will import from globalEnv if needed
+
+        // Set index context for END_VAL (this could be array indexing)
+        uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_,
+                savedNd = indexContextNdims_;
+        indexContextArr_ = fhReg;
+        indexContextNdims_ = static_cast<uint8_t>(nargs);
+
         std::vector<uint8_t> argRegs;
-        for (size_t i = 1; i < node->children.size(); ++i)
+        for (size_t i = 1; i < node->children.size(); ++i) {
+            indexContextDim_ = static_cast<uint8_t>(i - 1);
             argRegs.push_back(compileNode(node->children[i].get()));
+        }
+
+        indexContextArr_ = savedArr;
+        indexContextDim_ = savedDim;
+        indexContextNdims_ = savedNd;
+
         uint8_t argBase = nextReg_;
         for (size_t i = 0; i < argRegs.size(); ++i) {
             uint8_t slot = tempReg();
@@ -1699,6 +1830,47 @@ uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
     return 0;
 }
 
+uint8_t Compiler::compileDeleteAssign(const ASTNode *node)
+{
+    // AST: children[0] = lhs (CALL node: children[0]=IDENTIFIER, children[1..]=indices)
+    // Semantics: v(idx) = []  →  delete elements
+    auto *lhs = node->children[0].get();
+    if (lhs->type != NodeType::CALL || lhs->children.empty())
+        throw std::runtime_error("Compiler: invalid delete assignment syntax");
+
+    auto *target = lhs->children[0].get();
+    if (target->type != NodeType::IDENTIFIER)
+        throw std::runtime_error("Compiler: invalid delete target");
+
+    uint8_t arr = varReg(target->strValue);
+    size_t nargs = lhs->children.size() - 1;
+
+    // Set index context for END_VAL
+    uint8_t savedArr = indexContextArr_, savedDim = indexContextDim_, savedNd = indexContextNdims_;
+    indexContextArr_ = arr;
+
+    if (nargs == 1) {
+        indexContextNdims_ = 1;
+        indexContextDim_ = 0;
+        uint8_t idx = compileNode(lhs->children[1].get());
+        emitAB(OpCode::INDEX_DELETE, arr, idx);
+    } else if (nargs == 2) {
+        indexContextNdims_ = 2;
+        indexContextDim_ = 0;
+        uint8_t row = compileNode(lhs->children[1].get());
+        indexContextDim_ = 1;
+        uint8_t col = compileNode(lhs->children[2].get());
+        emitABC(OpCode::INDEX_DELETE_2D, arr, row, col);
+    } else {
+        throw std::runtime_error("Compiler: delete with more than 2 indices not supported");
+    }
+
+    indexContextArr_ = savedArr;
+    indexContextDim_ = savedDim;
+    indexContextNdims_ = savedNd;
+    return arr;
+}
+
 // ============================================================
 // Builtin ID resolution (compile-time)
 // ============================================================
@@ -1847,6 +2019,12 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "INDEX_GET_ND";
         case OpCode::INDEX_SET_ND:
             return "INDEX_SET_ND";
+        case OpCode::INDEX_DELETE:
+            return "INDEX_DELETE";
+        case OpCode::INDEX_DELETE_2D:
+            return "INDEX_DELETE_2D";
+        case OpCode::LOAD_END:
+            return "LOAD_END";
         case OpCode::CALL:
             return "CALL";
         case OpCode::CALL_BUILTIN:

@@ -120,36 +120,7 @@ if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    add_executable(mlab_tests
-        tests/main.cpp
-        tests/lexer_test.cpp
-        tests/parser_test.cpp
-        tests/engine_test.cpp
-        tests/engine_advanced_test.cpp
-        tests/command_style_test.cpp
-        tests/figure_test.cpp
-        tests/signal_core_test.cpp
-        tests/convolution_test.cpp
-        tests/windows_test.cpp
-        tests/filter_test.cpp
-        tests/filter_design_test.cpp
-        tests/spectral_test.cpp
-        tests/resample_test.cpp
-        tests/transform_test.cpp
-        tests/interp_test.cpp
-        tests/tree_walker_test.cpp
-        tests/vm_test.cpp
-        tests/vm_benchmark.cpp
-    )
-
-    target_link_libraries(mlab_tests
-        PRIVATE
-            mlab::mlab
-            GTest::gtest_main
-    )
-
-    include(GoogleTest)
-    gtest_discover_tests(mlab_tests)
+    add_subdirectory(tests)
 endif()
 
 # ──────────────────────────────────────────────

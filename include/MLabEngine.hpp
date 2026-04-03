@@ -42,7 +42,10 @@ public:
     MValue eval(const std::string &code);
 
     // Backend selection
-    enum class Backend { TreeWalker, VM };
+    // AutoFallback = VM with silent fallback to TW (default, production)
+    // VM = VM only, no fallback (for testing)
+    // TreeWalker = TW only (for testing)
+    enum class Backend { AutoFallback, TreeWalker, VM };
     void setBackend(Backend b) { backend_ = b; }
     Backend backend() const { return backend_; }
 
@@ -120,7 +123,7 @@ public:
 
 private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::VM;
+    Backend backend_ = Backend::AutoFallback;
 
     friend class TreeWalker;
     friend class VM;
