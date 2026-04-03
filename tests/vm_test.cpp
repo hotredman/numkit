@@ -597,7 +597,6 @@ TEST_F(VMTest, CounterWithClosure)
 TEST_F(VMTest, CounterWithClosureMultiEval)
 {
     engine.setBackend(Engine::Backend::VM);
-
     engine.eval(R"(
         function [inc, get] = make_counter()
             count = 0;
@@ -606,13 +605,30 @@ TEST_F(VMTest, CounterWithClosureMultiEval)
         end
     )");
     engine.eval("[inc, get] = make_counter();");
-
-    auto *gv = engine.getVariable("get");
-    std::cerr << "get var = " << (gv ? gv->debugString() : "null") << "\n";
-
     MValue r = engine.eval("get();");
-    std::cerr << "get() = " << r.debugString() << "\n";
     EXPECT_DOUBLE_EQ(r.toScalar(), 0.0);
+}
+
+TEST_F(VMTest, FilterNyquistGain)
+{
+    engine.setBackend(Engine::Backend::VM);
+    engine.eval("b = [10 20 30];");
+    engine.eval("s = 0;");
+
+    // Dump bytecode for the loop
+    {
+        Lexer lexer("for k = 1:3; s = s + b(k); end;");
+        auto tokens = lexer.tokenize();
+        Parser parser(tokens);
+        auto ast = parser.parse();
+        auto chunk = engine.compilerPtr()->compile(ast.get());
+        std::cerr << Compiler::disassemble(chunk);
+    }
+
+    engine.eval("for k = 1:3; s = s + b(k); end;");
+    MValue r = engine.eval("s;");
+    std::cerr << "s = " << r.debugString() << "\n";
+    EXPECT_DOUBLE_EQ(r.toScalar(), 60.0);
 }
 
 // ============================================================

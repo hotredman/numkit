@@ -3,6 +3,7 @@
 
 #include "MLabAst.hpp"
 #include "MLabBytecode.hpp"
+#include <unordered_set>
 
 #include <string>
 #include <unordered_map>
@@ -51,6 +52,9 @@ private:
     uint8_t varReg(const std::string &name);
     // Read-only access — throws if variable undefined (triggers TW fallback)
     uint8_t varRegRead(const std::string &name);
+    // Pre-import global variables before compiling AST
+    void preImportGlobals(const ASTNode *ast);
+    void collectAllIdentifiers(const ASTNode *node, std::unordered_set<std::string> &out);
     // Allocate a temporary register
     uint8_t tempReg();
 

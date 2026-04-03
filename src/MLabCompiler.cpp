@@ -20,6 +20,11 @@ BytecodeChunk Compiler::compile(const ASTNode *ast)
     nextReg_ = 0;
     isTopLevel_ = true;
 
+    // Pre-import: scan AST for identifiers that exist in globalEnv,
+    // allocate registers and emit LOAD_CONST before main code.
+    // This prevents imports inside loops from resetting each iteration.
+    preImportGlobals(ast);
+
     uint8_t lastReg = compileNode(ast);
     emitA(OpCode::RET, lastReg);
 
@@ -37,6 +42,54 @@ BytecodeChunk Compiler::compile(const ASTNode *ast)
 // Register allocation
 // ============================================================
 
+void Compiler::preImportGlobals(const ASTNode *ast)
+{
+    // Collect all identifiers referenced in the AST
+    std::unordered_set<std::string> identifiers;
+    collectAllIdentifiers(ast, identifiers);
+
+    // For each identifier found in globalEnv, pre-allocate register and emit LOAD_CONST
+    for (auto &name : identifiers) {
+        if (varRegisters_.count(name))
+            continue; // already allocated
+        if (kBuiltinNames.count(name))
+            continue; // builtins handled separately
+
+        MValue *existing = engine_.getVariable(name);
+        if (existing && !existing->isEmpty()) {
+            uint8_t r = nextReg_++;
+            varRegisters_[name] = r;
+            int16_t idx = static_cast<int16_t>(chunk_.constants.size());
+            chunk_.constants.push_back(*existing);
+            emitAD(OpCode::LOAD_CONST, r, idx);
+        }
+    }
+}
+
+void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std::string> &out)
+{
+    if (!node)
+        return;
+    if (node->type == NodeType::IDENTIFIER)
+        out.insert(node->strValue);
+    // Also collect from CALL target names
+    if (node->type == NodeType::CALL && !node->children.empty()
+        && node->children[0]->type == NodeType::IDENTIFIER)
+        out.insert(node->children[0]->strValue);
+    // Recurse
+    for (auto &child : node->children)
+        collectAllIdentifiers(child.get(), out);
+    for (auto &[cond, body] : node->branches) {
+        collectAllIdentifiers(cond.get(), out);
+        collectAllIdentifiers(body.get(), out);
+    }
+    if (node->elseBranch)
+        collectAllIdentifiers(node->elseBranch.get(), out);
+    // Also strValue for for-loop variable, function names, etc.
+    if (node->type == NodeType::FOR_STMT && !node->strValue.empty())
+        out.insert(node->strValue);
+}
+
 uint8_t Compiler::varReg(const std::string &name)
 {
     auto it = varRegisters_.find(name);
@@ -45,16 +98,8 @@ uint8_t Compiler::varReg(const std::string &name)
     uint8_t r = nextReg_++;
     varRegisters_[name] = r;
 
-    // Import variable from globalEnv if it exists
-    // For top-level scripts: import all non-builtin variables
-    // For function bodies: import only builtin constants (inf, nan, pi, etc.)
-    bool shouldImport = false;
-    if (isTopLevel_ && chunk_.name == "<script>")
-        shouldImport = true;
-    else if (kBuiltinNames.count(name))
-        shouldImport = true;
-
-    if (shouldImport) {
+    // Import builtin constants (pi, inf, nan, etc.) regardless of context
+    if (kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());

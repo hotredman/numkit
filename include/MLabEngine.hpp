@@ -87,7 +87,7 @@ public:
 
 private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::TreeWalker;
+    Backend backend_ = Backend::VM;
 
     void reinstallConstants();
     friend class TreeWalker;
