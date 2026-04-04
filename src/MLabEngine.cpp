@@ -39,7 +39,8 @@ const std::unordered_set<std::string> kBuiltinNames = {"pi",
 Engine::Engine()
 {
     allocator_ = Allocator::defaultAllocator();
-    globalEnv_ = std::make_unique<Environment>(nullptr, &globalStore_);
+    constantsEnv_ = std::make_unique<Environment>(nullptr, &globalStore_);
+    globalEnv_ = std::make_unique<Environment>(constantsEnv_.get(), &globalStore_);
     treeWalker_ = std::make_unique<TreeWalker>(*this);
     compiler_ = std::make_unique<Compiler>(*this);
     vm_ = std::make_unique<VM>(*this);
@@ -52,16 +53,16 @@ Engine::~Engine() = default;
 
 void Engine::reinstallConstants()
 {
-    globalEnv_->set("pi", MValue::scalar(3.14159265358979323846, &allocator_));
-    globalEnv_->set("eps", MValue::scalar(2.2204460492503131e-16, &allocator_));
-    globalEnv_->set("inf", MValue::scalar(std::numeric_limits<double>::infinity(), &allocator_));
-    globalEnv_->set("Inf", MValue::scalar(std::numeric_limits<double>::infinity(), &allocator_));
-    globalEnv_->set("nan", MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
-    globalEnv_->set("NaN", MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
-    globalEnv_->set("true", MValue::logicalScalar(true, &allocator_));
-    globalEnv_->set("false", MValue::logicalScalar(false, &allocator_));
-    globalEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_));
-    globalEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_));
+    constantsEnv_->set("pi", MValue::scalar(3.14159265358979323846, &allocator_));
+    constantsEnv_->set("eps", MValue::scalar(2.2204460492503131e-16, &allocator_));
+    constantsEnv_->set("inf", MValue::scalar(std::numeric_limits<double>::infinity(), &allocator_));
+    constantsEnv_->set("Inf", MValue::scalar(std::numeric_limits<double>::infinity(), &allocator_));
+    constantsEnv_->set("nan", MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
+    constantsEnv_->set("NaN", MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
+    constantsEnv_->set("true", MValue::logicalScalar(true, &allocator_));
+    constantsEnv_->set("false", MValue::logicalScalar(false, &allocator_));
+    constantsEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_));
+    constantsEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_));
 }
 
 // ============================================================

@@ -723,3 +723,50 @@ TEST_P(ClearGlobalTest, ClearLocalDoesNotSeeGlobal)
 }
 
 INSTANTIATE_DUAL(ClearGlobalTest);
+
+// ============================================================
+// Function scope isolation (MATLAB semantics)
+// ============================================================
+
+class ScopeIsolationTest : public DualEngineTest
+{};
+
+TEST_P(ScopeIsolationTest, FunctionCannotSeeGlobalVars)
+{
+    eval("x = 100;");
+    eval(R"(
+        function r = test_iso()
+            r = exist('x');
+        end
+    )");
+    // Function should NOT see top-level x
+    EXPECT_DOUBLE_EQ(evalScalar("test_iso();"), 0.0);
+    // Top-level x still exists
+    EXPECT_DOUBLE_EQ(evalScalar("x;"), 100.0);
+}
+
+TEST_P(ScopeIsolationTest, FunctionSeesConstants)
+{
+    eval(R"(
+        function r = test_const()
+            r = pi;
+        end
+    )");
+    EXPECT_NEAR(evalScalar("test_const();"), 3.14159265358979, 1e-10);
+}
+
+TEST_P(ScopeIsolationTest, ClosureCapturesParentScope)
+{
+    eval("a = 10; f = @(x) x + a;");
+    EXPECT_DOUBLE_EQ(evalScalar("f(5);"), 15.0);
+}
+
+TEST_P(ScopeIsolationTest, ClosureDoesNotSeeNewGlobals)
+{
+    eval("a = 10; f = @(x) x + a;");
+    eval("a = 999;");
+    // Closure captured a=10 at creation time (snapshot)
+    EXPECT_DOUBLE_EQ(evalScalar("f(5);"), 15.0);
+}
+
+INSTANTIATE_DUAL(ScopeIsolationTest);

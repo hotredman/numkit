@@ -61,6 +61,7 @@ public:
     const FigureManager &figureManager() const { return figureManager_; }
 
     Environment &globalEnvironment() { return *globalEnv_; }
+    Environment &constantsEnvironment() { return *constantsEnv_; }
     GlobalStore &globalVarStore() { return globalStore_; }
 
     bool hasFunction(const std::string &name) const;
@@ -90,7 +91,8 @@ public:
 private:
     Allocator allocator_;
     GlobalStore globalStore_;
-    std::unique_ptr<Environment> globalEnv_;
+    std::unique_ptr<Environment> constantsEnv_; // pi, eps, inf, etc. — parent for all scopes
+    std::unique_ptr<Environment> globalEnv_;    // top-level workspace — parent = constantsEnv_
 
     std::unordered_map<std::string, BinaryOpFunc> binaryOps_;
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
@@ -123,7 +125,7 @@ public:
 
 private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::VM;
+    Backend backend_ = Backend::AutoFallback;
 
     friend class TreeWalker;
     friend class VM;

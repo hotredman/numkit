@@ -2442,7 +2442,7 @@ MValue TreeWalker::execAnonFunc(const ASTNode *node, Environment *env)
     bodyBlock->children.push_back(std::move(assignNode));
     uf.body = std::move(bodyBlock);
 
-    uf.closureEnv = env->snapshot(std::shared_ptr<Environment>(engine_.globalEnv_.get(),
+    uf.closureEnv = env->snapshot(std::shared_ptr<Environment>(engine_.constantsEnv_.get(),
                                                                [](Environment *) {}),
                                   &engine_.globalStore_);
 
@@ -2513,7 +2513,10 @@ MValue TreeWalker::callUserFunction(const UserFunction &func,
     if (args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
 
-    Environment *parentEnv = func.closureEnv ? func.closureEnv.get() : engine_.globalEnv_.get();
+    // Regular functions: parent = constantsEnv (see pi/eps/inf but NOT global variables)
+    // Closures: parent = captured scope (already contains correct chain)
+    Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
+                                             : &engine_.constantsEnvironment();
     Environment localEnv(parentEnv, &engine_.globalStore_);
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
@@ -2552,7 +2555,8 @@ std::vector<MValue> TreeWalker::callUserFunctionMulti(const UserFunction &func,
     if (args.size() > func.params.size())
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
 
-    Environment *parentEnv = func.closureEnv ? func.closureEnv.get() : engine_.globalEnv_.get();
+    Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
+                                             : &engine_.constantsEnvironment();
     Environment localEnv(parentEnv, &engine_.globalStore_);
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
