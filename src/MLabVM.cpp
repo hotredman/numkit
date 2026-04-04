@@ -103,34 +103,28 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             R_[i] = args[i];
     }
 
-    MValue result = executeInternal(chunk);
-
-    // Export script-level variables to lastVarMap_ for environment sync
-    lastVarMap_.clear();
-    for (auto &[name, reg] : chunk.varMap) {
-        if (reg < chunk.numRegisters)
-            lastVarMap_.push_back({name, R_[reg]});
-    }
-
-    // Export global declarations to globalStore
-    // Only write if register has a value (don't overwrite values set by called functions)
-    for (auto &gname : chunk.globalNames) {
-        for (auto &[vname, reg] : chunk.varMap) {
-            if (vname == gname && reg < chunk.numRegisters) {
-                if (!R_[reg].isEmpty())
-                    engine_.globalStore_.set(gname, R_[reg]);
-                // Also ensure globalEnv has the latest value from globalStore
-                MValue *gsVal = engine_.globalStore_.get(gname);
-                if (gsVal)
-                    engine_.globalEnv_->set(gname, *gsVal);
-                break;
-            }
+    // RAII: export variables and cleanup registers on ANY exit path
+    // (success, exception, early return). Guarantees MATLAB-like behavior:
+    // variables assigned before an error survive in workspace.
+    struct ExecuteGuard
+    {
+        VM &vm;
+        const BytecodeChunk &chunk;
+        ExecuteGuard(VM &v, const BytecodeChunk &c)
+            : vm(v)
+            , chunk(c)
+        {}
+        ~ExecuteGuard()
+        {
+            vm.exportVariables(chunk);
+            vm.regStackTop_ = 0;
+            vm.R_ = nullptr;
         }
-    }
+        ExecuteGuard(const ExecuteGuard &) = delete;
+        ExecuteGuard &operator=(const ExecuteGuard &) = delete;
+    } guard(*this, chunk);
 
-    regStackTop_ = 0;
-    R_ = nullptr;
-    return result;
+    return executeInternal(chunk);
 }
 
 // ============================================================
@@ -1441,21 +1435,82 @@ dispatch_loop:
             } // switch
             ++ip;
         } // while
-    } catch (const std::exception &ex) {
-        if (!tryStack_.empty()) {
-            TryHandler th = tryStack_.back();
-            tryStack_.pop_back();
-            MValue err = MValue::structure();
-            err.field("message") = MValue::fromString(ex.what(), &engine_.allocator_);
-            err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
-            R[th.exReg] = std::move(err);
-            ip = th.catchIp;
+    } catch (const MLabError &mle) {
+        if (dispatchTryCatch(mle.what(), R, ip))
             goto dispatch_loop;
-        }
         throw;
+    } catch (const std::exception &ex) {
+        if (dispatchTryCatch(ex.what(), R, ip))
+            goto dispatch_loop;
+        enrichAndThrow(ex, ip, chunk);
     }
 
     return MValue::empty();
+}
+
+// ============================================================
+// Variable export (called by ExecuteGuard on any exit)
+// ============================================================
+
+void VM::exportVariables(const BytecodeChunk &chunk)
+{
+    lastVarMap_.clear();
+    if (!R_)
+        return;
+
+    // Export script-level variables to lastVarMap_ for environment sync
+    for (auto &[name, reg] : chunk.varMap) {
+        if (reg < chunk.numRegisters)
+            lastVarMap_.push_back({name, R_[reg]});
+    }
+
+    // Export global declarations to globalStore
+    for (auto &gname : chunk.globalNames) {
+        for (auto &[vname, reg] : chunk.varMap) {
+            if (vname == gname && reg < chunk.numRegisters) {
+                if (!R_[reg].isEmpty())
+                    engine_.globalStore_.set(gname, R_[reg]);
+                MValue *gsVal = engine_.globalStore_.get(gname);
+                if (gsVal)
+                    engine_.globalEnv_->set(gname, *gsVal);
+                break;
+            }
+        }
+    }
+}
+
+// ============================================================
+// Exception helpers
+// ============================================================
+
+bool VM::dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip)
+{
+    if (tryStack_.empty())
+        return false;
+
+    TryHandler th = tryStack_.back();
+    tryStack_.pop_back();
+    MValue err = MValue::structure();
+    err.field("message") = MValue::fromString(msg, &engine_.allocator_);
+    err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
+    R[th.exReg] = std::move(err);
+    ip = th.catchIp;
+    return true;
+}
+
+[[noreturn]] void VM::enrichAndThrow(const std::exception &ex,
+                                     const Instruction *ip,
+                                     const BytecodeChunk &chunk)
+{
+    size_t instrIdx = static_cast<size_t>(ip - chunk.code.data());
+    if (instrIdx < chunk.sourceMap.size() && chunk.sourceMap[instrIdx].line > 0) {
+        throw MLabError(ex.what(),
+                        chunk.sourceMap[instrIdx].line,
+                        chunk.sourceMap[instrIdx].col,
+                        chunk.name);
+    }
+    // No source location available — wrap in MLabError anyway for consistency
+    throw MLabError(ex.what());
 }
 
 // ============================================================

@@ -224,6 +224,15 @@ struct Instruction
 static_assert(sizeof(Instruction) == 8, "Instruction must be 8 bytes");
 
 // ============================================================
+// Source location for debugging / error reporting
+// ============================================================
+struct SourceLoc
+{
+    uint16_t line = 0;
+    uint16_t col = 0;
+};
+
+// ============================================================
 // BytecodeChunk: compiled function or script
 // ============================================================
 struct BytecodeChunk
@@ -251,8 +260,11 @@ struct BytecodeChunk
     // Global variable names (declared with 'global' keyword)
     std::vector<std::string> globalNames;
 
-    // Source mapping (for error reporting)
-    std::vector<int> lineNumbers; // line number per instruction index
+    // Source mapping (parallel to code, same size — one entry per instruction)
+    std::vector<SourceLoc> sourceMap;
+
+    // Original source text (shared across chunks compiled from the same source)
+    std::shared_ptr<const std::string> sourceCode;
 };
 
 } // namespace mlab

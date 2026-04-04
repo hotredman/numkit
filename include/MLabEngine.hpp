@@ -124,6 +124,9 @@ private:
     std::unique_ptr<VM> vm_;
     Backend backend_ = Backend::AutoFallback;
 
+    // Sync VM's exported variables to globalEnv (called after execute, even on error)
+    void syncVMToGlobalEnv();
+
     friend class TreeWalker;
     friend class VM;
     friend class Compiler;

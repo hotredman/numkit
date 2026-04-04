@@ -25,6 +25,7 @@ public:
 
     // After execute(), get exported variables for environment sync
     const std::vector<std::pair<std::string, MValue>> &lastVarMap() const { return lastVarMap_; }
+    void clearLastVarMap() { lastVarMap_.clear(); }
 
     // True when executing inside a user function (not top-level script)
     int callDepth() const { return recursionDepth_; }
@@ -77,6 +78,15 @@ private:
 
     // Internal dispatch
     MValue executeInternal(const BytecodeChunk &chunk);
+
+    // Export registers to lastVarMap_ and globalStore (called on any exit from execute)
+    void exportVariables(const BytecodeChunk &chunk);
+
+    // Exception helpers for dispatch loop
+    bool dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip);
+    [[noreturn]] void enrichAndThrow(const std::exception &ex,
+                                     const Instruction *ip,
+                                     const BytecodeChunk &chunk);
 
     // User function call
     MValue callUserFunc(const BytecodeChunk &funcChunk,

@@ -20,10 +20,12 @@ class Compiler
 public:
     explicit Compiler(Engine &engine);
 
-    BytecodeChunk compile(const ASTNode *ast);
+    BytecodeChunk compile(const ASTNode *ast,
+                          std::shared_ptr<const std::string> sourceCode = nullptr);
 
     // Compile a function definition into a BytecodeChunk
-    BytecodeChunk compileFunction(const ASTNode *funcDef);
+    BytecodeChunk compileFunction(const ASTNode *funcDef,
+                                  std::shared_ptr<const std::string> sourceCode = nullptr);
 
     // Access compiled function table
     const std::unordered_map<std::string, BytecodeChunk> &compiledFuncs() const
@@ -53,6 +55,9 @@ private:
     uint8_t indexContextArr_ = 0;
     uint8_t indexContextDim_ = 0;
     uint8_t indexContextNdims_ = 1;
+
+    // Current source location (updated before compiling each node)
+    SourceLoc currentLoc_{};
 
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;

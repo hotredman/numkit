@@ -41,7 +41,7 @@ Compiler::Compiler(Engine &engine)
     : engine_(engine)
 {}
 
-BytecodeChunk Compiler::compile(const ASTNode *ast)
+BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::string> sourceCode)
 {
     // Deferred clear from previous clear functions / clear all
     if (compiledFuncsDirty_) {
@@ -51,9 +51,11 @@ BytecodeChunk Compiler::compile(const ASTNode *ast)
 
     chunk_ = BytecodeChunk{};
     chunk_.name = "<script>";
+    chunk_.sourceCode = std::move(sourceCode);
     varRegisters_.clear();
     loopStack_.clear();
     nextReg_ = 0;
+    currentLoc_ = {};
     isTopLevel_ = true;
 
     // Pre-import: scan AST for identifiers that exist in globalEnv,
@@ -204,6 +206,7 @@ uint8_t Compiler::tempReg()
 void Compiler::emit(Instruction instr)
 {
     chunk_.code.push_back(instr);
+    chunk_.sourceMap.push_back(currentLoc_);
 }
 
 void Compiler::emitABC(OpCode op, uint8_t a, uint8_t b, uint8_t c)
@@ -283,6 +286,12 @@ uint8_t Compiler::compileNode(const ASTNode *node)
 {
     if (!node)
         return 0;
+
+    // Update current source location from AST node (if it has valid line info)
+    if (node->line > 0) {
+        currentLoc_.line = static_cast<uint16_t>(node->line);
+        currentLoc_.col = static_cast<uint16_t>(node->col);
+    }
 
     switch (node->type) {
     case NodeType::BLOCK:
@@ -2014,7 +2023,8 @@ uint8_t Compiler::compileFunctionDef(const ASTNode *node)
     return 0;
 }
 
-BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
+BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
+                                        std::shared_ptr<const std::string> sourceCode)
 {
     // Save current compilation state
     auto savedChunk = std::move(chunk_);
@@ -2022,11 +2032,13 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     auto savedLoopStack = std::move(loopStack_);
     uint8_t savedNextReg = nextReg_;
     bool savedTopLevel = isTopLevel_;
+    SourceLoc savedLoc = currentLoc_;
     isTopLevel_ = false;
 
-    // Start fresh for function
+    // Start fresh for function — share source code with parent chunk if not provided
     chunk_ = BytecodeChunk{};
     chunk_.name = funcDef->strValue;
+    chunk_.sourceCode = sourceCode ? std::move(sourceCode) : savedChunk.sourceCode;
     chunk_.paramNames = funcDef->paramNames;
     chunk_.returnNames = funcDef->returnNames;
     chunk_.numParams = static_cast<uint8_t>(funcDef->paramNames.size());
@@ -2078,6 +2090,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     loopStack_ = std::move(savedLoopStack);
     nextReg_ = savedNextReg;
     isTopLevel_ = savedTopLevel;
+    currentLoc_ = savedLoc;
 
     return result;
 }
@@ -2370,7 +2383,15 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
 
     for (size_t i = 0; i < chunk.code.size(); ++i) {
         const auto &ins = chunk.code[i];
-        os << "  [" << i << "] " << opName(ins.op) << " a=" << (int) ins.a << " b=" << (int) ins.b
+
+        // Show source location if available
+        if (i < chunk.sourceMap.size() && chunk.sourceMap[i].line > 0) {
+            os << "  L" << chunk.sourceMap[i].line << ":" << chunk.sourceMap[i].col << "\t";
+        } else {
+            os << "  \t";
+        }
+
+        os << "[" << i << "] " << opName(ins.op) << " a=" << (int) ins.a << " b=" << (int) ins.b
            << " c=" << (int) ins.c << " d=" << ins.d << " e=" << (int) ins.e;
 
         if (ins.op == OpCode::LOAD_CONST && ins.d < (int16_t) chunk.constants.size()) {

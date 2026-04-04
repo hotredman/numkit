@@ -172,30 +172,25 @@ MValue Engine::eval(const std::string &code)
 
     if (backend_ != Backend::TreeWalker) {
         try {
-            // Reset clear tracking for this execution
+            // Reset state for this execution
             clearAllCalled_ = false;
+            vm_->clearLastVarMap();
 
-            auto chunk = compiler_->compile(ast.get());
+            auto src = std::make_shared<const std::string>(code);
+            auto chunk = compiler_->compile(ast.get(), src);
             vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+
+            // execute() exports variables via RAII guard (even on error)
             MValue result = vm_->execute(chunk);
 
-            // Export script-level variables to global environment.
-            if (clearAllCalled_) {
-                globalEnv_->clearAll();
-            }
-            for (auto &[name, val] : vm_->lastVarMap()) {
-                if (val.isUnset()) {
-                    // Cleared or never assigned — remove from globalEnv
-                    globalEnv_->remove(name);
-                } else {
-                    // For global variables, prefer globalStore value
-                    MValue *gsVal = globalStore_.get(name);
-                    globalEnv_->set(name, gsVal ? *gsVal : val);
-                }
-            }
-
+            // Sync exported variables to global environment
+            syncVMToGlobalEnv();
             return result;
         } catch (...) {
+            // Sync whatever was exported (may be empty if compile failed,
+            // or partial if execute failed mid-way — both correct)
+            syncVMToGlobalEnv();
+
             // Backend::VM (strict) — rethrow, no fallback
             if (backend_ == Backend::VM)
                 throw;
@@ -204,6 +199,23 @@ MValue Engine::eval(const std::string &code)
     }
 
     return treeWalker_->execute(ast.get(), globalEnv_.get());
+}
+
+// ============================================================
+// VM → globalEnv sync
+// ============================================================
+void Engine::syncVMToGlobalEnv()
+{
+    if (clearAllCalled_)
+        globalEnv_->clearAll();
+    for (auto &[name, val] : vm_->lastVarMap()) {
+        if (val.isUnset()) {
+            globalEnv_->remove(name);
+        } else {
+            MValue *gsVal = globalStore_.get(name);
+            globalEnv_->set(name, gsVal ? *gsVal : val);
+        }
+    }
 }
 
 // ============================================================
