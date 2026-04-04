@@ -23,6 +23,16 @@ const MValue *GlobalStore::get(const std::string &name) const
     return (it != vars_.end()) ? &it->second : nullptr;
 }
 
+void GlobalStore::remove(const std::string &name)
+{
+    vars_.erase(name);
+}
+
+void GlobalStore::clear()
+{
+    vars_.clear();
+}
+
 // ============================================================
 // Environment — SBO helpers
 // ============================================================
@@ -201,17 +211,26 @@ std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> 
 
 void Environment::remove(const std::string &name)
 {
+    // If this is a global variable, also remove from globalStore
+    if (hasGlobals_ && globals_.count(name) && globalStore_) {
+        globalStore_->remove(name);
+    }
+
     for (size_t i = 0; i < sboCount_; ++i) {
         if (sbo_[i].name == name) {
             if (i < sboCount_ - 1)
                 std::swap(sbo_[i], sbo_[sboCount_ - 1]);
             sboCount_--;
             globals_.erase(name);
+            if (globals_.empty())
+                hasGlobals_ = false;
             return;
         }
     }
     vars_.erase(name);
     globals_.erase(name);
+    if (globals_.empty())
+        hasGlobals_ = false;
 }
 
 void Environment::clearAll()

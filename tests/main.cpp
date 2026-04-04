@@ -4,6 +4,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest();
-    //::testing::GTEST_FLAG(filter) = "TW_VM/WorkspaceScopeTest.WhoWithArgs/TW";
+    //::testing::GTEST_FLAG(filter) = "TW_VM/ClearGlobalTest.ClearGlobalVariable/TW";
     return RUN_ALL_TESTS();
 }

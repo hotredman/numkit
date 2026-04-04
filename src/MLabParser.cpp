@@ -296,6 +296,7 @@ bool Parser::isCommandStyleCall() const
     case TokenType::NUMBER:
     case TokenType::KW_TRUE:
     case TokenType::KW_FALSE:
+    case TokenType::KW_GLOBAL:
         return true;
     default:
         return false;

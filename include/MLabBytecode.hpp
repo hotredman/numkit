@@ -121,7 +121,8 @@ enum class OpCode : uint8_t {
     CLOSURE_MAKE,    // [reserved] compiler uses cell-packing {funcHandle, captures} instead
     CLEAR_VAR,       // reg                    R[reg] = empty (clear variable)
     CLEAR_DYN,       // nameReg                lookup name in varMap, clear register
-    EXIST_VAR,       // dst, nameReg           check name in varMap/functions → 0/1/5
+    EXIST_VAR,       // dst, nameReg, filterReg  check name in varMap/functions → 0/1/5
+    //                           filterReg=0: no filter; else R[filterReg] = 'var'/'builtin'
     WHO,  // base, count            list variables (count=0: all, else R[base..base+count-1])
     WHOS, // base, count            list variables with details (same)
 

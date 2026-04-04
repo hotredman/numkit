@@ -16,6 +16,8 @@ public:
     void set(const std::string &name, MValue val);
     MValue *get(const std::string &name);
     const MValue *get(const std::string &name) const;
+    void remove(const std::string &name);
+    void clear();
 
 private:
     std::unordered_map<std::string, MValue> vars_;

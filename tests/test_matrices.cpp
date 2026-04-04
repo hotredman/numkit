@@ -628,3 +628,98 @@ TEST_P(WorkspaceScopeTest, WhosWithArgs)
 }
 
 INSTANTIATE_DUAL(WorkspaceScopeTest);
+
+// ============================================================
+// exist with type filter
+// ============================================================
+
+class ExistFilterTest : public DualEngineTest
+{};
+
+TEST_P(ExistFilterTest, ExistVarFilter)
+{
+    eval(R"(
+        function r = test_exist_var()
+            x = 42;
+            r = exist('x', 'var');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist_var();"), 1.0);
+}
+
+TEST_P(ExistFilterTest, ExistVarFilterMissing)
+{
+    eval(R"(
+        function r = test_exist_var2()
+            r = exist('zzz', 'var');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist_var2();"), 0.0);
+}
+
+TEST_P(ExistFilterTest, ExistBuiltinFilter)
+{
+    eval(R"(
+        function r = test_exist_builtin()
+            r = exist('sin', 'builtin');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist_builtin();"), 5.0);
+}
+
+TEST_P(ExistFilterTest, ExistBuiltinNotVar)
+{
+    eval(R"(
+        function r = test_exist_bv()
+            r = exist('sin', 'var');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist_bv();"), 0.0);
+}
+
+TEST_P(ExistFilterTest, ExistVarNotBuiltin)
+{
+    eval(R"(
+        function r = test_exist_vb()
+            x = 42;
+            r = exist('x', 'builtin');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist_vb();"), 0.0);
+}
+
+INSTANTIATE_DUAL(ExistFilterTest);
+
+// ============================================================
+// clear global
+// ============================================================
+
+class ClearGlobalTest : public DualEngineTest
+{};
+
+TEST_P(ClearGlobalTest, ClearGlobalVariable)
+{
+    eval("global g; g = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("g;"), 42.0);
+    eval("clear global g;");
+    // After clearing, exist should return 0
+    EXPECT_DOUBLE_EQ(evalScalar("exist('g');"), 0.0);
+}
+
+TEST_P(ClearGlobalTest, ClearLocalDoesNotSeeGlobal)
+{
+    // Global x exists, function clears local x — exist should return 0
+    eval("x = 100;");
+    eval(R"(
+        function r = test_scope()
+            x = 42;
+            clear x;
+            r = exist('x');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_scope();"), 0.0);
+    // Global x should still be there
+    EXPECT_DOUBLE_EQ(evalScalar("x;"), 100.0);
+}
+
+INSTANTIATE_DUAL(ClearGlobalTest);

@@ -1492,11 +1492,15 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
     // ── Workspace introspection builtins → opcodes inside functions ──
     if (!isTopLevel_) {
-        // exist(expr) → EXIST_VAR dst, nameReg
-        if (name == "exist" && nargs >= 1) {
+        // exist(expr) or exist(expr, filter) → EXIST_VAR dst, nameReg, filterReg
+        if (name == "exist" && (nargs == 1 || nargs == 2)) {
             uint8_t nameReg = compileNode(node->children[1].get());
+            uint8_t filterReg = 0;
+            if (nargs == 2) {
+                filterReg = compileNode(node->children[2].get());
+            }
             uint8_t dst = tempReg();
-            emitAB(OpCode::EXIST_VAR, dst, nameReg);
+            emitABC(OpCode::EXIST_VAR, dst, nameReg, filterReg);
             return dst;
         }
         // clear(expr) → CLEAR_DYN nameReg (runtime string)
@@ -1644,89 +1648,94 @@ uint8_t Compiler::compileCommandCall(const ASTNode *node)
 
     // ── clear x y z → CLEAR_VAR for each known variable ──
     if (name == "clear") {
-        if (nargs == 0) {
-            // clear (no args) — clear all local variables
+        // Determine what kind of clear this is
+        static const std::unordered_set<std::string> kClearFlags
+            = {"all", "classes", "functions", "global", "-regexp", "import"};
+
+        bool isFlag = nargs > 0 && kClearFlags.count(node->children[0]->strValue);
+        bool isClearAll = nargs == 0
+                          || (nargs > 0
+                              && (node->children[0]->strValue == "all"
+                                  || node->children[0]->strValue == "classes"));
+
+        // Step 1: emit CLEAR_VAR opcodes for local registers
+        if (isClearAll) {
+            // clear / clear all / clear classes → clear all local registers
             for (auto &[vname, reg] : varRegisters_) {
                 if (kBuiltinNames.count(vname) == 0)
                     emitA(OpCode::CLEAR_VAR, reg);
             }
-        } else {
-            std::string first = node->children[0]->strValue;
-            if (first == "all" || first == "classes") {
-                for (auto &[vname, reg] : varRegisters_) {
-                    if (kBuiltinNames.count(vname) == 0)
-                        emitA(OpCode::CLEAR_VAR, reg);
-                }
-            } else if (first == "functions") {
-                // No-op in VM function scope; at top level, fall through to CALL
-                if (!isTopLevel_)
-                    return tempReg();
-            } else {
-                // clear x y z — clear specific variables
-                for (size_t i = 0; i < nargs; ++i) {
-                    const std::string &varName = node->children[i]->strValue;
-                    if (kBuiltinNames.count(varName) == 0) {
-                        auto it = varRegisters_.find(varName);
-                        if (it != varRegisters_.end())
-                            emitA(OpCode::CLEAR_VAR, it->second);
-                    }
+        } else if (!isFlag) {
+            // clear x y z → clear specific variables
+            for (size_t i = 0; i < nargs; ++i) {
+                const std::string &varName = node->children[i]->strValue;
+                if (kBuiltinNames.count(varName) == 0) {
+                    auto it = varRegisters_.find(varName);
+                    if (it != varRegisters_.end())
+                        emitA(OpCode::CLEAR_VAR, it->second);
                 }
             }
-            // At top level, also call the externalFunc for side effects
-            // (clearUserFunctions, figureManager, markVarCleared, etc.)
-            if (isTopLevel_) {
-                uint8_t argBase = nextReg_;
-                for (size_t i = 0; i < nargs; ++i) {
-                    uint8_t slot = tempReg();
-                    int16_t strIdx = addStringConstant(node->children[i]->strValue);
-                    emitAD(OpCode::LOAD_STRING, slot, strIdx);
-                }
-                uint8_t dst = tempReg();
-                int16_t funcIdx = addStringConstant(name);
-                emit(Instruction::make_abcde(OpCode::CALL,
-                                             dst,
-                                             argBase,
-                                             static_cast<uint8_t>(nargs),
-                                             funcIdx,
-                                             0));
-                return dst;
-            }
-            return tempReg();
         }
-        // Top level clear (no args) — also call externalFunc
-        if (isTopLevel_) {
-            uint8_t dst = tempReg();
-            int16_t funcIdx = addStringConstant(name);
-            emit(Instruction::make_abcde(OpCode::CALL, dst, 0, 0, funcIdx, 0));
-            return dst;
-        }
-        return tempReg();
-    }
+        // Flags (functions, global, -regexp, import) don't clear local registers
 
-    // ── who/whos inside function → opcode ──
-    if (!isTopLevel_ && (name == "who" || name == "whos")) {
-        OpCode op = (name == "who") ? OpCode::WHO : OpCode::WHOS;
-        if (nargs == 0) {
-            emitAB(op, 0, 0);
-        } else {
-            uint8_t base = nextReg_;
+        // Step 2: call externalFunc for side effects on top level,
+        // or for flags that need runtime handling (global, -regexp, etc.)
+        if (isTopLevel_ || isFlag) {
+            uint8_t argBase = nextReg_;
             for (size_t i = 0; i < nargs; ++i) {
                 uint8_t slot = tempReg();
                 int16_t strIdx = addStringConstant(node->children[i]->strValue);
                 emitAD(OpCode::LOAD_STRING, slot, strIdx);
             }
-            emitAB(op, base, static_cast<uint8_t>(nargs));
+            uint8_t dst = tempReg();
+            int16_t funcIdx = addStringConstant(name);
+            emit(Instruction::make_abcde(OpCode::CALL,
+                                         dst,
+                                         argBase,
+                                         static_cast<uint8_t>(nargs),
+                                         funcIdx,
+                                         0));
+            return dst;
         }
+
         return tempReg();
     }
 
-    // ── exist x inside function → EXIST_VAR ──
-    if (!isTopLevel_ && name == "exist" && nargs >= 1) {
+    // ── who/whos inside function → opcode ──
+    if (!isTopLevel_ && (name == "who" || name == "whos")) {
+        // Check for unsupported flags — fall through to generic CALL
+        if (nargs > 0 && node->children[0]->strValue == "-file") {
+            // Fall through to generic command call (externalFunc warns)
+        } else {
+            OpCode op = (name == "who") ? OpCode::WHO : OpCode::WHOS;
+            if (nargs == 0) {
+                emitAB(op, 0, 0);
+            } else {
+                uint8_t base = nextReg_;
+                for (size_t i = 0; i < nargs; ++i) {
+                    uint8_t slot = tempReg();
+                    int16_t strIdx = addStringConstant(node->children[i]->strValue);
+                    emitAD(OpCode::LOAD_STRING, slot, strIdx);
+                }
+                emitAB(op, base, static_cast<uint8_t>(nargs));
+            }
+            return tempReg();
+        }
+    }
+
+    // ── exist x [type] inside function → EXIST_VAR ──
+    if (!isTopLevel_ && name == "exist" && (nargs == 1 || nargs == 2)) {
         uint8_t nameReg = tempReg();
         int16_t strIdx = addStringConstant(node->children[0]->strValue);
         emitAD(OpCode::LOAD_STRING, nameReg, strIdx);
+        uint8_t filterReg = 0;
+        if (nargs == 2) {
+            filterReg = tempReg();
+            int16_t fIdx = addStringConstant(node->children[1]->strValue);
+            emitAD(OpCode::LOAD_STRING, filterReg, fIdx);
+        }
         uint8_t dst = tempReg();
-        emitAB(OpCode::EXIST_VAR, dst, nameReg);
+        emitABC(OpCode::EXIST_VAR, dst, nameReg, filterReg);
         return dst;
     }
 

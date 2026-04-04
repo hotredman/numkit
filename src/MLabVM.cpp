@@ -1159,17 +1159,44 @@ dispatch_loop:
             }
 
             case OpCode::EXIST_VAR: {
+                // a=dst, b=nameReg, c=filterReg (0 = no filter)
                 std::string varName = R[I.b].toString();
+                std::string filter;
+                if (I.c != 0 && !R[I.c].isEmpty())
+                    filter = R[I.c].toString();
+
                 double code = 0;
-                for (auto &[vn, reg] : chunk.varMap) {
-                    if (vn == varName && reg < chunk.numRegisters) {
-                        if (!R[reg].isEmpty())
-                            code = 1;
-                        break;
+
+                if (filter.empty()) {
+                    // No filter: check variables first, then functions
+                    for (auto &[vn, reg] : chunk.varMap) {
+                        if (vn == varName && reg < chunk.numRegisters) {
+                            if (!R[reg].isEmpty())
+                                code = 1;
+                            break;
+                        }
                     }
+                    if (code == 0 && engine_.hasFunction(varName))
+                        code = 5;
+                } else if (filter == "var") {
+                    // Only check local variables
+                    for (auto &[vn, reg] : chunk.varMap) {
+                        if (vn == varName && reg < chunk.numRegisters) {
+                            if (!R[reg].isEmpty())
+                                code = 1;
+                            break;
+                        }
+                    }
+                } else if (filter == "builtin") {
+                    if (engine_.hasExternalFunction(varName))
+                        code = 5;
+                } else if (filter == "file" || filter == "dir" || filter == "class") {
+                    // Not supported — return 0
+                    if (engine_.outputFunc_)
+                        engine_.outputFunc_("Warning: exist(name, '" + filter
+                                            + "') is not yet supported.\n");
                 }
-                if (code == 0 && engine_.hasFunction(varName))
-                    code = 5;
+
                 R[I.a] = MValue::scalar(code, &engine_.allocator_);
                 break;
             }

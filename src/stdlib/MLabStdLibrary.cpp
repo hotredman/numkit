@@ -8,6 +8,12 @@
 
 namespace mlab {
 
+// ── Warning helper for unsupported features ──────────────────
+static void warnNotSupported(CallContext &ctx, const std::string &feature)
+{
+    ctx.engine->outputText("Warning: '" + feature + "' is not yet supported.\n");
+}
+
 void StdLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
@@ -68,7 +74,6 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 if (args.empty()) {
                                     if (insideFunc) {
-                                        // clear inside function: clear local workspace only
                                         env->clearAll();
                                     } else {
                                         env->clearAll();
@@ -79,6 +84,42 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 } else {
                                     std::string first = args[0].isChar() ? args[0].toString() : "";
+
+                                    // Unsupported flags
+                                    if (first == "-regexp") {
+                                        warnNotSupported(ctx, "clear -regexp");
+                                        outs[0] = MValue::empty();
+                                        return;
+                                    }
+                                    if (first == "global") {
+                                        auto *gs = ctx.env->globalStore();
+                                        if (args.size() == 1) {
+                                            // clear global — clear all globals
+                                            if (gs)
+                                                gs->clear();
+                                            env->clearAll();
+                                            ctx.engine->markClearAll();
+                                        } else {
+                                            // clear global x y — clear specific globals
+                                            for (size_t i = 1; i < args.size(); ++i) {
+                                                if (args[i].isChar()) {
+                                                    std::string gname = args[i].toString();
+                                                    if (gs)
+                                                        gs->remove(gname);
+                                                    env->remove(gname);
+                                                    ctx.engine->markVarCleared(gname);
+                                                }
+                                            }
+                                        }
+                                        outs[0] = MValue::empty();
+                                        return;
+                                    }
+                                    if (first == "import") {
+                                        warnNotSupported(ctx, "clear import");
+                                        outs[0] = MValue::empty();
+                                        return;
+                                    }
+
                                     if (first == "all" || first == "classes") {
                                         if (insideFunc) {
                                             env->clearAll();
@@ -92,8 +133,6 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     } else if (first == "functions") {
                                         if (!insideFunc)
                                             ctx.engine->clearUserFunctions();
-                                    } else if (first == "global") {
-                                        // TODO: clear global variables specifically
                                     } else {
                                         for (auto &a : args) {
                                             if (a.isChar()) {
@@ -121,6 +160,17 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
     engine.registerFunction("who",
                             [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
                                 auto *env = ctx.env;
+
+                                // Check for unsupported flags
+                                if (!args.empty() && args[0].isChar()) {
+                                    std::string first = args[0].toString();
+                                    if (first == "-file") {
+                                        warnNotSupported(ctx, "who -file");
+                                        outs[0] = MValue::empty();
+                                        return;
+                                    }
+                                }
+
                                 std::vector<std::string> names;
                                 if (args.empty()) {
                                     auto all = env->localNames();
@@ -132,7 +182,7 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     for (auto &a : args) {
                                         if (a.isChar()) {
                                             std::string varName = a.toString();
-                                            if (env->has(varName))
+                                            if (env->getLocal(varName))
                                                 names.push_back(varName);
                                         }
                                     }
@@ -154,6 +204,17 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
     engine.registerFunction("whos",
                             [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
                                 auto *env = ctx.env;
+
+                                // Check for unsupported flags
+                                if (!args.empty() && args[0].isChar()) {
+                                    std::string first = args[0].toString();
+                                    if (first == "-file") {
+                                        warnNotSupported(ctx, "whos -file");
+                                        outs[0] = MValue::empty();
+                                        return;
+                                    }
+                                }
+
                                 std::vector<std::string> names;
                                 if (args.empty()) {
                                     auto all = env->localNames();
@@ -165,7 +226,7 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     for (auto &a : args) {
                                         if (a.isChar()) {
                                             std::string varName = a.toString();
-                                            if (env->has(varName))
+                                            if (env->getLocal(varName))
                                                 names.push_back(varName);
                                         }
                                     }
@@ -220,7 +281,9 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 auto *env = ctx.env;
 
                                 std::ostringstream os;
-                                if (env->has(qname))
+                                if (env->getLocal(qname)
+                                    || (env->isGlobal(qname) && env->globalStore()
+                                        && env->globalStore()->get(qname)))
                                     os << qname << " is a variable.\n";
                                 else if (ctx.engine->hasUserFunction(qname))
                                     os << qname << " is a user-defined function.\n";
@@ -241,11 +304,46 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 std::string varName = args[0].toString();
                                 auto *env = ctx.env;
 
+                                // Optional second argument: type filter
+                                std::string typeFilter;
+                                if (args.size() >= 2 && args[1].isChar())
+                                    typeFilter = args[1].toString();
+
+                                // Unsupported type filters
+                                if (typeFilter == "file" || typeFilter == "dir") {
+                                    warnNotSupported(ctx, "exist(name, '" + typeFilter + "')");
+                                    outs[0] = MValue::scalar(0.0, &ctx.engine->allocator());
+                                    return;
+                                }
+                                if (typeFilter == "class") {
+                                    warnNotSupported(ctx, "exist(name, 'class')");
+                                    outs[0] = MValue::scalar(0.0, &ctx.engine->allocator());
+                                    return;
+                                }
+
                                 double code = 0;
-                                if (env->has(varName))
-                                    code = 1;
-                                else if (ctx.engine->hasFunction(varName))
-                                    code = 5;
+                                // Check local scope only for variables (don't leak to parent)
+                                bool isVar = (env->getLocal(varName) != nullptr);
+                                // Also check global declarations in current env
+                                if (!isVar && env->isGlobal(varName)) {
+                                    auto *gs = env->globalStore();
+                                    isVar = (gs && gs->get(varName) != nullptr);
+                                }
+                                bool isFunc = ctx.engine->hasFunction(varName);
+
+                                if (typeFilter.empty()) {
+                                    // No filter: return first match
+                                    if (isVar)
+                                        code = 1;
+                                    else if (isFunc)
+                                        code = 5;
+                                } else if (typeFilter == "var") {
+                                    if (isVar)
+                                        code = 1;
+                                } else if (typeFilter == "builtin") {
+                                    if (ctx.engine->hasExternalFunction(varName))
+                                        code = 5;
+                                }
 
                                 outs[0] = MValue::scalar(code, &ctx.engine->allocator());
                             });
