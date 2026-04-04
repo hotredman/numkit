@@ -794,6 +794,24 @@ TEST_P(ScopeIsolationTest, FunctionCannotReadGlobalVarSameEval)
                  std::exception);
 }
 
+TEST_P(ScopeIsolationTest, FuncBodyVarNotLeakedToScript)
+{
+    // Variable 'internal_var' only exists inside function body.
+    // preImportGlobals should NOT import it into top-level script.
+    eval("internal_var = 999;");
+    eval(R"(
+        function r = uses_internal()
+            internal_var = 42;
+            r = internal_var;
+        end
+        result = uses_internal();
+    )");
+    // Function should use its own local internal_var, not top-level
+    EXPECT_DOUBLE_EQ(evalScalar("result;"), 42.0);
+    // Top-level internal_var should be unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("internal_var;"), 999.0);
+}
+
 INSTANTIATE_DUAL(ScopeIsolationTest);
 
 // ============================================================

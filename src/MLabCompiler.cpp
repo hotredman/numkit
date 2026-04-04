@@ -106,6 +106,9 @@ void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std
 {
     if (!node)
         return;
+    // Don't recurse into function definitions — they compile with separate scope
+    if (node->type == NodeType::FUNCTION_DEF)
+        return;
     if (node->type == NodeType::IDENTIFIER)
         out.insert(node->strValue);
     // Also collect from CALL target names
