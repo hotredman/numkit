@@ -4,6 +4,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest();
-    //::testing::GTEST_FLAG(filter) = "EngineCommandStyleTest.ClearFunctions";
+    //::testing::GTEST_FLAG(filter) = "TW_VM/ScopeIsolationTest.FunctionCannotReadGlobalVar*";
     return RUN_ALL_TESTS();
 }

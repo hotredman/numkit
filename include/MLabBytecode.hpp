@@ -127,7 +127,8 @@ enum class OpCode : uint8_t {
     WHOS, // base, count            list variables with details (same)
 
     // ── Utility ──────────────────────────────────────────────
-    NOP, //                        no-op (patching, alignment)
+    NOP,        //                        no-op (patching, alignment)
+    ASSERT_DEF, // reg, nameIdx           throw if R[reg] is unset (undefined variable)
 
     // ── End marker ───────────────────────────────────────────
     HALT, //                        stop execution

@@ -769,6 +769,31 @@ TEST_P(ScopeIsolationTest, ClosureDoesNotSeeNewGlobals)
     EXPECT_DOUBLE_EQ(evalScalar("f(5);"), 15.0);
 }
 
+TEST_P(ScopeIsolationTest, FunctionCannotReadGlobalVar)
+{
+    eval("x = 100;");
+    eval(R"(
+        function r = test_read_global()
+            r = x;
+        end
+    )");
+    // Function defined OK, but calling it throws — x not in function scope
+    EXPECT_THROW(eval("test_read_global();"), std::exception);
+}
+
+TEST_P(ScopeIsolationTest, FunctionCannotReadGlobalVarSameEval)
+{
+    // Same eval — function def + call
+    EXPECT_THROW(eval(R"(
+        x = 100;
+        function r = test_rg2()
+            r = x;
+        end
+        test_rg2();
+    )"),
+                 std::exception);
+}
+
 INSTANTIATE_DUAL(ScopeIsolationTest);
 
 // ============================================================

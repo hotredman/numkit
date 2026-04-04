@@ -175,8 +175,18 @@ uint8_t Compiler::varRegRead(const std::string &name)
         return dst;
     }
 
-    // Unknown variable — throw to trigger TW fallback
-    throw std::runtime_error("Undefined variable: " + name);
+    // Unknown variable
+    if (isTopLevel_) {
+        // Top-level: throw to trigger TW fallback
+        throw std::runtime_error("Undefined variable: " + name);
+    }
+    // Inside function: variable might be assigned later (e.g. via eval, global).
+    // Allocate register — if still unset at runtime, emit error.
+    uint8_t reg = varReg(name);
+    // Emit runtime check: if R[reg] is unset, throw "Undefined variable: name"
+    int16_t nameIdx = addStringConstant(name);
+    emitAD(OpCode::ASSERT_DEF, reg, nameIdx);
+    return reg;
 }
 
 uint8_t Compiler::tempReg()
@@ -2288,6 +2298,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "HALT";
         case OpCode::NOP:
             return "NOP";
+        case OpCode::ASSERT_DEF:
+            return "ASSERT_DEF";
         case OpCode::CLEAR_VAR:
             return "CLEAR_VAR";
         case OpCode::CLEAR_DYN:

@@ -1147,6 +1147,12 @@ dispatch_loop:
                     forStack_.pop_back(); // break from for-loop
                 break;
 
+            case OpCode::ASSERT_DEF:
+                if (R[I.a].isUnset())
+                    throw std::runtime_error("Undefined function or variable '" + chunk.strings[I.d]
+                                             + "'");
+                break;
+
             case OpCode::CLEAR_VAR:
                 R[I.a] = MValue::empty();
                 break;
