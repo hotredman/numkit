@@ -7,12 +7,48 @@
 
 namespace mlab {
 
+// RAII guard for END_VAL compilation context
+class IndexContextGuard
+{
+public:
+    IndexContextGuard(Compiler &c, uint8_t arr, uint8_t ndims)
+        : comp_(c)
+        , savedArr_(c.indexContextArr_)
+        , savedDim_(c.indexContextDim_)
+        , savedNdims_(c.indexContextNdims_)
+    {
+        comp_.indexContextArr_ = arr;
+        comp_.indexContextDim_ = 0;
+        comp_.indexContextNdims_ = ndims;
+    }
+    ~IndexContextGuard()
+    {
+        comp_.indexContextArr_ = savedArr_;
+        comp_.indexContextDim_ = savedDim_;
+        comp_.indexContextNdims_ = savedNdims_;
+    }
+    void setDim(uint8_t d) { comp_.indexContextDim_ = d; }
+
+    IndexContextGuard(const IndexContextGuard &) = delete;
+    IndexContextGuard &operator=(const IndexContextGuard &) = delete;
+
+private:
+    Compiler &comp_;
+    uint8_t savedArr_, savedDim_, savedNdims_;
+};
+
 Compiler::Compiler(Engine &engine)
     : engine_(engine)
 {}
 
 BytecodeChunk Compiler::compile(const ASTNode *ast)
 {
+    // Deferred clear from previous clear functions / clear all
+    if (compiledFuncsDirty_) {
+        compiledFuncs_.clear();
+        compiledFuncsDirty_ = false;
+    }
+
     chunk_ = BytecodeChunk{};
     chunk_.name = "<script>";
     varRegisters_.clear();

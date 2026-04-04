@@ -154,8 +154,10 @@ bool Engine::isInsideFunctionCall() const
 void Engine::clearUserFunctions()
 {
     userFuncs_.clear();
+    // Defer clearing compiledFuncs until next compile — cannot clear
+    // during VM execution as current chunk may reference them.
     if (compiler_)
-        compiler_->clearCompiledFuncs();
+        compiler_->markCompiledFuncsDirty();
 }
 
 // ============================================================

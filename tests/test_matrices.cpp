@@ -1055,3 +1055,55 @@ TEST_P(BareFuncCallTest, TicTocInFunction)
 }
 
 INSTANTIATE_DUAL(BareFuncCallTest);
+
+// ============================================================
+// Function definition after clear in same eval
+// ============================================================
+
+class ClearAndFuncTest : public DualEngineTest
+{};
+
+TEST_P(ClearAndFuncTest, ClearThenDefineAndCall)
+{
+    eval(R"(
+        clear
+
+        function y = add_one(x)
+            y = x + 1;
+        end
+
+        r = add_one(5);
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("r;"), 6.0);
+}
+
+TEST_P(ClearAndFuncTest, ClearThenDefineAndCallInLoop)
+{
+    eval(R"(
+        clear
+
+        function y = inc(x)
+            y = x + 1;
+        end
+
+        v = 0;
+        for i = 1:10
+            v = inc(v);
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("v;"), 10.0);
+}
+
+TEST_P(ClearAndFuncTest, DefineAndCallWithoutClear)
+{
+    eval(R"(
+        function y = double_it(x)
+            y = x * 2;
+        end
+
+        r = double_it(7);
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("r;"), 14.0);
+}
+
+INSTANTIATE_DUAL(ClearAndFuncTest);
