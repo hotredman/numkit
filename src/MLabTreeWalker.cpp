@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <optional>
 #include <sstream>
 
 namespace mlab {
@@ -14,6 +15,15 @@ TreeWalker::TreeWalker(Engine &engine)
 
 MValue TreeWalker::execute(const ASTNode *ast, Environment *env)
 {
+    std::optional<DebugController::FrameGuard> dbgFrame;
+    if (auto *ctl = debugCtl()) {
+        ctl->reset();
+        StackFrame frame;
+        frame.functionName = topLevelName_;
+        frame.env = env;
+        dbgFrame.emplace(*ctl, std::move(frame));
+    }
+
     return execNode(ast, env);
 }
 
@@ -842,6 +852,16 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
 {
     MValue last = MValue::empty();
     for (auto &child : node->children) {
+        // ── Debug hook: check for line change, breakpoints ──
+        if (auto *ctl = debugCtl()) {
+            if (child->line > 0) {
+                if (!ctl->checkLine(static_cast<uint16_t>(child->line),
+                                    static_cast<uint16_t>(child->col),
+                                    currentRecursionDepth_))
+                    throw DebugStopException();
+            }
+        }
+
         // ── Fast paths for ASSIGN with suppressed output ──
         if (child->type == NodeType::ASSIGN && child->suppressOutput
             && child->children.size() == 2) {
@@ -2522,7 +2542,18 @@ MValue TreeWalker::callUserFunction(const UserFunction &func,
         localEnv.setLocal("nargout", MValue::scalar(static_cast<double>(nout), &engine_.allocator_));
     }
 
+    std::optional<DebugController::FrameGuard> dbgFrame;
+    if (auto *ctl = debugCtl()) {
+        StackFrame frame;
+        frame.functionName = func.name;
+        frame.env = &localEnv;
+        dbgFrame.emplace(*ctl, std::move(frame));
+    }
+
     execNode(func.body.get(), &localEnv);
+
+    dbgFrame.reset();
+
     if (flowSignal_ == FlowSignal::RETURN)
         flowSignal_ = FlowSignal::NONE;
 
@@ -2564,7 +2595,18 @@ std::vector<MValue> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         if (!localEnv.getLocal(retName))
             localEnv.setLocal(retName, MValue::empty());
 
+    std::optional<DebugController::FrameGuard> dbgFrame;
+    if (auto *ctl = debugCtl()) {
+        StackFrame frame;
+        frame.functionName = func.name;
+        frame.env = &localEnv;
+        dbgFrame.emplace(*ctl, std::move(frame));
+    }
+
     execNode(func.body.get(), &localEnv);
+
+    dbgFrame.reset();
+
     if (flowSignal_ == FlowSignal::RETURN)
         flowSignal_ = FlowSignal::NONE;
 
@@ -2577,6 +2619,15 @@ std::vector<MValue> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         results.push_back(val ? std::move(*val) : MValue::empty());
     }
     return results;
+}
+
+// ============================================================
+// Debugger helpers
+// ============================================================
+
+DebugController *TreeWalker::debugCtl()
+{
+    return engine_.debugController_.get();
 }
 
 } // namespace mlab

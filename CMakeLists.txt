@@ -32,6 +32,7 @@ set(MLAB_SOURCES
     src/MLabTreeWalker.cpp
     src/MLabCompiler.cpp
     src/MLabVM.cpp
+    src/MLabDebugger.cpp
     src/stdlib/MLabStdLibrary.cpp
     src/stdlib/MLabStdBinaryOps.cpp
     src/stdlib/MLabStdUnaryOps.cpp
@@ -73,6 +74,7 @@ set(MLAB_HEADERS
     include/MLabBytecode.hpp
     include/MLabCompiler.hpp
     include/MLabVM.hpp
+    include/MLabDebugger.hpp
 )
 
 if(MLAB_BUILD_SHARED)

@@ -1,6 +1,7 @@
 // include/MLabEngine.hpp
 #pragma once
 
+#include "MLabDebugger.hpp"
 #include "MLabFigureManager.hpp"
 #include "MLabTypes.hpp"
 
@@ -71,6 +72,12 @@ public:
     // Clear user-defined functions from both TW and VM stores
     void clearUserFunctions();
 
+    // --- Debugger API ---
+    void setDebugObserver(std::shared_ptr<DebugObserver> observer);
+    DebugObserver *debugObserver() const { return debugObserver_.get(); }
+    BreakpointManager &breakpointManager() { return breakpointManager_; }
+    const BreakpointManager &breakpointManager() const { return breakpointManager_; }
+
     // Reinstall built-in constants (pi, eps, inf, etc.) into globalEnv.
     // Called after clear to restore the standard environment.
     void reinstallConstants();
@@ -109,6 +116,11 @@ private:
     // Tracks whether clear/clear all was called during VM execution
     // so that export wipes globalEnv before writing back.
     bool clearAllCalled_ = false;
+
+    // Debugger
+    std::shared_ptr<DebugObserver> debugObserver_;
+    BreakpointManager breakpointManager_;
+    std::unique_ptr<DebugController> debugController_;  // created when observer is set
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

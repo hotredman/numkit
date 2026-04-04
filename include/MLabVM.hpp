@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MLabBytecode.hpp"
+#include "MLabDebugger.hpp"
 #include "MLabValue.hpp"
 
 #include <unordered_map>
@@ -103,6 +104,9 @@ private:
     void executeHorzcat(MValue &dst, const MValue *regs, uint8_t count);
     void executeVertcat(MValue &dst, const MValue *regs, uint8_t count);
     void forSetVar(MValue &varReg, const ForState &fs);
+
+    // ── Debugger ────────────────────────────────────────────
+    DebugController *debugCtl();
 };
 
 } // namespace mlab

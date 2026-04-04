@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 
@@ -124,6 +125,16 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
         ExecuteGuard &operator=(const ExecuteGuard &) = delete;
     } guard(*this, chunk);
 
+    std::optional<DebugController::FrameGuard> dbgFrame;
+    if (auto *ctl = debugCtl()) {
+        ctl->reset();
+        StackFrame frame;
+        frame.functionName = chunk.name;
+        frame.chunk = &chunk;
+        frame.registers = R_;
+        dbgFrame.emplace(*ctl, std::move(frame));
+    }
+
     return executeInternal(chunk);
 }
 
@@ -141,6 +152,20 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
 dispatch_loop:
     try {
         while (ip < end) {
+            // ── Debug hook: check for line change, breakpoints ──
+            if (auto *ctl = debugCtl()) {
+                size_t idx = static_cast<size_t>(ip - chunk.code.data());
+                if (idx < chunk.sourceMap.size()) {
+                    auto &loc = chunk.sourceMap[idx];
+                    if (loc.line > 0) {
+                        if (auto *f = ctl->currentFrame())
+                            f->registers = R;
+                        if (!ctl->checkLine(loc.line, loc.col, recursionDepth_))
+                            throw DebugStopException();
+                    }
+                }
+            }
+
             const Instruction &I = *ip;
 
             switch (I.op) {
@@ -1435,6 +1460,8 @@ dispatch_loop:
             } // switch
             ++ip;
         } // while
+    } catch (const DebugStopException &) {
+        throw; // pass through — not a user error
     } catch (const MLabError &mle) {
         if (dispatchTryCatch(mle.what(), R, ip))
             goto dispatch_loop;
@@ -1514,6 +1541,15 @@ bool VM::dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip)
 }
 
 // ============================================================
+// Debugger helpers
+// ============================================================
+
+DebugController *VM::debugCtl()
+{
+    return engine_.debugController_.get();
+}
+
+// ============================================================
 // User function call — no VMValue conversion needed
 // ============================================================
 
@@ -1575,7 +1611,26 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk,
         }
     }
 
+    // Debug: RAII frame guard — pops frame even on exception.
+    std::optional<DebugController::FrameGuard> dbgFrame;
+    if (auto *ctl = debugCtl()) {
+        StackFrame frame;
+        frame.functionName = funcChunk.name;
+        frame.chunk = &funcChunk;
+        frame.registers = R_;
+        dbgFrame.emplace(*ctl, std::move(frame));
+    }
+
     MValue result = executeInternal(funcChunk);
+
+    // Update parent frame's registers BEFORE popFrame —
+    // so onFunctionExit sees correct parent variables.
+    if (auto *ctl = debugCtl()) {
+        auto &stack = ctl->callStack();
+        if (stack.size() >= 2)
+            stack[stack.size() - 2].registers = savedR;
+    }
+    dbgFrame.reset();
 
     // Export global variables back to globalStore
     for (auto &gname : funcChunk.globalNames) {
