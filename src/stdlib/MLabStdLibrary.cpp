@@ -63,28 +63,35 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
     // ── clear ──────────────────────────────────────────────────
     engine.registerFunction("clear",
                             [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-                                if (ctx.engine->isInsideFunctionCall()) {
-                                    outs[0] = MValue::empty();
-                                    return;
-                                }
-
                                 auto *env = ctx.env;
+                                bool insideFunc = ctx.engine->isInsideFunctionCall();
+
                                 if (args.empty()) {
-                                    env->clearAll();
-                                    ctx.engine->clearUserFunctions();
-                                    ctx.engine->figureManager().closeAll();
-                                    ctx.engine->reinstallConstants();
-                                    ctx.engine->markClearAll();
-                                } else {
-                                    std::string first = args[0].isChar() ? args[0].toString() : "";
-                                    if (first == "all" || first == "classes") {
+                                    if (insideFunc) {
+                                        // clear inside function: clear local workspace only
+                                        env->clearAll();
+                                    } else {
                                         env->clearAll();
                                         ctx.engine->clearUserFunctions();
                                         ctx.engine->figureManager().closeAll();
                                         ctx.engine->reinstallConstants();
                                         ctx.engine->markClearAll();
+                                    }
+                                } else {
+                                    std::string first = args[0].isChar() ? args[0].toString() : "";
+                                    if (first == "all" || first == "classes") {
+                                        if (insideFunc) {
+                                            env->clearAll();
+                                        } else {
+                                            env->clearAll();
+                                            ctx.engine->clearUserFunctions();
+                                            ctx.engine->figureManager().closeAll();
+                                            ctx.engine->reinstallConstants();
+                                            ctx.engine->markClearAll();
+                                        }
                                     } else if (first == "functions") {
-                                        ctx.engine->clearUserFunctions();
+                                        if (!insideFunc)
+                                            ctx.engine->clearUserFunctions();
                                     } else if (first == "global") {
                                         // TODO: clear global variables specifically
                                     } else {
@@ -93,7 +100,8 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                                 std::string varName = a.toString();
                                                 if (kBuiltinNames.count(varName) == 0) {
                                                     env->remove(varName);
-                                                    ctx.engine->markVarCleared(varName);
+                                                    if (!insideFunc)
+                                                        ctx.engine->markVarCleared(varName);
                                                 }
                                             }
                                         }
@@ -117,7 +125,8 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.empty()) {
                                     auto all = env->localNames();
                                     for (auto &n : all)
-                                        if (kBuiltinNames.count(n) == 0)
+                                        if (kBuiltinNames.count(n) == 0 && n != "nargin"
+                                            && n != "nargout")
                                             names.push_back(n);
                                 } else {
                                     for (auto &a : args) {
@@ -149,7 +158,8 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.empty()) {
                                     auto all = env->localNames();
                                     for (auto &n : all)
-                                        if (kBuiltinNames.count(n) == 0)
+                                        if (kBuiltinNames.count(n) == 0 && n != "nargin"
+                                            && n != "nargout")
                                             names.push_back(n);
                                 } else {
                                     for (auto &a : args) {
@@ -178,6 +188,9 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                             sizeStr += "x" + std::to_string(d.pages());
                                         std::string bytesStr = std::to_string(val->rawBytes());
                                         std::string classStr = mtypeName(val->type());
+                                        std::string attrStr;
+                                        if (env->isGlobal(n))
+                                            attrStr = "global";
 
                                         os << "  " << n;
                                         for (size_t i = n.size(); i < 10; ++i)
@@ -190,7 +203,7 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         os << bytesStr << "  " << classStr;
                                         for (size_t i = classStr.size(); i < 10; ++i)
                                             os << " ";
-                                        os << "\n";
+                                        os << attrStr << "\n";
                                     }
                                     os << "\n";
                                 }

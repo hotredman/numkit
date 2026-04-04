@@ -1143,6 +1143,140 @@ dispatch_loop:
                     forStack_.pop_back(); // break from for-loop
                 break;
 
+            case OpCode::CLEAR_VAR:
+                R[I.a] = MValue::empty();
+                break;
+
+            case OpCode::CLEAR_DYN: {
+                std::string varName = R[I.a].toString();
+                for (auto &[vn, reg] : chunk.varMap) {
+                    if (vn == varName && reg < chunk.numRegisters) {
+                        R[reg] = MValue::empty();
+                        break;
+                    }
+                }
+                break;
+            }
+
+            case OpCode::EXIST_VAR: {
+                std::string varName = R[I.b].toString();
+                double code = 0;
+                for (auto &[vn, reg] : chunk.varMap) {
+                    if (vn == varName && reg < chunk.numRegisters) {
+                        if (!R[reg].isEmpty())
+                            code = 1;
+                        break;
+                    }
+                }
+                if (code == 0 && engine_.hasFunction(varName))
+                    code = 5;
+                R[I.a] = MValue::scalar(code, &engine_.allocator_);
+                break;
+            }
+
+            case OpCode::WHO: {
+                // I.a=base, I.b=count. count=0 means show all.
+                std::vector<std::string> names;
+                if (I.b == 0) {
+                    // Show all non-empty, non-internal variables
+                    for (auto &[vn, reg] : chunk.varMap) {
+                        if (reg < chunk.numRegisters && !R[reg].isEmpty()
+                            && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                            names.push_back(vn);
+                    }
+                } else {
+                    // Show only specified variables
+                    for (uint8_t i = 0; i < I.b; ++i) {
+                        std::string reqName = R[I.a + i].toString();
+                        for (auto &[vn, reg] : chunk.varMap) {
+                            if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                                names.push_back(vn);
+                                break;
+                            }
+                        }
+                    }
+                }
+                std::sort(names.begin(), names.end());
+                if (!names.empty()) {
+                    std::ostringstream os;
+                    os << "\nYour variables are:\n\n";
+                    for (auto &n : names)
+                        os << n << "  ";
+                    os << "\n\n";
+                    if (engine_.outputFunc_)
+                        engine_.outputFunc_(os.str());
+                    else
+                        std::cout << os.str();
+                }
+                break;
+            }
+
+            case OpCode::WHOS: {
+                // I.a=base, I.b=count. count=0 means show all.
+                std::vector<std::string> names;
+                if (I.b == 0) {
+                    for (auto &[vn, reg] : chunk.varMap) {
+                        if (reg < chunk.numRegisters && !R[reg].isEmpty()
+                            && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                            names.push_back(vn);
+                    }
+                } else {
+                    for (uint8_t i = 0; i < I.b; ++i) {
+                        std::string reqName = R[I.a + i].toString();
+                        for (auto &[vn, reg] : chunk.varMap) {
+                            if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                                names.push_back(vn);
+                                break;
+                            }
+                        }
+                    }
+                }
+                std::sort(names.begin(), names.end());
+                std::unordered_set<std::string> globalSet(chunk.globalNames.begin(),
+                                                          chunk.globalNames.end());
+                if (!names.empty()) {
+                    std::ostringstream os;
+                    os << "  Name" << std::string(6, ' ') << "Size" << std::string(13, ' ')
+                       << "Bytes  Class" << std::string(5, ' ') << "Attributes\n\n";
+                    for (auto &n : names) {
+                        for (auto &[vn2, reg2] : chunk.varMap) {
+                            if (vn2 == n && reg2 < chunk.numRegisters) {
+                                auto &val = R[reg2];
+                                auto &d = val.dims();
+                                std::string sizeStr = std::to_string(d.rows()) + "x"
+                                                      + std::to_string(d.cols());
+                                if (d.is3D())
+                                    sizeStr += "x" + std::to_string(d.pages());
+                                std::string bytesStr = std::to_string(val.rawBytes());
+                                std::string classStr = mtypeName(val.type());
+                                std::string attrStr;
+                                if (globalSet.count(n))
+                                    attrStr = "global";
+                                os << "  " << n;
+                                for (size_t i = n.size(); i < 10; ++i)
+                                    os << " ";
+                                os << sizeStr;
+                                for (size_t i = sizeStr.size(); i < 17; ++i)
+                                    os << " ";
+                                for (size_t i = bytesStr.size(); i < 5; ++i)
+                                    os << " ";
+                                os << bytesStr << "  " << classStr;
+                                for (size_t i = classStr.size(); i < 10; ++i)
+                                    os << " ";
+                                os << attrStr << "\n";
+                                break;
+                            }
+                        }
+                    }
+                    os << "\n";
+                    if (engine_.outputFunc_)
+                        engine_.outputFunc_(os.str());
+                    else
+                        std::cout << os.str();
+                }
+                break;
+            }
+
             // ── Try/catch ────────────────────────────────────────
             case OpCode::TRY_BEGIN: {
                 // I.d = offset to catch block, I.a = exception register

@@ -395,34 +395,22 @@ TEST_P(DynamicFieldTest, DynFieldMultiLine)
 
 TEST_P(DynamicFieldTest, DynFieldRawStringNoIndent)
 {
-    // Step by step to find where it breaks
-    eval("s6 = struct();");
-    eval("f = 'a';");
-    eval("s6.(f) = 10;");
+    // Manual newlines — works
+    EXPECT_DOUBLE_EQ(evalScalar(
+                         "\n        s5 = struct();\n        f = 'a';\n        s5.(f) = 10;\n       "
+                         " f = 'b';\n        s5.(f) = 20;\n        r = s5.a + s5.b;\n"),
+                     30.0);
 
-    // Check after first assign
-    EXPECT_DOUBLE_EQ(evalScalar("s6.a;"), 10.0) << "After first dynamic assign";
-
-    eval("f = 'b';");
-    eval("s6.(f) = 20;");
-
-    // Check both fields
-    EXPECT_DOUBLE_EQ(evalScalar("s6.a;"), 10.0) << "Field 'a' after second dynamic assign";
-    EXPECT_DOUBLE_EQ(evalScalar("s6.b;"), 20.0) << "Field 'b' after second dynamic assign";
-
-    // Now the combined version
-    EXPECT_DOUBLE_EQ(evalScalar("s6.a + s6.b;"), 30.0) << "Sum via separate evals";
-
-    // All in one eval — the failing pattern
+    // Exact R"() — previously failed
     const char *code = R"(
-        s7 = struct();
+        s6 = struct();
         f = 'a';
-        s7.(f) = 10;
+        s6.(f) = 10;
         f = 'b';
-        s7.(f) = 20;
-        r7 = s7.a + s7.b;
+        s6.(f) = 20;
+        r6 = s6.a + s6.b;
     )";
-    EXPECT_DOUBLE_EQ(evalScalar(code), 30.0) << "All in one R\"()\" eval";
+    EXPECT_DOUBLE_EQ(evalScalar(code), 30.0);
 }
 
 TEST_P(DynamicFieldTest, DynFieldAutoCreate)
@@ -432,3 +420,211 @@ TEST_P(DynamicFieldTest, DynFieldAutoCreate)
 }
 
 INSTANTIATE_DUAL(DynamicFieldTest);
+
+// ============================================================
+// Workspace introspection inside functions (clear/exist/who/whos)
+// ============================================================
+
+class WorkspaceScopeTest : public DualEngineTest
+{};
+
+// ── clear ──
+
+TEST_P(WorkspaceScopeTest, ClearLocalDoesNotAffectGlobal)
+{
+    eval("x = 100;");
+    eval(R"(
+        function r = test_clear()
+            x = 999;
+            clear x;
+            r = 1;
+        end
+    )");
+    eval("test_clear();");
+    EXPECT_DOUBLE_EQ(evalScalar("x;"), 100.0);
+}
+
+TEST_P(WorkspaceScopeTest, ClearLocalVariable)
+{
+    eval(R"(
+        function r = test_clear2()
+            x = 42;
+            clear x;
+            r = exist('x');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_clear2();"), 0.0);
+}
+
+TEST_P(WorkspaceScopeTest, ClearFunctionCallStyle)
+{
+    eval(R"(
+        function r = test_clear3()
+            x = 42;
+            clear('x');
+            r = exist('x');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_clear3();"), 0.0);
+}
+
+// ── exist ──
+
+TEST_P(WorkspaceScopeTest, ExistLocalVar)
+{
+    eval(R"(
+        function r = test_exist()
+            x = 42;
+            r = exist('x');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist();"), 1.0);
+}
+
+TEST_P(WorkspaceScopeTest, ExistMissingVar)
+{
+    eval(R"(
+        function r = test_exist2()
+            r = exist('zzz_nonexistent');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist2();"), 0.0);
+}
+
+TEST_P(WorkspaceScopeTest, ExistFunction)
+{
+    eval(R"(
+        function r = test_exist3()
+            r = exist('sin');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist3();"), 5.0);
+}
+
+TEST_P(WorkspaceScopeTest, ExistRuntimeString)
+{
+    eval(R"(
+        function r = test_exist4()
+            x = 42;
+            name = 'x';
+            r = exist(name);
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist4();"), 1.0);
+}
+
+TEST_P(WorkspaceScopeTest, ExistAfterClear)
+{
+    eval(R"(
+        function r = test_exist5()
+            x = 42;
+            clear x;
+            r = exist('x');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_exist5();"), 0.0);
+}
+
+// ── who ──
+
+TEST_P(WorkspaceScopeTest, WhoInsideFunction)
+{
+    eval(R"(
+        function r = test_who()
+            a = 1;
+            b = 2;
+            who;
+            r = 1;
+        end
+    )");
+    eval("test_who();");
+    EXPECT_NE(capturedOutput.find("a"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("b"), std::string::npos);
+}
+
+TEST_P(WorkspaceScopeTest, WhoFiltersNarginNargout)
+{
+    eval(R"(
+        function r = test_who2()
+            x = 42;
+            who;
+            r = 1;
+        end
+    )");
+    eval("test_who2();");
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("nargin"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("nargout"), std::string::npos);
+}
+
+// ── whos ──
+
+TEST_P(WorkspaceScopeTest, WhosInsideFunction)
+{
+    eval(R"(
+        function r = test_whos()
+            x = [1 2 3];
+            whos;
+            r = 1;
+        end
+    )");
+    eval("test_whos();");
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("1x3"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("nargin"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("nargout"), std::string::npos);
+}
+
+// ── clear all ──
+
+TEST_P(WorkspaceScopeTest, ClearAllInsideFunction)
+{
+    eval(R"(
+        function r = test_clearall()
+            x = 42;
+            y = 99;
+            clear all;
+            r = exist('x') + exist('y');
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_clearall();"), 0.0);
+}
+
+TEST_P(WorkspaceScopeTest, WhoWithArgs)
+{
+    eval(R"(
+        function r = test_who_args()
+            a = 1;
+            b = 2;
+            c = 3;
+            who a c;
+            r = 1;
+        end
+    )");
+    capturedOutput.clear();
+    eval("test_who_args();");
+    EXPECT_NE(capturedOutput.find("a  "), std::string::npos);
+    EXPECT_NE(capturedOutput.find("c  "), std::string::npos);
+    // "b  " should not appear (but "b" exists in "variables")
+    EXPECT_EQ(capturedOutput.find("b  "), std::string::npos);
+}
+
+TEST_P(WorkspaceScopeTest, WhosWithArgs)
+{
+    eval(R"(
+        function r = test_whos_args()
+            x = [1 2 3];
+            y = 42;
+            whos x;
+            r = 1;
+        end
+    )");
+    capturedOutput.clear();
+    eval("test_whos_args();");
+    EXPECT_NE(capturedOutput.find("x"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("1x3"), std::string::npos);
+    // "  y" with leading spaces = whos entry. Should not appear.
+    EXPECT_EQ(capturedOutput.find("  y"), std::string::npos);
+}
+
+INSTANTIATE_DUAL(WorkspaceScopeTest);
