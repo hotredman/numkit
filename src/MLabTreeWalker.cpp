@@ -988,7 +988,7 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
 }
 
 // ============================================================
-MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env)
+MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t nargout)
 {
     const std::string &name = node->strValue;
 
@@ -999,7 +999,7 @@ MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env)
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
         CallContext ctx{&engine_, env};
-        engine_.externalFuncs_[name]({}, 1, Span<MValue>(outBuf, 1), ctx);
+        engine_.externalFuncs_[name]({}, nargout, Span<MValue>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? MValue::empty() : outBuf[0];
     }
     {
@@ -1538,7 +1538,7 @@ std::vector<MValue> TreeWalker::callFuncHandleMulti(const MValue &handle,
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
-MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
+MValue TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout)
 {
     auto *funcNode = node->children[0].get();
 
@@ -1626,7 +1626,7 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
             MValue outBuf[1];
             CallContext ctx{&engine_, env};
             (*static_cast<const ExternalFunc *>(
-                funcNode->cachedOp))(args, 1, Span<MValue>(outBuf, 1), ctx);
+                funcNode->cachedOp))(args, nargout, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
 
@@ -1636,7 +1636,7 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
             funcNode->cachedOp = &it->second;
             MValue outBuf[1];
             CallContext ctx{&engine_, env};
-            it->second(args, 1, Span<MValue>(outBuf, 1), ctx);
+            it->second(args, nargout, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
         {
@@ -2348,27 +2348,17 @@ MValue TreeWalker::execFunctionDef(const ASTNode *node, Environment *env)
 
 MValue TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
 {
-    // For bare function calls in statement context, try builtins with nargout=0
-    // so that e.g. `toc;` prints elapsed time instead of returning silently.
     auto *child = node->children[0].get();
-    if (child->type == NodeType::CALL && !child->children.empty()
-        && child->children[0]->type == NodeType::IDENTIFIER) {
-        const std::string &name = child->children[0]->strValue;
-        std::vector<MValue> args;
-        args.reserve(child->children.size() - 1);
-        for (size_t i = 1; i < child->children.size(); ++i)
-            args.push_back(execNode(child->children[i].get(), env));
-    }
 
-    // Bare identifier in statement context (e.g. `tic` without parens)
-    if (child->type == NodeType::IDENTIFIER) {
-        const std::string &name = child->strValue;
-        if (!env->get(name)) {
-            // Will be resolved by execNode → execIdentifier → externalFuncs_
-        }
-    }
+    // Statement context: dispatch CALL and IDENTIFIER with nargout=0
+    MValue val;
+    if (child->type == NodeType::CALL)
+        val = execCall(child, env, 0);
+    else if (child->type == NodeType::IDENTIFIER)
+        val = execIdentifier(child, env, 0);
+    else
+        val = execNode(child, env);
 
-    auto val = execNode(child, env);
     if (!node->suppressOutput && !val.isEmpty()) {
         env->set("ans", val);
         displayValue("ans", val);
@@ -2391,7 +2381,7 @@ MValue TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
         CallContext ctx{&engine_, env};
-        engine_.externalFuncs_[name](args, 1, Span<MValue>(outBuf, 1), ctx);
+        engine_.externalFuncs_[name](args, 0, Span<MValue>(outBuf, 1), ctx);
         result = outBuf[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);

@@ -82,12 +82,12 @@ private:
     bool tryEvalFast(const ASTNode *expr, Environment *env, MValue &out);
 
     // Statements
-    MValue execIdentifier(const ASTNode *node, Environment *env);
+    MValue execIdentifier(const ASTNode *node, Environment *env, size_t nargout = 1);
     MValue execAssign(const ASTNode *node, Environment *env);
     MValue execMultiAssign(const ASTNode *node, Environment *env);
     MValue execBinaryOp(const ASTNode *node, Environment *env);
     MValue execUnaryOp(const ASTNode *node, Environment *env);
-    MValue execCall(const ASTNode *node, Environment *env);
+    MValue execCall(const ASTNode *node, Environment *env, size_t nargout = 1);
     MValue execCellIndex(const ASTNode *node, Environment *env);
     MValue execFieldAccess(const ASTNode *node, Environment *env);
     MValue execMatrixLiteral(const ASTNode *node, Environment *env);

@@ -895,6 +895,7 @@ dispatch_loop:
             // ── General function calls ───────────────────────────
             case OpCode::CALL: {
                 uint8_t argBase = I.b, na = I.c;
+                uint8_t nargout = I.e; // 0=statement, 1=expression
                 int16_t funcIdx = I.d;
                 MValue callResult;
                 bool resolved = false;
@@ -922,7 +923,7 @@ dispatch_loop:
                             MValue ob[1];
                             Span<MValue> os(ob, 1);
                             CallContext ctx{&engine_, &engine_.globalEnvironment()};
-                            extIt->second(as, 1, os, ctx);
+                            extIt->second(as, nargout, os, ctx);
                             R[I.a] = std::move(ob[0]);
                             break;
                         }
@@ -1109,6 +1110,9 @@ dispatch_loop:
 
             // ── Display ──────────────────────────────────────────
             case OpCode::DISPLAY: {
+                // Skip display for unset values (e.g. nargout=0 function returns)
+                if (R[I.a].isUnset())
+                    break;
                 const std::string &name = chunk.strings[I.d];
                 std::ostringstream os;
                 if (R[I.a].isDoubleScalar())

@@ -60,7 +60,7 @@ enum class OpCode : uint8_t {
     FOR_NEXT, // var, backOffset        advance iterator, jump back or fall through
 
     // ── Function calls ───────────────────────────────────────
-    CALL,          // dst, funcIdx, base, nargs       R[dst] = func(R[base..base+nargs-1])
+    CALL,          // dst, argBase, nargs, funcIdx, e=nargout  R[dst] = func(R[base..base+nargs-1])
     CALL_MULTI,    // dstBase, funcIdx, argBase, nargs, e=nout
     CALL_BUILTIN,  // dst, builtinId, base, nargs     inline builtin (mod, sin, etc.)
     CALL_INDIRECT, // dst, fhReg, base, nargs         R[dst] = R[fhReg](R[base..base+nargs-1])

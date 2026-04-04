@@ -171,7 +171,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
         uint8_t argBase = nextReg_;
         uint8_t dst = tempReg();
         int16_t funcIdx = addStringConstant(name);
-        emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
+        emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, nargoutContext_));
         return dst;
     }
 
@@ -625,6 +625,21 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
 {
     auto *child = node->children[0].get();
 
+    // Expression statements are nargout=0 context — functions should
+    // not produce output values (tic, figure, fprintf, etc.)
+    struct NargoutGuard
+    {
+        uint8_t &ref;
+        uint8_t saved;
+        NargoutGuard(uint8_t &r, uint8_t v)
+            : ref(r)
+            , saved(r)
+        {
+            ref = v;
+        }
+        ~NargoutGuard() { ref = saved; }
+    } nargoutGuard(nargoutContext_, 0);
+
     // ── Bare zero-arg function call ──────────────────────────────
     // When the parser sees `clear` or `figure` alone on a line (followed
     // by a terminator), it produces EXPR_STMT → IDENTIFIER.  The parser's
@@ -675,8 +690,8 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
                 }
             }
 
-            // Compile as zero-arg CALL
-            uint8_t argBase = nextReg_; // no args, but CALL needs a base
+            // Compile as zero-arg CALL (nargout=0 for statement context)
+            uint8_t argBase = nextReg_;
             uint8_t dst = tempReg();
             int16_t funcIdx = addStringConstant(name);
             emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
@@ -1695,8 +1710,12 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
     // General CALL
     int16_t funcIdx = addStringConstant(name);
-    emit(
-        Instruction::make_abcde(OpCode::CALL, dst, argBase, static_cast<uint8_t>(nargs), funcIdx, 0));
+    emit(Instruction::make_abcde(OpCode::CALL,
+                                 dst,
+                                 argBase,
+                                 static_cast<uint8_t>(nargs),
+                                 funcIdx,
+                                 nargoutContext_));
     return dst;
 }
 

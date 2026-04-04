@@ -1107,3 +1107,85 @@ TEST_P(ClearAndFuncTest, DefineAndCallWithoutClear)
 }
 
 INSTANTIATE_DUAL(ClearAndFuncTest);
+
+// ============================================================
+// nargout propagation — statement vs expression context
+// ============================================================
+
+class NargoutTest : public DualEngineTest
+{};
+
+TEST_P(NargoutTest, TicStatementNoOutput)
+{
+    // tic; as statement should NOT display anything
+    capturedOutput.clear();
+    eval("tic;");
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+}
+
+TEST_P(NargoutTest, TicExpressionReturnsValue)
+{
+    // id = tic should return a timestamp
+    eval("id = tic;");
+    double id = evalScalar("id;");
+    EXPECT_GT(id, 0.0);
+}
+
+TEST_P(NargoutTest, TocStatementPrintsElapsed)
+{
+    // toc as statement should print "Elapsed time is..." not "ans = ..."
+    eval("tic;");
+    capturedOutput.clear();
+    eval("toc;");
+    EXPECT_NE(capturedOutput.find("Elapsed time"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+}
+
+TEST_P(NargoutTest, TocExpressionReturnsScalar)
+{
+    eval("tic;");
+    eval("t = toc;");
+    double t = evalScalar("t;");
+    EXPECT_GE(t, 0.0);
+}
+
+TEST_P(NargoutTest, FprintfNoAnsOutput)
+{
+    // fprintf as statement should NOT display ans = []
+    capturedOutput.clear();
+    eval("fprintf('hello\\n');");
+    EXPECT_NE(capturedOutput.find("hello"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+}
+
+TEST_P(NargoutTest, FunctionCallStatementNoAns)
+{
+    // User function called as statement — no ans display
+    eval(R"(
+        function do_nothing()
+        end
+    )");
+    capturedOutput.clear();
+    eval("do_nothing();");
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+}
+
+TEST_P(NargoutTest, FunctionCallExpressionReturns)
+{
+    eval(R"(
+        function r = get_value()
+            r = 42;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("get_value();"), 42.0);
+}
+
+TEST_P(NargoutTest, DispStatementNoAns)
+{
+    capturedOutput.clear();
+    eval("disp(42);");
+    EXPECT_NE(capturedOutput.find("42"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos);
+}
+
+INSTANTIATE_DUAL(NargoutTest);

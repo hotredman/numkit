@@ -47,6 +47,7 @@ private:
     uint8_t nextReg_ = 0;
     int anonCounter_ = 0;
     bool isTopLevel_ = false;
+    uint8_t nargoutContext_ = 1; // expected number of outputs (0=statement, 1=expression)
 
     // Index context for END_VAL compilation
     uint8_t indexContextArr_ = 0;
