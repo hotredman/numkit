@@ -12,7 +12,7 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
   const C = useTheme();
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState("");
-  const [ctxMenu, setCtxMenu] = useState(null); // {x, y, tabId}
+  const [ctxMenu, setCtxMenu] = useState(null);
   const [canScrollL, setCanScrollL] = useState(false);
   const [canScrollR, setCanScrollR] = useState(false);
   const scrollRef = useRef(null);
@@ -31,7 +31,6 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
     return () => { el.removeEventListener('scroll', checkScroll); ro.disconnect(); };
   }, [checkScroll, tabs]);
 
-  // Close context menu on outside click
   useEffect(() => {
     if (!ctxMenu) return;
     const h = () => setCtxMenu(null);
@@ -50,10 +49,7 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
 
   return (
     <div style={{ display: 'flex', alignItems: 'center', background: C.bg0, borderBottom: `1px solid ${C.border}`, minHeight: 32, flexShrink: 0, position: 'relative' }}>
-      {/* Left scroll arrow */}
       <button onClick={() => scroll(-1)} style={arrowStyle(canScrollL)} disabled={!canScrollL}>◀</button>
-
-      {/* Scrollable tab container */}
       <div ref={scrollRef} className="tab-scroll" style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 1, padding: '3px 2px', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         onWheel={e => { if (scrollRef.current) scrollRef.current.scrollLeft += e.deltaY; }}>
         <style>{`.tab-scroll::-webkit-scrollbar{display:none}`}</style>
@@ -71,14 +67,8 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
           </div>
         ))}
       </div>
-
-      {/* Right scroll arrow */}
       <button onClick={() => scroll(1)} style={arrowStyle(canScrollR)} disabled={!canScrollR}>▶</button>
-
-      {/* New tab button */}
       <button onClick={onNew} style={{ background: 'none', border: `1px dashed ${C.border}`, borderRadius: 5, color: C.textMuted, fontSize: 13, padding: '1px 8px', cursor: 'pointer', lineHeight: 1, marginRight: 8, flexShrink: 0 }}>+</button>
-
-      {/* Context menu */}
       {ctxMenu && (
         <div onMouseDown={e => e.stopPropagation()} style={{ position: 'fixed', left: ctxMenu.x, top: ctxMenu.y, zIndex: 1000, background: C.bg3, border: `1px solid ${C.borderHi}`, borderRadius: 5, boxShadow: '0 4px 16px rgba(0,0,0,0.35)', minWidth: 160, padding: '4px 0' }}>
           {[
@@ -129,6 +119,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [consoleNotify, setConsoleNotify] = useState(false);
   const [figuresWidth, setFiguresWidth] = useState(360);
 
+  // ── Debug state ──
+  const [breakpoints, setBreakpoints] = useState({}); // { tabId: Set<lineNumber> }
+  const [debugState, setDebugState] = useState(null);  // null | { status, line, variables, bpHitCount, code }
+  const [debugLine, setDebugLine] = useState(null);     // current paused line
+
   const tabCountRef=useRef(1); const editorRef=useRef(null); const gutterRef=useRef(null); const consoleRef=useRef(null); const resizingRef=useRef(false); const resizingRightRef=useRef(false);
   const engine = engineProp;
 
@@ -137,13 +132,116 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
   const runCode=useCallback(code=>{
-    const t0=performance.now();const result=engine.execute(code);setExecTimeMs(performance.now()-t0);setErrorLine(null);
+    const t0=performance.now();const result=engine.execute(code);setExecTimeMs(performance.now()-t0);setErrorLine(null);setDebugLine(null);setDebugState(null);
     const items=[];if(result.output)for(const line of result.output.split("\n")){if(line==="__CLEAR__"){setOutput([]);continue;}items.push({type:/^Error/.test(line)?"error":/^Warning:/.test(line)?"warning":"result",text:line});}
     if(items.length){addOutput(items);setConsoleNotify(true);}
     if(result.closeAllFigures)setFigures([]);else if(result.closedFigureIds?.length){const closed=new Set(result.closedFigureIds);setFigures(prev=>prev.filter(f=>!closed.has(f.id)));}
     if(result.figures?.length){setFigures(prev=>{const map=new Map(prev.map(f=>[f.id,f]));for(const fig of result.figures)map.set(fig.id,fig);return Array.from(map.values());});setShowRight(true);}
     if(result.errorLine)setErrorLine(result.errorLine);setVariables(engine.getVars());
   },[engine,addOutput]);
+
+  // ── Debug actions ──
+  const getActiveBreakpoints = useCallback(() => {
+    const bps = breakpoints[activeTab];
+    return bps ? Array.from(bps).sort((a, b) => a - b) : [];
+  }, [breakpoints, activeTab]);
+
+  const toggleBreakpoint = useCallback((line) => {
+    setBreakpoints(prev => {
+      const next = { ...prev };
+      const tabBps = new Set(next[activeTab] || []);
+      if (tabBps.has(line)) tabBps.delete(line);
+      else tabBps.add(line);
+      next[activeTab] = tabBps;
+      return next;
+    });
+  }, [activeTab]);
+
+  const debugExecute = useCallback((skipBp = 0) => {
+    const tab = tabs.find(t => t.id === activeTab);
+    if (!tab || !tab.code.trim()) return;
+
+    const bpLines = getActiveBreakpoints();
+    if (bpLines.length === 0 && skipBp === 0) {
+      addOutput([{ type: "warning", text: "No breakpoints set. Click the gutter to add breakpoints." }]);
+      setConsoleNotify(true);
+      return;
+    }
+
+    setShowBottom(true);
+    setErrorLine(null);
+
+    if (skipBp === 0) {
+      addOutput([{ type: "system", text: `── Debug ${tab.name} ──` }]);
+      setConsoleNotify(true);
+    }
+
+    engine.debugSetBreakpoints(bpLines);
+    const t0 = performance.now();
+    const result = engine.debugExecute(tab.code, skipBp);
+    setExecTimeMs(performance.now() - t0);
+
+    if (result.output) {
+      const items = result.output.split("\n").map(line => ({
+        type: /^Error/.test(line) ? "error" : "result",
+        text: line,
+      }));
+      addOutput(items);
+      setConsoleNotify(true);
+    }
+
+    if (result.status === 'paused' && result.pauseState) {
+      const ps = result.pauseState;
+      setDebugLine(ps.line);
+      setDebugState({
+        status: 'paused',
+        line: ps.line,
+        variables: ps.variables || {},
+        reason: ps.reason,
+        bpHitCount: result.breakpointHitCount || 0,
+        code: tab.code,
+      });
+      addOutput([{
+        type: "system",
+        text: `⏸ Paused at line ${ps.line} (${ps.reason})`,
+      }]);
+      // Show debug variables in workspace
+      if (ps.variables && typeof ps.variables === 'object') {
+        const debugVars = {};
+        for (const [name, preview] of Object.entries(ps.variables)) {
+          debugVars[name] = preview;
+        }
+        setVariables(debugVars);
+      }
+      setBottomTab("workspace");
+      setConsoleNotify(true);
+    } else if (result.status === 'completed') {
+      setDebugLine(null);
+      setDebugState(null);
+      addOutput([{ type: "system", text: "✓ Debug completed" }]);
+      setConsoleNotify(true);
+      setVariables(engine.getVars());
+    } else if (result.status === 'error') {
+      setDebugLine(null);
+      setDebugState(null);
+      if (result.line) setErrorLine(result.line);
+      addOutput([{ type: "error", text: `Error: ${result.message}` }]);
+      setConsoleNotify(true);
+      setVariables(engine.getVars());
+    }
+  }, [tabs, activeTab, getActiveBreakpoints, engine, addOutput]);
+
+  const debugContinue = useCallback(() => {
+    if (!debugState || debugState.status !== 'paused') return;
+    debugExecute(debugState.bpHitCount);
+  }, [debugState, debugExecute]);
+
+  const debugStop = useCallback(() => {
+    setDebugLine(null);
+    setDebugState(null);
+    addOutput([{ type: "system", text: "■ Debug stopped" }]);
+    setConsoleNotify(true);
+  }, [addOutput]);
 
   const handleBottomTabChange=useCallback(id=>{setBottomTab(id);if(id==="console")setConsoleNotify(false);},[]);
   const handleCloseFigure=useCallback(id=>{engine.execute(`close(${id})`);},[engine]);
@@ -157,7 +255,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const activeTabData=tabs.find(t=>t.id===activeTab)||tabs[0];
   const updateTabCode=useCallback(code=>{setTabs(p=>p.map(t=>t.id===activeTab?{...t,code,modified:true}:t));},[activeTab]);
 
-  const runActiveTab=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab||!tab.code.trim())return;setShowBottom(true);addOutput([{type:"system",text:`── Running ${tab.name} ──`},{type:"input",text:tab.code}]);setConsoleNotify(true);runCode(tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));},[tabs,activeTab,addOutput,runCode]);
+  const runActiveTab=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab||!tab.code.trim())return;setShowBottom(true);setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:`── Running ${tab.name} ──`},{type:"input",text:tab.code}]);setConsoleNotify(true);runCode(tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));},[tabs,activeTab,addOutput,runCode]);
 
   const handleOpenFile=useCallback((filename,content,vfsPath,source)=>{const existing=tabs.find(t=>t.vfsPath&&t.vfsPath===vfsPath);if(existing){setActiveTab(existing.id);return;}tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:filename,code:content,modified:false,vfsPath:vfsPath||null,source:source||null}]);setActiveTab(id);setShowCenter(true);},[tabs]);
   const handleSaveToVFS=useCallback(async(path,name)=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const fullPath=path||tab.vfsPath;if(!fullPath)return;await vfs.writeFile(fullPath,tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'local'}:t));setVfsRefreshKey(k=>k+1);addOutput([{type:"system",text:`Saved ${name||tab.name}`}]);setConsoleNotify(true);},[tabs,activeTab,addOutput]);
@@ -171,8 +269,11 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const handleRightResizeStart=useCallback(e=>{e.preventDefault();resizingRightRef.current=true;const sX=e.clientX,sW=figuresWidth;const onM=ev=>{if(!resizingRightRef.current)return;setFiguresWidth(Math.max(200,Math.min(window.innerWidth*0.5,sW+sX-ev.clientX)));};const onU=()=>{resizingRightRef.current=false;document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU);};document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU);},[figuresWidth]);
   const handleEditorScroll=useCallback(scrollTop=>{if(gutterRef.current)gutterRef.current.scrollTop=scrollTop;},[]);
 
+  const activeBreakpointsSet = breakpoints[activeTab] || new Set();
+  const isDebugging = debugState?.status === 'paused';
+
   const PanelBtn=({active,onClick,icon,label,title,notify})=>(<button onClick={onClick} title={title} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4,background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.background=C.bg3;}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}><span style={{fontSize:13}}>{icon}</span>{label}{notify&&<span style={{width:6,height:6,borderRadius:"50%",background:C.green,position:"absolute",top:2,right:2}}/>}</button>);
-  const ActBtn=({onClick,icon,label,color,title})=>(<button onClick={onClick} title={title} style={{display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4,background:C.bg2,color:color||C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap"}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.borderHi} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}><span style={{fontSize:12}}>{icon}</span>{label}</button>);
+  const ActBtn=({onClick,icon,label,color,title,disabled})=>(<button onClick={onClick} title={title} disabled={disabled} style={{display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4,background:C.bg2,color:color||C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:disabled?"default":"pointer",transition:"all 0.15s",whiteSpace:"nowrap",opacity:disabled?0.4:1}} onMouseEnter={e=>{if(!disabled)e.currentTarget.style.borderColor=C.borderHi;}} onMouseLeave={e=>e.currentTarget.style.borderColor=C.border}><span style={{fontSize:12}}>{icon}</span>{label}</button>);
   const bottomTabBtn=(id,label,notify)=>(<button onClick={()=>handleBottomTabChange(id)} style={{padding:"5px 12px",border:"none",borderBottom:bottomTab===id?`2px solid ${C.accent}`:"2px solid transparent",background:"transparent",color:notify&&bottomTab!==id?C.green:bottomTab===id?C.text:C.textMuted,fontFamily:FONT_UI,fontSize:11,fontWeight:(notify&&bottomTab!==id)||bottomTab===id?600:400,cursor:"pointer",transition:"all 0.15s"}}>{label}</button>);
 
   return (
@@ -186,12 +287,15 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <PanelBtn active={showBottom} onClick={()=>setShowBottom(!showBottom)} icon="💻" label="Terminal" title="Bottom Panel"/>
         </div>
         <div style={{display:"flex",gap:3,flexShrink:0}}>
-          {showCenter&&<ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script"/>}
+          {showCenter&&<ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script" disabled={isDebugging}/>}
+          {showCenter&&<ActBtn onClick={()=>debugExecute(0)} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint" disabled={isDebugging}/>}
+          {isDebugging&&<ActBtn onClick={debugContinue} icon="⏩" label="Continue" color={C.cyan} title="Continue to next breakpoint"/>}
+          {isDebugging&&<ActBtn onClick={debugStop} icon="⏹" label="Stop" color={C.red} title="Stop debugging"/>}
           {showCenter&&<ActBtn onClick={handleSave} icon="💾" label="Save" title="Ctrl+S"/>}
           <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file"/>
           {showCenter&&<ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download"/>}
           <ActBtn onClick={()=>setOutput([])} icon="🗑" label="Clear" title="Clear console"/>
-          <ActBtn onClick={()=>{engine.reset();setVariables({});addOutput([{type:"system",text:"Workspace cleared."}]);setConsoleNotify(true);}} icon="🔄" label="Reset" title="Reset workspace"/>
+          <ActBtn onClick={()=>{engine.reset();setVariables({});setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:"Workspace cleared."}]);setConsoleNotify(true);}} icon="🔄" label="Reset" title="Reset workspace"/>
           <button onClick={toggleTheme} title={`Switch to ${themeName==='dark'?'light':'dark'} theme`}
             style={{display:"flex",alignItems:"center",gap:3,padding:"4px 8px",border:`1px solid ${C.border}`,borderRadius:4,background:C.bg2,color:C.textDim,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",whiteSpace:"nowrap"}}>
             <span style={{fontSize:12}}>{themeName==='dark'?'☀️':'🌙'}</span>{themeName==='dark'?'Light':'Dark'}
@@ -199,17 +303,66 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         </div>
       </div>
 
+      {/* Debug toolbar - shown when paused */}
+      {isDebugging && (
+        <div style={{display:"flex",alignItems:"center",gap:8,padding:"4px 12px",background:`${C.orange}15`,borderBottom:`1px solid ${C.orange}40`,flexShrink:0}}>
+          <span style={{fontSize:11,color:C.orange,fontWeight:600,fontFamily:FONT_UI}}>⏸ Paused at line {debugState.line}</span>
+          <span style={{fontSize:10,color:C.textMuted}}>({debugState.reason})</span>
+          <div style={{flex:1}}/>
+          <button onClick={debugContinue} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.cyan,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}}>▶ Continue</button>
+          <button onClick={debugStop} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.red,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}}>■ Stop</button>
+        </div>
+      )}
+
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
           {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource}/></div>}
           {showCenter&&<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
             <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} onCloseAll={closeAllTabs} onCloseExcept={closeOtherTabs}/>
             <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>
-              <div ref={gutterRef} style={{padding:"8px 0",background:C.bg0,borderRight:`1px solid ${C.border}`,userSelect:"none",minWidth:34,textAlign:"right",overflowY:"hidden",flexShrink:0}}>
-                {(activeTabData?.code||"").split("\n").map((_,i)=>{const ln=i+1,isErr=errorLine===ln;return<div key={i} style={{fontSize:10,padding:"0 6px",lineHeight:"20px",color:isErr?C.red:C.textMuted,background:isErr?`${C.red}18`:"transparent",fontWeight:isErr?700:400}}>{ln}</div>;})}
+              {/* Gutter with breakpoints */}
+              <div ref={gutterRef} style={{padding:"8px 0",background:C.bg0,borderRight:`1px solid ${C.border}`,userSelect:"none",minWidth:48,overflowY:"hidden",flexShrink:0}}>
+                {(activeTabData?.code||"").split("\n").map((_,i)=>{
+                  const ln=i+1;
+                  const isErr=errorLine===ln;
+                  const isDbg=debugLine===ln;
+                  const hasBp=activeBreakpointsSet.has(ln);
+                  return (
+                    <div key={i}
+                      onClick={()=>toggleBreakpoint(ln)}
+                      style={{
+                        display:"flex",alignItems:"center",
+                        fontSize:10,lineHeight:"20px",height:20,
+                        cursor:"pointer",
+                        color:isErr?C.red:isDbg?C.orange:C.textMuted,
+                        background:isDbg?`${C.orange}20`:isErr?`${C.red}18`:"transparent",
+                        fontWeight:isErr||isDbg?700:400,
+                        position:"relative",
+                      }}
+                      onMouseEnter={e=>{if(!hasBp&&!isDbg)e.currentTarget.querySelector('.bp-dot').style.opacity='0.3';}}
+                      onMouseLeave={e=>{if(!hasBp&&!isDbg)e.currentTarget.querySelector('.bp-dot').style.opacity='0';}}
+                    >
+                      {/* Breakpoint dot area */}
+                      <span className="bp-dot" style={{
+                        width:14,display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,
+                        opacity:hasBp?1:0,transition:"opacity 0.1s",
+                      }}>
+                        <span style={{
+                          width:8,height:8,borderRadius:"50%",
+                          background:hasBp?C.red:`${C.red}80`,
+                          display:"block",
+                        }}/>
+                      </span>
+                      {/* Debug arrow */}
+                      {isDbg && <span style={{fontSize:11,color:C.orange,marginRight:1}}>▶</span>}
+                      {/* Line number */}
+                      <span style={{flex:1,textAlign:"right",paddingRight:6}}>{ln}</span>
+                    </div>
+                  );
+                })}
               </div>
               <div style={{flex:1,overflow:"hidden",background:C.bg1}}>
-                <SyntaxEditor ref={editorRef} value={activeTabData?.code||""} onChange={val=>{updateTabCode(val);setErrorLine(null);}} onScroll={handleEditorScroll} errorLine={errorLine}/>
+                <SyntaxEditor ref={editorRef} value={activeTabData?.code||""} onChange={val=>{updateTabCode(val);setErrorLine(null);}} onScroll={handleEditorScroll} errorLine={errorLine} debugLine={debugLine}/>
               </div>
             </div>
           </div>}
@@ -249,6 +402,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{color:C.border}}>|</span><span>{activeTabData?.name}</span>
           {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📁 local</span></>}
           {figures.length>0&&<><span style={{color:C.border}}>|</span><span>{figures.length} figure{figures.length>1?"s":""}</span></>}
+          {activeBreakpointsSet.size>0&&<><span style={{color:C.border}}>|</span><span style={{color:C.red}}>● {activeBreakpointsSet.size} bp</span></>}
+          {isDebugging&&<><span style={{color:C.border}}>|</span><span style={{color:C.orange}}>⏸ line {debugState.line}</span></>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {execTimeMs!==null&&<span>{execTimeMs.toFixed(1)}ms</span>}

@@ -55,7 +55,7 @@ function tokenize(code) {
   return tokens;
 }
 
-const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, errorLine }, ref) {
+const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, errorLine, debugLine }, ref) {
   const C = useTheme();
   const textareaRef = useRef(null);
   const highlightRef = useRef(null);
@@ -79,6 +79,7 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScrol
   return (
     <div style={{ position:'relative',width:'100%',height:'100%',overflow:'hidden' }}>
       {errorLine&&<div style={{position:'absolute',left:0,right:0,top:(errorLine-1)*20+8,height:20,background:`${C.red}18`,borderLeft:`2px solid ${C.red}`,pointerEvents:'none',zIndex:1}}/>}
+      {debugLine&&<div style={{position:'absolute',left:0,right:0,top:(debugLine-1)*20+8,height:20,background:`${C.orange}22`,borderLeft:`2px solid ${C.orange}`,pointerEvents:'none',zIndex:1}}/>}
       <pre ref={highlightRef} aria-hidden="true" style={{position:'absolute',top:0,left:0,right:0,bottom:0,margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',pointerEvents:'none',zIndex:2}} dangerouslySetInnerHTML={{__html:html+'\n'}}/>
       <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false}
         style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',zIndex:3}}/>

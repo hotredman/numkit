@@ -9,6 +9,10 @@
  *   workspace()         → string
  *   getVars()           → object
  *
+ * Debug API:
+ *   debugSetBreakpoints(lines)  → void     (lines = [1, 5, 10])
+ *   debugExecute(code, skipBp)  → { status, pauseState?, output?, ... }
+ *
  * Figure objects: { id, datasets: [{x,y,type,label?,style?}], config: {title,xlabel,ylabel,xlim?,ylim?,grid,legend?} }
  */
 
@@ -32,44 +36,30 @@ function extractMarkers(rawOutput) {
   const closedFigureIds = [];
   let closeAllFigures = false;
   let errorLine = null;
-  let legacyId = 1000; // auto-ID for legacy __PLOT_DATA__
+  let legacyId = 1000;
 
   for (const line of lines) {
-    // Error line marker
     const errIdx = line.indexOf(errorMarker);
     if (errIdx !== -1) {
       const num = parseInt(line.substring(errIdx + errorMarker.length).trim(), 10);
       if (!isNaN(num) && num > 0) errorLine = num;
       continue;
     }
-
-    // Figure close all marker
-    if (line.trim() === closeAllMarker) {
-      closeAllFigures = true;
-      continue;
-    }
-
-    // Figure close marker
+    if (line.trim() === closeAllMarker) { closeAllFigures = true; continue; }
     const closeIdx = line.indexOf(closeMarker);
     if (closeIdx !== -1) {
       const id = parseInt(line.substring(closeIdx + closeMarker.length).trim(), 10);
       if (!isNaN(id)) closedFigureIds.push(id);
       continue;
     }
-
-    // Figure data marker (new format)
     const figIdx = line.indexOf(figureMarker);
     if (figIdx !== -1) {
       const before = line.substring(0, figIdx).trimEnd();
       if (before) cleanLines.push(before);
       const jsonStr = extractJson(line.substring(figIdx + figureMarker.length));
-      if (jsonStr) {
-        try { figures.push(JSON.parse(jsonStr)); } catch (e) { console.warn('[REPL] Failed to parse figure data:', e); }
-      }
+      if (jsonStr) { try { figures.push(JSON.parse(jsonStr)); } catch (e) { console.warn('[REPL] Failed to parse figure data:', e); } }
       continue;
     }
-
-    // Legacy plot data marker
     const mIdx = line.indexOf(plotMarker);
     if (mIdx !== -1) {
       const before = line.substring(0, mIdx).trimEnd();
@@ -78,24 +68,16 @@ function extractMarkers(rawOutput) {
       if (jsonStr) {
         try {
           const legacy = JSON.parse(jsonStr);
-          // Convert legacy format to figure format
-          figures.push({
-            id: legacyId++,
-            datasets: legacy.datasets.map(ds => ({ ...ds, type: legacy.config?.type || 'line' })),
-            config: legacy.config || {},
-          });
+          figures.push({ id: legacyId++, datasets: legacy.datasets.map(ds => ({ ...ds, type: legacy.config?.type || 'line' })), config: legacy.config || {} });
         } catch (e) { console.warn('[REPL] Failed to parse legacy plot data:', e); }
       }
       continue;
     }
-
     cleanLines.push(line);
   }
-
   return { cleanOutput: cleanLines.join('\n').trimEnd(), figures, closedFigureIds, closeAllFigures, errorLine };
 }
 
-/** Extract a balanced JSON object from the start of a string */
 function extractJson(str) {
   str = str.trim();
   if (!str.startsWith('{')) return null;
@@ -107,9 +89,6 @@ function extractJson(str) {
   return end > 0 ? str.substring(0, end) : null;
 }
 
-/**
- * Parse __VARS__:{...} markers from WASM repl_get_vars output.
- */
 function extractVarsData(rawOutput) {
   if (!rawOutput) return {};
   const marker = '__VARS__:';
@@ -135,15 +114,9 @@ function extractVarsData(rawOutput) {
       }
     }
     return result;
-  } catch (e) {
-    console.warn('[REPL] Failed to parse workspace JSON:', e);
-    return {};
-  }
+  } catch (e) { console.warn('[REPL] Failed to parse workspace JSON:', e); return {}; }
 }
 
-/**
- * Parse text output from whos into a variable map.
- */
 function parseWorkspaceText(text) {
   if (!text || typeof text !== 'string') return {};
   const lines = text.split('\n').map(l => l.trimEnd()).filter(l => l.trim());
@@ -151,11 +124,7 @@ function parseWorkspaceText(text) {
   const lower = text.toLowerCase();
   if (lower.includes('no variables') || lower.includes('empty workspace')) return {};
   const vars = {};
-
-  const headerIdx = lines.findIndex(l =>
-    /\bname\b/i.test(l) && (/\bsize\b/i.test(l) || /\bclass\b/i.test(l))
-  );
-
+  const headerIdx = lines.findIndex(l => /\bname\b/i.test(l) && (/\bsize\b/i.test(l) || /\bclass\b/i.test(l)));
   if (headerIdx !== -1) {
     for (let i = headerIdx + 1; i < lines.length; i++) {
       const line = lines[i].trim();
@@ -164,14 +133,11 @@ function parseWorkspaceText(text) {
       if (parts.length >= 1) {
         const name = parts[0];
         if (/^[-=]+$/.test(name)) continue;
-        vars[name] = buildPlaceholderValue({
-          _size: parts[1], _class: parts[2], _value: parts.slice(3).join(' ')
-        });
+        vars[name] = buildPlaceholderValue({ _size: parts[1], _class: parts[2], _value: parts.slice(3).join(' ') });
       }
     }
     return vars;
   }
-
   const assignLines = lines.filter(l => /^\s*\w+\s*=/.test(l));
   if (assignLines.length > 0) {
     for (const line of assignLines) {
@@ -180,7 +146,6 @@ function parseWorkspaceText(text) {
     }
     return vars;
   }
-
   for (const line of lines) {
     const names = line.trim().split(/\s+/).filter(n => /^[a-zA-Z_]\w*$/.test(n));
     for (const name of names) vars[name] = '?';
@@ -261,6 +226,29 @@ export async function createWasmEngine(createModule) {
       }
       return {};
     },
+
+    // ── Debug API ──
+    get hasDebugger() {
+      return typeof Module.repl_debug_execute === 'function';
+    },
+
+    debugSetBreakpoints(lines) {
+      if (typeof Module.repl_debug_set_breakpoints === 'function') {
+        Module.repl_debug_set_breakpoints(JSON.stringify(lines));
+      }
+    },
+
+    debugExecute(code, skipBp = 0) {
+      if (typeof Module.repl_debug_execute !== 'function') {
+        return { status: 'error', message: 'Debug not supported in this WASM build' };
+      }
+      const raw = Module.repl_debug_execute(code, skipBp);
+      try {
+        return JSON.parse(raw);
+      } catch (e) {
+        return { status: 'error', message: 'Failed to parse debug result' };
+      }
+    },
   };
 }
 
@@ -275,7 +263,6 @@ export function createFallbackEngine() {
 
     execute(code) {
       const result = interp.execute(code);
-      // Convert fallback plots to figure format
       const figures = result.plot ? [{
         id: Date.now(),
         datasets: result.plot.datasets.map(ds => ({ ...ds, type: result.plot.config?.type || 'line' })),
@@ -293,5 +280,10 @@ export function createFallbackEngine() {
       return keys.join(', ');
     },
     getVars() { return interp.getVars(); },
+
+    // ── Debug API (stub for fallback) ──
+    get hasDebugger() { return false; },
+    debugSetBreakpoints() {},
+    debugExecute() { return { status: 'error', message: 'Debug not available in demo mode' }; },
   };
 }
