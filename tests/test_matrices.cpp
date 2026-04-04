@@ -993,3 +993,65 @@ TEST_P(ClearExportTest, MultipleClearsInSequence)
 }
 
 INSTANTIATE_DUAL(ClearExportTest);
+
+// ============================================================
+// Bare function calls (no parentheses) in expression context
+// ============================================================
+
+class BareFuncCallTest : public DualEngineTest
+{};
+
+TEST_P(BareFuncCallTest, TicTocBasic)
+{
+    eval("tic; t = toc;");
+    double t = evalScalar("t;");
+    EXPECT_GE(t, 0.0);
+    EXPECT_LT(t, 5.0); // should be near-instant
+}
+
+TEST_P(BareFuncCallTest, TocWithoutParens)
+{
+    // t1 = toc should work the same as t1 = toc()
+    eval("tic;");
+    eval("t1 = toc;");
+    double t1 = evalScalar("t1;");
+    EXPECT_GE(t1, 0.0);
+}
+
+TEST_P(BareFuncCallTest, TicReturnValue)
+{
+    eval("id = tic;");
+    double id = evalScalar("id;");
+    EXPECT_GT(id, 0.0); // timestamp in microseconds
+}
+
+TEST_P(BareFuncCallTest, RandWithoutParens)
+{
+    // r = rand should call rand() and return scalar
+    eval("r = rand;");
+    double r = evalScalar("r;");
+    EXPECT_GE(r, 0.0);
+    EXPECT_LE(r, 1.0);
+}
+
+TEST_P(BareFuncCallTest, BareFuncInExpression)
+{
+    // pi is a constant, not a function — should still work
+    eval("x = pi + 1;");
+    EXPECT_NEAR(evalScalar("x;"), 4.14159265358979, 1e-10);
+}
+
+TEST_P(BareFuncCallTest, TicTocInFunction)
+{
+    eval(R"(
+        function t = test_tictoc()
+            tic;
+            t = toc;
+        end
+    )");
+    double t = evalScalar("test_tictoc();");
+    EXPECT_GE(t, 0.0);
+    EXPECT_LT(t, 5.0);
+}
+
+INSTANTIATE_DUAL(BareFuncCallTest);

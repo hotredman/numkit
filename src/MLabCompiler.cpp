@@ -129,9 +129,15 @@ uint8_t Compiler::varRegRead(const std::string &name)
     if (kBuiltinNames.count(name))
         return varReg(name);
 
-    // Check if it's a known function — don't throw, let CALL handle it
-    if (engine_.hasFunction(name) || engine_.externalFuncs_.count(name))
-        return varReg(name);
+    // Check if it's a known function — emit zero-arg CALL
+    // In MATLAB, bare function name in expression context is a call: t1 = toc
+    if (engine_.hasFunction(name) || engine_.externalFuncs_.count(name)) {
+        uint8_t argBase = nextReg_;
+        uint8_t dst = tempReg();
+        int16_t funcIdx = addStringConstant(name);
+        emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
+        return dst;
+    }
 
     // Unknown variable — throw to trigger TW fallback
     throw std::runtime_error("Undefined variable: " + name);
