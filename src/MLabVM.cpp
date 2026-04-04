@@ -164,7 +164,7 @@ dispatch_loop:
                 break;
             }
             case OpCode::LOAD_EMPTY:
-                R[I.a] = MValue::empty();
+                R[I.a] = MValue::matrix(0, 0, MType::DOUBLE, &engine_.allocator_);
                 break;
             case OpCode::LOAD_STRING:
                 R[I.a] = MValue::fromString(chunk.strings[I.d], &engine_.allocator_);

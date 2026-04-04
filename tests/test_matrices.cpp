@@ -770,3 +770,226 @@ TEST_P(ScopeIsolationTest, ClosureDoesNotSeeNewGlobals)
 }
 
 INSTANTIATE_DUAL(ScopeIsolationTest);
+
+// ============================================================
+// Clear + subsequent variable creation (export semantics)
+// ============================================================
+
+class ClearExportTest : public DualEngineTest
+{};
+
+TEST_P(ClearExportTest, ClearThenCreateVars)
+{
+    // Standard MATLAB pattern: clear at top of script, then create vars
+    eval("x = 999;"); // pre-existing
+    eval("clear; y = 42; z = 100;");
+    // x should be gone, y and z should exist
+    EXPECT_DOUBLE_EQ(evalScalar("y;"), 42.0);
+    EXPECT_DOUBLE_EQ(evalScalar("z;"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearAllThenCreateVars)
+{
+    eval("a = 1; b = 2;");
+    eval("clear all; c = 3;");
+    EXPECT_DOUBLE_EQ(evalScalar("c;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('a');"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('b');"), 0.0);
+}
+
+TEST_P(ClearExportTest, EmptyMatrixSurvivesClear)
+{
+    // A=[] should export correctly — it's a valid value, not "cleared"
+    eval("A = []; B = 5;");
+    EXPECT_EQ(getVarPtr("A")->numel(), 0u);
+    EXPECT_DOUBLE_EQ(evalScalar("B;"), 5.0);
+}
+
+TEST_P(ClearExportTest, EmptyMatrixAfterClear)
+{
+    eval("x = 999;");
+    eval("clear; A = []; B = 10;");
+    EXPECT_EQ(getVarPtr("A")->numel(), 0u);
+    EXPECT_DOUBLE_EQ(evalScalar("B;"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearSpecificThenCreate)
+{
+    eval("x = 1; y = 2;");
+    eval("clear x; z = 3;");
+    EXPECT_DOUBLE_EQ(evalScalar("y;"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("z;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('x');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ConstantsSurviveClear)
+{
+    eval("clear;");
+    EXPECT_NEAR(evalScalar("pi;"), 3.14159265358979, 1e-10);
+    EXPECT_DOUBLE_EQ(evalScalar("true;"), 1.0);
+}
+
+TEST_P(ClearExportTest, FunctionReturnUninitialized)
+{
+    // Function that doesn't assign return var — should return empty
+    eval(R"(
+        function r = test_uninit()
+        end
+    )");
+    MValue r = eval("test_uninit();");
+    EXPECT_TRUE(r.isEmpty());
+}
+
+// ── clear in middle of script ──
+
+TEST_P(ClearExportTest, ClearInMiddleOfScript)
+{
+    eval("a = 1; b = 2; clear; c = 3; d = 4;");
+    EXPECT_DOUBLE_EQ(evalScalar("c;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d;"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('a');"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('b');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearSpecificInMiddle)
+{
+    eval("a = 1; b = 2; c = 3; clear b; d = a + c;");
+    EXPECT_DOUBLE_EQ(evalScalar("a;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d;"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('b');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearMultipleVars)
+{
+    eval("a = 1; b = 2; c = 3; d = 4; clear a c;");
+    EXPECT_DOUBLE_EQ(evalScalar("b;"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d;"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('a');"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('c');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearThenReassign)
+{
+    eval("x = 10; clear x; x = 20;");
+    EXPECT_DOUBLE_EQ(evalScalar("x;"), 20.0);
+}
+
+TEST_P(ClearExportTest, ClearAllThenReassignSameName)
+{
+    eval("x = 10; clear all; x = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("x;"), 99.0);
+}
+
+// ── clear inside functions ──
+
+TEST_P(ClearExportTest, ClearInsideFunctionLocalOnly)
+{
+    eval("g = 100;");
+    eval(R"(
+        function r = test_func_clear()
+            a = 1;
+            b = 2;
+            clear a;
+            r = exist('a') * 10 + b;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_func_clear();"), 2.0);
+    // global g untouched
+    EXPECT_DOUBLE_EQ(evalScalar("g;"), 100.0);
+}
+
+TEST_P(ClearExportTest, ClearAllInsideFunctionThenCreate)
+{
+    eval(R"(
+        function r = test_func_clearall()
+            a = 1;
+            b = 2;
+            clear all;
+            c = 3;
+            r = exist('a') * 100 + exist('b') * 10 + c;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_func_clearall();"), 3.0);
+}
+
+TEST_P(ClearExportTest, ClearFunctionCallStyle)
+{
+    eval("a = 1; b = 2; c = 3; clear('b');");
+    EXPECT_DOUBLE_EQ(evalScalar("a;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('b');"), 0.0);
+}
+
+TEST_P(ClearExportTest, ClearFunctionCallInsideFunc)
+{
+    eval(R"(
+        function r = test_func_clear2()
+            x = 10;
+            y = 20;
+            clear('x');
+            r = exist('x') * 100 + y;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_func_clear2();"), 20.0);
+}
+
+TEST_P(ClearExportTest, ClearWithRuntimeName)
+{
+    eval(R"(
+        function r = test_dyn_clear()
+            x = 10;
+            y = 20;
+            name = 'x';
+            clear(name);
+            r = exist('x') * 100 + y;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(evalScalar("test_dyn_clear();"), 20.0);
+}
+
+// ── clear in loops ──
+
+TEST_P(ClearExportTest, ClearInsideLoop)
+{
+    eval(R"(
+        function r = test_loop_clear()
+            total = 0;
+            for k = 1:3
+                tmp = k * 10;
+                total = total + tmp;
+                clear tmp;
+            end
+            r = total + exist('tmp') * 1000;
+        end
+    )");
+    // total = 10+20+30 = 60, tmp cleared so exist=0
+    EXPECT_DOUBLE_EQ(evalScalar("test_loop_clear();"), 60.0);
+}
+
+// ── clear preserves constants ──
+
+TEST_P(ClearExportTest, ClearInsideFunctionConstantsVisible)
+{
+    eval(R"(
+        function r = test_const_clear()
+            clear all;
+            r = pi;
+        end
+    )");
+    EXPECT_NEAR(evalScalar("test_const_clear();"), 3.14159265358979, 1e-10);
+}
+
+// ── multiple clears ──
+
+TEST_P(ClearExportTest, MultipleClearsInSequence)
+{
+    eval("a = 1; clear a; b = 2; clear b; c = 3;");
+    EXPECT_DOUBLE_EQ(evalScalar("c;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('a');"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("exist('b');"), 0.0);
+}
+
+INSTANTIATE_DUAL(ClearExportTest);

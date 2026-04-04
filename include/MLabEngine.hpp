@@ -106,14 +106,11 @@ private:
     TimePoint ticBase_{};
     bool ticCalled_ = false;
 
-    // Tracks variables cleared mid-execution by clear('x') so that
-    // Engine::eval's post-VM export skips them instead of resurrecting.
-    std::unordered_set<std::string> clearedVars_;
+    // Tracks whether clear/clear all was called during VM execution
+    // so that export wipes globalEnv before writing back.
     bool clearAllCalled_ = false;
 
 public:
-    // Called by registered clear() to coordinate with VM export
-    void markVarCleared(const std::string &name) { clearedVars_.insert(name); }
     void markClearAll() { clearAllCalled_ = true; }
 
 private:

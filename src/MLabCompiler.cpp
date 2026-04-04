@@ -625,6 +625,12 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
                 if (name == "exist") {
                     // exist (no args) — error, but let it go to CALL
                 }
+            } else if (name == "clear") {
+                // clear (no args) on top-level — clear all registers + call externalFunc
+                for (auto &[vname, reg] : varRegisters_) {
+                    if (kBuiltinNames.count(vname) == 0)
+                        emitA(OpCode::CLEAR_VAR, reg);
+                }
             }
 
             // Compile as zero-arg CALL
@@ -1503,29 +1509,51 @@ uint8_t Compiler::compileCall(const ASTNode *node)
             emitABC(OpCode::EXIST_VAR, dst, nameReg, filterReg);
             return dst;
         }
-        // clear(expr) → CLEAR_DYN nameReg (runtime string)
-        // clear('x') with literal → CLEAR_VAR if known, else CLEAR_DYN
-        if (name == "clear") {
-            for (size_t i = 1; i <= nargs; ++i) {
-                auto *argNode = node->children[i].get();
-                if (argNode->type == NodeType::STRING_LITERAL) {
-                    auto it = varRegisters_.find(argNode->strValue);
-                    if (it != varRegisters_.end() && kBuiltinNames.count(argNode->strValue) == 0)
-                        emitA(OpCode::CLEAR_VAR, it->second);
-                } else {
-                    uint8_t nameReg = compileNode(argNode);
-                    emitA(OpCode::CLEAR_DYN, nameReg);
-                }
+    }
+
+    // clear(expr) works both inside functions and at top-level
+    if (name == "clear") {
+        for (size_t i = 1; i <= nargs; ++i) {
+            auto *argNode = node->children[i].get();
+            if (argNode->type == NodeType::STRING_LITERAL) {
+                auto it = varRegisters_.find(argNode->strValue);
+                if (it != varRegisters_.end() && kBuiltinNames.count(argNode->strValue) == 0)
+                    emitA(OpCode::CLEAR_VAR, it->second);
+            } else {
+                uint8_t nameReg = compileNode(argNode);
+                emitA(OpCode::CLEAR_DYN, nameReg);
             }
-            if (nargs == 0) {
-                // clear() with no args inside function — clear all locals
-                for (auto &[vname, reg] : varRegisters_) {
-                    if (kBuiltinNames.count(vname) == 0)
-                        emitA(OpCode::CLEAR_VAR, reg);
-                }
-            }
-            return tempReg();
         }
+        if (nargs == 0) {
+            for (auto &[vname, reg] : varRegisters_) {
+                if (kBuiltinNames.count(vname) == 0)
+                    emitA(OpCode::CLEAR_VAR, reg);
+            }
+        }
+        // On top-level, also call externalFunc for side effects
+        if (isTopLevel_) {
+            uint8_t argBase = nextReg_;
+            for (size_t i = 1; i <= nargs; ++i) {
+                uint8_t slot = tempReg();
+                auto *argNode = node->children[i].get();
+                uint8_t argReg = compileNode(argNode);
+                if (argReg != slot)
+                    emitAB(OpCode::MOVE, slot, argReg);
+            }
+            uint8_t dst = tempReg();
+            int16_t funcIdx = addStringConstant(name);
+            emit(Instruction::make_abcde(OpCode::CALL,
+                                         dst,
+                                         argBase,
+                                         static_cast<uint8_t>(nargs),
+                                         funcIdx,
+                                         0));
+            return dst;
+        }
+        return tempReg();
+    }
+
+    if (!isTopLevel_) {
         // who(expr...) / whos(expr...) → WHO/WHOS with args
         if (name == "who" || name == "whos") {
             OpCode op = (name == "who") ? OpCode::WHO : OpCode::WHOS;
@@ -1939,13 +1967,11 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef)
     }
 
     // Allocate registers for return variables
-    // Skip LOAD_EMPTY if return var is also a parameter (already loaded by caller)
+    // Registers default to empty — no initialization needed.
+    // Skip allocation if return var is also a parameter (already loaded by caller)
     std::unordered_set<std::string> paramSet(funcDef->paramNames.begin(), funcDef->paramNames.end());
     for (auto &ret : funcDef->returnNames) {
-        uint8_t r = varReg(ret);
-        if (!paramSet.count(ret)) {
-            emitA(OpCode::LOAD_EMPTY, r);
-        }
+        varReg(ret); // just allocate the register
     }
 
     // Compile body

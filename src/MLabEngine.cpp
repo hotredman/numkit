@@ -171,25 +171,24 @@ MValue Engine::eval(const std::string &code)
     if (backend_ != Backend::TreeWalker) {
         try {
             // Reset clear tracking for this execution
-            clearedVars_.clear();
             clearAllCalled_ = false;
 
             auto chunk = compiler_->compile(ast.get());
             vm_->setCompiledFuncs(&compiler_->compiledFuncs());
             MValue result = vm_->execute(chunk);
 
-            // Export script-level variables to global environment,
-            // but skip any that were cleared mid-execution.
-            if (!clearAllCalled_) {
-                for (auto &[name, val] : vm_->lastVarMap()) {
-                    if (clearedVars_.count(name))
-                        continue;
-                    // For global variables, prefer globalStore value (may have been set by called functions)
+            // Export script-level variables to global environment.
+            if (clearAllCalled_) {
+                globalEnv_->clearAll();
+            }
+            for (auto &[name, val] : vm_->lastVarMap()) {
+                if (val.isUnset()) {
+                    // Cleared or never assigned — remove from globalEnv
+                    globalEnv_->remove(name);
+                } else {
+                    // For global variables, prefer globalStore value
                     MValue *gsVal = globalStore_.get(name);
-                    if (gsVal)
-                        globalEnv_->set(name, *gsVal);
-                    else
-                        globalEnv_->set(name, val);
+                    globalEnv_->set(name, gsVal ? *gsVal : val);
                 }
             }
 

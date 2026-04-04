@@ -197,6 +197,10 @@ public:
     bool isScalar() const;
     bool isEmpty() const;
     bool isNumeric() const;
+
+    // True only for default-constructed MValue (no value assigned).
+    // Unlike isEmpty(), returns false for empty matrices (A=[]) and empty strings ('').
+    bool isUnset() const { return heap_ == emptyTag(); }
     bool isComplex() const;
     bool isLogical() const;
     bool isChar() const;

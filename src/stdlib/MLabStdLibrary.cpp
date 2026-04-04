@@ -107,7 +107,6 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                                     if (gs)
                                                         gs->remove(gname);
                                                     env->remove(gname);
-                                                    ctx.engine->markVarCleared(gname);
                                                 }
                                             }
                                         }
@@ -139,8 +138,6 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                                 std::string varName = a.toString();
                                                 if (kBuiltinNames.count(varName) == 0) {
                                                     env->remove(varName);
-                                                    if (!insideFunc)
-                                                        ctx.engine->markVarCleared(varName);
                                                 }
                                             }
                                         }
