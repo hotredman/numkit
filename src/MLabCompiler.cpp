@@ -269,6 +269,14 @@ uint8_t Compiler::compileNode(const ASTNode *node)
         return compileGlobalPersistent(node);
     case NodeType::FIELD_ACCESS:
         return compileFieldAccess(node);
+    case NodeType::DYNAMIC_FIELD_ACCESS: {
+        // s.(expr) — child[0]=obj, child[1]=field name expr
+        uint8_t obj = compileNode(node->children[0].get());
+        uint8_t nameReg = compileNode(node->children[1].get());
+        uint8_t dst = tempReg();
+        emitABC(OpCode::FIELD_GET_DYN, dst, obj, nameReg);
+        return dst;
+    }
     case NodeType::CELL_INDEX:
         return compileCellIndex(node);
     case NodeType::CELL_LITERAL:
@@ -383,6 +391,22 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
     if (lhs->type == NodeType::FIELD_ACCESS) {
         return compileFieldAssign(node);
+    }
+
+    if (lhs->type == NodeType::DYNAMIC_FIELD_ACCESS) {
+        // s.(expr) = val — child[0]=obj, child[1]=field name expr
+        auto *objNode = lhs->children[0].get();
+        if (objNode->type != NodeType::IDENTIFIER)
+            throw std::runtime_error("Compiler: dynamic field assign requires identifier target");
+        uint8_t obj = varReg(objNode->strValue);
+        uint8_t val = compileNode(node->children[1].get());
+        uint8_t nameReg = compileNode(lhs->children[1].get());
+        emitABC(OpCode::FIELD_SET_DYN, obj, nameReg, val);
+        if (!node->suppressOutput) {
+            int16_t dispIdx = addStringConstant(objNode->strValue);
+            emitAD(OpCode::DISPLAY, obj, dispIdx);
+        }
+        return obj;
     }
 
     if (lhs->type == NodeType::CELL_INDEX) {
@@ -2009,6 +2033,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "FIELD_GET_OR_CREATE";
         case OpCode::FIELD_SET:
             return "FIELD_SET";
+        case OpCode::FIELD_GET_DYN:
+            return "FIELD_GET_DYN";
+        case OpCode::FIELD_SET_DYN:
+            return "FIELD_SET_DYN";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:

@@ -20,6 +20,7 @@ enum class NodeType {
     INDEX,
     CELL_INDEX,
     FIELD_ACCESS,
+    DYNAMIC_FIELD_ACCESS, // s.(expr) — field name from expression
     MATRIX_LITERAL,
     CELL_LITERAL,
     CALL,

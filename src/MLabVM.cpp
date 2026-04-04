@@ -711,6 +711,26 @@ dispatch_loop:
                 R[I.a].field(fname) = R[I.b];
                 break;
             }
+            case OpCode::FIELD_GET_DYN: {
+                // a=dst, b=obj, c=nameReg — s.(R[nameReg])
+                std::string fname = R[I.c].toString();
+                if (!R[I.b].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                if (!R[I.b].hasField(fname))
+                    throw std::runtime_error("Reference to non-existent field '" + fname + "'");
+                R[I.a] = R[I.b].field(fname);
+                break;
+            }
+            case OpCode::FIELD_SET_DYN: {
+                // a=obj, b=nameReg, c=val — s.(R[nameReg]) = R[val]
+                std::string fname = R[I.b].toString();
+                if (R[I.a].isEmpty())
+                    R[I.a] = MValue::structure();
+                if (!R[I.a].isStruct())
+                    throw std::runtime_error("Dot indexing requires a struct");
+                R[I.a].field(fname) = R[I.c];
+                break;
+            }
 
             // ── Cell operations ──────────────────────────────────
             case OpCode::CELL_LITERAL: {

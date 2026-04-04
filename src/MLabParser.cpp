@@ -934,6 +934,16 @@ ASTNodePtr Parser::parsePostfix()
             fn->strValue = consume(TokenType::IDENTIFIER, "field").value;
             fn->children.push_back(std::move(node));
             node = std::move(fn);
+        } else if (check(TokenType::DOT) && peekToken(1).type == TokenType::LPAREN) {
+            // s.(expr) — dynamic field access
+            auto [ln, cl] = loc();
+            pos_++; // consume DOT
+            pos_++; // consume LPAREN
+            auto fn = makeNode(NodeType::DYNAMIC_FIELD_ACCESS, ln, cl);
+            fn->children.push_back(std::move(node));   // child[0] = object
+            fn->children.push_back(parseExpression()); // child[1] = field name expr
+            consume(TokenType::RPAREN, ")");
+            node = std::move(fn);
         } else if (check(TokenType::APOSTROPHE)) {
             auto [ln, cl] = loc();
             pos_++;

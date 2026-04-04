@@ -358,3 +358,38 @@ TEST_P(ColonAllTest, ColonAllLinearize)
 }
 
 INSTANTIATE_DUAL(ColonAllTest);
+
+// ============================================================
+// Dynamic field access s.(expr)
+// ============================================================
+
+class DynamicFieldTest : public DualEngineTest
+{};
+
+TEST_P(DynamicFieldTest, GetDynField)
+{
+    eval("s.x = 10; s.y = 20; name = 'x';");
+    EXPECT_DOUBLE_EQ(evalScalar("s.(name);"), 10.0);
+}
+
+TEST_P(DynamicFieldTest, SetDynField)
+{
+    eval("s = struct(); name = 'val'; s.(name) = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("s.val;"), 42.0);
+}
+
+TEST_P(DynamicFieldTest, DynFieldTwoFields)
+{
+    eval("s = struct(); f = 'x'; s.(f) = 10; f = 'y'; s.(f) = 20; f = 'z'; s.(f) = 30;");
+    EXPECT_DOUBLE_EQ(evalScalar("s.x;"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.y;"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.z;"), 30.0);
+}
+
+TEST_P(DynamicFieldTest, DynFieldAutoCreate)
+{
+    eval("s.(\"hello\") = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("s.hello;"), 99.0);
+}
+
+INSTANTIATE_DUAL(DynamicFieldTest);

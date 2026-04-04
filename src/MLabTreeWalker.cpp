@@ -321,6 +321,15 @@ MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
         return execCellIndex(node, env);
     case NodeType::FIELD_ACCESS:
         return execFieldAccess(node, env);
+    case NodeType::DYNAMIC_FIELD_ACCESS: {
+        auto obj = execNode(node->children[0].get(), env);
+        if (!obj.isStruct())
+            throw std::runtime_error("Dot indexing requires a struct");
+        std::string fname = execNode(node->children[1].get(), env).toString();
+        if (!obj.hasField(fname))
+            throw std::runtime_error("Reference to non-existent field '" + fname + "'");
+        return obj.field(fname);
+    }
     case NodeType::MATRIX_LITERAL:
         return execMatrixLiteral(node, env);
     case NodeType::CELL_LITERAL:
@@ -1024,6 +1033,22 @@ MValue TreeWalker::execAssign(const ASTNode *node, Environment *env)
         execIndexedAssign(lhs, rhs, env);
     } else if (lhs->type == NodeType::FIELD_ACCESS) {
         execFieldAssign(lhs, rhs, env);
+    } else if (lhs->type == NodeType::DYNAMIC_FIELD_ACCESS) {
+        // s.(expr) = val
+        auto *objNode = lhs->children[0].get();
+        std::string fname = execNode(lhs->children[1].get(), env).toString();
+        if (objNode->type == NodeType::IDENTIFIER) {
+            auto *var = env->get(objNode->strValue);
+            if (!var) {
+                env->set(objNode->strValue, MValue::structure());
+                var = env->get(objNode->strValue);
+            }
+            if (!var->isStruct())
+                *var = MValue::structure();
+            var->field(fname) = rhs;
+        } else {
+            throw std::runtime_error("Dynamic field assign: unsupported target");
+        }
     } else if (lhs->type == NodeType::CELL_INDEX) {
         execCellAssign(lhs, rhs, env);
     } else {
