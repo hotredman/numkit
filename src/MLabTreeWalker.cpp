@@ -859,12 +859,15 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
                         MValue *existing = env->getLocal(lhsName);
                         if (existing && existing->isDoubleScalar()) {
                             existing->setScalarVal(dv);
+                            last = *existing;
                         } else {
                             env->set(lhsName, MValue::scalar(dv, &engine_.allocator_));
+                            last = *env->get(lhsName);
                         }
                     } else {
                         // Logical scalar — preserve type
                         env->set(lhsName, std::move(fastVal));
+                        last = *env->get(lhsName);
                     }
                     continue;
                 }

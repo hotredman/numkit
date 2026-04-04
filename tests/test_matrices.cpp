@@ -386,6 +386,45 @@ TEST_P(DynamicFieldTest, DynFieldTwoFields)
     EXPECT_DOUBLE_EQ(evalScalar("s.z;"), 30.0);
 }
 
+TEST_P(DynamicFieldTest, DynFieldMultiLine)
+{
+    eval("s = struct();\nf1 = 'x';\ns.(f1) = 10;\nf2 = 'y';\ns.(f2) = 20;\n");
+    EXPECT_DOUBLE_EQ(evalScalar("s.x;"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s.y;"), 20.0);
+}
+
+TEST_P(DynamicFieldTest, DynFieldRawStringNoIndent)
+{
+    // Step by step to find where it breaks
+    eval("s6 = struct();");
+    eval("f = 'a';");
+    eval("s6.(f) = 10;");
+
+    // Check after first assign
+    EXPECT_DOUBLE_EQ(evalScalar("s6.a;"), 10.0) << "After first dynamic assign";
+
+    eval("f = 'b';");
+    eval("s6.(f) = 20;");
+
+    // Check both fields
+    EXPECT_DOUBLE_EQ(evalScalar("s6.a;"), 10.0) << "Field 'a' after second dynamic assign";
+    EXPECT_DOUBLE_EQ(evalScalar("s6.b;"), 20.0) << "Field 'b' after second dynamic assign";
+
+    // Now the combined version
+    EXPECT_DOUBLE_EQ(evalScalar("s6.a + s6.b;"), 30.0) << "Sum via separate evals";
+
+    // All in one eval — the failing pattern
+    const char *code = R"(
+        s7 = struct();
+        f = 'a';
+        s7.(f) = 10;
+        f = 'b';
+        s7.(f) = 20;
+        r7 = s7.a + s7.b;
+    )";
+    EXPECT_DOUBLE_EQ(evalScalar(code), 30.0) << "All in one R\"()\" eval";
+}
+
 TEST_P(DynamicFieldTest, DynFieldAutoCreate)
 {
     eval("s.(\"hello\") = 99;");

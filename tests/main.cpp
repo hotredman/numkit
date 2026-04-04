@@ -4,8 +4,6 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest();
-    //::testing::GTEST_FLAG(filter) = "TW_VM/DynamicFieldTest.DynFieldTwoFields/TW";
-    //::testing::GTEST_FLAG(filter) = "EngineAdvancedTest.*";
-    //::testing::GTEST_FLAG(filter) = "TW_VM/Array3DTest.*:TW_VM/CellIndexTest.Cell3D*";
+    //::testing::GTEST_FLAG(filter) = "TW_VM/DynamicFieldTest.DynFieldRawStringNoIndent*";
     return RUN_ALL_TESTS();
 }
