@@ -1,62 +1,29 @@
-#include "MLabEngine.hpp"
+#include "dual_engine_fixture.hpp"
+
 #include <cmath>
-#include <gtest/gtest.h>
 #include <sstream>
 #include <string>
 #include <vector>
 
 using namespace mlab;
+using namespace mlab_test;
 
-class EngineAdvancedTest : public ::testing::Test
+class EngineAdvancedTest : public DualEngineTest
 {
-protected:
-    Engine engine;
-    std::string captured_output;
-
-    void SetUp() override
-    {
-        captured_output.clear();
-        engine.setOutputFunc([this](const std::string &s) { captured_output += s; });
-    }
-
-    MValue eval(const std::string &code) { return engine.eval(code); }
-
+public:
     double toDouble(const MValue &v) { return v.toScalar(); }
-
-    void expectElem(const MValue &val, size_t i, double expected)
-    {
-        if (val.isLogical()) {
-            EXPECT_DOUBLE_EQ(static_cast<double>(val.logicalData()[i]), expected)
-                << "at linear index " << i;
-        } else {
-            EXPECT_DOUBLE_EQ(val(i), expected) << "at linear index " << i;
-        }
-    }
-
-    void expectElem2D(const MValue &val, size_t r, size_t c, double expected)
-    {
-        if (val.isLogical()) {
-            EXPECT_DOUBLE_EQ(static_cast<double>(val.logicalData()[val.dims().sub2ind(r, c)]), expected)
-                << "at (" << r << "," << c << ")";
-        } else {
-            EXPECT_DOUBLE_EQ(val(r, c), expected) << "at (" << r << "," << c << ")";
-        }
-    }
 
     void expectNearElem2D(const MValue &val, size_t r, size_t c, double expected, double tol)
     {
         EXPECT_NEAR(val(r, c), expected, tol) << "at (" << r << "," << c << ")";
     }
-
-    size_t rows(const MValue &v) { return v.dims().rows(); }
-    size_t cols(const MValue &v) { return v.dims().cols(); }
 };
 
 // =============================================================================
 // Рекурсия
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, RecursiveFactorial)
+TEST_P(EngineAdvancedTest, RecursiveFactorial)
 {
     eval(R"(
         function r = factorial_rec(n)
@@ -71,7 +38,7 @@ TEST_F(EngineAdvancedTest, RecursiveFactorial)
     EXPECT_DOUBLE_EQ(toDouble(result), 3628800.0);
 }
 
-TEST_F(EngineAdvancedTest, RecursiveFibonacci)
+TEST_P(EngineAdvancedTest, RecursiveFibonacci)
 {
     eval(R"(
         function r = fib(n)
@@ -87,7 +54,7 @@ TEST_F(EngineAdvancedTest, RecursiveFibonacci)
     EXPECT_DOUBLE_EQ(toDouble(eval("fib(10);")), 55.0);
 }
 
-TEST_F(EngineAdvancedTest, MutualRecursion)
+TEST_P(EngineAdvancedTest, MutualRecursion)
 {
     eval(R"(
         function r = is_even(n)
@@ -112,7 +79,7 @@ TEST_F(EngineAdvancedTest, MutualRecursion)
     EXPECT_DOUBLE_EQ(toDouble(eval("is_odd(4);")), 0.0);
 }
 
-TEST_F(EngineAdvancedTest, RecursionDepthExceeded)
+TEST_P(EngineAdvancedTest, RecursionDepthExceeded)
 {
     // Depth=10 — enough to trigger RecursionGuard
     // without overflowing the C++ stack on Windows/MSVC (default 1 MB)
@@ -125,7 +92,7 @@ TEST_F(EngineAdvancedTest, RecursionDepthExceeded)
     EXPECT_THROW(eval("infinite_rec(0);"), std::runtime_error);
 }
 
-TEST_F(EngineAdvancedTest, TailRecursiveSum)
+TEST_P(EngineAdvancedTest, TailRecursiveSum)
 {
     eval(R"(
         function r = sum_to(n, acc)
@@ -145,7 +112,7 @@ TEST_F(EngineAdvancedTest, TailRecursiveSum)
 // Вложенные циклы и управление потоком
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, NestedForLoops)
+TEST_P(EngineAdvancedTest, NestedForLoops)
 {
     eval(R"(
         result = zeros(3, 3);
@@ -162,7 +129,7 @@ TEST_F(EngineAdvancedTest, NestedForLoops)
     expectElem2D(result, 1, 1, 22);
 }
 
-TEST_F(EngineAdvancedTest, BreakInNestedLoop)
+TEST_P(EngineAdvancedTest, BreakInNestedLoop)
 {
     eval(R"(
         count = 0;
@@ -180,7 +147,7 @@ TEST_F(EngineAdvancedTest, BreakInNestedLoop)
     EXPECT_DOUBLE_EQ(toDouble(eval("count;")), 20.0);
 }
 
-TEST_F(EngineAdvancedTest, ContinueInLoop)
+TEST_P(EngineAdvancedTest, ContinueInLoop)
 {
     eval(R"(
         total = 0;
@@ -195,7 +162,7 @@ TEST_F(EngineAdvancedTest, ContinueInLoop)
     EXPECT_DOUBLE_EQ(toDouble(eval("total;")), 37.0);
 }
 
-TEST_F(EngineAdvancedTest, WhileWithBreak)
+TEST_P(EngineAdvancedTest, WhileWithBreak)
 {
     eval(R"(
         x = 1;
@@ -209,7 +176,7 @@ TEST_F(EngineAdvancedTest, WhileWithBreak)
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 128.0);
 }
 
-TEST_F(EngineAdvancedTest, NestedWhileLoops)
+TEST_P(EngineAdvancedTest, NestedWhileLoops)
 {
     eval(R"(
         result = 0;
@@ -227,7 +194,7 @@ TEST_F(EngineAdvancedTest, NestedWhileLoops)
     EXPECT_DOUBLE_EQ(toDouble(eval("result;")), 15.0);
 }
 
-TEST_F(EngineAdvancedTest, ForLoopOverMatrixColumns)
+TEST_P(EngineAdvancedTest, ForLoopOverMatrixColumns)
 {
     eval(R"(
         A = [1 2 3; 4 5 6; 7 8 9];
@@ -244,7 +211,7 @@ TEST_F(EngineAdvancedTest, ForLoopOverMatrixColumns)
 // Матричные операции
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, MatrixMultiplication)
+TEST_P(EngineAdvancedTest, MatrixMultiplication)
 {
     eval(R"(
         A = [1 2; 3 4];
@@ -258,7 +225,7 @@ TEST_F(EngineAdvancedTest, MatrixMultiplication)
     expectElem2D(C, 1, 1, 50); // 3*6+4*8
 }
 
-TEST_F(EngineAdvancedTest, MatrixTranspose)
+TEST_P(EngineAdvancedTest, MatrixTranspose)
 {
     eval(R"(
         A = [1 2 3; 4 5 6];
@@ -273,7 +240,7 @@ TEST_F(EngineAdvancedTest, MatrixTranspose)
     expectElem2D(B, 2, 1, 6);
 }
 
-TEST_F(EngineAdvancedTest, ElementWiseOperations)
+TEST_P(EngineAdvancedTest, ElementWiseOperations)
 {
     eval(R"(
         A = [1 2 3; 4 5 6];
@@ -292,7 +259,7 @@ TEST_F(EngineAdvancedTest, ElementWiseOperations)
     expectElem2D(E, 1, 2, 36);
 }
 
-TEST_F(EngineAdvancedTest, MatrixConcatenation)
+TEST_P(EngineAdvancedTest, MatrixConcatenation)
 {
     eval(R"(
         A = [1 2; 3 4];
@@ -313,7 +280,7 @@ TEST_F(EngineAdvancedTest, MatrixConcatenation)
     expectElem2D(V, 3, 1, 8);
 }
 
-TEST_F(EngineAdvancedTest, MatrixSlicing)
+TEST_P(EngineAdvancedTest, MatrixSlicing)
 {
     eval(R"(
         A = [1 2 3 4; 5 6 7 8; 9 10 11 12];
@@ -328,7 +295,7 @@ TEST_F(EngineAdvancedTest, MatrixSlicing)
     expectElem2D(B, 1, 1, 7);
 }
 
-TEST_F(EngineAdvancedTest, MatrixLinearIndexing)
+TEST_P(EngineAdvancedTest, MatrixLinearIndexing)
 {
     eval(R"(
         A = [1 4 7; 2 5 8; 3 6 9];
@@ -338,7 +305,7 @@ TEST_F(EngineAdvancedTest, MatrixLinearIndexing)
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 5.0);
 }
 
-TEST_F(EngineAdvancedTest, MatrixLogicalIndexing)
+TEST_P(EngineAdvancedTest, MatrixLogicalIndexing)
 {
     eval(R"(
         A = [1 2 3 4 5 6 7 8 9 10];
@@ -349,7 +316,7 @@ TEST_F(EngineAdvancedTest, MatrixLogicalIndexing)
     EXPECT_EQ(B.numel(), 5u);
 }
 
-TEST_F(EngineAdvancedTest, ColonAsFullIndex)
+TEST_P(EngineAdvancedTest, ColonAsFullIndex)
 {
     eval(R"(
         A = [1 2 3; 4 5 6; 7 8 9];
@@ -363,7 +330,7 @@ TEST_F(EngineAdvancedTest, ColonAsFullIndex)
     expectElem2D(B, 2, 0, 8);
 }
 
-TEST_F(EngineAdvancedTest, MatrixDeletion)
+TEST_P(EngineAdvancedTest, MatrixDeletion)
 {
     eval(R"(
         A = [1 2 3 4 5];
@@ -373,7 +340,7 @@ TEST_F(EngineAdvancedTest, MatrixDeletion)
     EXPECT_EQ(A.numel(), 4u);
 }
 
-TEST_F(EngineAdvancedTest, DynamicMatrixGrowth)
+TEST_P(EngineAdvancedTest, DynamicMatrixGrowth)
 {
     eval(R"(
         A = [];
@@ -390,7 +357,7 @@ TEST_F(EngineAdvancedTest, DynamicMatrixGrowth)
     expectElem(A, 4, 25);
 }
 
-TEST_F(EngineAdvancedTest, MatrixAutoExpand)
+TEST_P(EngineAdvancedTest, MatrixAutoExpand)
 {
     eval(R"(
         A = zeros(2, 2);
@@ -407,7 +374,7 @@ TEST_F(EngineAdvancedTest, MatrixAutoExpand)
 // Colon expressions
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, ColonWithStep)
+TEST_P(EngineAdvancedTest, ColonWithStep)
 {
     eval("x = 0:0.5:2;");
     MValue x = eval("x;");
@@ -417,7 +384,7 @@ TEST_F(EngineAdvancedTest, ColonWithStep)
     expectElem(x, 4, 2.0);
 }
 
-TEST_F(EngineAdvancedTest, ColonDescending)
+TEST_P(EngineAdvancedTest, ColonDescending)
 {
     eval("x = 5:-1:1;");
     MValue x = eval("x;");
@@ -426,7 +393,7 @@ TEST_F(EngineAdvancedTest, ColonDescending)
     expectElem(x, 4, 1.0);
 }
 
-TEST_F(EngineAdvancedTest, ColonEmptyRange)
+TEST_P(EngineAdvancedTest, ColonEmptyRange)
 {
     eval("x = 5:1:1;");
     MValue x = eval("x;");
@@ -437,7 +404,7 @@ TEST_F(EngineAdvancedTest, ColonEmptyRange)
 // Функции с несколькими выходами
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, MultipleReturnValues)
+TEST_P(EngineAdvancedTest, MultipleReturnValues)
 {
     eval(R"(
         function [mn, mx] = minmax(v)
@@ -450,7 +417,7 @@ TEST_F(EngineAdvancedTest, MultipleReturnValues)
     EXPECT_DOUBLE_EQ(toDouble(eval("b;")), 9.0);
 }
 
-TEST_F(EngineAdvancedTest, MultiReturnPartialCapture)
+TEST_P(EngineAdvancedTest, MultiReturnPartialCapture)
 {
     eval(R"(
         function [a, b, c] = triple(x)
@@ -464,7 +431,7 @@ TEST_F(EngineAdvancedTest, MultiReturnPartialCapture)
     EXPECT_DOUBLE_EQ(toDouble(eval("q;")), 10.0);
 }
 
-TEST_F(EngineAdvancedTest, MultiReturnInExpression)
+TEST_P(EngineAdvancedTest, MultiReturnInExpression)
 {
     eval(R"(
         function [s, p] = sum_prod(a, b)
@@ -481,14 +448,14 @@ TEST_F(EngineAdvancedTest, MultiReturnInExpression)
 // Анонимные функции и замыкания
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, BasicAnonymousFunction)
+TEST_P(EngineAdvancedTest, BasicAnonymousFunction)
 {
     eval("f = @(x) x^2 + 1;");
     EXPECT_DOUBLE_EQ(toDouble(eval("f(3);")), 10.0);
     EXPECT_DOUBLE_EQ(toDouble(eval("f(0);")), 1.0);
 }
 
-TEST_F(EngineAdvancedTest, AnonymousFunctionClosure)
+TEST_P(EngineAdvancedTest, AnonymousFunctionClosure)
 {
     eval(R"(
         a = 10;
@@ -501,13 +468,13 @@ TEST_F(EngineAdvancedTest, AnonymousFunctionClosure)
     EXPECT_DOUBLE_EQ(toDouble(eval("f(5);")), 15.0);
 }
 
-TEST_F(EngineAdvancedTest, AnonymousFunctionMultipleArgs)
+TEST_P(EngineAdvancedTest, AnonymousFunctionMultipleArgs)
 {
     eval("g = @(x, y) x^2 + y^2;");
     EXPECT_DOUBLE_EQ(toDouble(eval("g(3, 4);")), 25.0);
 }
 
-TEST_F(EngineAdvancedTest, HigherOrderFunction)
+TEST_P(EngineAdvancedTest, HigherOrderFunction)
 {
     eval(R"(
         function r = apply(f, x)
@@ -518,7 +485,7 @@ TEST_F(EngineAdvancedTest, HigherOrderFunction)
     EXPECT_DOUBLE_EQ(toDouble(eval("apply(sq, 7);")), 49.0);
 }
 
-TEST_F(EngineAdvancedTest, FunctionReturningAnonymousFunc)
+TEST_P(EngineAdvancedTest, FunctionReturningAnonymousFunc)
 {
     eval(R"(
         function h = make_adder(n)
@@ -530,7 +497,7 @@ TEST_F(EngineAdvancedTest, FunctionReturningAnonymousFunc)
     EXPECT_DOUBLE_EQ(toDouble(eval("add5(0);")), 5.0);
 }
 
-TEST_F(EngineAdvancedTest, CompositionOfAnonymousFunctions)
+TEST_P(EngineAdvancedTest, CompositionOfAnonymousFunctions)
 {
     eval(R"(
         compose = @(f, g) @(x) f(g(x));
@@ -542,7 +509,7 @@ TEST_F(EngineAdvancedTest, CompositionOfAnonymousFunctions)
     EXPECT_DOUBLE_EQ(toDouble(eval("double_then_add(5);")), 11.0);
 }
 
-TEST_F(EngineAdvancedTest, FunctionHandle)
+TEST_P(EngineAdvancedTest, FunctionHandle)
 {
     eval(R"(
         function r = my_square(x)
@@ -557,14 +524,14 @@ TEST_F(EngineAdvancedTest, FunctionHandle)
 // Cell arrays
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, CellArrayCreation)
+TEST_P(EngineAdvancedTest, CellArrayCreation)
 {
     eval("c = {1, 'hello', [1 2 3]};");
     MValue c = eval("c;");
     EXPECT_TRUE(c.isCell());
 }
 
-TEST_F(EngineAdvancedTest, CellArrayIndexing)
+TEST_P(EngineAdvancedTest, CellArrayIndexing)
 {
     eval(R"(
         c = {10, 20, 30};
@@ -573,7 +540,7 @@ TEST_F(EngineAdvancedTest, CellArrayIndexing)
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 20.0);
 }
 
-TEST_F(EngineAdvancedTest, CellArrayAssignment)
+TEST_P(EngineAdvancedTest, CellArrayAssignment)
 {
     eval(R"(
         c = {1, 2, 3};
@@ -583,7 +550,7 @@ TEST_F(EngineAdvancedTest, CellArrayAssignment)
     EXPECT_TRUE(c.isCell());
 }
 
-TEST_F(EngineAdvancedTest, NestedCellArray)
+TEST_P(EngineAdvancedTest, NestedCellArray)
 {
     eval(R"(
         c = {1, {2, 3}, {4, {5, 6}}};
@@ -594,7 +561,7 @@ TEST_F(EngineAdvancedTest, NestedCellArray)
     EXPECT_DOUBLE_EQ(toDouble(eval("y;")), 6.0);
 }
 
-TEST_F(EngineAdvancedTest, CellArrayInLoop)
+TEST_P(EngineAdvancedTest, CellArrayInLoop)
 {
     eval(R"(
         c = {};
@@ -612,7 +579,7 @@ TEST_F(EngineAdvancedTest, CellArrayInLoop)
 // Structs
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, StructCreationAndAccess)
+TEST_P(EngineAdvancedTest, StructCreationAndAccess)
 {
     eval(R"(
         s.name = 'test';
@@ -622,7 +589,7 @@ TEST_F(EngineAdvancedTest, StructCreationAndAccess)
     EXPECT_DOUBLE_EQ(toDouble(eval("s.value;")), 42.0);
 }
 
-TEST_F(EngineAdvancedTest, NestedStruct)
+TEST_P(EngineAdvancedTest, NestedStruct)
 {
     eval(R"(
         s.inner.x = 10;
@@ -634,7 +601,7 @@ TEST_F(EngineAdvancedTest, NestedStruct)
     EXPECT_DOUBLE_EQ(toDouble(eval("s.inner.nested.z;")), 30.0);
 }
 
-TEST_F(EngineAdvancedTest, StructModification)
+TEST_P(EngineAdvancedTest, StructModification)
 {
     eval(R"(
         s.x = 1;
@@ -644,7 +611,7 @@ TEST_F(EngineAdvancedTest, StructModification)
     EXPECT_DOUBLE_EQ(toDouble(eval("s.x;")), 3.0);
 }
 
-TEST_F(EngineAdvancedTest, StructPassedToFunction)
+TEST_P(EngineAdvancedTest, StructPassedToFunction)
 {
     eval(R"(
         function r = get_sum(s)
@@ -656,7 +623,7 @@ TEST_F(EngineAdvancedTest, StructPassedToFunction)
     EXPECT_DOUBLE_EQ(toDouble(eval("get_sum(p);")), 30.0);
 }
 
-TEST_F(EngineAdvancedTest, StructWithMatrixField)
+TEST_P(EngineAdvancedTest, StructWithMatrixField)
 {
     eval(R"(
         s.mat = [1 2; 3 4];
@@ -669,7 +636,7 @@ TEST_F(EngineAdvancedTest, StructWithMatrixField)
 // If/Elseif/Else
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, IfElseifElseChain)
+TEST_P(EngineAdvancedTest, IfElseifElseChain)
 {
     eval(R"(
         function r = classify(x)
@@ -687,7 +654,7 @@ TEST_F(EngineAdvancedTest, IfElseifElseChain)
     EXPECT_DOUBLE_EQ(toDouble(eval("classify(0);")), 0.0);
 }
 
-TEST_F(EngineAdvancedTest, NestedIf)
+TEST_P(EngineAdvancedTest, NestedIf)
 {
     eval(R"(
         function r = nested_check(a, b)
@@ -716,7 +683,7 @@ TEST_F(EngineAdvancedTest, NestedIf)
 // Switch/Case
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, SwitchCaseBasic)
+TEST_P(EngineAdvancedTest, SwitchCaseBasic)
 {
     eval(R"(
         function r = day_type(d)
@@ -738,7 +705,7 @@ TEST_F(EngineAdvancedTest, SwitchCaseBasic)
     EXPECT_DOUBLE_EQ(toDouble(eval("day_type(99);")), -1.0);
 }
 
-TEST_F(EngineAdvancedTest, SwitchWithStringCases)
+TEST_P(EngineAdvancedTest, SwitchWithStringCases)
 {
     eval(R"(
         function r = color_code(c)
@@ -763,7 +730,7 @@ TEST_F(EngineAdvancedTest, SwitchWithStringCases)
 // Try/Catch
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, TryCatchWithErrorMessage)
+TEST_P(EngineAdvancedTest, TryCatchWithErrorMessage)
 {
     eval(R"(
         try
@@ -776,7 +743,7 @@ TEST_F(EngineAdvancedTest, TryCatchWithErrorMessage)
     EXPECT_DOUBLE_EQ(toDouble(eval("result;")), 1.0);
 }
 
-TEST_F(EngineAdvancedTest, TryCatchNestedTry)
+TEST_P(EngineAdvancedTest, TryCatchNestedTry)
 {
     eval(R"(
         result = 0;
@@ -794,7 +761,7 @@ TEST_F(EngineAdvancedTest, TryCatchNestedTry)
     EXPECT_DOUBLE_EQ(toDouble(eval("result;")), 11.0);
 }
 
-TEST_F(EngineAdvancedTest, TryCatchNoError)
+TEST_P(EngineAdvancedTest, TryCatchNoError)
 {
     eval(R"(
         try
@@ -810,7 +777,7 @@ TEST_F(EngineAdvancedTest, TryCatchNoError)
 // Scoping
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, FunctionLocalScope)
+TEST_P(EngineAdvancedTest, FunctionLocalScope)
 {
     eval("x = 100;");
     eval(R"(
@@ -824,7 +791,7 @@ TEST_F(EngineAdvancedTest, FunctionLocalScope)
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 100.0);
 }
 
-TEST_F(EngineAdvancedTest, NestedFunctionScopes)
+TEST_P(EngineAdvancedTest, NestedFunctionScopes)
 {
     eval(R"(
         function r = outer(x)
@@ -837,7 +804,7 @@ TEST_F(EngineAdvancedTest, NestedFunctionScopes)
     EXPECT_DOUBLE_EQ(toDouble(eval("outer(5);")), 15.0);
 }
 
-TEST_F(EngineAdvancedTest, GlobalVariable)
+TEST_P(EngineAdvancedTest, GlobalVariable)
 {
     eval(R"(
         global g_counter;
@@ -857,7 +824,7 @@ TEST_F(EngineAdvancedTest, GlobalVariable)
 // Алгоритмы
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, BubbleSort)
+TEST_P(EngineAdvancedTest, BubbleSort)
 {
     eval(R"(
         function A = bubble_sort(A)
@@ -880,7 +847,7 @@ TEST_F(EngineAdvancedTest, BubbleSort)
     }
 }
 
-TEST_F(EngineAdvancedTest, GCD_Euclidean)
+TEST_P(EngineAdvancedTest, GCD_Euclidean)
 {
     eval(R"(
         function r = gcd_func(a, b)
@@ -897,7 +864,7 @@ TEST_F(EngineAdvancedTest, GCD_Euclidean)
     EXPECT_DOUBLE_EQ(toDouble(eval("gcd_func(7, 13);")), 1.0);
 }
 
-TEST_F(EngineAdvancedTest, MatrixPowerFibonacci)
+TEST_P(EngineAdvancedTest, MatrixPowerFibonacci)
 {
     eval(R"(
         function R = mat_power(A, n)
@@ -916,7 +883,7 @@ TEST_F(EngineAdvancedTest, MatrixPowerFibonacci)
     expectElem2D(M, 1, 1, 34); // F(9)
 }
 
-TEST_F(EngineAdvancedTest, NewtonMethodSqrt)
+TEST_P(EngineAdvancedTest, NewtonMethodSqrt)
 {
     eval(R"(
         function r = my_sqrt(n)
@@ -934,7 +901,7 @@ TEST_F(EngineAdvancedTest, NewtonMethodSqrt)
     EXPECT_NEAR(result, 12.0, 1e-10);
 }
 
-TEST_F(EngineAdvancedTest, PrimesSieve)
+TEST_P(EngineAdvancedTest, PrimesSieve)
 {
     eval(R"(
         function primes = sieve(n)
@@ -958,7 +925,7 @@ TEST_F(EngineAdvancedTest, PrimesSieve)
     expectElem(p, 9, 29);
 }
 
-TEST_F(EngineAdvancedTest, MatrixDeterminant2x2)
+TEST_P(EngineAdvancedTest, MatrixDeterminant2x2)
 {
     eval(R"(
         function d = det2(A)
@@ -969,7 +936,7 @@ TEST_F(EngineAdvancedTest, MatrixDeterminant2x2)
     EXPECT_DOUBLE_EQ(toDouble(eval("d;")), -14.0); // 3*6 - 8*4
 }
 
-TEST_F(EngineAdvancedTest, RunningAverage)
+TEST_P(EngineAdvancedTest, RunningAverage)
 {
     eval(R"(
         function avg = running_avg(data)
@@ -991,7 +958,7 @@ TEST_F(EngineAdvancedTest, RunningAverage)
     expectElem(a, 4, 6.0);
 }
 
-TEST_F(EngineAdvancedTest, CollatzSequence)
+TEST_P(EngineAdvancedTest, CollatzSequence)
 {
     eval(R"(
         function steps = collatz(n)
@@ -1015,7 +982,7 @@ TEST_F(EngineAdvancedTest, CollatzSequence)
 // Строки
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, StringConcatenation)
+TEST_P(EngineAdvancedTest, StringConcatenation)
 {
     eval(R"(
         a = 'Hello';
@@ -1027,7 +994,7 @@ TEST_F(EngineAdvancedTest, StringConcatenation)
     EXPECT_EQ(c.toString(), "Hello World");
 }
 
-TEST_F(EngineAdvancedTest, StringComparison)
+TEST_P(EngineAdvancedTest, StringComparison)
 {
     eval(R"(
         a = 'abc';
@@ -1044,7 +1011,7 @@ TEST_F(EngineAdvancedTest, StringComparison)
 // Логические операции
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, ShortCircuitAnd)
+TEST_P(EngineAdvancedTest, ShortCircuitAnd)
 {
     eval(R"(
         x = 0;
@@ -1058,7 +1025,7 @@ TEST_F(EngineAdvancedTest, ShortCircuitAnd)
     EXPECT_DOUBLE_EQ(toDouble(eval("y;")), 0.0);
 }
 
-TEST_F(EngineAdvancedTest, ShortCircuitOr)
+TEST_P(EngineAdvancedTest, ShortCircuitOr)
 {
     eval(R"(
         x = 0;
@@ -1072,7 +1039,7 @@ TEST_F(EngineAdvancedTest, ShortCircuitOr)
     EXPECT_DOUBLE_EQ(toDouble(eval("y;")), 1.0);
 }
 
-TEST_F(EngineAdvancedTest, LogicalOperatorsOnMatrices)
+TEST_P(EngineAdvancedTest, LogicalOperatorsOnMatrices)
 {
     eval(R"(
         A = [1 0 1; 0 1 0];
@@ -1100,7 +1067,7 @@ TEST_F(EngineAdvancedTest, LogicalOperatorsOnMatrices)
 // Comparison operators returning matrices
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, ComparisonOnMatrices)
+TEST_P(EngineAdvancedTest, ComparisonOnMatrices)
 {
     eval(R"(
         A = [1 5 3 7 2];
@@ -1120,14 +1087,14 @@ TEST_F(EngineAdvancedTest, ComparisonOnMatrices)
 // Edge cases and error handling
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, EmptyMatrix)
+TEST_P(EngineAdvancedTest, EmptyMatrix)
 {
     eval("A = [];");
     MValue A = eval("A;");
     EXPECT_EQ(A.numel(), 0u);
 }
 
-TEST_F(EngineAdvancedTest, ScalarMatrixOperations)
+TEST_P(EngineAdvancedTest, ScalarMatrixOperations)
 {
     eval(R"(
         A = [1 2 3];
@@ -1146,28 +1113,28 @@ TEST_F(EngineAdvancedTest, ScalarMatrixOperations)
     expectElem(C, 2, 6);
 }
 
-TEST_F(EngineAdvancedTest, DimensionMismatchError)
+TEST_P(EngineAdvancedTest, DimensionMismatchError)
 {
     EXPECT_THROW(eval("[1 2 3] + [1 2];"), std::runtime_error);
 }
 
-TEST_F(EngineAdvancedTest, UndefinedVariableError)
+TEST_P(EngineAdvancedTest, UndefinedVariableError)
 {
     EXPECT_THROW(eval("x_undefined_var;"), std::runtime_error);
 }
 
-TEST_F(EngineAdvancedTest, UndefinedFunctionError)
+TEST_P(EngineAdvancedTest, UndefinedFunctionError)
 {
     EXPECT_THROW(eval("nonexistent_function(1, 2);"), std::runtime_error);
 }
 
-TEST_F(EngineAdvancedTest, IndexOutOfBoundsError)
+TEST_P(EngineAdvancedTest, IndexOutOfBoundsError)
 {
     eval("A = [1 2 3];");
     EXPECT_THROW(eval("A(10);"), std::runtime_error);
 }
 
-TEST_F(EngineAdvancedTest, WrongNumberOfArguments)
+TEST_P(EngineAdvancedTest, WrongNumberOfArguments)
 {
     eval(R"(
         function r = add2(a, b)
@@ -1181,13 +1148,13 @@ TEST_F(EngineAdvancedTest, WrongNumberOfArguments)
 // Complex expression evaluation
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, ChainedOperations)
+TEST_P(EngineAdvancedTest, ChainedOperations)
 {
     eval("x = ((2 + 3) * 4 - 6) / 7;");
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), (5.0 * 4.0 - 6.0) / 7.0);
 }
 
-TEST_F(EngineAdvancedTest, OperatorPrecedence)
+TEST_P(EngineAdvancedTest, OperatorPrecedence)
 {
     eval("x = 2 + 3 * 4;");
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 14.0);
@@ -1200,7 +1167,7 @@ TEST_F(EngineAdvancedTest, OperatorPrecedence)
     EXPECT_DOUBLE_EQ(toDouble(eval("z;")), 512.0);
 }
 
-TEST_F(EngineAdvancedTest, UnaryMinus)
+TEST_P(EngineAdvancedTest, UnaryMinus)
 {
     eval("x = -5;");
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), -5.0);
@@ -1212,7 +1179,7 @@ TEST_F(EngineAdvancedTest, UnaryMinus)
     EXPECT_DOUBLE_EQ(toDouble(eval("z;")), -6.0);
 }
 
-TEST_F(EngineAdvancedTest, NegativeMatrixElements)
+TEST_P(EngineAdvancedTest, NegativeMatrixElements)
 {
     eval("A = [-1 -2; -3 -4];");
     MValue A = eval("A;");
@@ -1224,7 +1191,7 @@ TEST_F(EngineAdvancedTest, NegativeMatrixElements)
 // Built-in functions
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, SizeFunction)
+TEST_P(EngineAdvancedTest, SizeFunction)
 {
     eval(R"(
         A = [1 2 3; 4 5 6];
@@ -1234,7 +1201,7 @@ TEST_F(EngineAdvancedTest, SizeFunction)
     EXPECT_DOUBLE_EQ(toDouble(eval("c;")), 3.0);
 }
 
-TEST_F(EngineAdvancedTest, LengthFunction)
+TEST_P(EngineAdvancedTest, LengthFunction)
 {
     eval("A = [1 2 3 4 5];");
     EXPECT_DOUBLE_EQ(toDouble(eval("length(A);")), 5.0);
@@ -1243,7 +1210,7 @@ TEST_F(EngineAdvancedTest, LengthFunction)
     EXPECT_DOUBLE_EQ(toDouble(eval("length(B);")), 3.0);
 }
 
-TEST_F(EngineAdvancedTest, ZerosOnesEye)
+TEST_P(EngineAdvancedTest, ZerosOnesEye)
 {
     eval("Z = zeros(3, 4);");
     MValue Z = eval("Z;");
@@ -1263,7 +1230,7 @@ TEST_F(EngineAdvancedTest, ZerosOnesEye)
     expectElem2D(I, 2, 2, 1);
 }
 
-TEST_F(EngineAdvancedTest, SumMinMax)
+TEST_P(EngineAdvancedTest, SumMinMax)
 {
     eval("A = [3 1 4 1 5 9 2 6];");
     EXPECT_DOUBLE_EQ(toDouble(eval("sum(A);")), 31.0);
@@ -1271,7 +1238,7 @@ TEST_F(EngineAdvancedTest, SumMinMax)
     EXPECT_DOUBLE_EQ(toDouble(eval("max(A);")), 9.0);
 }
 
-TEST_F(EngineAdvancedTest, ReshapeFunction)
+TEST_P(EngineAdvancedTest, ReshapeFunction)
 {
     eval(R"(
         A = [1 2 3 4 5 6];
@@ -1282,7 +1249,7 @@ TEST_F(EngineAdvancedTest, ReshapeFunction)
     EXPECT_EQ(cols(B), 3u);
 }
 
-TEST_F(EngineAdvancedTest, LinspaceFunction)
+TEST_P(EngineAdvancedTest, LinspaceFunction)
 {
     eval("x = linspace(0, 1, 5);");
     MValue x = eval("x;");
@@ -1292,7 +1259,7 @@ TEST_F(EngineAdvancedTest, LinspaceFunction)
     EXPECT_NEAR(x(2), 0.5, 1e-10);
 }
 
-TEST_F(EngineAdvancedTest, AbsFunction)
+TEST_P(EngineAdvancedTest, AbsFunction)
 {
     eval("x = abs([-3 -1 0 2 -5]);");
     MValue x = eval("x;");
@@ -1302,7 +1269,7 @@ TEST_F(EngineAdvancedTest, AbsFunction)
     expectElem(x, 4, 5);
 }
 
-TEST_F(EngineAdvancedTest, FloorCeilRound)
+TEST_P(EngineAdvancedTest, FloorCeilRound)
 {
     eval(R"(
         a = floor(3.7);
@@ -1315,14 +1282,14 @@ TEST_F(EngineAdvancedTest, FloorCeilRound)
     EXPECT_DOUBLE_EQ(toDouble(eval("c;")), 4.0);
 }
 
-TEST_F(EngineAdvancedTest, ModFunction)
+TEST_P(EngineAdvancedTest, ModFunction)
 {
     EXPECT_DOUBLE_EQ(toDouble(eval("mod(10, 3);")), 1.0);
     EXPECT_DOUBLE_EQ(toDouble(eval("mod(10, 5);")), 0.0);
     EXPECT_DOUBLE_EQ(toDouble(eval("mod(7, 2);")), 1.0);
 }
 
-TEST_F(EngineAdvancedTest, NumelFunction)
+TEST_P(EngineAdvancedTest, NumelFunction)
 {
     eval("A = ones(3, 4);");
     EXPECT_DOUBLE_EQ(toDouble(eval("numel(A);")), 12.0);
@@ -1332,7 +1299,7 @@ TEST_F(EngineAdvancedTest, NumelFunction)
 // Return from function
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, EarlyReturn)
+TEST_P(EngineAdvancedTest, EarlyReturn)
 {
     eval(R"(
         function r = early_ret(x)
@@ -1347,7 +1314,7 @@ TEST_F(EngineAdvancedTest, EarlyReturn)
     EXPECT_DOUBLE_EQ(toDouble(eval("early_ret(3);")), 6.0);
 }
 
-TEST_F(EngineAdvancedTest, ReturnInLoop)
+TEST_P(EngineAdvancedTest, ReturnInLoop)
 {
     eval(R"(
         function r = find_first(A, target)
@@ -1368,7 +1335,7 @@ TEST_F(EngineAdvancedTest, ReturnInLoop)
 // Complex control flow combinations
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, BreakContinueInteraction)
+TEST_P(EngineAdvancedTest, BreakContinueInteraction)
 {
     eval(R"(
         result = [];
@@ -1391,7 +1358,7 @@ TEST_F(EngineAdvancedTest, BreakContinueInteraction)
     expectElem(result, 3, 7);
 }
 
-TEST_F(EngineAdvancedTest, ForLoopWithFunctionCalls)
+TEST_P(EngineAdvancedTest, ForLoopWithFunctionCalls)
 {
     eval(R"(
         function r = square(x)
@@ -1410,26 +1377,26 @@ TEST_F(EngineAdvancedTest, ForLoopWithFunctionCalls)
 // Display behavior
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, SemicolonSuppressesOutput)
+TEST_P(EngineAdvancedTest, SemicolonSuppressesOutput)
 {
-    captured_output.clear();
+    capturedOutput.clear();
     eval("x = 42;");
-    EXPECT_TRUE(captured_output.empty());
+    EXPECT_TRUE(capturedOutput.empty());
 }
 
-TEST_F(EngineAdvancedTest, NoSemicolonShowsOutput)
+TEST_P(EngineAdvancedTest, NoSemicolonShowsOutput)
 {
-    captured_output.clear();
+    capturedOutput.clear();
     eval("x = 42");
-    EXPECT_FALSE(captured_output.empty());
-    EXPECT_TRUE(captured_output.find("42") != std::string::npos);
+    EXPECT_FALSE(capturedOutput.empty());
+    EXPECT_TRUE(capturedOutput.find("42") != std::string::npos);
 }
 
 // =============================================================================
 // Numeric edge cases
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, InfinityHandling)
+TEST_P(EngineAdvancedTest, InfinityHandling)
 {
     eval("x = 1/0;");
     EXPECT_TRUE(std::isinf(toDouble(eval("x;"))));
@@ -1440,13 +1407,13 @@ TEST_F(EngineAdvancedTest, InfinityHandling)
     EXPECT_TRUE(yval < 0);
 }
 
-TEST_F(EngineAdvancedTest, NaNHandling)
+TEST_P(EngineAdvancedTest, NaNHandling)
 {
     eval("x = 0/0;");
     EXPECT_TRUE(std::isnan(toDouble(eval("x;"))));
 }
 
-TEST_F(EngineAdvancedTest, LargeNumbers)
+TEST_P(EngineAdvancedTest, LargeNumbers)
 {
     eval("x = 1e15 + 1;");
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 1e15 + 1);
@@ -1456,7 +1423,7 @@ TEST_F(EngineAdvancedTest, LargeNumbers)
 // Dynamic programming
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, KnapsackDP)
+TEST_P(EngineAdvancedTest, KnapsackDP)
 {
     eval(R"(
         function maxval = knapsack(W, weights, values, n)
@@ -1477,7 +1444,7 @@ TEST_F(EngineAdvancedTest, KnapsackDP)
     EXPECT_DOUBLE_EQ(toDouble(eval("result;")), 220.0);
 }
 
-TEST_F(EngineAdvancedTest, PascalTriangle)
+TEST_P(EngineAdvancedTest, PascalTriangle)
 {
     eval(R"(
         function C = pascal_triangle(n)
@@ -1501,7 +1468,7 @@ TEST_F(EngineAdvancedTest, PascalTriangle)
     expectElem2D(P, 5, 5, 1);
 }
 
-TEST_F(EngineAdvancedTest, MatrixTraceManual)
+TEST_P(EngineAdvancedTest, MatrixTraceManual)
 {
     eval(R"(
         function t = my_trace(A)
@@ -1516,7 +1483,7 @@ TEST_F(EngineAdvancedTest, MatrixTraceManual)
     EXPECT_DOUBLE_EQ(toDouble(eval("t;")), 15.0); // 1+5+9
 }
 
-TEST_F(EngineAdvancedTest, MatrixIsSymmetric)
+TEST_P(EngineAdvancedTest, MatrixIsSymmetric)
 {
     eval(R"(
         function r = is_symmetric(A)
@@ -1547,7 +1514,7 @@ TEST_F(EngineAdvancedTest, MatrixIsSymmetric)
 // Function redefinition
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, FunctionRedefinition)
+TEST_P(EngineAdvancedTest, FunctionRedefinition)
 {
     eval(R"(
         function r = f(x)
@@ -1568,7 +1535,7 @@ TEST_F(EngineAdvancedTest, FunctionRedefinition)
 // Numerical methods
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, NumericalIntegrationTrapezoidal)
+TEST_P(EngineAdvancedTest, NumericalIntegrationTrapezoidal)
 {
     eval(R"(
         function area = trapz_integrate(a, b, n)
@@ -1585,7 +1552,7 @@ TEST_F(EngineAdvancedTest, NumericalIntegrationTrapezoidal)
     EXPECT_NEAR(result, 1.0 / 3.0, 1e-5);
 }
 
-TEST_F(EngineAdvancedTest, BisectionMethod)
+TEST_P(EngineAdvancedTest, BisectionMethod)
 {
     eval(R"(
         function root = bisection(a, b, tol)
@@ -1610,7 +1577,7 @@ TEST_F(EngineAdvancedTest, BisectionMethod)
     EXPECT_NEAR(root, std::sqrt(2.0), 1e-9);
 }
 
-TEST_F(EngineAdvancedTest, TaylorSeriesSin)
+TEST_P(EngineAdvancedTest, TaylorSeriesSin)
 {
     eval(R"(
         function s = taylor_sin(x, n)
@@ -1629,7 +1596,7 @@ TEST_F(EngineAdvancedTest, TaylorSeriesSin)
     EXPECT_NEAR(result, std::sin(1.0), 1e-10);
 }
 
-TEST_F(EngineAdvancedTest, TaylorSeriesExp)
+TEST_P(EngineAdvancedTest, TaylorSeriesExp)
 {
     eval(R"(
         function s = taylor_exp(x, n)
@@ -1647,7 +1614,7 @@ TEST_F(EngineAdvancedTest, TaylorSeriesExp)
     EXPECT_NEAR(result, std::exp(1.0), 1e-10);
 }
 
-TEST_F(EngineAdvancedTest, PowerIterationDominantEigenvalue)
+TEST_P(EngineAdvancedTest, PowerIterationDominantEigenvalue)
 {
     eval(R"(
         function lambda = power_iter(A, niter)
@@ -1665,7 +1632,7 @@ TEST_F(EngineAdvancedTest, PowerIterationDominantEigenvalue)
     EXPECT_NEAR(ev, 3.0, 1e-6);
 }
 
-TEST_F(EngineAdvancedTest, GaussianElimination)
+TEST_P(EngineAdvancedTest, GaussianElimination)
 {
     eval(R"(
         function x = gauss_solve(A, b)
@@ -1700,7 +1667,7 @@ TEST_F(EngineAdvancedTest, GaussianElimination)
 // Complex data structure manipulation
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, StructArrayOfResults)
+TEST_P(EngineAdvancedTest, StructArrayOfResults)
 {
     eval(R"(
         results.iterations = 0;
@@ -1720,7 +1687,7 @@ TEST_F(EngineAdvancedTest, StructArrayOfResults)
     expectElem(values, 4, 32);
 }
 
-TEST_F(EngineAdvancedTest, CellArrayAsStack)
+TEST_P(EngineAdvancedTest, CellArrayAsStack)
 {
     eval(R"(
         stack = {};
@@ -1749,7 +1716,7 @@ TEST_F(EngineAdvancedTest, CellArrayAsStack)
 // Stress tests
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, LargeLoopIteration)
+TEST_P(EngineAdvancedTest, LargeLoopIteration)
 {
     eval(R"(
         s = 0;
@@ -1760,7 +1727,7 @@ TEST_F(EngineAdvancedTest, LargeLoopIteration)
     EXPECT_DOUBLE_EQ(toDouble(eval("s;")), 50005000.0);
 }
 
-TEST_F(EngineAdvancedTest, LargeMatrixCreation)
+TEST_P(EngineAdvancedTest, LargeMatrixCreation)
 {
     eval(R"(
         A = zeros(100, 100);
@@ -1776,7 +1743,7 @@ TEST_F(EngineAdvancedTest, LargeMatrixCreation)
     EXPECT_DOUBLE_EQ(toDouble(eval("total;")), 1010000.0);
 }
 
-TEST_F(EngineAdvancedTest, ManyFunctionCalls)
+TEST_P(EngineAdvancedTest, ManyFunctionCalls)
 {
     eval(R"(
         function r = increment(x)
@@ -1794,7 +1761,7 @@ TEST_F(EngineAdvancedTest, ManyFunctionCalls)
 // End keyword in indexing
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, EndKeywordInIndexing)
+TEST_P(EngineAdvancedTest, EndKeywordInIndexing)
 {
     eval(R"(
         A = [10 20 30 40 50];
@@ -1812,7 +1779,7 @@ TEST_F(EngineAdvancedTest, EndKeywordInIndexing)
     expectElem(z, 2, 50);
 }
 
-TEST_F(EngineAdvancedTest, EndKeywordIn2DIndexing)
+TEST_P(EngineAdvancedTest, EndKeywordIn2DIndexing)
 {
     eval(R"(
         A = [1 2 3; 4 5 6; 7 8 9];
@@ -1832,7 +1799,7 @@ TEST_F(EngineAdvancedTest, EndKeywordIn2DIndexing)
 // Function call chains & higher-order
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, FunctionCallingFunction)
+TEST_P(EngineAdvancedTest, FunctionCallingFunction)
 {
     eval(R"(
         function r = double_val(x)
@@ -1846,7 +1813,7 @@ TEST_F(EngineAdvancedTest, FunctionCallingFunction)
     EXPECT_DOUBLE_EQ(toDouble(eval("quad_val(3);")), 12.0);
 }
 
-TEST_F(EngineAdvancedTest, FunctionAsArgument)
+TEST_P(EngineAdvancedTest, FunctionAsArgument)
 {
     eval(R"(
         function r = apply_twice(f, x)
@@ -1857,7 +1824,7 @@ TEST_F(EngineAdvancedTest, FunctionAsArgument)
     EXPECT_DOUBLE_EQ(toDouble(eval("apply_twice(add3, 10);")), 16.0);
 }
 
-TEST_F(EngineAdvancedTest, MapFunction)
+TEST_P(EngineAdvancedTest, MapFunction)
 {
     eval(R"(
         function result = my_map(f, A)
@@ -1877,7 +1844,7 @@ TEST_F(EngineAdvancedTest, MapFunction)
     expectElem(r, 4, 25);
 }
 
-TEST_F(EngineAdvancedTest, ReduceFunction)
+TEST_P(EngineAdvancedTest, ReduceFunction)
 {
     eval(R"(
         function result = my_reduce(f, A, init)
@@ -1898,7 +1865,7 @@ TEST_F(EngineAdvancedTest, ReduceFunction)
 // Misc complex scenarios
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, VariableReassignmentTypes)
+TEST_P(EngineAdvancedTest, VariableReassignmentTypes)
 {
     eval(R"(
         x = 42;
@@ -1910,7 +1877,7 @@ TEST_F(EngineAdvancedTest, VariableReassignmentTypes)
     EXPECT_TRUE(x.isCell());
 }
 
-TEST_F(EngineAdvancedTest, SelfReferentialUpdate)
+TEST_P(EngineAdvancedTest, SelfReferentialUpdate)
 {
     eval(R"(
         A = [1 2 3 4 5];
@@ -1927,7 +1894,7 @@ TEST_F(EngineAdvancedTest, SelfReferentialUpdate)
     expectElem(A, 4, 15);
 }
 
-TEST_F(EngineAdvancedTest, ConvolutionManual)
+TEST_P(EngineAdvancedTest, ConvolutionManual)
 {
     eval(R"(
         function c = my_conv(a, b)
@@ -1952,7 +1919,7 @@ TEST_F(EngineAdvancedTest, ConvolutionManual)
     expectElem(r, 3, 15);
 }
 
-TEST_F(EngineAdvancedTest, RecursiveQuicksort)
+TEST_P(EngineAdvancedTest, RecursiveQuicksort)
 {
     eval(R"(
         function A = qsort(A)
@@ -1988,7 +1955,7 @@ TEST_F(EngineAdvancedTest, RecursiveQuicksort)
     expectElem(sorted, 6, 10);
 }
 
-TEST_F(EngineAdvancedTest, MergeSort)
+TEST_P(EngineAdvancedTest, MergeSort)
 {
     eval(R"(
         function result = merge(a, b)
@@ -2041,7 +2008,7 @@ TEST_F(EngineAdvancedTest, MergeSort)
 // Anonymous functions — advanced
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, AnonymousFunctionInCellArray)
+TEST_P(EngineAdvancedTest, AnonymousFunctionInCellArray)
 {
     eval(R"(
         ops = {@(x,y) x+y, @(x,y) x-y, @(x,y) x*y, @(x,y) x/y};
@@ -2056,7 +2023,7 @@ TEST_F(EngineAdvancedTest, AnonymousFunctionInCellArray)
     EXPECT_NEAR(toDouble(eval("r4;")), 10.0 / 3.0, 1e-10);
 }
 
-TEST_F(EngineAdvancedTest, CounterWithClosure)
+TEST_P(EngineAdvancedTest, CounterWithClosure)
 {
     eval(R"(
         function [inc, get] = make_counter()
@@ -2074,7 +2041,7 @@ TEST_F(EngineAdvancedTest, CounterWithClosure)
 // Matrix operations — assignment patterns
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, MatrixRowAssignment)
+TEST_P(EngineAdvancedTest, MatrixRowAssignment)
 {
     eval(R"(
         A = zeros(3, 3);
@@ -2087,7 +2054,7 @@ TEST_F(EngineAdvancedTest, MatrixRowAssignment)
     expectElem2D(A, 0, 0, 0);
 }
 
-TEST_F(EngineAdvancedTest, MatrixColumnAssignment)
+TEST_P(EngineAdvancedTest, MatrixColumnAssignment)
 {
     eval(R"(
         A = zeros(3, 3);
@@ -2099,7 +2066,7 @@ TEST_F(EngineAdvancedTest, MatrixColumnAssignment)
     expectElem2D(A, 2, 1, 30);
 }
 
-TEST_F(EngineAdvancedTest, SubmatrixAssignment)
+TEST_P(EngineAdvancedTest, SubmatrixAssignment)
 {
     eval(R"(
         A = zeros(4, 4);
@@ -2114,7 +2081,7 @@ TEST_F(EngineAdvancedTest, SubmatrixAssignment)
     expectElem2D(A, 3, 3, 0);
 }
 
-TEST_F(EngineAdvancedTest, DiagonalExtraction)
+TEST_P(EngineAdvancedTest, DiagonalExtraction)
 {
     eval(R"(
         function d = my_diag(A)
@@ -2137,7 +2104,7 @@ TEST_F(EngineAdvancedTest, DiagonalExtraction)
 // Type coercion
 // =============================================================================
 
-TEST_F(EngineAdvancedTest, TypeCoercionBroadcast)
+TEST_P(EngineAdvancedTest, TypeCoercionBroadcast)
 {
     eval("r = [1 2 3] + 10;");
     MValue r = eval("r;");
@@ -2145,3 +2112,5 @@ TEST_F(EngineAdvancedTest, TypeCoercionBroadcast)
     expectElem(r, 1, 12);
     expectElem(r, 2, 13);
 }
+
+INSTANTIATE_DUAL(EngineAdvancedTest);

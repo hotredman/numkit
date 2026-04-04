@@ -123,7 +123,7 @@ public:
 
 private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::AutoFallback;
+    Backend backend_ = Backend::VM;
 
     friend class TreeWalker;
     friend class VM;

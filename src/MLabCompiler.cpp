@@ -121,8 +121,8 @@ uint8_t Compiler::varRegRead(const std::string &name)
     // Check globalEnv
     if (isTopLevel_ && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
-        if (existing && !existing->isEmpty())
-            return varReg(name); // will import from globalEnv
+        if (existing)
+            return varReg(name); // will import from globalEnv (including empty values)
     }
 
     // Check if it's a builtin constant

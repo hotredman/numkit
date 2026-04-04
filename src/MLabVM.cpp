@@ -472,14 +472,47 @@ dispatch_loop:
                 break;
             }
             case OpCode::INDEX_SET_2D: {
-                size_t r = (size_t) R[I.b].toScalar() - 1, c = (size_t) R[I.c].toScalar() - 1;
-                // Auto-expand if needed
-                if (r >= R[I.a].dims().rows() || c >= R[I.a].dims().cols()) {
-                    size_t newR = std::max(R[I.a].dims().rows(), r + 1);
-                    size_t newC = std::max(R[I.a].dims().cols(), c + 1);
-                    R[I.a].resize(newR, newC, &engine_.allocator_);
+                const MValue &ri = R[I.b];
+                const MValue &ci = R[I.c];
+                const MValue &val = R[I.e];
+
+                // Check for colon-all or vector indices
+                bool riIsColon = ri.isChar() && ri.numel() == 1 && ri.charData()[0] == ':';
+                bool ciIsColon = ci.isChar() && ci.numel() == 1 && ci.charData()[0] == ':';
+                bool riIsScalar = ri.isDoubleScalar() || ri.isLogicalScalar();
+                bool ciIsScalar = ci.isDoubleScalar() || ci.isLogicalScalar();
+
+                if (riIsScalar && ciIsScalar && val.isScalar()) {
+                    // Fast path: scalar assign
+                    size_t r = (size_t) ri.toScalar() - 1, c = (size_t) ci.toScalar() - 1;
+                    if (r >= R[I.a].dims().rows() || c >= R[I.a].dims().cols()) {
+                        size_t newR = std::max(R[I.a].dims().rows(), r + 1);
+                        size_t newC = std::max(R[I.a].dims().cols(), c + 1);
+                        R[I.a].resize(newR, newC, &engine_.allocator_);
+                    }
+                    R[I.a].doubleDataMut()[R[I.a].dims().sub2ind(r, c)] = val.toScalar();
+                } else {
+                    // General path: resolve indices via resolveSlice, assign vector/scalar
+                    size_t Rows = R[I.a].dims().rows(), Cols = R[I.a].dims().cols();
+                    auto rowIds = resolveSlice(ri, Rows);
+                    auto colIds = resolveSlice(ci, Cols);
+                    double *dst = R[I.a].doubleDataMut();
+                    auto &dims = R[I.a].dims();
+
+                    if (val.isScalar()) {
+                        double sv = val.toScalar();
+                        for (size_t c = 0; c < colIds.size(); ++c)
+                            for (size_t r = 0; r < rowIds.size(); ++r)
+                                dst[dims.sub2ind(rowIds[r], colIds[c])] = sv;
+                    } else {
+                        const double *src = val.doubleData();
+                        size_t k = 0;
+                        for (size_t c = 0; c < colIds.size(); ++c)
+                            for (size_t r = 0; r < rowIds.size(); ++r)
+                                if (k < val.numel())
+                                    dst[dims.sub2ind(rowIds[r], colIds[c])] = src[k++];
+                    }
                 }
-                R[I.a].doubleDataMut()[R[I.a].dims().sub2ind(r, c)] = R[I.e].toScalar();
                 break;
             }
 

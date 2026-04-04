@@ -135,13 +135,6 @@ private:
                                             Environment *env,
                                             size_t nout);
 
-    // Builtins
-    bool tryBuiltinCall(const std::string &name,
-                        Span<const MValue> args,
-                        Environment *env,
-                        MValue &result,
-                        size_t nargout = 0);
-
     // Utilities
     bool isKnownFunction(const std::string &name) const;
     double colonCount(double start, double step, double stop) const;

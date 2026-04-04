@@ -984,11 +984,6 @@ MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env)
     if (val)
         return *val;
 
-    // Try built-in with zero args
-    MValue result;
-    if (tryBuiltinCall(name, {}, env, result, 1))
-        return result;
-
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
         CallContext ctx{&engine_, env};
@@ -1332,13 +1327,6 @@ std::vector<MValue> TreeWalker::execCallMulti(const ASTNode *node, Environment *
         return outBuf;
     }
 
-    // Try built-in commands
-    {
-        MValue result;
-        if (tryBuiltinCall(funcName, args, env, result, nout))
-            return {result};
-    }
-
     auto it = engine_.externalFuncs_.find(funcName);
     if (it != engine_.externalFuncs_.end()) {
         funcNode->cachedOp = &it->second;
@@ -1613,10 +1601,6 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env)
                 funcNode->cachedOp))(args, 1, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
-
-        MValue result;
-        if (tryBuiltinCall(name, args, env, result, 1))
-            return result;
 
         // Slow path: look up and cache
         auto it = engine_.externalFuncs_.find(name);
@@ -2346,28 +2330,13 @@ MValue TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
         args.reserve(child->children.size() - 1);
         for (size_t i = 1; i < child->children.size(); ++i)
             args.push_back(execNode(child->children[i].get(), env));
-        MValue result;
-        if (tryBuiltinCall(name, args, env, result, 0)) {
-            if (!node->suppressOutput && !result.isEmpty()) {
-                env->set("ans", result);
-                displayValue("ans", result);
-            }
-            return result;
-        }
     }
 
     // Bare identifier in statement context (e.g. `tic` without parens)
     if (child->type == NodeType::IDENTIFIER) {
         const std::string &name = child->strValue;
         if (!env->get(name)) {
-            MValue result;
-            if (tryBuiltinCall(name, {}, env, result, 0)) {
-                if (!node->suppressOutput && !result.isEmpty()) {
-                    env->set("ans", result);
-                    displayValue("ans", result);
-                }
-                return result;
-            }
+            // Will be resolved by execNode → execIdentifier → externalFuncs_
         }
     }
 
@@ -2389,17 +2358,8 @@ MValue TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     for (auto &child : node->children)
         args.push_back(MValue::fromString(child->strValue, &engine_.allocator_));
 
-    // 1. Built-in commands
+    // 1. External registered functions (includes workspace builtins)
     MValue result;
-    if (tryBuiltinCall(name, args, env, result, 0)) {
-        if (!node->suppressOutput && !result.isEmpty()) {
-            env->set("ans", result);
-            displayValue("ans", result);
-        }
-        return result;
-    }
-
-    // 2. External registered functions
     if (engine_.externalFuncs_.count(name)) {
         MValue outBuf[1];
         CallContext ctx{&engine_, env};
@@ -2595,24 +2555,6 @@ std::vector<MValue> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         results.push_back(val ? std::move(*val) : MValue::empty());
     }
     return results;
-}
-
-bool TreeWalker::tryBuiltinCall(const std::string &name,
-                                Span<const MValue> args,
-                                Environment *env,
-                                MValue &result,
-                                size_t nargout)
-{
-    // All workspace builtins (clear, who, whos, which, exist, class, tic, toc, clc)
-    // are now registered as externalFuncs via StdLibrary::registerWorkspaceBuiltins().
-    // They receive CallContext with the correct env, so both TW and VM dispatch
-    // them uniformly through the standard externalFuncs_ lookup path.
-    (void) name;
-    (void) args;
-    (void) env;
-    (void) result;
-    (void) nargout;
-    return false;
 }
 
 } // namespace mlab

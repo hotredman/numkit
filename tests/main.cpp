@@ -4,6 +4,7 @@
 int main(int argc, char **argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
+    //::testing::GTEST_FLAG(filter) = "EngineAdvancedTest.*";
     //::testing::GTEST_FLAG(filter) = "TW_VM/Array3DTest.*:TW_VM/CellIndexTest.Cell3D*";
     return RUN_ALL_TESTS();
 }
