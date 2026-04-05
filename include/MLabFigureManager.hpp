@@ -165,7 +165,9 @@ public:
     {
         auto &ax = currentAxes();
         if (!ax.holdOn) {
-            ax.datasets.clear();
+            int savedSubplot = ax.subplotIndex;
+            ax = AxesState{};
+            ax.subplotIndex = savedSubplot;
         }
         current().modified = true;
     }
