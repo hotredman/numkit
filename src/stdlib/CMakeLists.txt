@@ -1,0 +1,13 @@
+set(STDLIB_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdBinaryOps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdUnaryOps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdMath.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdMatrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdIO.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdTypes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdCellStruct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdStrings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdComplex.cpp
+    PARENT_SCOPE
+)

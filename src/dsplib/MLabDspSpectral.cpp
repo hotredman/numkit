@@ -1,12 +1,12 @@
-#include "MLabSignalHelpers.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MLabDspHelpers.hpp"
+#include "MLabDspLibrary.hpp"
 
 #include <cmath>
 #include <vector>
 
 namespace mlab {
 
-void StdLibrary::registerSpectralFunctions(Engine &engine)
+void DspLibrary::registerSpectralFunctions(Engine &engine)
 {
     // --- periodogram(x) / periodogram(x, window, nfft) ---
     engine.registerFunction("periodogram",

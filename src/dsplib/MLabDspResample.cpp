@@ -1,4 +1,4 @@
-#include "MLabStdLibrary.hpp"
+#include "MLabDspLibrary.hpp"
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -11,7 +11,7 @@
 
 namespace mlab {
 
-void StdLibrary::registerResampleFunctions(Engine &engine)
+void DspLibrary::registerResampleFunctions(Engine &engine)
 {
     // --- downsample(x, n) ---
     engine.registerFunction("downsample",

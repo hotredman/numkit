@@ -1,12 +1,12 @@
-#include "MLabSignalHelpers.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MLabDspHelpers.hpp"
+#include "MLabDspLibrary.hpp"
 
 #include <algorithm>
 #include <cmath>
 
 namespace mlab {
 
-void StdLibrary::registerConvolutionFunctions(Engine &engine)
+void DspLibrary::registerConvolutionFunctions(Engine &engine)
 {
     // --- conv(a, b) / conv(a, b, shape) ---
     engine.registerFunction("conv",

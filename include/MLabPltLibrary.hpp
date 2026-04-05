@@ -4,7 +4,7 @@
 
 namespace mlab {
 
-class PlotLibrary
+class PltLibrary
 {
 public:
     static void install(Engine &engine);

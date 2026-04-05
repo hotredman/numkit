@@ -1,11 +1,11 @@
-#include "MLabSignalHelpers.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MLabDspHelpers.hpp"
+#include "MLabDspLibrary.hpp"
 
 #include <cmath>
 
 namespace mlab {
 
-void StdLibrary::registerTransformFunctions(Engine &engine)
+void DspLibrary::registerTransformFunctions(Engine &engine)
 {
     // --- unwrap(phase) --- unwrap radian phase angles
     engine.registerFunction(

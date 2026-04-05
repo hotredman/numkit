@@ -1,5 +1,5 @@
 #include "MLabStdHelpers.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MLabFitLibrary.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -163,7 +163,7 @@ static std::vector<double> interpPchip(
     return yq;
 }
 
-void StdLibrary::registerInterpFunctions(Engine &engine)
+void FitLibrary::registerInterpFunctions(Engine &engine)
 {
     // --- interp1(x, y, xq) / interp1(x, y, xq, method) ---
     engine.registerFunction(

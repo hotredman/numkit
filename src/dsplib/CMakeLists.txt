@@ -1,0 +1,12 @@
+set(DSPLIB_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspSignalCore.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspConvolution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspWindows.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspFilter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspFilterDesign.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspSpectral.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspResample.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabDspTransform.cpp
+    PARENT_SCOPE
+)

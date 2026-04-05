@@ -1,4 +1,4 @@
-#include "MLabStdLibrary.hpp"
+#include "MLabDspLibrary.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -6,7 +6,7 @@
 
 namespace mlab {
 
-void StdLibrary::registerFilterFunctions(Engine &engine)
+void DspLibrary::registerFilterFunctions(Engine &engine)
 {
     // --- filter(b, a, x) --- Direct Form II transposed
     engine.registerFunction(

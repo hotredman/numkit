@@ -1,4 +1,4 @@
-#include "MLabPlotLibrary.hpp"
+#include "MLabPltLibrary.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 
 namespace mlab {
 
-void PlotLibrary::install(Engine &engine)
+void PltLibrary::install(Engine &engine)
 {
     auto &fm = engine.figureManager();
 

@@ -21,7 +21,7 @@ endif()
 # Основная библиотека
 # ──────────────────────────────────────────────
 
-set(MLAB_SOURCES
+set(MLAB_CORE_SOURCES
     src/MLabAllocator.cpp
     src/MLabValue.cpp
     src/MLabLexer.cpp
@@ -33,26 +33,20 @@ set(MLAB_SOURCES
     src/MLabCompiler.cpp
     src/MLabVM.cpp
     src/MLabDebugger.cpp
-    src/stdlib/MLabStdLibrary.cpp
-    src/stdlib/MLabStdBinaryOps.cpp
-    src/stdlib/MLabStdUnaryOps.cpp
-    src/stdlib/MLabStdMath.cpp
-    src/stdlib/MLabStdMatrix.cpp
-    src/stdlib/MLabStdIO.cpp
-    src/stdlib/MLabStdTypes.cpp
-    src/stdlib/MLabStdCellStruct.cpp
-    src/stdlib/MLabStdStrings.cpp
-    src/stdlib/MLabStdComplex.cpp
-    src/stdlib/MLabStdSignalCore.cpp
-    src/stdlib/MLabStdConvolution.cpp
-    src/stdlib/MLabStdWindows.cpp
-    src/stdlib/MLabStdFilter.cpp
-    src/stdlib/MLabStdFilterDesign.cpp
-    src/stdlib/MLabStdSpectral.cpp
-    src/stdlib/MLabStdResample.cpp
-    src/stdlib/MLabStdTransform.cpp
-    src/stdlib/MLabStdInterp.cpp
-    src/stdlib/MLabPlotLibrary.cpp
+)
+
+# Each subdirectory defines its own source list
+add_subdirectory(src/stdlib)
+add_subdirectory(src/dsplib)
+add_subdirectory(src/pltlib)
+add_subdirectory(src/fitlib)
+
+set(MLAB_SOURCES
+    ${MLAB_CORE_SOURCES}
+    ${STDLIB_SOURCES}
+    ${DSPLIB_SOURCES}
+    ${PLTLIB_SOURCES}
+    ${FITLIB_SOURCES}
 )
 
 set(MLAB_HEADERS
@@ -66,9 +60,9 @@ set(MLAB_HEADERS
     include/MLabEnvironment.hpp
     include/MLabEngine.hpp
     include/MLabStdLibrary.hpp
-    include/MLabStdHelpers.hpp
-    include/MLabSignalHelpers.hpp
-    include/MLabPlotLibrary.hpp
+    include/MLabDspLibrary.hpp
+    include/MLabPltLibrary.hpp
+    include/MLabFitLibrary.hpp
     include/MLabFigureManager.hpp
     include/MLabSpan.hpp
     include/MLabBytecode.hpp
@@ -89,6 +83,9 @@ target_include_directories(mlab
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/stdlib
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsplib
 )
 
 target_compile_features(mlab PUBLIC cxx_std_17)

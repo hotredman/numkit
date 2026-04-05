@@ -1,5 +1,4 @@
 #include "MLabStdLibrary.hpp"
-#include "MLabPlotLibrary.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -25,17 +24,6 @@ void StdLibrary::install(Engine &engine)
     registerCellStructFunctions(engine);
     registerStringFunctions(engine);
     registerComplexFunctions(engine);
-    registerSignalCoreFunctions(engine);
-    registerConvolutionFunctions(engine);
-    registerWindowFunctions(engine);
-    registerFilterFunctions(engine);
-    registerFilterDesignFunctions(engine);
-    registerSpectralFunctions(engine);
-    registerResampleFunctions(engine);
-    registerTransformFunctions(engine);
-    registerInterpFunctions(engine);
-
-    PlotLibrary::install(engine);
 
     registerWorkspaceBuiltins(engine);
 

@@ -4,6 +4,9 @@
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
 #include "MLabStdLibrary.hpp"
+#include "MLabDspLibrary.hpp"
+#include "MLabPltLibrary.hpp"
+#include "MLabFitLibrary.hpp"
 #include "MLabTreeWalker.hpp"
 #include "MLabVM.hpp"
 #include <algorithm>
@@ -47,6 +50,9 @@ Engine::Engine()
 
     reinstallConstants();
     StdLibrary::install(*this);
+    DspLibrary::install(*this);
+    PltLibrary::install(*this);
+    FitLibrary::install(*this);
 }
 
 Engine::~Engine() = default;

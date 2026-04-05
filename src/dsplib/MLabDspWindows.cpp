@@ -1,4 +1,4 @@
-#include "MLabStdLibrary.hpp"
+#include "MLabDspLibrary.hpp"
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -9,7 +9,7 @@
 
 namespace mlab {
 
-void StdLibrary::registerWindowFunctions(Engine &engine)
+void DspLibrary::registerWindowFunctions(Engine &engine)
 {
     // --- hamming(N) ---
     engine.registerFunction(

@@ -1,11 +1,11 @@
-#include "MLabSignalHelpers.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MLabDspHelpers.hpp"
+#include "MLabDspLibrary.hpp"
 
 #include <cmath>
 
 namespace mlab {
 
-void StdLibrary::registerSignalCoreFunctions(Engine &engine)
+void DspLibrary::registerSignalCoreFunctions(Engine &engine)
 {
     // --- nextpow2(n) ---
     engine.registerFunction("nextpow2",

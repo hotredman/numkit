@@ -1,0 +1,4 @@
+set(PLTLIB_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/MLabPltLibrary.cpp
+    PARENT_SCOPE
+)

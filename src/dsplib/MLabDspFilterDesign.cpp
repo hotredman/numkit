@@ -1,4 +1,4 @@
-#include "MLabStdLibrary.hpp"
+#include "MLabDspLibrary.hpp"
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -84,7 +84,7 @@ static void lpToHp(std::vector<double> &b, std::vector<double> &a)
             v /= nyqGain;
 }
 
-void StdLibrary::registerFilterDesignFunctions(Engine &engine)
+void DspLibrary::registerFilterDesignFunctions(Engine &engine)
 {
     // --- butter(N, Wn) / butter(N, Wn, 'high') ---
     engine.registerFunction("butter",
