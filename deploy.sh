@@ -16,7 +16,7 @@ ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
 # Собираем если ещё не собрано
 if [ ! -f "${DIST_DIR}/mlab_repl.wasm" ]; then
     info "Building first..."
-    bash "${PROJECT_DIR}/build.sh"
+    bash "${PROJECT_DIR}/rebuild.sh" --wasm
 fi
 
 # Копируем в docs/ для GitHub Pages

@@ -38,7 +38,7 @@ if [ -f "${WASM_DIST}/mlab_repl.wasm" ]; then
     ENGINE="wasm"
 else
     warn "WASM not built — running in demo (fallback) mode"
-    echo "     To build WASM: source ~/emsdk/emsdk_env.sh && ./build.sh"
+    echo "     To build WASM: source ~/emsdk/emsdk_env.sh && ./rebuild.sh --wasm"
     ENGINE="fallback"
 fi
 
