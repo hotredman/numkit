@@ -5,6 +5,7 @@
 #include <iostream>
 #include <vector>
 #include <set>
+#include <cmath>
 
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
@@ -88,9 +89,59 @@ private:
             auto vars = frame->variables();
             for (auto &v : vars) {
                 if (v.value) {
-                    pauseState.variables.emplace_back(v.name, v.value->toString());
+                    pauseState.variables.emplace_back(v.name, valuePreview(*v.value));
                 }
             }
+        }
+    }
+
+    static std::string valuePreview(const mlab::MValue &val) {
+        using mlab::MType;
+        try {
+            if (val.isScalar()) {
+                if (val.type() == MType::DOUBLE) {
+                    double v = val.toScalar();
+                    if (std::isnan(v)) return "NaN";
+                    if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
+                    // Avoid trailing zeros for integers
+                    if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                        return std::to_string(static_cast<int64_t>(v));
+                    std::ostringstream os; os << v; return os.str();
+                }
+                if (val.type() == MType::LOGICAL)
+                    return val.toBool() ? "true" : "false";
+                if (val.type() == MType::COMPLEX) {
+                    auto c = val.toComplex();
+                    std::ostringstream os;
+                    os << c.real();
+                    if (c.imag() >= 0) os << "+";
+                    os << c.imag() << "i";
+                    return os.str();
+                }
+            }
+            if (val.type() == MType::CHAR)
+                return "'" + val.toString() + "'";
+            // Arrays: show size and a few elements
+            auto &d = val.dims();
+            std::ostringstream os;
+            os << "[" << d.rows() << "x" << d.cols();
+            if (d.is3D()) os << "x" << d.pages();
+            os << " " << mlab::mtypeName(val.type()) << "]";
+            if (val.type() == MType::DOUBLE && val.numel() <= 10) {
+                os << " [";
+                for (size_t i = 0; i < val.numel(); ++i) {
+                    if (i) os << " ";
+                    double v = val.doubleData()[i];
+                    if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                        os << static_cast<int64_t>(v);
+                    else
+                        os << v;
+                }
+                os << "]";
+            }
+            return os.str();
+        } catch (...) {
+            return "<error>";
         }
     }
 
