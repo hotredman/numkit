@@ -151,8 +151,12 @@ public:
         if (r.errorLine > 0) {
             output += "__ERROR_LINE__:" + std::to_string(r.errorLine) + "\n";
             output += "Error (line " + std::to_string(r.errorLine) + "): " + r.errorMessage;
+            if (!r.errorContext.empty())
+                output += " (" + r.errorContext + ")";
         } else {
             output += "Error: " + r.errorMessage;
+            if (!r.errorContext.empty())
+                output += " (" + r.errorContext + ")";
         }
         return output;
     }
@@ -215,6 +219,10 @@ public:
             result = "{\"status\":\"error\",\"message\":\"" + escapeJSON(r.errorMessage) + "\"";
             if (r.errorLine > 0) {
                 result += ",\"line\":" + std::to_string(r.errorLine);
+                result += ",\"col\":" + std::to_string(r.errorCol);
+            }
+            if (!r.errorContext.empty()) {
+                result += ",\"context\":\"" + escapeJSON(r.errorContext) + "\"";
             }
             if (!output.empty()) {
                 result += ",\"output\":\"" + escapeJSON(output) + "\"";

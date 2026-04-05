@@ -70,22 +70,24 @@ extern const std::unordered_set<std::string> kBuiltinNames;
 class MLabError : public std::runtime_error
 {
 public:
-    // Single-frame error (current behavior)
     MLabError(const std::string &msg,
               int line = 0,
               int col = 0,
-              const std::string &funcName = "")
-        : std::runtime_error(msg) // what() = raw message, no formatting
+              const std::string &funcName = "",
+              const std::string &context = "")
+        : std::runtime_error(msg) // what() = raw message (clean, for try/catch)
         , line_(line)
         , col_(col)
         , funcName_(funcName)
+        , context_(context)
     {}
 
     int line() const { return line_; }
     int col() const { return col_; }
     const std::string &funcName() const { return funcName_; }
+    const std::string &context() const { return context_; }
 
-    // Formatted for user display: "Error at line 15, column 3 in 'foo':\n  msg"
+    // Formatted for user display: "Error at line 15, column 3:\n  msg (in call to 'sin')"
     std::string formattedWhat() const
     {
         if (line_ <= 0)
@@ -97,6 +99,8 @@ public:
             result += " in '" + funcName_ + "'";
         result += ":\n  ";
         result += what();
+        if (!context_.empty())
+            result += " (" + context_ + ")";
         return result;
     }
 
@@ -104,6 +108,7 @@ private:
     int line_;
     int col_;
     std::string funcName_;
+    std::string context_;  // e.g. "in call to 'sin'"
 };
 
 // ============================================================

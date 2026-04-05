@@ -21,12 +21,13 @@ int main()
             continue;
         auto r = engine.evalSafe(line);
         if (!r.ok) {
+            std::string ctx = r.errorContext.empty() ? "" : " (" + r.errorContext + ")";
             if (r.errorLine > 0)
                 std::cerr << "Error at line " << r.errorLine
                           << ", column " << r.errorCol << ":\n  "
-                          << r.errorMessage << "\n";
+                          << r.errorMessage << ctx << "\n";
             else
-                std::cerr << "Error: " << r.errorMessage << "\n";
+                std::cerr << "Error: " << r.errorMessage << ctx << "\n";
         }
     }
 

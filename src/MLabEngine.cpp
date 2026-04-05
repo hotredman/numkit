@@ -225,6 +225,7 @@ Engine::EvalResult Engine::evalSafe(const std::string &code)
         r.errorLine = e.line();
         r.errorCol = e.col();
         r.errorFunc = e.funcName();
+        r.errorContext = e.context();
     } catch (const std::exception &e) {
         r.ok = false;
         r.errorMessage = e.what();

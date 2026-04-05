@@ -299,11 +299,8 @@ std::vector<size_t> TreeWalker::resolveIndex(
 }
 
 // ============================================================
-MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
+MValue TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
 {
-    if (!node)
-        return MValue::empty();
-
     switch (node->type) {
     case NodeType::BLOCK:
         return execBlock(node, env);
@@ -389,6 +386,66 @@ MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
     }
     default:
         throw std::runtime_error("Unknown AST node type");
+    }
+}
+
+static std::string describeNode(const ASTNode *node)
+{
+    switch (node->type) {
+    case NodeType::CALL:
+        if (!node->strValue.empty())
+            return "in call to '" + node->strValue + "'";
+        if (!node->children.empty() && node->children[0]->type == NodeType::IDENTIFIER)
+            return "in call to '" + node->children[0]->strValue + "'";
+        return "in function call";
+    case NodeType::CELL_INDEX:
+        if (!node->children.empty() && node->children[0]->type == NodeType::IDENTIFIER)
+            return "in cell indexing of '" + node->children[0]->strValue + "'";
+        return "in cell indexing";
+    case NodeType::BINARY_OP:
+        return "in operator '" + node->strValue + "'";
+    case NodeType::UNARY_OP:
+        return "in unary operator '" + node->strValue + "'";
+    case NodeType::FIELD_ACCESS:
+        return "in field access '." + node->strValue + "'";
+    case NodeType::DYNAMIC_FIELD_ACCESS:
+        return "in dynamic field access";
+    case NodeType::ASSIGN:
+        if (!node->children.empty() && node->children[0]->type == NodeType::IDENTIFIER)
+            return "in assignment to '" + node->children[0]->strValue + "'";
+        return "in assignment";
+    case NodeType::COLON_EXPR:
+        return "in colon expression";
+    case NodeType::MATRIX_LITERAL:
+        return "in matrix construction";
+    case NodeType::CELL_LITERAL:
+        return "in cell construction";
+    case NodeType::IDENTIFIER:
+        return "'" + node->strValue + "'";
+    case NodeType::EXPR_STMT:
+        if (!node->children.empty())
+            return describeNode(node->children[0].get());
+        return "";
+    default:
+        return "";
+    }
+}
+
+MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
+{
+    if (!node)
+        return MValue::empty();
+
+    try {
+        return execNodeInner(node, env);
+    } catch (const MLabError &) {
+        throw;
+    } catch (const DebugStopException &) {
+        throw;
+    } catch (const std::runtime_error &e) {
+        if (node->line > 0)
+            throw MLabError(e.what(), node->line, node->col, "", describeNode(node));
+        throw;
     }
 }
 
@@ -992,15 +1049,7 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
             }
         }
 
-        try {
-            last = execNode(child.get(), env);
-        } catch (const MLabError &) {
-            throw;
-        } catch (const std::runtime_error &e) {
-            if (child->line > 0)
-                throw MLabError(e.what(), child->line, child->col);
-            throw;
-        }
+        last = execNode(child.get(), env);
         if (flowSignal_ != FlowSignal::NONE)
             return last;
     }

@@ -51,6 +51,7 @@ public:
         int errorLine = 0;
         int errorCol = 0;
         std::string errorFunc;
+        std::string errorContext;  // e.g. "in call to 'sin'"
     };
     EvalResult evalSafe(const std::string &code);
 
