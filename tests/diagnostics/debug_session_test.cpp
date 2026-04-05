@@ -548,3 +548,95 @@ TEST_F(DebugSessionTest, EvalPlotPreservesDebugState)
     status = session.resume(DebugAction::Continue);
     EXPECT_TRUE(status == ExecStatus::Paused || status == ExecStatus::Completed);
 }
+
+// ============================================================
+// OutputFunc lifetime: must survive debug session destruction
+// ============================================================
+
+TEST_F(DebugSessionTest, OutputFuncWorksAfterDebugCompletes)
+{
+    // Simulate the ReplSession pattern:
+    // 1. Set outputFunc → owner's buffer
+    // 2. Debug session runs, redirects outputFunc to its own buffer
+    // 3. Session completes and is destroyed
+    // 4. Next eval must write to owner's buffer, not to freed memory
+
+    std::string ownerBuf;
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    {
+        DebugSession session(engine);
+        session.setBreakpoints({2});
+        auto status = session.start("x = 1;\ny = 2;\n");
+        ASSERT_EQ(status, ExecStatus::Paused);
+        status = session.resume(DebugAction::Continue);
+        // Session completes or pauses — either way, it redirected outputFunc
+    }
+    // DebugSession destroyed here — engine's outputFunc was pointing to it
+
+    // Restore outputFunc (this is what ReplSession::restoreOutputFunc does)
+    ownerBuf.clear();
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    // Normal eval must work and output must go to ownerBuf
+    engine.eval("disp('hello after debug')");
+    EXPECT_NE(ownerBuf.find("hello after debug"), std::string::npos)
+        << "output after debug session destroyed should work, got: " << ownerBuf;
+}
+
+TEST_F(DebugSessionTest, OutputFuncWorksAfterDebugStop)
+{
+    std::string ownerBuf;
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    {
+        DebugSession session(engine);
+        session.setBreakpoints({2});
+        auto status = session.start("x = 1;\ny = 2;\nz = 3;\n");
+        ASSERT_EQ(status, ExecStatus::Paused);
+        session.stop();  // explicit stop while paused
+    }
+    // DebugSession destroyed — outputFunc was dangling
+
+    ownerBuf.clear();
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    engine.eval("disp('after stop')");
+    EXPECT_NE(ownerBuf.find("after stop"), std::string::npos)
+        << "output after debug stop should work, got: " << ownerBuf;
+}
+
+TEST_F(DebugSessionTest, OutputFuncDanglingWithoutRestore)
+{
+    // This test documents the problem: WITHOUT restoring outputFunc,
+    // output goes to freed memory. With ASan this would crash.
+    // We verify the fix pattern: restore after destroy.
+
+    std::string ownerBuf;
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    {
+        DebugSession session(engine);
+        session.setBreakpoints({1});
+        session.start("x = 42;\n");
+        // session redirected outputFunc to its own buffer
+        session.eval("disp('during debug')");
+        // resume to completion
+        session.resume(DebugAction::Continue);
+    }
+    // Without restore, engine.outputFunc_ → dangling pointer
+
+    // Restore (the fix)
+    ownerBuf.clear();
+    engine.setOutputFunc([&ownerBuf](const std::string &s) { ownerBuf += s; });
+
+    // Verify figure markers also go to correct buffer
+    engine.eval("figure(1)");
+    EXPECT_NE(ownerBuf.find("__FIGURE_DATA__"), std::string::npos)
+        << "figure markers after debug should go to owner buffer, got: " << ownerBuf;
+
+    ownerBuf.clear();
+    engine.eval("plot([1 2], [3 4])");
+    EXPECT_NE(ownerBuf.find("__FIGURE_DATA__"), std::string::npos)
+        << "plot markers after debug should go to owner buffer, got: " << ownerBuf;
+}
