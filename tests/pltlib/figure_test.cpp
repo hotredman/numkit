@@ -573,6 +573,121 @@ TEST_F(PolarTest, RlimSetsLimits)
 }
 
 // ============================================================
+// Plot type/axes replacement without hold (MATLAB behavior)
+// ============================================================
+
+class PlotReplaceTest : public FigureEngineTest {};
+
+TEST_F(PlotReplaceTest, PlotReplacesPolarplot)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    EXPECT_TRUE(ax().polar);
+    EXPECT_EQ(ax().datasets[0].type, "line");
+
+    eval("plot([1 2 3], [4 5 6]);");
+    EXPECT_FALSE(ax().polar) << "plot() should switch axes back to cartesian";
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "line");
+}
+
+TEST_F(PlotReplaceTest, PolarplotReplacesPlot)
+{
+    eval("figure(1); plot([1 2 3], [4 5 6]);");
+    EXPECT_FALSE(ax().polar);
+
+    eval("polarplot(linspace(0,6.28,63), ones(1,63));");
+    EXPECT_TRUE(ax().polar) << "polarplot() should switch axes to polar";
+    ASSERT_EQ(ax().datasets.size(), 1u);
+}
+
+TEST_F(PlotReplaceTest, BarReplacesPlot)
+{
+    eval("figure(1); plot([1 2 3], [4 5 6]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "line");
+
+    eval("bar([10 20 30]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "bar");
+}
+
+TEST_F(PlotReplaceTest, ScatterReplacesBar)
+{
+    eval("figure(1); bar([1 2 3]);");
+    EXPECT_EQ(ax().datasets[0].type, "bar");
+
+    eval("scatter([1 2 3], [4 5 6]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "scatter");
+}
+
+TEST_F(PlotReplaceTest, StemReplacesScatter)
+{
+    eval("figure(1); scatter([1 2 3], [4 5 6]);");
+    EXPECT_EQ(ax().datasets[0].type, "scatter");
+
+    eval("stem([1 2 3], [7 8 9]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "stem");
+}
+
+TEST_F(PlotReplaceTest, StairsReplacesPlot)
+{
+    eval("figure(1); plot([1 2 3], [4 5 6]);");
+    EXPECT_EQ(ax().datasets[0].type, "line");
+
+    eval("stairs([1 2 3], [7 8 9]);");
+    ASSERT_EQ(ax().datasets.size(), 1u);
+    EXPECT_EQ(ax().datasets[0].type, "stairs");
+}
+
+TEST_F(PlotReplaceTest, PlotReplacesBarClearsConfig)
+{
+    eval("figure(1); bar([1 2 3]); title('old'); xlabel('x'); grid on;");
+    EXPECT_EQ(ax().title, "old");
+    EXPECT_EQ(ax().gridMode, "on");
+
+    eval("plot([1 2], [3 4]);");
+    EXPECT_EQ(ax().title, "") << "title should be cleared without hold";
+    EXPECT_EQ(ax().xlabel, "") << "xlabel should be cleared without hold";
+    EXPECT_EQ(ax().gridMode, "") << "grid should be cleared without hold";
+}
+
+TEST_F(PlotReplaceTest, PlotReplacesClearsLimits)
+{
+    eval("figure(1); plot([1 2],[3 4]); xlim([0 10]); ylim([-1 1]);");
+    EXPECT_FALSE(ax().xlimJson.empty());
+    EXPECT_FALSE(ax().ylimJson.empty());
+
+    eval("bar([5 6 7]);");
+    EXPECT_TRUE(ax().xlimJson.empty()) << "xlim should be cleared without hold";
+    EXPECT_TRUE(ax().ylimJson.empty()) << "ylim should be cleared without hold";
+}
+
+TEST_F(PlotReplaceTest, PlotReplacesClearsLogScale)
+{
+    eval("figure(1); semilogy([1 2 3], [10 100 1000]);");
+    EXPECT_EQ(ax().yscale, "log");
+
+    eval("plot([1 2 3], [4 5 6]);");
+    EXPECT_EQ(ax().yscale, "linear") << "yscale should reset to linear without hold";
+    EXPECT_EQ(ax().xscale, "linear");
+}
+
+TEST_F(PlotReplaceTest, HoldOnPreservesTypeAndConfig)
+{
+    eval("figure(1); polarplot(linspace(0,6.28,63), ones(1,63));");
+    eval("title('polar'); grid on; hold on;");
+    EXPECT_TRUE(ax().polar);
+
+    eval("polarplot(linspace(0,6.28,63), 2*ones(1,63));");
+    EXPECT_TRUE(ax().polar) << "hold on should preserve polar";
+    EXPECT_EQ(ax().title, "polar") << "hold on should preserve title";
+    EXPECT_EQ(ax().gridMode, "on") << "hold on should preserve grid";
+    EXPECT_EQ(ax().datasets.size(), 2u) << "hold on should accumulate datasets";
+}
+
+// ============================================================
 // Subplot
 // ============================================================
 
