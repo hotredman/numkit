@@ -231,6 +231,10 @@ public:
     void indexDelete2D(const size_t *rowIdx, size_t nrows,
                        const size_t *colIdx, size_t ncols,
                        Allocator *alloc = nullptr);
+    void indexDelete3D(const size_t *rowIdx, size_t nrows,
+                       const size_t *colIdx, size_t ncols,
+                       const size_t *pageIdx, size_t npages,
+                       Allocator *alloc = nullptr);
 
     // ── Factories — complex ──────────────────────────────────
     static MValue complexScalar(Complex v, Allocator *alloc = nullptr);

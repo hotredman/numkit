@@ -1410,8 +1410,14 @@ MValue TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
         var->indexDelete2D(rowIdx.data(), rowIdx.size(),
                            colIdx.data(), colIdx.size(),
                            &engine_.allocator_);
-    } else {
-        throw std::runtime_error("Delete with more than 2 indices not supported");
+    } else if (nargs == 3) {
+        auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 3, env);
+        auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 3, env);
+        auto pageIdx = resolveIndex(lhs->children[3].get(), *var, 2, 3, env);
+        var->indexDelete3D(rowIdx.data(), rowIdx.size(),
+                           colIdx.data(), colIdx.size(),
+                           pageIdx.data(), pageIdx.size(),
+                           &engine_.allocator_);
     }
     return MValue::empty();
 }
@@ -1641,30 +1647,6 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
             return MValue::fromString(result, &engine_.allocator_);
         }
         throw std::runtime_error("Multi-dimensional char indexing not supported");
-    }
-
-    if (var.isCell()) {
-        if (nargs == 1) {
-            auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
-            if (indices.size() == 1)
-                return var.cellAt(indices[0]);
-            auto result = MValue::cell(1, indices.size());
-            for (size_t i = 0; i < indices.size(); ++i)
-                result.cellAt(i) = var.cellAt(indices[i]);
-            return result;
-        }
-        if (nargs == 2) {
-            auto ri = resolveIndex(callNode->children[1].get(), var, 0, 2, env);
-            auto ci = resolveIndex(callNode->children[2].get(), var, 1, 2, env);
-            if (ri.size() == 1 && ci.size() == 1)
-                return var.cellAt(var.dims().sub2ind(ri[0], ci[0]));
-            auto result = MValue::cell(ri.size(), ci.size());
-            for (size_t c = 0; c < ci.size(); ++c)
-                for (size_t r = 0; r < ri.size(); ++r)
-                    result.cellAt(r + c * ri.size()) = var.cellAt(var.dims().sub2ind(ri[r], ci[c]));
-            return result;
-        }
-        throw std::runtime_error("Cell indexing with more than 2 dimensions not supported");
     }
 
     if (nargs == 1) {

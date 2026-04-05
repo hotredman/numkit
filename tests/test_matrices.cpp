@@ -1602,4 +1602,94 @@ TEST_P(SharedOpsTest, FFTSpectrumSlicing)
     EXPECT_EQ(mag->numel(), 129u);
 }
 
+// ── Cell () indexing ────────────────────────────────────────
+
+TEST_P(SharedOpsTest, CellParenScalarIndex)
+{
+    // c(2) on cell returns the content (same as c{2} for scalar index)
+    eval("c = {10, 'hello', [1 2 3]}; r = c(2);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(r->toString(), "hello");
+}
+
+TEST_P(SharedOpsTest, CellParenVectorIndex)
+{
+    // c([1 3]) returns a sub-cell
+    eval("c = {10, 'hello', [1 2 3]}; r = c([1 3]);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isCell());
+    EXPECT_EQ(r->numel(), 2u);
+    EXPECT_DOUBLE_EQ(r->cellAt(0).toScalar(), 10.0);
+    EXPECT_EQ(r->cellAt(1).numel(), 3u);
+}
+
+TEST_P(SharedOpsTest, CellCurlyIndex)
+{
+    eval("c = {10, 'hello', [1 2 3]}; r = c{3};");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->type(), mlab::MType::DOUBLE);
+    EXPECT_EQ(r->numel(), 3u);
+}
+
+TEST_P(SharedOpsTest, CellParenIndex2D)
+{
+    eval("c = {1 2; 3 4}; r = c(2, 1);");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->toScalar(), 3.0);
+}
+
+TEST_P(SharedOpsTest, CellCurlyIndex2D)
+{
+    eval("c = {1 2; 3 4}; r = c{1, 2};");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->toScalar(), 2.0);
+}
+
+TEST_P(SharedOpsTest, CellCurlyAssign)
+{
+    eval("c = {0, 0, 0}; c{2} = 'world'; r = c{2};");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(r->toString(), "world");
+}
+
+TEST_P(SharedOpsTest, CellParenLogicalIndex)
+{
+    eval("c = {10, 20, 30}; r = c([true false true]);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isCell());
+    EXPECT_EQ(r->numel(), 2u);
+    EXPECT_DOUBLE_EQ(r->cellAt(0).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(r->cellAt(1).toScalar(), 30.0);
+}
+
+// ── 3D indexing ────────────────────────────────────────────
+
+TEST_P(SharedOpsTest, Index3DGetSlice)
+{
+    eval(R"(
+        A = zeros(2, 3, 2);
+        A(:,:,1) = [1 2 3; 4 5 6];
+        A(:,:,2) = [7 8 9; 10 11 12];
+        B = A(:, :, 2);
+    )");
+    auto *B = getVarPtr("B");
+    EXPECT_EQ(B->dims().rows(), 2u);
+    EXPECT_EQ(B->dims().cols(), 3u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 7.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 2), 12.0);
+}
+
+TEST_P(SharedOpsTest, Index3DSetAndGet)
+{
+    eval(R"(
+        A = zeros(2, 2, 2);
+        A(1, 2, 2) = 99;
+        r = A(1, 2, 2);
+    )");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->toScalar(), 99.0);
+}
+
 INSTANTIATE_DUAL(SharedOpsTest);

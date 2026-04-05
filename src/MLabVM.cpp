@@ -397,8 +397,11 @@ dispatch_loop:
             }
             case OpCode::INDEX_GET_2D: {
                 const MValue &mv = R[I.b];
-                size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
-                R[I.a] = mv.elemAt(mv.dims().sub2indChecked(r, c), &engine_.allocator_);
+                auto rowIds = MValue::resolveIndices(R[I.c], mv.dims().rows());
+                auto colIds = MValue::resolveIndices(R[I.e], mv.dims().cols());
+                R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
+                                        colIds.data(), colIds.size(),
+                                        &engine_.allocator_);
                 break;
             }
             case OpCode::INDEX_SET: {
@@ -441,49 +444,67 @@ dispatch_loop:
             case OpCode::INDEX_GET_ND: {
                 // a=dst, b=arr/cell, c=base, e=ndims
                 uint8_t base = I.c, ndims = I.e;
-                if (R[I.b].isCell()) {
-                    // Cell ND indexing → linear index via sub2ind
-                    size_t idx;
-                    if (ndims == 3) {
-                        size_t r = (size_t) R[base].toScalar() - 1;
-                        size_t c = (size_t) R[base + 1].toScalar() - 1;
-                        size_t p = (size_t) R[base + 2].toScalar() - 1;
-                        idx = R[I.b].dims().sub2ind(r, c, p);
-                    } else {
-                        idx = (size_t) R[base].toScalar() - 1; // fallback linear
-                    }
-                    R[I.a] = R[I.b].cellAt(idx);
+                const MValue &mv = R[I.b];
+                if (ndims == 3) {
+                    auto rowIds = MValue::resolveIndices(R[base], mv.dims().rows());
+                    auto colIds = MValue::resolveIndices(R[base + 1], mv.dims().cols());
+                    auto pageIds = MValue::resolveIndices(R[base + 2], mv.dims().pages());
+                    R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
+                                           colIds.data(), colIds.size(),
+                                           pageIds.data(), pageIds.size(),
+                                           &engine_.allocator_);
                 } else {
-                    // Numeric array ND indexing
-                    size_t idx;
-                    if (ndims == 3) {
-                        size_t r = (size_t) R[base].toScalar() - 1;
-                        size_t c = (size_t) R[base + 1].toScalar() - 1;
-                        size_t p = (size_t) R[base + 2].toScalar() - 1;
-                        idx = R[I.b].dims().sub2ind(r, c, p);
-                    } else {
-                        idx = (size_t) R[base].toScalar() - 1;
-                    }
-                    R[I.a] = R[I.b].elemAt(idx, &engine_.allocator_);
+                    size_t idx = (size_t) R[base].toScalar() - 1;
+                    R[I.a] = mv.elemAt(idx, &engine_.allocator_);
                 }
                 break;
             }
             case OpCode::INDEX_SET_ND: {
                 // a=arr/cell, b=base, c=ndims, e=val
                 uint8_t base = I.b, ndims = I.c;
-                size_t idx;
                 if (ndims == 3) {
-                    size_t r = (size_t) R[base].toScalar() - 1;
-                    size_t c = (size_t) R[base + 1].toScalar() - 1;
-                    size_t p = (size_t) R[base + 2].toScalar() - 1;
-                    idx = R[I.a].dims().sub2ind(r, c, p);
+                    auto isColon = [](const MValue &v) {
+                        return v.isChar() && v.numel() == 1 && v.charData()[0] == ':';
+                    };
+                    bool riColon = isColon(R[base]);
+                    bool ciColon = isColon(R[base + 1]);
+                    bool piColon = isColon(R[base + 2]);
+
+                    // Resolve non-colon indices (unchecked for auto-expand)
+                    auto rowIds = riColon ? std::vector<size_t>()
+                                          : MValue::resolveIndicesUnchecked(R[base]);
+                    auto colIds = ciColon ? std::vector<size_t>()
+                                          : MValue::resolveIndicesUnchecked(R[base + 1]);
+                    auto pageIds = piColon ? std::vector<size_t>()
+                                           : MValue::resolveIndicesUnchecked(R[base + 2]);
+
+                    // Grow if needed
+                    size_t maxR = R[I.a].dims().rows();
+                    size_t maxC = R[I.a].dims().cols();
+                    size_t maxP = R[I.a].dims().pages();
+                    for (size_t r : rowIds) maxR = std::max(maxR, r + 1);
+                    for (size_t c : colIds) maxC = std::max(maxC, c + 1);
+                    for (size_t p : pageIds) maxP = std::max(maxP, p + 1);
+                    if (maxR > R[I.a].dims().rows() || maxC > R[I.a].dims().cols()
+                        || maxP > R[I.a].dims().pages())
+                        R[I.a].resize3d(maxR, maxC, maxP, &engine_.allocator_);
+
+                    // Resolve colon-all after resize (needs final dims)
+                    if (riColon) rowIds = MValue::resolveIndices(R[base], R[I.a].dims().rows());
+                    if (ciColon) colIds = MValue::resolveIndices(R[base + 1], R[I.a].dims().cols());
+                    if (piColon) pageIds = MValue::resolveIndices(R[base + 2], R[I.a].dims().pages());
+
+                    R[I.a].indexSet3D(rowIds.data(), rowIds.size(),
+                                      colIds.data(), colIds.size(),
+                                      pageIds.data(), pageIds.size(),
+                                      R[I.e]);
                 } else {
-                    idx = (size_t) R[base].toScalar() - 1;
+                    size_t idx = (size_t) R[base].toScalar() - 1;
+                    if (R[I.a].isCell())
+                        R[I.a].cellAt(idx) = R[I.e];
+                    else
+                        R[I.a].elemSet(idx, R[I.e]);
                 }
-                if (R[I.a].isCell())
-                    R[I.a].cellAt(idx) = R[I.e];
-                else
-                    R[I.a].elemSet(idx, R[I.e]);
                 break;
             }
 
@@ -502,6 +523,24 @@ dispatch_loop:
                 R[I.a].indexDelete2D(rowIdx.data(), rowIdx.size(),
                                      colIdx.data(), colIdx.size(),
                                      &engine_.allocator_);
+                break;
+            }
+
+            case OpCode::INDEX_DELETE_ND: {
+                // a=arr, b=base, c=ndims
+                uint8_t base = I.b, ndims = I.c;
+                if (ndims == 3) {
+                    auto rowIdx = MValue::resolveIndices(R[base], R[I.a].dims().rows());
+                    auto colIdx = MValue::resolveIndices(R[base + 1], R[I.a].dims().cols());
+                    auto pageIdx = MValue::resolveIndices(R[base + 2], R[I.a].dims().pages());
+                    R[I.a].indexDelete3D(rowIdx.data(), rowIdx.size(),
+                                         colIdx.data(), colIdx.size(),
+                                         pageIdx.data(), pageIdx.size(),
+                                         &engine_.allocator_);
+                } else {
+                    throw std::runtime_error("VM: unsupported delete with "
+                                             + std::to_string(ndims) + " dimensions");
+                }
                 break;
             }
 
@@ -1403,6 +1442,7 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::INDEX_SET_ND:
     case OpCode::INDEX_DELETE:
     case OpCode::INDEX_DELETE_2D:
+    case OpCode::INDEX_DELETE_ND:
         return "in array indexing";
 
     default:

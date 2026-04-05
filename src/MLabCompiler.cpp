@@ -1420,32 +1420,50 @@ uint8_t Compiler::compileCellLiteral(const ASTNode *node)
         return dst;
     }
 
-    // Check if children are row-blocks (2D cell) or direct elements (1D cell)
-    // Parser wraps {a, b, c} as CELL_LITERAL with one BLOCK child containing a,b,c
-    const std::vector<ASTNodePtr> *elements = &node->children;
-    if (node->children.size() == 1 && node->children[0]->type == NodeType::BLOCK) {
-        elements = &node->children[0]->children;
+    // Each child is a row (BLOCK node). Same structure as matrix literals.
+    // {a, b; c, d} → 2 BLOCK children: BLOCK(a,b) and BLOCK(c,d) → 2x2 cell
+    // {a, b, c}    → 1 BLOCK child: BLOCK(a,b,c) → 1x3 cell
+
+    // Compile each row into a cell row
+    std::vector<uint8_t> rowRegs;
+    for (auto &row : node->children) {
+        if (row->children.empty()) {
+            uint8_t dst = tempReg();
+            emitABC(OpCode::CELL_LITERAL, dst, 0, 0);
+            rowRegs.push_back(dst);
+            continue;
+        }
+
+        // Compile row elements into consecutive registers → CELL_LITERAL
+        std::vector<uint8_t> elemRegs;
+        for (auto &elem : row->children)
+            elemRegs.push_back(compileNode(elem.get()));
+
+        uint8_t base = nextReg_;
+        for (size_t i = 0; i < elemRegs.size(); ++i) {
+            uint8_t slot = tempReg();
+            if (elemRegs[i] != slot)
+                emitAB(OpCode::MOVE, slot, elemRegs[i]);
+        }
+
+        uint8_t dst = tempReg();
+        emitABC(OpCode::CELL_LITERAL, dst, base, static_cast<uint8_t>(elemRegs.size()));
+        rowRegs.push_back(dst);
     }
 
-    size_t count = elements->size();
+    if (rowRegs.size() == 1)
+        return rowRegs[0];
 
-    // Compile all elements first
-    std::vector<uint8_t> elemRegs;
-    elemRegs.reserve(count);
-    for (size_t i = 0; i < count; ++i) {
-        elemRegs.push_back(compileNode((*elements)[i].get()));
-    }
-
-    // Allocate consecutive registers and MOVE elements into them
-    uint8_t base = nextReg_;
-    for (size_t i = 0; i < count; ++i) {
+    // Multiple rows: vertcat the cell rows
+    uint8_t vBase = nextReg_;
+    for (size_t i = 0; i < rowRegs.size(); ++i) {
         uint8_t slot = tempReg();
-        if (elemRegs[i] != slot)
-            emitAB(OpCode::MOVE, slot, elemRegs[i]);
+        if (rowRegs[i] != slot)
+            emitAB(OpCode::MOVE, slot, rowRegs[i]);
     }
 
     uint8_t dst = tempReg();
-    emitABC(OpCode::CELL_LITERAL, dst, base, (uint8_t) count);
+    emitABC(OpCode::VERTCAT, dst, vBase, static_cast<uint8_t>(rowRegs.size()));
     return dst;
 }
 
@@ -2135,7 +2153,17 @@ uint8_t Compiler::compileDeleteAssign(const ASTNode *node)
             uint8_t col = compileNode(lhs->children[2].get());
             emitABC(OpCode::INDEX_DELETE_2D, arr, row, col);
         } else {
-            throw std::runtime_error("Compiler: delete with more than 2 indices not supported");
+            // ND delete (3D+): compile indices into consecutive registers
+            std::vector<uint8_t> idxRegs;
+            for (size_t i = 0; i < nargs; ++i)
+                idxRegs.push_back(compileNode(lhs->children[1 + i].get()));
+            uint8_t base = nextReg_;
+            for (size_t i = 0; i < nargs; ++i) {
+                uint8_t slot = tempReg();
+                if (idxRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, idxRegs[i]);
+            }
+            emitABC(OpCode::INDEX_DELETE_ND, arr, base, static_cast<uint8_t>(nargs));
         }
     }
 
@@ -2294,6 +2322,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "INDEX_DELETE";
         case OpCode::INDEX_DELETE_2D:
             return "INDEX_DELETE_2D";
+        case OpCode::INDEX_DELETE_ND:
+            return "INDEX_DELETE_ND";
         case OpCode::LOAD_END:
             return "LOAD_END";
         case OpCode::CALL:

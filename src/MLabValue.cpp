@@ -673,10 +673,13 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
 {
     size_t totalRows = 0, cols = 0, pages = 1;
     bool colsSet = false, pagesSet = false;
+    bool hasCell = false;
 
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
+        if (elems[i].isCell())
+            hasCell = true;
         size_t eR, eC, eP;
         getElemDims(elems[i], eR, eC, eP);
         totalRows += eR;
@@ -685,6 +688,24 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
     }
     if (!cols)
         return MValue::empty();
+
+    // Cell vertcat: combine rows into a 2D cell (column-major)
+    if (hasCell) {
+        auto result = MValue::cell(totalRows, cols);
+        size_t rowOff = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (elems[i].isEmpty())
+                continue;
+            size_t eR = elems[i].dims().rows();
+            size_t eC = elems[i].dims().cols();
+            for (size_t c = 0; c < eC; ++c)
+                for (size_t r = 0; r < eR; ++r)
+                    result.cellAt((c) * totalRows + (rowOff + r)) =
+                        elems[i].cellAt(c * eR + r);
+            rowOff += eR;
+        }
+        return result;
+    }
 
     MType outType = promoteNumericType(elems, count);
 
@@ -730,6 +751,8 @@ MValue MValue::elemAt(size_t idx, Allocator *alloc) const
         std::string s(1, charData()[idx]);
         return MValue::fromString(s, alloc);
     }
+    case MType::CELL:
+        return cellAt(idx);
     default:
         throw std::runtime_error(
             std::string("elemAt not supported for type '") + mtypeName(type()) + "'");
@@ -776,6 +799,12 @@ MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) c
             s += src[indices[i]];
         return MValue::fromString(s, alloc);
     }
+    case MType::CELL: {
+        auto result = MValue::cell(1, count);
+        for (size_t i = 0; i < count; ++i)
+            result.cellAt(i) = cellAt(indices[i]);
+        return result;
+    }
     default:
         throw std::runtime_error(
             std::string("indexGet not supported for type '") + mtypeName(t) + "'");
@@ -793,6 +822,16 @@ MValue MValue::indexGet2D(const size_t *rowIdx, size_t nrows,
     }
 
     MType t = type();
+
+    if (t == MType::CELL) {
+        auto &d = dims();
+        auto result = MValue::cell(nrows, ncols);
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                result.cellAt(c * nrows + r) = cellAt(d.sub2ind(rowIdx[r], colIdx[c]));
+        return result;
+    }
+
     size_t es = elementSize(t);
     if (es == 0)
         throw std::runtime_error(
@@ -821,6 +860,19 @@ MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
     }
 
     MType t = type();
+
+    if (t == MType::CELL) {
+        auto &d = dims();
+        auto result = MValue::cell3D(nrows, ncols, npages);
+        Dims rd(nrows, ncols, npages);
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    result.cellAt(rd.sub2ind(r, c, p)) =
+                        cellAt(d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]));
+        return result;
+    }
+
     size_t es = elementSize(t);
     if (es == 0)
         throw std::runtime_error(
@@ -879,6 +931,14 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         for (size_t i = 0; i < n; ++i)
             if (mask[i])
                 dst[k++] = src[i];
+        return result;
+    }
+    case MType::CELL: {
+        auto result = MValue::cell(1, selected);
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                result.cellAt(k++) = cellAt(i);
         return result;
     }
     default:
@@ -959,6 +1019,9 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     case MType::CHAR:
         dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(readElemAsDouble(val, valIdx)));
         break;
+    case MType::CELL:
+        dst.cellAt(idx) = val.cellAt(valIdx);
+        break;
     default:
         throw std::runtime_error(
             std::string("Indexed assignment not supported for type '")
@@ -981,6 +1044,9 @@ static void writeScalar(MValue &dst, size_t idx, const MValue &val)
         break;
     case MType::CHAR:
         dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(val.toScalar()));
+        break;
+    case MType::CELL:
+        dst.cellAt(idx) = val;
         break;
     default:
         throw std::runtime_error(
@@ -1177,6 +1243,137 @@ void MValue::indexDelete2D(const size_t *rowIdx, size_t nrows,
     } else {
         throw std::runtime_error(
             "Cannot delete from both rows and columns simultaneously");
+    }
+}
+
+void MValue::indexDelete3D(const size_t *rowIdx, size_t nrows,
+                           const size_t *colIdx, size_t ncols,
+                           const size_t *pageIdx, size_t npages,
+                           Allocator *alloc)
+{
+    MType t = type();
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+        throw std::runtime_error(
+            std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
+
+    size_t R = dims().rows(), C = dims().cols(), P = dims().pages();
+
+    // Exactly one dimension must be a proper subset; the other two must be fully selected
+    bool fullR = (nrows == R), fullC = (ncols == C), fullP = (npages == P);
+    int partialCount = (!fullR ? 1 : 0) + (!fullC ? 1 : 0) + (!fullP ? 1 : 0);
+    if (partialCount != 1)
+        throw std::runtime_error(
+            "3D delete requires exactly one dimension to be partially selected");
+
+    if (!fullP) {
+        // Delete pages
+        std::vector<bool> delP(P, false);
+        for (size_t k = 0; k < npages; ++k)
+            if (pageIdx[k] < P) delP[pageIdx[k]] = true;
+        size_t newP = std::count(delP.begin(), delP.end(), false);
+
+        if (t == MType::CELL) {
+            auto result = MValue::cell3D(R, C, newP);
+            Dims rd(R, C, newP);
+            size_t pi = 0;
+            for (size_t p = 0; p < P; ++p)
+                if (!delP[p]) {
+                    for (size_t c = 0; c < C; ++c)
+                        for (size_t r = 0; r < R; ++r)
+                            result.cellAt(rd.sub2ind(r, c, pi)) =
+                                cellAt(dims().sub2ind(r, c, p));
+                    pi++;
+                }
+            *this = std::move(result);
+        } else {
+            size_t es = elementSize(t);
+            auto result = MValue::matrix3d(R, C, newP, t, alloc);
+            size_t sliceBytes = R * C * es;
+            const char *src = static_cast<const char *>(rawData());
+            char *dst = static_cast<char *>(result.rawDataMut());
+            size_t pi = 0;
+            for (size_t p = 0; p < P; ++p)
+                if (!delP[p])
+                    std::memcpy(dst + pi++ * sliceBytes, src + p * sliceBytes, sliceBytes);
+            *this = std::move(result);
+        }
+    } else if (!fullR) {
+        // Delete rows (across all pages)
+        std::vector<bool> delR(R, false);
+        for (size_t k = 0; k < nrows; ++k)
+            if (rowIdx[k] < R) delR[rowIdx[k]] = true;
+        size_t newR = std::count(delR.begin(), delR.end(), false);
+
+        if (t == MType::CELL) {
+            auto result = MValue::cell3D(newR, C, P);
+            Dims rd(newR, C, P);
+            for (size_t p = 0; p < P; ++p) {
+                size_t ri = 0;
+                for (size_t r = 0; r < R; ++r)
+                    if (!delR[r]) {
+                        for (size_t c = 0; c < C; ++c)
+                            result.cellAt(rd.sub2ind(ri, c, p)) =
+                                cellAt(dims().sub2ind(r, c, p));
+                        ri++;
+                    }
+            }
+            *this = std::move(result);
+        } else {
+            size_t es = elementSize(t);
+            auto result = MValue::matrix3d(newR, C, P, t, alloc);
+            const char *src = static_cast<const char *>(rawData());
+            char *dst = static_cast<char *>(result.rawDataMut());
+            for (size_t p = 0; p < P; ++p) {
+                size_t ri = 0;
+                for (size_t r = 0; r < R; ++r)
+                    if (!delR[r]) {
+                        for (size_t c = 0; c < C; ++c)
+                            std::memcpy(
+                                dst + (p * newR * C + c * newR + ri) * es,
+                                src + (p * R * C + c * R + r) * es, es);
+                        ri++;
+                    }
+            }
+            *this = std::move(result);
+        }
+    } else {
+        // Delete columns (across all pages)
+        std::vector<bool> delC(C, false);
+        for (size_t k = 0; k < ncols; ++k)
+            if (colIdx[k] < C) delC[colIdx[k]] = true;
+        size_t newC = std::count(delC.begin(), delC.end(), false);
+
+        if (t == MType::CELL) {
+            auto result = MValue::cell3D(R, newC, P);
+            Dims rd(R, newC, P);
+            for (size_t p = 0; p < P; ++p) {
+                size_t ci = 0;
+                for (size_t c = 0; c < C; ++c)
+                    if (!delC[c]) {
+                        for (size_t r = 0; r < R; ++r)
+                            result.cellAt(rd.sub2ind(r, ci, p)) =
+                                cellAt(dims().sub2ind(r, c, p));
+                        ci++;
+                    }
+            }
+            *this = std::move(result);
+        } else {
+            size_t es = elementSize(t);
+            auto result = MValue::matrix3d(R, newC, P, t, alloc);
+            const char *src = static_cast<const char *>(rawData());
+            char *dst = static_cast<char *>(result.rawDataMut());
+            for (size_t p = 0; p < P; ++p) {
+                size_t ci = 0;
+                for (size_t c = 0; c < C; ++c)
+                    if (!delC[c]) {
+                        std::memcpy(
+                            dst + (p * R * newC + ci * R) * es,
+                            src + (p * R * C + c * R) * es, R * es);
+                        ci++;
+                    }
+            }
+            *this = std::move(result);
+        }
     }
 }
 

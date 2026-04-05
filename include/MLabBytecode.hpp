@@ -75,6 +75,7 @@ enum class OpCode : uint8_t {
     INDEX_SET_ND,    // arr, base, ndims, val  R[arr](R[base]..R[base+ndims-1]) = R[val]
     INDEX_DELETE,    // arr, idx               R[arr](R[idx]) = []             1D
     INDEX_DELETE_2D, // arr, row, col          R[arr](R[row], R[col]) = []     2D
+    INDEX_DELETE_ND, // arr, base, ndims       R[arr](R[base]..R[base+ndims-1]) = []
 
     // ── Struct field access ──────────────────────────────────
     FIELD_GET,           // dst, obj, nameIdx      R[dst] = R[obj].fields[nameIdx]
