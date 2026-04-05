@@ -1410,6 +1410,8 @@ MValue TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
         var->indexDelete2D(rowIdx.data(), rowIdx.size(),
                            colIdx.data(), colIdx.size(),
                            &engine_.allocator_);
+    } else {
+        throw std::runtime_error("Delete with more than 2 indices not supported");
     }
     return MValue::empty();
 }

@@ -793,40 +793,20 @@ MValue MValue::indexGet2D(const size_t *rowIdx, size_t nrows,
     }
 
     MType t = type();
-    auto &d = dims();
-
-    switch (t) {
-    case MType::DOUBLE: {
-        auto result = MValue::matrix(nrows, ncols, MType::DOUBLE, alloc);
-        double *dst = result.doubleDataMut();
-        const double *src = doubleData();
-        for (size_t c = 0; c < ncols; ++c)
-            for (size_t r = 0; r < nrows; ++r)
-                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
-        return result;
-    }
-    case MType::COMPLEX: {
-        auto result = MValue::complexMatrix(nrows, ncols, alloc);
-        Complex *dst = result.complexDataMut();
-        const Complex *src = complexData();
-        for (size_t c = 0; c < ncols; ++c)
-            for (size_t r = 0; r < nrows; ++r)
-                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
-        return result;
-    }
-    case MType::LOGICAL: {
-        auto result = MValue::matrix(nrows, ncols, MType::LOGICAL, alloc);
-        uint8_t *dst = result.logicalDataMut();
-        const uint8_t *src = logicalData();
-        for (size_t c = 0; c < ncols; ++c)
-            for (size_t r = 0; r < nrows; ++r)
-                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
-        return result;
-    }
-    default:
+    size_t es = elementSize(t);
+    if (es == 0)
         throw std::runtime_error(
             std::string("indexGet2D not supported for type '") + mtypeName(t) + "'");
-    }
+
+    auto &d = dims();
+    auto result = MValue::matrix(nrows, ncols, t, alloc);
+    const char *src = static_cast<const char *>(rawData());
+    char *dst = static_cast<char *>(result.rawDataMut());
+    for (size_t c = 0; c < ncols; ++c)
+        for (size_t r = 0; r < nrows; ++r)
+            std::memcpy(dst + (c * nrows + r) * es,
+                        src + d.sub2ind(rowIdx[r], colIdx[c]) * es, es);
+    return result;
 }
 
 // 3D slice: extract sub-array at given row/col/page indices.
@@ -841,46 +821,22 @@ MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
     }
 
     MType t = type();
-    auto &d = dims();
-
-    switch (t) {
-    case MType::DOUBLE: {
-        auto result = MValue::matrix3d(nrows, ncols, npages, MType::DOUBLE, alloc);
-        double *dst = result.doubleDataMut();
-        const double *src = doubleData();
-        Dims rd(nrows, ncols, npages);
-        for (size_t p = 0; p < npages; ++p)
-            for (size_t c = 0; c < ncols; ++c)
-                for (size_t r = 0; r < nrows; ++r)
-                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
-        return result;
-    }
-    case MType::COMPLEX: {
-        auto result = MValue::matrix3d(nrows, ncols, npages, MType::COMPLEX, alloc);
-        Complex *dst = result.complexDataMut();
-        const Complex *src = complexData();
-        Dims rd(nrows, ncols, npages);
-        for (size_t p = 0; p < npages; ++p)
-            for (size_t c = 0; c < ncols; ++c)
-                for (size_t r = 0; r < nrows; ++r)
-                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
-        return result;
-    }
-    case MType::LOGICAL: {
-        auto result = MValue::matrix3d(nrows, ncols, npages, MType::LOGICAL, alloc);
-        uint8_t *dst = result.logicalDataMut();
-        const uint8_t *src = logicalData();
-        Dims rd(nrows, ncols, npages);
-        for (size_t p = 0; p < npages; ++p)
-            for (size_t c = 0; c < ncols; ++c)
-                for (size_t r = 0; r < nrows; ++r)
-                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
-        return result;
-    }
-    default:
+    size_t es = elementSize(t);
+    if (es == 0)
         throw std::runtime_error(
             std::string("indexGet3D not supported for type '") + mtypeName(t) + "'");
-    }
+
+    auto &d = dims();
+    auto result = MValue::matrix3d(nrows, ncols, npages, t, alloc);
+    const char *src = static_cast<const char *>(rawData());
+    char *dst = static_cast<char *>(result.rawDataMut());
+    Dims rd(nrows, ncols, npages);
+    for (size_t p = 0; p < npages; ++p)
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                std::memcpy(dst + rd.sub2ind(r, c, p) * es,
+                            src + d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]) * es, es);
+    return result;
 }
 
 // Logical indexing: extract elements where mask is true → row vector of same type.
