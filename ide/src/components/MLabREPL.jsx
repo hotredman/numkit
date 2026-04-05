@@ -200,6 +200,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         reason: ps.reason,
         bpHitCount: result.breakpointHitCount || 0,
         code: tab.code,
+        bpLines: getActiveBreakpoints(),
       });
       addOutput([{
         type: "system",
@@ -231,8 +232,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   const debugContinue = useCallback(() => {
     if (!debugState || debugState.status !== 'paused') return;
-    debugExecute(debugState.bpHitCount);
-  }, [debugState, debugExecute]);
+    const currentBps = getActiveBreakpoints();
+    const prevBps = debugState.bpLines || [];
+    const bpsChanged = currentBps.length !== prevBps.length ||
+      currentBps.some((v, i) => v !== prevBps[i]);
+    debugExecute(bpsChanged ? 0 : debugState.bpHitCount);
+  }, [debugState, debugExecute, getActiveBreakpoints]);
 
   const debugStop = useCallback(() => {
     setDebugLine(null);
