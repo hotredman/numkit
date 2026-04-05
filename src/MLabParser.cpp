@@ -293,6 +293,7 @@ bool Parser::isCommandStyleCall() const
     switch (next.type) {
     case TokenType::IDENTIFIER:
     case TokenType::STRING:
+    case TokenType::DQSTRING:
     case TokenType::NUMBER:
     case TokenType::KW_TRUE:
     case TokenType::KW_FALSE:
@@ -333,7 +334,7 @@ ASTNodePtr Parser::parseCommandStyleCall()
             // После разделителя — следующий фрагмент
             if (!isAtEnd() && current().line == cmdLine
                 && (check(TokenType::IDENTIFIER) || check(TokenType::NUMBER)
-                    || check(TokenType::STRING) || check(TokenType::DOT))) {
+                    || check(TokenType::STRING) || check(TokenType::DQSTRING) || check(TokenType::DOT))) {
                 argStr += current().value;
                 pos_++;
             }
@@ -990,6 +991,12 @@ ASTNodePtr Parser::parsePrimary()
     }
     case TokenType::STRING: {
         auto n = makeNode(NodeType::STRING_LITERAL, ln, cl);
+        n->strValue = current().value;
+        pos_++;
+        return n;
+    }
+    case TokenType::DQSTRING: {
+        auto n = makeNode(NodeType::DQSTRING_LITERAL, ln, cl);
         n->strValue = current().value;
         pos_++;
         return n;

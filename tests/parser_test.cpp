@@ -152,7 +152,7 @@ TEST_F(ParserStringLiteralTest, DoubleQuotedString)
     auto ast = parseSource("\"world\";");
     const auto &s = stmt(*ast, 0);
     ASSERT_EQ(s.children.size(), 1u);
-    EXPECT_EQ(s.children[0]->type, NodeType::STRING_LITERAL);
+    EXPECT_EQ(s.children[0]->type, NodeType::DQSTRING_LITERAL);
     EXPECT_EQ(s.children[0]->strValue, "world");
 }
 

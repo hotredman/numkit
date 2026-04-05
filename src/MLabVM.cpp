@@ -1087,6 +1087,8 @@ dispatch_loop:
                     os << name << " = []\n\n";
                 else if (R[I.a].isChar())
                     os << name << " = '" << R[I.a].toString() << "'\n\n";
+                else if (R[I.a].isString())
+                    os << name << " = \"" << R[I.a].toString() << "\"\n\n";
                 else
                     os << name << " = " << R[I.a].debugString() << "\n\n";
                 engine_.outputText(os.str());

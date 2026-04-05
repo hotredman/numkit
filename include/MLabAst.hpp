@@ -42,6 +42,7 @@ enum class NodeType {
     PERSISTENT_STMT,
     DELETE_ASSIGN,
     COMMAND_CALL,
+    DQSTRING_LITERAL,
 };
 
 struct ASTNode;

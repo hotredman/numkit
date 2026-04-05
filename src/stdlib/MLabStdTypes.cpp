@@ -111,6 +111,15 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                                 }
                             });
 
+    engine.registerFunction("isstring",
+                            [](Span<const MValue> args,
+                               size_t nargout,
+                               Span<MValue> outs,
+                               CallContext &ctx) {
+                                outs[0] = MValue::logicalScalar(args[0].isString(),
+                                                                &ctx.engine->allocator());
+                            });
+
     engine.registerFunction("iscell",
                             [](Span<const MValue> args,
                                size_t nargout,

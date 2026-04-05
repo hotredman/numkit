@@ -261,17 +261,17 @@ TEST(Lexer, SingleQuotedStringWithSpaces)
 
 TEST(Lexer, DoubleQuotedStringSimple)
 {
-    expectSingleToken("\"hello\"", TokenType::STRING, "hello");
+    expectSingleToken("\"hello\"", TokenType::DQSTRING, "hello");
 }
 
 TEST(Lexer, DoubleQuotedStringEmpty)
 {
-    expectSingleToken("\"\"", TokenType::STRING, "");
+    expectSingleToken("\"\"", TokenType::DQSTRING, "");
 }
 
 TEST(Lexer, DoubleQuotedStringEscapedQuote)
 {
-    expectSingleToken("\"say \"\"hi\"\"\"", TokenType::STRING, "say \"hi\"");
+    expectSingleToken("\"say \"\"hi\"\"\"", TokenType::DQSTRING, "say \"hi\"");
 }
 
 // ============================================================

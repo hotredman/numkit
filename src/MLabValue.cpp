@@ -42,6 +42,8 @@ const char *mtypeName(MType t)
         return "uint32";
     case MType::UINT64:
         return "uint64";
+    case MType::STRING:
+        return "string";
     }
     return "unknown";
 }
@@ -396,6 +398,49 @@ MValue MValue::cell3D(size_t rows, size_t cols, size_t pages)
     m.heap_ = h;
     return m;
 }
+MValue MValue::stringScalar(const std::string &s, Allocator *alloc)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::STRING;
+    h->dims = {1, 1};
+    h->allocator = alloc;
+    h->cellData = new std::vector<MValue>(1, MValue::fromString(s, alloc));
+    m.heap_ = h;
+    return m;
+}
+MValue MValue::stringArray(size_t rows, size_t cols)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::STRING;
+    h->dims = {rows, cols};
+    // Initialize with empty strings
+    h->cellData = new std::vector<MValue>(rows * cols, MValue::fromString("", nullptr));
+    m.heap_ = h;
+    return m;
+}
+const std::string &MValue::stringElem(size_t i) const
+{
+    static const std::string empty;
+    if (!heap_ || heap_->type != MType::STRING || !heap_->cellData || i >= heap_->cellData->size())
+        return empty;
+    // Each element is a CHAR MValue — return its string representation cached nowhere,
+    // so we use a thread_local buffer.
+    // Actually, toString() returns by value, so let's store in the cellData as char MValues
+    // and return from a static. Better: just return toString() but that returns by value.
+    // For efficiency, return from a thread-local.
+    thread_local std::string buf;
+    buf = (*heap_->cellData)[i].toString();
+    return buf;
+}
+void MValue::stringElemSet(size_t i, const std::string &s)
+{
+    detach();
+    if (i >= heap_->cellData->size())
+        heap_->cellData->resize(i + 1, MValue::fromString("", nullptr));
+    (*heap_->cellData)[i] = MValue::fromString(s, heap_->allocator);
+}
 MValue MValue::structure()
 {
     MValue m;
@@ -605,7 +650,39 @@ static void copyBlock(T *dst, size_t dstRows, size_t dstCols,
 // ============================================================
 MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
 {
-    // String concatenation path
+    // String array horzcat: ["a", "b", "c"] → 1×3 string
+    bool hasString = false;
+    for (size_t i = 0; i < count; ++i)
+        if (!elems[i].isEmpty() && elems[i].type() == MType::STRING) {
+            hasString = true;
+            break;
+        }
+    if (hasString) {
+        size_t totalCols = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (elems[i].isEmpty())
+                continue;
+            if (elems[i].isString())
+                totalCols += elems[i].dims().cols();
+            else
+                totalCols += 1; // scalar char or other → one string element
+        }
+        auto result = MValue::stringArray(1, totalCols);
+        size_t pos = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (elems[i].isEmpty())
+                continue;
+            if (elems[i].isString()) {
+                for (size_t j = 0; j < elems[i].numel(); ++j)
+                    result.stringElemSet(pos++, elems[i].stringElem(j));
+            } else {
+                result.stringElemSet(pos++, elems[i].toString());
+            }
+        }
+        return result;
+    }
+
+    // Char concatenation path
     bool hasChar = false;
     for (size_t i = 0; i < count; ++i)
         if (!elems[i].isEmpty() && elems[i].type() == MType::CHAR) {
@@ -1587,6 +1664,10 @@ bool MValue::isFuncHandle() const
 {
     return type() == MType::FUNC_HANDLE;
 }
+bool MValue::isString() const
+{
+    return type() == MType::STRING;
+}
 
 const void *MValue::rawData() const
 {
@@ -1713,6 +1794,11 @@ std::string MValue::toString() const
             return std::string(static_cast<const char *>(heap_->buffer->data()),
                                heap_->dims.numel());
         return std::string(); // empty string (1x0 char)
+    }
+    if (isHeap() && heap_->type == MType::STRING) {
+        if (heap_->cellData && !heap_->cellData->empty())
+            return (*heap_->cellData)[0].toString();
+        return std::string();
     }
     if (isHeap() && heap_->type == MType::FUNC_HANDLE && heap_->funcName)
         return *heap_->funcName;
@@ -2147,6 +2233,19 @@ std::string MValue::debugString() const
     }
     if (t == MType::CHAR && isHeap() && heap_->buffer)
         os << " = '" << toString() << "'";
+    if (t == MType::STRING) {
+        if (isScalar())
+            os << " = \"" << toString() << "\"";
+        else if (isHeap() && heap_->cellData) {
+            os << " [";
+            for (size_t i = 0; i < heap_->cellData->size() && i < 10; ++i) {
+                if (i)
+                    os << ", ";
+                os << "\"" << (*heap_->cellData)[i].toString() << "\"";
+            }
+            os << "]";
+        }
+    }
     if (t == MType::FUNC_HANDLE)
         os << " = @" << funcHandleName();
     if (t == MType::CELL && isHeap() && heap_->cellData) {

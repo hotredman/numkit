@@ -308,6 +308,13 @@ uint8_t Compiler::compileNode(const ASTNode *node)
     }
     case NodeType::STRING_LITERAL:
         return compileString(node);
+    case NodeType::DQSTRING_LITERAL: {
+        uint8_t dst = tempReg();
+        int16_t idx = static_cast<int16_t>(chunk_.constants.size());
+        chunk_.constants.push_back(MValue::stringScalar(node->strValue, nullptr));
+        emitAD(OpCode::LOAD_CONST, dst, idx);
+        return dst;
+    }
     case NodeType::BOOL_LITERAL:
         return compileBool(node);
     case NodeType::IDENTIFIER:

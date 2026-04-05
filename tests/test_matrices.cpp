@@ -2282,4 +2282,190 @@ TEST_P(SharedOpsTest, CharSpaceFill)
     EXPECT_EQ(s->toString(), "ab  z");
 }
 
+// ============================================================
+// Complex array comparison tests
+// ============================================================
+
+TEST_P(SharedOpsTest, ComplexArrayEq)
+{
+    eval("a = [1+2i, 3+4i]; b = [1+2i, 3+0i]; r = a == b;");
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_EQ(r->numel(), 2u);
+    EXPECT_EQ(r->logicalData()[0], 1); // 1+2i == 1+2i
+    EXPECT_EQ(r->logicalData()[1], 0); // 3+4i ~= 3+0i
+}
+
+TEST_P(SharedOpsTest, ComplexArrayNe)
+{
+    eval("r = [1+1i, 2+2i] ~= [1+1i, 2+3i];");
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_EQ(r->logicalData()[0], 0); // equal
+    EXPECT_EQ(r->logicalData()[1], 1); // not equal
+}
+
+TEST_P(SharedOpsTest, ComplexScalarVsArray)
+{
+    eval("r = (1+1i) == [1+1i, 2+2i, 1+1i];");
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_EQ(r->numel(), 3u);
+    EXPECT_EQ(r->logicalData()[0], 1);
+    EXPECT_EQ(r->logicalData()[1], 0);
+    EXPECT_EQ(r->logicalData()[2], 1);
+}
+
+TEST_P(SharedOpsTest, ComplexLtThrows)
+{
+    EXPECT_THROW(eval("r = (1+2i) < (3+4i);"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, ComplexDoubleEq)
+{
+    // Complex vs double comparison
+    eval("r = (3+0i) == 3;");
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_TRUE(r->toBool());
+}
+
+// ============================================================
+// String type tests
+// ============================================================
+
+TEST_P(SharedOpsTest, StringLiteral)
+{
+    eval("s = \"hello\";");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "hello");
+}
+
+TEST_P(SharedOpsTest, StringClass)
+{
+    EXPECT_EQ(evalString("class(\"hello\");"), "string");
+}
+
+TEST_P(SharedOpsTest, IsStringTrue)
+{
+    EXPECT_TRUE(evalBool("isstring(\"abc\");"));
+}
+
+TEST_P(SharedOpsTest, IsStringFalseOnChar)
+{
+    EXPECT_FALSE(evalBool("isstring('abc');"));
+}
+
+TEST_P(SharedOpsTest, IsCharFalseOnString)
+{
+    EXPECT_FALSE(evalBool("ischar(\"abc\");"));
+}
+
+TEST_P(SharedOpsTest, StringConcat)
+{
+    eval("s = \"hello\" + \" world\";");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "hello world");
+}
+
+TEST_P(SharedOpsTest, StringEqTrue)
+{
+    EXPECT_TRUE(evalBool("\"abc\" == \"abc\";"));
+}
+
+TEST_P(SharedOpsTest, StringEqFalse)
+{
+    EXPECT_FALSE(evalBool("\"abc\" == \"xyz\";"));
+}
+
+TEST_P(SharedOpsTest, StringNeTrue)
+{
+    EXPECT_TRUE(evalBool("\"abc\" ~= \"xyz\";"));
+}
+
+TEST_P(SharedOpsTest, StringLt)
+{
+    EXPECT_TRUE(evalBool("\"abc\" < \"xyz\";"));
+}
+
+TEST_P(SharedOpsTest, StringToChar)
+{
+    eval("c = char(\"hello\");");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_TRUE(c->isChar());
+    EXPECT_EQ(c->toString(), "hello");
+}
+
+TEST_P(SharedOpsTest, CharToString)
+{
+    eval("s = string('hello');");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "hello");
+}
+
+TEST_P(SharedOpsTest, NumToString)
+{
+    eval("s = string(42);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "42");
+}
+
+TEST_P(SharedOpsTest, Strlength)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("strlength(\"hello\");"), 5.0);
+}
+
+TEST_P(SharedOpsTest, StringHorzcat)
+{
+    eval("s = [\"abc\", \"def\"];");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->numel(), 2u);
+    EXPECT_EQ(s->stringElem(0), "abc");
+    EXPECT_EQ(s->stringElem(1), "def");
+}
+
+TEST_P(SharedOpsTest, StringContains)
+{
+    EXPECT_TRUE(evalBool("contains(\"hello world\", \"world\");"));
+    EXPECT_FALSE(evalBool("contains(\"hello\", \"xyz\");"));
+}
+
+TEST_P(SharedOpsTest, StringStartsWith)
+{
+    EXPECT_TRUE(evalBool("startsWith(\"hello\", \"hel\");"));
+    EXPECT_FALSE(evalBool("startsWith(\"hello\", \"xyz\");"));
+}
+
+TEST_P(SharedOpsTest, StringEndsWith)
+{
+    EXPECT_TRUE(evalBool("endsWith(\"hello\", \"llo\");"));
+    EXPECT_FALSE(evalBool("endsWith(\"hello\", \"xyz\");"));
+}
+
+TEST_P(SharedOpsTest, Strrep)
+{
+    eval("s = strrep(\"hello world\", \"world\", \"there\");");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "hello there");
+}
+
+TEST_P(SharedOpsTest, StringCompareWithChar)
+{
+    // string == char should work
+    EXPECT_TRUE(evalBool("\"hello\" == 'hello';"));
+}
+
 INSTANTIATE_DUAL(SharedOpsTest);

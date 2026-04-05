@@ -37,6 +37,19 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                 dd[i] = static_cast<double>(static_cast<unsigned char>(cd[i]));
             return elementwiseDouble(a, cb, std::plus<double>{}, alloc);
         }
+        // string + string → string concatenation (MATLAB "a" + "b" = "ab")
+        if (a.isString() && b.isString())
+            return MValue::stringScalar(a.toString() + b.toString(), alloc);
+        // string + char or char + string → string
+        if (a.isString() && b.isChar())
+            return MValue::stringScalar(a.toString() + b.toString(), alloc);
+        if (a.isChar() && b.isString())
+            return MValue::stringScalar(a.toString() + b.toString(), alloc);
+        // string + numeric → string (convert number to string)
+        if (a.isString() && b.isNumeric())
+            return MValue::stringScalar(a.toString() + std::to_string(b.toScalar()), alloc);
+        if (a.isNumeric() && b.isString())
+            return MValue::stringScalar(std::to_string(a.toScalar()) + b.toString(), alloc);
         throw std::runtime_error("Unsupported types for +");
     });
 
@@ -198,48 +211,126 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                     return MValue::logicalScalar(a.toString() != b.toString(), nullptr);
             }
 
+            // String comparison (MATLAB string type)
+            if (a.isString() || b.isString()) {
+                auto toStr = [](const MValue &v) -> std::string {
+                    if (v.isString() || v.isChar())
+                        return v.toString();
+                    throw std::runtime_error(
+                        "Comparison between string and non-string is not supported");
+                };
+                std::string sa = toStr(a), sb = toStr(b);
+                if (op == "==")
+                    return MValue::logicalScalar(sa == sb, nullptr);
+                if (op == "~=")
+                    return MValue::logicalScalar(sa != sb, nullptr);
+                if (op == "<")
+                    return MValue::logicalScalar(sa < sb, nullptr);
+                if (op == ">")
+                    return MValue::logicalScalar(sa > sb, nullptr);
+                if (op == "<=")
+                    return MValue::logicalScalar(sa <= sb, nullptr);
+                if (op == ">=")
+                    return MValue::logicalScalar(sa >= sb, nullptr);
+            }
+
             // Complex comparison: only == and ~= are supported
             if (a.isComplex() || b.isComplex()) {
                 if (op != "==" && op != "~=")
-                    throw std::runtime_error("Operator '" + op + "' is not supported for complex operands");
-                auto toC = [](const MValue &v) -> Complex {
-                    return v.isComplex() ? v.toComplex() : Complex(v.toScalar(), 0.0);
+                    throw std::runtime_error(
+                        "Operator '" + op
+                        + "' is not supported for complex operands");
+                bool isEq = (op == "==");
+                auto ceq = [](Complex x, Complex y) {
+                    return x.real() == y.real() && x.imag() == y.imag();
+                };
+                auto getC = [](const MValue &v, size_t i) -> Complex {
+                    if (v.isComplex())
+                        return v.complexData()[i];
+                    return Complex(v.type() == MType::LOGICAL
+                                       ? static_cast<double>(v.logicalData()[i])
+                                       : v.doubleData()[i],
+                                   0.0);
                 };
                 if (a.isScalar() && b.isScalar()) {
-                    Complex ca = toC(a), cb = toC(b);
-                    bool eq = (ca.real() == cb.real()) && (ca.imag() == cb.imag());
-                    return MValue::logicalScalar(op == "==" ? eq : !eq, nullptr);
+                    Complex ca = a.isComplex() ? a.toComplex()
+                                               : Complex(a.toScalar(), 0.0);
+                    Complex cb = b.isComplex() ? b.toComplex()
+                                               : Complex(b.toScalar(), 0.0);
+                    return MValue::logicalScalar(isEq ? ceq(ca, cb) : !ceq(ca, cb),
+                                                 nullptr);
                 }
-                throw std::runtime_error("Complex array comparison not yet supported");
-            }
-
-            if (a.isScalar() && b.isScalar())
-                return MValue::logicalScalar(cmp(a.toScalar(), b.toScalar()), nullptr);
-
-            if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
                 if (a.isScalar()) {
-                    auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::LOGICAL, nullptr);
-                    double av = a.toScalar();
+                    Complex ca = a.isComplex() ? a.toComplex()
+                                               : Complex(a.toScalar(), 0.0);
+                    auto r = MValue::matrix(b.dims().rows(), b.dims().cols(),
+                                            MType::LOGICAL, nullptr);
                     for (size_t i = 0; i < b.numel(); ++i)
-                        r.logicalDataMut()[i] = cmp(av, b.doubleData()[i]) ? 1 : 0;
+                        r.logicalDataMut()[i] =
+                            (isEq ? ceq(ca, getC(b, i)) : !ceq(ca, getC(b, i)))
+                                ? 1
+                                : 0;
                     return r;
                 }
                 if (b.isScalar()) {
-                    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, nullptr);
-                    double bv = b.toScalar();
+                    Complex cb = b.isComplex() ? b.toComplex()
+                                               : Complex(b.toScalar(), 0.0);
+                    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
+                                            MType::LOGICAL, nullptr);
                     for (size_t i = 0; i < a.numel(); ++i)
-                        r.logicalDataMut()[i] = cmp(a.doubleData()[i], bv) ? 1 : 0;
+                        r.logicalDataMut()[i] =
+                            (isEq ? ceq(getC(a, i), cb) : !ceq(getC(a, i), cb))
+                                ? 1
+                                : 0;
                     return r;
                 }
                 if (a.dims() != b.dims())
-                    throw std::runtime_error("Matrix dimensions must agree for comparison");
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, nullptr);
+                    throw std::runtime_error(
+                        "Matrix dimensions must agree for comparison");
+                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
+                                        MType::LOGICAL, nullptr);
                 for (size_t i = 0; i < a.numel(); ++i)
-                    r.logicalDataMut()[i] = cmp(a.doubleData()[i], b.doubleData()[i]) ? 1 : 0;
+                    r.logicalDataMut()[i] =
+                        (isEq ? ceq(getC(a, i), getC(b, i))
+                              : !ceq(getC(a, i), getC(b, i)))
+                            ? 1
+                            : 0;
                 return r;
             }
 
-            throw std::runtime_error("Unsupported types for " + op);
+            // Numeric comparison (double, logical, mixed)
+            auto getD = [](const MValue &v, size_t i) -> double {
+                if (v.isLogical())
+                    return static_cast<double>(v.logicalData()[i]);
+                return v.doubleData()[i];
+            };
+            if (a.isScalar() && b.isScalar())
+                return MValue::logicalScalar(cmp(a.toScalar(), b.toScalar()), nullptr);
+
+            if (a.isScalar()) {
+                auto r = MValue::matrix(b.dims().rows(), b.dims().cols(),
+                                        MType::LOGICAL, nullptr);
+                double av = a.toScalar();
+                for (size_t i = 0; i < b.numel(); ++i)
+                    r.logicalDataMut()[i] = cmp(av, getD(b, i)) ? 1 : 0;
+                return r;
+            }
+            if (b.isScalar()) {
+                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
+                                        MType::LOGICAL, nullptr);
+                double bv = b.toScalar();
+                for (size_t i = 0; i < a.numel(); ++i)
+                    r.logicalDataMut()[i] = cmp(getD(a, i), bv) ? 1 : 0;
+                return r;
+            }
+            if (a.dims() != b.dims())
+                throw std::runtime_error(
+                    "Matrix dimensions must agree for comparison");
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
+                                    MType::LOGICAL, nullptr);
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.logicalDataMut()[i] = cmp(getD(a, i), getD(b, i)) ? 1 : 0;
+            return r;
         };
     };
 

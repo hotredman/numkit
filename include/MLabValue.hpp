@@ -34,7 +34,8 @@ enum class MType : uint8_t {
     UINT8,
     UINT16,
     UINT32,
-    UINT64
+    UINT64,
+    STRING
 };
 
 const char *mtypeName(MType t);
@@ -241,6 +242,14 @@ public:
     static MValue complexScalar(double re, double im, Allocator *alloc = nullptr);
     static MValue complexMatrix(size_t rows, size_t cols, Allocator *alloc = nullptr);
 
+    // ── Factories — string (MATLAB "..." double-quoted) ─────
+    static MValue stringScalar(const std::string &s, Allocator *alloc = nullptr);
+    static MValue stringArray(size_t rows, size_t cols);
+
+    // ���─ String accessors ────────────────────────────────────
+    const std::string &stringElem(size_t i) const;
+    void stringElemSet(size_t i, const std::string &s);
+
     // ── Type queries ─────────────────────────────────────────
     MType type() const;
     const Dims &dims() const;
@@ -258,6 +267,7 @@ public:
     bool isCell() const;
     bool isStruct() const;
     bool isFuncHandle() const;
+    bool isString() const;
 
     // ── Const raw access ─────────────────────────────────────
     const void *rawData() const;

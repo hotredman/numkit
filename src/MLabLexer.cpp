@@ -154,6 +154,7 @@ bool Lexer::isValueToken(TokenType t) const
     case TokenType::NUMBER:
     case TokenType::IMAG_NUMBER:
     case TokenType::STRING:
+    case TokenType::DQSTRING:
     case TokenType::IDENTIFIER:
     case TokenType::RPAREN:
     case TokenType::RBRACKET:
@@ -516,7 +517,7 @@ void Lexer::readDoubleQuotedString(int startLine, int startCol)
                 advance();
             } else {
                 advance();
-                addToken(TokenType::STRING, s, startLine, startCol);
+                addToken(TokenType::DQSTRING, s, startLine, startCol);
                 return;
             }
         } else if (peek() == '\\') {

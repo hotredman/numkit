@@ -134,6 +134,17 @@ void TreeWalker::displayValue(const std::string &name, const MValue &val)
             os << "    ... (" << val.numel() - 20 << " more)\n";
         break;
     }
+    case MType::STRING: {
+        if (val.isScalar()) {
+            os << "    \"" << val.toString() << "\"\n";
+        } else {
+            auto d = val.dims();
+            os << "  " << d.rows() << "x" << d.cols() << " string array\n";
+            for (size_t i = 0; i < val.numel() && i < 20; ++i)
+                os << "    \"" << val.stringElem(i) << "\"\n";
+        }
+        break;
+    }
     case MType::EMPTY:
         os << "    []\n";
         break;
@@ -289,6 +300,8 @@ MValue TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
         return MValue::scalar(node->numValue, &engine_.allocator_);
     case NodeType::STRING_LITERAL:
         return MValue::fromString(node->strValue, &engine_.allocator_);
+    case NodeType::DQSTRING_LITERAL:
+        return MValue::stringScalar(node->strValue, &engine_.allocator_);
     case NodeType::BOOL_LITERAL:
         return MValue::logicalScalar(node->boolValue, &engine_.allocator_);
     case NodeType::IMAG_LITERAL:
