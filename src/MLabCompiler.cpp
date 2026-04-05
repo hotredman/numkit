@@ -482,10 +482,10 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
 uint8_t Compiler::compileMultiAssign(const ASTNode *node)
 {
-    // [a, b, c] = func(args)
+    // [a, b, c] = func(args)  OR  [a, b] = c{idx}
     // node->returnNames = ["a", "b", "c"]  (~ means ignore)
-    // node->children[0] = CALL node
-    auto *callNode = node->children[0].get();
+    // node->children[0] = CALL or CELL_INDEX node
+    auto *rhsNode = node->children[0].get();
     size_t nout = node->returnNames.size();
 
     // Allocate destination registers for outputs
@@ -496,6 +496,35 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         else
             outRegs.push_back(varReg(name));
     }
+
+    // Cell CSL: [a, b] = c{idx}
+    if (rhsNode->type == NodeType::CELL_INDEX) {
+        uint8_t cellReg = compileNode(rhsNode->children[0].get());
+        uint8_t idxReg = compileNode(rhsNode->children[1].get());
+
+        uint8_t outBase = nextReg_;
+        for (size_t i = 0; i < nout; ++i)
+            tempReg();
+
+        emit(Instruction::make_abcde(OpCode::CELL_GET_MULTI,
+                                     outBase, cellReg, idxReg, 0,
+                                     static_cast<uint8_t>(nout)));
+
+        for (size_t i = 0; i < nout; ++i)
+            if (outRegs[i] != outBase + i)
+                emitAB(OpCode::MOVE, outRegs[i], outBase + static_cast<uint8_t>(i));
+
+        if (!node->suppressOutput) {
+            for (size_t i = 0; i < node->returnNames.size(); ++i)
+                if (node->returnNames[i] != "~") {
+                    int16_t nameIdx = addStringConstant(node->returnNames[i]);
+                    emitAD(OpCode::DISPLAY, outRegs[i], nameIdx);
+                }
+        }
+        return outRegs.empty() ? 0 : outRegs[0];
+    }
+
+    auto *callNode = rhsNode;
 
     // Compile call arguments
     std::vector<uint8_t> argRegs;
@@ -2376,6 +2405,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_SET";
         case OpCode::CELL_SET_2D:
             return "CELL_SET_2D";
+        case OpCode::CELL_GET_MULTI:
+            return "CELL_GET_MULTI";
         case OpCode::TRY_BEGIN:
             return "TRY_BEGIN";
         case OpCode::TRY_END:

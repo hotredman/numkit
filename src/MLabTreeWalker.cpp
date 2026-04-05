@@ -1343,6 +1343,33 @@ MValue TreeWalker::execMultiAssign(const ASTNode *node, Environment *env)
 
 std::vector<MValue> TreeWalker::execCallMulti(const ASTNode *node, Environment *env, size_t nout)
 {
+    // Cell CSL: [a,b] = c{idx} — expand cell elements into separate outputs
+    if (node->type == NodeType::CELL_INDEX) {
+        const MValue *cell = env->get(node->children[0]->strValue);
+        if (!cell || !cell->isCell())
+            throw std::runtime_error("Cell indexing requires a cell array");
+
+        size_t nidx = node->children.size() - 1;
+        if (nidx == 1) {
+            auto indices = resolveIndex(node->children[1].get(), *cell, 0, 1, env);
+            std::vector<MValue> out;
+            out.reserve(indices.size());
+            for (size_t idx : indices)
+                out.push_back(cell->cellAt(idx));
+            return out;
+        } else if (nidx == 2) {
+            auto rowIdx = resolveIndex(node->children[1].get(), *cell, 0, 2, env);
+            auto colIdx = resolveIndex(node->children[2].get(), *cell, 1, 2, env);
+            std::vector<MValue> out;
+            for (size_t c : colIdx)
+                for (size_t r : rowIdx)
+                    out.push_back(cell->cellAt(cell->dims().sub2ind(r, c)));
+            return out;
+        } else {
+            throw std::runtime_error("Cell CSL with " + std::to_string(nidx) + " indices not supported");
+        }
+    }
+
     if (node->type != NodeType::CALL)
         throw std::runtime_error("Expected function call in multi-assignment");
 

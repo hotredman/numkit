@@ -85,10 +85,11 @@ enum class OpCode : uint8_t {
     FIELD_SET_DYN,       // obj, nameReg, val      R[obj].(R[nameReg]) = R[val]
 
     // ── Cell array access ────────────────────────────────────
-    CELL_GET,    // dst, cell, idx         R[dst] = R[cell]{R[idx]}        1D
-    CELL_SET,    // cell, idx, val         R[cell]{R[idx]} = R[val]        1D
-    CELL_GET_2D, // dst, cell, row, col    R[dst] = R[cell]{R[row], R[col]}
-    CELL_SET_2D, // cell, row, col, val    R[cell]{R[row], R[col]} = R[val]
+    CELL_GET,      // dst, cell, idx         R[dst] = R[cell]{R[idx]}        1D
+    CELL_SET,      // cell, idx, val         R[cell]{R[idx]} = R[val]        1D
+    CELL_GET_2D,   // dst, cell, row, col    R[dst] = R[cell]{R[row], R[col]}
+    CELL_SET_2D,   // cell, row, col, val    R[cell]{R[row], R[col]} = R[val]
+    CELL_GET_MULTI,// outBase, cell, idx, nout  R[outBase..+nout] = R[cell]{R[idx]}
 
     // ── Transpose ────────────────────────────────────────────
     CTRANSPOSE, // dst, src               R[dst] = R[src]' (conjugate)

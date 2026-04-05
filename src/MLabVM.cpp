@@ -405,10 +405,23 @@ dispatch_loop:
                 break;
             }
             case OpCode::INDEX_SET: {
-                size_t i = (size_t) R[I.b].toScalar() - 1;
-                if (R[I.a].isEmpty() || R[I.a].isScalar() || i >= R[I.a].numel())
-                    R[I.a].ensureSize(i, &engine_.allocator_);
-                R[I.a].elemSet(i, R[I.c]);
+                const MValue &ix = R[I.b];
+                if (ix.isDoubleScalar() || ix.isLogicalScalar()) {
+                    // Fast path: scalar index
+                    size_t i = (size_t) ix.toScalar() - 1;
+                    if (R[I.a].isEmpty() || R[I.a].isScalar() || i >= R[I.a].numel())
+                        R[I.a].ensureSize(i, &engine_.allocator_);
+                    R[I.a].elemSet(i, R[I.c]);
+                } else {
+                    // Vector or logical index
+                    auto indices = MValue::resolveIndicesUnchecked(ix);
+                    // Auto-grow if needed
+                    size_t maxIdx = 0;
+                    for (size_t idx : indices) maxIdx = std::max(maxIdx, idx);
+                    if (R[I.a].isEmpty() || maxIdx >= R[I.a].numel())
+                        R[I.a].ensureSize(maxIdx, &engine_.allocator_);
+                    R[I.a].indexSet(indices.data(), indices.size(), R[I.c]);
+                }
                 break;
             }
             case OpCode::INDEX_SET_2D: {
@@ -619,6 +632,16 @@ dispatch_loop:
                     throw std::runtime_error("Cell indexing requires a cell array");
                 size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
                 R[I.a] = R[I.b].cellAt(R[I.b].dims().sub2ind(r, c));
+                break;
+            }
+            case OpCode::CELL_GET_MULTI: {
+                // a=outBase, b=cell, c=idx, e=nout
+                if (!R[I.b].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                auto indices = MValue::resolveIndices(R[I.c], R[I.b].numel());
+                uint8_t outBase = I.a, nout = I.e;
+                for (uint8_t i = 0; i < nout && i < indices.size(); ++i)
+                    R[outBase + i] = R[I.b].cellAt(indices[i]);
                 break;
             }
             case OpCode::CELL_SET: {
@@ -1388,6 +1411,7 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::CELL_SET:
     case OpCode::CELL_GET_2D:
     case OpCode::CELL_SET_2D:
+    case OpCode::CELL_GET_MULTI:
         return "in cell indexing";
 
     // Field access

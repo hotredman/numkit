@@ -1692,4 +1692,125 @@ TEST_P(SharedOpsTest, Index3DSetAndGet)
     EXPECT_DOUBLE_EQ(r->toScalar(), 99.0);
 }
 
+// ── Logical mask SET ─────────────────────────────────────
+
+TEST_P(SharedOpsTest, LogicalMaskSetScalar)
+{
+    eval("A = [10 20 30 40 50]; A([true false true false true]) = 0;");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0), 0.0);
+    EXPECT_DOUBLE_EQ((*A)(1), 20.0);
+    EXPECT_DOUBLE_EQ((*A)(2), 0.0);
+    EXPECT_DOUBLE_EQ((*A)(3), 40.0);
+    EXPECT_DOUBLE_EQ((*A)(4), 0.0);
+}
+
+TEST_P(SharedOpsTest, LogicalMaskSetVector)
+{
+    eval("A = [1 2 3 4 5]; A([false true false true false]) = [99 88];");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0), 1.0);
+    EXPECT_DOUBLE_EQ((*A)(1), 99.0);
+    EXPECT_DOUBLE_EQ((*A)(2), 3.0);
+    EXPECT_DOUBLE_EQ((*A)(3), 88.0);
+    EXPECT_DOUBLE_EQ((*A)(4), 5.0);
+}
+
+TEST_P(SharedOpsTest, LogicalMaskSetComplex)
+{
+    eval("A = [1+1i, 2+2i, 3+3i]; A([true false true]) = 0;");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ(A->complexData()[0].real(), 0.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[1].real(), 2.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[2].real(), 0.0);
+}
+
+TEST_P(SharedOpsTest, LogicalMaskSetLogical)
+{
+    eval("A = [true true false false]; A([false false true true]) = true;");
+    auto *A = getVarPtr("A");
+    EXPECT_TRUE(A->isLogical());
+    EXPECT_EQ(A->logicalData()[0], 1);
+    EXPECT_EQ(A->logicalData()[1], 1);
+    EXPECT_EQ(A->logicalData()[2], 1);
+    EXPECT_EQ(A->logicalData()[3], 1);
+}
+
+// ── Logical mask DELETE ─────────────────────────────────
+
+TEST_P(SharedOpsTest, LogicalMaskDelete)
+{
+    eval("A = [10 20 30 40 50]; A([true false true false false]) = [];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(A->numel(), 3u);
+    EXPECT_DOUBLE_EQ(A->doubleData()[0], 20.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[1], 40.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[2], 50.0);
+}
+
+TEST_P(SharedOpsTest, LogicalMaskDeleteComplex)
+{
+    eval("A = [1+2i, 3+4i, 5+6i]; A([false true false]) = [];");
+    auto *A = getVarPtr("A");
+    EXPECT_TRUE(A->isComplex());
+    EXPECT_EQ(A->numel(), 2u);
+    EXPECT_DOUBLE_EQ(A->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[1].real(), 5.0);
+}
+
+TEST_P(SharedOpsTest, LogicalMaskDeleteChar)
+{
+    eval("s = 'abcde'; s([true false true false true]) = [];");
+    auto *s = getVarPtr("s");
+    EXPECT_TRUE(s->isChar());
+    EXPECT_EQ(s->toString(), "bd");
+}
+
+TEST_P(SharedOpsTest, LogicalMaskDeleteCell)
+{
+    eval("c = {10, 20, 30, 40}; c([false true false true]) = [];");
+    auto *c = getVarPtr("c");
+    EXPECT_TRUE(c->isCell());
+    EXPECT_EQ(c->numel(), 2u);
+    EXPECT_DOUBLE_EQ(c->cellAt(0).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(c->cellAt(1).toScalar(), 30.0);
+}
+
+// ── Logical mask GET — CHAR (was missing) ───────────────
+
+TEST_P(SharedOpsTest, LogicalMaskGetChar)
+{
+    eval("s = 'hello'; r = s([true false true false true]);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(r->toString(), "hlo");
+}
+
+// ── Cell comma-separated list ───────────────────────────
+
+TEST_P(SharedOpsTest, CellCSLBasic)
+{
+    eval("c = {10, 'hello', [1 2 3]}; [a, b] = c{[1 2]};");
+    auto *a = getVarPtr("a");
+    auto *b = getVarPtr("b");
+    EXPECT_DOUBLE_EQ(a->toScalar(), 10.0);
+    EXPECT_TRUE(b->isChar());
+    EXPECT_EQ(b->toString(), "hello");
+}
+
+TEST_P(SharedOpsTest, CellCSLColon)
+{
+    eval("c = {1, 2, 3}; [x, y, z] = c{:};");
+    EXPECT_DOUBLE_EQ(getVar("x"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("z"), 3.0);
+}
+
+TEST_P(SharedOpsTest, CellCSLWithTilde)
+{
+    eval("c = {10, 20, 30}; [~, b, ~] = c{:};");
+    EXPECT_DOUBLE_EQ(getVar("b"), 20.0);
+    EXPECT_EQ(getVarPtr("~"), nullptr);
+}
+
 INSTANTIATE_DUAL(SharedOpsTest);

@@ -933,6 +933,16 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
                 dst[k++] = src[i];
         return result;
     }
+    case MType::CHAR: {
+        auto result = MValue::matrix(1, selected, MType::CHAR, alloc);
+        char *dst = result.charDataMut();
+        const char *src = charData();
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                dst[k++] = src[i];
+        return result;
+    }
     case MType::CELL: {
         auto result = MValue::cell(1, selected);
         size_t k = 0;
