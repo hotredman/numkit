@@ -1429,4 +1429,118 @@ TEST_P(SharedOpsTest, ConcatPreservesColumnMajor)
     EXPECT_DOUBLE_EQ(v->doubleData()[3], 4.0);
 }
 
+// ── Complex concat ──────────────────────────────────────────
+
+TEST_P(SharedOpsTest, HorzcatComplex)
+{
+    eval("v = [1+2i, 3+4i];");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(v->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 2.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].imag(), 4.0);
+}
+
+TEST_P(SharedOpsTest, VertcatComplex)
+{
+    eval("v = [1+2i; 3+4i];");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 1u);
+}
+
+TEST_P(SharedOpsTest, MixedDoubleComplexPromotes)
+{
+    // Mixing double and complex → result should be complex
+    eval("v = [1, 2+3i, 4];");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].real(), 2.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].imag(), 3.0);
+}
+
+TEST_P(SharedOpsTest, VertcatMixedDoubleComplex)
+{
+    eval("A = [1 2; 3 4]; B = [5+1i 6+2i]; C = [A; B];");
+    auto *v = getVarPtr("C");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 2u);
+    // A elements promoted to complex
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 0.0);
+}
+
+// ── Logical concat ──────────────────────────────────────────
+
+TEST_P(SharedOpsTest, HorzcatLogicalPromotesToDouble)
+{
+    eval("v = [true, false, true];");
+    auto *v = getVarPtr("v");
+    // MATLAB: [true, true] produces double [1, 1] in matrix context
+    EXPECT_EQ(v->type(), mlab::MType::DOUBLE);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 0.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 1.0);
+}
+
+TEST_P(SharedOpsTest, MixedLogicalDoubleConcat)
+{
+    eval("v = [true, 5, false];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), mlab::MType::DOUBLE);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 0.0);
+}
+
+// ── 3D concat ───────────────────────────────────────────────
+
+TEST_P(SharedOpsTest, Vertcat3DArrays)
+{
+    // Create two 1×2×2 arrays, vertcat → 2×2×2
+    eval(R"(
+        A = zeros(1,2,2); A(1,1,1) = 1; A(1,2,1) = 2; A(1,1,2) = 3; A(1,2,2) = 4;
+        B = zeros(1,2,2); B(1,1,1) = 5; B(1,2,1) = 6; B(1,1,2) = 7; B(1,2,2) = 8;
+        C = vertcat(A, B);
+    )");
+    auto *v = getVarPtr("C");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_TRUE(v->dims().is3D());
+    EXPECT_EQ(v->dims().pages(), 2u);
+}
+
+TEST_P(SharedOpsTest, Horzcat3DArrays)
+{
+    // Create two 2×1×2 arrays, horzcat → 2×2×2
+    eval(R"(
+        A = zeros(2,1,2); A(1,1,1) = 1; A(2,1,1) = 2; A(1,1,2) = 3; A(2,1,2) = 4;
+        B = zeros(2,1,2); B(1,1,1) = 5; B(2,1,1) = 6; B(1,1,2) = 7; B(2,1,2) = 8;
+        C = horzcat(A, B);
+    )");
+    auto *v = getVarPtr("C");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_TRUE(v->dims().is3D());
+    EXPECT_EQ(v->dims().pages(), 2u);
+}
+
+TEST_P(SharedOpsTest, Vertcat3DPagesMismatchError)
+{
+    auto r = engine.evalSafe(R"(
+        A = zeros(1,2,2);
+        B = zeros(1,2,3);
+        C = vertcat(A, B);
+    )");
+    EXPECT_FALSE(r.ok);
+}
+
 INSTANTIATE_DUAL(SharedOpsTest);

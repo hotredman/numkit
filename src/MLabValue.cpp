@@ -462,18 +462,133 @@ MValue MValue::colonRange(double start, double step, double stop, Allocator *all
 }
 
 // ============================================================
+// Concat helpers: type promotion and element access
+// ============================================================
+
+// Type promotion order: LOGICAL → DOUBLE → COMPLEX.
+// Integer types (INT8..UINT64) are declared but not yet creatable at runtime;
+// when they are, add them here with appropriate promotion rules.
+static MType promoteNumericType(const MValue *elems, size_t count)
+{
+    bool hasDouble = false;
+    bool hasComplex = false;
+    for (size_t i = 0; i < count; ++i) {
+        if (elems[i].isEmpty())
+            continue;
+        switch (elems[i].type()) {
+        case MType::COMPLEX:
+            hasComplex = true;
+            break;
+        case MType::DOUBLE:
+            hasDouble = true;
+            break;
+        case MType::LOGICAL:
+            break;
+        default:
+            throw std::runtime_error(
+                std::string("Concatenation not supported for type '")
+                + mtypeName(elems[i].type()) + "'");
+        }
+    }
+    if (hasComplex)
+        return MType::COMPLEX;
+    return MType::DOUBLE; // LOGICAL promotes to DOUBLE
+}
+
+// Read one element as double. Supports DOUBLE, LOGICAL, COMPLEX (takes real part).
+static double readElemAsDouble(const MValue &v, size_t idx)
+{
+    switch (v.type()) {
+    case MType::DOUBLE:
+        return v.doubleData()[idx];
+    case MType::LOGICAL:
+        return static_cast<double>(v.logicalData()[idx]);
+    case MType::COMPLEX:
+        return v.complexData()[idx].real();
+    default:
+        throw std::runtime_error(
+            std::string("Cannot read element as double from type '")
+            + mtypeName(v.type()) + "'");
+    }
+}
+
+// Read one element as Complex. Supports DOUBLE, LOGICAL, COMPLEX.
+static Complex readElemAsComplex(const MValue &v, size_t idx)
+{
+    switch (v.type()) {
+    case MType::COMPLEX:
+        return v.complexData()[idx];
+    case MType::DOUBLE:
+        return Complex(v.doubleData()[idx], 0.0);
+    case MType::LOGICAL:
+        return Complex(static_cast<double>(v.logicalData()[idx]), 0.0);
+    default:
+        throw std::runtime_error(
+            std::string("Cannot read element as complex from type '")
+            + mtypeName(v.type()) + "'");
+    }
+}
+
+// Get dimensions for a concat element: rows, cols, pages.
+// Scalars are treated as 1×1×1.
+static void getElemDims(const MValue &v, size_t &r, size_t &c, size_t &p)
+{
+    if (v.isScalar()) {
+        r = c = p = 1;
+    } else {
+        auto &d = v.dims();
+        r = d.rows();
+        c = d.cols();
+        p = d.is3D() ? d.pages() : 1;
+    }
+}
+
+// Validate and accumulate one dimension (rows or pages) that must match across elements.
+// First non-empty element sets the value; subsequent must agree (broadcast 1 allowed).
+static void matchDim(size_t &out, size_t elem, bool &set)
+{
+    if (!set) {
+        out = elem;
+        set = true;
+    } else if (out != elem && elem != 1 && out != 1) {
+        throw std::runtime_error(
+            "Dimensions of arrays being concatenated are not consistent");
+    }
+    if (elem > 1)
+        out = elem;
+}
+
+// Copy elements from source into a column-major destination buffer.
+// Template avoids duplicating the loop structure for double vs Complex.
+template<typename T, typename ReadFunc>
+static void copyBlock(T *dst, size_t dstRows, size_t dstCols,
+                      const MValue &src, size_t srcRows, size_t srcCols, size_t srcPages,
+                      size_t rowOff, size_t colOff, size_t pages,
+                      ReadFunc read)
+{
+    size_t dstSlice = dstRows * dstCols;
+    size_t srcSlice = srcRows * srcCols;
+    for (size_t p = 0; p < pages; ++p)
+        for (size_t c = 0; c < srcCols; ++c)
+            for (size_t r = 0; r < srcRows; ++r)
+                dst[(rowOff + r) + (colOff + c) * dstRows + p * dstSlice] =
+                    read(src, r + c * srcRows + p * srcSlice);
+}
+
+// ============================================================
 // Horizontal concatenation: [a, b, c]
+// Concatenates along dimension 2 (columns).
+// Rows and pages must match across all elements.
 // ============================================================
 MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
 {
-    // Check for string concatenation
+    // String concatenation path
     bool hasChar = false;
-    for (size_t i = 0; i < count; ++i) {
+    for (size_t i = 0; i < count; ++i)
         if (!elems[i].isEmpty() && elems[i].type() == MType::CHAR) {
             hasChar = true;
             break;
         }
-    }
 
     if (hasChar) {
         std::string result;
@@ -482,7 +597,7 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
                 continue;
             if (elems[i].type() == MType::CHAR)
                 result += elems[i].toString();
-            else if (elems[i].isDoubleScalar())
+            else if (elems[i].isScalar())
                 result += static_cast<char>(static_cast<int>(elems[i].toScalar()));
             else
                 throw std::runtime_error("Cannot concatenate char and non-char arrays");
@@ -490,125 +605,86 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
         return MValue::fromString(result, alloc);
     }
 
-    // Determine output dimensions
-    size_t totalCols = 0;
-    size_t rows = 0;
+    // Collect dimensions
+    size_t totalCols = 0, rows = 0, pages = 1;
+    bool rowsSet = false, pagesSet = false;
+
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
-        if (elems[i].isDoubleScalar()) {
-            totalCols++;
-            if (!rows)
-                rows = 1;
-            continue;
-        }
-        auto &dims = elems[i].dims();
-        totalCols += dims.cols();
-        if (!rows)
-            rows = dims.rows();
-        else if (rows != dims.rows() && dims.rows() != 1 && rows != 1)
-            throw std::runtime_error(
-                "Dimensions of arrays being concatenated are not consistent");
-        if (dims.rows() > 1)
-            rows = dims.rows();
+        size_t eR, eC, eP;
+        getElemDims(elems[i], eR, eC, eP);
+        totalCols += eC;
+        matchDim(rows, eR, rowsSet);
+        matchDim(pages, eP, pagesSet);
     }
     if (!rows)
         rows = 1;
 
-    if (rows == 1) {
-        // Row vector — flat copy
-        size_t total = 0;
-        for (size_t i = 0; i < count; ++i) {
-            if (elems[i].isEmpty())
-                continue;
-            total += elems[i].isDoubleScalar() ? 1 : elems[i].numel();
-        }
-        auto result = MValue::matrix(1, total, MType::DOUBLE, alloc);
-        double *d = result.doubleDataMut();
-        size_t pos = 0;
-        for (size_t i = 0; i < count; ++i) {
-            if (elems[i].isEmpty())
-                continue;
-            if (elems[i].isDoubleScalar()) {
-                d[pos++] = elems[i].scalarVal();
-                continue;
-            }
-            const double *src = elems[i].doubleData();
-            size_t n = elems[i].numel();
-            std::copy(src, src + n, d + pos);
-            pos += n;
-        }
-        return result;
-    }
+    MType outType = promoteNumericType(elems, count);
 
-    // 2D — column-major copy
-    auto result = MValue::matrix(rows, totalCols, MType::DOUBLE, alloc);
-    double *d = result.doubleDataMut();
+    auto result = (pages > 1) ? MValue::matrix3d(rows, totalCols, pages, outType, alloc)
+                              : MValue::matrix(rows, totalCols, outType, alloc);
+
     size_t colOff = 0;
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
-        if (elems[i].isDoubleScalar()) {
-            d[colOff * rows] = elems[i].scalarVal();
-            colOff++;
-            continue;
-        }
-        auto &dims = elems[i].dims();
-        const double *src = elems[i].doubleData();
-        for (size_t c = 0; c < dims.cols(); ++c)
-            for (size_t r = 0; r < dims.rows(); ++r)
-                d[r + (colOff + c) * rows] = src[r + c * dims.rows()];
-        colOff += dims.cols();
+        size_t eR, eC, eP;
+        getElemDims(elems[i], eR, eC, eP);
+
+        if (outType == MType::COMPLEX)
+            copyBlock(result.complexDataMut(), rows, totalCols,
+                      elems[i], eR, eC, eP, 0, colOff, pages, readElemAsComplex);
+        else
+            copyBlock(result.doubleDataMut(), rows, totalCols,
+                      elems[i], eR, eC, eP, 0, colOff, pages, readElemAsDouble);
+        colOff += eC;
     }
     return result;
 }
 
 // ============================================================
 // Vertical concatenation: [a; b; c]
+// Concatenates along dimension 1 (rows).
+// Columns and pages must match across all elements.
 // ============================================================
 MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
 {
-    size_t totalRows = 0, cols = 0;
+    size_t totalRows = 0, cols = 0, pages = 1;
+    bool colsSet = false, pagesSet = false;
+
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
-        size_t eCols, eRows;
-        if (elems[i].isDoubleScalar()) {
-            eRows = 1;
-            eCols = 1;
-        } else {
-            auto &dims = elems[i].dims();
-            eRows = dims.rows();
-            eCols = dims.cols();
-        }
-        totalRows += eRows;
-        if (!cols)
-            cols = eCols;
-        else if (cols != eCols && eCols != 1 && cols != 1)
-            throw std::runtime_error(
-                "Dimensions of arrays being concatenated are not consistent");
-        if (eCols > 1)
-            cols = eCols;
+        size_t eR, eC, eP;
+        getElemDims(elems[i], eR, eC, eP);
+        totalRows += eR;
+        matchDim(cols, eC, colsSet);
+        matchDim(pages, eP, pagesSet);
     }
-    if (!cols) {
+    if (!cols)
         return MValue::empty();
-    }
-    auto result = MValue::matrix(totalRows, cols, MType::DOUBLE, alloc);
-    double *d = result.doubleDataMut();
+
+    MType outType = promoteNumericType(elems, count);
+
+    auto result = (pages > 1) ? MValue::matrix3d(totalRows, cols, pages, outType, alloc)
+                              : MValue::matrix(totalRows, cols, outType, alloc);
+
     size_t rowOff = 0;
     for (size_t i = 0; i < count; ++i) {
         if (elems[i].isEmpty())
             continue;
-        if (elems[i].isDoubleScalar()) {
-            d[rowOff++] = elems[i].scalarVal();
-            continue;
-        }
-        auto &dims = elems[i].dims();
-        const double *src = elems[i].doubleData();
-        for (size_t c = 0; c < cols; ++c)
-            for (size_t r = 0; r < dims.rows(); ++r)
-                d[(rowOff + r) + c * totalRows] = src[r + c * dims.rows()];
-        rowOff += dims.rows();
+        size_t eR, eC, eP;
+        getElemDims(elems[i], eR, eC, eP);
+
+        if (outType == MType::COMPLEX)
+            copyBlock(result.complexDataMut(), totalRows, cols,
+                      elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsComplex);
+        else
+            copyBlock(result.doubleDataMut(), totalRows, cols,
+                      elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsDouble);
+        rowOff += eR;
     }
     return result;
 }

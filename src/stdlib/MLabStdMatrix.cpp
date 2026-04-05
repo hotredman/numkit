@@ -278,31 +278,12 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                size_t nargout,
                                Span<MValue> outs,
                                CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
                                 if (args.empty()) {
                                     outs[0] = MValue::empty();
                                     return;
                                 }
-                                size_t rows = args[0].dims().rows();
-                                size_t totalCols = 0;
-                                for (auto &a : args) {
-                                    if (a.dims().rows() != rows)
-                                        throw std::runtime_error(
-                                            "Dimensions must agree for horzcat");
-                                    totalCols += a.dims().cols();
-                                }
-                                auto r = MValue::matrix(rows, totalCols, MType::DOUBLE, alloc);
-                                size_t colOff = 0;
-                                for (auto &a : args) {
-                                    for (size_t c = 0; c < a.dims().cols(); ++c)
-                                        for (size_t rr = 0; rr < rows; ++rr)
-                                            r.elem(rr, colOff + c) = a(rr, c);
-                                    colOff += a.dims().cols();
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
+                                outs[0] = MValue::horzcat(
+                                    args.data(), args.size(), &ctx.engine->allocator());
                             });
 
     // --- vertcat ---
@@ -311,31 +292,12 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                size_t nargout,
                                Span<MValue> outs,
                                CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
                                 if (args.empty()) {
                                     outs[0] = MValue::empty();
                                     return;
                                 }
-                                size_t cols = args[0].dims().cols();
-                                size_t totalRows = 0;
-                                for (auto &a : args) {
-                                    if (a.dims().cols() != cols)
-                                        throw std::runtime_error(
-                                            "Dimensions must agree for vertcat");
-                                    totalRows += a.dims().rows();
-                                }
-                                auto r = MValue::matrix(totalRows, cols, MType::DOUBLE, alloc);
-                                size_t rowOff = 0;
-                                for (auto &a : args) {
-                                    for (size_t c = 0; c < cols; ++c)
-                                        for (size_t rr = 0; rr < a.dims().rows(); ++rr)
-                                            r.elem(rowOff + rr, c) = a(rr, c);
-                                    rowOff += a.dims().rows();
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
+                                outs[0] = MValue::vertcat(
+                                    args.data(), args.size(), &ctx.engine->allocator());
                             });
 
     // --- meshgrid ---
