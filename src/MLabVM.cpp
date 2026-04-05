@@ -104,7 +104,7 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
 // Internal dispatch — MValue directly, scalar fast paths
 // ============================================================
 
-MValue VM::executeInternal(const BytecodeChunk &chunk)
+__attribute__((flatten)) MValue VM::executeInternal(const BytecodeChunk &chunk)
 {
     const Instruction *ip = chunk.code.data();
     const Instruction *end = ip + chunk.code.size();
@@ -113,16 +113,17 @@ MValue VM::executeInternal(const BytecodeChunk &chunk)
 
 dispatch_loop:
     try {
+        auto *dbgCtl = debugCtl(); // hoist out of hot loop
         while (ip < end) {
             // ── Debug hook: check for line change, breakpoints ──
-            if (auto *ctl = debugCtl()) {
+            if (dbgCtl) {
                 size_t idx = static_cast<size_t>(ip - chunk.code.data());
                 if (idx < chunk.sourceMap.size()) {
                     auto &loc = chunk.sourceMap[idx];
                     if (loc.line > 0) {
-                        if (auto *f = ctl->currentFrame())
+                        if (auto *f = dbgCtl->currentFrame())
                             f->registers = R;
-                        if (!ctl->checkLine(loc.line, loc.col, recursionDepth_))
+                        if (!dbgCtl->checkLine(loc.line, loc.col, recursionDepth_))
                             throw DebugStopException();
                     }
                 }
@@ -216,7 +217,20 @@ dispatch_loop:
             case OpCode::POW:
             case OpCode::EPOW:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
-                    R[I.a].setScalarFast(std::pow(asScalar(R[I.b]), asScalar(R[I.c])));
+                    double base = asScalar(R[I.b]);
+                    double exp = asScalar(R[I.c]);
+                    double result;
+                    if (exp == 2.0)
+                        result = base * base;
+                    else if (exp == 3.0)
+                        result = base * base * base;
+                    else if (exp == 0.5)
+                        result = std::sqrt(base);
+                    else if (exp == -1.0)
+                        result = 1.0 / base;
+                    else
+                        result = std::pow(base, exp);
+                    R[I.a].setScalarFast(result);
                 } else
                     goto binary_slow;
                 break;
@@ -404,6 +418,14 @@ dispatch_loop:
             }
             case OpCode::INDEX_GET_2D: {
                 const MValue &mv = R[I.b];
+                // ── Scalar fast path: A(i,j) with scalar double indices ──
+                if (R[I.c].isDoubleScalar() && R[I.e].isDoubleScalar()
+                    && mv.isHeapDouble()) {
+                    size_t r = static_cast<size_t>(R[I.c].scalarVal()) - 1;
+                    size_t c = static_cast<size_t>(R[I.e].scalarVal()) - 1;
+                    R[I.a].setScalarFast(mv.doubleDataFast()[mv.heapDims().sub2ind(r, c)]);
+                    break;
+                }
                 auto rowIds = MValue::resolveIndices(R[I.c], mv.dims().rows());
                 auto colIds = MValue::resolveIndices(R[I.e], mv.dims().cols());
                 R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
@@ -435,6 +457,25 @@ dispatch_loop:
                 const MValue &ri = R[I.b];
                 const MValue &ci = R[I.c];
                 const MValue &val = R[I.e];
+
+                // ── Scalar fast path: Z(i,j) = scalar ──
+                if (ri.isDoubleScalar() && ci.isDoubleScalar()
+                    && val.isDoubleScalar() && R[I.a].isHeapDouble()) {
+                    size_t r = static_cast<size_t>(ri.scalarVal()) - 1;
+                    size_t c = static_cast<size_t>(ci.scalarVal()) - 1;
+                    const auto &d = R[I.a].heapDims();
+                    if (r < d.rows() && c < d.cols()) {
+                        // In-bounds: direct write, skip detach overhead
+                        R[I.a].doubleDataMutFast()[d.sub2ind(r, c)] = val.scalarVal();
+                        break;
+                    }
+                    // Out-of-bounds: grow then write
+                    size_t newR = std::max(d.rows(), r + 1);
+                    size_t newC = std::max(d.cols(), c + 1);
+                    R[I.a].resize(newR, newC, &engine_.allocator_);
+                    R[I.a].doubleDataMutFast()[R[I.a].heapDims().sub2ind(r, c)] = val.scalarVal();
+                    break;
+                }
 
                 bool riIsColon = ri.isChar() && ri.numel() == 1 && ri.charData()[0] == ':';
                 bool ciIsColon = ci.isChar() && ci.numel() == 1 && ci.charData()[0] == ':';

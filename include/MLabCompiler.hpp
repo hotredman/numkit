@@ -137,6 +137,13 @@ private:
     uint8_t compileDeleteAssign(const ASTNode *node);
     static int8_t resolveBuiltinId(const std::string &name, size_t nargs);
 
+    // Constant register cache: avoid redundant LOAD_CONST in loops
+    // Maps constant pool index → register that already holds the value
+    std::unordered_map<int16_t, uint8_t> constRegCache_;
+
+    // Peephole optimization pass
+    void peepholeOptimize();
+
     // Break/continue loop patching
     struct LoopContext
     {

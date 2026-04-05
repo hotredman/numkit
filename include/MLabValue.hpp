@@ -372,6 +372,28 @@ public:
         return heap_ == logicalTrueTag() ? 1.0 : 0.0;
     }
 
+    // ── Ultra-fast VM hot-path accessors ─────────────────────
+    // Caller must ensure isHeap() && type == DOUBLE.
+    // Bypasses all safety checks and detach() for sole-owner arrays.
+    bool isHeapDouble() const { return heap_ != nullptr && !isTag() && heap_->type == MType::DOUBLE; }
+
+    const Dims &heapDims() const { return heap_->dims; }
+
+    // Get mutable data pointer — skips detach when refcount == 1 (sole owner).
+    // Caller must guarantee this is a heap DOUBLE array.
+    double *doubleDataMutFast()
+    {
+        if (heap_->refCount.load(std::memory_order_relaxed) == 1)
+            return static_cast<double *>(heap_->buffer->data());
+        detach();
+        return static_cast<double *>(heap_->buffer->data());
+    }
+
+    const double *doubleDataFast() const
+    {
+        return static_cast<const double *>(heap_->buffer->data());
+    }
+
 private:
     // ── 16-byte layout ───────────────────────────────────────
     double scalar_ = 0.0;

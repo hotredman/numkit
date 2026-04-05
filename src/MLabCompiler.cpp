@@ -54,6 +54,7 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     chunk_.sourceCode = std::move(sourceCode);
     varRegisters_.clear();
     loopStack_.clear();
+    constRegCache_.clear();
     nextReg_ = 0;
     currentLoc_ = {};
     isTopLevel_ = true;
@@ -65,6 +66,8 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
 
     uint8_t lastReg = compileNode(ast);
     emitA(OpCode::RET, lastReg);
+
+    peepholeOptimize();
 
     chunk_.numRegisters = nextReg_;
 
@@ -197,6 +200,247 @@ uint8_t Compiler::varRegRead(const std::string &name)
 uint8_t Compiler::tempReg()
 {
     return nextReg_++;
+}
+
+// ============================================================
+// Peephole optimization
+// ============================================================
+
+void Compiler::peepholeOptimize()
+{
+    // Peephole MOVE elimination disabled — needs more thorough liveness analysis
+    // to avoid corrupting register state. The constant register cache in compileNumber()
+    // already eliminates most redundant LOAD_CONST instructions.
+    return;
+    auto &code = chunk_.code;
+    size_t n = code.size();
+    if (n < 2)
+        return;
+
+    // Pass: eliminate MOVE a, b followed by instruction that reads a as single use.
+    // Pattern: MOVE dst, src; OP ..., dst, ... → OP ..., src, ...  (NOP the MOVE)
+    // Only safe when dst is a temp register not used elsewhere.
+
+    // Build use count per register: count how many times each register is read as source
+    std::vector<int> readCount(256, 0);
+    std::vector<int> writeCount(256, 0);
+    for (size_t i = 0; i < n; ++i) {
+        auto &ins = code[i];
+        switch (ins.op) {
+        case OpCode::ADD: case OpCode::SUB: case OpCode::MUL: case OpCode::RDIV:
+        case OpCode::LDIV: case OpCode::POW: case OpCode::EMUL: case OpCode::ERDIV:
+        case OpCode::ELDIV: case OpCode::EPOW: case OpCode::EQ: case OpCode::NE:
+        case OpCode::LT: case OpCode::GT: case OpCode::LE: case OpCode::GE:
+        case OpCode::AND: case OpCode::OR:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::MOVE: case OpCode::NEG: case OpCode::UPLUS: case OpCode::NOT:
+        case OpCode::CTRANSPOSE: case OpCode::TRANSPOSE:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            break;
+        case OpCode::CALL_BUILTIN:
+            writeCount[ins.a]++;
+            for (uint8_t j = 0; j < ins.c; ++j)
+                readCount[ins.b + j]++;
+            break;
+        case OpCode::INDEX_SET_2D:
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            readCount[ins.e]++;
+            break;
+        case OpCode::INDEX_GET_2D:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            readCount[ins.e]++;
+            break;
+        case OpCode::LOAD_CONST:
+        case OpCode::LOAD_EMPTY:
+        case OpCode::LOAD_STRING:
+            writeCount[ins.a]++;
+            break;
+        case OpCode::COLON:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::COLON3:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            readCount[ins.e]++;
+            break;
+        case OpCode::HORZCAT:
+        case OpCode::VERTCAT:
+        case OpCode::CELL_LITERAL:
+            writeCount[ins.a]++;
+            for (uint8_t j = 0; j < ins.c; ++j)
+                readCount[ins.b + j]++;
+            break;
+        case OpCode::CALL:
+            writeCount[ins.a]++;
+            for (uint8_t j = 0; j < ins.c; ++j)
+                readCount[ins.b + j]++;
+            break;
+        case OpCode::RET:
+        case OpCode::DISPLAY:
+            readCount[ins.a]++;
+            break;
+        case OpCode::FOR_INIT:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            break;
+        case OpCode::FOR_NEXT:
+            writeCount[ins.a]++;
+            readCount[ins.a]++;
+            break;
+        case OpCode::JMP_TRUE:
+        case OpCode::JMP_FALSE:
+            readCount[ins.a]++;
+            break;
+        case OpCode::INDEX_GET:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::INDEX_SET:
+            readCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::FIELD_GET:
+        case OpCode::FIELD_GET_OR_CREATE:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            break;
+        case OpCode::FIELD_SET:
+            readCount[ins.a]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::CELL_GET:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::CELL_SET:
+            readCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
+        case OpCode::ASSERT_DEF:
+            readCount[ins.a]++;
+            break;
+        default:
+            // Conservative: treat all register fields as both read and written
+            readCount[ins.a] += 2;
+            writeCount[ins.a] += 2;
+            readCount[ins.b] += 2;
+            readCount[ins.c] += 2;
+            readCount[ins.e] += 2;
+            break;
+        }
+    }
+
+    // Eliminate MOVE dst, src where dst is written once and read once by the next instruction
+    for (size_t i = 0; i + 1 < n; ++i) {
+        auto &mv = code[i];
+        if (mv.op != OpCode::MOVE)
+            continue;
+        uint8_t dst = mv.a, src = mv.b;
+        // dst must be a temp: written exactly once (this MOVE) and read exactly once
+        if (writeCount[dst] != 1 || readCount[dst] != 1)
+            continue;
+        // src must not be overwritten between this MOVE and its use
+        auto &next = code[i + 1];
+        // Replace dst with src in the next instruction
+        bool replaced = false;
+        switch (next.op) {
+        case OpCode::CALL_BUILTIN:
+            // CALL_BUILTIN a=dst_out, b=argBase, c=nargs — argBase is the MOVE dst
+            if (next.b == dst && next.c == 1) { next.b = src; replaced = true; }
+            break;
+        case OpCode::ADD: case OpCode::SUB: case OpCode::MUL: case OpCode::RDIV:
+        case OpCode::LDIV: case OpCode::POW: case OpCode::EMUL: case OpCode::ERDIV:
+        case OpCode::ELDIV: case OpCode::EPOW: case OpCode::EQ: case OpCode::NE:
+        case OpCode::LT: case OpCode::GT: case OpCode::LE: case OpCode::GE:
+        case OpCode::AND: case OpCode::OR:
+            if (next.b == dst) { next.b = src; replaced = true; }
+            else if (next.c == dst) { next.c = src; replaced = true; }
+            break;
+        case OpCode::NEG: case OpCode::NOT: case OpCode::CTRANSPOSE:
+        case OpCode::TRANSPOSE:
+            if (next.b == dst) { next.b = src; replaced = true; }
+            break;
+        case OpCode::INDEX_SET_2D:
+            if (next.e == dst) { next.e = src; replaced = true; }
+            break;
+        default:
+            break;
+        }
+        if (replaced) {
+            mv.op = OpCode::NOP; // eliminate the MOVE
+        }
+    }
+
+    // Strip NOPs (adjust jump offsets accordingly)
+    return; // TODO: NOP stripping has jump patching bugs, skip for now
+    std::vector<size_t> newIndex(n); // old pos → new pos
+    size_t out = 0;
+    for (size_t i = 0; i < n; ++i) {
+        newIndex[i] = out;
+        if (code[i].op != OpCode::NOP)
+            ++out;
+    }
+    // Don't strip if no NOPs were removed (avoid messing with source maps)
+    if (out == n)
+        return;
+
+    // Patch jump offsets: JMP, JMP_TRUE, JMP_FALSE, FOR_INIT, FOR_NEXT
+    for (size_t i = 0; i < n; ++i) {
+        auto &ins = code[i];
+        if (ins.op == OpCode::NOP)
+            continue;
+        int16_t off = ins.d;
+        switch (ins.op) {
+        case OpCode::JMP:
+        case OpCode::JMP_TRUE:
+        case OpCode::JMP_FALSE:
+        case OpCode::FOR_INIT:
+        case OpCode::TRY_BEGIN: {
+            // d = relative offset from current instruction
+            size_t target = static_cast<size_t>(static_cast<int>(i) + off);
+            ins.d = static_cast<int16_t>(static_cast<int>(newIndex[target])
+                                         - static_cast<int>(newIndex[i]));
+            break;
+        }
+        case OpCode::FOR_NEXT: {
+            size_t target = static_cast<size_t>(static_cast<int>(i) + off);
+            ins.d = static_cast<int16_t>(static_cast<int>(newIndex[target])
+                                         - static_cast<int>(newIndex[i]));
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
+    // Compact code and source map
+    std::vector<Instruction> newCode;
+    std::vector<SourceLoc> newSourceMap;
+    newCode.reserve(out);
+    newSourceMap.reserve(out);
+    for (size_t i = 0; i < n; ++i) {
+        if (code[i].op != OpCode::NOP) {
+            newCode.push_back(code[i]);
+            if (i < chunk_.sourceMap.size())
+                newSourceMap.push_back(chunk_.sourceMap[i]);
+        }
+    }
+    code = std::move(newCode);
+    chunk_.sourceMap = std::move(newSourceMap);
 }
 
 // ============================================================
@@ -407,9 +651,14 @@ uint8_t Compiler::compileBlock(const ASTNode *node)
 
 uint8_t Compiler::compileNumber(const ASTNode *node)
 {
-    uint8_t dst = tempReg();
     int16_t idx = addConstant(node->numValue);
+    // Reuse register if this constant was already loaded
+    auto it = constRegCache_.find(idx);
+    if (it != constRegCache_.end())
+        return it->second;
+    uint8_t dst = tempReg();
     emitAD(OpCode::LOAD_CONST, dst, idx);
+    constRegCache_[idx] = dst;
     return dst;
 }
 
@@ -592,9 +841,11 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_FALSE, dst, 0); // placeholder
+        constRegCache_.clear(); // right operand may be skipped
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
+        constRegCache_.clear(); // constants from skipped branch must not leak
         return dst;
     }
     if (op == "||") {
@@ -603,9 +854,11 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_TRUE, dst, 0); // placeholder
+        constRegCache_.clear(); // right operand may be skipped
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
+        constRegCache_.clear(); // constants from skipped branch must not leak
         return dst;
     }
 
@@ -778,6 +1031,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
 
 uint8_t Compiler::compileIf(const ASTNode *node)
 {
+    constRegCache_.clear(); // branches may skip LOAD_CONST
     // branches: vector<pair<condition, body>>
     // elseBranch: optional else body
     //
@@ -800,6 +1054,8 @@ uint8_t Compiler::compileIf(const ASTNode *node)
     for (size_t i = 0; i < node->branches.size(); ++i) {
         auto &[cond, body] = node->branches[i];
 
+        // Clear cache: previous branch body may have been skipped
+        constRegCache_.clear();
         // Compile condition
         uint8_t condReg = compileNode(cond.get());
 
@@ -822,6 +1078,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
 
     // Compile else branch if present
     if (node->elseBranch) {
+        constRegCache_.clear();
         compileNode(node->elseBranch.get());
     }
 
@@ -830,6 +1087,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
         patchJump(pos, static_cast<int16_t>(currentPos() - pos));
     }
 
+    constRegCache_.clear(); // don't know which branch ran
     return 0;
 }
 
@@ -838,6 +1096,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileSwitch(const ASTNode *node)
 {
+    constRegCache_.clear();
     // AST: children[0] = switch expression
     //      branches = vector<pair<case_expr, case_body>>
     //      elseBranch = otherwise body (optional)
@@ -942,6 +1201,7 @@ uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileTryCatch(const ASTNode *node)
 {
+    constRegCache_.clear();
     // AST: children[0] = try body
     //      children[1] = catch body (optional)
     //      strValue = catch variable name (e.g. "e")
@@ -993,6 +1253,7 @@ uint8_t Compiler::compileTryCatch(const ASTNode *node)
 
 uint8_t Compiler::compileWhile(const ASTNode *node)
 {
+    constRegCache_.clear();
     // children[0] = condition, children[1] = body
     //
     // L_start:
@@ -1033,6 +1294,7 @@ uint8_t Compiler::compileWhile(const ASTNode *node)
     }
 
     loopStack_.pop_back();
+    constRegCache_.clear(); // body constants may not have executed
     return 0;
 }
 
@@ -1128,6 +1390,7 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     }
 
     loopStack_.pop_back();
+    constRegCache_.clear(); // body constants may not have executed (empty range)
     return 0;
 }
 
@@ -2105,6 +2368,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     auto savedChunk = std::move(chunk_);
     auto savedVarRegs = std::move(varRegisters_);
     auto savedLoopStack = std::move(loopStack_);
+    auto savedConstCache = std::move(constRegCache_);
     uint8_t savedNextReg = nextReg_;
     bool savedTopLevel = isTopLevel_;
     SourceLoc savedLoc = currentLoc_;
@@ -2120,6 +2384,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     chunk_.numReturns = static_cast<uint8_t>(funcDef->returnNames.size());
     varRegisters_.clear();
     loopStack_.clear();
+    constRegCache_.clear();
     nextReg_ = 0;
 
     // Allocate registers for parameters (they come pre-loaded by VM)
@@ -2179,6 +2444,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     chunk_ = std::move(savedChunk);
     varRegisters_ = std::move(savedVarRegs);
     loopStack_ = std::move(savedLoopStack);
+    constRegCache_ = std::move(savedConstCache);
     nextReg_ = savedNextReg;
     isTopLevel_ = savedTopLevel;
     currentLoc_ = savedLoc;
