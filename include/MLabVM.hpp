@@ -61,6 +61,7 @@ private:
     {
         const Instruction *catchIp; // where to jump on exception
         uint8_t exReg;              // register for exception struct
+        size_t forStackSize;        // forStack_ size at TRY_BEGIN (restore on catch)
     };
     std::vector<TryHandler> tryStack_;
 

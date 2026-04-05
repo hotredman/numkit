@@ -447,4 +447,89 @@ TEST_P(ControlFlowTest, TryCatchWhile)
     EXPECT_DOUBLE_EQ(getVar("n"), 3.0);
 }
 
+TEST_P(ControlFlowTest, ErrorNoArgs)
+{
+    // error() with no args should still throw
+    EXPECT_THROW(eval("error()"), std::exception);
+}
+
+TEST_P(ControlFlowTest, AssertMException)
+{
+    // assert(false, MException('id','msg'))
+    eval(R"(
+        try
+            me = MException('test:assert', 'custom assert');
+            assert(false, me);
+        catch e
+            id = e.identifier;
+            m = e.message;
+        end
+    )");
+    EXPECT_EQ(getVarPtr("id")->toString(), "test:assert");
+    EXPECT_EQ(getVarPtr("m")->toString(), "custom assert");
+}
+
+TEST_P(ControlFlowTest, ForTryCatchForStackCleanup)
+{
+    // Verify forStack_ is properly cleaned up when exception occurs inside nested for
+    eval(R"(
+        result = 0;
+        for i = 1:3
+            try
+                for j = 1:5
+                    if j == 3
+                        error('bail');
+                    end
+                end
+            catch
+            end
+            result = result + i;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 6.0); // 1+2+3
+}
+
+TEST_P(ControlFlowTest, TryCatchInAnonymousFunc)
+{
+    eval(R"(
+        f = @() 42;
+        try
+            r = f();
+        catch
+            r = -1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("r"), 42.0);
+}
+
+TEST_P(ControlFlowTest, WarningDoesNotThrow)
+{
+    // warning with various arg forms should never throw
+    eval("warning('simple');");
+    eval("warning('my:id', 'with id');");
+    eval("warning('val %d', 42);");
+    eval("warning('my:id', 'val %d', 42);");
+}
+
+TEST_P(ControlFlowTest, DeepForTryCatch)
+{
+    // 3-level nested for with try/catch at middle level
+    eval(R"(
+        s = 0;
+        for i = 1:2
+            for j = 1:2
+                try
+                    for k = 1:10
+                        if k > 2, error('stop'); end
+                        s = s + 1;
+                    end
+                catch
+                end
+            end
+        end
+    )");
+    // Each (i,j) pair runs k=1,2 then error at k=3: 2*2*2 = 8
+    EXPECT_DOUBLE_EQ(getVar("s"), 8.0);
+}
+
 INSTANTIATE_DUAL(ControlFlowTest);

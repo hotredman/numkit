@@ -414,6 +414,16 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 return; // assertion passed
             if (args.size() == 1)
                 throw MLabError("Assertion failed.", 0, 0, "", "", "MLAB:assert");
+            // assert(cond, MException struct)
+            if (args[1].isStruct()) {
+                std::string msg = args[1].hasField("message")
+                                      ? args[1].field("message").toString()
+                                      : "Assertion failed.";
+                std::string id = args[1].hasField("identifier")
+                                     ? args[1].field("identifier").toString()
+                                     : "MLAB:assert";
+                throw MLabError(msg, 0, 0, "", "", id);
+            }
             // assert(cond, msg) or assert(cond, id, msg, ...)
             std::string first = args[1].toString();
             if (args.size() >= 3 && first.find(':') != std::string::npos) {

@@ -1288,6 +1288,7 @@ dispatch_loop:
                 TryHandler th;
                 th.catchIp = ip + I.d;
                 th.exReg = I.a;
+                th.forStackSize = forStack_.size();
                 tryStack_.push_back(th);
                 break;
             }
@@ -1298,11 +1299,18 @@ dispatch_loop:
 
             case OpCode::THROW: {
                 // a = register containing error message (string or struct)
-                if (R[I.a].isChar())
-                    throw std::runtime_error(R[I.a].toString());
-                if (R[I.a].isStruct() && R[I.a].hasField("message"))
-                    throw std::runtime_error(R[I.a].field("message").toString());
-                throw std::runtime_error("User error");
+                if (R[I.a].isChar() || R[I.a].isString())
+                    throw MLabError(R[I.a].toString());
+                if (R[I.a].isStruct()) {
+                    std::string msg = R[I.a].hasField("message")
+                                          ? R[I.a].field("message").toString()
+                                          : "User error";
+                    std::string id = R[I.a].hasField("identifier")
+                                         ? R[I.a].field("identifier").toString()
+                                         : "";
+                    throw MLabError(msg, 0, 0, "", "", id);
+                }
+                throw MLabError("User error");
             }
 
             default:
@@ -1473,6 +1481,12 @@ bool VM::dispatchTryCatch(const char *msg, const char *identifier, MValue *R,
 
     TryHandler th = tryStack_.back();
     tryStack_.pop_back();
+
+    // Restore for-loop stack to the state at TRY_BEGIN — exception may have
+    // jumped out of one or more for-loops, leaving stale ForState entries.
+    if (forStack_.size() > th.forStackSize)
+        forStack_.resize(th.forStackSize);
+
     MValue err = MValue::structure();
     err.field("message") = MValue::fromString(msg, &engine_.allocator_);
     err.field("identifier") = MValue::fromString(identifier, &engine_.allocator_);
