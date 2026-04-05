@@ -93,6 +93,11 @@ target_include_directories(mlab
 
 target_compile_features(mlab PUBLIC cxx_std_17)
 
+if(EMSCRIPTEN)
+    target_compile_options(mlab PRIVATE -fexceptions)
+    target_link_options(mlab PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
+endif()
+
 # ──────────────────────────────────────────────
 # Example
 # ──────────────────────────────────────────────

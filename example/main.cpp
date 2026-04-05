@@ -19,10 +19,14 @@ int main()
             break;
         if (line.empty())
             continue;
-        try {
-            engine.eval(line);
-        } catch (const std::exception &e) {
-            std::cerr << "Error: " << e.what() << "\n";
+        auto r = engine.evalSafe(line);
+        if (!r.ok) {
+            if (r.errorLine > 0)
+                std::cerr << "Error at line " << r.errorLine
+                          << ", column " << r.errorCol << ":\n  "
+                          << r.errorMessage << "\n";
+            else
+                std::cerr << "Error: " << r.errorMessage << "\n";
         }
     }
 

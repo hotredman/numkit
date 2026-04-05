@@ -129,48 +129,32 @@ public:
         std::ostringstream coutCapture;
         auto oldCout = std::cout.rdbuf(coutCapture.rdbuf());
 
-        auto collectOutput = [&]() -> std::string {
-            std::cout.rdbuf(oldCout);
-            std::string output = outputBuf_;
-            std::string coutStr = coutCapture.str();
-            if (!coutStr.empty()) {
-                if (!output.empty() && output.back() != '\n') output += '\n';
-                output += coutStr;
-            }
-            return output;
-        };
+        auto r = engine_->evalSafe(code);
 
-        try {
-            engine_->eval(code);
-            std::string output = collectOutput();
+        std::cout.rdbuf(oldCout);
+        std::string output = outputBuf_;
+        std::string coutStr = coutCapture.str();
+        if (!coutStr.empty()) {
+            if (!output.empty() && output.back() != '\n') output += '\n';
+            output += coutStr;
+        }
+
+        if (r.ok) {
             while (!output.empty() &&
                    (output.back() == '\n' || output.back() == ' '))
                 output.pop_back();
             return output;
-
-        } catch (const mlab::MLabError& e) {
-            std::string output = collectOutput();
-            if (!output.empty() && output.back() != '\n')
-                output += '\n';
-            if (e.line() > 0) {
-                output += "__ERROR_LINE__:" + std::to_string(e.line()) + "\n";
-                output += "Error (line " + std::to_string(e.line()) + "): " + e.what();
-            } else {
-                output += std::string("Error: ") + e.what();
-            }
-            return output;
-
-        } catch (const std::exception& e) {
-            std::string output = collectOutput();
-            if (!output.empty() && output.back() != '\n')
-                output += '\n';
-            output += std::string("Error: ") + e.what();
-            return output;
-
-        } catch (...) {
-            std::cout.rdbuf(oldCout);
-            return "Error: Unknown exception";
         }
+
+        if (!output.empty() && output.back() != '\n')
+            output += '\n';
+        if (r.errorLine > 0) {
+            output += "__ERROR_LINE__:" + std::to_string(r.errorLine) + "\n";
+            output += "Error (line " + std::to_string(r.errorLine) + "): " + r.errorMessage;
+        } else {
+            output += "Error: " + r.errorMessage;
+        }
+        return output;
     }
 
     // ── Debug execution ──
@@ -205,21 +189,17 @@ public:
             return output;
         };
 
+        auto r = engine_->evalSafe(code);
+        std::string output = collectOutput();
         std::string result;
-        try {
-            engine_->eval(code);
-            std::string output = collectOutput();
 
-            // Completed normally
+        if (r.ok) {
             result = "{\"status\":\"completed\"";
             if (!output.empty()) {
                 result += ",\"output\":\"" + escapeJSON(output) + "\"";
             }
             result += "}";
-
-        } catch (const mlab::DebugStopException &) {
-            std::string output = collectOutput();
-
+        } else if (r.debugStop) {
             if (observer->paused) {
                 result = "{\"status\":\"paused\","
                          "\"pauseState\":" + observer->pauseStateJSON() + ","
@@ -231,29 +211,15 @@ public:
             } else {
                 result = "{\"status\":\"stopped\"}";
             }
-
-        } catch (const mlab::MLabError &e) {
-            std::string output = collectOutput();
-            result = "{\"status\":\"error\",\"message\":\"" + escapeJSON(e.what()) + "\"";
-            if (e.line() > 0) {
-                result += ",\"line\":" + std::to_string(e.line());
+        } else {
+            result = "{\"status\":\"error\",\"message\":\"" + escapeJSON(r.errorMessage) + "\"";
+            if (r.errorLine > 0) {
+                result += ",\"line\":" + std::to_string(r.errorLine);
             }
             if (!output.empty()) {
                 result += ",\"output\":\"" + escapeJSON(output) + "\"";
             }
             result += "}";
-
-        } catch (const std::exception &e) {
-            std::string output = collectOutput();
-            result = "{\"status\":\"error\",\"message\":\"" + escapeJSON(e.what()) + "\"";
-            if (!output.empty()) {
-                result += ",\"output\":\"" + escapeJSON(output) + "\"";
-            }
-            result += "}";
-
-        } catch (...) {
-            std::cout.rdbuf(oldCout);
-            result = "{\"status\":\"error\",\"message\":\"Unknown exception\"}";
         }
 
         // Detach observer after execution

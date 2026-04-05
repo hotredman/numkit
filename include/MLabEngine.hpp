@@ -42,6 +42,18 @@ public:
     // Execute code — uses current backend (TreeWalker by default)
     MValue eval(const std::string &code);
 
+    // Safe execution — never throws, returns result + error diagnostics
+    struct EvalResult {
+        MValue value;
+        bool ok = true;
+        bool debugStop = false;
+        std::string errorMessage;
+        int errorLine = 0;
+        int errorCol = 0;
+        std::string errorFunc;
+    };
+    EvalResult evalSafe(const std::string &code);
+
     // Backend selection
     // AutoFallback = VM with silent fallback to TW (default, production)
     // VM = VM only, no fallback (for testing)

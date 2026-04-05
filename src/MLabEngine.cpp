@@ -209,6 +209,33 @@ MValue Engine::eval(const std::string &code)
 }
 
 // ============================================================
+// evalSafe
+// ============================================================
+Engine::EvalResult Engine::evalSafe(const std::string &code)
+{
+    EvalResult r;
+    try {
+        r.value = eval(code);
+    } catch (const DebugStopException &) {
+        r.ok = false;
+        r.debugStop = true;
+    } catch (const MLabError &e) {
+        r.ok = false;
+        r.errorMessage = e.what();
+        r.errorLine = e.line();
+        r.errorCol = e.col();
+        r.errorFunc = e.funcName();
+    } catch (const std::exception &e) {
+        r.ok = false;
+        r.errorMessage = e.what();
+    } catch (...) {
+        r.ok = false;
+        r.errorMessage = "Unknown exception";
+    }
+    return r;
+}
+
+// ============================================================
 // VM → globalEnv sync
 // ============================================================
 void Engine::syncVMToGlobalEnv()
