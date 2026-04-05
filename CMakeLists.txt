@@ -14,7 +14,7 @@ option(MLAB_INSTALL       "Generate install target"  ON)
 if(NOT EMSCRIPTEN)
     set(MLAB_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
 else()
-    option(MLAB_BUILD_REPL "Build WebAssembly REPL" ON)
+    option(MLAB_BUILD_REPL "Build WebAssembly module" ON)
 endif()
 
 # ──────────────────────────────────────────────
@@ -132,7 +132,7 @@ endif()
 # ──────────────────────────────────────────────
 
 if(MLAB_BUILD_REPL)
-    add_subdirectory(repl)
+    add_subdirectory(wasm)
 endif()
 
 # ──────────────────────────────────────────────
