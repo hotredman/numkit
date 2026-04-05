@@ -1401,71 +1401,15 @@ MValue TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
 
     size_t nargs = lhs->children.size() - 1;
 
-    if (nargs == 1 && var->type() == MType::DOUBLE) {
+    if (nargs == 1) {
         auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
-        std::vector<bool> del(var->numel(), false);
-        for (auto idx : indices) {
-            if (idx < var->numel())
-                del[idx] = true;
-        }
-        const double *src = var->doubleData();
-        std::vector<double> remaining;
-        remaining.reserve(var->numel());
-        for (size_t i = 0; i < var->numel(); ++i)
-            if (!del[i])
-                remaining.push_back(src[i]);
-
-        bool isRow = var->dims().rows() == 1;
-        size_t n = remaining.size();
-        auto result = isRow ? MValue::matrix(1, n, MType::DOUBLE, &engine_.allocator_)
-                            : MValue::matrix(n, 1, MType::DOUBLE, &engine_.allocator_);
-        if (n > 0) {
-            double *dst = result.doubleDataMut();
-            std::memcpy(dst, remaining.data(), n * sizeof(double));
-        }
-        *var = result;
-    } else if (nargs == 2 && var->type() == MType::DOUBLE) {
+        var->indexDelete(indices.data(), indices.size(), &engine_.allocator_);
+    } else if (nargs == 2) {
         auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 2, env);
         auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 2, env);
-        size_t R = var->dims().rows(), C = var->dims().cols();
-
-        if (colIdx.size() == C) {
-            std::vector<bool> delR(R, false);
-            for (auto r : rowIdx)
-                if (r < R)
-                    delR[r] = true;
-            size_t newR = std::count(delR.begin(), delR.end(), false);
-            auto result = MValue::matrix(newR, C, MType::DOUBLE, &engine_.allocator_);
-            double *dst = result.doubleDataMut();
-            size_t ri = 0;
-            for (size_t r = 0; r < R; ++r) {
-                if (!delR[r]) {
-                    for (size_t c = 0; c < C; ++c)
-                        dst[c * newR + ri] = (*var)(r, c);
-                    ri++;
-                }
-            }
-            *var = result;
-        } else if (rowIdx.size() == R) {
-            std::vector<bool> delC(C, false);
-            for (auto c : colIdx)
-                if (c < C)
-                    delC[c] = true;
-            size_t newC = std::count(delC.begin(), delC.end(), false);
-            auto result = MValue::matrix(R, newC, MType::DOUBLE, &engine_.allocator_);
-            double *dst = result.doubleDataMut();
-            size_t ci = 0;
-            for (size_t c = 0; c < C; ++c) {
-                if (!delC[c]) {
-                    for (size_t r = 0; r < R; ++r)
-                        dst[ci * R + r] = (*var)(r, c);
-                    ci++;
-                }
-            }
-            *var = result;
-        } else {
-            throw std::runtime_error("Deletion requires full row or column specification");
-        }
+        var->indexDelete2D(rowIdx.data(), rowIdx.size(),
+                           colIdx.data(), colIdx.size(),
+                           &engine_.allocator_);
     }
     return MValue::empty();
 }

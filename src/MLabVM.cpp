@@ -490,101 +490,18 @@ dispatch_loop:
             // ── Index delete (v(idx) = []) ──────────────────────
             case OpCode::INDEX_DELETE: {
                 // a=arr, b=idx
-                MValue &arr = R[I.a];
-                const MValue &idx = R[I.b];
-                if (arr.type() != MType::DOUBLE)
-                    throw std::runtime_error("Delete indexing only supported for double arrays");
-
-                // Build deletion mask
-                size_t n = arr.numel();
-                std::vector<bool> del(n, false);
-                if (idx.isLogical()) {
-                    const uint8_t *ld = idx.logicalData();
-                    size_t ln = idx.numel();
-                    for (size_t k = 0; k < ln && k < n; ++k)
-                        if (ld[k])
-                            del[k] = true;
-                } else if (idx.isDoubleScalar()) {
-                    size_t ii = static_cast<size_t>(idx.scalarVal()) - 1;
-                    if (ii < n)
-                        del[ii] = true;
-                } else {
-                    const double *id = idx.doubleData();
-                    size_t ni = idx.numel();
-                    for (size_t k = 0; k < ni; ++k) {
-                        size_t ii = static_cast<size_t>(id[k]) - 1;
-                        if (ii < n)
-                            del[ii] = true;
-                    }
-                }
-
-                const double *src = arr.doubleData();
-                std::vector<double> remaining;
-                remaining.reserve(n);
-                for (size_t k = 0; k < n; ++k)
-                    if (!del[k])
-                        remaining.push_back(src[k]);
-
-                bool isRow = arr.dims().rows() == 1;
-                size_t rn = remaining.size();
-                auto result = isRow ? MValue::matrix(1, rn, MType::DOUBLE, &engine_.allocator_)
-                                    : MValue::matrix(rn, 1, MType::DOUBLE, &engine_.allocator_);
-                if (rn > 0)
-                    std::memcpy(result.doubleDataMut(), remaining.data(), rn * sizeof(double));
-                arr = std::move(result);
+                auto indices = MValue::resolveIndicesUnchecked(R[I.b]);
+                R[I.a].indexDelete(indices.data(), indices.size(), &engine_.allocator_);
                 break;
             }
             case OpCode::INDEX_DELETE_2D: {
                 // a=arr, b=row, c=col
-                MValue &arr = R[I.a];
-                if (arr.type() != MType::DOUBLE)
-                    throw std::runtime_error("Delete indexing only supported for double arrays");
-
-                size_t Rows = arr.dims().rows(), Cols = arr.dims().cols();
-
+                size_t Rows = R[I.a].dims().rows(), Cols = R[I.a].dims().cols();
                 auto rowIdx = MValue::resolveIndices(R[I.b], Rows);
                 auto colIdx = MValue::resolveIndices(R[I.c], Cols);
-
-                if (colIdx.size() == Cols) {
-                    // Delete rows
-                    std::vector<bool> delR(Rows, false);
-                    for (auto r : rowIdx)
-                        if (r < Rows)
-                            delR[r] = true;
-                    size_t newR = std::count(delR.begin(), delR.end(), false);
-                    auto result = MValue::matrix(newR, Cols, MType::DOUBLE, &engine_.allocator_);
-                    double *dst = result.doubleDataMut();
-                    size_t ri = 0;
-                    for (size_t r = 0; r < Rows; ++r) {
-                        if (!delR[r]) {
-                            for (size_t c = 0; c < Cols; ++c)
-                                dst[c * newR + ri] = arr(r, c);
-                            ri++;
-                        }
-                    }
-                    arr = std::move(result);
-                } else if (rowIdx.size() == Rows) {
-                    // Delete columns
-                    std::vector<bool> delC(Cols, false);
-                    for (auto c : colIdx)
-                        if (c < Cols)
-                            delC[c] = true;
-                    size_t newC = std::count(delC.begin(), delC.end(), false);
-                    auto result = MValue::matrix(Rows, newC, MType::DOUBLE, &engine_.allocator_);
-                    double *dst = result.doubleDataMut();
-                    size_t ci = 0;
-                    for (size_t c = 0; c < Cols; ++c) {
-                        if (!delC[c]) {
-                            for (size_t r = 0; r < Rows; ++r)
-                                dst[ci * Rows + r] = arr(r, c);
-                            ci++;
-                        }
-                    }
-                    arr = std::move(result);
-                } else {
-                    throw std::runtime_error(
-                        "Cannot delete from both rows and columns simultaneously");
-                }
+                R[I.a].indexDelete2D(rowIdx.data(), rowIdx.size(),
+                                     colIdx.data(), colIdx.size(),
+                                     &engine_.allocator_);
                 break;
             }
 

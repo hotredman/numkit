@@ -226,6 +226,12 @@ public:
                     const size_t *pageIdx, size_t npages,
                     const MValue &val);
 
+    // ── Type-preserving deletion (v(idx) = []) ─────────────
+    void indexDelete(const size_t *indices, size_t count, Allocator *alloc = nullptr);
+    void indexDelete2D(const size_t *rowIdx, size_t nrows,
+                       const size_t *colIdx, size_t ncols,
+                       Allocator *alloc = nullptr);
+
     // ── Factories — complex ──────────────────────────────────
     static MValue complexScalar(Complex v, Allocator *alloc = nullptr);
     static MValue complexScalar(double re, double im, Allocator *alloc = nullptr);

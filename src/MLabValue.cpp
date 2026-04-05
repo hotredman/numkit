@@ -1089,6 +1089,141 @@ void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
     }
 }
 
+// ============================================================
+// Type-preserving index deletion
+// ============================================================
+
+void MValue::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
+{
+    MType t = type();
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+        throw std::runtime_error(
+            std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
+
+    size_t n = numel();
+    std::vector<bool> del(n, false);
+    for (size_t k = 0; k < count; ++k)
+        if (indices[k] < n)
+            del[indices[k]] = true;
+
+    size_t remaining = std::count(del.begin(), del.end(), false);
+    bool isRow = dims().rows() == 1;
+
+    if (t == MType::CELL) {
+        auto &src = cellDataVec();
+        auto result = isRow ? MValue::cell(1, remaining) : MValue::cell(remaining, 1);
+        auto &dst = result.cellDataVec();
+        size_t j = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (!del[i])
+                dst[j++] = src[i];
+        *this = std::move(result);
+        return;
+    }
+
+    size_t es = elementSize(t);
+    auto result = isRow ? MValue::matrix(1, remaining, t, alloc)
+                        : MValue::matrix(remaining, 1, t, alloc);
+    if (remaining > 0 && es > 0) {
+        const char *src = static_cast<const char *>(rawData());
+        char *dst = static_cast<char *>(result.rawDataMut());
+        size_t j = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (!del[i])
+                std::memcpy(dst + j++ * es, src + i * es, es);
+    }
+    *this = std::move(result);
+}
+
+void MValue::indexDelete2D(const size_t *rowIdx, size_t nrows,
+                           const size_t *colIdx, size_t ncols,
+                           Allocator *alloc)
+{
+    MType t = type();
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+        throw std::runtime_error(
+            std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
+
+    size_t R = dims().rows(), C = dims().cols();
+
+    if (ncols == C) {
+        // Delete rows
+        std::vector<bool> delR(R, false);
+        for (size_t k = 0; k < nrows; ++k)
+            if (rowIdx[k] < R)
+                delR[rowIdx[k]] = true;
+        size_t newR = std::count(delR.begin(), delR.end(), false);
+
+        if (t == MType::CELL) {
+            auto &src = cellDataVec();
+            auto result = MValue::cell(newR, C);
+            auto &dst = result.cellDataVec();
+            size_t ri = 0;
+            for (size_t r = 0; r < R; ++r)
+                if (!delR[r]) {
+                    for (size_t c = 0; c < C; ++c)
+                        dst[c * newR + ri] = src[c * R + r];
+                    ri++;
+                }
+            *this = std::move(result);
+        } else {
+            size_t es = elementSize(t);
+            auto result = MValue::matrix(newR, C, t, alloc);
+            if (newR > 0 && es > 0) {
+                const char *src = static_cast<const char *>(rawData());
+                char *dst = static_cast<char *>(result.rawDataMut());
+                size_t ri = 0;
+                for (size_t r = 0; r < R; ++r)
+                    if (!delR[r]) {
+                        for (size_t c = 0; c < C; ++c)
+                            std::memcpy(dst + (c * newR + ri) * es,
+                                        src + (c * R + r) * es, es);
+                        ri++;
+                    }
+            }
+            *this = std::move(result);
+        }
+    } else if (nrows == R) {
+        // Delete columns
+        std::vector<bool> delC(C, false);
+        for (size_t k = 0; k < ncols; ++k)
+            if (colIdx[k] < C)
+                delC[colIdx[k]] = true;
+        size_t newC = std::count(delC.begin(), delC.end(), false);
+
+        if (t == MType::CELL) {
+            auto &src = cellDataVec();
+            auto result = MValue::cell(R, newC);
+            auto &dst = result.cellDataVec();
+            size_t ci = 0;
+            for (size_t c = 0; c < C; ++c)
+                if (!delC[c]) {
+                    for (size_t r = 0; r < R; ++r)
+                        dst[ci * R + r] = src[c * R + r];
+                    ci++;
+                }
+            *this = std::move(result);
+        } else {
+            size_t es = elementSize(t);
+            auto result = MValue::matrix(R, newC, t, alloc);
+            if (newC > 0 && es > 0) {
+                const char *src = static_cast<const char *>(rawData());
+                char *dst = static_cast<char *>(result.rawDataMut());
+                size_t ci = 0;
+                for (size_t c = 0; c < C; ++c)
+                    if (!delC[c]) {
+                        std::memcpy(dst + ci * R * es, src + c * R * es, R * es);
+                        ci++;
+                    }
+            }
+            *this = std::move(result);
+        }
+    } else {
+        throw std::runtime_error(
+            "Cannot delete from both rows and columns simultaneously");
+    }
+}
+
 MValue MValue::complexScalar(Complex v, Allocator *alloc)
 {
     MValue m;

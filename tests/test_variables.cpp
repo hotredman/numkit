@@ -154,6 +154,36 @@ TEST_P(DeleteTest, DeleteMultiple)
     EXPECT_DOUBLE_EQ(v->doubleData()[1], 4.0);
 }
 
+TEST_P(DeleteTest, DeleteComplexElements)
+{
+    eval("v = [1+2i, 3+4i, 5+6i]; v(2) = [];");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(v->numel(), 2u);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].real(), 5.0);
+}
+
+TEST_P(DeleteTest, DeleteLogicalElements)
+{
+    eval("v = [true, false, true, false]; v([2 3]) = [];");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->isLogical());
+    EXPECT_EQ(v->numel(), 2u);
+    EXPECT_EQ(v->logicalData()[0], 1);
+    EXPECT_EQ(v->logicalData()[1], 0);
+}
+
+TEST_P(DeleteTest, DeleteCellElements)
+{
+    eval("c = {1, 'hello', [1 2 3]}; c(2) = [];");
+    auto *c = getVarPtr("c");
+    EXPECT_TRUE(c->isCell());
+    EXPECT_EQ(c->numel(), 2u);
+    EXPECT_DOUBLE_EQ(c->cellAt(0).toScalar(), 1.0);
+    EXPECT_EQ(c->cellAt(1).numel(), 3u); // [1 2 3]
+}
+
 INSTANTIATE_DUAL(DeleteTest);
 
 // ============================================================
