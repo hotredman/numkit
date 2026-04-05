@@ -696,9 +696,36 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
 
     if (lhs->type == NodeType::IDENTIFIER) {
         uint8_t src = compileNode(rhs);
-        uint8_t dst = varReg(lhs->strValue);
-        if (src != dst) {
-            emitAB(OpCode::MOVE, dst, src);
+
+        // MOVE elimination: redirect last instruction to write directly to var register
+        auto varIt = varRegisters_.find(lhs->strValue);
+        bool canEliminate = (src == nextReg_ - 1 && !chunk_.code.empty()
+                             && chunk_.code.back().a == src);
+        if (canEliminate) {
+            OpCode lastOp = chunk_.code.back().op;
+            // Only redirect arithmetic/builtin ops (not LOAD_CONST — constRegCache)
+            canEliminate = (lastOp >= OpCode::ADD && lastOp <= OpCode::UPLUS)
+                           || (lastOp >= OpCode::EMUL && lastOp <= OpCode::EPOW)
+                           || (lastOp >= OpCode::ADD_SS && lastOp <= OpCode::NEG_S)
+                           || lastOp == OpCode::CALL_BUILTIN;
+        }
+
+        uint8_t dst;
+        if (canEliminate && varIt == varRegisters_.end()) {
+            // First assignment: adopt temp register as the variable
+            varRegisters_[lhs->strValue] = src;
+            dst = src;
+            // No instruction emitted, no reclaim needed — src IS the variable now
+        } else if (canEliminate && varIt != varRegisters_.end()) {
+            // Existing variable: redirect last instruction to write to var register
+            dst = varIt->second;
+            chunk_.code.back().a = dst;
+            nextReg_--;  // reclaim temp
+            scalarRegs_.reset(src);
+        } else {
+            dst = varReg(lhs->strValue);
+            if (src != dst)
+                emitAB(OpCode::MOVE, dst, src);
         }
         // Propagate scalar tracking through assignment
         if (scalarRegs_.test(src))
@@ -871,6 +898,37 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         return dst;
     }
 
+    // Constant folding: both operands are number literals → compute at compile time
+    if (node->children[0]->type == NodeType::NUMBER_LITERAL
+        && node->children[1]->type == NodeType::NUMBER_LITERAL) {
+        double lv = node->children[0]->numValue;
+        double rv = node->children[1]->numValue;
+        double result;
+        bool folded = true;
+        if (op == "+")       result = lv + rv;
+        else if (op == "-")  result = lv - rv;
+        else if (op == "*")  result = lv * rv;
+        else if (op == "/")  result = lv / rv;
+        else if (op == "^")  result = std::pow(lv, rv);
+        else if (op == ".*") result = lv * rv;
+        else if (op == "./") result = lv / rv;
+        else if (op == ".^") result = std::pow(lv, rv);
+        else folded = false;
+        if (folded) {
+            int16_t idx = addConstant(result);
+            auto it = constRegCache_.find(idx);
+            if (it != constRegCache_.end()) {
+                scalarRegs_.set(it->second);
+                return it->second;
+            }
+            uint8_t dst = tempReg();
+            emitAD(OpCode::LOAD_CONST, dst, idx);
+            constRegCache_[idx] = dst;
+            scalarRegs_.set(dst);
+            return dst;
+        }
+    }
+
     uint8_t left = compileNode(node->children[0].get());
     uint8_t right = compileNode(node->children[1].get());
     uint8_t dst = tempReg();
@@ -928,6 +986,22 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
 uint8_t Compiler::compileUnaryOp(const ASTNode *node)
 {
     const std::string &op = node->strValue;
+
+    // Constant folding: -<number> → load negated constant directly
+    if (op == "-" && node->children[0]->type == NodeType::NUMBER_LITERAL) {
+        int16_t idx = addConstant(-node->children[0]->numValue);
+        auto it = constRegCache_.find(idx);
+        if (it != constRegCache_.end()) {
+            scalarRegs_.set(it->second);
+            return it->second;
+        }
+        uint8_t dst = tempReg();
+        emitAD(OpCode::LOAD_CONST, dst, idx);
+        constRegCache_[idx] = dst;
+        scalarRegs_.set(dst);
+        return dst;
+    }
+
     uint8_t src = compileNode(node->children[0].get());
     uint8_t dst = tempReg();
 
