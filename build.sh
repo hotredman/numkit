@@ -10,7 +10,7 @@ if [ "${1:-}" = "--wasm" ]; then
     fi
     emcmake cmake -B build-wasm -DMLAB_BUILD_REPL=ON
     cmake --build build-wasm -j$(nproc)
-    echo "WASM Build OK"
+    echo "WASM build OK"
 else
     cmake -B build -DCMAKE_BUILD_TYPE=Debug
     cmake --build build -j$(nproc)

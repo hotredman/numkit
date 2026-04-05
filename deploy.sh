@@ -2,42 +2,49 @@
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
-BUILD_DIR="${PROJECT_DIR}/build-wasm"
-DIST_DIR="${BUILD_DIR}/repl/dist"
+IDE_DIR="${PROJECT_DIR}/ide"
+WASM_DIST="${PROJECT_DIR}/build-wasm/wasm/dist"
 PAGES_DIR="${PROJECT_DIR}/docs"
 
-GREEN='\033[0;32m'
-CYAN='\033[0;36m'
-NC='\033[0m'
-
-info() { echo -e "${CYAN}[INFO]${NC}  $*"; }
-ok()   { echo -e "${GREEN}[OK]${NC}    $*"; }
-
-# Собираем если ещё не собрано
-if [ ! -f "${DIST_DIR}/mlab_repl.wasm" ]; then
-    info "Building first..."
-    bash "${PROJECT_DIR}/rebuild.sh" --wasm
+if ! command -v node &>/dev/null; then
+    echo "node not found. Install Node.js 18+."
+    exit 1
 fi
 
-# Копируем в docs/ для GitHub Pages
-info "Copying to docs/ ..."
+# Build WASM if emcc available
+if command -v emcc &>/dev/null; then
+    if [ ! -f "${WASM_DIST}/mlab_repl.wasm" ]; then
+        echo "Building WASM..."
+        bash "${PROJECT_DIR}/build.sh" --wasm
+    fi
+    echo "Copying WASM files into ide/public/..."
+    cp "${WASM_DIST}/mlab_repl.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/mlab_repl.wasm" "${IDE_DIR}/public/"
+else
+    echo "emcc not found — building without WASM (fallback mode only)"
+fi
+
+# Generate examples manifest
+if [ -f "${IDE_DIR}/scripts/generate-manifest.js" ]; then
+    echo "Generating examples manifest..."
+    node "${IDE_DIR}/scripts/generate-manifest.js"
+fi
+
+# Install deps and build
+cd "${IDE_DIR}"
+[ ! -d "node_modules" ] && npm install
+echo "Building Vite production bundle..."
+npm run build
+
+# Copy to docs/ for GitHub Pages
 rm -rf "${PAGES_DIR}"
 mkdir -p "${PAGES_DIR}"
-cp "${DIST_DIR}"/* "${PAGES_DIR}/"
+cp -r "${IDE_DIR}/dist/"* "${PAGES_DIR}/"
+touch "${PAGES_DIR}/.nojekyll"
 
-ok "Files copied to docs/"
-
 echo ""
-echo -e "${GREEN}Done!${NC} Now run:"
+echo "Deploy complete! Files in docs/"
 echo ""
-echo -e "  ${CYAN}git add docs/${NC}"
-echo -e "  ${CYAN}git commit -m 'Deploy MLab REPL to GitHub Pages'${NC}"
-echo -e "  ${CYAN}git push${NC}"
-echo ""
-echo "Then go to:"
-echo "  GitHub → Settings → Pages → Source: Deploy from branch"
-echo "  Branch: main, Folder: /docs"
-echo ""
-echo "Your REPL will be at:"
-echo -e "  ${CYAN}https://<username>.github.io/<repo>/${NC}"
-echo ""
+echo "  git add docs/"
+echo "  git commit -m 'Deploy to GitHub Pages'"
+echo "  git push"

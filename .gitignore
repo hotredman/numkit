@@ -1,5 +1,6 @@
 .qtcreator
-build*
+build*/
+!build.sh
 
 # Prerequisites
 *.d
