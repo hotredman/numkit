@@ -205,6 +205,69 @@ TEST_F(FigureCloseTest, FigureNoArg)
     EXPECT_EQ(fm().figures().size(), 1u);
 }
 
+// ── figure() emits marker (so UI can show panel) ──
+
+TEST_F(FigureCloseTest, FigureEmitsMarker)
+{
+    capturedOutput.clear();
+    eval("figure(1);");
+    EXPECT_NE(capturedOutput.find("__FIGURE_DATA__"), std::string::npos)
+        << "figure(1) should emit marker, got: " << capturedOutput;
+}
+
+TEST_F(FigureCloseTest, FigureNoArgEmitsMarker)
+{
+    capturedOutput.clear();
+    eval("figure;");
+    EXPECT_NE(capturedOutput.find("__FIGURE_DATA__"), std::string::npos)
+        << "figure should emit marker, got: " << capturedOutput;
+}
+
+TEST_F(FigureCloseTest, FigureEmitsCorrectId)
+{
+    capturedOutput.clear();
+    eval("figure(3);");
+    EXPECT_NE(capturedOutput.find("\"id\":3"), std::string::npos)
+        << "figure(3) marker should contain id:3, got: " << capturedOutput;
+}
+
+TEST_F(FigureCloseTest, FigureEmptyHasNoDatasets)
+{
+    capturedOutput.clear();
+    eval("figure(1);");
+    EXPECT_NE(capturedOutput.find("\"datasets\":[]"), std::string::npos)
+        << "empty figure should have no datasets, got: " << capturedOutput;
+}
+
+// ── close() markers go through outputFunc ──
+
+TEST_F(FigureCloseTest, CloseEmitsMarker)
+{
+    eval("figure(1);");
+    capturedOutput.clear();
+    eval("close(1)");
+    EXPECT_NE(capturedOutput.find("__FIGURE_CLOSE__:1"), std::string::npos)
+        << "close(1) should emit close marker, got: " << capturedOutput;
+}
+
+TEST_F(FigureCloseTest, CloseAllEmitsMarker)
+{
+    eval("figure(1); figure(2);");
+    capturedOutput.clear();
+    eval("close('all')");
+    EXPECT_NE(capturedOutput.find("__FIGURE_CLOSE_ALL__"), std::string::npos)
+        << "close all should emit marker, got: " << capturedOutput;
+}
+
+TEST_F(FigureCloseTest, CloseCurrentEmitsMarker)
+{
+    eval("figure(1); figure(2);");
+    capturedOutput.clear();
+    eval("close");
+    EXPECT_NE(capturedOutput.find("__FIGURE_CLOSE__:2"), std::string::npos)
+        << "close (current=2) should emit marker, got: " << capturedOutput;
+}
+
 TEST_F(FigureCloseTest, FigureSwitchBack)
 {
     eval("figure(1); figure(2); figure(1);");

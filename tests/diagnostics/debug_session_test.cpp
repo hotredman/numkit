@@ -454,14 +454,97 @@ TEST_F(DebugSessionTest, PlotDuringEvalContainsFigureMarker)
     // Eval a plot command in debug context
     std::string result = session.eval("plot([1 2 3], [4 5 6])");
 
-    // The eval result (or the session output) should contain the figure marker
-    std::string out = session.takeOutput();
-    bool hasFigure = result.find("__FIGURE_DATA__") != std::string::npos ||
-                     out.find("__FIGURE_DATA__") != std::string::npos;
-    EXPECT_TRUE(hasFigure)
-        << "plot in eval should produce figure marker.\n  result: " << result
-        << "\n  output: " << out;
+    // The figure marker must be in the eval return value
+    EXPECT_NE(result.find("__FIGURE_DATA__"), std::string::npos)
+        << "plot in eval should produce figure marker in result, got: " << result;
 
     // Session should still be active
     EXPECT_TRUE(session.isActive());
+}
+
+TEST_F(DebugSessionTest, FigureDuringEvalEmitsMarker)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    auto status = startDebug(session, "x = 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    std::string result = session.eval("figure(1)");
+    EXPECT_NE(result.find("__FIGURE_DATA__"), std::string::npos)
+        << "figure(1) in eval should emit marker, got: " << result;
+    EXPECT_NE(result.find("\"datasets\":[]"), std::string::npos)
+        << "empty figure should have no datasets, got: " << result;
+    EXPECT_TRUE(session.isActive());
+}
+
+TEST_F(DebugSessionTest, CloseDuringEvalEmitsMarker)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    auto status = startDebug(session, "x = 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Create a figure, then close it
+    session.eval("figure(2)");
+    std::string result = session.eval("close(2)");
+    EXPECT_NE(result.find("__FIGURE_CLOSE__:2"), std::string::npos)
+        << "close(2) in eval should emit close marker, got: " << result;
+    EXPECT_TRUE(session.isActive());
+}
+
+TEST_F(DebugSessionTest, PlotWithFrameVarsDuringEval)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({3});
+
+    std::string code =
+        "function r = make_data(n)\n"
+        "    r = linspace(0, 1, n);\n"
+        "    r = r + 0;\n"   // bp here
+        "end\n"
+        "y = make_data(5);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().functionName, "make_data");
+
+    // Plot using the frame variable r
+    std::string result = session.eval("plot(r)");
+    EXPECT_NE(result.find("__FIGURE_DATA__"), std::string::npos)
+        << "plot(r) with frame var should produce marker, got: " << result;
+    // Should contain actual data, not empty datasets
+    EXPECT_EQ(result.find("\"datasets\":[]"), std::string::npos)
+        << "plot(r) should have non-empty datasets";
+    EXPECT_TRUE(session.isActive());
+}
+
+TEST_F(DebugSessionTest, EvalPlotPreservesDebugState)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    auto status = startDebug(session, "x = [1 2 3];\ny = [4 5 6];\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snapBefore = session.snapshot();
+
+    // Eval plot and figure commands
+    session.eval("figure(1)");
+    session.eval("plot([1 2 3], [4 5 6])");
+    session.eval("title('test')");
+
+    // Debug state must be preserved
+    EXPECT_TRUE(session.isActive());
+    auto snapAfter = session.snapshot();
+    EXPECT_EQ(snapAfter.line, snapBefore.line);
+
+    // Can still continue
+    status = session.resume(DebugAction::Continue);
+    EXPECT_TRUE(status == ExecStatus::Paused || status == ExecStatus::Completed);
 }
