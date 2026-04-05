@@ -416,3 +416,48 @@ TEST_P(DebugPhase234Test, CallStackDepthAtBreakpoint)
 }
 
 INSTANTIATE_DUAL(DebugPhase234Test);
+
+// ============================================================
+// 12. Regression: DebugStopException must propagate in AutoFallback
+//     (Bug: catch(...) in Engine::eval swallowed it, causing silent
+//      re-execution via TreeWalker without debug support)
+// ============================================================
+
+TEST(DebugAutoFallback, StopExceptionPropagates)
+{
+    Engine engine;
+    StdLibrary::install(engine);
+    engine.setBackend(Engine::Backend::AutoFallback);
+
+    auto obs = std::make_shared<RecordingObserver>();
+    obs->defaultAction = DebugAction::Stop; // Stop on first event
+    engine.setDebugObserver(obs);
+
+    engine.breakpointManager().addBreakpoint(2);
+
+    EXPECT_THROW(engine.eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException)
+        << "DebugStopException must not be swallowed by AutoFallback catch(...)";
+}
+
+TEST(DebugAutoFallback, BreakpointContinueThenStop)
+{
+    Engine engine;
+    StdLibrary::install(engine);
+    engine.setBackend(Engine::Backend::AutoFallback);
+
+    auto obs = std::make_shared<RecordingObserver>();
+    // Continue past first breakpoint, stop on second
+    obs->actionQueue = {DebugAction::Continue, DebugAction::Stop};
+    obs->defaultAction = DebugAction::Stop;
+    engine.setDebugObserver(obs);
+
+    engine.breakpointManager().addBreakpoint(1);
+    engine.breakpointManager().addBreakpoint(3);
+
+    EXPECT_THROW(engine.eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException);
+
+    // x and y should have been set before the stop on line 3
+    auto *x = engine.getVariable("x");
+    EXPECT_NE(x, nullptr);
+    if (x) EXPECT_DOUBLE_EQ(x->toScalar(), 1.0);
+}

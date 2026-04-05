@@ -199,6 +199,9 @@ MValue Engine::eval(const std::string &code)
             // Sync exported variables to global environment
             syncVMToGlobalEnv();
             return result;
+        } catch (const DebugStopException &) {
+            syncVMToGlobalEnv();
+            throw; // always rethrow — debugger stop is not a backend error
         } catch (...) {
             // Sync whatever was exported (may be empty if compile failed,
             // or partial if execute failed mid-way — both correct)
