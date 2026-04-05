@@ -92,9 +92,7 @@ class ReplSession {
 public:
     ReplSession() {
         engine_ = std::make_unique<mlab::Engine>();
-        engine_->setOutputFunc([this](const std::string &s) {
-            outputBuf_ += s;
-        });
+        restoreOutputFunc();
     }
 
     std::string execute(const std::string& code) {
@@ -161,6 +159,7 @@ public:
         if (debugSession_)
             debugSession_->stop();
         debugSession_.reset();
+        restoreOutputFunc();
     }
 
     void setBreakpoints(const std::string &linesJson) {
@@ -191,9 +190,7 @@ public:
     void reset() {
         debugSession_.reset();
         engine_ = std::make_unique<mlab::Engine>();
-        engine_->setOutputFunc([this](const std::string &s) {
-            outputBuf_ += s;
-        });
+        restoreOutputFunc();
     }
 
     std::string getWorkspace() {
@@ -246,6 +243,10 @@ public:
             }
         }
         return result;
+    }
+
+    void restoreOutputFunc() {
+        engine_->setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     }
 
 private:
@@ -313,6 +314,7 @@ private:
                 result += "}";
             }
             debugSession_.reset();
+            restoreOutputFunc();
         }
 
         return result;
