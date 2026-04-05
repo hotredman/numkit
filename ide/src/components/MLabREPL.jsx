@@ -286,9 +286,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         </div>
         <div style={{display:"flex",gap:3,flexShrink:0}}>
           {showCenter&&<ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script" disabled={isDebugging}/>}
-          {showCenter&&<ActBtn onClick={()=>debugExecute(0)} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint" disabled={isDebugging}/>}
-          {isDebugging&&<ActBtn onClick={debugContinue} icon="⏩" label="Continue" color={C.cyan} title="Continue to next breakpoint"/>}
-          {isDebugging&&<ActBtn onClick={debugStop} icon="⏹" label="Stop" color={C.red} title="Stop debugging"/>}
+          {showCenter&&!isDebugging&&<ActBtn onClick={()=>debugExecute(0)} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint"/>}
+          {showCenter&&isDebugging&&<ActBtn onClick={debugStop} icon="⏹" label="Stop" color={C.red} title="Stop debugging"/>}
           {showCenter&&<ActBtn onClick={handleSave} icon="💾" label="Save" title="Ctrl+S"/>}
           <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file"/>
           {showCenter&&<ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download"/>}
@@ -308,7 +307,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{fontSize:10,color:C.textMuted}}>({debugState.reason})</span>
           <div style={{flex:1}}/>
           <button onClick={debugContinue} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.cyan,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}}>▶ Continue</button>
-          <button onClick={debugStop} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.red,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}}>■ Stop</button>
         </div>
       )}
 
