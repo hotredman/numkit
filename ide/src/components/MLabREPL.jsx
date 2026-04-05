@@ -132,7 +132,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
   const runCode=useCallback(code=>{
-    const t0=performance.now();const result=engine.execute(code);setExecTimeMs(performance.now()-t0);setErrorLine(null);setDebugLine(null);setDebugState(null);
+    const t0=performance.now();const result=engine.execute(code);setExecTimeMs(performance.now()-t0);setErrorLine(null);
     const items=[];if(result.output)for(const line of result.output.split("\n")){if(line==="__CLEAR__"){setOutput([]);continue;}items.push({type:/^Error/.test(line)?"error":/^Warning:/.test(line)?"warning":"result",text:line});}
     if(items.length){addOutput(items);setConsoleNotify(true);}
     if(result.closeAllFigures)setFigures([]);else if(result.closedFigureIds?.length){const closed=new Set(result.closedFigureIds);setFigures(prev=>prev.filter(f=>!closed.has(f.id)));}
