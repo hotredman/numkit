@@ -86,7 +86,8 @@ private:
     void exportVariables(const BytecodeChunk &chunk);
 
     // Exception helpers for dispatch loop
-    bool dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip);
+    bool dispatchTryCatch(const char *msg, const char *identifier, MValue *R,
+                          const Instruction *&ip);
     [[noreturn]] void enrichAndThrow(const std::exception &ex,
                                      const Instruction *ip,
                                      const BytecodeChunk &chunk);

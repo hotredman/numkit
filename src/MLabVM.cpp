@@ -1417,11 +1417,12 @@ dispatch_loop:
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
     } catch (const MLabError &mle) {
-        if (dispatchTryCatch(mle.what(), R, ip))
+        std::string id = mle.identifier().empty() ? "MLAB:error" : mle.identifier();
+        if (dispatchTryCatch(mle.what(), id.c_str(), R, ip))
             goto dispatch_loop;
         throw;
     } catch (const std::exception &ex) {
-        if (dispatchTryCatch(ex.what(), R, ip))
+        if (dispatchTryCatch(ex.what(), "MLAB:error", R, ip))
             goto dispatch_loop;
         enrichAndThrow(ex, ip, chunk);
     }
@@ -1464,7 +1465,8 @@ void VM::exportVariables(const BytecodeChunk &chunk)
 // Exception helpers
 // ============================================================
 
-bool VM::dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip)
+bool VM::dispatchTryCatch(const char *msg, const char *identifier, MValue *R,
+                          const Instruction *&ip)
 {
     if (tryStack_.empty())
         return false;
@@ -1473,7 +1475,7 @@ bool VM::dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip)
     tryStack_.pop_back();
     MValue err = MValue::structure();
     err.field("message") = MValue::fromString(msg, &engine_.allocator_);
-    err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
+    err.field("identifier") = MValue::fromString(identifier, &engine_.allocator_);
     R[th.exReg] = std::move(err);
     ip = th.catchIp;
     return true;

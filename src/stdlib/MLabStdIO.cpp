@@ -292,24 +292,146 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                 }
                             });
 
-    engine.registerFunction("error",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                std::string msg = args.empty() ? "Error" : args[0].toString();
-                                throw std::runtime_error(msg);
-                            });
+    engine.registerFunction(
+        "error",
+        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                        CallContext &ctx) {
+            if (args.empty())
+                throw MLabError("Error");
 
-    engine.registerFunction("warning",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                if (!args.empty() && args[0].isChar())
-                                    std::cerr << "Warning: " << args[0].toString() << "\n";
-                                return;
-                            });
+            // error(struct) — rethrow an MException-like struct
+            if (args[0].isStruct()) {
+                std::string msg = args[0].hasField("message") ? args[0].field("message").toString()
+                                                              : "Error";
+                std::string id = args[0].hasField("identifier")
+                                     ? args[0].field("identifier").toString()
+                                     : "";
+                throw MLabError(msg, 0, 0, "", "", id);
+            }
+
+            std::string first = args[0].toString();
+
+            // Detect error(id, msg, ...) vs error(msg, ...)
+            // MATLAB: if first arg contains ':', it's an identifier
+            if (args.size() >= 2 && first.find(':') != std::string::npos
+                && (args[1].isChar() || args[1].isString())) {
+                std::string id = first;
+                std::string msg;
+                if (args.size() > 2)
+                    msg = mlab_sprintf(args[1].toString(), args, 2);
+                else
+                    msg = args[1].toString();
+                throw MLabError(msg, 0, 0, "", "", id);
+            }
+
+            // error(msg) or error(msg, arg1, ...) — sprintf formatting
+            std::string msg;
+            if (args.size() > 1)
+                msg = mlab_sprintf(first, args, 1);
+            else
+                msg = first;
+            throw MLabError(msg);
+        });
+
+    engine.registerFunction(
+        "warning",
+        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                        CallContext &ctx) {
+            if (args.empty())
+                return;
+            std::string msg;
+            // warning(id, msg, ...) or warning(msg, ...)
+            std::string first = args[0].toString();
+            if (args.size() >= 2 && first.find(':') != std::string::npos
+                && (args[1].isChar() || args[1].isString())) {
+                // warning(id, msg, ...) — skip identifier, format message
+                if (args.size() > 2)
+                    msg = mlab_sprintf(args[1].toString(), args, 2);
+                else
+                    msg = args[1].toString();
+            } else if (args.size() > 1) {
+                msg = mlab_sprintf(first, args, 1);
+            } else {
+                msg = first;
+            }
+            ctx.engine->outputText("Warning: " + msg + "\n");
+        });
+
+    // MException(id, msg, ...) — create exception struct
+    engine.registerFunction(
+        "MException",
+        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                        CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.size() < 2)
+                throw std::runtime_error("MException requires identifier and message");
+            std::string id = args[0].toString();
+            std::string msg;
+            if (args.size() > 2)
+                msg = mlab_sprintf(args[1].toString(), args, 2);
+            else
+                msg = args[1].toString();
+            auto me = MValue::structure();
+            me.field("identifier") = MValue::fromString(id, alloc);
+            me.field("message") = MValue::fromString(msg, alloc);
+            outs[0] = std::move(me);
+        });
+
+    // rethrow(ME) — rethrow a caught exception struct
+    engine.registerFunction(
+        "rethrow",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isStruct())
+                throw std::runtime_error("rethrow requires an MException struct");
+            const auto &me = args[0];
+            std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
+            std::string id =
+                me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
+            throw MLabError(msg, 0, 0, "", "", id);
+        });
+
+    // throw(ME) — alias for rethrow
+    engine.registerFunction(
+        "throw",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isStruct())
+                throw std::runtime_error("throw requires an MException struct");
+            const auto &me = args[0];
+            std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
+            std::string id =
+                me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
+            throw MLabError(msg, 0, 0, "", "", id);
+        });
+
+    // assert(condition) / assert(condition, msg) / assert(condition, id, msg, ...)
+    engine.registerFunction(
+        "assert",
+        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                        CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("assert requires at least one argument");
+            if (args[0].toBool())
+                return; // assertion passed
+            if (args.size() == 1)
+                throw MLabError("Assertion failed.", 0, 0, "", "", "MLAB:assert");
+            // assert(cond, msg) or assert(cond, id, msg, ...)
+            std::string first = args[1].toString();
+            if (args.size() >= 3 && first.find(':') != std::string::npos) {
+                std::string id = first;
+                std::string msg;
+                if (args.size() > 3)
+                    msg = mlab_sprintf(args[2].toString(), args, 3);
+                else
+                    msg = args[2].toString();
+                throw MLabError(msg, 0, 0, "", "", id);
+            }
+            std::string msg;
+            if (args.size() > 2)
+                msg = mlab_sprintf(first, args, 2);
+            else
+                msg = first;
+            throw MLabError(msg, 0, 0, "", "", "MLAB:assert");
+        });
 }
 
 } // namespace mlab

@@ -74,18 +74,21 @@ public:
               int line = 0,
               int col = 0,
               const std::string &funcName = "",
-              const std::string &context = "")
+              const std::string &context = "",
+              const std::string &identifier = "")
         : std::runtime_error(msg) // what() = raw message (clean, for try/catch)
         , line_(line)
         , col_(col)
         , funcName_(funcName)
         , context_(context)
+        , identifier_(identifier)
     {}
 
     int line() const { return line_; }
     int col() const { return col_; }
     const std::string &funcName() const { return funcName_; }
     const std::string &context() const { return context_; }
+    const std::string &identifier() const { return identifier_; }
 
     // Formatted for user display: "Error at line 15, column 3:\n  msg (in call to 'sin')"
     std::string formattedWhat() const
@@ -108,7 +111,8 @@ private:
     int line_;
     int col_;
     std::string funcName_;
-    std::string context_;  // e.g. "in call to 'sin'"
+    std::string context_;    // e.g. "in call to 'sin'"
+    std::string identifier_; // e.g. "MATLAB:badInput"
 };
 
 // ============================================================
