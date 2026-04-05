@@ -90,6 +90,8 @@ enum class OpCode : uint8_t {
     CELL_GET_2D,   // dst, cell, row, col    R[dst] = R[cell]{R[row], R[col]}
     CELL_SET_2D,   // cell, row, col, val    R[cell]{R[row], R[col]} = R[val]
     CELL_GET_MULTI,// outBase, cell, idx, nout  R[outBase..+nout] = R[cell]{R[idx]}
+    CELL_GET_ND,   // dst, cell, base, ndims   R[dst] = R[cell]{R[base]..R[base+ndims-1]}
+    CELL_SET_ND,   // cell, base, ndims, val   R[cell]{R[base]..R[base+ndims-1]} = R[val]
 
     // ── Transpose ────────────────────────────────────────────
     CTRANSPOSE, // dst, src               R[dst] = R[src]' (conjugate)

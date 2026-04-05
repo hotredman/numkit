@@ -422,8 +422,14 @@ MValue MValue::funcHandle(const std::string &name, Allocator *alloc)
 // ============================================================
 static size_t colonCount(double start, double step, double stop)
 {
+    if (std::isnan(start) || std::isnan(step) || std::isnan(stop))
+        return 0; // MATLAB: NaN in colon produces empty
+    if (std::isinf(start) || std::isinf(stop))
+        throw std::runtime_error("Maximum variable size allowed by the program is exceeded");
     if (step == 0.0)
         throw std::runtime_error("Colon step cannot be zero");
+    if (std::isinf(step))
+        return (step > 0 && stop >= start) || (step < 0 && stop <= start) ? 1 : 0;
     if ((step > 0 && stop < start) || (step < 0 && stop > start))
         return 0;
     double n = std::floor((stop - start) / step + 0.5) + 1;
@@ -612,12 +618,16 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
         for (size_t i = 0; i < count; ++i) {
             if (elems[i].isEmpty())
                 continue;
-            if (elems[i].type() == MType::CHAR)
+            if (elems[i].type() == MType::CHAR) {
                 result += elems[i].toString();
-            else if (elems[i].isScalar())
-                result += static_cast<char>(static_cast<int>(elems[i].toScalar()));
-            else
-                throw std::runtime_error("Cannot concatenate char and non-char arrays");
+            } else if (elems[i].isScalar()) {
+                result += static_cast<char>(static_cast<int>(std::round(elems[i].toScalar())));
+            } else {
+                // Non-scalar double/logical: convert each element to char
+                const double *d = elems[i].doubleData();
+                for (size_t k = 0; k < elems[i].numel(); ++k)
+                    result += static_cast<char>(static_cast<int>(std::round(d[k])));
+            }
         }
         return MValue::fromString(result, alloc);
     }
@@ -635,6 +645,8 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
         matchDim(rows, eR, rowsSet);
         matchDim(pages, eP, pagesSet);
     }
+    if (totalCols == 0)
+        return MValue::empty();
     if (!rows)
         rows = 1;
 
@@ -688,6 +700,40 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
     }
     if (!cols)
         return MValue::empty();
+
+    // Char vertcat
+    bool hasChar = false;
+    for (size_t i = 0; i < count; ++i)
+        if (!elems[i].isEmpty() && elems[i].type() == MType::CHAR) {
+            hasChar = true;
+            break;
+        }
+    if (hasChar) {
+        auto result = MValue::matrix(totalRows, cols, MType::CHAR, alloc);
+        char *dst = result.charDataMut();
+        size_t rowOff = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (elems[i].isEmpty())
+                continue;
+            size_t eR, eC, eP;
+            getElemDims(elems[i], eR, eC, eP);
+            if (elems[i].type() == MType::CHAR) {
+                const char *src = elems[i].charData();
+                for (size_t c = 0; c < eC; ++c)
+                    for (size_t r = 0; r < eR; ++r)
+                        dst[c * totalRows + rowOff + r] = src[c * eR + r];
+            } else {
+                // Double/logical to char conversion
+                for (size_t c = 0; c < eC; ++c)
+                    for (size_t r = 0; r < eR; ++r)
+                        dst[c * totalRows + rowOff + r] =
+                            static_cast<char>(static_cast<int>(std::round(
+                                readElemAsDouble(elems[i], c * eR + r))));
+            }
+            rowOff += eR;
+        }
+        return result;
+    }
 
     // Cell vertcat: combine rows into a 2D cell (column-major)
     if (hasCell) {
@@ -759,16 +805,24 @@ MValue MValue::elemAt(size_t idx, Allocator *alloc) const
     }
 }
 
-// 1D slice: extract elements at given linear indices → row vector of same type.
+// 1D slice: extract elements at given linear indices.
+// Shape rule: column vector source → column result; otherwise → row result.
+// CELL: always returns sub-cell (even for count==1), matching MATLAB c(i) semantics.
 MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) const
 {
-    if (count == 1)
+    // For non-CELL scalar result, return a scalar value
+    if (count == 1 && type() != MType::CELL)
         return elemAt(indices[0], alloc);
+
+    // Shape: column vector source → column result
+    bool colResult = (dims().cols() == 1 && dims().rows() > 1);
+    size_t rr = colResult ? count : 1;
+    size_t cc = colResult ? 1 : count;
 
     MType t = type();
     switch (t) {
     case MType::DOUBLE: {
-        auto result = MValue::matrix(1, count, MType::DOUBLE, alloc);
+        auto result = MValue::matrix(rr, cc, MType::DOUBLE, alloc);
         double *dst = result.doubleDataMut();
         const double *src = doubleData();
         for (size_t i = 0; i < count; ++i)
@@ -776,7 +830,7 @@ MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) c
         return result;
     }
     case MType::COMPLEX: {
-        auto result = MValue::complexMatrix(1, count, alloc);
+        auto result = MValue::complexMatrix(rr, cc, alloc);
         Complex *dst = result.complexDataMut();
         const Complex *src = complexData();
         for (size_t i = 0; i < count; ++i)
@@ -784,7 +838,7 @@ MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) c
         return result;
     }
     case MType::LOGICAL: {
-        auto result = MValue::matrix(1, count, MType::LOGICAL, alloc);
+        auto result = MValue::matrix(rr, cc, MType::LOGICAL, alloc);
         uint8_t *dst = result.logicalDataMut();
         const uint8_t *src = logicalData();
         for (size_t i = 0; i < count; ++i)
@@ -800,7 +854,7 @@ MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) c
         return MValue::fromString(s, alloc);
     }
     case MType::CELL: {
-        auto result = MValue::cell(1, count);
+        auto result = MValue::cell(rr, cc);
         for (size_t i = 0; i < count; ++i)
             result.cellAt(i) = cellAt(indices[i]);
         return result;
@@ -816,7 +870,8 @@ MValue MValue::indexGet2D(const size_t *rowIdx, size_t nrows,
                           const size_t *colIdx, size_t ncols,
                           Allocator *alloc) const
 {
-    if (nrows == 1 && ncols == 1) {
+    // Scalar shortcut for non-CELL types
+    if (nrows == 1 && ncols == 1 && type() != MType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0]);
         return elemAt(idx, alloc);
     }
@@ -854,7 +909,8 @@ MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
                           const size_t *pageIdx, size_t npages,
                           Allocator *alloc) const
 {
-    if (nrows == 1 && ncols == 1 && npages == 1) {
+    // Scalar shortcut for non-CELL types
+    if (nrows == 1 && ncols == 1 && npages == 1 && type() != MType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0], pageIdx[0]);
         return elemAt(idx, alloc);
     }
@@ -894,6 +950,10 @@ MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
 // Logical indexing: extract elements where mask is true → row vector of same type.
 MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc) const
 {
+    // Check for true values beyond array bounds
+    for (size_t i = numel(); i < maskLen; ++i)
+        if (mask[i])
+            throw std::runtime_error("Index exceeds the number of array elements");
     size_t n = std::min(maskLen, numel());
     // Count selected elements
     size_t selected = 0;
@@ -901,10 +961,15 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         if (mask[i])
             selected++;
 
+    // Shape: column vector source → column result
+    bool colResult = (dims().cols() == 1 && dims().rows() > 1);
+    size_t rr = colResult ? selected : 1;
+    size_t cc = colResult ? 1 : selected;
+
     MType t = type();
     switch (t) {
     case MType::DOUBLE: {
-        auto result = MValue::matrix(1, selected, MType::DOUBLE, alloc);
+        auto result = MValue::matrix(rr, cc, MType::DOUBLE, alloc);
         double *dst = result.doubleDataMut();
         const double *src = doubleData();
         size_t k = 0;
@@ -914,7 +979,7 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         return result;
     }
     case MType::COMPLEX: {
-        auto result = MValue::complexMatrix(1, selected, alloc);
+        auto result = MValue::complexMatrix(rr, cc, alloc);
         Complex *dst = result.complexDataMut();
         const Complex *src = complexData();
         size_t k = 0;
@@ -924,7 +989,7 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         return result;
     }
     case MType::LOGICAL: {
-        auto result = MValue::matrix(1, selected, MType::LOGICAL, alloc);
+        auto result = MValue::matrix(rr, cc, MType::LOGICAL, alloc);
         uint8_t *dst = result.logicalDataMut();
         const uint8_t *src = logicalData();
         size_t k = 0;
@@ -934,7 +999,7 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         return result;
     }
     case MType::CHAR: {
-        auto result = MValue::matrix(1, selected, MType::CHAR, alloc);
+        auto result = MValue::matrix(rr, cc, MType::CHAR, alloc);
         char *dst = result.charDataMut();
         const char *src = charData();
         size_t k = 0;
@@ -944,7 +1009,7 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
         return result;
     }
     case MType::CELL: {
-        auto result = MValue::cell(1, selected);
+        auto result = MValue::cell(rr, cc);
         size_t k = 0;
         for (size_t i = 0; i < n; ++i)
             if (mask[i])
@@ -961,6 +1026,12 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
 // Index resolution — convert MValue index to vector<size_t> (0-based)
 // ============================================================
 
+static void validateIndex(double v)
+{
+    if (std::isnan(v) || std::isinf(v) || v < 1.0 || v != std::floor(v))
+        throw std::runtime_error("Array indices must be positive integers or logical values");
+}
+
 std::vector<size_t> MValue::resolveIndices(const MValue &idx, size_t dimSize)
 {
     std::vector<size_t> out;
@@ -970,17 +1041,24 @@ std::vector<size_t> MValue::resolveIndices(const MValue &idx, size_t dimSize)
             out[i] = i;
     } else if (idx.isLogical()) {
         const uint8_t *m = idx.logicalData();
-        for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
+        for (size_t i = dimSize; i < idx.numel(); ++i)
+            if (m[i])
+                throw std::runtime_error("Index exceeds the number of array elements");
+        size_t n = std::min(idx.numel(), dimSize);
+        for (size_t i = 0; i < n; ++i)
             if (m[i])
                 out.push_back(i);
     } else if (idx.isDoubleScalar()) {
-        size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
+        double v = idx.toScalar();
+        validateIndex(v);
+        size_t ii = static_cast<size_t>(v) - 1;
         if (ii >= dimSize)
             throw std::runtime_error("Index exceeds array dimensions");
         out.push_back(ii);
     } else {
         const double *d = idx.doubleData();
         for (size_t i = 0; i < idx.numel(); ++i) {
+            validateIndex(d[i]);
             size_t ii = static_cast<size_t>(d[i]) - 1;
             if (ii >= dimSize)
                 throw std::runtime_error("Index exceeds array dimensions");
@@ -993,17 +1071,25 @@ std::vector<size_t> MValue::resolveIndices(const MValue &idx, size_t dimSize)
 std::vector<size_t> MValue::resolveIndicesUnchecked(const MValue &idx)
 {
     std::vector<size_t> out;
+    if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
+        // Colon in unchecked context — caller must handle this separately
+        return out;
+    }
     if (idx.isLogical()) {
         const uint8_t *m = idx.logicalData();
         for (size_t i = 0; i < idx.numel(); ++i)
             if (m[i])
                 out.push_back(i);
     } else if (idx.isDoubleScalar() || idx.isLogicalScalar()) {
-        out.push_back(static_cast<size_t>(idx.toScalar()) - 1);
+        double v = idx.toScalar();
+        validateIndex(v);
+        out.push_back(static_cast<size_t>(v) - 1);
     } else {
         const double *d = idx.doubleData();
-        for (size_t i = 0; i < idx.numel(); ++i)
+        for (size_t i = 0; i < idx.numel(); ++i) {
+            validateIndex(d[i]);
             out.push_back(static_cast<size_t>(d[i]) - 1);
+        }
     }
     return out;
 }
@@ -1023,9 +1109,12 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     case MType::COMPLEX:
         dst.complexDataMut()[idx] = readElemAsComplex(val, valIdx);
         break;
-    case MType::LOGICAL:
-        dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toBool());
+    case MType::LOGICAL: {
+        // Read element at valIdx and convert to logical
+        double dv = readElemAsDouble(val, valIdx);
+        dst.logicalDataMut()[idx] = static_cast<uint8_t>(dv != 0.0);
         break;
+    }
     case MType::CHAR:
         dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(readElemAsDouble(val, valIdx)));
         break;
@@ -1050,7 +1139,7 @@ static void writeScalar(MValue &dst, size_t idx, const MValue &val)
         dst.complexDataMut()[idx] = val.toComplex();
         break;
     case MType::LOGICAL:
-        dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toBool());
+        dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toScalar() != 0.0);
         break;
     case MType::CHAR:
         dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(val.toScalar()));
@@ -1067,17 +1156,25 @@ static void writeScalar(MValue &dst, size_t idx, const MValue &val)
 
 void MValue::elemSet(size_t idx, const MValue &val)
 {
+    // Promote double→complex if assigning complex value
+    if (type() == MType::DOUBLE && val.isComplex())
+        promoteToComplex();
     writeScalar(*this, idx, val);
 }
 
 void MValue::indexSet(const size_t *indices, size_t count, const MValue &val)
 {
+    // Promote double→complex if assigning complex value
+    if (type() == MType::DOUBLE && val.isComplex())
+        promoteToComplex();
     if (val.isScalar()) {
         for (size_t k = 0; k < count; ++k)
             writeScalar(*this, indices[k], val);
     } else {
-        size_t n = std::min(count, val.numel());
-        for (size_t k = 0; k < n; ++k)
+        if (count != val.numel())
+            throw std::runtime_error(
+                "Unable to perform assignment because the left and right sides have a different number of elements");
+        for (size_t k = 0; k < count; ++k)
             writeElem(*this, indices[k], val, k);
     }
 }
@@ -1086,17 +1183,22 @@ void MValue::indexSet2D(const size_t *rowIdx, size_t nrows,
                         const size_t *colIdx, size_t ncols,
                         const MValue &val)
 {
+    if (type() == MType::DOUBLE && val.isComplex())
+        promoteToComplex();
     auto &d = dims();
     if (val.isScalar()) {
         for (size_t c = 0; c < ncols; ++c)
             for (size_t r = 0; r < nrows; ++r)
                 writeScalar(*this, d.sub2ind(rowIdx[r], colIdx[c]), val);
     } else {
-        size_t k = 0, n = val.numel();
+        size_t total = nrows * ncols;
+        if (total != val.numel())
+            throw std::runtime_error(
+                "Unable to perform assignment because the left and right sides have a different number of elements");
+        size_t k = 0;
         for (size_t c = 0; c < ncols; ++c)
             for (size_t r = 0; r < nrows; ++r)
-                if (k < n)
-                    writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c]), val, k++);
+                writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c]), val, k++);
     }
 }
 
@@ -1105,6 +1207,8 @@ void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
                         const size_t *pageIdx, size_t npages,
                         const MValue &val)
 {
+    if (type() == MType::DOUBLE && val.isComplex())
+        promoteToComplex();
     auto &d = dims();
     if (val.isScalar()) {
         for (size_t p = 0; p < npages; ++p)
@@ -1112,12 +1216,15 @@ void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
                 for (size_t r = 0; r < nrows; ++r)
                     writeScalar(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val);
     } else {
-        size_t k = 0, n = val.numel();
+        size_t total = nrows * ncols * npages;
+        if (total != val.numel())
+            throw std::runtime_error(
+                "Unable to perform assignment because the left and right sides have a different number of elements");
+        size_t k = 0;
         for (size_t p = 0; p < npages; ++p)
             for (size_t c = 0; c < ncols; ++c)
                 for (size_t r = 0; r < nrows; ++r)
-                    if (k < n)
-                        writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val, k++);
+                    writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val, k++);
     }
 }
 
@@ -1139,7 +1246,8 @@ void MValue::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
             del[indices[k]] = true;
 
     size_t remaining = std::count(del.begin(), del.end(), false);
-    bool isRow = dims().rows() == 1;
+    // MATLAB: 1D delete always produces row vector, except column vectors stay column
+    bool isRow = !(dims().cols() == 1 && dims().rows() > 1);
 
     if (t == MType::CELL) {
         auto &src = cellDataVec();
@@ -1580,6 +1688,22 @@ bool MValue::toBool() const
                 return false;
         return n > 0;
     }
+    if (h->type == MType::LOGICAL && h->buffer) {
+        const uint8_t *ld = static_cast<const uint8_t *>(h->buffer->data());
+        size_t n = h->dims.numel();
+        for (size_t i = 0; i < n; ++i)
+            if (!ld[i])
+                return false;
+        return n > 0;
+    }
+    if (h->type == MType::COMPLEX && h->buffer) {
+        const Complex *cd = static_cast<const Complex *>(h->buffer->data());
+        size_t n = h->dims.numel();
+        for (size_t i = 0; i < n; ++i)
+            if (cd[i].real() == 0.0 && cd[i].imag() == 0.0)
+                return false;
+        return n > 0;
+    }
     throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to bool");
 }
 std::string MValue::toString() const
@@ -1689,14 +1813,17 @@ void MValue::promoteToComplex(Allocator *alloc)
     }
     if (!isHeap())
         throw std::runtime_error("Cannot promote to complex");
+    detach(); // COW: ensure we have our own copy before mutating
     if (!alloc)
         alloc = heap_->allocator;
     auto *newBuf = new DataBuffer(n * sizeof(Complex), alloc);
     Complex *dst = static_cast<Complex *>(newBuf->data());
-    const double *src = static_cast<const double *>(heap_->buffer->data());
-    for (size_t i = 0; i < n; ++i)
-        dst[i] = Complex(src[i], 0.0);
-    if (heap_->buffer->release())
+    if (n > 0 && heap_->buffer) {
+        const double *src = static_cast<const double *>(heap_->buffer->data());
+        for (size_t i = 0; i < n; ++i)
+            dst[i] = Complex(src[i], 0.0);
+    }
+    if (heap_->buffer && heap_->buffer->release())
         delete heap_->buffer;
     heap_->buffer = newBuf;
     heap_->type = MType::COMPLEX;
@@ -1768,8 +1895,11 @@ void MValue::resize(size_t newRows, size_t newCols, Allocator *alloc)
     size_t oldR = heap_->dims.rows(), oldC = heap_->dims.cols(), es = elementSize(heap_->type),
            nb = newRows * newCols * es;
     auto *nb2 = new DataBuffer(nb, alloc);
-    if (nb > 0)
-        std::memset(nb2->data(), 0, nb);
+    if (nb > 0) {
+        // CHAR arrays fill with spaces; everything else with zeros
+        int fill = (heap_->type == MType::CHAR) ? ' ' : 0;
+        std::memset(nb2->data(), fill, nb);
+    }
     if (heap_->buffer && es > 0) {
         size_t cr = std::min(oldR, newRows), cc = std::min(oldC, newCols);
         const char *s = static_cast<const char *>(heap_->buffer->data());
@@ -1800,8 +1930,10 @@ void MValue::resize3d(size_t nr, size_t nc, size_t np, Allocator *alloc)
            es = elementSize(heap_->type);
     size_t nb = nr * nc * np * es;
     auto *nb2 = new DataBuffer(nb, alloc);
-    if (nb > 0)
-        std::memset(nb2->data(), 0, nb);
+    if (nb > 0) {
+        int fill = (heap_->type == MType::CHAR) ? ' ' : 0;
+        std::memset(nb2->data(), fill, nb);
+    }
     if (heap_->buffer && es > 0) {
         size_t cr = std::min(oR, nr), cc = std::min(oC, nc), cp = std::min(oP, np);
         const char *s = static_cast<const char *>(heap_->buffer->data());
@@ -1831,10 +1963,13 @@ void MValue::ensureSize(size_t idx, Allocator *alloc)
     }
     size_t need = idx + 1;
     if (need > numel()) {
-        if (dims().isVector() || dims().rows() <= 1)
+        bool isColVec = (dims().cols() == 1 && dims().rows() > 1);
+        if (isColVec)
+            resize(need, 1, alloc); // preserve column vector shape
+        else if (dims().isVector() || dims().rows() <= 1)
             resize(1, need, alloc);
         else
-            resize(dims().rows(), (need + dims().rows() - 1) / dims().rows(), alloc);
+            throw std::runtime_error("Index exceeds array dimensions");
     }
 }
 
@@ -1893,6 +2028,7 @@ MValue &MValue::cellAt(size_t i)
         throw std::runtime_error("Not a cell");
     if (i >= heap_->cellData->size())
         throw std::runtime_error("Cell index out of bounds");
+    detach(); // COW: ensure we have our own copy before mutation
     return (*heap_->cellData)[i];
 }
 const MValue &MValue::cellAt(size_t i) const
@@ -1907,6 +2043,7 @@ std::vector<MValue> &MValue::cellDataVec()
 {
     if (!isHeap() || !heap_->cellData)
         throw std::runtime_error("Not a cell");
+    detach(); // COW
     return *heap_->cellData;
 }
 const std::vector<MValue> &MValue::cellDataVec() const
@@ -1920,6 +2057,7 @@ MValue &MValue::field(const std::string &n)
 {
     if (!isHeap() || !heap_->structData)
         throw std::runtime_error("Not a struct");
+    detach(); // COW
     return (*heap_->structData)[n];
 }
 const MValue &MValue::field(const std::string &n) const

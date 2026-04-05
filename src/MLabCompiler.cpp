@@ -1261,9 +1261,13 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
 
     // ND indexing (3D+): compile indices into consecutive registers
     {
+        IndexContextGuard guard(*this, arr, static_cast<uint8_t>(nargs));
         std::vector<uint8_t> idxRegs;
-        for (size_t i = 0; i < nargs; ++i)
+        for (size_t i = 0; i < nargs; ++i) {
             idxRegs.push_back(compileNode(node->children[argOffset + i].get()));
+            if (i + 1 < nargs)
+                guard.setDim(static_cast<uint8_t>(i + 1));
+        }
         uint8_t base = nextReg_;
         for (size_t i = 0; i < nargs; ++i) {
             uint8_t slot = tempReg();
@@ -1321,8 +1325,11 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
         } else {
             // ND indexed assign (3D+)
             std::vector<uint8_t> idxRegs;
-            for (size_t i = 0; i < nargs; ++i)
+            for (size_t i = 0; i < nargs; ++i) {
                 idxRegs.push_back(compileNode(lhs->children[argOffset + i].get()));
+                if (i + 1 < nargs)
+                    guard.setDim(static_cast<uint8_t>(i + 1));
+            }
             uint8_t base = nextReg_;
             for (size_t i = 0; i < nargs; ++i) {
                 uint8_t slot = tempReg();
@@ -1504,23 +1511,30 @@ uint8_t Compiler::compileCellIndex(const ASTNode *node)
     size_t nidx = node->children.size() - 1;
 
     if (nidx == 1) {
+        IndexContextGuard guard(*this, cell, 1);
         uint8_t idx = compileNode(node->children[1].get());
         uint8_t dst = tempReg();
         emitABC(OpCode::CELL_GET, dst, cell, idx);
         return dst;
     }
     if (nidx == 2) {
+        IndexContextGuard guard(*this, cell, 2);
         uint8_t row = compileNode(node->children[1].get());
+        guard.setDim(1);
         uint8_t col = compileNode(node->children[2].get());
         uint8_t dst = tempReg();
         emit(Instruction::make_abcde(OpCode::CELL_GET_2D, dst, cell, row, 0, col));
         return dst;
     }
-    // ND cell indexing (3D+): use INDEX_GET_ND — VM checks type at runtime
+    // ND cell indexing (3D+): use CELL_GET_ND — returns content, not sub-cell
     {
+        IndexContextGuard guard(*this, cell, static_cast<uint8_t>(nidx));
         std::vector<uint8_t> idxRegs;
-        for (size_t i = 0; i < nidx; ++i)
+        for (size_t i = 0; i < nidx; ++i) {
             idxRegs.push_back(compileNode(node->children[1 + i].get()));
+            if (i + 1 < nidx)
+                guard.setDim(static_cast<uint8_t>(i + 1));
+        }
         uint8_t base = nextReg_;
         for (size_t i = 0; i < nidx; ++i) {
             uint8_t slot = tempReg();
@@ -1528,7 +1542,7 @@ uint8_t Compiler::compileCellIndex(const ASTNode *node)
                 emitAB(OpCode::MOVE, slot, idxRegs[i]);
         }
         uint8_t dst = tempReg();
-        emit(Instruction::make_abcde(OpCode::INDEX_GET_ND,
+        emit(Instruction::make_abcde(OpCode::CELL_GET_ND,
                                      dst,
                                      cell,
                                      base,
@@ -1552,17 +1566,24 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
 
     size_t nidx = lhs->children.size() - 1;
     if (nidx == 1) {
+        IndexContextGuard guard(*this, cell, 1);
         uint8_t idx = compileNode(lhs->children[1].get());
         emitABC(OpCode::CELL_SET, cell, idx, val);
     } else if (nidx == 2) {
+        IndexContextGuard guard(*this, cell, 2);
         uint8_t row = compileNode(lhs->children[1].get());
+        guard.setDim(1);
         uint8_t col = compileNode(lhs->children[2].get());
         emit(Instruction::make_abcde(OpCode::CELL_SET_2D, cell, row, col, 0, val));
     } else {
         // ND cell assign
+        IndexContextGuard guard(*this, cell, static_cast<uint8_t>(nidx));
         std::vector<uint8_t> idxRegs;
-        for (size_t i = 0; i < nidx; ++i)
+        for (size_t i = 0; i < nidx; ++i) {
             idxRegs.push_back(compileNode(lhs->children[1 + i].get()));
+            if (i + 1 < nidx)
+                guard.setDim(static_cast<uint8_t>(i + 1));
+        }
         uint8_t base = nextReg_;
         for (size_t i = 0; i < nidx; ++i) {
             uint8_t slot = tempReg();
@@ -1572,7 +1593,7 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
         uint8_t safeVal = tempReg();
         if (val != safeVal)
             emitAB(OpCode::MOVE, safeVal, val);
-        emit(Instruction::make_abcde(OpCode::INDEX_SET_ND,
+        emit(Instruction::make_abcde(OpCode::CELL_SET_ND,
                                      cell,
                                      base,
                                      static_cast<uint8_t>(nidx),
@@ -2117,10 +2138,26 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     } else if (funcDef->returnNames.empty()) {
         emitNone(OpCode::RET_EMPTY);
     } else {
-        // Multi-return: RET_MULTI base, count
-        // Return vars are in their registers
-        uint8_t base = varReg(funcDef->returnNames[0]);
-        emitAB(OpCode::RET_MULTI, base, static_cast<uint8_t>(funcDef->returnNames.size()));
+        // Multi-return: collect return regs into consecutive slots then RET_MULTI
+        size_t nret = funcDef->returnNames.size();
+        std::vector<uint8_t> retRegs;
+        for (auto &name : funcDef->returnNames)
+            retRegs.push_back(varReg(name));
+        // Check if already consecutive
+        bool consecutive = true;
+        for (size_t i = 1; i < nret; ++i)
+            if (retRegs[i] != retRegs[0] + i) { consecutive = false; break; }
+        if (consecutive) {
+            emitAB(OpCode::RET_MULTI, retRegs[0], static_cast<uint8_t>(nret));
+        } else {
+            uint8_t base = nextReg_;
+            for (size_t i = 0; i < nret; ++i) {
+                uint8_t slot = tempReg();
+                if (retRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, retRegs[i]);
+            }
+            emitAB(OpCode::RET_MULTI, base, static_cast<uint8_t>(nret));
+        }
     }
 
     chunk_.numRegisters = nextReg_;
@@ -2144,13 +2181,33 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
 
 uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
 {
-    // In a function context, return the return variables
-    // For now, emit RET with first return var if known, else RET_EMPTY
-    if (!chunk_.returnNames.empty()) {
-        uint8_t retReg = varReg(chunk_.returnNames[0]);
-        emitA(OpCode::RET, retReg);
+    if (chunk_.returnNames.size() <= 1) {
+        if (!chunk_.returnNames.empty()) {
+            uint8_t retReg = varReg(chunk_.returnNames[0]);
+            emitA(OpCode::RET, retReg);
+        } else {
+            emitNone(OpCode::RET_EMPTY);
+        }
     } else {
-        emitNone(OpCode::RET_EMPTY);
+        // Multi-return: same logic as end-of-function
+        size_t nret = chunk_.returnNames.size();
+        std::vector<uint8_t> retRegs;
+        for (auto &name : chunk_.returnNames)
+            retRegs.push_back(varReg(name));
+        bool consecutive = true;
+        for (size_t i = 1; i < nret; ++i)
+            if (retRegs[i] != retRegs[0] + i) { consecutive = false; break; }
+        if (consecutive) {
+            emitAB(OpCode::RET_MULTI, retRegs[0], static_cast<uint8_t>(nret));
+        } else {
+            uint8_t base = nextReg_;
+            for (size_t i = 0; i < nret; ++i) {
+                uint8_t slot = tempReg();
+                if (retRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, retRegs[i]);
+            }
+            emitAB(OpCode::RET_MULTI, base, static_cast<uint8_t>(nret));
+        }
     }
     return 0;
 }
@@ -2184,8 +2241,11 @@ uint8_t Compiler::compileDeleteAssign(const ASTNode *node)
         } else {
             // ND delete (3D+): compile indices into consecutive registers
             std::vector<uint8_t> idxRegs;
-            for (size_t i = 0; i < nargs; ++i)
+            for (size_t i = 0; i < nargs; ++i) {
                 idxRegs.push_back(compileNode(lhs->children[1 + i].get()));
+                if (i + 1 < nargs)
+                    guard.setDim(static_cast<uint8_t>(i + 1));
+            }
             uint8_t base = nextReg_;
             for (size_t i = 0; i < nargs; ++i) {
                 uint8_t slot = tempReg();
@@ -2407,6 +2467,10 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "CELL_SET_2D";
         case OpCode::CELL_GET_MULTI:
             return "CELL_GET_MULTI";
+        case OpCode::CELL_GET_ND:
+            return "CELL_GET_ND";
+        case OpCode::CELL_SET_ND:
+            return "CELL_SET_ND";
         case OpCode::TRY_BEGIN:
             return "TRY_BEGIN";
         case OpCode::TRY_END:

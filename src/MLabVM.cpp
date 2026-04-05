@@ -260,15 +260,15 @@ dispatch_loop:
                 break;
             case OpCode::AND:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(
-                        (R[I.b].scalarVal() != 0.0 && R[I.c].scalarVal() != 0.0) ? 1.0 : 0.0);
+                    R[I.a].setLogicalFast(
+                        R[I.b].scalarVal() != 0.0 && R[I.c].scalarVal() != 0.0);
                 } else
                     goto binary_slow;
                 break;
             case OpCode::OR:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a].setScalarFast(
-                        (R[I.b].scalarVal() != 0.0 || R[I.c].scalarVal() != 0.0) ? 1.0 : 0.0);
+                    R[I.a].setLogicalFast(
+                        R[I.b].scalarVal() != 0.0 || R[I.c].scalarVal() != 0.0);
                 } else
                     goto binary_slow;
                 break;
@@ -285,7 +285,7 @@ dispatch_loop:
                 break;
             case OpCode::NOT:
                 if (R[I.b].isDoubleScalar()) {
-                    R[I.a].setScalarFast(R[I.b].scalarVal() == 0.0 ? 1.0 : 0.0);
+                    R[I.a].setLogicalFast(R[I.b].scalarVal() == 0.0);
                 } else
                     goto unary_slow;
                 break;
@@ -323,14 +323,19 @@ dispatch_loop:
                     fs.count = 1;
                     fs.rows = 0;
                     fs.data = nullptr;
+                    fs.rangeType = MType::DOUBLE;
                 } else if (R[I.b].isEmpty()) {
                     fs.count = 0;
                 } else {
                     fs.range = R[I.b];
+                    fs.rangeType = fs.range.type();
                     auto &dims = fs.range.dims();
                     fs.count = dims.cols();
                     fs.rows = dims.rows();
-                    fs.data = fs.range.doubleData();
+                    if (fs.rangeType == MType::DOUBLE)
+                        fs.data = fs.range.doubleData();
+                    else
+                        fs.rawData = fs.range.rawData();
                 }
                 if (fs.count == 0) {
                     ip += I.d;
@@ -377,8 +382,14 @@ dispatch_loop:
             case OpCode::INDEX_GET: {
                 const MValue &mv = R[I.b];
                 const MValue &ix = R[I.c];
-                if (mv.isScalar() && ix.isDoubleScalar()) {
-                    R[I.a] = mv; // scalar(scalar) = scalar
+                if (mv.isCell()) {
+                    // Cell () indexing always returns sub-cell
+                    auto indices = MValue::resolveIndices(ix, mv.numel());
+                    R[I.a] = mv.indexGet(indices.data(), indices.size(),
+                                         &engine_.allocator_);
+                } else if (mv.isScalar() && ix.isDoubleScalar()) {
+                    checkedIndex(ix.scalarVal(), 1); // validate bounds
+                    R[I.a] = mv;
                 } else if (ix.isDoubleScalar()) {
                     size_t i = checkedIndex(ix.scalarVal(), mv.numel());
                     R[I.a] = mv.elemAt(i, &engine_.allocator_);
@@ -386,12 +397,8 @@ dispatch_loop:
                     R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(),
                                              &engine_.allocator_);
                 } else {
-                    size_t n = ix.numel();
-                    const double *id = ix.doubleData();
-                    std::vector<size_t> indices(n);
-                    for (size_t k = 0; k < n; ++k)
-                        indices[k] = static_cast<size_t>(id[k]) - 1;
-                    R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
+                    auto indices = MValue::resolveIndices(ix, mv.numel());
+                    R[I.a] = mv.indexGet(indices.data(), indices.size(), &engine_.allocator_);
                 }
                 break;
             }
@@ -661,10 +668,89 @@ dispatch_loop:
                 break;
             }
             case OpCode::CELL_SET_2D: {
+                if (R[I.a].isEmpty())
+                    R[I.a] = MValue::cell(0, 0);
                 if (!R[I.a].isCell())
                     throw std::runtime_error("Cell indexing requires a cell array");
                 size_t r = (size_t) R[I.b].toScalar() - 1, c = (size_t) R[I.c].toScalar() - 1;
+                // Auto-grow if needed
+                size_t nr = R[I.a].dims().rows(), nc = R[I.a].dims().cols();
+                if (r + 1 > nr || c + 1 > nc) {
+                    size_t newR = std::max(nr, r + 1), newC = std::max(nc, c + 1);
+                    auto grown = MValue::cell(newR, newC);
+                    for (size_t cc = 0; cc < nc; ++cc)
+                        for (size_t rr = 0; rr < nr; ++rr)
+                            grown.cellAt(cc * newR + rr) = R[I.a].cellAt(cc * nr + rr);
+                    R[I.a] = std::move(grown);
+                }
                 R[I.a].cellAt(R[I.a].dims().sub2ind(r, c)) = R[I.e];
+                break;
+            }
+            case OpCode::CELL_GET_ND: {
+                // a=dst, b=cell, c=base, e=ndims
+                if (!R[I.b].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                uint8_t base = I.c, ndims = I.e;
+                if (ndims == 3) {
+                    size_t r = (size_t) R[base].toScalar() - 1;
+                    size_t c = (size_t) R[base + 1].toScalar() - 1;
+                    size_t p = (size_t) R[base + 2].toScalar() - 1;
+                    size_t idx = R[I.b].dims().sub2ind(r, c, p);
+                    R[I.a] = R[I.b].cellAt(idx);
+                } else {
+                    // General ND: compute linear index
+                    const auto &d = R[I.b].dims();
+                    size_t idx = 0, stride = 1;
+                    for (uint8_t i = 0; i < ndims; ++i) {
+                        size_t si = (size_t) R[base + i].toScalar() - 1;
+                        idx += si * stride;
+                        stride *= (i == 0) ? d.rows() : (i == 1) ? d.cols() : d.pages();
+                    }
+                    R[I.a] = R[I.b].cellAt(idx);
+                }
+                break;
+            }
+            case OpCode::CELL_SET_ND: {
+                // a=cell, b=base, c=ndims, e=val
+                if (R[I.a].isEmpty())
+                    R[I.a] = MValue::cell(0, 0);
+                if (!R[I.a].isCell())
+                    throw std::runtime_error("Cell indexing requires a cell array");
+                uint8_t base = I.b, ndims = I.c;
+                if (ndims == 3) {
+                    size_t r = (size_t) R[base].toScalar() - 1;
+                    size_t c = (size_t) R[base + 1].toScalar() - 1;
+                    size_t p = (size_t) R[base + 2].toScalar() - 1;
+                    // Auto-grow if needed
+                    size_t nr = R[I.a].dims().rows(), nc = R[I.a].dims().cols(), np = R[I.a].dims().pages();
+                    if (r + 1 > nr || c + 1 > nc || p + 1 > np) {
+                        size_t newR = std::max(nr, r + 1);
+                        size_t newC = std::max(nc, c + 1);
+                        size_t newP = std::max(np, p + 1);
+                        auto grown = MValue::cell3D(newR, newC, newP);
+                        // Copy existing elements
+                        for (size_t pp = 0; pp < np; ++pp)
+                            for (size_t cc = 0; cc < nc; ++cc)
+                                for (size_t rr = 0; rr < nr; ++rr) {
+                                    size_t oldIdx = rr + cc * nr + pp * nr * nc;
+                                    size_t newIdx = rr + cc * newR + pp * newR * newC;
+                                    grown.cellAt(newIdx) = R[I.a].cellAt(oldIdx);
+                                }
+                        R[I.a] = std::move(grown);
+                    }
+                    size_t idx = R[I.a].dims().sub2ind(r, c, p);
+                    R[I.a].cellAt(idx) = R[I.e];
+                } else {
+                    // General ND: compute linear index
+                    const auto &d = R[I.a].dims();
+                    size_t idx = 0, stride = 1;
+                    for (uint8_t i = 0; i < ndims; ++i) {
+                        size_t si = (size_t) R[base + i].toScalar() - 1;
+                        idx += si * stride;
+                        stride *= (i == 0) ? d.rows() : (i == 1) ? d.cols() : d.pages();
+                    }
+                    R[I.a].cellAt(idx) = R[I.e];
+                }
                 break;
             }
 
@@ -715,18 +801,22 @@ dispatch_loop:
                         result = std::tan(v);
                         break;
                     case 13:
-                        result = (v > 0) ? 1.0 : (v < 0) ? -1.0 : 0.0;
+                        result = std::isnan(v) ? std::numeric_limits<double>::quiet_NaN()
+                                 : (v > 0)     ? 1.0
+                                 : (v < 0)     ? -1.0
+                                               : 0.0;
                         break;
                     case 14:
-                        result = std::isnan(v) ? 1.0 : 0.0;
-                        break;
+                        R[I.a].setLogicalFast(std::isnan(v));
+                        goto builtin_done;
                     case 15:
-                        result = std::isinf(v) ? 1.0 : 0.0;
-                        break;
+                        R[I.a].setLogicalFast(std::isinf(v));
+                        goto builtin_done;
                     default:
                         goto builtin_fallback;
                     }
                     R[I.a].setScalarFast(result);
+                    builtin_done:
                     break;
                 }
                 if (na == 2 && R[argBase].isDoubleScalar() && R[argBase + 1].isDoubleScalar()) {
@@ -789,7 +879,7 @@ dispatch_loop:
                 MValue callResult;
                 bool resolved = false;
                 if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx]) {
-                    callResult = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na);
+                    callResult = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na, nargout);
                     resolved = true;
                 }
                 if (!resolved) {
@@ -800,7 +890,7 @@ dispatch_loop:
                             if (funcIdx >= (int16_t) resolvedFuncs.size())
                                 resolvedFuncs.resize(funcIdx + 1, nullptr);
                             resolvedFuncs[funcIdx] = &cfIt->second;
-                            callResult = callUserFunc(cfIt->second, &R[argBase], na);
+                            callResult = callUserFunc(cfIt->second, &R[argBase], na, nargout);
                             resolved = true;
                         }
                     }
@@ -881,24 +971,24 @@ dispatch_loop:
                     const std::string &funcName = funcHandleVal.funcHandleName();
 
                     // Build args: user args + captured values
-                    // Copy user args + captures into a temp buffer
-                    MValue argsBuffer[32];
+                    size_t totalArgsN = static_cast<size_t>(na) + numCaptures;
+                    std::vector<MValue> argsBuf(totalArgsN);
                     for (uint8_t i = 0; i < na; ++i)
-                        argsBuffer[i] = R[argBase + i];
+                        argsBuf[i] = R[argBase + i];
                     for (size_t i = 0; i < numCaptures; ++i)
-                        argsBuffer[na + i] = R[fhReg].cellAt(1 + i);
-                    uint8_t totalArgs = na + static_cast<uint8_t>(numCaptures);
+                        argsBuf[na + i] = R[fhReg].cellAt(1 + i);
+                    uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
 
                     if (compiledFuncs_) {
                         auto cfIt = compiledFuncs_->find(funcName);
                         if (cfIt != compiledFuncs_->end()) {
-                            R[I.a] = callUserFunc(cfIt->second, argsBuffer, totalArgs);
+                            R[I.a] = callUserFunc(cfIt->second, argsBuf.data(), totalArgs);
                             break;
                         }
                     }
                     auto extIt = engine_.externalFuncs_.find(funcName);
                     if (extIt != engine_.externalFuncs_.end()) {
-                        Span<const MValue> as(argsBuffer, na); // only user args for external
+                        Span<const MValue> as(argsBuf.data(), na); // only user args for external
                         MValue ob[1];
                         Span<MValue> os(ob, 1);
                         CallContext ctx{&engine_, &engine_.globalEnvironment()};
@@ -914,9 +1004,14 @@ dispatch_loop:
                 if (na == 1) {
                     const MValue &mv = R[fhReg];
                     const MValue &ix = R[argBase];
-                    // Check for colon-all: A(:) → linearize to column vector
-                    if (ix.isChar() && ix.numel() == 1
-                        && ix.charData()[0] == ':') {
+                    if (mv.isCell()) {
+                        // Cell () indexing: always return sub-cell
+                        auto indices = MValue::resolveIndices(ix, mv.numel());
+                        R[I.a] = mv.indexGet(indices.data(), indices.size(),
+                                             &engine_.allocator_);
+                    } else if (ix.isChar() && ix.numel() == 1
+                               && ix.charData()[0] == ':') {
+                        // Colon-all: A(:) → linearize to column vector
                         size_t n = mv.numel();
                         MType t = mv.type();
                         auto res = MValue::matrix(n, 1, t, &engine_.allocator_);
@@ -1412,6 +1507,8 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::CELL_GET_2D:
     case OpCode::CELL_SET_2D:
     case OpCode::CELL_GET_MULTI:
+    case OpCode::CELL_GET_ND:
+    case OpCode::CELL_SET_ND:
         return "in cell indexing";
 
     // Field access
@@ -1520,7 +1617,7 @@ MValue VM::callUserFunc(const BytecodeChunk &funcChunk,
     }
 
     uint8_t pc = std::min(nargs, funcChunk.numParams);
-    MValue argsCopy[16];
+    std::vector<MValue> argsCopy(pc);
     for (uint8_t i = 0; i < pc; ++i)
         argsCopy[i] = args[i];
 
@@ -1655,6 +1752,49 @@ void VM::forSetVar(MValue &varReg, const ForState &fs)
             varReg.setScalarVal(fs.range.scalarVal());
         return;
     }
+
+    // Handle non-double types
+    if (fs.rangeType == MType::CHAR) {
+        const char *src = static_cast<const char *>(fs.rawData);
+        if (fs.rows == 1) {
+            varReg = MValue::fromString(std::string(1, src[fs.index]), &engine_.allocator_);
+        } else {
+            auto col = MValue::matrix(fs.rows, 1, MType::CHAR, &engine_.allocator_);
+            char *dst = col.charDataMut();
+            const char *colSrc = src + fs.index * fs.rows;
+            for (size_t r = 0; r < fs.rows; ++r)
+                dst[r] = colSrc[r];
+            varReg = std::move(col);
+        }
+        return;
+    }
+    if (fs.rangeType == MType::LOGICAL) {
+        const uint8_t *src = static_cast<const uint8_t *>(fs.rawData);
+        if (fs.rows == 1) {
+            varReg = MValue::logicalScalar(src[fs.index] != 0);
+        } else {
+            auto col = MValue::matrix(fs.rows, 1, MType::LOGICAL, &engine_.allocator_);
+            uint8_t *dst = col.logicalDataMut();
+            const uint8_t *colSrc = src + fs.index * fs.rows;
+            for (size_t r = 0; r < fs.rows; ++r)
+                dst[r] = colSrc[r];
+            varReg = std::move(col);
+        }
+        return;
+    }
+    if (fs.rangeType == MType::CELL) {
+        if (fs.rows == 1) {
+            varReg = fs.range.cellAt(fs.index);
+        } else {
+            auto col = MValue::cell(fs.rows, 1);
+            for (size_t r = 0; r < fs.rows; ++r)
+                col.cellAt(r) = fs.range.cellAt(fs.index * fs.rows + r);
+            varReg = std::move(col);
+        }
+        return;
+    }
+
+    // Double path (original)
     if (fs.rows == 1) {
         // Row vector — most common. After first iteration, varReg is always scalar.
         if (varReg.isDoubleScalar())

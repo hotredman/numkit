@@ -48,6 +48,8 @@ private:
     {
         MValue range;
         const double *data = nullptr;
+        const void *rawData = nullptr; // for char/logical
+        MType rangeType = MType::DOUBLE;
         size_t index = 0;
         size_t count = 0;
         size_t rows = 0;

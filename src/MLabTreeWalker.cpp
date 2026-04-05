@@ -802,7 +802,7 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, MValue &out)
                 break;
             case 18:
                 if (nargs == 2) {
-                    r = std::remainder(argVals[0], argVals[1]);
+                    r = std::fmod(argVals[0], argVals[1]);
                     ok = true;
                 }
                 break;
@@ -968,7 +968,9 @@ MValue TreeWalker::execBlock(const ASTNode *node, Environment *env)
                         if (tryEvalFast(lhsNode->children[1].get(), env, idxM)
                             && tryEvalFast(rhsNode, env, rhsM)) {
                             double idxVal, rhsVal;
-                            if (asDouble(idxM, idxVal) && asDouble(rhsM, rhsVal)) {
+                            if (asDouble(idxM, idxVal) && asDouble(rhsM, rhsVal)
+                                && idxVal >= 1.0 && idxVal == std::floor(idxVal)
+                                && !std::isinf(idxVal)) {
                                 size_t idx = static_cast<size_t>(idxVal) - 1;
                                 if (idx < arr->numel()) {
                                     arr->doubleDataMut()[idx] = rhsVal;
@@ -1684,6 +1686,12 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
                 throw std::runtime_error("Index exceeds array dimensions (linear index: "
                                          + std::to_string(scalarIdx + 1) + " > "
                                          + std::to_string(var.numel()) + ")");
+            // Cell () returns 1×1 sub-cell, not content
+            if (var.isCell()) {
+                auto result = MValue::cell(1, 1);
+                result.cellAt(0) = var.cellAt(scalarIdx);
+                return result;
+            }
             return var.elemAt(scalarIdx, &engine_.allocator_);
         }
 
@@ -1705,6 +1713,12 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
                     throw std::runtime_error("Index exceeds array dimensions (column index: "
                                              + std::to_string(sci + 1) + " > "
                                              + std::to_string(var.dims().cols()) + ")");
+                // Cell () returns 1×1 sub-cell
+                if (var.isCell()) {
+                    auto result = MValue::cell(1, 1);
+                    result.cellAt(0) = var.cellAt(var.dims().sub2ind(sri, sci));
+                    return result;
+                }
                 return var.elemAt(var.dims().sub2ind(sri, sci), &engine_.allocator_);
             }
         }
@@ -2146,29 +2160,33 @@ MValue TreeWalker::execSwitch(const ASTNode *node, Environment *env)
         auto cv = execNode(ce.get(), env);
         bool matched = false;
 
+        // isequal-based matching (MATLAB semantics)
+        auto valuesEqual = [](const MValue &a, const MValue &b) -> bool {
+            if (a.type() != b.type()) return false;
+            if (a.isChar() && b.isChar()) return a.toString() == b.toString();
+            if (a.numel() != b.numel()) return false;
+            if (a.dims() != b.dims()) return false;
+            if (a.isScalar() && b.isScalar()) return a.toScalar() == b.toScalar();
+            if (a.type() == MType::DOUBLE) {
+                const double *da = a.doubleData(), *db = b.doubleData();
+                for (size_t i = 0; i < a.numel(); ++i)
+                    if (da[i] != db[i]) return false;
+                return true;
+            }
+            if (a.type() == MType::LOGICAL) {
+                const uint8_t *la = a.logicalData(), *lb = b.logicalData();
+                for (size_t i = 0; i < a.numel(); ++i)
+                    if (la[i] != lb[i]) return false;
+                return true;
+            }
+            return false;
+        };
+
         if (cv.isCell()) {
-            for (size_t i = 0; i < cv.numel() && !matched; ++i) {
-                const auto &elem = cv.cellAt(i);
-                if (sv.isNumeric() && elem.isNumeric()) {
-                    if (sv.isScalar() && elem.isScalar())
-                        matched = sv.toScalar() == elem.toScalar();
-                } else if (sv.isChar() && elem.isChar()) {
-                    matched = sv.toString() == elem.toString();
-                } else if (sv.isLogical() && elem.isLogical()) {
-                    if (sv.isScalar() && elem.isScalar())
-                        matched = sv.toBool() == elem.toBool();
-                }
-            }
+            for (size_t i = 0; i < cv.numel() && !matched; ++i)
+                matched = valuesEqual(sv, cv.cellAt(i));
         } else {
-            if (sv.isNumeric() && cv.isNumeric()) {
-                if (sv.isScalar() && cv.isScalar())
-                    matched = sv.toScalar() == cv.toScalar();
-            } else if (sv.isChar() && cv.isChar()) {
-                matched = sv.toString() == cv.toString();
-            } else if (sv.isLogical() && cv.isLogical()) {
-                if (sv.isScalar() && cv.isScalar())
-                    matched = sv.toBool() == cv.toBool();
-            }
+            matched = valuesEqual(sv, cv);
         }
 
         if (matched)

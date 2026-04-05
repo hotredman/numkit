@@ -1606,11 +1606,13 @@ TEST_P(SharedOpsTest, FFTSpectrumSlicing)
 
 TEST_P(SharedOpsTest, CellParenScalarIndex)
 {
-    // c(2) on cell returns the content (same as c{2} for scalar index)
+    // c(2) on cell returns a 1x1 sub-cell containing the content
     eval("c = {10, 'hello', [1 2 3]}; r = c(2);");
     auto *r = getVarPtr("r");
-    EXPECT_TRUE(r->isChar());
-    EXPECT_EQ(r->toString(), "hello");
+    EXPECT_TRUE(r->isCell());
+    EXPECT_EQ(r->numel(), 1u);
+    EXPECT_TRUE(r->cellAt(0).isChar());
+    EXPECT_EQ(r->cellAt(0).toString(), "hello");
 }
 
 TEST_P(SharedOpsTest, CellParenVectorIndex)
@@ -1634,9 +1636,12 @@ TEST_P(SharedOpsTest, CellCurlyIndex)
 
 TEST_P(SharedOpsTest, CellParenIndex2D)
 {
+    // c(2,1) on cell returns a 1x1 sub-cell
     eval("c = {1 2; 3 4}; r = c(2, 1);");
     auto *r = getVarPtr("r");
-    EXPECT_DOUBLE_EQ(r->toScalar(), 3.0);
+    EXPECT_TRUE(r->isCell());
+    EXPECT_EQ(r->numel(), 1u);
+    EXPECT_DOUBLE_EQ(r->cellAt(0).toScalar(), 3.0);
 }
 
 TEST_P(SharedOpsTest, CellCurlyIndex2D)
