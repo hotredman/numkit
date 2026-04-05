@@ -1142,11 +1142,11 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
 
     if (nargs == 1) {
         // ── scalar fast path: B(i) = scalar ──
-        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+        if (rhs.isScalar()) {
             size_t scalarIdx;
             if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 1, env, scalarIdx)) {
                 var->ensureSize(scalarIdx, &engine_.allocator_);
-                var->doubleDataMut()[scalarIdx] = rhs.toScalar();
+                var->elemSet(scalarIdx, rhs);
                 return;
             }
         }
@@ -1154,20 +1154,10 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
         auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
         for (auto idx : indices)
             var->ensureSize(idx, &engine_.allocator_);
-        if (rhs.isScalar()) {
-            double sv = rhs.toScalar();
-            double *data = var->doubleDataMut();
-            for (auto idx : indices)
-                data[idx] = sv;
-        } else if (rhs.type() == MType::DOUBLE) {
-            const double *src = rhs.doubleData();
-            double *dst = var->doubleDataMut();
-            for (size_t i = 0; i < indices.size() && i < rhs.numel(); ++i)
-                dst[indices[i]] = src[i];
-        }
+        var->indexSet(indices.data(), indices.size(), rhs);
     } else if (nargs == 2) {
         // ── scalar fast path: M(i,j) = scalar ──
-        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+        if (rhs.isScalar()) {
             size_t ri, ci;
             if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 2, env, ri)
                 && tryResolveScalarIndex(lhs->children[2].get(), *var, 1, 2, env, ci)) {
@@ -1176,7 +1166,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                     var->resize(std::max(var->dims().rows(), needR),
                                 std::max(var->dims().cols(), needC),
                                 &engine_.allocator_);
-                var->doubleDataMut()[var->dims().sub2ind(ri, ci)] = rhs.toScalar();
+                var->elemSet(var->dims().sub2ind(ri, ci), rhs);
                 return;
             }
         }
@@ -1194,24 +1184,11 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                         std::max(var->dims().cols(), maxC),
                         &engine_.allocator_);
 
-        double *dst = var->doubleDataMut();
-        auto &dims = var->dims();
-        if (rhs.isScalar()) {
-            double sv = rhs.toScalar();
-            for (auto c : colIdx)
-                for (auto r : rowIdx)
-                    dst[dims.sub2ind(r, c)] = sv;
-        } else if (rhs.type() == MType::DOUBLE) {
-            const double *src = rhs.doubleData();
-            size_t k = 0;
-            for (size_t ci = 0; ci < colIdx.size(); ++ci)
-                for (size_t ri = 0; ri < rowIdx.size(); ++ri)
-                    if (k < rhs.numel())
-                        dst[dims.sub2ind(rowIdx[ri], colIdx[ci])] = src[k++];
-        }
+        var->indexSet2D(rowIdx.data(), rowIdx.size(),
+                        colIdx.data(), colIdx.size(), rhs);
     } else if (nargs == 3) {
-        // 3D: A(r, c, p) = val
-        if (rhs.isScalar() && var->type() == MType::DOUBLE) {
+        // ── scalar fast path: A(r,c,p) = scalar ──
+        if (rhs.isScalar()) {
             size_t ri, ci, pi;
             if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 3, env, ri)
                 && tryResolveScalarIndex(lhs->children[2].get(), *var, 1, 3, env, ci)
@@ -1223,7 +1200,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                                   std::max(var->dims().cols(), needC),
                                   std::max(var->dims().pages(), needP),
                                   &engine_.allocator_);
-                var->doubleDataMut()[var->dims().sub2ind(ri, ci, pi)] = rhs.toScalar();
+                var->elemSet(var->dims().sub2ind(ri, ci, pi), rhs);
                 return;
             }
         }
@@ -1245,23 +1222,9 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                           std::max(var->dims().pages(), maxP),
                           &engine_.allocator_);
 
-        double *dst = var->doubleDataMut();
-        auto &dims = var->dims();
-        if (rhs.isScalar()) {
-            double sv = rhs.toScalar();
-            for (auto p : pageIdx)
-                for (auto c : colIdx)
-                    for (auto r : rowIdx)
-                        dst[dims.sub2ind(r, c, p)] = sv;
-        } else if (rhs.type() == MType::DOUBLE) {
-            const double *src = rhs.doubleData();
-            size_t k = 0;
-            for (auto p : pageIdx)
-                for (size_t ci = 0; ci < colIdx.size(); ++ci)
-                    for (size_t ri = 0; ri < rowIdx.size(); ++ri)
-                        if (k < rhs.numel())
-                            dst[dims.sub2ind(rowIdx[ri], colIdx[ci], p)] = src[k++];
-        }
+        var->indexSet3D(rowIdx.data(), rowIdx.size(),
+                        colIdx.data(), colIdx.size(),
+                        pageIdx.data(), pageIdx.size(), rhs);
     }
 }
 
@@ -1761,51 +1724,33 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
     if (nargs == 1) {
         // ── scalar fast path: skip resolveIndex + vector<size_t> entirely ──
         size_t scalarIdx;
-        if (var.type() == MType::DOUBLE
-            && tryResolveScalarIndex(callNode->children[1].get(), var, 0, 1, env, scalarIdx)) {
+        if (tryResolveScalarIndex(callNode->children[1].get(), var, 0, 1, env, scalarIdx)) {
             if (scalarIdx >= var.numel())
                 throw std::runtime_error("Index exceeds array dimensions (linear index: "
                                          + std::to_string(scalarIdx + 1) + " > "
                                          + std::to_string(var.numel()) + ")");
-            return MValue::scalar(var.doubleData()[scalarIdx], &engine_.allocator_);
+            return var.elemAt(scalarIdx, &engine_.allocator_);
         }
 
         auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
         checkBounds(indices, var.numel(), "linear index");
-        if (var.isLogical()) {
-            const uint8_t *ld = var.logicalData();
-            if (indices.size() == 1)
-                return MValue::logicalScalar(ld[indices[0]] != 0, &engine_.allocator_);
-            auto result = MValue::matrix(1, indices.size(), MType::LOGICAL, &engine_.allocator_);
-            uint8_t *dst = result.logicalDataMut();
-            for (size_t i = 0; i < indices.size(); ++i)
-                dst[i] = ld[indices[i]];
-            return result;
-        }
-        const double *dd = var.doubleData();
-        if (indices.size() == 1)
-            return MValue::scalar(dd[indices[0]], &engine_.allocator_);
-        auto result = MValue::matrix(1, indices.size(), MType::DOUBLE, &engine_.allocator_);
-        double *dst = result.doubleDataMut();
-        for (size_t i = 0; i < indices.size(); ++i)
-            dst[i] = dd[indices[i]];
-        return result;
+        return var.indexGet(indices.data(), indices.size(), &engine_.allocator_);
     }
     if (nargs == 2) {
         // ── scalar fast path: M(i, j) ──
-        if (var.type() == MType::DOUBLE) {
-            size_t ri, ci;
-            if (tryResolveScalarIndex(callNode->children[1].get(), var, 0, 2, env, ri)
-                && tryResolveScalarIndex(callNode->children[2].get(), var, 1, 2, env, ci)) {
-                if (ri >= var.dims().rows())
+        {
+            size_t sri, sci;
+            if (tryResolveScalarIndex(callNode->children[1].get(), var, 0, 2, env, sri)
+                && tryResolveScalarIndex(callNode->children[2].get(), var, 1, 2, env, sci)) {
+                if (sri >= var.dims().rows())
                     throw std::runtime_error("Index exceeds array dimensions (row index: "
-                                             + std::to_string(ri + 1) + " > "
+                                             + std::to_string(sri + 1) + " > "
                                              + std::to_string(var.dims().rows()) + ")");
-                if (ci >= var.dims().cols())
+                if (sci >= var.dims().cols())
                     throw std::runtime_error("Index exceeds array dimensions (column index: "
-                                             + std::to_string(ci + 1) + " > "
+                                             + std::to_string(sci + 1) + " > "
                                              + std::to_string(var.dims().cols()) + ")");
-                return MValue::scalar(var(ri, ci), &engine_.allocator_);
+                return var.elemAt(var.dims().sub2ind(sri, sci), &engine_.allocator_);
             }
         }
 
@@ -1813,33 +1758,14 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 2, env);
         checkBounds(ri, var.dims().rows(), "row index");
         checkBounds(ci, var.dims().cols(), "column index");
-        if (ri.size() == 1 && ci.size() == 1)
-            return MValue::scalar(var(ri[0], ci[0]), &engine_.allocator_);
-        auto result = MValue::matrix(ri.size(), ci.size(), MType::DOUBLE, &engine_.allocator_);
-        double *dst = result.doubleDataMut();
-        for (size_t c = 0; c < ci.size(); ++c)
-            for (size_t r = 0; r < ri.size(); ++r)
-                dst[c * ri.size() + r] = var(ri[r], ci[c]);
-        return result;
+        return var.indexGet2D(ri.data(), ri.size(), ci.data(), ci.size(), &engine_.allocator_);
     }
     if (nargs == 3) {
         auto ri = resolveIndex(callNode->children[1].get(), var, 0, 3, env);
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 3, env);
         auto pi = resolveIndex(callNode->children[3].get(), var, 2, 3, env);
-        if (ri.size() == 1 && ci.size() == 1 && pi.size() == 1)
-            return MValue::scalar(var(ri[0], ci[0], pi[0]), &engine_.allocator_);
-        auto result = MValue::matrix3d(ri.size(),
-                                       ci.size(),
-                                       pi.size(),
-                                       MType::DOUBLE,
-                                       &engine_.allocator_);
-        double *dst = result.doubleDataMut();
-        Dims rd(ri.size(), ci.size(), pi.size());
-        for (size_t p = 0; p < pi.size(); ++p)
-            for (size_t c = 0; c < ci.size(); ++c)
-                for (size_t r = 0; r < ri.size(); ++r)
-                    dst[rd.sub2ind(r, c, p)] = var(ri[r], ci[c], pi[p]);
-        return result;
+        return var.indexGet3D(ri.data(), ri.size(), ci.data(), ci.size(),
+                             pi.data(), pi.size(), &engine_.allocator_);
     }
     throw std::runtime_error("Too many indexing dimensions (max 3)");
 }
@@ -1954,8 +1880,7 @@ MValue TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
             auto val = execNode(elemNode.get(), env);
             if (val.isEmpty())
                 continue;
-            if (val.isLogical() && val.isScalar())
-                val = MValue::scalar(val.toBool() ? 1.0 : 0.0, &engine_.allocator_);
+            // Logical scalars are kept as-is — horzcat handles type promotion
             if (val.isChar())
                 anyChar = true;
             else

@@ -1479,16 +1479,16 @@ TEST_P(SharedOpsTest, VertcatMixedDoubleComplex)
 
 // ── Logical concat ──────────────────────────────────────────
 
-TEST_P(SharedOpsTest, HorzcatLogicalPromotesToDouble)
+TEST_P(SharedOpsTest, HorzcatLogicalStaysLogical)
 {
     eval("v = [true, false, true];");
     auto *v = getVarPtr("v");
-    // MATLAB: [true, true] produces double [1, 1] in matrix context
-    EXPECT_EQ(v->type(), mlab::MType::DOUBLE);
+    // MATLAB: [true, false, true] stays logical
+    EXPECT_TRUE(v->isLogical());
     EXPECT_EQ(v->numel(), 3u);
-    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
-    EXPECT_DOUBLE_EQ(v->doubleData()[1], 0.0);
-    EXPECT_DOUBLE_EQ(v->doubleData()[2], 1.0);
+    EXPECT_EQ(v->logicalData()[0], 1);
+    EXPECT_EQ(v->logicalData()[1], 0);
+    EXPECT_EQ(v->logicalData()[2], 1);
 }
 
 TEST_P(SharedOpsTest, MixedLogicalDoubleConcat)
@@ -1541,6 +1541,65 @@ TEST_P(SharedOpsTest, Vertcat3DPagesMismatchError)
         C = vertcat(A, B);
     )");
     EXPECT_FALSE(r.ok);
+}
+
+// ── Type-preserving indexing ─────────────────────────────────
+
+TEST_P(SharedOpsTest, IndexComplexArray1D)
+{
+    // X(1:3) where X is complex
+    eval("X = [1+2i, 3+4i, 5+6i, 7+8i]; Y = X(1:3);");
+    auto *v = getVarPtr("Y");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[2].imag(), 6.0);
+}
+
+TEST_P(SharedOpsTest, IndexComplexScalar)
+{
+    eval("X = [1+2i, 3+4i]; Y = X(2);");
+    auto *v = getVarPtr("Y");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 3.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 4.0);
+}
+
+TEST_P(SharedOpsTest, IndexComplexArray2D)
+{
+    eval("X = [1+1i 2+2i; 3+3i 4+4i]; Y = X(1, 2);");
+    auto *v = getVarPtr("Y");
+    EXPECT_TRUE(v->isComplex());
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 2.0);
+}
+
+TEST_P(SharedOpsTest, IndexLogicalArray)
+{
+    eval("X = [true false true false]; Y = X(2:3);");
+    auto *v = getVarPtr("Y");
+    EXPECT_TRUE(v->isLogical());
+    EXPECT_EQ(v->numel(), 2u);
+}
+
+TEST_P(SharedOpsTest, FFTSpectrumSlicing)
+{
+    // The original failing case: X = fft(x); mag = abs(X(1:N/2+1))
+    eval(R"(
+        Fs = 256;
+        t = 0:1/Fs:1-1/Fs;
+        N = length(t);
+        x = sin(2*pi*30*t);
+        X = fft(x);
+        half = X(1:N/2+1);
+        mag = abs(half);
+    )");
+    auto *half = getVarPtr("half");
+    EXPECT_TRUE(half->isComplex());
+    EXPECT_EQ(half->numel(), 129u); // N/2+1 = 256/2+1 = 129
+
+    auto *mag = getVarPtr("mag");
+    EXPECT_EQ(mag->type(), mlab::MType::DOUBLE);
+    EXPECT_EQ(mag->numel(), 129u);
 }
 
 INSTANTIATE_DUAL(SharedOpsTest);

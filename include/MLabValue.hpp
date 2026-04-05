@@ -194,6 +194,38 @@ public:
     static MValue horzcat(const MValue *elems, size_t count, Allocator *alloc = nullptr);
     static MValue vertcat(const MValue *elems, size_t count, Allocator *alloc = nullptr);
 
+    // ── Type-preserving indexing ─────────────────────────────
+    // All methods preserve the element type (DOUBLE, COMPLEX, LOGICAL, CHAR).
+    MValue elemAt(size_t linearIdx, Allocator *alloc = nullptr) const;
+    MValue indexGet(const size_t *indices, size_t count, Allocator *alloc = nullptr) const;
+    MValue indexGet2D(const size_t *rowIdx, size_t nrows,
+                      const size_t *colIdx, size_t ncols, Allocator *alloc = nullptr) const;
+    MValue indexGet3D(const size_t *rowIdx, size_t nrows,
+                      const size_t *colIdx, size_t ncols,
+                      const size_t *pageIdx, size_t npages, Allocator *alloc = nullptr) const;
+    MValue logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc = nullptr) const;
+
+    // ── Index resolution ────────────────────────────────────
+    // Convert an index MValue (scalar, vector, logical mask, colon ':')
+    // into a vector of 0-based indices.
+    // resolveIndices: bounds-checked (for GET)
+    // resolveIndicesUnchecked: no bounds check, colon requires dimSize (for SET/auto-expand)
+    static std::vector<size_t> resolveIndices(const MValue &idx, size_t dimSize);
+    static std::vector<size_t> resolveIndicesUnchecked(const MValue &idx);
+
+    // ── Type-preserving indexed assignment ──────────────────
+    // All methods dispatch on the array's element type.
+    // val must be a scalar (broadcast) or have matching numel.
+    void elemSet(size_t linearIdx, const MValue &val);
+    void indexSet(const size_t *indices, size_t count, const MValue &val);
+    void indexSet2D(const size_t *rowIdx, size_t nrows,
+                    const size_t *colIdx, size_t ncols,
+                    const MValue &val);
+    void indexSet3D(const size_t *rowIdx, size_t nrows,
+                    const size_t *colIdx, size_t ncols,
+                    const size_t *pageIdx, size_t npages,
+                    const MValue &val);
+
     // ── Factories — complex ──────────────────────────────────
     static MValue complexScalar(Complex v, Allocator *alloc = nullptr);
     static MValue complexScalar(double re, double im, Allocator *alloc = nullptr);

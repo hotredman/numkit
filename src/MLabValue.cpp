@@ -492,7 +492,9 @@ static MType promoteNumericType(const MValue *elems, size_t count)
     }
     if (hasComplex)
         return MType::COMPLEX;
-    return MType::DOUBLE; // LOGICAL promotes to DOUBLE
+    if (hasDouble)
+        return MType::DOUBLE;
+    return MType::LOGICAL; // all-logical stays logical
 }
 
 // Read one element as double. Supports DOUBLE, LOGICAL, COMPLEX (takes real part).
@@ -525,6 +527,21 @@ static Complex readElemAsComplex(const MValue &v, size_t idx)
     default:
         throw std::runtime_error(
             std::string("Cannot read element as complex from type '")
+            + mtypeName(v.type()) + "'");
+    }
+}
+
+// Read one element as uint8_t logical. Supports LOGICAL, DOUBLE.
+static uint8_t readElemAsLogical(const MValue &v, size_t idx)
+{
+    switch (v.type()) {
+    case MType::LOGICAL:
+        return v.logicalData()[idx];
+    case MType::DOUBLE:
+        return v.doubleData()[idx] != 0.0 ? 1 : 0;
+    default:
+        throw std::runtime_error(
+            std::string("Cannot read element as logical from type '")
             + mtypeName(v.type()) + "'");
     }
 }
@@ -636,6 +653,9 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
         if (outType == MType::COMPLEX)
             copyBlock(result.complexDataMut(), rows, totalCols,
                       elems[i], eR, eC, eP, 0, colOff, pages, readElemAsComplex);
+        else if (outType == MType::LOGICAL)
+            copyBlock(result.logicalDataMut(), rows, totalCols,
+                      elems[i], eR, eC, eP, 0, colOff, pages, readElemAsLogical);
         else
             copyBlock(result.doubleDataMut(), rows, totalCols,
                       elems[i], eR, eC, eP, 0, colOff, pages, readElemAsDouble);
@@ -681,12 +701,392 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
         if (outType == MType::COMPLEX)
             copyBlock(result.complexDataMut(), totalRows, cols,
                       elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsComplex);
+        else if (outType == MType::LOGICAL)
+            copyBlock(result.logicalDataMut(), totalRows, cols,
+                      elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsLogical);
         else
             copyBlock(result.doubleDataMut(), totalRows, cols,
                       elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsDouble);
         rowOff += eR;
     }
     return result;
+}
+
+// ============================================================
+// Type-preserving indexing
+// ============================================================
+
+// Helper: create a scalar MValue of the same type as this array at linear index.
+MValue MValue::elemAt(size_t idx, Allocator *alloc) const
+{
+    switch (type()) {
+    case MType::DOUBLE:
+        return MValue::scalar(doubleData()[idx], alloc);
+    case MType::COMPLEX:
+        return MValue::complexScalar(complexData()[idx], alloc);
+    case MType::LOGICAL:
+        return MValue::logicalScalar(logicalData()[idx] != 0, alloc);
+    case MType::CHAR: {
+        std::string s(1, charData()[idx]);
+        return MValue::fromString(s, alloc);
+    }
+    default:
+        throw std::runtime_error(
+            std::string("elemAt not supported for type '") + mtypeName(type()) + "'");
+    }
+}
+
+// 1D slice: extract elements at given linear indices → row vector of same type.
+MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) const
+{
+    if (count == 1)
+        return elemAt(indices[0], alloc);
+
+    MType t = type();
+    switch (t) {
+    case MType::DOUBLE: {
+        auto result = MValue::matrix(1, count, MType::DOUBLE, alloc);
+        double *dst = result.doubleDataMut();
+        const double *src = doubleData();
+        for (size_t i = 0; i < count; ++i)
+            dst[i] = src[indices[i]];
+        return result;
+    }
+    case MType::COMPLEX: {
+        auto result = MValue::complexMatrix(1, count, alloc);
+        Complex *dst = result.complexDataMut();
+        const Complex *src = complexData();
+        for (size_t i = 0; i < count; ++i)
+            dst[i] = src[indices[i]];
+        return result;
+    }
+    case MType::LOGICAL: {
+        auto result = MValue::matrix(1, count, MType::LOGICAL, alloc);
+        uint8_t *dst = result.logicalDataMut();
+        const uint8_t *src = logicalData();
+        for (size_t i = 0; i < count; ++i)
+            dst[i] = src[indices[i]];
+        return result;
+    }
+    case MType::CHAR: {
+        std::string s;
+        s.reserve(count);
+        const char *src = charData();
+        for (size_t i = 0; i < count; ++i)
+            s += src[indices[i]];
+        return MValue::fromString(s, alloc);
+    }
+    default:
+        throw std::runtime_error(
+            std::string("indexGet not supported for type '") + mtypeName(t) + "'");
+    }
+}
+
+// 2D slice: extract sub-matrix at given row/col indices.
+MValue MValue::indexGet2D(const size_t *rowIdx, size_t nrows,
+                          const size_t *colIdx, size_t ncols,
+                          Allocator *alloc) const
+{
+    if (nrows == 1 && ncols == 1) {
+        size_t idx = dims().sub2ind(rowIdx[0], colIdx[0]);
+        return elemAt(idx, alloc);
+    }
+
+    MType t = type();
+    auto &d = dims();
+
+    switch (t) {
+    case MType::DOUBLE: {
+        auto result = MValue::matrix(nrows, ncols, MType::DOUBLE, alloc);
+        double *dst = result.doubleDataMut();
+        const double *src = doubleData();
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
+        return result;
+    }
+    case MType::COMPLEX: {
+        auto result = MValue::complexMatrix(nrows, ncols, alloc);
+        Complex *dst = result.complexDataMut();
+        const Complex *src = complexData();
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
+        return result;
+    }
+    case MType::LOGICAL: {
+        auto result = MValue::matrix(nrows, ncols, MType::LOGICAL, alloc);
+        uint8_t *dst = result.logicalDataMut();
+        const uint8_t *src = logicalData();
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                dst[c * nrows + r] = src[d.sub2ind(rowIdx[r], colIdx[c])];
+        return result;
+    }
+    default:
+        throw std::runtime_error(
+            std::string("indexGet2D not supported for type '") + mtypeName(t) + "'");
+    }
+}
+
+// 3D slice: extract sub-array at given row/col/page indices.
+MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
+                          const size_t *colIdx, size_t ncols,
+                          const size_t *pageIdx, size_t npages,
+                          Allocator *alloc) const
+{
+    if (nrows == 1 && ncols == 1 && npages == 1) {
+        size_t idx = dims().sub2ind(rowIdx[0], colIdx[0], pageIdx[0]);
+        return elemAt(idx, alloc);
+    }
+
+    MType t = type();
+    auto &d = dims();
+
+    switch (t) {
+    case MType::DOUBLE: {
+        auto result = MValue::matrix3d(nrows, ncols, npages, MType::DOUBLE, alloc);
+        double *dst = result.doubleDataMut();
+        const double *src = doubleData();
+        Dims rd(nrows, ncols, npages);
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
+        return result;
+    }
+    case MType::COMPLEX: {
+        auto result = MValue::matrix3d(nrows, ncols, npages, MType::COMPLEX, alloc);
+        Complex *dst = result.complexDataMut();
+        const Complex *src = complexData();
+        Dims rd(nrows, ncols, npages);
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
+        return result;
+    }
+    case MType::LOGICAL: {
+        auto result = MValue::matrix3d(nrows, ncols, npages, MType::LOGICAL, alloc);
+        uint8_t *dst = result.logicalDataMut();
+        const uint8_t *src = logicalData();
+        Dims rd(nrows, ncols, npages);
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    dst[rd.sub2ind(r, c, p)] = src[d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p])];
+        return result;
+    }
+    default:
+        throw std::runtime_error(
+            std::string("indexGet3D not supported for type '") + mtypeName(t) + "'");
+    }
+}
+
+// Logical indexing: extract elements where mask is true → row vector of same type.
+MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc) const
+{
+    size_t n = std::min(maskLen, numel());
+    // Count selected elements
+    size_t selected = 0;
+    for (size_t i = 0; i < n; ++i)
+        if (mask[i])
+            selected++;
+
+    MType t = type();
+    switch (t) {
+    case MType::DOUBLE: {
+        auto result = MValue::matrix(1, selected, MType::DOUBLE, alloc);
+        double *dst = result.doubleDataMut();
+        const double *src = doubleData();
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                dst[k++] = src[i];
+        return result;
+    }
+    case MType::COMPLEX: {
+        auto result = MValue::complexMatrix(1, selected, alloc);
+        Complex *dst = result.complexDataMut();
+        const Complex *src = complexData();
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                dst[k++] = src[i];
+        return result;
+    }
+    case MType::LOGICAL: {
+        auto result = MValue::matrix(1, selected, MType::LOGICAL, alloc);
+        uint8_t *dst = result.logicalDataMut();
+        const uint8_t *src = logicalData();
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                dst[k++] = src[i];
+        return result;
+    }
+    default:
+        throw std::runtime_error(
+            std::string("logicalIndex not supported for type '") + mtypeName(t) + "'");
+    }
+}
+
+// ============================================================
+// Index resolution — convert MValue index to vector<size_t> (0-based)
+// ============================================================
+
+std::vector<size_t> MValue::resolveIndices(const MValue &idx, size_t dimSize)
+{
+    std::vector<size_t> out;
+    if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
+        out.resize(dimSize);
+        for (size_t i = 0; i < dimSize; ++i)
+            out[i] = i;
+    } else if (idx.isLogical()) {
+        const uint8_t *m = idx.logicalData();
+        for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
+            if (m[i])
+                out.push_back(i);
+    } else if (idx.isDoubleScalar()) {
+        size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
+        if (ii >= dimSize)
+            throw std::runtime_error("Index exceeds array dimensions");
+        out.push_back(ii);
+    } else {
+        const double *d = idx.doubleData();
+        for (size_t i = 0; i < idx.numel(); ++i) {
+            size_t ii = static_cast<size_t>(d[i]) - 1;
+            if (ii >= dimSize)
+                throw std::runtime_error("Index exceeds array dimensions");
+            out.push_back(ii);
+        }
+    }
+    return out;
+}
+
+std::vector<size_t> MValue::resolveIndicesUnchecked(const MValue &idx)
+{
+    std::vector<size_t> out;
+    if (idx.isLogical()) {
+        const uint8_t *m = idx.logicalData();
+        for (size_t i = 0; i < idx.numel(); ++i)
+            if (m[i])
+                out.push_back(i);
+    } else if (idx.isDoubleScalar() || idx.isLogicalScalar()) {
+        out.push_back(static_cast<size_t>(idx.toScalar()) - 1);
+    } else {
+        const double *d = idx.doubleData();
+        for (size_t i = 0; i < idx.numel(); ++i)
+            out.push_back(static_cast<size_t>(d[i]) - 1);
+    }
+    return out;
+}
+
+// ============================================================
+// Type-preserving indexed assignment
+// ============================================================
+
+// Helper: write one element from val into dst array at linear index.
+// Converts val to the destination type. COW detach handled by *DataMut().
+static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
+{
+    switch (dst.type()) {
+    case MType::DOUBLE:
+        dst.doubleDataMut()[idx] = readElemAsDouble(val, valIdx);
+        break;
+    case MType::COMPLEX:
+        dst.complexDataMut()[idx] = readElemAsComplex(val, valIdx);
+        break;
+    case MType::LOGICAL:
+        dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toBool());
+        break;
+    case MType::CHAR:
+        dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(readElemAsDouble(val, valIdx)));
+        break;
+    default:
+        throw std::runtime_error(
+            std::string("Indexed assignment not supported for type '")
+            + mtypeName(dst.type()) + "'");
+    }
+}
+
+// Write a scalar val (broadcast) into dst at linear index.
+static void writeScalar(MValue &dst, size_t idx, const MValue &val)
+{
+    switch (dst.type()) {
+    case MType::DOUBLE:
+        dst.doubleDataMut()[idx] = val.toScalar();
+        break;
+    case MType::COMPLEX:
+        dst.complexDataMut()[idx] = val.toComplex();
+        break;
+    case MType::LOGICAL:
+        dst.logicalDataMut()[idx] = static_cast<uint8_t>(val.toBool());
+        break;
+    case MType::CHAR:
+        dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(val.toScalar()));
+        break;
+    default:
+        throw std::runtime_error(
+            std::string("Indexed assignment not supported for type '")
+            + mtypeName(dst.type()) + "'");
+    }
+}
+
+void MValue::elemSet(size_t idx, const MValue &val)
+{
+    writeScalar(*this, idx, val);
+}
+
+void MValue::indexSet(const size_t *indices, size_t count, const MValue &val)
+{
+    if (val.isScalar()) {
+        for (size_t k = 0; k < count; ++k)
+            writeScalar(*this, indices[k], val);
+    } else {
+        size_t n = std::min(count, val.numel());
+        for (size_t k = 0; k < n; ++k)
+            writeElem(*this, indices[k], val, k);
+    }
+}
+
+void MValue::indexSet2D(const size_t *rowIdx, size_t nrows,
+                        const size_t *colIdx, size_t ncols,
+                        const MValue &val)
+{
+    auto &d = dims();
+    if (val.isScalar()) {
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                writeScalar(*this, d.sub2ind(rowIdx[r], colIdx[c]), val);
+    } else {
+        size_t k = 0, n = val.numel();
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                if (k < n)
+                    writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c]), val, k++);
+    }
+}
+
+void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
+                        const size_t *colIdx, size_t ncols,
+                        const size_t *pageIdx, size_t npages,
+                        const MValue &val)
+{
+    auto &d = dims();
+    if (val.isScalar()) {
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    writeScalar(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val);
+    } else {
+        size_t k = 0, n = val.numel();
+        for (size_t p = 0; p < npages; ++p)
+            for (size_t c = 0; c < ncols; ++c)
+                for (size_t r = 0; r < nrows; ++r)
+                    if (k < n)
+                        writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val, k++);
+    }
 }
 
 MValue MValue::complexScalar(Complex v, Allocator *alloc)

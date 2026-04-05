@@ -15,35 +15,6 @@ namespace mlab {
 // ============================================================
 // Shared helper: resolve an index operand to 0-based indices
 // ============================================================
-static std::vector<size_t> resolveSlice(const MValue &idx, size_t dimSize)
-{
-    std::vector<size_t> out;
-    if (idx.isChar() && idx.numel() == 1 && idx.charData()[0] == ':') {
-        // Colon-all
-        out.resize(dimSize);
-        for (size_t i = 0; i < dimSize; ++i)
-            out[i] = i;
-    } else if (idx.isLogical()) {
-        const uint8_t *m = idx.logicalData();
-        for (size_t i = 0; i < idx.numel() && i < dimSize; ++i)
-            if (m[i])
-                out.push_back(i);
-    } else if (idx.isDoubleScalar()) {
-        size_t ii = static_cast<size_t>(idx.toScalar()) - 1;
-        if (ii >= dimSize)
-            throw std::runtime_error("Index exceeds array dimensions");
-        out.push_back(ii);
-    } else {
-        const double *d = idx.doubleData();
-        for (size_t i = 0; i < idx.numel(); ++i) {
-            size_t ii = static_cast<size_t>(d[i]) - 1;
-            if (ii >= dimSize)
-                throw std::runtime_error("Index exceeds array dimensions");
-            out.push_back(ii);
-        }
-    }
-    return out;
-}
 
 VM::VM(Engine &engine)
     : engine_(engine)
@@ -404,62 +375,37 @@ dispatch_loop:
 
             // ── Array indexing ───────────────────────────────────
             case OpCode::INDEX_GET: {
-                if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
-                    R[I.a] = R[I.b]; // scalar(scalar) = scalar
-                } else if (R[I.c].isDoubleScalar()) {
-                    size_t i = checkedIndex(R[I.c].scalarVal(), R[I.b].numel());
-                    if (R[I.b].type() == MType::CHAR) {
-                        char ch = R[I.b].charData()[i];
-                        std::string s(1, ch);
-                        R[I.a] = MValue::fromString(s, &engine_.allocator_);
-                    } else {
-                        R[I.a] = MValue::scalar(R[I.b].doubleData()[i], &engine_.allocator_);
-                    }
-                } else if (R[I.c].isLogical()) {
-                    // Logical indexing: v(v > 3)
-                    const MValue &mv = R[I.b];
-                    const MValue &ix = R[I.c];
-                    const uint8_t *mask = ix.logicalData();
-                    size_t n = ix.numel();
-                    std::vector<double> selected;
-                    const double *src = mv.doubleData();
-                    for (size_t k = 0; k < n && k < mv.numel(); ++k)
-                        if (mask[k])
-                            selected.push_back(src[k]);
-                    size_t sn = selected.size();
-                    auto res = MValue::matrix(1, sn, MType::DOUBLE, &engine_.allocator_);
-                    if (sn > 0)
-                        std::memcpy(res.doubleDataMut(), selected.data(), sn * sizeof(double));
-                    R[I.a] = std::move(res);
+                const MValue &mv = R[I.b];
+                const MValue &ix = R[I.c];
+                if (mv.isScalar() && ix.isDoubleScalar()) {
+                    R[I.a] = mv; // scalar(scalar) = scalar
+                } else if (ix.isDoubleScalar()) {
+                    size_t i = checkedIndex(ix.scalarVal(), mv.numel());
+                    R[I.a] = mv.elemAt(i, &engine_.allocator_);
+                } else if (ix.isLogical()) {
+                    R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(),
+                                             &engine_.allocator_);
                 } else {
-                    const MValue &mv = R[I.b];
-                    const MValue &ix = R[I.c];
                     size_t n = ix.numel();
-                    auto res = MValue::matrix(1, n, MType::DOUBLE, &engine_.allocator_);
-                    double *dst = res.doubleDataMut();
-                    const double *src = mv.doubleData(), *id = ix.doubleData();
+                    const double *id = ix.doubleData();
+                    std::vector<size_t> indices(n);
                     for (size_t k = 0; k < n; ++k)
-                        dst[k] = src[(size_t) id[k] - 1];
-                    R[I.a] = std::move(res);
+                        indices[k] = static_cast<size_t>(id[k]) - 1;
+                    R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
                 }
                 break;
             }
             case OpCode::INDEX_GET_2D: {
                 const MValue &mv = R[I.b];
                 size_t r = (size_t) R[I.c].toScalar() - 1, c = (size_t) R[I.e].toScalar() - 1;
-                R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c)],
-                                        &engine_.allocator_);
+                R[I.a] = mv.elemAt(mv.dims().sub2indChecked(r, c), &engine_.allocator_);
                 break;
             }
             case OpCode::INDEX_SET: {
-                double val = R[I.c].toScalar();
                 size_t i = (size_t) R[I.b].toScalar() - 1;
-                if (R[I.a].isEmpty() || R[I.a].isDoubleScalar()) {
+                if (R[I.a].isEmpty() || R[I.a].isScalar() || i >= R[I.a].numel())
                     R[I.a].ensureSize(i, &engine_.allocator_);
-                } else if (i >= R[I.a].numel()) {
-                    R[I.a].ensureSize(i, &engine_.allocator_);
-                }
-                R[I.a].doubleDataMut()[i] = val;
+                R[I.a].elemSet(i, R[I.c]);
                 break;
             }
             case OpCode::INDEX_SET_2D: {
@@ -467,43 +413,27 @@ dispatch_loop:
                 const MValue &ci = R[I.c];
                 const MValue &val = R[I.e];
 
-                // Check for colon-all or vector indices
                 bool riIsColon = ri.isChar() && ri.numel() == 1 && ri.charData()[0] == ':';
                 bool ciIsColon = ci.isChar() && ci.numel() == 1 && ci.charData()[0] == ':';
-                bool riIsScalar = ri.isDoubleScalar() || ri.isLogicalScalar();
-                bool ciIsScalar = ci.isDoubleScalar() || ci.isLogicalScalar();
+                // Resolve without bounds check — auto-expand may be needed
+                auto rowIds = riIsColon ? std::vector<size_t>()
+                                        : MValue::resolveIndicesUnchecked(ri);
+                auto colIds = ciIsColon ? std::vector<size_t>()
+                                        : MValue::resolveIndicesUnchecked(ci);
 
-                if (riIsScalar && ciIsScalar && val.isScalar()) {
-                    // Fast path: scalar assign
-                    size_t r = (size_t) ri.toScalar() - 1, c = (size_t) ci.toScalar() - 1;
-                    if (r >= R[I.a].dims().rows() || c >= R[I.a].dims().cols()) {
-                        size_t newR = std::max(R[I.a].dims().rows(), r + 1);
-                        size_t newC = std::max(R[I.a].dims().cols(), c + 1);
-                        R[I.a].resize(newR, newC, &engine_.allocator_);
-                    }
-                    R[I.a].doubleDataMut()[R[I.a].dims().sub2ind(r, c)] = val.toScalar();
-                } else {
-                    // General path: resolve indices via resolveSlice, assign vector/scalar
-                    size_t Rows = R[I.a].dims().rows(), Cols = R[I.a].dims().cols();
-                    auto rowIds = resolveSlice(ri, Rows);
-                    auto colIds = resolveSlice(ci, Cols);
-                    double *dst = R[I.a].doubleDataMut();
-                    auto &dims = R[I.a].dims();
+                // Grow if needed
+                size_t maxR = R[I.a].dims().rows(), maxC = R[I.a].dims().cols();
+                for (size_t r : rowIds) maxR = std::max(maxR, r + 1);
+                for (size_t c : colIds) maxC = std::max(maxC, c + 1);
+                if (maxR > R[I.a].dims().rows() || maxC > R[I.a].dims().cols())
+                    R[I.a].resize(maxR, maxC, &engine_.allocator_);
 
-                    if (val.isScalar()) {
-                        double sv = val.toScalar();
-                        for (size_t c = 0; c < colIds.size(); ++c)
-                            for (size_t r = 0; r < rowIds.size(); ++r)
-                                dst[dims.sub2ind(rowIds[r], colIds[c])] = sv;
-                    } else {
-                        const double *src = val.doubleData();
-                        size_t k = 0;
-                        for (size_t c = 0; c < colIds.size(); ++c)
-                            for (size_t r = 0; r < rowIds.size(); ++r)
-                                if (k < val.numel())
-                                    dst[dims.sub2ind(rowIds[r], colIds[c])] = src[k++];
-                    }
-                }
+                // Resolve colon-all after resize (needs final dims)
+                if (riIsColon) rowIds = MValue::resolveIndices(ri, R[I.a].dims().rows());
+                if (ciIsColon) colIds = MValue::resolveIndices(ci, R[I.a].dims().cols());
+
+                R[I.a].indexSet2D(rowIds.data(), rowIds.size(),
+                                  colIds.data(), colIds.size(), val);
                 break;
             }
 
@@ -524,8 +454,7 @@ dispatch_loop:
                     }
                     R[I.a] = R[I.b].cellAt(idx);
                 } else {
-                    // Double array ND indexing
-                    const double *data = R[I.b].doubleData();
+                    // Numeric array ND indexing
                     size_t idx;
                     if (ndims == 3) {
                         size_t r = (size_t) R[base].toScalar() - 1;
@@ -535,36 +464,26 @@ dispatch_loop:
                     } else {
                         idx = (size_t) R[base].toScalar() - 1;
                     }
-                    R[I.a] = MValue::scalar(data[idx], &engine_.allocator_);
+                    R[I.a] = R[I.b].elemAt(idx, &engine_.allocator_);
                 }
                 break;
             }
             case OpCode::INDEX_SET_ND: {
                 // a=arr/cell, b=base, c=ndims, e=val
                 uint8_t base = I.b, ndims = I.c;
-                if (R[I.a].isCell()) {
-                    size_t idx;
-                    if (ndims == 3) {
-                        size_t r = (size_t) R[base].toScalar() - 1;
-                        size_t c = (size_t) R[base + 1].toScalar() - 1;
-                        size_t p = (size_t) R[base + 2].toScalar() - 1;
-                        idx = R[I.a].dims().sub2ind(r, c, p);
-                    } else {
-                        idx = (size_t) R[base].toScalar() - 1;
-                    }
-                    R[I.a].cellAt(idx) = R[I.e];
+                size_t idx;
+                if (ndims == 3) {
+                    size_t r = (size_t) R[base].toScalar() - 1;
+                    size_t c = (size_t) R[base + 1].toScalar() - 1;
+                    size_t p = (size_t) R[base + 2].toScalar() - 1;
+                    idx = R[I.a].dims().sub2ind(r, c, p);
                 } else {
-                    size_t idx;
-                    if (ndims == 3) {
-                        size_t r = (size_t) R[base].toScalar() - 1;
-                        size_t c = (size_t) R[base + 1].toScalar() - 1;
-                        size_t p = (size_t) R[base + 2].toScalar() - 1;
-                        idx = R[I.a].dims().sub2ind(r, c, p);
-                    } else {
-                        idx = (size_t) R[base].toScalar() - 1;
-                    }
-                    R[I.a].doubleDataMut()[idx] = R[I.e].toScalar();
+                    idx = (size_t) R[base].toScalar() - 1;
                 }
+                if (R[I.a].isCell())
+                    R[I.a].cellAt(idx) = R[I.e];
+                else
+                    R[I.a].elemSet(idx, R[I.e]);
                 break;
             }
 
@@ -623,8 +542,8 @@ dispatch_loop:
 
                 size_t Rows = arr.dims().rows(), Cols = arr.dims().cols();
 
-                auto rowIdx = resolveSlice(R[I.b], Rows);
-                auto colIdx = resolveSlice(R[I.c], Cols);
+                auto rowIdx = MValue::resolveIndices(R[I.b], Rows);
+                auto colIdx = MValue::resolveIndices(R[I.c], Cols);
 
                 if (colIdx.size() == Cols) {
                     // Delete rows
@@ -1012,85 +931,66 @@ dispatch_loop:
                 }
 
             call_indirect_index:
-                // Array indexing fallback
+                // Array indexing fallback — type-preserving
                 if (na == 1) {
-                    // Check for colon-all: A(:) → linearize
-                    if (R[argBase].isChar() && R[argBase].numel() == 1
-                        && R[argBase].charData()[0] == ':') {
-                        const MValue &mv = R[fhReg];
+                    const MValue &mv = R[fhReg];
+                    const MValue &ix = R[argBase];
+                    // Check for colon-all: A(:) → linearize to column vector
+                    if (ix.isChar() && ix.numel() == 1
+                        && ix.charData()[0] == ':') {
                         size_t n = mv.numel();
-                        auto res = MValue::matrix(n, 1, MType::DOUBLE, &engine_.allocator_);
-                        std::memcpy(res.doubleDataMut(), mv.doubleData(), n * sizeof(double));
-                        R[I.a] = std::move(res);
-                    } else if (R[fhReg].isDoubleScalar() && R[argBase].isDoubleScalar()) {
-                        R[I.a] = R[fhReg];
-                    } else if (R[argBase].isDoubleScalar()) {
-                        size_t i = checkedIndex(R[argBase].scalarVal(), R[fhReg].numel());
-                        if (R[fhReg].type() == MType::CHAR) {
-                            char ch = R[fhReg].charData()[i];
-                            R[I.a] = MValue::fromString(std::string(1, ch), &engine_.allocator_);
-                        } else {
-                            R[I.a] = MValue::scalar(R[fhReg].doubleData()[i], &engine_.allocator_);
+                        MType t = mv.type();
+                        auto res = MValue::matrix(n, 1, t, &engine_.allocator_);
+                        if (n > 0) {
+                            size_t es = elementSize(t);
+                            std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
                         }
-                    } else if (R[argBase].isLogical()) {
-                        // Logical indexing: v(v > 3)
-                        const MValue &mv = R[fhReg];
-                        const uint8_t *mask = R[argBase].logicalData();
-                        size_t n = R[argBase].numel();
-                        const double *src = mv.doubleData();
-                        std::vector<double> selected;
-                        for (size_t k = 0; k < n && k < mv.numel(); ++k)
-                            if (mask[k])
-                                selected.push_back(src[k]);
-                        size_t sn = selected.size();
-                        auto res = MValue::matrix(1, sn, MType::DOUBLE, &engine_.allocator_);
-                        if (sn > 0)
-                            std::memcpy(res.doubleDataMut(), selected.data(), sn * sizeof(double));
                         R[I.a] = std::move(res);
+                    } else if (mv.isScalar() && ix.isDoubleScalar()) {
+                        R[I.a] = mv; // scalar(scalar) = scalar
+                    } else if (ix.isDoubleScalar()) {
+                        size_t i = checkedIndex(ix.scalarVal(), mv.numel());
+                        R[I.a] = mv.elemAt(i, &engine_.allocator_);
+                    } else if (ix.isLogical()) {
+                        R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(),
+                                                  &engine_.allocator_);
                     } else {
-                        const MValue &mv = R[fhReg];
-                        const MValue &ix = R[argBase];
                         size_t n = ix.numel();
-                        auto res = MValue::matrix(1, n, MType::DOUBLE, &engine_.allocator_);
-                        double *dst = res.doubleDataMut();
-                        const double *src = mv.doubleData(), *id = ix.doubleData();
+                        const double *id = ix.doubleData();
+                        std::vector<size_t> indices(n);
                         for (size_t k = 0; k < n; ++k)
-                            dst[k] = src[checkedIndex(id[k], mv.numel())];
-                        R[I.a] = std::move(res);
+                            indices[k] = static_cast<size_t>(id[k]) - 1;
+                        R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
                     }
                 } else if (na == 2) {
                     const MValue &mv = R[fhReg];
                     const MValue &ri = R[argBase];
                     const MValue &ci = R[argBase + 1];
                     size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
-                    const double *src = mv.doubleData();
 
-                    auto rowIds = resolveSlice(ri, Rows);
-                    auto colIds = resolveSlice(ci, Cols);
+                    auto rowIds = MValue::resolveIndices(ri, Rows);
+                    auto colIds = MValue::resolveIndices(ci, Cols);
 
-                    if (rowIds.size() == 1 && colIds.size() == 1) {
-                        // Scalar result — bounds already checked by resolveSlice
-                        R[I.a] = MValue::scalar(src[rowIds[0] + colIds[0] * Rows],
-                                                &engine_.allocator_);
-                    } else {
-                        size_t nR = rowIds.size(), nC = colIds.size();
-                        auto res = MValue::matrix(nR, nC, MType::DOUBLE, &engine_.allocator_);
-                        double *dst = res.doubleDataMut();
-                        for (size_t c = 0; c < nC; ++c)
-                            for (size_t r = 0; r < nR; ++r)
-                                dst[r + c * nR] = src[rowIds[r] + colIds[c] * Rows];
-                        R[I.a] = std::move(res);
-                    }
+                    R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
+                                           colIds.data(), colIds.size(),
+                                           &engine_.allocator_);
                 } else if (na == 3) {
-                    size_t r = (size_t) R[argBase].toScalar() - 1;
-                    size_t c = (size_t) R[argBase + 1].toScalar() - 1;
-                    size_t p = (size_t) R[argBase + 2].toScalar() - 1;
                     const MValue &mv = R[fhReg];
                     if (mv.isCell()) {
+                        size_t r = (size_t) R[argBase].toScalar() - 1;
+                        size_t c = (size_t) R[argBase + 1].toScalar() - 1;
+                        size_t p = (size_t) R[argBase + 2].toScalar() - 1;
                         R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
                     } else {
-                        R[I.a] = MValue::scalar(mv.doubleData()[mv.dims().sub2indChecked(r, c, p)],
-                                                &engine_.allocator_);
+                        size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
+                        size_t Pages = mv.dims().pages();
+                        auto rowIds = MValue::resolveIndices(R[argBase], Rows);
+                        auto colIds = MValue::resolveIndices(R[argBase + 1], Cols);
+                        auto pageIds = MValue::resolveIndices(R[argBase + 2], Pages);
+                        R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
+                                               colIds.data(), colIds.size(),
+                                               pageIds.data(), pageIds.size(),
+                                               &engine_.allocator_);
                     }
                 } else {
                     throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
