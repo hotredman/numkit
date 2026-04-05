@@ -143,26 +143,6 @@ void TreeWalker::displayValue(const std::string &name, const MValue &val)
     output(os.str());
 }
 
-// ============================================================
-double TreeWalker::colonCount(double start, double step, double stop) const
-{
-    if (step == 0.0)
-        throw std::runtime_error("Colon step cannot be zero");
-    if ((step > 0 && stop < start) || (step < 0 && stop > start))
-        return 0;
-    double n = std::floor((stop - start) / step + 0.5) + 1;
-    if (n < 0)
-        n = 0;
-    double last = start + (n - 1) * step;
-    if (step > 0 && last > stop + 0.5 * std::abs(step))
-        n--;
-    if (step < 0 && last < stop - 0.5 * std::abs(step))
-        n--;
-    if (n < 0)
-        n = 0;
-    return n;
-}
-
 // Returns true and sets `outIdx` if the index expression evaluates to a scalar integer.
 bool TreeWalker::tryResolveScalarIndex(const ASTNode *indexExpr,
                                        const MValue &array,
@@ -1964,131 +1944,70 @@ MValue TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
         }
     }
 
-    struct ElemInfo
-    {
-        MValue val;
-        size_t rows = 1, cols = 1;
-    };
-    struct RowInfo
-    {
-        std::vector<ElemInfo> elems;
-        size_t totalCols = 0, rowHeight = 1;
-        bool allChar = true;
-    };
-
-    std::vector<RowInfo> matRows;
-    bool anyChar = false;
+    // Evaluate all elements per row
+    std::vector<std::vector<MValue>> rows;
+    bool anyChar = false, allChar = true;
 
     for (auto &rowNode : node->children) {
-        RowInfo ri;
+        std::vector<MValue> rowElems;
         for (auto &elemNode : rowNode->children) {
             auto val = execNode(elemNode.get(), env);
-
             if (val.isEmpty())
                 continue;
-
-            size_t eR = 1, eC = 1;
-
-            if (val.isChar()) {
-                eC = val.numel();
-                anyChar = true;
-            } else if (val.type() == MType::DOUBLE) {
-                eR = val.dims().rows();
-                eC = val.dims().cols();
-                ri.allChar = false;
-            } else if (val.isLogical() && val.isScalar()) {
+            if (val.isLogical() && val.isScalar())
                 val = MValue::scalar(val.toBool() ? 1.0 : 0.0, &engine_.allocator_);
-                ri.allChar = false;
-            } else {
-                ri.allChar = false;
-            }
-
-            ri.totalCols += eC;
-            if (eR > ri.rowHeight)
-                ri.rowHeight = eR;
-            ri.elems.push_back({std::move(val), eR, eC});
+            if (val.isChar())
+                anyChar = true;
+            else
+                allChar = false;
+            rowElems.push_back(std::move(val));
         }
-        if (!ri.elems.empty())
-            matRows.push_back(std::move(ri));
+        if (!rowElems.empty())
+            rows.push_back(std::move(rowElems));
     }
 
-    if (matRows.empty())
+    if (rows.empty())
         return MValue::empty();
 
-    bool allChar = true;
-    for (auto &ri : matRows)
-        if (!ri.allChar) {
-            allChar = false;
-            break;
-        }
-
+    // All-char: MATLAB pads shorter strings with spaces in vertical stacking
     if (allChar && anyChar) {
-        if (matRows.size() == 1) {
-            std::string result;
-            for (auto &el : matRows[0].elems) {
-                if (el.val.isChar())
-                    result += el.val.toString();
-            }
-            return MValue::fromString(result, &engine_.allocator_);
-        }
+        // horzcat each row → one string per row
+        std::vector<std::string> strs;
         size_t maxCols = 0;
-        for (auto &ri : matRows)
-            maxCols = std::max(maxCols, ri.totalCols);
+        for (auto &rowElems : rows) {
+            std::string s;
+            for (auto &v : rowElems)
+                s += v.toString();
+            maxCols = std::max(maxCols, s.size());
+            strs.push_back(std::move(s));
+        }
+        if (strs.size() == 1)
+            return MValue::fromString(strs[0], &engine_.allocator_);
 
-        size_t totalRows = matRows.size();
+        // Build char matrix with space-padding
+        size_t totalRows = strs.size();
         auto result = MValue::matrix(totalRows, maxCols, MType::CHAR, &engine_.allocator_);
         char *dst = result.charDataMut();
         std::memset(dst, ' ', totalRows * maxCols);
-
-        for (size_t row = 0; row < matRows.size(); ++row) {
-            size_t col = 0;
-            for (auto &el : matRows[row].elems) {
-                if (el.val.isChar()) {
-                    const char *src = el.val.charData();
-                    for (size_t i = 0; i < el.cols; ++i)
-                        dst[i * totalRows + row] = src[i];
-                    col += el.cols;
-                }
-            }
+        for (size_t row = 0; row < totalRows; ++row) {
+            const auto &s = strs[row];
+            for (size_t c = 0; c < s.size(); ++c)
+                dst[c * totalRows + row] = s[c];
         }
         return result;
     }
 
-    size_t totalRows = 0;
-    size_t totalCols = matRows[0].totalCols;
-    for (auto &ri : matRows) {
-        totalRows += ri.rowHeight;
-        if (ri.totalCols != totalCols)
-            throw std::runtime_error("Dimensions of arrays being concatenated are not consistent");
-    }
+    // Numeric: horzcat each row, then vertcat all rows
+    std::vector<MValue> rowValues;
+    rowValues.reserve(rows.size());
+    for (auto &rowElems : rows)
+        rowValues.push_back(
+            MValue::horzcat(rowElems.data(), rowElems.size(), &engine_.allocator_));
 
-    auto result = MValue::matrix(totalRows, totalCols, MType::DOUBLE, &engine_.allocator_);
-    double *dst = result.doubleDataMut();
+    if (rowValues.size() == 1)
+        return std::move(rowValues[0]);
 
-    size_t rowOff = 0;
-    for (auto &ri : matRows) {
-        size_t colOff = 0;
-        for (auto &el : ri.elems) {
-            if (el.val.type() == MType::DOUBLE) {
-                const double *src = el.val.doubleData();
-                for (size_t c = 0; c < el.cols; ++c)
-                    for (size_t r = 0; r < el.rows; ++r)
-                        dst[(colOff + c) * totalRows + (rowOff + r)] = el.val.isScalar()
-                                                                           ? src[0]
-                                                                           : src[c * el.rows + r];
-            } else if (el.val.isScalar()) {
-                dst[colOff * totalRows + rowOff] = el.val.toScalar();
-            } else if (el.val.isChar()) {
-                const char *src = el.val.charData();
-                for (size_t c = 0; c < el.cols; ++c)
-                    dst[(colOff + c) * totalRows + rowOff] = static_cast<double>(
-                        static_cast<unsigned char>(src[c]));
-            }
-            colOff += el.cols;
-        }
-        rowOff += ri.rowHeight;
-    }
-    return result;
+    return MValue::vertcat(rowValues.data(), rowValues.size(), &engine_.allocator_);
 }
 
 MValue TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
@@ -2139,35 +2058,14 @@ MValue TreeWalker::execColonExpr(const ASTNode *node, Environment *env)
     if (node->children.size() == 2) {
         double s = execNode(node->children[0].get(), env).toScalar();
         double e = execNode(node->children[1].get(), env).toScalar();
-        size_t count = static_cast<size_t>(colonCount(s, 1.0, e));
-        auto result = MValue::matrix(1, count, MType::DOUBLE, &engine_.allocator_);
-        if (count > 0) {
-            double *dst = result.doubleDataMut();
-            for (size_t i = 0; i < count; ++i)
-                dst[i] = s + static_cast<double>(i);
-        }
-        return result;
+        return MValue::colonRange(s, e, &engine_.allocator_);
     }
 
     if (node->children.size() == 3) {
         double s = execNode(node->children[0].get(), env).toScalar();
         double step = execNode(node->children[1].get(), env).toScalar();
         double e = execNode(node->children[2].get(), env).toScalar();
-        size_t count = static_cast<size_t>(colonCount(s, step, e));
-        auto result = MValue::matrix(1, count, MType::DOUBLE, &engine_.allocator_);
-        if (count > 0) {
-            double *dst = result.doubleDataMut();
-            for (size_t i = 0; i < count; ++i)
-                dst[i] = s + static_cast<double>(i) * step;
-            if (count >= 2) {
-                double last = s + static_cast<double>(count - 1) * step;
-                if (step > 0 && last > e)
-                    dst[count - 1] = e;
-                if (step < 0 && last < e)
-                    dst[count - 1] = e;
-            }
-        }
-        return result;
+        return MValue::colonRange(s, step, e, &engine_.allocator_);
     }
 
     return MValue::empty();

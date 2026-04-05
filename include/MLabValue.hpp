@@ -185,6 +185,15 @@ public:
     static MValue funcHandle(const std::string &name, Allocator *alloc = nullptr);
     static MValue empty();
 
+    // ── Factories — compound operations ────────────────────────
+    // Colon range: start:stop (step=1) or start:step:stop
+    static MValue colonRange(double start, double stop, Allocator *alloc = nullptr);
+    static MValue colonRange(double start, double step, double stop, Allocator *alloc = nullptr);
+
+    // Concatenation: [a, b, c] and [a; b; c]
+    static MValue horzcat(const MValue *elems, size_t count, Allocator *alloc = nullptr);
+    static MValue vertcat(const MValue *elems, size_t count, Allocator *alloc = nullptr);
+
     // ── Factories — complex ──────────────────────────────────
     static MValue complexScalar(Complex v, Allocator *alloc = nullptr);
     static MValue complexScalar(double re, double im, Allocator *alloc = nullptr);

@@ -1232,3 +1232,201 @@ TEST_P(NargoutTest, DispStatementNoAns)
 }
 
 INSTANTIATE_DUAL(NargoutTest);
+
+// ============================================================
+// MValue::colonRange / horzcat / vertcat — shared operations
+// ============================================================
+
+class SharedOpsTest : public DualEngineTest
+{};
+
+// ── colonRange ──────────────────────────────────────────────
+
+TEST_P(SharedOpsTest, ColonRangeUnitStep)
+{
+    eval("v = 1:5;");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 5u);
+    for (size_t i = 0; i < 5; ++i)
+        EXPECT_DOUBLE_EQ(v->doubleData()[i], 1.0 + i);
+}
+
+TEST_P(SharedOpsTest, ColonRangeFractionalStep)
+{
+    eval("v = 0:0.5:2;");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 5u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 2.0);
+}
+
+TEST_P(SharedOpsTest, ColonRangeNegativeStep)
+{
+    eval("v = 10:-3:1;");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 4u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 10.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 1.0);
+}
+
+TEST_P(SharedOpsTest, ColonRangeEmptyResult)
+{
+    eval("v = 5:1;");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 0u);
+}
+
+TEST_P(SharedOpsTest, ColonRangeZeroStepError)
+{
+    auto r = engine.evalSafe("v = 1:0:10;");
+    EXPECT_FALSE(r.ok);
+}
+
+TEST_P(SharedOpsTest, ColonRangeLastElementCorrection)
+{
+    // 0:0.3:1 — last element should be exactly 0.9, not 0.9000000000000001
+    eval("v = 0:0.3:1;");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 4u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 0.9);
+}
+
+TEST_P(SharedOpsTest, ColonRangeSingleElement)
+{
+    eval("v = 5:5;");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 5.0);
+}
+
+// ── horzcat ─────────────────────────────────────────────────
+
+TEST_P(SharedOpsTest, HorzcatScalars)
+{
+    eval("v = [1, 2, 3];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 3.0);
+}
+
+TEST_P(SharedOpsTest, HorzcatVectors)
+{
+    eval("a = [1 2]; b = [3 4 5]; v = [a, b];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 5u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 5.0);
+}
+
+TEST_P(SharedOpsTest, HorzcatMatrices)
+{
+    eval("A = [1; 2]; B = [3; 4]; C = [A, B];");
+    auto *v = getVarPtr("C");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ((*v)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*v)(0, 1), 3.0);
+    EXPECT_DOUBLE_EQ((*v)(1, 1), 4.0);
+}
+
+TEST_P(SharedOpsTest, HorzcatDimensionMismatchError)
+{
+    auto r = engine.evalSafe("A = [1 2; 3 4]; B = [5; 6; 7]; C = [A, B];");
+    EXPECT_FALSE(r.ok);
+}
+
+TEST_P(SharedOpsTest, HorzcatStrings)
+{
+    eval("s = ['hello', ' ', 'world'];");
+    auto *v = getVarPtr("s");
+    EXPECT_EQ(v->toString(), "hello world");
+}
+
+TEST_P(SharedOpsTest, HorzcatWithEmpty)
+{
+    eval("v = [1 2 [] 3];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 3.0);
+}
+
+// ── vertcat ─────────────────────────────────────────────────
+
+TEST_P(SharedOpsTest, VertcatScalars)
+{
+    eval("v = [1; 2; 3];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+}
+
+TEST_P(SharedOpsTest, VertcatRowVectors)
+{
+    eval("A = [1 2 3; 4 5 6];");
+    auto *v = getVarPtr("A");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ((*v)(1, 2), 6.0);
+}
+
+TEST_P(SharedOpsTest, VertcatMatrices)
+{
+    eval("A = [1 2; 3 4]; B = [5 6; 7 8]; C = [A; B];");
+    auto *v = getVarPtr("C");
+    EXPECT_EQ(rows(*v), 4u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ((*v)(2, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*v)(3, 1), 8.0);
+}
+
+TEST_P(SharedOpsTest, VertcatDimensionMismatchError)
+{
+    auto r = engine.evalSafe("x = [1 2; 3 4 5];");
+    EXPECT_FALSE(r.ok);
+}
+
+TEST_P(SharedOpsTest, VertcatScalarAndVector)
+{
+    eval("v = [1 2 3; 4 5 6; 7 8 9];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ((*v)(2, 2), 9.0);
+}
+
+// ── Combined horzcat + vertcat ──────────────────────────────
+
+TEST_P(SharedOpsTest, MixedConcatBuildMatrix)
+{
+    // [1 2; 3 4] uses horzcat per row then vertcat
+    eval("M = [1 2; 3 4];");
+    auto *v = getVarPtr("M");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ((*v)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*v)(1, 1), 4.0);
+}
+
+TEST_P(SharedOpsTest, ConcatWithColonRange)
+{
+    eval("v = [1:3, 10:12];");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 6u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 10.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[5], 12.0);
+}
+
+TEST_P(SharedOpsTest, ConcatPreservesColumnMajor)
+{
+    // Column-major layout: [1 3; 2 4] stored as [1,2,3,4]
+    eval("M = [1 3; 2 4];");
+    auto *v = getVarPtr("M");
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 4.0);
+}
+
+INSTANTIATE_DUAL(SharedOpsTest);

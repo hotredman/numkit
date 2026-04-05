@@ -26,6 +26,7 @@ set(DUAL_BACKEND_TESTS
     test_debugger_phase234.cpp
     test_debugger_diagnostic.cpp
     test_who_diagnostic.cpp
+    test_error_diagnostics.cpp
 )
 
 # ── Frontend tests (lexer, parser, command-style AST) ────────

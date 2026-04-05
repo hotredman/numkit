@@ -101,8 +101,6 @@ private:
                                           size_t nout);
 
     // Helpers
-    void executeHorzcat(MValue &dst, const MValue *regs, uint8_t count);
-    void executeVertcat(MValue &dst, const MValue *regs, uint8_t count);
     void forSetVar(MValue &varReg, const ForState &fs);
 
     // ── Debugger ────────────────────────────────────────────

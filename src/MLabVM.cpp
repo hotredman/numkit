@@ -51,15 +51,6 @@ VM::VM(Engine &engine)
     regStack_.resize(kRegStackSize);
 }
 
-static inline size_t colonCount(double start, double step, double stop)
-{
-    if (step == 0.0)
-        return 0;
-    double n = (stop - start) / step;
-    if (n < 0)
-        return 0;
-    return static_cast<size_t>(std::floor(n + 1e-10)) + 1;
-}
 
 // Fast scalar check for VM arithmetic — accepts double scalars AND logical scalar tags
 static inline bool isArithScalar(const MValue &v)
@@ -393,41 +384,22 @@ dispatch_loop:
             // ── Colon ────────────────────────────────────────────
             case OpCode::COLON: {
                 double start = R[I.b].toScalar(), stop = R[I.c].toScalar();
-                size_t cnt = colonCount(start, 1.0, stop);
-                auto mat = MValue::matrix(1, cnt, MType::DOUBLE, &engine_.allocator_);
-                if (cnt > 0) {
-                    double *d = mat.doubleDataMut();
-                    for (size_t i = 0; i < cnt; ++i)
-                        d[i] = start + (double) i;
-                }
-                R[I.a] = std::move(mat);
+                R[I.a] = MValue::colonRange(start, stop, &engine_.allocator_);
                 break;
             }
             case OpCode::COLON3: {
                 double start = R[I.b].toScalar(), step = R[I.c].toScalar(),
                        stop = R[I.e].toScalar();
-                size_t cnt = colonCount(start, step, stop);
-                auto mat = MValue::matrix(1, cnt, MType::DOUBLE, &engine_.allocator_);
-                if (cnt > 0) {
-                    double *d = mat.doubleDataMut();
-                    for (size_t i = 0; i < cnt; ++i)
-                        d[i] = start + (double) i * step;
-                    if (cnt >= 2) {
-                        double last = start + (double) (cnt - 1) * step;
-                        if ((step > 0 && last > stop) || (step < 0 && last < stop))
-                            d[cnt - 1] = stop;
-                    }
-                }
-                R[I.a] = std::move(mat);
+                R[I.a] = MValue::colonRange(start, step, stop, &engine_.allocator_);
                 break;
             }
 
             // ── Array construction ───────────────────────────────
             case OpCode::HORZCAT:
-                executeHorzcat(R[I.a], &R[I.b], I.c);
+                R[I.a] = MValue::horzcat(&R[I.b], I.c, &engine_.allocator_);
                 break;
             case OpCode::VERTCAT:
-                executeVertcat(R[I.a], &R[I.b], I.c);
+                R[I.a] = MValue::vertcat(&R[I.b], I.c, &engine_.allocator_);
                 break;
 
             // ── Array indexing ───────────────────────────────────
@@ -1525,16 +1497,114 @@ bool VM::dispatchTryCatch(const char *msg, MValue *R, const Instruction *&ip)
     return true;
 }
 
+// Derive error context description from the opcode + operands at throw time.
+// This is the VM equivalent of TreeWalker's describeNode() — zero storage overhead,
+// only runs on the error path.
+static std::string describeInstruction(const Instruction &instr,
+                                       const BytecodeChunk &chunk)
+{
+    switch (instr.op) {
+    // Function calls
+    case OpCode::CALL:
+    case OpCode::CALL_MULTI: {
+        int16_t funcIdx = instr.d;
+        if (funcIdx >= 0 && funcIdx < (int16_t)chunk.strings.size())
+            return "in call to '" + chunk.strings[funcIdx] + "'";
+        return "in function call";
+    }
+    case OpCode::CALL_BUILTIN: {
+        static const char *bn[] = {
+            "abs",  "floor", "ceil", "round", "fix",  "sqrt", "exp",  "log",
+            "log2", "log10", "sin",  "cos",   "tan",  "sign", "isnan","isinf",
+            nullptr,nullptr, nullptr,nullptr,  "mod",  "rem",  "max",  "min",
+            "pow",  "atan2"
+        };
+        int16_t bid = instr.d;
+        if (bid >= 0 && bid < 26 && bn[bid])
+            return std::string("in call to '") + bn[bid] + "'";
+        return "in builtin call";
+    }
+    case OpCode::CALL_INDIRECT:
+        return "in function call";
+
+    // Cell indexing
+    case OpCode::CELL_GET:
+    case OpCode::CELL_SET:
+    case OpCode::CELL_GET_2D:
+    case OpCode::CELL_SET_2D:
+        return "in cell indexing";
+
+    // Field access
+    case OpCode::FIELD_GET:
+    case OpCode::FIELD_GET_OR_CREATE:
+    case OpCode::FIELD_SET: {
+        int16_t nameIdx = instr.d;
+        if (nameIdx >= 0 && nameIdx < (int16_t)chunk.strings.size())
+            return "in field access '." + chunk.strings[nameIdx] + "'";
+        return "in field access";
+    }
+    case OpCode::FIELD_GET_DYN:
+    case OpCode::FIELD_SET_DYN:
+        return "in dynamic field access";
+
+    // Binary operators
+    case OpCode::ADD:  return "in operator '+'";
+    case OpCode::SUB:  return "in operator '-'";
+    case OpCode::MUL:  return "in operator '*'";
+    case OpCode::RDIV: return "in operator '/'";
+    case OpCode::LDIV: return "in operator '\\'";
+    case OpCode::POW:  return "in operator '^'";
+    case OpCode::EMUL: return "in operator '.*'";
+    case OpCode::ERDIV:return "in operator './'";
+    case OpCode::ELDIV:return "in operator '.\\'";
+    case OpCode::EPOW: return "in operator '.^'";
+
+    // Unary operators
+    case OpCode::NEG:        return "in unary operator '-'";
+    case OpCode::NOT:        return "in unary operator '~'";
+    case OpCode::CTRANSPOSE: return "in transpose operator";
+    case OpCode::TRANSPOSE:  return "in transpose operator";
+
+    // Colon expressions
+    case OpCode::COLON:
+    case OpCode::COLON3:
+        return "in colon expression";
+
+    // Matrix/cell construction
+    case OpCode::HORZCAT:
+    case OpCode::VERTCAT:
+        return "in matrix construction";
+    case OpCode::CELL_LITERAL:
+        return "in cell construction";
+
+    // Indexing
+    case OpCode::INDEX_GET:
+    case OpCode::INDEX_GET_2D:
+    case OpCode::INDEX_GET_ND:
+    case OpCode::INDEX_SET:
+    case OpCode::INDEX_SET_2D:
+    case OpCode::INDEX_SET_ND:
+    case OpCode::INDEX_DELETE:
+    case OpCode::INDEX_DELETE_2D:
+        return "in array indexing";
+
+    default:
+        return "";
+    }
+}
+
 [[noreturn]] void VM::enrichAndThrow(const std::exception &ex,
                                      const Instruction *ip,
                                      const BytecodeChunk &chunk)
 {
     size_t instrIdx = static_cast<size_t>(ip - chunk.code.data());
     if (instrIdx < chunk.sourceMap.size() && chunk.sourceMap[instrIdx].line > 0) {
+        std::string context = describeInstruction(*ip, chunk);
         throw MLabError(ex.what(),
                         chunk.sourceMap[instrIdx].line,
                         chunk.sourceMap[instrIdx].col,
-                        chunk.name);
+                        chunk.name,
+                        context);
     }
     // No source location available — wrap in MLabError anyway for consistency
     throw MLabError(ex.what());
@@ -1692,159 +1762,6 @@ std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
     while (results.size() < nout)
         results.push_back(MValue::empty());
     return results;
-}
-
-// ============================================================
-// Array helpers
-// ============================================================
-
-void VM::executeHorzcat(MValue &dst, const MValue *regs, uint8_t count)
-{
-    // Check if any element is a char (string concatenation)
-    bool hasChar = false;
-    for (uint8_t i = 0; i < count; ++i) {
-        if (!regs[i].isEmpty() && regs[i].type() == MType::CHAR) {
-            hasChar = true;
-            break;
-        }
-    }
-
-    if (hasChar) {
-        // String concatenation: ['hello' ' ' 'world'] → 'hello world'
-        std::string result;
-        for (uint8_t i = 0; i < count; ++i) {
-            if (regs[i].isEmpty())
-                continue;
-            if (regs[i].type() == MType::CHAR)
-                result += regs[i].toString();
-            else if (regs[i].isDoubleScalar())
-                result += static_cast<char>(static_cast<int>(regs[i].toScalar()));
-            else
-                throw std::runtime_error("Cannot concatenate char and non-char arrays");
-        }
-        dst = MValue::fromString(result, &engine_.allocator_);
-        return;
-    }
-
-    // Determine output dimensions
-    size_t totalCols = 0;
-    size_t rows = 0;
-    bool allScalar = true;
-    for (uint8_t i = 0; i < count; ++i) {
-        if (regs[i].isEmpty())
-            continue;
-        if (regs[i].isDoubleScalar()) {
-            totalCols++;
-            if (!rows)
-                rows = 1;
-            allScalar = true;
-            continue;
-        }
-        auto &dims = regs[i].dims();
-        totalCols += dims.cols();
-        if (!rows)
-            rows = dims.rows();
-        else if (rows != dims.rows() && dims.rows() != 1 && rows != 1)
-            throw std::runtime_error("Dimensions of arrays being concatenated are not consistent");
-        if (dims.rows() > 1)
-            rows = dims.rows();
-        allScalar = false;
-    }
-    if (!rows)
-        rows = 1;
-
-    if (rows == 1) {
-        // Simple 1D case — row vector
-        size_t total = 0;
-        for (uint8_t i = 0; i < count; ++i) {
-            if (regs[i].isEmpty())
-                continue;
-            if (regs[i].isDoubleScalar()) {
-                total++;
-                continue;
-            }
-            total += regs[i].numel();
-        }
-        auto result = MValue::matrix(1, total, MType::DOUBLE, &engine_.allocator_);
-        double *d = result.doubleDataMut();
-        size_t pos = 0;
-        for (uint8_t i = 0; i < count; ++i) {
-            if (regs[i].isEmpty())
-                continue;
-            if (regs[i].isDoubleScalar()) {
-                d[pos++] = regs[i].scalarVal();
-                continue;
-            }
-            const double *src = regs[i].doubleData();
-            size_t n = regs[i].numel();
-            std::copy(src, src + n, d + pos);
-            pos += n;
-        }
-        dst = std::move(result);
-        return;
-    }
-
-    // 2D case — concatenate columns
-    auto result = MValue::matrix(rows, totalCols, MType::DOUBLE, &engine_.allocator_);
-    double *d = result.doubleDataMut();
-    size_t colOff = 0;
-    for (uint8_t i = 0; i < count; ++i) {
-        if (regs[i].isEmpty())
-            continue;
-        if (regs[i].isDoubleScalar()) {
-            d[colOff * rows] = regs[i].scalarVal();
-            colOff++;
-            continue;
-        }
-        auto &dims = regs[i].dims();
-        const double *src = regs[i].doubleData();
-        for (size_t c = 0; c < dims.cols(); ++c)
-            for (size_t r = 0; r < dims.rows(); ++r)
-                d[r + (colOff + c) * rows] = src[r + c * dims.rows()];
-        colOff += dims.cols();
-    }
-    dst = std::move(result);
-}
-
-void VM::executeVertcat(MValue &dst, const MValue *regs, uint8_t count)
-{
-    size_t totalRows = 0, cols = 0;
-    for (uint8_t i = 0; i < count; ++i) {
-        if (regs[i].isEmpty())
-            continue;
-        if (regs[i].isDoubleScalar()) {
-            totalRows++;
-            if (!cols)
-                cols = 1;
-            continue;
-        }
-        auto &dims = regs[i].dims();
-        totalRows += dims.rows();
-        if (!cols)
-            cols = dims.cols();
-    }
-    if (!cols) {
-        dst = MValue::empty();
-        return;
-    }
-    auto result = MValue::matrix(totalRows, cols, MType::DOUBLE, &engine_.allocator_);
-    double *d = result.doubleDataMut();
-    size_t rowOff = 0;
-    for (uint8_t i = 0; i < count; ++i) {
-        if (regs[i].isEmpty())
-            continue;
-        if (regs[i].isDoubleScalar()) {
-            d[rowOff++] = regs[i].scalarVal();
-            continue;
-        }
-        auto &dims = regs[i].dims();
-        const double *src = regs[i].doubleData();
-        for (size_t c = 0; c < cols; ++c)
-            for (size_t r = 0; r < dims.rows(); ++r)
-                d[(rowOff + r) + c * totalRows] = src[r + c * dims.rows()];
-        rowOff += dims.rows();
-    }
-    dst = std::move(result);
 }
 
 void VM::forSetVar(MValue &varReg, const ForState &fs)

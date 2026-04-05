@@ -139,7 +139,6 @@ private:
 
     // Utilities
     bool isKnownFunction(const std::string &name) const;
-    double colonCount(double start, double step, double stop) const;
 
     // ── Debugger ──────────────────────────────────────────
     std::string topLevelName_{"<script>"};
