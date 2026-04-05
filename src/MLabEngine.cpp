@@ -248,6 +248,24 @@ Engine::EvalResult Engine::evalSafe(const std::string &code)
 // ============================================================
 // VM → globalEnv sync
 // ============================================================
+ExecStatus Engine::debugResume(DebugAction action)
+{
+    if (!vm_ || !vm_->isPaused())
+        return ExecStatus::Completed;
+
+    // Set the resume action on the debug controller
+    if (debugController_)
+        debugController_->setResumeAction(action, vm_->callDepth());
+
+    ExecStatus status = vm_->resumeExecution();
+
+    // Sync variables on completion
+    if (status == ExecStatus::Completed)
+        syncVMToGlobalEnv();
+
+    return status;
+}
+
 void Engine::syncVMToGlobalEnv()
 {
     if (clearAllCalled_)

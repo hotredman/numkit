@@ -11,7 +11,9 @@
  *
  * Debug API:
  *   debugSetBreakpoints(lines)  → void     (lines = [1, 5, 10])
- *   debugExecute(code, skipBp)  → { status, pauseState?, output?, ... }
+ *   debugStart(code)            → { status, line?, variables?, callStack?, output?, ... }
+ *   debugResume(action)         → { status, line?, variables?, callStack?, output?, ... }
+ *   debugStop()                 → void
  *
  * Figure objects: { id, datasets: [{x,y,type,label?,style?}], config: {title,xlabel,ylabel,xlim?,ylim?,grid,legend?} }
  */
@@ -229,7 +231,7 @@ export async function createWasmEngine(createModule) {
 
     // ── Debug API ──
     get hasDebugger() {
-      return typeof Module.repl_debug_execute === 'function';
+      return typeof Module.repl_debug_start === 'function';
     },
 
     debugSetBreakpoints(lines) {
@@ -238,15 +240,27 @@ export async function createWasmEngine(createModule) {
       }
     },
 
-    debugExecute(code, skipBp = 0) {
-      if (typeof Module.repl_debug_execute !== 'function') {
+    debugStart(code) {
+      if (typeof Module.repl_debug_start !== 'function') {
         return { status: 'error', message: 'Debug not supported in this WASM build' };
       }
-      const raw = Module.repl_debug_execute(code, skipBp);
-      try {
-        return JSON.parse(raw);
-      } catch (e) {
-        return { status: 'error', message: 'Failed to parse debug result' };
+      const raw = Module.repl_debug_start(code);
+      try { return JSON.parse(raw); }
+      catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
+    },
+
+    debugResume(action = 0) {
+      if (typeof Module.repl_debug_resume !== 'function') {
+        return { status: 'error', message: 'Debug not supported in this WASM build' };
+      }
+      const raw = Module.repl_debug_resume(action);
+      try { return JSON.parse(raw); }
+      catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
+    },
+
+    debugStop() {
+      if (typeof Module.repl_debug_stop === 'function') {
+        Module.repl_debug_stop();
       }
     },
   };
@@ -284,6 +298,8 @@ export function createFallbackEngine() {
     // ── Debug API (stub for fallback) ──
     get hasDebugger() { return false; },
     debugSetBreakpoints() {},
-    debugExecute() { return { status: 'error', message: 'Debug not available in demo mode' }; },
+    debugStart() { return { status: 'error', message: 'Debug not available in demo mode' }; },
+    debugResume() { return { status: 'error', message: 'Debug not available in demo mode' }; },
+    debugStop() {},
   };
 }

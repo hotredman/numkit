@@ -121,7 +121,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   // ── Debug state ──
   const [breakpoints, setBreakpoints] = useState({}); // { tabId: Set<lineNumber> }
-  const [debugState, setDebugState] = useState(null);  // null | { status, line, variables, bpHitCount, code }
+  const [debugState, setDebugState] = useState(null);  // null | { status, line, variables }
   const [debugLine, setDebugLine] = useState(null);     // current paused line
 
   const tabCountRef=useRef(1); const editorRef=useRef(null); const gutterRef=useRef(null); const consoleRef=useRef(null); const resizingRef=useRef(false); const resizingRightRef=useRef(false);
@@ -137,8 +137,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if(items.length){addOutput(items);setConsoleNotify(true);}
     if(result.closeAllFigures)setFigures([]);else if(result.closedFigureIds?.length){const closed=new Set(result.closedFigureIds);setFigures(prev=>prev.filter(f=>!closed.has(f.id)));}
     if(result.figures?.length){setFigures(prev=>{const map=new Map(prev.map(f=>[f.id,f]));for(const fig of result.figures)map.set(fig.id,fig);return Array.from(map.values());});setShowRight(true);}
-    if(result.errorLine)setErrorLine(result.errorLine);setVariables(engine.getVars());
-  },[engine,addOutput]);
+    if(result.errorLine)setErrorLine(result.errorLine);if(!debugState)setVariables(engine.getVars());
+  },[engine,addOutput,debugState]);
 
   // ── Debug actions ──
   const getActiveBreakpoints = useCallback(() => {
@@ -157,30 +157,8 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     });
   }, [activeTab]);
 
-  const debugExecute = useCallback((skipBp = 0) => {
-    const tab = tabs.find(t => t.id === activeTab);
-    if (!tab || !tab.code.trim()) return;
-
-    const bpLines = getActiveBreakpoints();
-    if (bpLines.length === 0 && skipBp === 0) {
-      addOutput([{ type: "warning", text: "No breakpoints set. Click the gutter to add breakpoints." }]);
-      setConsoleNotify(true);
-      return;
-    }
-
-    setShowBottom(true);
-    setErrorLine(null);
-
-    if (skipBp === 0) {
-      addOutput([{ type: "system", text: `── Debug ${tab.name} ──` }]);
-      setConsoleNotify(true);
-    }
-
-    engine.debugSetBreakpoints(bpLines);
-    const t0 = performance.now();
-    const result = engine.debugExecute(tab.code, skipBp);
-    setExecTimeMs(performance.now() - t0);
-
+  // Handle debug result from start or resume
+  const handleDebugResult = useCallback((result) => {
     if (result.output) {
       const items = result.output.split("\n").map(line => ({
         type: /^Error/.test(line) ? "error" : "result",
@@ -198,26 +176,21 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         line: ps.line,
         variables: ps.variables || {},
         reason: ps.reason,
-        bpHitCount: result.breakpointHitCount || 0,
-        code: tab.code,
-        bpLines: getActiveBreakpoints(),
       });
       addOutput([{
         type: "system",
-        text: `⏸ Paused at line ${ps.line} (${ps.reason})`,
+        text: `\u23F8 Paused at line ${ps.line} (${ps.reason})`,
       }]);
-      // Show debug variables in workspace
       if (ps.variables && typeof ps.variables === 'object') {
         const debugVars = {};
-        for (const [name, preview] of Object.entries(ps.variables)) {
+        for (const [name, preview] of Object.entries(ps.variables))
           debugVars[name] = preview;
-        }
         setVariables(debugVars);
       }
     } else if (result.status === 'completed') {
       setDebugLine(null);
       setDebugState(null);
-      addOutput([{ type: "system", text: "✓ Debug completed" }]);
+      addOutput([{ type: "system", text: "\u2713 Debug completed" }]);
       setConsoleNotify(true);
       setVariables(engine.getVars());
     } else if (result.status === 'error') {
@@ -228,23 +201,50 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       setConsoleNotify(true);
       setVariables(engine.getVars());
     }
-  }, [tabs, activeTab, getActiveBreakpoints, engine, addOutput]);
+  }, [engine, addOutput]);
 
-  const debugContinue = useCallback(() => {
+  const debugStart = useCallback(() => {
+    const tab = tabs.find(t => t.id === activeTab);
+    if (!tab || !tab.code.trim()) return;
+
+    const bpLines = getActiveBreakpoints();
+    if (bpLines.length === 0) {
+      addOutput([{ type: "warning", text: "No breakpoints set. Click the gutter to add breakpoints." }]);
+      setConsoleNotify(true);
+      return;
+    }
+
+    setShowBottom(true);
+    setErrorLine(null);
+    addOutput([{ type: "system", text: `\u2500\u2500 Debug ${tab.name} \u2500\u2500` }]);
+    setConsoleNotify(true);
+
+    engine.debugSetBreakpoints(bpLines);
+    const t0 = performance.now();
+    const result = engine.debugStart(tab.code);
+    setExecTimeMs(performance.now() - t0);
+    handleDebugResult(result);
+  }, [tabs, activeTab, getActiveBreakpoints, engine, addOutput, handleDebugResult]);
+
+  // Resume with a DebugAction: 0=Continue, 1=StepOver, 2=StepInto, 3=StepOut
+  const debugResume = useCallback((action = 0) => {
     if (!debugState || debugState.status !== 'paused') return;
+
+    // If breakpoints changed, update them before resuming
     const currentBps = getActiveBreakpoints();
-    const prevBps = debugState.bpLines || [];
-    const bpsChanged = currentBps.length !== prevBps.length ||
-      currentBps.some((v, i) => v !== prevBps[i]);
-    debugExecute(bpsChanged ? 0 : debugState.bpHitCount);
-  }, [debugState, debugExecute, getActiveBreakpoints]);
+    engine.debugSetBreakpoints(currentBps);
+
+    const result = engine.debugResume(action);
+    handleDebugResult(result);
+  }, [debugState, getActiveBreakpoints, engine, handleDebugResult]);
 
   const debugStop = useCallback(() => {
+    engine.debugStop?.();
     setDebugLine(null);
     setDebugState(null);
-    addOutput([{ type: "system", text: "■ Debug stopped" }]);
+    addOutput([{ type: "system", text: "\u25A0 Debug stopped" }]);
     setConsoleNotify(true);
-  }, [addOutput]);
+  }, [engine, addOutput]);
 
   const handleBottomTabChange=useCallback(id=>{setBottomTab(id);if(id==="console")setConsoleNotify(false);},[]);
   const handleCloseFigure=useCallback(id=>{engine.execute(`close(${id})`);},[engine]);
@@ -291,7 +291,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         </div>
         <div style={{display:"flex",gap:3,flexShrink:0}}>
           {showCenter&&<ActBtn onClick={runActiveTab} icon="▶" label="Run" color={C.green} title="Run current script" disabled={isDebugging}/>}
-          {showCenter&&!isDebugging&&<ActBtn onClick={()=>debugExecute(0)} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint"/>}
+          {showCenter&&!isDebugging&&<ActBtn onClick={debugStart} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint"/>}
           {showCenter&&isDebugging&&<ActBtn onClick={debugStop} icon="⏹" label="Stop" color={C.red} title="Stop debugging"/>}
           {showCenter&&<ActBtn onClick={handleSave} icon="💾" label="Save" title="Ctrl+S"/>}
           <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file"/>
@@ -311,7 +311,10 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{fontSize:11,color:C.orange,fontWeight:600,fontFamily:FONT_UI}}>⏸ Paused at line {debugState.line}</span>
           <span style={{fontSize:10,color:C.textMuted}}>({debugState.reason})</span>
           <div style={{flex:1}}/>
-          <button onClick={debugContinue} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.cyan,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}}>▶ Continue</button>
+          <button onClick={()=>debugResume(2)} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.blue||"#5c9fd6",color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}} title="Step Into (F11)">↓ Into</button>
+          <button onClick={()=>debugResume(1)} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.blue||"#5c9fd6",color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}} title="Step Over (F10)">→ Over</button>
+          <button onClick={()=>debugResume(3)} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.blue||"#5c9fd6",color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}} title="Step Out (Shift+F11)">↑ Out</button>
+          <button onClick={()=>debugResume(0)} style={{padding:"3px 10px",borderRadius:4,fontSize:10,fontWeight:600,background:C.cyan,color:"#fff",border:"none",cursor:"pointer",fontFamily:FONT_UI}} title="Continue (F5)">▶ Continue</button>
         </div>
       )}
 

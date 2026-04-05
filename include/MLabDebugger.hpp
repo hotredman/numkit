@@ -198,6 +198,12 @@ public:
     DebugContext makeContext(uint16_t line, uint16_t col) const;
     DebugContext makeContext() const;
 
+    // Set action for resume after pause (called before re-entering dispatch loop)
+    void setResumeAction(DebugAction action, int callDepth);
+
+    // Restore lastLine_ (used after debug eval to avoid re-triggering on the same line)
+    void setLastLine(uint16_t line) { lastLine_ = line; }
+
 private:
     DebugObserver *observer_;
     BreakpointManager *bpm_;

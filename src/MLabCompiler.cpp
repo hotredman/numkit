@@ -1176,9 +1176,16 @@ uint8_t Compiler::compileIf(const ASTNode *node)
         compileNode(node->elseBranch.get());
     }
 
-    // Patch all end jumps to here
+    // Emit NOP for the 'end' keyword so breakpoints on it fire
+    size_t endNopPos = currentPos();
+    if (node->endLine > 0) {
+        currentLoc_ = {static_cast<uint16_t>(node->endLine), 1};
+        emitNone(OpCode::NOP);
+    }
+
+    // Patch all end jumps to the NOP (all branches converge here)
     for (size_t pos : endJumps) {
-        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+        patchJump(pos, static_cast<int16_t>(endNopPos - pos));
     }
 
     constRegCache_.clear(); scalarRegs_.reset(); // don't know which branch ran
@@ -1270,9 +1277,16 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
         compileNode(node->elseBranch.get());
     }
 
+    // Emit NOP for the 'end' keyword so breakpoints on it fire
+    size_t endNopPos = currentPos();
+    if (node->endLine > 0) {
+        currentLoc_ = {static_cast<uint16_t>(node->endLine), 1};
+        emitNone(OpCode::NOP);
+    }
+
     // Patch end jumps
     for (size_t pos : endJumps) {
-        patchJump(pos, static_cast<int16_t>(currentPos() - pos));
+        patchJump(pos, static_cast<int16_t>(endNopPos - pos));
     }
 
     return 0;
@@ -1339,8 +1353,15 @@ uint8_t Compiler::compileTryCatch(const ASTNode *node)
         compileNode(node->children[1].get());
     }
 
-    // Patch JMP to end
-    patchJump(endJmpPos, static_cast<int16_t>(currentPos() - endJmpPos));
+    // Emit NOP for the 'end' keyword so breakpoints on it fire
+    size_t endNopPos = currentPos();
+    if (node->endLine > 0) {
+        currentLoc_ = {static_cast<uint16_t>(node->endLine), 1};
+        emitNone(OpCode::NOP);
+    }
+
+    // Patch JMP to end (land on NOP)
+    patchJump(endJmpPos, static_cast<int16_t>(endNopPos - endJmpPos));
 
     return 0;
 }
@@ -2526,6 +2547,10 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
 
     // Compile body
     compileNode(funcDef->children[0].get());
+
+    // Set source location to the 'end' keyword so breakpoints on it fire
+    if (funcDef->endLine > 0)
+        currentLoc_ = {static_cast<uint16_t>(funcDef->endLine), 1};
 
     // Emit return: collect return values
     if (funcDef->returnNames.size() == 1) {

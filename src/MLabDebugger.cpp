@@ -225,6 +225,13 @@ DebugContext DebugController::makeContext() const
     return makeContext(frame.line, frame.col);
 }
 
+void DebugController::setResumeAction(DebugAction action, int callDepth)
+{
+    applyAction(action, callDepth);
+    // Don't reset lastLine_ — we want the current pause line to be skipped
+    // so we don't immediately re-trigger on the same line.
+}
+
 void DebugController::applyAction(DebugAction action, int callDepth)
 {
     switch (action) {

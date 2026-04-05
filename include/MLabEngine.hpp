@@ -4,6 +4,7 @@
 #include "MLabDebugger.hpp"
 #include "MLabFigureManager.hpp"
 #include "MLabTypes.hpp"
+#include "MLabVM.hpp"
 
 #include <atomic>
 #include <memory>
@@ -90,6 +91,13 @@ public:
     DebugObserver *debugObserver() const { return debugObserver_.get(); }
     BreakpointManager &breakpointManager() { return breakpointManager_; }
     const BreakpointManager &breakpointManager() const { return breakpointManager_; }
+    DebugController *debugController() { return debugController_.get(); }
+    const DebugController *debugController() const { return debugController_.get(); }
+
+    // Resume paused debug execution with the given action.
+    // Returns Paused on next breakpoint/step, Completed if execution finishes.
+    // Throws DebugStopException if Stop is requested, MLabError on runtime errors.
+    ExecStatus debugResume(DebugAction action);
 
     // Reinstall built-in constants (pi, eps, inf, etc.) into globalEnv.
     // Called after clear to restore the standard environment.
@@ -155,6 +163,7 @@ private:
     friend class TreeWalker;
     friend class VM;
     friend class Compiler;
+    friend class DebugSession;
 };
 
 } // namespace mlab

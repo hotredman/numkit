@@ -51,14 +51,94 @@ static inline size_t checkedIndex(double idx, size_t numel)
 
 MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
 {
+    // RAII: export variables and cleanup on ANY exit path (success, exception, debug stop).
+    // Guarantees MATLAB-like behavior: variables assigned before an error survive in workspace.
+    struct ExecuteGuard
+    {
+        VM &vm;
+        ExecuteGuard(VM &v)
+            : vm(v)
+        {}
+        ~ExecuteGuard()
+        {
+            if (!vm.frames_.empty())
+                vm.exportTopLevelVariables();
+            vm.frames_.clear();
+            vm.forStack_.clear();
+            vm.tryStack_.clear();
+            vm.regStackTop_ = 0;
+            vm.R_ = nullptr;
+        }
+        ExecuteGuard(const ExecuteGuard &) = delete;
+        ExecuteGuard &operator=(const ExecuteGuard &) = delete;
+    } guard(*this);
+
+    ExecStatus status = startExecution(chunk, args, nargs);
+
+    if (status == ExecStatus::Paused) {
+        // Legacy API: convert pause to exception (guard will clean up)
+        throw DebugStopException();
+    }
+
+    return std::move(lastResult_);
+}
+
+// ── Paused state save/restore (for debug eval) ────────────
+
+std::unique_ptr<VM::PausedState> VM::savePausedState()
+{
+    auto s = std::make_unique<PausedState>();
+    s->frames = frames_;
+    s->forStack = forStack_;
+    s->tryStack = tryStack_;
+    s->regStackTop = regStackTop_;
+    s->lastResult = lastResult_;
+    // Snapshot only the used portion of the register stack
+    s->regSnapshot.assign(regStack_.begin(), regStack_.begin() + regStackTop_);
+    return s;
+}
+
+void VM::restorePausedState(std::unique_ptr<PausedState> s)
+{
+    if (!s) return;
+    frames_ = std::move(s->frames);
+    forStack_ = std::move(s->forStack);
+    tryStack_ = std::move(s->tryStack);
+    regStackTop_ = s->regStackTop;
+    lastResult_ = std::move(s->lastResult);
+    // Restore registers
+    std::copy(s->regSnapshot.begin(), s->regSnapshot.end(), regStack_.begin());
+    // Fix R pointers in frames (they pointed into regStack_)
+    R_ = regStack_.data();
+    for (auto &f : frames_)
+        f.R = &regStack_[f.regBase];
+    // Fix ForState data pointers (they point into ForState::range)
+    for (auto &fs : forStack_) {
+        if (fs.rangeType == MType::DOUBLE && fs.range.doubleData())
+            fs.data = fs.range.doubleData();
+        else
+            fs.rawData = fs.range.rawData();
+    }
+}
+
+// ── Debug-aware execution API ───────────────────────────────
+
+ExecStatus VM::startExecution(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
+{
     chunkCallCache_.clear();
+    frames_.clear();
+    forStack_.clear();
+    tryStack_.clear();
     regStackTop_ = 0;
+    returnCount_ = 0;
+    lastResult_ = MValue::empty();
+
+    // Allocate registers for top-level frame
+    uint8_t nregs = chunk.numRegisters;
     R_ = regStack_.data();
 
-    for (uint8_t i = 0; i < chunk.numRegisters; ++i)
+    for (uint8_t i = 0; i < nregs; ++i)
         R_[i] = MValue::empty();
-
-    regStackTop_ = chunk.numRegisters;
 
     if (args) {
         uint8_t pc = std::min(nargs, chunk.numParams);
@@ -66,52 +146,61 @@ MValue VM::execute(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs
             R_[i] = args[i];
     }
 
-    // RAII: export variables and cleanup registers on ANY exit path
-    // (success, exception, early return). Guarantees MATLAB-like behavior:
-    // variables assigned before an error survive in workspace.
-    struct ExecuteGuard
-    {
-        VM &vm;
-        const BytecodeChunk &chunk;
-        ExecuteGuard(VM &v, const BytecodeChunk &c)
-            : vm(v)
-            , chunk(c)
-        {}
-        ~ExecuteGuard()
-        {
-            vm.exportVariables(chunk);
-            vm.regStackTop_ = 0;
-            vm.R_ = nullptr;
-        }
-        ExecuteGuard(const ExecuteGuard &) = delete;
-        ExecuteGuard &operator=(const ExecuteGuard &) = delete;
-    } guard(*this, chunk);
+    regStackTop_ = nregs;
 
-    std::optional<DebugController::FrameGuard> dbgFrame;
+    // Push initial call frame
+    CallFrame cf;
+    cf.chunk = &chunk;
+    cf.ip = chunk.code.data();
+    cf.R = R_;
+    cf.regBase = 0;
+    cf.nregs = nregs;
+    cf.forStackBase = 0;
+    cf.tryStackBase = 0;
+    frames_.push_back(cf);
+
+    // Debug: push top-level debug frame
+    // Default StepInto: observer's first onLine fires on line 1, giving it
+    // a chance to choose the execution mode (Continue, StepOver, etc).
     if (auto *ctl = debugCtl()) {
         ctl->reset();
-        StackFrame frame;
-        frame.functionName = chunk.name;
-        frame.chunk = &chunk;
-        frame.registers = R_;
-        dbgFrame.emplace(*ctl, std::move(frame));
+        StackFrame sf;
+        sf.functionName = chunk.name;
+        sf.chunk = &chunk;
+        sf.registers = R_;
+        ctl->pushFrame(std::move(sf));
     }
 
-    return executeInternal(chunk);
+    return dispatchLoop();
+}
+
+ExecStatus VM::resumeExecution()
+{
+    if (frames_.empty())
+        return ExecStatus::Completed;
+
+    return dispatchLoop();
 }
 
 // ============================================================
 // Internal dispatch — MValue directly, scalar fast paths
 // ============================================================
 
-__attribute__((flatten)) MValue VM::executeInternal(const BytecodeChunk &chunk)
+__attribute__((flatten)) ExecStatus VM::dispatchLoop()
 {
-    const Instruction *ip = chunk.code.data();
-    const Instruction *end = ip + chunk.code.size();
-    auto *R = R_;
-    auto &resolvedFuncs = chunkCallCache_[&chunk];
+enter_frame:
+    if (frames_.empty())
+        return ExecStatus::Completed;
 
-dispatch_loop:
+    {
+        CallFrame &frame = frames_.back();
+        const Instruction *ip = frame.ip;
+        const BytecodeChunk &chunk = *frame.chunk;
+        const Instruction *end = chunk.code.data() + chunk.code.size();
+        auto *R = frame.R;
+        auto &resolvedFuncs = chunkCallCache_[frame.chunk];
+
+dispatch_retry:
     try {
         auto *dbgCtl = debugCtl(); // hoist out of hot loop
         while (ip < end) {
@@ -123,8 +212,10 @@ dispatch_loop:
                     if (loc.line > 0) {
                         if (auto *f = dbgCtl->currentFrame())
                             f->registers = R;
-                        if (!dbgCtl->checkLine(loc.line, loc.col, recursionDepth_))
-                            throw DebugStopException();
+                        if (!dbgCtl->checkLine(loc.line, loc.col, callDepth())) {
+                            frame.ip = ip;
+                            return ExecStatus::Paused;
+                        }
                     }
                 }
             }
@@ -949,15 +1040,15 @@ dispatch_loop:
             // ── General function calls ───────────────────────────
             case OpCode::CALL: {
                 uint8_t argBase = I.b, na = I.c;
-                uint8_t nargout = I.e; // 0=statement, 1=expression
+                uint8_t nargout_val = I.e; // 0=statement, 1=expression
                 int16_t funcIdx = I.d;
-                MValue callResult;
-                bool resolved = false;
-                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx]) {
-                    callResult = callUserFunc(*resolvedFuncs[funcIdx], &R[argBase], na, nargout);
-                    resolved = true;
-                }
-                if (!resolved) {
+
+                // Try resolved cache first
+                const BytecodeChunk *targetChunk = nullptr;
+                if (funcIdx < (int16_t) resolvedFuncs.size() && resolvedFuncs[funcIdx])
+                    targetChunk = resolvedFuncs[funcIdx];
+
+                if (!targetChunk) {
                     const std::string &funcName = chunk.strings[funcIdx];
                     if (compiledFuncs_) {
                         auto cfIt = compiledFuncs_->find(funcName);
@@ -965,27 +1056,33 @@ dispatch_loop:
                             if (funcIdx >= (int16_t) resolvedFuncs.size())
                                 resolvedFuncs.resize(funcIdx + 1, nullptr);
                             resolvedFuncs[funcIdx] = &cfIt->second;
-                            callResult = callUserFunc(cfIt->second, &R[argBase], na, nargout);
-                            resolved = true;
+                            targetChunk = &cfIt->second;
                         }
-                    }
-                    if (!resolved) {
-                        // External func
-                        auto extIt = engine_.externalFuncs_.find(funcName);
-                        if (extIt != engine_.externalFuncs_.end()) {
-                            Span<const MValue> as(&R[argBase], na);
-                            MValue ob[1];
-                            Span<MValue> os(ob, 1);
-                            CallContext ctx{&engine_, &engine_.globalEnvironment()};
-                            extIt->second(as, nargout, os, ctx);
-                            R[I.a] = std::move(ob[0]);
-                            break;
-                        }
-                        throw std::runtime_error("VM: undefined function '" + funcName + "'");
                     }
                 }
-                R[I.a] = std::move(callResult);
-                break;
+
+                if (targetChunk) {
+                    // User function — push frame and enter
+                    frame.ip = ip + 1;
+                    pushCallFrame(*targetChunk, &R[argBase], na, I.a, nargout_val);
+                    goto enter_frame;
+                }
+
+                // External function — call directly (no frame push)
+                {
+                    const std::string &funcName = chunk.strings[funcIdx];
+                    auto extIt = engine_.externalFuncs_.find(funcName);
+                    if (extIt != engine_.externalFuncs_.end()) {
+                        Span<const MValue> as(&R[argBase], na);
+                        MValue ob[1];
+                        Span<MValue> os(ob, 1);
+                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        extIt->second(as, nargout_val, os, ctx);
+                        R[I.a] = std::move(ob[0]);
+                        break;
+                    }
+                    throw std::runtime_error("VM: undefined function '" + funcName + "'");
+                }
             }
 
             // ── Multi-return function call ──────────────────────
@@ -999,25 +1096,28 @@ dispatch_loop:
                 if (compiledFuncs_) {
                     auto cfIt = compiledFuncs_->find(funcName);
                     if (cfIt != compiledFuncs_->end()) {
-                        auto results = callUserFuncMulti(cfIt->second, &R[argBase], na, nout);
-                        for (size_t i = 0; i < results.size() && i < nout; ++i)
-                            R[outBase + i] = std::move(results[i]);
-                        break;
+                        frame.ip = ip + 1;
+                        returnCount_ = 0;
+                        pushCallFrame(cfIt->second, &R[argBase], na,
+                                      0, nout, true, outBase, nout);
+                        goto enter_frame;
                     }
                 }
-                // External function with nout
-                auto extIt = engine_.externalFuncs_.find(funcName);
-                if (extIt != engine_.externalFuncs_.end()) {
-                    std::vector<MValue> outBuf(nout);
-                    Span<const MValue> as(&R[argBase], na);
-                    Span<MValue> os(outBuf.data(), nout);
-                    CallContext ctx{&engine_, &engine_.globalEnvironment()};
-                    extIt->second(as, nout, os, ctx);
-                    for (size_t i = 0; i < nout; ++i)
-                        R[outBase + i] = std::move(outBuf[i]);
-                    break;
+                // External function with nout — call directly
+                {
+                    auto extIt = engine_.externalFuncs_.find(funcName);
+                    if (extIt != engine_.externalFuncs_.end()) {
+                        std::vector<MValue> outBuf(nout);
+                        Span<const MValue> as(&R[argBase], na);
+                        Span<MValue> os(outBuf.data(), nout);
+                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        extIt->second(as, nout, os, ctx);
+                        for (size_t i = 0; i < nout; ++i)
+                            R[outBase + i] = std::move(outBuf[i]);
+                        break;
+                    }
+                    throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
-                throw std::runtime_error("VM: undefined function '" + funcName + "'");
             }
 
             // ── Indirect function call (func handle) or array indexing ─
@@ -1057,8 +1157,9 @@ dispatch_loop:
                     if (compiledFuncs_) {
                         auto cfIt = compiledFuncs_->find(funcName);
                         if (cfIt != compiledFuncs_->end()) {
-                            R[I.a] = callUserFunc(cfIt->second, argsBuf.data(), totalArgs);
-                            break;
+                            frame.ip = ip + 1;
+                            pushCallFrame(cfIt->second, argsBuf.data(), totalArgs, I.a, 1);
+                            goto enter_frame;
                         }
                     }
                     auto extIt = engine_.externalFuncs_.find(funcName);
@@ -1172,19 +1273,23 @@ dispatch_loop:
 
             // ── Return ───────────────────────────────────────────
             case OpCode::RET:
-                return R[I.a];
+                popCallFrame(R[I.a]);
+                goto enter_frame;
             case OpCode::RET_MULTI: {
                 // a=base, b=count — store return values in returnBuf_
                 uint8_t base = I.a, count = I.b;
                 returnCount_ = count;
                 for (uint8_t i = 0; i < count && i < kMaxReturns; ++i)
                     returnBuf_[i] = R[base + i];
-                return R[base]; // return first value for single-return callers
+                popCallFrame(R[base]); // first value as primary return
+                goto enter_frame;
             }
             case OpCode::RET_EMPTY:
-                return MValue::empty();
+                popCallFrame(MValue::empty());
+                goto enter_frame;
             case OpCode::HALT:
-                return MValue::empty();
+                popCallFrame(MValue::empty());
+                goto enter_frame;
             case OpCode::NOP:
                 if (I.a == 1 && !forStack_.empty())
                     forStack_.pop_back(); // break from for-loop
@@ -1364,6 +1469,7 @@ dispatch_loop:
                 th.catchIp = ip + I.d;
                 th.exReg = I.a;
                 th.forStackSize = forStack_.size();
+                th.frameIndex = frames_.size() - 1;
                 tryStack_.push_back(th);
                 break;
             }
@@ -1501,40 +1607,45 @@ dispatch_loop:
         throw; // pass through — not a user error
     } catch (const MLabError &mle) {
         std::string id = mle.identifier().empty() ? "MLAB:error" : mle.identifier();
-        if (dispatchTryCatch(mle.what(), id.c_str(), R, ip))
-            goto dispatch_loop;
+        if (dispatchTryCatch(mle.what(), id.c_str()))
+            goto enter_frame;
         throw;
     } catch (const std::exception &ex) {
-        if (dispatchTryCatch(ex.what(), "MLAB:error", R, ip))
-            goto dispatch_loop;
+        if (dispatchTryCatch(ex.what(), "MLAB:error"))
+            goto enter_frame;
         enrichAndThrow(ex, ip, chunk);
     }
 
-    return MValue::empty();
+    // Fell off end of bytecode — implicit return empty
+    popCallFrame(MValue::empty());
+    goto enter_frame;
+    } // scope for frame locals
 }
 
 // ============================================================
-// Variable export (called by ExecuteGuard on any exit)
+// Variable export from top-level frame
 // ============================================================
 
-void VM::exportVariables(const BytecodeChunk &chunk)
+void VM::exportTopLevelVariables()
 {
-    lastVarMap_.clear();
-    if (!R_)
+    if (frames_.empty())
         return;
 
+    CallFrame &topFrame = frames_[0];
+    lastVarMap_.clear();
+
     // Export script-level variables to lastVarMap_ for environment sync
-    for (auto &[name, reg] : chunk.varMap) {
-        if (reg < chunk.numRegisters)
-            lastVarMap_.push_back({name, R_[reg]});
+    for (auto &[name, reg] : topFrame.chunk->varMap) {
+        if (reg < topFrame.nregs)
+            lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
-    // Export global declarations to globalStore
-    for (auto &gname : chunk.globalNames) {
-        for (auto &[vname, reg] : chunk.varMap) {
-            if (vname == gname && reg < chunk.numRegisters) {
-                if (!R_[reg].isEmpty())
-                    engine_.globalStore_.set(gname, R_[reg]);
+    // Export global declarations to globalStore (same logic as popCallFrame top-level path)
+    for (auto &gname : topFrame.chunk->globalNames) {
+        for (auto &[vname, reg] : topFrame.chunk->varMap) {
+            if (vname == gname && reg < topFrame.nregs) {
+                if (!topFrame.R[reg].isEmpty())
+                    engine_.globalStore_.set(gname, topFrame.R[reg]);
                 MValue *gsVal = engine_.globalStore_.get(gname);
                 if (gsVal)
                     engine_.globalEnv_->set(gname, *gsVal);
@@ -1548,8 +1659,7 @@ void VM::exportVariables(const BytecodeChunk &chunk)
 // Exception helpers
 // ============================================================
 
-bool VM::dispatchTryCatch(const char *msg, const char *identifier, MValue *R,
-                          const Instruction *&ip)
+bool VM::dispatchTryCatch(const char *msg, const char *identifier)
 {
     if (tryStack_.empty())
         return false;
@@ -1557,16 +1667,38 @@ bool VM::dispatchTryCatch(const char *msg, const char *identifier, MValue *R,
     TryHandler th = tryStack_.back();
     tryStack_.pop_back();
 
-    // Restore for-loop stack to the state at TRY_BEGIN — exception may have
-    // jumped out of one or more for-loops, leaving stale ForState entries.
+    // Unwind call frames to the handler's frame (exception may propagate across calls)
+    while (frames_.size() > th.frameIndex + 1) {
+        CallFrame &f = frames_.back();
+        // Pop debug frame
+        if (auto *ctl = debugCtl())
+            ctl->popFrame();
+        // Remove try handlers from this frame
+        while (!tryStack_.empty() && tryStack_.back().frameIndex >= frames_.size() - 1)
+            tryStack_.pop_back();
+        // Trim for-loop stack
+        forStack_.resize(std::min(forStack_.size(), f.forStackBase));
+        // Cleanup registers
+        for (uint8_t i = 0; i < f.nregs; ++i)
+            if (!f.R[i].isDoubleScalar() && !f.R[i].isEmpty())
+                f.R[i] = MValue::empty();
+        regStackTop_ = f.regBase;
+        frames_.pop_back();
+    }
+
+    // Restore for-loop stack to the state at TRY_BEGIN
     if (forStack_.size() > th.forStackSize)
         forStack_.resize(th.forStackSize);
+
+    // Set up catch context in the handler's frame
+    CallFrame &frame = frames_.back();
+    R_ = frame.R;
 
     MValue err = MValue::structure();
     err.field("message") = MValue::fromString(msg, &engine_.allocator_);
     err.field("identifier") = MValue::fromString(identifier, &engine_.allocator_);
-    R[th.exReg] = std::move(err);
-    ip = th.catchIp;
+    frame.R[th.exReg] = std::move(err);
+    frame.ip = th.catchIp;
     return true;
 }
 
@@ -1705,148 +1837,170 @@ DebugController *VM::debugCtl()
 }
 
 // ============================================================
-// User function call — no VMValue conversion needed
+// Frame management — non-recursive call/return
 // ============================================================
 
-MValue VM::callUserFunc(const BytecodeChunk &funcChunk,
-                        const MValue *args,
-                        uint8_t nargs,
-                        size_t nargout)
+void VM::pushCallFrame(const BytecodeChunk &funcChunk, const MValue *args, uint8_t nargs,
+                       uint8_t destReg, size_t nargout,
+                       bool isMulti, uint8_t outBase, uint8_t nout)
 {
-    if (++recursionDepth_ > maxRecursion_) {
-        --recursionDepth_;
+    if (callDepth() >= maxRecursion_)
         throw std::runtime_error("VM: maximum recursion depth exceeded");
-    }
 
-    if (nargs > funcChunk.numParams) {
-        --recursionDepth_;
+    if (nargs > funcChunk.numParams)
         throw std::runtime_error("Too many input arguments for function '" + funcChunk.name + "'");
-    }
+
+    uint8_t nregs = funcChunk.numRegisters;
+    if (regStackTop_ + nregs > kRegStackSize)
+        throw std::runtime_error("VM: register stack overflow");
 
     uint8_t pc = std::min(nargs, funcChunk.numParams);
+
+    // Defensive copy: args may point into regStack_ near regStackTop_
     std::vector<MValue> argsCopy(pc);
     for (uint8_t i = 0; i < pc; ++i)
         argsCopy[i] = args[i];
 
-    size_t savedTop = regStackTop_;
-    MValue *savedR = R_;
-    size_t savedForSize = forStack_.size();
-    size_t savedTrySize = tryStack_.size();
-
-    uint8_t nregs = funcChunk.numRegisters;
-    if (regStackTop_ + nregs > kRegStackSize) {
-        --recursionDepth_;
-        throw std::runtime_error("VM: register stack overflow");
-    }
-
-    R_ = regStack_.data() + regStackTop_;
-    regStackTop_ += nregs;
+    // Allocate registers
+    MValue *newR = regStack_.data() + regStackTop_;
+    for (uint8_t i = 0; i < nregs; ++i)
+        newR[i] = MValue::empty();
 
     for (uint8_t i = 0; i < pc; ++i)
-        R_[i] = std::move(argsCopy[i]);
+        newR[i] = std::move(argsCopy[i]);
 
     // Inject nargin/nargout into function scope
     for (auto &[vname, reg] : funcChunk.varMap) {
         if (vname == "nargin" && reg < nregs)
-            R_[reg] = MValue::scalar(static_cast<double>(nargs), nullptr);
+            newR[reg] = MValue::scalar(static_cast<double>(nargs), nullptr);
         else if (vname == "nargout" && reg < nregs)
-            R_[reg] = MValue::scalar(static_cast<double>(nargout), nullptr);
+            newR[reg] = MValue::scalar(static_cast<double>(nargout), nullptr);
     }
 
     // Import global variables from globalStore
     for (auto &gname : funcChunk.globalNames) {
-        // Find register for this global
         for (auto &[vname, reg] : funcChunk.varMap) {
             if (vname == gname && reg < nregs) {
                 MValue *gval = engine_.globalStore_.get(gname);
                 if (gval)
-                    R_[reg] = *gval;
+                    newR[reg] = *gval;
                 break;
             }
         }
     }
 
-    // Debug: RAII frame guard — pops frame even on exception.
-    std::optional<DebugController::FrameGuard> dbgFrame;
-    if (auto *ctl = debugCtl()) {
-        StackFrame frame;
-        frame.functionName = funcChunk.name;
-        frame.chunk = &funcChunk;
-        frame.registers = R_;
-        dbgFrame.emplace(*ctl, std::move(frame));
-    }
+    // Push call frame
+    CallFrame cf;
+    cf.chunk = &funcChunk;
+    cf.ip = funcChunk.code.data();
+    cf.R = newR;
+    cf.regBase = regStackTop_;
+    cf.nregs = nregs;
+    cf.forStackBase = forStack_.size();
+    cf.tryStackBase = tryStack_.size();
+    cf.destReg = destReg;
+    cf.nargout = nargout;
+    cf.isMultiReturn = isMulti;
+    cf.outBase = outBase;
+    cf.nout = nout;
+    frames_.push_back(cf);
 
-    MValue result = executeInternal(funcChunk);
+    regStackTop_ += nregs;
+    R_ = newR;
+
+    // Push debug frame
+    if (auto *ctl = debugCtl()) {
+        StackFrame sf;
+        sf.functionName = funcChunk.name;
+        sf.chunk = &funcChunk;
+        sf.registers = newR;
+        ctl->pushFrame(std::move(sf));
+    }
+}
+
+void VM::popCallFrame(MValue retVal)
+{
+    CallFrame &frame = frames_.back();
 
     // Update parent frame's registers BEFORE popFrame —
     // so onFunctionExit sees correct parent variables.
     if (auto *ctl = debugCtl()) {
         auto &stack = ctl->callStack();
-        if (stack.size() >= 2)
-            stack[stack.size() - 2].registers = savedR;
+        if (stack.size() >= 2 && frames_.size() >= 2)
+            stack[stack.size() - 2].registers = frames_[frames_.size() - 2].R;
+        ctl->popFrame();
     }
-    dbgFrame.reset();
+
+    bool isTopLevel = (frames_.size() == 1);
 
     // Export global variables back to globalStore
-    for (auto &gname : funcChunk.globalNames) {
-        for (auto &[vname, reg] : funcChunk.varMap) {
-            if (vname == gname && reg < nregs) {
-                engine_.globalStore_.set(gname, R_[reg]);
-                // Also update globalEnv for getVariable() access
-                engine_.globalEnv_->set(gname, R_[reg]);
+    for (auto &gname : frame.chunk->globalNames) {
+        for (auto &[vname, reg] : frame.chunk->varMap) {
+            if (vname == gname && reg < frame.nregs) {
+                if (isTopLevel) {
+                    // Top-level: only overwrite if non-empty (function calls
+                    // may have set the global, but our register is stale)
+                    if (!frame.R[reg].isEmpty())
+                        engine_.globalStore_.set(gname, frame.R[reg]);
+                    MValue *gsVal = engine_.globalStore_.get(gname);
+                    if (gsVal)
+                        engine_.globalEnv_->set(gname, *gsVal);
+                } else {
+                    engine_.globalStore_.set(gname, frame.R[reg]);
+                    engine_.globalEnv_->set(gname, frame.R[reg]);
+                }
                 break;
             }
         }
     }
 
-    // Cleanup: release heap objects in callee frame
-    for (uint8_t i = 0; i < nregs; ++i) {
-        if (!R_[i].isDoubleScalar() && !R_[i].isEmpty())
-            R_[i] = MValue::empty();
+    if (isTopLevel) {
+        // Export top-level variables
+        lastVarMap_.clear();
+        for (auto &[name, reg] : frame.chunk->varMap) {
+            if (reg < frame.nregs)
+                lastVarMap_.push_back({name, frame.R[reg]});
+        }
     }
 
-    regStackTop_ = savedTop;
-    R_ = savedR;
-    forStack_.resize(savedForSize);
-    tryStack_.resize(savedTrySize);
-    --recursionDepth_;
-    return result;
-}
+    // Cleanup: release heap objects in frame
+    for (uint8_t i = 0; i < frame.nregs; ++i) {
+        if (!frame.R[i].isDoubleScalar() && !frame.R[i].isEmpty())
+            frame.R[i] = MValue::empty();
+    }
 
-// ============================================================
-// Array helpers
-// ============================================================
+    // Restore stack pointers
+    regStackTop_ = frame.regBase;
+    forStack_.resize(std::min(forStack_.size(), frame.forStackBase));
+    tryStack_.resize(std::min(tryStack_.size(), frame.tryStackBase));
 
-// ============================================================
-// Multi-return user function call
-// ============================================================
+    frames_.pop_back();
 
-std::vector<MValue> VM::callUserFuncMulti(const BytecodeChunk &funcChunk,
-                                          const MValue *args,
-                                          uint8_t nargs,
-                                          size_t nout)
-{
-    returnCount_ = 0;
-    MValue first = callUserFunc(funcChunk, args, nargs, nout);
+    if (!frames_.empty()) {
+        CallFrame &caller = frames_.back();
+        R_ = caller.R;
 
-    std::vector<MValue> results;
-    if (returnCount_ > 0) {
-        // RET_MULTI was used — read from returnBuf_
-        results.reserve(nout);
-        for (size_t i = 0; i < nout && i < returnCount_; ++i)
-            results.push_back(std::move(returnBuf_[i]));
-        // Clear buffer entries
-        for (uint8_t i = 0; i < returnCount_; ++i)
-            returnBuf_[i] = MValue::empty();
-        returnCount_ = 0;
+        if (frame.isMultiReturn) {
+            // Multi-return: distribute returnBuf_ into caller's registers
+            if (returnCount_ > 0) {
+                for (size_t i = 0; i < frame.nout && i < returnCount_; ++i)
+                    caller.R[frame.outBase + i] = std::move(returnBuf_[i]);
+                for (uint8_t i = 0; i < returnCount_; ++i)
+                    returnBuf_[i] = MValue::empty();
+                returnCount_ = 0;
+            } else {
+                // Single return via RET — store in first output slot
+                caller.R[frame.outBase] = std::move(retVal);
+                for (size_t i = 1; i < frame.nout; ++i)
+                    caller.R[frame.outBase + i] = MValue::empty();
+            }
+        } else {
+            caller.R[frame.destReg] = std::move(retVal);
+        }
     } else {
-        // Single return via RET
-        results.push_back(std::move(first));
+        R_ = nullptr;
+        lastResult_ = std::move(retVal);
     }
-
-    while (results.size() < nout)
-        results.push_back(MValue::empty());
-    return results;
 }
 
 void VM::forSetVar(MValue &varReg, const ForState &fs)

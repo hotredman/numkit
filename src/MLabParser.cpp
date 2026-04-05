@@ -498,6 +498,7 @@ ASTNodePtr Parser::parseIf()
         node->elseBranch = parseBlock({TokenType::KW_END});
     }
 
+    node->endLine = current().line;
     consume(TokenType::KW_END, "end");
     skipTerminators();
     return node;
@@ -559,6 +560,7 @@ ASTNodePtr Parser::parseSwitch()
         node->elseBranch = parseBlock({TokenType::KW_END});
     }
 
+    node->endLine = current().line;
     consume(TokenType::KW_END, "end");
     skipTerminators();
     return node;
@@ -582,6 +584,7 @@ ASTNodePtr Parser::parseTryCatch()
         node->children.push_back(parseBlock({TokenType::KW_END}));
     }
 
+    node->endLine = current().line;
     consume(TokenType::KW_END, "end");
     skipTerminators();
     return node;
@@ -666,6 +669,7 @@ ASTNodePtr Parser::parseFunctionDef()
     node->children.push_back(parseBlock({TokenType::KW_END}));
 
     if (check(TokenType::KW_END)) {
+        node->endLine = current().line;
         pos_++;
     } else if (!isAtEnd()) {
         throw std::runtime_error("Expected 'end' for function '" + node->strValue

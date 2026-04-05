@@ -70,6 +70,7 @@ set(DIAGNOSTICS_TESTS
     diagnostics/debugger_phase1_test.cpp
     diagnostics/debugger_phase234_test.cpp
     diagnostics/debugger_diagnostic_test.cpp
+    diagnostics/debug_session_test.cpp
     diagnostics/who_diagnostic_test.cpp
     diagnostics/known_issues_test.cpp
 )

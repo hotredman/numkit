@@ -9,158 +9,81 @@
 
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
-#include "MLabDebugger.hpp"
+#include "MLabDebugSession.hpp"
 
 // ════════════════════════════════════════════════════════════════
-// WasmDebugObserver — captures pause state for JS consumption
+// Helper: format MValue for variable preview
 // ════════════════════════════════════════════════════════════════
-class WasmDebugObserver : public mlab::DebugObserver {
-public:
-    // State captured when execution pauses
-    struct PauseState {
-        uint16_t line = 0;
-        uint16_t col = 0;
-        std::string functionName;
-        std::string reason; // "breakpoint", "step", "entry"
-        std::vector<std::pair<std::string, std::string>> variables; // name → preview
-    };
-
-    bool paused = false;
-    PauseState pauseState;
-    int breakpointHitCount = 0; // how many breakpoints we've hit
-    int skipBreakpoints = 0;    // how many breakpoints to skip (for continue)
-
-    mlab::DebugAction onLine(const mlab::DebugContext &ctx) override {
-        // In run-to-breakpoint mode: don't stop on regular lines.
-        // The initial onLine (from reset(StepInto)) just sets us to Continue.
-        (void)ctx;
-        return mlab::DebugAction::Continue;
-    }
-
-    mlab::DebugAction onBreakpoint(const mlab::DebugContext &ctx) override {
-        breakpointHitCount++;
-        if (breakpointHitCount <= skipBreakpoints) {
-            return mlab::DebugAction::Continue;
+static std::string valuePreview(const mlab::MValue &val) {
+    using mlab::MType;
+    try {
+        if (val.isScalar()) {
+            if (val.type() == MType::DOUBLE) {
+                double v = val.toScalar();
+                if (std::isnan(v)) return "NaN";
+                if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
+                if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                    return std::to_string(static_cast<int64_t>(v));
+                std::ostringstream os; os << v; return os.str();
+            }
+            if (val.type() == MType::LOGICAL)
+                return val.toBool() ? "true" : "false";
+            if (val.type() == MType::COMPLEX) {
+                auto c = val.toComplex();
+                std::ostringstream os;
+                os << c.real();
+                if (c.imag() >= 0) os << "+";
+                os << c.imag() << "i";
+                return os.str();
+            }
         }
-        capturePauseState(ctx, "breakpoint");
-        paused = true;
-        return mlab::DebugAction::Stop;
-    }
-
-    void onError(const mlab::DebugContext &ctx, const std::string &msg) override {
-        (void)ctx; (void)msg;
-    }
-
-    void onFunctionEntry(const mlab::DebugContext &ctx) override {
-        (void)ctx;
-    }
-
-    void onFunctionExit(const mlab::DebugContext &ctx) override {
-        (void)ctx;
-    }
-
-    std::string pauseStateJSON() const {
-        std::ostringstream ss;
-        ss << "{\"line\":" << pauseState.line
-           << ",\"col\":" << pauseState.col
-           << ",\"function\":\"" << escapedString(pauseState.functionName) << "\""
-           << ",\"reason\":\"" << pauseState.reason << "\""
-           << ",\"variables\":{";
-        bool first = true;
-        for (auto &[name, preview] : pauseState.variables) {
-            if (!first) ss << ",";
-            ss << "\"" << escapedString(name) << "\":\"" << escapedString(preview) << "\"";
-            first = false;
+        if (val.type() == MType::CHAR)
+            return "'" + val.toString() + "'";
+        auto &d = val.dims();
+        std::ostringstream os;
+        os << "[" << d.rows() << "x" << d.cols();
+        if (d.is3D()) os << "x" << d.pages();
+        os << " " << mlab::mtypeName(val.type()) << "]";
+        if (val.type() == MType::DOUBLE && val.numel() <= 10) {
+            os << " [";
+            for (size_t i = 0; i < val.numel(); ++i) {
+                if (i) os << " ";
+                double v = val.doubleData()[i];
+                if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
+                    os << static_cast<int64_t>(v);
+                else
+                    os << v;
+            }
+            os << "]";
         }
-        ss << "}}";
-        return ss.str();
+        return os.str();
+    } catch (...) {
+        return "<error>";
     }
+}
 
-private:
-    void capturePauseState(const mlab::DebugContext &ctx, const std::string &reason) {
-        pauseState.line = ctx.line;
-        pauseState.col = ctx.col;
-        pauseState.functionName = ctx.functionName ? *ctx.functionName : "<unknown>";
-        pauseState.reason = reason;
-        pauseState.variables.clear();
-
-        // Capture variables from current frame
-        if (auto *frame = ctx.currentFrame()) {
-            auto vars = frame->variables();
-            for (auto &v : vars) {
-                if (v.value) {
-                    pauseState.variables.emplace_back(v.name, valuePreview(*v.value));
-                }
+static std::string escapeJSON(const std::string &s) {
+    std::string result;
+    result.reserve(s.size());
+    for (char c : s) {
+        switch (c) {
+        case '"':  result += "\\\""; break;
+        case '\\': result += "\\\\"; break;
+        case '\n': result += "\\n"; break;
+        case '\r': result += "\\r"; break;
+        case '\t': result += "\\t"; break;
+        default:
+            if (static_cast<unsigned char>(c) < 0x20) {
+                char buf[8];
+                snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
+                result += buf;
+            } else {
+                result += c;
             }
         }
     }
-
-    static std::string valuePreview(const mlab::MValue &val) {
-        using mlab::MType;
-        try {
-            if (val.isScalar()) {
-                if (val.type() == MType::DOUBLE) {
-                    double v = val.toScalar();
-                    if (std::isnan(v)) return "NaN";
-                    if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
-                    // Avoid trailing zeros for integers
-                    if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
-                        return std::to_string(static_cast<int64_t>(v));
-                    std::ostringstream os; os << v; return os.str();
-                }
-                if (val.type() == MType::LOGICAL)
-                    return val.toBool() ? "true" : "false";
-                if (val.type() == MType::COMPLEX) {
-                    auto c = val.toComplex();
-                    std::ostringstream os;
-                    os << c.real();
-                    if (c.imag() >= 0) os << "+";
-                    os << c.imag() << "i";
-                    return os.str();
-                }
-            }
-            if (val.type() == MType::CHAR)
-                return "'" + val.toString() + "'";
-            // Arrays: show size and a few elements
-            auto &d = val.dims();
-            std::ostringstream os;
-            os << "[" << d.rows() << "x" << d.cols();
-            if (d.is3D()) os << "x" << d.pages();
-            os << " " << mlab::mtypeName(val.type()) << "]";
-            if (val.type() == MType::DOUBLE && val.numel() <= 10) {
-                os << " [";
-                for (size_t i = 0; i < val.numel(); ++i) {
-                    if (i) os << " ";
-                    double v = val.doubleData()[i];
-                    if (v == static_cast<int64_t>(v) && std::abs(v) < 1e15)
-                        os << static_cast<int64_t>(v);
-                    else
-                        os << v;
-                }
-                os << "]";
-            }
-            return os.str();
-        } catch (...) {
-            return "<error>";
-        }
-    }
-
-    static std::string escapedString(const std::string &s) {
-        std::string result;
-        result.reserve(s.size());
-        for (char c : s) {
-            switch (c) {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
-            default:   result += c;
-            }
-        }
-        return result;
-    }
-};
+    return result;
+}
 
 // ════════════════════════════════════════════════════════════════
 // ReplSession
@@ -175,6 +98,11 @@ public:
     }
 
     std::string execute(const std::string& code) {
+        // During active debug session, evaluate in the current frame context
+        if (debugSession_ && debugSession_->isActive()) {
+            return debugEval(code);
+        }
+
         outputBuf_.clear();
 
         std::ostringstream coutCapture;
@@ -212,103 +140,65 @@ public:
         return output;
     }
 
-    // ── Debug execution ──
-    // Returns JSON: { "status": "paused"|"completed"|"error", "line": N, ... }
-    std::string debugExecute(const std::string &code, int skipBp = 0) {
-        outputBuf_.clear();
+    // Evaluate expression in debug context (saves/restores VM paused state)
+    std::string debugEval(const std::string &code) {
+        return debugSession_->eval(code);
+    }
 
-        auto observer = std::make_shared<WasmDebugObserver>();
-        observer->skipBreakpoints = skipBp;
-        observer->breakpointHitCount = 0;
-        observer->paused = false;
+    // ── Debug API (clean, no replay) ──
 
-        engine_->setDebugObserver(observer);
+    std::string debugStart(const std::string &code) {
+        debugSession_ = std::make_unique<mlab::DebugSession>(*engine_);
 
-        // Set initial action: if breakpoints exist, Continue (run to bp).
-        // If no breakpoints, we shouldn't stop on every line.
-        // The controller defaults to StepInto, but our observer returns Stop on onLine.
-        // So we need Continue mode — breakpoints only.
-        // We achieve this by having reset() called with Continue inside the engine.
+        // Set breakpoints from saved list
+        debugSession_->setBreakpoints(breakpointLines_);
 
-        std::ostringstream coutCapture;
-        auto oldCout = std::cout.rdbuf(coutCapture.rdbuf());
+        auto status = debugSession_->start(code);
+        return buildDebugResult(status);
+    }
 
-        auto collectOutput = [&]() -> std::string {
-            std::cout.rdbuf(oldCout);
-            std::string output = outputBuf_;
-            std::string coutStr = coutCapture.str();
-            if (!coutStr.empty()) {
-                if (!output.empty() && output.back() != '\n') output += '\n';
-                output += coutStr;
-            }
-            return output;
-        };
+    std::string debugResume(int action) {
+        if (!debugSession_ || !debugSession_->isActive())
+            return "{\"status\":\"completed\"}";
 
-        auto r = engine_->evalSafe(code);
-        std::string output = collectOutput();
-        std::string result;
+        auto da = static_cast<mlab::DebugAction>(action);
+        auto status = debugSession_->resume(da);
+        return buildDebugResult(status);
+    }
 
-        if (r.ok) {
-            result = "{\"status\":\"completed\"";
-            if (!output.empty()) {
-                result += ",\"output\":\"" + escapeJSON(output) + "\"";
-            }
-            result += "}";
-        } else if (r.debugStop) {
-            if (observer->paused) {
-                result = "{\"status\":\"paused\","
-                         "\"pauseState\":" + observer->pauseStateJSON() + ","
-                         "\"breakpointHitCount\":" + std::to_string(observer->breakpointHitCount);
-                if (!output.empty()) {
-                    result += ",\"output\":\"" + escapeJSON(output) + "\"";
-                }
-                result += "}";
-            } else {
-                result = "{\"status\":\"stopped\"}";
-            }
-        } else {
-            result = "{\"status\":\"error\",\"message\":\"" + escapeJSON(r.errorMessage) + "\"";
-            if (r.errorLine > 0) {
-                result += ",\"line\":" + std::to_string(r.errorLine);
-                result += ",\"col\":" + std::to_string(r.errorCol);
-            }
-            if (!r.errorContext.empty()) {
-                result += ",\"context\":\"" + escapeJSON(r.errorContext) + "\"";
-            }
-            if (!output.empty()) {
-                result += ",\"output\":\"" + escapeJSON(output) + "\"";
-            }
-            result += "}";
-        }
-
-        // Detach observer after execution
-        engine_->setDebugObserver(nullptr);
-        return result;
+    void debugStop() {
+        if (debugSession_)
+            debugSession_->stop();
+        debugSession_.reset();
     }
 
     void setBreakpoints(const std::string &linesJson) {
-        auto &bpm = engine_->breakpointManager();
-        bpm.clearAll();
+        breakpointLines_.clear();
 
         // Parse simple JSON array: [1, 5, 10]
         std::string s = linesJson;
-        // Remove [ ]
         size_t start = s.find('[');
         size_t end = s.rfind(']');
         if (start == std::string::npos || end == std::string::npos) return;
         s = s.substr(start + 1, end - start - 1);
 
-        // Split by comma
         std::istringstream iss(s);
         std::string token;
         while (std::getline(iss, token, ',')) {
             int line = 0;
             try { line = std::stoi(token); } catch (...) { continue; }
-            if (line > 0) bpm.addBreakpoint(static_cast<uint16_t>(line));
+            if (line > 0) breakpointLines_.push_back(static_cast<uint16_t>(line));
         }
+
+        // Also update engine's breakpoint manager for legacy path
+        auto &bpm = engine_->breakpointManager();
+        bpm.clearAll();
+        for (auto line : breakpointLines_)
+            bpm.addBreakpoint(line);
     }
 
     void reset() {
+        debugSession_.reset();
         engine_ = std::make_unique<mlab::Engine>();
         engine_->setOutputFunc([this](const std::string &s) {
             outputBuf_ += s;
@@ -370,27 +260,70 @@ public:
 private:
     std::unique_ptr<mlab::Engine> engine_;
     std::string outputBuf_;
+    std::unique_ptr<mlab::DebugSession> debugSession_;
+    std::vector<uint16_t> breakpointLines_;
 
-    static std::string escapeJSON(const std::string &s) {
+    std::string buildDebugResult(mlab::ExecStatus status) {
+        std::string output = debugSession_ ? debugSession_->takeOutput() : "";
         std::string result;
-        result.reserve(s.size());
-        for (char c : s) {
-            switch (c) {
-            case '"':  result += "\\\""; break;
-            case '\\': result += "\\\\"; break;
-            case '\n': result += "\\n"; break;
-            case '\r': result += "\\r"; break;
-            case '\t': result += "\\t"; break;
-            default:
-                if (static_cast<unsigned char>(c) < 0x20) {
-                    char buf[8];
-                    snprintf(buf, sizeof(buf), "\\u%04x", static_cast<unsigned char>(c));
-                    result += buf;
-                } else {
-                    result += c;
-                }
+
+        if (status == mlab::ExecStatus::Paused) {
+            auto snap = debugSession_->snapshot();
+
+            // Determine pause reason: breakpoint or step
+            bool onBreakpoint = engine_->breakpointManager().shouldBreak(snap.line);
+            const char *reason = onBreakpoint ? "breakpoint" : "step";
+
+            result = "{\"status\":\"paused\",\"pauseState\":{";
+            result += "\"line\":" + std::to_string(snap.line);
+            result += ",\"col\":" + std::to_string(snap.col);
+            result += ",\"function\":\"" + escapeJSON(snap.functionName) + "\"";
+            result += ",\"reason\":\"" + std::string(reason) + "\"";
+
+            // Variables
+            result += ",\"variables\":{";
+            bool first = true;
+            for (auto &v : snap.variables) {
+                if (!v.value) continue;
+                if (!first) result += ",";
+                result += "\"" + escapeJSON(v.name) + "\":\"" + escapeJSON(valuePreview(*v.value)) + "\"";
+                first = false;
             }
+            result += "}";
+
+            // Call stack
+            result += ",\"callStack\":[";
+            for (size_t i = 0; i < snap.callStack.size(); ++i) {
+                if (i > 0) result += ",";
+                auto &sf = snap.callStack[i];
+                result += "{\"function\":\"" + escapeJSON(sf.functionName) + "\"";
+                result += ",\"line\":" + std::to_string(sf.line) + "}";
+            }
+            result += "]";
+
+            result += "}";
+            if (!output.empty())
+                result += ",\"output\":\"" + escapeJSON(output) + "\"";
+            result += "}";
+        } else {
+            // Completed or error
+            if (debugSession_ && !debugSession_->errorMessage().empty()) {
+                result = "{\"status\":\"error\",\"message\":\"" +
+                         escapeJSON(debugSession_->errorMessage()) + "\"";
+                if (debugSession_->errorLine() > 0)
+                    result += ",\"line\":" + std::to_string(debugSession_->errorLine());
+                if (!output.empty())
+                    result += ",\"output\":\"" + escapeJSON(output) + "\"";
+                result += "}";
+            } else {
+                result = "{\"status\":\"completed\"";
+                if (!output.empty())
+                    result += ",\"output\":\"" + escapeJSON(output) + "\"";
+                result += "}";
+            }
+            debugSession_.reset();
         }
+
         return result;
     }
 };
@@ -437,16 +370,37 @@ std::string repl_get_vars() {
     return "__VARS__:" + g_session->getWorkspaceJSON();
 }
 
-// ── Debug API ──
+// ── Debug API (clean — no replay) ──
 
 void repl_debug_set_breakpoints(const std::string &linesJson) {
     if (!g_session) repl_init();
     g_session->setBreakpoints(linesJson);
 }
 
+std::string repl_debug_start(const std::string &code) {
+    if (!g_session) repl_init();
+    return g_session->debugStart(code);
+}
+
+std::string repl_debug_resume(int action) {
+    if (!g_session) return "{\"status\":\"completed\"}";
+    return g_session->debugResume(action);
+}
+
+void repl_debug_stop() {
+    if (g_session) g_session->debugStop();
+}
+
+// Legacy API (kept for backward compat, delegates to new API)
 std::string repl_debug_execute(const std::string &code, int skipBp) {
     if (!g_session) repl_init();
-    return g_session->debugExecute(code, skipBp);
+    if (skipBp == 0) {
+        // Fresh start
+        return g_session->debugStart(code);
+    } else {
+        // Continue (legacy: skipBp > 0 means "continue from last pause")
+        return g_session->debugResume(0); // 0 = Continue
+    }
 }
 
 EMSCRIPTEN_BINDINGS(mlab_repl) {
@@ -457,5 +411,9 @@ EMSCRIPTEN_BINDINGS(mlab_repl) {
     emscripten::function("repl_workspace", &repl_workspace);
     emscripten::function("repl_get_vars",  &repl_get_vars);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
+    emscripten::function("repl_debug_start",           &repl_debug_start);
+    emscripten::function("repl_debug_resume",          &repl_debug_resume);
+    emscripten::function("repl_debug_stop",            &repl_debug_stop);
+    // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);
 }
