@@ -7,70 +7,83 @@
 #   ./mlab_tests --gtest_filter="TW_VM/*"         # dual-backend only
 #   ./mlab_tests --gtest_filter="TW_VM/*VM*"      # VM-only runs
 #   ./mlab_tests --gtest_filter="TW_VM/*TW*"      # TW-only runs
-#   ./mlab_tests --gtest_filter="CommandStyle*"    # parser tests
+#   ./mlab_tests --gtest_filter="CommandSyntax*"   # parser tests
 
-# ── Dual-backend parameterized tests (TW + VM) ──────────────
-set(DUAL_BACKEND_TESTS
-    test_arithmetic.cpp
-    test_variables.cpp
-    test_matrices.cpp
-    test_controlflow.cpp
-    test_functions.cpp
-    test_builtins.cpp
-    test_commands.cpp
-    test_comments.cpp
-    test_programs.cpp
-    test_advanced.cpp
-    test_known_issues.cpp
-    test_debugger_phase1.cpp
-    test_debugger_phase234.cpp
-    test_debugger_diagnostic.cpp
-    test_who_diagnostic.cpp
-    test_error_diagnostics.cpp
+# ── Core: lexer, parser, command syntax ─────────────────────
+set(CORE_TESTS
+    core/lexer_test.cpp
+    core/parser_test.cpp
+    core/command_syntax_test.cpp
 )
 
-# ── Frontend tests (lexer, parser, command-style AST) ────────
-set(FRONTEND_TESTS
-    lexer_test.cpp
-    parser_test.cpp
-    command_style_test.cpp
+# ── Stdlib: language + standard library ─────────────────────
+set(STDLIB_TESTS
+    stdlib/arithmetic_test.cpp
+    stdlib/variables_test.cpp
+    stdlib/controlflow_test.cpp
+    stdlib/functions_test.cpp
+    stdlib/commands_test.cpp
+    stdlib/comments_test.cpp
+    stdlib/builtins_test.cpp
+    stdlib/advanced_test.cpp
+    stdlib/programs_test.cpp
+    stdlib/matrix_test.cpp
+    stdlib/indexing_test.cpp
+    stdlib/concat_test.cpp
+    stdlib/scope_test.cpp
+    stdlib/types_test.cpp
+    stdlib/integration_test.cpp
 )
 
-# ── Domain-specific tests (signal processing, plotting) ─────
-set(DOMAIN_TESTS
-    figure_test.cpp
-    signal_core_test.cpp
-    convolution_test.cpp
-    windows_test.cpp
-    filter_test.cpp
-    filter_design_test.cpp
-    spectral_test.cpp
-    resample_test.cpp
-    transform_test.cpp
-    interp_test.cpp
+# ── DSP library ─────────────────────────────────────────────
+set(DSPLIB_TESTS
+    dsplib/signal_core_test.cpp
+    dsplib/convolution_test.cpp
+    dsplib/filter_test.cpp
+    dsplib/filter_design_test.cpp
+    dsplib/spectral_test.cpp
+    dsplib/windows_test.cpp
+    dsplib/resample_test.cpp
+    dsplib/transform_test.cpp
 )
 
-# ── Legacy / standalone backend tests ────────────────────────
-set(LEGACY_TESTS
-    engine_test.cpp
-    engine_advanced_test.cpp
-    tree_walker_test.cpp
-    vm_test.cpp
+# ── Plot library ────────────────────────────────────────────
+set(PLTLIB_TESTS
+    pltlib/figure_test.cpp
 )
 
-# ── Benchmarks ───────────────────────────────────────────────
-set(BENCHMARK_SOURCES
-    vm_benchmark.cpp
+# ── Fit library ─────────────────────────────────────────────
+set(FITLIB_TESTS
+    fitlib/interp_test.cpp
+)
+
+# ── Backend: VM, TreeWalker, benchmarks ─────────────────────
+set(BACKEND_TESTS
+    backend/vm_test.cpp
+    backend/tree_walker_test.cpp
+    backend/vm_benchmark.cpp
+)
+
+# ── Diagnostics: errors, debugger ───────────────────────────
+set(DIAGNOSTICS_TESTS
+    diagnostics/error_diagnostics_test.cpp
+    diagnostics/debugger_phase1_test.cpp
+    diagnostics/debugger_phase234_test.cpp
+    diagnostics/debugger_diagnostic_test.cpp
+    diagnostics/who_diagnostic_test.cpp
+    diagnostics/known_issues_test.cpp
 )
 
 # ── Assemble the test executable ─────────────────────────────
 add_executable(mlab_tests
     main.cpp
-    ${DUAL_BACKEND_TESTS}
-    ${FRONTEND_TESTS}
-    ${DOMAIN_TESTS}
-    ${LEGACY_TESTS}
-    ${BENCHMARK_SOURCES}
+    ${CORE_TESTS}
+    ${STDLIB_TESTS}
+    ${DSPLIB_TESTS}
+    ${PLTLIB_TESTS}
+    ${FITLIB_TESTS}
+    ${BACKEND_TESTS}
+    ${DIAGNOSTICS_TESTS}
 )
 
 target_include_directories(mlab_tests

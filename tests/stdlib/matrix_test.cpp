@@ -1,0 +1,154 @@
+// tests/stdlib/matrix_test.cpp — Matrix construction, bounds, 3D arrays
+// Parameterized: runs on both TreeWalker and VM backends
+
+#include "dual_engine_fixture.hpp"
+
+using namespace mlab_test;
+
+// ============================================================
+// Matrix construction
+// ============================================================
+
+class MatrixTest : public DualEngineTest
+{};
+
+TEST_P(MatrixTest, RowVector)
+{
+    eval("v = [1 2 3];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+}
+
+TEST_P(MatrixTest, ColumnVector)
+{
+    eval("v = [1; 2; 3];");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+}
+
+TEST_P(MatrixTest, Matrix2x3)
+{
+    eval("M = [1 2 3; 4 5 6];");
+    auto *M = getVarPtr("M");
+    EXPECT_EQ(rows(*M), 2u);
+    EXPECT_EQ(cols(*M), 3u);
+    EXPECT_DOUBLE_EQ((*M)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*M)(1, 2), 6.0);
+}
+
+TEST_P(MatrixTest, Transpose)
+{
+    eval("v = [1 2 3]; w = v';");
+    auto *w = getVarPtr("w");
+    EXPECT_EQ(rows(*w), 3u);
+    EXPECT_EQ(cols(*w), 1u);
+    EXPECT_DOUBLE_EQ((*w)(2, 0), 3.0);
+}
+
+TEST_P(MatrixTest, MatrixMultiply)
+{
+    eval("A = [1 2; 3 4]; B = [5; 6]; C = A * B;");
+    auto *C = getVarPtr("C");
+    EXPECT_EQ(rows(*C), 2u);
+    EXPECT_EQ(cols(*C), 1u);
+    EXPECT_DOUBLE_EQ((*C)(0, 0), 17.0); // 1*5+2*6
+    EXPECT_DOUBLE_EQ((*C)(1, 0), 39.0); // 3*5+4*6
+}
+
+TEST_P(MatrixTest, ElementWiseMul)
+{
+    eval("r = [1 2 3] .* [4 5 6];");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[1], 10.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[2], 18.0);
+}
+
+TEST_P(MatrixTest, ElementWisePow)
+{
+    eval("r = [2 3] .^ [3 2];");
+    auto *r = getVarPtr("r");
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 8.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[1], 9.0);
+}
+
+TEST_P(MatrixTest, StringConcatInMatrix)
+{
+    eval("s = ['hello' ' ' 'world'];");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->toString(), "hello world");
+}
+
+INSTANTIATE_DUAL(MatrixTest);
+
+// ============================================================
+// Bounds checking
+// ============================================================
+
+class BoundsTest : public DualEngineTest
+{};
+
+TEST_P(BoundsTest, OutOfBoundsLinear)
+{
+    eval("v = [1 2 3];");
+    EXPECT_THROW(eval("v(5);"), std::runtime_error);
+}
+
+TEST_P(BoundsTest, OutOfBoundsRow)
+{
+    eval("A = [1 2; 3 4];");
+    EXPECT_THROW(eval("A(3, 1);"), std::runtime_error);
+}
+
+TEST_P(BoundsTest, OutOfBoundsCol)
+{
+    eval("A = [1 2; 3 4];");
+    EXPECT_THROW(eval("A(1, 5);"), std::runtime_error);
+}
+
+TEST_P(BoundsTest, ValidBoundsOK)
+{
+    eval("v = [10 20 30];");
+    EXPECT_DOUBLE_EQ(evalScalar("v(3);"), 30.0);
+}
+
+TEST_P(BoundsTest, IndexZeroError)
+{
+    eval("v = [1 2 3];");
+    EXPECT_THROW(eval("v(0);"), std::runtime_error);
+}
+
+INSTANTIATE_DUAL(BoundsTest);
+
+// ============================================================
+// 3D array indexing
+// ============================================================
+
+class Array3DTest : public DualEngineTest
+{};
+
+TEST_P(Array3DTest, Create3DAndIndex)
+{
+    eval("A = zeros(2, 3, 2); A(1,1,1) = 1; A(2,3,2) = 99;");
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2,3,2);"), 99.0);
+}
+
+TEST_P(Array3DTest, LinearIndexInto3D)
+{
+    eval("A = zeros(2, 3, 2); A(2,3,2) = 42;");
+    // linear index of (2,3,2) in 2x3x2 = 2 + (3-1)*2 + (2-1)*6 = 12
+    EXPECT_DOUBLE_EQ(evalScalar("A(12);"), 42.0);
+}
+
+TEST_P(Array3DTest, ScalarAssign3D)
+{
+    eval("A = zeros(2, 2, 2); A(1,2,2) = 77;");
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,2,2);"), 77.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1,1,1);"), 0.0);
+}
+
+INSTANTIATE_DUAL(Array3DTest);
+
