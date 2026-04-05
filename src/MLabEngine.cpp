@@ -116,7 +116,8 @@ MValue *Engine::getVariable(const std::string &name)
 
 void Engine::setOutputFunc(OutputFunc f)
 {
-    outputFunc_ = std::move(f);
+    outputFunc_ = f;
+    figureManager_.setOutputFunc(std::move(f));
 }
 
 void Engine::setMaxRecursionDepth(int d)

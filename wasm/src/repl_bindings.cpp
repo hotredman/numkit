@@ -105,18 +105,9 @@ public:
 
         outputBuf_.clear();
 
-        std::ostringstream coutCapture;
-        auto oldCout = std::cout.rdbuf(coutCapture.rdbuf());
-
         auto r = engine_->evalSafe(code);
 
-        std::cout.rdbuf(oldCout);
         std::string output = outputBuf_;
-        std::string coutStr = coutCapture.str();
-        if (!coutStr.empty()) {
-            if (!output.empty() && output.back() != '\n') output += '\n';
-            output += coutStr;
-        }
 
         if (r.ok) {
             while (!output.empty() &&

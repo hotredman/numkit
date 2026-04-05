@@ -119,6 +119,22 @@ function extractVarsData(rawOutput) {
   } catch (e) { console.warn('[REPL] Failed to parse workspace JSON:', e); return {}; }
 }
 
+/**
+ * Extract figure/close markers from debug result output.
+ * Returns the result with cleanOutput, figures, closedFigureIds, closeAllFigures added.
+ */
+function enrichDebugResult(result) {
+  if (result.output) {
+    const extracted = extractMarkers(result.output);
+    result.output = extracted.cleanOutput;
+    result.figures = extracted.figures;
+    result.closedFigureIds = extracted.closedFigureIds;
+    result.closeAllFigures = extracted.closeAllFigures;
+    if (extracted.errorLine) result.errorLine = extracted.errorLine;
+  }
+  return result;
+}
+
 function parseWorkspaceText(text) {
   if (!text || typeof text !== 'string') return {};
   const lines = text.split('\n').map(l => l.trimEnd()).filter(l => l.trim());
@@ -245,8 +261,10 @@ export async function createWasmEngine(createModule) {
         return { status: 'error', message: 'Debug not supported in this WASM build' };
       }
       const raw = Module.repl_debug_start(code);
-      try { return JSON.parse(raw); }
-      catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
+      try {
+        const result = JSON.parse(raw);
+        return enrichDebugResult(result);
+      } catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
     },
 
     debugResume(action = 0) {
@@ -254,8 +272,10 @@ export async function createWasmEngine(createModule) {
         return { status: 'error', message: 'Debug not supported in this WASM build' };
       }
       const raw = Module.repl_debug_resume(action);
-      try { return JSON.parse(raw); }
-      catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
+      try {
+        const result = JSON.parse(raw);
+        return enrichDebugResult(result);
+      } catch (e) { return { status: 'error', message: 'Failed to parse debug result' }; }
     },
 
     debugStop() {

@@ -413,3 +413,55 @@ TEST_F(DebugSessionTest, EvalSyntaxError)
     EXPECT_NE(result.find("Error"), std::string::npos) << "expected error for bad syntax, got: " << result;
     EXPECT_TRUE(session.isActive());
 }
+
+// ============================================================
+// Figures during debug: markers flow through outputFunc, not std::cout
+// ============================================================
+
+TEST_F(DebugSessionTest, PlotOutputContainsFigureMarker)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "x = [1 2 3]; y = [4 5 6];\n"
+        "plot(x, y);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue past initial step → hits bp at line 2 (plot call)
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Step over the plot call
+    status = session.resume(DebugAction::StepOver);
+
+    // The output should contain the __FIGURE_DATA__ marker
+    std::string out = session.takeOutput();
+    EXPECT_NE(out.find("__FIGURE_DATA__"), std::string::npos)
+        << "plot output should contain figure marker, got: " << out;
+}
+
+TEST_F(DebugSessionTest, PlotDuringEvalContainsFigureMarker)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    auto status = startDebug(session, "x = [1 2 3];\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Eval a plot command in debug context
+    std::string result = session.eval("plot([1 2 3], [4 5 6])");
+
+    // The eval result (or the session output) should contain the figure marker
+    std::string out = session.takeOutput();
+    bool hasFigure = result.find("__FIGURE_DATA__") != std::string::npos ||
+                     out.find("__FIGURE_DATA__") != std::string::npos;
+    EXPECT_TRUE(hasFigure)
+        << "plot in eval should produce figure marker.\n  result: " << result
+        << "\n  output: " << out;
+
+    // Session should still be active
+    EXPECT_TRUE(session.isActive());
+}

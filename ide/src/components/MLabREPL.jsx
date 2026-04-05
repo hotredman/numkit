@@ -168,6 +168,21 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       setConsoleNotify(true);
     }
 
+    // Process figures from debug output (same as normal execute path)
+    if (result.closeAllFigures) setFigures([]);
+    else if (result.closedFigureIds?.length) {
+      const closed = new Set(result.closedFigureIds);
+      setFigures(prev => prev.filter(f => !closed.has(f.id)));
+    }
+    if (result.figures?.length) {
+      setFigures(prev => {
+        const map = new Map(prev.map(f => [f.id, f]));
+        for (const fig of result.figures) map.set(fig.id, fig);
+        return Array.from(map.values());
+      });
+      setShowRight(true);
+    }
+
     if (result.status === 'paused' && result.pauseState) {
       const ps = result.pauseState;
       setDebugLine(ps.line);

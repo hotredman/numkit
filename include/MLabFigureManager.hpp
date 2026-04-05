@@ -1,5 +1,6 @@
 #pragma once
 
+#include <functional>
 #include <iostream>
 #include <map>
 #include <sstream>
@@ -91,6 +92,13 @@ static std::string jsonEscapeFig(const std::string &s)
 class FigureManager
 {
 public:
+    using OutputFunc = std::function<void(const std::string &)>;
+
+    /** Set the output callback for figure/close markers.
+     *  When set, emitModified() and close notifications route through this
+     *  instead of std::cout, so debug and normal paths share the same channel. */
+    void setOutputFunc(OutputFunc f) { outputFunc_ = std::move(f); }
+
     FigureState &current()
     {
         if (figures_.find(currentFigure_) == figures_.end()) {
@@ -243,7 +251,11 @@ public:
                 os << "}}";
             }
             os << "]}";
-            std::cout << os.str() << "\n";
+            std::string line = os.str() + "\n";
+            if (outputFunc_)
+                outputFunc_(line);
+            else
+                std::cout << line;
         }
     }
 
@@ -258,7 +270,23 @@ public:
         }
     }
 
+    /** Close and emit notification marker */
+    void closeFigureNotify(int id)
+    {
+        closeFigure(id);
+        std::string marker = "__FIGURE_CLOSE__:" + std::to_string(id) + "\n";
+        if (outputFunc_) outputFunc_(marker); else std::cout << marker;
+    }
+
     void closeCurrent() { closeFigure(currentFigure_); }
+
+    void closeCurrentNotify()
+    {
+        int id = currentFigure_;
+        closeCurrent();
+        std::string marker = "__FIGURE_CLOSE__:" + std::to_string(id) + "\n";
+        if (outputFunc_) outputFunc_(marker); else std::cout << marker;
+    }
 
     void closeAll()
     {
@@ -266,11 +294,19 @@ public:
         currentFigure_ = 1;
     }
 
+    void closeAllNotify()
+    {
+        closeAll();
+        std::string marker = "__FIGURE_CLOSE_ALL__\n";
+        if (outputFunc_) outputFunc_(marker); else std::cout << marker;
+    }
+
     const std::map<int, FigureState> &figures() const { return figures_; }
 
 private:
     std::map<int, FigureState> figures_;
     int currentFigure_ = 1;
+    OutputFunc outputFunc_;
 };
 
 } // namespace mlab
