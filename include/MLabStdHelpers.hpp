@@ -28,6 +28,15 @@ inline std::pair<MValue, MValue> promoteToComplex(const MValue &a, const MValue 
 template<typename Op>
 MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *alloc)
 {
+    // MATLAB: empty propagation — any op with [] returns []
+    if (a.isEmpty() && b.isEmpty())
+        return MValue::empty();
+    if (a.isEmpty() || b.isEmpty()) {
+        // [] + scalar or scalar + [] → []
+        if (a.isScalar() || b.isScalar())
+            return MValue::empty();
+        throw std::runtime_error("Matrix dimensions must agree");
+    }
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
     if (a.isScalar()) {
@@ -58,6 +67,9 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
 template<typename Op>
 MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *alloc)
 {
+    // MATLAB: empty propagation
+    if (a.isEmpty() || b.isEmpty())
+        return MValue::empty();
     auto [ca, cb] = promoteToComplex(a, b, alloc);
     if (ca.isScalar() && cb.isScalar())
         return MValue::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);

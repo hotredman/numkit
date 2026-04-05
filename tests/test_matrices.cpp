@@ -1818,4 +1818,468 @@ TEST_P(SharedOpsTest, CellCSLWithTilde)
     EXPECT_EQ(getVarPtr("~"), nullptr);
 }
 
+// ============================================================
+// Compliance fix tests — COW, Inf/NaN, type correctness
+// ============================================================
+
+// --- COW: cell array sharing ---
+TEST_P(SharedOpsTest, COWCellSharing)
+{
+    eval("a = {1, 2, 3}; b = a; a{2} = 99;");
+    EXPECT_DOUBLE_EQ(getVarPtr("a")->cellAt(1).toScalar(), 99.0);
+    EXPECT_DOUBLE_EQ(getVarPtr("b")->cellAt(1).toScalar(), 2.0); // b unchanged
+}
+
+// --- COW: struct sharing ---
+TEST_P(SharedOpsTest, COWStructSharing)
+{
+    eval("s.x = 10; t = s; s.x = 99;");
+    EXPECT_DOUBLE_EQ(getVarPtr("s")->field("x").toScalar(), 99.0);
+    // t.x should still be 10 — not corrupted by COW violation
+    EXPECT_DOUBLE_EQ(getVarPtr("t")->field("x").toScalar(), 10.0);
+}
+
+// --- COW: promoteToComplex ---
+TEST_P(SharedOpsTest, COWPromoteToComplex)
+{
+    eval("a = [1 2 3]; b = a; a(1) = 1i;");
+    EXPECT_TRUE(getVarPtr("a")->isComplex());
+    EXPECT_TRUE(getVarPtr("b")->type() == mlab::MType::DOUBLE); // b stays double
+    EXPECT_DOUBLE_EQ(getVarPtr("b")->doubleData()[0], 1.0);
+}
+
+// --- Inf/NaN index validation ---
+TEST_P(SharedOpsTest, InfIndexError)
+{
+    EXPECT_THROW(eval("v = [1 2 3]; v(inf);"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, NaNIndexError)
+{
+    EXPECT_THROW(eval("v = [1 2 3]; v(nan);"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, FloatIndexError)
+{
+    EXPECT_THROW(eval("v = [1 2 3]; v(1.5);"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, FloatIndexIntegerOK)
+{
+    // Integer-valued float should work
+    EXPECT_DOUBLE_EQ(evalScalar("v = [10 20 30]; v(2.0);"), 20.0);
+}
+
+TEST_P(SharedOpsTest, NegativeIndexError)
+{
+    EXPECT_THROW(eval("v = [1 2 3]; v(-1);"), std::runtime_error);
+}
+
+// --- Colon Inf/NaN ---
+TEST_P(SharedOpsTest, ColonInfError)
+{
+    EXPECT_THROW(eval("x = 1:inf;"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, ColonNaNEmpty)
+{
+    eval("x = 1:nan;");
+    EXPECT_TRUE(getVarPtr("x")->isEmpty());
+}
+
+// --- Scalar bounds check ---
+TEST_P(SharedOpsTest, ScalarOutOfBoundsGet)
+{
+    EXPECT_THROW(eval("x = 5; x(2);"), std::runtime_error);
+}
+
+TEST_P(SharedOpsTest, ScalarIndexOneOK)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("x = 42; x(1);"), 42.0);
+}
+
+// --- AND/OR/NOT return logical ---
+TEST_P(SharedOpsTest, AndReturnsLogical)
+{
+    eval("r = 3 & 5;");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, OrReturnsLogical)
+{
+    eval("r = 0 | 5;");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, NotReturnsLogical)
+{
+    eval("r = ~0;");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, NotFalseOnNonzero)
+{
+    eval("r = ~5;");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_FALSE(getVarPtr("r")->toBool());
+}
+
+// --- sign(NaN) ---
+TEST_P(SharedOpsTest, SignNaN)
+{
+    eval("r = sign(nan);");
+    EXPECT_TRUE(std::isnan(getVarPtr("r")->toScalar()));
+}
+
+// --- isnan/isinf return logical ---
+TEST_P(SharedOpsTest, IsnanReturnsLogical)
+{
+    eval("r = isnan(nan);");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, IsinfReturnsLogical)
+{
+    eval("r = isinf(inf);");
+    EXPECT_TRUE(getVarPtr("r")->isLogicalScalar());
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+// --- rem() consistency ---
+TEST_P(SharedOpsTest, RemCorrect)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("rem(7, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rem(-7, 4);"), -3.0);
+}
+
+// --- vertcat char ---
+TEST_P(SharedOpsTest, VertcatChar)
+{
+    eval("r = ['abc'; 'def'];");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(rows(*r), 2u);
+    EXPECT_EQ(cols(*r), 3u);
+}
+
+// --- horzcat char + double vector ---
+TEST_P(SharedOpsTest, HorzcatCharDoubleVector)
+{
+    eval("r = ['AB', [67 68]];");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(r->toString(), "ABCD");
+}
+
+// --- indexSet size mismatch error ---
+TEST_P(SharedOpsTest, IndexSetSizeMismatch)
+{
+    EXPECT_THROW(eval("a = [1 2 3 4 5]; a([1 2 3]) = [10 20];"), std::runtime_error);
+}
+
+// --- indexSet scalar expansion ---
+TEST_P(SharedOpsTest, ScalarExpansionAssign)
+{
+    eval("a = [1 2 3 4 5]; a([1 3 5]) = 0;");
+    auto *a = getVarPtr("a");
+    expectElem(*a, 0, 0.0);
+    expectElem(*a, 1, 2.0);
+    expectElem(*a, 2, 0.0);
+    expectElem(*a, 3, 4.0);
+    expectElem(*a, 4, 0.0);
+}
+
+// --- Column vector ensureSize ---
+TEST_P(SharedOpsTest, ColumnVectorGrow)
+{
+    eval("a = [1; 2; 3]; a(5) = 99;");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(rows(*a), 5u);
+    EXPECT_EQ(cols(*a), 1u); // stays column vector
+    expectElem(*a, 4, 99.0);
+}
+
+// --- logicalIndex bounds error ---
+TEST_P(SharedOpsTest, LogicalIndexTooLong)
+{
+    EXPECT_THROW(eval("v = [1 2 3]; v([true true true true]);"), std::runtime_error);
+}
+
+// --- writeElem logical per-element ---
+TEST_P(SharedOpsTest, LogicalWritePerElement)
+{
+    eval("L = [true true true]; L([1 2]) = [0 5];");
+    auto *L = getVarPtr("L");
+    EXPECT_EQ(L->logicalData()[0], 0); // false
+    EXPECT_EQ(L->logicalData()[1], 1); // true (5 != 0)
+    EXPECT_EQ(L->logicalData()[2], 1); // unchanged
+}
+
+// --- for loop on char ---
+TEST_P(SharedOpsTest, ForLoopChar)
+{
+    eval("s = ''; for c = 'abc'; s = [s, c]; end;");
+    EXPECT_EQ(getVarPtr("s")->toString(), "abc");
+}
+
+// --- for loop on logical ---
+TEST_P(SharedOpsTest, ForLoopLogical)
+{
+    eval("n = 0; for x = [true false true]; n = n + x; end;");
+    EXPECT_DOUBLE_EQ(getVar("n"), 2.0);
+}
+
+// --- switch non-scalar ---
+TEST_P(SharedOpsTest, SwitchMatrix)
+{
+    eval("v = [1 2 3]; switch v; case [1 2 3]; r = 1; case [4 5 6]; r = 2; otherwise; r = 0; end;");
+    EXPECT_DOUBLE_EQ(getVar("r"), 1.0);
+}
+
+TEST_P(SharedOpsTest, SwitchString)
+{
+    eval("switch 'hello'; case 'world'; r = 1; case 'hello'; r = 2; otherwise; r = 0; end;");
+    EXPECT_DOUBLE_EQ(getVar("r"), 2.0);
+}
+
+// --- toBool non-scalar logical ---
+TEST_P(SharedOpsTest, ToBoolLogicalArray)
+{
+    eval("if [true true true]; r = 1; else; r = 0; end;");
+    EXPECT_DOUBLE_EQ(getVar("r"), 1.0);
+    eval("if [true false true]; r = 1; else; r = 0; end;");
+    EXPECT_DOUBLE_EQ(getVar("r"), 0.0);
+}
+
+// --- indexDelete shape ---
+TEST_P(SharedOpsTest, DeleteOnMatrixProducesRow)
+{
+    eval("A = [1 2; 3 4]; A([1 2 3]) = [];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 1u);
+    EXPECT_EQ(cols(*A), 1u);
+    expectElem(*A, 0, 4.0);
+}
+
+// ============================================================
+// Empty matrix operations
+// ============================================================
+
+TEST_P(SharedOpsTest, EmptyPlusEmpty)
+{
+    eval("r = [] + [];");
+    EXPECT_TRUE(getVarPtr("r")->isEmpty());
+}
+
+TEST_P(SharedOpsTest, EmptyPlusScalar)
+{
+    eval("r = [] + 1;");
+    EXPECT_TRUE(getVarPtr("r")->isEmpty());
+}
+
+TEST_P(SharedOpsTest, EmptyTimesScalar)
+{
+    eval("e = []; r = e;");
+    EXPECT_TRUE(getVarPtr("r")->isEmpty());
+}
+
+TEST_P(SharedOpsTest, EmptyMinusEmpty)
+{
+    eval("a = []; r = a + a;");
+    auto *r = getVarPtr("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_EQ(r->numel(), 0u);
+}
+
+TEST_P(SharedOpsTest, SizeEmpty)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("size([], 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size([], 2);"), 0.0);
+}
+
+TEST_P(SharedOpsTest, LengthEmpty)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("length([]);"), 0.0);
+}
+
+TEST_P(SharedOpsTest, IsemptyTrue)
+{
+    eval("r = isempty([]);");
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, IsemptyFalse)
+{
+    eval("r = isempty(5);");
+    EXPECT_FALSE(getVarPtr("r")->toBool());
+}
+
+TEST_P(SharedOpsTest, ZerosEmptyDim)
+{
+    eval("r = zeros(0, 3);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(rows(*r), 0u);
+    EXPECT_EQ(cols(*r), 3u);
+    EXPECT_EQ(r->numel(), 0u);
+}
+
+TEST_P(SharedOpsTest, ForOverEmpty)
+{
+    eval("n = 0; for i = []; n = n + 1; end;");
+    EXPECT_DOUBLE_EQ(getVar("n"), 0.0); // body never executes
+}
+
+// ============================================================
+// Type coercion tests
+// ============================================================
+
+TEST_P(SharedOpsTest, CharPlusDouble)
+{
+    // 'A' + 1 → double(66)  (MATLAB promotes char to double for arithmetic)
+    eval("r = 'A' + 1;");
+    EXPECT_DOUBLE_EQ(getVarPtr("r")->toScalar(), 66.0);
+}
+
+TEST_P(SharedOpsTest, NaNComparisons)
+{
+    // NaN == NaN → false
+    eval("r = nan == nan;");
+    auto *r = getVarPtr("r");
+    EXPECT_FALSE(r->toBool());
+
+    // NaN ~= NaN → true
+    eval("r = nan ~= nan;");
+    r = getVarPtr("r");
+    EXPECT_TRUE(r->toBool());
+}
+
+TEST_P(SharedOpsTest, InfComparisons)
+{
+    eval("r = inf > 1e308;");
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+
+    eval("r = -inf < -1e308;");
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+}
+
+// --- Complex arithmetic ---
+TEST_P(SharedOpsTest, ComplexMultiply)
+{
+    // (2+3i) * (4-1i) = 8-2i+12i-3i^2 = 8+10i+3 = 11+10i
+    eval("r = (2+3i) * (4-1i);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isComplex());
+    auto c = r->toComplex();
+    EXPECT_DOUBLE_EQ(c.real(), 11.0);
+    EXPECT_DOUBLE_EQ(c.imag(), 10.0);
+}
+
+TEST_P(SharedOpsTest, ComplexDivide)
+{
+    // (4+2i) / (1+1i) = (4+2i)(1-1i) / (1+1) = (4-4i+2i-2i^2)/2 = (6-2i)/2 = 3-1i
+    eval("r = (4+2i) / (1+1i);");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isComplex());
+    auto c = r->toComplex();
+    EXPECT_DOUBLE_EQ(c.real(), 3.0);
+    EXPECT_DOUBLE_EQ(c.imag(), -1.0);
+}
+
+TEST_P(SharedOpsTest, ComplexPower)
+{
+    // (1+1i)^2 = 1+2i+i^2 = 2i
+    eval("r = (1+1i)^2;");
+    auto *r = getVarPtr("r");
+    EXPECT_TRUE(r->isComplex());
+    auto c = r->toComplex();
+    EXPECT_NEAR(c.real(), 0.0, 1e-10);
+    EXPECT_NEAR(c.imag(), 2.0, 1e-10);
+}
+
+TEST_P(SharedOpsTest, ComplexEquality)
+{
+    eval("r = (1+2i) == (1+2i);");
+    EXPECT_TRUE(getVarPtr("r")->toBool());
+
+    eval("r = (1+2i) == (1+3i);");
+    EXPECT_FALSE(getVarPtr("r")->toBool());
+}
+
+// --- Type promotion in assignment ---
+TEST_P(SharedOpsTest, DoubleToComplexPromotion)
+{
+    eval("a = [1 2 3]; a(2) = 1+2i;");
+    auto *a = getVarPtr("a");
+    EXPECT_TRUE(a->isComplex());
+    auto c = a->complexData()[1];
+    EXPECT_DOUBLE_EQ(c.real(), 1.0);
+    EXPECT_DOUBLE_EQ(c.imag(), 2.0);
+    // Original elements preserved
+    EXPECT_DOUBLE_EQ(a->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(a->complexData()[0].imag(), 0.0);
+}
+
+// --- Scalar expansion in 2D assignment ---
+TEST_P(SharedOpsTest, ScalarExpansion2D)
+{
+    eval("A = zeros(3, 3); A(:, 2) = 7;");
+    auto *A = getVarPtr("A");
+    expectElem2D(*A, 0, 1, 7.0);
+    expectElem2D(*A, 1, 1, 7.0);
+    expectElem2D(*A, 2, 1, 7.0);
+    expectElem2D(*A, 0, 0, 0.0); // other cols unchanged
+}
+
+// --- Multi-return with param overlap ---
+TEST_P(SharedOpsTest, MultiReturnParamOverlap)
+{
+    eval(R"(
+        function [b, a] = swap(a, b)
+            % return names overlap with params in reverse order
+        end
+        [x, y] = swap(10, 20);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), 20.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 10.0);
+}
+
+// --- end keyword in 2D ---
+TEST_P(SharedOpsTest, EndKeyword2D)
+{
+    eval("A = [1 2 3; 4 5 6]; r = A(end, end);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 6.0);
+}
+
+TEST_P(SharedOpsTest, EndKeyword2DRange)
+{
+    eval("A = [1 2 3; 4 5 6]; r = A(end, :);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->numel(), 3u);
+    expectElem(*r, 0, 4.0);
+    expectElem(*r, 1, 5.0);
+    expectElem(*r, 2, 6.0);
+}
+
+// --- Auto-grow on set ---
+TEST_P(SharedOpsTest, AutoGrowRowVector)
+{
+    eval("v = [1 2 3]; v(5) = 99;");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 5u);
+    expectElem(*v, 3, 0.0); // zero-filled gap
+    expectElem(*v, 4, 99.0);
+}
+
+// --- Char space-fill on resize ---
+TEST_P(SharedOpsTest, CharSpaceFill)
+{
+    eval("s = 'ab'; s(5) = 'z';");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->toString(), "ab  z");
+}
+
 INSTANTIATE_DUAL(SharedOpsTest);

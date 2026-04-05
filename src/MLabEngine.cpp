@@ -98,10 +98,10 @@ MValue *Engine::getVariable(const std::string &name)
 {
     // Check globalStore first (for global variables set by functions)
     MValue *gs = globalStore_.get(name);
-    if (gs && !gs->isEmpty()) {
+    if (gs && !gs->isUnset()) {
         // Sync to globalEnv if different
         MValue *ge = globalEnv_->get(name);
-        if (!ge || ge->isEmpty() || ge != gs)
+        if (!ge || ge->isUnset() || ge != gs)
             globalEnv_->set(name, *gs);
         return globalEnv_->get(name);
     }

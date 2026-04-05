@@ -445,7 +445,7 @@ TEST_F(VMTest, SwitchInLoop)
 TEST_F(VMTest, TryCatchBasic)
 {
     // Error in try → catch executes
-    EXPECT_DOUBLE_EQ(runScalar("r = 0; try; x = 1/0 + 'abc'; r = 1; catch; r = 2; end; r;"), 2.0);
+    EXPECT_DOUBLE_EQ(runScalar("r = 0; try; error('boom'); r = 1; catch; r = 2; end; r;"), 2.0);
 }
 
 TEST_F(VMTest, TryCatchNoError)

@@ -12,6 +12,8 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     // --- Unary minus ---
     engine.registerUnaryOp("-", [&engine](const MValue &a) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty())
+            return MValue::empty();
         if (a.isComplex())
             return unaryComplex(a, std::negate<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE)

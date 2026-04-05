@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <optional>
 #include <sstream>
 
@@ -778,7 +779,10 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, MValue &out)
                 break;
             case 14:
                 if (nargs == 1) {
-                    r = (argVals[0] > 0) ? 1.0 : (argVals[0] < 0) ? -1.0 : 0.0;
+                    r = std::isnan(argVals[0]) ? std::numeric_limits<double>::quiet_NaN()
+                        : (argVals[0] > 0) ? 1.0
+                        : (argVals[0] < 0) ? -1.0
+                                           : 0.0;
                     ok = true;
                 }
                 break;
@@ -1129,6 +1133,17 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
     if (var->isChar() && rhs.isChar()) {
         if (nargs == 1) {
             auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
+            // Grow char array if any index exceeds current size (space-fill)
+            size_t maxIdx = 0;
+            for (auto idx : indices)
+                if (idx >= maxIdx) maxIdx = idx + 1;
+            if (maxIdx > var->numel()) {
+                bool isColVec = (var->dims().cols() == 1 && var->dims().rows() > 1);
+                if (isColVec)
+                    var->resize(maxIdx, 1, &engine_.allocator_);
+                else
+                    var->resize(1, maxIdx, &engine_.allocator_);
+            }
             const std::string rs = rhs.toString();
             char *data = var->charDataMut();
             if (rs.size() == 1) {
@@ -1987,6 +2002,10 @@ MValue TreeWalker::execFor(const ASTNode *node, Environment *env)
 {
     const std::string &varName = node->strValue;
     auto rangeVal = execNode(node->children[0].get(), env);
+
+    // Empty range — body never executes (MATLAB behavior)
+    if (rangeVal.isEmpty())
+        return MValue::empty();
 
     if (rangeVal.isCell()) {
         size_t cols = rangeVal.dims().cols();

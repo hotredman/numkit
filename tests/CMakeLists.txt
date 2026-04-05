@@ -85,4 +85,4 @@ target_link_libraries(mlab_tests
 )
 
 include(GoogleTest)
-gtest_discover_tests(mlab_tests)
+gtest_discover_tests(mlab_tests DISCOVERY_MODE PRE_TEST)

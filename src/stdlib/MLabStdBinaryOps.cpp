@@ -12,18 +12,39 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Addition ---
     engine.registerBinaryOp("+", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::plus<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
             return elementwiseDouble(a, b, std::plus<double>{}, alloc);
         if (a.isChar() && b.isChar())
             return MValue::fromString(a.toString() + b.toString(), alloc);
+        // char + double or double + char → double arithmetic (MATLAB behavior)
+        if (a.isChar() && b.type() == MType::DOUBLE) {
+            auto ca = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+            const char *cd = a.charData();
+            double *dd = ca.doubleDataMut();
+            for (size_t i = 0; i < a.numel(); ++i)
+                dd[i] = static_cast<double>(static_cast<unsigned char>(cd[i]));
+            return elementwiseDouble(ca, b, std::plus<double>{}, alloc);
+        }
+        if (a.type() == MType::DOUBLE && b.isChar()) {
+            auto cb = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::DOUBLE, alloc);
+            const char *cd = b.charData();
+            double *dd = cb.doubleDataMut();
+            for (size_t i = 0; i < b.numel(); ++i)
+                dd[i] = static_cast<double>(static_cast<unsigned char>(cd[i]));
+            return elementwiseDouble(a, cb, std::plus<double>{}, alloc);
+        }
         throw std::runtime_error("Unsupported types for +");
     });
 
     // --- Subtraction ---
     engine.registerBinaryOp("-", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::minus<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -34,6 +55,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Element-wise multiply ---
     engine.registerBinaryOp(".*", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::multiplies<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -44,6 +67,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Matrix multiply ---
     engine.registerBinaryOp("*", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
 
         if (a.isComplex() || b.isComplex()) {
             auto [ca, cb] = promoteToComplex(a, b, alloc);
@@ -85,6 +110,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Division ---
     engine.registerBinaryOp("/", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.isScalar())
@@ -97,6 +124,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Element-wise division ---
     engine.registerBinaryOp("./", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -107,6 +136,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Power ---
     engine.registerBinaryOp("^", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex()) {
             auto [ca, cb] = promoteToComplex(a, b, alloc);
             return MValue::complexScalar(std::pow(ca.toComplex(), cb.toComplex()), alloc);
@@ -119,6 +150,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Element-wise power ---
     engine.registerBinaryOp(".^", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isComplex() || b.isComplex()) {
             return elementwiseComplex(
                 a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, alloc);
@@ -132,6 +165,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     // --- Backslash (left division) ---
     engine.registerBinaryOp("\\", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.isEmpty() || b.isEmpty())
+            return MValue::empty();
         if (a.isScalar() && b.isScalar())
             return MValue::scalar(b.toScalar() / a.toScalar(), alloc);
         throw std::runtime_error("Matrix left division not implemented");
@@ -161,6 +196,21 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                     return MValue::logicalScalar(a.toString() == b.toString(), nullptr);
                 if (op == "~=")
                     return MValue::logicalScalar(a.toString() != b.toString(), nullptr);
+            }
+
+            // Complex comparison: only == and ~= are supported
+            if (a.isComplex() || b.isComplex()) {
+                if (op != "==" && op != "~=")
+                    throw std::runtime_error("Operator '" + op + "' is not supported for complex operands");
+                auto toC = [](const MValue &v) -> Complex {
+                    return v.isComplex() ? v.toComplex() : Complex(v.toScalar(), 0.0);
+                };
+                if (a.isScalar() && b.isScalar()) {
+                    Complex ca = toC(a), cb = toC(b);
+                    bool eq = (ca.real() == cb.real()) && (ca.imag() == cb.imag());
+                    return MValue::logicalScalar(op == "==" ? eq : !eq, nullptr);
+                }
+                throw std::runtime_error("Complex array comparison not yet supported");
             }
 
             if (a.isScalar() && b.isScalar())

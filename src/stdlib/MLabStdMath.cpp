@@ -272,7 +272,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
             auto *alloc = &ctx.engine->allocator();
             {
                 outs[0] = unaryDouble(
-                    args[0], [](double x) { return (x > 0) ? 1.0 : (x < 0 ? -1.0 : 0.0); }, alloc);
+                    args[0], [](double x) { return std::isnan(x) ? x : (x > 0) ? 1.0 : (x < 0 ? -1.0 : 0.0); }, alloc);
                 return;
             }
         });

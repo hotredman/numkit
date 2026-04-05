@@ -1021,6 +1021,7 @@ dispatch_loop:
                         }
                         R[I.a] = std::move(res);
                     } else if (mv.isScalar() && ix.isDoubleScalar()) {
+                        checkedIndex(ix.scalarVal(), 1); // validate bounds
                         R[I.a] = mv; // scalar(scalar) = scalar
                     } else if (ix.isDoubleScalar()) {
                         size_t i = checkedIndex(ix.scalarVal(), mv.numel());
@@ -1307,6 +1308,11 @@ dispatch_loop:
 
             // ── Slow paths ───────────────────────────────────────
             binary_slow: {
+                // Empty propagation: avoid passing empty matrices through std::function
+                if (R[I.b].isEmpty() || R[I.c].isEmpty()) {
+                    R[I.a] = MValue::matrix(0, 0, MType::DOUBLE, &engine_.allocator_);
+                    break;
+                }
                 const char *opStr = nullptr;
                 switch (I.op) {
                 case OpCode::ADD:
