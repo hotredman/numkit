@@ -61,12 +61,10 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 bool insideFunc = ctx.engine->isInsideFunctionCall();
 
                                 if (args.empty()) {
-                                    if (insideFunc) {
-                                        env->clearAll();
-                                    } else {
-                                        env->clearAll();
-                                        ctx.engine->clearUserFunctions();
-                                        ctx.engine->figureManager().closeAll();
+                                    // MATLAB: bare 'clear' clears workspace variables only,
+                                    // NOT user functions or figures.
+                                    env->clearAll();
+                                    if (!insideFunc) {
                                         ctx.engine->reinstallConstants();
                                         ctx.engine->markClearAll();
                                     }

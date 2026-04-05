@@ -16,6 +16,16 @@ TreeWalker::TreeWalker(Engine &engine)
 
 MValue TreeWalker::execute(const ASTNode *ast, Environment *env)
 {
+    // Pre-scan: register all top-level function definitions before executing
+    // the main body.  MATLAB makes local functions available to the entire
+    // script regardless of where they appear in the file.
+    if (ast && ast->type == NodeType::BLOCK) {
+        for (auto &child : ast->children) {
+            if (child && child->type == NodeType::FUNCTION_DEF)
+                execFunctionDef(child.get(), env);
+        }
+    }
+
     std::optional<DebugController::FrameGuard> dbgFrame;
     if (auto *ctl = debugCtl()) {
         ctl->reset();

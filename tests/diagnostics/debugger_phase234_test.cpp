@@ -461,3 +461,45 @@ TEST(DebugAutoFallback, BreakpointContinueThenStop)
     EXPECT_NE(x, nullptr);
     if (x) EXPECT_DOUBLE_EQ(x->toScalar(), 1.0);
 }
+
+// ============================================================
+// 13. Regression: functions defined at bottom of script must be
+//     available even after 'clear' (MATLAB local function semantics)
+// ============================================================
+
+TEST(DebugAutoFallback, FunctionAtBottomWithClear)
+{
+    Engine engine;
+    StdLibrary::install(engine);
+    engine.setBackend(Engine::Backend::AutoFallback);
+
+    std::string output;
+    engine.setOutputFunc([&](const std::string &s) { output += s; });
+
+    auto obs = std::make_shared<RecordingObserver>();
+    obs->defaultAction = DebugAction::Stop;
+    engine.setDebugObserver(obs);
+
+    engine.breakpointManager().addBreakpoint(5);
+
+    // Script with clear at top and function at bottom
+    std::string code =
+        "clear\n"
+        "result = [];\n"
+        "for k = 0:3\n"
+        "    result = [result, fib(k)];\n"
+        "end\n"
+        "disp(result)\n"
+        "function r = fib(n)\n"
+        "    if n <= 1\n"
+        "        r = n;\n"
+        "    else\n"
+        "        r = fib(n-1) + fib(n-2);\n"
+        "    end\n"
+        "end\n";
+
+    // Should pause at line 5 (end of for), not crash with "undefined fib"
+    auto r = engine.evalSafe(code);
+    EXPECT_TRUE(r.debugStop) << "Should pause at breakpoint, not error. "
+        << "Error: " << r.errorMessage;
+}

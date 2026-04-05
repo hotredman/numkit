@@ -213,8 +213,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         }
         setVariables(debugVars);
       }
-      setBottomTab("workspace");
-      setConsoleNotify(true);
     } else if (result.status === 'completed') {
       setDebugLine(null);
       setDebugState(null);
