@@ -515,6 +515,7 @@ ASTNodePtr Parser::parseFor()
     skipTerminators();
 
     node->children.push_back(parseBlock({TokenType::KW_END}));
+    node->endLine = current().line;
     consume(TokenType::KW_END, "end");
     skipTerminators();
     return node;
@@ -530,6 +531,7 @@ ASTNodePtr Parser::parseWhile()
     skipTerminators();
 
     node->children.push_back(parseBlock({TokenType::KW_END}));
+    node->endLine = current().line;
     consume(TokenType::KW_END, "end");
     skipTerminators();
     return node;

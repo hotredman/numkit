@@ -1376,6 +1376,10 @@ uint8_t Compiler::compileWhile(const ASTNode *node)
         patchJump(pos, static_cast<int16_t>(loopStart - pos));
     }
 
+    // Emit source location for the 'end' keyword so breakpoints on it fire
+    if (node->endLine > 0)
+        currentLoc_ = {static_cast<uint16_t>(node->endLine), 1};
+
     // JMP back to start
     emitD(OpCode::JMP, static_cast<int16_t>(loopStart - currentPos()));
 
@@ -1468,6 +1472,10 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     for (size_t pos : loopStack_.back().continuePatches) {
         patchJump(pos, static_cast<int16_t>(forNextPos - pos));
     }
+
+    // Emit source location for the 'end' keyword so breakpoints on it fire
+    if (node->endLine > 0)
+        currentLoc_ = {static_cast<uint16_t>(node->endLine), 1};
 
     // FOR_NEXT: a=varReg, d=backOffset (negative, jumps to bodyStart)
     emitAD(OpCode::FOR_NEXT, vReg, static_cast<int16_t>(bodyStart - (currentPos() + 1)));

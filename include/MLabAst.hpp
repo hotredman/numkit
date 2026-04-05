@@ -53,6 +53,7 @@ struct ASTNode
     NodeType type;
     int line = 0;
     int col = 0;
+    int endLine = 0; // line of closing 'end' keyword (for loops, if, switch, etc.)
 
     std::string strValue;
     double numValue = 0;

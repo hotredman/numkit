@@ -28,6 +28,7 @@ ASTNodePtr cloneNode(const ASTNode *src)
     auto dst = std::make_unique<ASTNode>(src->type);
     dst->line = src->line;
     dst->col = src->col;
+    dst->endLine = src->endLine;
     dst->strValue = src->strValue;
     dst->numValue = src->numValue;
     dst->boolValue = src->boolValue;
