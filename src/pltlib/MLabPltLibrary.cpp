@@ -119,6 +119,9 @@ void PltLibrary::install(Engine &engine)
                                     id = static_cast<int>(args[0].toScalar());
                                     fm.setFigure(id);
                                 }
+                                // Emit figure so UI shows the panel (MATLAB shows window on figure())
+                                fm.current().modified = true;
+                                fm.emitModified();
                                 {
                                     outs[0] = MValue::scalar(static_cast<double>(id), alloc);
                                     return;
