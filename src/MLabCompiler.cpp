@@ -55,6 +55,7 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     varRegisters_.clear();
     loopStack_.clear();
     constRegCache_.clear();
+    scalarRegs_.reset();
     nextReg_ = 0;
     currentLoc_ = {};
     isTopLevel_ = true;
@@ -654,11 +655,14 @@ uint8_t Compiler::compileNumber(const ASTNode *node)
     int16_t idx = addConstant(node->numValue);
     // Reuse register if this constant was already loaded
     auto it = constRegCache_.find(idx);
-    if (it != constRegCache_.end())
+    if (it != constRegCache_.end()) {
+        scalarRegs_.set(it->second);
         return it->second;
+    }
     uint8_t dst = tempReg();
     emitAD(OpCode::LOAD_CONST, dst, idx);
     constRegCache_[idx] = dst;
+    scalarRegs_.set(dst);
     return dst;
 }
 
@@ -696,6 +700,11 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
         if (src != dst) {
             emitAB(OpCode::MOVE, dst, src);
         }
+        // Propagate scalar tracking through assignment
+        if (scalarRegs_.test(src))
+            scalarRegs_.set(dst);
+        else
+            scalarRegs_.reset(dst);
 
         // Display if no semicolon
         if (!node->suppressOutput) {
@@ -841,11 +850,11 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_FALSE, dst, 0); // placeholder
-        constRegCache_.clear(); // right operand may be skipped
+        constRegCache_.clear(); scalarRegs_.reset(); // right operand may be skipped
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
-        constRegCache_.clear(); // constants from skipped branch must not leak
+        constRegCache_.clear(); scalarRegs_.reset(); // constants from skipped branch must not leak
         return dst;
     }
     if (op == "||") {
@@ -854,39 +863,40 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         emitAB(OpCode::MOVE, dst, left);
         size_t jumpPos = currentPos();
         emitAD(OpCode::JMP_TRUE, dst, 0); // placeholder
-        constRegCache_.clear(); // right operand may be skipped
+        constRegCache_.clear(); scalarRegs_.reset(); // right operand may be skipped
         uint8_t right = compileNode(node->children[1].get());
         emitAB(OpCode::MOVE, dst, right);
         patchJump(jumpPos, static_cast<int16_t>(currentPos() - jumpPos));
-        constRegCache_.clear(); // constants from skipped branch must not leak
+        constRegCache_.clear(); scalarRegs_.reset(); // constants from skipped branch must not leak
         return dst;
     }
 
     uint8_t left = compileNode(node->children[0].get());
     uint8_t right = compileNode(node->children[1].get());
     uint8_t dst = tempReg();
+    bool bothScalar = scalarRegs_.test(left) && scalarRegs_.test(right);
 
     OpCode opcode;
     if (op == "+")
-        opcode = OpCode::ADD;
+        opcode = bothScalar ? OpCode::ADD_SS : OpCode::ADD;
     else if (op == "-")
-        opcode = OpCode::SUB;
+        opcode = bothScalar ? OpCode::SUB_SS : OpCode::SUB;
     else if (op == "*")
-        opcode = OpCode::MUL;
+        opcode = bothScalar ? OpCode::MUL_SS : OpCode::MUL;
     else if (op == "/")
-        opcode = OpCode::RDIV;
+        opcode = bothScalar ? OpCode::RDIV_SS : OpCode::RDIV;
     else if (op == "\\")
         opcode = OpCode::LDIV;
     else if (op == "^")
-        opcode = OpCode::POW;
+        opcode = bothScalar ? OpCode::POW_SS : OpCode::POW;
     else if (op == ".*")
-        opcode = OpCode::EMUL;
+        opcode = bothScalar ? OpCode::MUL_SS : OpCode::EMUL;
     else if (op == "./")
-        opcode = OpCode::ERDIV;
+        opcode = bothScalar ? OpCode::RDIV_SS : OpCode::ERDIV;
     else if (op == ".\\")
         opcode = OpCode::ELDIV;
     else if (op == ".^")
-        opcode = OpCode::EPOW;
+        opcode = bothScalar ? OpCode::POW_SS : OpCode::EPOW;
     else if (op == "==")
         opcode = OpCode::EQ;
     else if (op == "~=")
@@ -907,6 +917,11 @@ uint8_t Compiler::compileBinaryOp(const ASTNode *node)
         throw std::runtime_error("Compiler: unsupported binary operator '" + op + "'");
 
     emitABC(opcode, dst, left, right);
+    // Scalar-specialized ops produce scalar results
+    if (bothScalar && (opcode == OpCode::ADD_SS || opcode == OpCode::SUB_SS
+                       || opcode == OpCode::MUL_SS || opcode == OpCode::RDIV_SS
+                       || opcode == OpCode::POW_SS))
+        scalarRegs_.set(dst);
     return dst;
 }
 
@@ -916,9 +931,14 @@ uint8_t Compiler::compileUnaryOp(const ASTNode *node)
     uint8_t src = compileNode(node->children[0].get());
     uint8_t dst = tempReg();
 
-    if (op == "-")
-        emitAB(OpCode::NEG, dst, src);
-    else if (op == "+")
+    if (op == "-") {
+        if (scalarRegs_.test(src)) {
+            emitAB(OpCode::NEG_S, dst, src);
+            scalarRegs_.set(dst);
+        } else {
+            emitAB(OpCode::NEG, dst, src);
+        }
+    } else if (op == "+")
         emitAB(OpCode::UPLUS, dst, src);
     else if (op == "~")
         emitAB(OpCode::NOT, dst, src);
@@ -1031,7 +1051,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
 
 uint8_t Compiler::compileIf(const ASTNode *node)
 {
-    constRegCache_.clear(); // branches may skip LOAD_CONST
+    constRegCache_.clear(); scalarRegs_.reset(); // branches may skip LOAD_CONST
     // branches: vector<pair<condition, body>>
     // elseBranch: optional else body
     //
@@ -1055,7 +1075,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
         auto &[cond, body] = node->branches[i];
 
         // Clear cache: previous branch body may have been skipped
-        constRegCache_.clear();
+        constRegCache_.clear(); scalarRegs_.reset();
         // Compile condition
         uint8_t condReg = compileNode(cond.get());
 
@@ -1078,7 +1098,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
 
     // Compile else branch if present
     if (node->elseBranch) {
-        constRegCache_.clear();
+        constRegCache_.clear(); scalarRegs_.reset();
         compileNode(node->elseBranch.get());
     }
 
@@ -1087,7 +1107,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
         patchJump(pos, static_cast<int16_t>(currentPos() - pos));
     }
 
-    constRegCache_.clear(); // don't know which branch ran
+    constRegCache_.clear(); scalarRegs_.reset(); // don't know which branch ran
     return 0;
 }
 
@@ -1096,7 +1116,7 @@ uint8_t Compiler::compileIf(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileSwitch(const ASTNode *node)
 {
-    constRegCache_.clear();
+    constRegCache_.clear(); scalarRegs_.reset();
     // AST: children[0] = switch expression
     //      branches = vector<pair<case_expr, case_body>>
     //      elseBranch = otherwise body (optional)
@@ -1201,7 +1221,7 @@ uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 // ============================================================
 uint8_t Compiler::compileTryCatch(const ASTNode *node)
 {
-    constRegCache_.clear();
+    constRegCache_.clear(); scalarRegs_.reset();
     // AST: children[0] = try body
     //      children[1] = catch body (optional)
     //      strValue = catch variable name (e.g. "e")
@@ -1253,7 +1273,7 @@ uint8_t Compiler::compileTryCatch(const ASTNode *node)
 
 uint8_t Compiler::compileWhile(const ASTNode *node)
 {
-    constRegCache_.clear();
+    constRegCache_.clear(); scalarRegs_.reset();
     // children[0] = condition, children[1] = body
     //
     // L_start:
@@ -1294,7 +1314,7 @@ uint8_t Compiler::compileWhile(const ASTNode *node)
     }
 
     loopStack_.pop_back();
-    constRegCache_.clear(); // body constants may not have executed
+    constRegCache_.clear(); scalarRegs_.reset(); // body constants may not have executed
     return 0;
 }
 
@@ -1359,6 +1379,10 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     size_t forInitPos = currentPos();
     // FOR_INIT: a=varReg, b=rangeReg, d=endOffset(placeholder)
     emit(Instruction::make_abd(OpCode::FOR_INIT, vReg, rangeReg, 0));
+    // Mark loop variable as scalar only when range is a numeric colon expression
+    // (logical/char arrays produce non-double-scalar loop values)
+    if (node->children[0]->type == NodeType::COLON_EXPR)
+        scalarRegs_.set(vReg);
 
     size_t bodyStart = currentPos();
 
@@ -1390,7 +1414,7 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     }
 
     loopStack_.pop_back();
-    constRegCache_.clear(); // body constants may not have executed (empty range)
+    constRegCache_.clear(); scalarRegs_.reset(); // body constants may not have executed (empty range)
     return 0;
 }
 
@@ -2040,6 +2064,22 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         return dst;
     }
 
+    // Fast path: 1-arg inline builtins — skip MOVE, pass arg register directly
+    {
+        int8_t builtinId = resolveBuiltinId(name, nargs);
+        if (builtinId >= 0 && nargs == 1) {
+            uint8_t arg = compileNode(node->children[1].get());
+            uint8_t dst = tempReg();
+            emit(Instruction::make_abcde(OpCode::CALL_BUILTIN,
+                                         dst, arg, 1,
+                                         static_cast<int16_t>(builtinId), 0));
+            // Math builtins on scalar produce scalar
+            if (scalarRegs_.test(arg) && builtinId <= 13)
+                scalarRegs_.set(dst);
+            return dst;
+        }
+    }
+
     // Compile arguments into consecutive registers
     std::vector<uint8_t> argRegs;
     for (size_t i = 1; i < node->children.size(); ++i) {
@@ -2369,6 +2409,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     auto savedVarRegs = std::move(varRegisters_);
     auto savedLoopStack = std::move(loopStack_);
     auto savedConstCache = std::move(constRegCache_);
+    auto savedScalarRegs = scalarRegs_;
     uint8_t savedNextReg = nextReg_;
     bool savedTopLevel = isTopLevel_;
     SourceLoc savedLoc = currentLoc_;
@@ -2385,6 +2426,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     varRegisters_.clear();
     loopStack_.clear();
     constRegCache_.clear();
+    scalarRegs_.reset();
     nextReg_ = 0;
 
     // Allocate registers for parameters (they come pre-loaded by VM)
@@ -2445,6 +2487,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     varRegisters_ = std::move(savedVarRegs);
     loopStack_ = std::move(savedLoopStack);
     constRegCache_ = std::move(savedConstCache);
+    scalarRegs_ = savedScalarRegs;
     nextReg_ = savedNextReg;
     isTopLevel_ = savedTopLevel;
     currentLoc_ = savedLoc;
@@ -2708,6 +2751,18 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "NOP";
         case OpCode::ASSERT_DEF:
             return "ASSERT_DEF";
+        case OpCode::ADD_SS:
+            return "ADD_SS";
+        case OpCode::SUB_SS:
+            return "SUB_SS";
+        case OpCode::MUL_SS:
+            return "MUL_SS";
+        case OpCode::RDIV_SS:
+            return "RDIV_SS";
+        case OpCode::POW_SS:
+            return "POW_SS";
+        case OpCode::NEG_S:
+            return "NEG_S";
         case OpCode::CLEAR_VAR:
             return "CLEAR_VAR";
         case OpCode::CLEAR_DYN:

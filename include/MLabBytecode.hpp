@@ -135,6 +135,14 @@ enum class OpCode : uint8_t {
     NOP,        //                        no-op (patching, alignment)
     ASSERT_DEF, // reg, nameIdx           throw if R[reg] is unset (undefined variable)
 
+    // ── Scalar-specialized (compiler guarantees double-scalar operands) ──
+    ADD_SS,  // dst, a, b   R[dst] = R[a].scalar + R[b].scalar  (no type check)
+    SUB_SS,  // dst, a, b
+    MUL_SS,  // dst, a, b
+    RDIV_SS, // dst, a, b
+    POW_SS,  // dst, a, b   (includes integer-exponent fast paths)
+    NEG_S,   // dst, src    R[dst] = -R[src].scalar
+
     // ── End marker ───────────────────────────────────────────
     HALT, //                        stop execution
 };

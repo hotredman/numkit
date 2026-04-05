@@ -235,6 +235,40 @@ dispatch_loop:
                     goto binary_slow;
                 break;
 
+            // ── Scalar-specialized arithmetic (no type checks) ────
+            case OpCode::ADD_SS:
+                R[I.a].setScalarFast(R[I.b].scalarVal() + R[I.c].scalarVal());
+                break;
+            case OpCode::SUB_SS:
+                R[I.a].setScalarFast(R[I.b].scalarVal() - R[I.c].scalarVal());
+                break;
+            case OpCode::MUL_SS:
+                R[I.a].setScalarFast(R[I.b].scalarVal() * R[I.c].scalarVal());
+                break;
+            case OpCode::RDIV_SS:
+                R[I.a].setScalarFast(R[I.b].scalarVal() / R[I.c].scalarVal());
+                break;
+            case OpCode::POW_SS: {
+                double base = R[I.b].scalarVal();
+                double exp = R[I.c].scalarVal();
+                double result;
+                if (exp == 2.0)
+                    result = base * base;
+                else if (exp == 3.0)
+                    result = base * base * base;
+                else if (exp == 0.5)
+                    result = std::sqrt(base);
+                else if (exp == -1.0)
+                    result = 1.0 / base;
+                else
+                    result = std::pow(base, exp);
+                R[I.a].setScalarFast(result);
+                break;
+            }
+            case OpCode::NEG_S:
+                R[I.a].setScalarFast(-R[I.b].scalarVal());
+                break;
+
             // ── Comparison ───────────────────────────────────────
             case OpCode::EQ:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
@@ -1600,6 +1634,14 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::ERDIV:return "in operator './'";
     case OpCode::ELDIV:return "in operator '.\\'";
     case OpCode::EPOW: return "in operator '.^'";
+
+    // Scalar-specialized
+    case OpCode::ADD_SS:  return "in operator '+'";
+    case OpCode::SUB_SS:  return "in operator '-'";
+    case OpCode::MUL_SS:  return "in operator '*'";
+    case OpCode::RDIV_SS: return "in operator '/'";
+    case OpCode::POW_SS:  return "in operator '^'";
+    case OpCode::NEG_S:   return "in unary operator '-'";
 
     // Unary operators
     case OpCode::NEG:        return "in unary operator '-'";

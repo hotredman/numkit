@@ -3,6 +3,7 @@
 
 #include "MLabAst.hpp"
 #include "MLabBytecode.hpp"
+#include <bitset>
 #include <unordered_set>
 
 #include <string>
@@ -140,6 +141,10 @@ private:
     // Constant register cache: avoid redundant LOAD_CONST in loops
     // Maps constant pool index → register that already holds the value
     std::unordered_map<int16_t, uint8_t> constRegCache_;
+
+    // Scalar register tracking: registers known to hold double scalars
+    // Enables emission of type-check-free _SS opcodes
+    std::bitset<256> scalarRegs_;
 
     // Peephole optimization pass
     void peepholeOptimize();
