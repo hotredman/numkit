@@ -1825,6 +1825,44 @@ TEST_F(ParserFullProgramTest, MultipleFunctions)
 class ParserErrorTest : public ::testing::Test
 {};
 
+TEST_F(ParserErrorTest, DuplicateFunctionDef)
+{
+    EXPECT_ANY_THROW(parseSource(R"(
+        function y = foo(x)
+            y = x + 1;
+        end
+        function y = foo(x)
+            y = x + 2;
+        end
+    )"));
+}
+
+TEST_F(ParserErrorTest, DuplicateFunctionDefDifferentSignatures)
+{
+    // Even with different signatures, duplicate names are an error
+    EXPECT_ANY_THROW(parseSource(R"(
+        function y = bar(x)
+            y = x;
+        end
+        function [a, b] = bar(x, y)
+            a = x; b = y;
+        end
+    )"));
+}
+
+TEST_F(ParserErrorTest, DistinctFunctionDefsAllowed)
+{
+    // Different names should be fine
+    EXPECT_NO_THROW(parseSource(R"(
+        function y = foo(x)
+            y = x + 1;
+        end
+        function y = bar(x)
+            y = x + 2;
+        end
+    )"));
+}
+
 TEST_F(ParserErrorTest, UnmatchedParen)
 {
     EXPECT_ANY_THROW(parseSource("(1 + 2;"));

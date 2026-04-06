@@ -1,6 +1,7 @@
 #include "MLabParser.hpp"
 #include <algorithm>
 #include <stdexcept>
+#include <unordered_map>
 
 namespace mlab {
 
@@ -157,6 +158,22 @@ ASTNodePtr Parser::parse()
             block->children.push_back(std::move(stmt));
         skipNewlines();
     }
+
+    // Check for duplicate function definitions
+    std::unordered_map<std::string, int> funcNames;
+    for (auto &child : block->children) {
+        if (child && child->type == NodeType::FUNCTION_DEF) {
+            auto it = funcNames.find(child->strValue);
+            if (it != funcNames.end()) {
+                throw std::runtime_error(
+                    "Duplicate function '" + child->strValue
+                    + "' (first defined at line " + std::to_string(it->second)
+                    + ", redefined at line " + std::to_string(child->line) + ")");
+            }
+            funcNames[child->strValue] = child->line;
+        }
+    }
+
     return block;
 }
 

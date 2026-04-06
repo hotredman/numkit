@@ -113,4 +113,16 @@ TEST_P(FunctionTest, MutualRecursion)
     EXPECT_DOUBLE_EQ(evalScalar("is_even(3);"), 0.0);
 }
 
+TEST_P(FunctionTest, DuplicateFunctionNameError)
+{
+    EXPECT_THROW(eval(R"(
+        function y = dup(x)
+            y = x + 1;
+        end
+        function y = dup(x)
+            y = x + 2;
+        end
+    )"), std::exception);
+}
+
 INSTANTIATE_DUAL(FunctionTest);
