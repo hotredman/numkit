@@ -186,7 +186,10 @@ ExecStatus VM::resumeExecution()
 // Internal dispatch — MValue directly, scalar fast paths
 // ============================================================
 
-__attribute__((flatten)) ExecStatus VM::dispatchLoop()
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((flatten))
+#endif
+ExecStatus VM::dispatchLoop()
 {
 enter_frame:
     if (frames_.empty())
