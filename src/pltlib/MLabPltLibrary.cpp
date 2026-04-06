@@ -382,11 +382,12 @@ void PltLibrary::install(Engine &engine)
                                     for (size_t c = 0; c < cols; ++c) {
                                         if (c)
                                             zs << ",";
+                                        // Column-major: index = col * rows + row
                                         double val;
                                         if (C_arg->isComplex()) {
-                                            val = std::abs(C_arg->complexData()[r * cols + c]);
+                                            val = std::abs(C_arg->complexData()[c * rows + r]);
                                         } else {
-                                            val = C_arg->doubleData()[r * cols + c];
+                                            val = C_arg->doubleData()[c * rows + r];
                                         }
                                         doubleToJson(zs, val);
                                     }
