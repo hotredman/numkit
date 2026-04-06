@@ -336,6 +336,9 @@ public:
     // ── Debug ────────────────────────────────────────────────
     std::string debugString() const;
 
+    // MATLAB-style display string: "name =\n    value\n\n"
+    std::string formatDisplay(const std::string &name) const;
+
     // ── Fast scalar access for VM ────────────────────────────
     // Caller must ensure isDoubleScalar() is true.
     bool isDoubleScalar() const { return heap_ == nullptr; }

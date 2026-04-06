@@ -2262,4 +2262,183 @@ std::string MValue::debugString() const
     return os.str();
 }
 
+// ============================================================
+// MATLAB-style display formatting
+// ============================================================
+
+// Format a double the way MATLAB does: integers without decimal point,
+// short format for floats, aligned columns for matrices.
+static std::string fmtDouble(double v)
+{
+    if (std::isnan(v)) return "NaN";
+    if (std::isinf(v)) return v > 0 ? "Inf" : "-Inf";
+    if (v == 0.0) return "0";
+    // Integer check
+    if (v == std::floor(v) && std::abs(v) < 1e15) {
+        std::ostringstream os;
+        os << static_cast<int64_t>(v);
+        return os.str();
+    }
+    std::ostringstream os;
+    os << v;
+    return os.str();
+}
+
+static std::string fmtComplex(const Complex &c)
+{
+    std::ostringstream os;
+    if (c.real() != 0.0 || c.imag() == 0.0)
+        os << fmtDouble(c.real());
+    if (c.imag() != 0.0) {
+        if (c.real() != 0.0 && c.imag() > 0) os << " + ";
+        else if (c.real() != 0.0 && c.imag() < 0) os << " - ";
+        double ai = std::abs(c.imag());
+        if (ai == 1.0)
+            os << "i";
+        else
+            os << fmtDouble(ai) << "i";
+    }
+    return os.str();
+}
+
+std::string MValue::formatDisplay(const std::string &name) const
+{
+    std::ostringstream os;
+
+    // Header: "name =\n" (skip for "ans" — MATLAB prints "ans =\n" too, actually)
+    if (!name.empty())
+        os << name << " =\n";
+
+    MType t = type();
+
+    switch (t) {
+    case MType::DOUBLE: {
+        if (isScalar()) {
+            os << "   " << fmtDouble(toScalar()) << "\n";
+        } else if (isEmpty()) {
+            os << "     []\n";
+        } else {
+            auto &d = dims();
+            // Compute column widths for alignment
+            for (size_t p = 0; p < d.pages(); ++p) {
+                if (d.is3D())
+                    os << "\n(:,:," << p + 1 << ") =\n\n";
+
+                // Pre-format all values to determine column widths
+                std::vector<std::vector<std::string>> cells(d.rows());
+                std::vector<size_t> colWidth(d.cols(), 0);
+                for (size_t r = 0; r < d.rows(); ++r) {
+                    cells[r].resize(d.cols());
+                    for (size_t c = 0; c < d.cols(); ++c) {
+                        cells[r][c] = fmtDouble((*this)(r, c, p));
+                        colWidth[c] = std::max(colWidth[c], cells[r][c].size());
+                    }
+                }
+
+                for (size_t r = 0; r < d.rows(); ++r) {
+                    os << "   ";
+                    for (size_t c = 0; c < d.cols(); ++c) {
+                        // Right-align within column
+                        size_t pad = colWidth[c] - cells[r][c].size();
+                        for (size_t i = 0; i < pad + 1; ++i) os << ' ';
+                        os << cells[r][c];
+                    }
+                    os << "\n";
+                }
+            }
+        }
+        break;
+    }
+    case MType::CHAR:
+        os << "   '" << toString() << "'\n";
+        break;
+    case MType::STRING:
+        if (isScalar()) {
+            os << "   \"" << toString() << "\"\n";
+        } else {
+            auto &d = dims();
+            os << "  " << d.rows() << "x" << d.cols() << " string array\n";
+            for (size_t i = 0; i < numel() && i < 20; ++i)
+                os << "    \"" << stringElem(i) << "\"\n";
+        }
+        break;
+    case MType::LOGICAL: {
+        if (isScalar()) {
+            os << "   " << (toBool() ? "1" : "0") << "\n";
+        } else {
+            auto &d = dims();
+            for (size_t p = 0; p < d.pages(); ++p) {
+                if (d.is3D())
+                    os << "\n(:,:," << p + 1 << ") =\n\n";
+                for (size_t r = 0; r < d.rows(); ++r) {
+                    os << "   ";
+                    for (size_t c = 0; c < d.cols(); ++c) {
+                        size_t idx = d.is3D() ? (p * d.rows() * d.cols() + c * d.rows() + r)
+                                              : d.sub2ind(r, c);
+                        os << " " << (logicalData()[idx] ? "1" : "0");
+                    }
+                    os << "\n";
+                }
+            }
+        }
+        break;
+    }
+    case MType::COMPLEX: {
+        if (isScalar()) {
+            os << "   " << fmtComplex(toComplex()) << "\n";
+        } else {
+            auto &d = dims();
+            // Pre-format for alignment
+            std::vector<std::vector<std::string>> cells(d.rows());
+            std::vector<size_t> colWidth(d.cols(), 0);
+            for (size_t r = 0; r < d.rows(); ++r) {
+                cells[r].resize(d.cols());
+                for (size_t c = 0; c < d.cols(); ++c) {
+                    cells[r][c] = fmtComplex(complexElem(r, c));
+                    colWidth[c] = std::max(colWidth[c], cells[r][c].size());
+                }
+            }
+            for (size_t r = 0; r < d.rows(); ++r) {
+                os << "   ";
+                for (size_t c = 0; c < d.cols(); ++c) {
+                    size_t pad = colWidth[c] - cells[r][c].size();
+                    for (size_t i = 0; i < pad + 1; ++i) os << ' ';
+                    os << cells[r][c];
+                }
+                os << "\n";
+            }
+        }
+        break;
+    }
+    case MType::STRUCT:
+        os << "  struct with fields:\n\n";
+        for (auto &[k, v] : structFields())
+            os << "    " << k << ": " << v.debugString() << "\n";
+        break;
+    case MType::FUNC_HANDLE:
+        os << "   @" << funcHandleName() << "\n";
+        break;
+    case MType::CELL: {
+        auto &d = dims();
+        os << "  {" << d.rows() << "x" << d.cols();
+        if (d.is3D()) os << "x" << d.pages();
+        os << " cell}\n";
+        for (size_t i = 0; i < numel() && i < 20; ++i)
+            os << "    {" << i + 1 << "}: " << cellAt(i).debugString() << "\n";
+        if (numel() > 20)
+            os << "    ... (" << numel() - 20 << " more)\n";
+        break;
+    }
+    case MType::EMPTY:
+        os << "     []\n";
+        break;
+    default:
+        os << "   " << debugString() << "\n";
+        break;
+    }
+
+    os << "\n";
+    return os.str();
+}
+
 } // namespace mlab

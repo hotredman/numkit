@@ -1895,18 +1895,7 @@ void VM::execDisplay(const Instruction &I, MValue *R, const BytecodeChunk &chunk
     if (R[I.a].isUnset())
         return;
     const std::string &name = chunk.strings[I.d];
-    std::ostringstream os;
-    if (R[I.a].isDoubleScalar())
-        os << name << " = " << R[I.a].scalarVal() << "\n\n";
-    else if (R[I.a].isEmpty())
-        os << name << " = []\n\n";
-    else if (R[I.a].isChar())
-        os << name << " = '" << R[I.a].toString() << "'\n\n";
-    else if (R[I.a].isString())
-        os << name << " = \"" << R[I.a].toString() << "\"\n\n";
-    else
-        os << name << " = " << R[I.a].debugString() << "\n\n";
-    engine_.outputText(os.str());
+    engine_.outputText(R[I.a].formatDisplay(name));
 }
 
 void VM::execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
