@@ -1,4 +1,4 @@
-import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { useTheme, FONT } from '../theme';
 
 const KEYWORDS = new Set([
@@ -38,8 +38,7 @@ function tokenize(code) {
       if (j < n && code[j] === '.') { j++; while (j < n && /[0-9]/.test(code[j])) j++; }
       if (j < n && (code[j] === 'e' || code[j] === 'E')) { j++; if (j < n && (code[j] === '+' || code[j] === '-')) j++; while (j < n && /[0-9]/.test(code[j])) j++; }
       if (j < n && (code[j] === 'i' || code[j] === 'j') && (j + 1 >= n || !/[a-zA-Z0-9_]/.test(code[j + 1]))) j++;
-      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue;
-    }
+      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue; }
     if (/[a-zA-Z_]/.test(code[i])) {
       let j = i; while (j < n && /[a-zA-Z0-9_]/.test(code[j])) j++; const w = code.slice(i, j);
       let type = 'plain';
@@ -58,13 +57,21 @@ function tokenize(code) {
 const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, errorLine, debugLine }, ref) {
   const C = useTheme();
   const textareaRef = useRef(null);
-  const highlightRef = useRef(null);
+  const preRef = useRef(null);
   useImperativeHandle(ref, () => ({ get scrollTop() { return textareaRef.current?.scrollTop || 0; }, focus: () => textareaRef.current?.focus() }));
 
   const colorMap = { keyword: C.synKeyword, builtin: C.synBuiltin, number: C.synNumber, string: C.synString, comment: C.synComment, operator: C.synOperator, constant: C.synConstant, param: C.synParam, plain: C.text };
 
+  // Measure the content width from <pre> and apply it to <textarea>
+  // so both have the same scrollable width.
+  useEffect(() => {
+    if (preRef.current && textareaRef.current) {
+      const preWidth = preRef.current.scrollWidth;
+      textareaRef.current.style.width = Math.max(preWidth, textareaRef.current.parentElement.clientWidth) + 'px';
+    }
+  });
+
   const syncScroll = useCallback(() => {
-    if (highlightRef.current && textareaRef.current) { highlightRef.current.scrollTop = textareaRef.current.scrollTop; highlightRef.current.scrollLeft = textareaRef.current.scrollLeft; }
     if (onScroll && textareaRef.current) onScroll(textareaRef.current.scrollTop);
   }, [onScroll]);
 
@@ -76,13 +83,20 @@ const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScrol
     return `<span style="${s}">${e}</span>`;
   }).join('');
 
+  // Both <pre> and <textarea> are inside a single scrollable container.
+  // <pre> has width:max-content so it expands to fit the longest line.
+  // <textarea> is overlaid on top with the same dimensions.
+  // The outer div scrolls both together — no JS sync needed for horizontal scroll.
   return (
-    <div style={{ position:'relative',width:'100%',height:'100%',overflow:'hidden' }}>
-      {errorLine&&<div style={{position:'absolute',left:0,right:0,top:(errorLine-1)*20+8,height:20,background:`${C.red}18`,borderLeft:`2px solid ${C.red}`,pointerEvents:'none',zIndex:1}}/>}
-      {debugLine&&<div style={{position:'absolute',left:0,right:0,top:(debugLine-1)*20+8,height:20,background:`${C.orange}22`,borderLeft:`2px solid ${C.orange}`,pointerEvents:'none',zIndex:1}}/>}
-      <pre ref={highlightRef} aria-hidden="true" style={{position:'absolute',top:0,left:0,right:0,bottom:0,margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',pointerEvents:'none',zIndex:2}} dangerouslySetInnerHTML={{__html:html+'\n'}}/>
-      <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false}
-        style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre-wrap',wordBreak:'break-word',zIndex:3}}/>
+    <div style={{ position:'relative',width:'100%',height:'100%',overflow:'auto' }}
+         onScroll={e => { if (onScroll) onScroll(e.currentTarget.scrollTop); }}>
+      {errorLine&&<div style={{position:'sticky',left:0,top:(errorLine-1)*20+8,height:20,width:'100%',background:`${C.red}18`,borderLeft:`2px solid ${C.red}`,pointerEvents:'none',zIndex:1,marginBottom:-20}}/>}
+      {debugLine&&<div style={{position:'sticky',left:0,top:(debugLine-1)*20+8,height:20,width:'100%',background:`${C.orange}22`,borderLeft:`2px solid ${C.orange}`,pointerEvents:'none',zIndex:1,marginBottom:-20}}/>}
+      <div style={{position:'relative',width:'max-content',minWidth:'100%',minHeight:'100%'}}>
+        <pre ref={preRef} aria-hidden="true" style={{margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',whiteSpace:'pre',pointerEvents:'none'}} dangerouslySetInnerHTML={{__html:html+'\n'}}/>
+        <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false} wrap="off"
+          style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'hidden',whiteSpace:'pre'}}/>
+      </div>
     </div>
   );
 });
