@@ -966,7 +966,7 @@ enter_frame:
                         Span<const MValue> as(&R[argBase], na);
                         MValue ob[1];
                         Span<MValue> os(ob, 1);
-                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        CallContext ctx{&engine_, &engine_.workspaceEnv()};
                         extIt->second(as, nargout_val, os, ctx);
                         R[I.a] = std::move(ob[0]);
                         break;
@@ -1000,7 +1000,7 @@ enter_frame:
                         std::vector<MValue> outBuf(nout);
                         Span<const MValue> as(&R[argBase], na);
                         Span<MValue> os(outBuf.data(), nout);
-                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+                        CallContext ctx{&engine_, &engine_.workspaceEnv()};
                         extIt->second(as, nout, os, ctx);
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
@@ -1192,15 +1192,15 @@ void VM::exportTopLevelVariables()
             lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
-    // Export global declarations to globalStore (same logic as popCallFrame top-level path)
+    // Export global declarations to globalsEnv (same logic as popCallFrame top-level path)
     for (auto &gname : topFrame.chunk->globalNames) {
         for (auto &[vname, reg] : topFrame.chunk->varMap) {
             if (vname == gname && reg < topFrame.nregs) {
                 if (!topFrame.R[reg].isEmpty())
-                    engine_.globalStore_.set(gname, topFrame.R[reg]);
-                MValue *gsVal = engine_.globalStore_.get(gname);
+                    engine_.globalsEnv_->set(gname, topFrame.R[reg]);
+                MValue *gsVal = engine_.globalsEnv_->get(gname);
                 if (gsVal)
-                    engine_.globalEnv_->set(gname, *gsVal);
+                    engine_.workspaceEnv_->set(gname, *gsVal);
                 break;
             }
         }
@@ -1429,11 +1429,11 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const MValue *args, uint8
             newR[reg] = MValue::scalar(static_cast<double>(nargout), nullptr);
     }
 
-    // Import global variables from globalStore
+    // Import global variables from globalsEnv
     for (auto &gname : funcChunk.globalNames) {
         for (auto &[vname, reg] : funcChunk.varMap) {
             if (vname == gname && reg < nregs) {
-                MValue *gval = engine_.globalStore_.get(gname);
+                MValue *gval = engine_.globalsEnv_->get(gname);
                 if (gval)
                     newR[reg] = *gval;
                 break;
@@ -1485,7 +1485,7 @@ void VM::popCallFrame(MValue retVal)
 
     bool isTopLevel = (frames_.size() == 1);
 
-    // Export global variables back to globalStore
+    // Export global variables back to globalsEnv
     for (auto &gname : frame.chunk->globalNames) {
         for (auto &[vname, reg] : frame.chunk->varMap) {
             if (vname == gname && reg < frame.nregs) {
@@ -1493,13 +1493,13 @@ void VM::popCallFrame(MValue retVal)
                     // Top-level: only overwrite if non-empty (function calls
                     // may have set the global, but our register is stale)
                     if (!frame.R[reg].isEmpty())
-                        engine_.globalStore_.set(gname, frame.R[reg]);
-                    MValue *gsVal = engine_.globalStore_.get(gname);
+                        engine_.globalsEnv_->set(gname, frame.R[reg]);
+                    MValue *gsVal = engine_.globalsEnv_->get(gname);
                     if (gsVal)
-                        engine_.globalEnv_->set(gname, *gsVal);
+                        engine_.workspaceEnv_->set(gname, *gsVal);
                 } else {
-                    engine_.globalStore_.set(gname, frame.R[reg]);
-                    engine_.globalEnv_->set(gname, frame.R[reg]);
+                    engine_.globalsEnv_->set(gname, frame.R[reg]);
+                    engine_.workspaceEnv_->set(gname, frame.R[reg]);
                 }
                 break;
             }
@@ -1759,7 +1759,7 @@ void VM::execCallBuiltin(const Instruction &I, MValue *R)
             Span<const MValue> as(&R[argBase], na);
             MValue ob[1];
             Span<MValue> os(ob, 1);
-            CallContext ctx{&engine_, &engine_.globalEnvironment()};
+            CallContext ctx{&engine_, &engine_.workspaceEnv()};
             extIt->second(as, 1, os, ctx);
             R[I.a] = std::move(ob[0]);
             return;
@@ -1816,7 +1816,7 @@ bool VM::execCallIndirect(const Instruction &I, MValue *R,
         Span<const MValue> as(argsBuf.data(), na);
         MValue ob[1];
         Span<MValue> os(ob, 1);
-        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+        CallContext ctx{&engine_, &engine_.workspaceEnv()};
         extIt->second(as, 1, os, ctx);
         R[I.a] = std::move(ob[0]);
         return false;

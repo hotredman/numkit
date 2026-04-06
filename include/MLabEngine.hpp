@@ -68,16 +68,16 @@ public:
     void setOutputFunc(OutputFunc f);
     void setMaxRecursionDepth(int depth);
 
-    std::vector<std::string> globalVarNames() const;
+    std::vector<std::string> workspaceVarNames() const;
     std::string workspaceJSON() const;
     void outputText(const std::string &s);
 
     FigureManager &figureManager() { return figureManager_; }
     const FigureManager &figureManager() const { return figureManager_; }
 
-    Environment &globalEnvironment() { return *globalEnv_; }
-    Environment &constantsEnvironment() { return *constantsEnv_; }
-    GlobalStore &globalVarStore() { return globalStore_; }
+    Environment &workspaceEnv() { return *workspaceEnv_; }
+    Environment &constantsEnv() { return *constantsEnv_; }
+    Environment &globalsEnv() { return *globalsEnv_; }
 
     bool hasFunction(const std::string &name) const;
     bool hasUserFunction(const std::string &name) const;
@@ -99,7 +99,7 @@ public:
     // Throws DebugStopException if Stop is requested, MLabError on runtime errors.
     ExecStatus debugResume(DebugAction action);
 
-    // Reinstall built-in constants (pi, eps, inf, etc.) into globalEnv.
+    // Reinstall built-in constants (pi, eps, inf, etc.) into constantsEnv.
     // Called after clear to restore the standard environment.
     void reinstallConstants();
 
@@ -113,14 +113,14 @@ public:
     bool ticWasCalled() const { return ticCalled_; }
 
     // Returns true when executing inside a user function call (not top-level script).
-    // Used by clear() to avoid modifying globalEnv from within function scope.
+    // Used by clear() to avoid modifying workspaceEnv from within function scope.
     bool isInsideFunctionCall() const;
 
 private:
     Allocator allocator_;
-    GlobalStore globalStore_;
-    std::unique_ptr<Environment> constantsEnv_; // pi, eps, inf, etc. — parent for all scopes
-    std::unique_ptr<Environment> globalEnv_;    // top-level workspace — parent = constantsEnv_
+    std::unique_ptr<Environment> globalsEnv_;     // MATLAB 'global' variables — shared across functions
+    std::unique_ptr<Environment> constantsEnv_;  // pi, eps, inf, etc. — parent for all scopes
+    std::unique_ptr<Environment> workspaceEnv_;  // top-level workspace (base workspace)
 
     std::unordered_map<std::string, BinaryOpFunc> binaryOps_;
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
@@ -135,7 +135,7 @@ private:
     bool ticCalled_ = false;
 
     // Tracks whether clear/clear all was called during VM execution
-    // so that export wipes globalEnv before writing back.
+    // so that export wipes workspaceEnv before writing back.
     bool clearAllCalled_ = false;
 
     // Debugger
@@ -157,8 +157,8 @@ private:
     std::unique_ptr<VM> vm_;
     Backend backend_ = Backend::AutoFallback;
 
-    // Sync VM's exported variables to globalEnv (called after execute, even on error)
-    void syncVMToGlobalEnv();
+    // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
+    void syncVMToWorkspace();
 
     friend class TreeWalker;
     friend class VM;

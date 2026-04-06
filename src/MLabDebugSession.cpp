@@ -62,7 +62,7 @@ ExecStatus DebugSession::start(const std::string &code)
         ExecStatus status = engine_.vm_->startExecution(chunk_);
 
         if (status == ExecStatus::Completed) {
-            engine_.syncVMToGlobalEnv();
+            engine_.syncVMToWorkspace();
             active_ = false;
             engine_.setDebugObserver(nullptr);
         }
@@ -70,14 +70,14 @@ ExecStatus DebugSession::start(const std::string &code)
 
         return status;
     } catch (const MLabError &e) {
-        engine_.syncVMToGlobalEnv();
+        engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         errorLine_ = e.line();
         active_ = false;
         engine_.setDebugObserver(nullptr);
         return ExecStatus::Completed;
     } catch (const std::exception &e) {
-        engine_.syncVMToGlobalEnv();
+        engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         active_ = false;
         engine_.setDebugObserver(nullptr);
@@ -175,10 +175,10 @@ std::string DebugSession::eval(const std::string &code)
     engine_.setDebugObserver(nullptr);
 
     // 4. Inject current frame's variables into both global stores
-    //    (compiler's varRegRead checks globalStore_ and globalEnv_)
+    //    (compiler's varRegRead checks globalsEnv_ and workspaceEnv_)
     //    Save prior state so we can undo injection after eval.
-    auto &genv = engine_.globalEnvironment();
-    auto &gstore = engine_.globalVarStore();
+    auto &genv = engine_.workspaceEnv();
+    auto &gstore = engine_.globalsEnv();
 
     struct SavedVar { std::string name; bool hadEnv; MValue envVal; bool hadStore; MValue storeVal; };
     std::vector<SavedVar> savedVars;

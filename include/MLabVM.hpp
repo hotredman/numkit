@@ -134,7 +134,7 @@ private:
                        bool isMulti = false, uint8_t outBase = 0, uint8_t nout = 0);
     void popCallFrame(MValue retVal);
 
-    // Export top-level variables to lastVarMap_ and globalStore
+    // Export top-level variables to lastVarMap_ and globalsEnv
     void exportTopLevelVariables();
 
     // Exception helpers for dispatch loop (frame-aware)

@@ -60,7 +60,7 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     currentLoc_ = {};
     isTopLevel_ = true;
 
-    // Pre-import: scan AST for identifiers that exist in globalEnv,
+    // Pre-import: scan AST for identifiers that exist in workspaceEnv,
     // allocate registers and emit LOAD_CONST before main code.
     // This prevents imports inside loops from resetting each iteration.
     preImportGlobals(ast);
@@ -90,7 +90,7 @@ void Compiler::preImportGlobals(const ASTNode *ast)
     std::unordered_set<std::string> identifiers;
     collectAllIdentifiers(ast, identifiers);
 
-    // For each identifier found in globalEnv, pre-allocate register and emit LOAD_CONST
+    // For each identifier found in workspaceEnv, pre-allocate register and emit LOAD_CONST
     for (auto &name : identifiers) {
         if (varRegisters_.count(name))
             continue; // already allocated
@@ -163,11 +163,11 @@ uint8_t Compiler::varRegRead(const std::string &name)
     if (it != varRegisters_.end())
         return it->second;
 
-    // Check globalEnv
+    // Check workspaceEnv
     if (isTopLevel_ && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing)
-            return varReg(name); // will import from globalEnv (including empty values)
+            return varReg(name); // will import from workspaceEnv (including empty values)
     }
 
     // Check if it's a builtin constant
@@ -1058,7 +1058,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         const std::string &name = child->strValue;
         bool isKnownVar = varRegisters_.count(name) > 0;
 
-        // Also check globalEnv for variables from previous eval() calls
+        // Also check workspaceEnv for variables from previous eval() calls
         if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
             MValue *existing = engine_.getVariable(name);
             if (existing && !existing->isEmpty())
@@ -2119,12 +2119,12 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
     }
 
-    // Check if it's a known variable (local or from globalEnv)
+    // Check if it's a known variable (local or from workspaceEnv)
     // → could be array indexing OR func handle call — emit CALL_INDIRECT
     auto it = varRegisters_.find(name);
     bool isKnownVar = (it != varRegisters_.end());
 
-    // Also check globalEnv for variables from previous eval() calls
+    // Also check workspaceEnv for variables from previous eval() calls
     if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {

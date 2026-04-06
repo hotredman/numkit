@@ -2341,7 +2341,7 @@ MValue TreeWalker::execAnonFunc(const ASTNode *node, Environment *env)
 
     uf.closureEnv = env->snapshot(std::shared_ptr<Environment>(engine_.constantsEnv_.get(),
                                                                [](Environment *) {}),
-                                  &engine_.globalStore_);
+                                  engine_.globalsEnv_.get());
 
     engine_.userFuncs_[anonName] = std::move(uf);
     return MValue::funcHandle(anonName, &engine_.allocator_);
@@ -2387,8 +2387,8 @@ MValue TreeWalker::execGlobalPersistent(const ASTNode *node, Environment *env)
 {
     for (auto &name : node->paramNames) {
         env->declareGlobal(name);
-        if (!engine_.globalStore_.get(name))
-            engine_.globalStore_.set(name, MValue::empty());
+        if (!engine_.globalsEnv_->get(name))
+            engine_.globalsEnv_->set(name, MValue::empty());
     }
     return MValue::empty();
 }
@@ -2425,8 +2425,8 @@ MValue TreeWalker::callUserFunction(const UserFunction &func,
     // Regular functions: parent = constantsEnv (see pi/eps/inf but NOT global variables)
     // Closures: parent = captured scope (already contains correct chain)
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
-                                             : &engine_.constantsEnvironment();
-    Environment localEnv(parentEnv, &engine_.globalStore_);
+                                             : &engine_.constantsEnv();
+    Environment localEnv(parentEnv, engine_.globalsEnv_.get());
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
@@ -2476,8 +2476,8 @@ std::vector<MValue> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         throw std::runtime_error("Too many input arguments for function '" + func.name + "'");
 
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
-                                             : &engine_.constantsEnvironment();
-    Environment localEnv(parentEnv, &engine_.globalStore_);
+                                             : &engine_.constantsEnv();
+    Environment localEnv(parentEnv, engine_.globalsEnv_.get());
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);

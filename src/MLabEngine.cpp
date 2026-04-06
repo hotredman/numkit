@@ -42,8 +42,9 @@ const std::unordered_set<std::string> kBuiltinNames = {"pi",
 Engine::Engine()
 {
     allocator_ = Allocator::defaultAllocator();
-    constantsEnv_ = std::make_unique<Environment>(nullptr, &globalStore_);
-    globalEnv_ = std::make_unique<Environment>(constantsEnv_.get(), &globalStore_);
+    globalsEnv_ = std::make_unique<Environment>();
+    constantsEnv_ = std::make_unique<Environment>(nullptr, globalsEnv_.get());
+    workspaceEnv_ = std::make_unique<Environment>(constantsEnv_.get(), globalsEnv_.get());
     treeWalker_ = std::make_unique<TreeWalker>(*this);
     compiler_ = std::make_unique<Compiler>(*this);
     vm_ = std::make_unique<VM>(*this);
@@ -98,20 +99,20 @@ void Engine::registerFunction(const std::string &name, ExternalFunc func)
 
 void Engine::setVariable(const std::string &name, MValue val)
 {
-    globalEnv_->set(name, std::move(val));
+    workspaceEnv_->set(name, std::move(val));
 }
 MValue *Engine::getVariable(const std::string &name)
 {
-    // Check globalStore first (for global variables set by functions)
-    MValue *gs = globalStore_.get(name);
+    // Check globalsEnv first (for global variables set by functions)
+    MValue *gs = globalsEnv_->get(name);
     if (gs && !gs->isUnset()) {
-        // Sync to globalEnv if different
-        MValue *ge = globalEnv_->get(name);
+        // Sync to workspaceEnv if different
+        MValue *ge = workspaceEnv_->get(name);
         if (!ge || ge->isUnset() || ge != gs)
-            globalEnv_->set(name, *gs);
-        return globalEnv_->get(name);
+            workspaceEnv_->set(name, *gs);
+        return workspaceEnv_->get(name);
     }
-    return globalEnv_->get(name);
+    return workspaceEnv_->get(name);
 }
 
 void Engine::setOutputFunc(OutputFunc f)
@@ -198,15 +199,15 @@ MValue Engine::eval(const std::string &code)
             MValue result = vm_->execute(chunk);
 
             // Sync exported variables to global environment
-            syncVMToGlobalEnv();
+            syncVMToWorkspace();
             return result;
         } catch (const DebugStopException &) {
-            syncVMToGlobalEnv();
+            syncVMToWorkspace();
             throw; // always rethrow — debugger stop is not a backend error
         } catch (...) {
             // Sync whatever was exported (may be empty if compile failed,
             // or partial if execute failed mid-way — both correct)
-            syncVMToGlobalEnv();
+            syncVMToWorkspace();
 
             // Backend::VM (strict) — rethrow, no fallback
             if (backend_ == Backend::VM)
@@ -215,7 +216,7 @@ MValue Engine::eval(const std::string &code)
         }
     }
 
-    return treeWalker_->execute(ast.get(), globalEnv_.get());
+    return treeWalker_->execute(ast.get(), workspaceEnv_.get());
 }
 
 // ============================================================
@@ -247,7 +248,7 @@ Engine::EvalResult Engine::evalSafe(const std::string &code)
 }
 
 // ============================================================
-// VM → globalEnv sync
+// VM → workspaceEnv sync
 // ============================================================
 ExecStatus Engine::debugResume(DebugAction action)
 {
@@ -262,21 +263,21 @@ ExecStatus Engine::debugResume(DebugAction action)
 
     // Sync variables on completion
     if (status == ExecStatus::Completed)
-        syncVMToGlobalEnv();
+        syncVMToWorkspace();
 
     return status;
 }
 
-void Engine::syncVMToGlobalEnv()
+void Engine::syncVMToWorkspace()
 {
     if (clearAllCalled_)
-        globalEnv_->clearAll();
+        workspaceEnv_->clearAll();
     for (auto &[name, val] : vm_->lastVarMap()) {
         if (val.isUnset()) {
-            globalEnv_->remove(name);
+            workspaceEnv_->remove(name);
         } else {
-            MValue *gsVal = globalStore_.get(name);
-            globalEnv_->set(name, gsVal ? *gsVal : val);
+            MValue *gsVal = globalsEnv_->get(name);
+            workspaceEnv_->set(name, gsVal ? *gsVal : val);
         }
     }
 }
@@ -284,9 +285,9 @@ void Engine::syncVMToGlobalEnv()
 // ============================================================
 // REPL helpers
 // ============================================================
-std::vector<std::string> Engine::globalVarNames() const
+std::vector<std::string> Engine::workspaceVarNames() const
 {
-    auto names = globalEnv_->localNames();
+    auto names = workspaceEnv_->localNames();
     std::vector<std::string> result;
     result.reserve(names.size());
     for (auto &n : names)
@@ -317,12 +318,12 @@ static std::string jsonEscape(const std::string &s)
 
 std::string Engine::workspaceJSON() const
 {
-    auto names = globalVarNames();
+    auto names = workspaceVarNames();
     std::ostringstream os;
     os << "{";
     bool first = true;
     for (auto &name : names) {
-        auto *val = globalEnv_->get(name);
+        auto *val = workspaceEnv_->get(name);
         if (!val)
             continue;
         if (!first)

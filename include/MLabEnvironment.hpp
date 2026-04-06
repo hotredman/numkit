@@ -10,27 +10,14 @@
 
 namespace mlab {
 
-class GlobalStore
-{
-public:
-    void set(const std::string &name, MValue val);
-    MValue *get(const std::string &name);
-    const MValue *get(const std::string &name) const;
-    void remove(const std::string &name);
-    void clear();
-
-private:
-    std::unordered_map<std::string, MValue> vars_;
-};
-
 class Environment
 {
 public:
     // For normal execution: raw parent pointer (caller guarantees lifetime)
-    explicit Environment(Environment *parent = nullptr, GlobalStore *globalStore = nullptr);
+    explicit Environment(Environment *parent = nullptr, Environment *globalsEnv = nullptr);
 
     // For snapshots/closures: owning parent
-    explicit Environment(std::shared_ptr<Environment> owningParent, GlobalStore *globalStore);
+    explicit Environment(std::shared_ptr<Environment> owningParent, Environment *globalsEnv);
 
     void set(const std::string &name, MValue val);
     MValue *get(const std::string &name);
@@ -51,21 +38,21 @@ public:
     void declareGlobal(const std::string &name);
     bool isGlobal(const std::string &name) const;
 
-    GlobalStore *globalStore() const { return globalStore_; }
+    Environment *globalsEnv() const { return globalsEnv_; }
 
     // Iterate over local variables only
     void forEachLocal(const std::function<void(const std::string &, const MValue &)> &fn) const;
 
     // Create a deep snapshot of this environment and its parent chain
     std::shared_ptr<Environment> snapshot(std::shared_ptr<Environment> newParent,
-                                          GlobalStore *gs) const;
+                                          Environment *gs) const;
 
     void remove(const std::string &name);
 
     void clearAll();
 
-    // Reset for reuse — clears all data and sets new parent/globalStore
-    void reset(Environment *parent, GlobalStore *gs);
+    // Reset for reuse — clears all data and sets new parent/globalsEnv
+    void reset(Environment *parent, Environment *gs);
 
     std::vector<std::string> localNames() const;
 
@@ -86,7 +73,7 @@ private:
     std::unordered_set<std::string> globals_;
     Environment *parent_ = nullptr;             // non-owning, for lookup
     std::shared_ptr<Environment> owningParent_; // owning, for snapshots only
-    GlobalStore *globalStore_ = nullptr;
+    Environment *globalsEnv_ = nullptr;
     bool hasGlobals_ = false;
 
     // Internal helpers

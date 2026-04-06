@@ -4,36 +4,6 @@
 namespace mlab {
 
 // ============================================================
-// GlobalStore
-// ============================================================
-void GlobalStore::set(const std::string &name, MValue val)
-{
-    vars_[name] = std::move(val);
-}
-
-MValue *GlobalStore::get(const std::string &name)
-{
-    auto it = vars_.find(name);
-    return (it != vars_.end()) ? &it->second : nullptr;
-}
-
-const MValue *GlobalStore::get(const std::string &name) const
-{
-    auto it = vars_.find(name);
-    return (it != vars_.end()) ? &it->second : nullptr;
-}
-
-void GlobalStore::remove(const std::string &name)
-{
-    vars_.erase(name);
-}
-
-void GlobalStore::clear()
-{
-    vars_.clear();
-}
-
-// ============================================================
 // Environment — SBO helpers
 // ============================================================
 MValue *Environment::sboFind(const std::string &name)
@@ -84,21 +54,21 @@ void Environment::sboSet(const std::string &name, MValue val)
 // ============================================================
 // Environment
 // ============================================================
-Environment::Environment(Environment *parent, GlobalStore *globalStore)
+Environment::Environment(Environment *parent, Environment *globalsEnv)
     : parent_(parent)
-    , globalStore_(globalStore)
+    , globalsEnv_(globalsEnv)
 {}
 
-Environment::Environment(std::shared_ptr<Environment> owningParent, GlobalStore *globalStore)
+Environment::Environment(std::shared_ptr<Environment> owningParent, Environment *globalsEnv)
     : parent_(owningParent.get())
     , owningParent_(std::move(owningParent))
-    , globalStore_(globalStore)
+    , globalsEnv_(globalsEnv)
 {}
 
 void Environment::set(const std::string &name, MValue val)
 {
-    if (hasGlobals_ && globals_.count(name) && globalStore_) {
-        globalStore_->set(name, std::move(val));
+    if (hasGlobals_ && globals_.count(name) && globalsEnv_) {
+        globalsEnv_->set(name, std::move(val));
     } else {
         sboSet(name, std::move(val));
     }
@@ -106,8 +76,8 @@ void Environment::set(const std::string &name, MValue val)
 
 MValue *Environment::get(const std::string &name)
 {
-    if (hasGlobals_ && globals_.count(name) && globalStore_)
-        return globalStore_->get(name);
+    if (hasGlobals_ && globals_.count(name) && globalsEnv_)
+        return globalsEnv_->get(name);
     if (!vars_.empty()) {
         // Overflowed — use map only
         auto it = vars_.find(name);
@@ -125,8 +95,8 @@ MValue *Environment::get(const std::string &name)
 
 bool Environment::has(const std::string &name) const
 {
-    if (hasGlobals_ && globals_.count(name) && globalStore_)
-        return globalStore_->get(name) != nullptr;
+    if (hasGlobals_ && globals_.count(name) && globalsEnv_)
+        return globalsEnv_->get(name) != nullptr;
     if (!vars_.empty()) {
         if (vars_.count(name))
             return true;
@@ -183,7 +153,7 @@ void Environment::forEachLocal(
 }
 
 std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> newParent,
-                                                   GlobalStore *gs) const
+                                                   Environment *gs) const
 {
     std::shared_ptr<Environment> snappedParent;
     if (parent_ && parent_->parent_) {
@@ -211,9 +181,9 @@ std::shared_ptr<Environment> Environment::snapshot(std::shared_ptr<Environment> 
 
 void Environment::remove(const std::string &name)
 {
-    // If this is a global variable, also remove from globalStore
-    if (hasGlobals_ && globals_.count(name) && globalStore_) {
-        globalStore_->remove(name);
+    // If this is a global variable, also remove from globalsEnv
+    if (hasGlobals_ && globals_.count(name) && globalsEnv_) {
+        globalsEnv_->remove(name);
     }
 
     for (size_t i = 0; i < sboCount_; ++i) {
@@ -241,7 +211,7 @@ void Environment::clearAll()
     hasGlobals_ = false;
 }
 
-void Environment::reset(Environment *parent, GlobalStore *gs)
+void Environment::reset(Environment *parent, Environment *gs)
 {
     for (size_t i = 0; i < sboCount_; ++i) {
         sbo_[i].name.clear();
@@ -253,7 +223,7 @@ void Environment::reset(Environment *parent, GlobalStore *gs)
     hasGlobals_ = false;
     parent_ = parent;
     owningParent_.reset();
-    globalStore_ = gs;
+    globalsEnv_ = gs;
 }
 
 std::vector<std::string> Environment::localNames() const

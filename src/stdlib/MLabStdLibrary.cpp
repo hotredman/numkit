@@ -78,11 +78,11 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         return;
                                     }
                                     if (first == "global") {
-                                        auto *gs = ctx.env->globalStore();
+                                        auto *gs = ctx.env->globalsEnv();
                                         if (args.size() == 1) {
                                             // clear global — clear all globals
                                             if (gs)
-                                                gs->clear();
+                                                gs->clearAll();
                                             env->clearAll();
                                             ctx.engine->markClearAll();
                                         } else {
@@ -265,8 +265,8 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 std::ostringstream os;
                                 if (env->getLocal(qname)
-                                    || (env->isGlobal(qname) && env->globalStore()
-                                        && env->globalStore()->get(qname)))
+                                    || (env->isGlobal(qname) && env->globalsEnv()
+                                        && env->globalsEnv()->get(qname)))
                                     os << qname << " is a variable.\n";
                                 else if (ctx.engine->hasUserFunction(qname))
                                     os << qname << " is a user-defined function.\n";
@@ -309,7 +309,7 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 bool isVar = (env->getLocal(varName) != nullptr);
                                 // Also check global declarations in current env
                                 if (!isVar && env->isGlobal(varName)) {
-                                    auto *gs = env->globalStore();
+                                    auto *gs = env->globalsEnv();
                                     isVar = (gs && gs->get(varName) != nullptr);
                                 }
                                 bool isFunc = ctx.engine->hasFunction(varName);
