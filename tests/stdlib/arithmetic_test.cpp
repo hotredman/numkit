@@ -115,6 +115,97 @@ TEST_P(ArithmeticTest, ComplexArithmetic)
     EXPECT_DOUBLE_EQ(v.toComplex().imag(), 2.0);
 }
 
+// ── Implicit expansion (broadcasting) ───────────────────────
+
+TEST_P(ArithmeticTest, BroadcastRowTimesCol)
+{
+    // [1 2 3] .* [4;5;6] → 3x3 matrix
+    eval("A = [1 2 3] .* [4;5;6];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 3u);
+    // Row 0: 1*4, 2*4, 3*4
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 8.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 2), 12.0);
+    // Row 1: 1*5, 2*5, 3*5
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 1), 10.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 2), 15.0);
+    // Row 2: 1*6, 2*6, 3*6
+    EXPECT_DOUBLE_EQ((*A)(2, 0), 6.0);
+    EXPECT_DOUBLE_EQ((*A)(2, 1), 12.0);
+    EXPECT_DOUBLE_EQ((*A)(2, 2), 18.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastColPlusRow)
+{
+    // [1;2;3] + [10 20 30] → 3x3 matrix
+    eval("A = [1;2;3] + [10 20 30];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 11.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 1), 22.0);
+    EXPECT_DOUBLE_EQ((*A)(2, 2), 33.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastColMinusRow)
+{
+    eval("A = [10;20;30] - [1 2 3];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 9.0);
+    EXPECT_DOUBLE_EQ((*A)(2, 2), 27.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastMatrixPlusCol)
+{
+    // [1 2; 3 4] + [10; 20] → add column to each column
+    eval("A = [1 2; 3 4] + [10; 20];");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 11.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 23.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 12.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 1), 24.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastMatrixTimesRow)
+{
+    // [1 2; 3 4] .* [10 100] → multiply each row
+    eval("A = [1 2; 3 4] .* [10 100];");
+    auto *A = getVarPtr("A");
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 10.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 200.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 30.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 1), 400.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastElementwisePower)
+{
+    // [2;3] .^ [1 2 3] → 2x3 matrix
+    eval("A = [2;3] .^ [1 2 3];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_DOUBLE_EQ((*A)(0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 1), 4.0);
+    EXPECT_DOUBLE_EQ((*A)(0, 2), 8.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 1), 9.0);
+    EXPECT_DOUBLE_EQ((*A)(1, 2), 27.0);
+}
+
+TEST_P(ArithmeticTest, BroadcastComparison)
+{
+    // [1;2;3] > [1 2 3] → 3x3 logical
+    eval("A = [1;2;3] > [1 2 3];");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 3u);
+}
+
 INSTANTIATE_DUAL(ArithmeticTest);
 
 // ============================================================

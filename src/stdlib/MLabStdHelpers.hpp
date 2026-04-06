@@ -26,7 +26,22 @@ inline std::pair<MValue, MValue> promoteToComplex(const MValue &a, const MValue 
 }
 
 // ============================================================
-// Elementwise binary op on double arrays
+// Implicit expansion (broadcasting) check
+// Returns true if dims are compatible, sets outR/outC to result size.
+// Rule: each dim must match or one of them must be 1.
+// ============================================================
+inline bool broadcastDims(size_t ar, size_t ac, size_t br, size_t bc,
+                          size_t &outR, size_t &outC)
+{
+    if (ar != br && ar != 1 && br != 1) return false;
+    if (ac != bc && ac != 1 && bc != 1) return false;
+    outR = std::max(ar, br);
+    outC = std::max(ac, bc);
+    return true;
+}
+
+// ============================================================
+// Elementwise binary op on double arrays (with implicit expansion)
 // ============================================================
 template<typename Op>
 MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *alloc)
@@ -35,32 +50,40 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
     if (a.isEmpty() && b.isEmpty())
         return MValue::empty();
     if (a.isEmpty() || b.isEmpty()) {
-        // [] + scalar or scalar + [] → []
         if (a.isScalar() || b.isScalar())
             return MValue::empty();
         throw std::runtime_error("Matrix dimensions must agree");
     }
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
-    if (a.isScalar()) {
-        auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::DOUBLE, alloc);
-        double av = a.toScalar();
-        for (size_t i = 0; i < b.numel(); ++i)
-            r.doubleDataMut()[i] = op(av, b.doubleData()[i]);
-        return r;
-    }
-    if (b.isScalar()) {
-        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
-        double bv = b.toScalar();
-        for (size_t i = 0; i < a.numel(); ++i)
-            r.doubleDataMut()[i] = op(a.doubleData()[i], bv);
-        return r;
-    }
-    if (a.dims() != b.dims())
+
+    size_t ar = a.dims().rows(), ac = a.dims().cols();
+    size_t br = b.dims().rows(), bc = b.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw std::runtime_error("Matrix dimensions must agree");
-    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
-    for (size_t i = 0; i < a.numel(); ++i)
-        r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+
+    // Fast path: same dimensions, no broadcasting needed
+    if (ar == br && ac == bc) {
+        auto r = MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+        for (size_t i = 0; i < a.numel(); ++i)
+            r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+        return r;
+    }
+
+    // General broadcasting: column-major indexing
+    auto r = MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+    double *dst = r.doubleDataMut();
+    const double *da = a.doubleData(), *db = b.doubleData();
+    for (size_t c = 0; c < outC; ++c) {
+        size_t ca = (ac == 1) ? 0 : c;
+        size_t cb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(da[ca * ar + ra], db[cb * br + rb]);
+        }
+    }
     return r;
 }
 
@@ -70,31 +93,37 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
 template<typename Op>
 MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *alloc)
 {
-    // MATLAB: empty propagation
     if (a.isEmpty() || b.isEmpty())
         return MValue::empty();
     auto [ca, cb] = promoteToComplex(a, b, alloc);
     if (ca.isScalar() && cb.isScalar())
         return MValue::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);
-    if (ca.isScalar()) {
-        auto r = MValue::complexMatrix(cb.dims().rows(), cb.dims().cols(), alloc);
-        Complex av = ca.toComplex();
-        for (size_t i = 0; i < cb.numel(); ++i)
-            r.complexDataMut()[i] = op(av, cb.complexData()[i]);
-        return r;
-    }
-    if (cb.isScalar()) {
-        auto r = MValue::complexMatrix(ca.dims().rows(), ca.dims().cols(), alloc);
-        Complex bv = cb.toComplex();
-        for (size_t i = 0; i < ca.numel(); ++i)
-            r.complexDataMut()[i] = op(ca.complexData()[i], bv);
-        return r;
-    }
-    if (ca.dims() != cb.dims())
+
+    size_t ar = ca.dims().rows(), ac = ca.dims().cols();
+    size_t br = cb.dims().rows(), bc = cb.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw std::runtime_error("Matrix dimensions must agree");
-    auto r = MValue::complexMatrix(ca.dims().rows(), ca.dims().cols(), alloc);
-    for (size_t i = 0; i < ca.numel(); ++i)
-        r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+
+    if (ar == br && ac == bc) {
+        auto r = MValue::complexMatrix(outR, outC, alloc);
+        for (size_t i = 0; i < ca.numel(); ++i)
+            r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+        return r;
+    }
+
+    auto r = MValue::complexMatrix(outR, outC, alloc);
+    Complex *dst = r.complexDataMut();
+    const Complex *da = ca.complexData(), *db = cb.complexData();
+    for (size_t c = 0; c < outC; ++c) {
+        size_t cca = (ac == 1) ? 0 : c;
+        size_t ccb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(da[cca * ar + ra], db[ccb * br + rb]);
+        }
+    }
     return r;
 }
 
@@ -279,11 +308,11 @@ inline T saturateNeg(T a)
 template <typename T, typename Op>
 MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op op, Allocator *alloc)
 {
-    auto readElem = [](const MValue &v, MType tgt, size_t i) -> T {
-        if (v.type() == tgt) return static_cast<const T *>(v.rawData())[i];
-        // Convert from double (or other numeric) to target type
-        double d = v.toScalar();
-        if (v.numel() > 1) d = v.doubleData()[i];
+    // Read element from source, converting to target type
+    auto readAt = [](const MValue &v, MType tgt, size_t r, size_t c) -> T {
+        size_t idx = c * v.dims().rows() + r; // column-major
+        if (v.type() == tgt) return static_cast<const T *>(v.rawData())[idx];
+        double d = v.doubleData()[idx];
         if constexpr (std::is_integral_v<T>)
             return static_cast<T>(std::clamp(std::round(d),
                 static_cast<double>(std::numeric_limits<T>::min()),
@@ -291,36 +320,25 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
         else
             return static_cast<T>(d);
     };
-    auto readA = [&](size_t i) -> T { return readElem(a, targetType, i); };
-    auto readB = [&](size_t i) -> T { return readElem(b, targetType, i); };
 
-    if (a.isScalar() && b.isScalar()) {
-        auto r = MValue::matrix(1, 1, targetType, alloc);
-        *static_cast<T *>(r.rawDataMut()) = op(readA(0), readB(0));
-        return r;
-    }
-    if (a.isScalar()) {
-        auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), targetType, alloc);
-        T av = readA(0);
-        T *dst = static_cast<T *>(r.rawDataMut());
-        for (size_t i = 0; i < b.numel(); ++i)
-            dst[i] = op(av, readB(i));
-        return r;
-    }
-    if (b.isScalar()) {
-        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), targetType, alloc);
-        T bv = readB(0);
-        T *dst = static_cast<T *>(r.rawDataMut());
-        for (size_t i = 0; i < a.numel(); ++i)
-            dst[i] = op(readA(i), bv);
-        return r;
-    }
-    if (a.dims() != b.dims())
+    size_t ar = a.dims().rows(), ac = a.dims().cols();
+    size_t br = b.dims().rows(), bc = b.dims().cols();
+    size_t outR, outC;
+    if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw std::runtime_error("Matrix dimensions must agree");
-    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), targetType, alloc);
+
+    auto r = MValue::matrix(outR, outC, targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
-    for (size_t i = 0; i < a.numel(); ++i)
-        dst[i] = op(readA(i), readB(i));
+    for (size_t c = 0; c < outC; ++c) {
+        size_t ca = (ac == 1) ? 0 : c;
+        size_t cb = (bc == 1) ? 0 : c;
+        for (size_t row = 0; row < outR; ++row) {
+            size_t ra = (ar == 1) ? 0 : row;
+            size_t rb = (br == 1) ? 0 : row;
+            dst[c * outR + row] = op(readAt(a, targetType, ra, ca),
+                                     readAt(b, targetType, rb, cb));
+        }
+    }
     return r;
 }
 

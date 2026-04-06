@@ -320,38 +320,38 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                 return r;
             }
 
-            // Numeric comparison (double, logical, mixed)
-            auto getD = [](const MValue &v, size_t i) -> double {
-                if (v.isLogical())
-                    return static_cast<double>(v.logicalData()[i]);
-                return v.doubleData()[i];
+            // Numeric comparison (double, logical, integer, single — with broadcasting)
+            auto getD = [](const MValue &v, size_t r, size_t c) -> double {
+                size_t idx = c * v.dims().rows() + r;
+                if (v.isLogical()) return static_cast<double>(v.logicalData()[idx]);
+                if (isIntegerType(v.type()) || v.type() == MType::SINGLE) return v.toScalar(); // scalar only for now
+                return v.doubleData()[idx];
             };
-            if (a.isScalar() && b.isScalar())
-                return MValue::logicalScalar(cmp(a.toScalar(), b.toScalar()), nullptr);
+            auto getDScalar = [](const MValue &v) -> double {
+                if (v.isLogical()) return v.toBool() ? 1.0 : 0.0;
+                return v.toScalar();
+            };
 
-            if (a.isScalar()) {
-                auto r = MValue::matrix(b.dims().rows(), b.dims().cols(),
-                                        MType::LOGICAL, nullptr);
-                double av = a.toScalar();
-                for (size_t i = 0; i < b.numel(); ++i)
-                    r.logicalDataMut()[i] = cmp(av, getD(b, i)) ? 1 : 0;
-                return r;
+            if (a.isScalar() && b.isScalar())
+                return MValue::logicalScalar(cmp(getDScalar(a), getDScalar(b)), nullptr);
+
+            size_t ar = a.dims().rows(), ac = a.dims().cols();
+            size_t br = b.dims().rows(), bc = b.dims().cols();
+            size_t outR, outC;
+            if (!broadcastDims(ar, ac, br, bc, outR, outC))
+                throw std::runtime_error("Matrix dimensions must agree for comparison");
+
+            auto r = MValue::matrix(outR, outC, MType::LOGICAL, nullptr);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t c = 0; c < outC; ++c) {
+                size_t ca = (ac == 1) ? 0 : c;
+                size_t cb = (bc == 1) ? 0 : c;
+                for (size_t row = 0; row < outR; ++row) {
+                    size_t ra = (ar == 1) ? 0 : row;
+                    size_t rb = (br == 1) ? 0 : row;
+                    dst[c * outR + row] = cmp(getD(a, ra, ca), getD(b, rb, cb)) ? 1 : 0;
+                }
             }
-            if (b.isScalar()) {
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
-                                        MType::LOGICAL, nullptr);
-                double bv = b.toScalar();
-                for (size_t i = 0; i < a.numel(); ++i)
-                    r.logicalDataMut()[i] = cmp(getD(a, i), bv) ? 1 : 0;
-                return r;
-            }
-            if (a.dims() != b.dims())
-                throw std::runtime_error(
-                    "Matrix dimensions must agree for comparison");
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
-                                    MType::LOGICAL, nullptr);
-            for (size_t i = 0; i < a.numel(); ++i)
-                r.logicalDataMut()[i] = cmp(getD(a, i), getD(b, i)) ? 1 : 0;
             return r;
         };
     };
