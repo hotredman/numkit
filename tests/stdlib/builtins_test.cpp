@@ -38,13 +38,90 @@ TEST_P(BuiltinTest, Eye)
 
 // ── Size / length / numel ───────────────────────────────────
 
-TEST_P(BuiltinTest, Size)
+TEST_P(BuiltinTest, SizeWithDim)
 {
     eval("A = ones(3, 5);");
     eval("r = size(A, 1);");
     EXPECT_DOUBLE_EQ(getVar("r"), 3.0);
     eval("c = size(A, 2);");
     EXPECT_DOUBLE_EQ(getVar("c"), 5.0);
+}
+
+TEST_P(BuiltinTest, SizeNoArgs)
+{
+    // size without arguments → error (MATLAB: "Not enough input arguments")
+    EXPECT_THROW(eval("size;"), std::exception);
+    EXPECT_THROW(eval("size()"), std::exception);
+}
+
+TEST_P(BuiltinTest, SizeReturnsRowVector)
+{
+    // size(A) returns [rows, cols] as 1x2 row vector
+    eval("A = ones(3, 5); s = size(A);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(rows(*s), 1u);
+    EXPECT_EQ(cols(*s), 2u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 5.0);
+}
+
+TEST_P(BuiltinTest, SizeScalar)
+{
+    // size(scalar) → [1, 1]
+    eval("s = size(42);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(rows(*s), 1u);
+    EXPECT_EQ(cols(*s), 2u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 1.0);
+}
+
+TEST_P(BuiltinTest, SizeRowVector)
+{
+    eval("s = size([1 2 3 4]);");
+    auto *s = getVarPtr("s");
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 4.0);
+}
+
+TEST_P(BuiltinTest, SizeColumnVector)
+{
+    eval("s = size([1; 2; 3]);");
+    auto *s = getVarPtr("s");
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 1.0);
+}
+
+TEST_P(BuiltinTest, SizeEmptyMatrix)
+{
+    eval("s = size([]);");
+    auto *s = getVarPtr("s");
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 0.0);
+}
+
+TEST_P(BuiltinTest, SizeDimBeyondNdims)
+{
+    // size(A, dim) where dim > ndims → 1 (MATLAB behavior)
+    eval("A = [1 2 3]; r = size(A, 3);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 1.0);
+}
+
+TEST_P(BuiltinTest, SizeMultiReturn)
+{
+    // [m, n] = size(A)
+    eval("A = ones(4, 7); [m, n] = size(A);");
+    EXPECT_DOUBLE_EQ(getVar("m"), 4.0);
+    EXPECT_DOUBLE_EQ(getVar("n"), 7.0);
+}
+
+TEST_P(BuiltinTest, SizeString)
+{
+    // size of a string → [1, length]
+    eval("s = size('hello');");
+    auto *s = getVarPtr("s");
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 5.0);
 }
 
 TEST_P(BuiltinTest, Length)

@@ -76,6 +76,8 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
     // --- size ---
     engine.registerFunction(
         "size", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("Not enough input arguments");
             auto *alloc = &ctx.engine->allocator();
             auto &a = args[0];
             auto &dims = a.dims();
