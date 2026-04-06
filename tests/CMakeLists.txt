@@ -32,6 +32,7 @@ set(STDLIB_TESTS
     stdlib/concat_test.cpp
     stdlib/scope_test.cpp
     stdlib/types_test.cpp
+    stdlib/integer_types_test.cpp
     stdlib/integration_test.cpp
 )
 

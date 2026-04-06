@@ -42,6 +42,8 @@ const char *mtypeName(MType t)
         return "uint32";
     case MType::UINT64:
         return "uint64";
+    case MType::SINGLE:
+        return "single";
     case MType::STRING:
         return "string";
     }
@@ -74,9 +76,21 @@ size_t elementSize(MType t)
         return 4;
     case MType::UINT64:
         return 8;
+    case MType::SINGLE:
+        return 4;
     default:
         return 0;
     }
+}
+
+bool isIntegerType(MType t)
+{
+    return t == MType::INT8 || t == MType::INT16 || t == MType::INT32 || t == MType::INT64
+        || t == MType::UINT8 || t == MType::UINT16 || t == MType::UINT32 || t == MType::UINT64;
+}
+bool isFloatType(MType t)
+{
+    return t == MType::DOUBLE || t == MType::SINGLE;
 }
 
 Dims::Dims()
@@ -1636,9 +1650,9 @@ bool MValue::isEmpty() const
 bool MValue::isNumeric() const
 {
     MType t = type();
-    return t == MType::DOUBLE || t == MType::COMPLEX || t == MType::INT8 || t == MType::INT16
-           || t == MType::INT32 || t == MType::INT64 || t == MType::UINT8 || t == MType::UINT16
-           || t == MType::UINT32 || t == MType::UINT64;
+    return t == MType::DOUBLE || t == MType::SINGLE || t == MType::COMPLEX || t == MType::INT8
+           || t == MType::INT16 || t == MType::INT32 || t == MType::INT64 || t == MType::UINT8
+           || t == MType::UINT16 || t == MType::UINT32 || t == MType::UINT64;
 }
 bool MValue::isComplex() const
 {
@@ -1740,6 +1754,24 @@ double MValue::toScalar() const
         return (double) *static_cast<const uint8_t *>(h->buffer->data());
     if (h->type == MType::CHAR && h->dims.isScalar())
         return (double) (unsigned char) *static_cast<const char *>(h->buffer->data());
+    if (h->type == MType::SINGLE && h->dims.isScalar())
+        return (double) *static_cast<const float *>(h->buffer->data());
+    if (h->type == MType::INT8 && h->dims.isScalar())
+        return (double) *static_cast<const int8_t *>(h->buffer->data());
+    if (h->type == MType::INT16 && h->dims.isScalar())
+        return (double) *static_cast<const int16_t *>(h->buffer->data());
+    if (h->type == MType::INT32 && h->dims.isScalar())
+        return (double) *static_cast<const int32_t *>(h->buffer->data());
+    if (h->type == MType::INT64 && h->dims.isScalar())
+        return (double) *static_cast<const int64_t *>(h->buffer->data());
+    if (h->type == MType::UINT8 && h->dims.isScalar())
+        return (double) *static_cast<const uint8_t *>(h->buffer->data());
+    if (h->type == MType::UINT16 && h->dims.isScalar())
+        return (double) *static_cast<const uint16_t *>(h->buffer->data());
+    if (h->type == MType::UINT32 && h->dims.isScalar())
+        return (double) *static_cast<const uint32_t *>(h->buffer->data());
+    if (h->type == MType::UINT64 && h->dims.isScalar())
+        return (double) *static_cast<const uint64_t *>(h->buffer->data());
     throw std::runtime_error("Cannot convert " + std::string(mtypeName(type())) + " to scalar");
 }
 bool MValue::toBool() const
@@ -1883,6 +1915,23 @@ Complex *MValue::complexDataMut()
     detach();
     return heap_->buffer ? static_cast<Complex *>(heap_->buffer->data()) : nullptr;
 }
+
+const float *MValue::singleData() const { return static_cast<const float*>(rawData()); }
+float *MValue::singleDataMut() { return static_cast<float*>(rawDataMut()); }
+const int8_t *MValue::int8Data() const { return static_cast<const int8_t*>(rawData()); }
+int8_t *MValue::int8DataMut() { return static_cast<int8_t*>(rawDataMut()); }
+const int16_t *MValue::int16Data() const { return static_cast<const int16_t*>(rawData()); }
+int16_t *MValue::int16DataMut() { return static_cast<int16_t*>(rawDataMut()); }
+const int32_t *MValue::int32Data() const { return static_cast<const int32_t*>(rawData()); }
+int32_t *MValue::int32DataMut() { return static_cast<int32_t*>(rawDataMut()); }
+const int64_t *MValue::int64Data() const { return static_cast<const int64_t*>(rawData()); }
+int64_t *MValue::int64DataMut() { return static_cast<int64_t*>(rawDataMut()); }
+const uint16_t *MValue::uint16Data() const { return static_cast<const uint16_t*>(rawData()); }
+uint16_t *MValue::uint16DataMut() { return static_cast<uint16_t*>(rawDataMut()); }
+const uint32_t *MValue::uint32Data() const { return static_cast<const uint32_t*>(rawData()); }
+uint32_t *MValue::uint32DataMut() { return static_cast<uint32_t*>(rawDataMut()); }
+const uint64_t *MValue::uint64Data() const { return static_cast<const uint64_t*>(rawData()); }
+uint64_t *MValue::uint64DataMut() { return static_cast<uint64_t*>(rawDataMut()); }
 
 void MValue::promoteToComplex(Allocator *alloc)
 {
@@ -2406,6 +2455,71 @@ std::string MValue::formatDisplay(const std::string &name) const
                     os << cells[r][c];
                 }
                 os << "\n";
+            }
+        }
+        break;
+    }
+    case MType::SINGLE: {
+        if (isScalar()) {
+            os << "   " << static_cast<double>(*singleData()) << "\n";
+        } else if (isEmpty()) {
+            os << "     []\n";
+        } else {
+            auto &d = dims();
+            const float *fd = singleData();
+            for (size_t p = 0; p < d.pages(); ++p) {
+                if (d.is3D())
+                    os << "\n(:,:," << p + 1 << ") =\n\n";
+                for (size_t r = 0; r < d.rows(); ++r) {
+                    os << "   ";
+                    for (size_t c = 0; c < d.cols(); ++c) {
+                        size_t idx = d.is3D() ? d.sub2ind(r, c, p) : d.sub2ind(r, c);
+                        os << " " << static_cast<double>(fd[idx]);
+                    }
+                    os << "\n";
+                }
+            }
+        }
+        break;
+    }
+    case MType::INT8:
+    case MType::INT16:
+    case MType::INT32:
+    case MType::INT64:
+    case MType::UINT8:
+    case MType::UINT16:
+    case MType::UINT32:
+    case MType::UINT64: {
+        if (isScalar()) {
+            os << "   " << static_cast<int64_t>(toScalar()) << "\n";
+        } else if (isEmpty()) {
+            os << "     []\n";
+        } else {
+            auto &d = dims();
+            for (size_t p = 0; p < d.pages(); ++p) {
+                if (d.is3D())
+                    os << "\n(:,:," << p + 1 << ") =\n\n";
+                for (size_t r = 0; r < d.rows(); ++r) {
+                    os << "   ";
+                    for (size_t c = 0; c < d.cols(); ++c) {
+                        size_t idx = d.is3D() ? d.sub2ind(r, c, p) : d.sub2ind(r, c);
+                        const void *raw = rawData();
+                        int64_t val = 0;
+                        switch (t) {
+                        case MType::INT8:   val = static_cast<const int8_t*>(raw)[idx]; break;
+                        case MType::INT16:  val = static_cast<const int16_t*>(raw)[idx]; break;
+                        case MType::INT32:  val = static_cast<const int32_t*>(raw)[idx]; break;
+                        case MType::INT64:  val = static_cast<const int64_t*>(raw)[idx]; break;
+                        case MType::UINT8:  val = static_cast<const uint8_t*>(raw)[idx]; break;
+                        case MType::UINT16: val = static_cast<const uint16_t*>(raw)[idx]; break;
+                        case MType::UINT32: val = static_cast<const uint32_t*>(raw)[idx]; break;
+                        case MType::UINT64: val = static_cast<int64_t>(static_cast<const uint64_t*>(raw)[idx]); break;
+                        default: break;
+                        }
+                        os << " " << val;
+                    }
+                    os << "\n";
+                }
             }
         }
         break;
