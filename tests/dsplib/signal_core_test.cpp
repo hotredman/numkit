@@ -134,6 +134,68 @@ TEST_F(SignalCoreTest, IfftWithN)
     EXPECT_EQ(r.numel(), 8u);
 }
 
+TEST_F(SignalCoreTest, FftEmptyN)
+{
+    // fft(x, []) — same as fft(x)
+    auto r1 = eval("fft([1 2 3 4])");
+    auto r2 = eval("fft([1 2 3 4], [])");
+    EXPECT_EQ(r1.numel(), r2.numel());
+    for (size_t i = 0; i < r1.numel(); ++i) {
+        EXPECT_NEAR(r1.complexData()[i].real(), r2.complexData()[i].real(), 1e-10);
+        EXPECT_NEAR(r1.complexData()[i].imag(), r2.complexData()[i].imag(), 1e-10);
+    }
+}
+
+TEST_F(SignalCoreTest, FftAlongDim2)
+{
+    // fft along rows (dim=2): each row is transformed independently
+    // [1 0 0 0; 1 1 1 1] — row 1 is impulse, row 2 is DC
+    eval("X = fft([1 0 0 0; 1 1 1 1], [], 2);");
+    // Row 1: fft([1 0 0 0]) → all magnitudes = 1
+    EXPECT_NEAR(evalScalar("abs(X(1,1))"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("abs(X(1,2))"), 1.0, 1e-10);
+    // Row 2: fft([1 1 1 1]) → DC=4, rest=0
+    EXPECT_NEAR(evalScalar("abs(X(2,1))"), 4.0, 1e-10);
+    EXPECT_NEAR(evalScalar("abs(X(2,2))"), 0.0, 1e-10);
+}
+
+TEST_F(SignalCoreTest, FftAlongDim1)
+{
+    // fft along columns (dim=1, default for matrix)
+    eval("X = fft([1 1; 0 1; 0 1; 0 1], [], 1);");
+    // Column 1: fft([1;0;0;0]) → all magnitudes = 1
+    EXPECT_NEAR(evalScalar("abs(X(1,1))"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("abs(X(2,1))"), 1.0, 1e-10);
+    // Column 2: fft([1;1;1;1]) → DC=4, rest=0
+    EXPECT_NEAR(evalScalar("abs(X(1,2))"), 4.0, 1e-10);
+    EXPECT_NEAR(evalScalar("abs(X(2,2))"), 0.0, 1e-10);
+}
+
+TEST_F(SignalCoreTest, FftWithNAndDim)
+{
+    // fft(x, 8, 2) — zero-pad rows to 8
+    eval("X = fft([1 2 3 4], 8, 2);");
+    EXPECT_EQ(eval("X").dims().cols(), 8u);
+    EXPECT_EQ(eval("X").dims().rows(), 1u);
+}
+
+TEST_F(SignalCoreTest, FftWithNTruncateAndDim)
+{
+    // fft(x, 2, 2) — truncate rows to 2
+    eval("X = fft([1 2 3 4; 5 6 7 8], 2, 2);");
+    EXPECT_EQ(eval("X").dims().cols(), 2u);
+    EXPECT_EQ(eval("X").dims().rows(), 2u);
+}
+
+TEST_F(SignalCoreTest, IfftAlongDim2)
+{
+    // Round-trip: ifft(fft(x,[],2),[],2) should recover x
+    eval("x = [1 2 3 4; 5 6 7 8];");
+    eval("y = ifft(fft(x, [], 2), [], 2);");
+    EXPECT_NEAR(evalScalar("abs(y(1,1) - 1)"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("abs(y(2,4) - 8)"), 0.0, 1e-10);
+}
+
 // ============================================================
 // fftshift / ifftshift
 // ============================================================
