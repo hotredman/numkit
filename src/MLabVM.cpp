@@ -203,7 +203,6 @@ enter_frame:
         auto *R = frame.R;
         auto &resolvedFuncs = chunkCallCache_[frame.chunk];
 
-dispatch_retry:
     try {
         auto *dbgCtl = debugCtl(); // hoist out of hot loop
         while (ip < end) {
@@ -279,34 +278,34 @@ dispatch_retry:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) + asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::SUB:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) - asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::MUL:
             case OpCode::EMUL:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::RDIV:
             case OpCode::ERDIV:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::LDIV:
             case OpCode::ELDIV:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.c]) / asScalar(R[I.b]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::POW:
             case OpCode::EPOW:
@@ -326,7 +325,7 @@ dispatch_retry:
                         result = std::pow(base, exp);
                     R[I.a].setScalarFast(result);
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
 
             // ── Scalar-specialized arithmetic (no type checks) ────
@@ -368,51 +367,51 @@ dispatch_retry:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) == asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::NE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) != asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::LT:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) < asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::GT:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) > asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::LE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) <= asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::GE:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setLogicalFast(asScalar(R[I.b]) >= asScalar(R[I.c]));
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::AND:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
                     R[I.a].setLogicalFast(
                         R[I.b].scalarVal() != 0.0 && R[I.c].scalarVal() != 0.0);
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
             case OpCode::OR:
                 if (R[I.b].isDoubleScalar() && R[I.c].isDoubleScalar()) {
                     R[I.a].setLogicalFast(
                         R[I.b].scalarVal() != 0.0 || R[I.c].scalarVal() != 0.0);
                 } else
-                    goto binary_slow;
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
 
             // ── Unary ────────────────────────────────────────────
@@ -420,7 +419,7 @@ dispatch_retry:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a].setScalarFast(-R[I.b].scalarVal());
                 } else
-                    goto unary_slow;
+                    R[I.a] = unarySlowPath(I.op, R[I.b]);
                 break;
             case OpCode::UPLUS:
                 R[I.a] = R[I.b];
@@ -429,14 +428,14 @@ dispatch_retry:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a].setLogicalFast(R[I.b].scalarVal() == 0.0);
                 } else
-                    goto unary_slow;
+                    R[I.a] = unarySlowPath(I.op, R[I.b]);
                 break;
             case OpCode::CTRANSPOSE:
             case OpCode::TRANSPOSE:
                 if (R[I.b].isDoubleScalar()) {
                     R[I.a] = R[I.b];
                 } else
-                    goto unary_slow;
+                    R[I.a] = unarySlowPath(I.op, R[I.b]);
                 break;
 
             // ── Control flow ─────────────────────────────────────
@@ -924,121 +923,9 @@ dispatch_retry:
             }
 
             // ── Inline scalar builtins ───────────────────────────
-            case OpCode::CALL_BUILTIN: {
-                uint8_t argBase = I.b, na = I.c;
-                int16_t bid = I.d;
-                if (na == 1 && R[argBase].isDoubleScalar()) {
-                    double v = R[argBase].scalarVal(), result;
-                    switch (bid) {
-                    case 0:
-                        result = std::fabs(v);
-                        break;
-                    case 1:
-                        result = std::floor(v);
-                        break;
-                    case 2:
-                        result = std::ceil(v);
-                        break;
-                    case 3:
-                        result = std::round(v);
-                        break;
-                    case 4:
-                        result = std::trunc(v);
-                        break;
-                    case 5:
-                        result = std::sqrt(v);
-                        break;
-                    case 6:
-                        result = std::exp(v);
-                        break;
-                    case 7:
-                        result = std::log(v);
-                        break;
-                    case 8:
-                        result = std::log2(v);
-                        break;
-                    case 9:
-                        result = std::log10(v);
-                        break;
-                    case 10:
-                        result = std::sin(v);
-                        break;
-                    case 11:
-                        result = std::cos(v);
-                        break;
-                    case 12:
-                        result = std::tan(v);
-                        break;
-                    case 13:
-                        result = std::isnan(v) ? std::numeric_limits<double>::quiet_NaN()
-                                 : (v > 0)     ? 1.0
-                                 : (v < 0)     ? -1.0
-                                               : 0.0;
-                        break;
-                    case 14:
-                        R[I.a].setLogicalFast(std::isnan(v));
-                        goto builtin_done;
-                    case 15:
-                        R[I.a].setLogicalFast(std::isinf(v));
-                        goto builtin_done;
-                    default:
-                        goto builtin_fallback;
-                    }
-                    R[I.a].setScalarFast(result);
-                    builtin_done:
-                    break;
-                }
-                if (na == 2 && R[argBase].isDoubleScalar() && R[argBase + 1].isDoubleScalar()) {
-                    double a = R[argBase].scalarVal(), b = R[argBase + 1].scalarVal(), result;
-                    switch (bid) {
-                    case 20:
-                        result = std::fmod(a, b);
-                        if (result != 0.0 && ((result > 0) != (b > 0)))
-                            result += b;
-                        break;
-                    case 21:
-                        result = std::fmod(a, b);
-                        break;
-                    case 22:
-                        result = (a >= b) ? a : b;
-                        break;
-                    case 23:
-                        result = (a <= b) ? a : b;
-                        break;
-                    case 24:
-                        result = std::pow(a, b);
-                        break;
-                    case 25:
-                        result = std::atan2(a, b);
-                        break;
-                    default:
-                        goto builtin_fallback;
-                    }
-                    R[I.a].setScalarFast(result);
-                    break;
-                }
-            builtin_fallback: {
-                static const char *bn[] = {"abs",   "floor", "ceil",  "round", "fix",   "sqrt",
-                                           "exp",   "log",   "log2",  "log10", "sin",   "cos",
-                                           "tan",   "sign",  "isnan", "isinf", nullptr, nullptr,
-                                           nullptr, nullptr, "mod",   "rem",   "max",   "min",
-                                           "pow",   "atan2"};
-                const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
-                if (fname) {
-                    auto extIt = engine_.externalFuncs_.find(fname);
-                    if (extIt != engine_.externalFuncs_.end()) {
-                        Span<const MValue> as(&R[argBase], na);
-                        MValue ob[1];
-                        Span<MValue> os(ob, 1);
-                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
-                        extIt->second(as, 1, os, ctx);
-                        R[I.a] = std::move(ob[0]);
-                        break;
-                    }
-                }
-                throw std::runtime_error("VM: unsupported builtin");
-            }
-            }
+            case OpCode::CALL_BUILTIN:
+                execCallBuiltin(I, R);
+                break;
 
             // ── General function calls ───────────────────────────
             case OpCode::CALL: {
@@ -1124,155 +1011,15 @@ dispatch_retry:
             }
 
             // ── Indirect function call (func handle) or array indexing ─
-            case OpCode::CALL_INDIRECT: {
-                // a=dst, b=fhReg, c=argBase, e=nargs
-                uint8_t fhReg = I.b, argBase = I.c, na = I.e;
-
-                // Check if it's a closure cell: {funcHandle, cap1, cap2, ...}
-                MValue funcHandleVal;
-                const MValue *capturedVals = nullptr;
-                size_t numCaptures = 0;
-
-                if (R[fhReg].isCell() && R[fhReg].numel() >= 1
-                    && R[fhReg].cellAt(0).isFuncHandle()) {
-                    // Closure cell — unpack
-                    funcHandleVal = R[fhReg].cellAt(0);
-                    numCaptures = R[fhReg].numel() - 1;
-                } else if (R[fhReg].isFuncHandle()) {
-                    funcHandleVal = R[fhReg];
-                } else {
-                    // Array indexing fallback
-                    goto call_indirect_index;
-                }
-
-                {
-                    const std::string &funcName = funcHandleVal.funcHandleName();
-
-                    // Build args: user args + captured values
-                    size_t totalArgsN = static_cast<size_t>(na) + numCaptures;
-                    std::vector<MValue> argsBuf(totalArgsN);
-                    for (uint8_t i = 0; i < na; ++i)
-                        argsBuf[i] = R[argBase + i];
-                    for (size_t i = 0; i < numCaptures; ++i)
-                        argsBuf[na + i] = R[fhReg].cellAt(1 + i);
-                    uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
-
-                    if (compiledFuncs_) {
-                        auto cfIt = compiledFuncs_->find(funcName);
-                        if (cfIt != compiledFuncs_->end()) {
-                            frame.ip = ip + 1;
-                            pushCallFrame(cfIt->second, argsBuf.data(), totalArgs, I.a, 1);
-                            goto enter_frame;
-                        }
-                    }
-                    auto extIt = engine_.externalFuncs_.find(funcName);
-                    if (extIt != engine_.externalFuncs_.end()) {
-                        Span<const MValue> as(argsBuf.data(), na); // only user args for external
-                        MValue ob[1];
-                        Span<MValue> os(ob, 1);
-                        CallContext ctx{&engine_, &engine_.globalEnvironment()};
-                        extIt->second(as, 1, os, ctx);
-                        R[I.a] = std::move(ob[0]);
-                        break;
-                    }
-                    throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
-                }
-
-            call_indirect_index:
-                // Array indexing fallback — type-preserving
-                if (na == 1) {
-                    const MValue &mv = R[fhReg];
-                    const MValue &ix = R[argBase];
-                    if (mv.isCell()) {
-                        // Cell () indexing: always return sub-cell
-                        auto indices = MValue::resolveIndices(ix, mv.numel());
-                        R[I.a] = mv.indexGet(indices.data(), indices.size(),
-                                             &engine_.allocator_);
-                    } else if (ix.isChar() && ix.numel() == 1
-                               && ix.charData()[0] == ':') {
-                        // Colon-all: A(:) → linearize to column vector
-                        size_t n = mv.numel();
-                        MType t = mv.type();
-                        auto res = MValue::matrix(n, 1, t, &engine_.allocator_);
-                        if (n > 0) {
-                            size_t es = elementSize(t);
-                            std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
-                        }
-                        R[I.a] = std::move(res);
-                    } else if (mv.isScalar() && ix.isDoubleScalar()) {
-                        checkedIndex(ix.scalarVal(), 1); // validate bounds
-                        R[I.a] = mv; // scalar(scalar) = scalar
-                    } else if (ix.isDoubleScalar()) {
-                        size_t i = checkedIndex(ix.scalarVal(), mv.numel());
-                        R[I.a] = mv.elemAt(i, &engine_.allocator_);
-                    } else if (ix.isLogical()) {
-                        R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(),
-                                                  &engine_.allocator_);
-                    } else {
-                        size_t n = ix.numel();
-                        const double *id = ix.doubleData();
-                        std::vector<size_t> indices(n);
-                        for (size_t k = 0; k < n; ++k)
-                            indices[k] = static_cast<size_t>(id[k]) - 1;
-                        R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
-                    }
-                } else if (na == 2) {
-                    const MValue &mv = R[fhReg];
-                    const MValue &ri = R[argBase];
-                    const MValue &ci = R[argBase + 1];
-                    size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
-
-                    auto rowIds = MValue::resolveIndices(ri, Rows);
-                    auto colIds = MValue::resolveIndices(ci, Cols);
-
-                    R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
-                                           colIds.data(), colIds.size(),
-                                           &engine_.allocator_);
-                } else if (na == 3) {
-                    const MValue &mv = R[fhReg];
-                    if (mv.isCell()) {
-                        size_t r = (size_t) R[argBase].toScalar() - 1;
-                        size_t c = (size_t) R[argBase + 1].toScalar() - 1;
-                        size_t p = (size_t) R[argBase + 2].toScalar() - 1;
-                        R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
-                    } else {
-                        size_t Rows = mv.dims().rows(), Cols = mv.dims().cols();
-                        size_t Pages = mv.dims().pages();
-                        auto rowIds = MValue::resolveIndices(R[argBase], Rows);
-                        auto colIds = MValue::resolveIndices(R[argBase + 1], Cols);
-                        auto pageIds = MValue::resolveIndices(R[argBase + 2], Pages);
-                        R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
-                                               colIds.data(), colIds.size(),
-                                               pageIds.data(), pageIds.size(),
-                                               &engine_.allocator_);
-                    }
-                } else {
-                    throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
-                                             + std::to_string(na) + " args");
-                }
+            case OpCode::CALL_INDIRECT:
+                if (execCallIndirect(I, R, frame, ip))
+                    goto enter_frame;
                 break;
-            }
 
             // ── Display ──────────────────────────────────────────
-            case OpCode::DISPLAY: {
-                // Skip display for unset values (e.g. nargout=0 function returns)
-                if (R[I.a].isUnset())
-                    break;
-                const std::string &name = chunk.strings[I.d];
-                std::ostringstream os;
-                if (R[I.a].isDoubleScalar())
-                    os << name << " = " << R[I.a].scalarVal() << "\n\n";
-                else if (R[I.a].isEmpty())
-                    os << name << " = []\n\n";
-                else if (R[I.a].isChar())
-                    os << name << " = '" << R[I.a].toString() << "'\n\n";
-                else if (R[I.a].isString())
-                    os << name << " = \"" << R[I.a].toString() << "\"\n\n";
-                else
-                    os << name << " = " << R[I.a].debugString() << "\n\n";
-                engine_.outputText(os.str());
+            case OpCode::DISPLAY:
+                execDisplay(I, R, chunk);
                 break;
-            }
 
             // ── Return ───────────────────────────────────────────
             case OpCode::RET:
@@ -1362,108 +1109,13 @@ dispatch_retry:
                 break;
             }
 
-            case OpCode::WHO: {
-                // I.a=base, I.b=count. count=0 means show all.
-                std::vector<std::string> names;
-                if (I.b == 0) {
-                    // Show all non-empty, non-internal variables
-                    for (auto &[vn, reg] : chunk.varMap) {
-                        if (reg < chunk.numRegisters && !R[reg].isEmpty()
-                            && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
-                            names.push_back(vn);
-                    }
-                } else {
-                    // Show only specified variables
-                    for (uint8_t i = 0; i < I.b; ++i) {
-                        std::string reqName = R[I.a + i].toString();
-                        for (auto &[vn, reg] : chunk.varMap) {
-                            if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
-                                names.push_back(vn);
-                                break;
-                            }
-                        }
-                    }
-                }
-                std::sort(names.begin(), names.end());
-                if (!names.empty()) {
-                    std::ostringstream os;
-                    os << "\nYour variables are:\n\n";
-                    for (auto &n : names)
-                        os << n << "  ";
-                    os << "\n\n";
-                    if (engine_.outputFunc_)
-                        engine_.outputFunc_(os.str());
-                    else
-                        std::cout << os.str();
-                }
+            case OpCode::WHO:
+                execWho(I, R, chunk);
                 break;
-            }
 
-            case OpCode::WHOS: {
-                // I.a=base, I.b=count. count=0 means show all.
-                std::vector<std::string> names;
-                if (I.b == 0) {
-                    for (auto &[vn, reg] : chunk.varMap) {
-                        if (reg < chunk.numRegisters && !R[reg].isEmpty()
-                            && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
-                            names.push_back(vn);
-                    }
-                } else {
-                    for (uint8_t i = 0; i < I.b; ++i) {
-                        std::string reqName = R[I.a + i].toString();
-                        for (auto &[vn, reg] : chunk.varMap) {
-                            if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
-                                names.push_back(vn);
-                                break;
-                            }
-                        }
-                    }
-                }
-                std::sort(names.begin(), names.end());
-                std::unordered_set<std::string> globalSet(chunk.globalNames.begin(),
-                                                          chunk.globalNames.end());
-                if (!names.empty()) {
-                    std::ostringstream os;
-                    os << "  Name" << std::string(6, ' ') << "Size" << std::string(13, ' ')
-                       << "Bytes  Class" << std::string(5, ' ') << "Attributes\n\n";
-                    for (auto &n : names) {
-                        for (auto &[vn2, reg2] : chunk.varMap) {
-                            if (vn2 == n && reg2 < chunk.numRegisters) {
-                                auto &val = R[reg2];
-                                auto &d = val.dims();
-                                std::string sizeStr = std::to_string(d.rows()) + "x"
-                                                      + std::to_string(d.cols());
-                                if (d.is3D())
-                                    sizeStr += "x" + std::to_string(d.pages());
-                                std::string bytesStr = std::to_string(val.rawBytes());
-                                std::string classStr = mtypeName(val.type());
-                                std::string attrStr;
-                                if (globalSet.count(n))
-                                    attrStr = "global";
-                                os << "  " << n;
-                                for (size_t i = n.size(); i < 10; ++i)
-                                    os << " ";
-                                os << sizeStr;
-                                for (size_t i = sizeStr.size(); i < 17; ++i)
-                                    os << " ";
-                                for (size_t i = bytesStr.size(); i < 5; ++i)
-                                    os << " ";
-                                os << bytesStr << "  " << classStr;
-                                for (size_t i = classStr.size(); i < 10; ++i)
-                                    os << " ";
-                                os << attrStr << "\n";
-                                break;
-                            }
-                        }
-                    }
-                    os << "\n";
-                    if (engine_.outputFunc_)
-                        engine_.outputFunc_(os.str());
-                    else
-                        std::cout << os.str();
-                }
+            case OpCode::WHOS:
+                execWhos(I, R, chunk);
                 break;
-            }
 
             // ── Try/catch ────────────────────────────────────────
             case OpCode::TRY_BEGIN: {
@@ -1499,109 +1151,6 @@ dispatch_retry:
 
             default:
                 throw std::runtime_error("VM: unimplemented opcode " + std::to_string((int) I.op));
-
-            // ── Slow paths ───────────────────────────────────────
-            binary_slow: {
-                // Empty propagation: avoid passing empty matrices through std::function
-                if (R[I.b].isEmpty() || R[I.c].isEmpty()) {
-                    R[I.a] = MValue::matrix(0, 0, MType::DOUBLE, &engine_.allocator_);
-                    break;
-                }
-                const char *opStr = nullptr;
-                switch (I.op) {
-                case OpCode::ADD:
-                    opStr = "+";
-                    break;
-                case OpCode::SUB:
-                    opStr = "-";
-                    break;
-                case OpCode::MUL:
-                    opStr = "*";
-                    break;
-                case OpCode::RDIV:
-                    opStr = "/";
-                    break;
-                case OpCode::LDIV:
-                    opStr = "\\";
-                    break;
-                case OpCode::POW:
-                    opStr = "^";
-                    break;
-                case OpCode::EMUL:
-                    opStr = ".*";
-                    break;
-                case OpCode::ERDIV:
-                    opStr = "./";
-                    break;
-                case OpCode::ELDIV:
-                    opStr = ".\\";
-                    break;
-                case OpCode::EPOW:
-                    opStr = ".^";
-                    break;
-                case OpCode::EQ:
-                    opStr = "==";
-                    break;
-                case OpCode::NE:
-                    opStr = "~=";
-                    break;
-                case OpCode::LT:
-                    opStr = "<";
-                    break;
-                case OpCode::GT:
-                    opStr = ">";
-                    break;
-                case OpCode::LE:
-                    opStr = "<=";
-                    break;
-                case OpCode::GE:
-                    opStr = ">=";
-                    break;
-                case OpCode::AND:
-                    opStr = "&";
-                    break;
-                case OpCode::OR:
-                    opStr = "|";
-                    break;
-                default:
-                    break;
-                }
-                if (opStr) {
-                    auto it = engine_.binaryOps_.find(opStr);
-                    if (it != engine_.binaryOps_.end()) {
-                        R[I.a] = it->second(R[I.b], R[I.c]);
-                        break;
-                    }
-                }
-                throw std::runtime_error("VM: unsupported binary op");
-            }
-            unary_slow: {
-                const char *opStr = nullptr;
-                switch (I.op) {
-                case OpCode::NEG:
-                    opStr = "-";
-                    break;
-                case OpCode::NOT:
-                    opStr = "~";
-                    break;
-                case OpCode::CTRANSPOSE:
-                    opStr = "'";
-                    break;
-                case OpCode::TRANSPOSE:
-                    opStr = ".'";
-                    break;
-                default:
-                    break;
-                }
-                if (opStr) {
-                    auto it = engine_.unaryOps_.find(opStr);
-                    if (it != engine_.unaryOps_.end()) {
-                        R[I.a] = it->second(R[I.b]);
-                        break;
-                    }
-                }
-                throw std::runtime_error("VM: unsupported unary op");
-            }
 
             } // switch
             ++ip;
@@ -2074,6 +1623,389 @@ void VM::forSetVar(MValue &varReg, const ForState &fs)
     for (size_t r = 0; r < rows; ++r)
         dst[r] = src[r];
     varReg = std::move(col);
+}
+
+// ============================================================
+// Extracted dispatch helpers
+// ============================================================
+
+MValue VM::binarySlowPath(OpCode op, const MValue &lhs, const MValue &rhs)
+{
+    if (lhs.isEmpty() || rhs.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &engine_.allocator_);
+
+    const char *opStr = nullptr;
+    switch (op) {
+    case OpCode::ADD:   opStr = "+";  break;
+    case OpCode::SUB:   opStr = "-";  break;
+    case OpCode::MUL:   opStr = "*";  break;
+    case OpCode::RDIV:  opStr = "/";  break;
+    case OpCode::LDIV:  opStr = "\\"; break;
+    case OpCode::POW:   opStr = "^";  break;
+    case OpCode::EMUL:  opStr = ".*"; break;
+    case OpCode::ERDIV: opStr = "./"; break;
+    case OpCode::ELDIV: opStr = ".\\"; break;
+    case OpCode::EPOW:  opStr = ".^"; break;
+    case OpCode::EQ:    opStr = "=="; break;
+    case OpCode::NE:    opStr = "~="; break;
+    case OpCode::LT:    opStr = "<";  break;
+    case OpCode::GT:    opStr = ">";  break;
+    case OpCode::LE:    opStr = "<="; break;
+    case OpCode::GE:    opStr = ">="; break;
+    case OpCode::AND:   opStr = "&";  break;
+    case OpCode::OR:    opStr = "|";  break;
+    default: break;
+    }
+    if (opStr) {
+        auto it = engine_.binaryOps_.find(opStr);
+        if (it != engine_.binaryOps_.end())
+            return it->second(lhs, rhs);
+    }
+    throw std::runtime_error("VM: unsupported binary op");
+}
+
+MValue VM::unarySlowPath(OpCode op, const MValue &operand)
+{
+    const char *opStr = nullptr;
+    switch (op) {
+    case OpCode::NEG:        opStr = "-";  break;
+    case OpCode::NOT:        opStr = "~";  break;
+    case OpCode::CTRANSPOSE: opStr = "'";  break;
+    case OpCode::TRANSPOSE:  opStr = ".'"; break;
+    default: break;
+    }
+    if (opStr) {
+        auto it = engine_.unaryOps_.find(opStr);
+        if (it != engine_.unaryOps_.end())
+            return it->second(operand);
+    }
+    throw std::runtime_error("VM: unsupported unary op");
+}
+
+void VM::execCallBuiltin(const Instruction &I, MValue *R)
+{
+    uint8_t argBase = I.b, na = I.c;
+    int16_t bid = I.d;
+
+    // 1-arg scalar fast path
+    if (na == 1 && R[argBase].isDoubleScalar()) {
+        double v = R[argBase].scalarVal();
+        double result;
+        bool handled = true;
+        switch (bid) {
+        case 0:  result = std::fabs(v); break;
+        case 1:  result = std::floor(v); break;
+        case 2:  result = std::ceil(v); break;
+        case 3:  result = std::round(v); break;
+        case 4:  result = std::trunc(v); break;
+        case 5:  result = std::sqrt(v); break;
+        case 6:  result = std::exp(v); break;
+        case 7:  result = std::log(v); break;
+        case 8:  result = std::log2(v); break;
+        case 9:  result = std::log10(v); break;
+        case 10: result = std::sin(v); break;
+        case 11: result = std::cos(v); break;
+        case 12: result = std::tan(v); break;
+        case 13:
+            result = std::isnan(v) ? std::numeric_limits<double>::quiet_NaN()
+                     : (v > 0)     ? 1.0
+                     : (v < 0)     ? -1.0
+                                   : 0.0;
+            break;
+        case 14: R[I.a].setLogicalFast(std::isnan(v)); return;
+        case 15: R[I.a].setLogicalFast(std::isinf(v)); return;
+        default: handled = false; break;
+        }
+        if (handled) {
+            R[I.a].setScalarFast(result);
+            return;
+        }
+    }
+
+    // 2-arg scalar fast path
+    if (na == 2 && R[argBase].isDoubleScalar() && R[argBase + 1].isDoubleScalar()) {
+        double a = R[argBase].scalarVal(), b = R[argBase + 1].scalarVal();
+        double result;
+        bool handled = true;
+        switch (bid) {
+        case 20:
+            result = std::fmod(a, b);
+            if (result != 0.0 && ((result > 0) != (b > 0)))
+                result += b;
+            break;
+        case 21: result = std::fmod(a, b); break;
+        case 22: result = (a >= b) ? a : b; break;
+        case 23: result = (a <= b) ? a : b; break;
+        case 24: result = std::pow(a, b); break;
+        case 25: result = std::atan2(a, b); break;
+        default: handled = false; break;
+        }
+        if (handled) {
+            R[I.a].setScalarFast(result);
+            return;
+        }
+    }
+
+    // Generic fallback via externalFuncs_
+    static const char *bn[] = {"abs",   "floor", "ceil",  "round", "fix",   "sqrt",
+                               "exp",   "log",   "log2",  "log10", "sin",   "cos",
+                               "tan",   "sign",  "isnan", "isinf", nullptr, nullptr,
+                               nullptr, nullptr, "mod",   "rem",   "max",   "min",
+                               "pow",   "atan2"};
+    const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
+    if (fname) {
+        auto extIt = engine_.externalFuncs_.find(fname);
+        if (extIt != engine_.externalFuncs_.end()) {
+            Span<const MValue> as(&R[argBase], na);
+            MValue ob[1];
+            Span<MValue> os(ob, 1);
+            CallContext ctx{&engine_, &engine_.globalEnvironment()};
+            extIt->second(as, 1, os, ctx);
+            R[I.a] = std::move(ob[0]);
+            return;
+        }
+    }
+    throw std::runtime_error("VM: unsupported builtin");
+}
+
+bool VM::execCallIndirect(const Instruction &I, MValue *R,
+                           CallFrame &frame, const Instruction *ip)
+{
+    uint8_t fhReg = I.b, argBase = I.c, na = I.e;
+
+    // Resolve function handle (plain or closure cell)
+    MValue funcHandleVal;
+    size_t numCaptures = 0;
+
+    if (R[fhReg].isCell() && R[fhReg].numel() >= 1
+        && R[fhReg].cellAt(0).isFuncHandle()) {
+        funcHandleVal = R[fhReg].cellAt(0);
+        numCaptures = R[fhReg].numel() - 1;
+    } else if (R[fhReg].isFuncHandle()) {
+        funcHandleVal = R[fhReg];
+    } else {
+        // Array indexing fallback
+        execIndirectIndex(I, R);
+        return false;
+    }
+
+    const std::string &funcName = funcHandleVal.funcHandleName();
+
+    // Build args: user args + captured values
+    size_t totalArgsN = static_cast<size_t>(na) + numCaptures;
+    std::vector<MValue> argsBuf(totalArgsN);
+    for (uint8_t i = 0; i < na; ++i)
+        argsBuf[i] = R[argBase + i];
+    for (size_t i = 0; i < numCaptures; ++i)
+        argsBuf[na + i] = R[fhReg].cellAt(1 + i);
+    uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
+
+    // Try compiled user function
+    if (compiledFuncs_) {
+        auto cfIt = compiledFuncs_->find(funcName);
+        if (cfIt != compiledFuncs_->end()) {
+            frame.ip = ip + 1;
+            pushCallFrame(cfIt->second, argsBuf.data(), totalArgs, I.a, 1);
+            return true; // caller must re-enter dispatch loop
+        }
+    }
+
+    // External function
+    auto extIt = engine_.externalFuncs_.find(funcName);
+    if (extIt != engine_.externalFuncs_.end()) {
+        Span<const MValue> as(argsBuf.data(), na);
+        MValue ob[1];
+        Span<MValue> os(ob, 1);
+        CallContext ctx{&engine_, &engine_.globalEnvironment()};
+        extIt->second(as, 1, os, ctx);
+        R[I.a] = std::move(ob[0]);
+        return false;
+    }
+    throw std::runtime_error("VM: undefined function in handle '@" + funcName + "'");
+}
+
+void VM::execIndirectIndex(const Instruction &I, MValue *R)
+{
+    uint8_t fhReg = I.b, argBase = I.c, na = I.e;
+
+    if (na == 1) {
+        const MValue &mv = R[fhReg];
+        const MValue &ix = R[argBase];
+        if (mv.isCell()) {
+            auto indices = MValue::resolveIndices(ix, mv.numel());
+            R[I.a] = mv.indexGet(indices.data(), indices.size(), &engine_.allocator_);
+        } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
+            size_t n = mv.numel();
+            MType t = mv.type();
+            auto res = MValue::matrix(n, 1, t, &engine_.allocator_);
+            if (n > 0) {
+                size_t es = elementSize(t);
+                std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
+            }
+            R[I.a] = std::move(res);
+        } else if (mv.isScalar() && ix.isDoubleScalar()) {
+            checkedIndex(ix.scalarVal(), 1);
+            R[I.a] = mv;
+        } else if (ix.isDoubleScalar()) {
+            size_t i = checkedIndex(ix.scalarVal(), mv.numel());
+            R[I.a] = mv.elemAt(i, &engine_.allocator_);
+        } else if (ix.isLogical()) {
+            R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(), &engine_.allocator_);
+        } else {
+            size_t n = ix.numel();
+            const double *id = ix.doubleData();
+            std::vector<size_t> indices(n);
+            for (size_t k = 0; k < n; ++k)
+                indices[k] = static_cast<size_t>(id[k]) - 1;
+            R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
+        }
+    } else if (na == 2) {
+        const MValue &mv = R[fhReg];
+        const MValue &ri = R[argBase];
+        const MValue &ci = R[argBase + 1];
+        auto rowIds = MValue::resolveIndices(ri, mv.dims().rows());
+        auto colIds = MValue::resolveIndices(ci, mv.dims().cols());
+        R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
+                               colIds.data(), colIds.size(),
+                               &engine_.allocator_);
+    } else if (na == 3) {
+        const MValue &mv = R[fhReg];
+        if (mv.isCell()) {
+            size_t r = (size_t) R[argBase].toScalar() - 1;
+            size_t c = (size_t) R[argBase + 1].toScalar() - 1;
+            size_t p = (size_t) R[argBase + 2].toScalar() - 1;
+            R[I.a] = mv.cellAt(mv.dims().sub2indChecked(r, c, p));
+        } else {
+            auto rowIds = MValue::resolveIndices(R[argBase], mv.dims().rows());
+            auto colIds = MValue::resolveIndices(R[argBase + 1], mv.dims().cols());
+            auto pageIds = MValue::resolveIndices(R[argBase + 2], mv.dims().pages());
+            R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
+                                   colIds.data(), colIds.size(),
+                                   pageIds.data(), pageIds.size(),
+                                   &engine_.allocator_);
+        }
+    } else {
+        throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
+                                 + std::to_string(na) + " args");
+    }
+}
+
+void VM::execDisplay(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
+{
+    if (R[I.a].isUnset())
+        return;
+    const std::string &name = chunk.strings[I.d];
+    std::ostringstream os;
+    if (R[I.a].isDoubleScalar())
+        os << name << " = " << R[I.a].scalarVal() << "\n\n";
+    else if (R[I.a].isEmpty())
+        os << name << " = []\n\n";
+    else if (R[I.a].isChar())
+        os << name << " = '" << R[I.a].toString() << "'\n\n";
+    else if (R[I.a].isString())
+        os << name << " = \"" << R[I.a].toString() << "\"\n\n";
+    else
+        os << name << " = " << R[I.a].debugString() << "\n\n";
+    engine_.outputText(os.str());
+}
+
+void VM::execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
+{
+    std::vector<std::string> names;
+    if (I.b == 0) {
+        for (auto &[vn, reg] : chunk.varMap) {
+            if (reg < chunk.numRegisters && !R[reg].isEmpty()
+                && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                names.push_back(vn);
+        }
+    } else {
+        for (uint8_t i = 0; i < I.b; ++i) {
+            std::string reqName = R[I.a + i].toString();
+            for (auto &[vn, reg] : chunk.varMap) {
+                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                    names.push_back(vn);
+                    break;
+                }
+            }
+        }
+    }
+    std::sort(names.begin(), names.end());
+    if (!names.empty()) {
+        std::ostringstream os;
+        os << "\nYour variables are:\n\n";
+        for (auto &n : names)
+            os << n << "  ";
+        os << "\n\n";
+        if (engine_.outputFunc_)
+            engine_.outputFunc_(os.str());
+        else
+            std::cout << os.str();
+    }
+}
+
+void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
+{
+    std::vector<std::string> names;
+    if (I.b == 0) {
+        for (auto &[vn, reg] : chunk.varMap) {
+            if (reg < chunk.numRegisters && !R[reg].isEmpty()
+                && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                names.push_back(vn);
+        }
+    } else {
+        for (uint8_t i = 0; i < I.b; ++i) {
+            std::string reqName = R[I.a + i].toString();
+            for (auto &[vn, reg] : chunk.varMap) {
+                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                    names.push_back(vn);
+                    break;
+                }
+            }
+        }
+    }
+    std::sort(names.begin(), names.end());
+    std::unordered_set<std::string> globalSet(chunk.globalNames.begin(),
+                                              chunk.globalNames.end());
+    if (!names.empty()) {
+        std::ostringstream os;
+        os << "  Name" << std::string(6, ' ') << "Size" << std::string(13, ' ')
+           << "Bytes  Class" << std::string(5, ' ') << "Attributes\n\n";
+        for (auto &n : names) {
+            for (auto &[vn2, reg2] : chunk.varMap) {
+                if (vn2 == n && reg2 < chunk.numRegisters) {
+                    auto &val = R[reg2];
+                    auto &d = val.dims();
+                    std::string sizeStr = std::to_string(d.rows()) + "x"
+                                          + std::to_string(d.cols());
+                    if (d.is3D())
+                        sizeStr += "x" + std::to_string(d.pages());
+                    std::string bytesStr = std::to_string(val.rawBytes());
+                    std::string classStr = mtypeName(val.type());
+                    std::string attrStr;
+                    if (globalSet.count(n))
+                        attrStr = "global";
+                    os << "  " << n;
+                    for (size_t i = n.size(); i < 10; ++i)
+                        os << " ";
+                    os << sizeStr;
+                    for (size_t i = sizeStr.size(); i < 17; ++i)
+                        os << " ";
+                    for (size_t i = bytesStr.size(); i < 5; ++i)
+                        os << " ";
+                    os << bytesStr << "  " << classStr;
+                    for (size_t i = classStr.size(); i < 10; ++i)
+                        os << " ";
+                    os << attrStr << "\n";
+                    break;
+                }
+            }
+        }
+        os << "\n";
+        if (engine_.outputFunc_)
+            engine_.outputFunc_(os.str());
+        else
+            std::cout << os.str();
+    }
 }
 
 } // namespace mlab

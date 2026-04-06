@@ -146,6 +146,17 @@ private:
     // Helpers
     void forSetVar(MValue &varReg, const ForState &fs);
 
+    // Dispatch helpers (extracted from dispatchLoop for readability)
+    MValue binarySlowPath(OpCode op, const MValue &lhs, const MValue &rhs);
+    MValue unarySlowPath(OpCode op, const MValue &operand);
+    void execCallBuiltin(const Instruction &I, MValue *R);
+    bool execCallIndirect(const Instruction &I, MValue *R,
+                          CallFrame &frame, const Instruction *ip);
+    void execIndirectIndex(const Instruction &I, MValue *R);
+    void execDisplay(const Instruction &I, MValue *R, const BytecodeChunk &chunk);
+    void execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk);
+    void execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk);
+
     // ── Debugger ────────────────────────────────────────────
     DebugController *debugCtl();
 };
