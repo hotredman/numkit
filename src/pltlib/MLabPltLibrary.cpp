@@ -122,10 +122,8 @@ void PltLibrary::install(Engine &engine)
                                 // Emit figure so UI shows the panel (MATLAB shows window on figure())
                                 fm.current().modified = true;
                                 fm.emitModified();
-                                {
+                                if (nargout > 0)
                                     outs[0] = MValue::scalar(static_cast<double>(id), alloc);
-                                    return;
-                                }
                             });
 
     engine.registerFunction("close",
