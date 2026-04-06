@@ -98,24 +98,8 @@ function extractVarsData(rawOutput) {
   if (idx === -1) return {};
   try {
     const structured = JSON.parse(rawOutput.substring(idx + marker.length).trim());
-    const result = {};
-    for (const [name, info] of Object.entries(structured)) {
-      if (info.preview !== null && info.preview !== undefined) {
-        result[name] = info.preview;
-      } else {
-        const sizeStr = info.size || '1x1';
-        const m = sizeStr.match(/(\d+)x(\d+)/);
-        if (m) {
-          const rows = parseInt(m[1]), cols = parseInt(m[2]);
-          if (rows === 1 && cols === 1) result[name] = info.type === 'char' ? '<string>' : 0;
-          else if (rows === 1) result[name] = new Array(cols).fill(0);
-          else result[name] = Array.from({ length: rows }, () => new Array(cols).fill(0));
-        } else {
-          result[name] = `[${sizeStr} ${info.type || 'unknown'}]`;
-        }
-      }
-    }
-    return result;
+    // Pass through structured data: { type, size, bytes, preview }
+    return structured;
   } catch (e) { console.warn('[REPL] Failed to parse workspace JSON:', e); return {}; }
 }
 
