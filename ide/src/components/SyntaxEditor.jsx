@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import { useTheme, FONT } from '../theme';
 
 const KEYWORDS = new Set([
@@ -38,7 +38,8 @@ function tokenize(code) {
       if (j < n && code[j] === '.') { j++; while (j < n && /[0-9]/.test(code[j])) j++; }
       if (j < n && (code[j] === 'e' || code[j] === 'E')) { j++; if (j < n && (code[j] === '+' || code[j] === '-')) j++; while (j < n && /[0-9]/.test(code[j])) j++; }
       if (j < n && (code[j] === 'i' || code[j] === 'j') && (j + 1 >= n || !/[a-zA-Z0-9_]/.test(code[j + 1]))) j++;
-      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue; }
+      tokens.push({ text: code.slice(i, j), type: 'number' }); i = j; continue;
+    }
     if (/[a-zA-Z_]/.test(code[i])) {
       let j = i; while (j < n && /[a-zA-Z0-9_]/.test(code[j])) j++; const w = code.slice(i, j);
       let type = 'plain';
@@ -47,7 +48,7 @@ function tokenize(code) {
     }
     if (i + 1 < n) { const two = code.slice(i, i + 2); if (['==','~=','<=','>=','&&','||','.*','./','.*','.^',".'",'.\\'].includes(two)) { tokens.push({ text: two, type: 'operator' }); i += 2; continue; } }
     if ('+-*/\\^~<>=&|@;,'.includes(code[i])) { tokens.push({ text: code[i], type: 'operator' }); i++; continue; }
-    if (code[i] === '\n') { tokens.push({ text: '\n', type: 'plain' }); i++; continue; }
+    if (code[i] === '\n') { tokens.push({ text: '\n', type: 'newline' }); i++; continue; }
     if (/\s/.test(code[i])) { let j = i; while (j < n && /\s/.test(code[j]) && code[j] !== '\n') j++; tokens.push({ text: code.slice(i, j), type: 'plain' }); i = j; continue; }
     tokens.push({ text: code[i], type: 'plain' }); i++;
   }
@@ -57,46 +58,48 @@ function tokenize(code) {
 const SyntaxEditor = forwardRef(function SyntaxEditor({ value, onChange, onScroll, errorLine, debugLine }, ref) {
   const C = useTheme();
   const textareaRef = useRef(null);
-  const preRef = useRef(null);
+  const highlightRef = useRef(null);
   useImperativeHandle(ref, () => ({ get scrollTop() { return textareaRef.current?.scrollTop || 0; }, focus: () => textareaRef.current?.focus() }));
 
   const colorMap = { keyword: C.synKeyword, builtin: C.synBuiltin, number: C.synNumber, string: C.synString, comment: C.synComment, operator: C.synOperator, constant: C.synConstant, param: C.synParam, plain: C.text };
 
-  // Measure the content width from <pre> and apply it to <textarea>
-  // so both have the same scrollable width.
-  useEffect(() => {
-    if (preRef.current && textareaRef.current) {
-      const preWidth = preRef.current.scrollWidth;
-      textareaRef.current.style.width = Math.max(preWidth, textareaRef.current.parentElement.clientWidth) + 'px';
-    }
-  });
-
   const syncScroll = useCallback(() => {
+    if (highlightRef.current && textareaRef.current) {
+      highlightRef.current.scrollTop = textareaRef.current.scrollTop;
+      highlightRef.current.scrollLeft = textareaRef.current.scrollLeft;
+    }
     if (onScroll && textareaRef.current) onScroll(textareaRef.current.scrollTop);
   }, [onScroll]);
 
+  // Build HTML with per-line <span style="display:block"> for line highlighting.
+  // This keeps everything inside a single <pre> so scroll sync works perfectly.
   const tokens = tokenize(value || '');
-  const html = tokens.map(t => {
-    const e = t.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    if (t.type === 'plain') return e;
-    const s = `color:${colorMap[t.type]||C.text};${t.type==='keyword'?'font-weight:600;':''}${t.type==='comment'?'font-style:italic;':''}`;
-    return `<span style="${s}">${e}</span>`;
+  const lines = [[]]; // array of arrays of tokens per line
+  for (const t of tokens) {
+    if (t.type === 'newline') lines.push([]);
+    else lines[lines.length - 1].push(t);
+  }
+
+  const html = lines.map((toks, i) => {
+    const ln = i + 1;
+    const inner = toks.map(t => {
+      const e = t.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      if (t.type === 'plain') return e;
+      const s = `color:${colorMap[t.type]||C.text};${t.type==='keyword'?'font-weight:600;':''}${t.type==='comment'?'font-style:italic;':''}`;
+      return `<span style="${s}">${e}</span>`;
+    }).join('');
+
+    let style = 'display:block;height:20px;line-height:20px;padding-right:16px;';
+    if (ln === errorLine) style += `background:${C.red}18;border-left:2px solid ${C.red};margin-left:-2px;`;
+    else if (ln === debugLine) style += `background:${C.orange}22;border-left:2px solid ${C.orange};margin-left:-2px;`;
+    return `<span style="${style}">${inner || ' '}</span>`;
   }).join('');
 
-  // Both <pre> and <textarea> are inside a single scrollable container.
-  // <pre> has width:max-content so it expands to fit the longest line.
-  // <textarea> is overlaid on top with the same dimensions.
-  // The outer div scrolls both together — no JS sync needed for horizontal scroll.
   return (
-    <div style={{ position:'relative',width:'100%',height:'100%',overflow:'auto' }}
-         onScroll={e => { if (onScroll) onScroll(e.currentTarget.scrollTop); }}>
-      {errorLine&&<div style={{position:'sticky',left:0,top:(errorLine-1)*20+8,height:20,width:'100%',background:`${C.red}18`,borderLeft:`2px solid ${C.red}`,pointerEvents:'none',zIndex:1,marginBottom:-20}}/>}
-      {debugLine&&<div style={{position:'sticky',left:0,top:(debugLine-1)*20+8,height:20,width:'100%',background:`${C.orange}22`,borderLeft:`2px solid ${C.orange}`,pointerEvents:'none',zIndex:1,marginBottom:-20}}/>}
-      <div style={{position:'relative',width:'max-content',minWidth:'100%',minHeight:'100%'}}>
-        <pre ref={preRef} aria-hidden="true" style={{margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',whiteSpace:'pre',pointerEvents:'none'}} dangerouslySetInnerHTML={{__html:html+'\n'}}/>
-        <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false} wrap="off"
-          style={{position:'absolute',top:0,left:0,width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'hidden',whiteSpace:'pre'}}/>
-      </div>
+    <div style={{ position:'relative',width:'100%',height:'100%',overflow:'hidden' }}>
+      <pre ref={highlightRef} aria-hidden="true" style={{position:'absolute',top:0,left:0,right:0,bottom:0,margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:C.text,background:'transparent',border:'none',overflow:'auto',whiteSpace:'pre',pointerEvents:'none',zIndex:2}} dangerouslySetInnerHTML={{__html:html}}/>
+      <textarea ref={textareaRef} value={value} onChange={e=>onChange(e.target.value)} onScroll={syncScroll} spellCheck={false} wrap="off"
+        style={{position:'relative',width:'100%',height:'100%',margin:0,padding:8,fontFamily:FONT,fontSize:13,lineHeight:'20px',color:'transparent',caretColor:C.accent,background:'transparent',border:'none',outline:'none',resize:'none',overflow:'auto',whiteSpace:'pre',zIndex:3}}/>
     </div>
   );
 });
