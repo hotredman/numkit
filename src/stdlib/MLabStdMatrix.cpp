@@ -10,67 +10,30 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 {
     // --- zeros ---
     engine.registerFunction("zeros",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                size_t r = static_cast<size_t>(args[0].toScalar());
-                                size_t c = args.size() >= 2
-                                               ? static_cast<size_t>(args[1].toScalar())
-                                               : r;
-                                if (args.size() >= 3) {
-                                    size_t p = static_cast<size_t>(args[2].toScalar());
-                                    outs[0] = MValue::matrix3d(r, c, p, MType::DOUBLE, alloc);
-                                } else {
-                                    outs[0] = MValue::matrix(r, c, MType::DOUBLE, alloc);
-                                }
-                                return;
+                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
+                                auto d = parseDimsArgs(args);
+                                outs[0] = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
                             });
 
     // --- ones ---
     engine.registerFunction("ones",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                size_t r = static_cast<size_t>(args[0].toScalar());
-                                size_t c = args.size() >= 2
-                                               ? static_cast<size_t>(args[1].toScalar())
-                                               : r;
-                                MValue m;
-                                if (args.size() >= 3) {
-                                    size_t p = static_cast<size_t>(args[2].toScalar());
-                                    m = MValue::matrix3d(r, c, p, MType::DOUBLE, alloc);
-                                } else {
-                                    m = MValue::matrix(r, c, MType::DOUBLE, alloc);
-                                }
-                                double *d = m.doubleDataMut();
+                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
+                                auto d = parseDimsArgs(args);
+                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
+                                double *p = m.doubleDataMut();
                                 for (size_t i = 0; i < m.numel(); ++i)
-                                    d[i] = 1.0;
+                                    p[i] = 1.0;
                                 outs[0] = std::move(m);
-                                return;
                             });
 
     // --- eye ---
     engine.registerFunction("eye",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                size_t r = static_cast<size_t>(args[0].toScalar());
-                                size_t c = args.size() >= 2
-                                               ? static_cast<size_t>(args[1].toScalar())
-                                               : r;
-                                auto m = MValue::matrix(r, c, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < std::min(r, c); ++i)
+                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
+                                auto d = parseDimsArgs(args);
+                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
+                                for (size_t i = 0; i < std::min(d.rows, d.cols); ++i)
                                     m.elem(i, i) = 1.0;
-                                {
-                                    outs[0] = m;
-                                    return;
-                                }
+                                outs[0] = std::move(m);
                             });
 
     // --- size ---

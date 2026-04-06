@@ -506,47 +506,25 @@ void StdLibrary::registerMathFunctions(Engine &engine)
 
     // --- rand / randn ---
     engine.registerFunction("rand",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
+                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
                                 static std::mt19937 gen(std::random_device{}());
                                 static std::uniform_real_distribution<double> dist(0.0, 1.0);
-                                size_t r = args.empty() ? 1
-                                                        : static_cast<size_t>(args[0].toScalar());
-                                size_t c = args.size() >= 2
-                                               ? static_cast<size_t>(args[1].toScalar())
-                                               : r;
-                                auto m = MValue::matrix(r, c, MType::DOUBLE, alloc);
+                                auto d = parseDimsArgs(args);
+                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
                                 for (size_t i = 0; i < m.numel(); ++i)
                                     m.doubleDataMut()[i] = dist(gen);
-                                {
-                                    outs[0] = m;
-                                    return;
-                                }
+                                outs[0] = std::move(m);
                             });
 
     engine.registerFunction("randn",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
+                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
                                 static std::mt19937 gen(std::random_device{}());
                                 static std::normal_distribution<double> dist(0.0, 1.0);
-                                size_t r = args.empty() ? 1
-                                                        : static_cast<size_t>(args[0].toScalar());
-                                size_t c = args.size() >= 2
-                                               ? static_cast<size_t>(args[1].toScalar())
-                                               : r;
-                                auto m = MValue::matrix(r, c, MType::DOUBLE, alloc);
+                                auto d = parseDimsArgs(args);
+                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
                                 for (size_t i = 0; i < m.numel(); ++i)
                                     m.doubleDataMut()[i] = dist(gen);
-                                {
-                                    outs[0] = m;
-                                    return;
-                                }
+                                outs[0] = std::move(m);
                             });
 
     // --- Angle conversions ---

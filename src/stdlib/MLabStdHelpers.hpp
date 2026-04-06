@@ -127,6 +127,56 @@ MValue unaryComplex(const MValue &a, Op op, Allocator *alloc)
 }
 
 // ============================================================
+// Parse dimension arguments for array creation functions
+// Supports: f(n), f(m,n), f(m,n,p), f([m n]), f([m n p]), f(size(x))
+// Returns {rows, cols, pages}. pages=0 means 2D.
+// ============================================================
+
+struct DimsArg { size_t rows = 1, cols = 1, pages = 0; };
+
+inline DimsArg parseDimsArgs(Span<const MValue> args)
+{
+    if (args.empty())
+        return {1, 1, 0};
+
+    // Single vector argument: [m n] or [m n p]
+    if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
+        const double *d = args[0].doubleData();
+        size_t n = args[0].numel();
+        size_t r = static_cast<size_t>(d[0]);
+        size_t c = static_cast<size_t>(d[1]);
+        size_t p = (n >= 3) ? static_cast<size_t>(d[2]) : 0;
+        return {r, c, p};
+    }
+
+    // Single scalar: f(n) → n×n
+    if (args.size() == 1) {
+        size_t n = static_cast<size_t>(args[0].toScalar());
+        return {n, n, 0};
+    }
+
+    // Two scalars: f(m, n)
+    size_t r = static_cast<size_t>(args[0].toScalar());
+    size_t c = static_cast<size_t>(args[1].toScalar());
+
+    // Three scalars: f(m, n, p)
+    if (args.size() >= 3) {
+        size_t p = static_cast<size_t>(args[2].toScalar());
+        return {r, c, p};
+    }
+
+    return {r, c, 0};
+}
+
+// Create a zero matrix/3D array with given dimensions
+inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
+{
+    if (d.pages > 0)
+        return MValue::matrix3d(d.rows, d.cols, d.pages, type, alloc);
+    return MValue::matrix(d.rows, d.cols, type, alloc);
+}
+
+// ============================================================
 // Saturating arithmetic for integer types
 // ============================================================
 

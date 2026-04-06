@@ -36,6 +36,96 @@ TEST_P(BuiltinTest, Eye)
     EXPECT_DOUBLE_EQ((*I)(0, 1), 0.0);
 }
 
+// ── Vector syntax for array creation ────────────────────────
+
+TEST_P(BuiltinTest, ZerosVectorArg)
+{
+    eval("A = zeros([2 3]);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 3u);
+}
+
+TEST_P(BuiltinTest, OnesVectorArg)
+{
+    eval("A = ones([3 4]);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 4u);
+    EXPECT_DOUBLE_EQ(A->doubleData()[0], 1.0);
+}
+
+TEST_P(BuiltinTest, RandVectorArg)
+{
+    eval("A = rand([2 5]);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 5u);
+}
+
+TEST_P(BuiltinTest, RandnVectorArg)
+{
+    eval("A = randn([3 4]);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 4u);
+}
+
+TEST_P(BuiltinTest, ZerosSizeArg)
+{
+    // zeros(size(x)) — copy dimensions from another array
+    eval("x = ones(3, 5); A = zeros(size(x));");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 3u);
+    EXPECT_EQ(cols(*A), 5u);
+}
+
+TEST_P(BuiltinTest, RandnSizeArg)
+{
+    eval("x = ones(4, 6); A = randn(size(x));");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 4u);
+    EXPECT_EQ(cols(*A), 6u);
+}
+
+TEST_P(BuiltinTest, Rand3D)
+{
+    eval("A = rand(2, 3, 4);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_EQ(A->dims().pages(), 4u);
+}
+
+TEST_P(BuiltinTest, Randn3D)
+{
+    eval("A = randn(2, 3, 4);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_EQ(A->dims().pages(), 4u);
+}
+
+TEST_P(BuiltinTest, Zeros3DVectorArg)
+{
+    eval("A = zeros([2 3 4]);");
+    auto *A = getVarPtr("A");
+    EXPECT_EQ(rows(*A), 2u);
+    EXPECT_EQ(cols(*A), 3u);
+    EXPECT_EQ(A->dims().pages(), 4u);
+}
+
+TEST_P(BuiltinTest, EyeVectorArg)
+{
+    eval("I = eye([3 4]);");
+    auto *I = getVarPtr("I");
+    EXPECT_EQ(rows(*I), 3u);
+    EXPECT_EQ(cols(*I), 4u);
+    EXPECT_DOUBLE_EQ((*I)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*I)(2, 2), 1.0);
+    EXPECT_DOUBLE_EQ((*I)(0, 3), 0.0);
+}
+
 // ── Size / length / numel ───────────────────────────────────
 
 TEST_P(BuiltinTest, SizeWithDim)
