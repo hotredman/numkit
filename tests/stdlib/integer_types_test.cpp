@@ -215,4 +215,111 @@ TEST_P(IntegerTypesTest, IsequalStructs)
     EXPECT_DOUBLE_EQ(evalScalar("isequal(s1, s3)"), 0.0);
 }
 
+// ── Arithmetic ──────────────────────────────────────────────
+
+TEST_P(IntegerTypesTest, Int32Add)
+{
+    eval("x = int32(10) + int32(20);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 30.0);
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), mlab::MType::INT32);
+}
+
+TEST_P(IntegerTypesTest, Int8AddSaturation)
+{
+    eval("x = int8(100) + int8(100);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 127.0); // saturates
+}
+
+TEST_P(IntegerTypesTest, Uint8SubSaturation)
+{
+    eval("x = uint8(10) - uint8(20);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 0.0); // unsigned saturates to 0
+}
+
+TEST_P(IntegerTypesTest, Int32MulSaturation)
+{
+    eval("x = int32(100000) * int32(100000);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 2147483647.0); // INT32_MAX
+}
+
+TEST_P(IntegerTypesTest, Int32Div)
+{
+    eval("x = int32(7) / int32(2);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 4.0); // rounded
+}
+
+TEST_P(IntegerTypesTest, Int32DivByZero)
+{
+    eval("x = int32(5) / int32(0);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 2147483647.0); // INT32_MAX
+}
+
+TEST_P(IntegerTypesTest, IntPlusDouble)
+{
+    // int32 + double → int32 (MATLAB behavior)
+    eval("x = int32(10) + 2.7;");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), mlab::MType::INT32);
+    EXPECT_DOUBLE_EQ(x->toScalar(), 13.0); // 10 + round(2.7) = 13
+}
+
+TEST_P(IntegerTypesTest, IntMixedTypeError)
+{
+    // int32 + int16 → error
+    EXPECT_THROW(eval("int32(1) + int16(1);"), std::exception);
+}
+
+TEST_P(IntegerTypesTest, SingleAdd)
+{
+    eval("x = single(1.5) + single(2.5);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), mlab::MType::SINGLE);
+    EXPECT_NEAR(x->toScalar(), 4.0, 1e-6);
+}
+
+TEST_P(IntegerTypesTest, SinglePlusDouble)
+{
+    // single + double → single (MATLAB behavior)
+    eval("x = single(1.5) + 2.5;");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), mlab::MType::SINGLE);
+    EXPECT_NEAR(x->toScalar(), 4.0, 1e-6);
+}
+
+TEST_P(IntegerTypesTest, UnaryNegInt)
+{
+    eval("x = -int32(5);");
+    EXPECT_DOUBLE_EQ(getVar("x"), -5.0);
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), mlab::MType::INT32);
+}
+
+TEST_P(IntegerTypesTest, UnaryNegUint)
+{
+    eval("x = -uint8(5);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 0.0); // unsigned neg → 0
+}
+
+TEST_P(IntegerTypesTest, Int32ArrayArith)
+{
+    eval("a = int32([1 2 3]); b = int32([4 5 6]); c = a + b;");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->type(), mlab::MType::INT32);
+    const int32_t *d = c->int32Data();
+    EXPECT_EQ(d[0], 5);
+    EXPECT_EQ(d[1], 7);
+    EXPECT_EQ(d[2], 9);
+}
+
+TEST_P(IntegerTypesTest, Int32ScalarBroadcast)
+{
+    eval("x = int32([1 2 3]) + int32(10);");
+    auto *x = getVarPtr("x");
+    const int32_t *d = x->int32Data();
+    EXPECT_EQ(d[0], 11);
+    EXPECT_EQ(d[1], 12);
+    EXPECT_EQ(d[2], 13);
+}
+
 INSTANTIATE_DUAL(IntegerTypesTest);

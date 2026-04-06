@@ -18,6 +18,21 @@ void StdLibrary::registerUnaryOps(Engine &engine)
             return unaryComplex(a, std::negate<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE)
             return unaryDouble(a, std::negate<double>{}, alloc);
+        if (a.type() == MType::SINGLE)
+            return unaryTyped<float>(a, MType::SINGLE, [](float x) { return -x; }, alloc);
+        if (isIntegerType(a.type())) {
+            switch (a.type()) {
+            case MType::INT8:   return unaryTyped<int8_t>(a, a.type(), [](int8_t x) { return saturateNeg(x); }, alloc);
+            case MType::INT16:  return unaryTyped<int16_t>(a, a.type(), [](int16_t x) { return saturateNeg(x); }, alloc);
+            case MType::INT32:  return unaryTyped<int32_t>(a, a.type(), [](int32_t x) { return saturateNeg(x); }, alloc);
+            case MType::INT64:  return unaryTyped<int64_t>(a, a.type(), [](int64_t x) { return saturateNeg(x); }, alloc);
+            case MType::UINT8:  return unaryTyped<uint8_t>(a, a.type(), [](uint8_t) { return uint8_t(0); }, alloc);
+            case MType::UINT16: return unaryTyped<uint16_t>(a, a.type(), [](uint16_t) { return uint16_t(0); }, alloc);
+            case MType::UINT32: return unaryTyped<uint32_t>(a, a.type(), [](uint32_t) { return uint32_t(0); }, alloc);
+            case MType::UINT64: return unaryTyped<uint64_t>(a, a.type(), [](uint64_t) { return uint64_t(0); }, alloc);
+            default: break;
+            }
+        }
         throw std::runtime_error("Unsupported unary -");
     });
 

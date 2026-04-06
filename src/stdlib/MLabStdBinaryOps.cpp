@@ -50,6 +50,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return MValue::stringScalar(a.toString() + std::to_string(b.toScalar()), alloc);
         if (a.isNumeric() && b.isString())
             return MValue::stringScalar(std::to_string(a.toScalar()) + b.toString(), alloc);
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateAdd(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         throw std::runtime_error("Unsupported types for +");
     });
 
@@ -62,6 +64,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return elementwiseComplex(a, b, std::minus<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
             return elementwiseDouble(a, b, std::minus<double>{}, alloc);
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateSub(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         throw std::runtime_error("Unsupported types for -");
     });
 
@@ -74,6 +78,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return elementwiseComplex(a, b, std::multiplies<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
             return elementwiseDouble(a, b, std::multiplies<double>{}, alloc);
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         throw std::runtime_error("Unsupported types for .*");
     });
 
@@ -101,6 +107,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return r;
         }
 
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         if (a.isScalar() || b.isScalar())
             return elementwiseDouble(a, b, std::multiplies<double>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
@@ -127,6 +135,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return MValue::empty();
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateDiv(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         if (a.type() == MType::DOUBLE && b.isScalar())
             return elementwiseDouble(a, b, std::divides<double>{}, alloc);
         if (a.isScalar() && b.isScalar())
@@ -143,6 +153,8 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
             return elementwiseDouble(a, b, std::divides<double>{}, alloc);
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateDiv(x, y); }, alloc);
+          if (!r.isUnset()) return r; }
         throw std::runtime_error("Unsupported types for ./");
     });
 
@@ -172,6 +184,16 @@ void StdLibrary::registerBinaryOps(Engine &engine)
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
             return elementwiseDouble(a, b, [](double x, double y) { return std::pow(x, y); }, alloc);
         }
+        { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) -> decltype(x) {
+            double r = std::pow(static_cast<double>(x), static_cast<double>(y));
+            if constexpr (std::is_integral_v<decltype(x)>) {
+                r = std::round(r);
+                if (r > static_cast<double>(std::numeric_limits<decltype(x)>::max())) return std::numeric_limits<decltype(x)>::max();
+                if (r < static_cast<double>(std::numeric_limits<decltype(x)>::min())) return std::numeric_limits<decltype(x)>::min();
+                return static_cast<decltype(x)>(r);
+            } else { return static_cast<decltype(x)>(r); }
+          }, alloc);
+          if (!r.isUnset()) return r; }
         throw std::runtime_error("Unsupported types for .^");
     });
 
