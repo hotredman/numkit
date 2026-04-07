@@ -182,6 +182,40 @@ TEST_F(DebugSessionTest, EvalExpression)
     EXPECT_NE(result.find("11"), std::string::npos) << "eval('n+10') should show 11, got: " << result;
 }
 
+TEST_F(DebugSessionTest, EvalNarginNargout)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "function r = add(a, b)\n"
+        "    s = a + b;\n"
+        "    r = s;\n"
+        "end\n"
+        "result = add(10, 20);\n";
+
+    // Initial step pauses at line 5 (top-level call)
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue → enters function, hits bp at line 2
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snap = session.snapshot();
+    EXPECT_EQ(snap.functionName, "add");
+
+    // nargin should be 2 (two arguments passed)
+    std::string result = session.eval("nargin");
+    EXPECT_NE(result.find("2"), std::string::npos)
+        << "eval('nargin') should show 2, got: " << result;
+
+    // nargout should be 1 (one return value)
+    result = session.eval("nargout");
+    EXPECT_NE(result.find("1"), std::string::npos)
+        << "eval('nargout') should show 1, got: " << result;
+}
+
 TEST_F(DebugSessionTest, EvalArrayConstruction)
 {
     DebugSession session(engine);

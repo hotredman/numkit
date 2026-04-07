@@ -2545,6 +2545,10 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         varReg(ret); // just allocate the register
     }
 
+    // Always allocate nargin/nargout so they're visible in debugger
+    varReg("nargin");
+    varReg("nargout");
+
     // Compile body
     compileNode(funcDef->children[0].get());
 

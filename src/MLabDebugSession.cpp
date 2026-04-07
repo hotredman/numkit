@@ -184,7 +184,7 @@ std::string DebugSession::eval(const std::string &code)
     std::vector<SavedVar> savedVars;
 
     for (auto &v : snap.variables) {
-        if (v.value && v.name != "nargin" && v.name != "nargout") {
+        if (v.value) {
             SavedVar sv;
             sv.name = v.name;
             auto *ge = genv.get(v.name);
