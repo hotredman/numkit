@@ -418,16 +418,16 @@ TEST_P(DebugPhase234Test, CallStackDepthAtBreakpoint)
 INSTANTIATE_DUAL(DebugPhase234Test);
 
 // ============================================================
-// 12. Regression: DebugStopException must propagate in AutoFallback
+// 12. Regression: DebugStopException must propagate in VMBackend
 //     (Bug: catch(...) in Engine::eval swallowed it, causing silent
 //      re-execution via TreeWalker without debug support)
 // ============================================================
 
-TEST(DebugAutoFallback, StopExceptionPropagates)
+TEST(DebugVMBackend, StopExceptionPropagates)
 {
     Engine engine;
     StdLibrary::install(engine);
-    engine.setBackend(Engine::Backend::AutoFallback);
+    engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
     obs->defaultAction = DebugAction::Stop; // Stop on first event
@@ -436,14 +436,14 @@ TEST(DebugAutoFallback, StopExceptionPropagates)
     engine.breakpointManager().addBreakpoint(2);
 
     EXPECT_THROW(engine.eval("x = 1;\ny = 2;\nz = 3;\n"), DebugStopException)
-        << "DebugStopException must not be swallowed by AutoFallback catch(...)";
+        << "DebugStopException must not be swallowed by VMBackend catch(...)";
 }
 
-TEST(DebugAutoFallback, BreakpointContinueThenStop)
+TEST(DebugVMBackend, BreakpointContinueThenStop)
 {
     Engine engine;
     StdLibrary::install(engine);
-    engine.setBackend(Engine::Backend::AutoFallback);
+    engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
     // Continue past first breakpoint, stop on second
@@ -467,11 +467,11 @@ TEST(DebugAutoFallback, BreakpointContinueThenStop)
 //     available even after 'clear' (MATLAB local function semantics)
 // ============================================================
 
-TEST(DebugAutoFallback, FunctionAtBottomWithClear)
+TEST(DebugVMBackend, FunctionAtBottomWithClear)
 {
     Engine engine;
     StdLibrary::install(engine);
-    engine.setBackend(Engine::Backend::AutoFallback);
+    engine.setBackend(Engine::Backend::VM);
 
     std::string output;
     engine.setOutputFunc([&](const std::string &s) { output += s; });

@@ -1046,9 +1046,18 @@ enter_frame:
                 break;
 
             case OpCode::ASSERT_DEF:
-                if (R[I.a].isUnset())
+                if (R[I.a].isUnset()) {
+                    // Fallback: check dynamic variables (debug eval, runtime eval)
+                    if (frame.dynVars) {
+                        auto it = frame.dynVars->find(chunk.strings[I.d]);
+                        if (it != frame.dynVars->end()) {
+                            R[I.a] = it->second;
+                            break;
+                        }
+                    }
                     throw std::runtime_error("Undefined function or variable '" + chunk.strings[I.d]
                                              + "'");
+                }
                 break;
 
             case OpCode::CLEAR_VAR:
@@ -1553,6 +1562,25 @@ void VM::popCallFrame(MValue retVal)
         R_ = nullptr;
         lastResult_ = std::move(retVal);
     }
+}
+
+bool VM::setFrameVariable(const std::string &name, const MValue &value)
+{
+    if (frames_.empty()) return false;
+    auto &frame = frames_.back();
+    for (auto &[vname, reg] : frame.chunk->varMap) {
+        if (vname == name && reg < frame.nregs) {
+            frame.R[reg] = value;
+            return true;
+        }
+    }
+    return false;
+}
+
+void VM::setFrameDynVars(std::unordered_map<std::string, MValue> *dv)
+{
+    if (!frames_.empty())
+        frames_.back().dynVars = dv;
 }
 
 void VM::forSetVar(MValue &varReg, const ForState &fs)

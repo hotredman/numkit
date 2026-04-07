@@ -42,6 +42,14 @@ public:
     const std::vector<std::pair<std::string, MValue>> &lastVarMap() const { return lastVarMap_; }
     void clearLastVarMap() { lastVarMap_.clear(); }
 
+    // Write a variable value into the current (paused) frame's register.
+    // Returns true if the variable was found and written, false if not in varMap.
+    bool setFrameVariable(const std::string &name, const MValue &value);
+
+    // Set dynamic variables map on the current (paused) frame.
+    // The map is NOT owned by the VM — caller must keep it alive.
+    void setFrameDynVars(std::unordered_map<std::string, MValue> *dv);
+
     // Call depth: 0 at top-level, +1 per user function call
     int callDepth() const { return std::max(0, static_cast<int>(frames_.size()) - 1); }
 
@@ -72,6 +80,10 @@ private:
         uint8_t outBase = 0;            // multi-return: output base register
         uint8_t nout = 0;               // multi-return: output count
         size_t nargout = 1;
+
+        // Dynamic variables — fallback for variables not in static varMap.
+        // Used by debug eval to inject variables created at breakpoints.
+        std::unordered_map<std::string, MValue> *dynVars = nullptr;
     };
     std::vector<CallFrame> frames_;
     MValue lastResult_;

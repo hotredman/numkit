@@ -57,10 +57,7 @@ public:
     EvalResult evalSafe(const std::string &code);
 
     // Backend selection
-    // AutoFallback = VM with silent fallback to TW (default, production)
-    // VM = VM only, no fallback (for testing)
-    // TreeWalker = TW only (for testing)
-    enum class Backend { AutoFallback, TreeWalker, VM };
+    enum class Backend { VM, TreeWalker };
     void setBackend(Backend b) { backend_ = b; }
     Backend backend() const { return backend_; }
 
@@ -155,7 +152,7 @@ public:
 
 private:
     std::unique_ptr<VM> vm_;
-    Backend backend_ = Backend::AutoFallback;
+    Backend backend_ = Backend::VM;
 
     // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
     void syncVMToWorkspace();

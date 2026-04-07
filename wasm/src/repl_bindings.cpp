@@ -204,8 +204,51 @@ public:
     }
 
     std::string getWorkspaceJSON() {
+        // During active debug session, return frame variables instead of workspace
+        if (debugSession_ && debugSession_->isActive()) {
+            return getDebugFrameVarsJSON();
+        }
         try {
             return engine_->workspaceJSON();
+        } catch (...) {
+            return "{}";
+        }
+    }
+
+    std::string getDebugFrameVarsJSON() {
+        try {
+            auto snap = debugSession_->snapshot();
+            std::string result = "{";
+            bool first = true;
+            for (auto &v : snap.variables) {
+                if (!v.value) continue;
+                if (v.name == "nargin" || v.name == "nargout") continue;
+                if (!first) result += ",";
+                auto &val = *v.value;
+                result += "\"" + escapeJSON(v.name) + "\":{";
+                result += "\"type\":\"" + std::string(mlab::mtypeName(val.type())) + "\"";
+                auto &d = val.dims();
+                result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
+                if (d.is3D()) result += "x" + std::to_string(d.pages());
+                result += "\"";
+                result += ",\"preview\":";
+                if (val.type() == mlab::MType::DOUBLE && val.isScalar()) {
+                    double dv = val.toScalar();
+                    if (std::isnan(dv)) result += "\"NaN\"";
+                    else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
+                    else result += std::to_string(dv);
+                } else if (val.type() == mlab::MType::LOGICAL && val.isScalar()) {
+                    result += (val.toBool() ? "true" : "false");
+                } else if (val.type() == mlab::MType::CHAR) {
+                    result += "\"" + escapeJSON(val.toString()) + "\"";
+                } else {
+                    result += "\"" + escapeJSON(valuePreview(val)) + "\"";
+                }
+                result += "}";
+                first = false;
+            }
+            result += "}";
+            return result;
         } catch (...) {
             return "{}";
         }
@@ -272,14 +315,34 @@ private:
             result += ",\"function\":\"" + escapeJSON(snap.functionName) + "\"";
             result += ",\"reason\":\"" + std::string(reason) + "\"";
 
-            // Variables
+            // Variables — structured format matching workspaceJSON
             result += ",\"variables\":{";
             bool first = true;
             for (auto &v : snap.variables) {
                 if (!v.value) continue;
                 if (v.name == "nargin" || v.name == "nargout") continue;
                 if (!first) result += ",";
-                result += "\"" + escapeJSON(v.name) + "\":\"" + escapeJSON(valuePreview(*v.value)) + "\"";
+                auto &val = *v.value;
+                result += "\"" + escapeJSON(v.name) + "\":{";
+                result += "\"type\":\"" + std::string(mlab::mtypeName(val.type())) + "\"";
+                auto &d = val.dims();
+                result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
+                if (d.is3D()) result += "x" + std::to_string(d.pages());
+                result += "\"";
+                result += ",\"preview\":";
+                if (val.type() == mlab::MType::DOUBLE && val.isScalar()) {
+                    double dv = val.toScalar();
+                    if (std::isnan(dv)) result += "\"NaN\"";
+                    else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
+                    else result += std::to_string(dv);
+                } else if (val.type() == mlab::MType::LOGICAL && val.isScalar()) {
+                    result += (val.toBool() ? "true" : "false");
+                } else if (val.type() == mlab::MType::CHAR) {
+                    result += "\"" + escapeJSON(val.toString()) + "\"";
+                } else {
+                    result += "\"" + escapeJSON(valuePreview(val)) + "\"";
+                }
+                result += "}";
                 first = false;
             }
             result += "}";

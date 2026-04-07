@@ -216,6 +216,79 @@ TEST_F(DebugSessionTest, EvalNarginNargout)
         << "eval('nargout') should show 1, got: " << result;
 }
 
+TEST_F(DebugSessionTest, EvalCreatesNewVariable)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    auto status = startDebug(session, "x = 10;\ny = 20;\nz = 30;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Create a new variable in debug console
+    session.eval("q = 42");
+
+    // q should appear in snapshot
+    auto snap = session.snapshot();
+    bool hasQ = false;
+    for (auto &v : snap.variables) {
+        if (v.name == "q" && v.value) {
+            hasQ = true;
+            EXPECT_DOUBLE_EQ(v.value->toScalar(), 42.0);
+        }
+    }
+    EXPECT_TRUE(hasQ) << "eval-created variable q should appear in snapshot";
+}
+
+TEST_F(DebugSessionTest, EvalCreatedVarPersistsAcrossEvals)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    auto status = startDebug(session, "x = 10;\ny = 20;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Create variable, then use it in next eval
+    session.eval("q = [1 2 3]");
+    std::string result = session.eval("sum(q)");
+    EXPECT_NE(result.find("6"), std::string::npos)
+        << "sum(q) should be 6, got: " << result;
+}
+
+TEST_F(DebugSessionTest, EvalCreatedVarInFunction)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "function r = foo(x)\n"
+        "    r = x * 2;\n"
+        "end\n"
+        "result = foo(5);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Create new variable inside function debug context
+    session.eval("tmp = x + 100");
+
+    auto snap = session.snapshot();
+    bool hasTmp = false;
+    for (auto &v : snap.variables)
+        if (v.name == "tmp" && v.value) hasTmp = true;
+    EXPECT_TRUE(hasTmp) << "eval-created 'tmp' should appear in function snapshot";
+
+    // Original frame variable x should still be accessible
+    std::string result = session.eval("x");
+    EXPECT_NE(result.find("5"), std::string::npos)
+        << "x should still be 5, got: " << result;
+}
+
 TEST_F(DebugSessionTest, EvalArrayConstruction)
 {
     DebugSession session(engine);

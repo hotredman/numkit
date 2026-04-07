@@ -33,6 +33,7 @@ set(STDLIB_TESTS
     stdlib/scope_test.cpp
     stdlib/types_test.cpp
     stdlib/integer_types_test.cpp
+    stdlib/dynvars_test.cpp
     stdlib/integration_test.cpp
 )
 
@@ -72,6 +73,7 @@ set(DIAGNOSTICS_TESTS
     diagnostics/debugger_phase234_test.cpp
     diagnostics/debugger_diagnostic_test.cpp
     diagnostics/debug_session_test.cpp
+    diagnostics/debug_session_test_eval_inject.cpp
     diagnostics/who_diagnostic_test.cpp
     diagnostics/known_issues_test.cpp
 )

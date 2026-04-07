@@ -5,6 +5,8 @@
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
 
+#include <unordered_set>
+
 namespace mlab {
 
 DebugSession::DebugSession(Engine &engine)
@@ -92,6 +94,23 @@ ExecStatus DebugSession::resume(DebugAction action)
 
     outputBuf_.clear();
 
+    // Clear frame variable overrides from evalVars_ — after resume,
+    // the VM registers have the authoritative values.
+    // Keep only eval-created variables that have no register in the frame.
+    {
+        auto *ctl = engine_.debugController();
+        if (ctl && !ctl->callStack().empty()) {
+            auto &frame = ctl->callStack().back();
+            if (frame.chunk) {
+                for (auto &[vname, reg] : frame.chunk->varMap)
+                    evalVars_.erase(vname);
+            }
+        }
+    }
+
+    // Attach dynVars to VM frame so ASSERT_DEF can find eval-created variables
+    engine_.vm_->setFrameDynVars(evalVars_.empty() ? nullptr : &evalVars_);
+
     try {
         ExecStatus status = engine_.debugResume(action);
 
@@ -144,11 +163,20 @@ DebugSession::Snapshot DebugSession::snapshot() const
     snap.col = frame.col;
     snap.functionName = frame.functionName;
 
-    // Variables from current frame
+    // Variables from current frame + eval-created variables
     auto vars = frame.variables();
-    snap.variables.reserve(vars.size());
-    for (auto &v : vars)
+    snap.variables.reserve(vars.size() + evalVars_.size());
+    std::unordered_set<std::string> seen;
+    for (auto &v : vars) {
         snap.variables.push_back({v.name, v.value});
+        seen.insert(v.name);
+    }
+
+    // Merge in eval-created variables (not in frame)
+    for (auto &[name, val] : evalVars_) {
+        if (seen.count(name) == 0)
+            snap.variables.push_back({name, &val});
+    }
 
     // Full call stack
     snap.callStack = stack;
@@ -174,33 +202,37 @@ std::string DebugSession::eval(const std::string &code)
     // 3. Detach debug observer (so eval doesn't trigger debug hooks)
     engine_.setDebugObserver(nullptr);
 
-    // 4. Inject current frame's variables into both global stores
-    //    (compiler's varRegRead checks globalsEnv_ and workspaceEnv_)
-    //    Save prior state so we can undo injection after eval.
+    // 4. Inject frame variables + evalVars into workspace for eval
     auto &genv = engine_.workspaceEnv();
     auto &gstore = engine_.globalsEnv();
 
+    // Save workspace state to restore after eval
     struct SavedVar { std::string name; bool hadEnv; MValue envVal; bool hadStore; MValue storeVal; };
     std::vector<SavedVar> savedVars;
 
-    for (auto &v : snap.variables) {
-        if (v.value) {
-            SavedVar sv;
-            sv.name = v.name;
-            auto *ge = genv.get(v.name);
-            sv.hadEnv = ge && !ge->isEmpty();
-            if (sv.hadEnv) sv.envVal = *ge;
-            auto *gs = gstore.get(v.name);
-            sv.hadStore = gs && !gs->isEmpty();
-            if (sv.hadStore) sv.storeVal = *gs;
+    auto injectVar = [&](const std::string &name, const MValue &val) {
+        SavedVar sv;
+        sv.name = name;
+        auto *ge = genv.get(name);
+        sv.hadEnv = ge && !ge->isEmpty();
+        if (sv.hadEnv) sv.envVal = *ge;
+        auto *gs = gstore.get(name);
+        sv.hadStore = gs && !gs->isEmpty();
+        if (sv.hadStore) sv.storeVal = *gs;
+        genv.set(name, val);
+        gstore.set(name, val);
+        savedVars.push_back(std::move(sv));
+    };
 
-            genv.set(v.name, *v.value);
-            gstore.set(v.name, *v.value);
-            savedVars.push_back(std::move(sv));
-        }
-    }
+    // Inject VM frame variables
+    for (auto &v : snap.variables)
+        if (v.value) injectVar(v.name, *v.value);
 
-    // 5. Execute expression (this will clear frames, but we restore after)
+    // Inject previously eval-created variables
+    for (auto &[name, val] : evalVars_)
+        injectVar(name, val);
+
+    // 5. Execute expression
     std::string evalOutput;
     engine_.setOutputFunc([&evalOutput](const std::string &s) { evalOutput += s; });
     try {
@@ -209,24 +241,54 @@ std::string DebugSession::eval(const std::string &code)
         evalOutput = std::string("Error: ") + e.what();
     }
 
-    // 6. Restore everything
+    // 6. Capture ALL workspace variables into evalVars_
+    //    Frame variables that weren't changed will be overridden by fresh frame
+    //    values on next snapshot() anyway.
+    {
+        auto wsNames = genv.localNames();
+        for (auto &name : wsNames) {
+            if (name == "ans" || name == "nargin" || name == "nargout") continue;
+            auto *val = genv.getLocal(name);
+            if (!val || val->isEmpty()) continue;
+            evalVars_[name] = *val;
+        }
+        // Also capture from VM's lastVarMap (which has the eval script's exported vars)
+        for (auto &[name, val] : engine_.vm_->lastVarMap()) {
+            if (name == "ans") continue;
+            if (!val.isEmpty() && !val.isUnset())
+                evalVars_[name] = val;
+        }
+    }
+
+    // 7. Restore VM state and debug controller
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
-    engine_.setDebugObserver(observer_);  // creates new DebugController
+    engine_.setDebugObserver(observer_);
     engine_.vm_->restorePausedState(std::move(savedState));
 
-    // Restore debug controller's callStack and lastLine (was destroyed by setDebugObserver)
     ctl = engine_.debugController();
     if (ctl) {
         ctl->callStack() = std::move(savedCallStack);
-        ctl->setLastLine(snap.line);  // prevent re-triggering bp on the same line
+        ctl->setLastLine(snap.line);
     }
 
-    // Undo variable injection to prevent contaminating the real execution
+    // 8. Write back modified frame variables directly into VM registers
+    for (auto &[name, val] : evalVars_)
+        engine_.vm_->setFrameVariable(name, val);
+
+    // 9. Restore workspace to pre-eval state
     for (auto &sv : savedVars) {
         if (sv.hadEnv)  genv.set(sv.name, sv.envVal);
         else            genv.remove(sv.name);
         if (sv.hadStore) gstore.set(sv.name, sv.storeVal);
         else             gstore.remove(sv.name);
+    }
+    // Clean up eval-created variables from workspace (they live in evalVars_)
+    for (auto &[name, val] : evalVars_) {
+        bool wasRestored = false;
+        for (auto &sv : savedVars)
+            if (sv.name == name) { wasRestored = true; break; }
+        if (!wasRestored)
+            genv.remove(name);
     }
 
     // Trim trailing whitespace

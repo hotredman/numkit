@@ -22,6 +22,7 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace mlab {
@@ -106,6 +107,9 @@ private:
         void onFunctionExit(const DebugContext &) override {}
     };
     std::shared_ptr<SessionObserver> observer_;
+
+    // Variables created/modified during debug eval (no register in VM frame)
+    std::unordered_map<std::string, MValue> evalVars_;
 
     // Output capture
     std::string outputBuf_;

@@ -152,7 +152,7 @@ bool Engine::hasExternalFunction(const std::string &name) const
 
 bool Engine::isInsideFunctionCall() const
 {
-    if (vm_ && (backend_ == Backend::VM || backend_ == Backend::AutoFallback))
+    if (vm_ && backend_ == Backend::VM)
         return vm_->callDepth() > 0;
     if (treeWalker_)
         return treeWalker_->callDepth() > 0;
@@ -185,34 +185,25 @@ MValue Engine::eval(const std::string &code)
     Parser parser(tokens);
     auto ast = parser.parse();
 
-    if (backend_ != Backend::TreeWalker) {
+    if (backend_ == Backend::VM) {
+        // Reset state for this execution
+        clearAllCalled_ = false;
+        vm_->clearLastVarMap();
+
+        auto src = std::make_shared<const std::string>(code);
+        auto chunk = compiler_->compile(ast.get(), src);
+        vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+
         try {
-            // Reset state for this execution
-            clearAllCalled_ = false;
-            vm_->clearLastVarMap();
-
-            auto src = std::make_shared<const std::string>(code);
-            auto chunk = compiler_->compile(ast.get(), src);
-            vm_->setCompiledFuncs(&compiler_->compiledFuncs());
-
-            // execute() exports variables via RAII guard (even on error)
             MValue result = vm_->execute(chunk);
-
-            // Sync exported variables to global environment
             syncVMToWorkspace();
             return result;
         } catch (const DebugStopException &) {
             syncVMToWorkspace();
-            throw; // always rethrow — debugger stop is not a backend error
+            throw;
         } catch (...) {
-            // Sync whatever was exported (may be empty if compile failed,
-            // or partial if execute failed mid-way — both correct)
             syncVMToWorkspace();
-
-            // Backend::VM (strict) — rethrow, no fallback
-            if (backend_ == Backend::VM)
-                throw;
-            // Backend::AutoFallback — silent fallback to TreeWalker
+            throw;
         }
     }
 
