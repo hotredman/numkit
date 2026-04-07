@@ -277,6 +277,7 @@ private:
             bool first = true;
             for (auto &v : snap.variables) {
                 if (!v.value) continue;
+                if (v.name == "nargin" || v.name == "nargout") continue;
                 if (!first) result += ",";
                 result += "\"" + escapeJSON(v.name) + "\":\"" + escapeJSON(valuePreview(*v.value)) + "\"";
                 first = false;
