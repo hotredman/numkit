@@ -24,6 +24,7 @@ endif()
 set(MLAB_CORE_SOURCES
     src/MLabAllocator.cpp
     src/MLabMType.cpp
+    src/MLabDims.cpp
     src/MLabValue.cpp
     src/MLabLexer.cpp
     src/MLabParser.cpp
@@ -56,6 +57,7 @@ set(MLAB_HEADERS
     include/MLabTreeWalker.hpp
     include/MLabAllocator.hpp
     include/MLabMType.hpp
+    include/MLabDims.hpp
     include/MLabValue.hpp
     include/MLabLexer.hpp
     include/MLabAst.hpp
