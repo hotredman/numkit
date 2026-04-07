@@ -160,8 +160,16 @@ uint8_t Compiler::varRegRead(const std::string &name)
 {
     // Check if variable is already known (local scope)
     auto it = varRegisters_.find(name);
-    if (it != varRegisters_.end())
+    if (it != varRegisters_.end()) {
+        // Emit runtime check — variable may be unset (e.g. clear x,
+        // conditional assignment, or not yet assigned).
+        // Skip for builtin constants (pi, eps, inf, etc.) — always defined.
+        if (!kBuiltinNames.count(name)) {
+            int16_t nameIdx = addStringConstant(name);
+            emitAD(OpCode::ASSERT_DEF, it->second, nameIdx);
+        }
         return it->second;
+    }
 
     // Check workspaceEnv
     if (isTopLevel_ && !kBuiltinNames.count(name)) {

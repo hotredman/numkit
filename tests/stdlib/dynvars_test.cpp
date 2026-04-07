@@ -84,21 +84,14 @@ TEST_P(DynVarsTest, ConditionallyDefinedVar)
 
 TEST_P(DynVarsTest, ConditionallyUndefinedVar)
 {
-    // Variable NOT defined because condition is false
-    // In a single eval, x has a register but is empty (not assigned).
-    // TW throws, VM may treat empty as 0x0 — both are valid.
-    // Test that it at least doesn't crash.
-    try {
-        eval(R"(
-            flag = 0;
-            if flag
-                x = 42;
-            end
-            y = x;
-        )");
-    } catch (const std::exception &) {
-        // Expected on TW backend
-    }
+    // Variable NOT defined because condition is false — must throw
+    EXPECT_THROW(eval(R"(
+        flag = 0;
+        if flag
+            x = 42;
+        end
+        y = x;
+    )"), std::exception);
 }
 
 // ── Variable defined later in code ──────────────────────────
@@ -244,6 +237,167 @@ TEST_P(DynVarsTest, MatlabStyleNestedTryCatch)
     )");
     // Inner catch: result = 1, then outer try: 1 + undefined3 → outer catch: 1 + 10 = 11
     EXPECT_DOUBLE_EQ(getVar("result"), 11.0);
+}
+
+// ── clear makes variable undefined ──────────────────────────
+
+TEST_P(DynVarsTest, ClearThenUseThrows)
+{
+    // MATLAB: clear x; disp(x) → error
+    EXPECT_THROW(eval(R"(
+        x = 10;
+        clear x;
+        disp(x);
+    )"), std::exception);
+}
+
+TEST_P(DynVarsTest, ClearThenReassign)
+{
+    // clear then reassign — should work
+    eval(R"(
+        x = 10;
+        clear x;
+        x = 20;
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 20.0);
+}
+
+TEST_P(DynVarsTest, ClearInTryCatch)
+{
+    eval(R"(
+        x = 10;
+        clear x;
+        try
+            y = x;
+        catch
+            y = -1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), -1.0);
+}
+
+// ── Variable defined in loop ────────────────────────────────
+
+TEST_P(DynVarsTest, VarDefinedInLoop)
+{
+    eval(R"(
+        for i = 1:3
+            last = i;
+        end
+        y = last;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 3.0);
+}
+
+TEST_P(DynVarsTest, VarDefinedInElseBranch)
+{
+    eval(R"(
+        flag = 0;
+        if flag
+            x = 1;
+        else
+            x = 2;
+        end
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
+}
+
+// ── Multiple reads of same variable ─────────────────────────
+
+TEST_P(DynVarsTest, MultipleReadsAfterAssign)
+{
+    eval(R"(
+        x = 5;
+        a = x;
+        b = x;
+        c = x + x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("a"), 5.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 5.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 10.0);
+}
+
+// ── Function parameters are always defined ──────────────────
+
+TEST_P(DynVarsTest, FunctionParamsAlwaysDefined)
+{
+    eval(R"(
+        function r = add(a, b)
+            r = a + b;
+        end
+        result = add(3, 4);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 7.0);
+}
+
+// ── Nested function with undefined ──────────────────────────
+
+TEST_P(DynVarsTest, NestedFunctionUndefined)
+{
+    eval(R"(
+        function r = safe_compute(x)
+            try
+                r = x + missing;
+            catch
+                r = x;
+            end
+        end
+        result = safe_compute(42);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 42.0);
+}
+
+// ── Switch with partial definition ──────────────────────────
+
+TEST_P(DynVarsTest, SwitchPartialDefinition)
+{
+    eval(R"(
+        v = 2;
+        switch v
+            case 1
+                x = 10;
+            case 2
+                x = 20;
+            otherwise
+                x = 30;
+        end
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 20.0);
+}
+
+// ── Builtin constants are always defined ────────────────────
+
+TEST_P(DynVarsTest, BuiltinConstantsAlwaysDefined)
+{
+    eval("x = pi; y = eps; z = inf;");
+    EXPECT_NEAR(getVar("x"), 3.14159265358979, 1e-10);
+    EXPECT_TRUE(getVar("y") > 0 && getVar("y") < 1e-10);
+    EXPECT_TRUE(std::isinf(getVar("z")));
+}
+
+// ── Complex expression with undefined fallback ──────────────
+
+TEST_P(DynVarsTest, ComplexTryCatchChain)
+{
+    eval(R"(
+        result = 0;
+        try
+            a = 1;
+            b = 2;
+            c = a + b + undef1;
+        catch
+            try
+                c = a + b + undef2;
+            catch
+                c = a + b;
+            end
+        end
+        result = c;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 3.0);
 }
 
 INSTANTIATE_DUAL(DynVarsTest);
