@@ -26,6 +26,7 @@ set(MLAB_CORE_SOURCES
     src/MLabMType.cpp
     src/MLabDims.cpp
     src/MLabDataBuffer.cpp
+    src/MLabHeapObject.cpp
     src/MLabValue.cpp
     src/MLabLexer.cpp
     src/MLabParser.cpp
@@ -60,6 +61,7 @@ set(MLAB_HEADERS
     include/MLabMType.hpp
     include/MLabDims.hpp
     include/MLabDataBuffer.hpp
+    include/MLabHeapObject.hpp
     include/MLabValue.hpp
     include/MLabLexer.hpp
     include/MLabAst.hpp

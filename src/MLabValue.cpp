@@ -9,35 +9,6 @@ namespace mlab {
 
 
 
-HeapObject::~HeapObject()
-{
-    if (buffer) {
-        if (buffer->release())
-            delete buffer;
-    }
-    delete cellData;
-    delete structData;
-    delete funcName;
-}
-HeapObject *HeapObject::clone() const
-{
-    auto *h = new HeapObject();
-    h->type = type;
-    h->dims = dims;
-    h->allocator = allocator;
-    if (buffer) {
-        h->buffer = new DataBuffer(buffer->bytes(), allocator);
-        std::memcpy(h->buffer->data(), buffer->data(), buffer->bytes());
-    }
-    if (cellData)
-        h->cellData = new std::vector<MValue>(*cellData);
-    if (structData)
-        h->structData = new std::map<std::string, MValue>(*structData);
-    if (funcName)
-        h->funcName = new std::string(*funcName);
-    return h;
-}
-
 HeapObject MValue::sEmptyTag;
 HeapObject MValue::sLogicalTrue;
 HeapObject MValue::sLogicalFalse;
