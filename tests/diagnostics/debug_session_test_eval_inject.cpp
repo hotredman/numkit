@@ -139,7 +139,51 @@ TEST(DebugEvalInjectTest, UndeclaredVarSurvivesContinue)
         << "z should be 130, output: [" << allOutput << "]";
 }
 
-// Test 5: Modified frame var propagates to VM execution
+// Test 5: clear x in debug eval should make x undefined
+TEST(DebugEvalInjectTest, ClearVarDuringDebug)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // x=10 at line 1, bp at line 2
+    // At bp: clear x, then continue
+    // Line 3: disp(x) should fail because x was cleared
+    std::string code =
+        "x = 10;\n"
+        "y = 20;\n"
+        "disp(x);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    // Verify x is in snapshot with value 10
+    auto snap = session.snapshot();
+    bool hasX = false;
+    for (auto &v : snap.variables)
+        if (v.name == "x" && v.value && v.value->toScalar() == 10.0)
+            hasX = true;
+    EXPECT_TRUE(hasX) << "x should be 10 before clear";
+
+    // Clear x in debug console
+    session.eval("clear x");
+
+    // After clear, x should not be in snapshot (or be empty)
+    snap = session.snapshot();
+    bool xDefined = false;
+    for (auto &v : snap.variables)
+        if (v.name == "x" && v.value && !v.value->isEmpty())
+            xDefined = true;
+    EXPECT_FALSE(xDefined) << "x should be cleared";
+}
+
+// Test 6: Modified frame var propagates to VM execution
 TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
 {
     Engine engine;

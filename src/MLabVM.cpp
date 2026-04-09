@@ -1046,11 +1046,11 @@ enter_frame:
                 break;
 
             case OpCode::ASSERT_DEF:
-                if (R[I.a].isUnset()) {
+                if (R[I.a].isUnset() || R[I.a].isDeleted()) {
                     // Fallback: check dynamic variables (debug eval, runtime eval)
                     if (frame.dynVars) {
                         auto it = frame.dynVars->find(chunk.strings[I.d]);
-                        if (it != frame.dynVars->end()) {
+                        if (it != frame.dynVars->end() && !it->second.isDeleted()) {
                             R[I.a] = it->second;
                             break;
                         }
@@ -1061,14 +1061,14 @@ enter_frame:
                 break;
 
             case OpCode::CLEAR_VAR:
-                R[I.a] = MValue::empty();
+                R[I.a] = MValue::deleted();
                 break;
 
             case OpCode::CLEAR_DYN: {
                 std::string varName = R[I.a].toString();
                 for (auto &[vn, reg] : chunk.varMap) {
                     if (vn == varName && reg < chunk.numRegisters) {
-                        R[reg] = MValue::empty();
+                        R[reg] = MValue::deleted();
                         break;
                     }
                 }
@@ -1088,7 +1088,7 @@ enter_frame:
                     // No filter: check variables first, then functions
                     for (auto &[vn, reg] : chunk.varMap) {
                         if (vn == varName && reg < chunk.numRegisters) {
-                            if (!R[reg].isEmpty())
+                            if (!R[reg].isUnset() && !R[reg].isDeleted())
                                 code = 1;
                             break;
                         }
@@ -1099,7 +1099,7 @@ enter_frame:
                     // Only check local variables
                     for (auto &[vn, reg] : chunk.varMap) {
                         if (vn == varName && reg < chunk.numRegisters) {
-                            if (!R[reg].isEmpty())
+                            if (!R[reg].isUnset() && !R[reg].isDeleted())
                                 code = 1;
                             break;
                         }
@@ -1205,7 +1205,7 @@ void VM::exportTopLevelVariables()
     for (auto &gname : topFrame.chunk->globalNames) {
         for (auto &[vname, reg] : topFrame.chunk->varMap) {
             if (vname == gname && reg < topFrame.nregs) {
-                if (!topFrame.R[reg].isEmpty())
+                if (!topFrame.R[reg].isUnset() && !topFrame.R[reg].isDeleted())
                     engine_.globalsEnv_->set(gname, topFrame.R[reg]);
                 MValue *gsVal = engine_.globalsEnv_->get(gname);
                 if (gsVal)
@@ -1499,9 +1499,8 @@ void VM::popCallFrame(MValue retVal)
         for (auto &[vname, reg] : frame.chunk->varMap) {
             if (vname == gname && reg < frame.nregs) {
                 if (isTopLevel) {
-                    // Top-level: only overwrite if non-empty (function calls
-                    // may have set the global, but our register is stale)
-                    if (!frame.R[reg].isEmpty())
+                    // Top-level: only overwrite if assigned (not unset/deleted)
+                    if (!frame.R[reg].isUnset() && !frame.R[reg].isDeleted())
                         engine_.globalsEnv_->set(gname, frame.R[reg]);
                     MValue *gsVal = engine_.globalsEnv_->get(gname);
                     if (gsVal)
@@ -1931,7 +1930,7 @@ void VM::execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
     std::vector<std::string> names;
     if (I.b == 0) {
         for (auto &[vn, reg] : chunk.varMap) {
-            if (reg < chunk.numRegisters && !R[reg].isEmpty()
+            if (reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()
                 && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
                 names.push_back(vn);
         }
@@ -1939,7 +1938,7 @@ void VM::execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
         for (uint8_t i = 0; i < I.b; ++i) {
             std::string reqName = R[I.a + i].toString();
             for (auto &[vn, reg] : chunk.varMap) {
-                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()) {
                     names.push_back(vn);
                     break;
                 }
@@ -1965,7 +1964,7 @@ void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
     std::vector<std::string> names;
     if (I.b == 0) {
         for (auto &[vn, reg] : chunk.varMap) {
-            if (reg < chunk.numRegisters && !R[reg].isEmpty()
+            if (reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()
                 && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
                 names.push_back(vn);
         }
@@ -1973,7 +1972,7 @@ void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
         for (uint8_t i = 0; i < I.b; ++i) {
             std::string reqName = R[I.a + i].toString();
             for (auto &[vn, reg] : chunk.varMap) {
-                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isEmpty()) {
+                if (vn == reqName && reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()) {
                     names.push_back(vn);
                     break;
                 }

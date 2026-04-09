@@ -146,6 +146,15 @@ TEST_P(DynVarsTest, ExistUndefinedVar)
     EXPECT_DOUBLE_EQ(getVar("e"), 0.0);
 }
 
+TEST_P(DynVarsTest, EmptyVarIsAccessible)
+{
+    // x = [] is a valid variable — can be read and used
+    eval("x = []; y = isempty(x);");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+    // x should not throw when accessed
+    EXPECT_NO_THROW(eval("x = []; z = length(x);"));
+}
+
 TEST_P(DynVarsTest, ExistDefinedVarSameEval)
 {
     // exist() checks if variable is defined in current scope
@@ -154,6 +163,12 @@ TEST_P(DynVarsTest, ExistDefinedVarSameEval)
     double e = getVar("e");
     // Both backends should find it — same compilation unit
     EXPECT_TRUE(e == 1.0 || e == 0.0); // accept either for now
+}
+
+TEST_P(DynVarsTest, ExistAfterClear)
+{
+    eval("x = 42; clear x; e = exist('x', 'var');");
+    EXPECT_DOUBLE_EQ(getVar("e"), 0.0);
 }
 
 TEST_P(DynVarsTest, ExistBuiltin)
@@ -237,6 +252,40 @@ TEST_P(DynVarsTest, MatlabStyleNestedTryCatch)
     )");
     // Inner catch: result = 1, then outer try: 1 + undefined3 → outer catch: 1 + 10 = 11
     EXPECT_DOUBLE_EQ(getVar("result"), 11.0);
+}
+
+// ── clear vs empty: deleted state ───────────────────────────
+
+TEST_P(DynVarsTest, EmptyMatrixIsValid)
+{
+    // x = [] is a valid value, not an error
+    eval("x = []; y = isempty(x);");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+}
+
+TEST_P(DynVarsTest, EmptyMatrixIsNotDeleted)
+{
+    // x = [] should not throw — it's a valid empty matrix
+    eval("x = [];");
+    // Should be able to read x
+    eval("y = isempty(x);");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+}
+
+TEST_P(DynVarsTest, ClearIsDifferentFromEmpty)
+{
+    // clear x makes x undefined; x = [] makes x empty but defined
+    eval(R"(
+        x = [];
+        y = isempty(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);  // x=[] is valid
+
+    EXPECT_THROW(eval(R"(
+        x = 10;
+        clear x;
+        y = x;
+    )"), std::exception);  // clear x → undefined
 }
 
 // ── clear makes variable undefined ──────────────────────────
@@ -398,6 +447,298 @@ TEST_P(DynVarsTest, ComplexTryCatchChain)
         result = c;
     )");
     EXPECT_DOUBLE_EQ(getVar("result"), 3.0);
+}
+
+// ── clear all ───────────────────────────────────────────────
+
+TEST_P(DynVarsTest, ClearAllThenUse)
+{
+    EXPECT_THROW(eval(R"(
+        x = 1; y = 2;
+        clear all
+        z = x + y;
+    )"), std::exception);
+}
+
+TEST_P(DynVarsTest, ClearAllThenRedefine)
+{
+    eval(R"(
+        x = 1;
+        clear all
+        x = 99;
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 99.0);
+}
+
+// ── clear specific var, others survive ──────────────────────
+
+TEST_P(DynVarsTest, ClearOneVarOthersSurvive)
+{
+    eval(R"(
+        x = 10;
+        y = 20;
+        clear x;
+        z = y;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("z"), 20.0);
+}
+
+TEST_P(DynVarsTest, ClearOneVarInTryCatch)
+{
+    eval(R"(
+        x = 10;
+        y = 20;
+        clear x;
+        try
+            z = x + y;
+        catch
+            z = y;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("z"), 20.0);
+}
+
+// ── Reassign after clear ────────────────────────────────────
+
+TEST_P(DynVarsTest, ClearThenReassignDifferentType)
+{
+    eval(R"(
+        x = 42;
+        clear x;
+        x = 'hello';
+        y = x;
+    )");
+    auto *y = getVarPtr("y");
+    EXPECT_EQ(y->toString(), "hello");
+}
+
+// ── Multiple clears ─────────────────────────────────────────
+
+TEST_P(DynVarsTest, MultipleClearsSameVar)
+{
+    eval(R"(
+        x = 1;
+        clear x;
+        x = 2;
+        clear x;
+        x = 3;
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 3.0);
+}
+
+// ── Empty vs deleted vs unset semantics ─────────────────────
+
+TEST_P(DynVarsTest, EmptyMatrixPassedToFunction)
+{
+    eval(R"(
+        function r = count(x)
+            r = numel(x);
+        end
+        x = [];
+        y = count(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 0.0);
+}
+
+TEST_P(DynVarsTest, EmptyMatrixInArithmetic)
+{
+    // [] + [] = []
+    eval("x = [] + [];");
+    auto *x = getVarPtr("x");
+    ASSERT_NE(x, nullptr);
+    EXPECT_TRUE(x->isEmpty());
+}
+
+TEST_P(DynVarsTest, EmptyMatrixSizeIsZero)
+{
+    eval("x = []; s = size(x);");
+    auto *s = getVarPtr("s");
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 0.0);
+}
+
+TEST_P(DynVarsTest, ClearDoesNotAffectEmpty)
+{
+    // x=[] is valid; clear y should not affect x
+    eval(R"(
+        x = [];
+        y = 10;
+        clear y;
+        z = isempty(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("z"), 1.0);
+}
+
+TEST_P(DynVarsTest, ClearThenExist)
+{
+    eval(R"(
+        x = 42;
+        clear x;
+        e = exist('x', 'var');
+    )");
+    EXPECT_DOUBLE_EQ(getVar("e"), 0.0);
+}
+
+TEST_P(DynVarsTest, ClearInLoopBody)
+{
+    eval(R"(
+        result = 0;
+        for i = 1:3
+            x = i * 10;
+            result = result + x;
+            clear x;
+        end
+    )");
+    // 10 + 20 + 30 = 60
+    EXPECT_DOUBLE_EQ(getVar("result"), 60.0);
+}
+
+TEST_P(DynVarsTest, ClearInLoopThenAccess)
+{
+    // After loop, x was cleared in last iteration
+    EXPECT_THROW(eval(R"(
+        for i = 1:3
+            x = i;
+            clear x;
+        end
+        y = x;
+    )"), std::exception);
+}
+
+TEST_P(DynVarsTest, DeletedVarInFunctionScope)
+{
+    eval(R"(
+        function r = test_clear()
+            a = 10;
+            b = 20;
+            clear a;
+            try
+                r = a + b;
+            catch
+                r = b;
+            end
+        end
+        result = test_clear();
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 20.0);
+}
+
+TEST_P(DynVarsTest, GlobalVarBasic)
+{
+    eval(R"(
+        global g;
+        g = 42;
+        x = g;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("x"), 42.0);
+}
+
+TEST_P(DynVarsTest, ReassignDifferentTypeAfterClear)
+{
+    // clear, then assign different type — no type confusion
+    eval(R"(
+        x = [1 2 3];
+        clear x;
+        x = 'text';
+        y = length(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 4.0);
+}
+
+TEST_P(DynVarsTest, EmptyAssignAfterClear)
+{
+    // clear x; x = []; — x should exist as empty
+    eval(R"(
+        x = 42;
+        clear x;
+        x = [];
+        y = isempty(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+}
+
+TEST_P(DynVarsTest, DeletedNotVisibleInNestedFunction)
+{
+    // clear in outer scope should not leak into function scope
+    eval(R"(
+        function r = get_val()
+            r = 99;
+        end
+        x = 10;
+        clear x;
+        result = get_val();
+    )");
+    EXPECT_DOUBLE_EQ(getVar("result"), 99.0);
+}
+
+// ── Assignment resets deleted state ──────────────────────────
+
+TEST_P(DynVarsTest, AssignAfterClearResetsDeleted)
+{
+    // clear sets deleted; x = 20 overwrites; reading x should work
+    eval("x = 10; clear x; x = 20; y = x;");
+    EXPECT_DOUBLE_EQ(getVar("y"), 20.0);
+}
+
+TEST_P(DynVarsTest, AssignAfterClearDifferentExpressions)
+{
+    eval("x = 10; clear x; x = 5 + 5; y = x * 2;");
+    EXPECT_DOUBLE_EQ(getVar("y"), 20.0);
+}
+
+TEST_P(DynVarsTest, ClearReassignClearReassign)
+{
+    eval(R"(
+        x = 1;
+        clear x;
+        x = 2;
+        clear x;
+        x = 3;
+        clear x;
+        x = 4;
+        y = x;
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 4.0);
+}
+
+TEST_P(DynVarsTest, ClearReassignEmpty)
+{
+    // clear x; x = [] — x is empty but valid (not deleted)
+    eval(R"(
+        x = 42;
+        clear x;
+        x = [];
+        y = isempty(x);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 1.0);
+}
+
+TEST_P(DynVarsTest, ReadBetweenClearAndReassignThrows)
+{
+    // clear x makes it deleted; reading before reassign should throw
+    EXPECT_THROW(eval(R"(
+        x = 10;
+        clear x;
+        y = x;
+        x = 20;
+    )"), std::exception);
+}
+
+TEST_P(DynVarsTest, ClearReassignInTryCatch)
+{
+    eval(R"(
+        x = 10;
+        clear x;
+        try
+            y = x;
+        catch
+            x = 99;
+            y = x;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("y"), 99.0);
 }
 
 INSTANTIATE_DUAL(DynVarsTest);

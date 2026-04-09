@@ -61,6 +61,7 @@ public:
     static MValue structure();
     static MValue funcHandle(const std::string &name, Allocator *alloc = nullptr);
     static MValue empty();
+    static MValue deleted();
 
     // ── Factories — compound operations ────────────────────────
     // Colon range: start:stop (step=1) or start:step:stop
@@ -137,6 +138,8 @@ public:
     // True only for default-constructed MValue (no value assigned).
     // Unlike isEmpty(), returns false for empty matrices (A=[]) and empty strings ('').
     bool isUnset() const { return heap_ == emptyTag(); }
+    // True only for variables explicitly removed via 'clear'.
+    bool isDeleted() const { return heap_ == deletedTag(); }
     bool isComplex() const;
     bool isLogical() const;
     bool isChar() const;
@@ -303,17 +306,19 @@ private:
     static HeapObject sEmptyTag;
     static HeapObject sLogicalTrue;
     static HeapObject sLogicalFalse;
+    static HeapObject sDeletedTag;
 
     // ── Tag constants ────────────────────────────────────────
-    // Cannot use constexpr with address of static — use inline functions
     static HeapObject *emptyTag() { return &sEmptyTag; }
     static HeapObject *logicalTrueTag() { return &sLogicalTrue; }
     static HeapObject *logicalFalseTag() { return &sLogicalFalse; }
+    static HeapObject *deletedTag() { return &sDeletedTag; }
 
     // ── Internal helpers ─────────────────────────────────────
     bool isTag() const
     {
-        return heap_ == emptyTag() || heap_ == logicalTrueTag() || heap_ == logicalFalseTag();
+        return heap_ == emptyTag() || heap_ == logicalTrueTag()
+            || heap_ == logicalFalseTag() || heap_ == deletedTag();
     }
     bool isHeap() const { return heap_ != nullptr && !isTag(); }
 

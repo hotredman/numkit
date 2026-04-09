@@ -27,7 +27,7 @@ std::vector<StackFrame::VarEntry> StackFrame::variables() const
         for (auto &[name, reg] : chunk->varMap) {
             if (reg < chunk->numRegisters) {
                 const MValue &val = registers[reg];
-                if (!val.isEmpty() && !val.isUnset())
+                if (!val.isUnset() && !val.isDeleted())
                     result.push_back({name, &val});
             }
         }

@@ -172,9 +172,9 @@ DebugSession::Snapshot DebugSession::snapshot() const
         seen.insert(v.name);
     }
 
-    // Merge in eval-created variables (not in frame)
+    // Merge in eval-created variables (not in frame, not cleared)
     for (auto &[name, val] : evalVars_) {
-        if (seen.count(name) == 0)
+        if (seen.count(name) == 0 && !val.isEmpty() && !val.isUnset() && !val.isDeleted())
             snap.variables.push_back({name, &val});
     }
 
@@ -241,10 +241,24 @@ std::string DebugSession::eval(const std::string &code)
         evalOutput = std::string("Error: ") + e.what();
     }
 
-    // 6. Capture ALL workspace variables into evalVars_
-    //    Frame variables that weren't changed will be overridden by fresh frame
-    //    values on next snapshot() anyway.
+    // 6. Capture workspace changes into evalVars_
     {
+        // Build set of names we injected before eval
+        std::unordered_set<std::string> injectedNames;
+        for (auto &sv : savedVars)
+            injectedNames.insert(sv.name);
+
+        // Detect cleared variables: if a variable was injected but is now
+        // missing or empty in workspace, it was cleared by the eval.
+        for (auto &name : injectedNames) {
+            auto *val = genv.getLocal(name);
+            if (!val || val->isEmpty() || val->isUnset()) {
+                evalVars_[name] = MValue::deleted();
+                engine_.vm_->setFrameVariable(name, MValue::deleted());
+            }
+        }
+
+        // Capture new/modified variables
         auto wsNames = genv.localNames();
         for (auto &name : wsNames) {
             if (name == "ans" || name == "nargin" || name == "nargout") continue;
@@ -252,10 +266,12 @@ std::string DebugSession::eval(const std::string &code)
             if (!val || val->isEmpty()) continue;
             evalVars_[name] = *val;
         }
-        // Also capture from VM's lastVarMap (which has the eval script's exported vars)
+        // Also capture from VM's lastVarMap (eval script's exported vars)
         for (auto &[name, val] : engine_.vm_->lastVarMap()) {
             if (name == "ans") continue;
-            if (!val.isEmpty() && !val.isUnset())
+            if (val.isDeleted())
+                evalVars_[name] = val; // propagate clear
+            else if (!val.isEmpty() && !val.isUnset())
                 evalVars_[name] = val;
         }
     }

@@ -12,9 +12,16 @@ namespace mlab {
 HeapObject MValue::sEmptyTag;
 HeapObject MValue::sLogicalTrue;
 HeapObject MValue::sLogicalFalse;
+HeapObject MValue::sDeletedTag;
 const Dims MValue::sScalarDims{1, 1};
 const Dims MValue::sEmptyDims{};
 
+MValue MValue::deleted()
+{
+    MValue v;
+    v.heap_ = deletedTag();
+    return v;
+}
 MValue::MValue()
     : scalar_(0.0)
     , heap_(emptyTag())

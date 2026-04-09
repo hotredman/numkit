@@ -264,7 +264,7 @@ void Engine::syncVMToWorkspace()
     if (clearAllCalled_)
         workspaceEnv_->clearAll();
     for (auto &[name, val] : vm_->lastVarMap()) {
-        if (val.isUnset()) {
+        if (val.isUnset() || val.isDeleted()) {
             workspaceEnv_->remove(name);
         } else {
             MValue *gsVal = globalsEnv_->get(name);
