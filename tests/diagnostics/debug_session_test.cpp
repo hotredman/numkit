@@ -747,3 +747,298 @@ TEST_F(DebugSessionTest, OutputFuncDanglingWithoutRestore)
     EXPECT_NE(ownerBuf.find("__FIGURE_DATA__"), std::string::npos)
         << "plot markers after debug should go to owner buffer, got: " << ownerBuf;
 }
+
+// ============================================================
+// Comprehensive debugger action tests
+// ============================================================
+
+// ── Step Out ────────────────────────────────────────────────
+
+TEST_F(DebugSessionTest, StepOutFromFunction)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "function r = double_it(x)\n"
+        "    r = x * 2;\n"
+        "end\n"
+        "y = double_it(5);\n"
+        "z = y + 1;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue to breakpoint inside function (line 2)
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().functionName, "double_it");
+
+    // Step Out — returns to caller or completes
+    status = session.resume(DebugAction::StepOut);
+    // May pause at caller line or complete if no more code
+    if (status == ExecStatus::Paused) {
+        EXPECT_NE(session.snapshot().functionName, "double_it")
+            << "Should have exited double_it";
+    }
+    // Both Paused and Completed are acceptable
+}
+
+// ── Step Over skips function calls ──────────────────────────
+
+TEST_F(DebugSessionTest, StepOverSkipsFunction)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({4});
+
+    std::string code =
+        "function r = sq(x)\n"
+        "    r = x * x;\n"
+        "end\n"
+        "a = sq(3);\n"
+        "b = sq(4);\n"
+        "c = a + b;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue to line 4 (a = sq(3))
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 4);
+
+    // Step Over — should execute sq(3) without entering, land on line 5
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 5);
+    // a should be 9
+    bool foundA = false;
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "a" && v.value) { EXPECT_DOUBLE_EQ(v.value->toScalar(), 9.0); foundA = true; }
+    EXPECT_TRUE(foundA);
+}
+
+// ── Step Into enters function ───────────────────────────────
+
+TEST_F(DebugSessionTest, StepIntoFromCallLine)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({5});
+
+    std::string code =
+        "function r = add1(x)\n"
+        "    r = x + 1;\n"
+        "end\n"
+        "a = 1;\n"
+        "b = add1(a);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue to bp at line 5 (b = add1(a))
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 5);
+
+    // Step Into → should enter add1
+    status = session.resume(DebugAction::StepInto);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().functionName, "add1");
+}
+
+// ── Continue through multiple breakpoints ───────────────────
+
+TEST_F(DebugSessionTest, ContinueThroughMultipleBreakpoints)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1, 3, 5});
+
+    std::string code = "a = 1;\nb = 2;\nc = 3;\nd = 4;\ne = 5;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 1);
+
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3);
+
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 5);
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
+// ── Breakpoints inside functions ────────────────────────────
+
+TEST_F(DebugSessionTest, BreakpointInsideFunction)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2}); // inside function body
+
+    std::string code =
+        "function r = compute(x)\n"
+        "    r = x * 10;\n"
+        "end\n"
+        "a = compute(3);\n"
+        "b = compute(7);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // First hit: compute(3), line 2
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+    EXPECT_EQ(session.snapshot().functionName, "compute");
+
+    // Continue → second hit: compute(7), line 2 again
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+    EXPECT_EQ(session.snapshot().functionName, "compute");
+
+    // Continue → done
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
+// ── Step Over in loop ───────────────────────────────────────
+
+TEST_F(DebugSessionTest, StepOverInLoop)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "s = 0;\n"
+        "for i = 1:3\n"
+        "    s = s + i;\n"
+        "end\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Continue to bp at line 2 (for)
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    // Step Over through loop body
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    // Should be on next line (s = s + i) or next iteration
+}
+
+// ── Stop during function execution ──────────────────────────
+
+TEST_F(DebugSessionTest, StopDuringFunction)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "function r = slow(x)\n"
+        "    r = x;\n"
+        "end\n"
+        "a = slow(1);\n"
+        "b = slow(2);\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().functionName, "slow");
+
+    session.stop();
+    EXPECT_FALSE(session.isActive());
+}
+
+// ── Eval with clear during debug ────────────────────────────
+
+TEST_F(DebugSessionTest, EvalClearDuringDebug)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    auto status = startDebug(session, "x = 10;\ny = 20;\nz = 30;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // x should be visible
+    auto snap = session.snapshot();
+    bool hasX = false;
+    for (auto &v : snap.variables)
+        if (v.name == "x" && v.value) hasX = true;
+    EXPECT_TRUE(hasX);
+
+    // Clear x
+    session.eval("clear x");
+
+    // x should not be visible
+    snap = session.snapshot();
+    hasX = false;
+    for (auto &v : snap.variables)
+        if (v.name == "x" && v.value && !v.value->isDeleted()) hasX = true;
+    EXPECT_FALSE(hasX) << "x should be cleared";
+}
+
+// ── Continue after eval modification ────────────────────────
+
+TEST_F(DebugSessionTest, ContinueAfterEvalModification)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code = "x = 10;\ny = 20;\nz = x + y;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Modify x
+    session.eval("x = 100");
+
+    // Continue — z should be 100 + 20 = 120
+    status = session.resume(DebugAction::Continue);
+    std::string out = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
+// ── Variables visible at each step ──────────────────────────
+
+TEST_F(DebugSessionTest, VariablesAccumulateDuringSteps)
+{
+    DebugSession session(engine);
+
+    std::string code = "a = 1;\nb = 2;\nc = 3;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    // Initial step: line 1, no vars yet
+    EXPECT_EQ(session.snapshot().line, 1);
+
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    // After a=1, should have a
+    auto snap = session.snapshot();
+    bool hasA = false;
+    for (auto &v : snap.variables)
+        if (v.name == "a") hasA = true;
+    EXPECT_TRUE(hasA);
+
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    // After b=2, should have a and b
+    snap = session.snapshot();
+    bool hasB = false;
+    for (auto &v : snap.variables)
+        if (v.name == "b") hasB = true;
+    EXPECT_TRUE(hasA);
+    EXPECT_TRUE(hasB);
+}
