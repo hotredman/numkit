@@ -123,7 +123,8 @@ void VM::restorePausedState(std::unique_ptr<PausedState> s)
 
 // ── Debug-aware execution API ───────────────────────────────
 
-ExecStatus VM::startExecution(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs)
+ExecStatus VM::startExecution(const BytecodeChunk &chunk, const MValue *args, uint8_t nargs,
+                              DebugAction initialAction)
 {
     chunkCallCache_.clear();
     frames_.clear();
@@ -160,10 +161,8 @@ ExecStatus VM::startExecution(const BytecodeChunk &chunk, const MValue *args, ui
     frames_.push_back(cf);
 
     // Debug: push top-level debug frame
-    // Default StepInto: observer's first onLine fires on line 1, giving it
-    // a chance to choose the execution mode (Continue, StepOver, etc).
     if (auto *ctl = debugCtl()) {
-        ctl->reset();
+        ctl->reset(initialAction);
         StackFrame sf;
         sf.functionName = chunk.name;
         sf.chunk = &chunk;

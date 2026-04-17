@@ -60,8 +60,14 @@ ExecStatus DebugSession::start(const std::string &code)
         chunk_ = compiler->compile(ast.get(), src);
         engine_.vm_->setCompiledFuncs(&compiler->compiledFuncs());
 
+        // No breakpoints → pause on first line (StepInto) so the user can step.
+        // Breakpoints set → run (Continue) until the first one is hit.
+        DebugAction initial = engine_.breakpointManager().breakpoints().empty()
+                                  ? DebugAction::StepInto
+                                  : DebugAction::Continue;
+
         // Start execution via VM's debug-aware API (no cleanup on pause)
-        ExecStatus status = engine_.vm_->startExecution(chunk_);
+        ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
 
         if (status == ExecStatus::Completed) {
             engine_.syncVMToWorkspace();
@@ -276,7 +282,11 @@ std::string DebugSession::eval(const std::string &code)
         }
     }
 
-    // 7. Restore VM state and debug controller
+    // 7. Reset clearAll flag — clear in debug eval should not affect
+    //    the main execution's syncVMToWorkspace behavior.
+    engine_.clearAllCalled_ = false;
+
+    // Restore VM state and debug controller
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     engine_.setDebugObserver(observer_);
     engine_.vm_->restorePausedState(std::move(savedState));

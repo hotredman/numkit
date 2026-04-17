@@ -415,6 +415,144 @@ TEST_P(DebugPhase234Test, CallStackDepthAtBreakpoint)
     }
 }
 
+// ============================================================
+// 12. StepOver at nested depth: skips inner function called from
+//     within an already-entered outer function
+// ============================================================
+
+TEST_P(DebugPhase234Test, StepOverAtNestedDepth)
+{
+    auto obs = std::make_shared<RecordingObserver>();
+    // Run until bp, then switch to StepOver and stay in that mode for
+    // at least the remaining events in `mid`.
+    obs->defaultAction = DebugAction::Continue;
+    obs->actionQueue = {
+        DebugAction::StepOver,
+        DebugAction::StepOver,
+        DebugAction::StepOver,
+    };
+    engine.setDebugObserver(obs);
+
+    // bp at the first line of `mid` (the `y = inner(x)` call line)
+    engine.breakpointManager().addBreakpoint(6);
+
+    eval(R"(
+        function r = inner(x)
+            r = x + 10;
+        end
+        function r = mid(x)
+            y = inner(x);
+            r = y + 1;
+        end
+        result = mid(5);
+    )");
+
+    auto lines = obs->linesHit();
+    // Line 3 (`r = x + 10`) is inside `inner` — at depth 3 when called from
+    // `mid`. StepOver from depth 2 must skip it.
+    bool sawInnerBody = std::find(lines.begin(), lines.end(), (uint16_t)3) != lines.end();
+    EXPECT_FALSE(sawInnerBody)
+        << "StepOver at depth 2 must NOT observe inner function body (line 3)";
+
+    // Sanity: bp at line 6 was hit
+    bool sawBp = std::find(lines.begin(), lines.end(), (uint16_t)6) != lines.end();
+    EXPECT_TRUE(sawBp) << "breakpoint at line 6 must have been hit";
+
+    // Execution actually completed: result = inner(5) + 1 = 15 + 1 = 16
+    EXPECT_DOUBLE_EQ(getVar("result"), 16.0);
+}
+
+// ============================================================
+// 13. StepOut: parametrized across TW and VM backends
+//     (debug_session_test only covers VM via DebugSession)
+// ============================================================
+
+TEST_P(DebugPhase234Test, StepOutReturnsToCaller)
+{
+    auto obs = std::make_shared<RecordingObserver>();
+    obs->defaultAction = DebugAction::Continue;
+    obs->actionQueue = { DebugAction::StepOut };
+    engine.setDebugObserver(obs);
+
+    engine.breakpointManager().addBreakpoint(3); // "r = x * 2" inside helper
+
+    eval(R"(
+        function r = helper(x)
+            r = x * 2;
+        end
+        y = helper(5);
+        z = y + 1;
+    )");
+
+    // Find first LINE event after the BREAKPOINT — it must NOT be in helper.
+    bool seenBp = false;
+    bool sawLineAfterBpInHelper = false;
+    bool sawLineAfterBpInCaller = false;
+    for (auto &e : obs->events) {
+        if (e.type == RecordingObserver::Event::BREAKPOINT) {
+            seenBp = true;
+            EXPECT_EQ(e.funcName, "helper") << "bp must be inside helper";
+            continue;
+        }
+        if (seenBp && e.type == RecordingObserver::Event::LINE) {
+            if (e.funcName == "helper")
+                sawLineAfterBpInHelper = true;
+            else
+                sawLineAfterBpInCaller = true;
+        }
+    }
+    EXPECT_TRUE(seenBp) << "breakpoint must have been hit";
+    EXPECT_FALSE(sawLineAfterBpInHelper)
+        << "after StepOut, no LINE event should fire inside helper";
+
+    // Execution completed: z = helper(5) + 1 = 10 + 1 = 11
+    EXPECT_DOUBLE_EQ(getVar("z"), 11.0);
+
+    // sawLineAfterBpInCaller not asserted — some backends may simply complete
+    // without another onLine after the return. The important invariant is
+    // "no more events in helper".
+    (void)sawLineAfterBpInCaller;
+}
+
+// ============================================================
+// 14. Differential StepInto vs StepOver on the same call line
+// ============================================================
+
+TEST_P(DebugPhase234Test, StepIntoEntersStepOverSkipsSameCode)
+{
+    const char *code = R"(
+        function r = f(x)
+            r = x + 100;
+        end
+        y = f(5);
+        z = y + 1;
+    )";
+
+    // Pass 1: StepInto must see line 3 (body of f)
+    {
+        auto obs = std::make_shared<RecordingObserver>();
+        obs->defaultAction = DebugAction::StepInto;
+        engine.setDebugObserver(obs);
+        eval(code);
+        auto lines = obs->linesHit();
+        bool sawBody = std::find(lines.begin(), lines.end(), (uint16_t)3) != lines.end();
+        EXPECT_TRUE(sawBody) << "StepInto must observe function body (line 3)";
+        engine.setDebugObserver(nullptr);
+    }
+
+    // Pass 2: StepOver must NOT see line 3
+    {
+        auto obs = std::make_shared<RecordingObserver>();
+        obs->defaultAction = DebugAction::StepOver;
+        engine.setDebugObserver(obs);
+        eval(code);
+        auto lines = obs->linesHit();
+        bool sawBody = std::find(lines.begin(), lines.end(), (uint16_t)3) != lines.end();
+        EXPECT_FALSE(sawBody) << "StepOver must NOT observe function body (line 3)";
+        engine.setDebugObserver(nullptr);
+    }
+}
+
 INSTANTIATE_DUAL(DebugPhase234Test);
 
 // ============================================================

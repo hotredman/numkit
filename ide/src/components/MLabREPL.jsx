@@ -224,11 +224,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     if (!tab || !tab.code.trim()) return;
 
     const bpLines = getActiveBreakpoints();
-    if (bpLines.length === 0) {
-      addOutput([{ type: "warning", text: "No breakpoints set. Click the gutter to add breakpoints." }]);
-      setConsoleNotify(true);
-      return;
-    }
 
     setShowBottom(true);
     setErrorLine(null);

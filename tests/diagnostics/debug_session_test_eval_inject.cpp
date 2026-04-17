@@ -25,9 +25,6 @@ TEST(DebugEvalInjectTest, ModifiedVarSurvivesContinue)
 
     auto status = session.start(code);
     ASSERT_EQ(status, ExecStatus::Paused);
-
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
 
     // Modify x in debug console
@@ -55,8 +52,6 @@ TEST(DebugEvalInjectTest, NewVarInSnapshot)
     session.setBreakpoints({2});
 
     auto status = session.start("x = 1;\ny = 2;\nz = 3;\n");
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Create new variable
@@ -86,8 +81,6 @@ TEST(DebugEvalInjectTest, NewVarPersistsAcrossEvals)
 
     auto status = session.start("x = 1;\ny = 2;\n");
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
 
     session.eval("q = 10");
     std::string result = session.eval("q + 5");
@@ -114,13 +107,8 @@ TEST(DebugEvalInjectTest, UndeclaredVarSurvivesContinue)
         "disp(z);\n";
 
     auto status = session.start(code);
-    // Check if compilation/start succeeded
     ASSERT_EQ(status, ExecStatus::Paused)
-        << "start should pause. Error: [" << session.errorMessage() << "] output: [" << session.takeOutput() << "]";
-    ASSERT_EQ(status, ExecStatus::Paused) << "start should pause, error: " << session.errorMessage();
-
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused) << "should hit bp at line 2, error: " << session.errorMessage();
+        << "start should hit bp at line 2. Error: [" << session.errorMessage() << "] output: [" << session.takeOutput() << "]";
     EXPECT_EQ(session.snapshot().line, 2);
 
     // Create q in debug console
@@ -159,8 +147,6 @@ TEST(DebugEvalInjectTest, ClearVarDuringDebug)
 
     auto status = session.start(code);
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
 
     // Verify x is in snapshot with value 10
@@ -183,7 +169,76 @@ TEST(DebugEvalInjectTest, ClearVarDuringDebug)
     EXPECT_FALSE(xDefined) << "x should be cleared";
 }
 
-// Test 6: Modified frame var propagates to VM execution
+// Test 6: Clear in debug eval does not break continue
+TEST(DebugEvalInjectTest, ClearDuringDebugThenContinue)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "x = 10;\n"
+        "y = 20;\n"
+        "disp(y);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    // Clear x during debug
+    session.eval("clear x");
+
+    // Continue should work — y is still defined, disp(y) should output 20
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    std::string allOutput = output + sessionOut;
+
+    EXPECT_EQ(status, ExecStatus::Completed)
+        << "Continue after clear should complete. Error: " << session.errorMessage();
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "No error expected, got: " << session.errorMessage();
+    EXPECT_NE(allOutput.find("20"), std::string::npos)
+        << "disp(y) should show 20, output: [" << allOutput << "]";
+}
+
+// Test 7: Clear all during debug then continue
+TEST(DebugEvalInjectTest, ClearAllDuringDebugThenContinue)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({3});
+
+    std::string code =
+        "a = 1;\n"
+        "b = 2;\n"
+        "c = 3;\n"
+        "disp(c);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Clear all during debug
+    session.eval("clear");
+
+    // Continue — c = 3 is on the paused line, not yet executed
+    // After clear, c assignment should still work
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+
+    // Should complete (not crash)
+    EXPECT_EQ(status, ExecStatus::Completed)
+        << "Continue after clear all should complete. Error: " << session.errorMessage();
+}
+
+// Test 8: Modified frame var propagates to VM execution
 TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
 {
     Engine engine;
@@ -201,8 +256,6 @@ TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
         "disp(result);\n";
 
     auto status = session.start(code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Change x from 5 to 50 inside function

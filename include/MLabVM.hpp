@@ -24,7 +24,13 @@ public:
     MValue execute(const BytecodeChunk &chunk, const MValue *args = nullptr, uint8_t nargs = 0);
 
     // Debug-aware API: can return Paused (state preserved for resume)
-    ExecStatus startExecution(const BytecodeChunk &chunk, const MValue *args = nullptr, uint8_t nargs = 0);
+    // initialAction controls the debugger's step mode at entry:
+    //   StepInto (default) — pause on the first source line
+    //   Continue           — run until a breakpoint is hit
+    ExecStatus startExecution(const BytecodeChunk &chunk,
+                              const MValue *args = nullptr,
+                              uint8_t nargs = 0,
+                              DebugAction initialAction = DebugAction::StepInto);
     ExecStatus resumeExecution();
     bool isPaused() const { return !frames_.empty(); }
     MValue takeResult() { return std::move(lastResult_); }

@@ -38,11 +38,8 @@ TEST_F(DebugSessionTest, PauseAtBreakpoint)
     DebugSession session(engine);
     session.setBreakpoints({2});
 
-    // First pause is always at line 1 (initial step), then continue to breakpoint
+    // With breakpoints set, start() runs until the first breakpoint is hit.
     auto status = startDebug(session, "x = 10;\ny = 20;\nz = 30;\n");
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
 }
@@ -52,11 +49,8 @@ TEST_F(DebugSessionTest, ContinueToCompletion)
     DebugSession session(engine);
     session.setBreakpoints({2});
 
+    // start() hits bp at line 2 directly
     auto status = startDebug(session, "x = 10;\ny = 20;\n");
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue past initial step → hits bp at line 2
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
 
@@ -71,11 +65,12 @@ TEST_F(DebugSessionTest, MultipleContinues)
     DebugSession session(engine);
     session.setBreakpoints({2});
 
+    // start() hits bp at line 2 on the first iteration
     auto status = startDebug(session, "for i = 1:3\n  x = i;\nend\n");
     ASSERT_EQ(status, ExecStatus::Paused);
 
-    // Continue past initial step → hits bp 3 times (once per iteration)
-    for (int i = 0; i < 3; ++i) {
+    // Two more iterations hit the bp
+    for (int i = 0; i < 2; ++i) {
         status = session.resume(DebugAction::Continue);
         ASSERT_EQ(status, ExecStatus::Paused) << "iteration " << i;
     }
@@ -100,10 +95,6 @@ TEST_F(DebugSessionTest, SnapshotShowsFunctionLocals)
         "result = square(7);\n";
 
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue to get inside function (first pause is at top-level)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     auto snap = session.snapshot();
@@ -146,8 +137,6 @@ TEST_F(DebugSessionTest, EvalSimpleVariable)
 
     auto status = startDebug(session, code);
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
 
     auto snap = session.snapshot();
     EXPECT_EQ(snap.functionName, "fib");
@@ -174,8 +163,6 @@ TEST_F(DebugSessionTest, EvalExpression)
 
     auto status = startDebug(session, code);
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
 
     // Eval an expression using frame variables
     std::string result = session.eval("n + 10");
@@ -194,12 +181,8 @@ TEST_F(DebugSessionTest, EvalNarginNargout)
         "end\n"
         "result = add(10, 20);\n";
 
-    // Initial step pauses at line 5 (top-level call)
+    // start() hits bp at line 2 directly (inside add)
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue → enters function, hits bp at line 2
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     auto snap = session.snapshot();
@@ -222,8 +205,6 @@ TEST_F(DebugSessionTest, EvalCreatesNewVariable)
     session.setBreakpoints({2});
 
     auto status = startDebug(session, "x = 10;\ny = 20;\nz = 30;\n");
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Create a new variable in debug console
@@ -248,8 +229,6 @@ TEST_F(DebugSessionTest, EvalCreatedVarPersistsAcrossEvals)
 
     auto status = startDebug(session, "x = 10;\ny = 20;\n");
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
 
     // Create variable, then use it in next eval
     session.eval("q = [1 2 3]");
@@ -270,8 +249,6 @@ TEST_F(DebugSessionTest, EvalCreatedVarInFunction)
         "result = foo(5);\n";
 
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Create new variable inside function debug context
@@ -363,11 +340,8 @@ TEST_F(DebugSessionTest, EvalAfterMultipleResumes)
         "  x = i * 10;\n"
         "end\n";
 
+    // start() hits bp at line 2, first iteration (i=1, before x is assigned)
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue past initial step → first bp hit: i=1 (before x is assigned)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     std::string result = session.eval("i");
@@ -401,11 +375,8 @@ TEST_F(DebugSessionTest, ContinueWorksAfterEval)
         "a = double_it(5);\n"
         "b = double_it(10);\n";
 
+    // start() hits bp at line 3 inside double_it(5)
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue past initial step → first bp in double_it(5)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().functionName, "double_it");
 
@@ -534,11 +505,8 @@ TEST_F(DebugSessionTest, PlotOutputContainsFigureMarker)
         "x = [1 2 3]; y = [4 5 6];\n"
         "plot(x, y);\n";
 
+    // start() hits bp at line 2 (plot call)
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue past initial step → hits bp at line 2 (plot call)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Step over the plot call
@@ -615,8 +583,6 @@ TEST_F(DebugSessionTest, PlotWithFrameVarsDuringEval)
 
     auto status = startDebug(session, code);
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().functionName, "make_data");
 
     // Plot using the frame variable r
@@ -635,8 +601,6 @@ TEST_F(DebugSessionTest, EvalPlotPreservesDebugState)
     session.setBreakpoints({2});
 
     auto status = startDebug(session, "x = [1 2 3];\ny = [4 5 6];\n");
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     auto snapBefore = session.snapshot();
@@ -766,11 +730,8 @@ TEST_F(DebugSessionTest, StepOutFromFunction)
         "y = double_it(5);\n"
         "z = y + 1;\n";
 
+    // start() hits bp at line 2 inside double_it
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue to breakpoint inside function (line 2)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().functionName, "double_it");
 
@@ -832,11 +793,8 @@ TEST_F(DebugSessionTest, StepIntoFromCallLine)
         "a = 1;\n"
         "b = add1(a);\n";
 
+    // start() hits bp at line 5 (b = add1(a))
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue to bp at line 5 (b = add1(a))
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 5);
 
@@ -885,11 +843,8 @@ TEST_F(DebugSessionTest, BreakpointInsideFunction)
         "a = compute(3);\n"
         "b = compute(7);\n";
 
+    // start() → first hit: compute(3), line 2
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // First hit: compute(3), line 2
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
     EXPECT_EQ(session.snapshot().functionName, "compute");
@@ -918,11 +873,8 @@ TEST_F(DebugSessionTest, StepOverInLoop)
         "    s = s + i;\n"
         "end\n";
 
+    // start() hits bp at line 2 (for)
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-
-    // Continue to bp at line 2 (for)
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
     EXPECT_EQ(session.snapshot().line, 2);
 
@@ -966,8 +918,6 @@ TEST_F(DebugSessionTest, EvalClearDuringDebug)
 
     auto status = startDebug(session, "x = 10;\ny = 20;\nz = 30;\n");
     ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
-    ASSERT_EQ(status, ExecStatus::Paused);
 
     // x should be visible
     auto snap = session.snapshot();
@@ -997,8 +947,6 @@ TEST_F(DebugSessionTest, ContinueAfterEvalModification)
     std::string code = "x = 10;\ny = 20;\nz = x + y;\n";
 
     auto status = startDebug(session, code);
-    ASSERT_EQ(status, ExecStatus::Paused);
-    status = session.resume(DebugAction::Continue);
     ASSERT_EQ(status, ExecStatus::Paused);
 
     // Modify x
