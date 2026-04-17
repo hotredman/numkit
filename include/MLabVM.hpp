@@ -48,13 +48,24 @@ public:
     const std::vector<std::pair<std::string, MValue>> &lastVarMap() const { return lastVarMap_; }
     void clearLastVarMap() { lastVarMap_.clear(); }
 
-    // Write a variable value into the current (paused) frame's register.
-    // Returns true if the variable was found and written, false if not in varMap.
-    bool setFrameVariable(const std::string &name, const MValue &value);
-
     // Set dynamic variables map on the current (paused) frame.
     // The map is NOT owned by the VM — caller must keep it alive.
     void setFrameDynVars(std::unordered_map<std::string, MValue> *dv);
+
+    // Mutable view of the current (top) frame — used by DebugWorkspace to
+    // resolve register pointers by variable name.
+    struct FrameView
+    {
+        const BytecodeChunk *chunk = nullptr;
+        MValue *registers = nullptr;
+    };
+    FrameView currentFrameView()
+    {
+        if (frames_.empty())
+            return {};
+        auto &f = frames_.back();
+        return { f.chunk, f.R };
+    }
 
     // Call depth: 0 at top-level, +1 per user function call
     int callDepth() const { return std::max(0, static_cast<int>(frames_.size()) - 1); }

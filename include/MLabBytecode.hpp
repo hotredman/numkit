@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 namespace mlab {
@@ -269,6 +270,13 @@ struct BytecodeChunk
 
     // Variable name → register mapping (for exporting to environment after execution)
     std::vector<std::pair<std::string, uint8_t>> varMap;
+
+    // Names of variables the compiler emits a write for (STORE, param intro,
+    // for-loop var, catch var, global/persistent decl, etc). Reads alone do
+    // not populate this set. Used by DebugWorkspace::names() to decide if a
+    // built-in (pi, eps, …) should be visible — MATLAB only lists built-ins
+    // in `whos` once they've been shadowed by an assignment.
+    std::unordered_set<std::string> assignedVars;
 
     // Global variable names (declared with 'global' keyword)
     std::vector<std::string> globalNames;

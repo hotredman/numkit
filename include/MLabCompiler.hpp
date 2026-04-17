@@ -66,6 +66,13 @@ private:
 
     // Allocate a register for a variable (or return existing)
     uint8_t varReg(const std::string &name);
+    // Same as varReg(), but also records that the current chunk writes to
+    // this variable — populates BytecodeChunk::assignedVars so tools like
+    // the debug workspace can distinguish "user assigned" from "just read".
+    uint8_t varRegAssigned(const std::string &name);
+    // Record a name as assigned without allocating a register (e.g. for
+    // decl-only forms that don't need a register write here).
+    void markAssigned(const std::string &name) { chunk_.assignedVars.insert(name); }
     // Read-only access — throws if variable undefined (triggers TW fallback)
     uint8_t varRegRead(const std::string &name);
     // Pre-import global variables before compiling AST

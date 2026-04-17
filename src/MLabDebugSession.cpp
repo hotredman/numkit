@@ -1,4 +1,21 @@
 // src/MLabDebugSession.cpp
+//
+// DebugSession now routes all console-visible variable state through
+// DebugWorkspace (see include/MLabDebugWorkspace.hpp):
+//   - frame variables are updated via direct pointers into VM registers;
+//   - console-only variables live in an explicit overlay map, which is
+//     plugged into the VM as `dynVars` during `continue` so they resolve
+//     like real variables for the running script.
+//
+// Semantics of console `clear` match MATLAB's K>>:
+//   clear        — wipes the paused frame AND the overlay; on continue,
+//                  any reference to a cleared name raises
+//                  "Undefined function or variable 'X'" at that line
+//                  and the session ends with an error.
+//   clear x      — clears only x.
+//   x = <expr>   — writes through to the frame register if x is a frame
+//                  var, otherwise lands in the overlay.
+//
 #include "MLabDebugSession.hpp"
 #include "MLabCompiler.hpp"
 #include "MLabEngine.hpp"
@@ -36,23 +53,19 @@ ExecStatus DebugSession::start(const std::string &code)
     errorMsg_.clear();
     errorLine_ = 0;
     outputBuf_.clear();
+    ws_.reset();
 
-    // Capture output
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
-
-    // Attach debug observer
     engine_.setDebugObserver(observer_);
 
     active_ = true;
 
     try {
-        // Compile (same as Engine::eval)
         Lexer lexer(code);
         auto tokens = lexer.tokenize();
         Parser parser(tokens);
         auto ast = parser.parse();
 
-        engine_.clearAllCalled_ = false;
         engine_.vm_->clearLastVarMap();
 
         auto src = std::make_shared<const std::string>(code);
@@ -66,16 +79,15 @@ ExecStatus DebugSession::start(const std::string &code)
                                   ? DebugAction::StepInto
                                   : DebugAction::Continue;
 
-        // Start execution via VM's debug-aware API (no cleanup on pause)
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
 
-        if (status == ExecStatus::Completed) {
+        if (status == ExecStatus::Paused) {
+            ws_.bindVMFrame(*engine_.vm_);
+        } else {
             engine_.syncVMToWorkspace();
             active_ = false;
             engine_.setDebugObserver(nullptr);
         }
-        // If Paused: VM state preserved in frames_ for resume
-
         return status;
     } catch (const MLabError &e) {
         engine_.syncVMToWorkspace();
@@ -100,27 +112,20 @@ ExecStatus DebugSession::resume(DebugAction action)
 
     outputBuf_.clear();
 
-    // Clear frame variable overrides from evalVars_ — after resume,
-    // the VM registers have the authoritative values.
-    // Keep only eval-created variables that have no register in the frame.
-    {
-        auto *ctl = engine_.debugController();
-        if (ctl && !ctl->callStack().empty()) {
-            auto &frame = ctl->callStack().back();
-            if (frame.chunk) {
-                for (auto &[vname, reg] : frame.chunk->varMap)
-                    evalVars_.erase(vname);
-            }
-        }
-    }
+    // Expose overlay to the running script so console-created names resolve
+    // via ASSERT_DEF's dynVars fallback.
+    engine_.vm_->setFrameDynVars(ws_.overlay().empty() ? nullptr : &ws_.overlay());
 
-    // Attach dynVars to VM frame so ASSERT_DEF can find eval-created variables
-    engine_.vm_->setFrameDynVars(evalVars_.empty() ? nullptr : &evalVars_);
+    // Frame pointers become stale as soon as execution resumes (new frames
+    // may be pushed, call depth changes). Rebind on next pause.
+    ws_.unbindFrame();
 
     try {
         ExecStatus status = engine_.debugResume(action);
 
-        if (status == ExecStatus::Completed) {
+        if (status == ExecStatus::Paused) {
+            ws_.bindVMFrame(*engine_.vm_);
+        } else {
             active_ = false;
             engine_.setDebugObserver(nullptr);
         }
@@ -147,8 +152,7 @@ void DebugSession::stop()
 
     active_ = false;
     engine_.setDebugObserver(nullptr);
-    // Clean up VM paused state
-    // The VM's frames will be cleared on next execution
+    ws_.reset();
 }
 
 DebugSession::Snapshot DebugSession::snapshot() const
@@ -163,30 +167,20 @@ DebugSession::Snapshot DebugSession::snapshot() const
     if (stack.empty())
         return snap;
 
-    // Current frame info
     auto &frame = stack.back();
     snap.line = frame.line;
     snap.col = frame.col;
     snap.functionName = frame.functionName;
 
-    // Variables from current frame + eval-created variables
-    auto vars = frame.variables();
-    snap.variables.reserve(vars.size() + evalVars_.size());
-    std::unordered_set<std::string> seen;
-    for (auto &v : vars) {
-        snap.variables.push_back({v.name, v.value});
-        seen.insert(v.name);
+    // Build variables list from the DebugWorkspace (live frame pointers +
+    // overlay). Deleted/unset slots are filtered out by names().
+    for (auto &name : ws_.names()) {
+        auto *val = ws_.get(name);
+        if (val)
+            snap.variables.push_back({name, val});
     }
 
-    // Merge in eval-created variables (not in frame, not cleared)
-    for (auto &[name, val] : evalVars_) {
-        if (seen.count(name) == 0 && !val.isEmpty() && !val.isUnset() && !val.isDeleted())
-            snap.variables.push_back({name, &val});
-    }
-
-    // Full call stack
     snap.callStack = stack;
-
     return snap;
 }
 
@@ -195,50 +189,49 @@ std::string DebugSession::eval(const std::string &code)
     if (!active_)
         return "Error: no active debug session";
 
-    // 1. Snapshot and save debug controller callStack
-    auto snap = snapshot();
+    // 1. Save debug controller + paused VM state. The inner engine.eval()
+    //    runs a full VM pass and stomps both.
     auto *ctl = engine_.debugController();
     std::vector<StackFrame> savedCallStack;
-    if (ctl)
+    uint16_t savedLine = 0;
+    if (ctl) {
         savedCallStack = ctl->callStack();
+        if (ctl->currentFrame())
+            savedLine = ctl->currentFrame()->line;
+    }
+    auto savedVMState = engine_.vm_->savePausedState();
 
-    // 2. Save paused VM state
-    auto savedState = engine_.vm_->savePausedState();
+    // 2. Snapshot the base workspace by value. engine.eval() may clearAll or
+    //    add variables to workspaceEnv; we restore it completely afterwards.
+    auto &genv = engine_.workspaceEnv();
+    std::unordered_map<std::string, MValue> preEvalEnv;
+    for (auto &n : genv.localNames()) {
+        if (auto *v = genv.getLocal(n))
+            preEvalEnv.emplace(n, *v);
+    }
 
-    // 3. Detach debug observer (so eval doesn't trigger debug hooks)
+    // 3. Detach the observer so the inner eval doesn't trigger debug hooks.
     engine_.setDebugObserver(nullptr);
 
-    // 4. Inject frame variables + evalVars into workspace for eval
-    auto &genv = engine_.workspaceEnv();
-    auto &gstore = engine_.globalsEnv();
+    // 4. Inject current debug-workspace contents into workspaceEnv so the
+    //    eval sees them like normal base-workspace variables. MValue copy
+    //    is tagged-pointer + COW, so this is cheap even for large matrices.
+    std::unordered_set<std::string> injectedNames;
+    // Start from a clean slate so `clear` in the console doesn't race with
+    // unrelated REPL variables.
+    genv.clearAll();
+    // Inject ALL live names, including built-ins and pseudo-vars like nargin
+    // — the console eval needs them reachable even though they won't appear
+    // in the user-visible snapshot.
+    for (auto &name : ws_.allNames()) {
+        auto *val = ws_.get(name);
+        if (val) {
+            genv.set(name, *val);
+            injectedNames.insert(name);
+        }
+    }
 
-    // Save workspace state to restore after eval
-    struct SavedVar { std::string name; bool hadEnv; MValue envVal; bool hadStore; MValue storeVal; };
-    std::vector<SavedVar> savedVars;
-
-    auto injectVar = [&](const std::string &name, const MValue &val) {
-        SavedVar sv;
-        sv.name = name;
-        auto *ge = genv.get(name);
-        sv.hadEnv = ge && !ge->isEmpty();
-        if (sv.hadEnv) sv.envVal = *ge;
-        auto *gs = gstore.get(name);
-        sv.hadStore = gs && !gs->isEmpty();
-        if (sv.hadStore) sv.storeVal = *gs;
-        genv.set(name, val);
-        gstore.set(name, val);
-        savedVars.push_back(std::move(sv));
-    };
-
-    // Inject VM frame variables
-    for (auto &v : snap.variables)
-        if (v.value) injectVar(v.name, *v.value);
-
-    // Inject previously eval-created variables
-    for (auto &[name, val] : evalVars_)
-        injectVar(name, val);
-
-    // 5. Execute expression
+    // 5. Execute expression.
     std::string evalOutput;
     engine_.setOutputFunc([&evalOutput](const std::string &s) { evalOutput += s; });
     try {
@@ -247,79 +240,59 @@ std::string DebugSession::eval(const std::string &code)
         evalOutput = std::string("Error: ") + e.what();
     }
 
-    // 6. Capture workspace changes into evalVars_
+    // 6. Restore paused VM state BEFORE diffing back so ws_'s frame pointers
+    //    are pointing at the user's registers again.
+    engine_.vm_->restorePausedState(std::move(savedVMState));
+    ws_.bindVMFrame(*engine_.vm_);
+
+    // 7. Diff-back through DebugWorkspace:
+    //    - For each injected name: if absent (or empty/unset/deleted) in
+    //      workspaceEnv after eval, the user cleared it → ws_.remove(). If
+    //      present, write the new value.
+    //    - Any new name in workspaceEnv is a console-created variable →
+    //      ws_.set() lands it in the overlay (no frame slot exists).
     {
-        // Build set of names we injected before eval
-        std::unordered_set<std::string> injectedNames;
-        for (auto &sv : savedVars)
-            injectedNames.insert(sv.name);
-
-        // Detect cleared variables: if a variable was injected but is now
-        // missing or empty in workspace, it was cleared by the eval.
-        for (auto &name : injectedNames) {
-            auto *val = genv.getLocal(name);
-            if (!val || val->isEmpty() || val->isUnset()) {
-                evalVars_[name] = MValue::deleted();
-                engine_.vm_->setFrameVariable(name, MValue::deleted());
-            }
-        }
-
-        // Capture new/modified variables
         auto wsNames = genv.localNames();
-        for (auto &name : wsNames) {
-            if (name == "ans" || name == "nargin" || name == "nargout") continue;
-            auto *val = genv.getLocal(name);
-            if (!val || val->isEmpty()) continue;
-            evalVars_[name] = *val;
+        std::unordered_set<std::string> nowNames(wsNames.begin(), wsNames.end());
+
+        for (auto &name : injectedNames) {
+            auto *val = nowNames.count(name) ? genv.getLocal(name) : nullptr;
+            if (!val || val->isUnset() || val->isDeleted())
+                ws_.remove(name);
+            else
+                ws_.set(name, *val);
         }
-        // Also capture from VM's lastVarMap (eval script's exported vars)
-        for (auto &[name, val] : engine_.vm_->lastVarMap()) {
-            if (name == "ans") continue;
-            if (val.isDeleted())
-                evalVars_[name] = val; // propagate clear
-            else if (!val.isEmpty() && !val.isUnset())
-                evalVars_[name] = val;
+        for (auto &name : wsNames) {
+            if (name == "ans" || name == "nargin" || name == "nargout")
+                continue;
+            if (injectedNames.count(name))
+                continue;
+            auto *val = genv.getLocal(name);
+            if (val && !val->isUnset() && !val->isDeleted())
+                ws_.set(name, *val);
         }
     }
 
-    // 7. Reset clearAll flag — clear in debug eval should not affect
-    //    the main execution's syncVMToWorkspace behavior.
+    // 8. Restore workspaceEnv to its pre-eval state. The flag markClearAll()
+    //    might have been set by a console `clear`; reset it so later
+    //    engine.eval() calls don't behave as if clearAll was requested.
+    genv.clearAll();
+    for (auto &[n, v] : preEvalEnv)
+        genv.set(n, v);
     engine_.clearAllCalled_ = false;
 
-    // Restore VM state and debug controller
+    // 9. Restore output capture, observer, and controller state.
     engine_.setOutputFunc([this](const std::string &s) { outputBuf_ += s; });
     engine_.setDebugObserver(observer_);
-    engine_.vm_->restorePausedState(std::move(savedState));
 
     ctl = engine_.debugController();
     if (ctl) {
         ctl->callStack() = std::move(savedCallStack);
-        ctl->setLastLine(snap.line);
+        ctl->setLastLine(savedLine);
     }
 
-    // 8. Write back modified frame variables directly into VM registers
-    for (auto &[name, val] : evalVars_)
-        engine_.vm_->setFrameVariable(name, val);
-
-    // 9. Restore workspace to pre-eval state
-    for (auto &sv : savedVars) {
-        if (sv.hadEnv)  genv.set(sv.name, sv.envVal);
-        else            genv.remove(sv.name);
-        if (sv.hadStore) gstore.set(sv.name, sv.storeVal);
-        else             gstore.remove(sv.name);
-    }
-    // Clean up eval-created variables from workspace (they live in evalVars_)
-    for (auto &[name, val] : evalVars_) {
-        bool wasRestored = false;
-        for (auto &sv : savedVars)
-            if (sv.name == name) { wasRestored = true; break; }
-        if (!wasRestored)
-            genv.remove(name);
-    }
-
-    // Trim trailing whitespace
-    while (!evalOutput.empty() &&
-           (evalOutput.back() == '\n' || evalOutput.back() == ' '))
+    while (!evalOutput.empty()
+           && (evalOutput.back() == '\n' || evalOutput.back() == ' '))
         evalOutput.pop_back();
 
     return evalOutput;

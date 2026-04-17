@@ -119,13 +119,14 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         if (!insideFunc)
                                             ctx.engine->clearUserFunctions();
                                     } else {
+                                        // `clear x`, `clear pi`, etc.
+                                        // Un-shadow a built-in by removing the
+                                        // workspace slot — the next read then
+                                        // falls back to constantsEnv_. No
+                                        // special filtering: MATLAB allows it.
                                         for (auto &a : args) {
-                                            if (a.isChar()) {
-                                                std::string varName = a.toString();
-                                                if (kBuiltinNames.count(varName) == 0) {
-                                                    env->remove(varName);
-                                                }
-                                            }
+                                            if (a.isChar())
+                                                env->remove(a.toString());
                                         }
                                     }
                                 }
@@ -156,11 +157,10 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 std::vector<std::string> names;
                                 if (args.empty()) {
-                                    auto all = env->localNames();
-                                    for (auto &n : all)
-                                        if (kBuiltinNames.count(n) == 0 && n != "nargin"
-                                            && n != "nargout")
-                                            names.push_back(n);
+                                    // localNames() excludes parent-env constants
+                                    // (pi, eps, …) — they show up here only if
+                                    // shadowed in the workspace, as in MATLAB.
+                                    names = env->localNames();
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {
@@ -200,11 +200,10 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 std::vector<std::string> names;
                                 if (args.empty()) {
-                                    auto all = env->localNames();
-                                    for (auto &n : all)
-                                        if (kBuiltinNames.count(n) == 0 && n != "nargin"
-                                            && n != "nargout")
-                                            names.push_back(n);
+                                    // localNames() excludes parent-env constants
+                                    // (pi, eps, …) — they show up here only if
+                                    // shadowed in the workspace, as in MATLAB.
+                                    names = env->localNames();
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {

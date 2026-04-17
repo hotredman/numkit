@@ -17,12 +17,12 @@
 
 #include "MLabBytecode.hpp"
 #include "MLabDebugger.hpp"
+#include "MLabDebugWorkspace.hpp"
 #include "MLabValue.hpp"
 #include "MLabVM.hpp"
 
 #include <memory>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 namespace mlab {
@@ -108,8 +108,8 @@ private:
     };
     std::shared_ptr<SessionObserver> observer_;
 
-    // Variables created/modified during debug eval (no register in VM frame)
-    std::unordered_map<std::string, MValue> evalVars_;
+    // Live view of variables at the pause point: frame pointers + overlay.
+    DebugWorkspace ws_;
 
     // Output capture
     std::string outputBuf_;

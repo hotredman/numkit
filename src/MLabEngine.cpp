@@ -278,14 +278,13 @@ void Engine::syncVMToWorkspace()
 // ============================================================
 std::vector<std::string> Engine::workspaceVarNames() const
 {
+    // `localNames()` only returns variables that were written into the base
+    // workspace — built-in constants live in `constantsEnv_` (a parent env)
+    // and don't appear here unless the user has explicitly shadowed them,
+    // which matches MATLAB's `who`/`whos` behaviour.
     auto names = workspaceEnv_->localNames();
-    std::vector<std::string> result;
-    result.reserve(names.size());
-    for (auto &n : names)
-        if (kBuiltinNames.count(n) == 0)
-            result.push_back(n);
-    std::sort(result.begin(), result.end());
-    return result;
+    std::sort(names.begin(), names.end());
+    return names;
 }
 
 static std::string jsonEscape(const std::string &s)

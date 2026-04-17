@@ -1562,19 +1562,6 @@ void VM::popCallFrame(MValue retVal)
     }
 }
 
-bool VM::setFrameVariable(const std::string &name, const MValue &value)
-{
-    if (frames_.empty()) return false;
-    auto &frame = frames_.back();
-    for (auto &[vname, reg] : frame.chunk->varMap) {
-        if (vname == name && reg < frame.nregs) {
-            frame.R[reg] = value;
-            return true;
-        }
-    }
-    return false;
-}
-
 void VM::setFrameDynVars(std::unordered_map<std::string, MValue> *dv)
 {
     if (!frames_.empty())

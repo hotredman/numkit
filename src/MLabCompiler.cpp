@@ -135,6 +135,12 @@ void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std
         out.insert(node->strValue);
 }
 
+uint8_t Compiler::varRegAssigned(const std::string &name)
+{
+    chunk_.assignedVars.insert(name);
+    return varReg(name);
+}
+
 uint8_t Compiler::varReg(const std::string &name)
 {
     auto it = varRegisters_.find(name);
@@ -713,6 +719,10 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
                            || lastOp == OpCode::CALL_BUILTIN;
         }
 
+        // This node produces a write to lhs — track it for DebugWorkspace
+        // regardless of which codegen path we take below.
+        markAssigned(lhs->strValue);
+
         uint8_t dst;
         if (canEliminate && varIt == varRegisters_.end()) {
             // First assignment: adopt temp register as the variable
@@ -757,7 +767,7 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
         auto *objNode = lhs->children[0].get();
         if (objNode->type != NodeType::IDENTIFIER)
             throw std::runtime_error("Compiler: dynamic field assign requires identifier target");
-        uint8_t obj = varReg(objNode->strValue);
+        uint8_t obj = varRegAssigned(objNode->strValue);
         uint8_t val = compileNode(node->children[1].get());
         uint8_t nameReg = compileNode(lhs->children[1].get());
         emitABC(OpCode::FIELD_SET_DYN, obj, nameReg, val);
@@ -789,7 +799,7 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         if (name == "~")
             outRegs.push_back(tempReg()); // throwaway
         else
-            outRegs.push_back(varReg(name));
+            outRegs.push_back(varRegAssigned(name));
     }
 
     // Cell CSL: [a, b] = c{idx}
@@ -1301,7 +1311,7 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
 uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 {
     for (auto &name : node->paramNames) {
-        varReg(name); // allocate register
+        varRegAssigned(name); // allocate register, mark as assigned
         chunk_.globalNames.push_back(name);
     }
     return 0;
@@ -1329,7 +1339,7 @@ uint8_t Compiler::compileTryCatch(const ASTNode *node)
     // Register for exception variable (if named)
     uint8_t exReg = 0;
     if (!node->strValue.empty()) {
-        exReg = varReg(node->strValue);
+        exReg = varRegAssigned(node->strValue);
     } else {
         exReg = tempReg();
     }
@@ -1474,7 +1484,7 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     // L_end:
 
     uint8_t rangeReg = compileNode(node->children[0].get());
-    uint8_t vReg = varReg(node->strValue);
+    uint8_t vReg = varRegAssigned(node->strValue);
 
     loopStack_.push_back(LoopContext{{}, {}, true});
 
@@ -1708,7 +1718,7 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
         argOffset = 0;
     }
 
-    uint8_t arr = varReg(name);
+    uint8_t arr = varRegAssigned(name);
     uint8_t val = compileNode(rhs);
 
     {
@@ -1791,7 +1801,7 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
 
     // fieldChain is in reverse: ["b", "a"] for s.a.b
     // Root variable
-    uint8_t rootReg = varReg(cur->strValue);
+    uint8_t rootReg = varRegAssigned(cur->strValue);
     uint8_t val = compileNode(rhs);
 
     if (fieldChain.size() == 1) {
@@ -1961,7 +1971,7 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
     if (target->type != NodeType::IDENTIFIER)
         throw std::runtime_error("Compiler: invalid cell assignment target");
 
-    uint8_t cell = varReg(target->strValue);
+    uint8_t cell = varRegAssigned(target->strValue);
     uint8_t val = compileNode(rhs);
 
     size_t nidx = lhs->children.size() - 1;
@@ -2536,8 +2546,10 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     nextReg_ = 0;
 
     // Allocate registers for parameters (they come pre-loaded by VM)
+    // Parameters get their value at call entry — mark as assigned so the
+    // debug workspace distinguishes them from simple reads.
     for (auto &param : funcDef->paramNames) {
-        varReg(param);
+        varRegAssigned(param);
     }
 
     // Allocate registers for return variables
@@ -2545,10 +2557,12 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     // Skip allocation if return var is also a parameter (already loaded by caller)
     std::unordered_set<std::string> paramSet(funcDef->paramNames.begin(), funcDef->paramNames.end());
     for (auto &ret : funcDef->returnNames) {
-        varReg(ret); // just allocate the register
+        varRegAssigned(ret); // will be populated by the body
     }
 
-    // Always allocate nargin/nargout so they're visible in debugger
+    // Always allocate nargin/nargout so they're visible in debugger (pre-
+    // loaded by the VM on entry). Not user-assigned; assignedVars is left
+    // untouched so the snapshot still hides them via kBuiltinNames.
     varReg("nargin");
     varReg("nargout");
 

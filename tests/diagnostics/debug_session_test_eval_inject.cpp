@@ -272,3 +272,338 @@ TEST(DebugEvalInjectTest, ModifiedFrameVarInFunction)
     EXPECT_NE(allOutput.find("100"), std::string::npos)
         << "result should be 100, output: [" << output << "] session: [" << sessionOut << "]";
 }
+
+// ============================================================
+// MATLAB-style semantics: clearing a variable that the remaining script
+// reads must surface "Undefined function or variable" at that line on
+// continue (not silently complete, not hang).
+// ============================================================
+
+TEST(DebugEvalInjectTest, ClearReferencedVarThenContinueErrors)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // bp at line 2; line 3 reads x which the user is about to clear
+    std::string code =
+        "x = 10;\n"
+        "y = 20;\n"
+        "z = x + y;\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    session.eval("clear x");
+
+    // After `clear x`, x must not be visible in the snapshot.
+    auto snap = session.snapshot();
+    for (auto &v : snap.variables) {
+        EXPECT_NE(v.name, "x") << "x must be gone after `clear x`";
+    }
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    // Must surface a runtime error — not silent success.
+    EXPECT_FALSE(session.errorMessage().empty())
+        << "expected undefined-variable error after clear + continue";
+    EXPECT_NE(session.errorMessage().find("x"), std::string::npos)
+        << "error should mention cleared name 'x', got: " << session.errorMessage();
+}
+
+// ============================================================
+// Frame variables are written through pointers, no staleness after
+// multiple evals.
+// ============================================================
+
+TEST(DebugEvalInjectTest, FrameVarWritesSurviveMultipleEvals)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "x = 1;\n"
+        "y = 2;\n"
+        "disp(x + y);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // Modify, inspect, modify again — each write lands in the same frame
+    // register, so the final value is the one used by the script.
+    session.eval("x = 100");
+    EXPECT_NE(session.eval("x").find("100"), std::string::npos);
+    session.eval("x = 500");
+    EXPECT_NE(session.eval("x").find("500"), std::string::npos);
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty());
+
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("502"), std::string::npos)
+        << "expected 500 + 2 = 502 on continue, got: [" << all << "]";
+}
+
+// ============================================================
+// Overlay: console-created variable is visible to the running script
+// after `continue`.
+// ============================================================
+
+TEST(DebugEvalInjectTest, OverlayVarVisibleToContinuedScript)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // q is NOT in the source — user creates it in the debug console.
+    std::string code =
+        "x = 1;\n"
+        "y = 2;\n"
+        "disp(x + y + q);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("q = 100");
+
+    // Overlay var shows up in the snapshot.
+    auto snap = session.snapshot();
+    bool sawQ = false;
+    for (auto &v : snap.variables) {
+        if (v.name == "q" && v.value && v.value->toScalar() == 100.0)
+            sawQ = true;
+    }
+    EXPECT_TRUE(sawQ) << "overlay-created q must appear in snapshot";
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "overlay var must be visible to script: " << session.errorMessage();
+
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("103"), std::string::npos)
+        << "expected 1 + 2 + 100 = 103, got: [" << all << "]";
+}
+
+// ============================================================
+// `clear x` removes a frame variable; a subsequent console `x = ...`
+// re-creates it (either in the frame — write-through — or in overlay).
+// Either way, continue reads the new value.
+// ============================================================
+
+// ============================================================
+// Built-in constants (pi, eps, Inf, NaN, i, j, true, false, end, ans,
+// nargin, nargout) must not appear in the debug snapshot even if the
+// script references them.
+// ============================================================
+
+// ============================================================
+// MATLAB-style built-in shadowing at debug pauses.
+// ============================================================
+
+// Helper: does snapshot contain a variable with the given name (not deleted)?
+static bool snapshotHas(const DebugSession::Snapshot &snap, const std::string &name)
+{
+    for (auto &v : snap.variables)
+        if (v.name == name && v.value && !v.value->isDeleted())
+            return true;
+    return false;
+}
+
+TEST(DebugEvalInjectTest, ScriptShadowsBuiltinVisibleInDebug)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // Script assigns to `pi` — from that point pi is a user variable.
+    std::string code =
+        "pi = 5;\n"
+        "x = pi + 1;\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snap = session.snapshot();
+    EXPECT_TRUE(snapshotHas(snap, "pi"))
+        << "after `pi = 5` the debug snapshot must list pi";
+    // And the value is the user-supplied one.
+    for (auto &v : snap.variables)
+        if (v.name == "pi")
+            EXPECT_DOUBLE_EQ(v.value->toScalar(), 5.0);
+}
+
+TEST(DebugEvalInjectTest, ScriptReadsBuiltinHiddenInDebug)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // Script only reads pi — must not appear in debug snapshot.
+    std::string code =
+        "x = pi;\n"
+        "y = x + 1;\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snap = session.snapshot();
+    EXPECT_FALSE(snapshotHas(snap, "pi"))
+        << "pi is only read, not assigned — must be hidden in snapshot";
+}
+
+TEST(DebugEvalInjectTest, ConsoleShadowOfBuiltinVisibleAfterwards)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    // Script never touches pi.
+    auto status = session.start("x = 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_FALSE(snapshotHas(session.snapshot(), "pi"))
+        << "pi not mentioned by script — must be hidden";
+
+    // User shadows pi via the console.
+    session.eval("pi = 7");
+    EXPECT_TRUE(snapshotHas(session.snapshot(), "pi"))
+        << "console `pi = 7` must make pi visible in snapshot";
+
+    // The stored value is the user-supplied one.
+    for (auto &v : session.snapshot().variables)
+        if (v.name == "pi")
+            EXPECT_DOUBLE_EQ(v.value->toScalar(), 7.0);
+}
+
+TEST(DebugEvalInjectTest, ConsoleShadowPersistsAcrossResume)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({1, 2});
+
+    // Two bp stops; pi is not in the script, so it is hidden on the first
+    // pause and must stay visible on the second pause after a console
+    // shadow.
+    auto status = session.start("x = 1;\ny = 2;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("pi = 11");
+    EXPECT_TRUE(snapshotHas(session.snapshot(), "pi"));
+
+    // Continue → hit bp on line 2.
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_TRUE(snapshotHas(session.snapshot(), "pi"))
+        << "console-shadowed pi must persist across a resume";
+}
+
+TEST(DebugEvalInjectTest, NarginNotShownInSnapshotButReachable)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // nargin is a pseudo-var, always allocated by the compiler in function
+    // chunks. It must be reachable from console eval but not visible in
+    // the snapshot.
+    std::string code =
+        "function r = add(a, b)\n"
+        "    r = a + b;\n"
+        "end\n"
+        "r = add(10, 20);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    EXPECT_FALSE(snapshotHas(session.snapshot(), "nargin"))
+        << "nargin must be hidden from snapshot";
+
+    // But console eval can read it:
+    std::string result = session.eval("nargin");
+    EXPECT_NE(result.find("2"), std::string::npos)
+        << "eval('nargin') must still resolve to 2, got: " << result;
+}
+
+TEST(DebugEvalInjectTest, BuiltinConstantsHiddenFromWorkspace)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({3});
+
+    // Script touches pi and eps; compiler will allocate registers for them
+    // and put them in varMap. Debug snapshot must still filter them out.
+    std::string code =
+        "x = pi;\n"
+        "y = eps;\n"
+        "z = x + y;\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    auto snap = session.snapshot();
+    for (auto &v : snap.variables) {
+        EXPECT_NE(v.name, "pi")  << "pi is a built-in, should not show up";
+        EXPECT_NE(v.name, "eps") << "eps is a built-in, should not show up";
+        EXPECT_NE(v.name, "ans") << "ans is a pseudo-var, should not show up";
+    }
+}
+
+TEST(DebugEvalInjectTest, ClearThenReassignSurvivesContinue)
+{
+    Engine engine;
+    std::string output;
+    engine.setOutputFunc([&output](const std::string &s) { output += s; });
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    std::string code =
+        "x = 10;\n"
+        "y = 20;\n"
+        "disp(x + y);\n";
+
+    auto status = session.start(code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("clear x");
+    session.eval("x = 7");
+
+    output.clear();
+    status = session.resume(DebugAction::Continue);
+    std::string sessionOut = session.takeOutput();
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "after clear + reassign, continue must succeed: " << session.errorMessage();
+
+    std::string all = output + sessionOut;
+    EXPECT_NE(all.find("27"), std::string::npos)
+        << "expected 7 + 20 = 27 on continue, got: [" << all << "]";
+}
