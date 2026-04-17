@@ -521,6 +521,28 @@ TEST(DebugEvalInjectTest, ConsoleShadowPersistsAcrossResume)
         << "console-shadowed pi must persist across a resume";
 }
 
+TEST(DebugEvalInjectTest, ConsoleShadowRoundTrip)
+{
+    // pi shadowed via console then cleared — must no longer show up in the
+    // snapshot. Guards against shadowedBuiltins_ accumulating stale entries.
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    auto status = session.start("x = 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+    ASSERT_FALSE(snapshotHas(session.snapshot(), "pi"));
+
+    session.eval("pi = 11");
+    ASSERT_TRUE(snapshotHas(session.snapshot(), "pi")) << "shadow must appear";
+
+    session.eval("clear pi");
+    EXPECT_FALSE(snapshotHas(session.snapshot(), "pi"))
+        << "after clear pi in console, pi must disappear from snapshot";
+}
+
 TEST(DebugEvalInjectTest, NarginNotShownInSnapshotButReachable)
 {
     Engine engine;

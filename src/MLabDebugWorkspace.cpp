@@ -94,6 +94,8 @@ void DebugWorkspace::remove(const std::string &name)
     if (it != framePtrs_.end())
         *it->second = MValue::deleted();
     overlay_.erase(name);
+    // Symmetry with set(): removing a built-in via the console un-shadows it.
+    shadowedBuiltins_.erase(name);
 }
 
 void DebugWorkspace::clearAll()

@@ -135,13 +135,13 @@ void Compiler::collectAllIdentifiers(const ASTNode *node, std::unordered_set<std
         out.insert(node->strValue);
 }
 
-uint8_t Compiler::varRegAssigned(const std::string &name)
+uint8_t Compiler::varRegWrite(const std::string &name)
 {
     chunk_.assignedVars.insert(name);
-    return varReg(name);
+    return varRegLookup(name);
 }
 
-uint8_t Compiler::varReg(const std::string &name)
+uint8_t Compiler::varRegLookup(const std::string &name)
 {
     auto it = varRegisters_.find(name);
     if (it != varRegisters_.end())
@@ -181,12 +181,12 @@ uint8_t Compiler::varRegRead(const std::string &name)
     if (isTopLevel_ && !kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing)
-            return varReg(name); // will import from workspaceEnv (including empty values)
+            return varRegLookup(name); // will import from workspaceEnv (including empty values)
     }
 
     // Check if it's a builtin constant
     if (kBuiltinNames.count(name))
-        return varReg(name);
+        return varRegLookup(name);
 
     // Check if it's a known function — emit zero-arg CALL
     // In MATLAB, bare function name in expression context is a call: t1 = toc
@@ -201,7 +201,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
     // Unknown variable — allocate register and emit runtime check.
     // At runtime, ASSERT_DEF checks the register; if unset, checks dynVars
     // (for debug eval / runtime eval); if still not found, throws error.
-    uint8_t reg = varReg(name);
+    uint8_t reg = varRegLookup(name);
     int16_t nameIdx = addStringConstant(name);
     emitAD(OpCode::ASSERT_DEF, reg, nameIdx);
     return reg;
@@ -736,7 +736,9 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
             nextReg_--;  // reclaim temp
             scalarRegs_.reset(src);
         } else {
-            dst = varReg(lhs->strValue);
+            // Write site; assignedVars already updated via markAssigned()
+            // above — hence the Lookup variant here.
+            dst = varRegLookup(lhs->strValue);
             if (src != dst)
                 emitAB(OpCode::MOVE, dst, src);
         }
@@ -767,7 +769,7 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
         auto *objNode = lhs->children[0].get();
         if (objNode->type != NodeType::IDENTIFIER)
             throw std::runtime_error("Compiler: dynamic field assign requires identifier target");
-        uint8_t obj = varRegAssigned(objNode->strValue);
+        uint8_t obj = varRegWrite(objNode->strValue);
         uint8_t val = compileNode(node->children[1].get());
         uint8_t nameReg = compileNode(lhs->children[1].get());
         emitABC(OpCode::FIELD_SET_DYN, obj, nameReg, val);
@@ -799,7 +801,7 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
         if (name == "~")
             outRegs.push_back(tempReg()); // throwaway
         else
-            outRegs.push_back(varRegAssigned(name));
+            outRegs.push_back(varRegWrite(name));
     }
 
     // Cell CSL: [a, b] = c{idx}
@@ -1311,7 +1313,7 @@ uint8_t Compiler::compileSwitch(const ASTNode *node)
 uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
 {
     for (auto &name : node->paramNames) {
-        varRegAssigned(name); // allocate register, mark as assigned
+        varRegWrite(name); // allocate register, mark as assigned
         chunk_.globalNames.push_back(name);
     }
     return 0;
@@ -1339,7 +1341,7 @@ uint8_t Compiler::compileTryCatch(const ASTNode *node)
     // Register for exception variable (if named)
     uint8_t exReg = 0;
     if (!node->strValue.empty()) {
-        exReg = varRegAssigned(node->strValue);
+        exReg = varRegWrite(node->strValue);
     } else {
         exReg = tempReg();
     }
@@ -1484,7 +1486,7 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     // L_end:
 
     uint8_t rangeReg = compileNode(node->children[0].get());
-    uint8_t vReg = varRegAssigned(node->strValue);
+    uint8_t vReg = varRegWrite(node->strValue);
 
     loopStack_.push_back(LoopContext{{}, {}, true});
 
@@ -1649,7 +1651,7 @@ uint8_t Compiler::compileIndexExpr(const ASTNode *node)
         argOffset = 0;
     }
 
-    uint8_t arr = varReg(name);
+    uint8_t arr = varRegLookup(name);
 
     if (nargs == 1) {
         IndexContextGuard guard(*this, arr, 1);
@@ -1718,7 +1720,7 @@ uint8_t Compiler::compileIndexAssign(const ASTNode *node)
         argOffset = 0;
     }
 
-    uint8_t arr = varRegAssigned(name);
+    uint8_t arr = varRegWrite(name);
     uint8_t val = compileNode(rhs);
 
     {
@@ -1801,7 +1803,7 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
 
     // fieldChain is in reverse: ["b", "a"] for s.a.b
     // Root variable
-    uint8_t rootReg = varRegAssigned(cur->strValue);
+    uint8_t rootReg = varRegWrite(cur->strValue);
     uint8_t val = compileNode(rhs);
 
     if (fieldChain.size() == 1) {
@@ -1971,7 +1973,7 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
     if (target->type != NodeType::IDENTIFIER)
         throw std::runtime_error("Compiler: invalid cell assignment target");
 
-    uint8_t cell = varRegAssigned(target->strValue);
+    uint8_t cell = varRegWrite(target->strValue);
     uint8_t val = compileNode(rhs);
 
     size_t nidx = lhs->children.size() - 1;
@@ -2153,7 +2155,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     }
 
     if (isKnownVar) {
-        uint8_t fhReg = varReg(name);
+        uint8_t fhReg = varRegLookup(name);
 
         IndexContextGuard guard(*this, fhReg, static_cast<uint8_t>(nargs));
 
@@ -2549,7 +2551,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     // Parameters get their value at call entry — mark as assigned so the
     // debug workspace distinguishes them from simple reads.
     for (auto &param : funcDef->paramNames) {
-        varRegAssigned(param);
+        varRegWrite(param);
     }
 
     // Allocate registers for return variables
@@ -2557,14 +2559,14 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
     // Skip allocation if return var is also a parameter (already loaded by caller)
     std::unordered_set<std::string> paramSet(funcDef->paramNames.begin(), funcDef->paramNames.end());
     for (auto &ret : funcDef->returnNames) {
-        varRegAssigned(ret); // will be populated by the body
+        varRegWrite(ret); // will be populated by the body
     }
 
     // Always allocate nargin/nargout so they're visible in debugger (pre-
     // loaded by the VM on entry). Not user-assigned; assignedVars is left
     // untouched so the snapshot still hides them via kBuiltinNames.
-    varReg("nargin");
-    varReg("nargout");
+    varRegLookup("nargin");
+    varRegLookup("nargout");
 
     // Compile body
     compileNode(funcDef->children[0].get());
@@ -2575,7 +2577,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
 
     // Emit return: collect return values
     if (funcDef->returnNames.size() == 1) {
-        uint8_t retReg = varReg(funcDef->returnNames[0]);
+        uint8_t retReg = varRegLookup(funcDef->returnNames[0]);
         emitA(OpCode::RET, retReg);
     } else if (funcDef->returnNames.empty()) {
         emitNone(OpCode::RET_EMPTY);
@@ -2584,7 +2586,7 @@ BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,
         size_t nret = funcDef->returnNames.size();
         std::vector<uint8_t> retRegs;
         for (auto &name : funcDef->returnNames)
-            retRegs.push_back(varReg(name));
+            retRegs.push_back(varRegLookup(name));
         // Check if already consecutive
         bool consecutive = true;
         for (size_t i = 1; i < nret; ++i)
@@ -2627,7 +2629,7 @@ uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
 {
     if (chunk_.returnNames.size() <= 1) {
         if (!chunk_.returnNames.empty()) {
-            uint8_t retReg = varReg(chunk_.returnNames[0]);
+            uint8_t retReg = varRegLookup(chunk_.returnNames[0]);
             emitA(OpCode::RET, retReg);
         } else {
             emitNone(OpCode::RET_EMPTY);
@@ -2637,7 +2639,7 @@ uint8_t Compiler::compileReturn(const ASTNode * /*node*/)
         size_t nret = chunk_.returnNames.size();
         std::vector<uint8_t> retRegs;
         for (auto &name : chunk_.returnNames)
-            retRegs.push_back(varReg(name));
+            retRegs.push_back(varRegLookup(name));
         bool consecutive = true;
         for (size_t i = 1; i < nret; ++i)
             if (retRegs[i] != retRegs[0] + i) { consecutive = false; break; }
@@ -2668,7 +2670,9 @@ uint8_t Compiler::compileDeleteAssign(const ASTNode *node)
     if (target->type != NodeType::IDENTIFIER)
         throw std::runtime_error("Compiler: invalid delete target");
 
-    uint8_t arr = varReg(target->strValue);
+    // `v(idx) = []` mutates v — counts as an assignment site so the debug
+    // workspace lists v (and shadowed built-ins) correctly.
+    uint8_t arr = varRegWrite(target->strValue);
     size_t nargs = lhs->children.size() - 1;
 
     {

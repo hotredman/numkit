@@ -64,17 +64,32 @@ private:
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
     bool compiledFuncsDirty_ = false;
 
-    // Allocate a register for a variable (or return existing)
-    uint8_t varReg(const std::string &name);
-    // Same as varReg(), but also records that the current chunk writes to
-    // this variable — populates BytecodeChunk::assignedVars so tools like
-    // the debug workspace can distinguish "user assigned" from "just read".
-    uint8_t varRegAssigned(const std::string &name);
-    // Record a name as assigned without allocating a register (e.g. for
-    // decl-only forms that don't need a register write here).
-    void markAssigned(const std::string &name) { chunk_.assignedVars.insert(name); }
-    // Read-only access — throws if variable undefined (triggers TW fallback)
+    // ── Variable register access API ────────────────────────────
+    //
+    // Every assignment-like compile site MUST call `varRegWrite(name)` so
+    // BytecodeChunk::assignedVars is populated — the debug workspace uses
+    // it to distinguish "user assigned" from "just read" (MATLAB's
+    // whos-parity for shadowed built-ins). Reads and pure re-lookups use
+    // the other two methods.
+    //
+    //   varRegWrite(name)  — allocates + marks as assigned. Use for every
+    //                        AST node that writes to `name`.
+    //   varRegRead(name)   — allocates + emits ASSERT_DEF. Use for checked
+    //                        reads at the AST level.
+    //   varRegLookup(name) — allocates without marking or asserting. Use
+    //                        for internal plumbing: re-fetching a register
+    //                        for an already-allocated variable, pre-loading
+    //                        pseudo-vars (nargin/nargout), workspace-env
+    //                        imports, etc. NEVER use at a user-assignment
+    //                        site — that would defeat the whole point.
+    //
+    // `markAssigned(name)` is a rare helper for write sites that bypass
+    // varRegWrite (e.g. move-elimination in compileAssign that writes via
+    // `varRegisters_[name] = src` directly).
+    uint8_t varRegWrite(const std::string &name);
     uint8_t varRegRead(const std::string &name);
+    uint8_t varRegLookup(const std::string &name);
+    void markAssigned(const std::string &name) { chunk_.assignedVars.insert(name); }
     // Pre-import global variables before compiling AST
     void preImportGlobals(const ASTNode *ast);
     void collectAllIdentifiers(const ASTNode *node, std::unordered_set<std::string> &out);

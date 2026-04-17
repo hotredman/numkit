@@ -75,6 +75,7 @@ set(DIAGNOSTICS_TESTS
     diagnostics/debug_session_test.cpp
     diagnostics/debug_session_test_eval_inject.cpp
     diagnostics/who_diagnostic_test.cpp
+    diagnostics/compiler_assigned_vars_test.cpp
     diagnostics/known_issues_test.cpp
 )
 
