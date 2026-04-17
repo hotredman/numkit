@@ -47,6 +47,40 @@ TEST_P(WhoDiagnostic, WhoSeesVarsAfterError)
 // and in workspaceVarNames().
 // ============================================================
 
+// A bare read of a built-in — for example typing `pi` at the REPL — must
+// NOT create a workspace local. Previously the VM exported every varMap
+// entry into lastVarMap_ regardless of whether the chunk wrote to it, so
+// `pi` would appear in `who` and workspaceVarNames after a read-only use.
+TEST_P(WhoDiagnostic, BareReadDoesNotCreateWorkspaceLocal)
+{
+    eval("pi");        // no semicolon: triggers display, still just a read
+    capturedOutput.clear();
+    eval("who");
+    EXPECT_EQ(capturedOutput.find("pi"), std::string::npos)
+        << "reading pi must not make it a workspace variable; got: "
+        << capturedOutput;
+
+    auto names = engine.workspaceVarNames();
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "pi") == names.end())
+        << "workspaceVarNames must not list pi after a read";
+}
+
+TEST_P(WhoDiagnostic, ReadingUserVarDoesNotReExportIt)
+{
+    // Establish a user variable, then run a chunk that only reads it.
+    eval("x = 42;");
+    eval("y = x + 1;");   // reads x, writes y
+    auto names = engine.workspaceVarNames();
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "x") != names.end());
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "y") != names.end());
+    // x's value must still be the original — not clobbered by re-export.
+    capturedOutput.clear();
+    eval("disp(x);");
+    EXPECT_NE(capturedOutput.find("42"), std::string::npos)
+        << "x must remain 42 after being read by another chunk; got: "
+        << capturedOutput;
+}
+
 TEST_P(WhoDiagnostic, BuiltinHiddenBeforeShadow)
 {
     // Clean workspace — pi must not be in `who`, `whos`, or

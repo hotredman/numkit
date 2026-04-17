@@ -1194,9 +1194,12 @@ void VM::exportTopLevelVariables()
     CallFrame &topFrame = frames_[0];
     lastVarMap_.clear();
 
-    // Export script-level variables to lastVarMap_ for environment sync
+    // Export only names the chunk actually wrote to — reading `pi` or any
+    // other reserved name must not create a shadowing local in the base
+    // workspace. assignedVars is the compile-time set of write targets.
+    const auto &assigned = topFrame.chunk->assignedVars;
     for (auto &[name, reg] : topFrame.chunk->varMap) {
-        if (reg < topFrame.nregs)
+        if (reg < topFrame.nregs && assigned.count(name))
             lastVarMap_.push_back({name, topFrame.R[reg]});
     }
 
@@ -1514,10 +1517,12 @@ void VM::popCallFrame(MValue retVal)
     }
 
     if (isTopLevel) {
-        // Export top-level variables
+        // Export only names the chunk actually wrote to (see
+        // exportTopLevelVariables for the rationale).
         lastVarMap_.clear();
+        const auto &assigned = frame.chunk->assignedVars;
         for (auto &[name, reg] : frame.chunk->varMap) {
-            if (reg < frame.nregs)
+            if (reg < frame.nregs && assigned.count(name))
                 lastVarMap_.push_back({name, frame.R[reg]});
         }
     }
