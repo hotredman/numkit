@@ -60,8 +60,25 @@ struct ReturnSignal
 enum class FlowSignal : uint8_t { NONE = 0, BREAK, CONTINUE, RETURN };
 
 // ============================================================
-// Built-in constant names (shared between Engine and TreeWalker)
+// Reserved names — classified for precise use at call sites.
 // ============================================================
+//
+// Numeric/logical constants served by `constantsEnv_` (parent of the
+// base workspace). Always defined at runtime. Assigning to one creates
+// a shadow local; `clear name` removes the shadow.
+extern const std::unordered_set<std::string> kBuiltinConstants;
+
+// Runtime pseudo-variables set by the VM / display pipeline, not by
+// user code. `nargin` / `nargout` are loaded on function entry; `ans`
+// is set by DISPLAY for bare expressions; `end` is the magic keyword
+// used in indexing. None of them live in any environment.
+extern const std::unordered_set<std::string> kPseudoVars;
+
+// Union of the above — "any name the compiler / debugger treats
+// specially and must not mistake for a plain user variable". Most
+// filter sites want this broad set; the narrower ones are for places
+// where we specifically need "true constant" semantics (e.g. deciding
+// whether to LOAD_CONST from `constantsEnv_`).
 extern const std::unordered_set<std::string> kBuiltinNames;
 
 // ============================================================

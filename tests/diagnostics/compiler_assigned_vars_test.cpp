@@ -10,6 +10,7 @@
 #include "MLabEngine.hpp"
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
+#include "MLabTypes.hpp"
 
 #include <gtest/gtest.h>
 
@@ -188,6 +189,40 @@ TEST(CompilerAssignedVars, IndexReadOnly)
     EXPECT_TRUE(chunk.assignedVars.count("y") > 0);
     EXPECT_EQ(chunk.assignedVars.count("v"), 0u)
         << "v is only read via v(2), must not be marked";
+}
+
+// ============================================================
+// Reserved-name classification invariants.
+// ============================================================
+
+TEST(ReservedNames, SetsAreDisjoint)
+{
+    for (auto &n : kBuiltinConstants) {
+        EXPECT_EQ(kPseudoVars.count(n), 0u)
+            << "'" << n << "' is in both kBuiltinConstants and kPseudoVars";
+    }
+}
+
+TEST(ReservedNames, UnionMatchesKBuiltinNames)
+{
+    std::unordered_set<std::string> u = kBuiltinConstants;
+    u.insert(kPseudoVars.begin(), kPseudoVars.end());
+    EXPECT_EQ(u, kBuiltinNames)
+        << "kBuiltinNames must be exactly kBuiltinConstants ∪ kPseudoVars";
+}
+
+TEST(ReservedNames, ConstantsContainExpectedNames)
+{
+    for (auto *n : {"pi", "eps", "inf", "nan", "i", "j", "true", "false"})
+        EXPECT_TRUE(kBuiltinConstants.count(n) > 0)
+            << n << " must be in kBuiltinConstants";
+}
+
+TEST(ReservedNames, PseudoVarsContainExpectedNames)
+{
+    for (auto *n : {"ans", "nargin", "nargout", "end"})
+        EXPECT_TRUE(kPseudoVars.count(n) > 0)
+            << n << " must be in kPseudoVars";
 }
 
 TEST(CompilerAssignedVars, BuiltinShadowInScript)

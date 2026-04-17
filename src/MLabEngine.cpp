@@ -19,22 +19,27 @@
 namespace mlab {
 
 // ============================================================
-// Built-in constant names (shared — declared extern in MLabEngine.hpp)
+// Reserved names — see MLabTypes.hpp for per-set semantics.
 // ============================================================
-const std::unordered_set<std::string> kBuiltinNames = {"pi",
-                                                       "eps",
-                                                       "inf",
-                                                       "Inf",
-                                                       "nan",
-                                                       "NaN",
-                                                       "true",
-                                                       "false",
-                                                       "i",
-                                                       "j",
-                                                       "ans",
-                                                       "nargin",
-                                                       "nargout",
-                                                       "end"};
+const std::unordered_set<std::string> kBuiltinConstants = {
+    "pi", "eps", "inf", "Inf", "nan", "NaN", "true", "false", "i", "j",
+};
+
+const std::unordered_set<std::string> kPseudoVars = {
+    "ans", "nargin", "nargout", "end",
+};
+
+// Union kept as a named constant so existing filter sites keep reading
+// naturally ("is this any reserved name?"). Initialised at static-init
+// time — order within this TU doesn't matter since both operands above
+// are defined first.
+static std::unordered_set<std::string> makeBuiltinNamesUnion()
+{
+    std::unordered_set<std::string> u = kBuiltinConstants;
+    u.insert(kPseudoVars.begin(), kPseudoVars.end());
+    return u;
+}
+const std::unordered_set<std::string> kBuiltinNames = makeBuiltinNamesUnion();
 
 // ============================================================
 // Construction

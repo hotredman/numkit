@@ -149,7 +149,11 @@ uint8_t Compiler::varRegLookup(const std::string &name)
     uint8_t r = nextReg_++;
     varRegisters_[name] = r;
 
-    // Import builtin constants (pi, inf, nan, etc.) regardless of context
+    // Pre-load a value from the engine for any reserved name that happens
+    // to be resolvable — this handles both true built-in constants
+    // (pi/eps/… from constantsEnv_) and pseudo-vars that higher layers
+    // have injected into workspaceEnv (e.g. the debug-console eval
+    // injecting `nargin` so the user can inspect it from K>>).
     if (kBuiltinNames.count(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
@@ -184,7 +188,9 @@ uint8_t Compiler::varRegRead(const std::string &name)
             return varRegLookup(name); // will import from workspaceEnv (including empty values)
     }
 
-    // Check if it's a builtin constant
+    // Reserved name (built-in constant OR pseudo-var). Let varRegLookup do
+    // the pre-load from the engine so debug-eval can see nargin/ans/… that
+    // outer layers injected into workspaceEnv.
     if (kBuiltinNames.count(name))
         return varRegLookup(name);
 

@@ -6,12 +6,11 @@
 
 namespace mlab {
 
-// Names we never expose in the debug workspace. `kBuiltinNames` covers the
-// built-in constants (pi, eps, Inf, NaN, i, j, true, false, end) as well as
-// the implicit pseudo-variables (ans, nargin, nargout). They show up in the
-// chunk's varMap because the compiler allocates registers for them, but they
-// are not "user variables" in MATLAB's sense — this matches the filter used
-// by Engine::workspaceVarNames().
+// Names that don't qualify as user variables by default. `kBuiltinNames` is
+// the union of numeric constants (pi, eps, …) and runtime pseudo-vars
+// (nargin, nargout, ans, end). They all end up in the chunk's varMap, but
+// the debug snapshot only lists them once the user has actually shadowed
+// them — matching MATLAB's `whos` at K>>.
 static bool isHiddenName(const std::string &name)
 {
     return kBuiltinNames.count(name) > 0;

@@ -1911,13 +1911,24 @@ void VM::execDisplay(const Instruction &I, MValue *R, const BytecodeChunk &chunk
     engine_.outputText(R[I.a].formatDisplay(name));
 }
 
+// MATLAB-parity visibility rule for `who`/`whos` over a chunk's register
+// file. Hide reserved names (built-in constants + pseudo-vars) UNLESS the
+// chunk has actually assigned them — i.e. the user shadowed them. Mirrors
+// DebugWorkspace::names() so both surfaces show the same thing.
+static bool whoVisible(const std::string &name, const BytecodeChunk &chunk)
+{
+    if (kBuiltinNames.count(name) == 0)
+        return true;
+    return chunk.assignedVars.count(name) > 0;
+}
+
 void VM::execWho(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
 {
     std::vector<std::string> names;
     if (I.b == 0) {
         for (auto &[vn, reg] : chunk.varMap) {
             if (reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()
-                && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                && whoVisible(vn, chunk))
                 names.push_back(vn);
         }
     } else {
@@ -1951,7 +1962,7 @@ void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
     if (I.b == 0) {
         for (auto &[vn, reg] : chunk.varMap) {
             if (reg < chunk.numRegisters && !R[reg].isUnset() && !R[reg].isDeleted()
-                && kBuiltinNames.count(vn) == 0 && vn != "nargin" && vn != "nargout")
+                && whoVisible(vn, chunk))
                 names.push_back(vn);
         }
     } else {
