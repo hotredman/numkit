@@ -182,4 +182,129 @@ TEST_P(MatlabParity, NarginInsideFunctionWorks)
     EXPECT_DOUBLE_EQ(evalScalar("nargin_probe(1);"), 1.0);
 }
 
+// ============================================================
+// Multi-statement script parity — every top-level statement commits
+// its effects to the workspace before the next one runs, so mid-script
+// `whos` / `clear x` behave the same as they do line-by-line in the
+// REPL. This mirrors MATLAB's script semantics.
+// ============================================================
+
+TEST_P(MatlabParity, MultiStatementClearUnshadowsBuiltin)
+{
+    // Single eval, three statements. Without per-statement sync the
+    // `clear pi` can't touch the still-live chunk register, so the third
+    // disp would see 5 instead of the built-in value.
+    capturedOutput.clear();
+    eval(R"(
+        pi = 5;
+        disp(pi);
+        clear pi;
+        disp(pi);
+    )");
+    // Both displays appear in order: 5 first, then the built-in 3.14…
+    auto posFive = capturedOutput.find("5");
+    auto posPi   = capturedOutput.find("3.14");
+    ASSERT_NE(posFive, std::string::npos) << "got: " << capturedOutput;
+    ASSERT_NE(posPi,   std::string::npos) << "got: " << capturedOutput;
+    EXPECT_LT(posFive, posPi) << "5 must come before 3.14…; got: " << capturedOutput;
+}
+
+TEST_P(MatlabParity, MultiStatementWhosSeesPriorAssignments)
+{
+    // `whos` in the middle of a script must see variables assigned by
+    // preceding top-level statements in the same eval.
+    capturedOutput.clear();
+    eval(R"(
+        a = 1;
+        b = 2;
+        whos
+    )");
+    EXPECT_NE(capturedOutput.find("a"), std::string::npos)
+        << "mid-script whos must list a; got: " << capturedOutput;
+    EXPECT_NE(capturedOutput.find("b"), std::string::npos)
+        << "mid-script whos must list b; got: " << capturedOutput;
+}
+
+TEST_P(MatlabParity, MultiStatementClearNamedRemovesVar)
+{
+    eval(R"(
+        a = 1; b = 2; c = 3;
+        clear b
+    )");
+    auto names = engine.workspaceVarNames();
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "a") != names.end());
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "b") == names.end())
+        << "clear b inside multi-statement eval must remove b";
+    EXPECT_TRUE(std::find(names.begin(), names.end(), "c") != names.end());
+}
+
+TEST_P(MatlabParity, FunctionDefsAreForwardReferenceable)
+{
+    // Call the function at the top of the script, define it lower down.
+    // MATLAB (and now MLab's split execution with a pre-registration
+    // pass) allows this because the AST gets scanned for FUNCTION_DEF
+    // nodes before any statement runs.
+    eval(R"(
+        r = triple(4);
+        function y = triple(x)
+            y = x * 3;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("r"), 12.0);
+}
+
+TEST_P(MatlabParity, LoopAsSingleStatementIsOneChunk)
+{
+    // Control-flow constructs are a single top-level statement — the
+    // body runs in one chunk, so `break` / `continue` still work.
+    eval(R"(
+        s = 0;
+        for i = 1:5
+            s = s + i;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("s"), 15.0);
+    EXPECT_DOUBLE_EQ(getVar("i"), 5.0);
+}
+
+TEST_P(MatlabParity, WhileSimpleSplit)
+{
+    eval(R"(
+        i = 0;
+        while i < 3
+            i = i + 1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("i"), 3.0);
+}
+
+TEST_P(MatlabParity, WhileAloneNoSplit)
+{
+    // One statement at top-level — should NOT split (size() == 1 after
+    // the i=0 is stashed via setVariable rather than eval).
+    engine.setVariable("i", mlab::MValue::scalar(0));
+    eval(R"(
+        while i < 3
+            i = i + 1;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("i"), 3.0);
+}
+
+TEST_P(MatlabParity, WhileWithContinueInsideIf_MinimalRepro)
+{
+    eval(R"(
+        i = 0;
+        s = 0;
+        while i < 3
+            i = i + 1;
+            if mod(i, 2) == 0
+                continue;
+            end
+            s = s + i;
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("s"), 4.0);  // 1 + 3
+}
+
 INSTANTIATE_DUAL(MatlabParity);

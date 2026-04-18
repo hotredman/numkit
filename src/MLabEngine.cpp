@@ -183,36 +183,88 @@ void Engine::setDebugObserver(std::shared_ptr<DebugObserver> observer)
 // ============================================================
 // eval
 // ============================================================
+
+// Compile one AST subtree into a chunk and run it on the VM, syncing
+// modified registers to workspaceEnv before returning. Used by eval() when
+// executing a single statement (or a whole single-expression chunk).
+MValue Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string> src)
+{
+    clearAllCalled_ = false;
+    vm_->clearLastVarMap();
+
+    auto chunk = compiler_->compile(ast, src);
+    vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+
+    // Remember any `global X` declarations from this chunk so the next
+    // chunk's compile can see them (split-mode top-level globals).
+    auto updateTopLevelGlobals = [&]() {
+        for (auto &g : chunk.globalNames)
+            topLevelGlobals_.insert(g);
+    };
+
+    try {
+        MValue result = vm_->execute(chunk);
+        syncVMToWorkspace();
+        updateTopLevelGlobals();
+        return result;
+    } catch (const DebugStopException &) {
+        syncVMToWorkspace();
+        updateTopLevelGlobals();
+        throw;
+    } catch (...) {
+        syncVMToWorkspace();
+        updateTopLevelGlobals();
+        throw;
+    }
+}
+
 MValue Engine::eval(const std::string &code)
 {
     Lexer lexer(code);
     auto tokens = lexer.tokenize();
     Parser parser(tokens);
     auto ast = parser.parse();
+    auto src = std::make_shared<const std::string>(code);
 
-    if (backend_ == Backend::VM) {
-        // Reset state for this execution
-        clearAllCalled_ = false;
-        vm_->clearLastVarMap();
+    // TreeWalker already executes top-level BLOCK statements sequentially
+    // against `workspaceEnv_`, so its behaviour matches MATLAB's script
+    // semantics out of the box — no split needed here.
+    if (backend_ != Backend::VM)
+        return treeWalker_->execute(ast.get(), workspaceEnv_.get());
 
-        auto src = std::make_shared<const std::string>(code);
-        auto chunk = compiler_->compile(ast.get(), src);
-        vm_->setCompiledFuncs(&compiler_->compiledFuncs());
-
-        try {
-            MValue result = vm_->execute(chunk);
-            syncVMToWorkspace();
-            return result;
-        } catch (const DebugStopException &) {
-            syncVMToWorkspace();
-            throw;
-        } catch (...) {
-            syncVMToWorkspace();
-            throw;
+    // VM: a whole multi-statement script compiled as a single chunk keeps
+    // its variables in chunk-local registers and only commits them to
+    // workspaceEnv on completion. That leaves mid-script `whos` / `clear x`
+    // blind to the running state. Match MATLAB by executing every top-level
+    // statement as its own mini-chunk, with a sync in between.
+    //
+    // Function definitions are pre-registered across the whole BLOCK so
+    // statements earlier in the file can call functions declared later.
+    //
+    // An attached debug observer runs the whole eval as one chunk: the
+    // observer expects step/line semantics to correspond to the source as
+    // a unit, and a split would re-fire initial-stop events between every
+    // top-level statement.
+    const bool splittable = !debugObserver_ && ast
+                            && ast->type == NodeType::BLOCK
+                            && ast->children.size() > 1;
+    if (splittable) {
+        for (auto &c : ast->children) {
+            if (c && c->type == NodeType::FUNCTION_DEF)
+                compiler_->registerFunction(c.get());
         }
+        MValue result = MValue::empty();
+        for (auto &c : ast->children) {
+            if (!c || c->type == NodeType::FUNCTION_DEF)
+                continue;
+            result = runOneChunk(c.get(), src);
+        }
+        return result;
     }
 
-    return treeWalker_->execute(ast.get(), workspaceEnv_.get());
+    // Single-statement path: works for REPL lines, lone expressions, and
+    // scripts consisting of just one top-level construct.
+    return runOneChunk(ast.get(), src);
 }
 
 // ============================================================

@@ -28,6 +28,12 @@ public:
     BytecodeChunk compileFunction(const ASTNode *funcDef,
                                   std::shared_ptr<const std::string> sourceCode = nullptr);
 
+    // Register a FUNCTION_DEF node in compiledFuncs_ + engine.userFuncs_
+    // without running it. Used by Engine::eval when splitting a top-level
+    // BLOCK into per-statement evaluations so forward references resolve
+    // (MATLAB scripts can call functions defined later in the file).
+    void registerFunction(const ASTNode *funcDef);
+
     // Access compiled function table
     const std::unordered_map<std::string, BytecodeChunk> &compiledFuncs() const
     {

@@ -60,6 +60,12 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     currentLoc_ = {};
     isTopLevel_ = true;
 
+    // Inherit prior-chunk `global X` declarations so split-mode execution
+    // keeps routing writes through globalsEnv_. Engine::runOneChunk keeps
+    // this set in sync after every top-level chunk runs.
+    for (const auto &g : engine_.topLevelGlobals_)
+        chunk_.globalNames.push_back(g);
+
     // Pre-import: scan AST for identifiers that exist in workspaceEnv,
     // allocate registers and emit LOAD_CONST before main code.
     // This prevents imports inside loops from resetting each iteration.
@@ -90,20 +96,22 @@ void Compiler::preImportGlobals(const ASTNode *ast)
     std::unordered_set<std::string> identifiers;
     collectAllIdentifiers(ast, identifiers);
 
-    // Pre-allocate a register and emit LOAD_CONST for every identifier the
-    // base workspace currently holds. Pure constants (pi, eps, …) are skipped
-    // because they're served out of constantsEnv_ by a later code path; the
-    // pseudo-vars (ans, nargin, nargout) DO go through here so a persisted
-    // `ans` from a previous eval — or a debugger-injected nargin — becomes
-    // visible to the chunk being compiled.
+    // Pre-allocate a register and emit LOAD_CONST for every identifier that
+    // resolves to a value — including built-in constants (pi, eps, …) and
+    // pseudo-vars (ans) that have been persisted or injected. Keeping the
+    // LOAD_CONST at chunk entry is load-bearing: if varRegLookup lazily
+    // emitted the LOAD_CONST inside a loop body on the first read of, say,
+    // a shadowed `i`, the backward JMP would land on that LOAD_CONST every
+    // iteration and re-initialise the variable to its import value (infinite
+    // loop).
     for (auto &name : identifiers) {
         if (varRegisters_.count(name))
             continue; // already allocated
-        if (kBuiltinConstants.count(name))
-            continue; // real built-ins handled via LOAD_CONST from constantsEnv_
 
         MValue *existing = engine_.getVariable(name);
-        if (existing && !existing->isEmpty()) {
+        // Import any defined value (including `[]` empty matrices, which
+        // are legal MATLAB values). Only unset / deleted slots get skipped.
+        if (existing && !existing->isUnset() && !existing->isDeleted()) {
             uint8_t r = nextReg_++;
             varRegisters_[name] = r;
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());
@@ -1087,20 +1095,26 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
     //   - Display happens only when the statement isn't suppressed by `;`;
     //     the `ans` store happens regardless.
     //
-    // "User variable" means a name that is either written earlier in this
-    // chunk (local in varRegisters_) or a LOCAL of the base workspace —
-    // notably NOT an inherited constant from constantsEnv_. A shadowed
-    // built-in (`pi = 5; pi`) therefore counts as a user variable after
-    // the shadow assignment.
+    // "User variable" is classified by storage location, not by varRegisters_
+    // (preImport brings even built-ins into the chunk's register file now,
+    // so we can't use that as the signal). Instead:
+    //   - At top level, ask the base workspace directly: getLocal() returns
+    //     non-null only for actual workspace locals, never for the
+    //     inherited constantsEnv_ entries (pi, eps, …). A shadow
+    //     (`pi = 5; pi`) therefore counts as a user variable.
+    //   - Inside a function, varRegisters_ holds params + locals + preImport
+    //     constants; exclude the reserved names so pi/nargin/… still hit
+    //     the ans path.
     bool bareUserVar = false;
     std::string displayName;
     if (child->type == NodeType::IDENTIFIER) {
         const std::string &name = child->strValue;
-        if (varRegisters_.count(name) > 0) {
-            bareUserVar = true;
-        } else if (isTopLevel_) {
+        if (isTopLevel_) {
             MValue *local = engine_.workspaceEnv().getLocal(name);
             if (local && !local->isEmpty() && !local->isUnset())
+                bareUserVar = true;
+        } else {
+            if (varRegisters_.count(name) > 0 && kBuiltinNames.count(name) == 0)
                 bareUserVar = true;
         }
         if (bareUserVar)
@@ -2581,6 +2595,14 @@ uint8_t Compiler::compileFunctionDef(const ASTNode *node)
     engine_.userFuncs_[node->strValue] = std::move(uf);
 
     return 0;
+}
+
+void Compiler::registerFunction(const ASTNode *funcDef)
+{
+    // compileFunction (invoked by compileFunctionDef) already saves and
+    // restores chunk_/varRegisters_/… so this is safe on an otherwise-idle
+    // Compiler.
+    compileFunctionDef(funcDef);
 }
 
 BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,

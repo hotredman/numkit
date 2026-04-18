@@ -10,6 +10,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace mlab {
@@ -135,6 +136,13 @@ private:
     // so that export wipes workspaceEnv before writing back.
     bool clearAllCalled_ = false;
 
+    // Names declared `global` at the base workspace level. Populated after
+    // each top-level chunk executes; the compiler mirrors them into every
+    // subsequent chunk's globalNames so that a split-mode
+    // `global X; X = 0;` keeps routing X through globalsEnv_, matching the
+    // single-chunk path.
+    std::unordered_set<std::string> topLevelGlobals_;
+
     // Debugger
     std::shared_ptr<DebugObserver> debugObserver_;
     BreakpointManager breakpointManager_;
@@ -156,6 +164,11 @@ private:
 
     // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
     void syncVMToWorkspace();
+
+    // Compile one AST subtree as a VM chunk, run it, sync registers to
+    // workspaceEnv. eval() calls this once per top-level statement when
+    // splitting a multi-statement script for MATLAB-parity semantics.
+    MValue runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string> src);
 
     friend class TreeWalker;
     friend class VM;
