@@ -142,11 +142,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   },[engine,addOutput]);
 
   // ── Debug actions ──
-  const getActiveBreakpoints = useCallback(() => {
-    const bps = breakpoints[activeTab];
-    return bps ? Array.from(bps).sort((a, b) => a - b) : [];
-  }, [breakpoints, activeTab]);
-
   const toggleBreakpoint = useCallback((line) => {
     setBreakpoints(prev => {
       const next = { ...prev };
@@ -154,17 +149,21 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       if (tabBps.has(line)) tabBps.delete(line);
       else tabBps.add(line);
       next[activeTab] = tabBps;
-
-      // Push the change to the engine right away. Without this, a
-      // breakpoint removed while paused would still fire until the next
-      // Continue, because the engine's breakpoint manager was only
-      // re-synced inside debugResume. The C++ side accepts mid-session
-      // updates (see DebugSession::setBreakpoints + lock-down tests).
-      engine.debugSetBreakpoints(Array.from(tabBps).sort((a, b) => a - b));
-
       return next;
     });
-  }, [activeTab, engine]);
+  }, [activeTab]);
+
+  // Keep the engine's breakpoint manager in lockstep with React state.
+  // Any change — gutter toggle, tab switch, initial mount — fires this
+  // effect and pushes the current tab's breakpoint list into the engine.
+  // Without this sync, a breakpoint removed while paused would keep
+  // firing until the next Continue (the old code only re-synced inside
+  // debugResume). Effect-driven sync stays off the React setState
+  // updater's pure contract.
+  useEffect(() => {
+    const tabBps = breakpoints[activeTab] || new Set();
+    engine.debugSetBreakpoints(Array.from(tabBps).sort((a, b) => a - b));
+  }, [breakpoints, activeTab, engine]);
 
   // Handle debug result from start or resume
   const handleDebugResult = useCallback((result) => {
@@ -231,31 +230,25 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const tab = tabs.find(t => t.id === activeTab);
     if (!tab || !tab.code.trim()) return;
 
-    const bpLines = getActiveBreakpoints();
-
     setShowBottom(true);
     setErrorLine(null);
     addOutput([{ type: "system", text: `\u2500\u2500 Debug ${tab.name} \u2500\u2500` }]);
     setConsoleNotify(true);
 
-    engine.debugSetBreakpoints(bpLines);
+    // Breakpoints are kept in sync via the useEffect above — no need to
+    // push them here too.
     const t0 = performance.now();
     const result = engine.debugStart(tab.code);
     setExecTimeMs(performance.now() - t0);
     handleDebugResult(result);
-  }, [tabs, activeTab, getActiveBreakpoints, engine, addOutput, handleDebugResult]);
+  }, [tabs, activeTab, engine, addOutput, handleDebugResult]);
 
   // Resume with a DebugAction: 0=Continue, 1=StepOver, 2=StepInto, 3=StepOut
   const debugResume = useCallback((action = 0) => {
     if (!debugState || debugState.status !== 'paused') return;
-
-    // If breakpoints changed, update them before resuming
-    const currentBps = getActiveBreakpoints();
-    engine.debugSetBreakpoints(currentBps);
-
     const result = engine.debugResume(action);
     handleDebugResult(result);
-  }, [debugState, getActiveBreakpoints, engine, handleDebugResult]);
+  }, [debugState, engine, handleDebugResult]);
 
   const debugStop = useCallback(() => {
     engine.debugStop?.();
