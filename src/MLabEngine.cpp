@@ -184,6 +184,40 @@ void Engine::clearUserFunctions()
     userFuncs_.clear();
     if (compiler_)
         compiler_->clearCompiledFuncs();
+    // Script-local functions belong to the lexical scope of whatever
+    // script/function is currently running — MATLAB never makes them
+    // vanish on `clear all`. Re-install immediately so calls later in
+    // the same script still have something to dispatch to.
+    if (compiler_) {
+        for (const ASTNode *f : scriptLocalFuncs_)
+            compiler_->registerFunction(f);
+    }
+}
+
+void Engine::beginScript(const ASTNode *ast)
+{
+    savedScriptLocalFuncs_.push_back(std::move(scriptLocalFuncs_));
+    scriptLocalFuncs_.clear();
+    if (!ast)
+        return;
+    if (ast->type == NodeType::BLOCK) {
+        for (const auto &c : ast->children) {
+            if (c && c->type == NodeType::FUNCTION_DEF)
+                scriptLocalFuncs_.push_back(c.get());
+        }
+    } else if (ast->type == NodeType::FUNCTION_DEF) {
+        scriptLocalFuncs_.push_back(ast);
+    }
+}
+
+void Engine::endScript()
+{
+    if (savedScriptLocalFuncs_.empty()) {
+        scriptLocalFuncs_.clear();
+        return;
+    }
+    scriptLocalFuncs_ = std::move(savedScriptLocalFuncs_.back());
+    savedScriptLocalFuncs_.pop_back();
 }
 
 void Engine::setDebugObserver(std::shared_ptr<DebugObserver> observer)
@@ -241,6 +275,15 @@ MValue Engine::eval(const std::string &code)
     auto ast = parser.parse();
     auto src = std::make_shared<const std::string>(code);
 
+    // Enter a script scope so mid-execution `clear all` can re-install
+    // the script's local functions (MATLAB semantics). Scope closes on
+    // any exit path via the local guard.
+    beginScript(ast.get());
+    struct ScriptEndGuard {
+        Engine &e;
+        ~ScriptEndGuard() { e.endScript(); }
+    } _scriptGuard{*this};
+
     // TreeWalker already executes top-level BLOCK statements sequentially
     // against `workspaceEnv_`, so its behaviour matches MATLAB's script
     // semantics out of the box — no split needed here.
@@ -253,15 +296,6 @@ MValue Engine::eval(const std::string &code)
     // blind to the running state. Match MATLAB by executing every top-level
     // statement as its own mini-chunk, with a sync in between.
     //
-    // Function definitions are pre-registered across the whole BLOCK so
-    // statements earlier in the file can call functions declared later.
-    // They are also *re-*registered after every statement so that a
-    // `clear all` in the middle of a script (which wipes
-    // engine.userFuncs_) cannot make the script's own local functions
-    // disappear from under the calls that follow — MATLAB's local
-    // script functions are always in scope for the script that
-    // defines them.
-    //
     // An attached debug observer runs the whole eval as one chunk: the
     // observer expects step/line semantics to correspond to the source as
     // a unit, and a split would re-fire initial-stop events between every
@@ -270,26 +304,19 @@ MValue Engine::eval(const std::string &code)
                             && ast->type == NodeType::BLOCK
                             && ast->children.size() > 1;
     if (splittable) {
-        std::vector<const ASTNode *> funcDefs;
-        for (auto &c : ast->children) {
-            if (c && c->type == NodeType::FUNCTION_DEF)
-                funcDefs.push_back(c.get());
-        }
-        auto ensureFunctions = [&]() {
-            for (const ASTNode *f : funcDefs) {
-                if (!hasUserFunction(f->strValue))
-                    compiler_->registerFunction(f);
-            }
-        };
-        ensureFunctions();
+        // Pre-compile script-local functions so statements earlier in
+        // the file can call functions declared later, and so split-mode
+        // (which skips FUNCTION_DEF children in the per-statement loop
+        // below) still has them ready. `clear all` mid-script is
+        // handled by clearUserFunctions, which re-installs these from
+        // scriptLocalFuncs_ — no between-chunk pass needed.
+        for (const ASTNode *f : scriptLocalFuncs_)
+            compiler_->registerFunction(f);
         MValue result = MValue::empty();
         for (auto &c : ast->children) {
             if (!c || c->type == NodeType::FUNCTION_DEF)
                 continue;
             result = runOneChunk(c.get(), src);
-            // `clear all` / `clear functions` in the previous statement
-            // may have emptied userFuncs_ — restore script-local ones.
-            ensureFunctions();
         }
         return result;
     }

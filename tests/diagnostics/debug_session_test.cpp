@@ -1065,3 +1065,81 @@ TEST_F(DebugSessionTest, AddBreakpointMidSessionFiresAfterResume)
     status = session.resume(DebugAction::Continue);
     EXPECT_EQ(status, ExecStatus::Completed);
 }
+
+// ============================================================
+// Script-local functions survive `clear all` in debug mode
+// ============================================================
+
+// Non-debug `eval` handles this by splitting the top-level BLOCK and
+// re-registering FUNCTION_DEFs between statements. Debug mode compiles
+// the whole script as a single chunk (so step semantics stay stable),
+// which meant a `clear all` near the top would wipe the script's local
+// functions and strand every later call to them. Engine::beginScript
+// + clearUserFunctions now re-install script-locals automatically.
+TEST_F(DebugSessionTest, ClearAllPreservesScriptLocalFunctionsInDebug)
+{
+    DebugSession session(engine);
+    // No breakpoints — start() steps onto line 1, then Continue runs
+    // the rest of the script to completion. If the fix is missing,
+    // the call on line 3 raises "VM: undefined function 'add_one'".
+    std::string code =
+        "clear all;\n"
+        "x = 5;\n"
+        "y = add_one(x);\n"
+        "function out = add_one(v)\n"
+        "    out = v + 1;\n"
+        "end\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed)
+        << "debug mode must keep script-local functions across `clear all`";
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "unexpected error: " << session.errorMessage();
+
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 6.0);
+}
+
+// Same scenario, but stepping interactively through the top of the
+// script. After `clear all` on line 1, we step onto line 2 and then
+// line 3 — the local function must still be callable.
+TEST_F(DebugSessionTest, StepOverClearAllKeepsScriptLocalFunctions)
+{
+    DebugSession session(engine);
+    // No breakpoints → start() lands on line 1 in StepInto mode.
+    std::string code =
+        "clear all;\n"
+        "x = 10;\n"
+        "y = add_one(x);\n"
+        "function out = add_one(v)\n"
+        "    out = v + 1;\n"
+        "end\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 1);
+
+    // StepOver through lines 1 and 2 — exercises the post-clear state
+    // under the debugger's stepping path, not just free-run Continue.
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 2);
+
+    status = session.resume(DebugAction::StepOver);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3);
+
+    // Continue runs the add_one call and finishes.
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+    EXPECT_TRUE(session.errorMessage().empty())
+        << "unexpected error: " << session.errorMessage();
+
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 11.0);
+}

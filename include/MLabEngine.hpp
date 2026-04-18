@@ -81,8 +81,24 @@ public:
     bool hasUserFunction(const std::string &name) const;
     bool hasExternalFunction(const std::string &name) const;
 
-    // Clear user-defined functions from both TW and VM stores
+    // Clear user-defined functions from both TW and VM stores.
+    // Script-local functions of the currently-running script (see
+    // beginScript/endScript) are re-installed immediately afterward —
+    // MATLAB treats file-scoped functions as lexically part of the
+    // script, so `clear all` mid-execution must not make them
+    // disappear from under the calls that follow.
     void clearUserFunctions();
+
+    // Mark the entry/exit of a top-level script or function evaluation.
+    // While a script is active, any FUNCTION_DEF children are treated
+    // as the script's local functions and preserved across
+    // clearUserFunctions. Nesting is supported via an internal save
+    // stack, so recursive eval() calls don't lose their outer scope.
+    //
+    // The AST pointer must outlive the matching endScript() — the
+    // caller (eval, DebugSession) owns lifetime.
+    void beginScript(const ASTNode *ast);
+    void endScript();
 
     // --- Debugger API ---
     void setDebugObserver(std::shared_ptr<DebugObserver> observer);
@@ -162,6 +178,16 @@ private:
     // `clear all` does not drop them. Name presence also feeds
     // isReservedName() so these behave the same as `pi`/`eps`/…
     std::unordered_map<std::string, MValue> userConstants_;
+
+    // AST pointers to the currently-running script's local functions
+    // (populated by beginScript from top-level FUNCTION_DEFs). Used by
+    // clearUserFunctions to re-install them so a mid-script `clear all`
+    // doesn't strand later calls with "undefined function". The
+    // pointers are non-owning — callers (eval, DebugSession) keep the
+    // AST alive across the script's lifetime. Nested scripts push
+    // their previous state onto savedScriptLocalFuncs_.
+    std::vector<const ASTNode *> scriptLocalFuncs_;
+    std::vector<std::vector<const ASTNode *>> savedScriptLocalFuncs_;
 
     // Debugger
     std::shared_ptr<DebugObserver> debugObserver_;

@@ -64,13 +64,19 @@ ExecStatus DebugSession::start(const std::string &code)
         Lexer lexer(code);
         auto tokens = lexer.tokenize();
         Parser parser(tokens);
-        auto ast = parser.parse();
+        ast_ = parser.parse();
+
+        // Enter the engine's script scope: pointers into ast_ land in
+        // engine.scriptLocalFuncs_ so a `clear all` from inside the
+        // paused script re-installs its local functions. Matching
+        // endScript is called in deactivate() on completion/error/stop.
+        engine_.beginScript(ast_.get());
 
         engine_.vm_->clearLastVarMap();
 
         auto src = std::make_shared<const std::string>(code);
         auto *compiler = engine_.compilerPtr();
-        chunk_ = compiler->compile(ast.get(), src);
+        chunk_ = compiler->compile(ast_.get(), src);
         engine_.vm_->setCompiledFuncs(&compiler->compiledFuncs());
 
         // No breakpoints → pause on first line (StepInto) so the user can step.
@@ -85,22 +91,19 @@ ExecStatus DebugSession::start(const std::string &code)
             ws_.bindVMFrame(*engine_.vm_, engine_);
         } else {
             engine_.syncVMToWorkspace();
-            active_ = false;
-            engine_.setDebugObserver(nullptr);
+            deactivate();
         }
         return status;
     } catch (const MLabError &e) {
         engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         errorLine_ = e.line();
-        active_ = false;
-        engine_.setDebugObserver(nullptr);
+        deactivate();
         return ExecStatus::Completed;
     } catch (const std::exception &e) {
         engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
-        active_ = false;
-        engine_.setDebugObserver(nullptr);
+        deactivate();
         return ExecStatus::Completed;
     }
 }
@@ -126,21 +129,18 @@ ExecStatus DebugSession::resume(DebugAction action)
         if (status == ExecStatus::Paused) {
             ws_.bindVMFrame(*engine_.vm_, engine_);
         } else {
-            active_ = false;
-            engine_.setDebugObserver(nullptr);
+            deactivate();
         }
 
         return status;
     } catch (const MLabError &e) {
         errorMsg_ = e.what();
         errorLine_ = e.line();
-        active_ = false;
-        engine_.setDebugObserver(nullptr);
+        deactivate();
         return ExecStatus::Completed;
     } catch (const std::exception &e) {
         errorMsg_ = e.what();
-        active_ = false;
-        engine_.setDebugObserver(nullptr);
+        deactivate();
         return ExecStatus::Completed;
     }
 }
@@ -150,9 +150,19 @@ void DebugSession::stop()
     if (!active_)
         return;
 
+    deactivate();
+    ws_.reset();
+}
+
+void DebugSession::deactivate()
+{
+    if (!active_)
+        return;
     active_ = false;
     engine_.setDebugObserver(nullptr);
-    ws_.reset();
+    // Pair with the beginScript() at the start of this session.
+    engine_.endScript();
+    ast_.reset();
 }
 
 DebugSession::Snapshot DebugSession::snapshot() const

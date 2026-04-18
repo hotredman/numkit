@@ -15,6 +15,7 @@
 //
 #pragma once
 
+#include "MLabAst.hpp"
 #include "MLabBytecode.hpp"
 #include "MLabDebugger.hpp"
 #include "MLabDebugWorkspace.hpp"
@@ -86,11 +87,22 @@ public:
     bool isActive() const { return active_; }
 
 private:
+    // Tear down the shared "session is live" state (observer, script
+    // scope, AST). Called from every exit path — natural completion,
+    // error unwind, explicit stop.
+    void deactivate();
+
     Engine &engine_;
     bool active_ = false;
 
     // Compiled chunk (must outlive VM execution)
     BytecodeChunk chunk_;
+
+    // Parsed AST. Held for the lifetime of the debug session so the
+    // engine's scriptLocalFuncs_ (populated in start()) keeps valid
+    // pointers into it — clearUserFunctions walks that list whenever
+    // a `clear all` fires from inside the paused script.
+    ASTNodePtr ast_;
 
     // Error state
     std::string errorMsg_;
