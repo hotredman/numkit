@@ -163,7 +163,14 @@ public:
     }
 
     void setBreakpoints(const std::string &linesJson) {
+        // Reset state FIRST — if the JSON is malformed, we still want the
+        // engine's breakpoint manager to end up empty, not to retain a
+        // stale set from the previous call. A previous bug here caused
+        // "removed" breakpoints to keep firing because the early return
+        // on a bad parse skipped the bpm.clearAll().
         breakpointLines_.clear();
+        auto &bpm = engine_->breakpointManager();
+        bpm.clearAll();
 
         // Parse simple JSON array: [1, 5, 10]
         std::string s = linesJson;
@@ -180,9 +187,6 @@ public:
             if (line > 0) breakpointLines_.push_back(static_cast<uint16_t>(line));
         }
 
-        // Also update engine's breakpoint manager for legacy path
-        auto &bpm = engine_->breakpointManager();
-        bpm.clearAll();
         for (auto line : breakpointLines_)
             bpm.addBreakpoint(line);
     }

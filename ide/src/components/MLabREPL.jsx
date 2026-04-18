@@ -154,9 +154,17 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
       if (tabBps.has(line)) tabBps.delete(line);
       else tabBps.add(line);
       next[activeTab] = tabBps;
+
+      // Push the change to the engine right away. Without this, a
+      // breakpoint removed while paused would still fire until the next
+      // Continue, because the engine's breakpoint manager was only
+      // re-synced inside debugResume. The C++ side accepts mid-session
+      // updates (see DebugSession::setBreakpoints + lock-down tests).
+      engine.debugSetBreakpoints(Array.from(tabBps).sort((a, b) => a - b));
+
       return next;
     });
-  }, [activeTab]);
+  }, [activeTab, engine]);
 
   // Handle debug result from start or resume
   const handleDebugResult = useCallback((result) => {
