@@ -1,15 +1,19 @@
 /**
- * vfs.js — Virtual File System backed by IndexedDB
+ * temporary.js — IndexedDB-backed scratch filesystem for the MLab IDE.
  *
- * Stores files and folders for the MLab IDE.
+ * Called "Temporary" because it lives only inside the browser's
+ * IndexedDB: clearing site data wipes it, and it never syncs to the
+ * host machine. For real-disk access see the `Local Folder` source
+ * (File System Access API, Chromium-family browsers only).
+ *
  * Each entry: { path, type: 'file'|'folder', content?, modified }
  *
  * Usage:
- *   import vfs from './vfs';
- *   await vfs.init();
- *   await vfs.writeFile('/My Scripts/hello.m', 'disp("hello")');
- *   const code = await vfs.readFile('/My Scripts/hello.m');
- *   const tree = await vfs.listTree();
+ *   import tempFS from './temporary';
+ *   await tempFS.init();
+ *   await tempFS.writeFile('/My Scripts/hello.m', 'disp("hello")');
+ *   const code = await tempFS.readFile('/My Scripts/hello.m');
+ *   const tree = await tempFS.listTree();
  */
 
 const DB_NAME = 'mlab-vfs';
@@ -61,7 +65,7 @@ function normPath(p) {
   return p;
 }
 
-const vfs = {
+const tempFS = {
   /** Initialize the database */
   async init() {
     db = await openDB();
@@ -265,4 +269,4 @@ const vfs = {
   },
 };
 
-export default vfs;
+export default tempFS;

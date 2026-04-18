@@ -5,7 +5,7 @@ import Workspace from "./Workspace";
 import Reference from "./Reference";
 import Figures from "./Figures";
 import SyntaxEditor from "./SyntaxEditor";
-import vfs from "../vfs";
+import tempFS from "../temporary";
 import { useTheme, FONT, FONT_UI } from "../theme";
 
 function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
@@ -115,7 +115,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [vfsRefreshKey, setVfsRefreshKey] = useState(0);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
-  const [forceExplorerSource, setForceExplorerSource] = useState(null);
   const [consoleNotify, setConsoleNotify] = useState(false);
   const [figuresWidth, setFiguresWidth] = useState(360);
 
@@ -273,11 +272,13 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const runActiveTab=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab||!tab.code.trim())return;setShowBottom(true);setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:`── Running ${tab.name} ──`},{type:"input",text:tab.code}]);setConsoleNotify(true);runCode(tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));},[tabs,activeTab,addOutput,runCode]);
 
   const handleOpenFile=useCallback((filename,content,vfsPath,source)=>{const existing=tabs.find(t=>t.vfsPath&&t.vfsPath===vfsPath);if(existing){setActiveTab(existing.id);return;}tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:filename,code:content,modified:false,vfsPath:vfsPath||null,source:source||null}]);setActiveTab(id);setShowCenter(true);},[tabs]);
-  const handleSaveToVFS=useCallback(async(path,name)=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const fullPath=path||tab.vfsPath;if(!fullPath)return;await vfs.writeFile(fullPath,tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'local'}:t));setVfsRefreshKey(k=>k+1);addOutput([{type:"system",text:`Saved ${name||tab.name}`}]);setConsoleNotify(true);},[tabs,activeTab,addOutput]);
-  const handleSave=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;if(tab.vfsPath)handleSaveToVFS(tab.vfsPath,tab.name);else{setSaveFileName(tab.name);setShowSaveDialog(true);}},[tabs,activeTab,handleSaveToVFS]);
-  const handleSaveDialogSubmit=useCallback(async()=>{if(!saveFileName.trim())return;let name=saveFileName.trim();if(!name.includes('.'))name+='.m';await handleSaveToVFS(`/${name}`,name);setShowSaveDialog(false);},[saveFileName,handleSaveToVFS]);
-  const handleDownload=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const blob=new Blob([tab.code],{type:"text/plain"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=tab.name;a.click();URL.revokeObjectURL(url);},[tabs,activeTab]);
-  const handleImport=useCallback(()=>{const input=document.createElement("input");input.type="file";input.accept=".m,.txt";input.onchange=async e=>{const file=e.target.files[0];if(!file)return;const r=new FileReader();r.onload=async ev=>{const content=ev.target.result;const name=file.name.includes('.')?file.name:file.name+'.m';const vfsPath=`/${name}`;await vfs.writeFile(vfsPath,content);setVfsRefreshKey(k=>k+1);handleOpenFile(name,content,vfsPath,'local');setShowLeft(true);setForceExplorerSource('local');setTimeout(()=>setForceExplorerSource(null),100);addOutput([{type:"system",text:`Imported ${name}`}]);setConsoleNotify(true);};r.readAsText(file);};input.click();},[handleOpenFile,addOutput]);
+  const handleSaveToFS=useCallback(async(path,name)=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const fullPath=path||tab.vfsPath;if(!fullPath)return;await tempFS.writeFile(fullPath,tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'temporary'}:t));setVfsRefreshKey(k=>k+1);addOutput([{type:"system",text:`Saved ${name||tab.name}`}]);setConsoleNotify(true);},[tabs,activeTab,addOutput]);
+  const handleSave=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;if(tab.vfsPath)handleSaveToFS(tab.vfsPath,tab.name);else{setSaveFileName(tab.name);setShowSaveDialog(true);}},[tabs,activeTab,handleSaveToFS]);
+  const handleSaveDialogSubmit=useCallback(async()=>{if(!saveFileName.trim())return;let name=saveFileName.trim();if(!name.includes('.'))name+='.m';await handleSaveToFS(`/${name}`,name);setShowSaveDialog(false);},[saveFileName,handleSaveToFS]);
+  // Narrow predicate the FileBrowser uses to warn about unsaved tab content
+  // when the user asks to download a file. Keeps FileBrowser free of
+  // tab-state knowledge beyond "is the FS path currently dirty?".
+  const isTabUnsaved=useCallback((path)=>tabs.some(t=>t.vfsPath===path&&t.modified),[tabs]);
 
   useEffect(()=>{const h=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();handleSave();}};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[handleSave]);
   const handleResizeStart=useCallback(e=>{e.preventDefault();resizingRef.current=true;const sY=e.clientY,sH=bottomHeight;const onM=ev=>{if(!resizingRef.current)return;setBottomHeight(Math.max(100,Math.min(window.innerHeight*0.7,sH+sY-ev.clientY)));};const onU=()=>{resizingRef.current=false;document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU);};document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU);},[bottomHeight]);
@@ -306,8 +307,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           {showCenter&&!isDebugging&&<ActBtn onClick={debugStart} icon="🐛" label="Debug" color={C.orange} title="Run to breakpoint"/>}
           {showCenter&&isDebugging&&<ActBtn onClick={debugStop} icon="⏹" label="Stop" color={C.red} title="Stop debugging"/>}
           {showCenter&&<ActBtn onClick={handleSave} icon="💾" label="Save" title="Ctrl+S"/>}
-          <ActBtn onClick={handleImport} icon="📥" label="Import" title="Import file"/>
-          {showCenter&&<ActBtn onClick={handleDownload} icon="⬇" label="Export" title="Download"/>}
           <ActBtn onClick={()=>setOutput([])} icon="🗑" label="Clear" title="Clear console"/>
           <ActBtn onClick={()=>{engine.reset();setVariables({});setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:"Workspace cleared."}]);setConsoleNotify(true);}} icon="🔄" label="Reset" title="Reset workspace"/>
           <button onClick={toggleTheme} title={`Switch to ${themeName==='dark'?'light':'dark'} theme`}
@@ -332,7 +331,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} forceSource={forceExplorerSource}/></div>}
+          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved}/></div>}
           {showCenter&&<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
             <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} onCloseAll={closeAllTabs} onCloseExcept={closeOtherTabs}/>
             <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>
@@ -416,7 +415,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:6,height:6,borderRadius:"50%",background:statusProp==="ready"?C.green:C.yellow,display:"inline-block"}}/><span>{statusProp==="ready"?"WASM":"Demo"}</span>
           <span style={{color:C.border}}>|</span><span>{activeTabData?.name}</span>
-          {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📁 local</span></>}
+          {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📌 temporary</span></>}
           {figures.length>0&&<><span style={{color:C.border}}>|</span><span>{figures.length} figure{figures.length>1?"s":""}</span></>}
           {activeBreakpointsSet.size>0&&<><span style={{color:C.border}}>|</span><span style={{color:C.red}}>● {activeBreakpointsSet.size} bp</span></>}
           {isDebugging&&<><span style={{color:C.border}}>|</span><span style={{color:C.orange}}>⏸ line {debugState.line}</span></>}

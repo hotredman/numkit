@@ -1,30 +1,29 @@
 import { useState, useEffect } from 'react';
 import MLabREPL from './components/MLabREPL';
 import { createWasmEngine, createFallbackEngine } from './engine';
-import vfs from './vfs';
+import tempFS from './temporary';
 
 /**
- * App — initialises VFS + MLab engine (WASM or fallback)
- * On first run, populates VFS with example files from public/examples/
+ * App — initialises Temporary FS + MLab engine (WASM or fallback).
  */
 export default function App() {
   const [engine, setEngine] = useState(null);
   const [status, setStatus] = useState('loading');
   const [initMessage, setInitMessage] = useState('');
-  const [vfsReady, setVfsReady] = useState(false);
+  const [fsReady, setFsReady] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function init() {
-      // ── 1. Init VFS ──
+      // ── 1. Init Temporary FS ──
       try {
         setInitMessage('Initialising file system...');
-        await vfs.init();
-        if (!cancelled) setVfsReady(true);
+        await tempFS.init();
+        if (!cancelled) setFsReady(true);
       } catch (e) {
-        console.error('[VFS] Init failed:', e);
-        if (!cancelled) setVfsReady(true); // continue anyway
+        console.error('[TemporaryFS] Init failed:', e);
+        if (!cancelled) setFsReady(true); // continue anyway
       }
 
       // ── 2. Init Engine ──
@@ -56,7 +55,7 @@ export default function App() {
     return () => { cancelled = true; };
   }, []);
 
-  if (!engine || !vfsReady) {
+  if (!engine || !fsReady) {
     return (
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'center',

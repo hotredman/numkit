@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import vfs from '../vfs';
+import tempFS from '../temporary';
 import { useTheme, FONT, FONT_UI } from '../theme';
 
 const isMFile = name => name.endsWith('.m');
@@ -61,7 +61,7 @@ function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
   );
 }
 
-function LocalBrowser({ onOpenFile, onRefreshKey }) {
+function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = useState({});
@@ -71,24 +71,80 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
   const [renaming, setRenaming] = useState(null);
 
   const loadTree = useCallback(async () => {
-    try { setTree(await vfs.listTree()); } catch (e) { console.error('[VFS]', e); }
+    try { setTree(await tempFS.listTree()); } catch (e) { console.error('[TemporaryFS]', e); }
   }, []);
   useEffect(() => { loadTree(); }, [loadTree, onRefreshKey]);
 
   const handleFileDoubleClick = useCallback(async (node) => {
-    if (node.type === 'file') { const content = await vfs.readFile(node.path); onOpenFile(node.name, content !== null ? content : '', node.path, 'local'); }
+    if (node.type === 'file') { const content = await tempFS.readFile(node.path); onOpenFile(node.name, content !== null ? content : '', node.path, 'temporary'); }
   }, [onOpenFile]);
 
   const handleDuplicate = useCallback(async (node) => {
     if (node.type !== 'file') return;
-    const content = await vfs.readFile(node.path); if (content === null) return;
+    const content = await tempFS.readFile(node.path); if (content === null) return;
     const parent = node.path.substring(0, node.path.lastIndexOf('/'));
     const ext = node.name.includes('.') ? node.name.substring(node.name.lastIndexOf('.')) : '';
     const base = ext ? node.name.substring(0, node.name.lastIndexOf('.')) : node.name;
     let copyName = `${base}_copy${ext}`, copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`, counter = 2;
-    while (await vfs.exists(copyPath)) { copyName = `${base}_copy${counter}${ext}`; copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`; counter++; }
-    await vfs.writeFile(copyPath, content); loadTree();
+    while (await tempFS.exists(copyPath)) { copyName = `${base}_copy${counter}${ext}`; copyPath = parent ? `${parent}/${copyName}` : `/${copyName}`; counter++; }
+    await tempFS.writeFile(copyPath, content); loadTree();
   }, [loadTree]);
+
+  // Import one or more files into `folderPath` ('' = root). Prompts on
+  // collisions to keep it safe for the user. Does not touch tabs —
+  // if a file that's currently open gets overwritten, the tab keeps
+  // its in-memory state until the user closes / reopens it.
+  const handleImport = useCallback((folderPath) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      const parent = folderPath || '';
+      let imported = 0;
+      for (const file of files) {
+        const dest = parent ? `${parent}/${file.name}` : `/${file.name}`;
+        if (await tempFS.exists(dest)) {
+          const keep = confirm(
+            `"${file.name}" already exists in Temporary.\n\nOK — overwrite.\nCancel — keep existing (skip this file).`
+          );
+          if (!keep) continue;
+        }
+        const text = await file.text();
+        await tempFS.writeFile(dest, text);
+        imported++;
+      }
+      if (imported > 0) {
+        if (parent) setExpanded(p => ({ ...p, [parent]: true }));
+        loadTree();
+      }
+    };
+    input.click();
+  }, [loadTree]);
+
+  // Download one file from Temporary. Always reads the FS-committed
+  // copy — if the file is currently open with unsaved edits the user
+  // is warned so they can save first. Keeps this view free of
+  // tab-state coupling beyond the narrow `isTabUnsaved` predicate.
+  const handleDownload = useCallback(async (node) => {
+    if (node.type !== 'file') return;
+    if (isTabUnsaved && isTabUnsaved(node.path)) {
+      const ok = confirm(
+        `"${node.name}" has unsaved changes in the editor.\n\nThe download will contain the last saved content. Continue?`
+      );
+      if (!ok) return;
+    }
+    const content = await tempFS.readFile(node.path);
+    if (content === null) return;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = node.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [isTabUnsaved]);
 
   const handleContextMenu = (e, node) => {
     e.preventDefault(); e.stopPropagation();
@@ -96,15 +152,17 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     if (node.type === 'folder') {
       items.push({ icon: '📄', label: 'New File', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
       items.push({ icon: '📁', label: 'New Folder', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'folder' }); } });
+      items.push({ icon: '📥', label: 'Import file(s) here…', action: () => handleImport(node.path) });
       items.push({ separator: true });
     }
     if (node.type === 'file') {
       items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
       items.push({ icon: '📋', label: 'Duplicate', action: () => handleDuplicate(node) });
+      items.push({ icon: '⬇', label: 'Download', action: () => handleDownload(node) });
       items.push({ separator: true });
     }
     items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
-    items.push({ icon: '🗑', label: 'Delete', danger: true, action: async () => { if (confirm(`Delete "${node.name}"?`)) { await vfs.remove(node.path); loadTree(); } } });
+    items.push({ icon: '🗑', label: 'Delete', danger: true, action: async () => { if (confirm(`Delete "${node.name}"?`)) { await tempFS.remove(node.path); loadTree(); } } });
     setContextMenu({ x: e.clientX, y: e.clientY, items });
   };
 
@@ -113,6 +171,7 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     setContextMenu({ x: e.clientX, y: e.clientY, items: [
       { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
       { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
+      { icon: '📥', label: 'Import file(s) here…', action: () => handleImport('') },
     ]});
   };
 
@@ -120,15 +179,15 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
     if (!name || !creating) { setCreating(null); return; }
     const parent = creating.parentPath || '';
     const path = parent ? `${parent}/${name}` : `/${name}`;
-    if (creating.type === 'folder') await vfs.mkdir(path);
-    else { const fn = name.includes('.') ? name : name + '.m'; const fp = parent ? `${parent}/${fn}` : `/${fn}`; await vfs.writeFile(fp, `% ${fn}\n`); }
+    if (creating.type === 'folder') await tempFS.mkdir(path);
+    else { const fn = name.includes('.') ? name : name + '.m'; const fp = parent ? `${parent}/${fn}` : `/${fn}`; await tempFS.writeFile(fp, `% ${fn}\n`); }
     setCreating(null); loadTree();
   };
 
   const handleRename = async newName => {
     if (!newName || !renaming) { setRenaming(null); return; }
     const parent = renaming.substring(0, renaming.lastIndexOf('/'));
-    await vfs.rename(renaming, `${parent}/${newName}`);
+    await tempFS.rename(renaming, `${parent}/${newName}`);
     setRenaming(null); loadTree();
   };
 
@@ -162,10 +221,10 @@ function LocalBrowser({ onOpenFile, onRefreshKey }) {
         <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
         <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
         <div style={{ flex: 1 }} />
-        <button onClick={async () => { if (confirm('Clear all local files?')) { await vfs.clear(); loadTree(); } }} title="Clear all" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>🗑</button>
+        <button onClick={async () => { if (confirm('Clear all Temporary files?')) { await tempFS.clear(); loadTree(); } }} title="Clear all" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>🗑</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>
-        {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No files yet.<br />Click 📄+ to create a file.</div> : renderTree(tree)}
+        {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No files yet.<br />Click 📄+ to create a file<br />or right-click to Import.</div> : renderTree(tree)}
         {creating && (creating.parentPath === '' || creating.parentPath === '/') && <div style={{ padding: '2px 6px', paddingLeft: 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
       </div>
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />}
@@ -357,22 +416,22 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
   );
 }
 
-export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey }) {
+export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved }) {
   const C = useTheme();
-  const [source, setSource] = useState('local');
+  const [source, setSource] = useState('temporary');
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontFamily: FONT_UI, flexShrink: 0 }}>📂</span>
         <select value={source} onChange={e => setSource(e.target.value)}
           style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, fontFamily: FONT_UI, cursor: 'pointer', outline: 'none', flex: 1 }}>
-          <option value="local">💾 Local Files</option>
+          <option value="temporary">📌 Temporary</option>
           <option value="examples">📋 Examples</option>
           <option value="github">🐙 GitHub</option>
         </select>
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {source === 'local' && <LocalBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} />}
+        {source === 'temporary' && <TemporaryBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} />}
         {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} />}
         {source === 'github' && <GitHubBrowser onOpenFile={onOpenFile} defaultRepo={defaultGitHubRepo} />}
       </div>
