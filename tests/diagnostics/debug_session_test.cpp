@@ -990,3 +990,78 @@ TEST_F(DebugSessionTest, VariablesAccumulateDuringSteps)
     EXPECT_TRUE(hasA);
     EXPECT_TRUE(hasB);
 }
+
+// ============================================================
+// Removing a breakpoint mid-session — via setBreakpoints() with an
+// updated list — must take effect on the next resume.
+// ============================================================
+
+TEST_F(DebugSessionTest, RemovingBreakpointMidSessionStopsFuturePauses)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    // bp inside a 3-iteration for-loop body (line 2): without removal
+    // we'd pause three times.
+    std::string code =
+        "for i = 1:3\n"
+        "    x = i;\n"
+        "end\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused) << "first iteration should pause";
+
+    // Simulate the IDE refreshing the breakpoint list before resume — now
+    // with an empty list (user clicked the gutter to remove the bp).
+    session.setBreakpoints({});
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed)
+        << "after clearing breakpoints, continue must run to completion";
+}
+
+TEST_F(DebugSessionTest, RemovingOneOfTwoBreakpointsOnlyOtherFires)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1, 3});
+
+    std::string code = "a = 1;\nb = 2;\nc = 3;\nd = 4;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 1) << "first bp at line 1";
+
+    // Drop the first bp. Only bp at line 3 should remain.
+    session.setBreakpoints({3});
+
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3)
+        << "second pause must be on the surviving bp, not the removed one";
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
+
+TEST_F(DebugSessionTest, AddBreakpointMidSessionFiresAfterResume)
+{
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    std::string code = "a = 1;\nb = 2;\nc = 3;\n";
+
+    auto status = startDebug(session, code);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 1);
+
+    // Add bp at line 3 mid-session.
+    session.setBreakpoints({1, 3});
+
+    status = session.resume(DebugAction::Continue);
+    ASSERT_EQ(status, ExecStatus::Paused);
+    EXPECT_EQ(session.snapshot().line, 3)
+        << "newly-added bp must fire on next continue";
+
+    status = session.resume(DebugAction::Continue);
+    EXPECT_EQ(status, ExecStatus::Completed);
+}
