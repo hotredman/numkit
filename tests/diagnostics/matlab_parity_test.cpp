@@ -96,6 +96,53 @@ TEST_P(MatlabParity, AnsRebindsEachEval)
     EXPECT_DOUBLE_EQ(getVar("ans"), 100.0);
 }
 
+TEST_P(MatlabParity, AnsInsideMultiStatementScript)
+{
+    // Multi-statement eval — bare expressions anywhere in the script must
+    // commit to `ans`, and the final `ans` must be in the workspace after
+    // the whole eval finishes. Several prior bare expressions → ans gets
+    // rebound each time.
+    capturedOutput.clear();
+    eval(R"(
+        x = 7;
+        5 + 3;
+        2 * 10;
+    )");
+    EXPECT_TRUE(hasVar("ans")) << "ans must be in workspace after multi-stmt script";
+    EXPECT_DOUBLE_EQ(getVar("ans"), 20.0)
+        << "ans should hold the last bare-expression value";
+    EXPECT_TRUE(hasVar("x"));
+}
+
+TEST_P(MatlabParity, AnsFromLastBareExpressionInScript)
+{
+    // Last line is a bare expression with no semicolon — ans in workspace,
+    // display shown.
+    capturedOutput.clear();
+    eval(R"(
+        a = 1;
+        b = 2;
+        a + b
+    )");
+    EXPECT_TRUE(hasVar("ans"));
+    EXPECT_DOUBLE_EQ(getVar("ans"), 3.0);
+    EXPECT_NE(capturedOutput.find("ans"), std::string::npos)
+        << "bare expression at end of script must display 'ans'; got: "
+        << capturedOutput;
+}
+
+TEST_P(MatlabParity, AnsReachableByNextEvalAfterScript)
+{
+    // After a multi-statement script produces ans, a subsequent eval must
+    // see it (cross-eval persistence of ans).
+    eval(R"(
+        x = 10;
+        5 + 3;
+    )");
+    eval("y = ans + 100;");
+    EXPECT_DOUBLE_EQ(getVar("y"), 108.0);
+}
+
 // ============================================================
 // #2 — Bare identifier display label
 // ============================================================

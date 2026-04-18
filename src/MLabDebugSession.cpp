@@ -240,36 +240,65 @@ std::string DebugSession::eval(const std::string &code)
         evalOutput = std::string("Error: ") + e.what();
     }
 
+    // Snapshot what the inner eval actually *wrote*. vm_->lastVarMap() only
+    // contains names that the inner chunk assigned (compiler's assignedVars
+    // drives this set), so it's the authoritative list of "what did the
+    // console code change?" — untouched pass-through names don't show up
+    // here and therefore won't get incorrectly tagged as shadowed.
+    std::unordered_map<std::string, MValue> innerAssigned;
+    for (auto &[n, v] : engine_.vm_->lastVarMap())
+        innerAssigned[n] = v;
+
     // 6. Restore paused VM state BEFORE diffing back so ws_'s frame pointers
     //    are pointing at the user's registers again.
     engine_.vm_->restorePausedState(std::move(savedVMState));
     ws_.bindVMFrame(*engine_.vm_);
 
-    // 7. Diff-back through DebugWorkspace:
-    //    - For each injected name: if absent (or empty/unset/deleted) in
-    //      workspaceEnv after eval, the user cleared it → ws_.remove(). If
-    //      present, write the new value.
-    //    - Any new name in workspaceEnv is a console-created variable →
-    //      ws_.set() lands it in the overlay (no frame slot exists).
+    // 7. Apply the inner eval's effects to ws_.
+    //
+    //    - Names the inner eval ASSIGNED (present in innerAssigned): write
+    //      through to ws_. A built-in written here becomes a real shadow.
+    //    - Names that were injected but the inner eval REMOVED from the
+    //      base workspace (i.e. `clear x`): ws_.remove().
+    //    - Names that were injected and are still present unchanged: pure
+    //      pass-through, no action — avoids falsely flagging every injected
+    //      built-in as shadowed just because it survived the round trip.
+    //    - Names the inner eval newly introduced (not injected, but present
+    //      in innerAssigned with a non-empty value): ws_.set() lands them
+    //      in the overlay. This is the `ans` path for bare-expression
+    //      console inputs like `cos(10)`.
     {
         auto wsNames = genv.localNames();
         std::unordered_set<std::string> nowNames(wsNames.begin(), wsNames.end());
 
+        // nargin/nargout are pseudo-vars bound per-function-call; don't
+        // propagate them to the overlay where they'd masquerade as
+        // persistent workspace state.
+        auto isTransientPseudo = [](const std::string &n) {
+            return n == "nargin" || n == "nargout";
+        };
+
         for (auto &name : injectedNames) {
-            auto *val = nowNames.count(name) ? genv.getLocal(name) : nullptr;
-            if (!val || val->isUnset() || val->isDeleted())
+            auto it = innerAssigned.find(name);
+            if (it != innerAssigned.end()) {
+                const MValue &v = it->second;
+                if (v.isUnset() || v.isDeleted())
+                    ws_.remove(name);
+                else
+                    ws_.set(name, v);
+            } else if (!nowNames.count(name)) {
+                // Injected but now missing → cleared by the inner eval.
                 ws_.remove(name);
-            else
-                ws_.set(name, *val);
+            }
+            // else: untouched, pass through.
         }
-        for (auto &name : wsNames) {
-            if (name == "ans" || name == "nargin" || name == "nargout")
-                continue;
+        for (auto &[name, val] : innerAssigned) {
             if (injectedNames.count(name))
+                continue; // already handled above
+            if (isTransientPseudo(name))
                 continue;
-            auto *val = genv.getLocal(name);
-            if (val && !val->isUnset() && !val->isDeleted())
-                ws_.set(name, *val);
+            if (!val.isUnset() && !val.isDeleted())
+                ws_.set(name, val);
         }
     }
 

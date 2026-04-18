@@ -521,6 +521,69 @@ TEST(DebugEvalInjectTest, ConsoleShadowPersistsAcrossResume)
         << "console-shadowed pi must persist across a resume";
 }
 
+// User-reported: in debug mode, typing a bare expression like `cos(10)` in
+// the console must put `ans` into the debug snapshot (= the Workspace panel
+// of the IDE), with the computed value. Built-in constants referenced by
+// the paused script must NOT leak into the snapshot.
+TEST(DebugEvalInjectTest, ConsoleBareExpressionMakesAnsVisible)
+{
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({1});
+
+    auto status = session.start("x = 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    // ans must not be there yet.
+    auto before = session.snapshot();
+    for (auto &v : before.variables)
+        EXPECT_NE(v.name, "ans") << "pre-console snapshot should not list ans";
+
+    session.eval("cos(10)");
+
+    auto after = session.snapshot();
+    bool sawAns = false;
+    double ansVal = 0;
+    for (auto &v : after.variables) {
+        if (v.name == "ans" && v.value) {
+            sawAns = true;
+            ansVal = v.value->toScalar();
+        }
+    }
+    EXPECT_TRUE(sawAns) << "after `cos(10)` in console, ans must be in snapshot";
+    EXPECT_NEAR(ansVal, std::cos(10.0), 1e-12);
+}
+
+TEST(DebugEvalInjectTest, ConsoleBareExpressionDoesNotExposeReferencedBuiltins)
+{
+    // The script touches `pi`, which therefore ends up in varMap via
+    // preImport. A console bare-expression must not incidentally surface
+    // `pi` (or any other reserved name) in the snapshot — only the
+    // `ans` it actually set.
+    Engine engine;
+    engine.setOutputFunc([](const std::string &) {});
+
+    DebugSession session(engine);
+    session.setBreakpoints({2});
+
+    auto status = session.start("r = pi;\ns = r + 1;\n");
+    ASSERT_EQ(status, ExecStatus::Paused);
+
+    session.eval("cos(10)");
+
+    auto snap = session.snapshot();
+    for (auto &v : snap.variables) {
+        EXPECT_NE(v.name, "pi")
+            << "pi was only read by the script, must not show up in snapshot";
+    }
+    bool sawAns = false;
+    for (auto &v : snap.variables)
+        if (v.name == "ans") sawAns = true;
+    EXPECT_TRUE(sawAns) << "ans from console eval must be in snapshot";
+}
+
 TEST(DebugEvalInjectTest, ConsoleShadowRoundTrip)
 {
     // pi shadowed via console then cleared — must no longer show up in the
