@@ -356,6 +356,11 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
     URL.revokeObjectURL(url);
   }, [isTabUnsaved]);
 
+  // Whether the mounted backend can launch the OS file manager.
+  // True only in the Electron desktop shell (native preload bridge);
+  // web Chromium has FSA handles with no underlying OS path.
+  const canReveal = useMemo(() => localFS.supportsReveal(), []);
+
   const handleContextMenu = (e, node) => {
     e.preventDefault(); e.stopPropagation();
     const items = [];
@@ -363,11 +368,19 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
       items.push({ icon: '📄', label: 'New File', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
       items.push({ icon: '📁', label: 'New Folder', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'folder' }); } });
       items.push({ icon: '📥', label: 'Import file(s) here…', action: () => handleImport(node.path) });
+      if (canReveal) items.push({ icon: '📂', label: 'Reveal in Explorer', action: async () => {
+        try { await localFS.revealInExplorer(node.path); }
+        catch (err) { alert('Reveal failed: ' + (err?.message || err)); }
+      }});
       items.push({ separator: true });
     }
     if (node.type === 'file') {
       items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
       items.push({ icon: '⬇', label: 'Download', action: () => handleDownload(node) });
+      if (canReveal) items.push({ icon: '📂', label: 'Reveal in Explorer', action: async () => {
+        try { await localFS.showItemInFolder(node.path); }
+        catch (err) { alert('Reveal failed: ' + (err?.message || err)); }
+      }});
       items.push({ separator: true });
     }
     items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
@@ -381,11 +394,16 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
   const handleRootContextMenu = (e) => {
     if (status !== 'connected') return;
     e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, items: [
+    const items = [
       { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
       { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
       { icon: '📥', label: 'Import file(s) here…', action: () => handleImport('') },
-    ]});
+    ];
+    if (canReveal) items.push({ icon: '📂', label: 'Reveal in Explorer', action: async () => {
+      try { await localFS.revealInExplorer(''); }
+      catch (err) { alert('Reveal failed: ' + (err?.message || err)); }
+    }});
+    setContextMenu({ x: e.clientX, y: e.clientY, items });
   };
 
   const handleCreate = async name => {
@@ -456,7 +474,8 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
         <span title={mountName} style={{ flex: 1, fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_UI }}>💾 {mountName}</span>
         <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
         <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
-        <button onClick={handlePick} title="Change folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📂</button>
+        {canReveal && <button onClick={async () => { try { await localFS.revealInExplorer(''); } catch (err) { alert('Reveal failed: ' + (err?.message || err)); } }} title="Reveal current folder in Explorer" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📂</button>}
+        <button onClick={handlePick} title="Change folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>🔄</button>
         <button onClick={handleDisconnect} title="Unmount folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>✕</button>
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>

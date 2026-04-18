@@ -2,15 +2,17 @@
 // Supports two modes:
 //   Dev mode:  spawns Vite dev server, loads from http://
 //   Prod mode: loads pre-built static files from dist/
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, dialog, shell, ipcMain } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const fsp = require('fs/promises');
 const http = require('http');
 
 const IDE_DIR = path.resolve(__dirname, '..');
 const DIST_DIR = path.join(__dirname, 'dist');
 const IS_PROD = fs.existsSync(path.join(DIST_DIR, 'index.html'));
+const PRELOAD = path.join(__dirname, 'preload.js');
 
 let mainWindow = null;
 let viteProcess = null;
@@ -23,6 +25,7 @@ function createWindow(url) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      preload: PRELOAD,
     },
   });
 
@@ -131,4 +134,109 @@ app.on('window-all-closed', () => {
     viteProcess = null;
   }
   app.quit();
+});
+
+// ── Native filesystem bridge (counterpart of preload.js) ──────────
+//
+// All "real FS" operations the renderer makes via window.nativeFS
+// land here. The renderer always passes (root, relPath); safePath()
+// enforces that relPath resolves inside root so a compromised
+// renderer can't escape to arbitrary disk locations.
+
+function safePath(root, relPath) {
+  const cleaned = String(relPath || '').replace(/^\/+/, '');
+  const resolvedRoot = path.resolve(root);
+  const full = path.resolve(resolvedRoot, cleaned);
+  if (full !== resolvedRoot && !full.startsWith(resolvedRoot + path.sep)) {
+    throw new Error('Path escapes mounted root: ' + relPath);
+  }
+  return full;
+}
+
+ipcMain.handle('fs:pickDirectory', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Folder',
+    properties: ['openDirectory', 'createDirectory'],
+  });
+  if (result.canceled || !result.filePaths || !result.filePaths[0]) return null;
+  return result.filePaths[0];
+});
+
+ipcMain.handle('fs:listTree', async (_e, root) => {
+  async function walk(dir, rel) {
+    const list = await fsp.readdir(dir, { withFileTypes: true });
+    const entries = [];
+    for (const d of list) {
+      // Skip obvious junk that shouldn't clutter the tree.
+      if (d.name.startsWith('.DS_Store')) continue;
+      const full = path.join(dir, d.name);
+      const itemPath = rel === '/' ? `/${d.name}` : `${rel}/${d.name}`;
+      const node = {
+        name: d.name,
+        path: itemPath,
+        type: d.isDirectory() ? 'folder' : 'file',
+      };
+      if (d.isDirectory()) {
+        try { node.children = await walk(full, itemPath); }
+        catch (err) { node.children = []; }
+      }
+      entries.push(node);
+    }
+    entries.sort((a, b) => {
+      if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+    return entries;
+  }
+  return walk(path.resolve(root), '/');
+});
+
+ipcMain.handle('fs:readFile', async (_e, root, relPath) => {
+  const full = safePath(root, relPath);
+  try { return await fsp.readFile(full, 'utf8'); }
+  catch (err) {
+    if (err.code === 'ENOENT' || err.code === 'EISDIR') return null;
+    throw err;
+  }
+});
+
+ipcMain.handle('fs:writeFile', async (_e, root, relPath, content) => {
+  const full = safePath(root, relPath);
+  await fsp.mkdir(path.dirname(full), { recursive: true });
+  await fsp.writeFile(full, content == null ? '' : String(content), 'utf8');
+});
+
+ipcMain.handle('fs:mkdir', async (_e, root, relPath) => {
+  const full = safePath(root, relPath);
+  await fsp.mkdir(full, { recursive: true });
+});
+
+ipcMain.handle('fs:remove', async (_e, root, relPath) => {
+  const full = safePath(root, relPath);
+  if (full === path.resolve(root)) throw new Error('Refusing to remove mount root');
+  await fsp.rm(full, { recursive: true, force: true });
+});
+
+ipcMain.handle('fs:rename', async (_e, root, oldRel, newRel) => {
+  const srcFull = safePath(root, oldRel);
+  const dstFull = safePath(root, newRel);
+  await fsp.mkdir(path.dirname(dstFull), { recursive: true });
+  await fsp.rename(srcFull, dstFull);
+});
+
+ipcMain.handle('fs:exists', async (_e, root, relPath) => {
+  try { await fsp.access(safePath(root, relPath)); return true; }
+  catch (_) { return false; }
+});
+
+ipcMain.handle('shell:reveal', async (_e, root, relPath) => {
+  // Empty relPath → reveal the mount root itself.
+  const full = relPath ? safePath(root, relPath) : path.resolve(root);
+  const errMsg = await shell.openPath(full);
+  if (errMsg) throw new Error(errMsg);
+});
+
+ipcMain.handle('shell:showItem', async (_e, root, relPath) => {
+  const full = safePath(root, relPath);
+  shell.showItemInFolder(full);
 });
