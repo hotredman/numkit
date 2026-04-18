@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import tempFS from '../temporary';
+import localFS from '../fs/local';
 import { useTheme, FONT, FONT_UI } from '../theme';
 
 const isMFile = name => name.endsWith('.m');
@@ -129,7 +130,7 @@ function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
   // tab-state coupling beyond the narrow `isTabUnsaved` predicate.
   const handleDownload = useCallback(async (node) => {
     if (node.type !== 'file') return;
-    if (isTabUnsaved && isTabUnsaved(node.path)) {
+    if (isTabUnsaved && isTabUnsaved(node.path, 'temporary')) {
       const ok = confirm(
         `"${node.name}" has unsaved changes in the editor.\n\nThe download will contain the last saved content. Continue?`
       );
@@ -225,6 +226,241 @@ function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
       </div>
       <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>
         {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>No files yet.<br />Click 📄+ to create a file<br />or right-click to Import.</div> : renderTree(tree)}
+        {creating && (creating.parentPath === '' || creating.parentPath === '/') && <div style={{ padding: '2px 6px', paddingLeft: 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
+      </div>
+      {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />}
+    </div>
+  );
+}
+
+// ── Local Folder: real disk access via File System Access API ──────
+//
+// Only rendered when localFS.isAvailable() (Chromium-family browsers
+// and the Electron desktop shell). Mirrors TemporaryBrowser's
+// operations over a real directory the user picks through the native
+// folder-picker dialog. The directory handle is cached in IndexedDB
+// so reopening the IDE restores the tree after a permission refresh.
+function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
+  const C = useTheme();
+  const [tree, setTree] = useState([]);
+  const [mountName, setMountName] = useState(null);
+  const [status, setStatus] = useState('idle'); // idle | connecting | connected | denied
+  const [error, setError] = useState(null);
+  const [expanded, setExpanded] = useState({});
+  const [selected, setSelected] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const [creating, setCreating] = useState(null);
+  const [renaming, setRenaming] = useState(null);
+
+  const loadTree = useCallback(async () => {
+    try { setTree(await localFS.listTree()); } catch (e) { console.error('[LocalFS]', e); setError(String(e?.message || e)); }
+  }, []);
+
+  // On mount, try to silently reconnect to the previously-picked folder.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const name = await localFS.reconnect();
+        if (cancelled) return;
+        if (name) {
+          setMountName(name);
+          setStatus('connected');
+          await loadTree();
+        }
+      } catch (e) {
+        if (!cancelled) setError(String(e?.message || e));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [loadTree]);
+
+  const handlePick = useCallback(async () => {
+    setError(null);
+    setStatus('connecting');
+    try {
+      const name = await localFS.pickDirectory();
+      if (name) {
+        setMountName(name);
+        setStatus('connected');
+        await loadTree();
+      } else {
+        setStatus(mountName ? 'connected' : 'idle');
+      }
+    } catch (e) {
+      setError(String(e?.message || e));
+      setStatus('denied');
+    }
+  }, [mountName, loadTree]);
+
+  const handleDisconnect = useCallback(async () => {
+    if (!confirm('Unmount this folder? Your files on disk are not affected.')) return;
+    await localFS.disconnect();
+    setMountName(null);
+    setStatus('idle');
+    setTree([]);
+    setExpanded({});
+    setSelected(null);
+  }, []);
+
+  const handleFileDoubleClick = useCallback(async (node) => {
+    if (node.type === 'file') {
+      const content = await localFS.readFile(node.path);
+      onOpenFile(node.name, content !== null ? content : '', node.path, 'localFolder');
+    }
+  }, [onOpenFile]);
+
+  const handleImport = useCallback((folderPath) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.onchange = async (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      const parent = folderPath || '';
+      let imported = 0;
+      for (const file of files) {
+        const dest = parent ? `${parent}/${file.name}` : `/${file.name}`;
+        if (await localFS.exists(dest)) {
+          const ok = confirm(`"${file.name}" already exists on disk.\n\nOK — overwrite.\nCancel — keep existing (skip this file).`);
+          if (!ok) continue;
+        }
+        const text = await file.text();
+        await localFS.writeFile(dest, text);
+        imported++;
+      }
+      if (imported > 0) {
+        if (parent) setExpanded(p => ({ ...p, [parent]: true }));
+        loadTree();
+      }
+    };
+    input.click();
+  }, [loadTree]);
+
+  const handleDownload = useCallback(async (node) => {
+    if (node.type !== 'file') return;
+    if (isTabUnsaved && isTabUnsaved(node.path, 'localFolder')) {
+      const ok = confirm(
+        `"${node.name}" has unsaved changes in the editor.\n\nThe download will contain the on-disk content. Continue?`
+      );
+      if (!ok) return;
+    }
+    const content = await localFS.readFile(node.path);
+    if (content === null) return;
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = node.name;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [isTabUnsaved]);
+
+  const handleContextMenu = (e, node) => {
+    e.preventDefault(); e.stopPropagation();
+    const items = [];
+    if (node.type === 'folder') {
+      items.push({ icon: '📄', label: 'New File', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'file' }); } });
+      items.push({ icon: '📁', label: 'New Folder', action: () => { setExpanded(p => ({ ...p, [node.path]: true })); setCreating({ parentPath: node.path, type: 'folder' }); } });
+      items.push({ icon: '📥', label: 'Import file(s) here…', action: () => handleImport(node.path) });
+      items.push({ separator: true });
+    }
+    if (node.type === 'file') {
+      items.push({ icon: '📝', label: 'Open in Editor', action: () => handleFileDoubleClick(node) });
+      items.push({ icon: '⬇', label: 'Download', action: () => handleDownload(node) });
+      items.push({ separator: true });
+    }
+    items.push({ icon: '✏️', label: 'Rename', action: () => setRenaming(node.path) });
+    items.push({ icon: '🗑', label: 'Delete', danger: true, action: async () => {
+      if (!confirm(`Delete "${node.name}" on disk?`)) return;
+      try { await localFS.remove(node.path); loadTree(); } catch (e) { alert('Delete failed: ' + (e?.message || e)); }
+    }});
+    setContextMenu({ x: e.clientX, y: e.clientY, items });
+  };
+
+  const handleRootContextMenu = (e) => {
+    if (status !== 'connected') return;
+    e.preventDefault();
+    setContextMenu({ x: e.clientX, y: e.clientY, items: [
+      { icon: '📄', label: 'New File', action: () => setCreating({ parentPath: '', type: 'file' }) },
+      { icon: '📁', label: 'New Folder', action: () => setCreating({ parentPath: '', type: 'folder' }) },
+      { icon: '📥', label: 'Import file(s) here…', action: () => handleImport('') },
+    ]});
+  };
+
+  const handleCreate = async name => {
+    if (!name || !creating) { setCreating(null); return; }
+    const parent = creating.parentPath || '';
+    const path = parent ? `${parent}/${name}` : `/${name}`;
+    try {
+      if (creating.type === 'folder') await localFS.mkdir(path);
+      else { const fn = name.includes('.') ? name : name + '.m'; const fp = parent ? `${parent}/${fn}` : `/${fn}`; await localFS.writeFile(fp, `% ${fn}\n`); }
+    } catch (e) { alert('Create failed: ' + (e?.message || e)); }
+    setCreating(null); loadTree();
+  };
+
+  const handleRename = async newName => {
+    if (!newName || !renaming) { setRenaming(null); return; }
+    const parent = renaming.substring(0, renaming.lastIndexOf('/'));
+    try { await localFS.rename(renaming, `${parent}/${newName}`); }
+    catch (e) { alert('Rename failed: ' + (e?.message || e)); }
+    setRenaming(null); loadTree();
+  };
+
+  const renderTree = (nodes, depth = 0) => nodes.map(node => {
+    if (renaming === node.path) return <div key={node.path} style={{ padding: '2px 6px', paddingLeft: depth * 14 + 6 }}><InlineInput defaultValue={node.name} onSubmit={handleRename} onCancel={() => setRenaming(null)} /></div>;
+    const isDir = node.type === 'folder', isExp = expanded[node.path], isSel = selected === node.path;
+    return (
+      <div key={node.path}>
+        <div onClick={() => isDir ? setExpanded(p => ({ ...p, [node.path]: !p[node.path] })) : setSelected(node.path)}
+          onDoubleClick={() => !isDir && handleFileDoubleClick(node)}
+          onContextMenu={e => handleContextMenu(e, node)}
+          style={rowStyle(isSel, isDir, node.name, depth, C)}
+          onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = C.bg3; }}
+          onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = 'transparent'; }}>
+          {isDir ? <span style={{ fontSize: 9, width: 12, textAlign: 'center', color: C.textMuted }}>{isExp ? '▼' : '▶'}</span>
+                 : <span style={{ fontSize: 10, width: 12, textAlign: 'center' }}>📄</span>}
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{isDir ? '📁 ' : ''}{node.name}</span>
+          {!isDir && isMFile(node.name) && <span style={{ fontSize: 7, padding: '0 3px', borderRadius: 2, background: `${C.green}22`, color: C.green }}>M</span>}
+        </div>
+        {isDir && isExp && (<>
+          {creating && creating.parentPath === node.path && <div style={{ padding: '2px 6px', paddingLeft: (depth + 1) * 14 + 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
+          {node.children && renderTree(node.children, depth + 1)}
+        </>)}
+      </div>
+    );
+  });
+
+  // ── States ──
+  if (status === 'idle') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 16, textAlign: 'center', color: C.textDim, fontSize: 11, gap: 10 }}>
+        <div style={{ fontSize: 11, lineHeight: 1.6 }}>Pick a folder on your disk.<br />Files are read and saved in place.</div>
+        <button onClick={handlePick} style={{ padding: '6px 12px', borderRadius: 4, fontSize: 11, background: C.accent, color: '#fff', border: 'none', cursor: 'pointer', fontFamily: FONT_UI, fontWeight: 600 }}>📂 Open Folder…</button>
+      </div>
+    );
+  }
+  if (status === 'denied') {
+    return (
+      <div style={{ padding: 14, fontSize: 11, color: C.textDim, lineHeight: 1.5 }}>
+        <div style={{ color: C.red, marginBottom: 8 }}>Permission denied.</div>
+        {error && <div style={{ marginBottom: 8, color: C.textMuted, fontFamily: FONT, fontSize: 10 }}>{error}</div>}
+        <button onClick={handlePick} style={{ padding: '5px 10px', borderRadius: 4, fontSize: 11, background: C.bg2, color: C.text, border: `1px solid ${C.border}`, cursor: 'pointer', fontFamily: FONT_UI }}>🔄 Try again</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', gap: 3, padding: '6px 8px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, alignItems: 'center' }}>
+        <span title={mountName} style={{ flex: 1, fontSize: 10, color: C.textDim, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT_UI }}>💾 {mountName}</span>
+        <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
+        <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
+        <button onClick={handlePick} title="Change folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📂</button>
+        <button onClick={handleDisconnect} title="Unmount folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>✕</button>
+      </div>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '3px 0' }} onContextMenu={handleRootContextMenu}>
+        {tree.length === 0 ? <div style={{ padding: 16, textAlign: 'center', color: C.textMuted, fontSize: 10, lineHeight: 1.6 }}>Empty folder.<br />Right-click to add files.</div> : renderTree(tree)}
         {creating && (creating.parentPath === '' || creating.parentPath === '/') && <div style={{ padding: '2px 6px', paddingLeft: 6 }}><InlineInput defaultValue="" placeholder={creating.type === 'folder' ? 'folder name' : 'filename.m'} onSubmit={handleCreate} onCancel={() => setCreating(null)} /></div>}
       </div>
       {contextMenu && <ContextMenu x={contextMenu.x} y={contextMenu.y} items={contextMenu.items} onClose={() => setContextMenu(null)} />}
@@ -419,6 +655,10 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
 export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved }) {
   const C = useTheme();
   const [source, setSource] = useState('temporary');
+  // File System Access API presence is fixed per-browser-session.
+  // Firefox / Safari report false and the "Local Folder" option is
+  // simply not offered.
+  const hasLocalFolder = useMemo(() => localFS.isAvailable(), []);
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -426,12 +666,14 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
         <select value={source} onChange={e => setSource(e.target.value)}
           style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, fontFamily: FONT_UI, cursor: 'pointer', outline: 'none', flex: 1 }}>
           <option value="temporary">📌 Temporary</option>
+          {hasLocalFolder && <option value="localFolder">💾 Local Folder</option>}
           <option value="examples">📋 Examples</option>
           <option value="github">🐙 GitHub</option>
         </select>
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {source === 'temporary' && <TemporaryBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} />}
+        {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} />}
         {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} />}
         {source === 'github' && <GitHubBrowser onOpenFile={onOpenFile} defaultRepo={defaultGitHubRepo} />}
       </div>

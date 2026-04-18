@@ -6,6 +6,7 @@ import Reference from "./Reference";
 import Figures from "./Figures";
 import SyntaxEditor from "./SyntaxEditor";
 import tempFS from "../temporary";
+import localFS from "../fs/local";
 import { useTheme, FONT, FONT_UI } from "../theme";
 
 function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
@@ -272,13 +273,18 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const runActiveTab=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab||!tab.code.trim())return;setShowBottom(true);setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:`── Running ${tab.name} ──`},{type:"input",text:tab.code}]);setConsoleNotify(true);runCode(tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));},[tabs,activeTab,addOutput,runCode]);
 
   const handleOpenFile=useCallback((filename,content,vfsPath,source)=>{const existing=tabs.find(t=>t.vfsPath&&t.vfsPath===vfsPath);if(existing){setActiveTab(existing.id);return;}tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:filename,code:content,modified:false,vfsPath:vfsPath||null,source:source||null}]);setActiveTab(id);setShowCenter(true);},[tabs]);
-  const handleSaveToFS=useCallback(async(path,name)=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const fullPath=path||tab.vfsPath;if(!fullPath)return;await tempFS.writeFile(fullPath,tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:'temporary'}:t));setVfsRefreshKey(k=>k+1);addOutput([{type:"system",text:`Saved ${name||tab.name}`}]);setConsoleNotify(true);},[tabs,activeTab,addOutput]);
+  // Save routes the write to the same filesystem the file came from.
+  // Tabs opened from Local Folder write back to disk; everything else
+  // (new tabs, tabs from Temporary, etc.) defaults to Temporary FS.
+  const handleSaveToFS=useCallback(async(path,name)=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;const fullPath=path||tab.vfsPath;if(!fullPath)return;const targetSource=tab.source==='localFolder'?'localFolder':'temporary';try{if(targetSource==='localFolder')await localFS.writeFile(fullPath,tab.code);else await tempFS.writeFile(fullPath,tab.code);}catch(e){addOutput([{type:"error",text:`Save failed: ${e?.message||e}`}]);setConsoleNotify(true);return;}setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false,vfsPath:fullPath,name:name||t.name,source:targetSource}:t));setVfsRefreshKey(k=>k+1);addOutput([{type:"system",text:`Saved ${name||tab.name}`}]);setConsoleNotify(true);},[tabs,activeTab,addOutput]);
   const handleSave=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab)return;if(tab.vfsPath)handleSaveToFS(tab.vfsPath,tab.name);else{setSaveFileName(tab.name);setShowSaveDialog(true);}},[tabs,activeTab,handleSaveToFS]);
   const handleSaveDialogSubmit=useCallback(async()=>{if(!saveFileName.trim())return;let name=saveFileName.trim();if(!name.includes('.'))name+='.m';await handleSaveToFS(`/${name}`,name);setShowSaveDialog(false);},[saveFileName,handleSaveToFS]);
   // Narrow predicate the FileBrowser uses to warn about unsaved tab content
   // when the user asks to download a file. Keeps FileBrowser free of
-  // tab-state knowledge beyond "is the FS path currently dirty?".
-  const isTabUnsaved=useCallback((path)=>tabs.some(t=>t.vfsPath===path&&t.modified),[tabs]);
+  // tab-state knowledge beyond "is the (source,path) pair currently dirty?".
+  // Both Temporary and Local Folder can have a file at "/foo.m"; the
+  // source discriminator keeps their warnings independent.
+  const isTabUnsaved=useCallback((path,source)=>tabs.some(t=>t.vfsPath===path&&t.source===source&&t.modified),[tabs]);
 
   useEffect(()=>{const h=e=>{if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();handleSave();}};window.addEventListener('keydown',h);return()=>window.removeEventListener('keydown',h);},[handleSave]);
   const handleResizeStart=useCallback(e=>{e.preventDefault();resizingRef.current=true;const sY=e.clientY,sH=bottomHeight;const onM=ev=>{if(!resizingRef.current)return;setBottomHeight(Math.max(100,Math.min(window.innerHeight*0.7,sH+sY-ev.clientY)));};const onU=()=>{resizingRef.current=false;document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU);};document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU);},[bottomHeight]);
@@ -415,7 +421,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
         <div style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:6,height:6,borderRadius:"50%",background:statusProp==="ready"?C.green:C.yellow,display:"inline-block"}}/><span>{statusProp==="ready"?"WASM":"Demo"}</span>
           <span style={{color:C.border}}>|</span><span>{activeTabData?.name}</span>
-          {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>📌 temporary</span></>}
+          {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>{activeTabData.source==='localFolder'?'💾 local folder':'📌 temporary'}</span></>}
           {figures.length>0&&<><span style={{color:C.border}}>|</span><span>{figures.length} figure{figures.length>1?"s":""}</span></>}
           {activeBreakpointsSet.size>0&&<><span style={{color:C.border}}>|</span><span style={{color:C.red}}>● {activeBreakpointsSet.size} bp</span></>}
           {isDebugging&&<><span style={{color:C.border}}>|</span><span style={{color:C.orange}}>⏸ line {debugState.line}</span></>}
