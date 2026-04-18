@@ -1,23 +1,28 @@
 // src/MLabDebugWorkspace.cpp
 #include "MLabDebugWorkspace.hpp"
 #include "MLabBytecode.hpp"
+#include "MLabEngine.hpp"
 #include "MLabTypes.hpp"
 #include "MLabVM.hpp"
 
 namespace mlab {
 
-// Names that don't qualify as user variables by default. `kBuiltinNames` is
-// the union of numeric constants (pi, eps, …) and runtime pseudo-vars
-// (nargin, nargout, ans, end). They all end up in the chunk's varMap, but
+// Names that don't qualify as user variables by default. Covers the
+// compile-time built-ins (pi, eps, …), runtime pseudo-vars (nargin,
+// nargout, ans, end), and any host-registered constants from
+// `Engine::registerConstant`. They all end up in the chunk's varMap, but
 // the debug snapshot only lists them once the user has actually shadowed
 // them — matching MATLAB's `whos` at K>>.
-static bool isHiddenName(const std::string &name)
+bool DebugWorkspace::isHiddenName(const std::string &name) const
 {
+    if (engine_ && engine_->isReservedName(name))
+        return true;
     return kBuiltinNames.count(name) > 0;
 }
 
-void DebugWorkspace::bindVMFrame(VM &vm)
+void DebugWorkspace::bindVMFrame(VM &vm, Engine &engine)
 {
+    engine_ = &engine;
     framePtrs_.clear();
     assignedInFrame_.clear();
 

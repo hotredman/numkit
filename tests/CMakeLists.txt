@@ -77,6 +77,7 @@ set(DIAGNOSTICS_TESTS
     diagnostics/who_diagnostic_test.cpp
     diagnostics/compiler_assigned_vars_test.cpp
     diagnostics/matlab_parity_test.cpp
+    diagnostics/register_constant_test.cpp
     diagnostics/known_issues_test.cpp
 )
 

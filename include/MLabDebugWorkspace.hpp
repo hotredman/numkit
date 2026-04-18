@@ -34,6 +34,7 @@
 
 namespace mlab {
 
+class Engine;
 class VM;
 
 class DebugWorkspace
@@ -45,10 +46,13 @@ public:
     DebugWorkspace(const DebugWorkspace &) = delete;
     DebugWorkspace &operator=(const DebugWorkspace &) = delete;
 
-    // Resolve framePtrs from the VM's current (top) paused frame.
+    // Resolve framePtrs from the VM's current (top) paused frame. Also
+    // stashes the Engine pointer so names() can query host-registered
+    // constants via Engine::isReservedName (keeps them out of the
+    // user-visible snapshot the same way built-ins are hidden).
     // Call after every save/restore of paused state so pointers match the
     // live register base.
-    void bindVMFrame(VM &vm);
+    void bindVMFrame(VM &vm, Engine &engine);
 
     // Drop framePtrs. Overlay is preserved across (re)binds.
     void unbindFrame();
@@ -94,6 +98,15 @@ private:
     // Built-in names the user has shadowed via the debug console at runtime
     // (`pi = 5` at K>>). Sticky across evals until session end.
     std::unordered_set<std::string> shadowedBuiltins_;
+
+    // Engine pointer captured at bindVMFrame time. Used by names() to ask
+    // Engine::isReservedName() so host-registered constants are hidden
+    // alongside the compile-time built-ins.
+    Engine *engine_ = nullptr;
+
+    // Whether `name` should be filtered out of the user-visible snapshot.
+    // Depends on engine_, so it's a member rather than a free function.
+    bool isHiddenName(const std::string &name) const;
 };
 
 } // namespace mlab

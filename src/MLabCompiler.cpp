@@ -167,7 +167,7 @@ uint8_t Compiler::varRegLookup(const std::string &name)
     // (pi/eps/… from constantsEnv_) and pseudo-vars that higher layers
     // have injected into workspaceEnv (e.g. the debug-console eval
     // injecting `nargin` so the user can inspect it from K>>).
-    if (kBuiltinNames.count(name)) {
+    if (engine_.isReservedName(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             int16_t idx = static_cast<int16_t>(chunk_.constants.size());
@@ -187,7 +187,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
         // Emit runtime check — variable may be unset (e.g. clear x,
         // conditional assignment, or not yet assigned).
         // Skip for builtin constants (pi, eps, inf, etc.) — always defined.
-        if (!kBuiltinNames.count(name)) {
+        if (!engine_.isReservedName(name)) {
             int16_t nameIdx = addStringConstant(name);
             emitAD(OpCode::ASSERT_DEF, it->second, nameIdx);
         }
@@ -195,7 +195,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
     }
 
     // Check workspaceEnv
-    if (isTopLevel_ && !kBuiltinNames.count(name)) {
+    if (isTopLevel_ && !engine_.isReservedName(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing)
             return varRegLookup(name); // will import from workspaceEnv (including empty values)
@@ -209,7 +209,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
     // ("You can only call nargin/nargout from within a MATLAB function."),
     // so we don't short-circuit here — fall through to the ASSERT_DEF
     // branch which emits the MATLAB-exact runtime error.
-    if (kBuiltinNames.count(name)) {
+    if (engine_.isReservedName(name)) {
         const bool topLevelPseudo = isTopLevel_ && (name == "nargin" || name == "nargout");
         if (!topLevelPseudo)
             return varRegLookup(name);
@@ -1114,7 +1114,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
             if (local && !local->isEmpty() && !local->isUnset())
                 bareUserVar = true;
         } else {
-            if (varRegisters_.count(name) > 0 && kBuiltinNames.count(name) == 0)
+            if (varRegisters_.count(name) > 0 && engine_.isReservedName(name) == 0)
                 bareUserVar = true;
         }
         if (bareUserVar)
@@ -1135,7 +1135,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         bool isKnownVar = varRegisters_.count(name) > 0;
 
         // Also check workspaceEnv for variables from previous eval() calls
-        if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
+        if (!isKnownVar && isTopLevel_ && !engine_.isReservedName(name)) {
             MValue *existing = engine_.getVariable(name);
             if (existing && !existing->isEmpty())
                 isKnownVar = true;
@@ -1155,7 +1155,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
                 if (name == "clear") {
                     // clear (no args) inside function — clear all locals
                     for (auto &[vname, reg] : varRegisters_) {
-                        if (kBuiltinNames.count(vname) == 0)
+                        if (engine_.isReservedName(vname) == 0)
                             emitA(OpCode::CLEAR_VAR, reg);
                     }
                     return tempReg();
@@ -1166,7 +1166,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
             } else if (name == "clear") {
                 // clear (no args) on top-level — clear all registers + call externalFunc
                 for (auto &[vname, reg] : varRegisters_) {
-                    if (kBuiltinNames.count(vname) == 0)
+                    if (engine_.isReservedName(vname) == 0)
                         emitA(OpCode::CLEAR_VAR, reg);
                 }
             }
@@ -2154,7 +2154,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
             auto *argNode = node->children[i].get();
             if (argNode->type == NodeType::STRING_LITERAL) {
                 auto it = varRegisters_.find(argNode->strValue);
-                if (it != varRegisters_.end() && kBuiltinNames.count(argNode->strValue) == 0)
+                if (it != varRegisters_.end() && engine_.isReservedName(argNode->strValue) == 0)
                     emitA(OpCode::CLEAR_VAR, it->second);
             } else {
                 uint8_t nameReg = compileNode(argNode);
@@ -2163,7 +2163,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
         }
         if (nargs == 0) {
             for (auto &[vname, reg] : varRegisters_) {
-                if (kBuiltinNames.count(vname) == 0)
+                if (engine_.isReservedName(vname) == 0)
                     emitA(OpCode::CLEAR_VAR, reg);
             }
         }
@@ -2218,7 +2218,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     bool isKnownVar = (it != varRegisters_.end());
 
     // Also check workspaceEnv for variables from previous eval() calls
-    if (!isKnownVar && isTopLevel_ && !kBuiltinNames.count(name)) {
+    if (!isKnownVar && isTopLevel_ && !engine_.isReservedName(name)) {
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
             // Variable exists — check if it's a callable (funcHandle or closure cell)
@@ -2347,14 +2347,14 @@ uint8_t Compiler::compileCommandCall(const ASTNode *node)
         if (isClearAll) {
             // clear / clear all / clear classes → clear all local registers
             for (auto &[vname, reg] : varRegisters_) {
-                if (kBuiltinNames.count(vname) == 0)
+                if (engine_.isReservedName(vname) == 0)
                     emitA(OpCode::CLEAR_VAR, reg);
             }
         } else if (!isFlag) {
             // clear x y z → clear specific variables
             for (size_t i = 0; i < nargs; ++i) {
                 const std::string &varName = node->children[i]->strValue;
-                if (kBuiltinNames.count(varName) == 0) {
+                if (engine_.isReservedName(varName) == 0) {
                     auto it = varRegisters_.find(varName);
                     if (it != varRegisters_.end())
                         emitA(OpCode::CLEAR_VAR, it->second);

@@ -82,7 +82,7 @@ ExecStatus DebugSession::start(const std::string &code)
         ExecStatus status = engine_.vm_->startExecution(chunk_, nullptr, 0, initial);
 
         if (status == ExecStatus::Paused) {
-            ws_.bindVMFrame(*engine_.vm_);
+            ws_.bindVMFrame(*engine_.vm_, engine_);
         } else {
             engine_.syncVMToWorkspace();
             active_ = false;
@@ -124,7 +124,7 @@ ExecStatus DebugSession::resume(DebugAction action)
         ExecStatus status = engine_.debugResume(action);
 
         if (status == ExecStatus::Paused) {
-            ws_.bindVMFrame(*engine_.vm_);
+            ws_.bindVMFrame(*engine_.vm_, engine_);
         } else {
             active_ = false;
             engine_.setDebugObserver(nullptr);
@@ -252,7 +252,7 @@ std::string DebugSession::eval(const std::string &code)
     // 6. Restore paused VM state BEFORE diffing back so ws_'s frame pointers
     //    are pointing at the user's registers again.
     engine_.vm_->restorePausedState(std::move(savedVMState));
-    ws_.bindVMFrame(*engine_.vm_);
+    ws_.bindVMFrame(*engine_.vm_, engine_);
 
     // 7. Apply the inner eval's effects to ws_.
     //

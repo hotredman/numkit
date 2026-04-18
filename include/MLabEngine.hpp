@@ -98,8 +98,22 @@ public:
     ExecStatus debugResume(DebugAction action);
 
     // Reinstall built-in constants (pi, eps, inf, etc.) into constantsEnv.
-    // Called after clear to restore the standard environment.
+    // Called after clear to restore the standard environment. Also
+    // re-installs any constants the host has registered via
+    // registerConstant() so `clear all` doesn't wipe them.
     void reinstallConstants();
+
+    // Register a host-level constant — visible to every script as if it
+    // were `pi`/`eps`/etc. Does not appear in `whos` or the debug
+    // Workspace panel, can be shadowed by `name = …` and un-shadowed by
+    // `clear name`, and survives `clear all`.
+    void registerConstant(const std::string &name, MValue val);
+
+    // Is `name` a reserved name (MATLAB built-in OR host-registered
+    // constant)? Used by the compiler / VM / debug workspace to hide
+    // these names from user-workspace views and skip unnecessary
+    // runtime safety checks.
+    bool isReservedName(const std::string &name) const;
 
     // Tic/toc timer access — used by workspace builtins
     void setTicTimer(TimePoint tp)
@@ -142,6 +156,12 @@ private:
     // `global X; X = 0;` keeps routing X through globalsEnv_, matching the
     // single-chunk path.
     std::unordered_set<std::string> topLevelGlobals_;
+
+    // Host-registered constants — (name → value). Restored into
+    // constantsEnv_ alongside the built-ins by reinstallConstants() so
+    // `clear all` does not drop them. Name presence also feeds
+    // isReservedName() so these behave the same as `pi`/`eps`/…
+    std::unordered_map<std::string, MValue> userConstants_;
 
     // Debugger
     std::shared_ptr<DebugObserver> debugObserver_;

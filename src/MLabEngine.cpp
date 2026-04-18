@@ -75,6 +75,21 @@ void Engine::reinstallConstants()
     constantsEnv_->set("false", MValue::logicalScalar(false, &allocator_));
     constantsEnv_->set("i", MValue::complexScalar(0.0, 1.0, &allocator_));
     constantsEnv_->set("j", MValue::complexScalar(0.0, 1.0, &allocator_));
+
+    // Re-install host-registered constants so they survive `clear all`.
+    for (auto &[name, val] : userConstants_)
+        constantsEnv_->set(name, val);
+}
+
+void Engine::registerConstant(const std::string &name, MValue val)
+{
+    userConstants_[name] = val;
+    constantsEnv_->set(name, std::move(val));
+}
+
+bool Engine::isReservedName(const std::string &name) const
+{
+    return kBuiltinNames.count(name) > 0 || userConstants_.count(name) > 0;
 }
 
 // ============================================================
