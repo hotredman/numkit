@@ -90,12 +90,17 @@ void Compiler::preImportGlobals(const ASTNode *ast)
     std::unordered_set<std::string> identifiers;
     collectAllIdentifiers(ast, identifiers);
 
-    // For each identifier found in workspaceEnv, pre-allocate register and emit LOAD_CONST
+    // Pre-allocate a register and emit LOAD_CONST for every identifier the
+    // base workspace currently holds. Pure constants (pi, eps, …) are skipped
+    // because they're served out of constantsEnv_ by a later code path; the
+    // pseudo-vars (ans, nargin, nargout) DO go through here so a persisted
+    // `ans` from a previous eval — or a debugger-injected nargin — becomes
+    // visible to the chunk being compiled.
     for (auto &name : identifiers) {
         if (varRegisters_.count(name))
             continue; // already allocated
-        if (kBuiltinNames.count(name))
-            continue; // builtins handled separately
+        if (kBuiltinConstants.count(name))
+            continue; // real built-ins handled via LOAD_CONST from constantsEnv_
 
         MValue *existing = engine_.getVariable(name);
         if (existing && !existing->isEmpty()) {
@@ -191,8 +196,16 @@ uint8_t Compiler::varRegRead(const std::string &name)
     // Reserved name (built-in constant OR pseudo-var). Let varRegLookup do
     // the pre-load from the engine so debug-eval can see nargin/ans/… that
     // outer layers injected into workspaceEnv.
-    if (kBuiltinNames.count(name))
-        return varRegLookup(name);
+    //
+    // Exception: `nargin`/`nargout` at top level are illegal in MATLAB
+    // ("You can only call nargin/nargout from within a MATLAB function."),
+    // so we don't short-circuit here — fall through to the ASSERT_DEF
+    // branch which emits the MATLAB-exact runtime error.
+    if (kBuiltinNames.count(name)) {
+        const bool topLevelPseudo = isTopLevel_ && (name == "nargin" || name == "nargout");
+        if (!topLevelPseudo)
+            return varRegLookup(name);
+    }
 
     // Check if it's a known function — emit zero-arg CALL
     // In MATLAB, bare function name in expression context is a call: t1 = toc
@@ -1066,6 +1079,34 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
         ~NargoutGuard() { ref = saved; }
     } nargoutGuard(nargoutContext_, 0);
 
+    // MATLAB display / ans rule:
+    //   - A bare read of a user variable (`v` on a line by itself) displays
+    //     using the variable's own name and does NOT overwrite `ans`.
+    //   - Any other expression (`5+3`, `sin(0.5)`, `pi`, function call, …)
+    //     stores its result into `ans` and displays with the label "ans".
+    //   - Display happens only when the statement isn't suppressed by `;`;
+    //     the `ans` store happens regardless.
+    //
+    // "User variable" means a name that is either written earlier in this
+    // chunk (local in varRegisters_) or a LOCAL of the base workspace —
+    // notably NOT an inherited constant from constantsEnv_. A shadowed
+    // built-in (`pi = 5; pi`) therefore counts as a user variable after
+    // the shadow assignment.
+    bool bareUserVar = false;
+    std::string displayName;
+    if (child->type == NodeType::IDENTIFIER) {
+        const std::string &name = child->strValue;
+        if (varRegisters_.count(name) > 0) {
+            bareUserVar = true;
+        } else if (isTopLevel_) {
+            MValue *local = engine_.workspaceEnv().getLocal(name);
+            if (local && !local->isEmpty() && !local->isUnset())
+                bareUserVar = true;
+        }
+        if (bareUserVar)
+            displayName = name;
+    }
+
     // ── Bare zero-arg function call ──────────────────────────────
     // When the parser sees `clear` or `figure` alone on a line (followed
     // by a terminator), it produces EXPR_STMT → IDENTIFIER.  The parser's
@@ -1075,7 +1116,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
     // If the identifier is NOT a known variable but IS a registered
     // function (external or user-defined), compile it as CALL with 0 args
     // instead of treating it as a variable read.
-    if (child->type == NodeType::IDENTIFIER) {
+    if (!bareUserVar && child->type == NodeType::IDENTIFIER) {
         const std::string &name = child->strValue;
         bool isKnownVar = varRegisters_.count(name) > 0;
 
@@ -1116,28 +1157,45 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
                 }
             }
 
-            // Compile as zero-arg CALL (nargout=0 for statement context)
+            // Compile as zero-arg CALL (nargout=0 for statement context).
             uint8_t argBase = nextReg_;
             uint8_t dst = tempReg();
             int16_t funcIdx = addStringConstant(name);
             emit(Instruction::make_abcde(OpCode::CALL, dst, argBase, 0, funcIdx, 0));
 
+            // Anonymous call result → bind to `ans`.
+            uint8_t ansReg = varRegWrite("ans");
+            if (ansReg != dst)
+                emitAB(OpCode::MOVE, ansReg, dst);
             if (!node->suppressOutput) {
                 int16_t nameIdx = addStringConstant("ans");
-                emitAD(OpCode::DISPLAY, dst, nameIdx);
+                emitAD(OpCode::DISPLAY, ansReg, nameIdx);
             }
-            return dst;
+            return ansReg;
         }
     }
 
     uint8_t reg = compileNode(child);
 
-    // Display if no semicolon
+    if (bareUserVar) {
+        // Display-by-name; no ans store — reading an existing name should
+        // not reassign the anonymous-result slot.
+        if (!node->suppressOutput) {
+            int16_t nameIdx = addStringConstant(displayName);
+            emitAD(OpCode::DISPLAY, reg, nameIdx);
+        }
+        return reg;
+    }
+
+    // Non-bare expression — bind to `ans` unconditionally.
+    uint8_t ansReg = varRegWrite("ans");
+    if (ansReg != reg)
+        emitAB(OpCode::MOVE, ansReg, reg);
     if (!node->suppressOutput) {
         int16_t nameIdx = addStringConstant("ans");
-        emitAD(OpCode::DISPLAY, reg, nameIdx);
+        emitAD(OpCode::DISPLAY, ansReg, nameIdx);
     }
-    return reg;
+    return ansReg;
 }
 
 // ============================================================

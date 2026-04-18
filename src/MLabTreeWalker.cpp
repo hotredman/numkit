@@ -980,6 +980,13 @@ MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t 
             return callUserFunction(_uit->second, {}, env);
     }
 
+    // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
+    // referenced outside of any function scope. Inside a function they are
+    // setLocal'd on entry so env->get() above finds them.
+    if (name == "nargin" || name == "nargout")
+        throw std::runtime_error(
+            "You can only call nargin/nargout from within a MATLAB function.");
+
     throw std::runtime_error("Undefined variable or function: " + name);
 }
 
@@ -2151,6 +2158,20 @@ MValue TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
 {
     auto *child = node->children[0].get();
 
+    // MATLAB display / ans rule (see MLabCompiler::compileExprStmt for the
+    // VM mirror). Bare read of a user variable → display by its own name,
+    // no ans. Everything else → ans store regardless of semicolon, "ans"
+    // label for display.
+    bool bareUserVar = false;
+    std::string displayName;
+    if (child->type == NodeType::IDENTIFIER) {
+        const std::string &name = child->strValue;
+        if (env->getLocal(name)) {
+            bareUserVar = true;
+            displayName = name;
+        }
+    }
+
     // Statement context: dispatch CALL and IDENTIFIER with nargout=0
     MValue val;
     if (child->type == NodeType::CALL)
@@ -2160,9 +2181,18 @@ MValue TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
     else
         val = execNode(child, env);
 
-    if (!node->suppressOutput && !val.isEmpty()) {
+    if (bareUserVar) {
+        if (!node->suppressOutput)
+            displayValue(displayName, val);
+        return val;
+    }
+
+    // Anonymous value — bind to `ans` regardless of semicolon (matches
+    // MATLAB; `ans` persists even when display is suppressed).
+    if (!val.isEmpty()) {
         env->set("ans", val);
-        displayValue("ans", val);
+        if (!node->suppressOutput)
+            displayValue("ans", val);
     }
     return val;
 }

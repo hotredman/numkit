@@ -1054,8 +1054,11 @@ enter_frame:
                             break;
                         }
                     }
-                    throw std::runtime_error("Undefined function or variable '" + chunk.strings[I.d]
-                                             + "'");
+                    const std::string &n = chunk.strings[I.d];
+                    if (n == "nargin" || n == "nargout")
+                        throw std::runtime_error(
+                            "You can only call nargin/nargout from within a MATLAB function.");
+                    throw std::runtime_error("Undefined function or variable '" + n + "'");
                 }
                 break;
 
