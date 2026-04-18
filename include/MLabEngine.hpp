@@ -81,24 +81,35 @@ public:
     bool hasUserFunction(const std::string &name) const;
     bool hasExternalFunction(const std::string &name) const;
 
-    // Clear user-defined functions from both TW and VM stores.
-    // Script-local functions of the currently-running script (see
-    // beginScript/endScript) are re-installed immediately afterward —
-    // MATLAB treats file-scoped functions as lexically part of the
-    // script, so `clear all` mid-execution must not make them
-    // disappear from under the calls that follow.
+    // Unified lookup — script-scope first, then workspace-scope.
+    // Returns nullptr when the name isn't a user function.
+    const UserFunction *lookupUserFunction(const std::string &name) const;
+
+    // Clear workspace-scope user functions. Script-local functions
+    // live in a separate bucket (see beginScript/endScript) and are
+    // untouched — MATLAB treats file-scoped functions as lexically
+    // part of the script, not the workspace.
     void clearUserFunctions();
 
-    // Mark the entry/exit of a top-level script or function evaluation.
-    // While a script is active, any FUNCTION_DEF children are treated
-    // as the script's local functions and preserved across
-    // clearUserFunctions. Nesting is supported via an internal save
-    // stack, so recursive eval() calls don't lose their outer scope.
+    // Mark the entry/exit of a top-level script or function
+    // evaluation. While a script is active, any FUNCTION_DEF it
+    // defines compiles into the script-scope buckets instead of the
+    // workspace. Nesting is supported via internal save stacks, so
+    // recursive eval() calls don't lose their outer scope.
     //
     // The AST pointer must outlive the matching endScript() — the
     // caller (eval, DebugSession) owns lifetime.
     void beginScript(const ASTNode *ast);
     void endScript();
+
+    // Copy the current script-scope user/compiled function buckets
+    // into the workspace-scope ones. Used by eval() at script exit
+    // so that REPL-ish multi-statement pastes (`function f()...end;
+    // f();` on one go) leave `f` callable from a later eval —
+    // preserving the engine's REPL persistence contract. Debug
+    // sessions don't call this, so file-scoped helpers in a .m
+    // script don't leak into base workspace.
+    void promoteScriptLocalsToWorkspace();
 
     // --- Debugger API ---
     void setDebugObserver(std::shared_ptr<DebugObserver> observer);
@@ -179,15 +190,12 @@ private:
     // isReservedName() so these behave the same as `pi`/`eps`/…
     std::unordered_map<std::string, MValue> userConstants_;
 
-    // AST pointers to the currently-running script's local functions
-    // (populated by beginScript from top-level FUNCTION_DEFs). Used by
-    // clearUserFunctions to re-install them so a mid-script `clear all`
-    // doesn't strand later calls with "undefined function". The
-    // pointers are non-owning — callers (eval, DebugSession) keep the
-    // AST alive across the script's lifetime. Nested scripts push
-    // their previous state onto savedScriptLocalFuncs_.
-    std::vector<const ASTNode *> scriptLocalFuncs_;
-    std::vector<std::vector<const ASTNode *>> savedScriptLocalFuncs_;
+    // Script-lexical user functions — peer to userFuncs_ but never
+    // cleared by `clear all`. Managed by begin/endScript (which
+    // drives both this map and the compiler's matching bucket) so
+    // file-scoped functions survive a mid-script clear.
+    std::unordered_map<std::string, UserFunction> scriptLocalUserFuncs_;
+    std::vector<std::unordered_map<std::string, UserFunction>> savedScriptLocalUserFuncs_;
 
     // Debugger
     std::shared_ptr<DebugObserver> debugObserver_;

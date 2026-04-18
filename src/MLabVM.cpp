@@ -939,14 +939,12 @@ enter_frame:
 
                 if (!targetChunk) {
                     const std::string &funcName = chunk.strings[funcIdx];
-                    if (compiledFuncs_) {
-                        auto cfIt = compiledFuncs_->find(funcName);
-                        if (cfIt != compiledFuncs_->end()) {
-                            if (funcIdx >= (int16_t) resolvedFuncs.size())
-                                resolvedFuncs.resize(funcIdx + 1, nullptr);
-                            resolvedFuncs[funcIdx] = &cfIt->second;
-                            targetChunk = &cfIt->second;
-                        }
+                    const BytecodeChunk *found = findCompiledFunc(funcName);
+                    if (found) {
+                        if (funcIdx >= (int16_t) resolvedFuncs.size())
+                            resolvedFuncs.resize(funcIdx + 1, nullptr);
+                        resolvedFuncs[funcIdx] = found;
+                        targetChunk = found;
                     }
                 }
 
@@ -982,15 +980,12 @@ enter_frame:
                 const std::string &funcName = chunk.strings[funcIdx];
 
                 // Try compiled user function
-                if (compiledFuncs_) {
-                    auto cfIt = compiledFuncs_->find(funcName);
-                    if (cfIt != compiledFuncs_->end()) {
-                        frame.ip = ip + 1;
-                        returnCount_ = 0;
-                        pushCallFrame(cfIt->second, &R[argBase], na,
-                                      0, nout, true, outBase, nout);
-                        goto enter_frame;
-                    }
+                if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                    frame.ip = ip + 1;
+                    returnCount_ = 0;
+                    pushCallFrame(*found, &R[argBase], na,
+                                  0, nout, true, outBase, nout);
+                    goto enter_frame;
                 }
                 // External function with nout — call directly
                 {
@@ -1822,13 +1817,10 @@ bool VM::execCallIndirect(const Instruction &I, MValue *R,
     uint8_t totalArgs = static_cast<uint8_t>(std::min(totalArgsN, size_t(255)));
 
     // Try compiled user function
-    if (compiledFuncs_) {
-        auto cfIt = compiledFuncs_->find(funcName);
-        if (cfIt != compiledFuncs_->end()) {
-            frame.ip = ip + 1;
-            pushCallFrame(cfIt->second, argsBuf.data(), totalArgs, I.a, 1);
-            return true; // caller must re-enter dispatch loop
-        }
+    if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+        frame.ip = ip + 1;
+        pushCallFrame(*found, argsBuf.data(), totalArgs, I.a, 1);
+        return true; // caller must re-enter dispatch loop
     }
 
     // External function

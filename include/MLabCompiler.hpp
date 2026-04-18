@@ -28,18 +28,50 @@ public:
     BytecodeChunk compileFunction(const ASTNode *funcDef,
                                   std::shared_ptr<const std::string> sourceCode = nullptr);
 
-    // Register a FUNCTION_DEF node in compiledFuncs_ + engine.userFuncs_
-    // without running it. Used by Engine::eval when splitting a top-level
-    // BLOCK into per-statement evaluations so forward references resolve
-    // (MATLAB scripts can call functions defined later in the file).
+    // Register a FUNCTION_DEF node in the currently-active compiled
+    // function table (+ engine.{script,user}Funcs_) without running
+    // it. Used by Engine::beginScript to pre-compile a script's
+    // local functions into the script-scope bucket, and by the
+    // split-mode driver so forward references resolve.
     void registerFunction(const ASTNode *funcDef);
 
-    // Access compiled function table
+    // Workspace-scope compiled functions. Populated by `function` at
+    // the REPL or by anonymous-function allocation. Cleared by
+    // `clear all` / `clear functions` (see Engine::clearUserFunctions).
     const std::unordered_map<std::string, BytecodeChunk> &compiledFuncs() const
     {
         return compiledFuncs_;
     }
     void clearCompiledFuncs() { compiledFuncs_.clear(); }
+
+    // Script-scope compiled functions. Populated by beginScriptScope
+    // via compileFunctionDef routing. NEVER cleared by
+    // clearCompiledFuncs — that's the whole point of keeping this
+    // bucket separate. Its lifetime is bounded by beginScriptScope /
+    // endScriptScope pairs.
+    const std::unordered_map<std::string, BytecodeChunk> &scriptLocalCompiledFuncs() const
+    {
+        return scriptLocalCompiledFuncs_;
+    }
+
+    // Unified lookup used by dispatch sites outside the compiler —
+    // tries script-scope first, then workspace-scope. Returns
+    // nullptr if unknown.
+    const BytecodeChunk *findCompiled(const std::string &name) const;
+
+    // Enter/leave a script-lexical scope. While inside, compiled
+    // FUNCTION_DEFs land in scriptLocalCompiledFuncs_ rather than
+    // the workspace map. Nestable — each pair push/pop an isolated
+    // bucket, so a recursive eval's inner script can't leak into
+    // the outer one.
+    void beginScriptScope();
+    void endScriptScope();
+    bool inScriptScope() const { return scriptDepth_ > 0; }
+
+    // Peer of Engine::promoteScriptLocalsToWorkspace: copy the
+    // script-scope compiled chunks into the workspace bucket so
+    // their VM dispatches keep resolving after the scope ends.
+    void promoteScriptLocalsToWorkspace();
 
     // Debug: dump bytecode
     static std::string disassemble(const BytecodeChunk &chunk);
@@ -65,8 +97,18 @@ private:
     // Current source location (updated before compiling each node)
     SourceLoc currentLoc_{};
 
-    // Compiled function table (persists across compile() calls)
+    // Compiled function table (persists across compile() calls) —
+    // workspace-scope (cleared by `clear all`/`clear functions`).
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
+
+    // Script-lexical compiled functions. Separated from workspace-
+    // scope so `clear all` mid-script can't wipe them — MATLAB
+    // treats local functions as part of the script's code, not its
+    // workspace. Managed by begin/endScriptScope; nesting via the
+    // save stack.
+    std::unordered_map<std::string, BytecodeChunk> scriptLocalCompiledFuncs_;
+    std::vector<std::unordered_map<std::string, BytecodeChunk>> savedScriptLocalCompiledFuncs_;
+    int scriptDepth_ = 0;
 
     // ── Variable register access API ────────────────────────────
     //

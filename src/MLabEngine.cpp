@@ -157,12 +157,22 @@ void Engine::outputText(const std::string &s)
 
 bool Engine::hasFunction(const std::string &name) const
 {
-    return externalFuncs_.count(name) || userFuncs_.count(name);
+    return externalFuncs_.count(name) || hasUserFunction(name);
 }
 
 bool Engine::hasUserFunction(const std::string &name) const
 {
-    return userFuncs_.count(name) > 0;
+    return scriptLocalUserFuncs_.count(name) > 0
+           || userFuncs_.count(name) > 0;
+}
+
+const UserFunction *Engine::lookupUserFunction(const std::string &name) const
+{
+    auto it = scriptLocalUserFuncs_.find(name);
+    if (it != scriptLocalUserFuncs_.end())
+        return &it->second;
+    auto it2 = userFuncs_.find(name);
+    return it2 != userFuncs_.end() ? &it2->second : nullptr;
 }
 
 bool Engine::hasExternalFunction(const std::string &name) const
@@ -181,43 +191,58 @@ bool Engine::isInsideFunctionCall() const
 
 void Engine::clearUserFunctions()
 {
+    // Only the workspace bucket — script-local functions live in
+    // scriptLocalUserFuncs_/scriptLocalCompiledFuncs_ and are
+    // managed by begin/endScript.
     userFuncs_.clear();
     if (compiler_)
         compiler_->clearCompiledFuncs();
-    // Script-local functions belong to the lexical scope of whatever
-    // script/function is currently running — MATLAB never makes them
-    // vanish on `clear all`. Re-install immediately so calls later in
-    // the same script still have something to dispatch to.
-    if (compiler_) {
-        for (const ASTNode *f : scriptLocalFuncs_)
-            compiler_->registerFunction(f);
-    }
 }
 
 void Engine::beginScript(const ASTNode *ast)
 {
-    savedScriptLocalFuncs_.push_back(std::move(scriptLocalFuncs_));
-    scriptLocalFuncs_.clear();
+    savedScriptLocalUserFuncs_.push_back(std::move(scriptLocalUserFuncs_));
+    scriptLocalUserFuncs_.clear();
+    if (!compiler_)
+        return;
+    compiler_->beginScriptScope();
     if (!ast)
         return;
+    // Pre-compile the script's top-level FUNCTION_DEFs into the
+    // (now-active) script-local buckets. Forward references inside
+    // the script resolve, and a single FUNCTION_DEF file (AST is
+    // the function itself) still registers cleanly.
+    auto registerNode = [&](const ASTNode *f) {
+        if (f && f->type == NodeType::FUNCTION_DEF)
+            compiler_->registerFunction(f);
+    };
     if (ast->type == NodeType::BLOCK) {
-        for (const auto &c : ast->children) {
-            if (c && c->type == NodeType::FUNCTION_DEF)
-                scriptLocalFuncs_.push_back(c.get());
-        }
-    } else if (ast->type == NodeType::FUNCTION_DEF) {
-        scriptLocalFuncs_.push_back(ast);
+        for (const auto &c : ast->children)
+            registerNode(c.get());
+    } else {
+        registerNode(ast);
     }
 }
 
 void Engine::endScript()
 {
-    if (savedScriptLocalFuncs_.empty()) {
-        scriptLocalFuncs_.clear();
+    if (compiler_)
+        compiler_->endScriptScope();
+    if (savedScriptLocalUserFuncs_.empty()) {
+        scriptLocalUserFuncs_.clear();
         return;
     }
-    scriptLocalFuncs_ = std::move(savedScriptLocalFuncs_.back());
-    savedScriptLocalFuncs_.pop_back();
+    scriptLocalUserFuncs_ = std::move(savedScriptLocalUserFuncs_.back());
+    savedScriptLocalUserFuncs_.pop_back();
+}
+
+void Engine::promoteScriptLocalsToWorkspace()
+{
+    for (auto &entry : scriptLocalUserFuncs_)
+        userFuncs_[entry.first] = std::move(entry.second);
+    scriptLocalUserFuncs_.clear();
+    if (compiler_)
+        compiler_->promoteScriptLocalsToWorkspace();
 }
 
 void Engine::setDebugObserver(std::shared_ptr<DebugObserver> observer)
@@ -242,7 +267,8 @@ MValue Engine::runOneChunk(const ASTNode *ast, std::shared_ptr<const std::string
     vm_->clearLastVarMap();
 
     auto chunk = compiler_->compile(ast, src);
-    vm_->setCompiledFuncs(&compiler_->compiledFuncs());
+    vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
+                          &compiler_->scriptLocalCompiledFuncs());
 
     // Remember any `global X` declarations from this chunk so the next
     // chunk's compile can see them (split-mode top-level globals).
@@ -275,14 +301,41 @@ MValue Engine::eval(const std::string &code)
     auto ast = parser.parse();
     auto src = std::make_shared<const std::string>(code);
 
-    // Enter a script scope so mid-execution `clear all` can re-install
-    // the script's local functions (MATLAB semantics). Scope closes on
-    // any exit path via the local guard.
-    beginScript(ast.get());
+    // A "script" here = a BLOCK that mixes FUNCTION_DEFs with
+    // executable statements (the shape of a .m file with local
+    // helper functions after the script body). Those FUNCTION_DEFs
+    // are file-local and vanish on return — MATLAB script
+    // semantics. Any other shape — a pure-statement paste, a lone
+    // `function ...`, or a batch of function defs at the REPL —
+    // registers functions into the workspace bucket so subsequent
+    // evals can see them.
+    bool hasFunc = false, hasStmt = false;
+    if (ast && ast->type == NodeType::BLOCK) {
+        for (auto &c : ast->children) {
+            if (!c) continue;
+            if (c->type == NodeType::FUNCTION_DEF) hasFunc = true;
+            else hasStmt = true;
+        }
+    }
+    const bool isScript = hasFunc && hasStmt;
+    if (isScript)
+        beginScript(ast.get());
+    // At eval exit, promote script-locals into the workspace
+    // before tearing down the scope — matches the engine's
+    // established REPL contract where defining a function and
+    // calling it in the same paste keeps the function around for
+    // later evals. DebugSession's own beginScript path doesn't
+    // call this promotion, so .m file-local helpers stay file-local.
     struct ScriptEndGuard {
         Engine &e;
-        ~ScriptEndGuard() { e.endScript(); }
-    } _scriptGuard{*this};
+        bool armed;
+        ~ScriptEndGuard() {
+            if (armed) {
+                e.promoteScriptLocalsToWorkspace();
+                e.endScript();
+            }
+        }
+    } _scriptGuard{*this, isScript};
 
     // TreeWalker already executes top-level BLOCK statements sequentially
     // against `workspaceEnv_`, so its behaviour matches MATLAB's script
@@ -304,14 +357,19 @@ MValue Engine::eval(const std::string &code)
                             && ast->type == NodeType::BLOCK
                             && ast->children.size() > 1;
     if (splittable) {
-        // Pre-compile script-local functions so statements earlier in
-        // the file can call functions declared later, and so split-mode
-        // (which skips FUNCTION_DEF children in the per-statement loop
-        // below) still has them ready. `clear all` mid-script is
-        // handled by clearUserFunctions, which re-installs these from
-        // scriptLocalFuncs_ — no between-chunk pass needed.
-        for (const ASTNode *f : scriptLocalFuncs_)
-            compiler_->registerFunction(f);
+        // Pre-compile FUNCTION_DEF children: the per-statement
+        // loop below skips them (they're definitions, not stmts),
+        // so if nothing else compiles them they'd be unreachable.
+        // In script mode, beginScript has already routed them into
+        // scriptLocalCompiledFuncs_. Outside script mode we register
+        // into the workspace bucket so REPL-style forward references
+        // keep working.
+        if (!isScript) {
+            for (auto &c : ast->children) {
+                if (c && c->type == NodeType::FUNCTION_DEF)
+                    compiler_->registerFunction(c.get());
+            }
+        }
         MValue result = MValue::empty();
         for (auto &c : ast->children) {
             if (!c || c->type == NodeType::FUNCTION_DEF)

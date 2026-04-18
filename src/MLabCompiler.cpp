@@ -2574,20 +2574,26 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
 
 uint8_t Compiler::compileFunctionDef(const ASTNode *node)
 {
-    // Compile function body into a separate BytecodeChunk
-    // and store in compiledFuncs_ table
+    // Compile function body into a separate BytecodeChunk. Which
+    // bucket it lands in depends on whether we're inside a script
+    // scope — script-local functions live in their own store so
+    // `clear all` can't touch them (MATLAB parity).
     BytecodeChunk funcChunk = compileFunction(node);
-    compiledFuncs_[node->strValue] = std::move(funcChunk);
 
-    // Also register in engine.userFuncs_ for TreeWalker fallback compatibility
     UserFunction uf;
     uf.name = node->strValue;
     uf.params = node->paramNames;
     uf.returns = node->returnNames;
     uf.body = std::shared_ptr<const ASTNode>(cloneNode(node->children[0].get()));
     uf.closureEnv = nullptr;
-    engine_.userFuncs_[node->strValue] = std::move(uf);
 
+    if (scriptDepth_ > 0) {
+        scriptLocalCompiledFuncs_[node->strValue] = std::move(funcChunk);
+        engine_.scriptLocalUserFuncs_[node->strValue] = std::move(uf);
+    } else {
+        compiledFuncs_[node->strValue] = std::move(funcChunk);
+        engine_.userFuncs_[node->strValue] = std::move(uf);
+    }
     return 0;
 }
 
@@ -2597,6 +2603,42 @@ void Compiler::registerFunction(const ASTNode *funcDef)
     // restores chunk_/varRegisters_/… so this is safe on an otherwise-idle
     // Compiler.
     compileFunctionDef(funcDef);
+}
+
+const BytecodeChunk *Compiler::findCompiled(const std::string &name) const
+{
+    auto it = scriptLocalCompiledFuncs_.find(name);
+    if (it != scriptLocalCompiledFuncs_.end())
+        return &it->second;
+    auto it2 = compiledFuncs_.find(name);
+    return it2 != compiledFuncs_.end() ? &it2->second : nullptr;
+}
+
+void Compiler::beginScriptScope()
+{
+    savedScriptLocalCompiledFuncs_.push_back(std::move(scriptLocalCompiledFuncs_));
+    scriptLocalCompiledFuncs_.clear();
+    ++scriptDepth_;
+}
+
+void Compiler::endScriptScope()
+{
+    if (scriptDepth_ == 0)
+        return;
+    --scriptDepth_;
+    if (savedScriptLocalCompiledFuncs_.empty()) {
+        scriptLocalCompiledFuncs_.clear();
+        return;
+    }
+    scriptLocalCompiledFuncs_ = std::move(savedScriptLocalCompiledFuncs_.back());
+    savedScriptLocalCompiledFuncs_.pop_back();
+}
+
+void Compiler::promoteScriptLocalsToWorkspace()
+{
+    for (auto &entry : scriptLocalCompiledFuncs_)
+        compiledFuncs_[entry.first] = std::move(entry.second);
+    scriptLocalCompiledFuncs_.clear();
 }
 
 BytecodeChunk Compiler::compileFunction(const ASTNode *funcDef,

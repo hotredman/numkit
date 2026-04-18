@@ -39,9 +39,39 @@ public:
     std::unique_ptr<PausedState> savePausedState();
     void restorePausedState(std::unique_ptr<PausedState> state);
 
+    // Point the VM at the workspace-scope function table. Single-map
+    // form is kept for tests / callers that don't run under a
+    // script scope; anything running user scripts should also pass a
+    // script-local bucket so `clear all` mid-call doesn't strand the
+    // surrounding script's local functions.
     void setCompiledFuncs(const std::unordered_map<std::string, BytecodeChunk> *funcs)
     {
         compiledFuncs_ = funcs;
+        scriptLocalFuncs_ = nullptr;
+    }
+    void setCompiledFuncs(const std::unordered_map<std::string, BytecodeChunk> *funcs,
+                          const std::unordered_map<std::string, BytecodeChunk> *scriptLocal)
+    {
+        compiledFuncs_ = funcs;
+        scriptLocalFuncs_ = scriptLocal;
+    }
+
+    // Unified lookup — tries the script-local bucket first, then
+    // workspace. Returns nullptr when the name isn't a compiled
+    // function (caller falls through to built-ins / external funcs).
+    const BytecodeChunk *findCompiledFunc(const std::string &name) const
+    {
+        if (scriptLocalFuncs_) {
+            auto it = scriptLocalFuncs_->find(name);
+            if (it != scriptLocalFuncs_->end())
+                return &it->second;
+        }
+        if (compiledFuncs_) {
+            auto it = compiledFuncs_->find(name);
+            if (it != compiledFuncs_->end())
+                return &it->second;
+        }
+        return nullptr;
     }
 
     // After execute(), get exported variables for environment sync
@@ -75,6 +105,7 @@ public:
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
+    const std::unordered_map<std::string, BytecodeChunk> *scriptLocalFuncs_ = nullptr;
 
     // Register stack — MValue directly (16 bytes each)
     static constexpr size_t kRegStackSize = 256 * 50;

@@ -77,7 +77,8 @@ ExecStatus DebugSession::start(const std::string &code)
         auto src = std::make_shared<const std::string>(code);
         auto *compiler = engine_.compilerPtr();
         chunk_ = compiler->compile(ast_.get(), src);
-        engine_.vm_->setCompiledFuncs(&compiler->compiledFuncs());
+        engine_.vm_->setCompiledFuncs(&compiler->compiledFuncs(),
+                                      &compiler->scriptLocalCompiledFuncs());
 
         // No breakpoints → pause on first line (StepInto) so the user can step.
         // Breakpoints set → run (Continue) until the first one is hit.

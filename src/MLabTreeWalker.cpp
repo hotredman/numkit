@@ -1,5 +1,6 @@
 // src/MLabTreeWalker.cpp
 #include "MLabTreeWalker.hpp"
+#include "MLabCompiler.hpp"
 #include "MLabEngine.hpp"
 #include <algorithm>
 #include <cmath>
@@ -41,7 +42,7 @@ MValue TreeWalker::execute(const ASTNode *ast, Environment *env)
 bool TreeWalker::isKnownFunction(const std::string &name) const
 {
     static const std::unordered_set<std::string> kBuiltinFuncs = {"tic", "toc"};
-    return engine_.externalFuncs_.count(name) || engine_.userFuncs_.count(name)
+    return engine_.externalFuncs_.count(name) || engine_.hasUserFunction(name)
            || kBuiltinFuncs.count(name);
 }
 
@@ -974,11 +975,8 @@ MValue TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t 
         engine_.externalFuncs_[name]({}, nargout, Span<MValue>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? MValue::empty() : outBuf[0];
     }
-    {
-        auto _uit = engine_.userFuncs_.find(name);
-        if (_uit != engine_.userFuncs_.end())
-            return callUserFunction(_uit->second, {}, env);
-    }
+    if (auto *_uf = engine_.lookupUserFunction(name))
+        return callUserFunction(*_uf, {}, env);
 
     // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
     // referenced outside of any function scope. Inside a function they are
@@ -1343,11 +1341,8 @@ std::vector<MValue> TreeWalker::execCallMulti(const ASTNode *node, Environment *
         it->second(args, nout, Span<MValue>(outBuf), ctx);
         return outBuf;
     }
-    {
-        auto _uit = engine_.userFuncs_.find(funcName);
-        if (_uit != engine_.userFuncs_.end())
-            return callUserFunctionMulti(_uit->second, args, env, nout);
-    }
+    if (auto *_uf = engine_.lookupUserFunction(funcName))
+        return callUserFunctionMulti(*_uf, args, env, nout);
 
     throw std::runtime_error("Undefined function: " + funcName);
 }
@@ -1462,11 +1457,8 @@ std::vector<MValue> TreeWalker::callFuncHandleMulti(const MValue &handle,
         engine_.externalFuncs_[name](args, nout, Span<MValue>(outBuf), ctx);
         return outBuf;
     }
-    {
-        auto _uit = engine_.userFuncs_.find(name);
-        if (_uit != engine_.userFuncs_.end())
-            return callUserFunctionMulti(_uit->second, args, env, nout);
-    }
+    if (auto *_uf = engine_.lookupUserFunction(name))
+        return callUserFunctionMulti(*_uf, args, env, nout);
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
@@ -1571,12 +1563,9 @@ MValue TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargou
             it->second(args, nargout, Span<MValue>(outBuf, 1), ctx);
             return outBuf[0];
         }
-        {
-            auto uit = engine_.userFuncs_.find(name);
-            if (uit != engine_.userFuncs_.end()) {
-                funcNode->cachedUserFunc = &uit->second;
-                return callUserFunction(uit->second, args, env);
-            }
+        if (auto *uf = engine_.lookupUserFunction(name)) {
+            funcNode->cachedUserFunc = uf;
+            return callUserFunction(*uf, args, env);
         }
     }
 
@@ -2144,13 +2133,21 @@ MValue TreeWalker::execSwitch(const ASTNode *node, Environment *env)
 // ============================================================
 MValue TreeWalker::execFunctionDef(const ASTNode *node, Environment *env)
 {
+    (void) env;
     UserFunction func;
     func.name = node->strValue;
     func.params = node->paramNames;
     func.returns = node->returnNames;
     func.body = std::shared_ptr<const ASTNode>(cloneNode(node->children[0].get()));
     func.closureEnv = nullptr;
-    engine_.userFuncs_[func.name] = std::move(func);
+    // Route to the script-lexical bucket while inside a script
+    // scope — matches the compiler's rule so `clear all` in TW
+    // mode behaves the same as in VM mode (local functions survive).
+    auto *cp = engine_.compilerPtr();
+    if (cp && cp->inScriptScope())
+        engine_.scriptLocalUserFuncs_[func.name] = std::move(func);
+    else
+        engine_.userFuncs_[func.name] = std::move(func);
     return MValue::empty();
 }
 
@@ -2222,16 +2219,13 @@ MValue TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     }
 
     // 3. User functions
-    {
-        auto _uit = engine_.userFuncs_.find(name);
-        if (_uit != engine_.userFuncs_.end()) {
-            result = callUserFunction(_uit->second, args, env);
-            if (!node->suppressOutput && !result.isEmpty()) {
-                env->set("ans", result);
-                displayValue("ans", result);
-            }
-            return result;
+    if (auto *_uf = engine_.lookupUserFunction(name)) {
+        result = callUserFunction(*_uf, args, env);
+        if (!node->suppressOutput && !result.isEmpty()) {
+            env->set("ans", result);
+            displayValue("ans", result);
         }
+        return result;
     }
 
     throw std::runtime_error("Undefined function: " + name);
