@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import FileBrowser from "./FileBrowser";
 import Console from "./Console";
 import Workspace from "./Workspace";
@@ -9,6 +9,10 @@ import tempFS from "../temporary";
 import localFS from "../fs/local";
 import { loadUiState, saveUiState } from "../ui-state";
 import { useTheme, FONT, FONT_UI } from "../theme";
+
+// Stable reference for "no breakpoints" — keeps useMemo output
+// reference-equal across renders when the active tab has none.
+const EMPTY_BPS = Object.freeze([]);
 
 function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
   const C = useTheme();
@@ -116,10 +120,24 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [variables, setVariables] = useState({});
   const [errorLine, setErrorLine] = useState(null);
+  // Tabs own their breakpoints (sorted number[]). Single source of
+  // truth — persistence, rendering and engine-sync all read from the
+  // tab object. One-time migration from the previous schema
+  // (breakpointsByPath) merges its entries into the matching tabs so
+  // users upgrading across this commit keep their red dots.
   const [tabs, setTabs] = useState(() => {
     const t = savedState?.tabs;
-    if (Array.isArray(t) && t.length > 0) return t;
-    return [{id:"1",name:"untitled.m",code:"",modified:false,vfsPath:null,source:null}];
+    const legacyByPath = savedState?.breakpointsByPath;
+    const normalize = x => {
+      let bps = Array.isArray(x.breakpoints) ? x.breakpoints.slice() : [];
+      if (legacyByPath && x.vfsPath && Array.isArray(legacyByPath[x.vfsPath])) {
+        bps = Array.from(new Set([...bps, ...legacyByPath[x.vfsPath]]));
+      }
+      bps.sort((a, b) => a - b);
+      return { ...x, breakpoints: bps };
+    };
+    if (Array.isArray(t) && t.length > 0) return t.map(normalize);
+    return [{id:"1",name:"untitled.m",code:"",modified:false,vfsPath:null,source:null,breakpoints:[]}];
   });
   const [activeTab, setActiveTab] = useState(() => {
     const t = savedState?.tabs;
@@ -135,21 +153,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const [figuresWidth, setFiguresWidth] = useState(() => savedState?.layout?.figuresWidth ?? 360);
 
   // ── Debug state ──
-  // Breakpoints are persisted keyed by vfsPath (stable across reloads)
-  // but held in memory keyed by tabId (matches the UI's tab identity).
-  // Rehydrate by walking saved tabs and mapping vfsPath → tabId.
-  const [breakpoints, setBreakpoints] = useState(() => {
-    const byPath = savedState?.breakpointsByPath;
-    const t = savedState?.tabs;
-    if (!byPath || !Array.isArray(t)) return {};
-    const byTabId = {};
-    for (const tab of t) {
-      if (tab?.vfsPath && Array.isArray(byPath[tab.vfsPath])) {
-        byTabId[tab.id] = new Set(byPath[tab.vfsPath]);
-      }
-    }
-    return byTabId;
-  });
   const [debugState, setDebugState] = useState(null);  // null | { status, line, variables }
   const [debugLine, setDebugLine] = useState(null);     // current paused line
 
@@ -176,33 +179,39 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   },[engine,addOutput]);
 
   // ── Debug actions ──
+  // Toggle a red dot on the active tab. Breakpoints are stored sorted
+  // inside the tab object — same array reference survives keystrokes
+  // (updateTabCode spreads but doesn't clone breakpoints), so the
+  // engine-sync effect below doesn't refire on every character typed.
   const toggleBreakpoint = useCallback((line) => {
-    setBreakpoints(prev => {
-      const next = { ...prev };
-      const tabBps = new Set(next[activeTab] || []);
-      if (tabBps.has(line)) tabBps.delete(line);
-      else tabBps.add(line);
-      next[activeTab] = tabBps;
-      return next;
-    });
+    setTabs(prev => prev.map(t => {
+      if (t.id !== activeTab) return t;
+      const has = t.breakpoints.includes(line);
+      const next = has
+        ? t.breakpoints.filter(l => l !== line)
+        : [...t.breakpoints, line].sort((a, b) => a - b);
+      return { ...t, breakpoints: next };
+    }));
   }, [activeTab]);
 
-  // Keep the engine's breakpoint manager in lockstep with React state.
-  // Any change — gutter toggle, tab switch, initial mount — fires this
-  // effect and pushes the current tab's breakpoint list into the engine.
-  // Without this sync, a breakpoint removed while paused would keep
-  // firing until the next Continue (the old code only re-synced inside
-  // debugResume). Effect-driven sync stays off the React setState
-  // updater's pure contract.
-  useEffect(() => {
-    const tabBps = breakpoints[activeTab] || new Set();
-    engine.debugSetBreakpoints(Array.from(tabBps).sort((a, b) => a - b));
-  }, [breakpoints, activeTab, engine]);
+  // Active tab's breakpoint list as a stable reference. Becomes a new
+  // array only when the user actually toggles one, so the engine-sync
+  // effect fires exactly when it needs to.
+  const activeBreakpoints = useMemo(() => {
+    const tab = tabs.find(t => t.id === activeTab);
+    return tab?.breakpoints || EMPTY_BPS;
+  }, [tabs, activeTab]);
 
-  // Persist UI state (tabs, active tab, breakpoints, layout) to
-  // localStorage — debounced inside saveUiState so typing/resizing
-  // doesn't hammer the main thread. Breakpoints flip back to
-  // vfsPath-keyed here since tab ids are regenerated on reload.
+  // Keep the engine's breakpoint manager in lockstep with the active
+  // tab. Without this sync, a breakpoint removed while paused would
+  // keep firing until the next Continue.
+  useEffect(() => {
+    engine.debugSetBreakpoints(activeBreakpoints);
+  }, [activeBreakpoints, engine]);
+
+  // Persist UI state (tabs, active tab, layout) to localStorage —
+  // debounced inside saveUiState so typing/resizing doesn't hammer
+  // the main thread. Breakpoints ride along inside each tab object.
   //
   // The first invocation is a no-op: React fires this effect right
   // after mount with no user-visible change vs. what we just loaded,
@@ -210,21 +219,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const initialSaveSkippedRef = useRef(false);
   useEffect(() => {
     if (!initialSaveSkippedRef.current) { initialSaveSkippedRef.current = true; return; }
-
-    const breakpointsByPath = {};
-    for (const [tabId, set] of Object.entries(breakpoints)) {
-      const tab = tabs.find(t => t.id === tabId);
-      if (tab?.vfsPath && set && set.size > 0) {
-        breakpointsByPath[tab.vfsPath] = Array.from(set).sort((a, b) => a - b);
-      }
-    }
     saveUiState({
       layout: { showLeft, showCenter, showRight, showBottom, figuresWidth, bottomHeight },
       tabs,
       activeTab,
-      breakpointsByPath,
     });
-  }, [tabs, activeTab, breakpoints, showLeft, showCenter, showRight, showBottom, figuresWidth, bottomHeight]);
+  }, [tabs, activeTab, showLeft, showCenter, showRight, showBottom, figuresWidth, bottomHeight]);
 
   // Handle debug result from start or resume
   const handleDebugResult = useCallback((result) => {
@@ -323,9 +323,9 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const handleCloseFigure=useCallback(id=>{engine.execute(`close(${id})`);},[engine]);
   const handleCloseAllFigures=useCallback(()=>{engine.execute("close('all')");},[engine]);
 
-  const newTab=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null}]);setActiveTab(id);},[]);
+  const newTab=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:`script${tabCountRef.current}.m`,code:"",modified:false,vfsPath:null,source:null,breakpoints:[]}]);setActiveTab(id);},[]);
   const closeTab=useCallback(id=>{setTabs(p=>{const n=p.filter(t=>t.id!==id);if(!n.length)return p;if(activeTab===id)setActiveTab(n[n.length-1].id);return n;});},[activeTab]);
-  const closeAllTabs=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs([{id,name:'untitled.m',code:'',modified:false,vfsPath:null,source:null}]);setActiveTab(id);},[]);
+  const closeAllTabs=useCallback(()=>{tabCountRef.current++;const id=String(tabCountRef.current);setTabs([{id,name:'untitled.m',code:'',modified:false,vfsPath:null,source:null,breakpoints:[]}]);setActiveTab(id);},[]);
   const closeOtherTabs=useCallback(id=>{setTabs(p=>{const keep=p.find(t=>t.id===id);return keep?[keep]:p;});setActiveTab(id);},[]);
   const renameTab=useCallback((id,name)=>{if(!name.trim())return;setTabs(p=>p.map(t=>t.id===id?{...t,name:name.trim()}:t));},[]);
   const activeTabData=tabs.find(t=>t.id===activeTab)||tabs[0];
@@ -333,7 +333,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
   const runActiveTab=useCallback(()=>{const tab=tabs.find(t=>t.id===activeTab);if(!tab||!tab.code.trim())return;setShowBottom(true);setDebugLine(null);setDebugState(null);addOutput([{type:"system",text:`── Running ${tab.name} ──`},{type:"input",text:tab.code}]);setConsoleNotify(true);runCode(tab.code);setTabs(p=>p.map(t=>t.id===activeTab?{...t,modified:false}:t));},[tabs,activeTab,addOutput,runCode]);
 
-  const handleOpenFile=useCallback((filename,content,vfsPath,source)=>{const existing=tabs.find(t=>t.vfsPath&&t.vfsPath===vfsPath);if(existing){setActiveTab(existing.id);return;}tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:filename,code:content,modified:false,vfsPath:vfsPath||null,source:source||null}]);setActiveTab(id);setShowCenter(true);},[tabs]);
+  const handleOpenFile=useCallback((filename,content,vfsPath,source)=>{const existing=tabs.find(t=>t.vfsPath&&t.vfsPath===vfsPath);if(existing){setActiveTab(existing.id);return;}tabCountRef.current++;const id=String(tabCountRef.current);setTabs(p=>[...p,{id,name:filename,code:content,modified:false,vfsPath:vfsPath||null,source:source||null,breakpoints:[]}]);setActiveTab(id);setShowCenter(true);},[tabs]);
   // Save routes the write to the same filesystem the file came from.
   // Tabs opened from Local Folder write back to disk; everything else
   // (new tabs, tabs from Temporary, etc.) defaults to Temporary FS.
@@ -352,7 +352,6 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const handleRightResizeStart=useCallback(e=>{e.preventDefault();resizingRightRef.current=true;const sX=e.clientX,sW=figuresWidth;const onM=ev=>{if(!resizingRightRef.current)return;setFiguresWidth(Math.max(200,Math.min(window.innerWidth*0.5,sW+sX-ev.clientX)));};const onU=()=>{resizingRightRef.current=false;document.removeEventListener('mousemove',onM);document.removeEventListener('mouseup',onU);};document.addEventListener('mousemove',onM);document.addEventListener('mouseup',onU);},[figuresWidth]);
   const handleEditorScroll=useCallback(scrollTop=>{if(gutterRef.current)gutterRef.current.scrollTop=scrollTop;},[]);
 
-  const activeBreakpointsSet = breakpoints[activeTab] || new Set();
   const isDebugging = debugState?.status === 'paused';
 
   const PanelBtn=({active,onClick,icon,label,title,notify})=>(<button onClick={onClick} title={title} style={{display:"flex",alignItems:"center",gap:4,padding:"4px 8px",border:"none",borderRadius:4,background:active?`${C.accent}25`:"transparent",color:active?C.accent:C.textMuted,fontFamily:FONT_UI,fontSize:11,fontWeight:500,cursor:"pointer",transition:"all 0.15s",whiteSpace:"nowrap",position:"relative"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.background=C.bg3;}} onMouseLeave={e=>{if(!active)e.currentTarget.style.background="transparent";}}><span style={{fontSize:13}}>{icon}</span>{label}{notify&&<span style={{width:6,height:6,borderRadius:"50%",background:C.green,position:"absolute",top:2,right:2}}/>}</button>);
@@ -408,7 +407,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
                   const ln=i+1;
                   const isErr=errorLine===ln;
                   const isDbg=debugLine===ln;
-                  const hasBp=activeBreakpointsSet.has(ln);
+                  const hasBp=activeBreakpoints.includes(ln);
                   return (
                     <div key={i}
                       onClick={()=>toggleBreakpoint(ln)}
@@ -484,7 +483,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
           <span style={{color:C.border}}>|</span><span>{activeTabData?.name}</span>
           {activeTabData?.vfsPath&&<><span style={{color:C.border}}>|</span><span style={{color:C.green}}>{activeTabData.source==='localFolder'?'💾 local folder':'📌 temporary'}</span></>}
           {figures.length>0&&<><span style={{color:C.border}}>|</span><span>{figures.length} figure{figures.length>1?"s":""}</span></>}
-          {activeBreakpointsSet.size>0&&<><span style={{color:C.border}}>|</span><span style={{color:C.red}}>● {activeBreakpointsSet.size} bp</span></>}
+          {activeBreakpoints.length>0&&<><span style={{color:C.border}}>|</span><span style={{color:C.red}}>● {activeBreakpoints.length} bp</span></>}
           {isDebugging&&<><span style={{color:C.border}}>|</span><span style={{color:C.orange}}>⏸ line {debugState.line}</span></>}
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>

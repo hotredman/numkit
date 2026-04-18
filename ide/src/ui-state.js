@@ -22,12 +22,11 @@
  *     version: 1,
  *     layout: { showLeft, showCenter, showRight, showBottom,
  *               figuresWidth, bottomHeight },
- *     tabs:   [{ id, name, code, modified, vfsPath, source }],
+ *     // Breakpoints live on each tab so any tab type (untitled,
+ *     // Examples, GitHub, FS-backed) keeps its red dots across
+ *     // reloads — the tab is the single source of truth.
+ *     tabs:   [{ id, name, code, modified, vfsPath, source, breakpoints: [lineNumbers] }],
  *     activeTab,
- *     // Keyed by vfsPath so breakpoints survive close/reopen and
- *     // reloads. Untitled tabs (no vfsPath) don't persist their
- *     // breakpoints — acceptable for scratch work.
- *     breakpointsByPath: { [vfsPath]: [lineNumbers] },
  *   }
  */
 
