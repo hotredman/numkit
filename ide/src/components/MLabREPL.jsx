@@ -203,7 +203,14 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   // localStorage — debounced inside saveUiState so typing/resizing
   // doesn't hammer the main thread. Breakpoints flip back to
   // vfsPath-keyed here since tab ids are regenerated on reload.
+  //
+  // The first invocation is a no-op: React fires this effect right
+  // after mount with no user-visible change vs. what we just loaded,
+  // so writing would just echo disk back to disk.
+  const initialSaveSkippedRef = useRef(false);
   useEffect(() => {
+    if (!initialSaveSkippedRef.current) { initialSaveSkippedRef.current = true; return; }
+
     const breakpointsByPath = {};
     for (const [tabId, set] of Object.entries(breakpoints)) {
       const tab = tabs.find(t => t.id === tabId);

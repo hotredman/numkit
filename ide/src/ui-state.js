@@ -1,8 +1,22 @@
 /**
- * ui-state.js — debounced localStorage persistence for the IDE's
- * UI state.
+ * ui-state.js — localStorage persistence for the IDE's UI state.
  *
- * One key, one JSON blob:
+ * Two flavors:
+ *
+ *  1) `loadUiState` / `saveUiState` — the big session blob
+ *     (tabs, active tab, panel layout, breakpoints). Debounced so
+ *     chatty churn (typing, resize) collapses to one flush. One
+ *     JSON value under one key, versioned — on version mismatch or
+ *     corruption we return null and callers fall through to
+ *     defaults.
+ *
+ *  2) `usePersistedState(key, default, { validate? })` — a small
+ *     React hook for any standalone piece of UI state (dropdown
+ *     selection, expanded-folder map) that just wants to mirror
+ *     itself into localStorage. Writes on every change (no debounce
+ *     — these are small, rare mutations).
+ *
+ * The blob shape:
  *
  *   {
  *     version: 1,
@@ -15,13 +29,9 @@
  *     // breakpoints — acceptable for scratch work.
  *     breakpointsByPath: { [vfsPath]: [lineNumbers] },
  *   }
- *
- * Writes are debounced (~250 ms) so chatty state churn (typing,
- * panel resize) collapses to a single flush.
- *
- * On version mismatch or corruption we return null and callers
- * fall through to default state — old blobs don't crash new code.
  */
+
+import { useState, useEffect } from 'react';
 
 const KEY = 'mlab.uiState';
 const VERSION = 1;
@@ -74,4 +84,35 @@ export function clearUiState() {
     try { localStorage.removeItem(KEY); } catch (_) {}
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     pendingState = null;
+}
+
+/**
+ * Small useState-alike that mirrors a JSON-serializable value into
+ * localStorage under `key`. `validate(parsed)` lets the caller reject
+ * stale or out-of-whitelist values; failed validation falls back to
+ * `defaultValue`. Storage errors (quota, disabled storage) are
+ * swallowed — we'd rather skip persistence than crash the UI.
+ *
+ * Not debounced on purpose: intended for sparse user interactions
+ * (dropdown pick, folder expand), not for continuous streams. If
+ * you need to persist a high-churn value, use `saveUiState`.
+ */
+export function usePersistedState(key, defaultValue, { validate } = {}) {
+    const [value, setValue] = useState(() => {
+        try {
+            const raw = localStorage.getItem(key);
+            if (raw == null) return defaultValue;
+            const parsed = JSON.parse(raw);
+            if (validate && !validate(parsed)) return defaultValue;
+            return parsed;
+        } catch (_) {
+            return defaultValue;
+        }
+    });
+
+    useEffect(() => {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+    }, [key, value]);
+
+    return [value, setValue];
 }

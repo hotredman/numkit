@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import tempFS from '../temporary';
 import localFS from '../fs/local';
+import { usePersistedState } from '../ui-state';
 import { useTheme, FONT, FONT_UI } from '../theme';
 
 const isMFile = name => name.endsWith('.m');
@@ -65,7 +66,7 @@ function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
 function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = usePersistedState('mlab.fb.expanded.temporary', {});
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [creating, setCreating] = useState(null);
@@ -246,7 +247,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
   const [mountName, setMountName] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | connecting | connected | denied
   const [error, setError] = useState(null);
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = usePersistedState('mlab.fb.expanded.localFolder', {});
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [creating, setCreating] = useState(null);
@@ -490,7 +491,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
 function ExamplesBrowser({ onOpenFile }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = usePersistedState('mlab.fb.expanded.examples', {});
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -506,7 +507,13 @@ function ExamplesBrowser({ onOpenFile }) {
           children: folder.files.map(f => ({ name: f, path: `/examples/${folder.name}/${f}`, type: 'file', _fetchPath: `${base}examples/${folder.name}/${f}` })),
         }));
         setTree(nodes);
-        if (nodes.length > 0) setExpanded({ [nodes[0].path]: true });
+        // Seed first-folder expansion only on genuinely-first visit.
+        // Any persisted expansion (even empty after a manual collapse)
+        // is kept — we read it via the functional setter so we don't
+        // have to list `expanded` in the deps and churn this effect.
+        setExpanded(prev => Object.keys(prev).length > 0
+          ? prev
+          : (nodes.length > 0 ? { [nodes[0].path]: true } : prev));
       } catch (e) { console.warn('[Examples]', e); setTree([]); }
       finally { setLoading(false); }
     })();
@@ -547,13 +554,13 @@ function ExamplesBrowser({ onOpenFile }) {
 
 function GitHubBrowser({ onOpenFile, defaultRepo }) {
   const C = useTheme();
-  const [repoUrl, setRepoUrl] = useState(defaultRepo || '');
+  const [repoUrl, setRepoUrl] = usePersistedState('mlab.fb.github.repoUrl', defaultRepo || '');
   const [tree, setTree] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [expanded, setExpanded] = useState({});
+  const [expanded, setExpanded] = usePersistedState('mlab.fb.github.expanded', {});
   const [selected, setSelected] = useState(null);
-  const [branch, setBranch] = useState('main');
+  const [branch, setBranch] = usePersistedState('mlab.fb.github.branch', 'main');
   const [branches, setBranches] = useState([]);
   const [repoInfo, setRepoInfo] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
@@ -671,26 +678,23 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
   );
 }
 
-const SOURCE_KEY = 'mlab.fb.source';
+const VALID_SOURCES = new Set(['temporary', 'localFolder', 'examples', 'github']);
 
 export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved }) {
   const C = useTheme();
-  // Persist the dropdown selection so a reload drops the user back
-  // into whichever backend they were last browsing.
-  const [source, setSource] = useState(() => {
-    try {
-      const v = localStorage.getItem(SOURCE_KEY);
-      if (v === 'temporary' || v === 'localFolder' || v === 'examples' || v === 'github') return v;
-    } catch (_) {}
-    return 'temporary';
-  });
-  useEffect(() => {
-    try { localStorage.setItem(SOURCE_KEY, source); } catch (_) {}
-  }, [source]);
   // File System Access API presence is fixed per-browser-session.
   // Firefox / Safari report false and the "Local Folder" option is
   // simply not offered.
   const hasLocalFolder = useMemo(() => localFS.isAvailable(), []);
+  // Persist the dropdown selection so a reload drops the user back
+  // into whichever backend they were last browsing. Validator also
+  // rejects `localFolder` when the current browser can't render it
+  // (e.g. user toggled Chrome → Firefox with a localStorage copy) —
+  // otherwise the whole pane would render blank with no recovery.
+  const [source, setSource] = usePersistedState('mlab.fb.source', 'temporary', {
+    validate: v => typeof v === 'string' && VALID_SOURCES.has(v)
+      && (v !== 'localFolder' || hasLocalFolder),
+  });
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <div style={{ padding: '7px 10px', borderBottom: `1px solid ${C.border}`, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
