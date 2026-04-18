@@ -183,7 +183,7 @@ void Engine::clearUserFunctions()
 {
     userFuncs_.clear();
     if (compiler_)
-        compiler_->markCompiledFuncsDirty();
+        compiler_->clearCompiledFuncs();
 }
 
 void Engine::setDebugObserver(std::shared_ptr<DebugObserver> observer)
@@ -255,6 +255,12 @@ MValue Engine::eval(const std::string &code)
     //
     // Function definitions are pre-registered across the whole BLOCK so
     // statements earlier in the file can call functions declared later.
+    // They are also *re-*registered after every statement so that a
+    // `clear all` in the middle of a script (which wipes
+    // engine.userFuncs_) cannot make the script's own local functions
+    // disappear from under the calls that follow — MATLAB's local
+    // script functions are always in scope for the script that
+    // defines them.
     //
     // An attached debug observer runs the whole eval as one chunk: the
     // observer expects step/line semantics to correspond to the source as
@@ -264,15 +270,26 @@ MValue Engine::eval(const std::string &code)
                             && ast->type == NodeType::BLOCK
                             && ast->children.size() > 1;
     if (splittable) {
+        std::vector<const ASTNode *> funcDefs;
         for (auto &c : ast->children) {
             if (c && c->type == NodeType::FUNCTION_DEF)
-                compiler_->registerFunction(c.get());
+                funcDefs.push_back(c.get());
         }
+        auto ensureFunctions = [&]() {
+            for (const ASTNode *f : funcDefs) {
+                if (!hasUserFunction(f->strValue))
+                    compiler_->registerFunction(f);
+            }
+        };
+        ensureFunctions();
         MValue result = MValue::empty();
         for (auto &c : ast->children) {
             if (!c || c->type == NodeType::FUNCTION_DEF)
                 continue;
             result = runOneChunk(c.get(), src);
+            // `clear all` / `clear functions` in the previous statement
+            // may have emptied userFuncs_ — restore script-local ones.
+            ensureFunctions();
         }
         return result;
     }

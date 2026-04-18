@@ -40,7 +40,6 @@ public:
         return compiledFuncs_;
     }
     void clearCompiledFuncs() { compiledFuncs_.clear(); }
-    void markCompiledFuncsDirty() { compiledFuncsDirty_ = true; }
 
     // Debug: dump bytecode
     static std::string disassemble(const BytecodeChunk &chunk);
@@ -68,7 +67,6 @@ private:
 
     // Compiled function table (persists across compile() calls)
     std::unordered_map<std::string, BytecodeChunk> compiledFuncs_;
-    bool compiledFuncsDirty_ = false;
 
     // ── Variable register access API ────────────────────────────
     //

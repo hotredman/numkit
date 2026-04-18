@@ -300,6 +300,51 @@ TEST_P(MatlabParity, FunctionDefsAreForwardReferenceable)
     EXPECT_DOUBLE_EQ(getVar("r"), 12.0);
 }
 
+TEST_P(MatlabParity, BenchmarkScriptFunctionCallsInsideLoop)
+{
+    // Extracted from the user's Benchmark script: function defined in
+    // the middle of the file, then called from a for-loop further down.
+    // Reproduces the "undefined function" error report.
+    eval(R"(
+        clear all
+        N3 = 10;
+
+        function y = add_one(x)
+            y = x + 1;
+        end
+
+        v = 0;
+        for i = 1:N3
+            v = add_one(v);
+        end
+    )");
+    EXPECT_DOUBLE_EQ(getVar("v"), 10.0);
+}
+
+TEST_P(MatlabParity, FunctionDefsInterleavedWithCode)
+{
+    // Real-world pattern from the benchmark script: `function …end`
+    // blocks are INTERLEAVED with regular top-level statements, and
+    // the functions are called from statements that come AFTER the
+    // definition in source order — but also potentially from a
+    // statement physically ABOVE the next function def. Every
+    // FUNCTION_DEF child of the top-level BLOCK must be
+    // pre-registered before any non-function statement runs.
+    eval(R"(
+        a = 1;
+        function y = add_one(x)
+            y = x + 1;
+        end
+        v = add_one(10);
+        function r = doublev(n)
+            r = n * 2;
+        end
+        w = doublev(v);
+    )");
+    EXPECT_DOUBLE_EQ(getVar("v"), 11.0);
+    EXPECT_DOUBLE_EQ(getVar("w"), 22.0);
+}
+
 TEST_P(MatlabParity, LoopAsSingleStatementIsOneChunk)
 {
     // Control-flow constructs are a single top-level statement — the

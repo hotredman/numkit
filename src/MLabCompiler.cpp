@@ -43,12 +43,6 @@ Compiler::Compiler(Engine &engine)
 
 BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::string> sourceCode)
 {
-    // Deferred clear from previous clear functions / clear all
-    if (compiledFuncsDirty_) {
-        compiledFuncs_.clear();
-        compiledFuncsDirty_ = false;
-    }
-
     chunk_ = BytecodeChunk{};
     chunk_.name = "<script>";
     chunk_.sourceCode = std::move(sourceCode);
