@@ -671,9 +671,22 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
   );
 }
 
+const SOURCE_KEY = 'mlab.fb.source';
+
 export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved }) {
   const C = useTheme();
-  const [source, setSource] = useState('temporary');
+  // Persist the dropdown selection so a reload drops the user back
+  // into whichever backend they were last browsing.
+  const [source, setSource] = useState(() => {
+    try {
+      const v = localStorage.getItem(SOURCE_KEY);
+      if (v === 'temporary' || v === 'localFolder' || v === 'examples' || v === 'github') return v;
+    } catch (_) {}
+    return 'temporary';
+  });
+  useEffect(() => {
+    try { localStorage.setItem(SOURCE_KEY, source); } catch (_) {}
+  }, [source]);
   // File System Access API presence is fixed per-browser-session.
   // Firefox / Safari report false and the "Local Folder" option is
   // simply not offered.

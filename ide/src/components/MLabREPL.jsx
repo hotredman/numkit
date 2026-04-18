@@ -7,6 +7,7 @@ import Figures from "./Figures";
 import SyntaxEditor from "./SyntaxEditor";
 import tempFS from "../temporary";
 import localFS from "../fs/local";
+import { loadUiState, saveUiState } from "../ui-state";
 import { useTheme, FONT, FONT_UI } from "../theme";
 
 function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAll, onCloseExcept }) {
@@ -99,32 +100,65 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const C = useTheme();
   const { themeName, toggleTheme } = C;
 
-  const [showLeft, setShowLeft] = useState(true);
-  const [showCenter, setShowCenter] = useState(true);
-  const [showRight, setShowRight] = useState(false);
-  const [showBottom, setShowBottom] = useState(true);
+  // Rehydrate once from localStorage. Kept in useState so React's
+  // lazy-init guarantee prevents re-reads on every render.
+  const [savedState] = useState(() => loadUiState());
+
+  const [showLeft, setShowLeft] = useState(() => savedState?.layout?.showLeft ?? true);
+  const [showCenter, setShowCenter] = useState(() => savedState?.layout?.showCenter ?? true);
+  const [showRight, setShowRight] = useState(() => savedState?.layout?.showRight ?? false);
+  const [showBottom, setShowBottom] = useState(() => savedState?.layout?.showBottom ?? true);
   const [bottomTab, setBottomTab] = useState("console");
-  const [bottomHeight, setBottomHeight] = useState(300);
+  const [bottomHeight, setBottomHeight] = useState(() => savedState?.layout?.bottomHeight ?? 300);
   const [output, setOutput] = useState([]);
   const [figures, setFigures] = useState([]);
   const [helpTopic, setHelpTopic] = useState(null);
   const [execTimeMs, setExecTimeMs] = useState(null);
   const [variables, setVariables] = useState({});
   const [errorLine, setErrorLine] = useState(null);
-  const [tabs, setTabs] = useState([{id:"1",name:"untitled.m",code:"",modified:false,vfsPath:null,source:null}]);
-  const [activeTab, setActiveTab] = useState("1");
+  const [tabs, setTabs] = useState(() => {
+    const t = savedState?.tabs;
+    if (Array.isArray(t) && t.length > 0) return t;
+    return [{id:"1",name:"untitled.m",code:"",modified:false,vfsPath:null,source:null}];
+  });
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = savedState?.tabs;
+    const a = savedState?.activeTab;
+    if (Array.isArray(t) && a && t.some(x => x.id === a)) return a;
+    if (Array.isArray(t) && t.length > 0) return t[0].id;
+    return "1";
+  });
   const [vfsRefreshKey, setVfsRefreshKey] = useState(0);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveFileName, setSaveFileName] = useState("");
   const [consoleNotify, setConsoleNotify] = useState(false);
-  const [figuresWidth, setFiguresWidth] = useState(360);
+  const [figuresWidth, setFiguresWidth] = useState(() => savedState?.layout?.figuresWidth ?? 360);
 
   // ── Debug state ──
-  const [breakpoints, setBreakpoints] = useState({}); // { tabId: Set<lineNumber> }
+  // Breakpoints are persisted keyed by vfsPath (stable across reloads)
+  // but held in memory keyed by tabId (matches the UI's tab identity).
+  // Rehydrate by walking saved tabs and mapping vfsPath → tabId.
+  const [breakpoints, setBreakpoints] = useState(() => {
+    const byPath = savedState?.breakpointsByPath;
+    const t = savedState?.tabs;
+    if (!byPath || !Array.isArray(t)) return {};
+    const byTabId = {};
+    for (const tab of t) {
+      if (tab?.vfsPath && Array.isArray(byPath[tab.vfsPath])) {
+        byTabId[tab.id] = new Set(byPath[tab.vfsPath]);
+      }
+    }
+    return byTabId;
+  });
   const [debugState, setDebugState] = useState(null);  // null | { status, line, variables }
   const [debugLine, setDebugLine] = useState(null);     // current paused line
 
-  const tabCountRef=useRef(1); const editorRef=useRef(null); const gutterRef=useRef(null); const consoleRef=useRef(null); const resizingRef=useRef(false); const resizingRightRef=useRef(false);
+  const tabCountRef=useRef(
+    Array.isArray(savedState?.tabs) && savedState.tabs.length > 0
+      ? Math.max(...savedState.tabs.map(x => parseInt(x.id, 10) || 0), 1)
+      : 1
+  );
+  const editorRef=useRef(null); const gutterRef=useRef(null); const consoleRef=useRef(null); const resizingRef=useRef(false); const resizingRightRef=useRef(false);
   const engine = engineProp;
 
   useEffect(()=>{setOutput([{type:"system",text:"MLab REPL v2.5 — Web IDE"},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);},[]);
@@ -164,6 +198,26 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
     const tabBps = breakpoints[activeTab] || new Set();
     engine.debugSetBreakpoints(Array.from(tabBps).sort((a, b) => a - b));
   }, [breakpoints, activeTab, engine]);
+
+  // Persist UI state (tabs, active tab, breakpoints, layout) to
+  // localStorage — debounced inside saveUiState so typing/resizing
+  // doesn't hammer the main thread. Breakpoints flip back to
+  // vfsPath-keyed here since tab ids are regenerated on reload.
+  useEffect(() => {
+    const breakpointsByPath = {};
+    for (const [tabId, set] of Object.entries(breakpoints)) {
+      const tab = tabs.find(t => t.id === tabId);
+      if (tab?.vfsPath && set && set.size > 0) {
+        breakpointsByPath[tab.vfsPath] = Array.from(set).sort((a, b) => a - b);
+      }
+    }
+    saveUiState({
+      layout: { showLeft, showCenter, showRight, showBottom, figuresWidth, bottomHeight },
+      tabs,
+      activeTab,
+      breakpointsByPath,
+    });
+  }, [tabs, activeTab, breakpoints, showLeft, showCenter, showRight, showBottom, figuresWidth, bottomHeight]);
 
   // Handle debug result from start or resume
   const handleDebugResult = useCallback((result) => {
