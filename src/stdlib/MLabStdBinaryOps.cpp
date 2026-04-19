@@ -133,7 +133,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("/", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
         { auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateDiv(x, y); }, alloc);
@@ -163,7 +163,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("^", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex()) {
             auto [ca, cb] = promoteToComplex(a, b, alloc);
             return MValue::complexScalar(std::pow(ca.toComplex(), cb.toComplex()), alloc);
@@ -202,7 +202,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("\\", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isScalar() && b.isScalar())
             return MValue::scalar(b.toScalar() / a.toScalar(), alloc);
         throw std::runtime_error("Matrix left division not implemented");

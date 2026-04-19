@@ -575,6 +575,33 @@ TEST_P(EmptyArith2Test, CharEmptyPlusScalarPromotesToDouble)
     EXPECT_EQ(b->numel(), 0u);
 }
 
+TEST_P(EmptyArith2Test, RightDivEmptyPreservesShape)
+{
+    eval("a = zeros(3, 0); b = a / 2;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, PowerEmptyPreservesShape)
+{
+    eval("a = zeros(2, 0); b = a ^ 2;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, LeftDivEmptyPreservesShape)
+{
+    eval("a = zeros(4, 0); b = 2 \\ a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 4u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
 INSTANTIATE_DUAL(EmptyArith2Test);
 
 // ============================================================
