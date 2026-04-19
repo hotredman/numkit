@@ -98,8 +98,8 @@ static bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
     if (t == MType::CHAR) {
         return std::memcmp(a.charData(), b.charData(), n) == 0;
     }
-    if (t == MType::LOGICAL || t == MType::UINT8) {
-        return std::memcmp(a.rawData(), b.rawData(), n) == 0;
+    if (t == MType::LOGICAL) {
+        return std::memcmp(a.logicalData(), b.logicalData(), n) == 0;
     }
     if (isIntegerType(t)) {
         return std::memcmp(a.rawData(), b.rawData(), n * elementSize(t)) == 0;

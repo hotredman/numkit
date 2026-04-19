@@ -576,5 +576,71 @@ TEST_P(TypeOpsTest, Uint16OfZeroRowsPreservesShape)
     EXPECT_EQ(a->numel(), 0u);
 }
 
+// ── Unary empty shape preservation ─────────────────
+
+TEST_P(TypeOpsTest, UnaryMinusEmptyDoublePreservesShape)
+{
+    eval("a = zeros(3, 0); b = -a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(TypeOpsTest, UnaryMinusEmptyInt32PreservesShape)
+{
+    eval("a = int32(zeros(2, 0)); b = -a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::INT32);
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(TypeOpsTest, UnaryMinusEmptyCharPromotesToDouble)
+{
+    eval("b = -'';");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->numel(), 0u);
+}
+
+TEST_P(TypeOpsTest, LogicalNotEmptyPreservesShape)
+{
+    eval("a = zeros(3, 0); b = ~a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(TypeOpsTest, LogicalNot3DPreservesShape)
+{
+    // Was a heap-corruption site: ~ used MValue::matrix(rows, cols) for
+    // the result then wrote numel bytes — past the 2D buffer end for 3D.
+    eval("a = zeros(2, 3, 2); b = ~a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_TRUE(b->dims().is3D());
+    EXPECT_EQ(b->numel(), 12u);
+    for (size_t i = 0; i < 12; ++i)
+        EXPECT_EQ(b->logicalData()[i], 1u);
+}
+
+TEST_P(TypeOpsTest, UnaryMinus3DPreservesShape)
+{
+    eval("a = ones(2, 2, 2); b = -a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_TRUE(b->dims().is3D());
+    EXPECT_EQ(b->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_DOUBLE_EQ(b->doubleData()[i], -1.0);
+}
+
 
 INSTANTIATE_DUAL(TypeOpsTest);

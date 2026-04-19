@@ -12,8 +12,14 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     // --- Unary minus ---
     engine.registerUnaryOp("-", [&engine](const MValue &a) -> MValue {
         auto *alloc = &engine.allocator();
-        if (a.isEmpty())
-            return MValue::empty();
+        if (a.isEmpty()) {
+            // Preserve shape. Char/logical promote to double empty
+            // (MATLAB: -'' → 1x0 double, -false(3,0) → 3x0 double).
+            MType outType = a.isComplex()                   ? MType::COMPLEX
+                            : (a.isChar() || a.isLogical()) ? MType::DOUBLE
+                                                            : a.type();
+            return createLike(a, outType, alloc);
+        }
         if (a.isComplex())
             return unaryComplex(a, std::negate<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE)
@@ -42,7 +48,7 @@ void StdLibrary::registerUnaryOps(Engine &engine)
         if (a.isLogical()) {
             if (a.isScalar())
                 return MValue::logicalScalar(!a.toBool(), alloc);
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             const uint8_t *src = a.logicalData();
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < a.numel(); ++i)
@@ -52,7 +58,7 @@ void StdLibrary::registerUnaryOps(Engine &engine)
         if (a.type() == MType::DOUBLE) {
             if (a.isScalar())
                 return MValue::logicalScalar(a.toScalar() == 0.0, alloc);
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             const double *src = a.doubleData();
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < a.numel(); ++i)
