@@ -399,7 +399,7 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",width:"100%",background:C.bg0,color:C.text,fontFamily:FONT,fontSize:13,overflow:"hidden"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 12px",background:C.bg1,borderBottom:`1px solid ${C.border}`,flexShrink:0,zIndex:30,gap:8}}>
-        <div style={{display:"flex",alignItems:"baseline",gap:6,flexShrink:0}}><span style={{fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI}}>numkit <span style={{color:C.accent}}>mIDE</span></span><span style={{fontSize:9,color:C.textMuted}}>v2.5</span></div>
+        <div style={{display:"flex",alignItems:"baseline",gap:6,flexShrink:0}}><span style={{fontSize:17,fontWeight:600,letterSpacing:-0.5,fontFamily:"'Fraunces', 'Times New Roman', serif"}}>[n<sub style={{fontSize:"0.7em",verticalAlign:"sub"}}>k</sub>]</span><span style={{fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI,color:C.accent}}>mIDE</span><span style={{fontSize:9,color:C.textMuted}}>v2.5</span></div>
         <div style={{display:"flex",gap:2,alignItems:"center",background:C.bg0,borderRadius:6,padding:"2px 3px"}}>
           <PanelBtn active={showLeft} onClick={()=>setShowLeft(!showLeft)} icon="📂" label="Explorer" title="File Browser"/>
           <PanelBtn active={showCenter} onClick={()=>setShowCenter(!showCenter)} icon="📝" label="Editor" title="Code Editor"/>
