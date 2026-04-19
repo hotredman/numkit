@@ -666,4 +666,122 @@ TEST_P(HeapSafety3DExtendedTest, ElementwiseTypedInt32ScalarBroadcast)
         EXPECT_EQ(B->int32Data()[i], static_cast<int32_t>(11 + i));
 }
 
+TEST_P(HeapSafety3DExtendedTest, Polyval3D)
+{
+    // polyval([1 2 3], X) = X.^2 + 2*X + 3
+    eval("X = ones(2, 2, 2) * 5; Y = polyval([1 2 3], X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+    // 5^2 + 2*5 + 3 = 38
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_DOUBLE_EQ(Y->doubleData()[i], 38.0);
+}
+
+// The DSP functions below operate linearly over numel() on 3D inputs
+// (MATLAB slices by first non-singleton dim; our semantics differ).
+// These tests only assert that shape + type are preserved and that
+// the heap isn't corrupted. Value-level MATLAB parity for 3D DSP is a
+// separate feature.
+
+TEST_P(HeapSafety3DExtendedTest, Filter3DShapePreserved)
+{
+    eval("X = ones(2, 2, 2); Y = filter([1], [1], X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Filtfilt3DShapePreserved)
+{
+    eval("X = ones(2, 2, 2); Y = filtfilt([0.5 0.5], [1], X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Unwrap3DShapePreserved)
+{
+    eval("X = zeros(2, 2, 2); Y = unwrap(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Envelope3DShapePreserved)
+{
+    eval("X = ones(2, 2, 2); Y = envelope(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Fftshift3DDoubleShapePreserved)
+{
+    eval("X = ones(2, 2, 2); for k = 1:8, X(k) = k; end; Y = fftshift(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+    // Linear circular shift by N/2 = 4: output[0] = input[4] = 5.
+    EXPECT_DOUBLE_EQ(Y->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(Y->doubleData()[4], 1.0);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Fftshift3DComplexShapePreserved)
+{
+    eval("X = ones(2, 2, 2) + 1i; Y = fftshift(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_TRUE(Y->isComplex());
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Ifftshift3DDoubleShapePreserved)
+{
+    eval("X = ones(2, 2, 2); for k = 1:8, X(k) = k; end; Y = ifftshift(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Ifftshift3DComplexShapePreserved)
+{
+    eval("X = ones(2, 2, 2) + 0i; Y = ifftshift(X);");
+    auto *Y = getVarPtr("Y");
+    ASSERT_NE(Y, nullptr);
+    EXPECT_TRUE(Y->isComplex());
+    EXPECT_TRUE(Y->dims().is3D());
+    EXPECT_EQ(Y->numel(), 8u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, Strlength3DPreservesShape)
+{
+    // Heap-safety: strlength on a 3D string array must preserve 3D
+    // shape without corrupting the heap. Value-correctness for 3D
+    // string indexing is a separate concern (reshape of a string
+    // array / stringElem(linear) mapping into 3D is not fully wired
+    // up yet), so we only check shape/type/numel here.
+    eval("S = reshape([\"aa\" \"bbb\" \"c\" \"dddd\" \"ee\" \"f\" \"ggg\" \"hh\"], 2, 2, 2);");
+    eval("L = strlength(S);");
+    auto *L = getVarPtr("L");
+    ASSERT_NE(L, nullptr);
+    EXPECT_EQ(L->type(), MType::DOUBLE);
+    EXPECT_TRUE(L->dims().is3D());
+    EXPECT_EQ(L->numel(), 8u);
+}
+
 INSTANTIATE_DUAL(HeapSafety3DExtendedTest);
