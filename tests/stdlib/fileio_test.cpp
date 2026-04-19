@@ -232,4 +232,54 @@ TEST_P(FileIoTest, EveryFopenYieldsDistinctFid)
     eval("fclose('all');");
 }
 
+// ── VFS routing via the same resolvePath as csvread/csvwrite ─
+
+TEST_P(FileIoTest, FopenHonorsMlabFsEnvVar)
+{
+    // Register a second backend and redirect fopen to it via MLAB_FS —
+    // the script origin stack still says 'temporary', so this verifies
+    // env-var precedence for fopen specifically (same contract we
+    // already test for csvread/csvwrite in vfs_test.cpp).
+    auto other = std::make_unique<MemoryFS>("other");
+    auto *otherPtr = other.get();
+    engine.registerVirtualFS(std::move(other));
+
+    eval("setenv('MLAB_FS', 'other');");
+    eval("fid = fopen('x.txt', 'w');");
+    eval("fprintf(fid, 'via other');");
+    eval("fclose(fid);");
+    eval("setenv('MLAB_FS', '');");
+
+    EXPECT_EQ(otherPtr->files()["x.txt"], "via other");
+    EXPECT_TRUE(fs->files().empty());
+}
+
+TEST_P(FileIoTest, FopenHonorsExplicitPathPrefix)
+{
+    // Explicit scheme in the path wins over every other routing input.
+    auto other = std::make_unique<MemoryFS>("other");
+    auto *otherPtr = other.get();
+    engine.registerVirtualFS(std::move(other));
+
+    eval("fid = fopen('other:/y.txt', 'w');");
+    eval("fprintf(fid, 'prefix-wins');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(otherPtr->files()["/y.txt"], "prefix-wins");
+    EXPECT_TRUE(fs->files().empty());
+}
+
+TEST_P(FileIoTest, FopenTreatsUnregisteredPrefixAsLiteralPath)
+{
+    // A ':' in the filename that DOESN'T match a registered FS name is
+    // treated as part of a literal path (so URLs/mailto:/etc. pass
+    // through untouched). The file lands in the default FS for this run.
+    eval("fid = fopen('mailto:x@y.z', 'w');");
+    eval("fprintf(fid, 'pass-through');");
+    eval("fclose(fid);");
+
+    // The path got routed to the script-origin FS (our MemoryFS).
+    EXPECT_EQ(fs->files()["mailto:x@y.z"], "pass-through");
+}
+
 INSTANTIATE_DUAL(FileIoTest);
