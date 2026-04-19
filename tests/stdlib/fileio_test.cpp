@@ -282,6 +282,113 @@ TEST_P(FileIoTest, FopenTreatsUnregisteredPrefixAsLiteralPath)
     EXPECT_EQ(fs->files()["mailto:x@y.z"], "pass-through");
 }
 
+// ── fgetl / fgets / feof ─────────────────────────────────
+
+TEST_P(FileIoTest, FgetlReadsLinesStrippingNewline)
+{
+    fs->files()["in.txt"] = "first\nsecond\nthird\n";
+    eval("fid = fopen('in.txt', 'r');");
+    EXPECT_EQ(evalString("a = fgetl(fid);"), "first");
+    EXPECT_EQ(evalString("b = fgetl(fid);"), "second");
+    EXPECT_EQ(evalString("c = fgetl(fid);"), "third");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetlReturnsMinusOneAtEof)
+{
+    fs->files()["one.txt"] = "only line\n";
+    eval("fid = fopen('one.txt', 'r');");
+    eval("a = fgetl(fid);");
+    EXPECT_EQ(evalScalar("b = fgetl(fid);"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetlHandlesLineWithoutTrailingNewline)
+{
+    fs->files()["no-nl.txt"] = "line1\nline2";   // no final \n
+    eval("fid = fopen('no-nl.txt', 'r');");
+    EXPECT_EQ(evalString("a = fgetl(fid);"), "line1");
+    EXPECT_EQ(evalString("b = fgetl(fid);"), "line2");
+    EXPECT_EQ(evalScalar("c = fgetl(fid);"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetlStripsCarriageReturnOnCrLf)
+{
+    fs->files()["crlf.txt"] = "alpha\r\nbeta\r\n";
+    eval("fid = fopen('crlf.txt', 'r');");
+    EXPECT_EQ(evalString("a = fgetl(fid);"), "alpha");
+    EXPECT_EQ(evalString("b = fgetl(fid);"), "beta");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetsKeepsTheNewline)
+{
+    fs->files()["in.txt"] = "hello\nworld\n";
+    eval("fid = fopen('in.txt', 'r');");
+    EXPECT_EQ(evalString("a = fgets(fid);"), "hello\n");
+    EXPECT_EQ(evalString("b = fgets(fid);"), "world\n");
+    EXPECT_EQ(evalScalar("c = fgets(fid);"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetsWithNcharLimitsLength)
+{
+    fs->files()["long.txt"] = "abcdefghij\n";
+    eval("fid = fopen('long.txt', 'r');");
+    // nchar=4 → first 4 chars, no newline reached.
+    EXPECT_EQ(evalString("a = fgets(fid, 4);"), "abcd");
+    // Next call picks up from where we stopped; nchar=3 → "efg".
+    EXPECT_EQ(evalString("b = fgets(fid, 3);"), "efg");
+    // Remaining up to newline (including it): "hij\n" is 4 chars, asked
+    // nchar=10, we return through the newline.
+    EXPECT_EQ(evalString("c = fgets(fid, 10);"), "hij\n");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetsNcharRespectsNewlineWhenCloser)
+{
+    fs->files()["short.txt"] = "hi\nworld\n";
+    eval("fid = fopen('short.txt', 'r');");
+    // nchar=10 but newline is at position 2 — fgets returns "hi\n".
+    EXPECT_EQ(evalString("a = fgets(fid, 10);"), "hi\n");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FeofIsFalseBeforeEndTrueAfter)
+{
+    fs->files()["x.txt"] = "abc\n";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_FALSE(evalBool("before = feof(fid);"));
+    eval("line = fgetl(fid);");
+    EXPECT_TRUE(evalBool("after = feof(fid);"));
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetlOnWriteFidThrows)
+{
+    eval("fid = fopen('out.txt', 'w');");
+    EXPECT_THROW(eval("x = fgetl(fid);"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetsOnWriteFidThrows)
+{
+    eval("fid = fopen('out.txt', 'w');");
+    EXPECT_THROW(eval("x = fgets(fid);"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FgetlOnInvalidFidThrows)
+{
+    EXPECT_THROW(eval("x = fgetl(999);"), std::exception);
+}
+
+TEST_P(FileIoTest, FeofOnInvalidFidThrows)
+{
+    EXPECT_THROW(eval("x = feof(999);"), std::exception);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)

@@ -759,6 +759,92 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             bool ok = ctx.engine->closeFile(fid);
             outs[0] = MValue::scalar(ok ? 0.0 : -1.0, alloc);
         });
+
+    // ── fgetl / fgets / feof ────────────────────────────────────
+    //
+    //   tline = fgetl(fid)          read next line, strip trailing \n (and \r).
+    //                               Returns -1 (double) at EOF, per MATLAB.
+    //   tline = fgets(fid)          same, but keeps the terminator.
+    //   tline = fgets(fid, nchar)   up to nchar chars or until newline.
+    //   tf    = feof(fid)           logical 1 if cursor is past end, else 0.
+    //
+    // fgetl/fgets require fids opened for reading ('r'). Writing fids
+    // throw; the 'a'/'w' user presumably did not intend to read.
+
+    auto requireReadFid = [](mlab::Engine *eng, const Span<const MValue> &args,
+                             const char *fn) -> mlab::Engine::OpenFile * {
+        if (args.empty() || !args[0].isScalar())
+            throw MLabError(std::string(fn) + ": file identifier required");
+        int fid = static_cast<int>(args[0].toScalar());
+        auto *f = eng->findFile(fid);
+        if (!f || !f->forRead)
+            throw MLabError(std::string(fn) + ": invalid file identifier");
+        return f;
+    };
+
+    engine.registerFunction(
+        "fgetl",
+        [requireReadFid](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                         CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            auto *f = requireReadFid(ctx.engine, args, "fgetl");
+
+            if (f->cursor >= f->buffer.size()) {
+                outs[0] = MValue::scalar(-1.0, alloc);
+                return;
+            }
+            size_t start = f->cursor;
+            size_t nl = f->buffer.find('\n', start);
+            size_t end = (nl == std::string::npos) ? f->buffer.size() : nl;
+            // Strip trailing \r so CRLF files don't leak the carriage
+            // return into the returned line — MATLAB does the same.
+            size_t trimEnd = end;
+            if (trimEnd > start && f->buffer[trimEnd - 1] == '\r')
+                --trimEnd;
+            std::string line = f->buffer.substr(start, trimEnd - start);
+            f->cursor = (nl == std::string::npos) ? f->buffer.size() : nl + 1;
+            outs[0] = MValue::fromString(line, alloc);
+        });
+
+    engine.registerFunction(
+        "fgets",
+        [requireReadFid](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                         CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            auto *f = requireReadFid(ctx.engine, args, "fgets");
+
+            if (f->cursor >= f->buffer.size()) {
+                outs[0] = MValue::scalar(-1.0, alloc);
+                return;
+            }
+            size_t start = f->cursor;
+            size_t remaining = f->buffer.size() - start;
+            size_t nchar = (args.size() >= 2 && args[1].isScalar())
+                               ? static_cast<size_t>(args[1].toScalar())
+                               : remaining;
+            size_t nlPos = f->buffer.find('\n', start);
+            size_t end;
+            if (nlPos != std::string::npos && nlPos < start + nchar)
+                end = nlPos + 1; // include newline
+            else
+                end = std::min(start + nchar, f->buffer.size());
+            std::string line = f->buffer.substr(start, end - start);
+            f->cursor = end;
+            outs[0] = MValue::fromString(line, alloc);
+        });
+
+    engine.registerFunction(
+        "feof",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty() || !args[0].isScalar())
+                throw MLabError("feof: file identifier required");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f)
+                throw MLabError("feof: invalid file identifier");
+            outs[0] = MValue::logicalScalar(f->cursor >= f->buffer.size(), alloc);
+        });
 }
 
 } // namespace mlab
