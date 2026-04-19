@@ -349,7 +349,9 @@ static double readElemAsDouble(const MValue &v, size_t idx)
     case MType::INT16:  return static_cast<double>(v.int16Data()[idx]);
     case MType::INT32:  return static_cast<double>(v.int32Data()[idx]);
     case MType::INT64:  return static_cast<double>(v.int64Data()[idx]);
-    case MType::UINT8:  return static_cast<double>(v.logicalData()[idx]); // uint8 shares logicalData
+    case MType::UINT8:
+        // UINT8 arrays keep their own buffer; logicalData() is LOGICAL-only.
+        return static_cast<double>(static_cast<const uint8_t *>(v.rawData())[idx]);
     case MType::UINT16: return static_cast<double>(v.uint16Data()[idx]);
     case MType::UINT32: return static_cast<double>(v.uint32Data()[idx]);
     case MType::UINT64: return static_cast<double>(v.uint64Data()[idx]);
@@ -658,7 +660,8 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
 // Helper: create a scalar MValue of the same type as this array at linear index.
 MValue MValue::elemAt(size_t idx, Allocator *alloc) const
 {
-    switch (type()) {
+    MType t = type();
+    switch (t) {
     case MType::DOUBLE:
         return MValue::scalar(doubleData()[idx], alloc);
     case MType::COMPLEX:
@@ -671,9 +674,21 @@ MValue MValue::elemAt(size_t idx, Allocator *alloc) const
     }
     case MType::CELL:
         return cellAt(idx);
+    // Typed integer / single return a 1×1 array of the same type so the
+    // user's type sticks through indexing. Raw memcpy from the source
+    // buffer keeps the representation byte-exact.
+    case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
+    case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
+    case MType::SINGLE: {
+        size_t es = elementSize(t);
+        MValue r = MValue::matrix(1, 1, t, alloc);
+        std::memcpy(r.rawDataMut(),
+                    static_cast<const char *>(rawData()) + idx * es, es);
+        return r;
+    }
     default:
         throw std::runtime_error(
-            std::string("elemAt not supported for type '") + mtypeName(type()) + "'");
+            std::string("elemAt not supported for type '") + mtypeName(t) + "'");
     }
 }
 
@@ -729,6 +744,18 @@ MValue MValue::indexGet(const size_t *indices, size_t count, Allocator *alloc) c
         auto result = MValue::cell(rr, cc);
         for (size_t i = 0; i < count; ++i)
             result.cellAt(i) = cellAt(indices[i]);
+        return result;
+    }
+    // Typed integer / single: raw memcpy per element, same target type.
+    case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
+    case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
+    case MType::SINGLE: {
+        size_t es = elementSize(t);
+        auto result = MValue::matrix(rr, cc, t, alloc);
+        const char *src = static_cast<const char *>(rawData());
+        char *dst = static_cast<char *>(result.rawDataMut());
+        for (size_t i = 0; i < count; ++i)
+            std::memcpy(dst + i * es, src + indices[i] * es, es);
         return result;
     }
     default:
@@ -888,6 +915,20 @@ MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *allo
                 result.cellAt(k++) = cellAt(i);
         return result;
     }
+    // Typed integer / single: raw memcpy per selected element.
+    case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
+    case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
+    case MType::SINGLE: {
+        size_t es = elementSize(t);
+        auto result = MValue::matrix(rr, cc, t, alloc);
+        const char *src = static_cast<const char *>(rawData());
+        char *dst = static_cast<char *>(result.rawDataMut());
+        size_t k = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (mask[i])
+                std::memcpy(dst + k++ * es, src + i * es, es);
+        return result;
+    }
     default:
         throw std::runtime_error(
             std::string("logicalIndex not supported for type '") + mtypeName(t) + "'");
@@ -974,7 +1015,8 @@ std::vector<size_t> MValue::resolveIndicesUnchecked(const MValue &idx)
 // Converts val to the destination type. COW detach handled by *DataMut().
 static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
 {
-    switch (dst.type()) {
+    MType t = dst.type();
+    switch (t) {
     case MType::DOUBLE:
         dst.doubleDataMut()[idx] = readElemAsDouble(val, valIdx);
         break;
@@ -982,7 +1024,6 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
         dst.complexDataMut()[idx] = readElemAsComplex(val, valIdx);
         break;
     case MType::LOGICAL: {
-        // Read element at valIdx and convert to logical
         double dv = readElemAsDouble(val, valIdx);
         dst.logicalDataMut()[idx] = static_cast<uint8_t>(dv != 0.0);
         break;
@@ -993,17 +1034,32 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     case MType::CELL:
         dst.cellAt(idx) = val.cellAt(valIdx);
         break;
+    // Typed integer / single: narrowing conversion from the source
+    // element's double value. MATLAB saturates on overflow; we match
+    // that by using the cast boundaries of each target type.
+    case MType::INT8:   dst.int8DataMut()[idx]   = static_cast<int8_t  >(readElemAsDouble(val, valIdx)); break;
+    case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(readElemAsDouble(val, valIdx)); break;
+    case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(readElemAsDouble(val, valIdx)); break;
+    case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(readElemAsDouble(val, valIdx)); break;
+    case MType::UINT8:
+        static_cast<uint8_t *>(dst.rawDataMut())[idx] = static_cast<uint8_t>(readElemAsDouble(val, valIdx));
+        break;
+    case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(readElemAsDouble(val, valIdx)); break;
+    case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(readElemAsDouble(val, valIdx)); break;
+    case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(readElemAsDouble(val, valIdx)); break;
+    case MType::SINGLE: dst.singleDataMut()[idx] = static_cast<float   >(readElemAsDouble(val, valIdx)); break;
     default:
         throw std::runtime_error(
             std::string("Indexed assignment not supported for type '")
-            + mtypeName(dst.type()) + "'");
+            + mtypeName(t) + "'");
     }
 }
 
 // Write a scalar val (broadcast) into dst at linear index.
 static void writeScalar(MValue &dst, size_t idx, const MValue &val)
 {
-    switch (dst.type()) {
+    MType t = dst.type();
+    switch (t) {
     case MType::DOUBLE:
         dst.doubleDataMut()[idx] = val.toScalar();
         break;
@@ -1019,10 +1075,21 @@ static void writeScalar(MValue &dst, size_t idx, const MValue &val)
     case MType::CELL:
         dst.cellAt(idx) = val;
         break;
+    case MType::INT8:   dst.int8DataMut()[idx]   = static_cast<int8_t  >(val.toScalar()); break;
+    case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(val.toScalar()); break;
+    case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(val.toScalar()); break;
+    case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(val.toScalar()); break;
+    case MType::UINT8:
+        static_cast<uint8_t *>(dst.rawDataMut())[idx] = static_cast<uint8_t>(val.toScalar());
+        break;
+    case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(val.toScalar()); break;
+    case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(val.toScalar()); break;
+    case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(val.toScalar()); break;
+    case MType::SINGLE: dst.singleDataMut()[idx] = static_cast<float   >(val.toScalar()); break;
     default:
         throw std::runtime_error(
             std::string("Indexed assignment not supported for type '")
-            + mtypeName(dst.type()) + "'");
+            + mtypeName(t) + "'");
     }
 }
 

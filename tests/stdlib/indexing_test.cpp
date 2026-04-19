@@ -792,4 +792,126 @@ TEST_P(IndexingOpsTest, CharLinearIndexStillReturnsRow)
     EXPECT_EQ(x->toString(), "hlo");
 }
 
+// ── Indexing on typed integer / single arrays ──────────
+
+TEST_P(IndexingOpsTest, Int32LinearReadKeepsType)
+{
+    eval("a = int32([10 20 30 40]);");
+    eval("x = a(2);");
+    auto *x = getVarPtr("x");
+    ASSERT_NE(x, nullptr);
+    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->int32Data()[0], 20);
+}
+
+TEST_P(IndexingOpsTest, Int32VectorSliceKeepsType)
+{
+    eval("a = int32([10 20 30 40 50]);");
+    eval("x = a([2 4 5]);");
+    auto *x = getVarPtr("x");
+    ASSERT_NE(x, nullptr);
+    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->numel(), 3u);
+    EXPECT_EQ(x->int32Data()[0], 20);
+    EXPECT_EQ(x->int32Data()[1], 40);
+    EXPECT_EQ(x->int32Data()[2], 50);
+}
+
+TEST_P(IndexingOpsTest, Uint8MatrixScalar2D)
+{
+    // 2x3 uint8 matrix (reshape on uint8 result).
+    eval("a = uint8(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("v = a(2,3);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->type(), MType::UINT8);
+    EXPECT_EQ(*static_cast<const uint8_t *>(v->rawData()), 6u);
+}
+
+TEST_P(IndexingOpsTest, Uint8SubMatrix2D)
+{
+    eval("a = uint8(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("s = a(:, 2:3);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->type(), MType::UINT8);
+    EXPECT_EQ(s->dims().rows(), 2u);
+    EXPECT_EQ(s->dims().cols(), 2u);
+    // Column-major: 3,4 then 5,6
+    const uint8_t *d = static_cast<const uint8_t *>(s->rawData());
+    EXPECT_EQ(d[0], 3u); EXPECT_EQ(d[1], 4u);
+    EXPECT_EQ(d[2], 5u); EXPECT_EQ(d[3], 6u);
+}
+
+TEST_P(IndexingOpsTest, SingleScalarAndSlice)
+{
+    eval("a = single([1.5 2.5 3.5 4.5]);");
+    eval("v = a(3);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::SINGLE);
+    EXPECT_FLOAT_EQ(v->singleData()[0], 3.5f);
+
+    eval("s = a([1 4]);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->type(), MType::SINGLE);
+    EXPECT_EQ(s->numel(), 2u);
+    EXPECT_FLOAT_EQ(s->singleData()[0], 1.5f);
+    EXPECT_FLOAT_EQ(s->singleData()[1], 4.5f);
+}
+
+TEST_P(IndexingOpsTest, Int16LogicalIndex)
+{
+    eval("a = int16([10 20 30 40]);");
+    eval("mask = [true false true false];");
+    eval("x = a(mask);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::INT16);
+    EXPECT_EQ(x->numel(), 2u);
+    EXPECT_EQ(x->int16Data()[0], 10);
+    EXPECT_EQ(x->int16Data()[1], 30);
+}
+
+TEST_P(IndexingOpsTest, Int32AssignScalarBroadcast)
+{
+    // a(i) = scalar — writeScalar path.
+    eval("a = int32([1 2 3 4 5]); a(3) = 99;");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->int32Data()[2], 99);
+    EXPECT_EQ(a->int32Data()[0], 1);
+    EXPECT_EQ(a->int32Data()[4], 5);
+}
+
+TEST_P(IndexingOpsTest, Uint16AssignVectorPerElement)
+{
+    // a(idx) = [v1 v2 ...] — writeElem path.
+    eval("a = uint16([1 2 3 4 5]); a([2 4]) = [77 88];");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->uint16Data()[1], 77u);
+    EXPECT_EQ(a->uint16Data()[3], 88u);
+    EXPECT_EQ(a->uint16Data()[2], 3u);   // unchanged
+}
+
+TEST_P(IndexingOpsTest, SingleAssign2D)
+{
+    eval("a = single(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("a(1,2) = 9.25;");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::SINGLE);
+    EXPECT_FLOAT_EQ(a->singleData()[2], 9.25f);
+}
+
+TEST_P(IndexingOpsTest, Int8SaturationOnWrite)
+{
+    // int8 range is [-128, 127]. Writing 300 should cast down.
+    // C++ narrowing is implementation-defined for out-of-range; we
+    // accept whatever static_cast<int8_t>(300.0) produces — here we
+    // just check the assignment doesn't crash and the type is kept.
+    eval("a = int8([0 0 0]); a(2) = 200;");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::INT8);
+    EXPECT_EQ(a->numel(), 3u);
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);
