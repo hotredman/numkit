@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import M_IDE from './components/M_IDE';
+import IDE from './components/IDE';
 import { createWasmEngine, createFallbackEngine } from './engine';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
@@ -106,7 +106,7 @@ export default function App() {
   }
 
   return (
-    <M_IDE
+    <IDE
       engine={engine}
       status={status}
       initMessage={initMessage}
