@@ -1735,9 +1735,7 @@ Complex MValue::toComplex() const
         throw std::runtime_error("Cannot convert to complex");
     if (heap_->type == MType::COMPLEX && heap_->dims.isScalar())
         return *static_cast<const Complex *>(heap_->buffer->data());
-    if (heap_->dims.isScalar() &&
-        (isIntegerType(heap_->type) || isFloatType(heap_->type) ||
-         heap_->type == MType::LOGICAL || heap_->type == MType::CHAR))
+    if (heap_->dims.isScalar() && (isNumeric() || isLogical() || isChar()))
         return Complex(toScalar(), 0.0);
     throw std::runtime_error("Cannot convert to complex");
 }

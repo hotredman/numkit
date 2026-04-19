@@ -1,3 +1,4 @@
+#include "MLabStdHelpers.hpp"
 #include "MLabStdLibrary.hpp"
 
 #include <algorithm>
@@ -60,12 +61,10 @@ static void numericConstructor(MType targetType, Span<const MValue> args,
         return;
     }
     size_t n = a.numel();
-    MValue r = a.dims().is3D()
-                   ? MValue::matrix3d(a.dims().rows(), a.dims().cols(),
-                                      a.dims().pages(), targetType, alloc)
-                   : MValue::matrix(a.dims().rows(),
-                                    std::max(a.dims().cols(), size_t(1)),
-                                    targetType, alloc);
+    MValue r = createMatrix({a.dims().rows(),
+                             std::max(a.dims().cols(), size_t(1)),
+                             a.dims().is3D() ? a.dims().pages() : 0},
+                            targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
         double v = readAsDouble(a, i);
@@ -171,16 +170,10 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                                     outs[0] = MValue::logicalScalar(a.toScalar() != 0, alloc);
                                     return;
                                 }
-                                MValue r = a.dims().is3D()
-                                               ? MValue::matrix3d(a.dims().rows(),
-                                                                  a.dims().cols(),
-                                                                  a.dims().pages(),
-                                                                  MType::LOGICAL,
-                                                                  alloc)
-                                               : MValue::matrix(a.dims().rows(),
-                                                                a.dims().cols(),
-                                                                MType::LOGICAL,
-                                                                alloc);
+                                MValue r = createMatrix(
+                                    {a.dims().rows(), a.dims().cols(),
+                                     a.dims().is3D() ? a.dims().pages() : 0},
+                                    MType::LOGICAL, alloc);
                                 for (size_t i = 0; i < a.numel(); ++i)
                                     r.logicalDataMut()[i] = readAsDouble(a, i) != 0 ? 1 : 0;
                                 {

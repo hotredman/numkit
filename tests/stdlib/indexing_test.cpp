@@ -962,23 +962,19 @@ TEST_P(IndexingOpsTest, ImplicitCharRowDisplayQuotesOnce)
 }
 
 // ── 3D indexing ───────────────────────────────────────
-// NOTE: reshape(1D, m, n, p) and reshape(1D, [m n p]) both throw in
-// the current build — a separate gap unrelated to typed indexing.
-// We build 3D arrays via zeros(...) + element fills so we can still
-// exercise the 3D indexGet / indexSet paths here.
+// 3D arrays are built via zeros(...) + linear fill because
+// reshape(1D, m, n, p) is not yet supported.
 
 TEST_P(IndexingOpsTest, Uint16_3DSubArrayKeepsType)
 {
-    // Build a 2x3x2 uint16 array, fill elements 1..12.
     eval("A = uint16(zeros(2, 3, 2));");
     eval("for k = 1:12, A(k) = k; end");
-    eval("S = A(:, :, 2);");  // second page
+    eval("S = A(:, :, 2);");
     auto *s = getVarPtr("S");
     ASSERT_NE(s, nullptr);
     EXPECT_EQ(s->type(), MType::UINT16);
     EXPECT_EQ(s->dims().rows(), 2u);
     EXPECT_EQ(s->dims().cols(), 3u);
-    // Page 2 in column-major starts at element 2*3 + 1 = 7.
     EXPECT_EQ(s->uint16Data()[0], 7u);
     EXPECT_EQ(s->uint16Data()[5], 12u);
 }
@@ -987,7 +983,7 @@ TEST_P(IndexingOpsTest, Int32_3DScalarAccess)
 {
     eval("A = int32(zeros(2, 2, 2));");
     eval("for k = 1:8, A(k) = k * 10; end");
-    eval("v = A(2, 2, 2);");  // last element, column-major idx 8
+    eval("v = A(2, 2, 2);");
     auto *v = getVarPtr("v");
     ASSERT_NE(v, nullptr);
     EXPECT_EQ(v->type(), MType::INT32);
@@ -1095,7 +1091,6 @@ TEST_P(IndexingOpsTest, Int8BoundariesRoundTripThroughIndex)
 
 TEST_P(IndexingOpsTest, Uint32MaxPreservedThroughIndex)
 {
-    // 2^32 - 1 as the tail of a uint32 array.
     eval("a = uint32([0 1 4294967295]);");
     eval("x = a(3);");
     auto *x = getVarPtr("x");
@@ -1105,29 +1100,24 @@ TEST_P(IndexingOpsTest, Uint32MaxPreservedThroughIndex)
 
 // ── Mixed-type indexed assign ────────────────────────
 
-TEST_P(IndexingOpsTest, Int32AssignFromSingle)
+TEST_P(IndexingOpsTest, Int32AssignFromSingleTruncates)
 {
-    // Narrowing single → int32 via readElemAsDouble path.
     eval("a = int32([0 0 0]); a(2) = single(42.7);");
     auto *a = getVarPtr("a");
     EXPECT_EQ(a->type(), MType::INT32);
-    EXPECT_EQ(a->int32Data()[1], 42);  // truncated
+    EXPECT_EQ(a->int32Data()[1], 42);
 }
 
 TEST_P(IndexingOpsTest, CharAssignFromInt)
 {
-    // int ASCII code → char slot.
     eval("s = 'XXXX'; s(2) = int32(65);");
     auto *s = getVarPtr("s");
     EXPECT_EQ(s->type(), MType::CHAR);
     EXPECT_EQ(s->toString(), "XAXX");
 }
 
-TEST_P(IndexingOpsTest, ComplexAssignFromIntNowWorks)
+TEST_P(IndexingOpsTest, ComplexAssignFromIntPromotesImagZero)
 {
-    // Regression: readElemAsComplex previously only accepted DOUBLE/
-    // LOGICAL/COMPLEX, so this threw. Now int → complex promotes with
-    // imag=0. Build the complex row via imaginary literal promotion.
     eval("c = [0 0 0] + 0i;");
     eval("c(2) = int32(7);");
     auto *c = getVarPtr("c");
