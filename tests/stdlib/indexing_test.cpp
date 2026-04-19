@@ -961,4 +961,181 @@ TEST_P(IndexingOpsTest, ImplicitCharRowDisplayQuotesOnce)
     EXPECT_NE(capturedOutput.find("'hello'"), std::string::npos);
 }
 
+// ── 3D indexing ───────────────────────────────────────
+// NOTE: reshape(1D, m, n, p) and reshape(1D, [m n p]) both throw in
+// the current build — a separate gap unrelated to typed indexing.
+// We build 3D arrays via zeros(...) + element fills so we can still
+// exercise the 3D indexGet / indexSet paths here.
+
+TEST_P(IndexingOpsTest, Uint16_3DSubArrayKeepsType)
+{
+    // Build a 2x3x2 uint16 array, fill elements 1..12.
+    eval("A = uint16(zeros(2, 3, 2));");
+    eval("for k = 1:12, A(k) = k; end");
+    eval("S = A(:, :, 2);");  // second page
+    auto *s = getVarPtr("S");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->type(), MType::UINT16);
+    EXPECT_EQ(s->dims().rows(), 2u);
+    EXPECT_EQ(s->dims().cols(), 3u);
+    // Page 2 in column-major starts at element 2*3 + 1 = 7.
+    EXPECT_EQ(s->uint16Data()[0], 7u);
+    EXPECT_EQ(s->uint16Data()[5], 12u);
+}
+
+TEST_P(IndexingOpsTest, Int32_3DScalarAccess)
+{
+    eval("A = int32(zeros(2, 2, 2));");
+    eval("for k = 1:8, A(k) = k * 10; end");
+    eval("v = A(2, 2, 2);");  // last element, column-major idx 8
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->type(), MType::INT32);
+    EXPECT_EQ(v->int32Data()[0], 80);
+}
+
+// ── 2D per-type coverage ──────────────────────────────
+
+TEST_P(IndexingOpsTest, Int8_2DMatrix)
+{
+    eval("a = int8(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("v = a(2, 3);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::INT8);
+    EXPECT_EQ(v->int8Data()[0], 6);
+}
+
+TEST_P(IndexingOpsTest, Int16_2DSubMatrix)
+{
+    eval("a = int16(reshape([10 20 30 40 50 60], 2, 3));");
+    eval("s = a(:, 2);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->type(), MType::INT16);
+    EXPECT_EQ(s->numel(), 2u);
+    EXPECT_EQ(s->int16Data()[0], 30);
+    EXPECT_EQ(s->int16Data()[1], 40);
+}
+
+TEST_P(IndexingOpsTest, Int64_2DAssign)
+{
+    eval("a = int64(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("a(1, 2) = 999;");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::INT64);
+    EXPECT_EQ(a->int64Data()[2], 999);
+}
+
+TEST_P(IndexingOpsTest, Uint32_2DMatrix)
+{
+    eval("a = uint32(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("v = a(1, 3);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::UINT32);
+    EXPECT_EQ(v->uint32Data()[0], 5u);
+}
+
+TEST_P(IndexingOpsTest, Uint64_2DSubMatrix)
+{
+    eval("a = uint64(reshape([1 2 3 4 5 6], 2, 3));");
+    eval("s = a(2, :);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->type(), MType::UINT64);
+    EXPECT_EQ(s->dims().rows(), 1u);
+    EXPECT_EQ(s->dims().cols(), 3u);
+    EXPECT_EQ(s->uint64Data()[0], 2u);
+    EXPECT_EQ(s->uint64Data()[2], 6u);
+}
+
+// ── Logical-mask coverage per type ───────────────────
+
+TEST_P(IndexingOpsTest, Int32LogicalIndex)
+{
+    eval("a = int32([10 20 30 40 50]);");
+    eval("x = a([false true false true false]);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->numel(), 2u);
+    EXPECT_EQ(x->int32Data()[0], 20);
+    EXPECT_EQ(x->int32Data()[1], 40);
+}
+
+TEST_P(IndexingOpsTest, Uint8LogicalIndex)
+{
+    eval("a = uint8([1 2 3 4 5]);");
+    eval("x = a([true true false false true]);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::UINT8);
+    EXPECT_EQ(x->numel(), 3u);
+    EXPECT_EQ(x->uint8Data()[0], 1u);
+    EXPECT_EQ(x->uint8Data()[2], 5u);
+}
+
+TEST_P(IndexingOpsTest, SingleLogicalIndex)
+{
+    eval("a = single([0.1 0.2 0.3 0.4]);");
+    eval("x = a([true false true false]);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::SINGLE);
+    EXPECT_EQ(x->numel(), 2u);
+    EXPECT_FLOAT_EQ(x->singleData()[0], 0.1f);
+    EXPECT_FLOAT_EQ(x->singleData()[1], 0.3f);
+}
+
+// ── Boundary values (narrowing doesn't corrupt) ──────
+
+TEST_P(IndexingOpsTest, Int8BoundariesRoundTripThroughIndex)
+{
+    eval("a = int8([-128 0 127]);");
+    eval("x = a([1 3]);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::INT8);
+    EXPECT_EQ(x->int8Data()[0], -128);
+    EXPECT_EQ(x->int8Data()[1], 127);
+}
+
+TEST_P(IndexingOpsTest, Uint32MaxPreservedThroughIndex)
+{
+    // 2^32 - 1 as the tail of a uint32 array.
+    eval("a = uint32([0 1 4294967295]);");
+    eval("x = a(3);");
+    auto *x = getVarPtr("x");
+    EXPECT_EQ(x->type(), MType::UINT32);
+    EXPECT_EQ(x->uint32Data()[0], 4294967295u);
+}
+
+// ── Mixed-type indexed assign ────────────────────────
+
+TEST_P(IndexingOpsTest, Int32AssignFromSingle)
+{
+    // Narrowing single → int32 via readElemAsDouble path.
+    eval("a = int32([0 0 0]); a(2) = single(42.7);");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->int32Data()[1], 42);  // truncated
+}
+
+TEST_P(IndexingOpsTest, CharAssignFromInt)
+{
+    // int ASCII code → char slot.
+    eval("s = 'XXXX'; s(2) = int32(65);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(s->type(), MType::CHAR);
+    EXPECT_EQ(s->toString(), "XAXX");
+}
+
+TEST_P(IndexingOpsTest, ComplexAssignFromIntNowWorks)
+{
+    // Regression: readElemAsComplex previously only accepted DOUBLE/
+    // LOGICAL/COMPLEX, so this threw. Now int → complex promotes with
+    // imag=0. Build the complex row via imaginary literal promotion.
+    eval("c = [0 0 0] + 0i;");
+    eval("c(2) = int32(7);");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_TRUE(c->isComplex());
+    Complex z = c->complexElem(1);
+    EXPECT_DOUBLE_EQ(z.real(), 7.0);
+    EXPECT_DOUBLE_EQ(z.imag(), 0.0);
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);
