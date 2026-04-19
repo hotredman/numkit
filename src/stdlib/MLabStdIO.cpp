@@ -735,6 +735,25 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isChar())
                 throw MLabError("fopen: filename must be a char array");
+
+            // `fopen('all')` — only as the sole argument — returns a row
+            // vector of every user-opened fid. MATLAB-compatible and
+            // useful for diagnosing leaks. With a mode argument, 'all'
+            // falls through to being a literal filename.
+            if (args.size() == 1 && args[0].toString() == "all") {
+                auto ids = ctx.engine->openFileIds();
+                if (ids.empty()) {
+                    outs[0] = MValue::matrix(1, 0, MType::DOUBLE, alloc);
+                } else {
+                    auto row = MValue::matrix(1, ids.size(), MType::DOUBLE, alloc);
+                    double *d = row.doubleDataMut();
+                    for (size_t i = 0; i < ids.size(); ++i)
+                        d[i] = static_cast<double>(ids[i]);
+                    outs[0] = std::move(row);
+                }
+                return;
+            }
+
             std::string path = args[0].toString();
             std::string mode = (args.size() >= 2 && args[1].isChar()) ? args[1].toString() : "r";
             int fid = ctx.engine->openFile(path, mode);

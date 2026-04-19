@@ -1005,6 +1005,58 @@ TEST_P(FileIoTest, FopenErrmsgIsClearedOnNextSuccessfulOpen)
     eval("fclose(f2);");
 }
 
+// ── fopen('all') → vector of open fids ───────────────────
+
+TEST_P(FileIoTest, FopenAllReturnsEmptyWhenNothingOpen)
+{
+    eval("ids = fopen('all');");
+    EXPECT_EQ(evalScalar("n = numel(ids);"), 0.0);
+}
+
+TEST_P(FileIoTest, FopenAllListsUserOpenedFids)
+{
+    eval("a = fopen('a.txt', 'w');");
+    eval("b = fopen('b.txt', 'w');");
+    eval("c = fopen('c.txt', 'w');");
+    eval("ids = fopen('all');");
+    EXPECT_EQ(evalScalar("n = numel(ids);"), 3.0);
+    // MATLAB returns a ROW vector — verify shape.
+    EXPECT_EQ(evalScalar("r = size(ids, 1);"), 1.0);
+    EXPECT_EQ(evalScalar("c = size(ids, 2);"), 3.0);
+    eval("fclose('all');");
+}
+
+TEST_P(FileIoTest, FopenAllReflectsClosures)
+{
+    eval("a = fopen('a.txt', 'w');");
+    eval("b = fopen('b.txt', 'w');");
+    eval("fclose(a);");
+    eval("ids = fopen('all');");
+    EXPECT_EQ(evalScalar("n = numel(ids);"), 1.0);
+    eval("fclose('all');");
+}
+
+TEST_P(FileIoTest, FopenAllDoesNotListReservedFids)
+{
+    // stdin/stdout/stderr (0/1/2) must not show up in fopen('all').
+    eval("a = fopen('a.txt', 'w');");
+    eval("ids = fopen('all');");
+    // Only our one user fid (>= 3).
+    EXPECT_EQ(evalScalar("n = numel(ids);"), 1.0);
+    EXPECT_GE(evalScalar("i0 = ids(1);"), 3.0);
+    eval("fclose('all');");
+}
+
+TEST_P(FileIoTest, FopenAllWithModeArgFallsBackToLiteralFilename)
+{
+    // Contract: 'all' is special ONLY as the sole arg. With a mode,
+    // it's treated as a regular filename.
+    eval("fid = fopen('all', 'w');");
+    EXPECT_GE(getVar("fid"), 3.0);
+    eval("fclose(fid);");
+    EXPECT_TRUE(fs->files().count("all") > 0);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)

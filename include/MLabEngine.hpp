@@ -211,6 +211,8 @@ public:
     bool closeFile(int fid);
     void closeAllFiles();
     OpenFile *findFile(int fid);
+    // Sorted list of user-opened fids (>= 3). Powers `fopen('all')`.
+    std::vector<int> openFileIds() const;
     // Error text from the most recent openFile() call. Empty string after
     // a successful open. Powers MATLAB's `[fid, errmsg] = fopen(...)`.
     const std::string &lastFopenError() const { return lastFopenError_; }

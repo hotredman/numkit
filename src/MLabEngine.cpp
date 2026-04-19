@@ -768,4 +768,14 @@ Engine::OpenFile *Engine::findFile(int fid)
     return (it == openFiles_.end()) ? nullptr : &it->second;
 }
 
+std::vector<int> Engine::openFileIds() const
+{
+    std::vector<int> ids;
+    ids.reserve(openFiles_.size());
+    for (auto &kv : openFiles_)
+        ids.push_back(kv.first);
+    std::sort(ids.begin(), ids.end());
+    return ids;
+}
+
 } // namespace mlab
