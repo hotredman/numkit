@@ -548,4 +548,33 @@ TEST_P(TypeOpsTest, ComplexShapeMismatchThrows)
     EXPECT_THROW({ eval("complex([1 2 3], [1 2]);"); }, std::exception);
 }
 
+// ============================================================
+// Empty-shape preservation through numeric constructors + unary
+// (regression for a legacy std::max(cols, 1) guard that silently
+// promoted 0-col inputs to a 1-col result)
+// ============================================================
+
+TEST_P(TypeOpsTest, Int32OfZeroColsPreservesShape)
+{
+    eval("a = int32(zeros(3, 0));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->dims().rows(), 3u);
+    EXPECT_EQ(a->dims().cols(), 0u);
+    EXPECT_EQ(a->numel(), 0u);
+}
+
+TEST_P(TypeOpsTest, Uint16OfZeroRowsPreservesShape)
+{
+    eval("a = uint16(zeros(0, 4));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->dims().rows(), 0u);
+    EXPECT_EQ(a->dims().cols(), 4u);
+    EXPECT_EQ(a->numel(), 0u);
+}
+
+
 INSTANTIATE_DUAL(TypeOpsTest);

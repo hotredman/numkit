@@ -41,10 +41,7 @@ static void numericConstructor(MType targetType, Span<const MValue> args,
         return;
     }
     size_t n = a.numel();
-    MValue r = createMatrix({a.dims().rows(),
-                             std::max(a.dims().cols(), size_t(1)),
-                             a.dims().is3D() ? a.dims().pages() : 0},
-                            targetType, alloc);
+    MValue r = createLike(a, targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
         double v = a.elemAsDouble(i);

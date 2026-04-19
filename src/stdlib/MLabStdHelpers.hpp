@@ -454,10 +454,7 @@ MValue dispatchIntegerBinaryOp(const MValue &a, const MValue &b, Op op, Allocato
 template <typename T, typename Op>
 MValue unaryTyped(const MValue &a, MType targetType, Op op, Allocator *alloc)
 {
-    auto r = createMatrix({a.dims().rows(),
-                           std::max(a.dims().cols(), size_t(1)),
-                           a.dims().is3D() ? a.dims().pages() : 0},
-                          targetType, alloc);
+    auto r = createLike(a, targetType, alloc);
     const T *src = static_cast<const T *>(a.rawData());
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < a.numel(); ++i)
