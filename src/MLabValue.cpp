@@ -332,54 +332,44 @@ static MType promoteNumericType(const MValue *elems, size_t count)
 // Read one element as double. Supports every numeric MType plus CHAR
 // (returns the character's ASCII value) and LOGICAL (0/1). COMPLEX
 // contributes the real part only, matching MATLAB's double(complex).
-static double readElemAsDouble(const MValue &v, size_t idx)
+double MValue::elemAsDouble(size_t idx) const
 {
-    switch (v.type()) {
-    case MType::DOUBLE:
-        return v.doubleData()[idx];
-    case MType::LOGICAL:
-        return static_cast<double>(v.logicalData()[idx]);
-    case MType::COMPLEX:
-        return v.complexData()[idx].real();
+    switch (type()) {
+    case MType::DOUBLE:  return doubleData()[idx];
+    case MType::LOGICAL: return static_cast<double>(logicalData()[idx]);
+    case MType::COMPLEX: return complexData()[idx].real();
     case MType::CHAR:
-        return static_cast<double>(static_cast<unsigned char>(v.charData()[idx]));
-    case MType::SINGLE:
-        return static_cast<double>(v.singleData()[idx]);
-    case MType::INT8:   return static_cast<double>(v.int8Data()[idx]);
-    case MType::INT16:  return static_cast<double>(v.int16Data()[idx]);
-    case MType::INT32:  return static_cast<double>(v.int32Data()[idx]);
-    case MType::INT64:  return static_cast<double>(v.int64Data()[idx]);
-    case MType::UINT8:  return static_cast<double>(v.uint8Data()[idx]);
-    case MType::UINT16: return static_cast<double>(v.uint16Data()[idx]);
-    case MType::UINT32: return static_cast<double>(v.uint32Data()[idx]);
-    case MType::UINT64: return static_cast<double>(v.uint64Data()[idx]);
+        return static_cast<double>(static_cast<unsigned char>(charData()[idx]));
+    case MType::SINGLE:  return static_cast<double>(singleData()[idx]);
+    case MType::INT8:    return static_cast<double>(int8Data()[idx]);
+    case MType::INT16:   return static_cast<double>(int16Data()[idx]);
+    case MType::INT32:   return static_cast<double>(int32Data()[idx]);
+    case MType::INT64:   return static_cast<double>(int64Data()[idx]);
+    case MType::UINT8:   return static_cast<double>(uint8Data()[idx]);
+    case MType::UINT16:  return static_cast<double>(uint16Data()[idx]);
+    case MType::UINT32:  return static_cast<double>(uint32Data()[idx]);
+    case MType::UINT64:  return static_cast<double>(uint64Data()[idx]);
     default:
         throw std::runtime_error(
             std::string("Cannot read element as double from type '")
-            + mtypeName(v.type()) + "'");
+            + mtypeName(type()) + "'");
     }
 }
 
-double MValue::elemAsDouble(size_t idx) const { return readElemAsDouble(*this, idx); }
-
 // Read one element as Complex. Real-only types contribute zero
 // imaginary part, matching MATLAB's real→complex promotion rule.
-// Mirrors readElemAsDouble's type coverage so mixed-type indexed
-// assignment (e.g. complex_array(i) = int_array(j)) works end-to-end.
 static Complex readElemAsComplex(const MValue &v, size_t idx)
 {
     switch (v.type()) {
     case MType::COMPLEX:
         return v.complexData()[idx];
-    // Real-valued types: reuse readElemAsDouble's logic so the two
-    // readers don't drift out of sync, with zero imaginary part.
     case MType::DOUBLE:
     case MType::LOGICAL:
     case MType::CHAR:
     case MType::SINGLE:
     case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
     case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
-        return Complex(readElemAsDouble(v, idx), 0.0);
+        return Complex(v.elemAsDouble(idx), 0.0);
     default:
         throw std::runtime_error(
             std::string("Cannot read element as complex from type '")
@@ -388,9 +378,8 @@ static Complex readElemAsComplex(const MValue &v, size_t idx)
 }
 
 // Read one element as uint8_t logical. Every real numeric type is
-// accepted — any non-zero is true. Mirrors readElemAsDouble's coverage
-// so concatenation of mixed-type arrays into a logical result
-// matches MATLAB.
+// accepted — any non-zero is true. Matches MATLAB so concatenation
+// of mixed-type arrays into a logical result behaves uniformly.
 static uint8_t readElemAsLogical(const MValue &v, size_t idx)
 {
     switch (v.type()) {
@@ -401,7 +390,7 @@ static uint8_t readElemAsLogical(const MValue &v, size_t idx)
     case MType::SINGLE:
     case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
     case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
-        return readElemAsDouble(v, idx) != 0.0 ? 1 : 0;
+        return v.elemAsDouble(idx) != 0.0 ? 1 : 0;
     case MType::COMPLEX:
         return (v.complexData()[idx] != Complex(0.0, 0.0)) ? 1 : 0;
     default:
@@ -561,7 +550,7 @@ MValue MValue::horzcat(const MValue *elems, size_t count, Allocator *alloc)
                       elems[i], eR, eC, eP, 0, colOff, pages, readElemAsLogical);
         else
             copyBlock(result.doubleDataMut(), rows, totalCols,
-                      elems[i], eR, eC, eP, 0, colOff, pages, readElemAsDouble);
+                      elems[i], eR, eC, eP, 0, colOff, pages, [](const MValue &v, size_t i) { return v.elemAsDouble(i); });
         colOff += eC;
     }
     return result;
@@ -619,7 +608,7 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
                     for (size_t r = 0; r < eR; ++r)
                         dst[c * totalRows + rowOff + r] =
                             static_cast<char>(static_cast<int>(std::round(
-                                readElemAsDouble(elems[i], c * eR + r))));
+                                elems[i].elemAsDouble(c * eR + r))));
             }
             rowOff += eR;
         }
@@ -664,7 +653,7 @@ MValue MValue::vertcat(const MValue *elems, size_t count, Allocator *alloc)
                       elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsLogical);
         else
             copyBlock(result.doubleDataMut(), totalRows, cols,
-                      elems[i], eR, eC, eP, rowOff, 0, pages, readElemAsDouble);
+                      elems[i], eR, eC, eP, rowOff, 0, pages, [](const MValue &v, size_t i) { return v.elemAsDouble(i); });
         rowOff += eR;
     }
     return result;
@@ -1035,18 +1024,18 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     MType t = dst.type();
     switch (t) {
     case MType::DOUBLE:
-        dst.doubleDataMut()[idx] = readElemAsDouble(val, valIdx);
+        dst.doubleDataMut()[idx] = val.elemAsDouble(valIdx);
         break;
     case MType::COMPLEX:
         dst.complexDataMut()[idx] = readElemAsComplex(val, valIdx);
         break;
     case MType::LOGICAL: {
-        double dv = readElemAsDouble(val, valIdx);
+        double dv = val.elemAsDouble(valIdx);
         dst.logicalDataMut()[idx] = static_cast<uint8_t>(dv != 0.0);
         break;
     }
     case MType::CHAR:
-        dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(readElemAsDouble(val, valIdx)));
+        dst.charDataMut()[idx] = static_cast<char>(static_cast<int>(val.elemAsDouble(valIdx)));
         break;
     case MType::CELL:
         dst.cellAt(idx) = val.cellAt(valIdx);
@@ -1054,15 +1043,15 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     // Typed integer / single: narrowing conversion from the source
     // element's double value. MATLAB saturates on overflow; we match
     // that by using the cast boundaries of each target type.
-    case MType::INT8:   dst.int8DataMut()[idx]   = static_cast<int8_t  >(readElemAsDouble(val, valIdx)); break;
-    case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(readElemAsDouble(val, valIdx)); break;
-    case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(readElemAsDouble(val, valIdx)); break;
-    case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(readElemAsDouble(val, valIdx)); break;
-    case MType::UINT8:  dst.uint8DataMut()[idx]  = static_cast<uint8_t >(readElemAsDouble(val, valIdx)); break;
-    case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(readElemAsDouble(val, valIdx)); break;
-    case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(readElemAsDouble(val, valIdx)); break;
-    case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(readElemAsDouble(val, valIdx)); break;
-    case MType::SINGLE: dst.singleDataMut()[idx] = static_cast<float   >(readElemAsDouble(val, valIdx)); break;
+    case MType::INT8:   dst.int8DataMut()[idx]   = static_cast<int8_t  >(val.elemAsDouble(valIdx)); break;
+    case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(val.elemAsDouble(valIdx)); break;
+    case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(val.elemAsDouble(valIdx)); break;
+    case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(val.elemAsDouble(valIdx)); break;
+    case MType::UINT8:  dst.uint8DataMut()[idx]  = static_cast<uint8_t >(val.elemAsDouble(valIdx)); break;
+    case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(val.elemAsDouble(valIdx)); break;
+    case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(val.elemAsDouble(valIdx)); break;
+    case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(val.elemAsDouble(valIdx)); break;
+    case MType::SINGLE: dst.singleDataMut()[idx] = static_cast<float   >(val.elemAsDouble(valIdx)); break;
     default:
         throw std::runtime_error(
             std::string("Indexed assignment not supported for type '")
