@@ -1,7 +1,7 @@
 // src/MLabAllocator.cpp
 #include "MAllocator.hpp"
 
-namespace mlab {
+namespace numkit {
 
 Allocator Allocator::defaultAllocator()
 {
@@ -9,4 +9,4 @@ Allocator Allocator::defaultAllocator()
             [](void *p, size_t) { ::operator delete(p); }};
 }
 
-} // namespace mlab
+} // namespace numkit

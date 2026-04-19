@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <unordered_set>
 
-namespace mlab {
+namespace numkit {
 
 class Environment
 {
@@ -82,4 +82,4 @@ private:
     void sboSet(const std::string &name, MValue val);
 };
 
-} // namespace mlab
+} // namespace numkit

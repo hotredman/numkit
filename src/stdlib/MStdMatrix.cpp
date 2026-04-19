@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cstring>
 
-namespace mlab {
+namespace numkit {
 
 void StdLibrary::registerMatrixFunctions(Engine &engine)
 {
@@ -478,4 +478,4 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                             });
 }
 
-} // namespace mlab
+} // namespace numkit

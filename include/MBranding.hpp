@@ -8,7 +8,7 @@
 #  include <stdlib.h>
 #endif
 
-namespace mlab {
+namespace numkit {
 
 // Project-name prefix for user-facing identifiers that must change if
 // the project is ever renamed. Intentionally narrow — covers only the
@@ -16,7 +16,7 @@ namespace mlab {
 // scripts `setenv`/`getenv` touch and would break on rename.
 //
 // NOT covered here (rename these manually alongside the prefix update):
-//   • C++ namespace `mlab`, target `mlab::mlab`
+//   • C++ namespace `mlab`, target `numkit::mlab`
 //   • File names `MLab*.hpp` / `MLab*.cpp`
 //   • Error-identifier strings such as "MLAB:assert" in MLabStdIO.cpp
 //   • Documentation, README, CMake project name
@@ -45,4 +45,4 @@ inline std::string envGet(const char *name)
 #endif
 }
 
-} // namespace mlab
+} // namespace numkit

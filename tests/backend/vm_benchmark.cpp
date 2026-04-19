@@ -13,7 +13,7 @@
 #include <gtest/gtest.h>
 #include <iostream>
 
-using namespace mlab;
+using namespace numkit;
 
 class VMBenchmark : public ::testing::Test
 {

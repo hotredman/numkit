@@ -11,7 +11,7 @@
 #include "MParser.hpp"
 #include <gtest/gtest.h>
 
-using namespace mlab;
+using namespace numkit;
 
 static ASTNodePtr parseSource(const std::string &source)
 {

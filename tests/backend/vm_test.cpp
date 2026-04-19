@@ -12,7 +12,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace mlab;
+using namespace numkit;
 
 class VMTest : public ::testing::Test
 {

@@ -14,7 +14,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;
-using namespace mlab;
+using namespace numkit;
 
 class MatlabParity : public DualEngineTest
 {
@@ -374,7 +374,7 @@ TEST_P(MatlabParity, WhileAloneNoSplit)
 {
     // One statement at top-level — should NOT split (size() == 1 after
     // the i=0 is stashed via setVariable rather than eval).
-    engine.setVariable("i", mlab::MValue::scalar(0));
+    engine.setVariable("i", numkit::MValue::scalar(0));
     eval(R"(
         while i < 3
             i = i + 1;

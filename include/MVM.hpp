@@ -8,7 +8,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 class Engine;
 
@@ -221,4 +221,4 @@ private:
     DebugController *debugCtl();
 };
 
-} // namespace mlab
+} // namespace numkit

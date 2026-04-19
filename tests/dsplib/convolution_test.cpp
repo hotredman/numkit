@@ -5,7 +5,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace mlab;
+using namespace numkit;
 
 class ConvolutionTest : public ::testing::Test
 {

@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
@@ -363,7 +363,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             } else if (fid >= 3) {
                 auto *f = ctx.engine->findFile(fid);
                 if (!f || !f->forWrite)
-                    throw MLabError("fprintf: invalid file identifier");
+                    throw MError("fprintf: invalid file identifier");
                 // Write at cursor, extending the buffer if needed. For
                 // 'a'/'a+' (appendOnly) we snap to the end first —
                 // MATLAB's contract regardless of prior seek.
@@ -373,7 +373,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::memcpy(f->buffer.data() + writePos, result.data(), result.size());
                 f->cursor = writePos + result.size();
             } else {
-                throw MLabError("fprintf: invalid file identifier");
+                throw MError("fprintf: invalid file identifier");
             }
         });
 
@@ -397,7 +397,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
-                throw MLabError("Error");
+                throw MError("Error");
 
             // error(struct) — rethrow an MException-like struct
             if (args[0].isStruct()) {
@@ -406,7 +406,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = args[0].hasField("identifier")
                                      ? args[0].field("identifier").toString()
                                      : "";
-                throw MLabError(msg, 0, 0, "", "", id);
+                throw MError(msg, 0, 0, "", "", id);
             }
 
             std::string first = args[0].toString();
@@ -421,7 +421,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     msg = mlab_sprintf(args[1].toString(), args, 2);
                 else
                     msg = args[1].toString();
-                throw MLabError(msg, 0, 0, "", "", id);
+                throw MError(msg, 0, 0, "", "", id);
             }
 
             // error(msg) or error(msg, arg1, ...) — sprintf formatting
@@ -430,7 +430,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 msg = mlab_sprintf(first, args, 1);
             else
                 msg = first;
-            throw MLabError(msg);
+            throw MError(msg);
         });
 
     engine.registerFunction(
@@ -487,7 +487,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
             std::string id =
                 me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
-            throw MLabError(msg, 0, 0, "", "", id);
+            throw MError(msg, 0, 0, "", "", id);
         });
 
     // throw(ME) — alias for rethrow
@@ -500,7 +500,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
             std::string id =
                 me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
-            throw MLabError(msg, 0, 0, "", "", id);
+            throw MError(msg, 0, 0, "", "", id);
         });
 
     // assert(condition) / assert(condition, msg) / assert(condition, id, msg, ...)
@@ -513,7 +513,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (args[0].toBool())
                 return; // assertion passed
             if (args.size() == 1)
-                throw MLabError("Assertion failed.", 0, 0, "", "", "MLAB:assert");
+                throw MError("Assertion failed.", 0, 0, "", "", "MLAB:assert");
             // assert(cond, MException struct)
             if (args[1].isStruct()) {
                 std::string msg = args[1].hasField("message")
@@ -522,7 +522,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = args[1].hasField("identifier")
                                      ? args[1].field("identifier").toString()
                                      : "MLAB:assert";
-                throw MLabError(msg, 0, 0, "", "", id);
+                throw MError(msg, 0, 0, "", "", id);
             }
             // assert(cond, msg) or assert(cond, id, msg, ...)
             std::string first = args[1].toString();
@@ -533,14 +533,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     msg = mlab_sprintf(args[2].toString(), args, 3);
                 else
                     msg = args[2].toString();
-                throw MLabError(msg, 0, 0, "", "", id);
+                throw MError(msg, 0, 0, "", "", id);
             }
             std::string msg;
             if (args.size() > 2)
                 msg = mlab_sprintf(first, args, 2);
             else
                 msg = first;
-            throw MLabError(msg, 0, 0, "", "", "MLAB:assert");
+            throw MError(msg, 0, 0, "", "", "MLAB:assert");
         });
 
     // ── csvread / csvwrite ──────────────────────────────────────
@@ -602,7 +602,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                        CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isChar())
-                throw MLabError("csvread requires a filename as the first argument");
+                throw MError("csvread requires a filename as the first argument");
 
             std::string filename = resolveCsvPath(args[0].toString());
 
@@ -615,12 +615,12 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 c1 = static_cast<size_t>(args[2].toScalar());
             if (args.size() >= 4) {
                 if (args[3].numel() != 4)
-                    throw MLabError("csvread: range argument must be [R1 C1 R2 C2]");
+                    throw MError("csvread: range argument must be [R1 C1 R2 C2]");
                 haveRange = true;
                 r2 = static_cast<size_t>(args[3](2));
                 c2 = static_cast<size_t>(args[3](3));
                 if (r2 < r1 || c2 < c1)
-                    throw MLabError("csvread: invalid range [R1 C1 R2 C2]");
+                    throw MError("csvread: invalid range [R1 C1 R2 C2]");
             }
 
             auto resolved = ctx.engine->resolvePath(filename);
@@ -628,7 +628,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             try {
                 content = resolved.fs->readFile(resolved.path);
             } catch (const std::exception &e) {
-                throw MLabError(std::string("csvread: ") + e.what());
+                throw MError(std::string("csvread: ") + e.what());
             }
 
             std::vector<std::vector<double>> rows;
@@ -697,9 +697,9 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                          Span<MValue> outs,
                          CallContext &ctx) {
             if (args.size() < 2)
-                throw MLabError("csvwrite requires filename and matrix arguments");
+                throw MError("csvwrite requires filename and matrix arguments");
             if (!args[0].isChar())
-                throw MLabError("csvwrite: first argument must be a filename");
+                throw MError("csvwrite: first argument must be a filename");
 
             std::string filename = resolveCsvPath(args[0].toString());
             const MValue &M = args[1];
@@ -750,7 +750,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             try {
                 resolved.fs->writeFile(resolved.path, os.str());
             } catch (const std::exception &e) {
-                throw MLabError(std::string("csvwrite: ") + e.what());
+                throw MError(std::string("csvwrite: ") + e.what());
             }
         });
 
@@ -767,16 +767,16 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         "setenv",
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             if (args.empty() || !args[0].isChar())
-                throw MLabError("setenv: first argument must be a variable name");
+                throw MError("setenv: first argument must be a variable name");
             std::string name = args[0].toString();
             if (name.empty())
-                throw MLabError("setenv: variable name cannot be empty");
+                throw MError("setenv: variable name cannot be empty");
             if (name.find('=') != std::string::npos)
-                throw MLabError("setenv: variable name cannot contain '='");
+                throw MError("setenv: variable name cannot contain '='");
             std::string value;
             if (args.size() >= 2) {
                 if (!args[1].isChar())
-                    throw MLabError("setenv: value must be a char array");
+                    throw MError("setenv: value must be a char array");
                 value = args[1].toString();
             }
 #ifdef _WIN32
@@ -791,7 +791,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isChar())
-                throw MLabError("getenv: argument must be a variable name");
+                throw MError("getenv: argument must be a variable name");
             outs[0] = MValue::fromString(envGet(args[0].toString().c_str()), alloc);
         });
 
@@ -828,7 +828,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             (void)nargout; (void)outs;
             if (args.empty() || !args[0].isChar())
-                throw MLabError("save: filename required");
+                throw MError("save: filename required");
             std::string filename = args[0].toString();
 
             bool asciiFlag = false;
@@ -839,23 +839,23 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string s = args[i].toString();
                 if (s == "-ascii") { asciiFlag = true; continue; }
                 if (s == "-mat" || s == "-v7" || s == "-v7.3")
-                    throw MLabError("save: binary .mat formats are not supported");
+                    throw MError("save: binary .mat formats are not supported");
                 if (!s.empty() && s.front() == '-')
-                    throw MLabError("save: unsupported flag '" + s + "'");
+                    throw MError("save: unsupported flag '" + s + "'");
                 varnames.push_back(s);
             }
             (void)asciiFlag; // currently the only supported format
 
             if (varnames.empty())
-                throw MLabError("save: at least one variable name is required");
+                throw MError("save: at least one variable name is required");
 
             std::ostringstream out;
             for (size_t vi = 0; vi < varnames.size(); ++vi) {
                 MValue *v = ctx.env->get(varnames[vi]);
                 if (!v)
-                    throw MLabError("save: variable '" + varnames[vi] + "' not found");
+                    throw MError("save: variable '" + varnames[vi] + "' not found");
                 if (v->type() != MType::DOUBLE)
-                    throw MLabError("save: only numeric (double) variables supported in ascii mode");
+                    throw MError("save: only numeric (double) variables supported in ascii mode");
                 auto d = v->dims();
                 size_t rows = d.rows();
                 size_t cols = d.cols();
@@ -876,7 +876,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             try {
                 resolved.fs->writeFile(resolved.path, out.str());
             } catch (const std::exception &e) {
-                throw MLabError(std::string("save: ") + e.what());
+                throw MError(std::string("save: ") + e.what());
             }
         });
 
@@ -885,7 +885,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isChar())
-                throw MLabError("load: filename required");
+                throw MError("load: filename required");
             std::string filename = args[0].toString();
 
             // Ignore -ascii flag; we only support ascii anyway.
@@ -893,10 +893,10 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 if (!args[i].isChar()) continue;
                 std::string s = args[i].toString();
                 if (s == "-mat" || s == "-v7" || s == "-v7.3")
-                    throw MLabError("load: binary .mat formats are not supported");
+                    throw MError("load: binary .mat formats are not supported");
                 if (s == "-ascii") continue;
                 if (!s.empty() && s.front() == '-')
-                    throw MLabError("load: unsupported flag '" + s + "'");
+                    throw MError("load: unsupported flag '" + s + "'");
             }
 
             auto resolved = ctx.engine->resolvePath(filename);
@@ -904,7 +904,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             try {
                 content = resolved.fs->readFile(resolved.path);
             } catch (const std::exception &e) {
-                throw MLabError(std::string("load: ") + e.what());
+                throw MError(std::string("load: ") + e.what());
             }
 
             // Parse each non-empty, non-comment line as whitespace-separated
@@ -932,7 +932,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     char *endp = nullptr;
                     double v = std::strtod(start, &endp);
                     if (endp == start)
-                        throw MLabError("load: parse error near '" + line.substr(q) + "'");
+                        throw MError("load: parse error near '" + line.substr(q) + "'");
                     row.push_back(v);
                     q = static_cast<size_t>(endp - line.c_str());
                 }
@@ -940,11 +940,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             }
 
             if (rows.empty())
-                throw MLabError("load: no numeric data found");
+                throw MError("load: no numeric data found");
             size_t cols = rows[0].size();
             for (auto &r : rows) {
                 if (r.size() != cols)
-                    throw MLabError("load: inconsistent column count across rows");
+                    throw MError("load: inconsistent column count across rows");
             }
             size_t nrows = rows.size();
 
@@ -972,7 +972,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             size_t dot = stem.find_last_of('.');
             if (dot != std::string::npos && dot > 0) stem = stem.substr(0, dot);
             if (stem.empty() || !(std::isalpha(static_cast<unsigned char>(stem[0])) || stem[0] == '_'))
-                throw MLabError("load: cannot derive a valid variable name from filename");
+                throw MError("load: cannot derive a valid variable name from filename");
             ctx.env->set(stem, std::move(M));
         });
 
@@ -981,7 +981,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isChar())
-                throw MLabError("fopen: filename must be a char array");
+                throw MError("fopen: filename must be a char array");
 
             // `fopen('all')` — only as the sole argument — returns a row
             // vector of every user-opened fid. MATLAB-compatible and
@@ -1018,7 +1018,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty())
-                throw MLabError("fclose: requires a file identifier or 'all'");
+                throw MError("fclose: requires a file identifier or 'all'");
 
             if (args[0].isChar() && args[0].toString() == "all") {
                 ctx.engine->closeAllFiles();
@@ -1027,7 +1027,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             }
 
             if (!args[0].isScalar())
-                throw MLabError("fclose: argument must be a numeric fid or 'all'");
+                throw MError("fclose: argument must be a numeric fid or 'all'");
             int fid = static_cast<int>(args[0].toScalar());
             bool ok = ctx.engine->closeFile(fid);
             outs[0] = MValue::scalar(ok ? 0.0 : -1.0, alloc);
@@ -1044,14 +1044,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // fgetl/fgets require fids opened for reading ('r'). Writing fids
     // throw; the 'a'/'w' user presumably did not intend to read.
 
-    auto requireReadFid = [](mlab::Engine *eng, const Span<const MValue> &args,
-                             const char *fn) -> mlab::Engine::OpenFile * {
+    auto requireReadFid = [](numkit::Engine *eng, const Span<const MValue> &args,
+                             const char *fn) -> numkit::Engine::OpenFile * {
         if (args.empty() || !args[0].isScalar())
-            throw MLabError(std::string(fn) + ": file identifier required");
+            throw MError(std::string(fn) + ": file identifier required");
         int fid = static_cast<int>(args[0].toScalar());
         auto *f = eng->findFile(fid);
         if (!f || !f->forRead)
-            throw MLabError(std::string(fn) + ": invalid file identifier");
+            throw MError(std::string(fn) + ": invalid file identifier");
         return f;
     };
 
@@ -1113,11 +1113,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
-                throw MLabError("feof: file identifier required");
+                throw MError("feof: file identifier required");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f)
-                throw MLabError("feof: invalid file identifier");
+                throw MError("feof: invalid file identifier");
             outs[0] = MValue::logicalScalar(f->cursor >= f->buffer.size(), alloc);
         });
 
@@ -1131,18 +1131,18 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // short match on fscanf, etc.). Empty string when no error. errnum
     // is 0/-1 to signal clean/error per MATLAB convention. Hard errors
     // (invalid fid, bad precision, write-on-read-fid) still throw
-    // MLabError — they are programmer errors, not recoverable I/O faults.
+    // MError — they are programmer errors, not recoverable I/O faults.
 
     engine.registerFunction(
         "ferror",
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
-                throw MLabError("ferror: file identifier required");
+                throw MError("ferror: file identifier required");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f)
-                throw MLabError("ferror: invalid file identifier");
+                throw MError("ferror: invalid file identifier");
 
             bool clear = args.size() >= 2 && args[1].isChar() && args[1].toString() == "clear";
             std::string msg = f->lastError;
@@ -1172,7 +1172,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
-                throw MLabError("ftell: file identifier required");
+                throw MError("ftell: file identifier required");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f) {
@@ -1239,11 +1239,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         "frewind",
         [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             if (args.empty() || !args[0].isScalar())
-                throw MLabError("frewind: file identifier required");
+                throw MError("frewind: file identifier required");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f || !f->forRead)
-                throw MLabError("frewind: invalid file identifier");
+                throw MError("frewind: invalid file identifier");
             f->cursor = 0;
         });
 
@@ -1319,14 +1319,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (std::isinf(s))
                 return SizeSpec{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (s < 0 || !std::isfinite(s))
-                throw MLabError(std::string(fn) + ": size must be Inf or a non-negative integer");
+                throw MError(std::string(fn) + ": size must be Inf or a non-negative integer");
             return SizeSpec{SizeSpec::Kind::Flat, static_cast<size_t>(s), 0, 0};
         }
         if (sz.numel() == 2) {
             double r = sz(0);
             double c = sz(1);
             if (r < 0 || !std::isfinite(r) || std::isinf(r))
-                throw MLabError(std::string(fn) + ": rows in [m n] must be finite non-negative");
+                throw MError(std::string(fn) + ": rows in [m n] must be finite non-negative");
             size_t rows = static_cast<size_t>(r);
             size_t cols;
             size_t limit;
@@ -1335,13 +1335,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 limit = SIZE_MAX;
             } else {
                 if (c < 0 || !std::isfinite(c))
-                    throw MLabError(std::string(fn) + ": cols in [m n] must be finite non-negative or Inf");
+                    throw MError(std::string(fn) + ": cols in [m n] must be finite non-negative or Inf");
                 cols = static_cast<size_t>(c);
                 limit = rows * cols;
             }
             return SizeSpec{SizeSpec::Kind::Matrix, limit, rows, cols};
         }
-        throw MLabError(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
+        throw MError(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
     };
 
     // Shape the flat `values` vector into either a column (Flat mode) or
@@ -1378,7 +1378,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         if (lo == "l" || lo == "ieee-le" || lo == "ieee-le.l64" ||
             lo == "n" || lo == "native")
             return false;
-        throw MLabError(std::string(fn) + ": unsupported machine format '" + raw + "'");
+        throw MError(std::string(fn) + ": unsupported machine format '" + raw + "'");
     };
     auto byteSwap = [](char *p, size_t n) {
         for (size_t i = 0, j = n - 1; i < j; ++i, --j) std::swap(p[i], p[j]);
@@ -1390,11 +1390,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
-                throw MLabError("fread: file identifier required");
+                throw MError("fread: file identifier required");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f || !f->forRead)
-                throw MLabError("fread: invalid file identifier");
+                throw MError("fread: invalid file identifier");
 
             SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 2)
@@ -1404,12 +1404,12 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string precStr = "uint8";
             if (args.size() >= 3) {
                 if (!args[2].isChar())
-                    throw MLabError("fread: precision must be a char array");
+                    throw MError("fread: precision must be a char array");
                 precStr = args[2].toString();
             }
             auto precOpt = parsePrecision(precStr);
             if (!precOpt)
-                throw MLabError("fread: unsupported precision '" + precStr + "'");
+                throw MError("fread: unsupported precision '" + precStr + "'");
             int kind = precOpt->first;
             size_t bsize = precOpt->second;
 
@@ -1417,7 +1417,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             bool be = false;
             if (args.size() >= 4) {
                 if (!args[3].isChar())
-                    throw MLabError("fread: machine format must be a char array");
+                    throw MError("fread: machine format must be a char array");
                 be = parseEndian(args[3].toString(), "fread");
             }
 
@@ -1687,7 +1687,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     break;
                 }
                 default:
-                    throw MLabError(std::string("scanf: unsupported conversion '%")
+                    throw MError(std::string("scanf: unsupported conversion '%")
                                     + spec + "'");
                 }
                 if (!ok) break;
@@ -1763,11 +1763,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isScalar() || !args[1].isChar())
-                throw MLabError("fscanf: requires (fid, format [, size])");
+                throw MError("fscanf: requires (fid, format [, size])");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f || !f->forRead)
-                throw MLabError("fscanf: invalid file identifier");
+                throw MError("fscanf: invalid file identifier");
 
             SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 3)
@@ -1806,7 +1806,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
-                throw MLabError("sscanf: requires (str, format [, size])");
+                throw MError("sscanf: requires (str, format [, size])");
 
             SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 3)
@@ -1900,7 +1900,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 ++i;
             }
             if (i >= fmt.size())
-                throw MLabError("textscan: truncated format specifier");
+                throw MError("textscan: truncated format specifier");
             char spec = fmt[i];
             switch (spec) {
             case 'd': case 'i': case 'u':
@@ -1909,13 +1909,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             case 's':
                 break;
             default:
-                throw MLabError(std::string("textscan: unsupported conversion '%")
+                throw MError(std::string("textscan: unsupported conversion '%")
                                 + spec + "'");
             }
             out.push_back({spec, suppress, width});
         }
         if (out.empty())
-            throw MLabError("textscan: format must contain at least one conversion");
+            throw MError("textscan: format must contain at least one conversion");
         return out;
     };
 
@@ -1925,7 +1925,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                               CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[1].isChar())
-                throw MLabError("textscan: requires (source, format [, N] [, opt, value …])");
+                throw MError("textscan: requires (source, format [, N] [, opt, value …])");
 
             // Source — fid scalar or char array.
             std::string input;
@@ -1936,11 +1936,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 int fid = static_cast<int>(args[0].toScalar());
                 srcFile = ctx.engine->findFile(fid);
                 if (!srcFile || !srcFile->forRead)
-                    throw MLabError("textscan: invalid file identifier");
+                    throw MError("textscan: invalid file identifier");
                 input.assign(srcFile->buffer.begin() + srcFile->cursor,
                              srcFile->buffer.end());
             } else {
-                throw MLabError("textscan: source must be a file identifier or char array");
+                throw MError("textscan: source must be a file identifier or char array");
             }
 
             std::string fmt = args[1].toString();
@@ -1953,7 +1953,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 double d = args[argIdx].toScalar();
                 if (!std::isinf(d)) {
                     if (d < 0 || !std::isfinite(d))
-                        throw MLabError("textscan: N must be Inf or a non-negative integer");
+                        throw MError("textscan: N must be Inf or a non-negative integer");
                     cycleCap = static_cast<size_t>(d);
                 }
                 ++argIdx;
@@ -1967,7 +1967,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             };
             while (argIdx + 1 < args.size()) {
                 if (!args[argIdx].isChar())
-                    throw MLabError("textscan: option name must be a char array");
+                    throw MError("textscan: option name must be a char array");
                 std::string name = lower(args[argIdx].toString());
                 const MValue &val = args[argIdx + 1];
                 if (name == "delimiter") {
@@ -1981,20 +1981,20 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                             if (d.isChar()) opts.delimiters += d.toString();
                         }
                     } else {
-                        throw MLabError("textscan: 'Delimiter' must be a char array or cell");
+                        throw MError("textscan: 'Delimiter' must be a char array or cell");
                     }
                 } else if (name == "endofline") {
                     if (!val.isChar())
-                        throw MLabError("textscan: 'EndOfLine' must be a char array");
+                        throw MError("textscan: 'EndOfLine' must be a char array");
                     opts.endOfLine = val.toString();
                 } else if (name == "headerlines") {
                     double d = val.toScalar();
                     if (d < 0 || !std::isfinite(d))
-                        throw MLabError("textscan: 'HeaderLines' must be a non-negative integer");
+                        throw MError("textscan: 'HeaderLines' must be a non-negative integer");
                     opts.headerLines = static_cast<size_t>(d);
                 } else if (name == "commentstyle") {
                     if (!val.isChar())
-                        throw MLabError("textscan: 'CommentStyle' must be a char array");
+                        throw MError("textscan: 'CommentStyle' must be a char array");
                     opts.commentStyle = val.toString();
                 } else if (name == "treatasempty") {
                     if (val.isChar()) {
@@ -2005,18 +2005,18 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                             if (e.isChar()) opts.treatAsEmpty.push_back(e.toString());
                         }
                     } else {
-                        throw MLabError("textscan: 'TreatAsEmpty' must be a char array or cell");
+                        throw MError("textscan: 'TreatAsEmpty' must be a char array or cell");
                     }
                 } else if (name == "multipledelimsasone") {
                     if (!val.isScalar() && !val.isLogical())
-                        throw MLabError("textscan: 'MultipleDelimsAsOne' must be logical/numeric");
+                        throw MError("textscan: 'MultipleDelimsAsOne' must be logical/numeric");
                     opts.multipleDelimsAsOne = (val.toScalar() != 0.0);
                 } else if (name == "emptyvalue") {
                     if (!val.isScalar())
-                        throw MLabError("textscan: 'EmptyValue' must be a numeric scalar");
+                        throw MError("textscan: 'EmptyValue' must be a numeric scalar");
                     opts.emptyValue = val.toScalar();
                 } else {
-                    throw MLabError("textscan: unsupported option '" + args[argIdx].toString()
+                    throw MError("textscan: unsupported option '" + args[argIdx].toString()
                                     + "'");
                 }
                 argIdx += 2;
@@ -2294,28 +2294,28 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isScalar())
-                throw MLabError("fwrite: requires (fid, array [, precision [, machineformat]])");
+                throw MError("fwrite: requires (fid, array [, precision [, machineformat]])");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f || !f->forWrite)
-                throw MLabError("fwrite: invalid file identifier");
+                throw MError("fwrite: invalid file identifier");
 
             std::string precStr = "uint8";
             if (args.size() >= 3) {
                 if (!args[2].isChar())
-                    throw MLabError("fwrite: precision must be a char array");
+                    throw MError("fwrite: precision must be a char array");
                 precStr = args[2].toString();
             }
             auto precOpt = parsePrecision(precStr);
             if (!precOpt)
-                throw MLabError("fwrite: unsupported precision '" + precStr + "'");
+                throw MError("fwrite: unsupported precision '" + precStr + "'");
             int kind = precOpt->first;
             size_t bsize = precOpt->second;
 
             bool be = false;
             if (args.size() >= 4) {
                 if (!args[3].isChar())
-                    throw MLabError("fwrite: machine format must be a char array");
+                    throw MError("fwrite: machine format must be a char array");
                 be = parseEndian(args[3].toString(), "fwrite");
             }
 
@@ -2327,7 +2327,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             auto elemAsDouble = [&A](size_t i) -> double {
                 if (A.type() == MType::DOUBLE)  return A.doubleData()[i];
                 if (A.isLogical())              return A.logicalData()[i] ? 1.0 : 0.0;
-                throw MLabError("fwrite: unsupported array element type");
+                throw MError("fwrite: unsupported array element type");
             };
 
             std::string bytes(numel * bsize, '\0');
@@ -2367,4 +2367,4 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         });
 }
 
-} // namespace mlab
+} // namespace numkit

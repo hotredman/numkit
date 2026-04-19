@@ -6,7 +6,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 static size_t findInterval(const double *xData, size_t n, double xq)
 {
@@ -432,4 +432,4 @@ void FitLibrary::registerInterpFunctions(Engine &engine)
                             });
 }
 
-} // namespace mlab
+} // namespace numkit

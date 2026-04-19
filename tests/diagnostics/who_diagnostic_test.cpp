@@ -2,7 +2,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;
-using namespace mlab;
+using namespace numkit;
 
 class WhoDiagnostic : public DualEngineTest
 {};

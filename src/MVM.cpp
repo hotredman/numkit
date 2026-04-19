@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Shared helper: resolve an index operand to 0-based indices
@@ -1142,7 +1142,7 @@ enter_frame:
             case OpCode::THROW: {
                 // a = register containing error message (string or struct)
                 if (R[I.a].isChar() || R[I.a].isString())
-                    throw MLabError(R[I.a].toString());
+                    throw MError(R[I.a].toString());
                 if (R[I.a].isStruct()) {
                     std::string msg = R[I.a].hasField("message")
                                           ? R[I.a].field("message").toString()
@@ -1150,9 +1150,9 @@ enter_frame:
                     std::string id = R[I.a].hasField("identifier")
                                          ? R[I.a].field("identifier").toString()
                                          : "";
-                    throw MLabError(msg, 0, 0, "", "", id);
+                    throw MError(msg, 0, 0, "", "", id);
                 }
-                throw MLabError("User error");
+                throw MError("User error");
             }
 
             default:
@@ -1163,7 +1163,7 @@ enter_frame:
         } // while
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
-    } catch (const MLabError &mle) {
+    } catch (const MError &mle) {
         std::string id = mle.identifier().empty() ? "MLAB:error" : mle.identifier();
         if (dispatchTryCatch(mle.what(), id.c_str()))
             goto enter_frame;
@@ -1378,14 +1378,14 @@ static std::string describeInstruction(const Instruction &instr,
     size_t instrIdx = static_cast<size_t>(ip - chunk.code.data());
     if (instrIdx < chunk.sourceMap.size() && chunk.sourceMap[instrIdx].line > 0) {
         std::string context = describeInstruction(*ip, chunk);
-        throw MLabError(ex.what(),
+        throw MError(ex.what(),
                         chunk.sourceMap[instrIdx].line,
                         chunk.sourceMap[instrIdx].col,
                         chunk.name,
                         context);
     }
-    // No source location available — wrap in MLabError anyway for consistency
-    throw MLabError(ex.what());
+    // No source location available — wrap in MError anyway for consistency
+    throw MError(ex.what());
 }
 
 // ============================================================
@@ -2020,4 +2020,4 @@ void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
     }
 }
 
-} // namespace mlab
+} // namespace numkit

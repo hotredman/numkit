@@ -4,7 +4,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace mlab {
+namespace numkit {
 
 Dims::Dims()
 {
@@ -68,4 +68,4 @@ bool Dims::operator!=(const Dims &o) const
     return !(*this == o);
 }
 
-} // namespace mlab
+} // namespace numkit

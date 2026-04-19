@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-namespace mlab {
+namespace numkit {
 
 void DspLibrary::registerSignalCoreFunctions(Engine &engine)
 {
@@ -244,4 +244,4 @@ void DspLibrary::registerSignalCoreFunctions(Engine &engine)
         });
 }
 
-} // namespace mlab
+} // namespace numkit

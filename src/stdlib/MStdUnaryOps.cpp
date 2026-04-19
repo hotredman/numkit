@@ -5,7 +5,7 @@
 #include <functional>
 #include <stdexcept>
 
-namespace mlab {
+namespace numkit {
 
 void StdLibrary::registerUnaryOps(Engine &engine)
 {
@@ -128,4 +128,4 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     });
 }
 
-} // namespace mlab
+} // namespace numkit

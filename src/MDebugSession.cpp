@@ -24,7 +24,7 @@
 
 #include <unordered_set>
 
-namespace mlab {
+namespace numkit {
 
 DebugSession::DebugSession(Engine &engine)
     : engine_(engine)
@@ -95,7 +95,7 @@ ExecStatus DebugSession::start(const std::string &code)
             deactivate();
         }
         return status;
-    } catch (const MLabError &e) {
+    } catch (const MError &e) {
         engine_.syncVMToWorkspace();
         errorMsg_ = e.what();
         errorLine_ = e.line();
@@ -134,7 +134,7 @@ ExecStatus DebugSession::resume(DebugAction action)
         }
 
         return status;
-    } catch (const MLabError &e) {
+    } catch (const MError &e) {
         errorMsg_ = e.what();
         errorLine_ = e.line();
         deactivate();
@@ -345,4 +345,4 @@ std::string DebugSession::takeOutput()
     return out;
 }
 
-} // namespace mlab
+} // namespace numkit

@@ -5,7 +5,7 @@
 #include <stdexcept>
 #include <unordered_set>
 
-namespace mlab {
+namespace numkit {
 
 // RAII guard for END_VAL compilation context
 class IndexContextGuard
@@ -3116,4 +3116,4 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
     return os.str();
 }
 
-} // namespace mlab
+} // namespace numkit

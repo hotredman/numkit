@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Helper: promote pair to complex if needed
@@ -533,4 +533,4 @@ MValue unaryTyped(const MValue &a, MType targetType, Op op, Allocator *alloc)
     return r;
 }
 
-} // namespace mlab
+} // namespace numkit

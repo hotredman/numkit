@@ -24,7 +24,7 @@
 
 namespace mlab_test {
 
-using namespace mlab;
+using namespace numkit;
 
 // ── Backend parameter ────────────────────────────────────────
 enum class BackendParam { TreeWalker, VM };

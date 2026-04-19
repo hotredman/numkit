@@ -5,7 +5,7 @@
 #include "MParser.hpp"
 #include <gtest/gtest.h>
 
-using namespace mlab;
+using namespace numkit;
 
 // ============================================================
 // Вспомогательная функция: source -> AST (Block)

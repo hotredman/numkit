@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 using Complex = std::complex<double>;
 
@@ -339,4 +339,4 @@ private:
     static const Dims sEmptyDims;
 };
 
-} // namespace mlab
+} // namespace numkit

@@ -1,7 +1,7 @@
 // src/MLabAst.cpp
 #include "MAst.hpp"
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Фабрики узлов
@@ -47,4 +47,4 @@ ASTNodePtr cloneNode(const ASTNode *src)
     return dst;
 }
 
-} // namespace mlab
+} // namespace numkit

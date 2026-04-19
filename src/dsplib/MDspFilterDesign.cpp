@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace mlab {
+namespace numkit {
 
 static std::vector<Complex> butterworthPoles(int N)
 {
@@ -232,4 +232,4 @@ void DspLibrary::registerFilterDesignFunctions(Engine &engine)
                             });
 }
 
-} // namespace mlab
+} // namespace numkit

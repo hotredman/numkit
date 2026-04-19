@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <functional>
 
-namespace mlab {
+namespace numkit {
 
 struct Allocator
 {
@@ -17,4 +17,4 @@ struct Allocator
     static Allocator defaultAllocator();
 };
 
-} // namespace mlab
+} // namespace numkit

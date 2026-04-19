@@ -4,7 +4,7 @@
 #include "MEngine.hpp"
 #include <gtest/gtest.h>
 
-using namespace mlab;
+using namespace numkit;
 
 // ============================================================
 // Fixture

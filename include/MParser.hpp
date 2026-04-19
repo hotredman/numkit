@@ -5,7 +5,7 @@
 #include <initializer_list>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 class Parser
 {
@@ -83,4 +83,4 @@ private:
     bool probeHasOutputSignature() const;
 };
 
-} // namespace mlab
+} // namespace numkit

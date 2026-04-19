@@ -5,7 +5,7 @@
 #include <limits>
 #include <sstream>
 
-namespace mlab {
+namespace numkit {
 
 void StdLibrary::registerStringFunctions(Engine &engine)
 {
@@ -333,4 +333,4 @@ void StdLibrary::registerStringFunctions(Engine &engine)
         });
 }
 
-} // namespace mlab
+} // namespace numkit

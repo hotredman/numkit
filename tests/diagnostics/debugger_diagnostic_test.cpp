@@ -5,7 +5,7 @@
 #include "MParser.hpp"
 
 using namespace mlab_test;
-using namespace mlab;
+using namespace numkit;
 
 class DebugDiagnostic : public DualEngineTest
 {};
@@ -76,10 +76,10 @@ TEST_P(DebugDiagnostic, B1_SourceCodeInChunk)
 }
 
 // ============================================================
-// C. Does VM throw MLabError with location?
+// C. Does VM throw MError with location?
 // ============================================================
 
-TEST_P(DebugDiagnostic, C1_VMThrowsMLabError)
+TEST_P(DebugDiagnostic, C1_VMThrowsMError)
 {
     if (GetParam() == BackendParam::TreeWalker) {
         std::cerr << "DIAGNOSTIC C1: skipping for TW\n";
@@ -89,20 +89,20 @@ TEST_P(DebugDiagnostic, C1_VMThrowsMLabError)
     try {
         eval("x = 1;\nv = [1 2 3];\nv(100);\n");
         FAIL() << "Should have thrown";
-    } catch (const MLabError &e) {
-        std::cerr << "DIAGNOSTIC C1: caught MLabError, line=" << e.line()
+    } catch (const MError &e) {
+        std::cerr << "DIAGNOSTIC C1: caught MError, line=" << e.line()
                   << " col=" << e.col()
                   << " func='" << e.funcName() << "'"
                   << " what='" << e.what() << "'\n";
         EXPECT_GT(e.line(), 0);
     } catch (const std::runtime_error &e) {
-        std::cerr << "DIAGNOSTIC C1: caught std::runtime_error (NOT MLabError): '"
+        std::cerr << "DIAGNOSTIC C1: caught std::runtime_error (NOT MError): '"
                   << e.what() << "'\n";
-        FAIL() << "VM should throw MLabError, not plain runtime_error";
+        FAIL() << "VM should throw MError, not plain runtime_error";
     }
 }
 
-TEST_P(DebugDiagnostic, C2_TWThrowsMLabError)
+TEST_P(DebugDiagnostic, C2_TWThrowsMError)
 {
     if (GetParam() == BackendParam::VM) {
         std::cerr << "DIAGNOSTIC C2: skipping for VM\n";
@@ -112,15 +112,15 @@ TEST_P(DebugDiagnostic, C2_TWThrowsMLabError)
     try {
         eval("x = 1;\nv = [1 2 3];\nv(100);\n");
         FAIL() << "Should have thrown";
-    } catch (const MLabError &e) {
-        std::cerr << "DIAGNOSTIC C2: caught MLabError, line=" << e.line()
+    } catch (const MError &e) {
+        std::cerr << "DIAGNOSTIC C2: caught MError, line=" << e.line()
                   << " col=" << e.col()
                   << " what='" << e.what() << "'\n";
         EXPECT_GT(e.line(), 0);
     } catch (const std::runtime_error &e) {
-        std::cerr << "DIAGNOSTIC C2: caught std::runtime_error (NOT MLabError): '"
+        std::cerr << "DIAGNOSTIC C2: caught std::runtime_error (NOT MError): '"
                   << e.what() << "'\n";
-        FAIL() << "TW should throw MLabError, not plain runtime_error";
+        FAIL() << "TW should throw MError, not plain runtime_error";
     }
 }
 
@@ -130,7 +130,7 @@ TEST_P(DebugDiagnostic, C2_TWThrowsMLabError)
 
 TEST_P(DebugDiagnostic, D1_FormattedWhat)
 {
-    MLabError err("bad stuff", 15, 3, "my_func");
+    MError err("bad stuff", 15, 3, "my_func");
     std::cerr << "DIAGNOSTIC D1: what()='" << err.what() << "'\n";
     std::cerr << "DIAGNOSTIC D1: formattedWhat()='" << err.formattedWhat() << "'\n";
 

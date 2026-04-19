@@ -255,7 +255,7 @@ TEST_P(ConcatTest, MixedLogicalDoubleConcat)
 {
     eval("v = [true, 5, false];");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), mlab::MType::DOUBLE);
+    EXPECT_EQ(v->type(), numkit::MType::DOUBLE);
     EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
     EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);
     EXPECT_DOUBLE_EQ(v->doubleData()[2], 0.0);

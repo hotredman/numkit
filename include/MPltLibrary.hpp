@@ -2,7 +2,7 @@
 
 #include "MEngine.hpp"
 
-namespace mlab {
+namespace numkit {
 
 class PltLibrary
 {
@@ -10,4 +10,4 @@ public:
     static void install(Engine &engine);
 };
 
-} // namespace mlab
+} // namespace numkit

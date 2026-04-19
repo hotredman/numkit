@@ -17,7 +17,7 @@
 #include <sstream>
 #include <unordered_set>
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Reserved names — see MLabTypes.hpp for per-set semantics.
@@ -402,7 +402,7 @@ Engine::EvalResult Engine::evalSafe(const std::string &code)
     } catch (const DebugStopException &) {
         r.ok = false;
         r.debugStop = true;
-    } catch (const MLabError &e) {
+    } catch (const MError &e) {
         r.ok = false;
         r.errorMessage = e.what();
         r.errorLine = e.line();
@@ -635,7 +635,7 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
     if (!scheme.empty()) {
         auto *fs = findVirtualFS(scheme);
         if (!fs)
-            throw MLabError("unknown filesystem '" + scheme + "' in path");
+            throw MError("unknown filesystem '" + scheme + "' in path");
         return {fs, rest};
     }
 
@@ -654,7 +654,7 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 
     VirtualFS *fs = findVirtualFS(fsName);
     if (!fs)
-        throw MLabError("filesystem '" + fsName + "' is not available");
+        throw MError("filesystem '" + fsName + "' is not available");
 
     // Normalize path: if relative, prepend MLAB_CWD.
     std::string path = userPath;
@@ -792,4 +792,4 @@ std::vector<int> Engine::openFileIds() const
     return ids;
 }
 
-} // namespace mlab
+} // namespace numkit

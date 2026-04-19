@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 enum class TokenType {
     NUMBER,
@@ -129,4 +129,4 @@ private:
     static char closingFor(char open);
 };
 
-} // namespace mlab
+} // namespace numkit

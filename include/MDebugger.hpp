@@ -18,7 +18,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 class Environment;
 struct BytecodeChunk;
@@ -226,4 +226,4 @@ public:
     {}
 };
 
-} // namespace mlab
+} // namespace numkit

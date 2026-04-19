@@ -16,7 +16,7 @@ namespace {
 
 // Minimal in-memory VFS used as a test sink for fprintf-to-file writes.
 // Mirrors the pattern from vfs_test.cpp.
-class MemoryFS final : public mlab::VirtualFS
+class MemoryFS final : public numkit::VirtualFS
 {
 public:
     explicit MemoryFS(std::string n) : name_(std::move(n)) {}
@@ -1947,14 +1947,14 @@ TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
     // engine's lifetime, so we can inspect it after engine destruction.
     std::map<std::string, std::string> persisted;
     {
-        mlab::Engine local;
+        numkit::Engine local;
         StdLibrary::install(local);
         if (GetParam() == BackendParam::TreeWalker)
             local.setBackend(Engine::Backend::TreeWalker);
         else
             local.setBackend(Engine::Backend::VM);
 
-        auto fs = std::make_unique<mlab::CallbackFS>(
+        auto fs = std::make_unique<numkit::CallbackFS>(
             "temporary",
             [](const std::string &) -> std::string { return ""; },
             [&persisted](const std::string &p, const std::string &c) { persisted[p] = c; },

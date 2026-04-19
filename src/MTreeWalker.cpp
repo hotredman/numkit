@@ -9,7 +9,7 @@
 #include <optional>
 #include <sstream>
 
-namespace mlab {
+namespace numkit {
 
 TreeWalker::TreeWalker(Engine &engine)
     : engine_(engine)
@@ -337,13 +337,13 @@ MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
 
     try {
         return execNodeInner(node, env);
-    } catch (const MLabError &) {
+    } catch (const MError &) {
         throw;
     } catch (const DebugStopException &) {
         throw;
     } catch (const std::runtime_error &e) {
         if (node->line > 0)
-            throw MLabError(e.what(), node->line, node->col, "", describeNode(node));
+            throw MError(e.what(), node->line, node->col, "", describeNode(node));
         throw;
     }
 }
@@ -2264,7 +2264,7 @@ MValue TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
         if (flowSignal_ != FlowSignal::NONE)
             return result;
         return result;
-    } catch (const MLabError &mle) {
+    } catch (const MError &mle) {
         if (node->children.size() > 1) {
             if (!node->strValue.empty()) {
                 auto err = MValue::structure();
@@ -2437,4 +2437,4 @@ DebugController *TreeWalker::debugCtl()
     return engine_.debugController_.get();
 }
 
-} // namespace mlab
+} // namespace numkit

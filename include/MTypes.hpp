@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Timer types
@@ -84,10 +84,10 @@ extern const std::unordered_set<std::string> kBuiltinNames;
 // ============================================================
 // Runtime error with source location
 // ============================================================
-class MLabError : public std::runtime_error
+class MError : public std::runtime_error
 {
 public:
-    MLabError(const std::string &msg,
+    MError(const std::string &msg,
               int line = 0,
               int col = 0,
               const std::string &funcName = "",
@@ -145,4 +145,4 @@ struct UserFunction
     mutable int8_t usesNarginNargout = -1;
 };
 
-} // namespace mlab
+} // namespace numkit

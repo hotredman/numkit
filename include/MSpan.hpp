@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 template<typename T>
 class Span
@@ -47,4 +47,4 @@ private:
     size_t size_;
 };
 
-} // namespace mlab
+} // namespace numkit

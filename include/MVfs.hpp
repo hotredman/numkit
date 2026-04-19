@@ -28,7 +28,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace mlab {
+namespace numkit {
 
 class VirtualFS
 {
@@ -86,4 +86,4 @@ private:
     ExistsFunc exists_;
 };
 
-} // namespace mlab
+} // namespace numkit

@@ -4,7 +4,7 @@
 
 #include <cmath>
 
-namespace mlab {
+namespace numkit {
 
 void DspLibrary::registerTransformFunctions(Engine &engine)
 {
@@ -106,4 +106,4 @@ void DspLibrary::registerTransformFunctions(Engine &engine)
                             });
 }
 
-} // namespace mlab
+} // namespace numkit

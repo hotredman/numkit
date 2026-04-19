@@ -10,7 +10,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 class Engine;
 
@@ -227,4 +227,4 @@ private:
     std::vector<LoopContext> loopStack_;
 };
 
-} // namespace mlab
+} // namespace numkit

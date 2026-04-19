@@ -1,7 +1,7 @@
 // src/MLabEnvironment.cpp
 #include "MEnvironment.hpp"
 
-namespace mlab {
+namespace numkit {
 
 // ============================================================
 // Environment — SBO helpers
@@ -237,4 +237,4 @@ std::vector<std::string> Environment::localNames() const
     return names;
 }
 
-} // namespace mlab
+} // namespace numkit

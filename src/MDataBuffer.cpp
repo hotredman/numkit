@@ -4,7 +4,7 @@
 #include <new>
 #include <stdexcept>
 
-namespace mlab {
+namespace numkit {
 
 DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
     : bytes_(bytes)
@@ -46,4 +46,4 @@ int DataBuffer::refCount() const
     return refCount_.load(std::memory_order_acquire);
 }
 
-} // namespace mlab
+} // namespace numkit

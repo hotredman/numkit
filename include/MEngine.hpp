@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace mlab {
+namespace numkit {
 
 class TreeWalker;
 class VM;
@@ -122,7 +122,7 @@ public:
 
     // Resume paused debug execution with the given action.
     // Returns Paused on next breakpoint/step, Completed if execution finishes.
-    // Throws DebugStopException if Stop is requested, MLabError on runtime errors.
+    // Throws DebugStopException if Stop is requested, MError on runtime errors.
     ExecStatus debugResume(DebugAction action);
 
     // Reinstall built-in constants (pi, eps, inf, etc.) into constantsEnv.
@@ -212,7 +212,7 @@ public:
         bool appendOnly = false;
         // Last soft-failure text for MATLAB's ferror(fid). Populated by
         // fread on short reads, fgetl/fgets/fscanf on EOF, etc. Cleared
-        // by ferror(fid, 'clear'). Hard failures still throw MLabError.
+        // by ferror(fid, 'clear'). Hard failures still throw MError.
         std::string lastError;
     };
 
@@ -310,4 +310,4 @@ private:
     friend class DebugSession;
 };
 
-} // namespace mlab
+} // namespace numkit

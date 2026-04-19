@@ -1,6 +1,6 @@
 #include "MStdLibrary.hpp"
 
-namespace mlab {
+namespace numkit {
 
 void StdLibrary::registerCellStructFunctions(Engine &engine)
 {
@@ -90,4 +90,4 @@ void StdLibrary::registerCellStructFunctions(Engine &engine)
                             });
 }
 
-} // namespace mlab
+} // namespace numkit

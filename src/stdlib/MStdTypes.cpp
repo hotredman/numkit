@@ -7,7 +7,7 @@
 #include <limits>
 #include <type_traits>
 
-namespace mlab {
+namespace numkit {
 
 // ── Saturating cast from double to integer type T ──────────
 template <typename T>
@@ -385,4 +385,4 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
         });
 }
 
-} // namespace mlab
+} // namespace numkit
