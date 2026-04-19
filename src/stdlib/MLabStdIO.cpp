@@ -1128,9 +1128,26 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         return M;
     };
 
+    // Parse the machineformat argument of fread / fwrite. Returns true
+    // for big-endian, false for little-endian. We treat 'native' as LE
+    // because every target we support (x86_64, ARM64, WASM) is LE.
+    auto parseEndian = [](const std::string &raw, const char *fn) -> bool {
+        std::string lo;
+        lo.reserve(raw.size());
+        for (char c : raw) lo += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (lo == "b" || lo == "ieee-be" || lo == "ieee-be.l64") return true;
+        if (lo == "l" || lo == "ieee-le" || lo == "ieee-le.l64" ||
+            lo == "n" || lo == "native")
+            return false;
+        throw MLabError(std::string(fn) + ": unsupported machine format '" + raw + "'");
+    };
+    auto byteSwap = [](char *p, size_t n) {
+        for (size_t i = 0, j = n - 1; i < j; ++i, --j) std::swap(p[i], p[j]);
+    };
+
     engine.registerFunction(
         "fread",
-        [parsePrecision, parseReadSize, shapeFreadOutput](
+        [parsePrecision, parseReadSize, shapeFreadOutput, parseEndian, byteSwap](
             Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
@@ -1157,6 +1174,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             int kind = precOpt->first;
             size_t bsize = precOpt->second;
 
+            // Optional machineformat argument — big-endian support.
+            bool be = false;
+            if (args.size() >= 4) {
+                if (!args[3].isChar())
+                    throw MLabError("fread: machine format must be a char array");
+                be = parseEndian(args[3].toString(), "fread");
+            }
+
             size_t available = f->buffer.size() - f->cursor;
             size_t maxElems = available / bsize;
             size_t n = std::min(sz.limit, maxElems);
@@ -1165,25 +1190,30 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
             std::vector<double> values(n);
             for (size_t i = 0; i < n; ++i) {
-                const char *src = f->buffer.data() + f->cursor + i * bsize;
+                // Copy into a local buffer so we can byte-swap safely
+                // without mutating f->buffer.
+                char tmp[8];
+                std::memcpy(tmp, f->buffer.data() + f->cursor + i * bsize, bsize);
+                if (be && bsize > 1) byteSwap(tmp, bsize);
+
                 double v = 0.0;
                 if (kind == 0) { // unsigned
                     switch (bsize) {
-                    case 1: { uint8_t  x; std::memcpy(&x, src, 1); v = x; break; }
-                    case 2: { uint16_t x; std::memcpy(&x, src, 2); v = x; break; }
-                    case 4: { uint32_t x; std::memcpy(&x, src, 4); v = x; break; }
-                    case 8: { uint64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
+                    case 1: { uint8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
+                    case 2: { uint16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
+                    case 4: { uint32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
+                    case 8: { uint64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
                     }
                 } else if (kind == 1) { // signed
                     switch (bsize) {
-                    case 1: { int8_t  x; std::memcpy(&x, src, 1); v = x; break; }
-                    case 2: { int16_t x; std::memcpy(&x, src, 2); v = x; break; }
-                    case 4: { int32_t x; std::memcpy(&x, src, 4); v = x; break; }
-                    case 8: { int64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
+                    case 1: { int8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
+                    case 2: { int16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
+                    case 4: { int32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
+                    case 8: { int64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
                     }
                 } else { // float
-                    if (bsize == 4) { float x; std::memcpy(&x, src, 4); v = x; }
-                    else            {                     std::memcpy(&v, src, 8); }
+                    if (bsize == 4) { float x; std::memcpy(&x, tmp, 4); v = x; }
+                    else            {                     std::memcpy(&v, tmp, 8); }
                 }
                 values[i] = v;
             }
@@ -1847,11 +1877,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     engine.registerFunction(
         "fwrite",
-        [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,
-                         CallContext &ctx) {
+        [parsePrecision, parseEndian, byteSwap](
+            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isScalar())
-                throw MLabError("fwrite: requires (fid, array [, precision])");
+                throw MLabError("fwrite: requires (fid, array [, precision [, machineformat]])");
             int fid = static_cast<int>(args[0].toScalar());
             auto *f = ctx.engine->findFile(fid);
             if (!f || !f->forWrite)
@@ -1868,6 +1898,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 throw MLabError("fwrite: unsupported precision '" + precStr + "'");
             int kind = precOpt->first;
             size_t bsize = precOpt->second;
+
+            bool be = false;
+            if (args.size() >= 4) {
+                if (!args[3].isChar())
+                    throw MLabError("fwrite: machine format must be a char array");
+                be = parseEndian(args[3].toString(), "fwrite");
+            }
 
             const MValue &A = args[1];
             size_t numel = A.numel();
@@ -1902,6 +1939,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     if (bsize == 4) { float x = static_cast<float>(v); std::memcpy(dst, &x, 4); }
                     else            {                                   std::memcpy(dst, &v, 8); }
                 }
+                if (be && bsize > 1)
+                    byteSwap(dst, bsize);
                 dst += bsize;
             }
             // Same cursor-based write contract as fprintf — see there

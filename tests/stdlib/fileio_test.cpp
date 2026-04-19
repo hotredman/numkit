@@ -827,6 +827,80 @@ TEST_P(FileIoTest, FwriteTypedOutputSyntaxIsAccepted)
     EXPECT_EQ(fs->files()["x.bin"].size(), 6u);
 }
 
+// ── machineformat / endianness override ──────────────────
+
+TEST_P(FileIoTest, FwriteBigEndianUint16)
+{
+    eval("fid = fopen('be.bin', 'w');");
+    eval("fwrite(fid, [1 256 65535], 'uint16', 'ieee-be');");
+    eval("fclose(fid);");
+
+    const std::string &buf = fs->files()["be.bin"];
+    ASSERT_EQ(buf.size(), 6u);
+    // Big-endian 1 = 00 01, 256 = 01 00, 65535 = FF FF
+    EXPECT_EQ(static_cast<uint8_t>(buf[0]), 0x00u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[1]), 0x01u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[2]), 0x01u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[3]), 0x00u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[4]), 0xFFu);
+    EXPECT_EQ(static_cast<uint8_t>(buf[5]), 0xFFu);
+}
+
+TEST_P(FileIoTest, FreadBigEndianInt32)
+{
+    // Hand-craft a BE int32 stream: 1 and -1.
+    std::string buf;
+    auto pushByte = [&](unsigned v) { buf.push_back(static_cast<char>(v & 0xFFu)); };
+    pushByte(0x00); pushByte(0x00); pushByte(0x00); pushByte(0x01);
+    pushByte(0xFF); pushByte(0xFF); pushByte(0xFF); pushByte(0xFF);
+    fs->files()["be.bin"] = buf;
+
+    eval("fid = fopen('be.bin', 'r');");
+    eval("A = fread(fid, Inf, 'int32', 'ieee-be');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(evalScalar("a = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = A(2);"), -1.0);
+}
+
+TEST_P(FileIoTest, FreadFwriteBeRoundTrip)
+{
+    eval("wid = fopen('rt.bin', 'w');");
+    eval("fwrite(wid, [3.14 -2.5 100], 'double', 'ieee-be');");
+    eval("fclose(wid);");
+
+    eval("rid = fopen('rt.bin', 'r');");
+    eval("A = fread(rid, Inf, 'double', 'ieee-be');");
+    eval("fclose(rid);");
+
+    EXPECT_DOUBLE_EQ(evalScalar("a = A(1);"), 3.14);
+    EXPECT_DOUBLE_EQ(evalScalar("b = A(2);"), -2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("c = A(3);"), 100.0);
+}
+
+TEST_P(FileIoTest, FreadNativeIsLittleEndian)
+{
+    // Our targets are all LE, so 'native' == 'ieee-le' == default.
+    std::string buf;
+    uint16_t x = 0x0102;
+    buf.append(reinterpret_cast<const char *>(&x), 2);
+    fs->files()["le.bin"] = buf;
+
+    eval("fid = fopen('le.bin', 'r');");
+    eval("A = fread(fid, 1, 'uint16', 'native');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(evalScalar("a = A;"), 0x0102);
+}
+
+TEST_P(FileIoTest, FreadRejectsUnknownMachineFormat)
+{
+    fs->files()["x.bin"] = "ab";
+    eval("fid = fopen('x.bin', 'r');");
+    EXPECT_THROW(eval("A = fread(fid, 1, 'uint8', 'not-a-format');"), std::exception);
+    eval("fclose(fid);");
+}
+
 // ── sscanf ───────────────────────────────────────────────
 
 TEST_P(FileIoTest, SscanfReadsIntegersCycled)
