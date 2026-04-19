@@ -1071,24 +1071,57 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     // ── fscanf / sscanf ─────────────────────────────────────────
     //
-    // Formatted numeric reading. The format string is applied CYCLICALLY
-    // to the input until either (a) the input runs out / a match fails
-    // or (b) `size` elements have been produced. Values are returned as
-    // a column vector of doubles (MATLAB's default output type). The
-    // format is a scanf-style subset:
+    // Formatted reading. The format string is applied CYCLICALLY to the
+    // input until either (a) the input runs out / a match fails or (b)
+    // `size` elements have been produced. The format is a scanf-style
+    // subset:
     //
     //   %d  %i  %u        decimal integer
     //   %f  %e  %g        float / scientific / general
     //   %x  %X            hex
     //   %o                octal
+    //   %s                whitespace-delimited token (skips leading ws)
+    //   %c                exactly N characters (default 1, no ws skip)
     //   %*…               suppress (read but don't emit)
-    //   width digits      accepted but currently ignored
+    //   width digits      max chars for %s/%c; ignored for numeric
     //
-    // Not supported: %s, %c, [set], and matrix-shape size=[m n]. Could
-    // be added later if they're wanted by real scripts.
+    // Output type follows MATLAB's rule: if the format contains ANY
+    // numeric conversion, the result is a column vector of doubles
+    // (where %s/%c characters become ASCII codes). If the format has
+    // only text conversions, the result is a char array with the
+    // characters concatenated in order.
+    //
+    // Not supported: [set]-ranges, fscanf matrix-shape size=[m n]
+    // (column-only for now).
+
+    struct ScanfOut
+    {
+        std::vector<double> values;
+        size_t count;
+        size_t bytesConsumed;
+    };
+
+    // Does the format contain any non-text conversion? Controls output
+    // type. Text-only → char array; anything else → double column.
+    auto formatHasNumeric = [](const std::string &fmt) -> bool {
+        for (size_t i = 0; i < fmt.size(); ++i) {
+            if (fmt[i] != '%') continue;
+            ++i;
+            if (i < fmt.size() && fmt[i] == '*') ++i;
+            while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) ++i;
+            if (i >= fmt.size()) break;
+            char spec = fmt[i];
+            if (spec == 'd' || spec == 'i' || spec == 'u' ||
+                spec == 'f' || spec == 'e' || spec == 'g' ||
+                spec == 'E' || spec == 'G' ||
+                spec == 'x' || spec == 'X' || spec == 'o')
+                return true;
+        }
+        return false;
+    };
 
     auto scanfCycle = [](const std::string &input, const std::string &fmt,
-                         size_t limit) -> std::tuple<std::vector<double>, size_t, size_t> {
+                         size_t limit) -> ScanfOut {
         std::vector<double> out;
         size_t inPos = 0;
         size_t count = 0;
@@ -1119,18 +1152,58 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
                 bool suppress = false;
                 if (fmt[fmtPos] == '*') { suppress = true; ++fmtPos; }
-                // Accept but ignore width digits.
+                int width = -1;
                 while (fmtPos < fmt.size() &&
-                       std::isdigit(static_cast<unsigned char>(fmt[fmtPos])))
+                       std::isdigit(static_cast<unsigned char>(fmt[fmtPos]))) {
+                    if (width < 0) width = 0;
+                    width = width * 10 + (fmt[fmtPos] - '0');
                     ++fmtPos;
+                }
                 if (fmtPos >= fmt.size()) { ok = false; break; }
                 char spec = fmt[fmtPos++];
 
-                // Numeric conversions skip leading whitespace.
-                while (inPos < input.size() &&
-                       std::isspace(static_cast<unsigned char>(input[inPos])))
-                    ++inPos;
+                // Numeric + %s skip leading whitespace. %c does NOT —
+                // it matches literal characters including whitespace.
+                if (spec != 'c') {
+                    while (inPos < input.size() &&
+                           std::isspace(static_cast<unsigned char>(input[inPos])))
+                        ++inPos;
+                }
                 if (inPos >= input.size()) { ok = false; break; }
+
+                if (spec == 's') {
+                    size_t tokenStart = inPos;
+                    size_t maxEnd = (width < 0)
+                                        ? input.size()
+                                        : std::min(inPos + static_cast<size_t>(width),
+                                                   input.size());
+                    while (inPos < maxEnd &&
+                           !std::isspace(static_cast<unsigned char>(input[inPos])))
+                        ++inPos;
+                    if (inPos == tokenStart) { ok = false; break; }
+                    if (!suppress) {
+                        for (size_t p = tokenStart; p < inPos && count < limit; ++p) {
+                            out.push_back(static_cast<double>(
+                                static_cast<unsigned char>(input[p])));
+                            ++count;
+                        }
+                    }
+                    continue;
+                }
+
+                if (spec == 'c') {
+                    size_t n = (width < 0) ? 1u : static_cast<size_t>(width);
+                    if (inPos + n > input.size()) { ok = false; break; }
+                    if (!suppress) {
+                        for (size_t p = 0; p < n && count < limit; ++p) {
+                            out.push_back(static_cast<double>(
+                                static_cast<unsigned char>(input[inPos + p])));
+                            ++count;
+                        }
+                    }
+                    inPos += n;
+                    continue;
+                }
 
                 const char *start = input.c_str() + inPos;
                 char *endp = nullptr;
@@ -1187,7 +1260,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 break;
             }
         }
-        return {std::move(out), count, inPos};
+        return ScanfOut{std::move(out), count, inPos};
     };
 
     auto makeColumn = [](std::vector<double> &&vals, Allocator *alloc) -> MValue {
@@ -1199,10 +1272,28 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         return M;
     };
 
+    auto makeCharRow = [](const std::vector<double> &vals, Allocator *alloc) -> MValue {
+        std::string s;
+        s.reserve(vals.size());
+        for (double v : vals)
+            s.push_back(static_cast<char>(static_cast<int>(v)));
+        return MValue::fromString(s, alloc);
+    };
+
+    // Chooses the output shape per the MATLAB contract: char array when
+    // the format only has %s/%c conversions, column-of-doubles otherwise.
+    auto shapeScanfOutput = [makeColumn, makeCharRow, formatHasNumeric](
+                                std::vector<double> &&vals, const std::string &fmt,
+                                Allocator *alloc) -> MValue {
+        if (formatHasNumeric(fmt) || vals.empty())
+            return makeColumn(std::move(vals), alloc);
+        return makeCharRow(vals, alloc);
+    };
+
     engine.registerFunction(
         "fscanf",
-        [scanfCycle, makeColumn](Span<const MValue> args, size_t nargout, Span<MValue> outs,
-                                 CallContext &ctx) {
+        [scanfCycle, shapeScanfOutput](Span<const MValue> args, size_t nargout,
+                                       Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isScalar() || !args[1].isChar())
                 throw MLabError("fscanf: requires (fid, format [, size])");
@@ -1222,18 +1313,19 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             }
 
             std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
-            auto [vals, count, consumed] = scanfCycle(input, args[1].toString(), limit);
-            f->cursor += consumed;
+            std::string fmt = args[1].toString();
+            auto r = scanfCycle(input, fmt, limit);
+            f->cursor += r.bytesConsumed;
 
-            outs[0] = makeColumn(std::move(vals), alloc);
+            outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
             if (nargout > 1)
-                outs[1] = MValue::scalar(static_cast<double>(count), alloc);
+                outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
         });
 
     engine.registerFunction(
         "sscanf",
-        [scanfCycle, makeColumn](Span<const MValue> args, size_t nargout, Span<MValue> outs,
-                                 CallContext &ctx) {
+        [scanfCycle, shapeScanfOutput](Span<const MValue> args, size_t nargout,
+                                       Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
                 throw MLabError("sscanf: requires (str, format [, size])");
@@ -1248,17 +1340,16 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 }
             }
 
-            auto [vals, count, consumed] = scanfCycle(args[0].toString(),
-                                                      args[1].toString(), limit);
-            (void)consumed;
+            std::string fmt = args[1].toString();
+            auto r = scanfCycle(args[0].toString(), fmt, limit);
 
-            outs[0] = makeColumn(std::move(vals), alloc);
+            outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
             if (nargout > 1)
-                outs[1] = MValue::scalar(static_cast<double>(count), alloc);
+                outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
             if (nargout > 2)
                 outs[2] = MValue::fromString("", alloc); // errmsg — always empty for now
             if (nargout > 3)
-                outs[3] = MValue::scalar(static_cast<double>(consumed + 1), alloc); // nextindex, 1-based
+                outs[3] = MValue::scalar(static_cast<double>(r.bytesConsumed + 1), alloc);
         });
 
     engine.registerFunction(

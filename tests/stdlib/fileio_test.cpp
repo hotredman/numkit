@@ -829,12 +829,85 @@ TEST_P(FileIoTest, SscanfSuppressWithStar)
     EXPECT_EQ(evalScalar("a0 = A(1);"), 20.0);
 }
 
-TEST_P(FileIoTest, SscanfRejectsUnsupportedConversion)
+TEST_P(FileIoTest, SscanfRejectsTrulyUnsupportedConversion)
 {
-    // %s and %c aren't implemented yet — must surface as an error,
-    // not silently return nothing.
-    EXPECT_THROW(eval("A = sscanf('hello', '%s');"), std::exception);
-    EXPECT_THROW(eval("A = sscanf('h', '%c');"), std::exception);
+    // %s and %c are supported now; but unknown letters still fault.
+    EXPECT_THROW(eval("A = sscanf('1', '%k');"), std::exception);
+}
+
+// ── %s and %c ─────────────────────────────────────────
+
+TEST_P(FileIoTest, SscanfSingleStringToken)
+{
+    eval("A = sscanf('hello', '%s');");
+    // Pure %s → char array of the token.
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalString("s = A;"), "hello");
+}
+
+TEST_P(FileIoTest, SscanfMultipleStringTokensConcatenate)
+{
+    // MATLAB's quirk: pure %s concatenates tokens with no separator.
+    eval("A = sscanf('hello world foo', '%s');");
+    EXPECT_EQ(evalString("s = A;"), "helloworldfoo");
+}
+
+TEST_P(FileIoTest, SscanfStringWidthTruncatesToken)
+{
+    eval("A = sscanf('abcdefghij', '%3s');");
+    // Pure %s still → char. Width limits to 3 chars per match; format
+    // cycles so remaining characters become the next token.
+    EXPECT_EQ(evalString("s = A;"), "abcdefghij");  // a|bcd|efg|hij packed together
+}
+
+TEST_P(FileIoTest, SscanfCharSingle)
+{
+    eval("A = sscanf('x', '%c');");
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalString("s = A;"), "x");
+}
+
+TEST_P(FileIoTest, SscanfCharDoesNotSkipWhitespace)
+{
+    // %c reads literal chars including whitespace (MATLAB parity). We
+    // set size=1 so format doesn't cycle and consume the 'x' too —
+    // want to assert that the FIRST char read is the space itself.
+    eval("A = sscanf(' x', '%c', 1);");
+    EXPECT_EQ(evalString("s = A;"), " ");
+}
+
+TEST_P(FileIoTest, SscanfCharWithWidth)
+{
+    eval("A = sscanf('hello', '%3c');");
+    EXPECT_EQ(evalString("s = A;"), "hel");
+}
+
+TEST_P(FileIoTest, SscanfMixedNumericAndStringReturnsDoubleColumn)
+{
+    // MATLAB rule: any numeric conversion in the format → the result
+    // is a column of doubles, and %s chars become ASCII codes.
+    eval("A = sscanf('1 x 2 y', '%d %c');");
+    EXPECT_FALSE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalScalar("n = numel(A);"), 4.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a1 = A(2);"), 120.0);  // ASCII for 'x'
+    EXPECT_EQ(evalScalar("a2 = A(3);"), 2.0);
+    EXPECT_EQ(evalScalar("a3 = A(4);"), 121.0);  // ASCII for 'y'
+}
+
+TEST_P(FileIoTest, SscanfSuppressedStringStillConsumedNotEmitted)
+{
+    eval("A = sscanf('skip 42', '%*s %d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 1.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 42.0);
+}
+
+TEST_P(FileIoTest, SscanfCountCountsCharactersForTextFormats)
+{
+    // MATLAB docs: "count contains the number of characters read" when
+    // the format is %s/%c. Our impl pushes one element per char.
+    eval("[A, count] = sscanf('hello', '%s');");
+    EXPECT_EQ(getVar("count"), 5.0);
 }
 
 // ── fscanf ───────────────────────────────────────────────
