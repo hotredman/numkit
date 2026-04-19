@@ -3,6 +3,7 @@
 #include <sstream>
 #include <memory>
 #include <iostream>
+#include <map>
 #include <vector>
 #include <set>
 #include <cmath>
@@ -10,6 +11,7 @@
 #include "MLabEngine.hpp"
 #include "MLabStdLibrary.hpp"
 #include "MLabDebugSession.hpp"
+#include "MLabVfs.hpp"
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format MValue for variable preview
@@ -94,6 +96,26 @@ public:
         engine_ = std::make_unique<mlab::Engine>();
         restoreOutputFunc();
     }
+
+    // ── Virtual filesystem bridge ──
+    //
+    // The IDE registers one JS object per named filesystem (typically
+    // "temporary" and "local"), exposing sync methods readFile(path),
+    // writeFile(path, content), exists(path). We wrap each in a
+    // CallbackFS and hand it to the engine. Handlers are cached so
+    // reset() (which rebuilds the engine) can re-install them.
+    //
+    // Note: callbacks are SYNC — the IDE-side adapter must either keep
+    // a sync-accessible mirror of tempFS/localFS or rely on Asyncify.
+    void registerFs(const std::string &name, emscripten::val handler) {
+        fsHandlers_[name] = handler;
+        installFs(name, handler);
+    }
+
+    void pushScriptOrigin(const std::string &fsName) {
+        engine_->pushScriptOrigin(fsName);
+    }
+    void popScriptOrigin() { engine_->popScriptOrigin(); }
 
     std::string execute(const std::string& code) {
         // During active debug session, evaluate in the current frame context
@@ -195,6 +217,10 @@ public:
         debugSession_.reset();
         engine_ = std::make_unique<mlab::Engine>();
         restoreOutputFunc();
+        // Re-install VFS handlers on the fresh engine so csvread/csvwrite
+        // keep routing through tempFS/localFS after a reset.
+        for (auto &[name, handler] : fsHandlers_)
+            installFs(name, handler);
     }
 
     std::string getWorkspace() {
@@ -301,6 +327,21 @@ private:
     std::string outputBuf_;
     std::unique_ptr<mlab::DebugSession> debugSession_;
     std::vector<uint16_t> breakpointLines_;
+    std::map<std::string, emscripten::val> fsHandlers_;
+
+    void installFs(const std::string &name, emscripten::val handler) {
+        auto readFn = [handler](const std::string &p) -> std::string {
+            return handler.call<std::string>("readFile", p);
+        };
+        auto writeFn = [handler](const std::string &p, const std::string &c) {
+            handler.call<void>("writeFile", p, c);
+        };
+        auto existsFn = [handler](const std::string &p) -> bool {
+            return handler.call<bool>("exists", p);
+        };
+        engine_->registerVirtualFS(
+            std::make_unique<mlab::CallbackFS>(name, readFn, writeFn, existsFn));
+    }
 
     std::string buildDebugResult(mlab::ExecStatus status) {
         std::string output = debugSession_ ? debugSession_->takeOutput() : "";
@@ -392,7 +433,12 @@ private:
 static std::unique_ptr<ReplSession> g_session;
 
 std::string repl_init() {
-    g_session = std::make_unique<ReplSession>();
+    // Defense-in-depth: if a session already exists (e.g. the IDE called
+    // repl_register_fs before repl_init, which lazy-creates the session),
+    // reset() it so VFS handlers registered on the current engine are
+    // re-installed on the fresh one instead of being silently dropped.
+    if (g_session) g_session->reset();
+    else g_session = std::make_unique<ReplSession>();
     return "MLab Interpreter v2.2\nType commands below.";
 }
 
@@ -464,6 +510,37 @@ std::string repl_debug_execute(const std::string &code, int skipBp) {
     }
 }
 
+// ── Virtual filesystem bridge ──
+//
+// JS-side usage:
+//   Module.repl_register_fs('temporary', {
+//       readFile: (path) => /* sync-accessible mirror of tempFS */,
+//       writeFile: (path, content) => { /* write-through */ },
+//       exists: (path) => /* bool */,
+//   });
+//   Module.repl_push_script_origin('temporary');  // before running a script
+//   // ... run script via repl_execute ...
+//   Module.repl_pop_script_origin();
+//
+// Callbacks are called synchronously from C++; the JS adapter must
+// serve them without awaiting promises (mirror tempFS/localFS into a
+// sync-accessible Map, or build with Asyncify).
+
+void repl_register_fs(const std::string &name, emscripten::val handler) {
+    if (!g_session) repl_init();
+    g_session->registerFs(name, handler);
+}
+
+void repl_push_script_origin(const std::string &fsName) {
+    if (!g_session) repl_init();
+    g_session->pushScriptOrigin(fsName);
+}
+
+void repl_pop_script_origin() {
+    if (!g_session) return;
+    g_session->popScriptOrigin();
+}
+
 EMSCRIPTEN_BINDINGS(mlab_repl) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
@@ -475,6 +552,10 @@ EMSCRIPTEN_BINDINGS(mlab_repl) {
     emscripten::function("repl_debug_start",           &repl_debug_start);
     emscripten::function("repl_debug_resume",          &repl_debug_resume);
     emscripten::function("repl_debug_stop",            &repl_debug_stop);
+    // Virtual filesystem bridge
+    emscripten::function("repl_register_fs",           &repl_register_fs);
+    emscripten::function("repl_push_script_origin",    &repl_push_script_origin);
+    emscripten::function("repl_pop_script_origin",     &repl_pop_script_origin);
     // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);
 }

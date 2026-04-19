@@ -241,7 +241,7 @@ function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
 // operations over a real directory the user picks through the native
 // folder-picker dialog. The directory handle is cached in IndexedDB
 // so reopening the IDE restores the tree after a permission refresh.
-function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
+function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
   const [mountName, setMountName] = useState(null);
@@ -258,6 +258,9 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
   }, []);
 
   // On mount, try to silently reconnect to the previously-picked folder.
+  // Notify the parent whenever Local Folder becomes available so the
+  // engine can register the 'local' VirtualFS adapter — otherwise scripts
+  // opened from Local Folder would fall back to writing into Temporary.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -268,13 +271,14 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
           setMountName(name);
           setStatus('connected');
           await loadTree();
+          if (onLocalMount) await onLocalMount();
         }
       } catch (e) {
         if (!cancelled) setError(String(e?.message || e));
       }
     })();
     return () => { cancelled = true; };
-  }, [loadTree]);
+  }, [loadTree, onLocalMount]);
 
   const handlePick = useCallback(async () => {
     setError(null);
@@ -285,6 +289,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
         setMountName(name);
         setStatus('connected');
         await loadTree();
+        if (onLocalMount) await onLocalMount();
       } else {
         setStatus(mountName ? 'connected' : 'idle');
       }
@@ -292,7 +297,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved }) {
       setError(String(e?.message || e));
       setStatus('denied');
     }
-  }, [mountName, loadTree]);
+  }, [mountName, loadTree, onLocalMount]);
 
   const handleDisconnect = useCallback(async () => {
     if (!confirm('Unmount this folder? Your files on disk are not affected.')) return;
@@ -680,7 +685,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
 
 const VALID_SOURCES = new Set(['temporary', 'localFolder', 'examples', 'github']);
 
-export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved }) {
+export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved, onLocalMount }) {
   const C = useTheme();
   // File System Access API presence is fixed per-browser-session.
   // Firefox / Safari report false and the "Local Folder" option is
@@ -709,7 +714,7 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {source === 'temporary' && <TemporaryBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} />}
-        {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} />}
+        {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} onLocalMount={onLocalMount} />}
         {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} />}
         {source === 'github' && <GitHubBrowser onOpenFile={onOpenFile} defaultRepo={defaultGitHubRepo} />}
       </div>

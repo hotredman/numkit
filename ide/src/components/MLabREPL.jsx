@@ -100,7 +100,16 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
   );
 }
 
-export default function MLabREPL({ engine: engineProp, status: statusProp }) {
+// Map a tab's `source` field to the VirtualFS name the engine should
+// route relative file paths through while that tab is running. Falls
+// back to 'temporary' so csvwrite from the REPL or bundled examples
+// lands somewhere the user can see in File Browser, not MEMFS.
+function originForSource(source) {
+  if (source === 'localFolder') return 'local';
+  return 'temporary';
+}
+
+export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAdapters, onLocalMount }) {
   const C = useTheme();
   const { themeName, toggleTheme } = C;
 
@@ -169,14 +178,35 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
   const runCode=useCallback(code=>{
-    const t0=performance.now();const result=engine.execute(code);setExecTimeMs(performance.now()-t0);setErrorLine(null);
+    // Pick the origin FS for this run. Try the preferred one first (derived
+    // from the active tab's source), then fall back to temporary — that way
+    // a tab from Local Folder run without a mounted folder still writes
+    // somewhere visible in File Browser instead of MEMFS. If neither is
+    // registered (e.g. full VFS init failure), skip push entirely so the
+    // resolver falls through to NativeFS and csvread/csvwrite keep working
+    // within the run rather than throwing "filesystem 'X' is not available".
+    const activeTabObj = tabs.find(t => t.id === activeTab);
+    const wantOrigin = originForSource(activeTabObj?.source);
+    let adapter = wantOrigin === 'local' ? vfsAdapters?.local : vfsAdapters?.temp;
+    let origin = adapter ? wantOrigin : null;
+    if (!adapter && vfsAdapters?.temp) { adapter = vfsAdapters.temp; origin = 'temporary'; }
+    if (origin) engine.pushScriptOrigin(origin);
+    let result;
+    const t0=performance.now();
+    try { result = engine.execute(code); }
+    finally { if (origin) engine.popScriptOrigin(); }
+    setExecTimeMs(performance.now()-t0);setErrorLine(null);
     const items=[];if(result.output)for(const line of result.output.split("\n")){if(line==="__CLEAR__"){setOutput([]);continue;}items.push({type:/^Error/.test(line)?"error":/^Warning:/.test(line)?"warning":"result",text:line});}
     if(items.length){addOutput(items);setConsoleNotify(true);}
     if(result.closeAllFigures)setFigures([]);else if(result.closedFigureIds?.length){const closed=new Set(result.closedFigureIds);setFigures(prev=>prev.filter(f=>!closed.has(f.id)));}
     if(result.figures?.length){setFigures(prev=>{const map=new Map(prev.map(f=>[f.id,f]));for(const fig of result.figures)map.set(fig.id,fig);return Array.from(map.values());});setShowRight(true);}
     if(result.errorLine)setErrorLine(result.errorLine);
     setVariables(engine.getVars());
-  },[engine,addOutput]);
+    // If the script wrote to tempFS/local via the sync mirror, the disk
+    // persist is still in flight; wait for it before refreshing the File
+    // Browser so newly-created files show up on the first render.
+    if (adapter) adapter.flush().then(() => setVfsRefreshKey(k => k + 1));
+  },[engine,addOutput,tabs,activeTab,vfsAdapters]);
 
   // ── Debug actions ──
   // Toggle a red dot on the active tab. Breakpoints are stored sorted
@@ -397,7 +427,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp }) {
 
       <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
         <div style={{flex:1,display:"flex",overflow:"hidden",minHeight:0}}>
-          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved}/></div>}
+          {showLeft&&<div style={{width:280,minWidth:220,flexShrink:0,background:C.bg1,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",overflow:"hidden"}}><FileBrowser onOpenFile={handleOpenFile} defaultGitHubRepo="skynetjudgmentday/mlab-demo" vfsRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} onLocalMount={onLocalMount}/></div>}
           {showCenter&&<div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",minWidth:0}}>
             <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} onClose={closeTab} onNew={newTab} onRename={renameTab} onCloseAll={closeAllTabs} onCloseExcept={closeOtherTabs}/>
             <div style={{flex:1,display:"flex",overflow:"hidden",position:"relative"}}>

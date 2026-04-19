@@ -4,6 +4,7 @@
 #include "MLabDebugger.hpp"
 #include "MLabFigureManager.hpp"
 #include "MLabTypes.hpp"
+#include "MLabVfs.hpp"
 #include "MLabVM.hpp"
 
 #include <atomic>
@@ -155,6 +156,33 @@ public:
     // Used by clear() to avoid modifying workspaceEnv from within function scope.
     bool isInsideFunctionCall() const;
 
+    // ── Virtual filesystem ────────────────────────────────────
+    //
+    // Registry of named filesystems ("native", "temporary", "local", …).
+    // A native FS is pre-registered in the Engine constructor; the IDE
+    // installs "temporary" / "local" via CallbackFS hooks at startup.
+    //
+    // resolvePath() picks the right backend by this order of precedence:
+    //   1. explicit prefix in the path ("temporary:/foo", "local:/foo",
+    //      "native:/foo") — wins over everything
+    //   2. env var MLAB_FS, if it names a registered backend
+    //   3. the current script's origin (set by the IDE before eval)
+    //   4. "native" if registered
+    // Relative paths are joined with MLAB_CWD when that env var is set.
+    void registerVirtualFS(std::unique_ptr<VirtualFS> fs);
+    VirtualFS *findVirtualFS(const std::string &name) const;
+
+    void pushScriptOrigin(const std::string &fsName);
+    void popScriptOrigin();
+    const std::string *currentScriptOrigin() const;
+
+    struct ResolvedPath
+    {
+        VirtualFS *fs;
+        std::string path;
+    };
+    ResolvedPath resolvePath(const std::string &userPath) const;
+
 private:
     Allocator allocator_;
     std::unique_ptr<Environment> globalsEnv_;     // MATLAB 'global' variables — shared across functions
@@ -201,6 +229,10 @@ private:
     std::shared_ptr<DebugObserver> debugObserver_;
     BreakpointManager breakpointManager_;
     std::unique_ptr<DebugController> debugController_;  // created when observer is set
+
+    // Virtual filesystem registry + script-origin stack
+    std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
+    std::vector<std::string> scriptOriginStack_;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

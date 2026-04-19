@@ -39,6 +39,7 @@ set(MLAB_CORE_SOURCES
     src/MLabDebugger.cpp
     src/MLabDebugSession.cpp
     src/MLabDebugWorkspace.cpp
+    src/MLabVfs.cpp
 )
 
 # Each subdirectory defines its own source list

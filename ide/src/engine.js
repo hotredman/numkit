@@ -198,6 +198,21 @@ export async function createWasmEngine(createModule) {
     throw new Error('repl_init not found in WASM module');
   }
 
+  // Print a one-line binding audit so a stale WASM binary is obvious in
+  // the console — nothing to dig through. Every entry should be 'function'
+  // on the current build; 'undefined' means the WASM predates that API.
+  console.log('[engine] WASM bindings:', {
+    repl_init: typeof Module.repl_init,
+    repl_execute: typeof Module.repl_execute,
+    repl_register_fs: typeof Module.repl_register_fs,
+    repl_push_script_origin: typeof Module.repl_push_script_origin,
+    repl_pop_script_origin: typeof Module.repl_pop_script_origin,
+  });
+
+  // Expose the instance once so it's reachable from devtools as
+  // `window.__mlabModule` for ad-hoc poking during debugging.
+  if (typeof window !== 'undefined') window.__mlabModule = Module;
+
   return {
     type: 'wasm',
     init() { return Module.repl_init(); },
@@ -267,6 +282,44 @@ export async function createWasmEngine(createModule) {
         Module.repl_debug_stop();
       }
     },
+
+    // ── Virtual filesystem bridge ──
+    //
+    // Register a sync FS adapter under a name the engine will recognise
+    // (typically 'temporary' or 'local'). Handler must expose sync methods
+    // readFile(path) -> string, writeFile(path, content) -> void,
+    // exists(path) -> boolean. See ide/src/fs/vfs-adapter.js for a
+    // concrete adapter that mirrors temporary.js into a sync Map.
+    //
+    // If the WASM build predates the VFS bindings we warn loudly — with
+    // the adapter present but the C++ side unaware, csvread/csvwrite
+    // would fail at execution time with a confusing "filesystem 'X' is
+    // not available" from the engine's path resolver.
+    registerFs(name, handler) {
+      if (typeof Module.repl_register_fs !== 'function') {
+        if (!this._warnedStaleWasm) {
+          console.warn('[engine] WASM binary is stale — missing VFS bindings. '
+            + 'Rebuild the WASM module or hard-refresh to pick up the latest mlab_repl.{js,wasm}.');
+          this._warnedStaleWasm = true;
+        }
+        return;
+      }
+      Module.repl_register_fs(name, handler);
+    },
+
+    // Tell the engine which FS the current script came from — so
+    // csvread('foo.csv') with no explicit prefix and no MLAB_FS env var
+    // resolves relative to that FS.
+    pushScriptOrigin(fsName) {
+      if (typeof Module.repl_push_script_origin === 'function') {
+        Module.repl_push_script_origin(fsName);
+      }
+    },
+    popScriptOrigin() {
+      if (typeof Module.repl_pop_script_origin === 'function') {
+        Module.repl_pop_script_origin();
+      }
+    },
   };
 }
 
@@ -305,5 +358,10 @@ export function createFallbackEngine() {
     debugStart() { return { status: 'error', message: 'Debug not available in demo mode' }; },
     debugResume() { return { status: 'error', message: 'Debug not available in demo mode' }; },
     debugStop() {},
+
+    // ── VFS stubs — fallback engine has no file I/O ──
+    registerFs() {},
+    pushScriptOrigin() {},
+    popScriptOrigin() {},
   };
 }

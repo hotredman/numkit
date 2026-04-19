@@ -35,6 +35,8 @@ set(STDLIB_TESTS
     stdlib/integer_types_test.cpp
     stdlib/dynvars_test.cpp
     stdlib/integration_test.cpp
+    stdlib/csv_test.cpp
+    stdlib/vfs_test.cpp
 )
 
 # ── DSP library ─────────────────────────────────────────────

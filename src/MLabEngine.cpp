@@ -1,5 +1,6 @@
 // src/MLabEngine.cpp
 #include "MLabEngine.hpp"
+#include "MLabBranding.hpp"
 #include "MLabCompiler.hpp"
 #include "MLabLexer.hpp"
 #include "MLabParser.hpp"
@@ -55,6 +56,7 @@ Engine::Engine()
     vm_ = std::make_unique<VM>(*this);
 
     reinstallConstants();
+    registerVirtualFS(std::make_unique<NativeFS>());
     StdLibrary::install(*this);
     DspLibrary::install(*this);
     PltLibrary::install(*this);
@@ -535,6 +537,125 @@ std::string Engine::workspaceJSON() const
     }
     os << "}";
     return os.str();
+}
+
+// ============================================================
+// Virtual filesystem registry + path resolver
+// ============================================================
+
+void Engine::registerVirtualFS(std::unique_ptr<VirtualFS> fs)
+{
+    if (!fs)
+        return;
+    auto n = fs->name();
+    virtualFs_[n] = std::move(fs);
+}
+
+VirtualFS *Engine::findVirtualFS(const std::string &name) const
+{
+    auto it = virtualFs_.find(name);
+    return (it != virtualFs_.end()) ? it->second.get() : nullptr;
+}
+
+void Engine::pushScriptOrigin(const std::string &fsName)
+{
+    scriptOriginStack_.push_back(fsName);
+}
+
+void Engine::popScriptOrigin()
+{
+    if (!scriptOriginStack_.empty())
+        scriptOriginStack_.pop_back();
+}
+
+const std::string *Engine::currentScriptOrigin() const
+{
+    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back();
+}
+
+namespace {
+
+// Split "prefix:rest" into {prefix, rest} if `prefix` is a known FS name.
+// Returns {"", path} if no recognisable scheme. Treats single-char prefixes
+// as drive letters (Windows C:/foo), never as FS schemes.
+std::pair<std::string, std::string> splitFsScheme(const std::string &path,
+                                                  const std::unordered_map<std::string, std::unique_ptr<VirtualFS>> &fsMap)
+{
+    auto colon = path.find(':');
+    if (colon == std::string::npos || colon < 2)
+        return {"", path};
+    std::string scheme = path.substr(0, colon);
+    if (fsMap.find(scheme) == fsMap.end())
+        return {"", path};
+    std::string rest = path.substr(colon + 1);
+    // Strip one leading slash (tempr:/foo → /foo; temporary:foo → foo; both ok).
+    return {scheme, rest};
+}
+
+bool isAbsolutePath(const std::string &p)
+{
+    if (p.empty())
+        return false;
+    if (p[0] == '/' || p[0] == '\\')
+        return true;
+#ifdef _WIN32
+    if (p.size() >= 2 && p[1] == ':' && ((p[0] >= 'A' && p[0] <= 'Z') || (p[0] >= 'a' && p[0] <= 'z')))
+        return true;
+#endif
+    return false;
+}
+
+std::string joinPath(const std::string &base, const std::string &rel)
+{
+    if (base.empty())
+        return rel;
+    if (rel.empty())
+        return base;
+    char last = base.back();
+    if (last == '/' || last == '\\')
+        return base + rel;
+    return base + "/" + rel;
+}
+
+} // namespace
+
+Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
+{
+    // 1. Explicit scheme in the path wins.
+    auto [scheme, rest] = splitFsScheme(userPath, virtualFs_);
+    if (!scheme.empty()) {
+        auto *fs = findVirtualFS(scheme);
+        if (!fs)
+            throw MLabError("unknown filesystem '" + scheme + "' in path");
+        return {fs, rest};
+    }
+
+    // 2. MLAB_FS env var selects the backend.
+    std::string fsName = envGet(envVarName("FS").c_str());
+    if (fsName == "auto")
+        fsName.clear();
+
+    // 3. Fall back to script origin, then to "native".
+    if (fsName.empty()) {
+        if (auto *o = currentScriptOrigin())
+            fsName = *o;
+    }
+    if (fsName.empty())
+        fsName = "native";
+
+    VirtualFS *fs = findVirtualFS(fsName);
+    if (!fs)
+        throw MLabError("filesystem '" + fsName + "' is not available");
+
+    // Normalize path: if relative, prepend MLAB_CWD.
+    std::string path = userPath;
+    if (!isAbsolutePath(path)) {
+        std::string cwd = envGet(envVarName("CWD").c_str());
+        if (!cwd.empty())
+            path = joinPath(cwd, path);
+    }
+
+    return {fs, path};
 }
 
 } // namespace mlab
