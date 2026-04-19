@@ -733,10 +733,10 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
         <span style={{ fontSize: 11, fontWeight: 600, color: C.text, fontFamily: FONT_UI, flexShrink: 0 }}>📂</span>
         <select value={source} onChange={e => setSource(e.target.value)}
           style={{ padding: '4px 8px', borderRadius: 4, fontSize: 11, background: C.bg0, border: `1px solid ${C.border}`, color: C.text, fontFamily: FONT_UI, cursor: 'pointer', outline: 'none', flex: 1 }}>
-          <option value="temporary">📌 Temporary</option>
           {hasLocalFolder && <option value="localFolder">💾 Local Folder</option>}
-          <option value="examples">📋 Examples</option>
+          <option value="temporary">📌 Temporary</option>
           <option value="github">🐙 GitHub</option>
+          <option value="examples">📋 Examples</option>
         </select>
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
