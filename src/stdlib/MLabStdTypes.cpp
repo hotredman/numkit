@@ -22,26 +22,6 @@ static T saturateCast(double v)
     return static_cast<T>(v);
 }
 
-// ── Read element i of any numeric MValue as double ─────────
-static double readAsDouble(const MValue &v, size_t i)
-{
-    switch (v.type()) {
-    case MType::DOUBLE:  return v.doubleData()[i];
-    case MType::SINGLE:  return static_cast<double>(v.singleData()[i]);
-    case MType::LOGICAL: return v.logicalData()[i] ? 1.0 : 0.0;
-    case MType::INT8:    return static_cast<double>(v.int8Data()[i]);
-    case MType::INT16:   return static_cast<double>(v.int16Data()[i]);
-    case MType::INT32:   return static_cast<double>(v.int32Data()[i]);
-    case MType::INT64:   return static_cast<double>(v.int64Data()[i]);
-    case MType::UINT8:   return static_cast<double>(v.logicalData()[i]); // uint8 = same as logical storage
-    case MType::UINT16:  return static_cast<double>(v.uint16Data()[i]);
-    case MType::UINT32:  return static_cast<double>(v.uint32Data()[i]);
-    case MType::UINT64:  return static_cast<double>(v.uint64Data()[i]);
-    case MType::CHAR:    return static_cast<double>(static_cast<unsigned char>(v.charData()[i]));
-    default: return 0.0;
-    }
-}
-
 // ── Generic numeric type constructor: int8(), uint32(), single(), etc. ──
 // Converts input to target MType with saturation for integers.
 template <typename T>
@@ -67,7 +47,7 @@ static void numericConstructor(MType targetType, Span<const MValue> args,
                             targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
-        double v = readAsDouble(a, i);
+        double v = a.elemAsDouble(i);
         if constexpr (std::is_integral_v<T>)
             dst[i] = saturateCast<T>(v);
         else
@@ -175,7 +155,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                                      a.dims().is3D() ? a.dims().pages() : 0},
                                     MType::LOGICAL, alloc);
                                 for (size_t i = 0; i < a.numel(); ++i)
-                                    r.logicalDataMut()[i] = readAsDouble(a, i) != 0 ? 1 : 0;
+                                    r.logicalDataMut()[i] = a.elemAsDouble(i) != 0 ? 1 : 0;
                                 {
                                     outs[0] = r;
                                     return;

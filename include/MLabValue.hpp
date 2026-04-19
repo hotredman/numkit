@@ -75,6 +75,9 @@ public:
     // ── Type-preserving indexing ─────────────────────────────
     // All methods preserve the element type (DOUBLE, COMPLEX, LOGICAL, CHAR).
     MValue elemAt(size_t linearIdx, Allocator *alloc = nullptr) const;
+    // Read element idx as double — covers DOUBLE / SINGLE / LOGICAL /
+    // CHAR / COMPLEX (real part) / INT8..INT64 / UINT8..UINT64.
+    double elemAsDouble(size_t idx) const;
     MValue indexGet(const size_t *indices, size_t count, Allocator *alloc = nullptr) const;
     MValue indexGet2D(const size_t *rowIdx, size_t nrows,
                       const size_t *colIdx, size_t ncols, Allocator *alloc = nullptr) const;

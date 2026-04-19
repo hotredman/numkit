@@ -1128,4 +1128,14 @@ TEST_P(IndexingOpsTest, ComplexAssignFromIntPromotesImagZero)
     EXPECT_DOUBLE_EQ(z.imag(), 0.0);
 }
 
+TEST_P(IndexingOpsTest, Uint8SourceConvertsToUint16)
+{
+    eval("a = uint16(uint8([10 20 30]));");
+    auto *a = getVarPtr("a");
+    ASSERT_NE(a, nullptr);
+    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->uint16Data()[0], 10u);
+    EXPECT_EQ(a->uint16Data()[2], 30u);
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);

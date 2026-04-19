@@ -360,6 +360,8 @@ static double readElemAsDouble(const MValue &v, size_t idx)
     }
 }
 
+double MValue::elemAsDouble(size_t idx) const { return readElemAsDouble(*this, idx); }
+
 // Read one element as Complex. Real-only types contribute zero
 // imaginary part, matching MATLAB's real→complex promotion rule.
 // Mirrors readElemAsDouble's type coverage so mixed-type indexed
