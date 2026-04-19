@@ -1,7 +1,7 @@
 // src/MMType.cpp
 #include "MMType.hpp"
 
-namespace numkit {
+namespace numkit::m::m {
 
 const char *mtypeName(MType t)
 {
@@ -59,4 +59,4 @@ bool isFloatType(MType t)
     return t == MType::DOUBLE || t == MType::SINGLE;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

@@ -5,7 +5,7 @@
 #include <limits>
 #include <sstream>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void StdLibrary::registerStringFunctions(Engine &engine)
 {
@@ -333,4 +333,4 @@ void StdLibrary::registerStringFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

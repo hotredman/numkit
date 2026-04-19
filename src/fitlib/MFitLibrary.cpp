@@ -1,10 +1,10 @@
 #include "MFitLibrary.hpp"
 
-namespace numkit {
+namespace numkit::m::m {
 
 void FitLibrary::install(Engine &engine)
 {
     registerInterpFunctions(engine);
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

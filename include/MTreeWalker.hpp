@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 class Engine;
 
@@ -145,4 +145,4 @@ private:
     DebugController *debugCtl();
 };
 
-} // namespace numkit
+} // namespace numkit::m::m

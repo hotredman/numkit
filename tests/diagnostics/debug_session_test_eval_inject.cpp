@@ -3,7 +3,7 @@
 #include "MEngine.hpp"
 #include <gtest/gtest.h>
 
-using namespace numkit;
+using namespace numkit::m::m;
 
 // Test 1: Modify existing variable during debug, verify change persists
 TEST(DebugEvalInjectTest, ModifiedVarSurvivesContinue)

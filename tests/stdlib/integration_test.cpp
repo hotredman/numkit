@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-using namespace numkit;
+using namespace numkit::m::m;
 using namespace mlab_test;
 
 class EngineAdvancedTest : public DualEngineTest

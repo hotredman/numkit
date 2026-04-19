@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void DspLibrary::registerFilterFunctions(Engine &engine)
 {
@@ -121,4 +121,4 @@ void DspLibrary::registerFilterFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

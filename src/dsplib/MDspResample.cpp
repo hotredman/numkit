@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit {
+namespace numkit::m::m {
 
 void DspLibrary::registerResampleFunctions(Engine &engine)
 {
@@ -191,4 +191,4 @@ void DspLibrary::registerResampleFunctions(Engine &engine)
                             });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

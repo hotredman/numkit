@@ -1,7 +1,7 @@
 // src/MAst.cpp
 #include "MAst.hpp"
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ============================================================
 // Фабрики узлов
@@ -47,4 +47,4 @@ ASTNodePtr cloneNode(const ASTNode *src)
     return dst;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

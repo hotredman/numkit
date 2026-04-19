@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ============================================================
 // Конструктор
@@ -1173,4 +1173,4 @@ ASTNodePtr Parser::parseCellLiteral()
     return parseArrayLiteral(TokenType::LBRACE, TokenType::RBRACE, NodeType::CELL_LITERAL);
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

@@ -6,7 +6,7 @@
 #include <fstream>
 #include <sstream>
 
-namespace numkit {
+namespace numkit::m::m {
 
 std::string NativeFS::readFile(const std::string &path)
 {
@@ -34,4 +34,4 @@ bool NativeFS::exists(const std::string &path)
     return std::filesystem::exists(path, ec) && !ec;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

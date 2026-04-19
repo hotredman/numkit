@@ -12,7 +12,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 using Complex = std::complex<double>;
 
@@ -339,4 +339,4 @@ private:
     static const Dims sEmptyDims;
 };
 
-} // namespace numkit
+} // namespace numkit::m::m

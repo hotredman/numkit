@@ -5,7 +5,7 @@
 #include "MParser.hpp"
 
 using namespace mlab_test;
-using namespace numkit;
+using namespace numkit::m::m;
 
 class DebugDiagnostic : public DualEngineTest
 {};

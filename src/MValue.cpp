@@ -5,7 +5,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace numkit {
+namespace numkit::m::m {
 
 
 
@@ -2459,4 +2459,4 @@ std::string MValue::formatDisplay(const std::string &name) const
     return os.str();
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

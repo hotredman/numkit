@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
@@ -1044,8 +1044,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // fgetl/fgets require fids opened for reading ('r'). Writing fids
     // throw; the 'a'/'w' user presumably did not intend to read.
 
-    auto requireReadFid = [](numkit::Engine *eng, const Span<const MValue> &args,
-                             const char *fn) -> numkit::Engine::OpenFile * {
+    auto requireReadFid = [](numkit::m::Engine *eng, const Span<const MValue> &args,
+                             const char *fn) -> numkit::m::Engine::OpenFile * {
         if (args.empty() || !args[0].isScalar())
             throw MError(std::string(fn) + ": file identifier required");
         int fid = static_cast<int>(args[0].toScalar());
@@ -2367,4 +2367,4 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

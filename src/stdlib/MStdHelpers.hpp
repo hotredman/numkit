@@ -10,7 +10,7 @@
 #include <type_traits>
 #include <utility>
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ============================================================
 // Helper: promote pair to complex if needed
@@ -533,4 +533,4 @@ MValue unaryTyped(const MValue &a, MType targetType, Op op, Allocator *alloc)
     return r;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

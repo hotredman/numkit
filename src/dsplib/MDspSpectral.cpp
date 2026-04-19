@@ -4,7 +4,7 @@
 #include <cmath>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void DspLibrary::registerSpectralFunctions(Engine &engine)
 {
@@ -214,4 +214,4 @@ void DspLibrary::registerSpectralFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

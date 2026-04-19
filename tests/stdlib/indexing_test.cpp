@@ -335,7 +335,7 @@ TEST_P(IndexingOpsTest, FFTSpectrumSlicing)
     EXPECT_EQ(half->numel(), 129u); // N/2+1 = 256/2+1 = 129
 
     auto *mag = getVarPtr("mag");
-    EXPECT_EQ(mag->type(), numkit::MType::DOUBLE);
+    EXPECT_EQ(mag->type(), numkit::m::MType::DOUBLE);
     EXPECT_EQ(mag->numel(), 129u);
 }
 
@@ -365,7 +365,7 @@ TEST_P(IndexingOpsTest, CellCurlyIndex)
 {
     eval("c = {10, 'hello', [1 2 3]}; r = c{3};");
     auto *r = getVarPtr("r");
-    EXPECT_EQ(r->type(), numkit::MType::DOUBLE);
+    EXPECT_EQ(r->type(), numkit::m::MType::DOUBLE);
     EXPECT_EQ(r->numel(), 3u);
 }
 
@@ -562,7 +562,7 @@ TEST_P(IndexingOpsTest, COWPromoteToComplex)
 {
     eval("a = [1 2 3]; b = a; a(1) = 1i;");
     EXPECT_TRUE(getVarPtr("a")->isComplex());
-    EXPECT_TRUE(getVarPtr("b")->type() == numkit::MType::DOUBLE); // b stays double
+    EXPECT_TRUE(getVarPtr("b")->type() == numkit::m::MType::DOUBLE); // b stays double
     EXPECT_DOUBLE_EQ(getVarPtr("b")->doubleData()[0], 1.0);
 }
 

@@ -5,7 +5,7 @@
 #include <limits>
 #include <random>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void StdLibrary::registerMathFunctions(Engine &engine)
 {
@@ -693,4 +693,4 @@ void StdLibrary::registerMathFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

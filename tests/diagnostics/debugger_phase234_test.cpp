@@ -3,7 +3,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;
-using namespace numkit;
+using namespace numkit::m::m;
 
 // ============================================================
 // Test observer that records all events

@@ -4,7 +4,7 @@
 
 #include <cstring>
 
-namespace numkit {
+namespace numkit::m::m {
 
 HeapObject::~HeapObject()
 {
@@ -36,4 +36,4 @@ HeapObject *HeapObject::clone() const
     return h;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

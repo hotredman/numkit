@@ -17,7 +17,7 @@
 #include <sstream>
 #include <unordered_set>
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ============================================================
 // Reserved names — see MTypes.hpp for per-set semantics.
@@ -792,4 +792,4 @@ std::vector<int> Engine::openFileIds() const
     return ids;
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <sstream>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void PltLibrary::install(Engine &engine)
 {
@@ -862,4 +862,4 @@ void PltLibrary::install(Engine &engine)
     engine.registerFunction("lighting", noop);
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

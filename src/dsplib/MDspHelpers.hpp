@@ -12,7 +12,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ============================================================
 // Iterative radix-2 Cooley-Tukey FFT (in-place)
@@ -141,4 +141,4 @@ inline std::vector<double> convFFT(const double *a, size_t na,
 // Threshold for switching conv from direct to FFT
 constexpr size_t CONV_FFT_THRESHOLD = 500;
 
-} // namespace numkit
+} // namespace numkit::m::m

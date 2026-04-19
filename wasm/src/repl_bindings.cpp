@@ -16,8 +16,8 @@
 // ════════════════════════════════════════════════════════════════
 // Helper: format MValue for variable preview
 // ════════════════════════════════════════════════════════════════
-static std::string valuePreview(const numkit::MValue &val) {
-    using numkit::MType;
+static std::string valuePreview(const numkit::m::MValue &val) {
+    using numkit::m::MType;
     try {
         if (val.isScalar()) {
             if (val.type() == MType::DOUBLE) {
@@ -45,7 +45,7 @@ static std::string valuePreview(const numkit::MValue &val) {
         std::ostringstream os;
         os << "[" << d.rows() << "x" << d.cols();
         if (d.is3D()) os << "x" << d.pages();
-        os << " " << numkit::mtypeName(val.type()) << "]";
+        os << " " << numkit::m::mtypeName(val.type()) << "]";
         if (val.type() == MType::DOUBLE && val.numel() <= 10) {
             os << " [";
             for (size_t i = 0; i < val.numel(); ++i) {
@@ -93,7 +93,7 @@ static std::string escapeJSON(const std::string &s) {
 class ReplSession {
 public:
     ReplSession() {
-        engine_ = std::make_unique<numkit::Engine>();
+        engine_ = std::make_unique<numkit::m::Engine>();
         restoreOutputFunc();
     }
 
@@ -159,7 +159,7 @@ public:
     // ── Debug API (clean, no replay) ──
 
     std::string debugStart(const std::string &code) {
-        debugSession_ = std::make_unique<numkit::DebugSession>(*engine_);
+        debugSession_ = std::make_unique<numkit::m::DebugSession>(*engine_);
 
         // Set breakpoints from saved list
         debugSession_->setBreakpoints(breakpointLines_);
@@ -172,7 +172,7 @@ public:
         if (!debugSession_ || !debugSession_->isActive())
             return "{\"status\":\"completed\"}";
 
-        auto da = static_cast<numkit::DebugAction>(action);
+        auto da = static_cast<numkit::m::DebugAction>(action);
         auto status = debugSession_->resume(da);
         return buildDebugResult(status);
     }
@@ -215,7 +215,7 @@ public:
 
     void reset() {
         debugSession_.reset();
-        engine_ = std::make_unique<numkit::Engine>();
+        engine_ = std::make_unique<numkit::m::Engine>();
         restoreOutputFunc();
         // Re-install VFS handlers on the fresh engine so csvread/csvwrite
         // keep routing through tempFS/localFS after a reset.
@@ -256,20 +256,20 @@ public:
                 if (!first) result += ",";
                 auto &val = *v.value;
                 result += "\"" + escapeJSON(v.name) + "\":{";
-                result += "\"type\":\"" + std::string(numkit::mtypeName(val.type())) + "\"";
+                result += "\"type\":\"" + std::string(numkit::m::mtypeName(val.type())) + "\"";
                 auto &d = val.dims();
                 result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
                 if (d.is3D()) result += "x" + std::to_string(d.pages());
                 result += "\"";
                 result += ",\"preview\":";
-                if (val.type() == numkit::MType::DOUBLE && val.isScalar()) {
+                if (val.type() == numkit::m::MType::DOUBLE && val.isScalar()) {
                     double dv = val.toScalar();
                     if (std::isnan(dv)) result += "\"NaN\"";
                     else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
                     else result += std::to_string(dv);
-                } else if (val.type() == numkit::MType::LOGICAL && val.isScalar()) {
+                } else if (val.type() == numkit::m::MType::LOGICAL && val.isScalar()) {
                     result += (val.toBool() ? "true" : "false");
-                } else if (val.type() == numkit::MType::CHAR) {
+                } else if (val.type() == numkit::m::MType::CHAR) {
                     result += "\"" + escapeJSON(val.toString()) + "\"";
                 } else {
                     result += "\"" + escapeJSON(valuePreview(val)) + "\"";
@@ -323,9 +323,9 @@ public:
     }
 
 private:
-    std::unique_ptr<numkit::Engine> engine_;
+    std::unique_ptr<numkit::m::Engine> engine_;
     std::string outputBuf_;
-    std::unique_ptr<numkit::DebugSession> debugSession_;
+    std::unique_ptr<numkit::m::DebugSession> debugSession_;
     std::vector<uint16_t> breakpointLines_;
     std::map<std::string, emscripten::val> fsHandlers_;
 
@@ -340,14 +340,14 @@ private:
             return handler.call<bool>("exists", p);
         };
         engine_->registerVirtualFS(
-            std::make_unique<numkit::CallbackFS>(name, readFn, writeFn, existsFn));
+            std::make_unique<numkit::m::CallbackFS>(name, readFn, writeFn, existsFn));
     }
 
-    std::string buildDebugResult(numkit::ExecStatus status) {
+    std::string buildDebugResult(numkit::m::ExecStatus status) {
         std::string output = debugSession_ ? debugSession_->takeOutput() : "";
         std::string result;
 
-        if (status == numkit::ExecStatus::Paused) {
+        if (status == numkit::m::ExecStatus::Paused) {
             auto snap = debugSession_->snapshot();
 
             // Determine pause reason: breakpoint or step
@@ -369,20 +369,20 @@ private:
                 if (!first) result += ",";
                 auto &val = *v.value;
                 result += "\"" + escapeJSON(v.name) + "\":{";
-                result += "\"type\":\"" + std::string(numkit::mtypeName(val.type())) + "\"";
+                result += "\"type\":\"" + std::string(numkit::m::mtypeName(val.type())) + "\"";
                 auto &d = val.dims();
                 result += ",\"size\":\"" + std::to_string(d.rows()) + "x" + std::to_string(d.cols());
                 if (d.is3D()) result += "x" + std::to_string(d.pages());
                 result += "\"";
                 result += ",\"preview\":";
-                if (val.type() == numkit::MType::DOUBLE && val.isScalar()) {
+                if (val.type() == numkit::m::MType::DOUBLE && val.isScalar()) {
                     double dv = val.toScalar();
                     if (std::isnan(dv)) result += "\"NaN\"";
                     else if (std::isinf(dv)) result += (dv > 0 ? "\"Inf\"" : "\"-Inf\"");
                     else result += std::to_string(dv);
-                } else if (val.type() == numkit::MType::LOGICAL && val.isScalar()) {
+                } else if (val.type() == numkit::m::MType::LOGICAL && val.isScalar()) {
                     result += (val.toBool() ? "true" : "false");
-                } else if (val.type() == numkit::MType::CHAR) {
+                } else if (val.type() == numkit::m::MType::CHAR) {
                     result += "\"" + escapeJSON(val.toString()) + "\"";
                 } else {
                     result += "\"" + escapeJSON(valuePreview(val)) + "\"";

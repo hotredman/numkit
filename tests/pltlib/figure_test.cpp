@@ -21,7 +21,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit;
+using namespace numkit::m::m;
 
 // ============================================================
 // FigureManager — direct API tests (no engine)

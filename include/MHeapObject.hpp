@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit {
+namespace numkit::m::m {
 
 class MValue; // forward decl
 
@@ -51,4 +51,4 @@ struct HeapObject
     HeapObject *clone() const;
 };
 
-} // namespace numkit
+} // namespace numkit::m::m

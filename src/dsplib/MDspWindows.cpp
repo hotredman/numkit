@@ -7,7 +7,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit {
+namespace numkit::m::m {
 
 void DspLibrary::registerWindowFunctions(Engine &engine)
 {
@@ -126,4 +126,4 @@ void DspLibrary::registerWindowFunctions(Engine &engine)
                             });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

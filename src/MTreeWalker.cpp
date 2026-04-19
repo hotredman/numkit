@@ -9,7 +9,7 @@
 #include <optional>
 #include <sstream>
 
-namespace numkit {
+namespace numkit::m::m {
 
 TreeWalker::TreeWalker(Engine &engine)
     : engine_(engine)
@@ -2437,4 +2437,4 @@ DebugController *TreeWalker::debugCtl()
     return engine_.debugController_.get();
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

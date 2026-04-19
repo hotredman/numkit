@@ -12,7 +12,7 @@ namespace {
 
 // In-memory FS for tests — mimics what the IDE's tempFS/localFS would expose
 // through CallbackFS in a real WASM build.
-class MemoryFS final : public numkit::VirtualFS
+class MemoryFS final : public numkit::m::VirtualFS
 {
 public:
     explicit MemoryFS(std::string n) : name_(std::move(n)) {}

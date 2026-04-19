@@ -4,7 +4,7 @@
 #include <new>
 #include <stdexcept>
 
-namespace numkit {
+namespace numkit::m::m {
 
 DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
     : bytes_(bytes)
@@ -46,4 +46,4 @@ int DataBuffer::refCount() const
     return refCount_.load(std::memory_order_acquire);
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

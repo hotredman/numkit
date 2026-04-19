@@ -4,7 +4,7 @@
 #include <cmath>
 #include <complex>
 
-namespace numkit {
+namespace numkit::m::m {
 
 void StdLibrary::registerComplexFunctions(Engine &engine)
 {
@@ -141,4 +141,4 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m

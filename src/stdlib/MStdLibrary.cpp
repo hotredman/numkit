@@ -5,7 +5,7 @@
 #include <iomanip>
 #include <sstream>
 
-namespace numkit {
+namespace numkit::m::m {
 
 // ── Warning helper for unsupported features ──────────────────
 static void warnNotSupported(CallContext &ctx, const std::string &feature)
@@ -387,4 +387,4 @@ void StdLibrary::registerWorkspaceBuiltins(Engine &engine)
                             });
 }
 
-} // namespace numkit
+} // namespace numkit::m::m
