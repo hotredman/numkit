@@ -1,5 +1,6 @@
 #include "MLabDspHelpers.hpp"
 #include "MLabDspLibrary.hpp"
+#include "MLabStdHelpers.hpp"
 
 #include <cmath>
 
@@ -17,7 +18,7 @@ void DspLibrary::registerTransformFunctions(Engine &engine)
             size_t n = pv.numel();
             const double *p = pv.doubleData();
 
-            auto r = MValue::matrix(pv.dims().rows(), pv.dims().cols(), MType::DOUBLE, alloc);
+            auto r = createLike(pv, MType::DOUBLE, alloc);
             double *out = r.doubleDataMut();
             out[0] = p[0];
             for (size_t i = 1; i < n; ++i) {
@@ -95,10 +96,7 @@ void DspLibrary::registerTransformFunctions(Engine &engine)
                                 for (auto &v : buf)
                                     v = std::conj(v) * invN;
 
-                                auto r = MValue::matrix(xv.dims().rows(),
-                                                        xv.dims().cols(),
-                                                        MType::DOUBLE,
-                                                        alloc);
+                                auto r = createLike(xv, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < N; ++i)
                                     r.doubleDataMut()[i] = std::abs(buf[i]);
                                 {

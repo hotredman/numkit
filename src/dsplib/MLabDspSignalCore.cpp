@@ -1,5 +1,6 @@
 #include "MLabDspHelpers.hpp"
 #include "MLabDspLibrary.hpp"
+#include "MLabStdHelpers.hpp"
 
 #include <cmath>
 
@@ -188,7 +189,7 @@ void DspLibrary::registerSignalCoreFunctions(Engine &engine)
             size_t shift = N / 2;
 
             if (x.isComplex()) {
-                auto r = MValue::complexMatrix(x.dims().rows(), x.dims().cols(), alloc);
+                auto r = createLike(x, MType::COMPLEX, alloc);
                 const Complex *src = x.complexData();
                 Complex *dst = r.complexDataMut();
                 for (size_t i = 0; i < N; ++i)
@@ -198,7 +199,7 @@ void DspLibrary::registerSignalCoreFunctions(Engine &engine)
                     return;
                 }
             }
-            auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, alloc);
+            auto r = createLike(x, MType::DOUBLE, alloc);
             const double *src = x.doubleData();
             double *dst = r.doubleDataMut();
             for (size_t i = 0; i < N; ++i)
@@ -221,7 +222,7 @@ void DspLibrary::registerSignalCoreFunctions(Engine &engine)
             size_t shift = (N + 1) / 2;
 
             if (x.isComplex()) {
-                auto r = MValue::complexMatrix(x.dims().rows(), x.dims().cols(), alloc);
+                auto r = createLike(x, MType::COMPLEX, alloc);
                 const Complex *src = x.complexData();
                 Complex *dst = r.complexDataMut();
                 for (size_t i = 0; i < N; ++i)
@@ -231,7 +232,7 @@ void DspLibrary::registerSignalCoreFunctions(Engine &engine)
                     return;
                 }
             }
-            auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, alloc);
+            auto r = createLike(x, MType::DOUBLE, alloc);
             const double *src = x.doubleData();
             double *dst = r.doubleDataMut();
             for (size_t i = 0; i < N; ++i)

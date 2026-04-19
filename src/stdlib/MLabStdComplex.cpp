@@ -17,7 +17,7 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
                     outs[0] = MValue::scalar(a.toComplex().real(), alloc);
                     return;
                 }
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+                auto r = createLike(a, MType::DOUBLE, alloc);
                 for (size_t i = 0; i < a.numel(); ++i)
                     r.doubleDataMut()[i] = a.complexData()[i].real();
                 {
@@ -40,7 +40,7 @@ void StdLibrary::registerComplexFunctions(Engine &engine)
                     outs[0] = MValue::scalar(a.toComplex().imag(), alloc);
                     return;
                 }
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+                auto r = createLike(a, MType::DOUBLE, alloc);
                 for (size_t i = 0; i < a.numel(); ++i)
                     r.doubleDataMut()[i] = a.complexData()[i].imag();
                 {

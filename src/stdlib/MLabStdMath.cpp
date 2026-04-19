@@ -38,7 +38,7 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                     outs[0] = MValue::scalar(std::abs(a.toComplex()), alloc);
                     return;
                 }
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+                auto r = createLike(a, MType::DOUBLE, alloc);
                 for (size_t i = 0; i < a.numel(); ++i)
                     r.doubleDataMut()[i] = std::abs(a.complexData()[i]);
                 {

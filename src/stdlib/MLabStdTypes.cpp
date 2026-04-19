@@ -358,7 +358,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                 outs[0] = MValue::logicalScalar(std::isnan(a.toScalar()), alloc);
                 return;
             }
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             for (size_t i = 0; i < a.numel(); ++i)
                 r.logicalDataMut()[i] = std::isnan(a.doubleData()[i]) ? 1 : 0;
             {
@@ -375,7 +375,7 @@ void StdLibrary::registerTypeFunctions(Engine &engine)
                 outs[0] = MValue::logicalScalar(std::isinf(a.toScalar()), alloc);
                 return;
             }
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             for (size_t i = 0; i < a.numel(); ++i)
                 r.logicalDataMut()[i] = std::isinf(a.doubleData()[i]) ? 1 : 0;
             {

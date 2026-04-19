@@ -397,6 +397,9 @@ inline T saturateNeg(T a)
 template <typename T, typename Op>
 MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op op, Allocator *alloc)
 {
+    if (a.isEmpty() || b.isEmpty())
+        return emptyResultForBinary(a, b, targetType, alloc);
+
     // Read element from source, converting to target type
     auto readAt = [](const MValue &v, MType tgt, size_t r, size_t c) -> T {
         size_t idx = c * v.dims().rows() + r; // column-major
@@ -409,6 +412,46 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
         else
             return static_cast<T>(d);
     };
+    // 3D path — same-shape elementwise and scalar broadcasting only.
+    // broadcastDims below is 2D-only; reach here for 3D and we would
+    // silently drop the page dim.
+    if (a.dims().is3D() || b.dims().is3D()) {
+        auto readLinear = [](const MValue &v, MType tgt, size_t i) -> T {
+            if (v.type() == tgt) return static_cast<const T *>(v.rawData())[i];
+            double d = v.elemAsDouble(i);
+            if constexpr (std::is_integral_v<T>)
+                return static_cast<T>(std::clamp(std::round(d),
+                    static_cast<double>(std::numeric_limits<T>::min()),
+                    static_cast<double>(std::numeric_limits<T>::max())));
+            else
+                return static_cast<T>(d);
+        };
+        if (a.isScalar()) {
+            auto r = createLike(b, targetType, alloc);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sa = readLinear(a, targetType, 0);
+            for (size_t i = 0; i < b.numel(); ++i)
+                dst[i] = op(sa, readLinear(b, targetType, i));
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, targetType, alloc);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sb = readLinear(b, targetType, 0);
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinear(a, targetType, i), sb);
+            return r;
+        }
+        if (a.dims() != b.dims())
+            throw std::runtime_error(
+                "3D broadcasting not supported — dimensions must match");
+        auto r = createLike(a, targetType, alloc);
+        T *dst = static_cast<T *>(r.rawDataMut());
+        for (size_t i = 0; i < a.numel(); ++i)
+            dst[i] = op(readLinear(a, targetType, i),
+                        readLinear(b, targetType, i));
+        return r;
+    }
 
     size_t ar = a.dims().rows(), ac = a.dims().cols();
     size_t br = b.dims().rows(), bc = b.dims().cols();

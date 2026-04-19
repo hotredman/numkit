@@ -1,4 +1,5 @@
 #include "MLabDspLibrary.hpp"
+#include "MLabStdHelpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -35,7 +36,7 @@ void DspLibrary::registerFilterFunctions(Engine &engine)
             size_t nfilt = std::max(nb, na);
             std::vector<double> z(nfilt, 0.0);
 
-            auto r = MValue::matrix(xv.dims().rows(), xv.dims().cols(), MType::DOUBLE, alloc);
+            auto r = createLike(xv, MType::DOUBLE, alloc);
             double *y = r.doubleDataMut();
 
             for (size_t n = 0; n < nx; ++n) {
@@ -110,7 +111,7 @@ void DspLibrary::registerFilterFunctions(Engine &engine)
             auto bwd = applyFilter(fwd);
             std::reverse(bwd.begin(), bwd.end());
 
-            auto r = MValue::matrix(xv.dims().rows(), xv.dims().cols(), MType::DOUBLE, alloc);
+            auto r = createLike(xv, MType::DOUBLE, alloc);
             for (size_t i = 0; i < nx; ++i)
                 r.doubleDataMut()[i] = bwd[nEdge + i];
             {

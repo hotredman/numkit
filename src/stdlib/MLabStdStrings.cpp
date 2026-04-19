@@ -1,3 +1,4 @@
+#include "MLabStdHelpers.hpp"
 #include "MLabStdLibrary.hpp"
 
 #include <algorithm>
@@ -256,8 +257,7 @@ void StdLibrary::registerStringFunctions(Engine &engine)
                     outs[0] = MValue::scalar(
                         static_cast<double>(a.toString().size()), alloc);
                 } else {
-                    auto result = MValue::matrix(
-                        a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+                    auto result = createLike(a, MType::DOUBLE, alloc);
                     for (size_t i = 0; i < a.numel(); ++i)
                         result.doubleDataMut()[i] =
                             static_cast<double>(a.stringElem(i).size());

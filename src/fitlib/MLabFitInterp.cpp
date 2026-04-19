@@ -376,10 +376,7 @@ void FitLibrary::registerInterpFunctions(Engine &engine)
                                 size_t nx = xv.numel();
                                 const double *x = xv.doubleData();
 
-                                auto r = MValue::matrix(xv.dims().rows(),
-                                                        xv.dims().cols(),
-                                                        MType::DOUBLE,
-                                                        alloc);
+                                auto r = createLike(xv, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < nx; ++i) {
                                     double val = p[0];
                                     for (size_t j = 1; j < np; ++j)

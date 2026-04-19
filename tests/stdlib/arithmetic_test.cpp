@@ -576,3 +576,94 @@ TEST_P(EmptyArith2Test, CharEmptyPlusScalarPromotesToDouble)
 }
 
 INSTANTIATE_DUAL(EmptyArith2Test);
+
+// ============================================================
+// 3D shape/heap safety for scalar and math/complex/type helpers
+// ============================================================
+
+class HeapSafety3DExtendedTest : public DualEngineTest {};
+
+TEST_P(HeapSafety3DExtendedTest, AbsOf3DComplex)
+{
+    eval("A = ones(2, 2, 2) + 1i; B = abs(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_NEAR(B->doubleData()[i], std::sqrt(2.0), 1e-12);
+}
+
+TEST_P(HeapSafety3DExtendedTest, RealOf3DComplex)
+{
+    eval("A = ones(2, 2, 2) * 3 + 4i; B = real(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_TRUE(B->dims().is3D());
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_DOUBLE_EQ(B->doubleData()[i], 3.0);
+}
+
+TEST_P(HeapSafety3DExtendedTest, ImagOf3DComplex)
+{
+    eval("A = ones(2, 2, 2) * 3 + 4i; B = imag(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_TRUE(B->dims().is3D());
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_DOUBLE_EQ(B->doubleData()[i], 4.0);
+}
+
+TEST_P(HeapSafety3DExtendedTest, IsNan3D)
+{
+    eval("A = zeros(2, 2, 2); A(3) = nan; M = isnan(A);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    EXPECT_EQ(M->logicalData()[2], 1u);
+    EXPECT_EQ(M->logicalData()[0], 0u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, IsInf3D)
+{
+    eval("A = zeros(2, 2, 2); A(5) = inf; M = isinf(A);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->logicalData()[4], 1u);
+    EXPECT_EQ(M->logicalData()[0], 0u);
+}
+
+TEST_P(HeapSafety3DExtendedTest, ElementwiseTypedInt32SameShape)
+{
+    eval("A = int32(zeros(2, 3, 2)); for k = 1:12, A(k) = k; end");
+    eval("B = int32(zeros(2, 3, 2)); for k = 1:12, B(k) = 2*k; end");
+    eval("C = A + B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->type(), MType::INT32);
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(C->numel(), 12u);
+    for (size_t i = 0; i < 12; ++i)
+        EXPECT_EQ(C->int32Data()[i], static_cast<int32_t>(3 * (i + 1)));
+}
+
+TEST_P(HeapSafety3DExtendedTest, ElementwiseTypedInt32ScalarBroadcast)
+{
+    eval("A = int32(zeros(2, 2, 2)); for k = 1:8, A(k) = k; end");
+    eval("B = A + int32(10);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::INT32);
+    EXPECT_TRUE(B->dims().is3D());
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_EQ(B->int32Data()[i], static_cast<int32_t>(11 + i));
+}
+
+INSTANTIATE_DUAL(HeapSafety3DExtendedTest);
