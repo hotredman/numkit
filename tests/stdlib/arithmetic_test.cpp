@@ -578,6 +578,80 @@ TEST_P(EmptyArith2Test, CharEmptyPlusScalarPromotesToDouble)
 INSTANTIATE_DUAL(EmptyArith2Test);
 
 // ============================================================
+// Matmul empty semantics (MATLAB): A(M,K) * B(K,N) = zeros(M,N)
+// when the inner dim K matches (K==0 included).
+// ============================================================
+
+class MatmulEmptyTest : public DualEngineTest {};
+
+TEST_P(MatmulEmptyTest, InnerZeroProducesAllZeros)
+{
+    eval("A = zeros(3, 0); B = zeros(0, 5); C = A * B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->type(), MType::DOUBLE);
+    EXPECT_FALSE(C->dims().is3D());
+    EXPECT_EQ(C->dims().rows(), 3u);
+    EXPECT_EQ(C->dims().cols(), 5u);
+    EXPECT_EQ(C->numel(), 15u);
+    for (size_t i = 0; i < 15; ++i)
+        EXPECT_DOUBLE_EQ(C->doubleData()[i], 0.0);
+}
+
+TEST_P(MatmulEmptyTest, RowTimesColWithZeroInner)
+{
+    // (3x0) * (0x0) → 3x0
+    eval("A = zeros(3, 0); B = zeros(0, 0); C = A * B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->dims().rows(), 3u);
+    EXPECT_EQ(C->dims().cols(), 0u);
+}
+
+TEST_P(MatmulEmptyTest, ZeroByZeroTimesZeroByN)
+{
+    // (0x0) * (0x5) → 0x5
+    eval("A = zeros(0, 0); B = zeros(0, 5); C = A * B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->dims().rows(), 0u);
+    EXPECT_EQ(C->dims().cols(), 5u);
+}
+
+TEST_P(MatmulEmptyTest, InnerMismatchThrows)
+{
+    EXPECT_THROW({ eval("zeros(3, 4) * zeros(0, 5);"); }, std::exception);
+    EXPECT_THROW({ eval("zeros(3, 4) * zeros(5, 2);"); }, std::exception);
+}
+
+TEST_P(MatmulEmptyTest, ComplexInnerZeroProducesZeros)
+{
+    eval("A = complex(zeros(2, 0)); B = complex(zeros(0, 3)); C = A * B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_TRUE(C->isComplex());
+    EXPECT_EQ(C->dims().rows(), 2u);
+    EXPECT_EQ(C->dims().cols(), 3u);
+    for (size_t i = 0; i < 6; ++i) {
+        EXPECT_DOUBLE_EQ(C->complexData()[i].real(), 0.0);
+        EXPECT_DOUBLE_EQ(C->complexData()[i].imag(), 0.0);
+    }
+}
+
+TEST_P(MatmulEmptyTest, ScalarTimesEmptyStillElementwise)
+{
+    // scalar * empty should still delegate to elementwise path —
+    // verify shape is preserved by the earlier elementwise fix.
+    eval("C = 5 * zeros(3, 0);");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->dims().rows(), 3u);
+    EXPECT_EQ(C->dims().cols(), 0u);
+}
+
+INSTANTIATE_DUAL(MatmulEmptyTest);
+
+// ============================================================
 // 3D shape/heap safety for scalar and math/complex/type helpers
 // ============================================================
 

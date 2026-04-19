@@ -84,11 +84,12 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     });
 
     // --- Matrix multiply ---
+    // MATLAB empty rule: A(M,K) * B(K,N) is always M×N of zeros when the
+    // inner dim K matches (including K==0). Dimension mismatch still
+    // throws. The general inner loop below handles K==0 correctly by
+    // summing over an empty range, so no empty shortcut is needed.
     engine.registerBinaryOp("*", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
-        if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
-
         if (a.isComplex() || b.isComplex()) {
             auto [ca, cb] = promoteToComplex(a, b, alloc);
             if (ca.isScalar() || cb.isScalar())
