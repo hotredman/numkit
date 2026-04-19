@@ -440,7 +440,7 @@ std::string repl_init() {
     // avoid dropping adapters that were registered earlier in the session.
     if (!g_session)
         g_session = std::make_unique<ReplSession>();
-    return "numkit Interpreter v2.2\nType commands below.";
+    return "numkit MInterpreter v2.2\nType commands below.";
 }
 
 std::string repl_execute(const std::string& input) {
@@ -542,7 +542,7 @@ void repl_pop_script_origin() {
     g_session->popScriptOrigin();
 }
 
-EMSCRIPTEN_BINDINGS(numkit_ide) {
+EMSCRIPTEN_BINDINGS(numkit_mide) {
     emscripten::function("repl_init",      &repl_init);
     emscripten::function("repl_execute",   &repl_execute);
     emscripten::function("repl_complete",  &repl_complete);

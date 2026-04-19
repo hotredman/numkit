@@ -32,7 +32,7 @@
 
 import { useState, useEffect } from 'react';
 
-const KEY = 'numkit.uiState';
+const KEY = 'numkit.mide.uiState';
 const VERSION = 1;
 const SAVE_DEBOUNCE_MS = 250;
 

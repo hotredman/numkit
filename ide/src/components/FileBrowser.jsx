@@ -66,7 +66,7 @@ function InlineInput({ defaultValue, onSubmit, onCancel, placeholder }) {
 function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
-  const [expanded, setExpanded] = usePersistedState('numkit.fb.expanded.temporary', {});
+  const [expanded, setExpanded] = usePersistedState('numkit.mide.fb.expanded.temporary', {});
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [creating, setCreating] = useState(null);
@@ -248,7 +248,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshK
   const [mountName, setMountName] = useState(null);
   const [status, setStatus] = useState('idle'); // idle | connecting | connected | denied
   const [error, setError] = useState(null);
-  const [expanded, setExpanded] = usePersistedState('numkit.fb.expanded.localFolder', {});
+  const [expanded, setExpanded] = usePersistedState('numkit.mide.fb.expanded.localFolder', {});
   const [selected, setSelected] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [creating, setCreating] = useState(null);
@@ -523,7 +523,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshK
 function ExamplesBrowser({ onOpenFile }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
-  const [expanded, setExpanded] = usePersistedState('numkit.fb.expanded.examples', {});
+  const [expanded, setExpanded] = usePersistedState('numkit.mide.fb.expanded.examples', {});
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -586,13 +586,13 @@ function ExamplesBrowser({ onOpenFile }) {
 
 function GitHubBrowser({ onOpenFile, defaultRepo }) {
   const C = useTheme();
-  const [repoUrl, setRepoUrl] = usePersistedState('numkit.fb.github.repoUrl', defaultRepo || '');
+  const [repoUrl, setRepoUrl] = usePersistedState('numkit.mide.fb.github.repoUrl', defaultRepo || '');
   const [tree, setTree] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [expanded, setExpanded] = usePersistedState('numkit.fb.github.expanded', {});
+  const [expanded, setExpanded] = usePersistedState('numkit.mide.fb.github.expanded', {});
   const [selected, setSelected] = useState(null);
-  const [branch, setBranch] = usePersistedState('numkit.fb.github.branch', 'main');
+  const [branch, setBranch] = usePersistedState('numkit.mide.fb.github.branch', 'main');
   const [branches, setBranches] = useState([]);
   const [repoInfo, setRepoInfo] = useState(null);
   const [previewFile, setPreviewFile] = useState(null);
@@ -723,7 +723,7 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
   // rejects `localFolder` when the current browser can't render it
   // (e.g. user toggled Chrome → Firefox with a localStorage copy) —
   // otherwise the whole pane would render blank with no recovery.
-  const [source, setSource] = usePersistedState('numkit.fb.source', 'temporary', {
+  const [source, setSource] = usePersistedState('numkit.mide.fb.source', 'temporary', {
     validate: v => typeof v === 'string' && VALID_SOURCES.has(v)
       && (v !== 'localFolder' || hasLocalFolder),
   });

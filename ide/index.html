@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>numkit REPL</title>
+  <title>numkit mIDE</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -11,23 +11,23 @@
 
   <!--
     Emscripten WASM glue. Must load BEFORE React.
-    With MODULARIZE=1 + EXPORT_NAME=createNumkitModule,
-    Emscripten creates a `createNumkitModule` function.
+    With MODULARIZE=1 + EXPORT_NAME=createNumkitMideModule,
+    Emscripten creates a `createNumkitMideModule` function.
     We ensure it lands on `window` so React can find it.
   -->
   <script>window.__WASM_GLUE_LOADED__ = false;</script>
-  <script src="numkit_ide.js"
+  <script src="numkit_mide.js"
           onerror="console.log('[REPL] WASM glue not found — fallback mode')">
   </script>
   <script>
     // Emscripten MODULARIZE assigns to `var`, not `window`.
     // Patch it onto window so App.jsx can detect it.
-    if (typeof createNumkitModule !== 'undefined') {
-      window.createNumkitModule = createNumkitModule;
+    if (typeof createNumkitMideModule !== 'undefined') {
+      window.createNumkitMideModule = createNumkitMideModule;
       window.__WASM_GLUE_LOADED__ = true;
       console.log('[REPL] WASM glue loaded OK');
     } else {
-      console.log('[REPL] createNumkitModule not defined after script load');
+      console.log('[REPL] createNumkitMideModule not defined after script load');
     }
   </script>
 </head>

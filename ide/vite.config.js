@@ -18,6 +18,6 @@ export default defineConfig({
   },
   assetsInclude: ['**/*.wasm'],
   optimizeDeps: {
-    exclude: ['numkit_ide'],
+    exclude: ['numkit_mide'],
   },
 });

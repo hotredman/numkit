@@ -1,4 +1,4 @@
-# numkit REPL — React + Vite Edition
+# numkit mIDE — React + Vite Edition
 
 Web-based REPL for the numkit (MATLAB-like) interpreter, built with React + Vite.
 
@@ -39,18 +39,18 @@ mkdir build-wasm && cd build-wasm
 
 emcmake cmake .. -DMLAB_BUILD_REPL=ON -DCMAKE_BUILD_TYPE=Release
 
-emmake make numkit_ide
+emmake make numkit_mide
 ```
 
 This produces two files:
-- `repl/dist/numkit_ide.js`  (Emscripten glue code)
-- `repl/dist/numkit_ide.wasm` (compiled binary)
+- `repl/dist/numkit_mide.js`  (Emscripten glue code)
+- `repl/dist/numkit_mide.wasm` (compiled binary)
 
 ### Step 2 — Copy into Vite project
 
 ```bash
-cp build-wasm/repl/dist/numkit_ide.js   repl-vite/public/
-cp build-wasm/repl/dist/numkit_ide.wasm repl-vite/public/
+cp build-wasm/repl/dist/numkit_mide.js   repl-vite/public/
+cp build-wasm/repl/dist/numkit_mide.wasm repl-vite/public/
 ```
 
 ### Step 3 — Restart dev server
@@ -60,7 +60,7 @@ cd repl-vite
 npm run dev
 ```
 
-The app auto-detects `window.createNumkitModule` and switches from
+The app auto-detects `window.createNumkitMideModule` and switches from
 fallback mode to the real WASM engine.
 
 ## Production Build
@@ -76,14 +76,14 @@ GitHub Pages, your own server).
 ## Project Structure
 
 ```
-numkit-ide-vite/
+numkit-mide-vite/
 ├── index.html              # Entry point (loads WASM script + React)
 ├── package.json
 ├── vite.config.js
 ├── public/
 │   ├── favicon.svg
-│   ├── numkit_ide.js        # ← copy WASM glue here (optional)
-│   └── numkit_ide.wasm      # ← copy WASM binary here (optional)
+│   ├── numkit_mide.js        # ← copy WASM glue here (optional)
+│   └── numkit_mide.wasm      # ← copy WASM binary here (optional)
 └── src/
     ├── main.jsx             # React root
     ├── index.css            # Global styles

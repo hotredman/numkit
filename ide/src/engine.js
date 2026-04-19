@@ -218,7 +218,7 @@ export async function createWasmEngine(createModule) {
   // Gated on Vite's DEV flag so production builds don't leak it into
   // the global namespace.
   if (import.meta.env?.DEV && typeof window !== 'undefined')
-    window.__numkitModule = Module;
+    window.__numkitMideModule = Module;
 
   return {
     type: 'wasm',
@@ -306,7 +306,7 @@ export async function createWasmEngine(createModule) {
       if (typeof Module.repl_register_fs !== 'function') {
         if (!warnedStaleWasm) {
           console.warn('[engine] WASM binary is stale — missing VFS bindings. '
-            + 'Rebuild the WASM module or hard-refresh to pick up the latest numkit_ide.{js,wasm}.');
+            + 'Rebuild the WASM module or hard-refresh to pick up the latest numkit_mide.{js,wasm}.');
           warnedStaleWasm = true;
         }
         return;
@@ -337,7 +337,7 @@ export function createFallbackEngine() {
   const interp = createInterpreter();
   return {
     type: 'fallback',
-    init() { return 'numkit REPL v2.5 — Demo Mode'; },
+    init() { return 'numkit mIDE v2.5 — Demo Mode'; },
 
     execute(code) {
       const result = interp.execute(code);

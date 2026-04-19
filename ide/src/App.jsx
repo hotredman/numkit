@@ -31,11 +31,11 @@ export default function App() {
       // ── 2. Init Engine ──
       try {
         const hasWasm = window.__WASM_GLUE_LOADED__ === true
-                     && typeof window.createNumkitModule === 'function';
+                     && typeof window.createNumkitMideModule === 'function';
 
         if (hasWasm) {
           setInitMessage('Loading WebAssembly...');
-          const eng = await createWasmEngine(window.createNumkitModule);
+          const eng = await createWasmEngine(window.createNumkitMideModule);
           if (cancelled) return;
 
           // IMPORTANT: call init() BEFORE registering VFS adapters.

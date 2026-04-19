@@ -1,5 +1,5 @@
 {
-  "name": "numkit-ide-desktop",
+  "name": "numkit-mide-desktop",
   "version": "2.1.0",
   "private": true,
   "main": "main.js",
@@ -8,8 +8,8 @@
     "build": "electron-builder --win portable"
   },
   "build": {
-    "appId": "com.numkit.ide",
-    "productName": "numkit IDE",
+    "appId": "com.numkit.mide",
+    "productName": "numkit mIDE",
     "directories": {
       "output": "release"
     },
@@ -23,7 +23,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "numkit-IDE-${version}.exe"
+      "artifactName": "numkit-mIDE-${version}.exe"
     }
   },
   "devDependencies": {
