@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <vector>
 
@@ -937,6 +938,198 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f || !f->forRead)
                 throw MLabError("frewind: invalid file identifier");
             f->cursor = 0;
+        });
+
+    // ── fread / fwrite ──────────────────────────────────────────
+    //
+    // Binary I/O over open fids. MATLAB-compatible signatures:
+    //
+    //   A             = fread(fid)
+    //   A             = fread(fid, size)
+    //   A             = fread(fid, size, precision)
+    //   [A, count]    = fread(fid, ...)
+    //
+    //   count = fwrite(fid, A)
+    //   count = fwrite(fid, A, precision)
+    //
+    // size ∈ {scalar N, Inf} — return at most that many elements. Inf
+    // or omitted reads everything remaining. Matrix-shape `[m n]` not
+    // supported yet; callers can reshape after.
+    //
+    // Supported precisions (with aliases): uint8/uchar/char, int8/schar,
+    // uint16, int16, uint32, int32, uint64, int64, single/float32,
+    // double/float64. Typed-output syntax "src=>dst" is accepted but
+    // the destination part is ignored — our arrays are always double.
+    //
+    // Endianness: little-endian on both ends — matches WASM + every
+    // common host architecture we target. Explicit machine-format
+    // override is NOT supported.
+
+    // clang-format off
+    // Returns {kind, bytes} for a MATLAB precision spec, or nullopt.
+    auto parsePrecision = [](const std::string &raw) -> std::optional<std::pair<int, size_t>> {
+        // kind: 0 = uint, 1 = int, 2 = float
+        std::string p = raw;
+        auto arrow = p.find("=>");
+        if (arrow != std::string::npos) p = p.substr(0, arrow);
+        // trim whitespace
+        while (!p.empty() && std::isspace(static_cast<unsigned char>(p.front()))) p.erase(0, 1);
+        while (!p.empty() && std::isspace(static_cast<unsigned char>(p.back()))) p.pop_back();
+
+        if (p == "uint8" || p == "uchar" || p == "char") return std::make_pair(0, size_t{1});
+        if (p == "int8"  || p == "schar")                return std::make_pair(1, size_t{1});
+        if (p == "uint16")                               return std::make_pair(0, size_t{2});
+        if (p == "int16")                                return std::make_pair(1, size_t{2});
+        if (p == "uint32")                               return std::make_pair(0, size_t{4});
+        if (p == "int32")                                return std::make_pair(1, size_t{4});
+        if (p == "uint64")                               return std::make_pair(0, size_t{8});
+        if (p == "int64")                                return std::make_pair(1, size_t{8});
+        if (p == "single" || p == "float32" || p == "real*4") return std::make_pair(2, size_t{4});
+        if (p == "double" || p == "float64" || p == "real*8") return std::make_pair(2, size_t{8});
+        return std::nullopt;
+    };
+    // clang-format on
+
+    engine.registerFunction(
+        "fread",
+        [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                         CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty() || !args[0].isScalar())
+                throw MLabError("fread: file identifier required");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f || !f->forRead)
+                throw MLabError("fread: invalid file identifier");
+
+            // size argument
+            size_t requested = 0;
+            bool readAll = true;
+            if (args.size() >= 2) {
+                double s = args[1].toScalar();
+                if (std::isinf(s)) {
+                    readAll = true;
+                } else if (s < 0 || !std::isfinite(s)) {
+                    throw MLabError("fread: size must be Inf or a non-negative integer");
+                } else {
+                    readAll = false;
+                    requested = static_cast<size_t>(s);
+                }
+            }
+
+            // precision argument
+            std::string precStr = "uint8";
+            if (args.size() >= 3) {
+                if (!args[2].isChar())
+                    throw MLabError("fread: precision must be a char array");
+                precStr = args[2].toString();
+            }
+            auto precOpt = parsePrecision(precStr);
+            if (!precOpt)
+                throw MLabError("fread: unsupported precision '" + precStr + "'");
+            int kind = precOpt->first;
+            size_t bsize = precOpt->second;
+
+            size_t available = f->buffer.size() - f->cursor;
+            size_t maxElems = available / bsize;
+            size_t n = readAll ? maxElems : std::min(requested, maxElems);
+
+            // Always return a column vector of doubles — MATLAB's
+            // default output type regardless of precision.
+            MValue M = MValue::matrix(std::max<size_t>(n, 0), n == 0 ? 0 : 1, MType::DOUBLE, alloc);
+            if (n > 0) {
+                double *data = M.doubleDataMut();
+                for (size_t i = 0; i < n; ++i) {
+                    const char *src = f->buffer.data() + f->cursor + i * bsize;
+                    double v = 0.0;
+                    if (kind == 0) { // unsigned
+                        switch (bsize) {
+                        case 1: { uint8_t  x; std::memcpy(&x, src, 1); v = x; break; }
+                        case 2: { uint16_t x; std::memcpy(&x, src, 2); v = x; break; }
+                        case 4: { uint32_t x; std::memcpy(&x, src, 4); v = x; break; }
+                        case 8: { uint64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
+                        }
+                    } else if (kind == 1) { // signed
+                        switch (bsize) {
+                        case 1: { int8_t  x; std::memcpy(&x, src, 1); v = x; break; }
+                        case 2: { int16_t x; std::memcpy(&x, src, 2); v = x; break; }
+                        case 4: { int32_t x; std::memcpy(&x, src, 4); v = x; break; }
+                        case 8: { int64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
+                        }
+                    } else { // float
+                        if (bsize == 4) { float x; std::memcpy(&x, src, 4); v = x; }
+                        else            {                     std::memcpy(&v, src, 8); }
+                    }
+                    data[i] = v;
+                }
+            }
+            f->cursor += n * bsize;
+            outs[0] = std::move(M);
+            if (nargout > 1)
+                outs[1] = MValue::scalar(static_cast<double>(n), alloc);
+        });
+
+    engine.registerFunction(
+        "fwrite",
+        [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                         CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.size() < 2 || !args[0].isScalar())
+                throw MLabError("fwrite: requires (fid, array [, precision])");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f || !f->forWrite)
+                throw MLabError("fwrite: invalid file identifier");
+
+            std::string precStr = "uint8";
+            if (args.size() >= 3) {
+                if (!args[2].isChar())
+                    throw MLabError("fwrite: precision must be a char array");
+                precStr = args[2].toString();
+            }
+            auto precOpt = parsePrecision(precStr);
+            if (!precOpt)
+                throw MLabError("fwrite: unsupported precision '" + precStr + "'");
+            int kind = precOpt->first;
+            size_t bsize = precOpt->second;
+
+            const MValue &A = args[1];
+            size_t numel = A.numel();
+
+            // Small helper: read i-th element as double from a double or
+            // logical source. Other numeric types could be added here.
+            auto elemAsDouble = [&A](size_t i) -> double {
+                if (A.type() == MType::DOUBLE)  return A.doubleData()[i];
+                if (A.isLogical())              return A.logicalData()[i] ? 1.0 : 0.0;
+                throw MLabError("fwrite: unsupported array element type");
+            };
+
+            std::string bytes(numel * bsize, '\0');
+            char *dst = bytes.data();
+            for (size_t i = 0; i < numel; ++i) {
+                double v = elemAsDouble(i);
+                if (kind == 0) {
+                    switch (bsize) {
+                    case 1: { uint8_t  x = static_cast<uint8_t >(v); std::memcpy(dst, &x, 1); break; }
+                    case 2: { uint16_t x = static_cast<uint16_t>(v); std::memcpy(dst, &x, 2); break; }
+                    case 4: { uint32_t x = static_cast<uint32_t>(v); std::memcpy(dst, &x, 4); break; }
+                    case 8: { uint64_t x = static_cast<uint64_t>(v); std::memcpy(dst, &x, 8); break; }
+                    }
+                } else if (kind == 1) {
+                    switch (bsize) {
+                    case 1: { int8_t  x = static_cast<int8_t >(v); std::memcpy(dst, &x, 1); break; }
+                    case 2: { int16_t x = static_cast<int16_t>(v); std::memcpy(dst, &x, 2); break; }
+                    case 4: { int32_t x = static_cast<int32_t>(v); std::memcpy(dst, &x, 4); break; }
+                    case 8: { int64_t x = static_cast<int64_t>(v); std::memcpy(dst, &x, 8); break; }
+                    }
+                } else {
+                    if (bsize == 4) { float x = static_cast<float>(v); std::memcpy(dst, &x, 4); }
+                    else            {                                   std::memcpy(dst, &v, 8); }
+                }
+                dst += bsize;
+            }
+            f->buffer.append(bytes);
+            outs[0] = MValue::scalar(static_cast<double>(numel), alloc);
         });
 }
 

@@ -500,6 +500,245 @@ TEST_P(FileIoTest, FrewindRestartsFromBof)
     eval("fclose(fid);");
 }
 
+// ── fread / fwrite ───────────────────────────────────────
+
+TEST_P(FileIoTest, FreadDefaultReadsRemainingAsUint8)
+{
+    // Default precision 'uint8', default size (omitted) == read everything.
+    fs->files()["bytes.bin"] = std::string("\x01\x02\x03\x04\x05", 5);
+    eval("fid = fopen('bytes.bin', 'r');");
+    eval("A = fread(fid);");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 5.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a4 = A(5);"), 5.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadScalarSizeReadsExactlyN)
+{
+    fs->files()["bytes.bin"] = std::string("\x01\x02\x03\x04\x05", 5);
+    eval("fid = fopen('bytes.bin', 'r');");
+    EXPECT_EQ(evalScalar("n = numel(fread(fid, 3));"), 3.0);
+    // Cursor advanced; next read returns the remaining 2.
+    EXPECT_EQ(evalScalar("n2 = numel(fread(fid, Inf));"), 2.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadInt32LittleEndian)
+{
+    // 1 and -1 as little-endian int32.
+    std::string buf;
+    uint32_t one = 1, minus1 = 0xFFFFFFFF;
+    buf.append(reinterpret_cast<const char *>(&one), 4);
+    buf.append(reinterpret_cast<const char *>(&minus1), 4);
+    fs->files()["i32.bin"] = buf;
+
+    eval("fid = fopen('i32.bin', 'r');");
+    eval("A = fread(fid, Inf, 'int32');");
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a1 = A(2);"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadUint16Batch)
+{
+    std::string buf;
+    for (uint16_t v : {uint16_t{0}, uint16_t{1}, uint16_t{256}, uint16_t{65535}}) {
+        buf.append(reinterpret_cast<const char *>(&v), 2);
+    }
+    fs->files()["u16.bin"] = buf;
+
+    eval("fid = fopen('u16.bin', 'r');");
+    eval("A = fread(fid, Inf, 'uint16');");
+    EXPECT_EQ(evalScalar("a3 = A(4);"), 65535.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadFloat64RoundTrip)
+{
+    double vals[] = {3.14159, -2.71828, 1e-10, 1e10};
+    std::string buf(reinterpret_cast<const char *>(vals), sizeof(vals));
+    fs->files()["f64.bin"] = buf;
+
+    eval("fid = fopen('f64.bin', 'r');");
+    eval("A = fread(fid, Inf, 'double');");
+    EXPECT_DOUBLE_EQ(evalScalar("a0 = A(1);"), 3.14159);
+    EXPECT_DOUBLE_EQ(evalScalar("a1 = A(2);"), -2.71828);
+    EXPECT_DOUBLE_EQ(evalScalar("a2 = A(3);"), 1e-10);
+    EXPECT_DOUBLE_EQ(evalScalar("a3 = A(4);"), 1e10);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadFloat32RoundsToFloatPrecision)
+{
+    float v1 = 3.14159f, v2 = -2.71828f;
+    std::string buf;
+    buf.append(reinterpret_cast<const char *>(&v1), 4);
+    buf.append(reinterpret_cast<const char *>(&v2), 4);
+    fs->files()["f32.bin"] = buf;
+
+    eval("fid = fopen('f32.bin', 'r');");
+    eval("A = fread(fid, Inf, 'single');");
+    // Values come back as double but truncated to float precision.
+    EXPECT_NEAR(evalScalar("a0 = A(1);"), static_cast<double>(v1), 1e-6);
+    EXPECT_NEAR(evalScalar("a1 = A(2);"), static_cast<double>(v2), 1e-6);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadEofReturnsEmpty)
+{
+    fs->files()["empty.bin"] = "";
+    eval("fid = fopen('empty.bin', 'r');");
+    eval("A = fread(fid);");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 0.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadFewerBytesAvailableThanRequested)
+{
+    // Ask for 10 uint16 but only 6 bytes in file → get 3 elements.
+    fs->files()["short.bin"] = std::string("\x01\x00\x02\x00\x03\x00", 6);
+    eval("fid = fopen('short.bin', 'r');");
+    eval("A = fread(fid, 10, 'uint16');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadReturnsCountAsSecondOutput)
+{
+    fs->files()["x.bin"] = std::string("\x01\x02\x03\x04\x05", 5);
+    eval("fid = fopen('x.bin', 'r');");
+    eval("[A, count] = fread(fid, 3, 'uint8');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+    EXPECT_EQ(getVar("count"), 3.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadRejectsUnsupportedPrecision)
+{
+    fs->files()["x.bin"] = "abc";
+    eval("fid = fopen('x.bin', 'r');");
+    EXPECT_THROW(eval("A = fread(fid, Inf, 'not-a-type');"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FreadOnWriteFidThrows)
+{
+    eval("fid = fopen('out.bin', 'w');");
+    EXPECT_THROW(eval("A = fread(fid);"), std::exception);
+    eval("fclose(fid);");
+}
+
+// ── fwrite ───────────────────────────────────────────────
+
+TEST_P(FileIoTest, FwriteDefaultUint8RoundTrip)
+{
+    eval("fid = fopen('out.bin', 'w');");
+    eval("n = fwrite(fid, [65 66 67 68 69]);"); // ABCDE
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["out.bin"], "ABCDE");
+    EXPECT_EQ(getVar("n"), 5.0);
+}
+
+TEST_P(FileIoTest, FwriteInt32LittleEndian)
+{
+    eval("fid = fopen('i32.bin', 'w');");
+    eval("fwrite(fid, [1 -1], 'int32');");
+    eval("fclose(fid);");
+
+    const std::string &buf = fs->files()["i32.bin"];
+    ASSERT_EQ(buf.size(), 8u);
+    uint32_t one, minus1;
+    std::memcpy(&one, buf.data(), 4);
+    std::memcpy(&minus1, buf.data() + 4, 4);
+    EXPECT_EQ(one, 1u);
+    EXPECT_EQ(minus1, 0xFFFFFFFFu);
+}
+
+TEST_P(FileIoTest, FwriteUint16Batch)
+{
+    eval("fid = fopen('u16.bin', 'w');");
+    eval("fwrite(fid, [0 1 256 65535], 'uint16');");
+    eval("fclose(fid);");
+
+    const std::string &buf = fs->files()["u16.bin"];
+    ASSERT_EQ(buf.size(), 8u);
+    uint16_t v0, v1, v2, v3;
+    std::memcpy(&v0, buf.data() + 0, 2);
+    std::memcpy(&v1, buf.data() + 2, 2);
+    std::memcpy(&v2, buf.data() + 4, 2);
+    std::memcpy(&v3, buf.data() + 6, 2);
+    EXPECT_EQ(v0, 0);
+    EXPECT_EQ(v1, 1);
+    EXPECT_EQ(v2, 256);
+    EXPECT_EQ(v3, 65535);
+}
+
+TEST_P(FileIoTest, FwriteDoubleRoundTripThroughFread)
+{
+    eval("fid = fopen('f64.bin', 'w');");
+    eval("fwrite(fid, [3.14 -2.72 1e10], 'double');");
+    eval("fclose(fid);");
+
+    eval("rd = fopen('f64.bin', 'r');");
+    eval("A = fread(rd, Inf, 'double');");
+    eval("fclose(rd);");
+
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a0 = A(1);"), 3.14);
+    EXPECT_DOUBLE_EQ(evalScalar("a1 = A(2);"), -2.72);
+    EXPECT_DOUBLE_EQ(evalScalar("a2 = A(3);"), 1e10);
+}
+
+TEST_P(FileIoTest, FwriteAcceptsLogicalArray)
+{
+    // Logicals are packed as 0/1 bytes when precision is uint8.
+    eval("fid = fopen('bool.bin', 'w');");
+    eval("fwrite(fid, [true false true true]);");
+    eval("fclose(fid);");
+
+    const std::string &buf = fs->files()["bool.bin"];
+    ASSERT_EQ(buf.size(), 4u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[0]), 1u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[1]), 0u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[2]), 1u);
+    EXPECT_EQ(static_cast<uint8_t>(buf[3]), 1u);
+}
+
+TEST_P(FileIoTest, FwriteReturnsElementCount)
+{
+    eval("fid = fopen('x.bin', 'w');");
+    EXPECT_EQ(evalScalar("n = fwrite(fid, [1 2 3 4 5 6 7], 'uint16');"), 7.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FwriteOnReadFidThrows)
+{
+    fs->files()["r.bin"] = "abc";
+    eval("fid = fopen('r.bin', 'r');");
+    EXPECT_THROW(eval("fwrite(fid, [1 2 3]);"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FwriteRejectsUnsupportedPrecision)
+{
+    eval("fid = fopen('x.bin', 'w');");
+    EXPECT_THROW(eval("fwrite(fid, [1 2], 'not-a-type');"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FwriteTypedOutputSyntaxIsAccepted)
+{
+    // MATLAB's src=>dst spec: we ignore the dst part (arrays are always
+    // double in our world) but the spec should still parse.
+    eval("fid = fopen('x.bin', 'w');");
+    eval("fwrite(fid, [1 2 3], 'uint16=>uint16');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["x.bin"].size(), 6u);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
