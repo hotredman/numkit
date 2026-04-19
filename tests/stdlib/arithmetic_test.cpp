@@ -477,6 +477,20 @@ TEST_P(HeapSafety3DTest, ComparisonMismatchThrows)
         std::exception);
 }
 
+TEST_P(HeapSafety3DTest, Comparison3DVs2DMismatchThrowsCleanly)
+{
+    // 3D vs 2D: MATLAB broadcasts singleton page of the 2D over the
+    // 3D's pages. Our impl doesn't yet do 3D broadcasting, so this
+    // must throw rather than corrupt the heap or fall through to the
+    // 2D broadcastDims path.
+    EXPECT_THROW(
+        { eval("A = ones(2, 3, 2); B = ones(2, 3); M = A == B;"); },
+        std::exception);
+    EXPECT_THROW(
+        { eval("A = ones(2, 3); B = ones(2, 3, 2); M = A == B;"); },
+        std::exception);
+}
+
 INSTANTIATE_DUAL(HeapSafety3DTest);
 
 // ============================================================
