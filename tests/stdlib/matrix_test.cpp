@@ -401,3 +401,107 @@ TEST_P(Transpose3DTest, ComplexTransposeOn3DThrows)
 
 INSTANTIATE_DUAL(Transpose3DTest);
 
+// ============================================================
+// Reductions on 3D — reduce along first non-singleton dim
+// ============================================================
+
+class Reductions3DTest : public DualEngineTest {};
+
+TEST_P(Reductions3DTest, SumAlongRows3D)
+{
+    // 2×3×2: sum along rows → 1×3×2.
+    eval("A = reshape(1:12, 2, 3, 2); S = sum(A);");
+    auto *S = getVarPtr("S");
+    ASSERT_NE(S, nullptr);
+    EXPECT_TRUE(S->dims().is3D());
+    EXPECT_EQ(S->dims().rows(), 1u);
+    EXPECT_EQ(S->dims().cols(), 3u);
+    EXPECT_EQ(S->dims().pages(), 2u);
+    // Page 1 cols: 1+2=3, 3+4=7, 5+6=11.
+    EXPECT_DOUBLE_EQ(S->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[1], 7.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[2], 11.0);
+    // Page 2 cols: 7+8=15, 9+10=19, 11+12=23.
+    EXPECT_DOUBLE_EQ(S->doubleData()[3], 15.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[5], 23.0);
+}
+
+TEST_P(Reductions3DTest, MaxAlongRows3D)
+{
+    eval("A = reshape(1:12, 2, 3, 2); M = max(A);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 6u);
+    // per-column max on each page: page1 = [2 4 6], page2 = [8 10 12]
+    EXPECT_DOUBLE_EQ(M->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(M->doubleData()[2], 6.0);
+    EXPECT_DOUBLE_EQ(M->doubleData()[3], 8.0);
+    EXPECT_DOUBLE_EQ(M->doubleData()[5], 12.0);
+}
+
+TEST_P(Reductions3DTest, MinAlongRows3D)
+{
+    eval("A = reshape(1:12, 2, 3, 2); M = min(A);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_DOUBLE_EQ(M->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(M->doubleData()[5], 11.0);
+}
+
+TEST_P(Reductions3DTest, ProdAlongRows3D)
+{
+    eval("A = reshape(1:8, 2, 2, 2); P = prod(A);");
+    auto *P = getVarPtr("P");
+    ASSERT_NE(P, nullptr);
+    EXPECT_TRUE(P->dims().is3D());
+    // per-column prod: page1 = [1*2 3*4] = [2 12], page2 = [5*6 7*8] = [30 56]
+    EXPECT_DOUBLE_EQ(P->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(P->doubleData()[1], 12.0);
+    EXPECT_DOUBLE_EQ(P->doubleData()[2], 30.0);
+    EXPECT_DOUBLE_EQ(P->doubleData()[3], 56.0);
+}
+
+TEST_P(Reductions3DTest, MeanAlongRows3D)
+{
+    eval("A = reshape(1:12, 2, 3, 2); M = mean(A);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_TRUE(M->dims().is3D());
+    // per-column mean: page1 = [1.5 3.5 5.5], page2 = [7.5 9.5 11.5]
+    EXPECT_DOUBLE_EQ(M->doubleData()[0], 1.5);
+    EXPECT_DOUBLE_EQ(M->doubleData()[2], 5.5);
+    EXPECT_DOUBLE_EQ(M->doubleData()[5], 11.5);
+}
+
+TEST_P(Reductions3DTest, SumAlongColsWhenRowsSingleton)
+{
+    // 1x3x2: first non-singleton is dim 2 (cols). Reduce → 1x1x2.
+    eval("A = reshape(1:6, 1, 3, 2); S = sum(A);");
+    auto *S = getVarPtr("S");
+    ASSERT_NE(S, nullptr);
+    EXPECT_TRUE(S->dims().is3D());
+    EXPECT_EQ(S->dims().rows(), 1u);
+    EXPECT_EQ(S->dims().cols(), 1u);
+    EXPECT_EQ(S->dims().pages(), 2u);
+    EXPECT_DOUBLE_EQ(S->doubleData()[0], 6.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[1], 15.0);
+}
+
+TEST_P(Reductions3DTest, Max3DReturnsIndices)
+{
+    eval("A = reshape(1:12, 2, 3, 2); [V, I] = max(A);");
+    auto *V = getVarPtr("V");
+    auto *I = getVarPtr("I");
+    ASSERT_NE(V, nullptr);
+    ASSERT_NE(I, nullptr);
+    EXPECT_TRUE(I->dims().is3D());
+    EXPECT_EQ(I->numel(), 6u);
+    // max is always in row 2 → idx = 2 everywhere.
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_DOUBLE_EQ(I->doubleData()[i], 2.0);
+}
+
+INSTANTIATE_DUAL(Reductions3DTest);
+

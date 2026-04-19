@@ -303,17 +303,54 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                 }
             }
             size_t R = a.dims().rows(), C = a.dims().cols();
-            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            for (size_t c = 0; c < C; ++c) {
-                double mx = a(0, c);
-                for (size_t rr = 1; rr < R; ++rr)
-                    mx = std::max(mx, a(rr, c));
-                r.doubleDataMut()[c] = mx;
-            }
-            {
+            if (a.dims().is3D()) {
+                size_t P = a.dims().pages();
+                int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+                size_t outR = (redDim == 0) ? 1 : R;
+                size_t outC = (redDim == 1) ? 1 : C;
+                size_t outP = (redDim == 2) ? 1 : P;
+                size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+                auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                MValue midx;
+                if (nargout > 1)
+                    midx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                for (size_t p = 0; p < outP; ++p)
+                for (size_t c = 0; c < outC; ++c)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    auto atK = [&](size_t k) {
+                        size_t rIdx = (redDim == 0) ? k : rr;
+                        size_t cIdx = (redDim == 1) ? k : c;
+                        size_t pIdx = (redDim == 2) ? k : p;
+                        return a(rIdx, cIdx, pIdx);
+                    };
+                    double mx = atK(0);
+                    size_t mi = 0;
+                    for (size_t k = 1; k < N; ++k) {
+                        double v = atK(k);
+                        if (v > mx) { mx = v; mi = k; }
+                    }
+                    size_t o = p * outR * outC + c * outR + rr;
+                    r.doubleDataMut()[o] = mx;
+                    if (nargout > 1) midx.doubleDataMut()[o] = static_cast<double>(mi + 1);
+                }
                 outs[0] = r;
+                if (nargout > 1) outs[1] = midx;
                 return;
             }
+            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
+            MValue midx;
+            if (nargout > 1) midx = MValue::matrix(1, C, MType::DOUBLE, alloc);
+            for (size_t c = 0; c < C; ++c) {
+                double mx = a(0, c);
+                size_t mi = 0;
+                for (size_t rr = 1; rr < R; ++rr)
+                    if (a(rr, c) > mx) { mx = a(rr, c); mi = rr; }
+                r.doubleDataMut()[c] = mx;
+                if (nargout > 1) midx.doubleDataMut()[c] = static_cast<double>(mi + 1);
+            }
+            outs[0] = r;
+            if (nargout > 1) outs[1] = midx;
+            return;
         });
 
     engine.registerFunction(
@@ -341,17 +378,54 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                 }
             }
             size_t R = a.dims().rows(), C = a.dims().cols();
-            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            for (size_t c = 0; c < C; ++c) {
-                double mn = a(0, c);
-                for (size_t rr = 1; rr < R; ++rr)
-                    mn = std::min(mn, a(rr, c));
-                r.doubleDataMut()[c] = mn;
-            }
-            {
+            if (a.dims().is3D()) {
+                size_t P = a.dims().pages();
+                int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+                size_t outR = (redDim == 0) ? 1 : R;
+                size_t outC = (redDim == 1) ? 1 : C;
+                size_t outP = (redDim == 2) ? 1 : P;
+                size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+                auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                MValue midx;
+                if (nargout > 1)
+                    midx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                for (size_t p = 0; p < outP; ++p)
+                for (size_t c = 0; c < outC; ++c)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    auto atK = [&](size_t k) {
+                        size_t rIdx = (redDim == 0) ? k : rr;
+                        size_t cIdx = (redDim == 1) ? k : c;
+                        size_t pIdx = (redDim == 2) ? k : p;
+                        return a(rIdx, cIdx, pIdx);
+                    };
+                    double mn = atK(0);
+                    size_t mi = 0;
+                    for (size_t k = 1; k < N; ++k) {
+                        double v = atK(k);
+                        if (v < mn) { mn = v; mi = k; }
+                    }
+                    size_t o = p * outR * outC + c * outR + rr;
+                    r.doubleDataMut()[o] = mn;
+                    if (nargout > 1) midx.doubleDataMut()[o] = static_cast<double>(mi + 1);
+                }
                 outs[0] = r;
+                if (nargout > 1) outs[1] = midx;
                 return;
             }
+            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
+            MValue midx;
+            if (nargout > 1) midx = MValue::matrix(1, C, MType::DOUBLE, alloc);
+            for (size_t c = 0; c < C; ++c) {
+                double mn = a(0, c);
+                size_t mi = 0;
+                for (size_t rr = 1; rr < R; ++rr)
+                    if (a(rr, c) < mn) { mn = a(rr, c); mi = rr; }
+                r.doubleDataMut()[c] = mn;
+                if (nargout > 1) midx.doubleDataMut()[c] = static_cast<double>(mi + 1);
+            }
+            outs[0] = r;
+            if (nargout > 1) outs[1] = midx;
+            return;
         });
 
     // --- Reductions: sum, prod, mean ---
@@ -372,6 +446,29 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                                     }
                                 }
                                 size_t R = a.dims().rows(), C = a.dims().cols();
+                                if (a.dims().is3D()) {
+                                    size_t P = a.dims().pages();
+                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+                                    size_t outR = (redDim == 0) ? 1 : R;
+                                    size_t outC = (redDim == 1) ? 1 : C;
+                                    size_t outP = (redDim == 2) ? 1 : P;
+                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                                    for (size_t p = 0; p < outP; ++p)
+                                    for (size_t c = 0; c < outC; ++c)
+                                    for (size_t rr = 0; rr < outR; ++rr) {
+                                        double s = 0;
+                                        for (size_t k = 0; k < N; ++k) {
+                                            size_t rIdx = (redDim == 0) ? k : rr;
+                                            size_t cIdx = (redDim == 1) ? k : c;
+                                            size_t pIdx = (redDim == 2) ? k : p;
+                                            s += a(rIdx, cIdx, pIdx);
+                                        }
+                                        r.doubleDataMut()[p * outR * outC + c * outR + rr] = s;
+                                    }
+                                    outs[0] = r;
+                                    return;
+                                }
                                 auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
                                 for (size_t c = 0; c < C; ++c) {
                                     double s = 0;
@@ -402,6 +499,29 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                                     }
                                 }
                                 size_t R = a.dims().rows(), C = a.dims().cols();
+                                if (a.dims().is3D()) {
+                                    size_t P = a.dims().pages();
+                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+                                    size_t outR = (redDim == 0) ? 1 : R;
+                                    size_t outC = (redDim == 1) ? 1 : C;
+                                    size_t outP = (redDim == 2) ? 1 : P;
+                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                                    for (size_t pp = 0; pp < outP; ++pp)
+                                    for (size_t c = 0; c < outC; ++c)
+                                    for (size_t rr = 0; rr < outR; ++rr) {
+                                        double p = 1;
+                                        for (size_t k = 0; k < N; ++k) {
+                                            size_t rIdx = (redDim == 0) ? k : rr;
+                                            size_t cIdx = (redDim == 1) ? k : c;
+                                            size_t pIdx = (redDim == 2) ? k : pp;
+                                            p *= a(rIdx, cIdx, pIdx);
+                                        }
+                                        r.doubleDataMut()[pp * outR * outC + c * outR + rr] = p;
+                                    }
+                                    outs[0] = r;
+                                    return;
+                                }
                                 auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
                                 for (size_t c = 0; c < C; ++c) {
                                     double p = 1;
@@ -433,6 +553,30 @@ void StdLibrary::registerMathFunctions(Engine &engine)
                                     }
                                 }
                                 size_t R = a.dims().rows(), C = a.dims().cols();
+                                if (a.dims().is3D()) {
+                                    size_t P = a.dims().pages();
+                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+                                    size_t outR = (redDim == 0) ? 1 : R;
+                                    size_t outC = (redDim == 1) ? 1 : C;
+                                    size_t outP = (redDim == 2) ? 1 : P;
+                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+                                    for (size_t pp = 0; pp < outP; ++pp)
+                                    for (size_t c = 0; c < outC; ++c)
+                                    for (size_t rr = 0; rr < outR; ++rr) {
+                                        double s = 0;
+                                        for (size_t k = 0; k < N; ++k) {
+                                            size_t rIdx = (redDim == 0) ? k : rr;
+                                            size_t cIdx = (redDim == 1) ? k : c;
+                                            size_t pIdx = (redDim == 2) ? k : pp;
+                                            s += a(rIdx, cIdx, pIdx);
+                                        }
+                                        r.doubleDataMut()[pp * outR * outC + c * outR + rr] =
+                                            s / static_cast<double>(N);
+                                    }
+                                    outs[0] = r;
+                                    return;
+                                }
                                 auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
                                 for (size_t c = 0; c < C; ++c) {
                                     double s = 0;
