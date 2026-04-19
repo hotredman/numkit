@@ -1483,7 +1483,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     //   C = textscan(fid, formatSpec)
     //   C = textscan(fid, formatSpec, N)
     //   C = textscan(str, formatSpec, …)
-    //   C = textscan(…, 'Delimiter', d, 'HeaderLines', k)
+    //   C = textscan(…, 'Delimiter', d, 'EndOfLine', e, 'HeaderLines', k)
     //
     // Unlike fscanf, textscan returns a CELL ARRAY with one cell per
     // conversion in formatSpec — each cell a column vector of that
@@ -1491,11 +1491,27 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // produce a column of doubles; %s produces a column cell of
     // strings (cellstr). N caps the number of full format cycles.
     //
-    // Supported options: 'Delimiter' (char, char-set, or cell array
-    // of chars) and 'HeaderLines' (integer). Default delimiter is
-    // whitespace. Other MATLAB options (CommentStyle, TreatAsEmpty,
-    // EmptyValue, MultipleDelimsAsOne, …) aren't implemented yet —
-    // unknown names throw.
+    // Supported options:
+    //   'Delimiter'   char array, or cell array of char arrays. Default
+    //                 is whitespace (space + tab).
+    //   'EndOfLine'   char array of characters that terminate a line
+    //                 (and thus also a token). Default "\n". Always
+    //                 merged into the effective token-boundary set so
+    //                 multi-line CSV doesn't glue values across rows.
+    //   'HeaderLines' integer, number of leading lines to skip.
+    //
+    // Not yet: CommentStyle, TreatAsEmpty, EmptyValue,
+    // MultipleDelimsAsOne, %c, %[set]. Unknown names throw.
+
+    struct TextscanOptions
+    {
+        // When empty, the tokeniser uses whitespace (space/tab/\f/\v plus
+        // the end-of-line chars). When non-empty, tokens are split by
+        // exactly these characters, plus end-of-line.
+        std::string delimiters;
+        std::string endOfLine = "\n";
+        size_t headerLines = 0;
+    };
 
     // Parse formatSpec into an ordered conversion list. Unrecognised
     // % codes throw before any scanning happens.
@@ -1574,8 +1590,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 ++argIdx;
             }
 
-            std::string delims = " \t\n\r\f\v"; // default whitespace
-            size_t headerLines = 0;
+            // Parse name/value options into a TextscanOptions struct.
+            TextscanOptions opts;
             auto lower = [](std::string s) {
                 for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 return s;
@@ -1587,22 +1603,26 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 const MValue &val = args[argIdx + 1];
                 if (name == "delimiter") {
                     if (val.isChar()) {
-                        delims = val.toString();
+                        opts.delimiters = val.toString();
                     } else if (val.isCell()) {
                         // Concatenate every char in the cells into one delimiter set.
-                        delims.clear();
+                        opts.delimiters.clear();
                         for (size_t i = 0; i < val.numel(); ++i) {
                             const MValue &d = val.cellAt(i);
-                            if (d.isChar()) delims += d.toString();
+                            if (d.isChar()) opts.delimiters += d.toString();
                         }
                     } else {
                         throw MLabError("textscan: 'Delimiter' must be a char array or cell");
                     }
+                } else if (name == "endofline") {
+                    if (!val.isChar())
+                        throw MLabError("textscan: 'EndOfLine' must be a char array");
+                    opts.endOfLine = val.toString();
                 } else if (name == "headerlines") {
                     double d = val.toScalar();
                     if (d < 0 || !std::isfinite(d))
                         throw MLabError("textscan: 'HeaderLines' must be a non-negative integer");
-                    headerLines = static_cast<size_t>(d);
+                    opts.headerLines = static_cast<size_t>(d);
                 } else {
                     throw MLabError("textscan: unsupported option '" + args[argIdx].toString()
                                     + "'");
@@ -1610,26 +1630,27 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 argIdx += 2;
             }
 
-            // Always treat CR/LF as token boundaries regardless of the
-            // user's Delimiter choice. MATLAB handles line endings via
-            // its separate 'EndOfLine' option (default '\n'); without
-            // folding them into the delim set, a ',' delimiter on a
-            // multi-line CSV would glue values across lines.
-            if (delims.find('\n') == std::string::npos) delims += '\n';
-            if (delims.find('\r') == std::string::npos) delims += '\r';
+            // Build the effective token-boundary set. Default (no Delimiter
+            // supplied) is whitespace; EndOfLine is ALWAYS merged in so
+            // multi-line inputs don't glue values across rows.
+            std::string delims = opts.delimiters.empty() ? std::string(" \t\f\v")
+                                                         : opts.delimiters;
+            for (char c : opts.endOfLine)
+                if (delims.find(c) == std::string::npos) delims += c;
 
-            // Tokeniser helpers closed over the delim set.
             auto inDelim = [&delims](char c) {
                 return delims.find(c) != std::string::npos;
+            };
+            auto isEol = [&opts](char c) {
+                return opts.endOfLine.find(c) != std::string::npos;
             };
 
             size_t pos = 0;
 
-            // Skip header lines. Always \n-delimited (not affected by
-            // the Delimiter option).
-            for (size_t h = 0; h < headerLines && pos < input.size(); ++h) {
-                while (pos < input.size() && input[pos] != '\n') ++pos;
-                if (pos < input.size()) ++pos;
+            // Skip header lines using the configured EndOfLine chars.
+            for (size_t h = 0; h < opts.headerLines && pos < input.size(); ++h) {
+                while (pos < input.size() && !isEol(input[pos])) ++pos;
+                if (pos < input.size()) ++pos;  // consume the EOL char itself
             }
 
             // For %s and %*s we read one token (run of non-delim chars).

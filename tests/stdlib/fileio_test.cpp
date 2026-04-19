@@ -1342,6 +1342,32 @@ TEST_P(FileIoTest, TextscanEmptyInputProducesEmptyColumns)
     EXPECT_EQ(evalScalar("k2 = numel(C{2});"), 0.0);
 }
 
+TEST_P(FileIoTest, TextscanEndOfLineOptionIsRespected)
+{
+    // Explicit EndOfLine set to ';' — semicolons terminate records,
+    // newlines no longer do. With delimiter ',' and EOL ';',
+    // "1,2;3,4" parses into two rows of [1,2] and [3,4].
+    fs->files()["semi.txt"] = "1,2;3,4;5,6";
+    eval("fid = fopen('semi.txt', 'r');");
+    eval("C = textscan(fid, '%d %d', 'Delimiter', ',', 'EndOfLine', ';');");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a = C{1}(3);"), 5.0);
+    EXPECT_EQ(evalScalar("b = C{2}(3);"), 6.0);
+}
+
+TEST_P(FileIoTest, TextscanEndOfLineDrivesHeaderLinesSkip)
+{
+    // 'HeaderLines' counts lines by the EndOfLine chars, not by '\n'.
+    fs->files()["semi.txt"] = "header1;header2;1 2;3 4";
+    eval("fid = fopen('semi.txt', 'r');");
+    eval("C = textscan(fid, '%d %d', 'EndOfLine', ';', 'HeaderLines', 2);");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{2}(2);"), 4.0);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
