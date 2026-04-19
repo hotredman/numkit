@@ -360,16 +360,24 @@ static double readElemAsDouble(const MValue &v, size_t idx)
     }
 }
 
-// Read one element as Complex. Supports DOUBLE, LOGICAL, COMPLEX.
+// Read one element as Complex. Real-only types contribute zero
+// imaginary part, matching MATLAB's real→complex promotion rule.
+// Mirrors readElemAsDouble's type coverage so mixed-type indexed
+// assignment (e.g. complex_array(i) = int_array(j)) works end-to-end.
 static Complex readElemAsComplex(const MValue &v, size_t idx)
 {
     switch (v.type()) {
     case MType::COMPLEX:
         return v.complexData()[idx];
+    // Real-valued types: reuse readElemAsDouble's logic so the two
+    // readers don't drift out of sync, with zero imaginary part.
     case MType::DOUBLE:
-        return Complex(v.doubleData()[idx], 0.0);
     case MType::LOGICAL:
-        return Complex(static_cast<double>(v.logicalData()[idx]), 0.0);
+    case MType::CHAR:
+    case MType::SINGLE:
+    case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
+    case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
+        return Complex(readElemAsDouble(v, idx), 0.0);
     default:
         throw std::runtime_error(
             std::string("Cannot read element as complex from type '")
@@ -377,14 +385,23 @@ static Complex readElemAsComplex(const MValue &v, size_t idx)
     }
 }
 
-// Read one element as uint8_t logical. Supports LOGICAL, DOUBLE.
+// Read one element as uint8_t logical. Every real numeric type is
+// accepted — any non-zero is true. Mirrors readElemAsDouble's coverage
+// so concatenation of mixed-type arrays into a logical result
+// matches MATLAB.
 static uint8_t readElemAsLogical(const MValue &v, size_t idx)
 {
     switch (v.type()) {
     case MType::LOGICAL:
         return v.logicalData()[idx];
     case MType::DOUBLE:
-        return v.doubleData()[idx] != 0.0 ? 1 : 0;
+    case MType::CHAR:
+    case MType::SINGLE:
+    case MType::INT8: case MType::INT16: case MType::INT32: case MType::INT64:
+    case MType::UINT8: case MType::UINT16: case MType::UINT32: case MType::UINT64:
+        return readElemAsDouble(v, idx) != 0.0 ? 1 : 0;
+    case MType::COMPLEX:
+        return (v.complexData()[idx] != Complex(0.0, 0.0)) ? 1 : 0;
     default:
         throw std::runtime_error(
             std::string("Cannot read element as logical from type '")
