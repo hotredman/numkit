@@ -478,3 +478,101 @@ TEST_P(HeapSafety3DTest, ComparisonMismatchThrows)
 }
 
 INSTANTIATE_DUAL(HeapSafety3DTest);
+
+// ============================================================
+// Empty-operand shape preservation in binary arithmetic
+// ============================================================
+
+class EmptyArith2Test : public DualEngineTest {};
+
+TEST_P(EmptyArith2Test, DoublePlusScalarPreservesShape)
+{
+    eval("a = zeros(2, 0); b = a + 5;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, ScalarPlusDoublePreservesShape)
+{
+    eval("a = zeros(3, 0); b = 5 + a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, DoublePlusComplexScalarGivesComplexEmpty)
+{
+    eval("a = zeros(2, 0); b = a + 0i;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_TRUE(b->isComplex());
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, SameShapeEmptiesPreserved)
+{
+    eval("a = zeros(2, 0); b = zeros(2, 0); c = a + b;");
+    auto *c = getVarPtr("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_EQ(c->dims().rows(), 2u);
+    EXPECT_EQ(c->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, MismatchedEmptiesThrow)
+{
+    EXPECT_THROW({ eval("zeros(2, 0) + zeros(0, 3);"); }, std::exception);
+}
+
+TEST_P(EmptyArith2Test, IntegerEmptyPlusScalarKeepsType)
+{
+    eval("a = int32(zeros(2, 0)); b = a + int32(5);");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::INT32);
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, DotMulEmptyPreservesShape)
+{
+    eval("a = zeros(3, 0); b = a .* 2;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, DotDivEmptyPreservesShape)
+{
+    eval("a = zeros(2, 0); b = 10 ./ a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, DotPowEmptyPreservesShape)
+{
+    eval("a = zeros(4, 0); b = a .^ 2;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->dims().rows(), 4u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(EmptyArith2Test, CharEmptyPlusScalarPromotesToDouble)
+{
+    eval("b = '' + 5;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->numel(), 0u);
+}
+
+INSTANTIATE_DUAL(EmptyArith2Test);

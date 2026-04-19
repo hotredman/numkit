@@ -13,7 +13,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("+", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::plus<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -59,7 +59,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("-", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::minus<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -73,7 +73,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp(".*", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::multiplies<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -148,7 +148,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp("./", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex())
             return elementwiseComplex(a, b, std::divides<Complex>{}, alloc);
         if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
@@ -176,7 +176,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     engine.registerBinaryOp(".^", [&engine](const MValue &a, const MValue &b) -> MValue {
         auto *alloc = &engine.allocator();
         if (a.isEmpty() || b.isEmpty())
-            return MValue::empty();
+            return emptyArithResult(a, b, alloc);
         if (a.isComplex() || b.isComplex()) {
             return elementwiseComplex(
                 a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, alloc);

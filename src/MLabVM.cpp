@@ -1647,9 +1647,6 @@ void VM::forSetVar(MValue &varReg, const ForState &fs)
 
 MValue VM::binarySlowPath(OpCode op, const MValue &lhs, const MValue &rhs)
 {
-    if (lhs.isEmpty() || rhs.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &engine_.allocator_);
-
     const char *opStr = nullptr;
     switch (op) {
     case OpCode::ADD:   opStr = "+";  break;

@@ -46,14 +46,8 @@ inline bool broadcastDims(size_t ar, size_t ac, size_t br, size_t bc,
 template<typename Op>
 MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *alloc)
 {
-    // MATLAB: empty propagation — any op with [] returns []
-    if (a.isEmpty() && b.isEmpty())
-        return MValue::empty();
-    if (a.isEmpty() || b.isEmpty()) {
-        if (a.isScalar() || b.isScalar())
-            return MValue::empty();
-        throw std::runtime_error("Matrix dimensions must agree");
-    }
+    if (a.isEmpty() || b.isEmpty())
+        return emptyResultForBinary(a, b, MType::DOUBLE, alloc);
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
 
@@ -120,7 +114,7 @@ template<typename Op>
 MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *alloc)
 {
     if (a.isEmpty() || b.isEmpty())
-        return MValue::empty();
+        return emptyResultForBinary(a, b, MType::COMPLEX, alloc);
     auto [ca, cb] = promoteToComplex(a, b, alloc);
     if (ca.isScalar() && cb.isScalar())
         return MValue::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);
@@ -264,6 +258,40 @@ inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
     return createMatrix({src.dims().rows(), src.dims().cols(),
                          src.dims().is3D() ? src.dims().pages() : 0},
                         type, alloc);
+}
+
+// Shape-preserving empty result for a binary op where at least one
+// operand is empty. The non-scalar operand contributes the output
+// shape; if both are non-scalar the dims must match, otherwise throw.
+// `outType` is chosen by the caller based on its promotion rules.
+inline MValue emptyResultForBinary(const MValue &a, const MValue &b,
+                                   MType outType, Allocator *alloc)
+{
+    const bool aShaper = !a.isScalar();
+    const bool bShaper = !b.isScalar();
+    if (aShaper && bShaper && a.dims() != b.dims())
+        throw std::runtime_error("Matrix dimensions must agree");
+    const MValue &shape = aShaper ? a : (bShaper ? b : a);
+    return createLike(shape, outType, alloc);
+}
+
+// Pick the arithmetic output type for a pair of operands using
+// MATLAB-style promotion: complex > single > integer > double.
+// Char and logical operands promote to double.
+inline MType arithOutType(const MValue &a, const MValue &b)
+{
+    if (a.isComplex() || b.isComplex()) return MType::COMPLEX;
+    if (a.type() == MType::SINGLE || b.type() == MType::SINGLE) return MType::SINGLE;
+    if (isIntegerType(a.type())) return a.type();
+    if (isIntegerType(b.type())) return b.type();
+    return MType::DOUBLE;
+}
+
+// Convenience wrapper: shape-preserving empty arithmetic result with
+// type chosen by arithOutType().
+inline MValue emptyArithResult(const MValue &a, const MValue &b, Allocator *alloc)
+{
+    return emptyResultForBinary(a, b, arithOutType(a, b), alloc);
 }
 
 // ============================================================
