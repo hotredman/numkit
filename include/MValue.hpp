@@ -24,11 +24,12 @@ using Complex = std::complex<double>;
 //   HeapObject *heap_ (8 bytes) — tag / heap pointer
 //
 // Encoding:
-//   heap_ == nullptr          → double scalar (value in scalar_)
-//   heap_ == kEmptyTag        → empty
-//   heap_ == kLogicalTrueTag  → logical scalar true
-//   heap_ == kLogicalFalseTag → logical scalar false
-//   otherwise                 → heap-allocated object
+//   heap_ == nullptr           → inline double scalar (value in scalar_)
+//   heap_ == emptyTag()        → empty matrix / uninitialised slot
+//   heap_ == logicalTrueTag()  → logical scalar true
+//   heap_ == logicalFalseTag() → logical scalar false
+//   heap_ == deletedTag()      → tombstone for indexed-delete
+//   otherwise                  → heap-allocated object
 // ============================================================
 class MValue
 {
@@ -64,7 +65,7 @@ public:
     static MValue deleted();
 
     // ── Factories — compound operations ────────────────────────
-    // Colon range: start:stop kEmptyTagstep=1) or start:step:stop
+    // Colon range: start:stop (step=1) or start:step:stop
     static MValue colonRange(double start, double stop, Allocator *alloc = nullptr);
     static MValue colonRange(double start, double step, double stop, Allocator *alloc = nullptr);
 
