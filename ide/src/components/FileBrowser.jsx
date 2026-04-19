@@ -241,7 +241,7 @@ function TemporaryBrowser({ onOpenFile, onRefreshKey, isTabUnsaved }) {
 // operations over a real directory the user picks through the native
 // folder-picker dialog. The directory handle is cached in IndexedDB
 // so reopening the IDE restores the tree after a permission refresh.
-function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount }) {
+function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshKey }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
   const [mountName, setMountName] = useState(null);
@@ -279,6 +279,14 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount }) {
     })();
     return () => { cancelled = true; };
   }, [loadTree, onLocalMount]);
+
+  // Re-read the tree whenever the REPL signals a write happened (via the
+  // vfsRefreshKey bump after csvwrite flushes). Without this, files that
+  // scripts create in Local Folder only appear after the user switches
+  // tabs away and back.
+  useEffect(() => {
+    if (status === 'connected') loadTree();
+  }, [onRefreshKey, status, loadTree]);
 
   const handlePick = useCallback(async () => {
     setError(null);
@@ -714,7 +722,7 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
       </div>
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {source === 'temporary' && <TemporaryBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} />}
-        {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} onLocalMount={onLocalMount} />}
+        {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} onLocalMount={onLocalMount} onRefreshKey={vfsRefreshKey} />}
         {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} />}
         {source === 'github' && <GitHubBrowser onOpenFile={onOpenFile} defaultRepo={defaultGitHubRepo} />}
       </div>
