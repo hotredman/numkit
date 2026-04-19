@@ -389,6 +389,94 @@ TEST_P(FileIoTest, FeofOnInvalidFidThrows)
     EXPECT_THROW(eval("x = feof(999);"), std::exception);
 }
 
+// ── r+ / w+ / a+ combined modes ──────────────────────────
+
+TEST_P(FileIoTest, FopenRplusOpensExistingForReadWrite)
+{
+    fs->files()["d.txt"] = "hello world";
+    eval("fid = fopen('d.txt', 'r+');");
+    EXPECT_GE(getVar("fid"), 3.0);
+    // Cursor at start — fgetl reads the existing content.
+    EXPECT_EQ(evalString("a = fgetl(fid);"), "hello world");
+    // Rewind, overwrite first 5 bytes.
+    eval("frewind(fid);");
+    eval("fprintf(fid, 'HELLO');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["d.txt"], "HELLO world");
+}
+
+TEST_P(FileIoTest, FopenWplusTruncatesThenReadsWhatWasWritten)
+{
+    fs->files()["d.txt"] = "previous content";
+    eval("fid = fopen('d.txt', 'w+');");
+    // 'w+' truncates.
+    eval("fprintf(fid, 'fresh');");
+    // Rewind and read back.
+    eval("frewind(fid);");
+    EXPECT_EQ(evalString("s = fgetl(fid);"), "fresh");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["d.txt"], "fresh");
+}
+
+TEST_P(FileIoTest, FopenAplusAppendsAndReadsAfterFrewind)
+{
+    // MATLAB / C stdio: 'a+' positions the cursor at the END of the
+    // existing content. Reads require an explicit frewind or fseek.
+    // Writes always go to end regardless of cursor.
+    fs->files()["d.txt"] = "old\n";
+    eval("fid = fopen('d.txt', 'a+');");
+    // No content left to read at the initial cursor.
+    EXPECT_EQ(evalScalar("a = fgetl(fid);"), -1.0);
+    eval("frewind(fid);");
+    EXPECT_EQ(evalString("b = fgetl(fid);"), "old");
+    eval("fprintf(fid, 'new\\n');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["d.txt"], "old\nnew\n");
+}
+
+TEST_P(FileIoTest, FopenRplusOnMissingFileReturnsMinusOne)
+{
+    // 'r+' requires the file to exist (same as plain 'r'), unlike
+    // 'w+' or 'a+' which create-or-open.
+    EXPECT_EQ(evalScalar("fid = fopen('nope.txt', 'r+');"), -1.0);
+}
+
+TEST_P(FileIoTest, FopenWplusCreatesMissingFile)
+{
+    EXPECT_GE(evalScalar("fid = fopen('new.txt', 'w+');"), 3.0);
+    eval("fclose(fid);");
+    EXPECT_TRUE(fs->files().count("new.txt") > 0);
+}
+
+TEST_P(FileIoTest, FseekWorksOnRplusFid)
+{
+    // r+ has read permission, so fseek is allowed (unlike pure 'w').
+    fs->files()["s.txt"] = "abcdef";
+    eval("fid = fopen('s.txt', 'r+');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, 3, 'bof');"), 0.0);
+    eval("fprintf(fid, 'XYZ');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["s.txt"], "abcXYZ");
+}
+
+TEST_P(FileIoTest, FprintfAtCursorOverwritesBytes)
+{
+    // Key difference from the old append-only impl: with 'w' cursor
+    // at 0, writes grow the buffer; after seeking back via 'r+' we
+    // overwrite instead of appending.
+    fs->files()["x.txt"] = "0123456789";
+    eval("fid = fopen('x.txt', 'r+');");
+    eval("fseek(fid, 2, 'bof');");
+    eval("fprintf(fid, 'ABC');");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(fs->files()["x.txt"], "01ABC56789");
+}
+
 // ── ftell / fseek / frewind ──────────────────────────────
 
 TEST_P(FileIoTest, FtellStartsAtZeroAfterOpen)

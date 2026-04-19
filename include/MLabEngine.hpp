@@ -203,8 +203,13 @@ public:
         VirtualFS *fs = nullptr;
         std::string buffer;
         size_t cursor = 0;
+        // Permission flags — forRead and forWrite can BOTH be true for
+        // 'r+' / 'w+' / 'a+' combined modes. forWrite with appendOnly
+        // means every fprintf/fwrite snaps the cursor to end-of-buffer
+        // before writing, matching MATLAB's 'a' / 'a+' semantics.
         bool forRead = false;
         bool forWrite = false;
+        bool appendOnly = false;
         // Last soft-failure text for MATLAB's ferror(fid). Populated by
         // fread on short reads, fgetl/fgets/fscanf on EOF, etc. Cleared
         // by ferror(fid, 'clear'). Hard failures still throw MLabError.

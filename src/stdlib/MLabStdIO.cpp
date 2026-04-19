@@ -291,7 +291,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 auto *f = ctx.engine->findFile(fid);
                 if (!f || !f->forWrite)
                     throw MLabError("fprintf: invalid file identifier");
-                f->buffer.append(result);
+                // Write at cursor, extending the buffer if needed. For
+                // 'a'/'a+' (appendOnly) we snap to the end first —
+                // MATLAB's contract regardless of prior seek.
+                size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
+                if (writePos + result.size() > f->buffer.size())
+                    f->buffer.resize(writePos + result.size());
+                std::memcpy(f->buffer.data() + writePos, result.data(), result.size());
+                f->cursor = writePos + result.size();
             } else {
                 throw MLabError("fprintf: invalid file identifier");
             }
@@ -1897,7 +1904,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 }
                 dst += bsize;
             }
-            f->buffer.append(bytes);
+            // Same cursor-based write contract as fprintf — see there
+            // for the appendOnly rationale.
+            size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
+            if (writePos + bytes.size() > f->buffer.size())
+                f->buffer.resize(writePos + bytes.size());
+            std::memcpy(f->buffer.data() + writePos, bytes.data(), bytes.size());
+            f->cursor = writePos + bytes.size();
             outs[0] = MValue::scalar(static_cast<double>(numel), alloc);
         });
 }
