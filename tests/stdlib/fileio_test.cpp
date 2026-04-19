@@ -1215,6 +1215,123 @@ TEST_P(FileIoTest, SscanfMatrixShapeMixedNumericString)
     EXPECT_DOUBLE_EQ(evalScalar("a21 = A(2,1);"), 1.5);
 }
 
+// ── textscan ─────────────────────────────────────────────
+
+TEST_P(FileIoTest, TextscanBasicNumericPerColumn)
+{
+    // 2 conversions → cell array with 2 cells, each a column vector.
+    eval("C = textscan('1 1.5 2 2.5 3 3.5', '%d %f');");
+    EXPECT_TRUE(evalBool("tf = iscell(C);"));
+    EXPECT_EQ(evalScalar("n = numel(C);"), 2.0);
+
+    // First cell: the three integers.
+    EXPECT_EQ(evalScalar("v = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{1}(3);"), 3.0);
+
+    // Second cell: the three floats.
+    EXPECT_DOUBLE_EQ(evalScalar("c = C{2}(1);"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("d = C{2}(3);"), 3.5);
+}
+
+TEST_P(FileIoTest, TextscanStringColumnIsCellstr)
+{
+    eval("C = textscan('a 1 b 2 c 3', '%s %d');");
+    // %s → inner cell array of strings.
+    EXPECT_TRUE(evalBool("tf = iscell(C{1});"));
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalString("s = C{1}{1};"), "a");
+    EXPECT_EQ(evalString("s = C{1}{3};"), "c");
+    // %d column → plain double column.
+    EXPECT_EQ(evalScalar("a = C{2}(2);"), 2.0);
+}
+
+TEST_P(FileIoTest, TextscanCycleCapLimitsRows)
+{
+    // N=2 → stop after 2 full cycles, so 2 rows per column.
+    eval("C = textscan('1 a 2 b 3 c 4 d', '%d %s', 2);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalScalar("n2 = numel(C{2});"), 2.0);
+    EXPECT_EQ(evalScalar("a = C{1}(2);"), 2.0);
+}
+
+TEST_P(FileIoTest, TextscanCustomDelimiter)
+{
+    eval("C = textscan('1,2,3,4,5', '%d', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 5.0);
+    EXPECT_EQ(evalScalar("a = C{1}(5);"), 5.0);
+}
+
+TEST_P(FileIoTest, TextscanCommaSeparatedWithMixedFormat)
+{
+    eval("C = textscan('alpha,1.5,beta,2.5', '%s %f', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalString("s = C{1}{1};"), "alpha");
+    EXPECT_DOUBLE_EQ(evalScalar("v = C{2}(2);"), 2.5);
+}
+
+TEST_P(FileIoTest, TextscanSkipsHeaderLines)
+{
+    // Multi-line content has to go through a fid — MLab single-quoted
+    // strings don't carry embedded newlines.
+    fs->files()["hdr.txt"] = "# metadata\n# more meta\n1 2\n3 4\n5 6\n";
+    eval("fid = fopen('hdr.txt', 'r');");
+    eval("C = textscan(fid, '%d %d', 'HeaderLines', 2);");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{2}(3);"), 6.0);
+}
+
+TEST_P(FileIoTest, TextscanSuppressConversion)
+{
+    // %*s skips the token but doesn't produce a column.
+    eval("C = textscan('skip 1 skip 2', '%*s %d');");
+    EXPECT_EQ(evalScalar("n = numel(C);"), 1.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{1}(2);"), 2.0);
+}
+
+TEST_P(FileIoTest, TextscanFromFid)
+{
+    fs->files()["data.csv"] = "name,value\nalpha,1.5\nbeta,2.5\n";
+    eval("fid = fopen('data.csv', 'r');");
+    eval("C = textscan(fid, '%s %f', 'Delimiter', ',', 'HeaderLines', 1);");
+    eval("fclose(fid);");
+
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalString("s = C{1}{2};"), "beta");
+    EXPECT_DOUBLE_EQ(evalScalar("v = C{2}(1);"), 1.5);
+}
+
+TEST_P(FileIoTest, TextscanPartialCycleRollsBack)
+{
+    // "1 2 3" with format "%d %d" — can do one full cycle (1,2), "3"
+    // alone doesn't fit a full cycle, so it's left in the stream.
+    eval("C = textscan('1 2 3', '%d %d');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 1.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{2}(1);"), 2.0);
+}
+
+TEST_P(FileIoTest, TextscanRejectsUnsupportedOption)
+{
+    EXPECT_THROW(eval("C = textscan('1', '%d', 'NotAnOption', 42);"), std::exception);
+}
+
+TEST_P(FileIoTest, TextscanRejectsEmptyFormat)
+{
+    EXPECT_THROW(eval("C = textscan('1', '');"), std::exception);
+}
+
+TEST_P(FileIoTest, TextscanEmptyInputProducesEmptyColumns)
+{
+    eval("C = textscan('', '%d %s');");
+    EXPECT_EQ(evalScalar("n = numel(C);"), 2.0);
+    EXPECT_EQ(evalScalar("k1 = numel(C{1});"), 0.0);
+    EXPECT_EQ(evalScalar("k2 = numel(C{2});"), 0.0);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)

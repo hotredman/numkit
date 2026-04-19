@@ -1463,6 +1463,269 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 outs[3] = MValue::scalar(static_cast<double>(r.bytesConsumed + 1), alloc);
         });
 
+    // ── textscan ────────────────────────────────────────────────
+    //
+    // Tabular/columnar reading, MATLAB-compatible:
+    //
+    //   C = textscan(fid, formatSpec)
+    //   C = textscan(fid, formatSpec, N)
+    //   C = textscan(str, formatSpec, …)
+    //   C = textscan(…, 'Delimiter', d, 'HeaderLines', k)
+    //
+    // Unlike fscanf, textscan returns a CELL ARRAY with one cell per
+    // conversion in formatSpec — each cell a column vector of that
+    // conversion's values. Numeric specs (%d %i %u %f %e %g %x %o)
+    // produce a column of doubles; %s produces a column cell of
+    // strings (cellstr). N caps the number of full format cycles.
+    //
+    // Supported options: 'Delimiter' (char, char-set, or cell array
+    // of chars) and 'HeaderLines' (integer). Default delimiter is
+    // whitespace. Other MATLAB options (CommentStyle, TreatAsEmpty,
+    // EmptyValue, MultipleDelimsAsOne, …) aren't implemented yet —
+    // unknown names throw.
+
+    // Parse formatSpec into an ordered conversion list. Unrecognised
+    // % codes throw before any scanning happens.
+    struct TextscanConv { char spec; bool suppress; int width; };
+    auto parseTextscanFormat = [](const std::string &fmt) -> std::vector<TextscanConv> {
+        std::vector<TextscanConv> out;
+        for (size_t i = 0; i < fmt.size(); ++i) {
+            if (fmt[i] != '%')
+                continue;                     // literal chars between specs are ignored
+            ++i;
+            bool suppress = false;
+            if (i < fmt.size() && fmt[i] == '*') { suppress = true; ++i; }
+            int width = -1;
+            while (i < fmt.size() && std::isdigit(static_cast<unsigned char>(fmt[i]))) {
+                if (width < 0) width = 0;
+                width = width * 10 + (fmt[i] - '0');
+                ++i;
+            }
+            if (i >= fmt.size())
+                throw MLabError("textscan: truncated format specifier");
+            char spec = fmt[i];
+            switch (spec) {
+            case 'd': case 'i': case 'u':
+            case 'f': case 'e': case 'g': case 'E': case 'G':
+            case 'x': case 'X': case 'o':
+            case 's':
+                break;
+            default:
+                throw MLabError(std::string("textscan: unsupported conversion '%")
+                                + spec + "'");
+            }
+            out.push_back({spec, suppress, width});
+        }
+        if (out.empty())
+            throw MLabError("textscan: format must contain at least one conversion");
+        return out;
+    };
+
+    engine.registerFunction(
+        "textscan",
+        [parseTextscanFormat](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                              CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.size() < 2 || !args[1].isChar())
+                throw MLabError("textscan: requires (source, format [, N] [, opt, value …])");
+
+            // Source — fid scalar or char array.
+            std::string input;
+            Engine::OpenFile *srcFile = nullptr;
+            if (args[0].isChar()) {
+                input = args[0].toString();
+            } else if (args[0].isScalar()) {
+                int fid = static_cast<int>(args[0].toScalar());
+                srcFile = ctx.engine->findFile(fid);
+                if (!srcFile || !srcFile->forRead)
+                    throw MLabError("textscan: invalid file identifier");
+                input.assign(srcFile->buffer.begin() + srcFile->cursor,
+                             srcFile->buffer.end());
+            } else {
+                throw MLabError("textscan: source must be a file identifier or char array");
+            }
+
+            std::string fmt = args[1].toString();
+            auto convs = parseTextscanFormat(fmt);
+
+            // Optional positional N, then name-value pairs.
+            size_t argIdx = 2;
+            size_t cycleCap = SIZE_MAX;
+            if (argIdx < args.size() && args[argIdx].isScalar() && !args[argIdx].isChar()) {
+                double d = args[argIdx].toScalar();
+                if (!std::isinf(d)) {
+                    if (d < 0 || !std::isfinite(d))
+                        throw MLabError("textscan: N must be Inf or a non-negative integer");
+                    cycleCap = static_cast<size_t>(d);
+                }
+                ++argIdx;
+            }
+
+            std::string delims = " \t\n\r\f\v"; // default whitespace
+            size_t headerLines = 0;
+            auto lower = [](std::string s) {
+                for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                return s;
+            };
+            while (argIdx + 1 < args.size()) {
+                if (!args[argIdx].isChar())
+                    throw MLabError("textscan: option name must be a char array");
+                std::string name = lower(args[argIdx].toString());
+                const MValue &val = args[argIdx + 1];
+                if (name == "delimiter") {
+                    if (val.isChar()) {
+                        delims = val.toString();
+                    } else if (val.isCell()) {
+                        // Concatenate every char in the cells into one delimiter set.
+                        delims.clear();
+                        for (size_t i = 0; i < val.numel(); ++i) {
+                            const MValue &d = val.cellAt(i);
+                            if (d.isChar()) delims += d.toString();
+                        }
+                    } else {
+                        throw MLabError("textscan: 'Delimiter' must be a char array or cell");
+                    }
+                } else if (name == "headerlines") {
+                    double d = val.toScalar();
+                    if (d < 0 || !std::isfinite(d))
+                        throw MLabError("textscan: 'HeaderLines' must be a non-negative integer");
+                    headerLines = static_cast<size_t>(d);
+                } else {
+                    throw MLabError("textscan: unsupported option '" + args[argIdx].toString()
+                                    + "'");
+                }
+                argIdx += 2;
+            }
+
+            // Always treat CR/LF as token boundaries regardless of the
+            // user's Delimiter choice. MATLAB handles line endings via
+            // its separate 'EndOfLine' option (default '\n'); without
+            // folding them into the delim set, a ',' delimiter on a
+            // multi-line CSV would glue values across lines.
+            if (delims.find('\n') == std::string::npos) delims += '\n';
+            if (delims.find('\r') == std::string::npos) delims += '\r';
+
+            // Tokeniser helpers closed over the delim set.
+            auto inDelim = [&delims](char c) {
+                return delims.find(c) != std::string::npos;
+            };
+
+            size_t pos = 0;
+
+            // Skip header lines. Always \n-delimited (not affected by
+            // the Delimiter option).
+            for (size_t h = 0; h < headerLines && pos < input.size(); ++h) {
+                while (pos < input.size() && input[pos] != '\n') ++pos;
+                if (pos < input.size()) ++pos;
+            }
+
+            // For %s and %*s we read one token (run of non-delim chars).
+            // For numeric conversions we read a token and parse it with
+            // strtoX. If a match fails mid-cycle, roll back to the start
+            // of the cycle — MATLAB returns a clean boundary.
+            auto skipDelims = [&]() {
+                while (pos < input.size() && inDelim(input[pos])) ++pos;
+            };
+            auto readToken = [&]() -> std::string {
+                skipDelims();
+                if (pos >= input.size()) return "";
+                size_t start = pos;
+                while (pos < input.size() && !inDelim(input[pos])) ++pos;
+                return input.substr(start, pos - start);
+            };
+
+            std::vector<std::vector<double>> numCols(convs.size());
+            std::vector<std::vector<std::string>> strCols(convs.size());
+            size_t cycles = 0;
+
+            while (cycles < cycleCap) {
+                size_t savedPos = pos;
+                std::vector<std::pair<size_t, double>> stageNum;
+                std::vector<std::pair<size_t, std::string>> stageStr;
+                bool fullCycle = true;
+
+                for (size_t i = 0; i < convs.size(); ++i) {
+                    std::string tok = readToken();
+                    if (tok.empty()) { fullCycle = false; break; }
+
+                    const TextscanConv &c = convs[i];
+                    if (c.width > 0 && static_cast<int>(tok.size()) > c.width)
+                        tok.resize(static_cast<size_t>(c.width));
+
+                    if (c.spec == 's') {
+                        if (!c.suppress) stageStr.push_back({i, std::move(tok)});
+                        continue;
+                    }
+
+                    const char *start = tok.c_str();
+                    char *endp = nullptr;
+                    double v = 0.0;
+                    switch (c.spec) {
+                    case 'd': case 'i': {
+                        long long iv = std::strtoll(start, &endp, 10);
+                        v = static_cast<double>(iv);
+                        break;
+                    }
+                    case 'u': {
+                        unsigned long long uv = std::strtoull(start, &endp, 10);
+                        v = static_cast<double>(uv);
+                        break;
+                    }
+                    case 'f': case 'e': case 'g': case 'E': case 'G':
+                        v = std::strtod(start, &endp); break;
+                    case 'x': case 'X': {
+                        unsigned long long uv = std::strtoull(start, &endp, 16);
+                        v = static_cast<double>(uv);
+                        break;
+                    }
+                    case 'o': {
+                        unsigned long long uv = std::strtoull(start, &endp, 8);
+                        v = static_cast<double>(uv);
+                        break;
+                    }
+                    }
+                    if (endp == start) { fullCycle = false; break; }
+                    if (!c.suppress) stageNum.push_back({i, v});
+                }
+
+                if (!fullCycle) { pos = savedPos; break; }
+
+                for (auto &p : stageNum) numCols[p.first].push_back(p.second);
+                for (auto &p : stageStr) strCols[p.first].push_back(std::move(p.second));
+                ++cycles;
+            }
+
+            if (srcFile)
+                srcFile->cursor += pos;
+
+            // Build the outer cell array — one slot per non-suppressed
+            // conversion. Suppressed conversions contribute no column.
+            size_t nonSup = 0;
+            for (auto &c : convs) if (!c.suppress) ++nonSup;
+            MValue result = MValue::cell(1, nonSup);
+            size_t slot = 0;
+            for (size_t i = 0; i < convs.size(); ++i) {
+                if (convs[i].suppress) continue;
+                if (convs[i].spec == 's') {
+                    size_t k = strCols[i].size();
+                    MValue inner = MValue::cell(k, 1);
+                    for (size_t j = 0; j < k; ++j)
+                        inner.cellAt(j) = MValue::fromString(strCols[i][j], alloc);
+                    result.cellAt(slot++) = std::move(inner);
+                } else {
+                    size_t k = numCols[i].size();
+                    MValue col = (k == 0)
+                                     ? MValue::matrix(0, 0, MType::DOUBLE, alloc)
+                                     : MValue::matrix(k, 1, MType::DOUBLE, alloc);
+                    if (k > 0)
+                        std::memcpy(col.doubleDataMut(), numCols[i].data(),
+                                    k * sizeof(double));
+                    result.cellAt(slot++) = std::move(col);
+                }
+            }
+            outs[0] = std::move(result);
+        });
+
     engine.registerFunction(
         "fwrite",
         [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,
