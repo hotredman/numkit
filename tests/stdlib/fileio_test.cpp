@@ -282,4 +282,59 @@ TEST_P(FileIoTest, FopenTreatsUnregisteredPrefixAsLiteralPath)
     EXPECT_EQ(fs->files()["mailto:x@y.z"], "pass-through");
 }
 
+// ── Lifetime edge cases ──────────────────────────────────
+
+TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
+{
+    // A script that forgets fclose must not lose its writes when the
+    // Engine is destroyed — Engine::~Engine() calls closeAllFiles().
+    // The test uses a CallbackFS whose write sink lives OUTSIDE the
+    // engine's lifetime, so we can inspect it after engine destruction.
+    std::map<std::string, std::string> persisted;
+    {
+        mlab::Engine local;
+        StdLibrary::install(local);
+        if (GetParam() == BackendParam::TreeWalker)
+            local.setBackend(Engine::Backend::TreeWalker);
+        else
+            local.setBackend(Engine::Backend::VM);
+
+        auto fs = std::make_unique<mlab::CallbackFS>(
+            "temporary",
+            [](const std::string &) -> std::string { return ""; },
+            [&persisted](const std::string &p, const std::string &c) { persisted[p] = c; },
+            [&persisted](const std::string &p) { return persisted.count(p) > 0; });
+        local.registerVirtualFS(std::move(fs));
+        local.pushScriptOrigin("temporary");
+
+        local.eval("fid = fopen('leak.txt', 'w');");
+        local.eval("fprintf(fid, 'no fclose called\\n');");
+        // No explicit fclose — engine destructor runs here.
+    }
+
+    EXPECT_EQ(persisted["leak.txt"], "no fclose called\n");
+}
+
+TEST_P(FileIoTest, OpenFidSurvivesClearAll)
+{
+    // `clear all` wipes the workspace + user functions, but runtime state
+    // like the open-file table must persist — otherwise a long-running
+    // script that issues `clear all` would lose its log file handle.
+    eval("fid = fopen('survive.txt', 'w');");
+    const int fidVal = static_cast<int>(getVar("fid"));
+    eval("fprintf(fid, 'before-clear\\n');");
+
+    eval("clear all;");
+
+    // The 'fid' variable is gone from the workspace, but the descriptor
+    // is still valid — keep using it via its literal id.
+    std::ostringstream code;
+    code << "fprintf(" << fidVal << ", 'after-clear\\n'); "
+         << "s = fclose(" << fidVal << ");";
+    eval(code.str());
+    EXPECT_EQ(getVar("s"), 0.0);
+
+    EXPECT_EQ(fs->files()["survive.txt"], "before-clear\nafter-clear\n");
+}
+
 INSTANTIATE_DUAL(FileIoTest);
