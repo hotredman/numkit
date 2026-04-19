@@ -5,7 +5,7 @@
 
 int main()
 {
-    mlab::Engine engine;
+    numkit::m::Engine engine;
 
     std::cout << "M Interpreter\n";
     std::cout << "Type 'quit' or 'exit' to leave.\n\n";
