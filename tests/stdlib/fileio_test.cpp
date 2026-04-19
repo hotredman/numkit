@@ -966,6 +966,45 @@ TEST_P(FileIoTest, FscanfOnInvalidFidThrows)
     EXPECT_THROW(eval("A = fscanf(999, '%d');"), std::exception);
 }
 
+// ── [fid, errmsg] = fopen(...) ───────────────────────────
+
+TEST_P(FileIoTest, FopenMultiOutputReturnsEmptyErrmsgOnSuccess)
+{
+    eval("[fid, err] = fopen('ok.txt', 'w');");
+    EXPECT_GE(getVar("fid"), 3.0);
+    EXPECT_EQ(evalString("s = err;"), "");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FopenMultiOutputReportsErrmsgOnMissingFile)
+{
+    eval("[fid, err] = fopen('nonexistent.txt', 'r');");
+    EXPECT_EQ(getVar("fid"), -1.0);
+    // Message should describe the failure; exact wording depends on the
+    // backend but must be non-empty so `if fid < 0, error(err); end`
+    // works.
+    EXPECT_FALSE(evalString("s = err;").empty());
+}
+
+TEST_P(FileIoTest, FopenMultiOutputReportsErrmsgOnBadMode)
+{
+    eval("[fid, err] = fopen('x.txt', 'bogus');");
+    EXPECT_EQ(getVar("fid"), -1.0);
+    EXPECT_NE(evalString("s = err;").find("permission"), std::string::npos);
+}
+
+TEST_P(FileIoTest, FopenErrmsgIsClearedOnNextSuccessfulOpen)
+{
+    // First fopen fails — errmsg populated. Second succeeds — errmsg
+    // empty. This stateful behaviour matches MATLAB: the `err` out is
+    // always the status of the CURRENT call, never sticky.
+    eval("[f1, e1] = fopen('missing.txt', 'r');");
+    EXPECT_FALSE(evalString("s = e1;").empty());
+    eval("[f2, e2] = fopen('new.txt', 'w');");
+    EXPECT_EQ(evalString("s = e2;"), "");
+    eval("fclose(f2);");
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)

@@ -739,6 +739,12 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string mode = (args.size() >= 2 && args[1].isChar()) ? args[1].toString() : "r";
             int fid = ctx.engine->openFile(path, mode);
             outs[0] = MValue::scalar(static_cast<double>(fid), alloc);
+            // MATLAB: `[fid, errmsg] = fopen(...)` — errmsg is the reason
+            // for a failed open, empty string on success.
+            if (nargout > 1) {
+                outs[1] = MValue::fromString(
+                    fid < 0 ? ctx.engine->lastFopenError() : std::string(), alloc);
+            }
         });
 
     engine.registerFunction(

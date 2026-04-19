@@ -211,6 +211,9 @@ public:
     bool closeFile(int fid);
     void closeAllFiles();
     OpenFile *findFile(int fid);
+    // Error text from the most recent openFile() call. Empty string after
+    // a successful open. Powers MATLAB's `[fid, errmsg] = fopen(...)`.
+    const std::string &lastFopenError() const { return lastFopenError_; }
 
 private:
     Allocator allocator_;
@@ -266,6 +269,7 @@ private:
     // MATLAB-style open-file table
     std::unordered_map<int, OpenFile> openFiles_;
     int nextFid_ = 3;
+    std::string lastFopenError_;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

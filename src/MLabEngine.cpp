@@ -673,18 +673,23 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
 
 int Engine::openFile(const std::string &userPath, const std::string &modeRaw)
 {
+    lastFopenError_.clear();
+
     // Strip Windows-style 't'/'b' suffix ("rt", "wb"). The underlying
     // buffer is bytes anyway; we don't do CRLF translation.
     std::string mode = modeRaw;
     while (!mode.empty() && (mode.back() == 't' || mode.back() == 'b'))
         mode.pop_back();
-    if (mode != "r" && mode != "w" && mode != "a")
+    if (mode != "r" && mode != "w" && mode != "a") {
+        lastFopenError_ = "Invalid permission specified";
         return -1;
+    }
 
     ResolvedPath r;
     try {
         r = resolvePath(userPath);
-    } catch (const std::exception &) {
+    } catch (const std::exception &e) {
+        lastFopenError_ = e.what();
         return -1;
     }
 
@@ -698,8 +703,9 @@ int Engine::openFile(const std::string &userPath, const std::string &modeRaw)
     if (mode == "r") {
         try {
             f.buffer = r.fs->readFile(r.path);
-        } catch (const std::exception &) {
-            return -1; // MATLAB contract: -1 when the file can't be opened.
+        } catch (const std::exception &e) {
+            lastFopenError_ = e.what();
+            return -1;
         }
     } else if (mode == "a") {
         // Seed the append buffer with existing content if any — fclose
