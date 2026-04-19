@@ -85,7 +85,7 @@ export default function App() {
   const handleLocalMount = useCallback(async () => {
     if (!engine) return;
     const local = await installLocalAdapter(engine);
-    setVfsAdapters(prev => ({ ...(prev || { temp: null }), local }));
+    setVfsAdapters(prev => ({ temp: prev?.temp ?? null, local }));
   }, [engine]);
 
   if (!engine || !fsReady) {

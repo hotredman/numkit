@@ -7,6 +7,7 @@ import Figures from "./Figures";
 import SyntaxEditor from "./SyntaxEditor";
 import tempFS from "../temporary";
 import localFS from "../fs/local";
+import { pickRunOrigin } from "../fs/run-origin";
 import { loadUiState, saveUiState } from "../ui-state";
 import { useTheme, FONT, FONT_UI } from "../theme";
 
@@ -100,15 +101,6 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
   );
 }
 
-// Map a tab's `source` field to the VirtualFS name the engine should
-// route relative file paths through while that tab is running. Falls
-// back to 'temporary' so csvwrite from the REPL or bundled examples
-// lands somewhere the user can see in File Browser, not MEMFS.
-function originForSource(source) {
-  if (source === 'localFolder') return 'local';
-  return 'temporary';
-}
-
 export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAdapters, onLocalMount }) {
   const C = useTheme();
   const { themeName, toggleTheme } = C;
@@ -171,6 +163,15 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
       : 1
   );
   const editorRef=useRef(null); const gutterRef=useRef(null); const consoleRef=useRef(null); const resizingRef=useRef(false); const resizingRightRef=useRef(false);
+  // Lives for the component lifetime. Used to guard async setState calls
+  // from adapter.flush().then(...) after an unmount.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
+  // Fires once per "local-folder is unavailable" streak — avoids stacking
+  // identical warnings when the user re-Runs before mounting. Reset when
+  // local becomes available so a later unmount re-arms the warning.
+  const warnedFallbackRef = useRef(false);
+  useEffect(() => { if (vfsAdapters?.local) warnedFallbackRef.current = false; }, [vfsAdapters?.local]);
   const engine = engineProp;
 
   useEffect(()=>{setOutput([{type:"system",text:"MLab REPL v2.5 — Web IDE"},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);},[]);
@@ -178,26 +179,21 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
   const runCode=useCallback(code=>{
-    // Pick the origin FS for this run. Try the preferred one first (derived
-    // from the active tab's source), then fall back to temporary — that way
-    // a tab from Local Folder run without a mounted folder still writes
-    // somewhere visible in File Browser instead of MEMFS. Warn the user
-    // when we fall back so a silent write-elsewhere doesn't surprise them.
-    // If no adapter is available at all (full VFS init failure), skip the
-    // push entirely so the resolver falls through to NativeFS/MEMFS.
     const activeTabObj = tabs.find(t => t.id === activeTab);
-    const wantOrigin = originForSource(activeTabObj?.source);
-    let adapter = wantOrigin === 'local' ? vfsAdapters?.local : vfsAdapters?.temp;
-    let origin = adapter ? wantOrigin : null;
-    if (!adapter && vfsAdapters?.temp) {
-      adapter = vfsAdapters.temp;
-      origin = 'temporary';
+    const { adapter, origin, fallbackUsed } = pickRunOrigin(activeTabObj?.source, vfsAdapters);
+
+    // Tell the user (once per "local-unavailable" streak) when a run
+    // from a Local-Folder tab is silently routed to Temporary, so they
+    // know why their file landed in the wrong tree.
+    if (fallbackUsed && !warnedFallbackRef.current) {
       addOutput([{
         type: 'warning',
-        text: `Warning: Local Folder not mounted — file I/O for this run will go to Temporary. Mount a folder from the File Browser to persist writes to disk.`,
+        text: 'Warning: Local Folder not mounted — file I/O for this run will go to Temporary. Mount a folder from the File Browser to persist writes to disk.',
       }]);
       setConsoleNotify(true);
+      warnedFallbackRef.current = true;
     }
+
     if (origin) engine.pushScriptOrigin(origin);
     let result;
     const t0=performance.now();
@@ -212,8 +208,12 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
     setVariables(engine.getVars());
     // If the script wrote to tempFS/local via the sync mirror, the disk
     // persist is still in flight; wait for it before refreshing the File
-    // Browser so newly-created files show up on the first render.
-    if (adapter) adapter.flush().then(() => setVfsRefreshKey(k => k + 1));
+    // Browser so newly-created files show up on the first render. Guarded
+    // by mountedRef so an unmount mid-flush doesn't setState on a dead
+    // component.
+    if (adapter) adapter.flush().then(() => {
+      if (mountedRef.current) setVfsRefreshKey(k => k + 1);
+    });
   },[engine,addOutput,tabs,activeTab,vfsAdapters]);
 
   // ── Debug actions ──
