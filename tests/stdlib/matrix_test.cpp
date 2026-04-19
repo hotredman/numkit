@@ -234,5 +234,32 @@ TEST_P(ReshapeTest, ReshapeMismatchedCountThrows)
     EXPECT_THROW({ eval("reshape(1:12, 2, 3, 3);"); }, std::exception);
 }
 
+TEST_P(ReshapeTest, Reshape2DTo3D)
+{
+    eval("A = reshape(1:12, 3, 4); B = reshape(A, 2, 3, 2);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->dims().rows(), 2u);
+    EXPECT_EQ(B->dims().cols(), 3u);
+    EXPECT_EQ(B->dims().pages(), 2u);
+    EXPECT_DOUBLE_EQ(B->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[11], 12.0);
+}
+
+TEST_P(ReshapeTest, ReshapeComplexPreservesValues)
+{
+    eval("A = (1:8) + (1:8) * 1i; B = reshape(A, 2, 2, 2);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_TRUE(B->isComplex());
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 8u);
+    EXPECT_DOUBLE_EQ(B->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(B->complexData()[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ(B->complexData()[7].real(), 8.0);
+    EXPECT_DOUBLE_EQ(B->complexData()[7].imag(), 8.0);
+}
+
 INSTANTIATE_DUAL(ReshapeTest);
 
