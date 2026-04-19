@@ -1848,19 +1848,27 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     struct TextscanOptions
     {
-        // When empty, the tokeniser uses whitespace (space/tab/\f/\v plus
-        // the end-of-line chars). When non-empty, tokens are split by
-        // exactly these characters, plus end-of-line.
+        // Empty → whitespace-default mode (runs of space/tab/\f/\v + EOL
+        // count as a single field boundary). Non-empty → explicit-delim
+        // mode: ONE char in this set is one field boundary, and EOL
+        // chars are still separate record boundaries that always
+        // collapse.
         std::string delimiters;
         std::string endOfLine = "\n";
         size_t headerLines = 0;
-        // Line-comment marker. When non-empty, anything from an
-        // occurrence of this string up to the next EndOfLine char is
-        // ignored during tokenisation.
+        // Line-comment marker. When non-empty, anything from its first
+        // occurrence up to the next EndOfLine char is ignored.
         std::string commentStyle;
-        // Tokens whose text equals any entry in this set become "empty":
-        // numeric conversions yield NaN, %s yields ''.
+        // Tokens whose text equals any entry in this set are coerced to
+        // "empty" (numeric → EmptyValue, %s → '').
         std::vector<std::string> treatAsEmpty;
+        // In explicit-delim mode only: when true, runs of delim chars
+        // collapse to one boundary (no empty fields emitted). Default
+        // false, matching MATLAB; whitespace-default mode always
+        // collapses regardless.
+        bool multipleDelimsAsOne = false;
+        // Value substituted for empty numeric fields. MATLAB default NaN.
+        double emptyValue = std::numeric_limits<double>::quiet_NaN();
     };
 
     // Parse formatSpec into an ordered conversion list. Unrecognised
@@ -1988,6 +1996,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     } else {
                         throw MLabError("textscan: 'TreatAsEmpty' must be a char array or cell");
                     }
+                } else if (name == "multipledelimsasone") {
+                    if (!val.isScalar() && !val.isLogical())
+                        throw MLabError("textscan: 'MultipleDelimsAsOne' must be logical/numeric");
+                    opts.multipleDelimsAsOne = (val.toScalar() != 0.0);
+                } else if (name == "emptyvalue") {
+                    if (!val.isScalar())
+                        throw MLabError("textscan: 'EmptyValue' must be a numeric scalar");
+                    opts.emptyValue = val.toScalar();
                 } else {
                     throw MLabError("textscan: unsupported option '" + args[argIdx].toString()
                                     + "'");
@@ -1995,22 +2011,32 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 argIdx += 2;
             }
 
-            // Build the effective token-boundary set. Default (no Delimiter
-            // supplied) is whitespace; EndOfLine is ALWAYS merged in so
-            // multi-line inputs don't glue values across rows.
-            std::string delims = opts.delimiters.empty() ? std::string(" \t\f\v")
-                                                         : opts.delimiters;
-            for (char c : opts.endOfLine)
-                if (delims.find(c) == std::string::npos) delims += c;
+            // Character classification. Whitespace-default mode (no
+            // Delimiter supplied) treats whitespace as a collapsing
+            // field separator; explicit-delim mode reserves whitespace
+            // for trimming around fields instead.
+            const bool useWsDefault = opts.delimiters.empty();
+            size_t pos = 0;
 
-            auto inDelim = [&delims](char c) {
-                return delims.find(c) != std::string::npos;
-            };
             auto isEol = [&opts](char c) {
                 return opts.endOfLine.find(c) != std::string::npos;
             };
-
-            size_t pos = 0;
+            auto isWs = [](char c) {
+                return c == ' ' || c == '\t' || c == '\f' || c == '\v';
+            };
+            auto isExplicitDelim = [&opts](char c) {
+                return opts.delimiters.find(c) != std::string::npos;
+            };
+            auto atComment = [&opts, &input, &pos]() -> bool {
+                return !opts.commentStyle.empty() &&
+                       pos + opts.commentStyle.size() <= input.size() &&
+                       input.compare(pos, opts.commentStyle.size(), opts.commentStyle) == 0;
+            };
+            auto isEmpty = [&opts](const std::string &tok) {
+                for (auto &e : opts.treatAsEmpty)
+                    if (tok == e) return true;
+                return false;
+            };
 
             // Skip header lines using the configured EndOfLine chars.
             for (size_t h = 0; h < opts.headerLines && pos < input.size(); ++h) {
@@ -2018,65 +2044,160 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 if (pos < input.size()) ++pos;  // consume the EOL char itself
             }
 
-            // For %s and %*s we read one token (run of non-delim chars).
-            // For numeric conversions we read a token and parse it with
-            // strtoX. If a match fails mid-cycle, roll back to the start
-            // of the cycle — MATLAB returns a clean boundary.
-            auto atComment = [&]() {
-                return !opts.commentStyle.empty() &&
-                       input.compare(pos, opts.commentStyle.size(), opts.commentStyle) == 0;
-            };
-            auto skipDelims = [&]() {
+            // skipLeading: eat all whitespace / EOL / comment chars before
+            // the very first field of the whole run. Called once, before
+            // the cycle loop.
+            auto skipLeading = [&]() {
                 while (pos < input.size()) {
                     if (atComment()) {
                         while (pos < input.size() && !isEol(input[pos])) ++pos;
                         continue;
                     }
-                    if (inDelim(input[pos])) { ++pos; continue; }
+                    char c = input[pos];
+                    if (isEol(c) || isWs(c)) { ++pos; continue; }
                     break;
                 }
             };
-            auto readToken = [&]() -> std::string {
-                skipDelims();
-                if (pos >= input.size()) return "";
-                size_t start = pos;
-                while (pos < input.size() && !inDelim(input[pos]) && !atComment()) ++pos;
-                return input.substr(start, pos - start);
+
+            // consumeBoundary: eat exactly ONE field/record boundary
+            // between two adjacent fields. Returns false when there is
+            // no boundary to consume (EOF or unexpected input), which
+            // signals the caller to end the cycle.
+            //
+            // Whitespace-default: runs of whitespace+EOL+comments all
+            // collapse to one boundary — MATLAB's documented contract.
+            // Explicit-delim: EOL still collapses, but a single delim
+            // char counts as ONE boundary, so "1,,3" yields three
+            // fields with the middle one empty (subject to
+            // MultipleDelimsAsOne, which collapses runs of the
+            // explicit delim back together).
+            auto consumeBoundary = [&]() -> bool {
+                if (useWsDefault) {
+                    size_t before = pos;
+                    while (pos < input.size()) {
+                        if (atComment()) {
+                            while (pos < input.size() && !isEol(input[pos])) ++pos;
+                            continue;
+                        }
+                        char c = input[pos];
+                        if (isWs(c) || isEol(c)) { ++pos; continue; }
+                        break;
+                    }
+                    return pos > before;
+                }
+
+                // Explicit-delim mode. Trim leading whitespace around
+                // the boundary (ws is always stripped from fields, not
+                // treated as a delim itself).
+                while (pos < input.size() && isWs(input[pos])) ++pos;
+                if (atComment()) {
+                    while (pos < input.size() && !isEol(input[pos])) ++pos;
+                }
+                if (pos >= input.size()) return false;
+
+                char c = input[pos];
+                if (isEol(c)) {
+                    // EOL runs always collapse, even in explicit-delim mode.
+                    while (pos < input.size() && isEol(input[pos])) ++pos;
+                    while (pos < input.size() && isWs(input[pos])) ++pos;
+                    return true;
+                }
+                if (!isExplicitDelim(c)) return false;
+
+                ++pos;  // consume exactly one delim
+                if (opts.multipleDelimsAsOne) {
+                    while (pos < input.size() && isExplicitDelim(input[pos])) ++pos;
+                }
+                while (pos < input.size() && isWs(input[pos])) ++pos;
+                return true;
             };
-            auto isEmpty = [&](const std::string &tok) {
-                for (auto &e : opts.treatAsEmpty)
-                    if (tok == e) return true;
-                return false;
+
+            // readField: consume up to the next field/record boundary.
+            // In explicit-delim mode, trailing whitespace inside the
+            // field is trimmed (so "1 , 2" with delim ',' yields "1"
+            // and "2", not "1 " and " 2").
+            auto readField = [&]() -> std::string {
+                size_t start = pos;
+                while (pos < input.size()) {
+                    char c = input[pos];
+                    if (atComment()) break;
+                    if (isEol(c)) break;
+                    if (useWsDefault) {
+                        if (isWs(c)) break;
+                    } else {
+                        if (isExplicitDelim(c)) break;
+                    }
+                    ++pos;
+                }
+                size_t end = pos;
+                if (!useWsDefault) {
+                    while (end > start && isWs(input[end - 1])) --end;
+                }
+                return input.substr(start, end - start);
             };
 
             std::vector<std::vector<double>> numCols(convs.size());
             std::vector<std::vector<std::string>> strCols(convs.size());
             size_t cycles = 0;
 
+            skipLeading();                         // past leading ws/EOL/comments once
+            bool atFirstField = true;              // no boundary-consume before the very first field
+
             while (cycles < cycleCap) {
+                if (pos >= input.size()) break;
+
                 size_t savedPos = pos;
+                bool savedFirst = atFirstField;
                 std::vector<std::pair<size_t, double>> stageNum;
                 std::vector<std::pair<size_t, std::string>> stageStr;
                 bool fullCycle = true;
 
                 for (size_t i = 0; i < convs.size(); ++i) {
-                    std::string tok = readToken();
-                    if (tok.empty()) { fullCycle = false; break; }
+                    if (!atFirstField) {
+                        if (!consumeBoundary()) { fullCycle = false; break; }
+                    }
+                    atFirstField = false;
+
+                    // Note: we DO NOT bail on pos >= input.size() here.
+                    // In explicit-delim mode a trailing separator creates
+                    // a legitimate final empty field ("a,b," → 3 fields),
+                    // and readField returning "" below gets routed into
+                    // the empty-field branch correctly. In whitespace-
+                    // default mode, the same empty-tok path distinguishes
+                    // "no more data" and triggers fullCycle = false.
+                    std::string tok = readField();
+
+                    // Two kinds of "empty token" can flow out of readField:
+                    //
+                    //   1. The raw token was non-empty but matches one of
+                    //      the TreatAsEmpty markers → coerce to empty,
+                    //      treat as an explicitly empty field.
+                    //   2. readField genuinely returned "" because we hit
+                    //      EOL/EOF → partial cycle in ws-default mode, or
+                    //      a real empty field between two explicit delims.
+                    //
+                    // The coercedEmpty flag keeps these apart so a
+                    // TreatAsEmpty hit in whitespace-default mode still
+                    // yields EmptyValue instead of rolling back.
+                    bool coercedEmpty = !tok.empty() && isEmpty(tok);
+                    if (coercedEmpty) tok.clear();
 
                     const TextscanConv &c = convs[i];
-                    if (c.width > 0 && static_cast<int>(tok.size()) > c.width)
-                        tok.resize(static_cast<size_t>(c.width));
-
-                    // TreatAsEmpty: matching tokens produce "empty" results —
-                    // NaN for numeric, '' for %s — without a parse attempt.
-                    if (isEmpty(tok)) {
+                    if (tok.empty()) {
+                        if (!coercedEmpty && useWsDefault) {
+                            fullCycle = false;
+                            break;
+                        }
                         if (c.suppress) continue;
                         if (c.spec == 's')
                             stageStr.push_back({i, std::string()});
                         else
-                            stageNum.push_back({i, std::numeric_limits<double>::quiet_NaN()});
+                            stageNum.push_back({i, opts.emptyValue});
                         continue;
                     }
+
+                    if (c.width > 0 && static_cast<int>(tok.size()) > c.width)
+                        tok.resize(static_cast<size_t>(c.width));
 
                     if (c.spec == 's') {
                         if (!c.suppress) stageStr.push_back({i, std::move(tok)});
@@ -2114,7 +2235,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     if (!c.suppress) stageNum.push_back({i, v});
                 }
 
-                if (!fullCycle) { pos = savedPos; break; }
+                if (!fullCycle) {
+                    pos = savedPos;
+                    atFirstField = savedFirst;
+                    break;
+                }
 
                 for (auto &p : stageNum) numCols[p.first].push_back(p.second);
                 for (auto &p : stageStr) strCols[p.first].push_back(std::move(p.second));

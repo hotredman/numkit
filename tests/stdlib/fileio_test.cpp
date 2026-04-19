@@ -1737,6 +1737,96 @@ TEST_P(FileIoTest, TextscanTreatAsEmptyWithStringSpec)
     EXPECT_EQ(evalString("s4 = C{1}{4};"), "");
 }
 
+// ── MultipleDelimsAsOne / EmptyValue — explicit-delim empty fields ──
+
+TEST_P(FileIoTest, TextscanEmptyFieldBecomesNaNByDefault)
+{
+    // MATLAB-correct: consecutive explicit delims yield empty fields,
+    // filled with EmptyValue (default NaN).
+    eval("C = textscan('1,,3', '%f', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a1 = C{1}(1);"), 1.0);
+    EXPECT_TRUE(evalBool("tf = isnan(C{1}(2));"));
+    EXPECT_EQ(evalScalar("a3 = C{1}(3);"), 3.0);
+}
+
+TEST_P(FileIoTest, TextscanEmptyValueOverridesNaN)
+{
+    // User-supplied EmptyValue replaces the NaN default.
+    eval("C = textscan('1,,3,,5', '%d', 'Delimiter', ',', 'EmptyValue', 0);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 5.0);
+    EXPECT_EQ(evalScalar("a1 = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a2 = C{1}(2);"), 0.0);
+    EXPECT_EQ(evalScalar("a3 = C{1}(3);"), 3.0);
+    EXPECT_EQ(evalScalar("a4 = C{1}(4);"), 0.0);
+    EXPECT_EQ(evalScalar("a5 = C{1}(5);"), 5.0);
+}
+
+TEST_P(FileIoTest, TextscanMultipleDelimsAsOneCollapsesRuns)
+{
+    // With MultipleDelimsAsOne=true, consecutive delims collapse and
+    // we get back the pre-refactor "no empty fields" behaviour.
+    eval("C = textscan('1,,3,,,5', '%d', 'Delimiter', ',', "
+         "'MultipleDelimsAsOne', true);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a1 = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a2 = C{1}(2);"), 3.0);
+    EXPECT_EQ(evalScalar("a3 = C{1}(3);"), 5.0);
+}
+
+TEST_P(FileIoTest, TextscanEmptyFieldWithStringSpec)
+{
+    // Empty fields also work with %s — a cellstr entry of ''.
+    eval("C = textscan('a,,c', '%s', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalString("s1 = C{1}{1};"), "a");
+    EXPECT_EQ(evalString("s2 = C{1}{2};"), "");
+    EXPECT_EQ(evalString("s3 = C{1}{3};"), "c");
+}
+
+TEST_P(FileIoTest, TextscanMixedFormatRespectsEmptyFieldColumn)
+{
+    // Format '%s %d' with 'a,,2': column 1 has 'a', column 2 sees ",2" —
+    // first %d would read empty, then cycle. Detailed expected output:
+    //   cycle 1: %s='a', %d=empty → NaN
+    //   cycle 2 starts with '2' left over? Let's test the simplest case:
+    eval("C = textscan('a,,c,,e', '%s %d', 'Delimiter', ',');");
+    // Row 1: 'a' and NaN; row 2: 'c' and NaN;  then 'e' left alone → partial.
+    // So 2 complete rows.
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalString("s1 = C{1}{1};"), "a");
+    EXPECT_TRUE(evalBool("tf = isnan(double(C{2}(1)));"));
+}
+
+TEST_P(FileIoTest, TextscanWhitespaceTrimmedAroundExplicitDelimFields)
+{
+    // With Delimiter=',', surrounding whitespace on each field must
+    // be stripped (so strtoX parses cleanly).
+    eval("C = textscan('1 , 2 , 3', '%d', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a = C{1}(1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = C{1}(3);"), 3.0);
+}
+
+TEST_P(FileIoTest, TextscanWhitespaceDefaultStillCollapsesRuns)
+{
+    // Default mode: runs of whitespace stay collapsed regardless of
+    // MultipleDelimsAsOne — MATLAB-documented.
+    eval("C = textscan('1     2   3', '%d');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("b = C{1}(2);"), 2.0);
+}
+
+TEST_P(FileIoTest, TextscanMultipleConsecutiveDelimsSeparateFields)
+{
+    // Three fields → three doubles, two empty (NaN).
+    eval("C = textscan(',,', '%f', 'Delimiter', ',');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_TRUE(evalBool("t1 = isnan(C{1}(1));"));
+    EXPECT_TRUE(evalBool("t2 = isnan(C{1}(2));"));
+    EXPECT_TRUE(evalBool("t3 = isnan(C{1}(3));"));
+}
+
 // ── save / load (ascii) ──────────────────────────────────
 
 TEST_P(FileIoTest, SaveLoadRoundTripMatrix)
