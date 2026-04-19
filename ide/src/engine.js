@@ -183,6 +183,11 @@ function tryParseValue(s) {
   return s;
 }
 
+// One-shot flag so we don't spam the console once per registerFs call
+// when the WASM binary is stale. Module-scoped so the engine object
+// itself stays free of diagnostic bookkeeping.
+let warnedStaleWasm = false;
+
 // ── WASM engine wrapper ──
 export async function createWasmEngine(createModule) {
   const Module = await createModule({
@@ -209,9 +214,11 @@ export async function createWasmEngine(createModule) {
     repl_pop_script_origin: typeof Module.repl_pop_script_origin,
   });
 
-  // Expose the instance once so it's reachable from devtools as
-  // `window.__mlabModule` for ad-hoc poking during debugging.
-  if (typeof window !== 'undefined') window.__mlabModule = Module;
+  // Dev-only: expose the instance on window so devtools can poke it.
+  // Gated on Vite's DEV flag so production builds don't leak it into
+  // the global namespace.
+  if (import.meta.env?.DEV && typeof window !== 'undefined')
+    window.__mlabModule = Module;
 
   return {
     type: 'wasm',
@@ -297,10 +304,10 @@ export async function createWasmEngine(createModule) {
     // not available" from the engine's path resolver.
     registerFs(name, handler) {
       if (typeof Module.repl_register_fs !== 'function') {
-        if (!this._warnedStaleWasm) {
+        if (!warnedStaleWasm) {
           console.warn('[engine] WASM binary is stale — missing VFS bindings. '
             + 'Rebuild the WASM module or hard-refresh to pick up the latest mlab_repl.{js,wasm}.');
-          this._warnedStaleWasm = true;
+          warnedStaleWasm = true;
         }
         return;
       }

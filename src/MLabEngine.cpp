@@ -575,9 +575,15 @@ const std::string *Engine::currentScriptOrigin() const
 
 namespace {
 
-// Split "prefix:rest" into {prefix, rest} if `prefix` is a known FS name.
-// Returns {"", path} if no recognisable scheme. Treats single-char prefixes
-// as drive letters (Windows C:/foo), never as FS schemes.
+// Split "prefix:rest" into {prefix, rest} if `prefix` is a known FS name,
+// otherwise return {"", path}. Two guards against false positives on
+// paths that happen to contain ':':
+//   • colon must be at index >= 2, so Windows drive letters (C:/foo) and
+//     empty prefixes (":foo") never look like a scheme. This forbids
+//     single-character FS names by construction — acceptable because all
+//     current FS names ('native', 'temporary', 'local') are longer.
+//   • the prefix must match a registered FS. So a path like "http://..."
+//     or "mailto:..." falls through to the default FS untouched.
 std::pair<std::string, std::string> splitFsScheme(const std::string &path,
                                                   const std::unordered_map<std::string, std::unique_ptr<VirtualFS>> &fsMap)
 {
@@ -587,9 +593,7 @@ std::pair<std::string, std::string> splitFsScheme(const std::string &path,
     std::string scheme = path.substr(0, colon);
     if (fsMap.find(scheme) == fsMap.end())
         return {"", path};
-    std::string rest = path.substr(colon + 1);
-    // Strip one leading slash (tempr:/foo → /foo; temporary:foo → foo; both ok).
-    return {scheme, rest};
+    return {scheme, path.substr(colon + 1)};
 }
 
 bool isAbsolutePath(const std::string &p)

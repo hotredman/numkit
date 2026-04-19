@@ -10,10 +10,16 @@
 
 namespace mlab {
 
-// Project-name prefix used for user-facing identifiers that must change
-// if the project is ever renamed — currently only environment-variable
-// names like MLAB_FS, MLAB_CWD. C++ namespaces, CMake targets, file
-// names, and docs are handled separately during the rename itself.
+// Project-name prefix for user-facing identifiers that must change if
+// the project is ever renamed. Intentionally narrow — covers only the
+// environment-variable namespace (MLAB_FS, MLAB_CWD, …) that end-user
+// scripts `setenv`/`getenv` touch and would break on rename.
+//
+// NOT covered here (rename these manually alongside the prefix update):
+//   • C++ namespace `mlab`, target `mlab::mlab`
+//   • File names `MLab*.hpp` / `MLab*.cpp`
+//   • Error-identifier strings such as "MLAB:assert" in MLabStdIO.cpp
+//   • Documentation, README, CMake project name
 inline constexpr const char *kEnvPrefix = "MLAB";
 
 inline std::string envVarName(const char *suffix)
