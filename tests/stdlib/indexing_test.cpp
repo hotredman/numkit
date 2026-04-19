@@ -914,4 +914,51 @@ TEST_P(IndexingOpsTest, Int8SaturationOnWrite)
     EXPECT_EQ(a->numel(), 3u);
 }
 
+// ── Char matrix display ───────────────────────────────
+
+TEST_P(IndexingOpsTest, DispCharRowUnchanged)
+{
+    // 1xN char row stays a single line, no quotes.
+    capturedOutput.clear();
+    eval("disp('hello');");
+    EXPECT_NE(capturedOutput.find("hello"), std::string::npos);
+    EXPECT_EQ(capturedOutput.find('\''), std::string::npos);  // no quotes from disp
+}
+
+TEST_P(IndexingOpsTest, DispCharMatrixPrintsRowByRow)
+{
+    // 2x3 char matrix via reshape → each row on its own line,
+    // column-major read: row 1 = 'a','c','e'; row 2 = 'b','d','f'.
+    capturedOutput.clear();
+    eval("disp(reshape('abcdef', 2, 3));");
+    // Check both rows appear on separate lines. Find 'ace' then expect
+    // 'bdf' to follow AFTER it.
+    auto p1 = capturedOutput.find("ace");
+    auto p2 = capturedOutput.find("bdf");
+    ASSERT_NE(p1, std::string::npos);
+    ASSERT_NE(p2, std::string::npos);
+    EXPECT_LT(p1, p2);
+    // No stray "abcdef" single-line flattening.
+    EXPECT_EQ(capturedOutput.find("abcdef"), std::string::npos);
+}
+
+TEST_P(IndexingOpsTest, ImplicitCharMatrixDisplayQuotesRows)
+{
+    // Bare-expression display (M = ...) goes through formatDisplay,
+    // which MATLAB-matches by quoting each row.
+    capturedOutput.clear();
+    eval("M = reshape('abcdef', 2, 3)");  // no trailing semicolon → display
+    // Expect the two quoted rows 'ace' and 'bdf' somewhere in output.
+    EXPECT_NE(capturedOutput.find("'ace'"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("'bdf'"), std::string::npos);
+}
+
+TEST_P(IndexingOpsTest, ImplicitCharRowDisplayQuotesOnce)
+{
+    // Single-row char keeps the existing one-line quoted style.
+    capturedOutput.clear();
+    eval("s = 'hello'");
+    EXPECT_NE(capturedOutput.find("'hello'"), std::string::npos);
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);

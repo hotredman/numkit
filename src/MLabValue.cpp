@@ -2261,9 +2261,25 @@ std::string MValue::formatDisplay(const std::string &name) const
         }
         break;
     }
-    case MType::CHAR:
-        os << "   '" << toString() << "'\n";
+    case MType::CHAR: {
+        // Row (or 1×0) stays on a single quoted line, as before.
+        // Multi-row char matrix prints each row quoted on its own
+        // line, column-major — MATLAB's implicit-display layout.
+        auto &d = dims();
+        if (d.rows() <= 1) {
+            os << "   '" << toString() << "'\n";
+        } else {
+            const char *cd = charData();
+            size_t R = d.rows(), C = d.cols();
+            for (size_t r = 0; r < R; ++r) {
+                os << "   '";
+                for (size_t c = 0; c < C; ++c)
+                    os << cd[c * R + r];
+                os << "'\n";
+            }
+        }
         break;
+    }
     case MType::STRING:
         if (isScalar()) {
             os << "   \"" << toString() << "\"\n";
