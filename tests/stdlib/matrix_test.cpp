@@ -247,6 +247,55 @@ TEST_P(ReshapeTest, Reshape2DTo3D)
     EXPECT_DOUBLE_EQ(B->doubleData()[11], 12.0);
 }
 
+TEST_P(ReshapeTest, ReshapeInfersTrailingDim)
+{
+    eval("A = reshape(1:12, 3, []);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->dims().rows(), 3u);
+    EXPECT_EQ(A->dims().cols(), 4u);
+    EXPECT_FALSE(A->dims().is3D());
+}
+
+TEST_P(ReshapeTest, ReshapeInfersLeadingDim)
+{
+    eval("A = reshape(1:12, [], 3);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->dims().rows(), 4u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+}
+
+TEST_P(ReshapeTest, ReshapeInfersMiddleDim3D)
+{
+    eval("A = reshape(1:12, 2, [], 2);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_EQ(A->dims().pages(), 2u);
+}
+
+TEST_P(ReshapeTest, ReshapeInfersPageDim)
+{
+    eval("A = reshape(1:24, 2, 3, []);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().pages(), 4u);
+}
+
+TEST_P(ReshapeTest, ReshapeTwoPlaceholdersThrows)
+{
+    EXPECT_THROW({ eval("reshape(1:12, [], [], 2);"); }, std::exception);
+}
+
+TEST_P(ReshapeTest, ReshapeNotDivisibleThrows)
+{
+    EXPECT_THROW({ eval("reshape(1:10, 3, []);"); }, std::exception);
+}
+
 TEST_P(ReshapeTest, ReshapeComplexPreservesValues)
 {
     eval("A = (1:8) + (1:8) * 1i; B = reshape(A, 2, 2, 2);");

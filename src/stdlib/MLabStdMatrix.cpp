@@ -122,9 +122,10 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
 
     // --- reshape ---
     // reshape(A, m, n) | reshape(A, m, n, p) | reshape(A, [m n]) |
-    // reshape(A, [m n p]). Element count must match numel(A). Data
-    // layout is column-major and the storage buffer is contiguous,
-    // so a flat memcpy preserves the logical order across any rank.
+    // reshape(A, [m n p]) | reshape(A, m, [], ...) — one [] placeholder
+    // in the scalar-args form is inferred from numel(A). Data layout
+    // is column-major and contiguous, so a flat memcpy preserves the
+    // logical order across any rank.
     engine.registerFunction("reshape",
                             [](Span<const MValue> args,
                                size_t nargout,
@@ -135,7 +136,42 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                     throw std::runtime_error(
                                         "reshape requires at least 2 arguments");
                                 auto &a = args[0];
-                                DimsArg d = parseDimsArgs(args.subspan(1));
+                                DimsArg d;
+                                // Dims-vector form does not support [] inference.
+                                if (args.size() == 2 && !args[1].isScalar()
+                                    && !args[1].isEmpty()) {
+                                    d = parseDimsArgs(args.subspan(1));
+                                } else {
+                                    // Scalar-args form. One [] placeholder is
+                                    // inferred from numel(A).
+                                    size_t dimCount = args.size() - 1;
+                                    size_t dims[3] = {1, 1, 0};
+                                    int inferPos = -1;
+                                    size_t knownProd = 1;
+                                    for (size_t i = 0; i < dimCount && i < 3; ++i) {
+                                        if (args[i + 1].isEmpty()) {
+                                            if (inferPos >= 0)
+                                                throw std::runtime_error(
+                                                    "reshape: only one dimension "
+                                                    "may be inferred via []");
+                                            inferPos = static_cast<int>(i);
+                                        } else {
+                                            dims[i] = static_cast<size_t>(
+                                                args[i + 1].toScalar());
+                                            knownProd *= dims[i];
+                                        }
+                                    }
+                                    if (inferPos >= 0) {
+                                        if (knownProd == 0
+                                            || a.numel() % knownProd != 0)
+                                            throw std::runtime_error(
+                                                "reshape: size of array must be "
+                                                "divisible by product of known dims");
+                                        dims[inferPos] = a.numel() / knownProd;
+                                    }
+                                    d = {dims[0], dims[1],
+                                         dimCount >= 3 ? dims[2] : 0};
+                                }
                                 size_t newNumel = d.rows * d.cols *
                                                   (d.pages > 0 ? d.pages : 1);
                                 if (newNumel != a.numel())
