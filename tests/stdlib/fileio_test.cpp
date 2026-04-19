@@ -827,6 +827,70 @@ TEST_P(FileIoTest, FwriteTypedOutputSyntaxIsAccepted)
     EXPECT_EQ(fs->files()["x.bin"].size(), 6u);
 }
 
+// ── fprintf / sprintf matrix cycling ─────────────────────
+
+TEST_P(FileIoTest, FprintfCyclesFormatOverVectorArg)
+{
+    // Classic MATLAB idiom: '%d %d\n' over a flat vector cycles 3 times.
+    capturedOutput.clear();
+    eval("fprintf('%d %d\\n', [1 2 3 4 5 6]);");
+    EXPECT_EQ(capturedOutput, "1 2\n3 4\n5 6\n");
+}
+
+TEST_P(FileIoTest, FprintfCyclesColumnMajorOverMatrix)
+{
+    // Matrix is flattened column-major: [1 3; 2 4] → stream [1 2 3 4].
+    capturedOutput.clear();
+    eval("fprintf('%d\\n', [1 3; 2 4]);");
+    EXPECT_EQ(capturedOutput, "1\n2\n3\n4\n");
+}
+
+TEST_P(FileIoTest, FprintfCyclingEmitsLiteralsEveryIteration)
+{
+    capturedOutput.clear();
+    eval("fprintf('[%d]', [10 20 30]);");
+    EXPECT_EQ(capturedOutput, "[10][20][30]");
+}
+
+TEST_P(FileIoTest, SprintfCyclesMatrixArg)
+{
+    eval("s = sprintf('%d=%d\\n', [1 2 3], [10 20 30]);");
+    // Stream is [1,2,3,10,20,30] (flattened in arg order),
+    // format has 2 specs, cycles 3 times →
+    //   1=2
+    //   3=10
+    //   20=30
+    EXPECT_EQ(evalString("t = s;"), "1=2\n3=10\n20=30\n");
+}
+
+TEST_P(FileIoTest, FprintfScalarArgsDoNotCycle)
+{
+    // No cycling when every arg is a scalar — behaviour identical to
+    // pre-cycling impl.
+    capturedOutput.clear();
+    eval("fprintf('%d plus %d is %d\\n', 2, 3, 5);");
+    EXPECT_EQ(capturedOutput, "2 plus 3 is 5\n");
+}
+
+TEST_P(FileIoTest, FprintfCyclingWithLogicalArray)
+{
+    // Logicals get converted to 0/1 doubles in the stream.
+    capturedOutput.clear();
+    eval("fprintf('%d\\n', [true false true]);");
+    EXPECT_EQ(capturedOutput, "1\n0\n1\n");
+}
+
+TEST_P(FileIoTest, FprintfLeftoverFewerElementsThanSpecsStopsGracefully)
+{
+    // 5 elements with format having 2 specs → 2 full rows + a partial
+    // last row that only renders the first %d.
+    capturedOutput.clear();
+    eval("fprintf('%d,%d\\n', [1 2 3 4 5]);");
+    // 1,2\n3,4\n5,\n — the second %d has no value; the literal comma
+    // and newline still emit.
+    EXPECT_EQ(capturedOutput, "1,2\n3,4\n5,\n");
+}
+
 // ── machineformat / endianness override ──────────────────
 
 TEST_P(FileIoTest, FwriteBigEndianUint16)
