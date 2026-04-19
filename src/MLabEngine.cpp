@@ -63,7 +63,12 @@ Engine::Engine()
     FitLibrary::install(*this);
 }
 
-Engine::~Engine() = default;
+Engine::~Engine()
+{
+    // Flush any files the user left open — best-effort, swallow any
+    // backend errors because we're already tearing down.
+    closeAllFiles();
+}
 
 void Engine::reinstallConstants()
 {
@@ -660,6 +665,101 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
     }
 
     return {fs, path};
+}
+
+// ============================================================
+// File descriptor table — MATLAB fopen/fclose/fprintf plumbing
+// ============================================================
+
+int Engine::openFile(const std::string &userPath, const std::string &modeRaw)
+{
+    // Strip Windows-style 't'/'b' suffix ("rt", "wb"). The underlying
+    // buffer is bytes anyway; we don't do CRLF translation.
+    std::string mode = modeRaw;
+    while (!mode.empty() && (mode.back() == 't' || mode.back() == 'b'))
+        mode.pop_back();
+    if (mode != "r" && mode != "w" && mode != "a")
+        return -1;
+
+    ResolvedPath r;
+    try {
+        r = resolvePath(userPath);
+    } catch (const std::exception &) {
+        return -1;
+    }
+
+    OpenFile f;
+    f.path = r.path;
+    f.mode = mode;
+    f.fs = r.fs;
+    f.forRead = (mode == "r");
+    f.forWrite = (mode == "w" || mode == "a");
+
+    if (mode == "r") {
+        try {
+            f.buffer = r.fs->readFile(r.path);
+        } catch (const std::exception &) {
+            return -1; // MATLAB contract: -1 when the file can't be opened.
+        }
+    } else if (mode == "a") {
+        // Seed the append buffer with existing content if any — fclose
+        // will overwrite the whole file, so we need to preserve what was
+        // there before the first fprintf.
+        try {
+            if (r.fs->exists(r.path))
+                f.buffer = r.fs->readFile(r.path);
+        } catch (const std::exception &) {
+            // Treat read-failure-of-existing-file as "start from empty";
+            // less surprising than returning -1 when the user asked to
+            // append.
+            f.buffer.clear();
+        }
+        f.cursor = f.buffer.size();
+    }
+
+    int fid = nextFid_++;
+    openFiles_.emplace(fid, std::move(f));
+    return fid;
+}
+
+bool Engine::closeFile(int fid)
+{
+    auto it = openFiles_.find(fid);
+    if (it == openFiles_.end())
+        return false;
+
+    bool ok = true;
+    // Always commit on close for write modes — MATLAB semantics require
+    // fopen('w')+fclose to leave an empty file behind, and 'a' should
+    // preserve existing content even when no fprintf happened.
+    if (it->second.forWrite) {
+        try {
+            it->second.fs->writeFile(it->second.path, it->second.buffer);
+        } catch (const std::exception &) {
+            ok = false;
+        }
+    }
+    openFiles_.erase(it);
+    return ok;
+}
+
+void Engine::closeAllFiles()
+{
+    // Flush every user fid; swallow individual failures — the caller is
+    // typically a destructor or a `fclose('all')` where partial success
+    // shouldn't abort the rest.
+    std::vector<int> fids;
+    fids.reserve(openFiles_.size());
+    for (auto &kv : openFiles_)
+        fids.push_back(kv.first);
+    for (int fid : fids)
+        closeFile(fid);
+}
+
+Engine::OpenFile *Engine::findFile(int fid)
+{
+    auto it = openFiles_.find(fid);
+    return (it == openFiles_.end()) ? nullptr : &it->second;
 }
 
 } // namespace mlab

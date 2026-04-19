@@ -68,6 +68,14 @@
       ]
     },
     {
+      "name": "IO",
+      "files": [
+        "append_log.m",
+        "manual_csv.m",
+        "write_text.m"
+      ]
+    },
+    {
       "name": "Matrices",
       "files": [
         "create_and_index.m",

@@ -260,24 +260,40 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         return out.str();
     };
 
-    engine.registerFunction("fprintf",
-                            [mlab_sprintf](Span<const MValue> args,
-                                           size_t nargout,
-                                           Span<MValue> outs,
-                                           CallContext &ctx) {
-                                if (args.empty())
-                                    return;
-                                size_t fmtIdx = 0;
-                                if (args.size() >= 2 && args[0].isScalar() && args[1].isChar())
-                                    fmtIdx = 1;
-                                if (!args[fmtIdx].isChar())
-                                    return;
-                                std::string result = mlab_sprintf(args[fmtIdx].toString(),
-                                                                  args,
-                                                                  fmtIdx + 1);
-                                ctx.engine->outputText(result);
-                                return;
-                            });
+    engine.registerFunction(
+        "fprintf",
+        [mlab_sprintf](Span<const MValue> args,
+                       size_t nargout,
+                       Span<MValue> outs,
+                       CallContext &ctx) {
+            if (args.empty())
+                return;
+
+            // First-arg-is-fid disambiguation: MATLAB allows both
+            // fprintf(format, …) and fprintf(fid, format, …); we detect
+            // the latter by a leading numeric scalar with a char next.
+            int fid = 1; // default → stdout
+            size_t fmtIdx = 0;
+            if (args.size() >= 2 && args[0].isScalar() && args[1].isChar()) {
+                fid = static_cast<int>(args[0].toScalar());
+                fmtIdx = 1;
+            }
+            if (!args[fmtIdx].isChar())
+                return;
+
+            std::string result = mlab_sprintf(args[fmtIdx].toString(), args, fmtIdx + 1);
+
+            if (fid == 1 || fid == 2) {
+                ctx.engine->outputText(result);
+            } else if (fid >= 3) {
+                auto *f = ctx.engine->findFile(fid);
+                if (!f || !f->forWrite)
+                    throw MLabError("fprintf: invalid file identifier");
+                f->buffer.append(result);
+            } else {
+                throw MLabError("fprintf: invalid file identifier");
+            }
+        });
 
     engine.registerFunction("sprintf",
                             [mlab_sprintf](Span<const MValue> args,
@@ -697,6 +713,51 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (args.empty() || !args[0].isChar())
                 throw MLabError("getenv: argument must be a variable name");
             outs[0] = MValue::fromString(envGet(args[0].toString().c_str()), alloc);
+        });
+
+    // ── fopen / fclose ──────────────────────────────────────────
+    //
+    //   fid = fopen(filename)
+    //   fid = fopen(filename, permission)   permission ∈ {'r','w','a'}
+    //                                       ('t'/'b' suffixes accepted
+    //                                        and ignored — we're binary)
+    //   status = fclose(fid)                0 on success, -1 on failure
+    //   status = fclose('all')              closes every user fid (>= 3)
+    //
+    // File ID is just a number; MATLAB contract is -1 on failure. The
+    // file's content is accumulated in an Engine-owned buffer until
+    // fclose flushes through the VirtualFS layer.
+
+    engine.registerFunction(
+        "fopen",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty() || !args[0].isChar())
+                throw MLabError("fopen: filename must be a char array");
+            std::string path = args[0].toString();
+            std::string mode = (args.size() >= 2 && args[1].isChar()) ? args[1].toString() : "r";
+            int fid = ctx.engine->openFile(path, mode);
+            outs[0] = MValue::scalar(static_cast<double>(fid), alloc);
+        });
+
+    engine.registerFunction(
+        "fclose",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty())
+                throw MLabError("fclose: requires a file identifier or 'all'");
+
+            if (args[0].isChar() && args[0].toString() == "all") {
+                ctx.engine->closeAllFiles();
+                outs[0] = MValue::scalar(0.0, alloc);
+                return;
+            }
+
+            if (!args[0].isScalar())
+                throw MLabError("fclose: argument must be a numeric fid or 'all'");
+            int fid = static_cast<int>(args[0].toScalar());
+            bool ok = ctx.engine->closeFile(fid);
+            outs[0] = MValue::scalar(ok ? 0.0 : -1.0, alloc);
         });
 }
 

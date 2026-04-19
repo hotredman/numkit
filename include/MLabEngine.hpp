@@ -183,6 +183,35 @@ public:
     };
     ResolvedPath resolvePath(const std::string &userPath) const;
 
+    // ── MATLAB-style file descriptor table ────────────────────
+    //
+    // fopen / fclose / fprintf(fid, …) machinery. File IDs 0, 1, 2 are
+    // reserved for stdin/stdout/stderr (fprintf to 1 or 2 routes to
+    // outputText()); user files get 3, 4, … from nextFid_.
+    //
+    // For 'r': the file is read into `buffer` on open; `cursor` advances
+    // as reading builtins consume it. For 'w': `buffer` accumulates
+    // fprintf output and is flushed via fs->writeFile() on fclose. 'a'
+    // is 'w' seeded with the file's existing content. All writes are
+    // buffered in memory until close — the sync-mirror VirtualFS can't
+    // support partial writes efficiently, and MATLAB's semantics only
+    // guarantee visibility on close anyway.
+    struct OpenFile
+    {
+        std::string path;
+        std::string mode;
+        VirtualFS *fs = nullptr;
+        std::string buffer;
+        size_t cursor = 0;
+        bool forRead = false;
+        bool forWrite = false;
+    };
+
+    int openFile(const std::string &userPath, const std::string &mode);
+    bool closeFile(int fid);
+    void closeAllFiles();
+    OpenFile *findFile(int fid);
+
 private:
     Allocator allocator_;
     std::unique_ptr<Environment> globalsEnv_;     // MATLAB 'global' variables — shared across functions
@@ -233,6 +262,10 @@ private:
     // Virtual filesystem registry + script-origin stack
     std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
     std::vector<std::string> scriptOriginStack_;
+
+    // MATLAB-style open-file table
+    std::unordered_map<int, OpenFile> openFiles_;
+    int nextFid_ = 3;
 
 public:
     void markClearAll() { clearAllCalled_ = true; }

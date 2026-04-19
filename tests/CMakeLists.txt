@@ -37,6 +37,7 @@ set(STDLIB_TESTS
     stdlib/integration_test.cpp
     stdlib/csv_test.cpp
     stdlib/vfs_test.cpp
+    stdlib/fileio_test.cpp
 )
 
 # ── DSP library ─────────────────────────────────────────────
