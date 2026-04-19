@@ -845,6 +845,99 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 throw MLabError("feof: invalid file identifier");
             outs[0] = MValue::logicalScalar(f->cursor >= f->buffer.size(), alloc);
         });
+
+    // ── ftell / fseek / frewind ─────────────────────────────────
+    //
+    //   pos    = ftell(fid)                    byte position from start
+    //                                          (0-based). -1 on failure.
+    //   status = fseek(fid, offset, origin)    origin ∈ {'bof','cof','eof'}
+    //                                          or the ints {-1, 0, 1}.
+    //                                          0 on success, -1 on failure.
+    //   frewind(fid)                           shortcut for fseek(fid,0,'bof')
+    //
+    // We support seek on read-mode fids (moves the read cursor). Write-
+    // mode fids are append-only in our buffer model, so fseek returns
+    // -1 there — a safer stub than silently ignoring the seek.
+
+    engine.registerFunction(
+        "ftell",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty() || !args[0].isScalar())
+                throw MLabError("ftell: file identifier required");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f) {
+                outs[0] = MValue::scalar(-1.0, alloc);
+                return;
+            }
+            // Write-mode: report end-of-buffer (where next append lands).
+            size_t pos = f->forWrite ? f->buffer.size() : f->cursor;
+            outs[0] = MValue::scalar(static_cast<double>(pos), alloc);
+        });
+
+    engine.registerFunction(
+        "fseek",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            auto fail = [&]() { outs[0] = MValue::scalar(-1.0, alloc); };
+
+            if (args.size() < 2 || !args[0].isScalar() || !args[1].isScalar())
+                return fail();
+
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f || !f->forRead)
+                return fail();
+
+            long long offset = static_cast<long long>(args[1].toScalar());
+
+            // Origin: defaults to 'bof' if omitted (MATLAB allows). Accepts
+            // either a string ('bof'/'cof'/'eof') or the int codes
+            // -1/0/1 used by some MATLAB-equivalent APIs.
+            enum { BOF, COF, EOFO } origin = BOF;
+            if (args.size() >= 3) {
+                if (args[2].isChar()) {
+                    std::string o = args[2].toString();
+                    if (o == "bof") origin = BOF;
+                    else if (o == "cof") origin = COF;
+                    else if (o == "eof") origin = EOFO;
+                    else return fail();
+                } else if (args[2].isScalar()) {
+                    int o = static_cast<int>(args[2].toScalar());
+                    if (o == -1) origin = BOF;
+                    else if (o == 0) origin = COF;
+                    else if (o == 1) origin = EOFO;
+                    else return fail();
+                } else {
+                    return fail();
+                }
+            }
+
+            long long base = 0;
+            if (origin == BOF) base = 0;
+            else if (origin == COF) base = static_cast<long long>(f->cursor);
+            else base = static_cast<long long>(f->buffer.size());
+
+            long long target = base + offset;
+            if (target < 0 || static_cast<size_t>(target) > f->buffer.size())
+                return fail();
+
+            f->cursor = static_cast<size_t>(target);
+            outs[0] = MValue::scalar(0.0, alloc);
+        });
+
+    engine.registerFunction(
+        "frewind",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isScalar())
+                throw MLabError("frewind: file identifier required");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f || !f->forRead)
+                throw MLabError("frewind: invalid file identifier");
+            f->cursor = 0;
+        });
 }
 
 } // namespace mlab

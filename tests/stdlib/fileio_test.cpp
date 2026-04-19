@@ -389,6 +389,117 @@ TEST_P(FileIoTest, FeofOnInvalidFidThrows)
     EXPECT_THROW(eval("x = feof(999);"), std::exception);
 }
 
+// ── ftell / fseek / frewind ──────────────────────────────
+
+TEST_P(FileIoTest, FtellStartsAtZeroAfterOpen)
+{
+    fs->files()["x.txt"] = "hello world";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 0.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FtellAdvancesAfterReads)
+{
+    fs->files()["x.txt"] = "line1\nline2\n";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("fgetl(fid);");
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 6.0);  // past "line1\n"
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FtellOnWriteFidReturnsEndOfBuffer)
+{
+    eval("fid = fopen('out.txt', 'w');");
+    eval("fprintf(fid, 'abc');");
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 3.0);
+    eval("fprintf(fid, 'de');");
+    EXPECT_EQ(evalScalar("p2 = ftell(fid);"), 5.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekFromBof)
+{
+    fs->files()["x.txt"] = "abcdefghij";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, 5, 'bof');"), 0.0);
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 5.0);
+    EXPECT_EQ(evalString("c = fgets(fid);"), "fghij");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekFromCof)
+{
+    fs->files()["x.txt"] = "abcdefghij";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("fseek(fid, 3, 'bof');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, 2, 'cof');"), 0.0);
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 5.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekFromEof)
+{
+    fs->files()["x.txt"] = "abcdefghij"; // 10 bytes
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, -3, 'eof');"), 0.0);
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 7.0);
+    EXPECT_EQ(evalString("c = fgets(fid);"), "hij");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekAcceptsIntegerOriginCodes)
+{
+    // MATLAB also accepts -1/0/1 as origin (bof/cof/eof).
+    fs->files()["x.txt"] = "abcdefghij";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("s1 = fseek(fid, 2, -1);"), 0.0); // bof
+    EXPECT_EQ(evalScalar("p1 = ftell(fid);"), 2.0);
+    EXPECT_EQ(evalScalar("s2 = fseek(fid, 1, 0);"), 0.0);  // cof
+    EXPECT_EQ(evalScalar("p2 = ftell(fid);"), 3.0);
+    EXPECT_EQ(evalScalar("s3 = fseek(fid, -1, 1);"), 0.0); // eof
+    EXPECT_EQ(evalScalar("p3 = ftell(fid);"), 9.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekBeyondEofReturnsMinusOne)
+{
+    fs->files()["x.txt"] = "abcde";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, 100, 'bof');"), -1.0);
+    // Cursor unchanged on failure.
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 0.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekNegativeBeforeBofReturnsMinusOne)
+{
+    fs->files()["x.txt"] = "abcde";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, -1, 'bof');"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FseekOnWriteFidFails)
+{
+    // We don't support random-access writes — our buffer is append-only.
+    eval("fid = fopen('out.txt', 'w');");
+    EXPECT_EQ(evalScalar("s = fseek(fid, 0, 'bof');"), -1.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FrewindRestartsFromBof)
+{
+    fs->files()["x.txt"] = "alpha\nbeta\ngamma\n";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("fgetl(fid);");
+    eval("fgetl(fid);");
+    eval("frewind(fid);");
+    EXPECT_EQ(evalScalar("p = ftell(fid);"), 0.0);
+    EXPECT_EQ(evalString("a = fgetl(fid);"), "alpha");
+    eval("fclose(fid);");
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
