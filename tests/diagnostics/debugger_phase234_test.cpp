@@ -1,5 +1,5 @@
 // tests/test_debugger_phase234.cpp — Debug observer, line hooks, breakpoints, stepping
-#include "MLabDebugger.hpp"
+#include "MDebugger.hpp"
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;

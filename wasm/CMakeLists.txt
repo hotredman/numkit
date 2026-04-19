@@ -13,7 +13,7 @@ if(EMSCRIPTEN)
     target_link_options(mlab_wasm PRIVATE
         --bind
         "SHELL:-s MODULARIZE=1"
-        "SHELL:-s EXPORT_NAME=createMLabModule"
+        "SHELL:-s EXPORT_NAME=createMModule"
         "SHELL:-s ALLOW_MEMORY_GROWTH=1"
         "SHELL:-s INITIAL_MEMORY=67108864"
         "SHELL:-s STACK_SIZE=4194304"

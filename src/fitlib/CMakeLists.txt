@@ -1,5 +1,5 @@
 set(FITLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabFitLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabFitInterp.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MFitLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MFitInterp.cpp
     PARENT_SCOPE
 )

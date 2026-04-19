@@ -1,4 +1,4 @@
-#include "MLabLexer.hpp"
+#include "MLexer.hpp"
 #include <gtest/gtest.h>
 
 using namespace mlab;

@@ -3,12 +3,12 @@
 // Direct timing comparison: TreeWalker vs Bytecode VM
 // Run with: ./mlab_tests --gtest_filter="VMBenchmark.*"
 
-#include "MLabCompiler.hpp"
-#include "MLabEngine.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
-#include "MLabStdLibrary.hpp"
-#include "MLabVM.hpp"
+#include "MCompiler.hpp"
+#include "MEngine.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
+#include "MStdLibrary.hpp"
+#include "MVM.hpp"
 #include <chrono>
 #include <gtest/gtest.h>
 #include <iostream>

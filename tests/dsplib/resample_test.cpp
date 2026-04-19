@@ -1,7 +1,7 @@
 // tests/resample_test.cpp
 
-#include "MLabEngine.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MEngine.hpp"
+#include "MStdLibrary.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
 

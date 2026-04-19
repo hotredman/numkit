@@ -1,8 +1,8 @@
 // tests/test_debugger_diagnostic.cpp — Diagnostic: what actually works?
 #include "dual_engine_fixture.hpp"
-#include "MLabCompiler.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
+#include "MCompiler.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
 
 using namespace mlab_test;
 using namespace mlab;

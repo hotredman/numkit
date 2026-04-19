@@ -1,7 +1,7 @@
 // tests/diagnostics/debug_session_test.cpp
 // Tests for DebugSession: pause/resume, eval in context, stepping
-#include "MLabDebugSession.hpp"
-#include "MLabEngine.hpp"
+#include "MDebugSession.hpp"
+#include "MEngine.hpp"
 #include <gtest/gtest.h>
 
 using namespace mlab;

@@ -1,9 +1,9 @@
 // tests/test_debugger_phase1.cpp — Source mapping, error locations, MLabError
 // Parameterized: runs on both TreeWalker and VM backends
 
-#include "MLabCompiler.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
+#include "MCompiler.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;

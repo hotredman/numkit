@@ -6,7 +6,7 @@
 // debug Workspace panel, shadowable, un-shadowable via `clear name`,
 // and surviving `clear all`.
 
-#include "MLabDebugSession.hpp"
+#include "MDebugSession.hpp"
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;

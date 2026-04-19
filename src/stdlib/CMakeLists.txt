@@ -1,13 +1,13 @@
 set(STDLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdBinaryOps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdUnaryOps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdMath.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdMatrix.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdIO.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdTypes.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdCellStruct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdStrings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MLabStdComplex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdBinaryOps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdUnaryOps.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdMath.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdMatrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdIO.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdTypes.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdComplex.cpp
     PARENT_SCOPE
 )

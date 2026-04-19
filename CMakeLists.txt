@@ -22,24 +22,24 @@ endif()
 # ──────────────────────────────────────────────
 
 set(MLAB_CORE_SOURCES
-    src/MLabAllocator.cpp
-    src/MLabMType.cpp
-    src/MLabDims.cpp
-    src/MLabDataBuffer.cpp
-    src/MLabHeapObject.cpp
-    src/MLabValue.cpp
-    src/MLabLexer.cpp
-    src/MLabParser.cpp
-    src/MLabEnvironment.cpp
-    src/MLabEngine.cpp
-    src/MLabAst.cpp
-    src/MLabTreeWalker.cpp
-    src/MLabCompiler.cpp
-    src/MLabVM.cpp
-    src/MLabDebugger.cpp
-    src/MLabDebugSession.cpp
-    src/MLabDebugWorkspace.cpp
-    src/MLabVfs.cpp
+    src/MAllocator.cpp
+    src/MMType.cpp
+    src/MDims.cpp
+    src/MDataBuffer.cpp
+    src/MHeapObject.cpp
+    src/MValue.cpp
+    src/MLexer.cpp
+    src/MParser.cpp
+    src/MEnvironment.cpp
+    src/MEngine.cpp
+    src/MAst.cpp
+    src/MTreeWalker.cpp
+    src/MCompiler.cpp
+    src/MVM.cpp
+    src/MDebugger.cpp
+    src/MDebugSession.cpp
+    src/MDebugWorkspace.cpp
+    src/MVfs.cpp
 )
 
 # Each subdirectory defines its own source list
@@ -57,29 +57,29 @@ set(MLAB_SOURCES
 )
 
 set(MLAB_HEADERS
-    include/MLabTypes.hpp
-    include/MLabTreeWalker.hpp
-    include/MLabAllocator.hpp
-    include/MLabMType.hpp
-    include/MLabDims.hpp
-    include/MLabDataBuffer.hpp
-    include/MLabHeapObject.hpp
-    include/MLabValue.hpp
-    include/MLabLexer.hpp
-    include/MLabAst.hpp
-    include/MLabParser.hpp
-    include/MLabEnvironment.hpp
-    include/MLabEngine.hpp
-    include/MLabStdLibrary.hpp
-    include/MLabDspLibrary.hpp
-    include/MLabPltLibrary.hpp
-    include/MLabFitLibrary.hpp
-    include/MLabFigureManager.hpp
-    include/MLabSpan.hpp
-    include/MLabBytecode.hpp
-    include/MLabCompiler.hpp
-    include/MLabVM.hpp
-    include/MLabDebugger.hpp
+    include/MTypes.hpp
+    include/MTreeWalker.hpp
+    include/MAllocator.hpp
+    include/MMType.hpp
+    include/MDims.hpp
+    include/MDataBuffer.hpp
+    include/MHeapObject.hpp
+    include/MValue.hpp
+    include/MLexer.hpp
+    include/MAst.hpp
+    include/MParser.hpp
+    include/MEnvironment.hpp
+    include/MEngine.hpp
+    include/MStdLibrary.hpp
+    include/MDspLibrary.hpp
+    include/MPltLibrary.hpp
+    include/MFitLibrary.hpp
+    include/MFigureManager.hpp
+    include/MSpan.hpp
+    include/MBytecode.hpp
+    include/MCompiler.hpp
+    include/MVM.hpp
+    include/MDebugger.hpp
 )
 
 if(MLAB_BUILD_SHARED)

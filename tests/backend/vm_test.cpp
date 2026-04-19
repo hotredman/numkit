@@ -3,12 +3,12 @@
 // Tests for Bytecode Compiler + VM
 // Phase 1: scalar arithmetic, variables, display
 
-#include "MLabCompiler.hpp"
-#include "MLabEngine.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
-#include "MLabStdLibrary.hpp"
-#include "MLabVM.hpp"
+#include "MCompiler.hpp"
+#include "MEngine.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
+#include "MStdLibrary.hpp"
+#include "MVM.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
 

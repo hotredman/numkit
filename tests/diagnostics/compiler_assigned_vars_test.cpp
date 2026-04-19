@@ -6,11 +6,11 @@
 // honour MATLAB's whos-parity rule for shadowed built-ins, so regressions
 // here silently change the debug UI.
 
-#include "MLabCompiler.hpp"
-#include "MLabEngine.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
-#include "MLabTypes.hpp"
+#include "MCompiler.hpp"
+#include "MEngine.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
+#include "MTypes.hpp"
 
 #include <gtest/gtest.h>
 

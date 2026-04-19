@@ -6,9 +6,9 @@
 //   grid on    ≡  grid('on')
 //   load data.mat x y  ≡  load('data.mat','x','y')
 
-#include "MLabAst.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
+#include "MAst.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
 #include <gtest/gtest.h>
 
 using namespace mlab;

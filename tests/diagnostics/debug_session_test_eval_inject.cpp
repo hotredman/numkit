@@ -1,6 +1,6 @@
 // Test: variables created in debug eval are accessible after continue
-#include "MLabDebugSession.hpp"
-#include "MLabEngine.hpp"
+#include "MDebugSession.hpp"
+#include "MEngine.hpp"
 #include <gtest/gtest.h>
 
 using namespace mlab;

@@ -1,8 +1,8 @@
 // tests/parser_test.cpp
 
-#include "MLabAst.hpp"
-#include "MLabLexer.hpp"
-#include "MLabParser.hpp"
+#include "MAst.hpp"
+#include "MLexer.hpp"
+#include "MParser.hpp"
 #include <gtest/gtest.h>
 
 using namespace mlab;

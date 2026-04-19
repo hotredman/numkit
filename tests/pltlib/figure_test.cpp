@@ -10,9 +10,9 @@
 //   - Name-value pairs (LineWidth, MarkerSize)
 //   - Subplot
 
-#include "MLabEngine.hpp"
-#include "MLabFigureManager.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MEngine.hpp"
+#include "MFigureManager.hpp"
+#include "MStdLibrary.hpp"
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
