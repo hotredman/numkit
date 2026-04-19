@@ -1069,6 +1069,198 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 outs[1] = MValue::scalar(static_cast<double>(n), alloc);
         });
 
+    // ── fscanf / sscanf ─────────────────────────────────────────
+    //
+    // Formatted numeric reading. The format string is applied CYCLICALLY
+    // to the input until either (a) the input runs out / a match fails
+    // or (b) `size` elements have been produced. Values are returned as
+    // a column vector of doubles (MATLAB's default output type). The
+    // format is a scanf-style subset:
+    //
+    //   %d  %i  %u        decimal integer
+    //   %f  %e  %g        float / scientific / general
+    //   %x  %X            hex
+    //   %o                octal
+    //   %*…               suppress (read but don't emit)
+    //   width digits      accepted but currently ignored
+    //
+    // Not supported: %s, %c, [set], and matrix-shape size=[m n]. Could
+    // be added later if they're wanted by real scripts.
+
+    auto scanfCycle = [](const std::string &input, const std::string &fmt,
+                         size_t limit) -> std::tuple<std::vector<double>, size_t, size_t> {
+        std::vector<double> out;
+        size_t inPos = 0;
+        size_t count = 0;
+
+        while (count < limit && inPos < input.size()) {
+            size_t beforeIn = inPos;
+            size_t beforeCount = count;
+            size_t fmtPos = 0;
+            bool ok = true;
+
+            while (fmtPos < fmt.size() && ok) {
+                char fc = fmt[fmtPos];
+                if (std::isspace(static_cast<unsigned char>(fc))) {
+                    while (inPos < input.size() &&
+                           std::isspace(static_cast<unsigned char>(input[inPos])))
+                        ++inPos;
+                    ++fmtPos;
+                    continue;
+                }
+                if (fc != '%') {
+                    if (inPos >= input.size() || input[inPos] != fc) { ok = false; break; }
+                    ++inPos;
+                    ++fmtPos;
+                    continue;
+                }
+                ++fmtPos;
+                if (fmtPos >= fmt.size()) { ok = false; break; }
+
+                bool suppress = false;
+                if (fmt[fmtPos] == '*') { suppress = true; ++fmtPos; }
+                // Accept but ignore width digits.
+                while (fmtPos < fmt.size() &&
+                       std::isdigit(static_cast<unsigned char>(fmt[fmtPos])))
+                    ++fmtPos;
+                if (fmtPos >= fmt.size()) { ok = false; break; }
+                char spec = fmt[fmtPos++];
+
+                // Numeric conversions skip leading whitespace.
+                while (inPos < input.size() &&
+                       std::isspace(static_cast<unsigned char>(input[inPos])))
+                    ++inPos;
+                if (inPos >= input.size()) { ok = false; break; }
+
+                const char *start = input.c_str() + inPos;
+                char *endp = nullptr;
+                double v = 0.0;
+
+                switch (spec) {
+                case 'd': case 'i': {
+                    long long iv = std::strtoll(start, &endp, 10);
+                    if (endp == start) { ok = false; break; }
+                    v = static_cast<double>(iv);
+                    break;
+                }
+                case 'u': {
+                    unsigned long long uv = std::strtoull(start, &endp, 10);
+                    if (endp == start) { ok = false; break; }
+                    v = static_cast<double>(uv);
+                    break;
+                }
+                case 'f': case 'e': case 'g': case 'E': case 'G': {
+                    v = std::strtod(start, &endp);
+                    if (endp == start) { ok = false; break; }
+                    break;
+                }
+                case 'x': case 'X': {
+                    unsigned long long uv = std::strtoull(start, &endp, 16);
+                    if (endp == start) { ok = false; break; }
+                    v = static_cast<double>(uv);
+                    break;
+                }
+                case 'o': {
+                    unsigned long long uv = std::strtoull(start, &endp, 8);
+                    if (endp == start) { ok = false; break; }
+                    v = static_cast<double>(uv);
+                    break;
+                }
+                default:
+                    throw MLabError(std::string("scanf: unsupported conversion '%")
+                                    + spec + "'");
+                }
+                if (!ok) break;
+
+                inPos += static_cast<size_t>(endp - start);
+                if (!suppress) {
+                    out.push_back(v);
+                    if (++count >= limit) break;
+                }
+            }
+
+            // No progress this cycle → bail. Roll back any partially-
+            // consumed input so ftell/fscanf can retry from a clean
+            // boundary if the caller wants to.
+            if (count == beforeCount) {
+                inPos = beforeIn;
+                break;
+            }
+        }
+        return {std::move(out), count, inPos};
+    };
+
+    auto makeColumn = [](std::vector<double> &&vals, Allocator *alloc) -> MValue {
+        if (vals.empty())
+            return MValue::matrix(0, 0, MType::DOUBLE, alloc);
+        auto M = MValue::matrix(vals.size(), 1, MType::DOUBLE, alloc);
+        double *data = M.doubleDataMut();
+        std::memcpy(data, vals.data(), vals.size() * sizeof(double));
+        return M;
+    };
+
+    engine.registerFunction(
+        "fscanf",
+        [scanfCycle, makeColumn](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                                 CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.size() < 2 || !args[0].isScalar() || !args[1].isChar())
+                throw MLabError("fscanf: requires (fid, format [, size])");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f || !f->forRead)
+                throw MLabError("fscanf: invalid file identifier");
+
+            size_t limit = SIZE_MAX;
+            if (args.size() >= 3) {
+                double s = args[2].toScalar();
+                if (!std::isinf(s)) {
+                    if (s < 0 || !std::isfinite(s))
+                        throw MLabError("fscanf: size must be Inf or a non-negative integer");
+                    limit = static_cast<size_t>(s);
+                }
+            }
+
+            std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
+            auto [vals, count, consumed] = scanfCycle(input, args[1].toString(), limit);
+            f->cursor += consumed;
+
+            outs[0] = makeColumn(std::move(vals), alloc);
+            if (nargout > 1)
+                outs[1] = MValue::scalar(static_cast<double>(count), alloc);
+        });
+
+    engine.registerFunction(
+        "sscanf",
+        [scanfCycle, makeColumn](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+                                 CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
+                throw MLabError("sscanf: requires (str, format [, size])");
+
+            size_t limit = SIZE_MAX;
+            if (args.size() >= 3) {
+                double s = args[2].toScalar();
+                if (!std::isinf(s)) {
+                    if (s < 0 || !std::isfinite(s))
+                        throw MLabError("sscanf: size must be Inf or a non-negative integer");
+                    limit = static_cast<size_t>(s);
+                }
+            }
+
+            auto [vals, count, consumed] = scanfCycle(args[0].toString(),
+                                                      args[1].toString(), limit);
+            (void)consumed;
+
+            outs[0] = makeColumn(std::move(vals), alloc);
+            if (nargout > 1)
+                outs[1] = MValue::scalar(static_cast<double>(count), alloc);
+            if (nargout > 2)
+                outs[2] = MValue::fromString("", alloc); // errmsg — always empty for now
+            if (nargout > 3)
+                outs[3] = MValue::scalar(static_cast<double>(consumed + 1), alloc); // nextindex, 1-based
+        });
+
     engine.registerFunction(
         "fwrite",
         [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,

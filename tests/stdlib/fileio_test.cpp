@@ -739,6 +739,160 @@ TEST_P(FileIoTest, FwriteTypedOutputSyntaxIsAccepted)
     EXPECT_EQ(fs->files()["x.bin"].size(), 6u);
 }
 
+// ── sscanf ───────────────────────────────────────────────
+
+TEST_P(FileIoTest, SscanfReadsIntegersCycled)
+{
+    eval("A = sscanf('1 2 3 4 5', '%d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 5.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a4 = A(5);"), 5.0);
+}
+
+TEST_P(FileIoTest, SscanfReadsFloats)
+{
+    eval("A = sscanf('1.5 2.5 3.25', '%f');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a0 = A(1);"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("a2 = A(3);"), 3.25);
+}
+
+TEST_P(FileIoTest, SscanfCyclesMultiSpecFormat)
+{
+    // "%d %d" applied twice consumes "1 2 3 4" as four values.
+    eval("A = sscanf('1 2 3 4', '%d %d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 4.0);
+    EXPECT_EQ(evalScalar("a3 = A(4);"), 4.0);
+}
+
+TEST_P(FileIoTest, SscanfHonorsLiteralSeparators)
+{
+    eval("A = sscanf('1:2:3', '%d:%d:%d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 1.0);
+    EXPECT_EQ(evalScalar("a2 = A(3);"), 3.0);
+}
+
+TEST_P(FileIoTest, SscanfWithSizeLimitsElementCount)
+{
+    eval("A = sscanf('1 2 3 4 5', '%d', 3);");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 3.0);
+}
+
+TEST_P(FileIoTest, SscanfSupportsScientificNotation)
+{
+    eval("A = sscanf('1e3 2.5e-2', '%f');");
+    EXPECT_DOUBLE_EQ(evalScalar("a0 = A(1);"), 1000.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a1 = A(2);"), 0.025);
+}
+
+TEST_P(FileIoTest, SscanfSupportsHexAndOctal)
+{
+    eval("A = sscanf('ff', '%x');");
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 255.0);
+    eval("B = sscanf('10', '%o');");
+    EXPECT_EQ(evalScalar("b0 = B(1);"), 8.0);
+}
+
+TEST_P(FileIoTest, SscanfHandlesNegatives)
+{
+    eval("A = sscanf('-5 10 -3', '%d');");
+    EXPECT_EQ(evalScalar("a0 = A(1);"), -5.0);
+    EXPECT_EQ(evalScalar("a2 = A(3);"), -3.0);
+}
+
+TEST_P(FileIoTest, SscanfEmptyInputReturnsEmpty)
+{
+    eval("A = sscanf('', '%d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 0.0);
+}
+
+TEST_P(FileIoTest, SscanfStopsAtNonMatchingInput)
+{
+    // "1 abc" — matches 1, then fails on "abc". Return [1] and count=1.
+    eval("[A, count] = sscanf('1 abc', '%d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 1.0);
+    EXPECT_EQ(getVar("count"), 1.0);
+}
+
+TEST_P(FileIoTest, SscanfReturnsCountAsSecondOutput)
+{
+    eval("[A, count] = sscanf('1 2 3', '%d');");
+    EXPECT_EQ(getVar("count"), 3.0);
+}
+
+TEST_P(FileIoTest, SscanfSuppressWithStar)
+{
+    // "%*d" reads and throws away an integer.
+    eval("A = sscanf('10 20 30', '%*d %d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 1.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 20.0);
+}
+
+TEST_P(FileIoTest, SscanfRejectsUnsupportedConversion)
+{
+    // %s and %c aren't implemented yet — must surface as an error,
+    // not silently return nothing.
+    EXPECT_THROW(eval("A = sscanf('hello', '%s');"), std::exception);
+    EXPECT_THROW(eval("A = sscanf('h', '%c');"), std::exception);
+}
+
+// ── fscanf ───────────────────────────────────────────────
+
+TEST_P(FileIoTest, FscanfReadsFromFile)
+{
+    fs->files()["nums.txt"] = "1 2 3\n4 5 6\n";
+    eval("fid = fopen('nums.txt', 'r');");
+    eval("A = fscanf(fid, '%d');");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 6.0);
+    EXPECT_EQ(evalScalar("a5 = A(6);"), 6.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FscanfAdvancesFileCursor)
+{
+    fs->files()["x.txt"] = "10 20 30 40";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("A = fscanf(fid, '%d', 2);");
+    EXPECT_EQ(evalScalar("n = numel(A);"), 2.0);
+    // Remaining content accessible via ftell advanced + a second fscanf.
+    eval("B = fscanf(fid, '%d');");
+    EXPECT_EQ(evalScalar("nb = numel(B);"), 2.0);
+    EXPECT_EQ(evalScalar("b0 = B(1);"), 30.0);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FscanfRoundTripThroughFprintf)
+{
+    // Write numbers with fprintf, read them back with fscanf.
+    eval("fid = fopen('rt.txt', 'w');");
+    eval("fprintf(fid, '%d %.3f\\n', 42, 3.14);");
+    eval("fprintf(fid, '%d %.3f\\n', 100, 2.718);");
+    eval("fclose(fid);");
+
+    eval("fid2 = fopen('rt.txt', 'r');");
+    eval("A = fscanf(fid2, '%d %f');");
+    eval("fclose(fid2);");
+
+    EXPECT_EQ(evalScalar("n = numel(A);"), 4.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 42.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a1 = A(2);"), 3.14);
+    EXPECT_EQ(evalScalar("a2 = A(3);"), 100.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a3 = A(4);"), 2.718);
+}
+
+TEST_P(FileIoTest, FscanfOnWriteFidThrows)
+{
+    eval("fid = fopen('out.txt', 'w');");
+    EXPECT_THROW(eval("A = fscanf(fid, '%d');"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FscanfOnInvalidFidThrows)
+{
+    EXPECT_THROW(eval("A = fscanf(999, '%d');"), std::exception);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
