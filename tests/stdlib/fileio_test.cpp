@@ -920,6 +920,66 @@ TEST_P(FileIoTest, SscanfCountCountsCharactersForTextFormats)
     EXPECT_EQ(getVar("count"), 5.0);
 }
 
+// ── %[set] char-class conversion ──────────────────────────
+
+TEST_P(FileIoTest, SscanfSetLowercaseLetters)
+{
+    // Reads chars matching [a-z] until a non-match. Then cycles.
+    eval("A = sscanf('abc123xyz', '%[a-z]');");
+    // Cycle 1: 'abc' (3 chars), cycle fails on '1' → 'abc' captured.
+    // Since no numeric specs → output is char row.
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalString("s = A;"), "abc");
+}
+
+TEST_P(FileIoTest, SscanfSetNegatedClass)
+{
+    // [^0-9] reads non-digit chars.
+    eval("A = sscanf('hello123', '%[^0-9]');");
+    EXPECT_EQ(evalString("s = A;"), "hello");
+}
+
+TEST_P(FileIoTest, SscanfSetExplicitChars)
+{
+    eval("A = sscanf('aabbccXX', '%[abc]');");
+    EXPECT_EQ(evalString("s = A;"), "aabbcc");
+}
+
+TEST_P(FileIoTest, SscanfSetWithWidth)
+{
+    eval("A = sscanf('abcdef', '%3[a-z]');");
+    // width=3 per match; cycles take 'abc' then 'def'. Concatenated.
+    EXPECT_EQ(evalString("s = A;"), "abcdef");
+}
+
+TEST_P(FileIoTest, SscanfSetNoMatchReturnsEmpty)
+{
+    // First char doesn't match → no token, count=0.
+    eval("[A, count] = sscanf('123', '%[a-z]');");
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalScalar("n = numel(A);"), 0.0);
+    EXPECT_EQ(getVar("count"), 0.0);
+}
+
+TEST_P(FileIoTest, SscanfSetMixedWithNumeric)
+{
+    // Numeric spec present → output becomes double column with ASCII
+    // codes for the %[…] match.
+    eval("A = sscanf('foo 42', '%[a-z] %d');");
+    EXPECT_FALSE(evalBool("tf = ischar(A);"));
+    // 'foo' → 3 chars (ASCII 102,111,111), then 42.
+    EXPECT_EQ(evalScalar("n = numel(A);"), 4.0);
+    EXPECT_EQ(evalScalar("a0 = A(1);"), 102.0);
+    EXPECT_EQ(evalScalar("a3 = A(4);"), 42.0);
+}
+
+TEST_P(FileIoTest, SscanfSetSuppressed)
+{
+    eval("A = sscanf('skipABC tail', '%*[a-zA-Z] %s');");
+    // '%*[a-zA-Z]' reads and drops 'skipABC'. Then %s reads 'tail'.
+    EXPECT_EQ(evalString("s = A;"), "tail");
+}
+
 // ── fscanf ───────────────────────────────────────────────
 
 TEST_P(FileIoTest, FscanfReadsFromFile)

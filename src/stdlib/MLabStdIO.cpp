@@ -1,6 +1,7 @@
 #include "MLabBranding.hpp"
 #include "MLabStdLibrary.hpp"
 
+#include <array>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
@@ -1276,6 +1277,60 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     ++fmtPos;
                 }
                 if (fmtPos >= fmt.size()) { ok = false; break; }
+
+                // %[set] is a char-class conversion — peek instead of
+                // consuming so we can parse the full [abc^-] body.
+                if (fmt[fmtPos] == '[') {
+                    ++fmtPos; // past '['
+                    bool negate = false;
+                    if (fmtPos < fmt.size() && fmt[fmtPos] == '^') {
+                        negate = true;
+                        ++fmtPos;
+                    }
+                    std::array<bool, 256> member{};
+                    bool first = true;
+                    while (fmtPos < fmt.size() && (first || fmt[fmtPos] != ']')) {
+                        first = false;
+                        char c = fmt[fmtPos];
+                        if (fmtPos + 2 < fmt.size() && fmt[fmtPos + 1] == '-'
+                            && fmt[fmtPos + 2] != ']') {
+                            unsigned lo = static_cast<unsigned char>(c);
+                            unsigned hi = static_cast<unsigned char>(fmt[fmtPos + 2]);
+                            if (lo > hi) std::swap(lo, hi);
+                            for (unsigned ch = lo; ch <= hi; ++ch)
+                                member[ch] = true;
+                            fmtPos += 3;
+                        } else {
+                            member[static_cast<unsigned char>(c)] = true;
+                            ++fmtPos;
+                        }
+                    }
+                    if (fmtPos >= fmt.size()) { ok = false; break; }
+                    ++fmtPos; // past closing ']'
+
+                    // %[set] does NOT skip leading whitespace (like %c).
+                    if (inPos >= input.size()) { ok = false; break; }
+                    size_t tokenStart = inPos;
+                    size_t maxEnd = (width < 0)
+                                        ? input.size()
+                                        : std::min(inPos + static_cast<size_t>(width),
+                                                   input.size());
+                    while (inPos < maxEnd) {
+                        bool m = member[static_cast<unsigned char>(input[inPos])];
+                        if (negate ? m : !m) break;
+                        ++inPos;
+                    }
+                    if (inPos == tokenStart) { ok = false; break; }
+                    if (!suppress) {
+                        for (size_t p = tokenStart; p < inPos && count < limit; ++p) {
+                            out.push_back(static_cast<double>(
+                                static_cast<unsigned char>(input[p])));
+                            ++count;
+                        }
+                    }
+                    continue;
+                }
+
                 char spec = fmt[fmtPos++];
 
                 // Numeric + %s skip leading whitespace. %c does NOT —
