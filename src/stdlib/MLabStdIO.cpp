@@ -1100,11 +1100,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
             return M;
         }
+        // sz.rows > 0 from here down. cols_out follows n when Inf, fixed
+        // when the caller supplied a concrete column count.
         size_t cols_out = (sz.cols == SIZE_MAX)
-                             ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
+                             ? (n + sz.rows - 1) / sz.rows
                              : sz.cols;
-        if (cols_out == 0 || sz.rows == 0)
-            return MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
+        if (cols_out == 0)
+            return MValue::matrix(sz.rows, 0, MType::DOUBLE, alloc);
         MValue M = MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
         // Column-major storage + column-major fill → flat memcpy works.
         std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
@@ -1388,11 +1390,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     };
 
     // Chooses the output shape per the MATLAB contract: char array when
-    // the format only has %s/%c conversions, column-of-doubles otherwise.
-    auto shapeScanfOutput = [makeColumn, makeCharRow, formatHasNumeric](
-                                std::vector<double> &&vals, const std::string &fmt,
+    // the format has only %s/%c conversions, column-of-doubles otherwise.
+    // Takes a pre-computed `hasNumericConv` flag so the caller doesn't
+    // need to re-walk the format string.
+    auto shapeScanfOutput = [makeColumn, makeCharRow](
+                                std::vector<double> &&vals, bool hasNumericConv,
                                 Allocator *alloc) -> MValue {
-        if (formatHasNumeric(fmt) || vals.empty())
+        if (hasNumericConv)
             return makeColumn(std::move(vals), alloc);
         return makeCharRow(vals, alloc);
     };
@@ -1428,10 +1432,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             // Matrix-shape output only applies when the format yields
             // numbers. Text-only formats fall back to a flat char row —
             // a char matrix path isn't plumbed in MValue yet.
-            if (sz.rows > 0 && formatHasNumeric(fmt))
+            const bool hasNum = formatHasNumeric(fmt);
+            if (sz.rows > 0 && hasNum)
                 outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
             else
-                outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
+                outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
             if (nargout > 1)
                 outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
         });
@@ -1451,10 +1456,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string fmt = args[1].toString();
             auto r = scanfCycle(args[0].toString(), fmt, sz.limit);
 
-            if (sz.rows > 0 && formatHasNumeric(fmt))
+            const bool hasNum = formatHasNumeric(fmt);
+            if (sz.rows > 0 && hasNum)
                 outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
             else
-                outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
+                outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
             if (nargout > 1)
                 outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
             if (nargout > 2)

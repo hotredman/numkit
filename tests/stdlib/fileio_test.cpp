@@ -807,6 +807,16 @@ TEST_P(FileIoTest, SscanfEmptyInputReturnsEmpty)
     EXPECT_EQ(evalScalar("n = numel(A);"), 0.0);
 }
 
+TEST_P(FileIoTest, SscanfEmptyInputWithTextFormatReturnsEmptyChar)
+{
+    // MATLAB parity: empty input + pure-text format returns '' (empty
+    // char), not [] (empty double). Output type follows the format,
+    // not what actually matched.
+    eval("A = sscanf('', '%s');");
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalScalar("n = numel(A);"), 0.0);
+}
+
 TEST_P(FileIoTest, SscanfStopsAtNonMatchingInput)
 {
     // "1 abc" — matches 1, then fails on "abc". Return [1] and count=1.
