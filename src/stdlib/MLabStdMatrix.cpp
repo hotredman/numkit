@@ -177,6 +177,24 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                 if (newNumel != a.numel())
                                     throw std::runtime_error(
                                         "Number of elements must not change in reshape");
+                                // CELL and STRING store their elements in
+                                // cellData (a vector<MValue>), not in the
+                                // raw buffer — memcpy wouldn't copy them.
+                                if (a.type() == MType::CELL ||
+                                    a.type() == MType::STRING) {
+                                    const bool is3D = d.pages > 0;
+                                    MValue r = (a.type() == MType::CELL)
+                                        ? (is3D ? MValue::cell3D(d.rows, d.cols, d.pages)
+                                                : MValue::cell(d.rows, d.cols))
+                                        : (is3D ? MValue::stringArray3D(d.rows, d.cols, d.pages)
+                                                : MValue::stringArray(d.rows, d.cols));
+                                    auto &src = a.cellDataVec();
+                                    auto &dst = r.cellDataVec();
+                                    for (size_t i = 0; i < src.size() && i < dst.size(); ++i)
+                                        dst[i] = src[i];
+                                    outs[0] = r;
+                                    return;
+                                }
                                 auto r = createMatrix(d, a.type(), alloc);
                                 if (a.rawBytes() > 0)
                                     std::memcpy(r.rawDataMut(), a.rawData(), a.rawBytes());

@@ -770,11 +770,6 @@ TEST_P(HeapSafety3DExtendedTest, Ifftshift3DComplexShapePreserved)
 
 TEST_P(HeapSafety3DExtendedTest, Strlength3DPreservesShape)
 {
-    // Heap-safety: strlength on a 3D string array must preserve 3D
-    // shape without corrupting the heap. Value-correctness for 3D
-    // string indexing is a separate concern (reshape of a string
-    // array / stringElem(linear) mapping into 3D is not fully wired
-    // up yet), so we only check shape/type/numel here.
     eval("S = reshape([\"aa\" \"bbb\" \"c\" \"dddd\" \"ee\" \"f\" \"ggg\" \"hh\"], 2, 2, 2);");
     eval("L = strlength(S);");
     auto *L = getVarPtr("L");
@@ -782,6 +777,11 @@ TEST_P(HeapSafety3DExtendedTest, Strlength3DPreservesShape)
     EXPECT_EQ(L->type(), MType::DOUBLE);
     EXPECT_TRUE(L->dims().is3D());
     EXPECT_EQ(L->numel(), 8u);
+    EXPECT_DOUBLE_EQ(L->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(L->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(L->doubleData()[2], 1.0);
+    EXPECT_DOUBLE_EQ(L->doubleData()[3], 4.0);
+    EXPECT_DOUBLE_EQ(L->doubleData()[7], 2.0);
 }
 
 INSTANTIATE_DUAL(HeapSafety3DExtendedTest);

@@ -201,6 +201,17 @@ MValue MValue::stringArray(size_t rows, size_t cols)
     m.heap_ = h;
     return m;
 }
+MValue MValue::stringArray3D(size_t rows, size_t cols, size_t pages)
+{
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::STRING;
+    h->dims = {rows, cols, pages};
+    h->cellData = new std::vector<MValue>(rows * cols * pages,
+                                          MValue::fromString("", nullptr));
+    m.heap_ = h;
+    return m;
+}
 const std::string &MValue::stringElem(size_t i) const
 {
     static const std::string empty;

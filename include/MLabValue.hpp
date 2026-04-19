@@ -64,7 +64,7 @@ public:
     static MValue deleted();
 
     // ── Factories — compound operations ────────────────────────
-    // Colon range: start:stop (step=1) or start:step:stop
+    // Colon range: start:stop kEmptyTagstep=1) or start:step:stop
     static MValue colonRange(double start, double stop, Allocator *alloc = nullptr);
     static MValue colonRange(double start, double step, double stop, Allocator *alloc = nullptr);
 
@@ -125,6 +125,7 @@ public:
     // ── Factories — string (MATLAB "..." double-quoted) ─────
     static MValue stringScalar(const std::string &s, Allocator *alloc = nullptr);
     static MValue stringArray(size_t rows, size_t cols);
+    static MValue stringArray3D(size_t rows, size_t cols, size_t pages);
 
     // ���─ String accessors ────────────────────────────────────
     const std::string &stringElem(size_t i) const;

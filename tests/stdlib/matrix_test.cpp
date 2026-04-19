@@ -331,6 +331,32 @@ TEST_P(ReshapeTest, ReshapeZeroKnownDimWithPlaceholderThrows)
     EXPECT_THROW({ eval("reshape(1:12, 0, []);"); }, std::exception);
 }
 
+TEST_P(ReshapeTest, ReshapeStringArrayTo3DPreservesValues)
+{
+    eval("S = reshape([\"aa\" \"bbb\" \"c\" \"dddd\" \"ee\" \"f\" \"ggg\" \"hh\"], 2, 2, 2);");
+    auto *S = getVarPtr("S");
+    ASSERT_NE(S, nullptr);
+    EXPECT_EQ(S->type(), MType::STRING);
+    EXPECT_TRUE(S->dims().is3D());
+    EXPECT_EQ(S->numel(), 8u);
+    EXPECT_EQ(S->stringElem(0), "aa");
+    EXPECT_EQ(S->stringElem(3), "dddd");
+    EXPECT_EQ(S->stringElem(7), "hh");
+}
+
+TEST_P(ReshapeTest, ReshapeCellTo3DPreservesValues)
+{
+    eval("C = reshape({1, 'ab', [3 4 5], 7, 8, 9, 10, 11}, 2, 2, 2);");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->type(), MType::CELL);
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(C->numel(), 8u);
+    EXPECT_DOUBLE_EQ(C->cellAt(0).toScalar(), 1.0);
+    EXPECT_EQ(C->cellAt(1).toString(), "ab");
+    EXPECT_DOUBLE_EQ(C->cellAt(7).toScalar(), 11.0);
+}
+
 TEST_P(ReshapeTest, ReshapeComplexPreservesValues)
 {
     eval("A = (1:8) + (1:8) * 1i; B = reshape(A, 2, 2, 2);");
