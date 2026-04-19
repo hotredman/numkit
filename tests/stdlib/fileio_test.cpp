@@ -1681,6 +1681,116 @@ TEST_P(FileIoTest, TextscanEndOfLineDrivesHeaderLinesSkip)
     EXPECT_EQ(evalScalar("b = C{2}(2);"), 4.0);
 }
 
+// ── save / load (ascii) ──────────────────────────────────
+
+TEST_P(FileIoTest, SaveLoadRoundTripMatrix)
+{
+    eval("A = [1 2 3; 4 5 6];");
+    eval("save('mat.txt', 'A', '-ascii');");
+    eval("B = load('mat.txt');");
+
+    EXPECT_EQ(evalScalar("r = size(B, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(B, 2);"), 3.0);
+    EXPECT_EQ(evalScalar("a11 = B(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("a23 = B(2,3);"), 6.0);
+}
+
+TEST_P(FileIoTest, SaveLoadPreservesDoublePrecision)
+{
+    eval("A = [0.1 0.2 0.3];");
+    eval("save('prec.txt', 'A', '-ascii');");
+    eval("B = load('prec.txt');");
+    EXPECT_DOUBLE_EQ(evalScalar("a = B(1);"), 0.1);
+    EXPECT_DOUBLE_EQ(evalScalar("b = B(2);"), 0.2);
+    EXPECT_DOUBLE_EQ(evalScalar("c = B(3);"), 0.3);
+}
+
+TEST_P(FileIoTest, SaveWithoutDashAsciiStillWritesText)
+{
+    // Default (no flag) falls back to ascii in this build — .mat
+    // binary isn't implemented.
+    eval("X = [10 20; 30 40];");
+    eval("save('default.txt', 'X');");
+    EXPECT_TRUE(fs->files().count("default.txt") > 0);
+}
+
+TEST_P(FileIoTest, SaveRejectsBinaryMatFlags)
+{
+    eval("Y = [1 2];");
+    EXPECT_THROW(eval("save('y.mat', 'Y', '-mat');"), std::exception);
+    EXPECT_THROW(eval("save('y.mat', 'Y', '-v7.3');"), std::exception);
+}
+
+TEST_P(FileIoTest, SaveRejectsMissingVariable)
+{
+    EXPECT_THROW(eval("save('x.txt', 'ZZZ_does_not_exist');"), std::exception);
+}
+
+TEST_P(FileIoTest, SaveRequiresAtLeastOneVariable)
+{
+    EXPECT_THROW(eval("save('x.txt');"), std::exception);
+}
+
+TEST_P(FileIoTest, LoadSkipsCommentLines)
+{
+    fs->files()["comments.txt"] = "% header comment\n1 2 3\n# another comment\n4 5 6\n";
+    eval("M = load('comments.txt');");
+    EXPECT_EQ(evalScalar("r = size(M, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(M, 2);"), 3.0);
+    EXPECT_EQ(evalScalar("a = M(2,3);"), 6.0);
+}
+
+TEST_P(FileIoTest, LoadSkipsEmptyLines)
+{
+    fs->files()["blanks.txt"] = "\n\n1 2\n\n3 4\n\n";
+    eval("M = load('blanks.txt');");
+    EXPECT_EQ(evalScalar("r = size(M, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(M, 2);"), 2.0);
+}
+
+TEST_P(FileIoTest, LoadWithoutLhsAssignsToFileStem)
+{
+    fs->files()["data.txt"] = "1 2\n3 4\n";
+    eval("load('data.txt');");
+    // Variable 'data' should now exist in the workspace.
+    EXPECT_EQ(evalScalar("r = size(data, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("a = data(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("b = data(2,2);"), 4.0);
+}
+
+TEST_P(FileIoTest, LoadRejectsInconsistentColumnCounts)
+{
+    fs->files()["bad.txt"] = "1 2 3\n4 5\n6 7 8\n";
+    EXPECT_THROW(eval("M = load('bad.txt');"), std::exception);
+}
+
+TEST_P(FileIoTest, LoadRejectsEmptyFile)
+{
+    fs->files()["empty.txt"] = "";
+    EXPECT_THROW(eval("M = load('empty.txt');"), std::exception);
+}
+
+TEST_P(FileIoTest, LoadOfSingleValueReturnsScalar)
+{
+    fs->files()["one.txt"] = "42\n";
+    eval("x = load('one.txt');");
+    EXPECT_TRUE(evalBool("tf = isscalar(x);"));
+    EXPECT_EQ(evalScalar("v = x;"), 42.0);
+}
+
+TEST_P(FileIoTest, SaveMultipleVariablesConcatenated)
+{
+    eval("A = [1 2; 3 4];");
+    eval("B = [9 8; 7 6];");
+    eval("save('multi.txt', 'A', 'B', '-ascii');");
+    // Loading returns a 4x2 matrix: rows of A then blank-separated rows of B.
+    eval("M = load('multi.txt');");
+    EXPECT_EQ(evalScalar("r = size(M, 1);"), 4.0);
+    EXPECT_EQ(evalScalar("c = size(M, 2);"), 2.0);
+    EXPECT_EQ(evalScalar("a11 = M(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("a31 = M(3,1);"), 9.0);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
