@@ -205,6 +205,10 @@ public:
         size_t cursor = 0;
         bool forRead = false;
         bool forWrite = false;
+        // Last soft-failure text for MATLAB's ferror(fid). Populated by
+        // fread on short reads, fgetl/fgets/fscanf on EOF, etc. Cleared
+        // by ferror(fid, 'clear'). Hard failures still throw MLabError.
+        std::string lastError;
     };
 
     int openFile(const std::string &userPath, const std::string &mode);

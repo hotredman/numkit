@@ -816,6 +816,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             auto *f = requireReadFid(ctx.engine, args, "fgetl");
 
             if (f->cursor >= f->buffer.size()) {
+                f->lastError = "End of file reached.";
                 outs[0] = MValue::scalar(-1.0, alloc);
                 return;
             }
@@ -840,6 +841,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             auto *f = requireReadFid(ctx.engine, args, "fgets");
 
             if (f->cursor >= f->buffer.size()) {
+                f->lastError = "End of file reached.";
                 outs[0] = MValue::scalar(-1.0, alloc);
                 return;
             }
@@ -870,6 +872,39 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f)
                 throw MLabError("feof: invalid file identifier");
             outs[0] = MValue::logicalScalar(f->cursor >= f->buffer.size(), alloc);
+        });
+
+    // ── ferror ──────────────────────────────────────────────────
+    //
+    //   msg           = ferror(fid)
+    //   [msg, errnum] = ferror(fid)
+    //   msg           = ferror(fid, 'clear')   — resets the error state
+    //
+    // Returns the most recent soft-error on that fid (EOF from a read,
+    // short match on fscanf, etc.). Empty string when no error. errnum
+    // is 0/-1 to signal clean/error per MATLAB convention. Hard errors
+    // (invalid fid, bad precision, write-on-read-fid) still throw
+    // MLabError — they are programmer errors, not recoverable I/O faults.
+
+    engine.registerFunction(
+        "ferror",
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
+            auto *alloc = &ctx.engine->allocator();
+            if (args.empty() || !args[0].isScalar())
+                throw MLabError("ferror: file identifier required");
+            int fid = static_cast<int>(args[0].toScalar());
+            auto *f = ctx.engine->findFile(fid);
+            if (!f)
+                throw MLabError("ferror: invalid file identifier");
+
+            bool clear = args.size() >= 2 && args[1].isChar() && args[1].toString() == "clear";
+            std::string msg = f->lastError;
+            if (clear)
+                f->lastError.clear();
+
+            outs[0] = MValue::fromString(msg, alloc);
+            if (nargout > 1)
+                outs[1] = MValue::scalar(msg.empty() ? 0.0 : -1.0, alloc);
         });
 
     // ── ftell / fseek / frewind ─────────────────────────────────
@@ -1058,6 +1093,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             size_t available = f->buffer.size() - f->cursor;
             size_t maxElems = available / bsize;
             size_t n = readAll ? maxElems : std::min(requested, maxElems);
+            if (!readAll && n < requested)
+                f->lastError = "End of file reached.";
 
             // Always return a column vector of doubles — MATLAB's
             // default output type regardless of precision.
@@ -1341,6 +1378,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string fmt = args[1].toString();
             auto r = scanfCycle(input, fmt, limit);
             f->cursor += r.bytesConsumed;
+
+            // Populate ferror on a partial match so scripts can distinguish
+            // "input exhausted" from "fewer items matched than requested".
+            if (f->cursor >= f->buffer.size())
+                f->lastError = "End of file reached.";
+            else if (limit != SIZE_MAX && r.count < limit)
+                f->lastError = "Matching failure.";
 
             outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
             if (nargout > 1)

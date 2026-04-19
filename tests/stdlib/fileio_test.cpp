@@ -1057,6 +1057,70 @@ TEST_P(FileIoTest, FopenAllWithModeArgFallsBackToLiteralFilename)
     EXPECT_TRUE(fs->files().count("all") > 0);
 }
 
+// ── ferror ───────────────────────────────────────────────
+
+TEST_P(FileIoTest, FerrorIsEmptyOnFreshFid)
+{
+    fs->files()["x.txt"] = "abc";
+    eval("fid = fopen('x.txt', 'r');");
+    EXPECT_EQ(evalString("msg = ferror(fid);"), "");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FerrorReportsEofFromFgetl)
+{
+    fs->files()["one.txt"] = "only\n";
+    eval("fid = fopen('one.txt', 'r');");
+    eval("a = fgetl(fid);");
+    eval("b = fgetl(fid);");  // hits EOF, returns -1
+    EXPECT_EQ(evalString("msg = ferror(fid);"), "End of file reached.");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FerrorReportsShortFread)
+{
+    // Ask for more bytes than available — ferror should describe it.
+    fs->files()["short.bin"] = std::string("\x01\x02", 2);
+    eval("fid = fopen('short.bin', 'r');");
+    eval("A = fread(fid, 10, 'uint8');");
+    EXPECT_EQ(evalString("msg = ferror(fid);"), "End of file reached.");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FerrorSecondOutIsErrnum)
+{
+    fs->files()["one.txt"] = "only\n";
+    eval("fid = fopen('one.txt', 'r');");
+    eval("a = fgetl(fid);");
+    eval("b = fgetl(fid);");
+    eval("[msg, errnum] = ferror(fid);");
+    EXPECT_EQ(getVar("errnum"), -1.0);
+    // Successful read, no outstanding error — errnum should be 0.
+    eval("fclose(fid);");
+    fs->files()["ok.txt"] = "alpha\n";
+    eval("fid2 = fopen('ok.txt', 'r');");
+    eval("x = fgetl(fid2);");
+    eval("[m2, en2] = ferror(fid2);");
+    EXPECT_EQ(getVar("en2"), 0.0);
+    eval("fclose(fid2);");
+}
+
+TEST_P(FileIoTest, FerrorClearResetsState)
+{
+    fs->files()["one.txt"] = "only\n";
+    eval("fid = fopen('one.txt', 'r');");
+    eval("fgetl(fid); fgetl(fid);");  // second call errors
+    EXPECT_FALSE(evalString("m = ferror(fid);").empty());
+    eval("ferror(fid, 'clear');");
+    EXPECT_EQ(evalString("m = ferror(fid);"), "");
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FerrorOnInvalidFidThrows)
+{
+    EXPECT_THROW(eval("x = ferror(999);"), std::exception);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
