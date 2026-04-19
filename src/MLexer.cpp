@@ -3,7 +3,7 @@
 #include <stdexcept>
 #include <unordered_map>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ─── safe ctype wrappers ────────────────────────────────────────────────
 
@@ -789,4 +789,4 @@ std::vector<Token> Lexer::tokenize()
     return tokens_;
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

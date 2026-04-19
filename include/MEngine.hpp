@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class TreeWalker;
 class VM;
@@ -310,4 +310,4 @@ private:
     friend class DebugSession;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

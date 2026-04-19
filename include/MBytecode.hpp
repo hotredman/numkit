@@ -8,7 +8,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 enum class OpCode : uint8_t {
     // ── Data movement ────────────────────────────────────────
@@ -288,4 +288,4 @@ struct BytecodeChunk
     std::shared_ptr<const std::string> sourceCode;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

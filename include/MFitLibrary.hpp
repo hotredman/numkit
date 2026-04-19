@@ -2,7 +2,7 @@
 
 #include "MEngine.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class FitLibrary
 {
@@ -13,4 +13,4 @@ private:
     static void registerInterpFunctions(Engine &engine);
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

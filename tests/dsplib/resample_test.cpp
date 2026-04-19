@@ -5,7 +5,7 @@
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit::m::m;
+using namespace numkit::m;
 
 class ResampleTest : public ::testing::Test
 {

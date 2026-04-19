@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // MType — element type enum
@@ -35,4 +35,4 @@ size_t elementSize(MType t);
 bool isIntegerType(MType t);
 bool isFloatType(MType t); // double or single
 
-} // namespace numkit::m::m
+} // namespace numkit::m

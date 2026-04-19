@@ -14,7 +14,7 @@
 
 #include <gtest/gtest.h>
 
-using namespace numkit::m::m;
+using namespace numkit::m;
 
 namespace {
 

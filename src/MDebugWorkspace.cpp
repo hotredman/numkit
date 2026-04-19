@@ -5,7 +5,7 @@
 #include "MTypes.hpp"
 #include "MVM.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // Names that don't qualify as user variables by default. Covers the
 // compile-time built-ins (pi, eps, …), runtime pseudo-vars (nargin,
@@ -158,4 +158,4 @@ std::vector<std::string> DebugWorkspace::allNames() const
     return result;
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

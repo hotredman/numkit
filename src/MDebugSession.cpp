@@ -24,7 +24,7 @@
 
 #include <unordered_set>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 DebugSession::DebugSession(Engine &engine)
     : engine_(engine)
@@ -345,4 +345,4 @@ std::string DebugSession::takeOutput()
     return out;
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

@@ -26,7 +26,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class Engine;
 class Compiler;
@@ -127,4 +127,4 @@ private:
     std::string outputBuf_;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

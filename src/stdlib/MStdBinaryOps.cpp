@@ -5,7 +5,7 @@
 #include <functional>
 #include <stdexcept>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 void StdLibrary::registerBinaryOps(Engine &engine)
 {
@@ -491,4 +491,4 @@ void StdLibrary::registerBinaryOps(Engine &engine)
     });
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

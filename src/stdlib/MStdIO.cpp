@@ -10,7 +10,7 @@
 #include <sstream>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 void StdLibrary::registerIOFunctions(Engine &engine)
 {
@@ -2367,4 +2367,4 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         });
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

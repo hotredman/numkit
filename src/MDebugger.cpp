@@ -5,7 +5,7 @@
 
 #include <algorithm>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // StackFrame::variables
@@ -255,4 +255,4 @@ void DebugController::applyAction(DebugAction action, int callDepth)
     }
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

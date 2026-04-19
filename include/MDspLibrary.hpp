@@ -2,7 +2,7 @@
 
 #include "MEngine.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class DspLibrary
 {
@@ -20,4 +20,4 @@ private:
     static void registerTransformFunctions(Engine &engine);
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

@@ -28,7 +28,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class VirtualFS
 {
@@ -86,4 +86,4 @@ private:
     ExistsFunc exists_;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

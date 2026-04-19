@@ -6,7 +6,7 @@
 #include <atomic>
 #include <cstddef>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // DataBuffer — raw memory block with ref-counting
@@ -36,4 +36,4 @@ private:
     Allocator *allocator_ = nullptr;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

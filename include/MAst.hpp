@@ -5,7 +5,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 enum class NodeType {
     NUMBER_LITERAL,
@@ -86,4 +86,4 @@ ASTNodePtr makeNode(NodeType t);
 ASTNodePtr makeNode(NodeType t, int line, int col);
 ASTNodePtr cloneNode(const ASTNode *src);
 
-} // namespace numkit::m::m
+} // namespace numkit::m

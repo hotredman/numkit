@@ -8,7 +8,7 @@
 #  include <stdlib.h>
 #endif
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // Project-name prefix for user-facing identifiers that must change if
 // the project is ever renamed. Intentionally narrow — covers only the
@@ -45,4 +45,4 @@ inline std::string envGet(const char *name)
 #endif
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

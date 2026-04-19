@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // Shared helper: resolve an index operand to 0-based indices
@@ -2020,4 +2020,4 @@ void VM::execWhos(const Instruction &I, MValue *R, const BytecodeChunk &chunk)
     }
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

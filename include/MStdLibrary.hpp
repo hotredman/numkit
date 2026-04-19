@@ -2,7 +2,7 @@
 
 #include "MEngine.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class StdLibrary
 {
@@ -25,4 +25,4 @@ private:
     static void registerWorkspaceBuiltins(Engine &engine);
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

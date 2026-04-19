@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit::m::m;
+using namespace numkit::m;
 
 class SignalCoreTest : public ::testing::Test
 {

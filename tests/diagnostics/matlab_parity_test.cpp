@@ -14,7 +14,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace mlab_test;
-using namespace numkit::m::m;
+using namespace numkit::m;
 
 class MatlabParity : public DualEngineTest
 {

@@ -1,7 +1,7 @@
 #include "MLexer.hpp"
 #include <gtest/gtest.h>
 
-using namespace numkit::m::m;
+using namespace numkit::m;
 
 // ============================================================
 // Вспомогательные функции

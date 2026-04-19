@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 struct DatasetInfo
 {
@@ -311,4 +311,4 @@ private:
     OutputFunc outputFunc_;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

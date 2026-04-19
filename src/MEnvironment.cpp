@@ -1,7 +1,7 @@
 // src/MEnvironment.cpp
 #include "MEnvironment.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // Environment — SBO helpers
@@ -237,4 +237,4 @@ std::vector<std::string> Environment::localNames() const
     return names;
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

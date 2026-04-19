@@ -5,7 +5,7 @@
 #include <functional>
 #include <stdexcept>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 void StdLibrary::registerUnaryOps(Engine &engine)
 {
@@ -128,4 +128,4 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     });
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

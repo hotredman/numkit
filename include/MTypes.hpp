@@ -14,7 +14,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // Timer types
@@ -145,4 +145,4 @@ struct UserFunction
     mutable int8_t usesNarginNargout = -1;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

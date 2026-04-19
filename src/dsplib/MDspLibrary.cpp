@@ -1,6 +1,6 @@
 #include "MDspLibrary.hpp"
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 void DspLibrary::install(Engine &engine)
 {
@@ -14,4 +14,4 @@ void DspLibrary::install(Engine &engine)
     registerTransformFunctions(engine);
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

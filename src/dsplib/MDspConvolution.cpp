@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 void DspLibrary::registerConvolutionFunctions(Engine &engine)
 {
@@ -157,4 +157,4 @@ void DspLibrary::registerConvolutionFunctions(Engine &engine)
                             });
 }
 
-} // namespace numkit::m::m
+} // namespace numkit::m

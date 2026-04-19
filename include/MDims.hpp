@@ -4,7 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 // ============================================================
 // Dims — array dimensions
@@ -38,4 +38,4 @@ struct Dims
     bool operator!=(const Dims &o) const;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m

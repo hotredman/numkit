@@ -32,7 +32,7 @@
 #include <unordered_set>
 #include <vector>
 
-namespace numkit::m::m {
+namespace numkit::m {
 
 class Engine;
 class VM;
@@ -109,4 +109,4 @@ private:
     bool isHiddenName(const std::string &name) const;
 };
 
-} // namespace numkit::m::m
+} // namespace numkit::m
