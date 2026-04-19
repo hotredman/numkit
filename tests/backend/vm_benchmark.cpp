@@ -1,7 +1,7 @@
 // tests/vm_benchmark.cpp
 //
 // Direct timing comparison: TreeWalker vs Bytecode VM
-// Run with: ./mlab_tests --gtest_filter="VMBenchmark.*"
+// Run with: ./m_tests --gtest_filter="VMBenchmark.*"
 
 #include "MCompiler.hpp"
 #include "MEngine.hpp"

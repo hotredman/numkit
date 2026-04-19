@@ -15,7 +15,7 @@
 //     or the Local Folder backend in JS.
 //
 //   * The Engine owns a small registry ("native", "temporary", "local"),
-//     plus a path resolver that reads MLAB_FS / MLAB_CWD (via env) and the
+//     plus a path resolver that reads NUMKIT_M_FS / NUMKIT_M_CWD (via env) and the
 //     current script's origin.
 //
 //   * A backend that isn't registered is simply absent — asking for

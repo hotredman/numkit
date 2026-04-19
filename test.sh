@@ -7,4 +7,4 @@ cmake -B build -DCMAKE_BUILD_TYPE=Debug
 cmake --build build -j$(nproc)
 
 cd build
-./tests/mlab_tests "$@"
+./tests/m_tests "$@"

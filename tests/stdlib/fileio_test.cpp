@@ -10,7 +10,7 @@
 #include <map>
 #include <memory>
 
-using namespace mlab_test;
+using namespace m_test;
 
 namespace {
 
@@ -236,7 +236,7 @@ TEST_P(FileIoTest, EveryFopenYieldsDistinctFid)
 
 TEST_P(FileIoTest, FopenHonorsMlabFsEnvVar)
 {
-    // Register a second backend and redirect fopen to it via MLAB_FS —
+    // Register a second backend and redirect fopen to it via NUMKIT_M_FS —
     // the script origin stack still says 'temporary', so this verifies
     // env-var precedence for fopen specifically (same contract we
     // already test for csvread/csvwrite in vfs_test.cpp).
@@ -244,11 +244,11 @@ TEST_P(FileIoTest, FopenHonorsMlabFsEnvVar)
     auto *otherPtr = other.get();
     engine.registerVirtualFS(std::move(other));
 
-    eval("setenv('MLAB_FS', 'other');");
+    eval("setenv('NUMKIT_M_FS', 'other');");
     eval("fid = fopen('x.txt', 'w');");
     eval("fprintf(fid, 'via other');");
     eval("fclose(fid);");
-    eval("setenv('MLAB_FS', '');");
+    eval("setenv('NUMKIT_M_FS', '');");
 
     EXPECT_EQ(otherPtr->files()["x.txt"], "via other");
     EXPECT_TRUE(fs->files().empty());
@@ -1517,7 +1517,7 @@ TEST_P(FileIoTest, SscanfCharMatrixShape)
     // Column-major fill: 'abcdef' into [2 3] yields
     //   a c e
     //   b d f
-    // MLab uses linear indexing for char arrays (column-major), so
+    // numkit-m uses linear indexing for char arrays (column-major), so
     // A(1)='a' A(2)='b' A(3)='c' A(4)='d' A(5)='e' A(6)='f'.
     eval("A = sscanf('abcdef', '%c', [2 3]);");
     EXPECT_TRUE(evalBool("tf = ischar(A);"));
@@ -1595,7 +1595,7 @@ TEST_P(FileIoTest, TextscanCommaSeparatedWithMixedFormat)
 
 TEST_P(FileIoTest, TextscanSkipsHeaderLines)
 {
-    // Multi-line content has to go through a fid — MLab single-quoted
+    // Multi-line content has to go through a fid — numkit-m single-quoted
     // strings don't carry embedded newlines.
     fs->files()["hdr.txt"] = "# metadata\n# more meta\n1 2\n3 4\n5 6\n";
     eval("fid = fopen('hdr.txt', 'r');");

@@ -34,6 +34,14 @@
       ]
     },
     {
+      "name": "CSV",
+      "files": [
+        "read_range.m",
+        "roundtrip.m",
+        "write_offset.m"
+      ]
+    },
+    {
       "name": "Control_Flow",
       "files": [
         "for_loop.m",
@@ -48,6 +56,14 @@
         "factorial.m",
         "fibonacci.m",
         "multiple_returns.m"
+      ]
+    },
+    {
+      "name": "IO",
+      "files": [
+        "append_log.m",
+        "manual_csv.m",
+        "write_text.m"
       ]
     },
     {

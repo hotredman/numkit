@@ -8,7 +8,7 @@ set PAGES_DIR=%PROJECT_DIR%docs
 set EMSDK=C:\Users\User\Repo\emsdk
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
-echo === MLab Deploy to GitHub Pages ===
+echo === mIDE Deploy to GitHub Pages ===
 echo.
 
 :: Check Node.js
@@ -20,14 +20,14 @@ if errorlevel 1 (
 
 :: Build WASM if emsdk available and not yet built
 if exist "%EMCC_DIR%\emcc.bat" (
-    if not exist "%WASM_DIST%\mlab_repl.wasm" (
+    if not exist "%WASM_DIST%\numkit_mide.wasm" (
         echo Building WASM...
         call "%PROJECT_DIR%build.bat" --wasm
         if errorlevel 1 exit /b 1
     )
     echo Copying WASM files into ide\public\...
-    copy /y "%WASM_DIST%\mlab_repl.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\mlab_repl.wasm" "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
 ) else (
     echo emsdk not found — building without WASM (fallback mode only)
 )

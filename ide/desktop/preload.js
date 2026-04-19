@@ -1,4 +1,4 @@
-// preload.js — Electron context-bridge for the MLab desktop app.
+// preload.js — Electron context-bridge for the mIDE desktop app.
 //
 // Exposes window.nativeFS to the renderer: a path-based filesystem
 // API plus OS-level "reveal in explorer" actions. The renderer

@@ -37,7 +37,7 @@ To use your real C++ numkit interpreter:
 # From your project root (where the top-level CMakeLists.txt is)
 mkdir build-wasm && cd build-wasm
 
-emcmake cmake .. -DMLAB_BUILD_REPL=ON -DCMAKE_BUILD_TYPE=Release
+emcmake cmake .. -DNUMKIT_M_BUILD_REPL=ON -DCMAKE_BUILD_TYPE=Release
 
 emmake make numkit_mide
 ```
@@ -133,8 +133,8 @@ access token input in the GitRepoBrowser component.
 Add this to your top-level `CMakeLists.txt`:
 
 ```cmake
-option(MLAB_BUILD_REPL "Build web REPL" OFF)
-if(MLAB_BUILD_REPL)
+option(NUMKIT_M_BUILD_REPL "Build web REPL" OFF)
+if(NUMKIT_M_BUILD_REPL)
     add_subdirectory(repl)
 endif()
 ```

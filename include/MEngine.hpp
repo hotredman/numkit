@@ -165,10 +165,10 @@ public:
     // resolvePath() picks the right backend by this order of precedence:
     //   1. explicit prefix in the path ("temporary:/foo", "local:/foo",
     //      "native:/foo") — wins over everything
-    //   2. env var MLAB_FS, if it names a registered backend
+    //   2. env var NUMKIT_M_FS, if it names a registered backend
     //   3. the current script's origin (set by the IDE before eval)
     //   4. "native" if registered
-    // Relative paths are joined with MLAB_CWD when that env var is set.
+    // Relative paths are joined with NUMKIT_M_CWD when that env var is set.
     void registerVirtualFS(std::unique_ptr<VirtualFS> fs);
     VirtualFS *findVirtualFS(const std::string &name) const;
 

@@ -1,7 +1,7 @@
 // tests/test_who_diagnostic.cpp
 #include "dual_engine_fixture.hpp"
 
-using namespace mlab_test;
+using namespace m_test;
 using namespace numkit::m;
 
 class WhoDiagnostic : public DualEngineTest

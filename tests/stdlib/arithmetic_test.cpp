@@ -5,7 +5,7 @@
 
 #include <cmath>
 
-using namespace mlab_test;
+using namespace m_test;
 
 // ============================================================
 // Literals and arithmetic

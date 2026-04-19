@@ -486,7 +486,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             const auto &me = args[0];
             std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
             std::string id =
-                me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
+                me.hasField("identifier") ? me.field("identifier").toString() : "m:error";
             throw MError(msg, 0, 0, "", "", id);
         });
 
@@ -499,7 +499,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             const auto &me = args[0];
             std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
             std::string id =
-                me.hasField("identifier") ? me.field("identifier").toString() : "MLAB:error";
+                me.hasField("identifier") ? me.field("identifier").toString() : "m:error";
             throw MError(msg, 0, 0, "", "", id);
         });
 
@@ -513,7 +513,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (args[0].toBool())
                 return; // assertion passed
             if (args.size() == 1)
-                throw MError("Assertion failed.", 0, 0, "", "", "MLAB:assert");
+                throw MError("Assertion failed.", 0, 0, "", "", "m:assert");
             // assert(cond, MException struct)
             if (args[1].isStruct()) {
                 std::string msg = args[1].hasField("message")
@@ -521,7 +521,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                       : "Assertion failed.";
                 std::string id = args[1].hasField("identifier")
                                      ? args[1].field("identifier").toString()
-                                     : "MLAB:assert";
+                                     : "m:assert";
                 throw MError(msg, 0, 0, "", "", id);
             }
             // assert(cond, msg) or assert(cond, id, msg, ...)
@@ -540,7 +540,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 msg = sprintfImpl(first, args, 2);
             else
                 msg = first;
-            throw MError(msg, 0, 0, "", "", "MLAB:assert");
+            throw MError(msg, 0, 0, "", "", "m:assert");
         });
 
     // ── csvread / csvwrite ──────────────────────────────────────

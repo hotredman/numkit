@@ -22,7 +22,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace mlab_test {
+namespace m_test {
 
 using namespace numkit::m;
 
@@ -99,13 +99,13 @@ public:
     AxesState &ax() { return fm().currentAxes(); }
 };
 
-} // namespace mlab_test
+} // namespace m_test
 
 // ── Instantiation macro ──────────────────────────────────────
 // Use at the bottom of each test file:
 //   INSTANTIATE_DUAL(MySuite);
 #define INSTANTIATE_DUAL(SuiteName)                                                                \
     INSTANTIATE_TEST_SUITE_P(TW_VM, SuiteName,                                                     \
-                             ::testing::Values(mlab_test::BackendParam::TreeWalker,                 \
-                                               mlab_test::BackendParam::VM),                       \
-                             mlab_test::backendName)
+                             ::testing::Values(m_test::BackendParam::TreeWalker,                 \
+                                               m_test::BackendParam::VM),                       \
+                             m_test::backendName)

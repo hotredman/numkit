@@ -12,15 +12,15 @@ namespace numkit::m {
 
 // Project-name prefix for user-facing identifiers that must change if
 // the project is ever renamed. Intentionally narrow — covers only the
-// environment-variable namespace (MLAB_FS, MLAB_CWD, …) that end-user
-// scripts `setenv`/`getenv` touch and would break on rename.
+// environment-variable namespace (NUMKIT_M_FS, NUMKIT_M_CWD, …) that
+// end-user scripts `setenv`/`getenv` touch and would break on rename.
 //
 // NOT covered here (rename these manually alongside the prefix update):
-//   • C++ namespace `mlab`, target `numkit::m::mlab`
+//   • C++ namespace `numkit::m`, target `numkit::m`
 //   • File names `M*.hpp` / `M*.cpp`
-//   • Error-identifier strings such as "MLAB:assert" in MStdIO.cpp
+//   • Error-identifier strings such as "m:assert" in MStdIO.cpp
 //   • Documentation, README, CMake project name
-inline constexpr const char *kEnvPrefix = "MLAB";
+inline constexpr const char *kEnvPrefix = "NUMKIT_M";
 
 inline std::string envVarName(const char *suffix)
 {

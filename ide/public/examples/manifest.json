@@ -34,20 +34,20 @@
       ]
     },
     {
+      "name": "CSV",
+      "files": [
+        "read_range.m",
+        "roundtrip.m",
+        "write_offset.m"
+      ]
+    },
+    {
       "name": "Control_Flow",
       "files": [
         "for_loop.m",
         "if_elseif_else.m",
         "nested_loops.m",
         "while_loop.m"
-      ]
-    },
-    {
-      "name": "CSV",
-      "files": [
-        "read_range.m",
-        "roundtrip.m",
-        "write_offset.m"
       ]
     },
     {
@@ -59,20 +59,20 @@
       ]
     },
     {
+      "name": "IO",
+      "files": [
+        "append_log.m",
+        "manual_csv.m",
+        "write_text.m"
+      ]
+    },
+    {
       "name": "Interpolation",
       "files": [
         "interp1_methods.m",
         "polyfit_demo.m",
         "spline_smooth.m",
         "trapz_demo.m"
-      ]
-    },
-    {
-      "name": "IO",
-      "files": [
-        "append_log.m",
-        "manual_csv.m",
-        "write_text.m"
       ]
     },
     {

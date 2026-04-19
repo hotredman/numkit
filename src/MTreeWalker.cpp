@@ -2269,7 +2269,7 @@ MValue TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = MValue::structure();
                 err.field("message") = MValue::fromString(mle.what(), &engine_.allocator_);
-                std::string id = mle.identifier().empty() ? "MLAB:error" : mle.identifier();
+                std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
                 err.field("identifier") = MValue::fromString(id, &engine_.allocator_);
                 env->set(node->strValue, err);
             }
@@ -2281,7 +2281,7 @@ MValue TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
             if (!node->strValue.empty()) {
                 auto err = MValue::structure();
                 err.field("message") = MValue::fromString(e.what(), &engine_.allocator_);
-                err.field("identifier") = MValue::fromString("MLAB:error", &engine_.allocator_);
+                err.field("identifier") = MValue::fromString("m:error", &engine_.allocator_);
                 env->set(node->strValue, err);
             }
             return execNode(node->children[1].get(), env);

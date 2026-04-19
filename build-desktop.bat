@@ -6,7 +6,7 @@ set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 set WASM_DIST=%PROJECT_DIR%build-wasm\wasm\dist
 
-echo === MLab IDE — Desktop Build ===
+echo === mIDE — Desktop Build ===
 echo.
 
 :: Check Node.js
@@ -17,9 +17,9 @@ if errorlevel 1 (
 )
 
 :: Copy WASM artifacts
-if exist "%WASM_DIST%\mlab_repl.wasm" (
-    copy /y "%WASM_DIST%\mlab_repl.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\mlab_repl.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\numkit_mide.wasm" (
+    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
     echo [1/4] WASM engine copied
 ) else (
     echo [1/4] WARNING: WASM not built — app will run in demo mode

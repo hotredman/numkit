@@ -1,4 +1,4 @@
-// main.js — MLab IDE desktop shell
+// main.js — mIDE desktop shell
 // Supports two modes:
 //   Dev mode:  spawns Vite dev server, loads from http://
 //   Prod mode: loads pre-built static files from dist/
@@ -21,7 +21,7 @@ function createWindow(url) {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
-    title: 'MLab IDE',
+    title: 'mIDE',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -29,7 +29,7 @@ function createWindow(url) {
     },
   });
 
-  console.log('[MLab] Loading:', url);
+  console.log('[mIDE] Loading:', url);
   if (url.startsWith('http')) {
     mainWindow.loadURL(url);
   } else {
@@ -45,7 +45,7 @@ function startVite() {
   const VITE_BIN = path.join(IDE_DIR, 'node_modules', 'vite', 'bin', 'vite.js');
 
   return new Promise((resolve, reject) => {
-    console.log('[MLab] Dev mode — starting Vite');
+    console.log('[mIDE] Dev mode — starting Vite');
 
     viteProcess = spawn(NODE_EXE, [VITE_BIN, '--host', '127.0.0.1'], {
       cwd: IDE_DIR,
@@ -53,7 +53,7 @@ function startVite() {
     });
 
     viteProcess.on('error', (err) => {
-      console.error('[MLab] Failed to start Vite:', err.message);
+      console.error('[mIDE] Failed to start Vite:', err.message);
       reject(err);
     });
 
@@ -78,7 +78,7 @@ function startVite() {
 
     setTimeout(() => {
       if (!resolved) {
-        console.error('[MLab] Vite did not start within 30s');
+        console.error('[mIDE] Vite did not start within 30s');
         resolve(null);
       }
     }, 30000);
@@ -107,7 +107,7 @@ app.whenReady().then(async () => {
   let loadTarget;
 
   if (IS_PROD) {
-    console.log('[MLab] Production mode — loading from dist/');
+    console.log('[mIDE] Production mode — loading from dist/');
     loadTarget = path.join(DIST_DIR, 'index.html');
   } else {
     const viteUrl = await startVite();
@@ -115,7 +115,7 @@ app.whenReady().then(async () => {
       await waitForServer(viteUrl);
       loadTarget = viteUrl;
     } else {
-      console.error('[MLab] No Vite URL detected, exiting');
+      console.error('[mIDE] No Vite URL detected, exiting');
       app.quit();
       return;
     }

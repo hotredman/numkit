@@ -1164,12 +1164,12 @@ enter_frame:
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
     } catch (const MError &mle) {
-        std::string id = mle.identifier().empty() ? "MLAB:error" : mle.identifier();
+        std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
         if (dispatchTryCatch(mle.what(), id.c_str()))
             goto enter_frame;
         throw;
     } catch (const std::exception &ex) {
-        if (dispatchTryCatch(ex.what(), "MLAB:error"))
+        if (dispatchTryCatch(ex.what(), "m:error"))
             goto enter_frame;
         enrichAndThrow(ex, ip, chunk);
     }

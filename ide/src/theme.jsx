@@ -89,9 +89,19 @@ const themes = { dark, light };
 // ── React Context ──
 const ThemeContext = createContext(dark);
 
+// One-shot migration from the old storage key. Preserves the user's
+// saved theme choice when the project was renamed MLab → numkit mIDE.
+try {
+  const old = localStorage.getItem('mlab-theme');
+  if (old && !localStorage.getItem('numkit-mide-theme')) {
+    localStorage.setItem('numkit-mide-theme', old);
+  }
+  if (old) localStorage.removeItem('mlab-theme');
+} catch {}
+
 export function ThemeProvider({ children }) {
   const [themeName, setThemeName] = useState(() => {
-    try { return localStorage.getItem('mlab-theme') || 'dark'; } catch { return 'dark'; }
+    try { return localStorage.getItem('numkit-mide-theme') || 'dark'; } catch { return 'dark'; }
   });
 
   const theme = themes[themeName] || dark;
@@ -107,7 +117,7 @@ export function ThemeProvider({ children }) {
     root.style.setProperty('--font-ui', FONT_UI);
     document.body.style.background = theme.bg0;
     document.body.style.color = theme.text;
-    try { localStorage.setItem('mlab-theme', themeName); } catch {}
+    try { localStorage.setItem('numkit-mide-theme', themeName); } catch {}
   }, [theme, themeName]);
 
   const toggle = useCallback(() => {

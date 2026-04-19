@@ -639,7 +639,7 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
         return {fs, rest};
     }
 
-    // 2. MLAB_FS env var selects the backend.
+    // 2. NUMKIT_M_FS env var selects the backend.
     std::string fsName = envGet(envVarName("FS").c_str());
     if (fsName == "auto")
         fsName.clear();
@@ -656,7 +656,7 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
     if (!fs)
         throw MError("filesystem '" + fsName + "' is not available");
 
-    // Normalize path: if relative, prepend MLAB_CWD.
+    // Normalize path: if relative, prepend NUMKIT_M_CWD.
     std::string path = userPath;
     if (!isAbsolutePath(path)) {
         std::string cwd = envGet(envVarName("CWD").c_str());

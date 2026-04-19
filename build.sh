@@ -8,7 +8,7 @@ if [ "${1:-}" = "--wasm" ]; then
         echo "emcmake not found. Run: source ~/emsdk/emsdk_env.sh"
         exit 1
     fi
-    emcmake cmake -B build-wasm -DMLAB_BUILD_REPL=ON
+    emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON
     cmake --build build-wasm -j$(nproc)
     echo "WASM build OK"
 else

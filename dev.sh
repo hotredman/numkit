@@ -16,9 +16,9 @@ if ! command -v node &>/dev/null; then
 fi
 
 # Copy WASM artifacts if available
-if [ -f "${WASM_DIST}/mlab_repl.wasm" ]; then
-    cp "${WASM_DIST}/mlab_repl.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/mlab_repl.wasm" "${IDE_DIR}/public/"
+if [ -f "${WASM_DIST}/numkit_mide.wasm" ]; then
+    cp "${WASM_DIST}/numkit_mide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/numkit_mide.wasm" "${IDE_DIR}/public/"
     echo "WASM engine found"
 else
     echo "WASM not built — fallback mode (build with: ./build.sh --wasm)"

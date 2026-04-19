@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/mlab/',          // ← add this line
+  base: '/numkit-m/',      // ← add this line
   build: {
     outDir: 'dist',
     sourcemap: true,

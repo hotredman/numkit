@@ -16,15 +16,16 @@
  *   const tree = await tempFS.listTree();
  */
 
-const DB_NAME = 'mlab-vfs';
+const DB_NAME = 'numkit-mide-vfs';
+const LEGACY_DB_NAME = 'mlab-vfs';
 const DB_VERSION = 1;
 const STORE_NAME = 'files';
 
 let db = null;
 
-function openDB() {
+function openDB(name = DB_NAME) {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(name, DB_VERSION);
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -36,6 +37,38 @@ function openDB() {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
+}
+
+// One-shot migration of files from the legacy DB (mlab-vfs). Runs only
+// when the new DB is empty and the old DB exists.
+async function migrateLegacyVfs(newDb) {
+  const dbs = await (indexedDB.databases ? indexedDB.databases() : Promise.resolve([]));
+  if (!dbs.some(d => d.name === LEGACY_DB_NAME)) return;
+
+  const newCount = await new Promise(r => {
+    const req = newDb.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).count();
+    req.onsuccess = () => r(req.result);
+    req.onerror = () => r(0);
+  });
+  if (newCount > 0) return;
+
+  const oldDb = await openDB(LEGACY_DB_NAME).catch(() => null);
+  if (!oldDb) return;
+
+  const all = await new Promise(r => {
+    const req = oldDb.transaction(STORE_NAME, 'readonly').objectStore(STORE_NAME).getAll();
+    req.onsuccess = () => r(req.result || []);
+    req.onerror = () => r([]);
+  });
+  oldDb.close();
+
+  if (all.length > 0) {
+    const wstore = newDb.transaction(STORE_NAME, 'readwrite').objectStore(STORE_NAME);
+    for (const entry of all) wstore.put(entry);
+    await new Promise(r => { wstore.transaction.oncomplete = r; wstore.transaction.onerror = r; });
+  }
+
+  indexedDB.deleteDatabase(LEGACY_DB_NAME);
 }
 
 function tx(mode = 'readonly') {
@@ -69,6 +102,7 @@ const tempFS = {
   /** Initialize the database */
   async init() {
     db = await openDB();
+    try { await migrateLegacyVfs(db); } catch {}
   },
 
   /** Check if database is initialized and has any content */

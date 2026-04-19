@@ -129,10 +129,48 @@ function makeNativeBackend() {
 // preserves the mount across page reloads (still needs a permission
 // re-grant from the user).
 
-const DB_NAME = 'mlab-local-fs';
+const DB_NAME = 'numkit-mide-local-fs';
+const LEGACY_DB_NAME = 'mlab-local-fs';
 const DB_VERSION = 1;
 const STORE = 'handles';
 const HANDLE_KEY = 'root';
+
+// One-shot migration of the persisted directory handle from the legacy
+// DB. Runs only when the new DB has no handle yet and the old one does.
+async function migrateLegacyLocalFs(newDb) {
+    const dbs = await (indexedDB.databases ? indexedDB.databases() : Promise.resolve([]));
+    if (!dbs.some(d => d.name === LEGACY_DB_NAME)) return;
+
+    const hasNew = await new Promise(r => {
+        const req = newDb.transaction(STORE, 'readonly').objectStore(STORE).get(HANDLE_KEY);
+        req.onsuccess = () => r(!!req.result);
+        req.onerror = () => r(false);
+    });
+    if (hasNew) return;
+
+    const oldDb = await new Promise(r => {
+        const req = indexedDB.open(LEGACY_DB_NAME, DB_VERSION);
+        req.onsuccess = () => r(req.result);
+        req.onerror = () => r(null);
+    });
+    if (!oldDb) return;
+
+    const handle = await new Promise(r => {
+        try {
+            const req = oldDb.transaction(STORE, 'readonly').objectStore(STORE).get(HANDLE_KEY);
+            req.onsuccess = () => r(req.result);
+            req.onerror = () => r(null);
+        } catch { r(null); }
+    });
+    oldDb.close();
+
+    if (handle) {
+        const tx = newDb.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).put(handle, HANDLE_KEY);
+        await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+    }
+    indexedDB.deleteDatabase(LEGACY_DB_NAME);
+}
 
 function makeFsaBackend() {
     let db = null;
@@ -149,7 +187,13 @@ function makeFsaBackend() {
             req.onerror = () => reject(req.error);
         });
     }
-    async function ensureDB() { if (!db) db = await openDB(); return db; }
+    async function ensureDB() {
+        if (!db) {
+            db = await openDB();
+            try { await migrateLegacyLocalFs(db); } catch {}
+        }
+        return db;
+    }
     function idbGet(key) {
         return new Promise((resolve, reject) => {
             const tx = db.transaction(STORE, 'readonly');

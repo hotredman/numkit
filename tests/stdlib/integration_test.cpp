@@ -6,7 +6,7 @@
 #include <vector>
 
 using namespace numkit::m;
-using namespace mlab_test;
+using namespace m_test;
 
 class EngineAdvancedTest : public DualEngineTest
 {

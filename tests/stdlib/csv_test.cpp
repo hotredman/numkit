@@ -9,7 +9,7 @@
 #include <fstream>
 #include <string>
 
-using namespace mlab_test;
+using namespace m_test;
 
 class CsvTest : public DualEngineTest
 {
@@ -22,7 +22,7 @@ public:
         auto base = std::filesystem::temp_directory_path();
         static std::atomic<unsigned> counter{0};
         unsigned id = counter.fetch_add(1);
-        tmpPath = base / (std::string("mlab_csv_test_") + std::to_string(id) + ".csv");
+        tmpPath = base / (std::string("m_csv_test_") + std::to_string(id) + ".csv");
     }
 
     void TearDown() override

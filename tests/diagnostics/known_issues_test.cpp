@@ -4,13 +4,13 @@
 // Each test should PASS after the corresponding fix is applied.
 //
 // Run only these:
-//   ./mlab_tests --gtest_filter="TW_VM/KnownIssue*"
+//   ./m_tests --gtest_filter="TW_VM/KnownIssue*"
 //
 // Parameterized: runs on both TreeWalker and VM backends
 
 #include "dual_engine_fixture.hpp"
 
-using namespace mlab_test;
+using namespace m_test;
 
 // ============================================================
 // ISSUE #1: Short-circuit && / || in compound conditions

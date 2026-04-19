@@ -1,16 +1,16 @@
-# MLab — Embeddable MATLAB Interpreter in C++ written with Claude Opus
+# numkit-m — Embeddable MATLAB Interpreter in C++ written with Claude Opus
 
-A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Includes a browser-based IDE compiled to WebAssembly. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
+A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Includes a browser-based IDE (mIDE) compiled to WebAssembly. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
 
-[![Try Online](https://img.shields.io/badge/Try%20Online-MLab%20IDE-blue?style=for-the-badge&logo=webassembly)](https://skynetjudgmentday.github.io/mlab/)
+[![Try Online](https://img.shields.io/badge/Try%20Online-mIDE-blue?style=for-the-badge&logo=webassembly)](https://numkit.github.io/numkit-m/)
 
-**[Launch MLab IDE in Browser](https://skynetjudgmentday.github.io/mlab/)**
+**[Launch mIDE in Browser](https://numkit.github.io/numkit-m/)**
 
 ---
 
 ## Web IDE
 
-MLab includes a full-featured browser IDE built with React + Vite, running the C++ engine via WebAssembly:
+numkit-m ships with mIDE, a full-featured browser IDE built with React + Vite, running the C++ engine via WebAssembly:
 
 - **Syntax highlighting** — keywords, builtins, constants, strings, comments
 - **Dark / Light theme** — single-source theming via React Context
@@ -133,7 +133,7 @@ MLab includes a full-featured browser IDE built with React + Vite, running the C
 
 ### Plotting
 
-MLab includes a figure management system that outputs plot data as JSON, rendered as SVG in the Web IDE.
+numkit-m includes a figure management system that outputs plot data as JSON, rendered as SVG in mIDE.
 
 #### Plot Types
 `plot`, `bar`, `scatter`, `stem`, `stairs`, `hist`, `imagesc`,
@@ -154,7 +154,7 @@ Style strings (`'r--o'`, `'b:'`, `'g-.'`) and name-value pairs (`'LineWidth'`, `
 
 ### Debugger
 
-The IDE includes a MATLAB-like debugger with full pause/resume support:
+mIDE includes a MATLAB-like debugger with full pause/resume support:
 
 - **Breakpoints** — click gutter to set; supported on all statement lines including `end`
 - **Step over / Step into / Step out / Continue** — standard stepping controls
@@ -176,25 +176,27 @@ Source Code → Lexer → Tokens → Parser → AST → Compiler → Bytecode �
                                                                   (pause/resume/eval)
 ```
 
+All classes live in `namespace numkit::m`.
+
 | Module | Files | Responsibility |
 |---|---|---|
-| **Lexer** | `MLabLexer` | Tokenization with implicit comma insertion inside `[]` |
-| **Parser** | `MLabParser` | Recursive descent parser producing AST |
-| **AST** | `MLabAst` | Node types, `unique_ptr`-based tree with `cloneNode()` |
-| **Compiler** | `MLabCompiler`, `MLabBytecode` | AST → bytecode compiler with source maps |
-| **VM** | `MLabVM` | Non-recursive bytecode interpreter with explicit call stack |
-| **TreeWalker** | `MLabTreeWalker` | AST-walking interpreter (automatic fallback) |
-| **Engine** | `MLabEngine` | Dual-backend orchestrator, function registry, variable store |
-| **Debugger** | `MLabDebugger` | Breakpoints, stepping, call stack, debug observer protocol |
-| **DebugSession** | `MLabDebugSession` | Pausable execution, expression eval in context, VM state save/restore |
-| **Value** | `MLabValue` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
-| **Environment** | `MLabEnvironment` | Scoped variable storage with global store |
-| **Allocator** | `MLabAllocator` | Pluggable memory allocator |
-| **StdLibrary** | `MLabStdLibrary` | Math, matrix, I/O, string, type built-ins |
-| **DspLibrary** | `MLabDspLibrary` | Signal processing: FFT, filtering, windows, spectral analysis |
-| **FitLibrary** | `MLabFitLibrary` | Interpolation, polynomial fitting, integration |
-| **PltLibrary** | `MLabPltLibrary` | Plot commands, figure/close/clf/subplot |
-| **FigureManager** | `MLabFigureManager` | Plot state management with subplot/axes support |
+| **Lexer** | `MLexer` | Tokenization with implicit comma insertion inside `[]` |
+| **Parser** | `MParser` | Recursive descent parser producing AST |
+| **AST** | `MAst` | Node types, `unique_ptr`-based tree with `cloneNode()` |
+| **Compiler** | `MCompiler`, `MBytecode` | AST → bytecode compiler with source maps |
+| **VM** | `MVM` | Non-recursive bytecode interpreter with explicit call stack |
+| **TreeWalker** | `MTreeWalker` | AST-walking interpreter (automatic fallback) |
+| **Engine** | `MEngine` | Dual-backend orchestrator, function registry, variable store |
+| **Debugger** | `MDebugger` | Breakpoints, stepping, call stack, debug observer protocol |
+| **DebugSession** | `MDebugSession` | Pausable execution, expression eval in context, VM state save/restore |
+| **Value** | `MValue` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
+| **Environment** | `MEnvironment` | Scoped variable storage with global store |
+| **Allocator** | `MAllocator` | Pluggable memory allocator |
+| **StdLibrary** | `MStdLibrary` | Math, matrix, I/O, string, type built-ins |
+| **DspLibrary** | `MDspLibrary` | Signal processing: FFT, filtering, windows, spectral analysis |
+| **FitLibrary** | `MFitLibrary` | Interpolation, polynomial fitting, integration |
+| **PltLibrary** | `MPltLibrary` | Plot commands, figure/close/clf/subplot |
+| **FigureManager** | `MFigureManager` | Plot state management with subplot/axes support |
 
 ### Key Design Decisions
 
@@ -240,10 +242,9 @@ ctest --output-on-failure
 
 ```bash
 # Requires Emscripten SDK
-cd wasm && mkdir build && cd build
-emcmake cmake ../..
-emmake make -j$(nproc)
-cd ../../ide
+emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON
+cmake --build build-wasm
+cd ide
 npm install
 npm run build
 ```
@@ -255,13 +256,13 @@ npm run build
 ### Basic Embedding
 
 ```c++
-#include "MLabEngine.hpp"
-#include "MLabStdLibrary.hpp"
+#include "MEngine.hpp"
+#include "MStdLibrary.hpp"
 
 int main()
 {
-    mlab::Engine engine;
-    mlab::StdLibrary::install(engine);
+    numkit::m::Engine engine;
+    numkit::m::StdLibrary::install(engine);
 
     engine.eval("x = [1 2 3; 4 5 6]");
     engine.eval("disp(size(x))");
@@ -274,7 +275,7 @@ int main()
 ### Custom Allocator
 
 ```c++
-mlab::Engine engine;
+numkit::m::Engine engine;
 
 size_t totalAllocated = 0;
 engine.setAllocator({
@@ -288,7 +289,7 @@ engine.setAllocator({
     }
 });
 
-mlab::StdLibrary::install(engine);
+numkit::m::StdLibrary::install(engine);
 engine.eval("A = rand(100, 100);");
 std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ```
@@ -296,12 +297,16 @@ std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ### C++ <-> MATLAB Data Exchange
 
 ```c++
-mlab::Engine engine;
-mlab::StdLibrary::install(engine);
+using numkit::m::Engine;
+using numkit::m::MValue;
+using numkit::m::StdLibrary;
+
+Engine engine;
+StdLibrary::install(engine);
 
 // C++ -> MATLAB
 auto& alloc = engine.allocator();
-engine.setVariable("radius", mlab::MValue::scalar(5.0, &alloc));
+engine.setVariable("radius", MValue::scalar(5.0, &alloc));
 engine.eval("area = pi * radius^2;");
 
 // MATLAB -> C++
@@ -313,12 +318,14 @@ if (area)
 ### Registering Custom Functions
 
 ```c++
+using numkit::m::MValue;
+
 engine.registerFunction("myfunc",
-    [&engine](const std::vector<mlab::MValue>& args) -> std::vector<mlab::MValue> {
+    [&engine](const std::vector<MValue>& args) -> std::vector<MValue> {
         auto* alloc = &engine.allocator();
         double x = args[0].toScalar();
         double y = args[1].toScalar();
-        return {mlab::MValue::scalar(x * x + y * y, alloc)};
+        return {MValue::scalar(x * x + y * y, alloc)};
     });
 
 engine.eval("disp(myfunc(3, 4))");  // 25
@@ -328,8 +335,8 @@ engine.eval("disp(myfunc(3, 4))");  // 25
 
 ```c++
 // FigureManager collects plot data; output goes through engine's outputFunc
-mlab::Engine engine;
-mlab::StdLibrary::install(engine);
+numkit::m::Engine engine;
+numkit::m::StdLibrary::install(engine);
 
 engine.setOutputFunc([](const std::string &s) {
     // Parse __FIGURE_DATA__ markers from output for your renderer
@@ -367,10 +374,15 @@ spectrogram(x, hamming(256), 128, 512, fs);
 ### Debugger (C++ API)
 
 ```c++
-mlab::Engine engine;
-mlab::StdLibrary::install(engine);
+using numkit::m::Engine;
+using numkit::m::StdLibrary;
+using numkit::m::DebugSession;
+using numkit::m::DebugAction;
 
-mlab::DebugSession session(engine);
+Engine engine;
+StdLibrary::install(engine);
+
+DebugSession session(engine);
 session.setBreakpoints({3, 7});
 
 auto status = session.start(code);
@@ -381,7 +393,7 @@ auto snap = session.snapshot();
 
 std::string result = session.eval("x + 1");  // evaluate in paused context
 
-status = session.resume(mlab::DebugAction::StepOver);
+status = session.resume(DebugAction::StepOver);
 ```
 
 ### Complex Numbers
@@ -442,57 +454,56 @@ disp(fieldnames(config))    % {'db', 'server'}
 ## Project Structure
 
 ```
-include/                        # Public headers
-    MLabEngine.hpp              # Dual-backend engine
-    MLabVM.hpp                  # Bytecode virtual machine
-    MLabCompiler.hpp            # AST -> bytecode compiler
-    MLabBytecode.hpp            # Bytecode instruction set
-    MLabTreeWalker.hpp          # AST interpreter (fallback)
-    MLabDebugger.hpp            # Breakpoints, stepping, debug controller
-    MLabDebugSession.hpp        # Pausable debug execution
-    MLabValue.hpp               # Copy-on-write value system
-    MLabAst.hpp                 # AST node types
-    MLabLexer.hpp               # Tokenizer
-    MLabParser.hpp              # Recursive descent parser
-    MLabEnvironment.hpp         # Scoped variable storage
-    MLabAllocator.hpp           # Pluggable allocator
-    MLabFigureManager.hpp       # Plot state management
-    MLabStdLibrary.hpp          # Standard library
-    MLabDspLibrary.hpp          # Signal processing library
-    MLabFitLibrary.hpp          # Interpolation / fitting library
-    MLabPltLibrary.hpp          # Plot library
-    MLabTypes.hpp               # Shared types (CallContext, Span)
+include/                        # Public headers (namespace numkit::m)
+    MEngine.hpp                 # Dual-backend engine
+    MVM.hpp                     # Bytecode virtual machine
+    MCompiler.hpp               # AST -> bytecode compiler
+    MBytecode.hpp               # Bytecode instruction set
+    MTreeWalker.hpp             # AST interpreter (fallback)
+    MDebugger.hpp               # Breakpoints, stepping, debug controller
+    MDebugSession.hpp           # Pausable debug execution
+    MValue.hpp                  # Copy-on-write value system
+    MAst.hpp                    # AST node types
+    MLexer.hpp                  # Tokenizer
+    MParser.hpp                 # Recursive descent parser
+    MEnvironment.hpp            # Scoped variable storage
+    MAllocator.hpp              # Pluggable allocator
+    MFigureManager.hpp          # Plot state management
+    MStdLibrary.hpp             # Standard library
+    MDspLibrary.hpp             # Signal processing library
+    MFitLibrary.hpp             # Interpolation / fitting library
+    MPltLibrary.hpp             # Plot library
+    MVfs.hpp                    # Virtual filesystem (IDE hooks)
+    MBranding.hpp               # Env-var prefix (NUMKIT_M_FS, …)
+    MTypes.hpp                  # Shared types (CallContext, Span)
 src/
-    MLabEngine.cpp              # Engine orchestration
-    MLabVM.cpp                  # VM dispatch loop
-    MLabCompiler.cpp            # Bytecode compilation
-    MLabTreeWalker.cpp          # Tree-walking interpreter
-    MLabDebugger.cpp            # Debug controller logic
-    MLabDebugSession.cpp        # Debug session (pause/resume/eval)
-    MLabValue.cpp               # Value operations
-    MLabLexer.cpp               # Lexer
-    MLabParser.cpp              # Parser
-    MLabEnvironment.cpp         # Environment
-    MLabAllocator.cpp           # Allocator
-    MLabAst.cpp                 # AST utilities
-    stdlib/                     # Standard library (10 files)
-    dsplib/                     # DSP library (9 files)
-    fitlib/                     # Fit library (2 files)
-    pltlib/                     # Plot library (1 file)
+    MEngine.cpp                 # Engine orchestration
+    MVM.cpp                     # VM dispatch loop
+    MCompiler.cpp               # Bytecode compilation
+    MTreeWalker.cpp             # Tree-walking interpreter
+    MDebugger.cpp               # Debug controller logic
+    MDebugSession.cpp           # Debug session (pause/resume/eval)
+    MValue.cpp                  # Value operations
+    MLexer.cpp                  # Lexer
+    MParser.cpp                 # Parser
+    MEnvironment.cpp            # Environment
+    MAllocator.cpp              # Allocator
+    MAst.cpp                    # AST utilities
+    stdlib/                     # Standard library
+    dsplib/                     # DSP library
+    fitlib/                     # Fit library
+    pltlib/                     # Plot library
 tests/                          # 2383 tests, 121 suites
-    core/                       # Lexer, parser, command syntax
     stdlib/                     # Language + standard library
-    dsplib/                     # Signal processing
-    fitlib/                     # Interpolation
-    pltlib/                     # Figures and plotting
     backend/                    # VM, TreeWalker, benchmarks
     diagnostics/                # Debugger, error messages
+    compat/                     # MATLAB parity reference scripts
 wasm/                           # WebAssembly build
     src/repl_bindings.cpp       # Emscripten bindings
-ide/                            # Browser IDE (React + Vite)
+ide/                            # mIDE (React + Vite)
     src/
         components/
-            MLabREPL.jsx        # Main IDE layout
+            IDE.jsx             # Main IDE layout
             Console.jsx         # Command console
             Figures.jsx         # SVG plot renderer (D3)
             FileBrowser.jsx     # Local / Examples / GitHub browser
@@ -500,8 +511,9 @@ ide/                            # Browser IDE (React + Vite)
             Workspace.jsx       # Variable inspector
             Reference.jsx       # Cheat sheet
         engine.js               # WASM engine wrapper
-        vfs.js                  # Virtual filesystem (IndexedDB)
+        temporary.js            # IndexedDB-backed scratch VFS
         theme.jsx               # Dark / Light theme
+    desktop/                    # Electron shell
     public/examples/            # 62 example .m scripts
 ```
 

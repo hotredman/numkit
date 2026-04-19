@@ -3,7 +3,7 @@
 
 #include "dual_engine_fixture.hpp"
 
-using namespace mlab_test;
+using namespace m_test;
 using namespace numkit::m;
 
 class ErrorDiagnosticsTest : public DualEngineTest

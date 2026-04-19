@@ -3,7 +3,7 @@
 
 #include "dual_engine_fixture.hpp"
 
-using namespace mlab_test;
+using namespace m_test;
 
 // ============================================================
 // Concatenation and colon range operations

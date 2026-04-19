@@ -13,13 +13,13 @@ fi
 
 # Build WASM if emcc available
 if command -v emcc &>/dev/null; then
-    if [ ! -f "${WASM_DIST}/mlab_repl.wasm" ]; then
+    if [ ! -f "${WASM_DIST}/numkit_mide.wasm" ]; then
         echo "Building WASM..."
         bash "${PROJECT_DIR}/build.sh" --wasm
     fi
     echo "Copying WASM files into ide/public/..."
-    cp "${WASM_DIST}/mlab_repl.js"   "${IDE_DIR}/public/"
-    cp "${WASM_DIST}/mlab_repl.wasm" "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/numkit_mide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/numkit_mide.wasm" "${IDE_DIR}/public/"
 else
     echo "emcc not found — building without WASM (fallback mode only)"
 fi

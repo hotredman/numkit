@@ -8,7 +8,7 @@
 %
 % Each section clears the workspace first, prints a marker, runs the
 % check, and displays the relevant output. The log file can then be
-% diff'd against MLab's REPL output to identify deviations.
+% diff'd against numkit-m's REPL output to identify deviations.
 %
 % Sections H1..H3 require the debugger — see the note at the end.
 
@@ -219,6 +219,6 @@ whos
 %   4. `dbclear all` to clean up.
 %
 % Paste the full K>> transcript for H1..H3 into the log so it can be
-% compared against MLab's debug session output.
+% compared against numkit-m's debug session output.
 %
 %% End of script.

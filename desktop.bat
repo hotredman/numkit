@@ -14,9 +14,9 @@ if errorlevel 1 (
 )
 
 :: Copy WASM artifacts if available
-if exist "%WASM_DIST%\mlab_repl.wasm" (
-    copy /y "%WASM_DIST%\mlab_repl.js"   "%IDE_DIR%\public\" >nul
-    copy /y "%WASM_DIST%\mlab_repl.wasm" "%IDE_DIR%\public\" >nul
+if exist "%WASM_DIST%\numkit_mide.wasm" (
+    copy /y "%WASM_DIST%\numkit_mide.js"   "%IDE_DIR%\public\" >nul
+    copy /y "%WASM_DIST%\numkit_mide.wasm" "%IDE_DIR%\public\" >nul
     echo WASM engine found
 ) else (
     echo WASM not built — fallback mode
@@ -37,7 +37,7 @@ if not exist "%DESKTOP_DIR%\node_modules" (
 )
 
 echo.
-echo Starting MLab IDE...
+echo Starting mIDE...
 echo.
 
 cd /d "%DESKTOP_DIR%"
