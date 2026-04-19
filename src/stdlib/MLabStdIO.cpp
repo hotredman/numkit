@@ -1051,21 +1051,29 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // clang-format on
 
     // Parse the `size` argument for fread / fscanf. Accepts:
-    //   scalar N        → flat column of up to N values
-    //   Inf             → flat column of all remaining
-    //   [m n] row       → m×n matrix, column-major, cap = m*n
-    //   [m Inf]         → m rows, as many columns as fit
-    // Returns {limit, rows, cols} where rows=0 signals "flat column".
-    // cols==SIZE_MAX means "open-ended" (Inf).
-    struct SizeSpec { size_t limit; size_t rows; size_t cols; };
+    //   scalar N        → flat column of up to N values   (Flat mode)
+    //   Inf             → flat column of all remaining    (Flat, limit=SIZE_MAX)
+    //   [m n] row       → m×n matrix, column-major        (Matrix mode)
+    //   [m Inf]         → m rows, as many columns as fit  (Matrix, cols=SIZE_MAX)
+    // `limit` is the element cap for reading; `rows`/`cols` are only
+    // consulted in Matrix mode. cols==SIZE_MAX means "open-ended" (Inf).
+    struct SizeSpec
+    {
+        enum class Kind { Flat, Matrix };
+        Kind kind;
+        size_t limit;
+        size_t rows;  // Matrix only
+        size_t cols;  // Matrix only
+        bool matrix() const { return kind == Kind::Matrix; }
+    };
     auto parseReadSize = [](const MValue &sz, const char *fn) -> SizeSpec {
         if (sz.isScalar()) {
             double s = sz.toScalar();
             if (std::isinf(s))
-                return SizeSpec{SIZE_MAX, 0, 0};
+                return SizeSpec{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (s < 0 || !std::isfinite(s))
                 throw MLabError(std::string(fn) + ": size must be Inf or a non-negative integer");
-            return SizeSpec{static_cast<size_t>(s), 0, 0};
+            return SizeSpec{SizeSpec::Kind::Flat, static_cast<size_t>(s), 0, 0};
         }
         if (sz.numel() == 2) {
             double r = sz(0);
@@ -1084,31 +1092,30 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 cols = static_cast<size_t>(c);
                 limit = rows * cols;
             }
-            return SizeSpec{limit, rows, cols};
+            return SizeSpec{SizeSpec::Kind::Matrix, limit, rows, cols};
         }
         throw MLabError(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
     };
 
-    // Shape the flat `values` vector into either a column (rows==0) or
-    // an m×n matrix. For matrix mode, unread cells stay zero-initialised.
+    // Shape the flat `values` vector into either a column (Flat mode) or
+    // an m×n matrix (Matrix mode). For matrix mode, unread cells stay
+    // zero-initialised.
     auto shapeFreadOutput = [](std::vector<double> &&values, SizeSpec sz, Allocator *alloc) -> MValue {
         size_t n = values.size();
-        if (sz.rows == 0) {
+        if (!sz.matrix()) {
             if (n == 0)
                 return MValue::matrix(0, 0, MType::DOUBLE, alloc);
             MValue M = MValue::matrix(n, 1, MType::DOUBLE, alloc);
             std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
             return M;
         }
-        // sz.rows > 0 from here down. cols_out follows n when Inf, fixed
-        // when the caller supplied a concrete column count.
+        // Matrix mode: cols follow n when Inf, fixed otherwise.
         size_t cols_out = (sz.cols == SIZE_MAX)
-                             ? (n + sz.rows - 1) / sz.rows
+                             ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
                              : sz.cols;
-        if (cols_out == 0)
-            return MValue::matrix(sz.rows, 0, MType::DOUBLE, alloc);
+        if (sz.rows == 0 || cols_out == 0)
+            return MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
         MValue M = MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
-        // Column-major storage + column-major fill → flat memcpy works.
         std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
         return M;
     };
@@ -1125,7 +1132,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f || !f->forRead)
                 throw MLabError("fread: invalid file identifier");
 
-            SizeSpec sz{SIZE_MAX, 0, 0};
+            SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 2)
                 sz = parseReadSize(args[1], "fread");
 
@@ -1413,7 +1420,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f || !f->forRead)
                 throw MLabError("fscanf: invalid file identifier");
 
-            SizeSpec sz{SIZE_MAX, 0, 0};
+            SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 3)
                 sz = parseReadSize(args[2], "fscanf");
 
@@ -1433,7 +1440,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             // numbers. Text-only formats fall back to a flat char row —
             // a char matrix path isn't plumbed in MValue yet.
             const bool hasNum = formatHasNumeric(fmt);
-            if (sz.rows > 0 && hasNum)
+            if (sz.matrix() && hasNum)
                 outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
             else
                 outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
@@ -1449,7 +1456,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
                 throw MLabError("sscanf: requires (str, format [, size])");
 
-            SizeSpec sz{SIZE_MAX, 0, 0};
+            SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
             if (args.size() >= 3)
                 sz = parseReadSize(args[2], "sscanf");
 
@@ -1457,7 +1464,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             auto r = scanfCycle(args[0].toString(), fmt, sz.limit);
 
             const bool hasNum = formatHasNumeric(fmt);
-            if (sz.rows > 0 && hasNum)
+            if (sz.matrix() && hasNum)
                 outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
             else
                 outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
