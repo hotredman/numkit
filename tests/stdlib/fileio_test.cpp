@@ -1121,6 +1121,100 @@ TEST_P(FileIoTest, FerrorOnInvalidFidThrows)
     EXPECT_THROW(eval("x = ferror(999);"), std::exception);
 }
 
+// ── Matrix-shape size [m n] ──────────────────────────────
+
+TEST_P(FileIoTest, FreadMatrixShapeFixedColumns)
+{
+    // 6 bytes → [2 3] matrix, column-major fill.
+    fs->files()["x.bin"] = std::string("\x01\x02\x03\x04\x05\x06", 6);
+    eval("fid = fopen('x.bin', 'r');");
+    eval("A = fread(fid, [2 3], 'uint8');");
+    eval("fclose(fid);");
+    // Matrix is 2x3, filled column-major:
+    //   [1 3 5
+    //    2 4 6]
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 3.0);
+    EXPECT_EQ(evalScalar("a11 = A(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("a21 = A(2,1);"), 2.0);
+    EXPECT_EQ(evalScalar("a13 = A(1,3);"), 5.0);
+    EXPECT_EQ(evalScalar("a23 = A(2,3);"), 6.0);
+}
+
+TEST_P(FileIoTest, FreadMatrixShapeWithInfCols)
+{
+    // 7 bytes with [3 Inf] → 3x3 matrix, last column partial, padded with 0.
+    fs->files()["x.bin"] = std::string("\x01\x02\x03\x04\x05\x06\x07", 7);
+    eval("fid = fopen('x.bin', 'r');");
+    eval("A = fread(fid, [3 Inf], 'uint8');");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 3.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 3.0);
+    EXPECT_EQ(evalScalar("a11 = A(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("a33 = A(3,3);"), 0.0);  // padded
+    EXPECT_EQ(evalScalar("a13 = A(1,3);"), 7.0);
+}
+
+TEST_P(FileIoTest, FreadMatrixShapeShortFilePadsWithZeros)
+{
+    // 5 bytes, shape [3 2] = 6 cells → last cell zero-padded.
+    fs->files()["x.bin"] = std::string("\x01\x02\x03\x04\x05", 5);
+    eval("fid = fopen('x.bin', 'r');");
+    eval("A = fread(fid, [3 2], 'uint8');");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 3.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 2.0);
+    EXPECT_EQ(evalScalar("a12 = A(1,2);"), 4.0);
+    EXPECT_EQ(evalScalar("a22 = A(2,2);"), 5.0);
+    EXPECT_EQ(evalScalar("a32 = A(3,2);"), 0.0);  // padded
+}
+
+TEST_P(FileIoTest, FreadMatrixShapeRejectsBadVector)
+{
+    fs->files()["x.bin"] = "abc";
+    eval("fid = fopen('x.bin', 'r');");
+    EXPECT_THROW(eval("A = fread(fid, [1 2 3], 'uint8');"), std::exception);
+    eval("fclose(fid);");
+}
+
+TEST_P(FileIoTest, FscanfMatrixShapeFixed)
+{
+    fs->files()["x.txt"] = "1 2 3 4 5 6";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("A = fscanf(fid, '%d', [2 3]);");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 3.0);
+    // Column-major fill: A(1,1)=1, A(2,1)=2, A(1,2)=3, ...
+    EXPECT_EQ(evalScalar("a11 = A(1,1);"), 1.0);
+    EXPECT_EQ(evalScalar("a21 = A(2,1);"), 2.0);
+    EXPECT_EQ(evalScalar("a13 = A(1,3);"), 5.0);
+}
+
+TEST_P(FileIoTest, FscanfMatrixShapeInfCols)
+{
+    fs->files()["x.txt"] = "1 2 3 4 5 6 7";
+    eval("fid = fopen('x.txt', 'r');");
+    eval("A = fscanf(fid, '%d', [2 Inf]);");
+    eval("fclose(fid);");
+    // 7 ints into [2 Inf] → 2x4 matrix with A(2,4) = 0 (padded).
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 4.0);
+    EXPECT_EQ(evalScalar("a14 = A(1,4);"), 7.0);
+    EXPECT_EQ(evalScalar("a24 = A(2,4);"), 0.0);
+}
+
+TEST_P(FileIoTest, SscanfMatrixShapeMixedNumericString)
+{
+    // Mixed format still shapes: %d %f repeated gives a column of
+    // doubles that we reshape.
+    eval("A = sscanf('1 1.5 2 2.5 3 3.5', '%d %f', [2 3]);");
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 3.0);
+    EXPECT_EQ(evalScalar("a11 = A(1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("a21 = A(2,1);"), 1.5);
+}
+
 // ── Lifetime edge cases ──────────────────────────────────
 
 TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)

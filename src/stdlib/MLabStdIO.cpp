@@ -1050,10 +1050,71 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     };
     // clang-format on
 
+    // Parse the `size` argument for fread / fscanf. Accepts:
+    //   scalar N        → flat column of up to N values
+    //   Inf             → flat column of all remaining
+    //   [m n] row       → m×n matrix, column-major, cap = m*n
+    //   [m Inf]         → m rows, as many columns as fit
+    // Returns {limit, rows, cols} where rows=0 signals "flat column".
+    // cols==SIZE_MAX means "open-ended" (Inf).
+    struct SizeSpec { size_t limit; size_t rows; size_t cols; };
+    auto parseReadSize = [](const MValue &sz, const char *fn) -> SizeSpec {
+        if (sz.isScalar()) {
+            double s = sz.toScalar();
+            if (std::isinf(s))
+                return SizeSpec{SIZE_MAX, 0, 0};
+            if (s < 0 || !std::isfinite(s))
+                throw MLabError(std::string(fn) + ": size must be Inf or a non-negative integer");
+            return SizeSpec{static_cast<size_t>(s), 0, 0};
+        }
+        if (sz.numel() == 2) {
+            double r = sz(0);
+            double c = sz(1);
+            if (r < 0 || !std::isfinite(r) || std::isinf(r))
+                throw MLabError(std::string(fn) + ": rows in [m n] must be finite non-negative");
+            size_t rows = static_cast<size_t>(r);
+            size_t cols;
+            size_t limit;
+            if (std::isinf(c)) {
+                cols = SIZE_MAX;
+                limit = SIZE_MAX;
+            } else {
+                if (c < 0 || !std::isfinite(c))
+                    throw MLabError(std::string(fn) + ": cols in [m n] must be finite non-negative or Inf");
+                cols = static_cast<size_t>(c);
+                limit = rows * cols;
+            }
+            return SizeSpec{limit, rows, cols};
+        }
+        throw MLabError(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
+    };
+
+    // Shape the flat `values` vector into either a column (rows==0) or
+    // an m×n matrix. For matrix mode, unread cells stay zero-initialised.
+    auto shapeFreadOutput = [](std::vector<double> &&values, SizeSpec sz, Allocator *alloc) -> MValue {
+        size_t n = values.size();
+        if (sz.rows == 0) {
+            if (n == 0)
+                return MValue::matrix(0, 0, MType::DOUBLE, alloc);
+            MValue M = MValue::matrix(n, 1, MType::DOUBLE, alloc);
+            std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
+            return M;
+        }
+        size_t cols_out = (sz.cols == SIZE_MAX)
+                             ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
+                             : sz.cols;
+        if (cols_out == 0 || sz.rows == 0)
+            return MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
+        MValue M = MValue::matrix(sz.rows, cols_out, MType::DOUBLE, alloc);
+        // Column-major storage + column-major fill → flat memcpy works.
+        std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
+        return M;
+    };
+
     engine.registerFunction(
         "fread",
-        [parsePrecision](Span<const MValue> args, size_t nargout, Span<MValue> outs,
-                         CallContext &ctx) {
+        [parsePrecision, parseReadSize, shapeFreadOutput](
+            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.empty() || !args[0].isScalar())
                 throw MLabError("fread: file identifier required");
@@ -1062,20 +1123,9 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f || !f->forRead)
                 throw MLabError("fread: invalid file identifier");
 
-            // size argument
-            size_t requested = 0;
-            bool readAll = true;
-            if (args.size() >= 2) {
-                double s = args[1].toScalar();
-                if (std::isinf(s)) {
-                    readAll = true;
-                } else if (s < 0 || !std::isfinite(s)) {
-                    throw MLabError("fread: size must be Inf or a non-negative integer");
-                } else {
-                    readAll = false;
-                    requested = static_cast<size_t>(s);
-                }
-            }
+            SizeSpec sz{SIZE_MAX, 0, 0};
+            if (args.size() >= 2)
+                sz = parseReadSize(args[1], "fread");
 
             // precision argument
             std::string precStr = "uint8";
@@ -1092,41 +1142,36 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
             size_t available = f->buffer.size() - f->cursor;
             size_t maxElems = available / bsize;
-            size_t n = readAll ? maxElems : std::min(requested, maxElems);
-            if (!readAll && n < requested)
+            size_t n = std::min(sz.limit, maxElems);
+            if (sz.limit != SIZE_MAX && n < sz.limit)
                 f->lastError = "End of file reached.";
 
-            // Always return a column vector of doubles — MATLAB's
-            // default output type regardless of precision.
-            MValue M = MValue::matrix(std::max<size_t>(n, 0), n == 0 ? 0 : 1, MType::DOUBLE, alloc);
-            if (n > 0) {
-                double *data = M.doubleDataMut();
-                for (size_t i = 0; i < n; ++i) {
-                    const char *src = f->buffer.data() + f->cursor + i * bsize;
-                    double v = 0.0;
-                    if (kind == 0) { // unsigned
-                        switch (bsize) {
-                        case 1: { uint8_t  x; std::memcpy(&x, src, 1); v = x; break; }
-                        case 2: { uint16_t x; std::memcpy(&x, src, 2); v = x; break; }
-                        case 4: { uint32_t x; std::memcpy(&x, src, 4); v = x; break; }
-                        case 8: { uint64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
-                        }
-                    } else if (kind == 1) { // signed
-                        switch (bsize) {
-                        case 1: { int8_t  x; std::memcpy(&x, src, 1); v = x; break; }
-                        case 2: { int16_t x; std::memcpy(&x, src, 2); v = x; break; }
-                        case 4: { int32_t x; std::memcpy(&x, src, 4); v = x; break; }
-                        case 8: { int64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
-                        }
-                    } else { // float
-                        if (bsize == 4) { float x; std::memcpy(&x, src, 4); v = x; }
-                        else            {                     std::memcpy(&v, src, 8); }
+            std::vector<double> values(n);
+            for (size_t i = 0; i < n; ++i) {
+                const char *src = f->buffer.data() + f->cursor + i * bsize;
+                double v = 0.0;
+                if (kind == 0) { // unsigned
+                    switch (bsize) {
+                    case 1: { uint8_t  x; std::memcpy(&x, src, 1); v = x; break; }
+                    case 2: { uint16_t x; std::memcpy(&x, src, 2); v = x; break; }
+                    case 4: { uint32_t x; std::memcpy(&x, src, 4); v = x; break; }
+                    case 8: { uint64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
                     }
-                    data[i] = v;
+                } else if (kind == 1) { // signed
+                    switch (bsize) {
+                    case 1: { int8_t  x; std::memcpy(&x, src, 1); v = x; break; }
+                    case 2: { int16_t x; std::memcpy(&x, src, 2); v = x; break; }
+                    case 4: { int32_t x; std::memcpy(&x, src, 4); v = x; break; }
+                    case 8: { int64_t x; std::memcpy(&x, src, 8); v = static_cast<double>(x); break; }
+                    }
+                } else { // float
+                    if (bsize == 4) { float x; std::memcpy(&x, src, 4); v = x; }
+                    else            {                     std::memcpy(&v, src, 8); }
                 }
+                values[i] = v;
             }
             f->cursor += n * bsize;
-            outs[0] = std::move(M);
+            outs[0] = shapeFreadOutput(std::move(values), sz, alloc);
             if (nargout > 1)
                 outs[1] = MValue::scalar(static_cast<double>(n), alloc);
         });
@@ -1354,8 +1399,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     engine.registerFunction(
         "fscanf",
-        [scanfCycle, shapeScanfOutput](Span<const MValue> args, size_t nargout,
-                                       Span<MValue> outs, CallContext &ctx) {
+        [scanfCycle, shapeScanfOutput, parseReadSize, shapeFreadOutput, formatHasNumeric](
+            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isScalar() || !args[1].isChar())
                 throw MLabError("fscanf: requires (fid, format [, size])");
@@ -1364,55 +1409,52 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!f || !f->forRead)
                 throw MLabError("fscanf: invalid file identifier");
 
-            size_t limit = SIZE_MAX;
-            if (args.size() >= 3) {
-                double s = args[2].toScalar();
-                if (!std::isinf(s)) {
-                    if (s < 0 || !std::isfinite(s))
-                        throw MLabError("fscanf: size must be Inf or a non-negative integer");
-                    limit = static_cast<size_t>(s);
-                }
-            }
+            SizeSpec sz{SIZE_MAX, 0, 0};
+            if (args.size() >= 3)
+                sz = parseReadSize(args[2], "fscanf");
 
             std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
             std::string fmt = args[1].toString();
-            auto r = scanfCycle(input, fmt, limit);
+            auto r = scanfCycle(input, fmt, sz.limit);
             f->cursor += r.bytesConsumed;
 
             // Populate ferror on a partial match so scripts can distinguish
             // "input exhausted" from "fewer items matched than requested".
             if (f->cursor >= f->buffer.size())
                 f->lastError = "End of file reached.";
-            else if (limit != SIZE_MAX && r.count < limit)
+            else if (sz.limit != SIZE_MAX && r.count < sz.limit)
                 f->lastError = "Matching failure.";
 
-            outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
+            // Matrix-shape output only applies when the format yields
+            // numbers. Text-only formats fall back to a flat char row —
+            // a char matrix path isn't plumbed in MValue yet.
+            if (sz.rows > 0 && formatHasNumeric(fmt))
+                outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
+            else
+                outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
             if (nargout > 1)
                 outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
         });
 
     engine.registerFunction(
         "sscanf",
-        [scanfCycle, shapeScanfOutput](Span<const MValue> args, size_t nargout,
-                                       Span<MValue> outs, CallContext &ctx) {
+        [scanfCycle, shapeScanfOutput, parseReadSize, shapeFreadOutput, formatHasNumeric](
+            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
                 throw MLabError("sscanf: requires (str, format [, size])");
 
-            size_t limit = SIZE_MAX;
-            if (args.size() >= 3) {
-                double s = args[2].toScalar();
-                if (!std::isinf(s)) {
-                    if (s < 0 || !std::isfinite(s))
-                        throw MLabError("sscanf: size must be Inf or a non-negative integer");
-                    limit = static_cast<size_t>(s);
-                }
-            }
+            SizeSpec sz{SIZE_MAX, 0, 0};
+            if (args.size() >= 3)
+                sz = parseReadSize(args[2], "sscanf");
 
             std::string fmt = args[1].toString();
-            auto r = scanfCycle(args[0].toString(), fmt, limit);
+            auto r = scanfCycle(args[0].toString(), fmt, sz.limit);
 
-            outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
+            if (sz.rows > 0 && formatHasNumeric(fmt))
+                outs[0] = shapeFreadOutput(std::move(r.values), sz, alloc);
+            else
+                outs[0] = shapeScanfOutput(std::move(r.values), fmt, alloc);
             if (nargout > 1)
                 outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
             if (nargout > 2)
