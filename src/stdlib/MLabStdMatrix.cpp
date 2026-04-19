@@ -209,6 +209,9 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                CallContext &ctx) {
                                 auto *alloc = &ctx.engine->allocator();
                                 auto &a = args[0];
+                                if (a.dims().is3D())
+                                    throw std::runtime_error(
+                                        "transpose is not defined for N-D arrays");
                                 size_t rows = a.dims().rows(), cols = a.dims().cols();
                                 auto r = MValue::matrix(cols, rows, MType::DOUBLE, alloc);
                                 for (size_t i = 0; i < rows; ++i)

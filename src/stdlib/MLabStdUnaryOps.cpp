@@ -74,6 +74,8 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     // --- Conjugate transpose ---
     engine.registerUnaryOp("'", [&engine](const MValue &a) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.dims().is3D())
+            throw std::runtime_error("transpose is not defined for N-D arrays");
         size_t rows = a.dims().rows(), cols = a.dims().cols();
 
         if (a.isComplex()) {
@@ -100,6 +102,8 @@ void StdLibrary::registerUnaryOps(Engine &engine)
     // --- Non-conjugate transpose ---
     engine.registerUnaryOp(".'", [&engine](const MValue &a) -> MValue {
         auto *alloc = &engine.allocator();
+        if (a.dims().is3D())
+            throw std::runtime_error("transpose is not defined for N-D arrays");
         size_t rows = a.dims().rows(), cols = a.dims().cols();
 
         if (a.isComplex()) {

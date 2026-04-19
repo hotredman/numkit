@@ -373,3 +373,31 @@ TEST_P(ReshapeTest, ReshapeComplexPreservesValues)
 
 INSTANTIATE_DUAL(ReshapeTest);
 
+// ============================================================
+// Transpose on 3D — MATLAB errors ("not defined for N-D arrays")
+// ============================================================
+
+class Transpose3DTest : public DualEngineTest {};
+
+TEST_P(Transpose3DTest, ConjugateTransposeOn3DThrows)
+{
+    EXPECT_THROW({ eval("A = ones(2, 3, 2); B = A';"); }, std::exception);
+}
+
+TEST_P(Transpose3DTest, NonConjugateTransposeOn3DThrows)
+{
+    EXPECT_THROW({ eval("A = ones(2, 3, 2); B = A.';"); }, std::exception);
+}
+
+TEST_P(Transpose3DTest, TransposeFunctionOn3DThrows)
+{
+    EXPECT_THROW({ eval("A = ones(2, 3, 2); B = transpose(A);"); }, std::exception);
+}
+
+TEST_P(Transpose3DTest, ComplexTransposeOn3DThrows)
+{
+    EXPECT_THROW({ eval("A = ones(2, 3, 2) + 1i; B = A';"); }, std::exception);
+}
+
+INSTANTIATE_DUAL(Transpose3DTest);
+
