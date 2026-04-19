@@ -326,6 +326,11 @@ TEST_P(ReshapeTest, ReshapeNotDivisibleThrows)
     EXPECT_THROW({ eval("reshape(1:10, 3, []);"); }, std::exception);
 }
 
+TEST_P(ReshapeTest, ReshapeZeroKnownDimWithPlaceholderThrows)
+{
+    EXPECT_THROW({ eval("reshape(1:12, 0, []);"); }, std::exception);
+}
+
 TEST_P(ReshapeTest, ReshapeComplexPreservesValues)
 {
     eval("A = (1:8) + (1:8) * 1i; B = reshape(A, 2, 2, 2);");
