@@ -1854,6 +1854,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         std::string delimiters;
         std::string endOfLine = "\n";
         size_t headerLines = 0;
+        // Line-comment marker. When non-empty, anything from an
+        // occurrence of this string up to the next EndOfLine char is
+        // ignored during tokenisation.
+        std::string commentStyle;
+        // Tokens whose text equals any entry in this set become "empty":
+        // numeric conversions yield NaN, %s yields ''.
+        std::vector<std::string> treatAsEmpty;
     };
 
     // Parse formatSpec into an ordered conversion list. Unrecognised
@@ -1966,6 +1973,21 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     if (d < 0 || !std::isfinite(d))
                         throw MLabError("textscan: 'HeaderLines' must be a non-negative integer");
                     opts.headerLines = static_cast<size_t>(d);
+                } else if (name == "commentstyle") {
+                    if (!val.isChar())
+                        throw MLabError("textscan: 'CommentStyle' must be a char array");
+                    opts.commentStyle = val.toString();
+                } else if (name == "treatasempty") {
+                    if (val.isChar()) {
+                        opts.treatAsEmpty.push_back(val.toString());
+                    } else if (val.isCell()) {
+                        for (size_t i = 0; i < val.numel(); ++i) {
+                            const MValue &e = val.cellAt(i);
+                            if (e.isChar()) opts.treatAsEmpty.push_back(e.toString());
+                        }
+                    } else {
+                        throw MLabError("textscan: 'TreatAsEmpty' must be a char array or cell");
+                    }
                 } else {
                     throw MLabError("textscan: unsupported option '" + args[argIdx].toString()
                                     + "'");
@@ -2000,15 +2022,31 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             // For numeric conversions we read a token and parse it with
             // strtoX. If a match fails mid-cycle, roll back to the start
             // of the cycle — MATLAB returns a clean boundary.
+            auto atComment = [&]() {
+                return !opts.commentStyle.empty() &&
+                       input.compare(pos, opts.commentStyle.size(), opts.commentStyle) == 0;
+            };
             auto skipDelims = [&]() {
-                while (pos < input.size() && inDelim(input[pos])) ++pos;
+                while (pos < input.size()) {
+                    if (atComment()) {
+                        while (pos < input.size() && !isEol(input[pos])) ++pos;
+                        continue;
+                    }
+                    if (inDelim(input[pos])) { ++pos; continue; }
+                    break;
+                }
             };
             auto readToken = [&]() -> std::string {
                 skipDelims();
                 if (pos >= input.size()) return "";
                 size_t start = pos;
-                while (pos < input.size() && !inDelim(input[pos])) ++pos;
+                while (pos < input.size() && !inDelim(input[pos]) && !atComment()) ++pos;
                 return input.substr(start, pos - start);
+            };
+            auto isEmpty = [&](const std::string &tok) {
+                for (auto &e : opts.treatAsEmpty)
+                    if (tok == e) return true;
+                return false;
             };
 
             std::vector<std::vector<double>> numCols(convs.size());
@@ -2028,6 +2066,17 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                     const TextscanConv &c = convs[i];
                     if (c.width > 0 && static_cast<int>(tok.size()) > c.width)
                         tok.resize(static_cast<size_t>(c.width));
+
+                    // TreatAsEmpty: matching tokens produce "empty" results —
+                    // NaN for numeric, '' for %s — without a parse attempt.
+                    if (isEmpty(tok)) {
+                        if (c.suppress) continue;
+                        if (c.spec == 's')
+                            stageStr.push_back({i, std::string()});
+                        else
+                            stageNum.push_back({i, std::numeric_limits<double>::quiet_NaN()});
+                        continue;
+                    }
 
                     if (c.spec == 's') {
                         if (!c.suppress) stageStr.push_back({i, std::move(tok)});

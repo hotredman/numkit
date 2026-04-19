@@ -1681,6 +1681,62 @@ TEST_P(FileIoTest, TextscanEndOfLineDrivesHeaderLinesSkip)
     EXPECT_EQ(evalScalar("b = C{2}(2);"), 4.0);
 }
 
+TEST_P(FileIoTest, TextscanCommentStylePercent)
+{
+    fs->files()["cs.txt"] = "1 2\n% this is a comment\n3 4\n5 6\n";
+    eval("fid = fopen('cs.txt', 'r');");
+    eval("C = textscan(fid, '%d %d', 'CommentStyle', '%');");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 3.0);
+    EXPECT_EQ(evalScalar("a = C{1}(3);"), 5.0);
+}
+
+TEST_P(FileIoTest, TextscanCommentStyleInlineTrailingComment)
+{
+    // Comments can appear mid-line; tokenisation stops at the marker.
+    fs->files()["inl.txt"] = "1 2 // trailing\n3 4\n";
+    eval("fid = fopen('inl.txt', 'r');");
+    eval("C = textscan(fid, '%d %d', 'CommentStyle', '//');");
+    eval("fclose(fid);");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    EXPECT_EQ(evalScalar("a = C{2}(1);"), 2.0);
+    EXPECT_EQ(evalScalar("b = C{2}(2);"), 4.0);
+}
+
+TEST_P(FileIoTest, TextscanTreatAsEmptySubstitutesNaN)
+{
+    // 'NA' tokens become NaN in numeric columns.
+    eval("C = textscan('1 NA 3 4 NA 6', '%f %f %f', 'TreatAsEmpty', 'NA');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 2.0);
+    // Row 1: 1, NaN, 3 — column 2 at row 1 is NaN.
+    EXPECT_TRUE(evalBool("tf = isnan(C{2}(1));"));
+    // Row 2: 4, NaN, 6 — column 2 at row 2 is also NaN.
+    EXPECT_TRUE(evalBool("tf2 = isnan(C{2}(2));"));
+    EXPECT_EQ(evalScalar("a = C{3}(2);"), 6.0);
+}
+
+TEST_P(FileIoTest, TextscanTreatAsEmptyMultipleMarkers)
+{
+    // Cell-array form accepts multiple empty-markers.
+    eval("C = textscan('1 NA 2 NULL 3 - 4', '%d', 'TreatAsEmpty', {'NA','NULL','-'});");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 7.0);
+    EXPECT_TRUE(evalBool("tf2 = isnan(C{1}(2));"));
+    EXPECT_TRUE(evalBool("tf4 = isnan(C{1}(4));"));
+    EXPECT_TRUE(evalBool("tf6 = isnan(C{1}(6));"));
+    EXPECT_EQ(evalScalar("a7 = C{1}(7);"), 4.0);
+}
+
+TEST_P(FileIoTest, TextscanTreatAsEmptyWithStringSpec)
+{
+    // 'TreatAsEmpty' also affects %s — matching tokens become ''.
+    eval("C = textscan('a - b -', '%s', 'TreatAsEmpty', '-');");
+    EXPECT_EQ(evalScalar("n = numel(C{1});"), 4.0);
+    EXPECT_EQ(evalString("s = C{1}{1};"), "a");
+    EXPECT_EQ(evalString("s2 = C{1}{2};"), "");
+    EXPECT_EQ(evalString("s3 = C{1}{3};"), "b");
+    EXPECT_EQ(evalString("s4 = C{1}{4};"), "");
+}
+
 // ── save / load (ascii) ──────────────────────────────────
 
 TEST_P(FileIoTest, SaveLoadRoundTripMatrix)
