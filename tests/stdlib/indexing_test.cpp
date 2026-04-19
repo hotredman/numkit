@@ -703,4 +703,93 @@ TEST_P(IndexingOpsTest, CharSpaceFill)
     EXPECT_EQ(s->toString(), "ab  z");
 }
 
+// ── 2D/3D indexing for char matrices ──────────────────
+
+TEST_P(IndexingOpsTest, Char2DSingleElementReturnsChar)
+{
+    // Build a 2x3 char matrix via reshape of a char row.
+    eval("M = reshape('abcdef', 2, 3);");
+    // Column-major fill: M(1,1)='a' M(2,1)='b' M(1,2)='c' M(2,2)='d' ...
+    eval("c11 = M(1,1);");
+    auto *v11 = getVarPtr("c11");
+    ASSERT_NE(v11, nullptr);
+    EXPECT_TRUE(v11->isChar());
+    EXPECT_EQ(v11->toString(), "a");
+
+    eval("c22 = M(2,2);");
+    auto *v22 = getVarPtr("c22");
+    EXPECT_EQ(v22->toString(), "d");
+
+    eval("c13 = M(1,3);");
+    auto *v13 = getVarPtr("c13");
+    EXPECT_EQ(v13->toString(), "e");
+}
+
+TEST_P(IndexingOpsTest, Char2DSubMatrixPreservesShape)
+{
+    // Extract a 2x2 sub-matrix from the 2x3 char matrix.
+    eval("M = reshape('abcdef', 2, 3);");
+    eval("S = M(:, 1:2);");
+    auto *s = getVarPtr("S");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isChar());
+    EXPECT_EQ(s->dims().rows(), 2u);
+    EXPECT_EQ(s->dims().cols(), 2u);
+    // Column-major raw bytes: 'a','b','c','d'
+    EXPECT_EQ(s->charData()[0], 'a');
+    EXPECT_EQ(s->charData()[1], 'b');
+    EXPECT_EQ(s->charData()[2], 'c');
+    EXPECT_EQ(s->charData()[3], 'd');
+}
+
+TEST_P(IndexingOpsTest, Char2DRowExtract)
+{
+    eval("M = reshape('abcdef', 2, 3);");
+    // Second row → 'b' 'd' 'f' (column-major stride).
+    eval("R = M(2, :);");
+    auto *r = getVarPtr("R");
+    ASSERT_NE(r, nullptr);
+    EXPECT_TRUE(r->isChar());
+    EXPECT_EQ(r->dims().rows(), 1u);
+    EXPECT_EQ(r->dims().cols(), 3u);
+    EXPECT_EQ(r->toString(), "bdf");
+}
+
+TEST_P(IndexingOpsTest, Char2DAssignmentOverwritesCell)
+{
+    eval("M = reshape('abcdef', 2, 3);");
+    eval("M(1,2) = 'Z';");
+    auto *m = getVarPtr("M");
+    ASSERT_NE(m, nullptr);
+    EXPECT_EQ(m->dims().rows(), 2u);
+    EXPECT_EQ(m->dims().cols(), 3u);
+    // M(1,2) was 'c' → now 'Z'.
+    EXPECT_EQ(m->charData()[2], 'Z');
+    // Other cells untouched.
+    EXPECT_EQ(m->charData()[0], 'a');
+    EXPECT_EQ(m->charData()[1], 'b');
+    EXPECT_EQ(m->charData()[3], 'd');
+}
+
+TEST_P(IndexingOpsTest, Char2DSubMatrixAssignment)
+{
+    eval("M = reshape('abcdef', 2, 3);");
+    eval("M(:, 1) = 'XY';");    // overwrite first column
+    auto *m = getVarPtr("M");
+    EXPECT_EQ(m->charData()[0], 'X');
+    EXPECT_EQ(m->charData()[1], 'Y');
+    EXPECT_EQ(m->charData()[2], 'c');  // unchanged
+}
+
+TEST_P(IndexingOpsTest, CharLinearIndexStillReturnsRow)
+{
+    // Backwards compat: 1D linear indexing on a char array still yields
+    // a row-oriented char array (MATLAB parity).
+    eval("s = 'hello'; x = s([1 3 5]);");
+    auto *x = getVarPtr("x");
+    ASSERT_NE(x, nullptr);
+    EXPECT_TRUE(x->isChar());
+    EXPECT_EQ(x->toString(), "hlo");
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);

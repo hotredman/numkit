@@ -329,7 +329,9 @@ static MType promoteNumericType(const MValue *elems, size_t count)
     return MType::LOGICAL; // all-logical stays logical
 }
 
-// Read one element as double. Supports DOUBLE, LOGICAL, COMPLEX (takes real part).
+// Read one element as double. Supports every numeric MType plus CHAR
+// (returns the character's ASCII value) and LOGICAL (0/1). COMPLEX
+// contributes the real part only, matching MATLAB's double(complex).
 static double readElemAsDouble(const MValue &v, size_t idx)
 {
     switch (v.type()) {
@@ -339,6 +341,18 @@ static double readElemAsDouble(const MValue &v, size_t idx)
         return static_cast<double>(v.logicalData()[idx]);
     case MType::COMPLEX:
         return v.complexData()[idx].real();
+    case MType::CHAR:
+        return static_cast<double>(static_cast<unsigned char>(v.charData()[idx]));
+    case MType::SINGLE:
+        return static_cast<double>(v.singleData()[idx]);
+    case MType::INT8:   return static_cast<double>(v.int8Data()[idx]);
+    case MType::INT16:  return static_cast<double>(v.int16Data()[idx]);
+    case MType::INT32:  return static_cast<double>(v.int32Data()[idx]);
+    case MType::INT64:  return static_cast<double>(v.int64Data()[idx]);
+    case MType::UINT8:  return static_cast<double>(v.logicalData()[idx]); // uint8 shares logicalData
+    case MType::UINT16: return static_cast<double>(v.uint16Data()[idx]);
+    case MType::UINT32: return static_cast<double>(v.uint32Data()[idx]);
+    case MType::UINT64: return static_cast<double>(v.uint64Data()[idx]);
     default:
         throw std::runtime_error(
             std::string("Cannot read element as double from type '")
@@ -1093,7 +1107,12 @@ void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
 void MValue::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
 {
     MType t = type();
-    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+    // STRING elements are std::string, not fixed-width bytes, so the
+    // memcpy-based path below would silently produce zero-sized output
+    // (elementSize(STRING) == 0). Reject up-front alongside the other
+    // structurally-incompatible types.
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY
+        || t == MType::STRING)
         throw std::runtime_error(
             std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
 
@@ -1138,7 +1157,12 @@ void MValue::indexDelete2D(const size_t *rowIdx, size_t nrows,
                            Allocator *alloc)
 {
     MType t = type();
-    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+    // STRING elements are std::string, not fixed-width bytes, so the
+    // memcpy-based path below would silently produce zero-sized output
+    // (elementSize(STRING) == 0). Reject up-front alongside the other
+    // structurally-incompatible types.
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY
+        || t == MType::STRING)
         throw std::runtime_error(
             std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
 
@@ -1228,7 +1252,12 @@ void MValue::indexDelete3D(const size_t *rowIdx, size_t nrows,
                            Allocator *alloc)
 {
     MType t = type();
-    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY)
+    // STRING elements are std::string, not fixed-width bytes, so the
+    // memcpy-based path below would silently produce zero-sized output
+    // (elementSize(STRING) == 0). Reject up-front alongside the other
+    // structurally-incompatible types.
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY
+        || t == MType::STRING)
         throw std::runtime_error(
             std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
 

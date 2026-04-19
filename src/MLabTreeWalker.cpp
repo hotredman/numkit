@@ -1590,21 +1590,11 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
         }
     };
 
-    if (var.isChar()) {
-        if (nargs == 1) {
-            auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
-            const char *cd = var.charData();
-            std::string result;
-            result.reserve(indices.size());
-            for (auto idx : indices) {
-                if (idx >= var.numel())
-                    throw std::runtime_error("Index exceeds char array dimensions");
-                result += cd[idx];
-            }
-            return MValue::fromString(result, &engine_.allocator_);
-        }
-        throw std::runtime_error("Multi-dimensional char indexing not supported");
-    }
+    // CHAR routes through the generic path below. 1D reads go through
+    // MValue::indexGet (which has a CHAR case building a char row via
+    // fromString); 2D/3D reads use the memcpy path in indexGet2D /
+    // indexGet3D (elementSize(CHAR)==1, so the raw byte copy preserves
+    // matrix shape). Indexed assignment works via writeElem / writeScalar.
 
     if (nargs == 1) {
         // ── scalar fast path: skip resolveIndex + vector<size_t> entirely ──
