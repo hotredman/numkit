@@ -1,5 +1,5 @@
 {
-  "name": "mlab-desktop",
+  "name": "numkit-ide-desktop",
   "version": "2.1.0",
   "private": true,
   "main": "main.js",
@@ -8,8 +8,8 @@
     "build": "electron-builder --win portable"
   },
   "build": {
-    "appId": "com.mlab.ide",
-    "productName": "MLab IDE",
+    "appId": "com.numkit.ide",
+    "productName": "numkit IDE",
     "directories": {
       "output": "release"
     },
@@ -23,7 +23,7 @@
       "signAndEditExecutable": false
     },
     "portable": {
-      "artifactName": "MLab-IDE-${version}.exe"
+      "artifactName": "numkit-IDE-${version}.exe"
     }
   },
   "devDependencies": {

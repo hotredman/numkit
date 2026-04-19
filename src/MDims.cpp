@@ -1,4 +1,4 @@
-// src/MLabDims.cpp
+// src/MDims.cpp
 #include "MDims.hpp"
 
 #include <stdexcept>

@@ -32,7 +32,7 @@
 
 import { useState, useEffect } from 'react';
 
-const KEY = 'mlab.uiState';
+const KEY = 'numkit.uiState';
 const VERSION = 1;
 const SAVE_DEBOUNCE_MS = 250;
 

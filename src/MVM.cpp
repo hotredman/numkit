@@ -1,4 +1,4 @@
-// src/MLabVM.cpp
+// src/MVM.cpp
 #include "MVM.hpp"
 #include "MEngine.hpp"
 #include "MSpan.hpp"

@@ -1,4 +1,4 @@
-// src/MLabEnvironment.cpp
+// src/MEnvironment.cpp
 #include "MEnvironment.hpp"
 
 namespace numkit {

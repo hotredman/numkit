@@ -1,16 +1,16 @@
 cmake_minimum_required(VERSION 3.14)
 
-add_executable(mlab_repl src/repl_bindings.cpp)
-target_link_libraries(mlab_repl PRIVATE mlab::mlab)
+add_executable(numkit_ide src/repl_bindings.cpp)
+target_link_libraries(numkit_ide PRIVATE mlab::mlab)
 
 if(EMSCRIPTEN)
-    set_target_properties(mlab_repl PROPERTIES
-        OUTPUT_NAME "mlab_repl"
+    set_target_properties(numkit_ide PROPERTIES
+        OUTPUT_NAME "numkit_ide"
         SUFFIX ".js"
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/dist"
     )
 
-    target_link_options(mlab_repl PRIVATE
+    target_link_options(numkit_ide PRIVATE
         --bind
         "SHELL:-s MODULARIZE=1"
         "SHELL:-s EXPORT_NAME=createMLabModule"
@@ -22,7 +22,7 @@ if(EMSCRIPTEN)
         -O2
     )
 
-    target_compile_options(mlab_repl PRIVATE
+    target_compile_options(numkit_ide PRIVATE
         -fexceptions
         -O2
     )
@@ -34,7 +34,7 @@ if(EMSCRIPTEN)
     set(MLAB_VITE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/repl-vite" CACHE PATH
         "Path to the Vite REPL project (for auto-copying WASM files)")
 
-    add_custom_command(TARGET mlab_repl POST_BUILD
+    add_custom_command(TARGET numkit_ide POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E make_directory "${DIST_DIR}"
         # If Vite project exists, copy WASM files there too
         COMMAND ${CMAKE_COMMAND} -E echo "WASM build complete: ${DIST_DIR}/"
@@ -43,10 +43,10 @@ if(EMSCRIPTEN)
 
     # Auto-copy to Vite public/ if the directory exists
     if(EXISTS "${MLAB_VITE_DIR}/public")
-        add_custom_command(TARGET mlab_repl POST_BUILD
+        add_custom_command(TARGET numkit_ide POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
-                "${DIST_DIR}/mlab_repl.js"
-                "${DIST_DIR}/mlab_repl.wasm"
+                "${DIST_DIR}/numkit_ide.js"
+                "${DIST_DIR}/numkit_ide.wasm"
                 "${MLAB_VITE_DIR}/public/"
             COMMENT "Copying WASM files to Vite project: ${MLAB_VITE_DIR}/public/"
         )
@@ -54,7 +54,7 @@ if(EMSCRIPTEN)
 
     # Legacy: also copy old web assets for standalone mode
     if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/web")
-        add_custom_command(TARGET mlab_repl POST_BUILD
+        add_custom_command(TARGET numkit_ide POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${CMAKE_CURRENT_SOURCE_DIR}/web/index.html"
                 "${CMAKE_CURRENT_SOURCE_DIR}/web/repl.css"
@@ -69,7 +69,7 @@ if(EMSCRIPTEN)
     add_custom_target(serve
         COMMAND ${CMAKE_COMMAND} -E echo "Open http://localhost:8080"
         COMMAND python3 -m http.server 8080 --directory "${DIST_DIR}"
-        DEPENDS mlab_repl
+        DEPENDS numkit_ide
         WORKING_DIRECTORY "${DIST_DIR}"
         COMMENT "Starting local dev server..."
     )

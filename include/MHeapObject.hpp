@@ -1,4 +1,4 @@
-// include/MLabHeapObject.hpp
+// include/MHeapObject.hpp
 #pragma once
 
 #include "MDataBuffer.hpp"

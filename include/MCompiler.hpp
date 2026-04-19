@@ -1,4 +1,4 @@
-// include/MLabCompiler.hpp
+// include/MCompiler.hpp
 #pragma once
 
 #include "MAst.hpp"

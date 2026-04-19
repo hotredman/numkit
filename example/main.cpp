@@ -1,4 +1,4 @@
-#include "MLabEngine.hpp"
+#include "MEngine.hpp"
 
 #include <iostream>
 #include <string>
@@ -7,7 +7,7 @@ int main()
 {
     mlab::Engine engine;
 
-    std::cout << "MLab Interpreter\n";
+    std::cout << "M Interpreter\n";
     std::cout << "Type 'quit' or 'exit' to leave.\n\n";
 
     std::string line;

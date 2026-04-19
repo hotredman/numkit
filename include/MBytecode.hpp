@@ -1,4 +1,4 @@
-// include/MLabBytecode.hpp
+// include/MBytecode.hpp
 #pragma once
 
 #include "MValue.hpp"

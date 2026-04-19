@@ -101,7 +101,7 @@ function TabBar({ tabs, activeTab, onSelect, onClose, onNew, onRename, onCloseAl
   );
 }
 
-export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAdapters, onLocalMount }) {
+export default function REPL({ engine: engineProp, status: statusProp, vfsAdapters, onLocalMount }) {
   const C = useTheme();
   const { themeName, toggleTheme } = C;
 
@@ -174,7 +174,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
   useEffect(() => { if (vfsAdapters?.local) warnedFallbackRef.current = false; }, [vfsAdapters?.local]);
   const engine = engineProp;
 
-  useEffect(()=>{setOutput([{type:"system",text:"MLab REPL v2.5 — Web IDE"},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);},[]);
+  useEffect(()=>{setOutput([{type:"system",text:"numkit REPL v2.5 — Web IDE"},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);},[]);
 
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
@@ -399,7 +399,7 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
   return (
     <div style={{display:"flex",flexDirection:"column",height:"100vh",width:"100%",background:C.bg0,color:C.text,fontFamily:FONT,fontSize:13,overflow:"hidden"}}>
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"5px 12px",background:C.bg1,borderBottom:`1px solid ${C.border}`,flexShrink:0,zIndex:30,gap:8}}>
-        <div style={{display:"flex",alignItems:"baseline",gap:6,flexShrink:0}}><span style={{fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI}}>MLab <span style={{color:C.accent}}>IDE</span></span><span style={{fontSize:9,color:C.textMuted}}>v2.5</span></div>
+        <div style={{display:"flex",alignItems:"baseline",gap:6,flexShrink:0}}><span style={{fontSize:15,fontWeight:700,letterSpacing:-0.5,fontFamily:FONT_UI}}>numkit <span style={{color:C.accent}}>IDE</span></span><span style={{fontSize:9,color:C.textMuted}}>v2.5</span></div>
         <div style={{display:"flex",gap:2,alignItems:"center",background:C.bg0,borderRadius:6,padding:"2px 3px"}}>
           <PanelBtn active={showLeft} onClick={()=>setShowLeft(!showLeft)} icon="📂" label="Explorer" title="File Browser"/>
           <PanelBtn active={showCenter} onClick={()=>setShowCenter(!showCenter)} icon="📝" label="Editor" title="Code Editor"/>

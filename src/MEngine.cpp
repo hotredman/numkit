@@ -1,4 +1,4 @@
-// src/MLabEngine.cpp
+// src/MEngine.cpp
 #include "MEngine.hpp"
 #include "MBranding.hpp"
 #include "MCompiler.hpp"
@@ -20,7 +20,7 @@
 namespace numkit {
 
 // ============================================================
-// Reserved names — see MLabTypes.hpp for per-set semantics.
+// Reserved names — see MTypes.hpp for per-set semantics.
 // ============================================================
 const std::unordered_set<std::string> kBuiltinConstants = {
     "pi", "eps", "inf", "Inf", "nan", "NaN", "true", "false", "i", "j",

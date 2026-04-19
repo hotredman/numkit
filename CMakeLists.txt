@@ -1,27 +1,27 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.14)
-project(mlab VERSION 1.0.0 LANGUAGES CXX)
+project(numkit VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(MLAB_BUILD_EXAMPLE "Build example executable" ON)
-option(MLAB_BUILD_TESTS   "Build tests"              ON)
-option(MLAB_BUILD_SHARED  "Build shared library"     OFF)
-option(MLAB_INSTALL       "Generate install target"  ON)
+option(NUMKIT_BUILD_EXAMPLE "Build example executable" ON)
+option(NUMKIT_BUILD_TESTS   "Build tests"              ON)
+option(NUMKIT_BUILD_SHARED  "Build shared library"     OFF)
+option(NUMKIT_INSTALL       "Generate install target"  ON)
 
 if(NOT EMSCRIPTEN)
-    set(MLAB_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
+    set(NUMKIT_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
 else()
-    option(MLAB_BUILD_REPL "Build WebAssembly module" ON)
+    option(NUMKIT_BUILD_REPL "Build WebAssembly module" ON)
 endif()
 
 # ──────────────────────────────────────────────
 # Основная библиотека
 # ──────────────────────────────────────────────
 
-set(MLAB_CORE_SOURCES
+set(NUMKIT_CORE_SOURCES
     src/MAllocator.cpp
     src/MMType.cpp
     src/MDims.cpp
@@ -48,15 +48,15 @@ add_subdirectory(src/dsplib)
 add_subdirectory(src/pltlib)
 add_subdirectory(src/fitlib)
 
-set(MLAB_SOURCES
-    ${MLAB_CORE_SOURCES}
+set(NUMKIT_SOURCES
+    ${NUMKIT_CORE_SOURCES}
     ${STDLIB_SOURCES}
     ${DSPLIB_SOURCES}
     ${PLTLIB_SOURCES}
     ${FITLIB_SOURCES}
 )
 
-set(MLAB_HEADERS
+set(NUMKIT_HEADERS
     include/MTypes.hpp
     include/MTreeWalker.hpp
     include/MAllocator.hpp
@@ -82,15 +82,15 @@ set(MLAB_HEADERS
     include/MDebugger.hpp
 )
 
-if(MLAB_BUILD_SHARED)
-    add_library(mlab SHARED ${MLAB_SOURCES} ${MLAB_HEADERS})
+if(NUMKIT_BUILD_SHARED)
+    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
 else()
-    add_library(mlab STATIC ${MLAB_SOURCES} ${MLAB_HEADERS})
+    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
 endif()
 
-add_library(mlab::mlab ALIAS mlab)
+add_library(numkit::numkit ALIAS numkit)
 
-target_include_directories(mlab
+target_include_directories(numkit
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
@@ -99,27 +99,27 @@ target_include_directories(mlab
         ${CMAKE_CURRENT_SOURCE_DIR}/src/dsplib
 )
 
-target_compile_features(mlab PUBLIC cxx_std_17)
+target_compile_features(numkit PUBLIC cxx_std_17)
 
 if(EMSCRIPTEN)
-    target_compile_options(mlab PRIVATE -fexceptions)
-    target_link_options(mlab PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
+    target_compile_options(numkit PRIVATE -fexceptions)
+    target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
 # ──────────────────────────────────────────────
 # Example
 # ──────────────────────────────────────────────
 
-if(MLAB_BUILD_EXAMPLE AND NOT EMSCRIPTEN)
-    add_executable(mlab_example example/main.cpp)
-    target_link_libraries(mlab_example PRIVATE mlab::mlab)
+if(NUMKIT_BUILD_EXAMPLE AND NOT EMSCRIPTEN)
+    add_executable(numkit_example example/main.cpp)
+    target_link_libraries(numkit_example PRIVATE numkit::numkit)
 endif()
 
 # ──────────────────────────────────────────────
 # Тесты (Google Test)
 # ──────────────────────────────────────────────
 
-if(MLAB_BUILD_TESTS AND NOT EMSCRIPTEN)
+if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -142,7 +142,7 @@ endif()
 # REPL subdirectory
 # ──────────────────────────────────────────────
 
-if(MLAB_BUILD_REPL)
+if(NUMKIT_BUILD_REPL)
     add_subdirectory(wasm)
 endif()
 
@@ -150,42 +150,42 @@ endif()
 # Install
 # ──────────────────────────────────────────────
 
-if(MLAB_INSTALL AND NOT EMSCRIPTEN)
+if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    install(TARGETS mlab
-        EXPORT mlabTargets
+    install(TARGETS numkit
+        EXPORT numkitTargets
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    install(FILES ${MLAB_HEADERS}
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/mlab
+    install(FILES ${NUMKIT_HEADERS}
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/numkit
     )
 
-    install(EXPORT mlabTargets
-        FILE        mlabTargets.cmake
-        NAMESPACE   mlab::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mlab
+    install(EXPORT numkitTargets
+        FILE        numkitTargets.cmake
+        NAMESPACE   numkit::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mlabConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/mlabConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mlab
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/numkitConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 
     write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/mlabConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfigVersion.cmake"
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion
     )
 
     install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/mlabConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/mlabConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/mlab
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 endif()

@@ -2,7 +2,7 @@
  * fs/run-origin.js — pure helpers for deciding which VirtualFS a Run
  * should push onto the engine's script-origin stack.
  *
- * Separated from MLabREPL so the decision logic can be unit-tested
+ * Separated from REPL so the decision logic can be unit-tested
  * without mounting the component.
  */
 

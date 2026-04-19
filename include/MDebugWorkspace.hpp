@@ -1,4 +1,4 @@
-// include/MLabDebugWorkspace.hpp
+// include/MDebugWorkspace.hpp
 //
 // DebugWorkspace — unified view of variables visible at a debug pause.
 //

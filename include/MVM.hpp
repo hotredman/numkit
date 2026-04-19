@@ -1,4 +1,4 @@
-// include/MLabVM.hpp
+// include/MVM.hpp
 #pragma once
 
 #include "MBytecode.hpp"

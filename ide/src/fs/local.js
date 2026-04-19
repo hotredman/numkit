@@ -1,5 +1,5 @@
 /**
- * fs/local.js — real-filesystem backend for the MLab IDE.
+ * fs/local.js — real-filesystem backend for the numkit IDE.
  *
  * Two interchangeable backends with the same public shape:
  *
@@ -30,12 +30,12 @@
 // Native backend — Electron desktop
 // ─────────────────────────────────────────────────────────────────
 //
-// Persists the root folder path in localStorage ("mlab.native.root")
+// Persists the root folder path in localStorage ("numkit.native.root")
 // so reloading the IDE reopens the same folder without asking again.
 // No permission handshake is needed — the main process runs with
 // the user's OS permissions.
 
-const NATIVE_ROOT_KEY = 'mlab.native.root';
+const NATIVE_ROOT_KEY = 'numkit.native.root';
 
 function makeNativeBackend() {
     const api = window.nativeFS;

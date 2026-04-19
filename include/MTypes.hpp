@@ -1,4 +1,4 @@
-// include/MLabTypes.hpp
+// include/MTypes.hpp
 #pragma once
 
 #include "MAst.hpp"

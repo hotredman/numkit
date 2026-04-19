@@ -1,4 +1,4 @@
-// include/MLabAst.hpp
+// include/MAst.hpp
 #pragma once
 #include <memory>
 #include <string>

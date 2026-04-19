@@ -1,4 +1,4 @@
-// include/MLabDims.hpp
+// include/MDims.hpp
 #pragma once
 
 #include <cstddef>

@@ -1,4 +1,4 @@
-// src/MLabDataBuffer.cpp
+// src/MDataBuffer.cpp
 #include "MDataBuffer.hpp"
 
 #include <new>

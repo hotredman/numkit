@@ -127,7 +127,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                             });
 
     // ── shared printf-style formatter ──────────────────────────
-    auto mlab_sprintf =
+    auto sprintfImpl =
         [](const std::string &fmt, Span<const MValue> args, size_t argStart) -> std::string {
         std::ostringstream out;
         size_t ai = argStart;
@@ -278,7 +278,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     //   1 2
     //   3 4
     // We flatten numeric array args into a stream of scalar MValues and
-    // invoke mlab_sprintf once per chunk of (nSpecs) values. Char args
+    // invoke sprintfImpl once per chunk of (nSpecs) values. Char args
     // stay as single placeholders (MATLAB's %s takes the whole string).
     auto countFormatSpecs = [](const std::string &fmt) -> size_t {
         size_t n = 0;
@@ -298,7 +298,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         return n;
     };
 
-    auto sprintfCyclic = [mlab_sprintf, countFormatSpecs](
+    auto sprintfCyclic = [sprintfImpl, countFormatSpecs](
                              const std::string &fmt, Span<const MValue> args, size_t argStart,
                              Allocator *alloc) -> std::string {
         std::vector<MValue> stream;
@@ -321,13 +321,13 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
         size_t nSpecs = countFormatSpecs(fmt);
         if (nSpecs == 0 || stream.size() <= nSpecs) {
-            return mlab_sprintf(fmt, Span<const MValue>{stream.data(), stream.size()}, 0);
+            return sprintfImpl(fmt, Span<const MValue>{stream.data(), stream.size()}, 0);
         }
         std::string out;
         size_t pos = 0;
         while (pos < stream.size()) {
             size_t end = std::min(pos + nSpecs, stream.size());
-            out += mlab_sprintf(
+            out += sprintfImpl(
                 fmt, Span<const MValue>{stream.data() + pos, end - pos}, 0);
             pos = end;
         }
@@ -394,7 +394,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     engine.registerFunction(
         "error",
-        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 throw MError("Error");
@@ -418,7 +418,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = first;
                 std::string msg;
                 if (args.size() > 2)
-                    msg = mlab_sprintf(args[1].toString(), args, 2);
+                    msg = sprintfImpl(args[1].toString(), args, 2);
                 else
                     msg = args[1].toString();
                 throw MError(msg, 0, 0, "", "", id);
@@ -427,7 +427,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             // error(msg) or error(msg, arg1, ...) — sprintf formatting
             std::string msg;
             if (args.size() > 1)
-                msg = mlab_sprintf(first, args, 1);
+                msg = sprintfImpl(first, args, 1);
             else
                 msg = first;
             throw MError(msg);
@@ -435,7 +435,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     engine.registerFunction(
         "warning",
-        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 return;
@@ -446,11 +446,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 && (args[1].isChar() || args[1].isString())) {
                 // warning(id, msg, ...) — skip identifier, format message
                 if (args.size() > 2)
-                    msg = mlab_sprintf(args[1].toString(), args, 2);
+                    msg = sprintfImpl(args[1].toString(), args, 2);
                 else
                     msg = args[1].toString();
             } else if (args.size() > 1) {
-                msg = mlab_sprintf(first, args, 1);
+                msg = sprintfImpl(first, args, 1);
             } else {
                 msg = first;
             }
@@ -460,7 +460,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // MException(id, msg, ...) — create exception struct
     engine.registerFunction(
         "MException",
-        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2)
@@ -468,7 +468,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string id = args[0].toString();
             std::string msg;
             if (args.size() > 2)
-                msg = mlab_sprintf(args[1].toString(), args, 2);
+                msg = sprintfImpl(args[1].toString(), args, 2);
             else
                 msg = args[1].toString();
             auto me = MValue::structure();
@@ -506,7 +506,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // assert(condition) / assert(condition, msg) / assert(condition, id, msg, ...)
     engine.registerFunction(
         "assert",
-        [mlab_sprintf](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 throw std::runtime_error("assert requires at least one argument");
@@ -530,14 +530,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = first;
                 std::string msg;
                 if (args.size() > 3)
-                    msg = mlab_sprintf(args[2].toString(), args, 3);
+                    msg = sprintfImpl(args[2].toString(), args, 3);
                 else
                     msg = args[2].toString();
                 throw MError(msg, 0, 0, "", "", id);
             }
             std::string msg;
             if (args.size() > 2)
-                msg = mlab_sprintf(first, args, 2);
+                msg = sprintfImpl(first, args, 2);
             else
                 msg = first;
             throw MError(msg, 0, 0, "", "", "MLAB:assert");

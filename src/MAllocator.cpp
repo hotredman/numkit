@@ -1,4 +1,4 @@
-// src/MLabAllocator.cpp
+// src/MAllocator.cpp
 #include "MAllocator.hpp"
 
 namespace numkit {

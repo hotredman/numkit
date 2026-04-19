@@ -1,4 +1,4 @@
-// src/MLabAst.cpp
+// src/MAst.cpp
 #include "MAst.hpp"
 
 namespace numkit {

@@ -1,4 +1,4 @@
-// src/MLabTreeWalker.cpp
+// src/MTreeWalker.cpp
 #include "MTreeWalker.hpp"
 #include "MCompiler.hpp"
 #include "MEngine.hpp"
@@ -2145,7 +2145,7 @@ MValue TreeWalker::execExprStmt(const ASTNode *node, Environment *env)
 {
     auto *child = node->children[0].get();
 
-    // MATLAB display / ans rule (see MLabCompiler::compileExprStmt for the
+    // MATLAB display / ans rule (see MCompiler::compileExprStmt for the
     // VM mirror). Bare read of a user variable → display by its own name,
     // no ans. Everything else → ans store regardless of semicolon, "ans"
     // label for display.

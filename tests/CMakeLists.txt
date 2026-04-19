@@ -3,11 +3,11 @@
 # Included from root CMakeLists.txt via add_subdirectory(tests)
 #
 # Run examples:
-#   ./mlab_tests                                  # all tests
-#   ./mlab_tests --gtest_filter="TW_VM/*"         # dual-backend only
-#   ./mlab_tests --gtest_filter="TW_VM/*VM*"      # VM-only runs
-#   ./mlab_tests --gtest_filter="TW_VM/*TW*"      # TW-only runs
-#   ./mlab_tests --gtest_filter="CommandSyntax*"   # parser tests
+#   ./numkit_tests                                  # all tests
+#   ./numkit_tests --gtest_filter="TW_VM/*"         # dual-backend only
+#   ./numkit_tests --gtest_filter="TW_VM/*VM*"      # VM-only runs
+#   ./numkit_tests --gtest_filter="TW_VM/*TW*"      # TW-only runs
+#   ./numkit_tests --gtest_filter="CommandSyntax*"   # parser tests
 
 # ── Core: lexer, parser, command syntax ─────────────────────
 set(CORE_TESTS
@@ -85,7 +85,7 @@ set(DIAGNOSTICS_TESTS
 )
 
 # ── Assemble the test executable ─────────────────────────────
-add_executable(mlab_tests
+add_executable(numkit_tests
     main.cpp
     ${CORE_TESTS}
     ${STDLIB_TESTS}
@@ -96,16 +96,16 @@ add_executable(mlab_tests
     ${DIAGNOSTICS_TESTS}
 )
 
-target_include_directories(mlab_tests
+target_include_directories(numkit_tests
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}   # dual_engine_fixture.hpp
 )
 
-target_link_libraries(mlab_tests
+target_link_libraries(numkit_tests
     PRIVATE
-        mlab::mlab
+        numkit::numkit
         GTest::gtest_main
 )
 
 include(GoogleTest)
-gtest_discover_tests(mlab_tests DISCOVERY_MODE PRE_TEST)
+gtest_discover_tests(numkit_tests DISCOVERY_MODE PRE_TEST)

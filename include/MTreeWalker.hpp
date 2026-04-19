@@ -1,4 +1,4 @@
-// include/MLabTreeWalker.hpp
+// include/MTreeWalker.hpp
 #pragma once
 
 #include "MDebugger.hpp"

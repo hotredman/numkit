@@ -1,4 +1,4 @@
-// src/MLabCompiler.cpp
+// src/MCompiler.cpp
 #include "MCompiler.hpp"
 #include "MEngine.hpp"
 

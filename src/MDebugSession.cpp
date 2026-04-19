@@ -1,7 +1,7 @@
-// src/MLabDebugSession.cpp
+// src/MDebugSession.cpp
 //
 // DebugSession now routes all console-visible variable state through
-// DebugWorkspace (see include/MLabDebugWorkspace.hpp):
+// DebugWorkspace (see include/MDebugWorkspace.hpp):
 //   - frame variables are updated via direct pointers into VM registers;
 //   - console-only variables live in an explicit overlay map, which is
 //     plugged into the VM as `dynVars` during `continue` so they resolve

@@ -1,4 +1,4 @@
-// include/MLabDebugSession.hpp
+// include/MDebugSession.hpp
 //
 // DebugSession: owns compilation + VM state for pausable debug execution.
 // Replaces the WASM replay hack with a clean start/resume/snapshot API.

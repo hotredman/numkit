@@ -78,7 +78,7 @@ const Console = forwardRef(function Console({ engine, output, onAddOutput, onRun
             </div>
           )}
           <textarea ref={inputRef} value={inputVal} onChange={e=>{setInputVal(e.target.value);setAcItems([]);}}
-            onKeyDown={handleKeyDown} rows={1} spellCheck={false} autoComplete="off" placeholder="Enter MLab command…"
+            onKeyDown={handleKeyDown} rows={1} spellCheck={false} autoComplete="off" placeholder="Enter numkit command…"
             style={{width:"100%",background:"transparent",border:"none",outline:"none",color:C.text,fontFamily:FONT,fontSize:13,lineHeight:1.6,resize:"none",overflow:"hidden",caretColor:C.accent}}
             onInput={e=>{e.target.style.height="auto";e.target.style.height=e.target.scrollHeight+"px";}}/>
         </div>

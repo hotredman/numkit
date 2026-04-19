@@ -1,6 +1,6 @@
-// include/MLabDebugger.hpp
+// include/MDebugger.hpp
 //
-// Debugger infrastructure for MLab interpreter.
+// Debugger infrastructure for M interpreter.
 //
 // Design principles:
 //   - Zero overhead when no observer is attached

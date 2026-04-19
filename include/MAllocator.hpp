@@ -1,4 +1,4 @@
-// include/MLabAllocator.hpp
+// include/MAllocator.hpp
 #pragma once
 
 #include <cstddef>

@@ -1,4 +1,4 @@
-// src/MLabHeapObject.cpp
+// src/MHeapObject.cpp
 #include "MHeapObject.hpp"
 #include "MValue.hpp"
 

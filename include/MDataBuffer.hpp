@@ -1,4 +1,4 @@
-// include/MLabDataBuffer.hpp
+// include/MDataBuffer.hpp
 #pragma once
 
 #include "MAllocator.hpp"

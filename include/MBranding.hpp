@@ -1,4 +1,4 @@
-// include/MLabBranding.hpp
+// include/MBranding.hpp
 #pragma once
 
 #include <cstdlib>
@@ -17,8 +17,8 @@ namespace numkit {
 //
 // NOT covered here (rename these manually alongside the prefix update):
 //   • C++ namespace `mlab`, target `numkit::mlab`
-//   • File names `MLab*.hpp` / `MLab*.cpp`
-//   • Error-identifier strings such as "MLAB:assert" in MLabStdIO.cpp
+//   • File names `M*.hpp` / `M*.cpp`
+//   • Error-identifier strings such as "MLAB:assert" in MStdIO.cpp
 //   • Documentation, README, CMake project name
 inline constexpr const char *kEnvPrefix = "MLAB";
 

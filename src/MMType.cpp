@@ -1,4 +1,4 @@
-// src/MLabMType.cpp
+// src/MMType.cpp
 #include "MMType.hpp"
 
 namespace numkit {

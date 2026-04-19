@@ -1,6 +1,6 @@
-# MLab REPL — React + Vite Edition
+# numkit REPL — React + Vite Edition
 
-Web-based REPL for the MLab (MATLAB-like) interpreter, built with React + Vite.
+Web-based REPL for the numkit (MATLAB-like) interpreter, built with React + Vite.
 
 ## Features
 
@@ -29,7 +29,7 @@ with a built-in JavaScript interpreter.
 
 ## Connecting Your WASM Engine
 
-To use your real C++ MLab interpreter:
+To use your real C++ numkit interpreter:
 
 ### Step 1 — Build WASM with Emscripten
 
@@ -39,18 +39,18 @@ mkdir build-wasm && cd build-wasm
 
 emcmake cmake .. -DMLAB_BUILD_REPL=ON -DCMAKE_BUILD_TYPE=Release
 
-emmake make mlab_repl
+emmake make numkit_ide
 ```
 
 This produces two files:
-- `repl/dist/mlab_repl.js`  (Emscripten glue code)
-- `repl/dist/mlab_repl.wasm` (compiled binary)
+- `repl/dist/numkit_ide.js`  (Emscripten glue code)
+- `repl/dist/numkit_ide.wasm` (compiled binary)
 
 ### Step 2 — Copy into Vite project
 
 ```bash
-cp build-wasm/repl/dist/mlab_repl.js   repl-vite/public/
-cp build-wasm/repl/dist/mlab_repl.wasm repl-vite/public/
+cp build-wasm/repl/dist/numkit_ide.js   repl-vite/public/
+cp build-wasm/repl/dist/numkit_ide.wasm repl-vite/public/
 ```
 
 ### Step 3 — Restart dev server
@@ -60,7 +60,7 @@ cd repl-vite
 npm run dev
 ```
 
-The app auto-detects `window.createMLabModule` and switches from
+The app auto-detects `window.createNumkitModule` and switches from
 fallback mode to the real WASM engine.
 
 ## Production Build
@@ -76,14 +76,14 @@ GitHub Pages, your own server).
 ## Project Structure
 
 ```
-mlab-repl-vite/
+numkit-ide-vite/
 ├── index.html              # Entry point (loads WASM script + React)
 ├── package.json
 ├── vite.config.js
 ├── public/
 │   ├── favicon.svg
-│   ├── mlab_repl.js        # ← copy WASM glue here (optional)
-│   └── mlab_repl.wasm      # ← copy WASM binary here (optional)
+│   ├── numkit_ide.js        # ← copy WASM glue here (optional)
+│   └── numkit_ide.wasm      # ← copy WASM binary here (optional)
 └── src/
     ├── main.jsx             # React root
     ├── index.css            # Global styles
@@ -92,7 +92,7 @@ mlab-repl-vite/
     ├── interpreter.js       # Built-in JS interpreter (fallback)
     ├── theme.js             # Colour palette + font constants
     ├── components/
-    │   └── MLabREPL.jsx     # Main REPL component (all UI)
+    │   └── REPL.jsx     # Main REPL component (all UI)
     └── data/
         ├── help.js          # Help database (80+ functions)
         ├── examples.js      # Example code snippets

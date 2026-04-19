@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import MLabREPL from './components/MLabREPL';
+import REPL from './components/REPL';
 import { createWasmEngine, createFallbackEngine } from './engine';
 import tempFS from './temporary';
 import { installVfsAdapters, installLocalAdapter } from './fs/vfs-adapter';
 
 /**
- * App — initialises Temporary FS + MLab engine (WASM or fallback).
+ * App — initialises Temporary FS + numkit engine (WASM or fallback).
  */
 export default function App() {
   const [engine, setEngine] = useState(null);
@@ -31,11 +31,11 @@ export default function App() {
       // ── 2. Init Engine ──
       try {
         const hasWasm = window.__WASM_GLUE_LOADED__ === true
-                     && typeof window.createMLabModule === 'function';
+                     && typeof window.createNumkitModule === 'function';
 
         if (hasWasm) {
           setInitMessage('Loading WebAssembly...');
-          const eng = await createWasmEngine(window.createMLabModule);
+          const eng = await createWasmEngine(window.createNumkitModule);
           if (cancelled) return;
 
           // IMPORTANT: call init() BEFORE registering VFS adapters.
@@ -106,7 +106,7 @@ export default function App() {
   }
 
   return (
-    <MLabREPL
+    <REPL
       engine={engine}
       status={status}
       initMessage={initMessage}

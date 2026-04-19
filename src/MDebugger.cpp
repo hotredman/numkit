@@ -1,4 +1,4 @@
-// src/MLabDebugger.cpp
+// src/MDebugger.cpp
 #include "MDebugger.hpp"
 #include "MBytecode.hpp"
 #include "MEnvironment.hpp"
