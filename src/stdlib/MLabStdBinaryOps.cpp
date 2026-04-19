@@ -22,7 +22,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return MValue::fromString(a.toString() + b.toString(), alloc);
         // char + double or double + char → double arithmetic (MATLAB behavior)
         if (a.isChar() && b.type() == MType::DOUBLE) {
-            auto ca = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+            auto ca = createLike(a, MType::DOUBLE, alloc);
             const char *cd = a.charData();
             double *dd = ca.doubleDataMut();
             for (size_t i = 0; i < a.numel(); ++i)
@@ -30,7 +30,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             return elementwiseDouble(ca, b, std::plus<double>{}, alloc);
         }
         if (a.type() == MType::DOUBLE && b.isChar()) {
-            auto cb = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::DOUBLE, alloc);
+            auto cb = createLike(b, MType::DOUBLE, alloc);
             const char *cd = b.charData();
             double *dd = cb.doubleDataMut();
             for (size_t i = 0; i < b.numel(); ++i)
@@ -285,8 +285,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                 if (a.isScalar()) {
                     Complex ca = a.isComplex() ? a.toComplex()
                                                : Complex(a.toScalar(), 0.0);
-                    auto r = MValue::matrix(b.dims().rows(), b.dims().cols(),
-                                            MType::LOGICAL, nullptr);
+                    auto r = createLike(b, MType::LOGICAL, nullptr);
                     for (size_t i = 0; i < b.numel(); ++i)
                         r.logicalDataMut()[i] =
                             (isEq ? ceq(ca, getC(b, i)) : !ceq(ca, getC(b, i)))
@@ -297,8 +296,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                 if (b.isScalar()) {
                     Complex cb = b.isComplex() ? b.toComplex()
                                                : Complex(b.toScalar(), 0.0);
-                    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
-                                            MType::LOGICAL, nullptr);
+                    auto r = createLike(a, MType::LOGICAL, nullptr);
                     for (size_t i = 0; i < a.numel(); ++i)
                         r.logicalDataMut()[i] =
                             (isEq ? ceq(getC(a, i), cb) : !ceq(getC(a, i), cb))
@@ -309,8 +307,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
                 if (a.dims() != b.dims())
                     throw std::runtime_error(
                         "Matrix dimensions must agree for comparison");
-                auto r = MValue::matrix(a.dims().rows(), a.dims().cols(),
-                                        MType::LOGICAL, nullptr);
+                auto r = createLike(a, MType::LOGICAL, nullptr);
                 for (size_t i = 0; i < a.numel(); ++i)
                     r.logicalDataMut()[i] =
                         (isEq ? ceq(getC(a, i), getC(b, i))
@@ -334,6 +331,37 @@ void StdLibrary::registerBinaryOps(Engine &engine)
 
             if (a.isScalar() && b.isScalar())
                 return MValue::logicalScalar(cmp(getDScalar(a), getDScalar(b)), nullptr);
+
+            // 3D path — same-shape elementwise and scalar broadcasting.
+            if (a.dims().is3D() || b.dims().is3D()) {
+                auto elemD = [](const MValue &v, size_t i) -> double {
+                    if (v.isLogical()) return v.logicalData()[i];
+                    if (v.type() == MType::DOUBLE) return v.doubleData()[i];
+                    return v.elemAsDouble(i);
+                };
+                if (a.isScalar()) {
+                    auto r = createLike(b, MType::LOGICAL, nullptr);
+                    double s = getDScalar(a);
+                    for (size_t i = 0; i < b.numel(); ++i)
+                        r.logicalDataMut()[i] = cmp(s, elemD(b, i)) ? 1 : 0;
+                    return r;
+                }
+                if (b.isScalar()) {
+                    auto r = createLike(a, MType::LOGICAL, nullptr);
+                    double s = getDScalar(b);
+                    for (size_t i = 0; i < a.numel(); ++i)
+                        r.logicalDataMut()[i] = cmp(elemD(a, i), s) ? 1 : 0;
+                    return r;
+                }
+                if (a.dims() != b.dims())
+                    throw std::runtime_error(
+                        "3D broadcasting not supported — dimensions must match");
+                auto r = createLike(a, MType::LOGICAL, nullptr);
+                for (size_t i = 0; i < a.numel(); ++i)
+                    r.logicalDataMut()[i] =
+                        cmp(elemD(a, i), elemD(b, i)) ? 1 : 0;
+                return r;
+            }
 
             size_t ar = a.dims().rows(), ac = a.dims().cols();
             size_t br = b.dims().rows(), bc = b.dims().cols();
@@ -386,7 +414,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
         if (a.isScalar()) {
             bool av = a.toBool();
             auto bb = toBoolArray(b);
-            auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(b, MType::LOGICAL, alloc);
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < bb.size(); ++i)
                 dst[i] = (av && bb[i]) ? 1 : 0;
@@ -395,7 +423,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
         if (b.isScalar()) {
             bool bv = b.toBool();
             auto aa = toBoolArray(a);
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < aa.size(); ++i)
                 dst[i] = (aa[i] && bv) ? 1 : 0;
@@ -405,7 +433,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             throw std::runtime_error("Matrix dimensions must agree for &");
         auto aa = toBoolArray(a);
         auto bb = toBoolArray(b);
-        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+        auto r = createLike(a, MType::LOGICAL, alloc);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
             dst[i] = (aa[i] && bb[i]) ? 1 : 0;
@@ -435,7 +463,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
         if (a.isScalar()) {
             bool av = a.toBool();
             auto bb = toBoolArray(b);
-            auto r = MValue::matrix(b.dims().rows(), b.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(b, MType::LOGICAL, alloc);
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < bb.size(); ++i)
                 dst[i] = (av || bb[i]) ? 1 : 0;
@@ -444,7 +472,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
         if (b.isScalar()) {
             bool bv = b.toBool();
             auto aa = toBoolArray(a);
-            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+            auto r = createLike(a, MType::LOGICAL, alloc);
             uint8_t *dst = r.logicalDataMut();
             for (size_t i = 0; i < aa.size(); ++i)
                 dst[i] = (aa[i] || bv) ? 1 : 0;
@@ -454,7 +482,7 @@ void StdLibrary::registerBinaryOps(Engine &engine)
             throw std::runtime_error("Matrix dimensions must agree for |");
         auto aa = toBoolArray(a);
         auto bb = toBoolArray(b);
-        auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::LOGICAL, alloc);
+        auto r = createLike(a, MType::LOGICAL, alloc);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
             dst[i] = (aa[i] || bb[i]) ? 1 : 0;

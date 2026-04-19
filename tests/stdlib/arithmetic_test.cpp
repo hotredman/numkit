@@ -3,6 +3,8 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <cmath>
+
 using namespace mlab_test;
 
 // ============================================================
@@ -303,3 +305,102 @@ TEST_P(LogicalTest, PrecedenceAllFourLevels)
 }
 
 INSTANTIATE_DUAL(LogicalTest);
+
+// ============================================================
+// 3D heap-safety regressions
+//
+// These exercise code paths that used to allocate a 2D result buffer
+// (MValue::matrix(rows, cols)) and then iterate over numel() elements.
+// For 3D inputs numel = rows*cols*pages, so the write ran past the
+// end of the heap allocation. All sites now go through createLike()
+// which dispatches to matrix3d when pages > 0.
+// ============================================================
+
+class HeapSafety3DTest : public DualEngineTest {};
+
+TEST_P(HeapSafety3DTest, UnaryDoubleSin)
+{
+    eval("A = ones(2, 3, 2); B = sin(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 12u);
+    EXPECT_NEAR(B->doubleData()[0], std::sin(1.0), 1e-12);
+    EXPECT_NEAR(B->doubleData()[11], std::sin(1.0), 1e-12);
+}
+
+TEST_P(HeapSafety3DTest, UnaryTypedIntegerNegate)
+{
+    eval("A = int32(ones(2, 3, 2)); B = -A;");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(B->type(), MType::INT32);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 12u);
+    EXPECT_EQ(B->int32Data()[0], -1);
+    EXPECT_EQ(B->int32Data()[11], -1);
+}
+
+TEST_P(HeapSafety3DTest, UnaryComplexConj)
+{
+    eval("A = ones(2, 2, 2) + 1i; B = conj(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_TRUE(B->isComplex());
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 8u);
+    EXPECT_DOUBLE_EQ(B->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(B->complexData()[0].imag(), -1.0);
+    EXPECT_DOUBLE_EQ(B->complexData()[7].imag(), -1.0);
+}
+
+TEST_P(HeapSafety3DTest, EqualityDoubleVsScalar)
+{
+    eval("A = ones(2, 3, 2) * 3; M = (A == 3);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 12u);
+    for (size_t i = 0; i < 12; ++i)
+        EXPECT_EQ(M->logicalData()[i], 1u);
+}
+
+TEST_P(HeapSafety3DTest, EqualityComplexVsScalar)
+{
+    eval("A = ones(2, 2, 2) + 0i; M = (A == 1);");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_EQ(M->logicalData()[i], 1u);
+}
+
+TEST_P(HeapSafety3DTest, LogicalAndBothArrays)
+{
+    eval("A = ones(2, 2, 2); B = zeros(2, 2, 2); B(1) = 1; M = A & B;");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    EXPECT_EQ(M->logicalData()[0], 1u);
+    for (size_t i = 1; i < 8; ++i)
+        EXPECT_EQ(M->logicalData()[i], 0u);
+}
+
+TEST_P(HeapSafety3DTest, LogicalOrBothArrays)
+{
+    eval("A = zeros(2, 2, 2); B = zeros(2, 2, 2); B(3) = 1; M = A | B;");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    EXPECT_EQ(M->logicalData()[2], 1u);
+}
+
+INSTANTIATE_DUAL(HeapSafety3DTest);

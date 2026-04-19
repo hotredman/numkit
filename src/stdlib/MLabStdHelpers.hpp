@@ -57,6 +57,32 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
 
+    // 3D paths — same-shape elementwise and scalar broadcasting only.
+    // General 3D broadcasting is not yet supported.
+    if (a.dims().is3D() || b.dims().is3D()) {
+        if (a.isScalar()) {
+            auto r = createLike(b, MType::DOUBLE, alloc);
+            double s = a.toScalar();
+            for (size_t i = 0; i < b.numel(); ++i)
+                r.doubleDataMut()[i] = op(s, b.doubleData()[i]);
+            return r;
+        }
+        if (b.isScalar()) {
+            auto r = createLike(a, MType::DOUBLE, alloc);
+            double s = b.toScalar();
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.doubleDataMut()[i] = op(a.doubleData()[i], s);
+            return r;
+        }
+        if (a.dims() != b.dims())
+            throw std::runtime_error(
+                "3D broadcasting not supported — dimensions must match");
+        auto r = createLike(a, MType::DOUBLE, alloc);
+        for (size_t i = 0; i < a.numel(); ++i)
+            r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+        return r;
+    }
+
     size_t ar = a.dims().rows(), ac = a.dims().cols();
     size_t br = b.dims().rows(), bc = b.dims().cols();
     size_t outR, outC;
@@ -99,6 +125,30 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
     if (ca.isScalar() && cb.isScalar())
         return MValue::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);
 
+    if (ca.dims().is3D() || cb.dims().is3D()) {
+        if (ca.isScalar()) {
+            auto r = createLike(cb, MType::COMPLEX, alloc);
+            Complex s = ca.toComplex();
+            for (size_t i = 0; i < cb.numel(); ++i)
+                r.complexDataMut()[i] = op(s, cb.complexData()[i]);
+            return r;
+        }
+        if (cb.isScalar()) {
+            auto r = createLike(ca, MType::COMPLEX, alloc);
+            Complex s = cb.toComplex();
+            for (size_t i = 0; i < ca.numel(); ++i)
+                r.complexDataMut()[i] = op(ca.complexData()[i], s);
+            return r;
+        }
+        if (ca.dims() != cb.dims())
+            throw std::runtime_error(
+                "3D broadcasting not supported — dimensions must match");
+        auto r = createLike(ca, MType::COMPLEX, alloc);
+        for (size_t i = 0; i < ca.numel(); ++i)
+            r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+        return r;
+    }
+
     size_t ar = ca.dims().rows(), ac = ca.dims().cols();
     size_t br = cb.dims().rows(), bc = cb.dims().cols();
     size_t outR, outC;
@@ -135,7 +185,7 @@ MValue unaryDouble(const MValue &a, Op op, Allocator *alloc)
 {
     if (a.isScalar())
         return MValue::scalar(op(a.toScalar()), alloc);
-    auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, alloc);
+    auto r = createLike(a, MType::DOUBLE, alloc);
     for (size_t i = 0; i < a.numel(); ++i)
         r.doubleDataMut()[i] = op(a.doubleData()[i]);
     return r;
@@ -149,7 +199,7 @@ MValue unaryComplex(const MValue &a, Op op, Allocator *alloc)
 {
     if (a.isScalar())
         return MValue::complexScalar(op(a.toComplex()), alloc);
-    auto r = MValue::complexMatrix(a.dims().rows(), a.dims().cols(), alloc);
+    auto r = createLike(a, MType::COMPLEX, alloc);
     for (size_t i = 0; i < a.numel(); ++i)
         r.complexDataMut()[i] = op(a.complexData()[i]);
     return r;
@@ -203,6 +253,17 @@ inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
     if (d.pages > 0)
         return MValue::matrix3d(d.rows, d.cols, d.pages, type, alloc);
     return MValue::matrix(d.rows, d.cols, type, alloc);
+}
+
+// Allocate an MValue with the same shape (2D or 3D) as `src`, optionally
+// of a different type. Required for any "elementwise" output: callers
+// that write numel() elements into a 2D-only allocation silently
+// corrupt the heap when src is 3D.
+inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
+{
+    return createMatrix({src.dims().rows(), src.dims().cols(),
+                         src.dims().is3D() ? src.dims().pages() : 0},
+                        type, alloc);
 }
 
 // ============================================================
@@ -393,7 +454,10 @@ MValue dispatchIntegerBinaryOp(const MValue &a, const MValue &b, Op op, Allocato
 template <typename T, typename Op>
 MValue unaryTyped(const MValue &a, MType targetType, Op op, Allocator *alloc)
 {
-    auto r = MValue::matrix(a.dims().rows(), std::max(a.dims().cols(), size_t(1)), targetType, alloc);
+    auto r = createMatrix({a.dims().rows(),
+                           std::max(a.dims().cols(), size_t(1)),
+                           a.dims().is3D() ? a.dims().pages() : 0},
+                          targetType, alloc);
     const T *src = static_cast<const T *>(a.rawData());
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < a.numel(); ++i)
