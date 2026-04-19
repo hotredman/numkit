@@ -403,4 +403,78 @@ TEST_P(HeapSafety3DTest, LogicalOrBothArrays)
     EXPECT_EQ(M->logicalData()[2], 1u);
 }
 
+TEST_P(HeapSafety3DTest, ElementwiseDoubleAddSameShape)
+{
+    eval("A = ones(2, 3, 2); B = ones(2, 3, 2) * 2; C = A + B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_EQ(C->type(), MType::DOUBLE);
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(C->numel(), 12u);
+    for (size_t i = 0; i < 12; ++i)
+        EXPECT_DOUBLE_EQ(C->doubleData()[i], 3.0);
+}
+
+TEST_P(HeapSafety3DTest, ElementwiseDoubleScalarOnLeft)
+{
+    eval("A = ones(2, 2, 2); B = 10 + A;");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_DOUBLE_EQ(B->doubleData()[i], 11.0);
+}
+
+TEST_P(HeapSafety3DTest, ElementwiseDoubleMismatchThrows)
+{
+    EXPECT_THROW(
+        { eval("A = ones(2, 3, 2); B = ones(3, 2, 2); C = A + B;"); },
+        std::exception);
+}
+
+TEST_P(HeapSafety3DTest, ElementwiseComplexAddSameShape)
+{
+    eval("A = ones(2, 2, 2) + 1i; B = ones(2, 2, 2) + 2i; C = A + B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_TRUE(C->isComplex());
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(C->numel(), 8u);
+    EXPECT_DOUBLE_EQ(C->complexData()[0].real(), 2.0);
+    EXPECT_DOUBLE_EQ(C->complexData()[0].imag(), 3.0);
+    EXPECT_DOUBLE_EQ(C->complexData()[7].imag(), 3.0);
+}
+
+TEST_P(HeapSafety3DTest, ComparisonSameShape)
+{
+    eval("A = ones(2, 2, 2) * 5; B = ones(2, 2, 2) * 3; M = A > B;");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_EQ(M->logicalData()[i], 1u);
+}
+
+TEST_P(HeapSafety3DTest, ComparisonScalarOnLeft)
+{
+    eval("A = ones(2, 2, 2) * 4; M = 10 > A;");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->numel(), 8u);
+    for (size_t i = 0; i < 8; ++i)
+        EXPECT_EQ(M->logicalData()[i], 1u);
+}
+
+TEST_P(HeapSafety3DTest, ComparisonMismatchThrows)
+{
+    EXPECT_THROW(
+        { eval("A = ones(2, 3, 2); B = ones(3, 2, 2); M = A == B;"); },
+        std::exception);
+}
+
 INSTANTIATE_DUAL(HeapSafety3DTest);
