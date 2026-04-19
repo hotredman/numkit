@@ -1225,6 +1225,33 @@ TEST_P(FileIoTest, SscanfMatrixShapeMixedNumericString)
     EXPECT_DOUBLE_EQ(evalScalar("a21 = A(2,1);"), 1.5);
 }
 
+TEST_P(FileIoTest, SscanfCharMatrixShape)
+{
+    // Text-only format + matrix size → char MATRIX (not flat row).
+    // Column-major fill: 'abcdef' into [2 3] yields
+    //   a c e
+    //   b d f
+    // MLab uses linear indexing for char arrays (column-major), so
+    // A(1)='a' A(2)='b' A(3)='c' A(4)='d' A(5)='e' A(6)='f'.
+    eval("A = sscanf('abcdef', '%c', [2 3]);");
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 3.0);
+    EXPECT_EQ(evalString("s1 = A(1);"), "a");
+    EXPECT_EQ(evalString("s4 = A(4);"), "d");
+    EXPECT_EQ(evalString("s5 = A(5);"), "e");
+}
+
+TEST_P(FileIoTest, SscanfCharMatrixShapeInfCols)
+{
+    // 7 chars into [2 Inf] → 2x4 with last cell zero-padded.
+    eval("A = sscanf('abcdefg', '%c', [2 Inf]);");
+    EXPECT_TRUE(evalBool("tf = ischar(A);"));
+    EXPECT_EQ(evalScalar("r = size(A, 1);"), 2.0);
+    EXPECT_EQ(evalScalar("c = size(A, 2);"), 4.0);
+    EXPECT_EQ(evalString("s7 = A(7);"), "g");
+}
+
 // ── textscan ─────────────────────────────────────────────
 
 TEST_P(FileIoTest, TextscanBasicNumericPerColumn)
