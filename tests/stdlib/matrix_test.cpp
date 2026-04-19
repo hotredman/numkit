@@ -152,3 +152,87 @@ TEST_P(Array3DTest, ScalarAssign3D)
 
 INSTANTIATE_DUAL(Array3DTest);
 
+// ============================================================
+// reshape — 1D/2D/3D forms
+// ============================================================
+
+class ReshapeTest : public DualEngineTest {};
+
+TEST_P(ReshapeTest, ReshapeVectorTo2DThreeScalars)
+{
+    eval("A = reshape(1:6, 2, 3);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_FALSE(A->dims().is3D());
+    EXPECT_DOUBLE_EQ(A->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[5], 6.0);
+}
+
+TEST_P(ReshapeTest, ReshapeVectorTo3DFourScalars)
+{
+    eval("A = reshape(1:12, 2, 3, 2);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_EQ(A->dims().pages(), 2u);
+    EXPECT_EQ(A->numel(), 12u);
+    EXPECT_DOUBLE_EQ(A->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[11], 12.0);
+}
+
+TEST_P(ReshapeTest, ReshapeVectorTo3DWithDimsVector)
+{
+    eval("A = reshape(1:12, [2 3 2]);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_EQ(A->dims().pages(), 2u);
+    EXPECT_DOUBLE_EQ(A->doubleData()[11], 12.0);
+}
+
+TEST_P(ReshapeTest, ReshapeVectorTo2DWithDimsVector)
+{
+    eval("A = reshape(1:6, [2 3]);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_FALSE(A->dims().is3D());
+}
+
+TEST_P(ReshapeTest, Reshape3DTo2D)
+{
+    eval("A = zeros(2, 3, 2); for k = 1:12, A(k) = k; end; B = reshape(A, 4, 3);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_FALSE(B->dims().is3D());
+    EXPECT_EQ(B->dims().rows(), 4u);
+    EXPECT_EQ(B->dims().cols(), 3u);
+    EXPECT_DOUBLE_EQ(B->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[11], 12.0);
+}
+
+TEST_P(ReshapeTest, ReshapePreservesType)
+{
+    eval("A = reshape(int32(1:12), 2, 3, 2);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->type(), MType::INT32);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->int32Data()[11], 12);
+}
+
+TEST_P(ReshapeTest, ReshapeMismatchedCountThrows)
+{
+    EXPECT_THROW({ eval("reshape(1:5, 2, 3);"); }, std::exception);
+    EXPECT_THROW({ eval("reshape(1:12, 2, 3, 3);"); }, std::exception);
+}
+
+INSTANTIATE_DUAL(ReshapeTest);
+

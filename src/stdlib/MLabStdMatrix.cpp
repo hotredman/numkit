@@ -121,25 +121,30 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
         });
 
     // --- reshape ---
+    // reshape(A, m, n) | reshape(A, m, n, p) | reshape(A, [m n]) |
+    // reshape(A, [m n p]). Element count must match numel(A). Data
+    // layout is column-major and the storage buffer is contiguous,
+    // so a flat memcpy preserves the logical order across any rank.
     engine.registerFunction("reshape",
                             [](Span<const MValue> args,
                                size_t nargout,
                                Span<MValue> outs,
                                CallContext &ctx) {
                                 auto *alloc = &ctx.engine->allocator();
+                                if (args.size() < 2)
+                                    throw std::runtime_error(
+                                        "reshape requires at least 2 arguments");
                                 auto &a = args[0];
-                                size_t newR = static_cast<size_t>(args[1].toScalar());
-                                size_t newC = static_cast<size_t>(args[2].toScalar());
-                                if (newR * newC != a.numel())
+                                DimsArg d = parseDimsArgs(args.subspan(1));
+                                size_t newNumel = d.rows * d.cols *
+                                                  (d.pages > 0 ? d.pages : 1);
+                                if (newNumel != a.numel())
                                     throw std::runtime_error(
                                         "Number of elements must not change in reshape");
-                                auto r = MValue::matrix(newR, newC, a.type(), alloc);
+                                auto r = createMatrix(d, a.type(), alloc);
                                 if (a.rawBytes() > 0)
                                     std::memcpy(r.rawDataMut(), a.rawData(), a.rawBytes());
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
+                                outs[0] = r;
                             });
 
     // --- transpose (function form) ---
