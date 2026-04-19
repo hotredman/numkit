@@ -642,5 +642,25 @@ TEST_P(TypeOpsTest, UnaryMinus3DPreservesShape)
         EXPECT_DOUBLE_EQ(b->doubleData()[i], -1.0);
 }
 
+TEST_P(TypeOpsTest, UnaryMinusEmptyComplexPreservesShape)
+{
+    eval("a = complex(zeros(2, 0)); b = -a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_TRUE(b->isComplex());
+    EXPECT_EQ(b->dims().rows(), 2u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
+TEST_P(TypeOpsTest, UnaryMinusEmptyLogicalPromotesToDouble)
+{
+    eval("a = logical(zeros(3, 0)); b = -a;");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->dims().rows(), 3u);
+    EXPECT_EQ(b->dims().cols(), 0u);
+}
+
 
 INSTANTIATE_DUAL(TypeOpsTest);
