@@ -1,20 +1,25 @@
-# numkit-m — Embeddable MATLAB Interpreter in C++ written with Claude Opus
+# Matrix-Scripting Interpreter in C++
 
-A lightweight, embeddable interpreter for a substantial subset of the MATLAB language, written in modern C++17. Includes a browser-based IDE (mIDE) compiled to WebAssembly. Designed for embedding MATLAB-like scripting capabilities into C++ applications with full control over memory allocation, I/O, and extensibility.
+A lightweight interpreter for a matrix-oriented scripting language — scalars and matrices, complex numbers, cell arrays, structs, function handles, plotting, DSP and fitting libraries. Written in modern C++17 with column-major storage and copy-on-write value semantics. Ships with a browser-based IDE (mIDE) compiled to WebAssembly. Designed to embed scientific scripting into C++ applications with full control over memory allocation, I/O, and extensibility.
 
-[![Try Online](https://img.shields.io/badge/Try%20Online-mIDE-blue?style=for-the-badge&logo=webassembly)](https://numkit.github.io/numkit-m/)
+<a href="https://numkit.github.io/numkit-m/">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/numkit-mide-logo-dark.svg">
+    <img src="brand/numkit-mide-logo-light.svg" alt="Try mIDE in browser" width="280">
+  </picture>
+</a>
 
-**[Launch mIDE in Browser](https://numkit.github.io/numkit-m/)**
+**[Launch mIDE in Browser →](https://numkit.github.io/numkit-m/)**
 
 ---
 
 ## Web IDE
 
-numkit-m ships with mIDE, a full-featured browser IDE built with React + Vite, running the C++ engine via WebAssembly:
+mIDE is built with React + Vite and runs the C++ engine via WebAssembly:
 
 - **Syntax highlighting** — keywords, builtins, constants, strings, comments
 - **Dark / Light theme** — single-source theming via React Context
-- **File browser** — local virtual FS, bundled examples (62 scripts), GitHub repo browser
+- **File browser** — local virtual FS, bundled examples (68 scripts), GitHub repo browser
 - **Multi-tab editor** — context menu, scroll arrows, rename, close all/others
 - **Interactive figures** — SVG-rendered plots with resize, subplot, polar, imagesc
 - **Console** — command history, tab completion, inline help
@@ -81,7 +86,12 @@ numkit-m ships with mIDE, a full-featured browser IDE built with React + Vite, r
 `cross`, `dot`, `meshgrid`
 
 #### I/O
-`disp`, `fprintf`, `sprintf`, `error`, `warning`
+`disp`, `fprintf`, `sprintf`, `sscanf`, `error`, `warning`, `assert`, `rethrow`, `throw`
+
+#### File I/O
+`fopen`, `fclose`, `fread`, `fwrite`, `fgetl`, `fgets`, `fscanf`, `feof`, `ferror`,
+`ftell`, `fseek`, `frewind`, `textscan`, `csvread`, `csvwrite`, `save`, `load`,
+`setenv`, `getenv`
 
 #### Type Queries
 `double`, `logical`, `char`, `isnumeric`, `islogical`, `ischar`,
@@ -133,7 +143,7 @@ numkit-m ships with mIDE, a full-featured browser IDE built with React + Vite, r
 
 ### Plotting
 
-numkit-m includes a figure management system that outputs plot data as JSON, rendered as SVG in mIDE.
+Plot data is emitted as JSON and rendered as SVG in mIDE.
 
 #### Plot Types
 `plot`, `bar`, `scatter`, `stem`, `stairs`, `hist`, `imagesc`,
@@ -154,7 +164,7 @@ Style strings (`'r--o'`, `'b:'`, `'g-.'`) and name-value pairs (`'LineWidth'`, `
 
 ### Debugger
 
-mIDE includes a MATLAB-like debugger with full pause/resume support:
+mIDE includes a full-featured debugger with pause/resume support:
 
 - **Breakpoints** — click gutter to set; supported on all statement lines including `end`
 - **Step over / Step into / Step out / Continue** — standard stepping controls
@@ -203,12 +213,12 @@ All classes live in `namespace numkit::m`.
 - **Dual backend** — bytecode VM for performance, TreeWalker as automatic fallback
 - **Non-recursive VM** — explicit `CallFrame` stack on heap enables pause/resume for debugging
 - **Copy-on-Write (COW)** for matrix data — efficient passing without deep copies
-- **Column-major storage** — matches MATLAB memory layout
+- **Column-major storage** — standard numerical memory layout
 - **`unique_ptr<ASTNode>`** — zero-overhead AST ownership, `shared_ptr` only for function bodies stored in the engine
 - **RAII guards** — `IndexContextGuard` and `RecursionGuard` ensure exception safety
 - **Pluggable allocator** — track memory, use custom pools, or integrate with your application's allocator
 - **Non-copyable, non-movable `Engine`** — prevents dangling references in registered lambdas
-- **Environment snapshots** — anonymous functions capture variables by value at creation time (MATLAB semantics)
+- **Environment snapshots** — anonymous functions capture variables by value at creation time
 - **AxesState / FigureState** — per-axes configuration supports subplot grids with independent settings
 - **Figure output through `outputFunc`** — no `std::cout` dependency; all markers route through the engine's output callback
 - **Constants protection** — `clear all` reinstalls `pi`, `eps`, `inf`, `nan`, `true`, `false`, `i`, `j`
@@ -235,7 +245,7 @@ cmake --build .
 ```bash
 cd build
 ctest --output-on-failure
-# 2383 tests across 121 suites
+# 3512 tests across 140 suites
 ```
 
 ### Build Web IDE (WebAssembly)
@@ -294,7 +304,7 @@ engine.eval("A = rand(100, 100);");
 std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ```
 
-### C++ <-> MATLAB Data Exchange
+### C++ <-> M Data Exchange
 
 ```c++
 using numkit::m::Engine;
@@ -304,12 +314,12 @@ using numkit::m::StdLibrary;
 Engine engine;
 StdLibrary::install(engine);
 
-// C++ -> MATLAB
+// C++ -> M
 auto& alloc = engine.allocator();
 engine.setVariable("radius", MValue::scalar(5.0, &alloc));
 engine.eval("area = pi * radius^2;");
 
-// MATLAB -> C++
+// M -> C++
 auto* area = engine.getVariable("area");
 if (area)
     std::cout << "Area = " << area->toScalar() << "\n";
@@ -331,7 +341,7 @@ engine.registerFunction("myfunc",
 engine.eval("disp(myfunc(3, 4))");  // 25
 ```
 
-### Plotting (Embeddable)
+### Plotting
 
 ```c++
 // FigureManager collects plot data; output goes through engine's outputFunc
@@ -357,7 +367,7 @@ engine.eval(R"(
 
 ### Signal Processing
 
-```matlab
+```octave
 % Design a low-pass Butterworth filter
 [b, a] = butter(4, 0.3);
 y = filter(b, a, x);
@@ -398,7 +408,7 @@ status = session.resume(DebugAction::StepOver);
 
 ### Complex Numbers
 
-```matlab
+```octave
 z = 3 + 4i;
 disp(abs(z))      % 5
 disp(real(z))     % 3
@@ -409,7 +419,7 @@ disp(angle(z))    % 0.9273
 
 ### Closures
 
-```matlab
+```octave
 function h = make_adder(n)
     h = @(x) x + n;
 end
@@ -421,7 +431,7 @@ disp(add5(20))  % 25
 
 ### Structs
 
-```matlab
+```octave
 config.server.host = 'localhost';
 config.server.port = 8080;
 config.db.pool.min = 5;
@@ -439,9 +449,6 @@ disp(fieldnames(config))    % {'db', 'server'}
 - No linear algebra beyond `cross`/`dot` (`det`, `inv`, `eig`, `norm` not implemented)
 - No sparse matrix support
 - No object-oriented programming (classdef)
-- No Simulink or toolbox functions
-- Limited `fprintf`/`sprintf` formatting
-- No file I/O (`fopen`, `fread`, etc.)
 - No regular expressions (`regexp`)
 - No GUI functions
 - Matrix left division (`\`) only for scalars
@@ -489,15 +496,16 @@ src/
     MEnvironment.cpp            # Environment
     MAllocator.cpp              # Allocator
     MAst.cpp                    # AST utilities
-    stdlib/                     # Standard library
+    MVfs.cpp                    # Virtual filesystem
+    stdlib/                     # Standard library (math, I/O, types, file I/O, CSV)
     dsplib/                     # DSP library
     fitlib/                     # Fit library
     pltlib/                     # Plot library
-tests/                          # 2383 tests, 121 suites
+tests/                          # 3512 tests, 140 suites
     stdlib/                     # Language + standard library
     backend/                    # VM, TreeWalker, benchmarks
     diagnostics/                # Debugger, error messages
-    compat/                     # MATLAB parity reference scripts
+    compat/                     # Parity reference scripts
 wasm/                           # WebAssembly build
     src/repl_bindings.cpp       # Emscripten bindings
 ide/                            # mIDE (React + Vite)
@@ -507,14 +515,14 @@ ide/                            # mIDE (React + Vite)
             Console.jsx         # Command console
             Figures.jsx         # SVG plot renderer (D3)
             FileBrowser.jsx     # Local / Examples / GitHub browser
-            SyntaxEditor.jsx    # MATLAB syntax highlighting
+            SyntaxEditor.jsx    # Syntax highlighting
             Workspace.jsx       # Variable inspector
             Reference.jsx       # Cheat sheet
         engine.js               # WASM engine wrapper
         temporary.js            # IndexedDB-backed scratch VFS
         theme.jsx               # Dark / Light theme
     desktop/                    # Electron shell
-    public/examples/            # 62 example .m scripts
+    public/examples/            # 68 example .m scripts
 ```
 
 ## License
