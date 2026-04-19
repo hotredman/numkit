@@ -286,6 +286,36 @@ TEST_P(ReshapeTest, ReshapeInfersPageDim)
     EXPECT_EQ(A->dims().pages(), 4u);
 }
 
+TEST_P(ReshapeTest, ReshapeInfersLeadingDim3D)
+{
+    eval("A = reshape(1:24, [], 3, 4);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().rows(), 2u);
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_EQ(A->dims().pages(), 4u);
+    EXPECT_DOUBLE_EQ(A->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[23], 24.0);
+}
+
+TEST_P(ReshapeTest, ReshapeInferPreservesValuesAndType)
+{
+    eval("A = reshape(int32(1:12), 2, [], 2);");
+    auto *A = getVarPtr("A");
+    ASSERT_NE(A, nullptr);
+    EXPECT_EQ(A->type(), MType::INT32);
+    EXPECT_TRUE(A->dims().is3D());
+    EXPECT_EQ(A->dims().cols(), 3u);
+    EXPECT_EQ(A->int32Data()[0], 1);
+    EXPECT_EQ(A->int32Data()[11], 12);
+}
+
+TEST_P(ReshapeTest, ReshapeDimsVectorRejectsEmpty)
+{
+    EXPECT_THROW({ eval("reshape(1:12, [3 []]);"); }, std::exception);
+}
+
 TEST_P(ReshapeTest, ReshapeTwoPlaceholdersThrows)
 {
     EXPECT_THROW({ eval("reshape(1:12, [], [], 2);"); }, std::exception);
