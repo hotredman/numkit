@@ -288,6 +288,23 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshK
     if (status === 'connected') loadTree();
   }, [onRefreshKey, status, loadTree]);
 
+  // Catch files created/deleted externally (system file manager, another
+  // editor) by re-reading whenever the user returns to this tab. No
+  // polling — the IDE is cheap, but re-walking an FSA folder isn't, so
+  // we only fire on user-visible activation events.
+  useEffect(() => {
+    if (status !== 'connected') return;
+    const refresh = () => {
+      if (document.visibilityState === 'visible') loadTree();
+    };
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => {
+      window.removeEventListener('focus', refresh);
+      document.removeEventListener('visibilitychange', refresh);
+    };
+  }, [status, loadTree]);
+
   const handlePick = useCallback(async () => {
     setError(null);
     setStatus('connecting');
@@ -489,6 +506,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshK
         <button onClick={() => setCreating({ parentPath: '', type: 'file' })} title="New file" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📄+</button>
         <button onClick={() => setCreating({ parentPath: '', type: 'folder' })} title="New folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📁+</button>
         {canReveal && <button onClick={async () => { try { await localFS.revealInExplorer(''); } catch (err) { alert('Reveal failed: ' + (err?.message || err)); } }} title="Reveal current folder in Explorer" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>📂</button>}
+        <button onClick={loadTree} title="Refresh tree" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>🔁</button>
         <button onClick={handlePick} title="Change folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textDim, cursor: 'pointer', fontFamily: FONT_UI }}>🔄</button>
         <button onClick={handleDisconnect} title="Unmount folder" style={{ padding: '2px 6px', borderRadius: 3, fontSize: 10, background: C.bg2, border: `1px solid ${C.border}`, color: C.textMuted, cursor: 'pointer', fontFamily: FONT_UI }}>✕</button>
       </div>
