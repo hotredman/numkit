@@ -1138,4 +1138,17 @@ TEST_P(IndexingOpsTest, Uint8SourceConvertsToUint16)
     EXPECT_EQ(a->uint16Data()[2], 30u);
 }
 
+TEST_P(IndexingOpsTest, Uint8SourceConvertsToLogical)
+{
+    eval("b = logical(uint8([0 5 0 7]));");
+    auto *b = getVarPtr("b");
+    ASSERT_NE(b, nullptr);
+    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_EQ(b->numel(), 4u);
+    EXPECT_EQ(b->logicalData()[0], 0u);
+    EXPECT_EQ(b->logicalData()[1], 1u);
+    EXPECT_EQ(b->logicalData()[2], 0u);
+    EXPECT_EQ(b->logicalData()[3], 1u);
+}
+
 INSTANTIATE_DUAL(IndexingOpsTest);
