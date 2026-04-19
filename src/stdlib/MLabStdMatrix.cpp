@@ -252,23 +252,65 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                             });
 
     // --- sort ---
+    // MATLAB: sorts along the first non-singleton dimension; result
+    // has the same shape as the input. For nargout > 1, also returns
+    // the permutation indices (1-based, same shape).
     engine.registerFunction(
         "sort", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             auto &a = args[0];
-            std::vector<double> vals(a.doubleData(), a.doubleData() + a.numel());
-            std::sort(vals.begin(), vals.end());
-            bool isRow = a.dims().rows() == 1;
-            auto r = isRow ? MValue::matrix(1, vals.size(), MType::DOUBLE, alloc)
-                           : MValue::matrix(vals.size(), 1, MType::DOUBLE, alloc);
-            std::memcpy(r.doubleDataMut(), vals.data(), vals.size() * sizeof(double));
-            {
-                outs[0] = r;
+            if (a.isScalar()) {
+                outs[0] = a;
+                if (nargout > 1) outs[1] = MValue::scalar(1.0, alloc);
                 return;
             }
+            size_t R = a.dims().rows(), C = a.dims().cols();
+            size_t P = a.dims().is3D() ? a.dims().pages() : 1;
+            int sortDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+            size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
+
+            auto r = a.dims().is3D()
+                ? MValue::matrix3d(R, C, P, MType::DOUBLE, alloc)
+                : MValue::matrix(R, C, MType::DOUBLE, alloc);
+            MValue idx;
+            if (nargout > 1)
+                idx = a.dims().is3D()
+                    ? MValue::matrix3d(R, C, P, MType::DOUBLE, alloc)
+                    : MValue::matrix(R, C, MType::DOUBLE, alloc);
+
+            const size_t slice0 = (sortDim == 0) ? 1 : R;
+            const size_t slice1 = (sortDim == 1) ? 1 : C;
+            const size_t slice2 = (sortDim == 2) ? 1 : P;
+            std::vector<std::pair<double, size_t>> buf(N);
+            for (size_t pp = 0; pp < slice2; ++pp)
+            for (size_t c = 0; c < slice1; ++c)
+            for (size_t rr = 0; rr < slice0; ++rr) {
+                for (size_t k = 0; k < N; ++k) {
+                    size_t rIdx = (sortDim == 0) ? k : rr;
+                    size_t cIdx = (sortDim == 1) ? k : c;
+                    size_t pIdx = (sortDim == 2) ? k : pp;
+                    buf[k] = {a.doubleData()[pIdx * R * C + cIdx * R + rIdx], k};
+                }
+                std::sort(buf.begin(), buf.end(),
+                          [](const auto &x, const auto &y) { return x.first < y.first; });
+                for (size_t k = 0; k < N; ++k) {
+                    size_t rIdx = (sortDim == 0) ? k : rr;
+                    size_t cIdx = (sortDim == 1) ? k : c;
+                    size_t pIdx = (sortDim == 2) ? k : pp;
+                    size_t lin = pIdx * R * C + cIdx * R + rIdx;
+                    r.doubleDataMut()[lin] = buf[k].first;
+                    if (nargout > 1)
+                        idx.doubleDataMut()[lin] = static_cast<double>(buf[k].second + 1);
+                }
+            }
+            outs[0] = r;
+            if (nargout > 1) outs[1] = idx;
         });
 
     // --- find ---
+    // MATLAB: returns linear indices of non-zero elements. Result is
+    // a row vector when the input is a row vector (1xN, 2D); otherwise
+    // a column vector — including all 3D inputs.
     engine.registerFunction("find",
                             [](Span<const MValue> args,
                                size_t nargout,
@@ -288,15 +330,16 @@ void StdLibrary::registerMatrixFunctions(Engine &engine)
                                         if (dd[i] != 0.0)
                                             indices.push_back(static_cast<double>(i + 1));
                                 }
-                                auto r = MValue::matrix(1, indices.size(), MType::DOUBLE, alloc);
+                                const bool rowResult =
+                                    !a.dims().is3D() && a.dims().rows() == 1;
+                                auto r = rowResult
+                                    ? MValue::matrix(1, indices.size(), MType::DOUBLE, alloc)
+                                    : MValue::matrix(indices.size(), 1, MType::DOUBLE, alloc);
                                 if (!indices.empty())
                                     std::memcpy(r.doubleDataMut(),
                                                 indices.data(),
                                                 indices.size() * sizeof(double));
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
+                                outs[0] = r;
                             });
 
     // --- horzcat ---

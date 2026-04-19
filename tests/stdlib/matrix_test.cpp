@@ -505,3 +505,120 @@ TEST_P(Reductions3DTest, Max3DReturnsIndices)
 
 INSTANTIATE_DUAL(Reductions3DTest);
 
+// ============================================================
+// sort / find — MATLAB shape semantics (2D and 3D)
+// ============================================================
+
+class SortFindTest : public DualEngineTest {};
+
+TEST_P(SortFindTest, SortRowVectorKeepsShape)
+{
+    eval("y = sort([3 1 2]);");
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->dims().rows(), 1u);
+    EXPECT_EQ(y->dims().cols(), 3u);
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 3.0);
+}
+
+TEST_P(SortFindTest, SortColVectorKeepsShape)
+{
+    eval("y = sort([3; 1; 2]);");
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->dims().rows(), 3u);
+    EXPECT_EQ(y->dims().cols(), 1u);
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 3.0);
+}
+
+TEST_P(SortFindTest, SortMatrixPerColumn)
+{
+    // MATLAB: sort(A) sorts each column of a 2D matrix.
+    eval("y = sort([3 5; 1 2; 2 4]);");
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->dims().rows(), 3u);
+    EXPECT_EQ(y->dims().cols(), 2u);
+    // Col 1 sorted: 1, 2, 3; col 2 sorted: 2, 4, 5.
+    EXPECT_DOUBLE_EQ(y->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[3], 2.0);
+    EXPECT_DOUBLE_EQ(y->doubleData()[5], 5.0);
+}
+
+TEST_P(SortFindTest, Sort3DPerColumnPerPage)
+{
+    eval("A = reshape([3 1 5 2  7 4 8 6], 2, 2, 2); B = sort(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->numel(), 8u);
+    // page 1 cols: [3,1] -> [1,3]; [5,2] -> [2,5]
+    // page 2 cols: [7,4] -> [4,7]; [8,6] -> [6,8]
+    EXPECT_DOUBLE_EQ(B->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[3], 5.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[4], 4.0);
+    EXPECT_DOUBLE_EQ(B->doubleData()[7], 8.0);
+}
+
+TEST_P(SortFindTest, SortReturnsIndices)
+{
+    eval("[y, i] = sort([30 10 20]);");
+    auto *i = getVarPtr("i");
+    ASSERT_NE(i, nullptr);
+    EXPECT_EQ(i->numel(), 3u);
+    EXPECT_DOUBLE_EQ(i->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(i->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(i->doubleData()[2], 1.0);
+}
+
+TEST_P(SortFindTest, FindRowVectorReturnsRow)
+{
+    eval("ix = find([0 1 0 2 0]);");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(ix, nullptr);
+    EXPECT_EQ(ix->dims().rows(), 1u);
+    EXPECT_EQ(ix->dims().cols(), 2u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+}
+
+TEST_P(SortFindTest, FindColVectorReturnsCol)
+{
+    eval("ix = find([0; 1; 0; 2]);");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(ix, nullptr);
+    EXPECT_EQ(ix->dims().rows(), 2u);
+    EXPECT_EQ(ix->dims().cols(), 1u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+}
+
+TEST_P(SortFindTest, FindMatrixReturnsCol)
+{
+    // 2x3 with non-zeros at linear indices 2, 3, 6.
+    eval("A = [0 0 0; 1 2 0]; A(6) = 9; ix = find(A);");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(ix, nullptr);
+    EXPECT_EQ(ix->dims().rows(), 3u);
+    EXPECT_EQ(ix->dims().cols(), 1u);
+}
+
+TEST_P(SortFindTest, Find3DReturnsCol)
+{
+    eval("A = zeros(2, 2, 2); A(3) = 1; A(7) = 1; ix = find(A);");
+    auto *ix = getVarPtr("ix");
+    ASSERT_NE(ix, nullptr);
+    EXPECT_EQ(ix->dims().rows(), 2u);
+    EXPECT_EQ(ix->dims().cols(), 1u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 7.0);
+}
+
+INSTANTIATE_DUAL(SortFindTest);
+
