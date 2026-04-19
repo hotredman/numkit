@@ -436,4 +436,116 @@ TEST_P(TypeOpsTest, StringCompareWithChar)
     EXPECT_TRUE(evalBool("\"hello\" == 'hello';"));
 }
 
+// ============================================================
+// complex() constructor — scalar, vector, and two-arg forms
+// ============================================================
+
+TEST_P(TypeOpsTest, ComplexScalarSingleArg)
+{
+    eval("z = complex(7);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_TRUE(z->isScalar());
+    EXPECT_DOUBLE_EQ(z->toComplex().real(), 7.0);
+    EXPECT_DOUBLE_EQ(z->toComplex().imag(), 0.0);
+}
+
+TEST_P(TypeOpsTest, ComplexVectorSingleArg)
+{
+    eval("z = complex([1 2 3]);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_EQ(z->numel(), 3u);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].real(), 3.0);
+}
+
+TEST_P(TypeOpsTest, ComplexScalarPair)
+{
+    eval("z = complex(3, 4);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_DOUBLE_EQ(z->toComplex().real(), 3.0);
+    EXPECT_DOUBLE_EQ(z->toComplex().imag(), 4.0);
+}
+
+TEST_P(TypeOpsTest, ComplexVectorPair)
+{
+    eval("z = complex([1 2 3], [10 20 30]);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_EQ(z->numel(), 3u);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 10.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].imag(), 30.0);
+}
+
+TEST_P(TypeOpsTest, ComplexScalarImagBroadcast)
+{
+    eval("z = complex([1 2 3], 5);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_EQ(z->numel(), 3u);
+    for (size_t i = 0; i < 3; ++i)
+        EXPECT_DOUBLE_EQ(z->complexData()[i].imag(), 5.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].real(), 3.0);
+}
+
+TEST_P(TypeOpsTest, ComplexScalarRealBroadcast)
+{
+    eval("z = complex(5, [1 2 3]);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_EQ(z->numel(), 3u);
+    for (size_t i = 0; i < 3; ++i)
+        EXPECT_DOUBLE_EQ(z->complexData()[i].real(), 5.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].imag(), 3.0);
+}
+
+TEST_P(TypeOpsTest, Complex3DPreservesShape)
+{
+    eval("A = reshape(1:8, 2, 2, 2); z = complex(A);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_TRUE(z->dims().is3D());
+    EXPECT_EQ(z->numel(), 8u);
+    EXPECT_DOUBLE_EQ(z->complexData()[7].real(), 8.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[7].imag(), 0.0);
+}
+
+TEST_P(TypeOpsTest, Complex3DBothArgs)
+{
+    eval("R = reshape(1:8, 2, 2, 2); I = reshape(11:18, 2, 2, 2); z = complex(R, I);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_TRUE(z->dims().is3D());
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 11.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[7].imag(), 18.0);
+}
+
+TEST_P(TypeOpsTest, ComplexFromIntegerTypeOk)
+{
+    eval("z = complex(int32([1 2 3]));");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].real(), 3.0);
+}
+
+TEST_P(TypeOpsTest, ComplexShapeMismatchThrows)
+{
+    EXPECT_THROW({ eval("complex([1 2 3], [1 2]);"); }, std::exception);
+}
+
 INSTANTIATE_DUAL(TypeOpsTest);
