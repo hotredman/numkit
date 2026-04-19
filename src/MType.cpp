@@ -1,5 +1,5 @@
-// src/MMType.cpp
-#include "MMType.hpp"
+// src/MType.cpp
+#include "MType.hpp"
 
 namespace numkit::m {
 

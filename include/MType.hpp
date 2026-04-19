@@ -1,4 +1,4 @@
-// include/MMType.hpp
+// include/MType.hpp
 #pragma once
 
 #include <cstddef>

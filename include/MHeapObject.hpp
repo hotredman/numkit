@@ -3,7 +3,7 @@
 
 #include "MDataBuffer.hpp"
 #include "MDims.hpp"
-#include "MMType.hpp"
+#include "MType.hpp"
 
 #include <atomic>
 #include <map>

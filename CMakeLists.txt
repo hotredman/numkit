@@ -23,7 +23,7 @@ endif()
 
 set(NUMKIT_M_CORE_SOURCES
     src/MAllocator.cpp
-    src/MMType.cpp
+    src/MType.cpp
     src/MDims.cpp
     src/MDataBuffer.cpp
     src/MHeapObject.cpp
@@ -60,7 +60,7 @@ set(NUMKIT_M_HEADERS
     include/MTypes.hpp
     include/MTreeWalker.hpp
     include/MAllocator.hpp
-    include/MMType.hpp
+    include/MType.hpp
     include/MDims.hpp
     include/MDataBuffer.hpp
     include/MHeapObject.hpp
