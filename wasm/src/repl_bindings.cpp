@@ -433,12 +433,13 @@ private:
 static std::unique_ptr<ReplSession> g_session;
 
 std::string repl_init() {
-    // Defense-in-depth: if a session already exists (e.g. the IDE called
-    // repl_register_fs before repl_init, which lazy-creates the session),
-    // reset() it so VFS handlers registered on the current engine are
-    // re-installed on the fresh one instead of being silently dropped.
-    if (g_session) g_session->reset();
-    else g_session = std::make_unique<ReplSession>();
+    // Idempotent: construct the session on first call, otherwise just
+    // return the greeting. The IDE calls this once at startup before
+    // registering VFS adapters; any lazy `if (!g_session) repl_init()`
+    // fallbacks below also rely on this no-op-on-reinit semantics to
+    // avoid dropping adapters that were registered earlier in the session.
+    if (!g_session)
+        g_session = std::make_unique<ReplSession>();
     return "MLab Interpreter v2.2\nType commands below.";
 }
 

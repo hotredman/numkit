@@ -181,15 +181,23 @@ export default function MLabREPL({ engine: engineProp, status: statusProp, vfsAd
     // Pick the origin FS for this run. Try the preferred one first (derived
     // from the active tab's source), then fall back to temporary — that way
     // a tab from Local Folder run without a mounted folder still writes
-    // somewhere visible in File Browser instead of MEMFS. If neither is
-    // registered (e.g. full VFS init failure), skip push entirely so the
-    // resolver falls through to NativeFS and csvread/csvwrite keep working
-    // within the run rather than throwing "filesystem 'X' is not available".
+    // somewhere visible in File Browser instead of MEMFS. Warn the user
+    // when we fall back so a silent write-elsewhere doesn't surprise them.
+    // If no adapter is available at all (full VFS init failure), skip the
+    // push entirely so the resolver falls through to NativeFS/MEMFS.
     const activeTabObj = tabs.find(t => t.id === activeTab);
     const wantOrigin = originForSource(activeTabObj?.source);
     let adapter = wantOrigin === 'local' ? vfsAdapters?.local : vfsAdapters?.temp;
     let origin = adapter ? wantOrigin : null;
-    if (!adapter && vfsAdapters?.temp) { adapter = vfsAdapters.temp; origin = 'temporary'; }
+    if (!adapter && vfsAdapters?.temp) {
+      adapter = vfsAdapters.temp;
+      origin = 'temporary';
+      addOutput([{
+        type: 'warning',
+        text: `Warning: Local Folder not mounted — file I/O for this run will go to Temporary. Mount a folder from the File Browser to persist writes to disk.`,
+      }]);
+      setConsoleNotify(true);
+    }
     if (origin) engine.pushScriptOrigin(origin);
     let result;
     const t0=performance.now();
