@@ -49,7 +49,7 @@ set "PATH=%EMCC_DIR%;%EMSDK%;%PATH%"
 set "EM_CONFIG=%EMSDK%\.emscripten"
 
 echo Configuring WASM build...
-call emcmake cmake -B build-wasm -DMLAB_BUILD_REPL=ON -G Ninja
+call emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON -G Ninja
 if errorlevel 1 exit /b 1
 
 echo Building...
@@ -57,8 +57,8 @@ cmake --build build-wasm
 if errorlevel 1 exit /b 1
 
 echo WASM build OK
-echo Output: build-wasm\wasm\dist\mlab_repl.js
-echo         build-wasm\wasm\dist\mlab_repl.wasm
+echo Output: build-wasm\wasm\dist\numkit_mide.js
+echo         build-wasm\wasm\dist\numkit_mide.wasm
 goto end
 
 :end

@@ -34,8 +34,8 @@ ide/dist/
 
 # WASM artefacts copied into the IDE public tree by build/dev scripts —
 # regenerated from build-wasm/, never committed.
-ide/public/mlab_repl.js
-ide/public/mlab_repl.wasm
+ide/public/numkit_mide.js
+ide/public/numkit_mide.wasm
 
 # ── Electron desktop ──────────────────────────────────
 ide/desktop/dist/
