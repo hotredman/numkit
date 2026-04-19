@@ -349,9 +349,7 @@ static double readElemAsDouble(const MValue &v, size_t idx)
     case MType::INT16:  return static_cast<double>(v.int16Data()[idx]);
     case MType::INT32:  return static_cast<double>(v.int32Data()[idx]);
     case MType::INT64:  return static_cast<double>(v.int64Data()[idx]);
-    case MType::UINT8:
-        // UINT8 arrays keep their own buffer; logicalData() is LOGICAL-only.
-        return static_cast<double>(static_cast<const uint8_t *>(v.rawData())[idx]);
+    case MType::UINT8:  return static_cast<double>(v.uint8Data()[idx]);
     case MType::UINT16: return static_cast<double>(v.uint16Data()[idx]);
     case MType::UINT32: return static_cast<double>(v.uint32Data()[idx]);
     case MType::UINT64: return static_cast<double>(v.uint64Data()[idx]);
@@ -1041,9 +1039,7 @@ static void writeElem(MValue &dst, size_t idx, const MValue &val, size_t valIdx)
     case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(readElemAsDouble(val, valIdx)); break;
     case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(readElemAsDouble(val, valIdx)); break;
     case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(readElemAsDouble(val, valIdx)); break;
-    case MType::UINT8:
-        static_cast<uint8_t *>(dst.rawDataMut())[idx] = static_cast<uint8_t>(readElemAsDouble(val, valIdx));
-        break;
+    case MType::UINT8:  dst.uint8DataMut()[idx]  = static_cast<uint8_t >(readElemAsDouble(val, valIdx)); break;
     case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(readElemAsDouble(val, valIdx)); break;
     case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(readElemAsDouble(val, valIdx)); break;
     case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(readElemAsDouble(val, valIdx)); break;
@@ -1079,9 +1075,7 @@ static void writeScalar(MValue &dst, size_t idx, const MValue &val)
     case MType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(val.toScalar()); break;
     case MType::INT32:  dst.int32DataMut()[idx]  = static_cast<int32_t >(val.toScalar()); break;
     case MType::INT64:  dst.int64DataMut()[idx]  = static_cast<int64_t >(val.toScalar()); break;
-    case MType::UINT8:
-        static_cast<uint8_t *>(dst.rawDataMut())[idx] = static_cast<uint8_t>(val.toScalar());
-        break;
+    case MType::UINT8:  dst.uint8DataMut()[idx]  = static_cast<uint8_t >(val.toScalar()); break;
     case MType::UINT16: dst.uint16DataMut()[idx] = static_cast<uint16_t>(val.toScalar()); break;
     case MType::UINT32: dst.uint32DataMut()[idx] = static_cast<uint32_t>(val.toScalar()); break;
     case MType::UINT64: dst.uint64DataMut()[idx] = static_cast<uint64_t>(val.toScalar()); break;
@@ -1789,6 +1783,8 @@ const int32_t *MValue::int32Data() const { return static_cast<const int32_t*>(ra
 int32_t *MValue::int32DataMut() { return static_cast<int32_t*>(rawDataMut()); }
 const int64_t *MValue::int64Data() const { return static_cast<const int64_t*>(rawData()); }
 int64_t *MValue::int64DataMut() { return static_cast<int64_t*>(rawDataMut()); }
+const uint8_t  *MValue::uint8Data()  const { return static_cast<const uint8_t *>(rawData()); }
+uint8_t  *MValue::uint8DataMut()  { return static_cast<uint8_t *>(rawDataMut()); }
 const uint16_t *MValue::uint16Data() const { return static_cast<const uint16_t*>(rawData()); }
 uint16_t *MValue::uint16DataMut() { return static_cast<uint16_t*>(rawDataMut()); }
 const uint32_t *MValue::uint32Data() const { return static_cast<const uint32_t*>(rawData()); }
@@ -1867,6 +1863,22 @@ char &MValue::charElemMut(size_t i)
     if (i >= numel())
         throw std::runtime_error("Char index out of bounds");
     return charDataMut()[i];
+}
+
+std::string MValue::charRow(size_t r) const
+{
+    if (type() != MType::CHAR)
+        throw std::runtime_error("charRow: value is not a char array");
+    auto &d = dims();
+    if (r >= d.rows())
+        throw std::runtime_error("charRow: row index out of bounds");
+    const char *cd = charData();
+    size_t R = d.rows(), C = d.cols();
+    std::string s;
+    s.reserve(C);
+    for (size_t c = 0; c < C; ++c)
+        s += cd[c * R + r];
+    return s;
 }
 
 void MValue::resize(size_t newRows, size_t newCols, Allocator *alloc)
@@ -2269,14 +2281,8 @@ std::string MValue::formatDisplay(const std::string &name) const
         if (d.rows() <= 1) {
             os << "   '" << toString() << "'\n";
         } else {
-            const char *cd = charData();
-            size_t R = d.rows(), C = d.cols();
-            for (size_t r = 0; r < R; ++r) {
-                os << "   '";
-                for (size_t c = 0; c < C; ++c)
-                    os << cd[c * R + r];
-                os << "'\n";
-            }
+            for (size_t r = 0; r < d.rows(); ++r)
+                os << "   '" << charRow(r) << "'\n";
         }
         break;
     }

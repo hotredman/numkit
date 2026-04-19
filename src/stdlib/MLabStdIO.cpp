@@ -23,18 +23,15 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                     std::ostringstream os;
                                     if (a.isChar()) {
                                         // Row vector (or 1×0): print as a single line.
-                                        // Matrix: print each row on its own line with
-                                        // column-major access — MATLAB disp() parity.
+                                        // Matrix: print each row on its own line —
+                                        // MATLAB disp() parity.
                                         auto d = a.dims();
                                         if (d.rows() <= 1) {
                                             os << a.toString();
                                         } else {
-                                            const char *cd = a.charData();
-                                            size_t R = d.rows(), C = d.cols();
-                                            for (size_t r = 0; r < R; ++r) {
+                                            for (size_t r = 0; r < d.rows(); ++r) {
                                                 if (r > 0) os << "\n";
-                                                for (size_t c = 0; c < C; ++c)
-                                                    os << cd[c * R + r];
+                                                os << a.charRow(r);
                                             }
                                         }
                                     } else if (a.isEmpty()) {

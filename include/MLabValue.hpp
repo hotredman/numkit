@@ -168,10 +168,10 @@ public:
     const int16_t *int16Data() const;
     const int32_t *int32Data() const;
     const int64_t *int64Data() const;
+    const uint8_t  *uint8Data()  const;
     const uint16_t *uint16Data() const;
     const uint32_t *uint32Data() const;
     const uint64_t *uint64Data() const;
-    // uint8 data shares accessor with logicalData() since both are uint8_t
 
     // ── Const typed access — complex ─────────────────────────
     const Complex *complexData() const;
@@ -190,6 +190,7 @@ public:
     int16_t *int16DataMut();
     int32_t *int32DataMut();
     int64_t *int64DataMut();
+    uint8_t  *uint8DataMut();
     uint16_t *uint16DataMut();
     uint32_t *uint32DataMut();
     uint64_t *uint64DataMut();
@@ -207,6 +208,9 @@ public:
     // ── Char element access ──────────────────────────────────
     char charElem(size_t i) const;
     char &charElemMut(size_t i);
+    // Extract one row of a char matrix as a std::string. Column-major
+    // stride is applied, so `reshape('abcdef',2,3).charRow(0)` is "ace".
+    std::string charRow(size_t r) const;
 
     // ── Resize ───────────────────────────────────────────────
     void resize(size_t newRows, size_t newCols, Allocator *alloc = nullptr);
