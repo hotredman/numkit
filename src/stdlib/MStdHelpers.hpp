@@ -41,6 +41,68 @@ inline bool broadcastDims(size_t ar, size_t ac, size_t br, size_t bc,
 }
 
 // ============================================================
+// Shape helpers (must precede the elementwise templates below —
+// template bodies reference these as non-dependent names and the
+// two-phase lookup rule requires them to be visible at template
+// definition time, not at instantiation).
+// ============================================================
+
+struct DimsArg { size_t rows = 1, cols = 1, pages = 0; };
+
+// Create a zero matrix/3D array with given dimensions
+inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
+{
+    if (d.pages > 0)
+        return MValue::matrix3d(d.rows, d.cols, d.pages, type, alloc);
+    return MValue::matrix(d.rows, d.cols, type, alloc);
+}
+
+// Allocate an MValue with the same shape (2D or 3D) as `src`, optionally
+// of a different type. Required for any "elementwise" output: callers
+// that write numel() elements into a 2D-only allocation silently
+// corrupt the heap when src is 3D.
+inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
+{
+    return createMatrix({src.dims().rows(), src.dims().cols(),
+                         src.dims().is3D() ? src.dims().pages() : 0},
+                        type, alloc);
+}
+
+// Shape-preserving empty result for a binary op where at least one
+// operand is empty. The non-scalar operand contributes the output
+// shape; if both are non-scalar the dims must match, otherwise throw.
+// `outType` is chosen by the caller based on its promotion rules.
+inline MValue emptyResultForBinary(const MValue &a, const MValue &b,
+                                   MType outType, Allocator *alloc)
+{
+    const bool aShaper = !a.isScalar();
+    const bool bShaper = !b.isScalar();
+    if (aShaper && bShaper && a.dims() != b.dims())
+        throw std::runtime_error("Matrix dimensions must agree");
+    const MValue &shape = aShaper ? a : (bShaper ? b : a);
+    return createLike(shape, outType, alloc);
+}
+
+// Pick the arithmetic output type for a pair of operands using
+// MATLAB-style promotion: complex > single > integer > double.
+// Char and logical operands promote to double.
+inline MType arithOutType(const MValue &a, const MValue &b)
+{
+    if (a.isComplex() || b.isComplex()) return MType::COMPLEX;
+    if (a.type() == MType::SINGLE || b.type() == MType::SINGLE) return MType::SINGLE;
+    if (isIntegerType(a.type())) return a.type();
+    if (isIntegerType(b.type())) return b.type();
+    return MType::DOUBLE;
+}
+
+// Convenience wrapper: shape-preserving empty arithmetic result with
+// type chosen by arithOutType().
+inline MValue emptyArithResult(const MValue &a, const MValue &b, Allocator *alloc)
+{
+    return emptyResultForBinary(a, b, arithOutType(a, b), alloc);
+}
+
+// ============================================================
 // Elementwise binary op on double arrays (with implicit expansion)
 // ============================================================
 template<typename Op>
@@ -205,8 +267,6 @@ MValue unaryComplex(const MValue &a, Op op, Allocator *alloc)
 // Returns {rows, cols, pages}. pages=0 means 2D.
 // ============================================================
 
-struct DimsArg { size_t rows = 1, cols = 1, pages = 0; };
-
 inline DimsArg parseDimsArgs(Span<const MValue> args)
 {
     if (args.empty())
@@ -239,59 +299,6 @@ inline DimsArg parseDimsArgs(Span<const MValue> args)
     }
 
     return {r, c, 0};
-}
-
-// Create a zero matrix/3D array with given dimensions
-inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
-{
-    if (d.pages > 0)
-        return MValue::matrix3d(d.rows, d.cols, d.pages, type, alloc);
-    return MValue::matrix(d.rows, d.cols, type, alloc);
-}
-
-// Allocate an MValue with the same shape (2D or 3D) as `src`, optionally
-// of a different type. Required for any "elementwise" output: callers
-// that write numel() elements into a 2D-only allocation silently
-// corrupt the heap when src is 3D.
-inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
-{
-    return createMatrix({src.dims().rows(), src.dims().cols(),
-                         src.dims().is3D() ? src.dims().pages() : 0},
-                        type, alloc);
-}
-
-// Shape-preserving empty result for a binary op where at least one
-// operand is empty. The non-scalar operand contributes the output
-// shape; if both are non-scalar the dims must match, otherwise throw.
-// `outType` is chosen by the caller based on its promotion rules.
-inline MValue emptyResultForBinary(const MValue &a, const MValue &b,
-                                   MType outType, Allocator *alloc)
-{
-    const bool aShaper = !a.isScalar();
-    const bool bShaper = !b.isScalar();
-    if (aShaper && bShaper && a.dims() != b.dims())
-        throw std::runtime_error("Matrix dimensions must agree");
-    const MValue &shape = aShaper ? a : (bShaper ? b : a);
-    return createLike(shape, outType, alloc);
-}
-
-// Pick the arithmetic output type for a pair of operands using
-// MATLAB-style promotion: complex > single > integer > double.
-// Char and logical operands promote to double.
-inline MType arithOutType(const MValue &a, const MValue &b)
-{
-    if (a.isComplex() || b.isComplex()) return MType::COMPLEX;
-    if (a.type() == MType::SINGLE || b.type() == MType::SINGLE) return MType::SINGLE;
-    if (isIntegerType(a.type())) return a.type();
-    if (isIntegerType(b.type())) return b.type();
-    return MType::DOUBLE;
-}
-
-// Convenience wrapper: shape-preserving empty arithmetic result with
-// type chosen by arithOutType().
-inline MValue emptyArithResult(const MValue &a, const MValue &b, Allocator *alloc)
-{
-    return emptyResultForBinary(a, b, arithOutType(a, b), alloc);
 }
 
 // ============================================================
