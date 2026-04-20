@@ -46,11 +46,11 @@ set(NUMKIT_M_CORE_SOURCES
     debug/src/MDebugWorkspace.cpp
 )
 
-# Each subdirectory defines its own source list
-add_subdirectory(src/stdlib)
-add_subdirectory(src/dsplib)
-add_subdirectory(src/pltlib)
-add_subdirectory(src/fitlib)
+# Each library defines its own source list (STDLIB_SOURCES, DSPLIB_SOURCES, ...)
+add_subdirectory(libs/builtin/src)
+add_subdirectory(libs/dsp/src)
+add_subdirectory(libs/plt/src)
+add_subdirectory(libs/fit/src)
 
 set(NUMKIT_M_SOURCES
     ${NUMKIT_M_CORE_SOURCES}
@@ -88,11 +88,11 @@ set(NUMKIT_M_HEADERS
     debug/include/numkit/m/debug/MDebugger.hpp
     debug/include/numkit/m/debug/MDebugSession.hpp
     debug/include/numkit/m/debug/MDebugWorkspace.hpp
-    # libraries (moved to libs/ in Phase 2)
-    include/MStdLibrary.hpp
-    include/MDspLibrary.hpp
-    include/MPltLibrary.hpp
-    include/MFitLibrary.hpp
+    # libs
+    libs/builtin/include/numkit/m/builtin/Library.hpp
+    libs/dsp/include/numkit/m/dsp/Library.hpp
+    libs/fit/include/numkit/m/fit/Library.hpp
+    libs/plt/include/numkit/m/plt/Library.hpp
 )
 
 if(NUMKIT_M_BUILD_SHARED)
@@ -105,15 +105,22 @@ add_library(numkit::m ALIAS m)
 
 target_include_directories(m
     PUBLIC
+        # runtime core
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/frontend/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/backend/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/debug/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        # libraries
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/fit/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/plt/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/stdlib
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/dsplib
+        # Shared library-internal helpers (MStdHelpers.hpp, MDspHelpers.hpp)
+        # TODO: formalize as public "detail/" headers or common utility lib
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/src
 )
 
 target_compile_features(m PUBLIC cxx_std_17)
@@ -178,20 +185,15 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    # Component public headers (preserve nested numkit/m/<component>/ structure)
-    install(DIRECTORY core/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY frontend/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY backend/include/numkit  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY debug/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-
-    # Library umbrella headers (still flat in include/ until Phase 2)
-    install(FILES
-        include/MStdLibrary.hpp
-        include/MDspLibrary.hpp
-        include/MPltLibrary.hpp
-        include/MFitLibrary.hpp
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/numkit
-    )
+    # Public headers — every component ships its own numkit/m/<name>/ subtree
+    install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY frontend/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY backend/include/numkit      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY debug/include/numkit        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/dsp/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/fit/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/plt/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT mTargets
         FILE        mTargets.cmake

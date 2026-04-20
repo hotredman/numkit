@@ -9,7 +9,7 @@
 #include <cmath>
 
 #include <numkit/m/core/MEngine.hpp>
-#include "MStdLibrary.hpp"
+#include <numkit/m/builtin/Library.hpp>
 #include <numkit/m/debug/MDebugSession.hpp>
 #include <numkit/m/core/MVfs.hpp>
 

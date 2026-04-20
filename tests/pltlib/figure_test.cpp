@@ -12,7 +12,7 @@
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MFigureManager.hpp>
-#include "MStdLibrary.hpp"
+#include <numkit/m/builtin/Library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
