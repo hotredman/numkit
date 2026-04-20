@@ -6,29 +6,29 @@ set EMSDK=C:\Users\User\Repo\emsdk
 set EMCC_DIR=%EMSDK%\upstream\emscripten
 
 if "%1"=="--wasm" goto wasm
-if "%1"=="--msvc" goto msvc
+if "%1"=="--fast" goto fast
 goto default
 
 :default
-:: Native build with Visual Studio
-cmake -B build_vs -G "Visual Studio 17 2022" -A x64
+:: Native build via 'portable' preset (baseline, all NUMKIT_WITH_* OFF)
+cmake --preset=portable
 if errorlevel 1 exit /b 1
-cmake --build build_vs --config Release
+cmake --build --preset=portable
 if errorlevel 1 exit /b 1
-echo Build OK
+echo Build OK (portable)
 goto end
 
-:msvc
-:: Same as default, explicit flag
-cmake -B build_vs -G "Visual Studio 17 2022" -A x64
+:fast
+:: Native build via 'desktop-fast' preset (Highway SIMD, pocketfft, ... as they come online)
+cmake --preset=desktop-fast
 if errorlevel 1 exit /b 1
-cmake --build build_vs --config Release
+cmake --build --preset=desktop-fast
 if errorlevel 1 exit /b 1
-echo Build OK (MSVC)
+echo Build OK (desktop-fast)
 goto end
 
 :wasm
-:: WASM build with Emscripten + Ninja
+:: WASM build via 'browser' preset
 where ninja >nul 2>&1
 if errorlevel 1 (
     if exist "%USERPROFILE%\bin\ninja.exe" (
@@ -49,16 +49,16 @@ set "PATH=%EMCC_DIR%;%EMSDK%;%PATH%"
 set "EM_CONFIG=%EMSDK%\.emscripten"
 
 echo Configuring WASM build...
-call emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON -G Ninja
+cmake --preset=browser
 if errorlevel 1 exit /b 1
 
 echo Building...
-cmake --build build-wasm
+cmake --build --preset=browser
 if errorlevel 1 exit /b 1
 
 echo WASM build OK
-echo Output: build-wasm\wasm\dist\numkit_mide.js
-echo         build-wasm\wasm\dist\numkit_mide.wasm
+echo Output: build-browser\wasm\dist\numkit_mide.js
+echo         build-browser\wasm\dist\numkit_mide.wasm
 goto end
 
 :end

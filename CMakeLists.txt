@@ -1,5 +1,5 @@
 # CMakeLists.txt
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.21)
 project(m VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -10,6 +10,10 @@ option(NUMKIT_M_BUILD_EXAMPLE "Build example executable" ON)
 option(NUMKIT_M_BUILD_TESTS   "Build tests"              ON)
 option(NUMKIT_M_BUILD_SHARED  "Build shared library"     OFF)
 option(NUMKIT_M_INSTALL       "Generate install target"  ON)
+
+# Feature flags (NUMKIT_WITH_SIMD, _POCKETFFT, _BLAS, _ACCELERATE, _OPENMP)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
+include(NumkitOptions)
 
 if(NOT EMSCRIPTEN)
     set(NUMKIT_M_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)

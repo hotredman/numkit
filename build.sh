@@ -3,16 +3,24 @@ set -e
 
 cd "$(dirname "$0")"
 
-if [ "${1:-}" = "--wasm" ]; then
-    if ! command -v emcmake &>/dev/null; then
-        echo "emcmake not found. Run: source ~/emsdk/emsdk_env.sh"
-        exit 1
-    fi
-    emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON
-    cmake --build build-wasm -j$(nproc)
-    echo "WASM build OK"
-else
-    cmake -B build -DCMAKE_BUILD_TYPE=Debug
-    cmake --build build -j$(nproc)
-    echo "Build OK"
-fi
+case "${1:-}" in
+    --wasm)
+        if ! command -v emcmake &>/dev/null; then
+            echo "emcmake not found. Run: source ~/emsdk/emsdk_env.sh"
+            exit 1
+        fi
+        cmake --preset=browser
+        cmake --build --preset=browser
+        echo "WASM build OK"
+        ;;
+    --fast)
+        cmake --preset=desktop-fast
+        cmake --build --preset=desktop-fast -j$(nproc)
+        echo "Build OK (desktop-fast)"
+        ;;
+    *)
+        cmake --preset=portable
+        cmake --build --preset=portable -j$(nproc)
+        echo "Build OK (portable)"
+        ;;
+esac

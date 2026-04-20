@@ -1,0 +1,77 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {"major": 3, "minor": 21, "patch": 0},
+  "configurePresets": [
+    {
+      "name": "portable",
+      "displayName": "Portable (reference, no optimizations)",
+      "description": "Minimal build — all NUMKIT_WITH_* features OFF. Baseline reference that compiles anywhere; used for CI sanity and exotic platforms.",
+      "binaryDir": "${sourceDir}/build-portable",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release"
+      }
+    },
+    {
+      "name": "desktop-fast",
+      "inherits": "portable",
+      "displayName": "Desktop x86_64 (permissive-license optimizations)",
+      "description": "Native desktop build intended for Windows/Linux x86_64. Will enable Highway SIMD, pocketfft, OpenBLAS as those backends are implemented in later phases. For now behaves the same as portable; flags stay here as targets to toggle ON.",
+      "binaryDir": "${sourceDir}/build-desktop-fast",
+      "cacheVariables": {
+        "NUMKIT_WITH_SIMD":       "OFF",
+        "NUMKIT_WITH_POCKETFFT":  "OFF",
+        "NUMKIT_WITH_BLAS":       "OFF",
+        "NUMKIT_WITH_OPENMP":     "OFF"
+      }
+    },
+    {
+      "name": "apple-m",
+      "inherits": "portable",
+      "displayName": "Apple Silicon (ARM64 macOS)",
+      "description": "ARM64 macOS build. Targets Accelerate.framework for BLAS/FFT and Highway with NEON/SVE2. Not active until the corresponding backends are wired up.",
+      "binaryDir": "${sourceDir}/build-apple-m",
+      "condition": {
+        "type": "equals",
+        "lhs": "${hostSystemName}",
+        "rhs": "Darwin"
+      },
+      "cacheVariables": {
+        "NUMKIT_WITH_SIMD":       "OFF",
+        "NUMKIT_WITH_ACCELERATE": "OFF"
+      }
+    },
+    {
+      "name": "browser",
+      "displayName": "Browser (WASM via Emscripten)",
+      "description": "WebAssembly build for the mIDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set.",
+      "binaryDir": "${sourceDir}/build-browser",
+      "generator": "Ninja",
+      "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE":      "Release",
+        "NUMKIT_M_BUILD_REPL":   "ON",
+        "NUMKIT_WITH_SIMD":      "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {"name": "portable",     "configurePreset": "portable",     "configuration": "Release"},
+    {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release"},
+    {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
+    {"name": "browser",      "configurePreset": "browser"}
+  ],
+  "testPresets": [
+    {
+      "name": "portable",
+      "configurePreset": "portable",
+      "configuration": "Release",
+      "output": {"outputOnFailure": true}
+    },
+    {
+      "name": "desktop-fast",
+      "configurePreset": "desktop-fast",
+      "configuration": "Release",
+      "output": {"outputOnFailure": true}
+    }
+  ]
+}
