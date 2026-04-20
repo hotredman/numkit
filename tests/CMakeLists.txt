@@ -1,104 +1,48 @@
-# tests/CMakeLists.txt — Test suite
+# tests/CMakeLists.txt — owner of the single m_tests binary
 #
-# Included from root CMakeLists.txt via add_subdirectory(tests)
+# After this runs, each component can contribute its unit tests via
+#   target_sources(m_tests PRIVATE ...)
+# from its own <component>/tests/CMakeLists.txt. The root CMakeLists
+# invokes add_subdirectory(<component>/tests) for each.
+#
+# Layout:
+#   tests/main.cpp            gtest_main replacement (if any), always included
+#   tests/support/            shared fixtures (dual_engine_fixture.hpp, ...)
+#   tests/integration/        cross-cutting tests — debugger, diagnostics, matlab-parity
+#   tests/compat/             non-C++ MATLAB parity scripts (not compiled)
 #
 # Run examples:
-#   ./m_tests                                  # all tests
-#   ./m_tests --gtest_filter="TW_VM/*"         # dual-backend only
-#   ./m_tests --gtest_filter="TW_VM/*VM*"      # VM-only runs
-#   ./m_tests --gtest_filter="TW_VM/*TW*"      # TW-only runs
+#   ./m_tests                                   # all tests
+#   ./m_tests --gtest_filter="TW_VM/*"          # dual-backend only
 #   ./m_tests --gtest_filter="CommandSyntax*"   # parser tests
 
-# ── Core: lexer, parser, command syntax ─────────────────────
-set(CORE_TESTS
-    core/lexer_test.cpp
-    core/parser_test.cpp
-    core/command_syntax_test.cpp
+# ── Cross-cutting / integration tests (debugger, diagnostics, parity) ─────
+set(INTEGRATION_TESTS
+    integration/error_diagnostics_test.cpp
+    integration/debugger_phase1_test.cpp
+    integration/debugger_phase234_test.cpp
+    integration/debugger_diagnostic_test.cpp
+    integration/debug_session_test.cpp
+    integration/debug_session_test_eval_inject.cpp
+    integration/who_diagnostic_test.cpp
+    integration/compiler_assigned_vars_test.cpp
+    integration/matlab_parity_test.cpp
+    integration/register_constant_test.cpp
+    integration/known_issues_test.cpp
 )
 
-# ── Stdlib: language + standard library ─────────────────────
-set(STDLIB_TESTS
-    stdlib/arithmetic_test.cpp
-    stdlib/variables_test.cpp
-    stdlib/controlflow_test.cpp
-    stdlib/functions_test.cpp
-    stdlib/commands_test.cpp
-    stdlib/comments_test.cpp
-    stdlib/builtins_test.cpp
-    stdlib/advanced_test.cpp
-    stdlib/programs_test.cpp
-    stdlib/matrix_test.cpp
-    stdlib/indexing_test.cpp
-    stdlib/concat_test.cpp
-    stdlib/scope_test.cpp
-    stdlib/types_test.cpp
-    stdlib/integer_types_test.cpp
-    stdlib/dynvars_test.cpp
-    stdlib/integration_test.cpp
-    stdlib/csv_test.cpp
-    stdlib/vfs_test.cpp
-    stdlib/fileio_test.cpp
-)
-
-# ── DSP library ─────────────────────────────────────────────
-set(DSPLIB_TESTS
-    dsplib/signal_core_test.cpp
-    dsplib/convolution_test.cpp
-    dsplib/filter_test.cpp
-    dsplib/filter_design_test.cpp
-    dsplib/spectral_test.cpp
-    dsplib/windows_test.cpp
-    dsplib/resample_test.cpp
-    dsplib/transform_test.cpp
-)
-
-# ── Plot library ────────────────────────────────────────────
-set(PLTLIB_TESTS
-    pltlib/figure_test.cpp
-)
-
-# ── Fit library ─────────────────────────────────────────────
-set(FITLIB_TESTS
-    fitlib/interp_test.cpp
-)
-
-# ── Backend: VM, TreeWalker, benchmarks ─────────────────────
-set(BACKEND_TESTS
-    backend/vm_test.cpp
-    backend/tree_walker_test.cpp
-    backend/vm_benchmark.cpp
-)
-
-# ── Diagnostics: errors, debugger ───────────────────────────
-set(DIAGNOSTICS_TESTS
-    diagnostics/error_diagnostics_test.cpp
-    diagnostics/debugger_phase1_test.cpp
-    diagnostics/debugger_phase234_test.cpp
-    diagnostics/debugger_diagnostic_test.cpp
-    diagnostics/debug_session_test.cpp
-    diagnostics/debug_session_test_eval_inject.cpp
-    diagnostics/who_diagnostic_test.cpp
-    diagnostics/compiler_assigned_vars_test.cpp
-    diagnostics/matlab_parity_test.cpp
-    diagnostics/register_constant_test.cpp
-    diagnostics/known_issues_test.cpp
-)
-
-# ── Assemble the test executable ─────────────────────────────
+# ── The one test binary ───────────────────────────────────────────────────
 add_executable(m_tests
     main.cpp
-    ${CORE_TESTS}
-    ${STDLIB_TESTS}
-    ${DSPLIB_TESTS}
-    ${PLTLIB_TESTS}
-    ${FITLIB_TESTS}
-    ${BACKEND_TESTS}
-    ${DIAGNOSTICS_TESTS}
+    ${INTEGRATION_TESTS}
 )
+
+# Each component's tests/CMakeLists.txt appends its sources via
+# target_sources(m_tests PRIVATE ...). That happens after this file runs.
 
 target_include_directories(m_tests
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}   # dual_engine_fixture.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/support   # dual_engine_fixture.hpp
 )
 
 target_link_libraries(m_tests

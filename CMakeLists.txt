@@ -159,7 +159,15 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
+    # tests/ creates the m_tests target; per-component tests/ dirs
+    # contribute their sources via target_sources(m_tests PRIVATE ...)
     add_subdirectory(tests)
+    add_subdirectory(frontend/tests)
+    add_subdirectory(backend/tests)
+    add_subdirectory(libs/builtin/tests)
+    add_subdirectory(libs/dsp/tests)
+    add_subdirectory(libs/fit/tests)
+    add_subdirectory(libs/plt/tests)
 endif()
 
 # ──────────────────────────────────────────────

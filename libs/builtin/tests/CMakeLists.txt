@@ -1,0 +1,22 @@
+target_sources(m_tests PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/functions_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/commands_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/comments_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/builtins_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/matrix_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/indexing_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/concat_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/scope_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/types_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/integer_types_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/dynvars_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/integration_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/csv_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/vfs_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/fileio_test.cpp
+)
