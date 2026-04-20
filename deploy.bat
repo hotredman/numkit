@@ -3,7 +3,7 @@ setlocal
 
 set PROJECT_DIR=%~dp0
 set IDE_DIR=%PROJECT_DIR%ide
-set WASM_DIST=%PROJECT_DIR%build-wasm\wasm\dist
+set WASM_DIST=%PROJECT_DIR%build-browser\wasm\dist
 set PAGES_DIR=%PROJECT_DIR%docs
 set EMSDK=C:\Users\User\Repo\emsdk
 set EMCC_DIR=%EMSDK%\upstream\emscripten
