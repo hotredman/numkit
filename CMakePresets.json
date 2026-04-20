@@ -14,21 +14,18 @@
     {
       "name": "desktop-fast",
       "inherits": "portable",
-      "displayName": "Desktop x86_64 (permissive-license optimizations)",
-      "description": "Native desktop build intended for Windows/Linux x86_64. Will enable Highway SIMD, pocketfft, OpenBLAS as those backends are implemented in later phases. For now behaves the same as portable; flags stay here as targets to toggle ON.",
+      "displayName": "Desktop x86_64 (Highway SIMD)",
+      "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD once the per-library _simd.cpp backends land in Phase 8+. For now behaves identically to portable; the flag is OFF here too and flipped ON when backends appear.",
       "binaryDir": "${sourceDir}/build-desktop-fast",
       "cacheVariables": {
-        "NUMKIT_WITH_SIMD":       "OFF",
-        "NUMKIT_WITH_POCKETFFT":  "OFF",
-        "NUMKIT_WITH_BLAS":       "OFF",
-        "NUMKIT_WITH_OPENMP":     "OFF"
+        "NUMKIT_WITH_SIMD": "OFF"
       }
     },
     {
       "name": "apple-m",
       "inherits": "portable",
       "displayName": "Apple Silicon (ARM64 macOS)",
-      "description": "ARM64 macOS build. Targets Accelerate.framework for BLAS/FFT and Highway with NEON/SVE2. Not active until the corresponding backends are wired up.",
+      "description": "ARM64 macOS build. Targets Highway with NEON/SVE2 when the SIMD backends are implemented.",
       "binaryDir": "${sourceDir}/build-apple-m",
       "condition": {
         "type": "equals",
@@ -36,8 +33,7 @@
         "rhs": "Darwin"
       },
       "cacheVariables": {
-        "NUMKIT_WITH_SIMD":       "OFF",
-        "NUMKIT_WITH_ACCELERATE": "OFF"
+        "NUMKIT_WITH_SIMD": "OFF"
       }
     },
     {
@@ -48,9 +44,9 @@
       "generator": "Ninja",
       "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
       "cacheVariables": {
-        "CMAKE_BUILD_TYPE":      "Release",
-        "NUMKIT_M_BUILD_REPL":   "ON",
-        "NUMKIT_WITH_SIMD":      "OFF"
+        "CMAKE_BUILD_TYPE":    "Release",
+        "NUMKIT_M_BUILD_REPL": "ON",
+        "NUMKIT_WITH_SIMD":    "OFF"
       }
     }
   ],
