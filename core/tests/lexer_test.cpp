@@ -1,4 +1,4 @@
-#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/core/MLexer.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit::m;

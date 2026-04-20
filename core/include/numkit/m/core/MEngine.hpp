@@ -1,11 +1,11 @@
 // include/MEngine.hpp
 #pragma once
 
-#include <numkit/m/debug/MDebugger.hpp>
+#include <numkit/m/core/MDebugger.hpp>
 #include <numkit/m/core/MFigureManager.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MVfs.hpp>
-#include <numkit/m/backend/MVM.hpp>
+#include <numkit/m/core/MVM.hpp>
 
 #include <atomic>
 #include <memory>

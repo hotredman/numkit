@@ -1,8 +1,8 @@
 // tests/parser_test.cpp
 
-#include <numkit/m/frontend/MAst.hpp>
-#include <numkit/m/frontend/MLexer.hpp>
-#include <numkit/m/frontend/MParser.hpp>
+#include <numkit/m/core/MAst.hpp>
+#include <numkit/m/core/MLexer.hpp>
+#include <numkit/m/core/MParser.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit::m;

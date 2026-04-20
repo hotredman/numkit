@@ -1,4 +1,4 @@
-#include <numkit/m/frontend/MParser.hpp>
+#include <numkit/m/core/MParser.hpp>
 #include <algorithm>
 #include <stdexcept>
 #include <unordered_map>

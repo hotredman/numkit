@@ -1,5 +1,5 @@
 // src/MCompiler.cpp
-#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MCompiler.hpp>
 #include <numkit/m/core/MEngine.hpp>
 
 #include <stdexcept>

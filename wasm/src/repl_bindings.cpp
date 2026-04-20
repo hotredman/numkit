@@ -10,7 +10,7 @@
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/debug/MDebugSession.hpp>
+#include <numkit/m/core/MDebugSession.hpp>
 #include <numkit/m/core/MVfs.hpp>
 
 // ════════════════════════════════════════════════════════════════

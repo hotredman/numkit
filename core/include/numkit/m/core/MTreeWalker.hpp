@@ -1,7 +1,7 @@
 // include/MTreeWalker.hpp
 #pragma once
 
-#include <numkit/m/debug/MDebugger.hpp>
+#include <numkit/m/core/MDebugger.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include <string>

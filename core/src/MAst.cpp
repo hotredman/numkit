@@ -1,5 +1,5 @@
 // src/MAst.cpp
-#include <numkit/m/frontend/MAst.hpp>
+#include <numkit/m/core/MAst.hpp>
 
 namespace numkit::m {
 

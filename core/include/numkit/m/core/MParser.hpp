@@ -1,7 +1,7 @@
 #pragma once
 
-#include <numkit/m/frontend/MAst.hpp>
-#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/core/MAst.hpp>
+#include <numkit/m/core/MLexer.hpp>
 #include <initializer_list>
 #include <vector>
 

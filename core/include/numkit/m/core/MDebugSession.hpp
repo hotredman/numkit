@@ -15,12 +15,12 @@
 //
 #pragma once
 
-#include <numkit/m/frontend/MAst.hpp>
-#include <numkit/m/frontend/MBytecode.hpp>
-#include <numkit/m/debug/MDebugger.hpp>
-#include <numkit/m/debug/MDebugWorkspace.hpp>
+#include <numkit/m/core/MAst.hpp>
+#include <numkit/m/core/MBytecode.hpp>
+#include <numkit/m/core/MDebugger.hpp>
+#include <numkit/m/core/MDebugWorkspace.hpp>
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/backend/MVM.hpp>
+#include <numkit/m/core/MVM.hpp>
 
 #include <memory>
 #include <string>

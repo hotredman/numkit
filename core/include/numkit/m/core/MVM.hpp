@@ -1,8 +1,8 @@
 // include/MVM.hpp
 #pragma once
 
-#include <numkit/m/frontend/MBytecode.hpp>
-#include <numkit/m/debug/MDebugger.hpp>
+#include <numkit/m/core/MBytecode.hpp>
+#include <numkit/m/core/MDebugger.hpp>
 #include <numkit/m/core/MValue.hpp>
 
 #include <unordered_map>

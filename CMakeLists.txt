@@ -11,7 +11,7 @@ option(NUMKIT_M_BUILD_TESTS   "Build tests"              ON)
 option(NUMKIT_M_BUILD_SHARED  "Build shared library"     OFF)
 option(NUMKIT_M_INSTALL       "Generate install target"  ON)
 
-# Feature flags (NUMKIT_WITH_SIMD, _POCKETFFT, _BLAS, _ACCELERATE, _OPENMP)
+# Feature flags (NUMKIT_WITH_SIMD)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(NumkitOptions)
 
@@ -26,7 +26,7 @@ endif()
 # ──────────────────────────────────────────────
 
 set(NUMKIT_M_CORE_SOURCES
-    # core
+    # value / environment / allocator
     core/src/MAllocator.cpp
     core/src/MType.cpp
     core/src/MDims.cpp
@@ -36,18 +36,18 @@ set(NUMKIT_M_CORE_SOURCES
     core/src/MEnvironment.cpp
     core/src/MEngine.cpp
     core/src/MVfs.cpp
-    # frontend
-    frontend/src/MLexer.cpp
-    frontend/src/MParser.cpp
-    frontend/src/MAst.cpp
-    frontend/src/MCompiler.cpp
-    # backend
-    backend/src/MTreeWalker.cpp
-    backend/src/MVM.cpp
-    # debug
-    debug/src/MDebugger.cpp
-    debug/src/MDebugSession.cpp
-    debug/src/MDebugWorkspace.cpp
+    # lexer / parser / AST / compiler
+    core/src/MLexer.cpp
+    core/src/MParser.cpp
+    core/src/MAst.cpp
+    core/src/MCompiler.cpp
+    # execution backends
+    core/src/MTreeWalker.cpp
+    core/src/MVM.cpp
+    # debugger
+    core/src/MDebugger.cpp
+    core/src/MDebugSession.cpp
+    core/src/MDebugWorkspace.cpp
 )
 
 # Each library defines its own source list (STDLIB_SOURCES, DSPLIB_SOURCES, ...)
@@ -65,33 +65,30 @@ set(NUMKIT_M_SOURCES
 )
 
 set(NUMKIT_M_HEADERS
-    # core
+    # core (runtime + frontend + backend + debug all live here)
     core/include/numkit/m/core/MAllocator.hpp
+    core/include/numkit/m/core/MAst.hpp
     core/include/numkit/m/core/MBranding.hpp
+    core/include/numkit/m/core/MBytecode.hpp
+    core/include/numkit/m/core/MCompiler.hpp
     core/include/numkit/m/core/MDataBuffer.hpp
+    core/include/numkit/m/core/MDebugger.hpp
+    core/include/numkit/m/core/MDebugSession.hpp
+    core/include/numkit/m/core/MDebugWorkspace.hpp
     core/include/numkit/m/core/MDims.hpp
     core/include/numkit/m/core/MEngine.hpp
     core/include/numkit/m/core/MEnvironment.hpp
     core/include/numkit/m/core/MFigureManager.hpp
     core/include/numkit/m/core/MHeapObject.hpp
+    core/include/numkit/m/core/MLexer.hpp
+    core/include/numkit/m/core/MParser.hpp
     core/include/numkit/m/core/MSpan.hpp
+    core/include/numkit/m/core/MTreeWalker.hpp
     core/include/numkit/m/core/MType.hpp
     core/include/numkit/m/core/MTypes.hpp
+    core/include/numkit/m/core/MVM.hpp
     core/include/numkit/m/core/MValue.hpp
     core/include/numkit/m/core/MVfs.hpp
-    # frontend
-    frontend/include/numkit/m/frontend/MAst.hpp
-    frontend/include/numkit/m/frontend/MBytecode.hpp
-    frontend/include/numkit/m/frontend/MCompiler.hpp
-    frontend/include/numkit/m/frontend/MLexer.hpp
-    frontend/include/numkit/m/frontend/MParser.hpp
-    # backend
-    backend/include/numkit/m/backend/MTreeWalker.hpp
-    backend/include/numkit/m/backend/MVM.hpp
-    # debug
-    debug/include/numkit/m/debug/MDebugger.hpp
-    debug/include/numkit/m/debug/MDebugSession.hpp
-    debug/include/numkit/m/debug/MDebugWorkspace.hpp
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
@@ -109,12 +106,7 @@ add_library(numkit::m ALIAS m)
 
 target_include_directories(m
     PUBLIC
-        # runtime core
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/frontend/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/backend/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/debug/include>
-        # libraries
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/fit/include>
@@ -166,8 +158,7 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
     # tests/ creates the m_tests target; per-component tests/ dirs
     # contribute their sources via target_sources(m_tests PRIVATE ...)
     add_subdirectory(tests)
-    add_subdirectory(frontend/tests)
-    add_subdirectory(backend/tests)
+    add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
     add_subdirectory(libs/dsp/tests)
     add_subdirectory(libs/fit/tests)
@@ -199,9 +190,6 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
 
     # Public headers — every component ships its own numkit/m/<name>/ subtree
     install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY frontend/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY backend/include/numkit      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY debug/include/numkit        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/dsp/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/fit/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})

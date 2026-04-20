@@ -1,7 +1,7 @@
 // include/MTypes.hpp
 #pragma once
 
-#include <numkit/m/frontend/MAst.hpp>
+#include <numkit/m/core/MAst.hpp>
 #include <numkit/m/core/MEnvironment.hpp>
 #include <numkit/m/core/MSpan.hpp>
 #include <numkit/m/core/MValue.hpp>

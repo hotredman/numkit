@@ -1,5 +1,5 @@
 // Test: variables created in debug eval are accessible after continue
-#include <numkit/m/debug/MDebugSession.hpp>
+#include <numkit/m/core/MDebugSession.hpp>
 #include <numkit/m/core/MEngine.hpp>
 #include <gtest/gtest.h>
 

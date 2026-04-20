@@ -1,5 +1,5 @@
 // src/MVM.cpp
-#include <numkit/m/backend/MVM.hpp>
+#include <numkit/m/core/MVM.hpp>
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MSpan.hpp>
 

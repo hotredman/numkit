@@ -1,6 +1,6 @@
 // tests/diagnostics/debug_session_test.cpp
 // Tests for DebugSession: pause/resume, eval in context, stepping
-#include <numkit/m/debug/MDebugSession.hpp>
+#include <numkit/m/core/MDebugSession.hpp>
 #include <numkit/m/core/MEngine.hpp>
 #include <gtest/gtest.h>
 

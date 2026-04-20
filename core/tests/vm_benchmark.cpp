@@ -3,12 +3,12 @@
 // Direct timing comparison: TreeWalker vs Bytecode VM
 // Run with: ./m_tests --gtest_filter="VMBenchmark.*"
 
-#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MCompiler.hpp>
 #include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/frontend/MLexer.hpp>
-#include <numkit/m/frontend/MParser.hpp>
+#include <numkit/m/core/MLexer.hpp>
+#include <numkit/m/core/MParser.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/backend/MVM.hpp>
+#include <numkit/m/core/MVM.hpp>
 #include <chrono>
 #include <gtest/gtest.h>
 #include <iostream>

@@ -16,11 +16,11 @@
 //   x = <expr>   — writes through to the frame register if x is a frame
 //                  var, otherwise lands in the overlay.
 //
-#include <numkit/m/debug/MDebugSession.hpp>
-#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MDebugSession.hpp>
+#include <numkit/m/core/MCompiler.hpp>
 #include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/frontend/MLexer.hpp>
-#include <numkit/m/frontend/MParser.hpp>
+#include <numkit/m/core/MLexer.hpp>
+#include <numkit/m/core/MParser.hpp>
 
 #include <unordered_set>
 

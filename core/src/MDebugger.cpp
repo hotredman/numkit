@@ -1,6 +1,6 @@
 // src/MDebugger.cpp
-#include <numkit/m/debug/MDebugger.hpp>
-#include <numkit/m/frontend/MBytecode.hpp>
+#include <numkit/m/core/MDebugger.hpp>
+#include <numkit/m/core/MBytecode.hpp>
 #include <numkit/m/core/MEnvironment.hpp>
 
 #include <algorithm>

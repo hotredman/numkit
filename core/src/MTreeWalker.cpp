@@ -1,6 +1,6 @@
 // src/MTreeWalker.cpp
-#include <numkit/m/backend/MTreeWalker.hpp>
-#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MTreeWalker.hpp>
+#include <numkit/m/core/MCompiler.hpp>
 #include <numkit/m/core/MEngine.hpp>
 #include <algorithm>
 #include <cmath>

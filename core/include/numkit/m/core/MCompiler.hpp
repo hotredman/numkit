@@ -1,8 +1,8 @@
 // include/MCompiler.hpp
 #pragma once
 
-#include <numkit/m/frontend/MAst.hpp>
-#include <numkit/m/frontend/MBytecode.hpp>
+#include <numkit/m/core/MAst.hpp>
+#include <numkit/m/core/MBytecode.hpp>
 #include <bitset>
 #include <unordered_set>
 

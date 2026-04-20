@@ -1,9 +1,9 @@
 // src/MDebugWorkspace.cpp
-#include <numkit/m/debug/MDebugWorkspace.hpp>
-#include <numkit/m/frontend/MBytecode.hpp>
+#include <numkit/m/core/MDebugWorkspace.hpp>
+#include <numkit/m/core/MBytecode.hpp>
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/backend/MVM.hpp>
+#include <numkit/m/core/MVM.hpp>
 
 namespace numkit::m {
 
