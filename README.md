@@ -230,34 +230,38 @@ All classes live in `namespace numkit::m`.
 ### Requirements
 
 - C++17 compiler (GCC 8+, Clang 7+, MSVC 2019+)
-- CMake 3.14+
+- CMake 3.21+
 
 ### Build
 
+Via CMake presets (see `CMakePresets.json`):
+
 ```bash
-mkdir build && cd build
-cmake ..
-cmake --build .
+cmake --preset=portable         # reference build, no optimizations
+cmake --build --preset=portable
 ```
+
+Or use the wrapper scripts: `./build.sh` (Linux/macOS) or `build.bat` (Windows).
 
 ### Run Tests
 
 ```bash
-cd build
-ctest --output-on-failure
+ctest --preset=portable
 # 3512 tests across 140 suites
 ```
 
 ### Build Web IDE (WebAssembly)
 
 ```bash
-# Requires Emscripten SDK
-emcmake cmake -B build-wasm -DNUMKIT_M_BUILD_REPL=ON
-cmake --build build-wasm
+# Requires Emscripten SDK with EMSDK env var set
+cmake --preset=browser
+cmake --build --preset=browser
 cd ide
 npm install
 npm run build
 ```
+
+Or: `./build.sh --wasm` / `build.bat --wasm`.
 
 ---
 
@@ -266,8 +270,8 @@ npm run build
 ### Basic Embedding
 
 ```c++
-#include "MEngine.hpp"
-#include "MStdLibrary.hpp"
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/builtin/MStdLibrary.hpp>
 
 int main()
 {

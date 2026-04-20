@@ -34,24 +34,23 @@ To use your real C++ numkit interpreter:
 ### Step 1 — Build WASM with Emscripten
 
 ```bash
-# From your project root (where the top-level CMakeLists.txt is)
-mkdir build-wasm && cd build-wasm
-
-emcmake cmake .. -DNUMKIT_M_BUILD_REPL=ON -DCMAKE_BUILD_TYPE=Release
-
-emmake make numkit_mide
+# From your project root. Requires EMSDK env var set.
+cmake --preset=browser
+cmake --build --preset=browser
 ```
 
-This produces two files:
-- `repl/dist/numkit_mide.js`  (Emscripten glue code)
-- `repl/dist/numkit_mide.wasm` (compiled binary)
+This produces two files under `build-browser/wasm/dist/`:
+- `numkit_mide.js`   (Emscripten glue code)
+- `numkit_mide.wasm` (compiled binary)
 
 ### Step 2 — Copy into Vite project
 
 ```bash
-cp build-wasm/repl/dist/numkit_mide.js   repl-vite/public/
-cp build-wasm/repl/dist/numkit_mide.wasm repl-vite/public/
+cp build-browser/wasm/dist/numkit_mide.js   ide/public/
+cp build-browser/wasm/dist/numkit_mide.wasm ide/public/
 ```
+
+Alternatively just run `./build.sh --wasm` (Linux/macOS) or `build.bat --wasm` (Windows), then `./dev.sh` / `dev.bat` — the dev-run scripts copy the artifacts automatically.
 
 ### Step 3 — Restart dev server
 

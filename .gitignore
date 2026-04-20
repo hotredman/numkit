@@ -33,7 +33,7 @@ node_modules/
 ide/dist/
 
 # WASM artefacts copied into the IDE public tree by build/dev scripts —
-# regenerated from build-wasm/, never committed.
+# regenerated from build-browser/, never committed.
 ide/public/numkit_mide.js
 ide/public/numkit_mide.wasm
 
