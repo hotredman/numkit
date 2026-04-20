@@ -1,4 +1,4 @@
-#include <numkit/m/plt/Library.hpp>
+#include <numkit/m/plt/MPltLibrary.hpp>
 
 #include <algorithm>
 #include <cmath>

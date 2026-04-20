@@ -1,4 +1,4 @@
-#include <numkit/m/dsp/Library.hpp>
+#include <numkit/m/dsp/MDspLibrary.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>

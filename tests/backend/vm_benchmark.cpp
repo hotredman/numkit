@@ -7,7 +7,7 @@
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/frontend/MLexer.hpp>
 #include <numkit/m/frontend/MParser.hpp>
-#include <numkit/m/builtin/Library.hpp>
+#include <numkit/m/builtin/MStdLibrary.hpp>
 #include <numkit/m/backend/MVM.hpp>
 #include <chrono>
 #include <gtest/gtest.h>

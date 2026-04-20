@@ -1,5 +1,5 @@
 #include "MDspHelpers.hpp"
-#include <numkit/m/dsp/Library.hpp>
+#include <numkit/m/dsp/MDspLibrary.hpp>
 
 #include <algorithm>
 #include <cmath>

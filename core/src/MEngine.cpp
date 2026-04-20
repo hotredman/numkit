@@ -4,10 +4,10 @@
 #include <numkit/m/frontend/MCompiler.hpp>
 #include <numkit/m/frontend/MLexer.hpp>
 #include <numkit/m/frontend/MParser.hpp>
-#include <numkit/m/builtin/Library.hpp>
-#include <numkit/m/dsp/Library.hpp>
-#include <numkit/m/plt/Library.hpp>
-#include <numkit/m/fit/Library.hpp>
+#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/m/dsp/MDspLibrary.hpp>
+#include <numkit/m/plt/MPltLibrary.hpp>
+#include <numkit/m/fit/MFitLibrary.hpp>
 #include <numkit/m/backend/MTreeWalker.hpp>
 #include <numkit/m/backend/MVM.hpp>
 #include <algorithm>

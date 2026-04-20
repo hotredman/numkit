@@ -89,10 +89,10 @@ set(NUMKIT_M_HEADERS
     debug/include/numkit/m/debug/MDebugSession.hpp
     debug/include/numkit/m/debug/MDebugWorkspace.hpp
     # libs
-    libs/builtin/include/numkit/m/builtin/Library.hpp
-    libs/dsp/include/numkit/m/dsp/Library.hpp
-    libs/fit/include/numkit/m/fit/Library.hpp
-    libs/plt/include/numkit/m/plt/Library.hpp
+    libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
+    libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
+    libs/fit/include/numkit/m/fit/MFitLibrary.hpp
+    libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )
 
 if(NUMKIT_M_BUILD_SHARED)

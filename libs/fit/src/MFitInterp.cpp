@@ -1,5 +1,5 @@
 #include "MStdHelpers.hpp"
-#include <numkit/m/fit/Library.hpp>
+#include <numkit/m/fit/MFitLibrary.hpp>
 
 #include <algorithm>
 #include <cmath>

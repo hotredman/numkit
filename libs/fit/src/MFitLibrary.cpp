@@ -1,4 +1,4 @@
-#include <numkit/m/fit/Library.hpp>
+#include <numkit/m/fit/MFitLibrary.hpp>
 
 namespace numkit::m {
 
