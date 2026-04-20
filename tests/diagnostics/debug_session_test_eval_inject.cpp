@@ -1,6 +1,6 @@
 // Test: variables created in debug eval are accessible after continue
-#include "MDebugSession.hpp"
-#include "MEngine.hpp"
+#include <numkit/m/debug/MDebugSession.hpp>
+#include <numkit/m/core/MEngine.hpp>
 #include <gtest/gtest.h>
 
 using namespace numkit::m;

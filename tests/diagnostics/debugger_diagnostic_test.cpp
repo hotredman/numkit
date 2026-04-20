@@ -1,8 +1,8 @@
 // tests/test_debugger_diagnostic.cpp — Diagnostic: what actually works?
 #include "dual_engine_fixture.hpp"
-#include "MCompiler.hpp"
-#include "MLexer.hpp"
-#include "MParser.hpp"
+#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/frontend/MParser.hpp>
 
 using namespace m_test;
 using namespace numkit::m;

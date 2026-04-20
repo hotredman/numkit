@@ -6,11 +6,11 @@
 // honour MATLAB's whos-parity rule for shadowed built-ins, so regressions
 // here silently change the debug UI.
 
-#include "MCompiler.hpp"
-#include "MEngine.hpp"
-#include "MLexer.hpp"
-#include "MParser.hpp"
-#include "MTypes.hpp"
+#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/frontend/MParser.hpp>
+#include <numkit/m/core/MTypes.hpp>
 
 #include <gtest/gtest.h>
 

@@ -6,7 +6,7 @@
 // debug Workspace panel, shadowable, un-shadowable via `clear name`,
 // and surviving `clear all`.
 
-#include "MDebugSession.hpp"
+#include <numkit/m/debug/MDebugSession.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;

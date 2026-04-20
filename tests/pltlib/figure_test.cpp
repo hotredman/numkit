@@ -10,8 +10,8 @@
 //   - Name-value pairs (LineWidth, MarkerSize)
 //   - Subplot
 
-#include "MEngine.hpp"
-#include "MFigureManager.hpp"
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MFigureManager.hpp>
 #include "MStdLibrary.hpp"
 #include <cmath>
 #include <gtest/gtest.h>

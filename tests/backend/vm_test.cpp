@@ -3,12 +3,12 @@
 // Tests for Bytecode Compiler + VM
 // Phase 1: scalar arithmetic, variables, display
 
-#include "MCompiler.hpp"
-#include "MEngine.hpp"
-#include "MLexer.hpp"
-#include "MParser.hpp"
+#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/frontend/MParser.hpp>
 #include "MStdLibrary.hpp"
-#include "MVM.hpp"
+#include <numkit/m/backend/MVM.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 

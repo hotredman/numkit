@@ -1,9 +1,9 @@
 // tests/test_debugger_phase1.cpp — Source mapping, error locations, MError
 // Parameterized: runs on both TreeWalker and VM backends
 
-#include "MCompiler.hpp"
-#include "MLexer.hpp"
-#include "MParser.hpp"
+#include <numkit/m/frontend/MCompiler.hpp>
+#include <numkit/m/frontend/MLexer.hpp>
+#include <numkit/m/frontend/MParser.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;

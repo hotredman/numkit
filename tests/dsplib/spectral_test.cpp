@@ -1,6 +1,6 @@
 // tests/spectral_test.cpp
 
-#include "MEngine.hpp"
+#include <numkit/m/core/MEngine.hpp>
 #include "MStdLibrary.hpp"
 #include <cmath>
 #include <gtest/gtest.h>

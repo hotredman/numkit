@@ -4,7 +4,7 @@
 // Each test verifies correctness of an optimized code path
 // by comparing results against known values.
 
-#include "MEngine.hpp"
+#include <numkit/m/core/MEngine.hpp>
 #include "MStdLibrary.hpp"
 #include <cmath>
 #include <gtest/gtest.h>

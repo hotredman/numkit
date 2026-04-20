@@ -22,24 +22,28 @@ endif()
 # ──────────────────────────────────────────────
 
 set(NUMKIT_M_CORE_SOURCES
-    src/MAllocator.cpp
-    src/MType.cpp
-    src/MDims.cpp
-    src/MDataBuffer.cpp
-    src/MHeapObject.cpp
-    src/MValue.cpp
-    src/MLexer.cpp
-    src/MParser.cpp
-    src/MEnvironment.cpp
-    src/MEngine.cpp
-    src/MAst.cpp
-    src/MTreeWalker.cpp
-    src/MCompiler.cpp
-    src/MVM.cpp
-    src/MDebugger.cpp
-    src/MDebugSession.cpp
-    src/MDebugWorkspace.cpp
-    src/MVfs.cpp
+    # core
+    core/src/MAllocator.cpp
+    core/src/MType.cpp
+    core/src/MDims.cpp
+    core/src/MDataBuffer.cpp
+    core/src/MHeapObject.cpp
+    core/src/MValue.cpp
+    core/src/MEnvironment.cpp
+    core/src/MEngine.cpp
+    core/src/MVfs.cpp
+    # frontend
+    frontend/src/MLexer.cpp
+    frontend/src/MParser.cpp
+    frontend/src/MAst.cpp
+    frontend/src/MCompiler.cpp
+    # backend
+    backend/src/MTreeWalker.cpp
+    backend/src/MVM.cpp
+    # debug
+    debug/src/MDebugger.cpp
+    debug/src/MDebugSession.cpp
+    debug/src/MDebugWorkspace.cpp
 )
 
 # Each subdirectory defines its own source list
@@ -57,29 +61,38 @@ set(NUMKIT_M_SOURCES
 )
 
 set(NUMKIT_M_HEADERS
-    include/MTypes.hpp
-    include/MTreeWalker.hpp
-    include/MAllocator.hpp
-    include/MType.hpp
-    include/MDims.hpp
-    include/MDataBuffer.hpp
-    include/MHeapObject.hpp
-    include/MValue.hpp
-    include/MLexer.hpp
-    include/MAst.hpp
-    include/MParser.hpp
-    include/MEnvironment.hpp
-    include/MEngine.hpp
+    # core
+    core/include/numkit/m/core/MAllocator.hpp
+    core/include/numkit/m/core/MBranding.hpp
+    core/include/numkit/m/core/MDataBuffer.hpp
+    core/include/numkit/m/core/MDims.hpp
+    core/include/numkit/m/core/MEngine.hpp
+    core/include/numkit/m/core/MEnvironment.hpp
+    core/include/numkit/m/core/MFigureManager.hpp
+    core/include/numkit/m/core/MHeapObject.hpp
+    core/include/numkit/m/core/MSpan.hpp
+    core/include/numkit/m/core/MType.hpp
+    core/include/numkit/m/core/MTypes.hpp
+    core/include/numkit/m/core/MValue.hpp
+    core/include/numkit/m/core/MVfs.hpp
+    # frontend
+    frontend/include/numkit/m/frontend/MAst.hpp
+    frontend/include/numkit/m/frontend/MBytecode.hpp
+    frontend/include/numkit/m/frontend/MCompiler.hpp
+    frontend/include/numkit/m/frontend/MLexer.hpp
+    frontend/include/numkit/m/frontend/MParser.hpp
+    # backend
+    backend/include/numkit/m/backend/MTreeWalker.hpp
+    backend/include/numkit/m/backend/MVM.hpp
+    # debug
+    debug/include/numkit/m/debug/MDebugger.hpp
+    debug/include/numkit/m/debug/MDebugSession.hpp
+    debug/include/numkit/m/debug/MDebugWorkspace.hpp
+    # libraries (moved to libs/ in Phase 2)
     include/MStdLibrary.hpp
     include/MDspLibrary.hpp
     include/MPltLibrary.hpp
     include/MFitLibrary.hpp
-    include/MFigureManager.hpp
-    include/MSpan.hpp
-    include/MBytecode.hpp
-    include/MCompiler.hpp
-    include/MVM.hpp
-    include/MDebugger.hpp
 )
 
 if(NUMKIT_M_BUILD_SHARED)
@@ -92,6 +105,10 @@ add_library(numkit::m ALIAS m)
 
 target_include_directories(m
     PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/frontend/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/backend/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/debug/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
@@ -161,7 +178,18 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    install(FILES ${NUMKIT_M_HEADERS}
+    # Component public headers (preserve nested numkit/m/<component>/ structure)
+    install(DIRECTORY core/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY frontend/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY backend/include/numkit  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY debug/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+
+    # Library umbrella headers (still flat in include/ until Phase 2)
+    install(FILES
+        include/MStdLibrary.hpp
+        include/MDspLibrary.hpp
+        include/MPltLibrary.hpp
+        include/MFitLibrary.hpp
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/numkit
     )
 

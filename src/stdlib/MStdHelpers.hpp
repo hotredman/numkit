@@ -1,6 +1,6 @@
 #pragma once
 
-#include "MEngine.hpp"
+#include <numkit/m/core/MEngine.hpp>
 
 #include <algorithm>
 #include <cmath>

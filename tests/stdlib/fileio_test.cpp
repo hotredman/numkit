@@ -4,7 +4,7 @@
 // The round-trip target is always a CallbackFS-backed in-memory VirtualFS
 // so the tests don't touch disk and are independent of the native FS.
 
-#include "MVfs.hpp"
+#include <numkit/m/core/MVfs.hpp>
 #include "dual_engine_fixture.hpp"
 
 #include <map>

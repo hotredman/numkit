@@ -8,10 +8,10 @@
 #include <set>
 #include <cmath>
 
-#include "MEngine.hpp"
+#include <numkit/m/core/MEngine.hpp>
 #include "MStdLibrary.hpp"
-#include "MDebugSession.hpp"
-#include "MVfs.hpp"
+#include <numkit/m/debug/MDebugSession.hpp>
+#include <numkit/m/core/MVfs.hpp>
 
 // ════════════════════════════════════════════════════════════════
 // Helper: format MValue for variable preview
