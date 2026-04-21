@@ -337,7 +337,11 @@ MValue TreeWalker::execNode(const ASTNode *node, Environment *env)
 
     try {
         return execNodeInner(node, env);
-    } catch (const MError &) {
+    } catch (MError &e) {
+        // Enrich with this node's source location if the inner throw
+        // didn't already attach one (e.g. from a public C++ library API).
+        if (node->line > 0)
+            e.attachIfMissing(node->line, node->col, "", describeNode(node));
         throw;
     } catch (const DebugStopException &) {
         throw;

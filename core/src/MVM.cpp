@@ -188,6 +188,11 @@ ExecStatus VM::resumeExecution()
 #if defined(__GNUC__) || defined(__clang__)
 __attribute__((flatten))
 #endif
+// Forward declarations for helpers defined later in this translation unit
+// but called from dispatchLoop's catch blocks.
+static std::string describeInstruction(const Instruction &instr,
+                                       const BytecodeChunk &chunk);
+
 ExecStatus VM::dispatchLoop()
 {
 enter_frame:
@@ -1163,10 +1168,20 @@ enter_frame:
         } // while
     } catch (const DebugStopException &) {
         throw; // pass through — not a user error
-    } catch (const MError &mle) {
+    } catch (MError &mle) {
         std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
         if (dispatchTryCatch(mle.what(), id.c_str()))
             goto enter_frame;
+        // Enrich with current instruction's source location if missing
+        // (e.g. MError thrown from a public C++ library API that didn't
+        // know its call site).
+        size_t instrIdx = static_cast<size_t>(ip - chunk.code.data());
+        if (instrIdx < chunk.sourceMap.size() && chunk.sourceMap[instrIdx].line > 0) {
+            mle.attachIfMissing(chunk.sourceMap[instrIdx].line,
+                                chunk.sourceMap[instrIdx].col,
+                                chunk.name,
+                                describeInstruction(*ip, chunk));
+        }
         throw;
     } catch (const std::exception &ex) {
         if (dispatchTryCatch(ex.what(), "m:error"))

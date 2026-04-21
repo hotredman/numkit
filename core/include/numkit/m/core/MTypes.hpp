@@ -107,6 +107,26 @@ public:
     const std::string &context() const { return context_; }
     const std::string &identifier() const { return identifier_; }
 
+    // Fill in source-location fields only if they are currently empty.
+    // Called by outer catch blocks (TreeWalker::execNode, VM::dispatchLoop)
+    // to enrich errors thrown deeper in the call stack (e.g. from public
+    // C++ library APIs that don't know their source line) without
+    // overwriting more-precise location already attached by the thrower.
+    void attachIfMissing(int line,
+                         int col,
+                         const std::string &funcName = "",
+                         const std::string &context = "")
+    {
+        if (line_ == 0)
+            line_ = line;
+        if (col_ == 0)
+            col_ = col;
+        if (funcName_.empty() && !funcName.empty())
+            funcName_ = funcName;
+        if (context_.empty() && !context.empty())
+            context_ = context;
+    }
+
     // Formatted for user display: "Error at line 15, column 3:\n  msg (in call to 'sin')"
     std::string formattedWhat() const
     {
