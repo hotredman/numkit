@@ -1,696 +1,540 @@
-#include "MStdHelpers.hpp"
-#include <numkit/m/builtin/MStdLibrary.hpp>
+// libs/builtin/src/MStdMath.cpp
 
+#include <numkit/m/builtin/MStdMath.hpp>
+
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MTypes.hpp>
+
+#include "MStdHelpers.hpp"
+
+#include <algorithm>
 #include <cmath>
+#include <complex>
 #include <limits>
 #include <random>
 
-namespace numkit::m {
+namespace numkit::m::builtin {
 
-void StdLibrary::registerMathFunctions(Engine &engine)
+// ════════════════════════════════════════════════════════════════════════
+// Public API
+// ════════════════════════════════════════════════════════════════════════
+
+// ── Elementwise unary — complex-promoting ──────────────────────────────
+MValue sqrt(Allocator &alloc, const MValue &x)
 {
-    // --- sqrt ---
-    engine.registerFunction(
-        "sqrt", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::sqrt(c); }, alloc);
-                return;
-            }
-            if (a.isScalar() && a.toScalar() < 0) {
-                outs[0] = MValue::complexScalar(std::sqrt(Complex(a.toScalar(), 0.0)), alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::sqrt(x); }, alloc);
-                return;
-            }
-        });
-
-    // --- abs ---
-    engine.registerFunction(
-        "abs", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                if (a.isScalar()) {
-                    outs[0] = MValue::scalar(std::abs(a.toComplex()), alloc);
-                    return;
-                }
-                auto r = createLike(a, MType::DOUBLE, alloc);
-                for (size_t i = 0; i < a.numel(); ++i)
-                    r.doubleDataMut()[i] = std::abs(a.complexData()[i]);
-                {
-                    outs[0] = r;
-                    return;
-                }
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::abs(x); }, alloc);
-                return;
-            }
-        });
-
-    // --- Trig functions ---
-    engine.registerFunction(
-        "sin", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::sin(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::sin(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "cos", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::cos(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::cos(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "tan", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::tan(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::tan(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "asin", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::asin(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::asin(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "acos", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::acos(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::acos(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "atan", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::atan(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::atan(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "atan2", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            if (args.size() < 2)
-                throw std::runtime_error("atan2 requires 2 arguments");
-            {
-                outs[0] = elementwiseDouble(
-                    args[0], args[1], [](double y, double x) { return std::atan2(y, x); }, alloc);
-                return;
-            }
-        });
-
-    // --- exp / log ---
-    engine.registerFunction(
-        "exp", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::exp(c); }, alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::exp(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "log", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isComplex()) {
-                outs[0] = unaryComplex(a, [](const Complex &c) { return std::log(c); }, alloc);
-                return;
-            }
-            if (a.isScalar() && a.toScalar() < 0) {
-                outs[0] = MValue::complexScalar(std::log(Complex(a.toScalar(), 0.0)), alloc);
-                return;
-            }
-            {
-                outs[0] = unaryDouble(a, [](double x) { return std::log(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "log2", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::log2(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "log10", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::log10(x); }, alloc);
-                return;
-            }
-        });
-
-    // --- Rounding ---
-    engine.registerFunction(
-        "floor", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::floor(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "ceil", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::ceil(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "round", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::round(x); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "fix", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(args[0], [](double x) { return std::trunc(x); }, alloc);
-                return;
-            }
-        });
-
-    // --- mod / rem ---
-    engine.registerFunction("mod",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                {
-                                    outs[0] = elementwiseDouble(
-                                        args[0],
-                                        args[1],
-                                        [](double a, double b) {
-                                            return b != 0 ? a - std::floor(a / b) * b : a;
-                                        },
-                                        alloc);
-                                    return;
-                                }
-                            });
-
-    engine.registerFunction(
-        "rem", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = elementwiseDouble(
-                    args[0], args[1], [](double a, double b) { return std::fmod(a, b); }, alloc);
-                return;
-            }
-        });
-
-    // --- sign ---
-    engine.registerFunction(
-        "sign", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(
-                    args[0], [](double x) { return std::isnan(x) ? x : (x > 0) ? 1.0 : (x < 0 ? -1.0 : 0.0); }, alloc);
-                return;
-            }
-        });
-
-    // --- max / min ---
-    engine.registerFunction(
-        "max", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            if (args.size() == 2) {
-                outs[0] = elementwiseDouble(
-                    args[0], args[1], [](double a, double b) { return std::max(a, b); }, alloc);
-                return;
-            }
-            auto &a = args[0];
-            if (a.dims().isVector() || a.isScalar()) {
-                double mx = a.doubleData()[0];
-                size_t mi = 0;
-                for (size_t i = 1; i < a.numel(); ++i)
-                    if (a.doubleData()[i] > mx) {
-                        mx = a.doubleData()[i];
-                        mi = i;
-                    }
-                {
-                    outs[0] = MValue::scalar(mx, alloc);
-                    if (nargout > 1)
-                        outs[1] = MValue::scalar(static_cast<double>(mi + 1), alloc);
-                    return;
-                }
-            }
-            size_t R = a.dims().rows(), C = a.dims().cols();
-            if (a.dims().is3D()) {
-                size_t P = a.dims().pages();
-                int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-                size_t outR = (redDim == 0) ? 1 : R;
-                size_t outC = (redDim == 1) ? 1 : C;
-                size_t outP = (redDim == 2) ? 1 : P;
-                size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-                auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                MValue midx;
-                if (nargout > 1)
-                    midx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                for (size_t p = 0; p < outP; ++p)
-                for (size_t c = 0; c < outC; ++c)
-                for (size_t rr = 0; rr < outR; ++rr) {
-                    auto atK = [&](size_t k) {
-                        size_t rIdx = (redDim == 0) ? k : rr;
-                        size_t cIdx = (redDim == 1) ? k : c;
-                        size_t pIdx = (redDim == 2) ? k : p;
-                        return a(rIdx, cIdx, pIdx);
-                    };
-                    double mx = atK(0);
-                    size_t mi = 0;
-                    for (size_t k = 1; k < N; ++k) {
-                        double v = atK(k);
-                        if (v > mx) { mx = v; mi = k; }
-                    }
-                    size_t o = p * outR * outC + c * outR + rr;
-                    r.doubleDataMut()[o] = mx;
-                    if (nargout > 1) midx.doubleDataMut()[o] = static_cast<double>(mi + 1);
-                }
-                outs[0] = r;
-                if (nargout > 1) outs[1] = midx;
-                return;
-            }
-            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            MValue midx;
-            if (nargout > 1) midx = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            for (size_t c = 0; c < C; ++c) {
-                double mx = a(0, c);
-                size_t mi = 0;
-                for (size_t rr = 1; rr < R; ++rr)
-                    if (a(rr, c) > mx) { mx = a(rr, c); mi = rr; }
-                r.doubleDataMut()[c] = mx;
-                if (nargout > 1) midx.doubleDataMut()[c] = static_cast<double>(mi + 1);
-            }
-            outs[0] = r;
-            if (nargout > 1) outs[1] = midx;
-            return;
-        });
-
-    engine.registerFunction(
-        "min", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            if (args.size() == 2) {
-                outs[0] = elementwiseDouble(
-                    args[0], args[1], [](double a, double b) { return std::min(a, b); }, alloc);
-                return;
-            }
-            auto &a = args[0];
-            if (a.dims().isVector() || a.isScalar()) {
-                double mn = a.doubleData()[0];
-                size_t mi = 0;
-                for (size_t i = 1; i < a.numel(); ++i)
-                    if (a.doubleData()[i] < mn) {
-                        mn = a.doubleData()[i];
-                        mi = i;
-                    }
-                {
-                    outs[0] = MValue::scalar(mn, alloc);
-                    if (nargout > 1)
-                        outs[1] = MValue::scalar(static_cast<double>(mi + 1), alloc);
-                    return;
-                }
-            }
-            size_t R = a.dims().rows(), C = a.dims().cols();
-            if (a.dims().is3D()) {
-                size_t P = a.dims().pages();
-                int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-                size_t outR = (redDim == 0) ? 1 : R;
-                size_t outC = (redDim == 1) ? 1 : C;
-                size_t outP = (redDim == 2) ? 1 : P;
-                size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-                auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                MValue midx;
-                if (nargout > 1)
-                    midx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                for (size_t p = 0; p < outP; ++p)
-                for (size_t c = 0; c < outC; ++c)
-                for (size_t rr = 0; rr < outR; ++rr) {
-                    auto atK = [&](size_t k) {
-                        size_t rIdx = (redDim == 0) ? k : rr;
-                        size_t cIdx = (redDim == 1) ? k : c;
-                        size_t pIdx = (redDim == 2) ? k : p;
-                        return a(rIdx, cIdx, pIdx);
-                    };
-                    double mn = atK(0);
-                    size_t mi = 0;
-                    for (size_t k = 1; k < N; ++k) {
-                        double v = atK(k);
-                        if (v < mn) { mn = v; mi = k; }
-                    }
-                    size_t o = p * outR * outC + c * outR + rr;
-                    r.doubleDataMut()[o] = mn;
-                    if (nargout > 1) midx.doubleDataMut()[o] = static_cast<double>(mi + 1);
-                }
-                outs[0] = r;
-                if (nargout > 1) outs[1] = midx;
-                return;
-            }
-            auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            MValue midx;
-            if (nargout > 1) midx = MValue::matrix(1, C, MType::DOUBLE, alloc);
-            for (size_t c = 0; c < C; ++c) {
-                double mn = a(0, c);
-                size_t mi = 0;
-                for (size_t rr = 1; rr < R; ++rr)
-                    if (a(rr, c) < mn) { mn = a(rr, c); mi = rr; }
-                r.doubleDataMut()[c] = mn;
-                if (nargout > 1) midx.doubleDataMut()[c] = static_cast<double>(mi + 1);
-            }
-            outs[0] = r;
-            if (nargout > 1) outs[1] = midx;
-            return;
-        });
-
-    // --- Reductions: sum, prod, mean ---
-    engine.registerFunction("sum",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                auto &a = args[0];
-                                if (a.dims().isVector() || a.isScalar()) {
-                                    double s = 0;
-                                    for (size_t i = 0; i < a.numel(); ++i)
-                                        s += a.doubleData()[i];
-                                    {
-                                        outs[0] = MValue::scalar(s, alloc);
-                                        return;
-                                    }
-                                }
-                                size_t R = a.dims().rows(), C = a.dims().cols();
-                                if (a.dims().is3D()) {
-                                    size_t P = a.dims().pages();
-                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-                                    size_t outR = (redDim == 0) ? 1 : R;
-                                    size_t outC = (redDim == 1) ? 1 : C;
-                                    size_t outP = (redDim == 2) ? 1 : P;
-                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                                    for (size_t p = 0; p < outP; ++p)
-                                    for (size_t c = 0; c < outC; ++c)
-                                    for (size_t rr = 0; rr < outR; ++rr) {
-                                        double s = 0;
-                                        for (size_t k = 0; k < N; ++k) {
-                                            size_t rIdx = (redDim == 0) ? k : rr;
-                                            size_t cIdx = (redDim == 1) ? k : c;
-                                            size_t pIdx = (redDim == 2) ? k : p;
-                                            s += a(rIdx, cIdx, pIdx);
-                                        }
-                                        r.doubleDataMut()[p * outR * outC + c * outR + rr] = s;
-                                    }
-                                    outs[0] = r;
-                                    return;
-                                }
-                                auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-                                for (size_t c = 0; c < C; ++c) {
-                                    double s = 0;
-                                    for (size_t rr = 0; rr < R; ++rr)
-                                        s += a(rr, c);
-                                    r.doubleDataMut()[c] = s;
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    engine.registerFunction("prod",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                auto &a = args[0];
-                                if (a.dims().isVector() || a.isScalar()) {
-                                    double p = 1;
-                                    for (size_t i = 0; i < a.numel(); ++i)
-                                        p *= a.doubleData()[i];
-                                    {
-                                        outs[0] = MValue::scalar(p, alloc);
-                                        return;
-                                    }
-                                }
-                                size_t R = a.dims().rows(), C = a.dims().cols();
-                                if (a.dims().is3D()) {
-                                    size_t P = a.dims().pages();
-                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-                                    size_t outR = (redDim == 0) ? 1 : R;
-                                    size_t outC = (redDim == 1) ? 1 : C;
-                                    size_t outP = (redDim == 2) ? 1 : P;
-                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                                    for (size_t pp = 0; pp < outP; ++pp)
-                                    for (size_t c = 0; c < outC; ++c)
-                                    for (size_t rr = 0; rr < outR; ++rr) {
-                                        double p = 1;
-                                        for (size_t k = 0; k < N; ++k) {
-                                            size_t rIdx = (redDim == 0) ? k : rr;
-                                            size_t cIdx = (redDim == 1) ? k : c;
-                                            size_t pIdx = (redDim == 2) ? k : pp;
-                                            p *= a(rIdx, cIdx, pIdx);
-                                        }
-                                        r.doubleDataMut()[pp * outR * outC + c * outR + rr] = p;
-                                    }
-                                    outs[0] = r;
-                                    return;
-                                }
-                                auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-                                for (size_t c = 0; c < C; ++c) {
-                                    double p = 1;
-                                    for (size_t rr = 0; rr < R; ++rr)
-                                        p *= a(rr, c);
-                                    r.doubleDataMut()[c] = p;
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    engine.registerFunction("mean",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                auto &a = args[0];
-                                if (a.dims().isVector() || a.isScalar()) {
-                                    double s = 0;
-                                    for (size_t i = 0; i < a.numel(); ++i)
-                                        s += a.doubleData()[i];
-                                    {
-                                        outs[0] = MValue::scalar(s / static_cast<double>(a.numel()),
-                                                                 alloc);
-                                        return;
-                                    }
-                                }
-                                size_t R = a.dims().rows(), C = a.dims().cols();
-                                if (a.dims().is3D()) {
-                                    size_t P = a.dims().pages();
-                                    int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-                                    size_t outR = (redDim == 0) ? 1 : R;
-                                    size_t outC = (redDim == 1) ? 1 : C;
-                                    size_t outP = (redDim == 2) ? 1 : P;
-                                    size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-                                    auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-                                    for (size_t pp = 0; pp < outP; ++pp)
-                                    for (size_t c = 0; c < outC; ++c)
-                                    for (size_t rr = 0; rr < outR; ++rr) {
-                                        double s = 0;
-                                        for (size_t k = 0; k < N; ++k) {
-                                            size_t rIdx = (redDim == 0) ? k : rr;
-                                            size_t cIdx = (redDim == 1) ? k : c;
-                                            size_t pIdx = (redDim == 2) ? k : pp;
-                                            s += a(rIdx, cIdx, pIdx);
-                                        }
-                                        r.doubleDataMut()[pp * outR * outC + c * outR + rr] =
-                                            s / static_cast<double>(N);
-                                    }
-                                    outs[0] = r;
-                                    return;
-                                }
-                                auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-                                for (size_t c = 0; c < C; ++c) {
-                                    double s = 0;
-                                    for (size_t rr = 0; rr < R; ++rr)
-                                        s += a(rr, c);
-                                    r.doubleDataMut()[c] = s / static_cast<double>(R);
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    // --- linspace / logspace ---
-    engine.registerFunction("linspace",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                double a = args[0].toScalar();
-                                double b = args[1].toScalar();
-                                size_t n = args.size() >= 3
-                                               ? static_cast<size_t>(args[2].toScalar())
-                                               : 100;
-                                auto r = MValue::matrix(1, n, MType::DOUBLE, alloc);
-                                if (n == 1) {
-                                    r.doubleDataMut()[0] = b;
-                                } else {
-                                    for (size_t i = 0; i < n; ++i)
-                                        r.doubleDataMut()[i] = a
-                                                               + (b - a) * static_cast<double>(i)
-                                                                     / static_cast<double>(n - 1);
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    engine.registerFunction("logspace",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error(
-                                        "logspace requires at least 2 arguments");
-                                double a = args[0].toScalar();
-                                double b = args[1].toScalar();
-                                size_t n = args.size() >= 3
-                                               ? static_cast<size_t>(args[2].toScalar())
-                                               : 50;
-                                auto r = MValue::matrix(1, n, MType::DOUBLE, alloc);
-                                if (n == 1) {
-                                    r.doubleDataMut()[0] = std::pow(10.0, b);
-                                } else {
-                                    for (size_t i = 0; i < n; ++i) {
-                                        double exponent = a
-                                                          + (b - a) * static_cast<double>(i)
-                                                                / static_cast<double>(n - 1);
-                                        r.doubleDataMut()[i] = std::pow(10.0, exponent);
-                                    }
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    // --- rand / randn ---
-    engine.registerFunction("rand",
-                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-                                static std::mt19937 gen(std::random_device{}());
-                                static std::uniform_real_distribution<double> dist(0.0, 1.0);
-                                auto d = parseDimsArgs(args);
-                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
-                                for (size_t i = 0; i < m.numel(); ++i)
-                                    m.doubleDataMut()[i] = dist(gen);
-                                outs[0] = std::move(m);
-                            });
-
-    engine.registerFunction("randn",
-                            [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-                                static std::mt19937 gen(std::random_device{}());
-                                static std::normal_distribution<double> dist(0.0, 1.0);
-                                auto d = parseDimsArgs(args);
-                                auto m = createMatrix(d, MType::DOUBLE, &ctx.engine->allocator());
-                                for (size_t i = 0; i < m.numel(); ++i)
-                                    m.doubleDataMut()[i] = dist(gen);
-                                outs[0] = std::move(m);
-                            });
-
-    // --- Angle conversions ---
-    engine.registerFunction(
-        "deg2rad", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(
-                    args[0], [](double x) { return x * (3.14159265358979323846 / 180.0); }, alloc);
-                return;
-            }
-        });
-
-    engine.registerFunction(
-        "rad2deg", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            {
-                outs[0] = unaryDouble(
-                    args[0], [](double x) { return x * (180.0 / 3.14159265358979323846); }, alloc);
-                return;
-            }
-        });
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, &alloc);
+    if (x.isScalar() && x.toScalar() < 0)
+        return MValue::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), &alloc);
+    return unaryDouble(x, [](double v) { return std::sqrt(v); }, &alloc);
 }
 
-} // namespace numkit::m
+MValue abs(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex()) {
+        if (x.isScalar())
+            return MValue::scalar(std::abs(x.toComplex()), &alloc);
+        auto r = createLike(x, MType::DOUBLE, &alloc);
+        for (size_t i = 0; i < x.numel(); ++i)
+            r.doubleDataMut()[i] = std::abs(x.complexData()[i]);
+        return r;
+    }
+    return unaryDouble(x, [](double v) { return std::abs(v); }, &alloc);
+}
+
+MValue sin(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sin(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::sin(v); }, &alloc);
+}
+
+MValue cos(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::cos(v); }, &alloc);
+}
+
+MValue tan(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::tan(v); }, &alloc);
+}
+
+MValue asin(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::asin(v); }, &alloc);
+}
+
+MValue acos(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::acos(v); }, &alloc);
+}
+
+MValue atan(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::atan(v); }, &alloc);
+}
+
+MValue exp(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::exp(c); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::exp(v); }, &alloc);
+}
+
+MValue log(Allocator &alloc, const MValue &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::log(c); }, &alloc);
+    if (x.isScalar() && x.toScalar() < 0)
+        return MValue::complexScalar(std::log(Complex(x.toScalar(), 0.0)), &alloc);
+    return unaryDouble(x, [](double v) { return std::log(v); }, &alloc);
+}
+
+// ── Elementwise unary — double only ───────────────────────────────────
+MValue log2(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::log2(v); }, &alloc);
+}
+
+MValue log10(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::log10(v); }, &alloc);
+}
+
+MValue floor(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::floor(v); }, &alloc);
+}
+
+MValue ceil(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::ceil(v); }, &alloc);
+}
+
+MValue round(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::round(v); }, &alloc);
+}
+
+MValue fix(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::trunc(v); }, &alloc);
+}
+
+MValue sign(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x,
+                       [](double v) {
+                           return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
+                       },
+                       &alloc);
+}
+
+MValue deg2rad(Allocator &alloc, const MValue &x)
+{
+    constexpr double k = 3.14159265358979323846 / 180.0;
+    return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
+}
+
+MValue rad2deg(Allocator &alloc, const MValue &x)
+{
+    constexpr double k = 180.0 / 3.14159265358979323846;
+    return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
+}
+
+// ── Elementwise binary ───────────────────────────────────────────────
+MValue atan2(Allocator &alloc, const MValue &y, const MValue &x)
+{
+    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, &alloc);
+}
+
+MValue mod(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return elementwiseDouble(a, b,
+                             [](double aa, double bb) {
+                                 return bb != 0 ? aa - std::floor(aa / bb) * bb : aa;
+                             },
+                             &alloc);
+}
+
+MValue rem(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, &alloc);
+}
+
+// ── Reductions (single-return) ───────────────────────────────────────
+namespace {
+
+// Generic column-/dim-wise reducer: applies op(acc, x) and initializes
+// acc with init. For 2D: reduces across rows → row vector of cols. For 3D:
+// reduces along first non-singleton dimension. For vectors/scalars: scalar.
+template<typename Op>
+MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMode = false)
+{
+    if (x.dims().isVector() || x.isScalar()) {
+        double acc = init;
+        for (size_t i = 0; i < x.numel(); ++i)
+            acc = op(acc, x.doubleData()[i]);
+        if (meanMode)
+            acc /= static_cast<double>(x.numel());
+        return MValue::scalar(acc, alloc);
+    }
+
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+
+    if (x.dims().is3D()) {
+        const size_t P = x.dims().pages();
+        const int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+        const size_t outR = (redDim == 0) ? 1 : R;
+        const size_t outC = (redDim == 1) ? 1 : C;
+        const size_t outP = (redDim == 2) ? 1 : P;
+        const size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+        auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t c = 0; c < outC; ++c)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    double acc = init;
+                    for (size_t k = 0; k < N; ++k) {
+                        const size_t rIdx = (redDim == 0) ? k : rr;
+                        const size_t cIdx = (redDim == 1) ? k : c;
+                        const size_t pIdx = (redDim == 2) ? k : pp;
+                        acc = op(acc, x(rIdx, cIdx, pIdx));
+                    }
+                    if (meanMode)
+                        acc /= static_cast<double>(N);
+                    r.doubleDataMut()[pp * outR * outC + c * outR + rr] = acc;
+                }
+        return r;
+    }
+
+    auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
+    for (size_t c = 0; c < C; ++c) {
+        double acc = init;
+        for (size_t rr = 0; rr < R; ++rr)
+            acc = op(acc, x(rr, c));
+        if (meanMode)
+            acc /= static_cast<double>(R);
+        r.doubleDataMut()[c] = acc;
+    }
+    return r;
+}
+
+} // anonymous namespace
+
+MValue sum(Allocator &alloc, const MValue &x)
+{
+    return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc);
+}
+
+MValue prod(Allocator &alloc, const MValue &x)
+{
+    return reduce(x, [](double a, double b) { return a * b; }, 1.0, &alloc);
+}
+
+MValue mean(Allocator &alloc, const MValue &x)
+{
+    return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc, /*meanMode=*/true);
+}
+
+// ── max/min with index ───────────────────────────────────────────────
+namespace {
+
+// Generic reducer that tracks (value, index). Cmp(a, b) returns true when
+// a "wins" over b (for max: a > b, for min: a < b).
+template<typename Cmp>
+std::tuple<MValue, MValue>
+reduceWithIndex(const MValue &x, Cmp cmp, Allocator *alloc)
+{
+    if (x.dims().isVector() || x.isScalar()) {
+        double best = x.doubleData()[0];
+        size_t bi = 0;
+        for (size_t i = 1; i < x.numel(); ++i) {
+            if (cmp(x.doubleData()[i], best)) {
+                best = x.doubleData()[i];
+                bi = i;
+            }
+        }
+        return std::make_tuple(MValue::scalar(best, alloc),
+                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+    }
+
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+
+    if (x.dims().is3D()) {
+        const size_t P = x.dims().pages();
+        const int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
+        const size_t outR = (redDim == 0) ? 1 : R;
+        const size_t outC = (redDim == 1) ? 1 : C;
+        const size_t outP = (redDim == 2) ? 1 : P;
+        const size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
+        auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+        auto idx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t c = 0; c < outC; ++c)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    auto atK = [&](size_t k) {
+                        const size_t rIdx = (redDim == 0) ? k : rr;
+                        const size_t cIdx = (redDim == 1) ? k : c;
+                        const size_t pIdx = (redDim == 2) ? k : pp;
+                        return x(rIdx, cIdx, pIdx);
+                    };
+                    double best = atK(0);
+                    size_t bi = 0;
+                    for (size_t k = 1; k < N; ++k) {
+                        const double v = atK(k);
+                        if (cmp(v, best)) {
+                            best = v;
+                            bi = k;
+                        }
+                    }
+                    const size_t o = pp * outR * outC + c * outR + rr;
+                    r.doubleDataMut()[o] = best;
+                    idx.doubleDataMut()[o] = static_cast<double>(bi + 1);
+                }
+        return std::make_tuple(std::move(r), std::move(idx));
+    }
+
+    auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
+    auto idx = MValue::matrix(1, C, MType::DOUBLE, alloc);
+    for (size_t c = 0; c < C; ++c) {
+        double best = x(0, c);
+        size_t bi = 0;
+        for (size_t rr = 1; rr < R; ++rr) {
+            if (cmp(x(rr, c), best)) {
+                best = x(rr, c);
+                bi = rr;
+            }
+        }
+        r.doubleDataMut()[c] = best;
+        idx.doubleDataMut()[c] = static_cast<double>(bi + 1);
+    }
+    return std::make_tuple(std::move(r), std::move(idx));
+}
+
+} // anonymous namespace
+
+std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x)
+{
+    return reduceWithIndex(x, [](double v, double best) { return v > best; }, &alloc);
+}
+
+std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x)
+{
+    return reduceWithIndex(x, [](double v, double best) { return v < best; }, &alloc);
+}
+
+MValue max(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, &alloc);
+}
+
+MValue min(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::min(aa, bb); }, &alloc);
+}
+
+// ── Generators ───────────────────────────────────────────────────────
+MValue linspace(Allocator &alloc, double a, double b, size_t n)
+{
+    auto r = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    if (n == 0)
+        return r;
+    if (n == 1) {
+        r.doubleDataMut()[0] = b;
+        return r;
+    }
+    for (size_t i = 0; i < n; ++i)
+        r.doubleDataMut()[i] = a + (b - a) * static_cast<double>(i) / static_cast<double>(n - 1);
+    return r;
+}
+
+MValue logspace(Allocator &alloc, double a, double b, size_t n)
+{
+    auto r = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    if (n == 0)
+        return r;
+    if (n == 1) {
+        r.doubleDataMut()[0] = std::pow(10.0, b);
+        return r;
+    }
+    for (size_t i = 0; i < n; ++i) {
+        const double exponent = a + (b - a) * static_cast<double>(i) / static_cast<double>(n - 1);
+        r.doubleDataMut()[i] = std::pow(10.0, exponent);
+    }
+    return r;
+}
+
+MValue rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+{
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
+                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+MValue randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+{
+    std::normal_distribution<double> dist(0.0, 1.0);
+    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
+                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════════
+
+namespace detail {
+
+// Helper to reduce boilerplate — unary adapter that calls Fn(alloc, args[0]).
+#define NK_UNARY_ADAPTER(name, fn)                                              \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
+                    Span<MValue> outs, CallContext &ctx)                        \
+    {                                                                            \
+        if (args.empty())                                                        \
+            throw MError(#name ": requires 1 argument",                          \
+                         0, 0, #name, "", "MATLAB:" #name ":nargin");           \
+        outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
+    }
+
+NK_UNARY_ADAPTER(sqrt,    sqrt)
+NK_UNARY_ADAPTER(abs,     abs)
+NK_UNARY_ADAPTER(sin,     sin)
+NK_UNARY_ADAPTER(cos,     cos)
+NK_UNARY_ADAPTER(tan,     tan)
+NK_UNARY_ADAPTER(asin,    asin)
+NK_UNARY_ADAPTER(acos,    acos)
+NK_UNARY_ADAPTER(atan,    atan)
+NK_UNARY_ADAPTER(exp,     exp)
+NK_UNARY_ADAPTER(log,     log)
+NK_UNARY_ADAPTER(log2,    log2)
+NK_UNARY_ADAPTER(log10,   log10)
+NK_UNARY_ADAPTER(floor,   floor)
+NK_UNARY_ADAPTER(ceil,    ceil)
+NK_UNARY_ADAPTER(round,   round)
+NK_UNARY_ADAPTER(fix,     fix)
+NK_UNARY_ADAPTER(sign,    sign)
+NK_UNARY_ADAPTER(deg2rad, deg2rad)
+NK_UNARY_ADAPTER(rad2deg, rad2deg)
+NK_UNARY_ADAPTER(sum,     sum)
+NK_UNARY_ADAPTER(prod,    prod)
+NK_UNARY_ADAPTER(mean,    mean)
+
+#undef NK_UNARY_ADAPTER
+
+// Binary adapters follow a slightly different pattern (variable name for 2nd arg)
+void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("atan2: requires 2 arguments",
+                     0, 0, "atan2", "", "MATLAB:atan2:nargin");
+    outs[0] = atan2(ctx.engine->allocator(), args[0], args[1]);
+}
+
+void mod_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("mod: requires 2 arguments",
+                     0, 0, "mod", "", "MATLAB:mod:nargin");
+    outs[0] = mod(ctx.engine->allocator(), args[0], args[1]);
+}
+
+void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("rem: requires 2 arguments",
+                     0, 0, "rem", "", "MATLAB:rem:nargin");
+    outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
+}
+
+// max/min: two MATLAB forms:
+//   max(x)    — reduction, returns (value, index)
+//   max(a, b) — elementwise, single return
+void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("max: requires at least 1 argument",
+                     0, 0, "max", "", "MATLAB:max:nargin");
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        outs[0] = max(ctx.engine->allocator(), args[0], args[1]);
+        return;
+    }
+    auto [val, idx] = max(ctx.engine->allocator(), args[0]);
+    outs[0] = std::move(val);
+    if (nargout > 1)
+        outs[1] = std::move(idx);
+}
+
+void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("min: requires at least 1 argument",
+                     0, 0, "min", "", "MATLAB:min:nargin");
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        outs[0] = min(ctx.engine->allocator(), args[0], args[1]);
+        return;
+    }
+    auto [val, idx] = min(ctx.engine->allocator(), args[0]);
+    outs[0] = std::move(val);
+    if (nargout > 1)
+        outs[1] = std::move(idx);
+}
+
+// Generators
+void linspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("linspace: requires at least 2 arguments",
+                     0, 0, "linspace", "", "MATLAB:linspace:nargin");
+    const double a = args[0].toScalar();
+    const double b = args[1].toScalar();
+    const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
+    outs[0] = linspace(ctx.engine->allocator(), a, b, n);
+}
+
+void logspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("logspace: requires at least 2 arguments",
+                     0, 0, "logspace", "", "MATLAB:logspace:nargin");
+    const double a = args[0].toScalar();
+    const double b = args[1].toScalar();
+    const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;
+    outs[0] = logspace(ctx.engine->allocator(), a, b, n);
+}
+
+// TODO: RNG state is currently process-wide (static). Known bug — multi-engine
+// calls share the same sequence. Fix is to extract RngState into Engine and
+// plumb through CallContext, which is a separate refactor (see project_architecture
+// memory). For now we preserve the pre-migration behavior bit-for-bit.
+void rand_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    static std::mt19937 gen(std::random_device{}());
+    auto d = parseDimsArgs(args);
+    outs[0] = rand(ctx.engine->allocator(), gen, d.rows, d.cols, d.pages);
+}
+
+void randn_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    static std::mt19937 gen(std::random_device{}());
+    auto d = parseDimsArgs(args);
+    outs[0] = randn(ctx.engine->allocator(), gen, d.rows, d.cols, d.pages);
+}
+
+} // namespace detail
+
+} // namespace numkit::m::builtin

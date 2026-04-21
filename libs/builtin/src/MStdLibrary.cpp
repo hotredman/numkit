@@ -1,9 +1,49 @@
 #include <numkit/m/builtin/MStdLibrary.hpp>
 
+#include <numkit/m/core/MTypes.hpp>
+
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+
+namespace numkit::m::builtin::detail {
+// Forward declarations for Phase 6c public-API-backed adapters.
+// Each is defined in the corresponding M<Name>.cpp translation unit.
+
+// MStdMath.cpp
+void sqrt_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void abs_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void sin_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cos_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void tan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void asin_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void acos_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void atan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void atan2_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void exp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void log_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void log2_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void log10_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void floor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ceil_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void round_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fix_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void mod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rem_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void sign_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void max_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void min_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void sum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void prod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void mean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void linspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void logspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void randn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+} // namespace numkit::m::builtin::detail
 
 namespace numkit::m {
 
@@ -17,7 +57,6 @@ void StdLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
     registerUnaryOps(engine);
-    registerMathFunctions(engine);
     registerMatrixFunctions(engine);
     registerIOFunctions(engine);
     registerTypeFunctions(engine);
@@ -26,6 +65,39 @@ void StdLibrary::install(Engine &engine)
     registerComplexFunctions(engine);
 
     registerWorkspaceBuiltins(engine);
+
+    // ── Phase 6c: MStdMath public-API-backed built-ins ─────────────
+    engine.registerFunction("sqrt",     &builtin::detail::sqrt_reg);
+    engine.registerFunction("abs",      &builtin::detail::abs_reg);
+    engine.registerFunction("sin",      &builtin::detail::sin_reg);
+    engine.registerFunction("cos",      &builtin::detail::cos_reg);
+    engine.registerFunction("tan",      &builtin::detail::tan_reg);
+    engine.registerFunction("asin",     &builtin::detail::asin_reg);
+    engine.registerFunction("acos",     &builtin::detail::acos_reg);
+    engine.registerFunction("atan",     &builtin::detail::atan_reg);
+    engine.registerFunction("atan2",    &builtin::detail::atan2_reg);
+    engine.registerFunction("exp",      &builtin::detail::exp_reg);
+    engine.registerFunction("log",      &builtin::detail::log_reg);
+    engine.registerFunction("log2",     &builtin::detail::log2_reg);
+    engine.registerFunction("log10",    &builtin::detail::log10_reg);
+    engine.registerFunction("floor",    &builtin::detail::floor_reg);
+    engine.registerFunction("ceil",     &builtin::detail::ceil_reg);
+    engine.registerFunction("round",    &builtin::detail::round_reg);
+    engine.registerFunction("fix",      &builtin::detail::fix_reg);
+    engine.registerFunction("mod",      &builtin::detail::mod_reg);
+    engine.registerFunction("rem",      &builtin::detail::rem_reg);
+    engine.registerFunction("sign",     &builtin::detail::sign_reg);
+    engine.registerFunction("max",      &builtin::detail::max_reg);
+    engine.registerFunction("min",      &builtin::detail::min_reg);
+    engine.registerFunction("sum",      &builtin::detail::sum_reg);
+    engine.registerFunction("prod",     &builtin::detail::prod_reg);
+    engine.registerFunction("mean",     &builtin::detail::mean_reg);
+    engine.registerFunction("linspace", &builtin::detail::linspace_reg);
+    engine.registerFunction("logspace", &builtin::detail::logspace_reg);
+    engine.registerFunction("rand",     &builtin::detail::rand_reg);
+    engine.registerFunction("randn",    &builtin::detail::randn_reg);
+    engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
+    engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",

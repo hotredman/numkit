@@ -91,6 +91,7 @@ set(NUMKIT_M_HEADERS
     core/include/numkit/m/core/MVfs.hpp
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
+    libs/builtin/include/numkit/m/builtin/MStdMath.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp

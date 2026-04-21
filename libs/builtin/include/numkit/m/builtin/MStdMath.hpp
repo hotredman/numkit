@@ -1,0 +1,77 @@
+// libs/builtin/include/numkit/m/builtin/MStdMath.hpp
+#pragma once
+
+#include <numkit/m/core/MAllocator.hpp>
+#include <numkit/m/core/MValue.hpp>
+
+#include <random>
+#include <tuple>
+
+namespace numkit::m::builtin {
+
+// ── Elementwise unary — double with complex promotion ────────────────
+MValue sqrt(Allocator &alloc, const MValue &x);
+MValue abs(Allocator &alloc, const MValue &x);
+MValue sin(Allocator &alloc, const MValue &x);
+MValue cos(Allocator &alloc, const MValue &x);
+MValue tan(Allocator &alloc, const MValue &x);
+MValue asin(Allocator &alloc, const MValue &x);
+MValue acos(Allocator &alloc, const MValue &x);
+MValue atan(Allocator &alloc, const MValue &x);
+MValue exp(Allocator &alloc, const MValue &x);
+MValue log(Allocator &alloc, const MValue &x);
+
+// ── Elementwise unary — double only ───────────────────────────────────
+MValue log2(Allocator &alloc, const MValue &x);
+MValue log10(Allocator &alloc, const MValue &x);
+MValue floor(Allocator &alloc, const MValue &x);
+MValue ceil(Allocator &alloc, const MValue &x);
+MValue round(Allocator &alloc, const MValue &x);
+MValue fix(Allocator &alloc, const MValue &x);          // truncate toward zero
+MValue sign(Allocator &alloc, const MValue &x);
+MValue deg2rad(Allocator &alloc, const MValue &x);
+MValue rad2deg(Allocator &alloc, const MValue &x);
+
+// ── Elementwise binary ───────────────────────────────────────────────
+MValue atan2(Allocator &alloc, const MValue &y, const MValue &x);
+MValue mod(Allocator &alloc, const MValue &a, const MValue &b);
+MValue rem(Allocator &alloc, const MValue &a, const MValue &b);
+
+// ── Reductions (single-return) ───────────────────────────────────────
+MValue sum(Allocator &alloc, const MValue &x);
+MValue prod(Allocator &alloc, const MValue &x);
+MValue mean(Allocator &alloc, const MValue &x);
+
+// ── max/min — multi-return with index, or elementwise binary form ────
+/// Return (value, index) reduction. Vector input → scalar (value, 1-based idx).
+/// Matrix input → column-wise reduction (row vector of values + indices).
+/// 3D input → reduction along first non-singleton dimension.
+std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x);
+std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x);
+
+/// Elementwise max/min of two arrays (with broadcasting).
+MValue max(Allocator &alloc, const MValue &a, const MValue &b);
+MValue min(Allocator &alloc, const MValue &a, const MValue &b);
+
+// ── Array generators ─────────────────────────────────────────────────
+/// Equally spaced vector, length n (default 100). Endpoints included.
+MValue linspace(Allocator &alloc, double a, double b, size_t n = 100);
+
+/// Logarithmically-spaced vector: 10^a ... 10^b, length n (default 50).
+MValue logspace(Allocator &alloc, double a, double b, size_t n = 50);
+
+/// Uniform [0, 1) random matrix. rows/cols/pages == 0 for pages means 2D.
+MValue rand(Allocator &alloc,
+            std::mt19937 &rng,
+            size_t rows,
+            size_t cols = 1,
+            size_t pages = 0);
+
+/// Standard normal random matrix.
+MValue randn(Allocator &alloc,
+             std::mt19937 &rng,
+             size_t rows,
+             size_t cols = 1,
+             size_t pages = 0);
+
+} // namespace numkit::m::builtin
