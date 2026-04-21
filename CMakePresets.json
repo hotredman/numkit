@@ -58,15 +58,17 @@
     },
     {
       "name": "browser",
-      "displayName": "Browser (WASM via Emscripten)",
-      "description": "WebAssembly build for the mIDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set.",
+      "displayName": "Browser (WASM via Emscripten + SIMD128)",
+      "description": "WebAssembly build for the mIDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set. Highway is ON and targets WASM SIMD128 via -msimd128 -mrelaxed-simd; requires Chromium 91+ / Firefox 89+ / Safari 16.4+. Electron 33 (Chromium 130) supports this fully.",
       "binaryDir": "${sourceDir}/build-browser",
       "generator": "Ninja",
       "toolchainFile": "$env{EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE":    "Release",
         "NUMKIT_M_BUILD_REPL": "ON",
-        "NUMKIT_WITH_SIMD":    "OFF"
+        "NUMKIT_WITH_SIMD":    "ON",
+        "CMAKE_CXX_FLAGS":     "-msimd128 -mrelaxed-simd -fexceptions",
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions"
       }
     },
     {
