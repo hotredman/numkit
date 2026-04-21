@@ -29,6 +29,9 @@ void blackman_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void kaiser_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void rectwin_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void bartlett_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void unwrap_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void hilbert_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void envelope_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -36,7 +39,6 @@ namespace numkit::m {
 void DspLibrary::install(Engine &engine)
 {
     registerSignalCoreFunctions(engine);
-    registerTransformFunctions(engine);
 
     // ── Public-API-backed built-ins (Phase 5 pilot and onwards) ─────
     engine.registerFunction("fft",         &dsp::detail::fft_reg);
@@ -63,6 +65,9 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("kaiser",      &dsp::detail::kaiser_reg);
     engine.registerFunction("rectwin",     &dsp::detail::rectwin_reg);
     engine.registerFunction("bartlett",    &dsp::detail::bartlett_reg);
+    engine.registerFunction("unwrap",      &dsp::detail::unwrap_reg);
+    engine.registerFunction("hilbert",     &dsp::detail::hilbert_reg);
+    engine.registerFunction("envelope",    &dsp::detail::envelope_reg);
 }
 
 } // namespace numkit::m

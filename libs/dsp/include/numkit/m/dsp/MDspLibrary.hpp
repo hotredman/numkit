@@ -11,7 +11,6 @@ public:
 
 private:
     static void registerSignalCoreFunctions(Engine &engine);
-    static void registerTransformFunctions(Engine &engine);
 };
 
 } // namespace numkit::m
