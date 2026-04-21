@@ -8,9 +8,6 @@ class DspLibrary
 {
 public:
     static void install(Engine &engine);
-
-private:
-    static void registerSignalCoreFunctions(Engine &engine);
 };
 
 } // namespace numkit::m

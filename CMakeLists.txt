@@ -100,6 +100,7 @@ set(NUMKIT_M_HEADERS
     libs/dsp/include/numkit/m/dsp/MDspSpectral.hpp
     libs/dsp/include/numkit/m/dsp/MDspWindows.hpp
     libs/dsp/include/numkit/m/dsp/MDspTransform.hpp
+    libs/dsp/include/numkit/m/dsp/MDspSignalCore.hpp
     libs/fit/include/numkit/m/fit/MFitLibrary.hpp
     libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )
