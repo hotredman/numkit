@@ -255,6 +255,42 @@ TEST_P(ColonLinearAssign, RepeatedAssignReusesSlot)
     expectElem(*z, 3, 43.0);
 }
 
+TEST_P(ColonLinearAssign, ComplexRhsIntoComplexLhs)
+{
+    // Both sides complex, matching numel — exercises the complex
+    // memcpy fast path in VM INDEX_SET.
+    eval(R"(
+        z = complex(zeros(3, 1), zeros(3, 1));
+        z(:) = [1+2i; 3+4i; 5+6i];
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_TRUE(z->isComplex());
+    ASSERT_EQ(z->numel(), 3u);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 2.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].imag(), 4.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].real(), 5.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[2].imag(), 6.0);
+}
+
+TEST_P(ColonLinearAssign, ComplexRhsPromotesDoubleLhs)
+{
+    // z starts real; assigning complex values into z(:) must
+    // promote z to complex via the generic fallback path.
+    eval(R"(
+        z = zeros(2, 1);
+        z(:) = [1+2i; 3+4i];
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_TRUE(z->isComplex());
+    ASSERT_EQ(z->numel(), 2u);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 2.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].imag(), 4.0);
+}
+
 INSTANTIATE_DUAL(ColonLinearAssign);
 
 // ============================================================

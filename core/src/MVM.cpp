@@ -574,10 +574,46 @@ enter_frame:
                     R[I.a].elemSet(i, R[I.c]);
                 } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
                     // Colon linear-assign: z(:) = rhs writes across every
-                    // element of z without changing its shape. resolveIndices
-                    // expands ':' to [0..numel-1] given the destination size.
-                    auto indices = MValue::resolveIndices(ix, R[I.a].numel());
-                    R[I.a].indexSet(indices.data(), indices.size(), R[I.c]);
+                    // element of z without changing its shape. Three fast
+                    // paths cover the common MATLAB patterns; everything
+                    // else falls through to the generic indexSet.
+                    MValue &dst = R[I.a];
+                    const MValue &rhs = R[I.c];
+                    const size_t n = dst.numel();
+                    const bool sameCount = (rhs.numel() == n);
+
+                    // Scalar broadcast into heap double: tight std::fill.
+                    if (rhs.isScalar() && !rhs.isComplex()
+                        && dst.type() == MType::DOUBLE && dst.isHeapDouble()) {
+                        const double v = rhs.toScalar();
+                        double *d = dst.doubleDataMut();
+                        std::fill_n(d, n, v);
+                        break;
+                    }
+
+                    // double → double, matching count: bulk memcpy.
+                    if (sameCount
+                        && dst.type() == MType::DOUBLE && dst.isHeapDouble()
+                        && rhs.type() == MType::DOUBLE && !rhs.isComplex()) {
+                        std::memcpy(dst.doubleDataMut(),
+                                    rhs.doubleData(),
+                                    n * sizeof(double));
+                        break;
+                    }
+
+                    // complex → complex, matching count: bulk memcpy.
+                    if (sameCount && dst.isComplex() && rhs.isComplex()) {
+                        std::memcpy(dst.complexDataMut(),
+                                    rhs.complexData(),
+                                    n * sizeof(Complex));
+                        break;
+                    }
+
+                    // Generic fallback — handles type promotion
+                    // (double→complex), complex→double, logical/char,
+                    // and raises the size-mismatch error for bad rhs.
+                    auto indices = MValue::resolveIndices(ix, n);
+                    dst.indexSet(indices.data(), indices.size(), rhs);
                 } else {
                     // Vector or logical index
                     auto indices = MValue::resolveIndicesUnchecked(ix);
