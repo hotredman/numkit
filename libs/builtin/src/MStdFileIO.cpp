@@ -11,8 +11,13 @@
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
+#include "MStdIOHelpers.hpp"
+
 #include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <string>
+#include <vector>
 
 namespace numkit::m::builtin {
 
@@ -248,6 +253,156 @@ void frewind(Engine &engine, Span<const MValue> args, size_t, Span<MValue>)
     f->cursor = 0;
 }
 
+// ── Binary I/O ──────────────────────────────────────────────────────────
+
+void fread(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+{
+    Allocator *alloc = &engine.allocator();
+    if (args.empty() || !args[0].isScalar())
+        throw MError("fread: file identifier required");
+    int fid = static_cast<int>(args[0].toScalar());
+    auto *f = engine.findFile(fid);
+    if (!f || !f->forRead)
+        throw MError("fread: invalid file identifier");
+
+    detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    if (args.size() >= 2)
+        sz = detail::parseReadSize(args[1], "fread");
+
+    std::string precStr = "uint8";
+    if (args.size() >= 3) {
+        if (!args[2].isChar())
+            throw MError("fread: precision must be a char array");
+        precStr = args[2].toString();
+    }
+    auto precOpt = detail::parsePrecision(precStr);
+    if (!precOpt)
+        throw MError("fread: unsupported precision '" + precStr + "'");
+    int kind = precOpt->first;
+    size_t bsize = precOpt->second;
+
+    bool be = false;
+    if (args.size() >= 4) {
+        if (!args[3].isChar())
+            throw MError("fread: machine format must be a char array");
+        be = detail::parseEndian(args[3].toString(), "fread");
+    }
+
+    size_t available = f->buffer.size() - f->cursor;
+    size_t maxElems = available / bsize;
+    size_t n = std::min(sz.limit, maxElems);
+    if (sz.limit != SIZE_MAX && n < sz.limit)
+        f->lastError = "End of file reached.";
+
+    std::vector<double> values(n);
+    for (size_t i = 0; i < n; ++i) {
+        // Local copy lets us byte-swap safely without mutating f->buffer.
+        char tmp[8];
+        std::memcpy(tmp, f->buffer.data() + f->cursor + i * bsize, bsize);
+        if (be && bsize > 1) detail::byteSwap(tmp, bsize);
+
+        double v = 0.0;
+        if (kind == 0) {
+            switch (bsize) {
+            case 1: { uint8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
+            case 2: { uint16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
+            case 4: { uint32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
+            case 8: { uint64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
+            }
+        } else if (kind == 1) {
+            switch (bsize) {
+            case 1: { int8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
+            case 2: { int16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
+            case 4: { int32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
+            case 8: { int64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
+            }
+        } else {
+            if (bsize == 4) { float x; std::memcpy(&x, tmp, 4); v = x; }
+            else            {                     std::memcpy(&v, tmp, 8); }
+        }
+        values[i] = v;
+    }
+    f->cursor += n * bsize;
+    outs[0] = detail::shapeFreadOutput(std::move(values), sz, alloc);
+    if (nargout > 1)
+        outs[1] = MValue::scalar(static_cast<double>(n), alloc);
+}
+
+void fwrite(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+{
+    Allocator *alloc = &engine.allocator();
+    if (args.size() < 2 || !args[0].isScalar())
+        throw MError("fwrite: requires (fid, array [, precision [, machineformat]])");
+    int fid = static_cast<int>(args[0].toScalar());
+    auto *f = engine.findFile(fid);
+    if (!f || !f->forWrite)
+        throw MError("fwrite: invalid file identifier");
+
+    std::string precStr = "uint8";
+    if (args.size() >= 3) {
+        if (!args[2].isChar())
+            throw MError("fwrite: precision must be a char array");
+        precStr = args[2].toString();
+    }
+    auto precOpt = detail::parsePrecision(precStr);
+    if (!precOpt)
+        throw MError("fwrite: unsupported precision '" + precStr + "'");
+    int kind = precOpt->first;
+    size_t bsize = precOpt->second;
+
+    bool be = false;
+    if (args.size() >= 4) {
+        if (!args[3].isChar())
+            throw MError("fwrite: machine format must be a char array");
+        be = detail::parseEndian(args[3].toString(), "fwrite");
+    }
+
+    const MValue &A = args[1];
+    size_t numel = A.numel();
+
+    auto elemAsDouble = [&A](size_t i) -> double {
+        if (A.type() == MType::DOUBLE) return A.doubleData()[i];
+        if (A.isLogical())             return A.logicalData()[i] ? 1.0 : 0.0;
+        throw MError("fwrite: unsupported array element type");
+    };
+
+    std::string bytes(numel * bsize, '\0');
+    char *dst = bytes.data();
+    for (size_t i = 0; i < numel; ++i) {
+        double v = elemAsDouble(i);
+        if (kind == 0) {
+            switch (bsize) {
+            case 1: { uint8_t  x = static_cast<uint8_t >(v); std::memcpy(dst, &x, 1); break; }
+            case 2: { uint16_t x = static_cast<uint16_t>(v); std::memcpy(dst, &x, 2); break; }
+            case 4: { uint32_t x = static_cast<uint32_t>(v); std::memcpy(dst, &x, 4); break; }
+            case 8: { uint64_t x = static_cast<uint64_t>(v); std::memcpy(dst, &x, 8); break; }
+            }
+        } else if (kind == 1) {
+            switch (bsize) {
+            case 1: { int8_t  x = static_cast<int8_t >(v); std::memcpy(dst, &x, 1); break; }
+            case 2: { int16_t x = static_cast<int16_t>(v); std::memcpy(dst, &x, 2); break; }
+            case 4: { int32_t x = static_cast<int32_t>(v); std::memcpy(dst, &x, 4); break; }
+            case 8: { int64_t x = static_cast<int64_t>(v); std::memcpy(dst, &x, 8); break; }
+            }
+        } else {
+            if (bsize == 4) { float x = static_cast<float>(v); std::memcpy(dst, &x, 4); }
+            else            {                                  std::memcpy(dst, &v, 8); }
+        }
+        if (be && bsize > 1)
+            detail::byteSwap(dst, bsize);
+        dst += bsize;
+    }
+
+    // Same cursor-based write contract as fprintf — appendOnly snaps to
+    // the end regardless of any prior seek.
+    size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
+    if (writePos + bytes.size() > f->buffer.size())
+        f->buffer.resize(writePos + bytes.size());
+    std::memcpy(f->buffer.data() + writePos, bytes.data(), bytes.size());
+    f->cursor = writePos + bytes.size();
+    outs[0] = MValue::scalar(static_cast<double>(numel), alloc);
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -269,6 +424,8 @@ NK_FILEIO_REG(ferror)
 NK_FILEIO_REG(ftell)
 NK_FILEIO_REG(fseek)
 NK_FILEIO_REG(frewind)
+NK_FILEIO_REG(fread)
+NK_FILEIO_REG(fwrite)
 
 #undef NK_FILEIO_REG
 

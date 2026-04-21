@@ -32,4 +32,15 @@ void ftell(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue>
 void fseek(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs);
 void frewind(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs);
 
+// ── Binary I/O ───────────────────────────────────────────────────────
+/// fread(fid, size, precision, machineformat) — reads a flat or matrix
+/// block from the fid's buffer. `size` may be Inf (read all remaining)
+/// or [m n] (matrix-shaped output). Precision selects the raw binary
+/// format; machineformat picks big/little-endian.
+void fread(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs);
+
+/// fwrite(fid, array, precision, machineformat) — writes an MValue as
+/// a packed binary stream into the fid's buffer.
+void fwrite(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs);
+
 } // namespace numkit::m::builtin

@@ -117,6 +117,8 @@ void ferror_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ftell_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fseek_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void frewind_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fread_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fwrite_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
 // MStdDiagnostics.cpp
 void error_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -300,6 +302,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("ftell",      &builtin::detail::ftell_reg);
     engine.registerFunction("fseek",      &builtin::detail::fseek_reg);
     engine.registerFunction("frewind",    &builtin::detail::frewind_reg);
+    engine.registerFunction("fread",      &builtin::detail::fread_reg);
+    engine.registerFunction("fwrite",     &builtin::detail::fwrite_reg);
 
     // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);

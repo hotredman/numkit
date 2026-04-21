@@ -456,70 +456,21 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // fopen / fclose / fgetl / fgets / feof / ferror / ftell / fseek /
     // frewind now live in libs/builtin/src/MStdFileIO.cpp.
 
-    // ── fread / fwrite ──────────────────────────────────────────
-    //
-    // Binary I/O over open fids. MATLAB-compatible signatures:
-    //
-    //   A             = fread(fid)
-    //   A             = fread(fid, size)
-    //   A             = fread(fid, size, precision)
-    //   [A, count]    = fread(fid, ...)
-    //
-    //   count = fwrite(fid, A)
-    //   count = fwrite(fid, A, precision)
-    //
-    // size ∈ {scalar N, Inf} — return at most that many elements. Inf
-    // or omitted reads everything remaining. Matrix-shape `[m n]` not
-    // supported yet; callers can reshape after.
-    //
-    // Supported precisions (with aliases): uint8/uchar/char, int8/schar,
-    // uint16, int16, uint32, int32, uint64, int64, single/float32,
-    // double/float64. Typed-output syntax "src=>dst" is accepted but
-    // the destination part is ignored — our arrays are always double.
-    //
-    // Endianness: little-endian on both ends — matches WASM + every
-    // common host architecture we target. Explicit machine-format
-    // override is NOT supported.
+    // fread / fwrite now live in libs/builtin/src/MStdFileIO.cpp. The
+    // shared parsing helpers (SizeSpec, parseReadSize, shapeFreadOutput,
+    // parsePrecision, parseEndian, byteSwap) were lifted into
+    // libs/builtin/src/MStdIOHelpers.hpp so the scan family below can
+    // still use the parseReadSize / shapeFreadOutput pair.
 
-    // clang-format off
-    // Returns {kind, bytes} for a MATLAB precision spec, or nullopt.
-    auto parsePrecision = [](const std::string &raw) -> std::optional<std::pair<int, size_t>> {
-        // kind: 0 = uint, 1 = int, 2 = float
-        std::string p = raw;
-        auto arrow = p.find("=>");
-        if (arrow != std::string::npos) p = p.substr(0, arrow);
-        // trim whitespace
-        while (!p.empty() && std::isspace(static_cast<unsigned char>(p.front()))) p.erase(0, 1);
-        while (!p.empty() && std::isspace(static_cast<unsigned char>(p.back()))) p.pop_back();
-
-        if (p == "uint8" || p == "uchar" || p == "char") return std::make_pair(0, size_t{1});
-        if (p == "int8"  || p == "schar")                return std::make_pair(1, size_t{1});
-        if (p == "uint16")                               return std::make_pair(0, size_t{2});
-        if (p == "int16")                                return std::make_pair(1, size_t{2});
-        if (p == "uint32")                               return std::make_pair(0, size_t{4});
-        if (p == "int32")                                return std::make_pair(1, size_t{4});
-        if (p == "uint64")                               return std::make_pair(0, size_t{8});
-        if (p == "int64")                                return std::make_pair(1, size_t{8});
-        if (p == "single" || p == "float32" || p == "real*4") return std::make_pair(2, size_t{4});
-        if (p == "double" || p == "float64" || p == "real*8") return std::make_pair(2, size_t{8});
-        return std::nullopt;
-    };
-    // clang-format on
-
-    // Parse the `size` argument for fread / fscanf. Accepts:
-    //   scalar N        → flat column of up to N values   (Flat mode)
-    //   Inf             → flat column of all remaining    (Flat, limit=SIZE_MAX)
-    //   [m n] row       → m×n matrix, column-major        (Matrix mode)
-    //   [m Inf]         → m rows, as many columns as fit  (Matrix, cols=SIZE_MAX)
-    // `limit` is the element cap for reading; `rows`/`cols` are only
-    // consulted in Matrix mode. cols==SIZE_MAX means "open-ended" (Inf).
+    // Keep these lambdas here for now — fscanf/sscanf/textscan still
+    // capture them. They'll migrate to MStdScan in 6c.8.5.
     struct SizeSpec
     {
         enum class Kind { Flat, Matrix };
         Kind kind;
         size_t limit;
-        size_t rows;  // Matrix only
-        size_t cols;  // Matrix only
+        size_t rows;
+        size_t cols;
         bool matrix() const { return kind == Kind::Matrix; }
     };
     auto parseReadSize = [](const MValue &sz, const char *fn) -> SizeSpec {
@@ -553,9 +504,6 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         throw MError(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
     };
 
-    // Shape the flat `values` vector into either a column (Flat mode) or
-    // an m×n matrix (Matrix mode). For matrix mode, unread cells stay
-    // zero-initialised.
     auto shapeFreadOutput = [](std::vector<double> &&values, SizeSpec sz, Allocator *alloc) -> MValue {
         size_t n = values.size();
         if (!sz.matrix()) {
@@ -565,7 +513,6 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
             return M;
         }
-        // Matrix mode: cols follow n when Inf, fixed otherwise.
         size_t cols_out = (sz.cols == SIZE_MAX)
                              ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
                              : sz.cols;
@@ -576,100 +523,9 @@ void StdLibrary::registerIOFunctions(Engine &engine)
         return M;
     };
 
-    // Parse the machineformat argument of fread / fwrite. Returns true
-    // for big-endian, false for little-endian. We treat 'native' as LE
-    // because every target we support (x86_64, ARM64, WASM) is LE.
-    auto parseEndian = [](const std::string &raw, const char *fn) -> bool {
-        std::string lo;
-        lo.reserve(raw.size());
-        for (char c : raw) lo += static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-        if (lo == "b" || lo == "ieee-be" || lo == "ieee-be.l64") return true;
-        if (lo == "l" || lo == "ieee-le" || lo == "ieee-le.l64" ||
-            lo == "n" || lo == "native")
-            return false;
-        throw MError(std::string(fn) + ": unsupported machine format '" + raw + "'");
-    };
-    auto byteSwap = [](char *p, size_t n) {
-        for (size_t i = 0, j = n - 1; i < j; ++i, --j) std::swap(p[i], p[j]);
-    };
-
-    engine.registerFunction(
-        "fread",
-        [parsePrecision, parseReadSize, shapeFreadOutput, parseEndian, byteSwap](
-            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            if (args.empty() || !args[0].isScalar())
-                throw MError("fread: file identifier required");
-            int fid = static_cast<int>(args[0].toScalar());
-            auto *f = ctx.engine->findFile(fid);
-            if (!f || !f->forRead)
-                throw MError("fread: invalid file identifier");
-
-            SizeSpec sz{SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
-            if (args.size() >= 2)
-                sz = parseReadSize(args[1], "fread");
-
-            // precision argument
-            std::string precStr = "uint8";
-            if (args.size() >= 3) {
-                if (!args[2].isChar())
-                    throw MError("fread: precision must be a char array");
-                precStr = args[2].toString();
-            }
-            auto precOpt = parsePrecision(precStr);
-            if (!precOpt)
-                throw MError("fread: unsupported precision '" + precStr + "'");
-            int kind = precOpt->first;
-            size_t bsize = precOpt->second;
-
-            // Optional machineformat argument — big-endian support.
-            bool be = false;
-            if (args.size() >= 4) {
-                if (!args[3].isChar())
-                    throw MError("fread: machine format must be a char array");
-                be = parseEndian(args[3].toString(), "fread");
-            }
-
-            size_t available = f->buffer.size() - f->cursor;
-            size_t maxElems = available / bsize;
-            size_t n = std::min(sz.limit, maxElems);
-            if (sz.limit != SIZE_MAX && n < sz.limit)
-                f->lastError = "End of file reached.";
-
-            std::vector<double> values(n);
-            for (size_t i = 0; i < n; ++i) {
-                // Copy into a local buffer so we can byte-swap safely
-                // without mutating f->buffer.
-                char tmp[8];
-                std::memcpy(tmp, f->buffer.data() + f->cursor + i * bsize, bsize);
-                if (be && bsize > 1) byteSwap(tmp, bsize);
-
-                double v = 0.0;
-                if (kind == 0) { // unsigned
-                    switch (bsize) {
-                    case 1: { uint8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
-                    case 2: { uint16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
-                    case 4: { uint32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
-                    case 8: { uint64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
-                    }
-                } else if (kind == 1) { // signed
-                    switch (bsize) {
-                    case 1: { int8_t  x; std::memcpy(&x, tmp, 1); v = x; break; }
-                    case 2: { int16_t x; std::memcpy(&x, tmp, 2); v = x; break; }
-                    case 4: { int32_t x; std::memcpy(&x, tmp, 4); v = x; break; }
-                    case 8: { int64_t x; std::memcpy(&x, tmp, 8); v = static_cast<double>(x); break; }
-                    }
-                } else { // float
-                    if (bsize == 4) { float x; std::memcpy(&x, tmp, 4); v = x; }
-                    else            {                     std::memcpy(&v, tmp, 8); }
-                }
-                values[i] = v;
-            }
-            f->cursor += n * bsize;
-            outs[0] = shapeFreadOutput(std::move(values), sz, alloc);
-            if (nargout > 1)
-                outs[1] = MValue::scalar(static_cast<double>(n), alloc);
-        });
+    // fread / fwrite now live in libs/builtin/src/MStdFileIO.cpp.
+    // parseReadSize / shapeFreadOutput / SizeSpec above stay — fscanf /
+    // sscanf below still capture them.
 
     // ── fscanf / sscanf ─────────────────────────────────────────
     //
@@ -1497,83 +1353,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             outs[0] = std::move(result);
         });
 
-    engine.registerFunction(
-        "fwrite",
-        [parsePrecision, parseEndian, byteSwap](
-            Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            if (args.size() < 2 || !args[0].isScalar())
-                throw MError("fwrite: requires (fid, array [, precision [, machineformat]])");
-            int fid = static_cast<int>(args[0].toScalar());
-            auto *f = ctx.engine->findFile(fid);
-            if (!f || !f->forWrite)
-                throw MError("fwrite: invalid file identifier");
-
-            std::string precStr = "uint8";
-            if (args.size() >= 3) {
-                if (!args[2].isChar())
-                    throw MError("fwrite: precision must be a char array");
-                precStr = args[2].toString();
-            }
-            auto precOpt = parsePrecision(precStr);
-            if (!precOpt)
-                throw MError("fwrite: unsupported precision '" + precStr + "'");
-            int kind = precOpt->first;
-            size_t bsize = precOpt->second;
-
-            bool be = false;
-            if (args.size() >= 4) {
-                if (!args[3].isChar())
-                    throw MError("fwrite: machine format must be a char array");
-                be = parseEndian(args[3].toString(), "fwrite");
-            }
-
-            const MValue &A = args[1];
-            size_t numel = A.numel();
-
-            // Small helper: read i-th element as double from a double or
-            // logical source. Other numeric types could be added here.
-            auto elemAsDouble = [&A](size_t i) -> double {
-                if (A.type() == MType::DOUBLE)  return A.doubleData()[i];
-                if (A.isLogical())              return A.logicalData()[i] ? 1.0 : 0.0;
-                throw MError("fwrite: unsupported array element type");
-            };
-
-            std::string bytes(numel * bsize, '\0');
-            char *dst = bytes.data();
-            for (size_t i = 0; i < numel; ++i) {
-                double v = elemAsDouble(i);
-                if (kind == 0) {
-                    switch (bsize) {
-                    case 1: { uint8_t  x = static_cast<uint8_t >(v); std::memcpy(dst, &x, 1); break; }
-                    case 2: { uint16_t x = static_cast<uint16_t>(v); std::memcpy(dst, &x, 2); break; }
-                    case 4: { uint32_t x = static_cast<uint32_t>(v); std::memcpy(dst, &x, 4); break; }
-                    case 8: { uint64_t x = static_cast<uint64_t>(v); std::memcpy(dst, &x, 8); break; }
-                    }
-                } else if (kind == 1) {
-                    switch (bsize) {
-                    case 1: { int8_t  x = static_cast<int8_t >(v); std::memcpy(dst, &x, 1); break; }
-                    case 2: { int16_t x = static_cast<int16_t>(v); std::memcpy(dst, &x, 2); break; }
-                    case 4: { int32_t x = static_cast<int32_t>(v); std::memcpy(dst, &x, 4); break; }
-                    case 8: { int64_t x = static_cast<int64_t>(v); std::memcpy(dst, &x, 8); break; }
-                    }
-                } else {
-                    if (bsize == 4) { float x = static_cast<float>(v); std::memcpy(dst, &x, 4); }
-                    else            {                                   std::memcpy(dst, &v, 8); }
-                }
-                if (be && bsize > 1)
-                    byteSwap(dst, bsize);
-                dst += bsize;
-            }
-            // Same cursor-based write contract as fprintf — see there
-            // for the appendOnly rationale.
-            size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
-            if (writePos + bytes.size() > f->buffer.size())
-                f->buffer.resize(writePos + bytes.size());
-            std::memcpy(f->buffer.data() + writePos, bytes.data(), bytes.size());
-            f->cursor = writePos + bytes.size();
-            outs[0] = MValue::scalar(static_cast<double>(numel), alloc);
-        });
+    // fwrite lives in libs/builtin/src/MStdFileIO.cpp.
 }
 
 } // namespace numkit::m
