@@ -125,9 +125,11 @@ void fscanf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void sscanf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void textscan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
-// MStdEnvCsv.cpp
+// MStdCsv.cpp
 void csvread_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void csvwrite_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdEnv.cpp
 void setenv_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void getenv_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -321,9 +323,11 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("sscanf",     &builtin::detail::sscanf_reg);
     engine.registerFunction("textscan",   &builtin::detail::textscan_reg);
 
-    // ── Phase 6c: MStdEnvCsv public-API-backed built-ins ───────────
+    // ── Phase 6c: MStdCsv public-API-backed built-ins ──────────────
     engine.registerFunction("csvread",    &builtin::detail::csvread_reg);
     engine.registerFunction("csvwrite",   &builtin::detail::csvwrite_reg);
+
+    // ── Phase 6c: MStdEnv public-API-backed built-ins ──────────────
     engine.registerFunction("setenv",     &builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &builtin::detail::getenv_reg);
 

@@ -16,8 +16,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // libs/builtin/src/MStdFormat.cpp.
     // error / warning / MException / rethrow / throw / assert live in
     // libs/builtin/src/MStdDiagnostics.cpp.
-    // csvread / csvwrite / setenv / getenv live in
-    // libs/builtin/src/MStdEnvCsv.cpp.
+    // csvread / csvwrite live in libs/builtin/src/MStdCsv.cpp.
+    // setenv / getenv live in libs/builtin/src/MStdEnv.cpp.
 
     // ── save / load (ascii) ─────────────────────────────────────
     //
