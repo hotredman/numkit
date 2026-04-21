@@ -100,6 +100,13 @@ void isequal_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isequaln_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void class_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdCellStruct.cpp
+void struct_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fieldnames_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isfield_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rmfield_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cell_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdMatrix.cpp
 void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ones_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -249,6 +256,13 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     engine.registerFunction("class",     &builtin::detail::class_reg);
+
+    // ── Phase 6c: MStdCellStruct public-API-backed built-ins ───────
+    engine.registerFunction("struct",     &builtin::detail::struct_reg);
+    engine.registerFunction("fieldnames", &builtin::detail::fieldnames_reg);
+    engine.registerFunction("isfield",    &builtin::detail::isfield_reg);
+    engine.registerFunction("rmfield",    &builtin::detail::rmfield_reg);
+    engine.registerFunction("cell",       &builtin::detail::cell_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",

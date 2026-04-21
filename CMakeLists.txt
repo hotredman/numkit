@@ -98,6 +98,7 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/MStdComplex.hpp
     libs/builtin/include/numkit/m/builtin/MStdStrings.hpp
     libs/builtin/include/numkit/m/builtin/MStdTypes.hpp
+    libs/builtin/include/numkit/m/builtin/MStdCellStruct.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp
