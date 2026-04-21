@@ -23,6 +23,12 @@ void resample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void periodogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void pwelch_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void spectrogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void hamming_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void hann_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void blackman_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void kaiser_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void rectwin_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void bartlett_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -30,7 +36,6 @@ namespace numkit::m {
 void DspLibrary::install(Engine &engine)
 {
     registerSignalCoreFunctions(engine);
-    registerWindowFunctions(engine);
     registerTransformFunctions(engine);
 
     // ── Public-API-backed built-ins (Phase 5 pilot and onwards) ─────
@@ -51,6 +56,13 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("periodogram", &dsp::detail::periodogram_reg);
     engine.registerFunction("pwelch",      &dsp::detail::pwelch_reg);
     engine.registerFunction("spectrogram", &dsp::detail::spectrogram_reg);
+    engine.registerFunction("hamming",     &dsp::detail::hamming_reg);
+    engine.registerFunction("hann",        &dsp::detail::hann_reg);
+    engine.registerFunction("hanning",     &dsp::detail::hann_reg);   // MATLAB alias
+    engine.registerFunction("blackman",    &dsp::detail::blackman_reg);
+    engine.registerFunction("kaiser",      &dsp::detail::kaiser_reg);
+    engine.registerFunction("rectwin",     &dsp::detail::rectwin_reg);
+    engine.registerFunction("bartlett",    &dsp::detail::bartlett_reg);
 }
 
 } // namespace numkit::m
