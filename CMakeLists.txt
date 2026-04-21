@@ -197,9 +197,27 @@ endif()
 # Example
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_EXAMPLE AND NOT EMSCRIPTEN)
+if(NUMKIT_M_BUILD_EXAMPLE)
     add_executable(m_example example/main.cpp)
     target_link_libraries(m_example PRIVATE numkit::m)
+
+    if(EMSCRIPTEN)
+        # Emscripten produces a Node-runnable .js loader + .wasm sidecar
+        # when the output ends in .js. NODERAWFS lets argv paths resolve
+        # against the real host filesystem:
+        #   node build-browser/example/m_example.js path/to/script.m
+        set_target_properties(m_example PROPERTIES SUFFIX ".js")
+        target_compile_options(m_example PRIVATE -fexceptions)
+        target_link_options(m_example PRIVATE
+            -fexceptions
+            "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+            "SHELL:-s INITIAL_MEMORY=67108864"
+            "SHELL:-s STACK_SIZE=4194304"
+            "SHELL:-s EXIT_RUNTIME=1"
+            "SHELL:-s NODERAWFS=1"
+            "SHELL:-s DISABLE_EXCEPTION_CATCHING=0"
+        )
+    endif()
 endif()
 
 # ──────────────────────────────────────────────
