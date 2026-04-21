@@ -1,17 +1,30 @@
-#include "MStdHelpers.hpp"
+// libs/builtin/src/MStdTypes.cpp
+
 #include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/m/builtin/MStdTypes.hpp>
+
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MTypes.hpp>
+
+#include "MStdHelpers.hpp"
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstring>
 #include <limits>
 #include <type_traits>
 
-namespace numkit::m {
+namespace numkit::m::builtin {
 
-// ── Saturating cast from double to integer type T ──────────
+// ════════════════════════════════════════════════════════════════════════
+// Implementation helpers
+// ════════════════════════════════════════════════════════════════════════
+
+namespace {
+
 template <typename T>
-static T saturateCast(double v)
+T saturateCast(double v)
 {
     if (std::isnan(v)) return 0;
     v = std::round(v);
@@ -22,39 +35,25 @@ static T saturateCast(double v)
     return static_cast<T>(v);
 }
 
-// ── Generic numeric type constructor: int8(), uint32(), single(), etc. ──
-// Converts input to target MType with saturation for integers.
 template <typename T>
-static void numericConstructor(MType targetType, Span<const MValue> args,
-                               Span<MValue> outs, Allocator *alloc)
+MValue numericConstructor(MType targetType, const MValue &x, Allocator *alloc)
 {
-    if (args.empty()) {
-        // No args → scalar zero
-        auto r = MValue::matrix(1, 1, targetType, alloc);
-        *static_cast<T *>(r.rawDataMut()) = static_cast<T>(0);
-        outs[0] = std::move(r);
-        return;
-    }
-    auto &a = args[0];
-    if (a.type() == targetType) {
-        outs[0] = a;
-        return;
-    }
-    size_t n = a.numel();
-    MValue r = createLike(a, targetType, alloc);
+    if (x.type() == targetType)
+        return x;
+    const size_t n = x.numel();
+    MValue r = createLike(x, targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
-        double v = a.elemAsDouble(i);
+        double v = x.elemAsDouble(i);
         if constexpr (std::is_integral_v<T>)
             dst[i] = saturateCast<T>(v);
         else
             dst[i] = static_cast<T>(v);
     }
-    outs[0] = std::move(r);
+    return r;
 }
 
-// ── isequal helper: compare two MValues deeply ─────────────
-static bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
+bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
 {
     if (a.type() != b.type()) return false;
     if (a.dims().rows() != b.dims().rows() || a.dims().cols() != b.dims().cols()) return false;
@@ -87,23 +86,22 @@ static bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         for (size_t i = 0; i < n; ++i) {
             if (ca[i] == cb[i]) continue;
             if (nanEqual) {
-                bool rEq = (ca[i].real() == cb[i].real()) || (std::isnan(ca[i].real()) && std::isnan(cb[i].real()));
-                bool iEq = (ca[i].imag() == cb[i].imag()) || (std::isnan(ca[i].imag()) && std::isnan(cb[i].imag()));
+                bool rEq = (ca[i].real() == cb[i].real())
+                           || (std::isnan(ca[i].real()) && std::isnan(cb[i].real()));
+                bool iEq = (ca[i].imag() == cb[i].imag())
+                           || (std::isnan(ca[i].imag()) && std::isnan(cb[i].imag()));
                 if (rEq && iEq) continue;
             }
             return false;
         }
         return true;
     }
-    if (t == MType::CHAR) {
+    if (t == MType::CHAR)
         return std::memcmp(a.charData(), b.charData(), n) == 0;
-    }
-    if (t == MType::LOGICAL) {
+    if (t == MType::LOGICAL)
         return std::memcmp(a.logicalData(), b.logicalData(), n) == 0;
-    }
-    if (isIntegerType(t)) {
+    if (isIntegerType(t))
         return std::memcmp(a.rawData(), b.rawData(), n * elementSize(t)) == 0;
-    }
     if (t == MType::CELL) {
         for (size_t i = 0; i < n; ++i)
             if (!valuesEqual(a.cellAt(i), b.cellAt(i), nanEqual)) return false;
@@ -119,270 +117,234 @@ static bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         }
         return true;
     }
-    if (t == MType::STRING) {
+    if (t == MType::STRING)
         return a.toString() == b.toString();
-    }
     return false;
 }
 
-void StdLibrary::registerTypeFunctions(Engine &engine)
+} // namespace
+
+// ════════════════════════════════════════════════════════════════════════
+// Public API — numeric constructors
+// ════════════════════════════════════════════════════════════════════════
+
+MValue toDouble(Allocator &alloc, const MValue &x)
 {
-    engine.registerFunction(
-        "double", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            numericConstructor<double>(MType::DOUBLE, args, outs, &ctx.engine->allocator());
-        });
+    return numericConstructor<double>(MType::DOUBLE, x, &alloc);
+}
 
-    engine.registerFunction("logical",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                auto &a = args[0];
-                                if (a.isLogical()) {
-                                    outs[0] = a;
-                                    return;
-                                }
-                                if (a.isScalar()) {
-                                    outs[0] = MValue::logicalScalar(a.toScalar() != 0, alloc);
-                                    return;
-                                }
-                                MValue r = createMatrix(
-                                    {a.dims().rows(), a.dims().cols(),
-                                     a.dims().is3D() ? a.dims().pages() : 0},
-                                    MType::LOGICAL, alloc);
-                                for (size_t i = 0; i < a.numel(); ++i)
-                                    r.logicalDataMut()[i] = a.elemAsDouble(i) != 0 ? 1 : 0;
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
+MValue single(Allocator &alloc, const MValue &x)
+{
+    return numericConstructor<float>(MType::SINGLE, x, &alloc);
+}
 
-    engine.registerFunction("char",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                auto &a = args[0];
-                                if (a.isChar()) {
-                                    outs[0] = a;
-                                    return;
-                                }
-                                if (a.isScalar()) {
-                                    char c = static_cast<char>(static_cast<int>(a.toScalar()));
-                                    {
-                                        outs[0] = MValue::fromString(std::string(1, c), alloc);
-                                        return;
-                                    }
-                                }
-                                throw std::runtime_error("Cannot convert to char");
-                            });
+MValue int8(Allocator &alloc, const MValue &x)   { return numericConstructor<int8_t>(MType::INT8, x, &alloc); }
+MValue int16(Allocator &alloc, const MValue &x)  { return numericConstructor<int16_t>(MType::INT16, x, &alloc); }
+MValue int32(Allocator &alloc, const MValue &x)  { return numericConstructor<int32_t>(MType::INT32, x, &alloc); }
+MValue int64(Allocator &alloc, const MValue &x)  { return numericConstructor<int64_t>(MType::INT64, x, &alloc); }
+MValue uint8(Allocator &alloc, const MValue &x)  { return numericConstructor<uint8_t>(MType::UINT8, x, &alloc); }
+MValue uint16(Allocator &alloc, const MValue &x) { return numericConstructor<uint16_t>(MType::UINT16, x, &alloc); }
+MValue uint32(Allocator &alloc, const MValue &x) { return numericConstructor<uint32_t>(MType::UINT32, x, &alloc); }
+MValue uint64(Allocator &alloc, const MValue &x) { return numericConstructor<uint64_t>(MType::UINT64, x, &alloc); }
 
-    engine.registerFunction("isnumeric",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isNumeric(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue logical(Allocator &alloc, const MValue &x)
+{
+    Allocator *p = &alloc;
+    if (x.isLogical())
+        return x;
+    if (x.isScalar())
+        return MValue::logicalScalar(x.toScalar() != 0, p);
+    MValue r = createMatrix({x.dims().rows(), x.dims().cols(),
+                             x.dims().is3D() ? x.dims().pages() : 0},
+                            MType::LOGICAL, p);
+    for (size_t i = 0; i < x.numel(); ++i)
+        r.logicalDataMut()[i] = x.elemAsDouble(i) != 0 ? 1 : 0;
+    return r;
+}
 
-    engine.registerFunction("islogical",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isLogical(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+// ════════════════════════════════════════════════════════════════════════
+// Public API — type predicates
+// ════════════════════════════════════════════════════════════════════════
 
-    engine.registerFunction("ischar",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isChar(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue isnumeric(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(x.isNumeric(), &alloc); }
+MValue islogical(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(x.isLogical(), &alloc); }
+MValue ischar(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(x.isChar(), &alloc); }
+MValue isstring(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isString(), &alloc); }
+MValue iscell(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(x.isCell(), &alloc); }
+MValue isstruct(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isStruct(), &alloc); }
+MValue isempty(Allocator &alloc, const MValue &x)   { return MValue::logicalScalar(x.isEmpty(), &alloc); }
+MValue isscalar(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isScalar(), &alloc); }
+MValue isreal(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(!x.isComplex(), &alloc); }
+MValue isinteger(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(isIntegerType(x.type()), &alloc); }
+MValue isfloat(Allocator &alloc, const MValue &x)   { return MValue::logicalScalar(isFloatType(x.type()), &alloc); }
+MValue issingle(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.type() == MType::SINGLE, &alloc); }
 
-    engine.registerFunction("isstring",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                outs[0] = MValue::logicalScalar(args[0].isString(),
-                                                                &ctx.engine->allocator());
-                            });
+MValue isnan(Allocator &alloc, const MValue &x)
+{
+    Allocator *p = &alloc;
+    if (x.isScalar())
+        return MValue::logicalScalar(std::isnan(x.toScalar()), p);
+    auto r = createLike(x, MType::LOGICAL, p);
+    for (size_t i = 0; i < x.numel(); ++i)
+        r.logicalDataMut()[i] = std::isnan(x.doubleData()[i]) ? 1 : 0;
+    return r;
+}
 
-    engine.registerFunction("iscell",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isCell(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue isinf(Allocator &alloc, const MValue &x)
+{
+    Allocator *p = &alloc;
+    if (x.isScalar())
+        return MValue::logicalScalar(std::isinf(x.toScalar()), p);
+    auto r = createLike(x, MType::LOGICAL, p);
+    for (size_t i = 0; i < x.numel(); ++i)
+        r.logicalDataMut()[i] = std::isinf(x.doubleData()[i]) ? 1 : 0;
+    return r;
+}
 
-    engine.registerFunction("isstruct",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isStruct(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+// ════════════════════════════════════════════════════════════════════════
+// Public API — equality + introspection
+// ════════════════════════════════════════════════════════════════════════
 
-    engine.registerFunction("isempty",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isEmpty(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue isequal(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return MValue::logicalScalar(valuesEqual(a, b, false), &alloc);
+}
 
-    engine.registerFunction("isscalar",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(args[0].isScalar(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue isequaln(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    return MValue::logicalScalar(valuesEqual(a, b, true), &alloc);
+}
 
-    engine.registerFunction("isreal",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                {
-                                    outs[0] = MValue::logicalScalar(!args[0].isComplex(),
-                                                                    &ctx.engine->allocator());
-                                    return;
-                                }
-                            });
+MValue classOf(Allocator &alloc, const MValue &x)
+{
+    return MValue::fromString(mtypeName(x.type()), &alloc);
+}
 
-    // ── Numeric type constructors ──────────────────────────────
+// ════════════════════════════════════════════════════════════════════════
+// Adapters
+// ════════════════════════════════════════════════════════════════════════
 
-    engine.registerFunction("single", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<float>(MType::SINGLE, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("int8", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<int8_t>(MType::INT8, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("int16", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<int16_t>(MType::INT16, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("int32", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<int32_t>(MType::INT32, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("int64", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<int64_t>(MType::INT64, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("uint8", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<uint8_t>(MType::UINT8, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("uint16", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<uint16_t>(MType::UINT16, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("uint32", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<uint32_t>(MType::UINT32, args, outs, &ctx.engine->allocator());
-    });
-    engine.registerFunction("uint64", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        numericConstructor<uint64_t>(MType::UINT64, args, outs, &ctx.engine->allocator());
-    });
+namespace detail {
 
-    // ── Type query functions ────────────────────────────────────
+// Numeric-constructor adapters need the zero-arg MATLAB form:
+// double(), int32(), etc. → scalar zero of that type.
+template <typename T, MType targetType>
+void numericConstructor_reg(Span<const MValue> args, size_t, Span<MValue> outs,
+                            CallContext &ctx)
+{
+    Allocator *alloc = &ctx.engine->allocator();
+    if (args.empty()) {
+        auto r = MValue::matrix(1, 1, targetType, alloc);
+        *static_cast<T *>(r.rawDataMut()) = static_cast<T>(0);
+        outs[0] = std::move(r);
+        return;
+    }
+    outs[0] = numericConstructor<T>(targetType, args[0], alloc);
+}
 
-    engine.registerFunction("isinteger", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        outs[0] = MValue::logicalScalar(isIntegerType(args[0].type()), &ctx.engine->allocator());
-    });
-    engine.registerFunction("isfloat", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        outs[0] = MValue::logicalScalar(isFloatType(args[0].type()), &ctx.engine->allocator());
-    });
-    engine.registerFunction("issingle", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        outs[0] = MValue::logicalScalar(args[0].type() == MType::SINGLE, &ctx.engine->allocator());
-    });
+void double_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<double, MType::DOUBLE>(args, n, outs, ctx); }
 
-    // ── isequal / isequaln ──────────────────────────────────────
+void single_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<float, MType::SINGLE>(args, n, outs, ctx); }
 
-    engine.registerFunction("isequal", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        if (args.size() < 2) throw std::runtime_error("isequal requires at least 2 arguments");
-        bool eq = true;
-        for (size_t i = 1; i < args.size() && eq; ++i)
-            eq = valuesEqual(args[0], args[i], false);
-        outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
-    });
-    engine.registerFunction("isequaln", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        if (args.size() < 2) throw std::runtime_error("isequaln requires at least 2 arguments");
-        bool eq = true;
-        for (size_t i = 1; i < args.size() && eq; ++i)
-            eq = valuesEqual(args[0], args[i], true);
-        outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
-    });
+void int8_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<int8_t, MType::INT8>(args, n, outs, ctx); }
+void int16_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<int16_t, MType::INT16>(args, n, outs, ctx); }
+void int32_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<int32_t, MType::INT32>(args, n, outs, ctx); }
+void int64_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<int64_t, MType::INT64>(args, n, outs, ctx); }
+void uint8_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<uint8_t, MType::UINT8>(args, n, outs, ctx); }
+void uint16_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<uint16_t, MType::UINT16>(args, n, outs, ctx); }
+void uint32_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<uint32_t, MType::UINT32>(args, n, outs, ctx); }
+void uint64_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
+{ numericConstructor_reg<uint64_t, MType::UINT64>(args, n, outs, ctx); }
 
-    // ── class() ─────────────────────────────────────────────────
+void logical_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("logical: requires 1 argument", 0, 0, "logical", "",
+                     "MATLAB:logical:nargin");
+    outs[0] = logical(ctx.engine->allocator(), args[0]);
+}
 
-    engine.registerFunction("class", [](Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx) {
-        outs[0] = MValue::fromString(mtypeName(args[0].type()), &ctx.engine->allocator());
-    });
+// ── Simple predicate adapters ────────────────────────────────────────────
+#define NK_PRED_REG(FN)                                                             \
+    void FN##_reg(Span<const MValue> args, size_t, Span<MValue> outs,               \
+                  CallContext &ctx)                                                 \
+    {                                                                               \
+        if (args.empty())                                                           \
+            throw MError(#FN ": requires 1 argument", 0, 0, #FN, "",                \
+                         "MATLAB:" #FN ":nargin");                                  \
+        outs[0] = FN(ctx.engine->allocator(), args[0]);                             \
+    }
 
-    engine.registerFunction(
-        "isnan", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isScalar()) {
-                outs[0] = MValue::logicalScalar(std::isnan(a.toScalar()), alloc);
-                return;
-            }
-            auto r = createLike(a, MType::LOGICAL, alloc);
-            for (size_t i = 0; i < a.numel(); ++i)
-                r.logicalDataMut()[i] = std::isnan(a.doubleData()[i]) ? 1 : 0;
-            {
-                outs[0] = r;
-                return;
-            }
-        });
+NK_PRED_REG(isnumeric)
+NK_PRED_REG(islogical)
+NK_PRED_REG(ischar)
+NK_PRED_REG(isstring)
+NK_PRED_REG(iscell)
+NK_PRED_REG(isstruct)
+NK_PRED_REG(isempty)
+NK_PRED_REG(isscalar)
+NK_PRED_REG(isreal)
+NK_PRED_REG(isinteger)
+NK_PRED_REG(isfloat)
+NK_PRED_REG(issingle)
+NK_PRED_REG(isnan)
+NK_PRED_REG(isinf)
 
-    engine.registerFunction(
-        "isinf", [](Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx) {
-            auto *alloc = &ctx.engine->allocator();
-            auto &a = args[0];
-            if (a.isScalar()) {
-                outs[0] = MValue::logicalScalar(std::isinf(a.toScalar()), alloc);
-                return;
-            }
-            auto r = createLike(a, MType::LOGICAL, alloc);
-            for (size_t i = 0; i < a.numel(); ++i)
-                r.logicalDataMut()[i] = std::isinf(a.doubleData()[i]) ? 1 : 0;
-            {
-                outs[0] = r;
-                return;
-            }
-        });
+#undef NK_PRED_REG
+
+void isequal_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("isequal requires at least 2 arguments", 0, 0, "isequal", "",
+                     "MATLAB:isequal:nargin");
+    bool eq = true;
+    for (size_t i = 1; i < args.size() && eq; ++i)
+        eq = valuesEqual(args[0], args[i], false);
+    outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
+}
+
+void isequaln_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
+                     "MATLAB:isequaln:nargin");
+    bool eq = true;
+    for (size_t i = 1; i < args.size() && eq; ++i)
+        eq = valuesEqual(args[0], args[i], true);
+    outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
+}
+
+void class_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("class: requires 1 argument", 0, 0, "class", "",
+                     "MATLAB:class:nargin");
+    outs[0] = classOf(ctx.engine->allocator(), args[0]);
+}
+
+} // namespace detail
+
+} // namespace numkit::m::builtin
+
+// ════════════════════════════════════════════════════════════════════════
+// Registration — keep the StdLibrary::registerTypeFunctions hook empty;
+// actual wiring happens in MStdLibrary.cpp via Phase-6c function pointers.
+// ════════════════════════════════════════════════════════════════════════
+
+namespace numkit::m {
+
+void StdLibrary::registerTypeFunctions(Engine &)
+{
+    // Intentionally empty — see StdLibrary::install() in MStdLibrary.cpp.
 }
 
 } // namespace numkit::m

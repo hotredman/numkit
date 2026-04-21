@@ -70,6 +70,36 @@ void contains_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void startsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void endsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdTypes.cpp
+void double_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void single_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void int8_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void int16_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void int32_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void int64_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void uint8_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void uint16_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void uint32_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void uint64_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void logical_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isnumeric_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void islogical_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ischar_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isstring_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void iscell_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isstruct_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isempty_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isscalar_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isreal_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isinteger_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isfloat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void issingle_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isnan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isinf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isequal_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isequaln_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void class_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdMatrix.cpp
 void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ones_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -189,6 +219,36 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("contains",   &builtin::detail::contains_reg);
     engine.registerFunction("startsWith", &builtin::detail::startsWith_reg);
     engine.registerFunction("endsWith",   &builtin::detail::endsWith_reg);
+
+    // ── Phase 6c: MStdTypes public-API-backed built-ins ────────────
+    engine.registerFunction("double",    &builtin::detail::double_reg);
+    engine.registerFunction("single",    &builtin::detail::single_reg);
+    engine.registerFunction("int8",      &builtin::detail::int8_reg);
+    engine.registerFunction("int16",     &builtin::detail::int16_reg);
+    engine.registerFunction("int32",     &builtin::detail::int32_reg);
+    engine.registerFunction("int64",     &builtin::detail::int64_reg);
+    engine.registerFunction("uint8",     &builtin::detail::uint8_reg);
+    engine.registerFunction("uint16",    &builtin::detail::uint16_reg);
+    engine.registerFunction("uint32",    &builtin::detail::uint32_reg);
+    engine.registerFunction("uint64",    &builtin::detail::uint64_reg);
+    engine.registerFunction("logical",   &builtin::detail::logical_reg);
+    engine.registerFunction("isnumeric", &builtin::detail::isnumeric_reg);
+    engine.registerFunction("islogical", &builtin::detail::islogical_reg);
+    engine.registerFunction("ischar",    &builtin::detail::ischar_reg);
+    engine.registerFunction("isstring",  &builtin::detail::isstring_reg);
+    engine.registerFunction("iscell",    &builtin::detail::iscell_reg);
+    engine.registerFunction("isstruct",  &builtin::detail::isstruct_reg);
+    engine.registerFunction("isempty",   &builtin::detail::isempty_reg);
+    engine.registerFunction("isscalar",  &builtin::detail::isscalar_reg);
+    engine.registerFunction("isreal",    &builtin::detail::isreal_reg);
+    engine.registerFunction("isinteger", &builtin::detail::isinteger_reg);
+    engine.registerFunction("isfloat",   &builtin::detail::isfloat_reg);
+    engine.registerFunction("issingle",  &builtin::detail::issingle_reg);
+    engine.registerFunction("isnan",     &builtin::detail::isnan_reg);
+    engine.registerFunction("isinf",     &builtin::detail::isinf_reg);
+    engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
+    engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
+    engine.registerFunction("class",     &builtin::detail::class_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
