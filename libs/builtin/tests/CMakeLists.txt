@@ -24,4 +24,5 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/types_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellstruct_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/format_public_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/simd_parity_test.cpp
 )

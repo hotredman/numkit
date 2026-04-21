@@ -16,6 +16,34 @@ option(NUMKIT_M_INSTALL          "Generate install target"               ON)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 include(NumkitOptions)
 
+# ──────────────────────────────────────────────
+# Google Highway (SIMD-intrinsics abstraction)
+# ──────────────────────────────────────────────
+#
+# Pulled only when NUMKIT_WITH_SIMD=ON. Dispatch strategy is dynamic —
+# the library ships with backends for every ISA Highway supports and
+# picks one at first call (see HWY_DYNAMIC_DISPATCH in the _simd.cpp
+# files under libs/*/src/backends/).
+
+if(NUMKIT_WITH_SIMD)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        highway
+        GIT_REPOSITORY https://github.com/google/highway.git
+        GIT_TAG        1.1.0
+    )
+
+    # Don't pull Highway's own tests / examples into our tree. contrib is
+    # enabled because Phase 8b uses hwy/contrib/math (Sin/Cos/Exp/Log).
+    set(HWY_ENABLE_TESTS    OFF CACHE BOOL "" FORCE)
+    set(HWY_ENABLE_EXAMPLES OFF CACHE BOOL "" FORCE)
+    set(HWY_ENABLE_INSTALL  OFF CACHE BOOL "" FORCE)
+    set(HWY_ENABLE_CONTRIB  ON  CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(highway)
+endif()
+
 if(NOT EMSCRIPTEN)
     set(NUMKIT_M_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
 else()
@@ -151,6 +179,18 @@ target_compile_features(m PUBLIC cxx_std_17)
 if(EMSCRIPTEN)
     target_compile_options(m PRIVATE -fexceptions)
     target_link_options(m PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
+endif()
+
+if(NUMKIT_WITH_SIMD)
+    # PRIVATE — our public headers never mention Highway types; it's a pure
+    # implementation detail confined to libs/*/src/backends/*_simd.cpp.
+    # BUILD_INTERFACE genex keeps the link dep out of the exported target
+    # set (install(EXPORT) would otherwise complain that hwy / hwy_contrib
+    # aren't themselves exported).
+    target_link_libraries(m PRIVATE
+        $<BUILD_INTERFACE:hwy>
+        $<BUILD_INTERFACE:hwy_contrib>)
+    target_compile_definitions(m PRIVATE NUMKIT_WITH_SIMD=1)
 endif()
 
 # ──────────────────────────────────────────────

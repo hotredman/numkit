@@ -29,18 +29,10 @@ MValue sqrt(Allocator &alloc, const MValue &x)
     return unaryDouble(x, [](double v) { return std::sqrt(v); }, &alloc);
 }
 
-MValue abs(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex()) {
-        if (x.isScalar())
-            return MValue::scalar(std::abs(x.toComplex()), &alloc);
-        auto r = createLike(x, MType::DOUBLE, &alloc);
-        for (size_t i = 0; i < x.numel(); ++i)
-            r.doubleDataMut()[i] = std::abs(x.complexData()[i]);
-        return r;
-    }
-    return unaryDouble(x, [](double v) { return std::abs(v); }, &alloc);
-}
+// abs() now lives in libs/builtin/src/backends/MStdAbs_{portable,simd}.cpp.
+// CMake picks one based on NUMKIT_WITH_SIMD; the portable copy is the
+// scalar reference, the SIMD copy is identical for tiny / complex inputs
+// but dispatches the real-vector fast path to Highway.
 
 MValue sin(Allocator &alloc, const MValue &x)
 {

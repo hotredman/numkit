@@ -15,10 +15,10 @@
       "name": "desktop-fast",
       "inherits": "portable",
       "displayName": "Desktop x86_64 (Highway SIMD)",
-      "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD once the per-library _simd.cpp backends land in Phase 8+. For now behaves identically to portable; the flag is OFF here too and flipped ON when backends appear.",
+      "description": "Native desktop build for Windows/Linux x86_64. Enables Highway dynamic-dispatch SIMD — picks the best ISA (SSE4 / AVX2 / AVX-512 / …) at runtime on first call to any vectorised kernel.",
       "binaryDir": "${sourceDir}/build-desktop-fast",
       "cacheVariables": {
-        "NUMKIT_WITH_SIMD": "OFF"
+        "NUMKIT_WITH_SIMD": "ON"
       }
     },
     {
@@ -47,6 +47,16 @@
       }
     },
     {
+      "name": "bench-simd",
+      "inherits": "desktop-fast",
+      "displayName": "Bench with Highway SIMD",
+      "description": "desktop-fast preset plus NUMKIT_M_BUILD_BENCHMARKS=ON. Use this to compare against the plain 'bench' preset and measure SIMD speedups.",
+      "binaryDir": "${sourceDir}/build-bench-simd",
+      "cacheVariables": {
+        "NUMKIT_M_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
       "name": "browser",
       "displayName": "Browser (WASM via Emscripten)",
       "description": "WebAssembly build for the mIDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set.",
@@ -65,6 +75,7 @@
     {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release"},
     {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
     {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
+    {"name": "bench-simd",   "configurePreset": "bench-simd",   "configuration": "Release"},
     {"name": "browser",      "configurePreset": "browser"}
   ],
   "testPresets": [
