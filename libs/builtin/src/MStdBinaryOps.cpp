@@ -7,6 +7,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
+#include "backends/BinaryOpsLoops.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -14,6 +15,22 @@
 #include <limits>
 #include <string>
 #include <vector>
+
+namespace {
+
+// Fast-path predicate: both inputs are non-scalar, non-3D, dimensions
+// match exactly. The backend loops in detail::{plus,minus,times,rdivide}Loop
+// only handle this case; other shapes (broadcasting, 3D) fall through to
+// elementwiseDouble() in MStdHelpers.hpp which stays scalar for now.
+inline bool sameShapeDoubleFastPath(const numkit::m::MValue &a,
+                                    const numkit::m::MValue &b)
+{
+    return !a.isScalar() && !b.isScalar()
+        && !a.dims().is3D() && !b.dims().is3D()
+        && a.dims() == b.dims();
+}
+
+} // namespace
 
 namespace numkit::m::builtin {
 
@@ -30,8 +47,14 @@ MValue plus(Allocator &alloc, const MValue &a, const MValue &b)
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::plus<Complex>{}, p);
-    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
+    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
+        if (sameShapeDoubleFastPath(a, b)) {
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, p);
+            detail::plusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            return r;
+        }
         return elementwiseDouble(a, b, std::plus<double>{}, p);
+    }
     if (a.isChar() && b.isChar())
         return MValue::fromString(a.toString() + b.toString(), p);
     if (a.isChar() && b.type() == MType::DOUBLE) {
@@ -74,8 +97,14 @@ MValue minus(Allocator &alloc, const MValue &a, const MValue &b)
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::minus<Complex>{}, p);
-    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
+    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
+        if (sameShapeDoubleFastPath(a, b)) {
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, p);
+            detail::minusLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            return r;
+        }
         return elementwiseDouble(a, b, std::minus<double>{}, p);
+    }
     {
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateSub(x, y); }, p);
         if (!r.isUnset()) return r;
@@ -90,8 +119,14 @@ MValue times(Allocator &alloc, const MValue &a, const MValue &b)
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::multiplies<Complex>{}, p);
-    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
+    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
+        if (sameShapeDoubleFastPath(a, b)) {
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, p);
+            detail::timesLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            return r;
+        }
         return elementwiseDouble(a, b, std::multiplies<double>{}, p);
+    }
     {
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, p);
         if (!r.isUnset()) return r;
@@ -152,8 +187,14 @@ MValue rdivide(Allocator &alloc, const MValue &a, const MValue &b)
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::divides<Complex>{}, p);
-    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE)
+    if (a.type() == MType::DOUBLE && b.type() == MType::DOUBLE) {
+        if (sameShapeDoubleFastPath(a, b)) {
+            auto r = MValue::matrix(a.dims().rows(), a.dims().cols(), MType::DOUBLE, p);
+            detail::rdivideLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(), a.numel());
+            return r;
+        }
         return elementwiseDouble(a, b, std::divides<double>{}, p);
+    }
     {
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateDiv(x, y); }, p);
         if (!r.isUnset()) return r;

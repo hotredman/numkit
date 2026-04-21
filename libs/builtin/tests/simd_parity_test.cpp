@@ -12,6 +12,7 @@
 // identically). Transcendentals added in later phases will use an
 // ULP budget instead.
 
+#include <numkit/m/builtin/MStdBinaryOps.hpp>
 #include <numkit/m/builtin/MStdMath.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
@@ -268,4 +269,77 @@ TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
     auto c = y.toComplex();
     EXPECT_NEAR(c.real(), 0.0, 1e-12);
     EXPECT_NEAR(c.imag(), M_PI, 1e-12);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Binary ops (plus / minus / times / rdivide) — bit-exact
+//
+// IEEE-754 add / sub / mul / div are deterministic, so SIMD and scalar
+// must produce bit-identical results. Anything else means a broken
+// reduction or lane mis-alignment.
+// ════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+template <typename SimdFn, typename ScalarOp>
+void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    constexpr size_t N = 1021;
+    std::mt19937 rng(65537);
+    std::uniform_real_distribution<double> dist(-1000.0, 1000.0);
+
+    std::vector<double> av(N), bv(N);
+    for (size_t i = 0; i < N; ++i) {
+        av[i] = dist(rng);
+        // Keep b away from 0 so rdivide doesn't run through Inf — the
+        // bit-exact check still holds near Inf, but Inf complicates
+        // messages on mismatch.
+        bv[i] = dist(rng);
+        if (std::fabs(bv[i]) < 1.0) bv[i] += std::copysign(1.0, bv[i]);
+    }
+
+    MValue A = makeDoubleVector(alloc, av);
+    MValue B = makeDoubleVector(alloc, bv);
+    MValue Y = simdFn(alloc, A, B);
+
+    ASSERT_EQ(Y.numel(), N) << name;
+    for (size_t i = 0; i < N; ++i) {
+        double got = Y.doubleData()[i];
+        double ref = op(av[i], bv[i]);
+        EXPECT_TRUE(bitEquals(got, ref))
+            << name << " mismatch at i=" << i
+            << ": got " << got << ", expected " << ref;
+    }
+}
+
+} // namespace
+
+TEST(SimdParity_Plus,    MatchesScalar)
+{
+    checkBinaryParity(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::plus(a, x, y); },
+        [](double x, double y) { return x + y; }, "plus");
+}
+
+TEST(SimdParity_Minus,   MatchesScalar)
+{
+    checkBinaryParity(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::minus(a, x, y); },
+        [](double x, double y) { return x - y; }, "minus");
+}
+
+TEST(SimdParity_Times,   MatchesScalar)
+{
+    checkBinaryParity(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::times(a, x, y); },
+        [](double x, double y) { return x * y; }, "times");
+}
+
+TEST(SimdParity_Rdivide, MatchesScalar)
+{
+    checkBinaryParity(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::rdivide(a, x, y); },
+        [](double x, double y) { return x / y; }, "rdivide");
 }
