@@ -104,6 +104,7 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/MStdPrint.hpp
     libs/builtin/include/numkit/m/builtin/MStdFileIO.hpp
     libs/builtin/include/numkit/m/builtin/MStdScan.hpp
+    libs/builtin/include/numkit/m/builtin/MStdEnvCsv.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp
