@@ -1,4 +1,11 @@
-#include <numkit/m/dsp/MDspLibrary.hpp>
+// libs/dsp/src/MDspFilterDesign.cpp
+
+#include <numkit/m/dsp/MDspFilterDesign.hpp>
+
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MTypes.hpp>
+
+#include "MDspHelpers.hpp"   // Complex typedef
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -9,21 +16,26 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m {
+namespace numkit::m::dsp {
 
-static std::vector<Complex> butterworthPoles(int N)
+// ── Internal algorithm helpers ────────────────────────────────────────
+
+namespace {
+
+std::vector<Complex> butterworthPoles(int N)
 {
     std::vector<Complex> poles;
+    poles.reserve(N);
     for (int k = 0; k < N; ++k) {
-        double theta = M_PI * (2.0 * k + N + 1) / (2.0 * N);
+        const double theta = M_PI * (2.0 * k + N + 1) / (2.0 * N);
         poles.emplace_back(std::cos(theta), std::sin(theta));
     }
     return poles;
 }
 
-static std::vector<double> expandPoly(const std::vector<Complex> &roots)
+std::vector<double> expandPoly(const std::vector<Complex> &roots)
 {
-    int n = static_cast<int>(roots.size());
+    const int n = static_cast<int>(roots.size());
     std::vector<Complex> poly(n + 1, Complex(0.0, 0.0));
     poly[0] = Complex(1.0, 0.0);
     for (int i = 0; i < n; ++i)
@@ -35,16 +47,16 @@ static std::vector<double> expandPoly(const std::vector<Complex> &roots)
     return result;
 }
 
-static void bilinearTransform(const std::vector<Complex> &sPoles,
-                              double Wn,
-                              std::vector<double> &bOut,
-                              std::vector<double> &aOut)
+void bilinearTransform(const std::vector<Complex> &sPoles,
+                       double Wn,
+                       std::vector<double> &bOut,
+                       std::vector<double> &aOut)
 {
-    int N = static_cast<int>(sPoles.size());
+    const int N = static_cast<int>(sPoles.size());
 
     std::vector<Complex> zPoles(N);
     for (int i = 0; i < N; ++i) {
-        Complex sp = sPoles[i] * Wn;
+        const Complex sp = sPoles[i] * Wn;
         zPoles[i] = (1.0 + sp / 2.0) / (1.0 - sp / 2.0);
     }
 
@@ -54,17 +66,17 @@ static void bilinearTransform(const std::vector<Complex> &sPoles,
     bOut = expandPoly(zZeros);
 
     Complex numDC(0, 0), denDC(0, 0);
-    for (size_t i = 0; i < bOut.size(); ++i)
-        numDC += bOut[i];
-    for (size_t i = 0; i < aOut.size(); ++i)
-        denDC += aOut[i];
-    double dcGain = std::abs(numDC / denDC);
+    for (double v : bOut)
+        numDC += v;
+    for (double v : aOut)
+        denDC += v;
+    const double dcGain = std::abs(numDC / denDC);
     if (dcGain > 0.0)
-        for (auto &v : bOut)
+        for (double &v : bOut)
             v /= dcGain;
 }
 
-static void lpToHp(std::vector<double> &b, std::vector<double> &a)
+void lpToHp(std::vector<double> &b, std::vector<double> &a)
 {
     for (size_t i = 0; i < b.size(); ++i)
         if (i % 2 == 1)
@@ -78,158 +90,167 @@ static void lpToHp(std::vector<double> &b, std::vector<double> &a)
         numNyq += b[i] * ((i % 2 == 0) ? 1.0 : -1.0);
     for (size_t i = 0; i < a.size(); ++i)
         denNyq += a[i] * ((i % 2 == 0) ? 1.0 : -1.0);
-    double nyqGain = std::abs(numNyq / denNyq);
+    const double nyqGain = std::abs(numNyq / denNyq);
     if (nyqGain > 0.0)
-        for (auto &v : b)
+        for (double &v : b)
             v /= nyqGain;
 }
 
-void DspLibrary::registerFilterDesignFunctions(Engine &engine)
+} // anonymous namespace
+
+// ── butter ────────────────────────────────────────────────────────────
+std::tuple<MValue, MValue>
+butter(Allocator &alloc, int N, double Wn, const std::string &type)
 {
-    // --- butter(N, Wn) / butter(N, Wn, 'high') ---
-    engine.registerFunction("butter",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error(
-                                        "butter requires at least 2 arguments");
+    if (Wn <= 0.0 || Wn >= 1.0)
+        throw MError("butter: Wn must be between 0 and 1",
+                     0, 0, "butter", "", "MATLAB:butter:badWn");
+    if (type != "low" && type != "high")
+        throw MError("butter: type must be 'low' or 'high'",
+                     0, 0, "butter", "", "MATLAB:butter:badType");
 
-                                int N = static_cast<int>(args[0].toScalar());
-                                double Wn = args[1].toScalar();
-                                std::string type = "low";
-                                if (args.size() >= 3 && args[2].isChar())
-                                    type = args[2].toString();
+    const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
+    auto sPoles = butterworthPoles(N);
 
-                                if (Wn <= 0.0 || Wn >= 1.0)
-                                    throw std::runtime_error("butter: Wn must be between 0 and 1");
+    std::vector<double> b, a;
+    bilinearTransform(sPoles, Wa, b, a);
 
-                                double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
-                                auto sPoles = butterworthPoles(N);
+    if (type == "high")
+        lpToHp(b, a);
 
-                                std::vector<double> b, a;
-                                bilinearTransform(sPoles, Wa, b, a);
+    auto bv = MValue::matrix(1, b.size(), MType::DOUBLE, &alloc);
+    auto av = MValue::matrix(1, a.size(), MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < b.size(); ++i)
+        bv.doubleDataMut()[i] = b[i];
+    for (size_t i = 0; i < a.size(); ++i)
+        av.doubleDataMut()[i] = a[i];
 
-                                if (type == "high")
-                                    lpToHp(b, a);
-
-                                auto bv = MValue::matrix(1, b.size(), MType::DOUBLE, alloc);
-                                auto av = MValue::matrix(1, a.size(), MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < b.size(); ++i)
-                                    bv.doubleDataMut()[i] = b[i];
-                                for (size_t i = 0; i < a.size(); ++i)
-                                    av.doubleDataMut()[i] = a[i];
-                                {
-                                    outs[0] = bv;
-                                    if (nargout > 1)
-                                        outs[1] = av;
-                                    return;
-                                }
-                            });
-
-    // --- fir1(N, Wn) / fir1(N, Wn, 'high') ---
-    engine.registerFunction("fir1",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error("fir1 requires at least 2 arguments");
-
-                                int N = static_cast<int>(args[0].toScalar());
-                                double Wn = args[1].toScalar();
-                                std::string type = "low";
-                                if (args.size() >= 3 && args[2].isChar())
-                                    type = args[2].toString();
-
-                                size_t filtLen = N + 1;
-                                double wc = M_PI * Wn;
-                                double half = N / 2.0;
-
-                                std::vector<double> h(filtLen);
-                                double hSum = 0.0;
-
-                                for (size_t i = 0; i < filtLen; ++i) {
-                                    double n = i - half;
-                                    double sinc = (std::abs(n) < 1e-12)
-                                                      ? wc / M_PI
-                                                      : std::sin(wc * n) / (M_PI * n);
-                                    double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / N);
-                                    h[i] = sinc * win;
-                                    hSum += h[i];
-                                }
-
-                                if (type == "low") {
-                                    for (size_t i = 0; i < filtLen; ++i)
-                                        h[i] /= hSum;
-                                } else if (type == "high") {
-                                    for (size_t i = 0; i < filtLen; ++i)
-                                        h[i] /= hSum;
-                                    for (size_t i = 0; i < filtLen; ++i)
-                                        h[i] = -h[i];
-                                    h[static_cast<size_t>(half)] += 1.0;
-                                }
-
-                                auto bv = MValue::matrix(1, filtLen, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < filtLen; ++i)
-                                    bv.doubleDataMut()[i] = h[i];
-                                {
-                                    outs[0] = bv;
-                                    return;
-                                }
-                            });
-
-    // --- freqz(b, a, N) ---
-    engine.registerFunction("freqz",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error("freqz requires at least 2 arguments");
-
-                                auto &bv = args[0];
-                                auto &av = args[1];
-                                size_t npts = (args.size() >= 3)
-                                                  ? static_cast<size_t>(args[2].toScalar())
-                                                  : 512;
-
-                                const double *b = bv.doubleData();
-                                const double *a = av.doubleData();
-                                size_t nb = bv.numel(), na = av.numel();
-
-                                auto W = MValue::matrix(npts, 1, MType::DOUBLE, alloc);
-                                auto H = MValue::complexMatrix(npts, 1, alloc);
-
-                                for (size_t k = 0; k < npts; ++k) {
-                                    double w = M_PI * k / (npts - 1);
-                                    W.doubleDataMut()[k] = w;
-
-                                    Complex ejw(std::cos(w), -std::sin(w));
-                                    Complex num(0, 0), den(0, 0);
-                                    Complex ejwk(1, 0);
-                                    for (size_t i = 0; i < nb; ++i) {
-                                        num += b[i] * ejwk;
-                                        ejwk *= ejw;
-                                    }
-                                    ejwk = Complex(1, 0);
-                                    for (size_t i = 0; i < na; ++i) {
-                                        den += a[i] * ejwk;
-                                        ejwk *= ejw;
-                                    }
-                                    H.complexDataMut()[k] = num / den;
-                                }
-                                {
-                                    outs[0] = H;
-                                    if (nargout > 1)
-                                        outs[1] = W;
-                                    return;
-                                }
-                            });
+    return std::make_tuple(std::move(bv), std::move(av));
 }
 
-} // namespace numkit::m
+// ── fir1 ──────────────────────────────────────────────────────────────
+MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type)
+{
+    if (Wn <= 0.0 || Wn >= 1.0)
+        throw MError("fir1: Wn must be between 0 and 1",
+                     0, 0, "fir1", "", "MATLAB:fir1:badWn");
+    if (type != "low" && type != "high")
+        throw MError("fir1: type must be 'low' or 'high'",
+                     0, 0, "fir1", "", "MATLAB:fir1:badType");
+
+    const size_t filtLen = N + 1;
+    const double wc = M_PI * Wn;
+    const double half = N / 2.0;
+
+    std::vector<double> h(filtLen);
+    double hSum = 0.0;
+
+    for (size_t i = 0; i < filtLen; ++i) {
+        const double n = i - half;
+        const double sinc = (std::abs(n) < 1e-12) ? wc / M_PI
+                                                  : std::sin(wc * n) / (M_PI * n);
+        const double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / N);
+        h[i] = sinc * win;
+        hSum += h[i];
+    }
+
+    if (type == "low") {
+        for (size_t i = 0; i < filtLen; ++i)
+            h[i] /= hSum;
+    } else { // "high"
+        for (size_t i = 0; i < filtLen; ++i)
+            h[i] /= hSum;
+        for (size_t i = 0; i < filtLen; ++i)
+            h[i] = -h[i];
+        h[static_cast<size_t>(half)] += 1.0;
+    }
+
+    auto bv = MValue::matrix(1, filtLen, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < filtLen; ++i)
+        bv.doubleDataMut()[i] = h[i];
+    return bv;
+}
+
+// ── freqz ─────────────────────────────────────────────────────────────
+std::tuple<MValue, MValue>
+freqz(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
+{
+    const double *bd = b.doubleData();
+    const double *ad = a.doubleData();
+    const size_t nb = b.numel(), na = a.numel();
+
+    auto W = MValue::matrix(npts, 1, MType::DOUBLE, &alloc);
+    auto H = MValue::complexMatrix(npts, 1, &alloc);
+
+    for (size_t k = 0; k < npts; ++k) {
+        const double w = M_PI * k / (npts - 1);
+        W.doubleDataMut()[k] = w;
+
+        const Complex ejw(std::cos(w), -std::sin(w));
+        Complex num(0, 0), den(0, 0);
+        Complex ejwk(1, 0);
+        for (size_t i = 0; i < nb; ++i) {
+            num += bd[i] * ejwk;
+            ejwk *= ejw;
+        }
+        ejwk = Complex(1, 0);
+        for (size_t i = 0; i < na; ++i) {
+            den += ad[i] * ejwk;
+            ejwk *= ejw;
+        }
+        H.complexDataMut()[k] = num / den;
+    }
+
+    return std::make_tuple(std::move(H), std::move(W));
+}
+
+// ── Engine adapters ───────────────────────────────────────────────────
+namespace detail {
+
+void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("butter: requires at least 2 arguments",
+                     0, 0, "butter", "", "MATLAB:butter:nargin");
+    const int N = static_cast<int>(args[0].toScalar());
+    const double Wn = args[1].toScalar();
+    std::string type = "low";
+    if (args.size() >= 3 && args[2].isChar())
+        type = args[2].toString();
+
+    auto [bv, av] = butter(ctx.engine->allocator(), N, Wn, type);
+    outs[0] = std::move(bv);
+    if (nargout > 1)
+        outs[1] = std::move(av);
+}
+
+void fir1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("fir1: requires at least 2 arguments",
+                     0, 0, "fir1", "", "MATLAB:fir1:nargin");
+    const int N = static_cast<int>(args[0].toScalar());
+    const double Wn = args[1].toScalar();
+    std::string type = "low";
+    if (args.size() >= 3 && args[2].isChar())
+        type = args[2].toString();
+
+    outs[0] = fir1(ctx.engine->allocator(), N, Wn, type);
+}
+
+void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("freqz: requires at least 2 arguments",
+                     0, 0, "freqz", "", "MATLAB:freqz:nargin");
+    const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
+
+    auto [H, W] = freqz(ctx.engine->allocator(), args[0], args[1], npts);
+    outs[0] = std::move(H);
+    if (nargout > 1)
+        outs[1] = std::move(W);
+}
+
+} // namespace detail
+
+} // namespace numkit::m::dsp

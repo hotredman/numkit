@@ -13,6 +13,9 @@ void deconv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void filter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void filtfilt_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void fir1_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -21,7 +24,6 @@ void DspLibrary::install(Engine &engine)
 {
     registerSignalCoreFunctions(engine);
     registerWindowFunctions(engine);
-    registerFilterDesignFunctions(engine);
     registerSpectralFunctions(engine);
     registerResampleFunctions(engine);
     registerTransformFunctions(engine);
@@ -34,6 +36,9 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("xcorr",    &dsp::detail::xcorr_reg);
     engine.registerFunction("filter",   &dsp::detail::filter_reg);
     engine.registerFunction("filtfilt", &dsp::detail::filtfilt_reg);
+    engine.registerFunction("butter",   &dsp::detail::butter_reg);
+    engine.registerFunction("fir1",     &dsp::detail::fir1_reg);
+    engine.registerFunction("freqz",    &dsp::detail::freqz_reg);
 }
 
 } // namespace numkit::m
