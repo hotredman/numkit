@@ -44,6 +44,13 @@ void randn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdComplex.cpp
+void real_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void imag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void conj_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void complex_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void angle_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdMatrix.cpp
 void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ones_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -137,6 +144,13 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
     engine.registerFunction("cross",     &builtin::detail::cross_reg);
     engine.registerFunction("dot",       &builtin::detail::dot_reg);
+
+    // ── Phase 6c: MStdComplex public-API-backed built-ins ──────────
+    engine.registerFunction("real",    &builtin::detail::real_reg);
+    engine.registerFunction("imag",    &builtin::detail::imag_reg);
+    engine.registerFunction("conj",    &builtin::detail::conj_reg);
+    engine.registerFunction("complex", &builtin::detail::complex_reg);
+    engine.registerFunction("angle",   &builtin::detail::angle_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
