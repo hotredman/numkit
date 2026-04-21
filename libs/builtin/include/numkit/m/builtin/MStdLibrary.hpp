@@ -13,7 +13,6 @@ private:
     // Category registrators (implemented in separate TUs)
     static void registerBinaryOps(Engine &engine);
     static void registerUnaryOps(Engine &engine);
-    static void registerMatrixFunctions(Engine &engine);
     static void registerIOFunctions(Engine &engine);
     static void registerTypeFunctions(Engine &engine);
     static void registerCellStructFunctions(Engine &engine);

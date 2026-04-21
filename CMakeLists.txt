@@ -92,6 +92,7 @@ set(NUMKIT_M_HEADERS
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
     libs/builtin/include/numkit/m/builtin/MStdMath.hpp
+    libs/builtin/include/numkit/m/builtin/MStdMatrix.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp

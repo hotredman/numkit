@@ -43,6 +43,26 @@ void rand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void randn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdMatrix.cpp
+void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ones_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void eye_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void size_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void length_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void numel_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ndims_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void reshape_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void transpose_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void diag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void sort_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void find_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void horzcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void vertcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void meshgrid_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cumsum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cross_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void dot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 } // namespace numkit::m::builtin::detail
 
 namespace numkit::m {
@@ -57,7 +77,6 @@ void StdLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
     registerUnaryOps(engine);
-    registerMatrixFunctions(engine);
     registerIOFunctions(engine);
     registerTypeFunctions(engine);
     registerCellStructFunctions(engine);
@@ -98,6 +117,26 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("randn",    &builtin::detail::randn_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
+
+    // ── Phase 6c: MStdMatrix public-API-backed built-ins ───────────
+    engine.registerFunction("zeros",     &builtin::detail::zeros_reg);
+    engine.registerFunction("ones",      &builtin::detail::ones_reg);
+    engine.registerFunction("eye",       &builtin::detail::eye_reg);
+    engine.registerFunction("size",      &builtin::detail::size_reg);
+    engine.registerFunction("length",    &builtin::detail::length_reg);
+    engine.registerFunction("numel",     &builtin::detail::numel_reg);
+    engine.registerFunction("ndims",     &builtin::detail::ndims_reg);
+    engine.registerFunction("reshape",   &builtin::detail::reshape_reg);
+    engine.registerFunction("transpose", &builtin::detail::transpose_reg);
+    engine.registerFunction("diag",      &builtin::detail::diag_reg);
+    engine.registerFunction("sort",      &builtin::detail::sort_reg);
+    engine.registerFunction("find",      &builtin::detail::find_reg);
+    engine.registerFunction("horzcat",   &builtin::detail::horzcat_reg);
+    engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
+    engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);
+    engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
+    engine.registerFunction("cross",     &builtin::detail::cross_reg);
+    engine.registerFunction("dot",       &builtin::detail::dot_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
