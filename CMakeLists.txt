@@ -236,7 +236,7 @@ endif()
 # Benchmarks (Google Benchmark)
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_BENCHMARKS AND NOT EMSCRIPTEN)
+if(NUMKIT_M_BUILD_BENCHMARKS)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -249,8 +249,21 @@ if(NUMKIT_M_BUILD_BENCHMARKS AND NOT EMSCRIPTEN)
     set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
     set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+    # v1.8.3 enables -Werror by default; newer clang (emscripten upstream)
+    # flags __COUNTER__ as a C2y-extension and fails the build. Our code
+    # doesn't depend on strict-warnings inside the benchmark lib itself.
+    set(BENCHMARK_ENABLE_WERROR OFF CACHE BOOL "" FORCE)
 
     FetchContent_MakeAvailable(benchmark)
+
+    # Benchmark's own flag list also includes -pedantic-errors, which turns
+    # the C2y __COUNTER__ extension warning into an error on upstream clang
+    # (emscripten). Scoped to the two benchmark libs only.
+    foreach(_t benchmark benchmark_main)
+        if(TARGET ${_t})
+            target_compile_options(${_t} PRIVATE -Wno-c2y-extensions)
+        endif()
+    endforeach()
 
     add_subdirectory(benchmarks)
 endif()

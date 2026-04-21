@@ -25,3 +25,19 @@ target_link_libraries(m_bench
         numkit::m
         benchmark::benchmark_main
 )
+
+if(EMSCRIPTEN)
+    # Emscripten ships a Node-runnable .js loader + .wasm sidecar when the
+    # output has a .js suffix. Bench run via:  node m_bench.js
+    set_target_properties(m_bench PROPERTIES SUFFIX ".js")
+    target_compile_options(m_bench PRIVATE -fexceptions)
+    target_link_options(m_bench PRIVATE
+        -fexceptions
+        "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+        "SHELL:-s INITIAL_MEMORY=134217728"
+        "SHELL:-s STACK_SIZE=4194304"
+        "SHELL:-s EXIT_RUNTIME=1"
+        "SHELL:-s NODERAWFS=1"
+        "SHELL:-s DISABLE_EXCEPTION_CATCHING=0"
+    )
+endif()

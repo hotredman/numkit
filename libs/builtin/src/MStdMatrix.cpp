@@ -384,7 +384,7 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         // Scalar-args form: reshape(A, m, n) or (A, m, n, p). One [] allowed
         // for dimension inference from x.numel().
         const size_t dimCount = args.size() - 1;
-        size_t dims[3] = {1, 1, (dimCount >= 3) ? 1 : 0};
+        size_t dims[3] = {1, 1, static_cast<size_t>((dimCount >= 3) ? 1 : 0)};
         int inferPos = -1;
         size_t knownProd = 1;
         for (size_t i = 0; i < dimCount && i < 3; ++i) {

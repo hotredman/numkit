@@ -68,6 +68,23 @@
         "NUMKIT_M_BUILD_REPL": "ON",
         "NUMKIT_WITH_SIMD":    "OFF"
       }
+    },
+    {
+      "name": "bench-wasm",
+      "inherits": "browser",
+      "displayName": "Bench WASM (Emscripten + Highway WASM SIMD128)",
+      "description": "WebAssembly benchmark build. Enables Highway WASM-SIMD128 backend and compiles the m_bench Google-Benchmark driver for Node.js. Run after building with: node build-bench-wasm/benchmarks/m_bench.js",
+      "binaryDir": "${sourceDir}/build-bench-wasm",
+      "cacheVariables": {
+        "NUMKIT_M_BUILD_REPL":        "OFF",
+        "NUMKIT_M_BUILD_TESTS":       "OFF",
+        "NUMKIT_M_BUILD_EXAMPLE":     "OFF",
+        "NUMKIT_M_BUILD_BENCHMARKS":  "ON",
+        "NUMKIT_M_INSTALL":           "OFF",
+        "NUMKIT_WITH_SIMD":           "ON",
+        "CMAKE_CXX_FLAGS":            "-msimd128 -mrelaxed-simd -fexceptions",
+        "CMAKE_EXE_LINKER_FLAGS":     "-fexceptions"
+      }
     }
   ],
   "buildPresets": [
@@ -76,7 +93,8 @@
     {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
     {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
     {"name": "bench-simd",   "configurePreset": "bench-simd",   "configuration": "Release"},
-    {"name": "browser",      "configurePreset": "browser"}
+    {"name": "browser",      "configurePreset": "browser"},
+    {"name": "bench-wasm",   "configurePreset": "bench-wasm"}
   ],
   "testPresets": [
     {
