@@ -569,9 +569,29 @@ enter_frame:
                 if (ix.isDoubleScalar() || ix.isLogicalScalar()) {
                     // Fast path: scalar index
                     size_t i = (size_t) ix.toScalar() - 1;
-                    if (R[I.a].isEmpty() || R[I.a].isScalar() || i >= R[I.a].numel())
-                        R[I.a].ensureSize(i, &engine_.allocator_);
-                    R[I.a].elemSet(i, R[I.c]);
+                    MValue &dst = R[I.a];
+                    const MValue &rhs = R[I.c];
+
+                    // Amortised O(1) grow-by-one: `A(end+1) = scalar` or
+                    // `A(i) = scalar` where i == numel(A). Uses MValue's
+                    // appendScalar, which keeps a geometric capacity so
+                    // the classic incremental-build loop runs in amortised
+                    // O(1) instead of O(N) per iteration. Applies to
+                    // empty / row-vector heap double targets with unique
+                    // ownership only — everything else falls through to
+                    // the generic ensureSize + elemSet path.
+                    if (rhs.isScalar() && !rhs.isComplex()
+                        && i == dst.numel()
+                        && dst.heapRefCount() == 1
+                        && (dst.isEmpty()
+                            || (dst.isHeapDouble() && dst.dims().rows() == 1))) {
+                        dst.appendScalar(rhs.toScalar(), &engine_.allocator_);
+                        break;
+                    }
+
+                    if (dst.isEmpty() || dst.isScalar() || i >= dst.numel())
+                        dst.ensureSize(i, &engine_.allocator_);
+                    dst.elemSet(i, rhs);
                 } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
                     // Colon linear-assign: z(:) = rhs writes across every
                     // element of z without changing its shape. Three fast

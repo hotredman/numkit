@@ -2005,6 +2005,24 @@ void MValue::ensureSize(size_t idx, Allocator *alloc)
 void MValue::appendScalar(double v, Allocator *alloc)
 {
     size_t oldN = numel(), newN = oldN + 1;
+
+    // Empty → fresh 1-element heap double with headroom.
+    if (isEmpty()) {
+        size_t cap = 8;
+        auto *h = new HeapObject();
+        h->type = MType::DOUBLE;
+        h->dims = {1, 1};
+        h->allocator = alloc;
+        h->buffer = new DataBuffer(cap * sizeof(double), alloc);
+        h->appendCapacity = cap;
+        double *d = static_cast<double *>(h->buffer->data());
+        std::memset(d, 0, cap * sizeof(double));
+        d[0] = v;
+        heap_ = h;   // emptyTag is a static sentinel, nothing to release
+        return;
+    }
+
+    // Inline scalar → promote to a 2-element heap double with headroom.
     if (heap_ == nullptr) {
         double old = scalar_;
         size_t cap = std::max(size_t(8), newN * 2);

@@ -294,6 +294,163 @@ TEST_P(ColonLinearAssign, ComplexRhsPromotesDoubleLhs)
 INSTANTIATE_DUAL(ColonLinearAssign);
 
 // ============================================================
+// ISSUE #2c: Grow-by-one indexed assign `A(end+1) = x`
+//
+// Classic MATLAB pattern for building a vector incrementally.
+// Before the fix, the VM path called ensureSize + elemSet every
+// iteration and ensureSize allocated *exactly* numel+1 elements,
+// giving O(N²) work for an N-length build. After the fix, when
+// `i == numel(A)` the VM routes through MValue::appendScalar which
+// preserves a geometric capacity — amortised O(1) per append.
+//
+// Tests below validate semantics, not timing. The benchmark that
+// motivated the fix lives in docs/examples/Benchmark/.
+// ============================================================
+
+class GrowByOneAssign : public DualEngineTest {};
+
+TEST_P(GrowByOneAssign, FromEmptyViaIndexOne)
+{
+    // The starting point of the classic build loop.
+    eval(R"(
+        A = [];
+        A(1) = 42;
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 1u);
+    ASSERT_EQ(rows(*A), 1u);
+    ASSERT_EQ(cols(*A), 1u);
+    expectElem(*A, 0, 42.0);
+}
+
+TEST_P(GrowByOneAssign, IncrementalBuildFromEmpty)
+{
+    // Ten grow-by-ones starting from empty. Each step hits the
+    // appendScalar fast path once A is a heap row-vector.
+    eval(R"(
+        A = [];
+        for i = 1:10
+            A(i) = i * 2;
+        end
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 10u);
+    ASSERT_EQ(rows(*A), 1u);
+    ASSERT_EQ(cols(*A), 10u);
+    for (size_t i = 0; i < 10; ++i)
+        expectElem(*A, i, static_cast<double>(2 * (i + 1)));
+}
+
+TEST_P(GrowByOneAssign, EndPlusOneSyntax)
+{
+    // `end+1` is the explicit MATLAB idiom; must give the same
+    // observable result as `A(i) = x` with i = numel+1.
+    eval(R"(
+        A = [];
+        for i = 1:5
+            A(end+1) = i * 10;
+        end
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 5u);
+    ASSERT_EQ(rows(*A), 1u);
+    for (size_t i = 0; i < 5; ++i)
+        expectElem(*A, i, static_cast<double>(10 * (i + 1)));
+}
+
+TEST_P(GrowByOneAssign, MixedGrowAndRewrite)
+{
+    // Growing, then rewriting already-written slots must keep the
+    // final array correct. Rewrites do NOT go through appendScalar.
+    eval(R"(
+        A = [];
+        A(1) = 10;
+        A(2) = 20;
+        A(3) = 30;
+        A(2) = 99;
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 3u);
+    expectElem(*A, 0, 10.0);
+    expectElem(*A, 1, 99.0);
+    expectElem(*A, 2, 30.0);
+}
+
+TEST_P(GrowByOneAssign, GrowByMoreThanOneFallback)
+{
+    // When i skips ahead of numel+1 the fast path declines; the
+    // generic ensureSize + elemSet path must still zero-fill the
+    // intervening slots.
+    eval(R"(
+        A = [];
+        A(1) = 10;
+        A(5) = 50;
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 5u);
+    expectElem(*A, 0, 10.0);
+    expectElem(*A, 1, 0.0);
+    expectElem(*A, 2, 0.0);
+    expectElem(*A, 3, 0.0);
+    expectElem(*A, 4, 50.0);
+}
+
+TEST_P(GrowByOneAssign, ColumnVectorGrowth)
+{
+    // Column-vector start: A(end+1) appends a new row. The fast
+    // path is row-vector-only so this goes through the generic
+    // ensureSize path — the result must still be a column.
+    eval(R"(
+        A = [1; 2; 3];
+        A(4) = 4;
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 4u);
+    ASSERT_EQ(rows(*A), 4u);
+    ASSERT_EQ(cols(*A), 1u);
+    for (size_t i = 0; i < 4; ++i)
+        expectElem(*A, i, static_cast<double>(i + 1));
+}
+
+TEST_P(GrowByOneAssign, ComplexRhsNotFastPath)
+{
+    // Complex rhs should route around the double-only fast path
+    // and still promote A to complex correctly.
+    eval(R"(
+        A = [];
+        A(1) = 1 + 2i;
+        A(2) = 3 + 4i;
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_TRUE(A->isComplex());
+    ASSERT_EQ(A->numel(), 2u);
+    EXPECT_DOUBLE_EQ(A->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[0].imag(), 2.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[1].real(), 3.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[1].imag(), 4.0);
+}
+
+TEST_P(GrowByOneAssign, LargeBuildRemainsCorrect)
+{
+    // Stress the capacity-doubling path: build a 1000-element
+    // vector and check every value. The purpose is correctness,
+    // not speed — a broken capacity tracker tends to corrupt the
+    // last element of every geometric step.
+    eval(R"(
+        A = [];
+        for i = 1:1000
+            A(i) = i;
+        end
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 1000u);
+    for (size_t i = 0; i < 1000; ++i)
+        expectElem(*A, i, static_cast<double>(i + 1));
+}
+
+INSTANTIATE_DUAL(GrowByOneAssign);
+
+// ============================================================
 // ISSUE #3: nargin not supported in VM
 //
 // nargin should return the number of arguments passed to

@@ -291,6 +291,16 @@ public:
 
     const Dims &heapDims() const { return heap_->dims; }
 
+    // Refcount of the underlying heap buffer. Returns 1 for scalar /
+    // empty / tag values (no shared ownership possible). Used by fast
+    // paths that want to mutate in-place iff they're the sole owner.
+    int heapRefCount() const
+    {
+        if (heap_ == nullptr || isTag())
+            return 1;
+        return heap_->refCount.load(std::memory_order_relaxed);
+    }
+
     // Get mutable data pointer — skips detach when refcount == 1 (sole owner).
     // Caller must guarantee this is a heap DOUBLE array.
     double *doubleDataMutFast()
