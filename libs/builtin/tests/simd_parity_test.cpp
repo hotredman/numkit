@@ -400,6 +400,118 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
         << " (got=" << C.doubleData()[worstIdx] << ", ref=" << ref[worstIdx] << ")";
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// Dimensionality coverage — 1D (row + column), 2D, 3D
+//
+// The SIMD fast paths in Phase 8 are keyed on different shape
+// predicates: unary ops (abs/sin/cos/exp/log) just need a flat
+// double buffer and work for any shape; binary ops (plus/minus/
+// times/rdivide) currently fast-path only 2D same-shape and fall
+// back to elementwiseDouble() for 3D and broadcast. These tests
+// pin that contract so a future refactor can't silently regress.
+// ════════════════════════════════════════════════════════════════════════
+
+TEST(SimdParity_Dim, AbsOn1DRow)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    auto x = MValue::matrix(1, 256, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
+    auto y = numkit::m::builtin::abs(alloc, x);
+    EXPECT_EQ(y.dims().rows(), 1u);
+    EXPECT_EQ(y.dims().cols(), 256u);
+    for (size_t i = 0; i < 256; ++i)
+        EXPECT_TRUE(bitEquals(y.doubleData()[i], double(i)));
+}
+
+TEST(SimdParity_Dim, AbsOn1DColumn)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    auto x = MValue::matrix(256, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
+    auto y = numkit::m::builtin::abs(alloc, x);
+    EXPECT_EQ(y.dims().rows(), 256u);
+    EXPECT_EQ(y.dims().cols(), 1u);
+    for (size_t i = 0; i < 256; ++i)
+        EXPECT_TRUE(bitEquals(y.doubleData()[i], double(i)));
+}
+
+TEST(SimdParity_Dim, AbsOn3D)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    auto x = MValue::matrix3d(3, 4, 5, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = -double(i);
+    auto y = numkit::m::builtin::abs(alloc, x);
+    ASSERT_TRUE(y.dims().is3D());
+    EXPECT_EQ(y.dims().rows(), 3u);
+    EXPECT_EQ(y.dims().cols(), 4u);
+    EXPECT_EQ(y.dims().pages(), 5u);
+    EXPECT_EQ(y.numel(), 60u);
+    for (size_t i = 0; i < y.numel(); ++i)
+        EXPECT_TRUE(bitEquals(y.doubleData()[i], double(i)));
+}
+
+TEST(SimdParity_Dim, SinOn3D)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    auto x = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = 0.1 * double(i);
+    auto y = numkit::m::builtin::sin(alloc, x);
+    ASSERT_TRUE(y.dims().is3D());
+    EXPECT_EQ(y.numel(), 24u);
+    for (size_t i = 0; i < y.numel(); ++i)
+        EXPECT_LE(ulpDistance(y.doubleData()[i], std::sin(0.1 * double(i))), 8u);
+}
+
+TEST(SimdParity_Dim, PlusOn3D)
+{
+    // 3D same-shape — currently goes through scalar elementwiseDouble()
+    // since sameShapeDoubleFastPath excludes 3D. The result must still
+    // be correct, just not SIMD-accelerated.
+    Allocator alloc = Allocator::defaultAllocator();
+    auto a = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
+    auto b = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < a.numel(); ++i) {
+        a.doubleDataMut()[i] = double(i);
+        b.doubleDataMut()[i] = 2.0;
+    }
+    auto c = numkit::m::builtin::plus(alloc, a, b);
+    ASSERT_TRUE(c.dims().is3D());
+    EXPECT_EQ(c.numel(), 24u);
+    for (size_t i = 0; i < c.numel(); ++i)
+        EXPECT_TRUE(bitEquals(c.doubleData()[i], double(i) + 2.0));
+}
+
+TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    // Row vector: cols > 1, rows = 1 — NOT excluded by the fast path,
+    // so goes through SIMD when NUMKIT_WITH_SIMD=ON.
+    auto aRow = MValue::matrix(1, 256, MType::DOUBLE, &alloc);
+    auto bRow = MValue::matrix(1, 256, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < 256; ++i) {
+        aRow.doubleDataMut()[i] = double(i);
+        bRow.doubleDataMut()[i] = 3.0;
+    }
+    auto cRow = numkit::m::builtin::plus(alloc, aRow, bRow);
+    EXPECT_EQ(cRow.dims().rows(), 1u);
+    EXPECT_EQ(cRow.dims().cols(), 256u);
+    for (size_t i = 0; i < 256; ++i)
+        EXPECT_TRUE(bitEquals(cRow.doubleData()[i], double(i) + 3.0));
+
+    // Column vector: rows > 1, cols = 1 — also SIMD-eligible.
+    auto aCol = MValue::matrix(256, 1, MType::DOUBLE, &alloc);
+    auto bCol = MValue::matrix(256, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < 256; ++i) {
+        aCol.doubleDataMut()[i] = double(i);
+        bCol.doubleDataMut()[i] = 3.0;
+    }
+    auto cCol = numkit::m::builtin::plus(alloc, aCol, bCol);
+    EXPECT_EQ(cCol.dims().rows(), 256u);
+    EXPECT_EQ(cCol.dims().cols(), 1u);
+    for (size_t i = 0; i < 256; ++i)
+        EXPECT_TRUE(bitEquals(cCol.doubleData()[i], double(i) + 3.0));
+}
+
 TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
 {
     Allocator alloc = Allocator::defaultAllocator();
