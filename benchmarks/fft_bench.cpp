@@ -50,7 +50,11 @@ static void BM_Fft_PowerOfTwo(benchmark::State &state)
 }
 
 // 2^10 … 2^18 spans roughly L1 through L3 on a workstation.
+// Every size is a power of 2 — split between pure powers of 4
+// (1024, 4096, 16384, 65536, 262144) which hit the radix-4 kernel
+// once its threshold is reached, and "odd log2" sizes (2048, 8192,
+// 32768, 131072) which the mixed-radix r4+r2 kernel targets.
 BENCHMARK(BM_Fft_PowerOfTwo)
-    ->RangeMultiplier(4)
+    ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18)
     ->Complexity(benchmark::oNLogN);
