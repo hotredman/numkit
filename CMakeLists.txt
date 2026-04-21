@@ -92,6 +92,7 @@ set(NUMKIT_M_HEADERS
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
+    libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/fit/include/numkit/m/fit/MFitLibrary.hpp
     libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )

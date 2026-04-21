@@ -8,5 +8,6 @@ set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspSpectral.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspResample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspTransform.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MDspFft.cpp
     PARENT_SCOPE
 )
