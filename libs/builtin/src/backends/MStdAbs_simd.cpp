@@ -38,8 +38,8 @@ void AbsLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
-        auto v = hn::Load(d, in + i);
-        hn::Store(hn::Abs(v), d, out + i);
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Abs(v), d, out + i);
     }
     for (; i < n; ++i)
         out[i] = std::fabs(in[i]);

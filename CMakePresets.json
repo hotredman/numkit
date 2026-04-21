@@ -73,8 +73,16 @@
       "name": "bench-clang",
       "inherits": "bench",
       "displayName": "Bench with clang-cl (no Highway SIMD)",
-      "description": "Drives the Visual Studio 17 2022 generator through the ClangCL toolset (clang-cl shipped with VS 2022 Professional). Highway is DISABLED — this preset exists to measure clang-cl's own autovectoriser and register allocator against MSVC's. On FFT in particular, clang-cl without Highway matches or beats MSVC *with* Highway, confirming the MSVC-codegen cliff documented in feedback_fft_msvc_limits. A clang-cl+Highway preset was tried and crashed (latent ABI/alignment mismatch not yet root-caused); re-add once debugged.",
+      "description": "Drives the Visual Studio 17 2022 generator through the ClangCL toolset (clang-cl shipped with VS 2022 Professional). Highway is DISABLED — this preset exists to measure clang-cl's own autovectoriser and register allocator against MSVC's. On FFT in particular, clang-cl without Highway matches or beats MSVC *with* Highway, confirming the MSVC-codegen cliff documented in feedback_fft_msvc_limits.",
       "binaryDir": "${sourceDir}/build-bench-clang",
+      "toolset": "ClangCL"
+    },
+    {
+      "name": "bench-simd-clang",
+      "inherits": "bench-simd",
+      "displayName": "Bench with clang-cl toolset + Highway SIMD",
+      "description": "Same matrix as bench-simd (NUMKIT_WITH_SIMD=ON) but compiled with clang-cl. Useful for measuring codegen + Highway integration differences against MSVC on the same machine. Requires VS 2022 Professional (ships clang-cl at VC/Tools/Llvm/x64/bin/clang-cl.exe).",
+      "binaryDir": "${sourceDir}/build-bench-simd-clang",
       "toolset": "ClangCL"
     },
     {
@@ -102,6 +110,7 @@
     {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
     {"name": "bench-simd",       "configurePreset": "bench-simd",       "configuration": "Release"},
     {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release"},
+    {"name": "bench-simd-clang", "configurePreset": "bench-simd-clang", "configuration": "Release"},
     {"name": "browser",      "configurePreset": "browser"},
     {"name": "bench-wasm",   "configurePreset": "bench-wasm"}
   ],

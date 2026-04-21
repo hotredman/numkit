@@ -40,8 +40,8 @@ void SinLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
-        auto v = hn::Load(d, in + i);
-        hn::Store(hn::Sin(d, v), d, out + i);
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Sin(d, v), d, out + i);
     }
     for (; i < n; ++i) out[i] = std::sin(in[i]);
 }
@@ -52,8 +52,8 @@ void CosLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
-        auto v = hn::Load(d, in + i);
-        hn::Store(hn::Cos(d, v), d, out + i);
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Cos(d, v), d, out + i);
     }
     for (; i < n; ++i) out[i] = std::cos(in[i]);
 }
@@ -64,8 +64,8 @@ void ExpLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
-        auto v = hn::Load(d, in + i);
-        hn::Store(hn::Exp(d, v), d, out + i);
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Exp(d, v), d, out + i);
     }
     for (; i < n; ++i) out[i] = std::exp(in[i]);
 }
@@ -76,8 +76,8 @@ void LogLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N) {
-        auto v = hn::Load(d, in + i);
-        hn::Store(hn::Log(d, v), d, out + i);
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Log(d, v), d, out + i);
     }
     for (; i < n; ++i) out[i] = std::log(in[i]);
 }

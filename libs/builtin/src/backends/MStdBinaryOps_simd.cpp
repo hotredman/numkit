@@ -29,7 +29,7 @@ void PlusLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N)
-        hn::Store(hn::Add(hn::Load(d, a + i), hn::Load(d, b + i)), d, out + i);
+        hn::StoreU(hn::Add(hn::LoadU(d, a + i), hn::LoadU(d, b + i)), d, out + i);
     for (; i < n; ++i) out[i] = a[i] + b[i];
 }
 
@@ -40,7 +40,7 @@ void MinusLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N)
-        hn::Store(hn::Sub(hn::Load(d, a + i), hn::Load(d, b + i)), d, out + i);
+        hn::StoreU(hn::Sub(hn::LoadU(d, a + i), hn::LoadU(d, b + i)), d, out + i);
     for (; i < n; ++i) out[i] = a[i] - b[i];
 }
 
@@ -51,7 +51,7 @@ void TimesLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N)
-        hn::Store(hn::Mul(hn::Load(d, a + i), hn::Load(d, b + i)), d, out + i);
+        hn::StoreU(hn::Mul(hn::LoadU(d, a + i), hn::LoadU(d, b + i)), d, out + i);
     for (; i < n; ++i) out[i] = a[i] * b[i];
 }
 
@@ -62,7 +62,7 @@ void RdivideLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     const std::size_t N = hn::Lanes(d);
     std::size_t i = 0;
     for (; i + N <= n; i += N)
-        hn::Store(hn::Div(hn::Load(d, a + i), hn::Load(d, b + i)), d, out + i);
+        hn::StoreU(hn::Div(hn::LoadU(d, a + i), hn::LoadU(d, b + i)), d, out + i);
     for (; i < n; ++i) out[i] = a[i] / b[i];
 }
 
@@ -83,7 +83,7 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
         {
             const auto zero = hn::Zero(d);
             std::size_t i = 0;
-            for (; i + lanes <= M; i += lanes) hn::Store(zero, d, c_col + i);
+            for (; i + lanes <= M; i += lanes) hn::StoreU(zero, d, c_col + i);
             for (; i < M; ++i) c_col[i] = 0.0;
         }
 
@@ -94,9 +94,9 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
 
             std::size_t i = 0;
             for (; i + lanes <= M; i += lanes) {
-                const auto va = hn::Load(d, a_col + i);
-                const auto vc = hn::Load(d, c_col + i);
-                hn::Store(hn::MulAdd(va, vb, vc), d, c_col + i);
+                const auto va = hn::LoadU(d, a_col + i);
+                const auto vc = hn::LoadU(d, c_col + i);
+                hn::StoreU(hn::MulAdd(va, vb, vc), d, c_col + i);
             }
             for (; i < M; ++i) c_col[i] += bkj * a_col[i];
         }

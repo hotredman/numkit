@@ -137,12 +137,12 @@ HWY_NOINLINE void radix4Stage(Complex *buf, std::size_t N, std::size_t len,
                 hn::LoadInterleaved2(d, pW, wre, wim);
                 hn::LoadInterleaved2(d, pZ, zre, zim);
 
-                const auto w1r = hn::Load(d, sW1r + j);
-                const auto w1i = hn::Load(d, sW1i + j);
-                const auto w2r = hn::Load(d, sW2r + j);
-                const auto w2i = hn::Load(d, sW2i + j);
-                const auto w3r = hn::Load(d, sW3r + j);
-                const auto w3i = hn::Load(d, sW3i + j);
+                const auto w1r = hn::LoadU(d, sW1r + j);
+                const auto w1i = hn::LoadU(d, sW1i + j);
+                const auto w2r = hn::LoadU(d, sW2r + j);
+                const auto w2i = hn::LoadU(d, sW2i + j);
+                const auto w3r = hn::LoadU(d, sW3r + j);
+                const auto w3i = hn::LoadU(d, sW3i + j);
 
                 // x1 = v·W1, x2 = w·W2, x3 = z·W3 (SoA complex mul via FMA)
                 const auto x1re = hn::NegMulAdd(vim, w1i, hn::Mul(vre, w1r));
@@ -242,8 +242,8 @@ void FftRadix2(Complex *buf, std::size_t N, const Complex *W)
                 std::size_t j = 0;
                 if (half >= lanes) {
                     for (; j + lanes <= half; j += lanes) {
-                        const auto wre = hn::Load(d, stageWr.data() + j);
-                        const auto wim = hn::Load(d, stageWi.data() + j);
+                        const auto wre = hn::LoadU(d, stageWr.data() + j);
+                        const auto wim = hn::LoadU(d, stageWi.data() + j);
                         double *pU = reinterpret_cast<double *>(buf + i + j);
                         double *pV = reinterpret_cast<double *>(buf + i + j + half);
                         hn::Vec<decltype(d)> ure, uim, vlre, vlim;
