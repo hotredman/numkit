@@ -15,14 +15,39 @@
 namespace numkit::m {
 
 // ============================================================
-// Iterative radix-2 Cooley-Tukey FFT (in-place)
-// N must be a power of 2. dir=1 forward, dir=-1 inverse.
+// Twiddle-factor precomputation
 //
-// Takes a raw pointer + length instead of a container reference so
-// callers can back the buffer with std::vector, std::pmr::vector,
-// a stack array, or any other contiguous Complex storage.
+// W[k] = exp(dir * 2πi * k / N) for k in [0, N/2). Stage `len` of an
+// N-point radix-2 FFT uses W[0], W[step], W[2·step], …,
+// W[(len/2 - 1)·step] where step = N/len. A single table of length
+// N/2 thus covers every stage — removing the rotating `w *= wlen`
+// from the inner loop and breaking the data dependency that prevents
+// SIMD vectorisation (relevant for Phase 8e.2+).
+//
+// dir=+1 matches the current sign convention used by fftRadix2 and
+// its conjugate-trick inverse wrapper in MDspFft.cpp.
 // ============================================================
-inline void fftRadix2(Complex *buf, size_t N, int dir)
+inline void fillFftTwiddles(Complex *W, size_t N, int dir)
+{
+    const size_t half = N / 2;
+    if (half == 0) return;
+    const double base = dir * 2.0 * M_PI / static_cast<double>(N);
+    for (size_t k = 0; k < half; ++k) {
+        const double a = base * static_cast<double>(k);
+        W[k] = Complex(std::cos(a), std::sin(a));
+    }
+}
+
+// ============================================================
+// Iterative radix-2 Cooley-Tukey FFT (in-place).
+// N must be a power of 2. Takes a precomputed twiddle table W of
+// length N/2; see fillFftTwiddles above for how to build it.
+//
+// Decoupled from any container type so callers can back the buffer
+// with std::vector, std::pmr::vector, a stack array, or any other
+// contiguous Complex storage.
+// ============================================================
+inline void fftRadix2(Complex *buf, size_t N, const Complex *W)
 {
     if (N <= 1)
         return;
@@ -37,25 +62,36 @@ inline void fftRadix2(Complex *buf, size_t N, int dir)
             std::swap(buf[i], buf[j]);
     }
 
-    // Butterfly stages
+    // Butterfly stages — look up twiddles from the precomputed table.
     for (size_t len = 2; len <= N; len <<= 1) {
-        double angle = dir * 2.0 * M_PI / static_cast<double>(len);
-        Complex wlen(std::cos(angle), std::sin(angle));
+        const size_t step = N / len;
         for (size_t i = 0; i < N; i += len) {
-            Complex w(1.0, 0.0);
             for (size_t j = 0; j < len / 2; ++j) {
-                Complex u = buf[i + j];
-                Complex v = buf[i + j + len / 2] * w;
+                const Complex w = W[j * step];
+                const Complex u = buf[i + j];
+                const Complex v = buf[i + j + len / 2] * w;
                 buf[i + j]           = u + v;
                 buf[i + j + len / 2] = u - v;
-                w *= wlen;
             }
         }
     }
 }
 
-// Convenience overload for container-backed buffers (passes .data() and
-// .size()). Works for std::vector, std::pmr::vector, std::array, etc.
+// Legacy convenience overload: generates a one-shot twiddle table
+// on each call. Still used by callers that haven't hoisted the table
+// outside their own loops (MDspSpectral, MDspTransform). For hot paths
+// (fftAlongDim in MDspFft.cpp, convFFT below), prefer the primary
+// overload + fillFftTwiddles so the table cost amortises.
+inline void fftRadix2(Complex *buf, size_t N, int dir)
+{
+    if (N <= 1) return;
+    std::vector<Complex> W(N / 2);
+    fillFftTwiddles(W.data(), N, dir);
+    fftRadix2(buf, N, W.data());
+}
+
+// Container overload — buf.data() + buf.size() + dir. Handles both
+// std::vector<Complex> and std::pmr::vector<Complex>.
 template <typename Container>
 inline auto fftRadix2(Container &buf, int dir)
     -> decltype(buf.data(), buf.size(), void())
@@ -135,13 +171,21 @@ inline std::vector<double> convFFT(const double *a, size_t na,
     for (size_t i = 0; i < na; ++i) fa[i] = Complex(a[i], 0.0);
     for (size_t i = 0; i < nb; ++i) fb[i] = Complex(b[i], 0.0);
 
-    fftRadix2(fa, 1);
-    fftRadix2(fb, 1);
+    // Forward twiddles used for both fa and fb; inverse twiddles used
+    // once for fa. One-shot overload allocates a fresh table on every
+    // call, so hoisting them here saves two tables' worth of work.
+    std::vector<Complex> W_fwd(fftLen / 2);
+    std::vector<Complex> W_inv(fftLen / 2);
+    fillFftTwiddles(W_fwd.data(), fftLen, +1);
+    fillFftTwiddles(W_inv.data(), fftLen, -1);
+
+    fftRadix2(fa.data(), fftLen, W_fwd.data());
+    fftRadix2(fb.data(), fftLen, W_fwd.data());
 
     for (size_t i = 0; i < fftLen; ++i)
         fa[i] *= fb[i];
 
-    fftRadix2(fa, -1);
+    fftRadix2(fa.data(), fftLen, W_inv.data());
 
     double invN = 1.0 / static_cast<double>(fftLen);
     std::vector<double> c(nc);

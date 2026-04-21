@@ -98,6 +98,12 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     // storage — no silent std::allocator-backed allocations here.
     std::pmr::vector<Complex> buf(fftLen, alloc->memoryResource());
 
+    // Precomputed twiddle table — size N/2, reused across every slice.
+    // The conjugate-trick below handles the inverse direction, so
+    // fftRadix2 is always called with forward (dir=+1) twiddles.
+    std::pmr::vector<Complex> W(fftLen / 2, alloc->memoryResource());
+    fillFftTwiddles(W.data(), fftLen, /*dir=*/+1);
+
     // Slice enumeration. The three cases (dim=1/2/3) are spelled out
     // with concrete stride constants rather than a generic
     // lambda-with-captures — MSVC's optimiser folds the contiguous
@@ -119,11 +125,11 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
             for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
             if (dir == -1) {
                 for (auto &v : buf) v = std::conj(v);
-                fftRadix2(buf, 1);
+                fftRadix2(buf.data(), fftLen, W.data());
                 const double invN = 1.0 / static_cast<double>(fftLen);
                 for (auto &v : buf) v = std::conj(v) * invN;
             } else {
-                fftRadix2(buf, 1);
+                fftRadix2(buf.data(), fftLen, W.data());
             }
             // Store contiguous (outAxisStride == 1 when dim==1)
             for (size_t k = 0; k < outAxisLen; ++k) dst[outBase + k] = buf[k];
