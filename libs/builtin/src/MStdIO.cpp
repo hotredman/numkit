@@ -1,4 +1,5 @@
 #include <numkit/m/core/MBranding.hpp>
+#include <numkit/m/builtin/MStdFormat.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
 
 #include <array>
@@ -126,223 +127,20 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                                 return;
                             });
 
-    // ── shared printf-style formatter ──────────────────────────
-    auto sprintfImpl =
-        [](const std::string &fmt, Span<const MValue> args, size_t argStart) -> std::string {
-        std::ostringstream out;
-        size_t ai = argStart;
-
-        for (size_t i = 0; i < fmt.size(); ++i) {
-            if (fmt[i] == '\\' && i + 1 < fmt.size()) {
-                char next = fmt[i + 1];
-                if (next == 'n') {
-                    out << '\n';
-                    i++;
-                    continue;
-                }
-                if (next == 't') {
-                    out << '\t';
-                    i++;
-                    continue;
-                }
-                if (next == '\\') {
-                    out << '\\';
-                    i++;
-                    continue;
-                }
-                if (next == '\'') {
-                    out << '\'';
-                    i++;
-                    continue;
-                }
-                out << fmt[i];
-                continue;
-            }
-
-            if (fmt[i] == '%') {
-                if (i + 1 < fmt.size() && fmt[i + 1] == '%') {
-                    out << '%';
-                    i++;
-                    continue;
-                }
-
-                size_t start = i;
-                i++;
-
-                while (i < fmt.size()
-                       && (fmt[i] == '-' || fmt[i] == '+' || fmt[i] == '0' || fmt[i] == ' '
-                           || fmt[i] == '#'))
-                    i++;
-                if (i < fmt.size() && fmt[i] == '*') {
-                    i++;
-                } else {
-                    while (i < fmt.size() && fmt[i] >= '0' && fmt[i] <= '9')
-                        i++;
-                }
-                if (i < fmt.size() && fmt[i] == '.') {
-                    i++;
-                    if (i < fmt.size() && fmt[i] == '*') {
-                        i++;
-                    } else {
-                        while (i < fmt.size() && fmt[i] >= '0' && fmt[i] <= '9')
-                            i++;
-                    }
-                }
-                while (i < fmt.size() && (fmt[i] == 'l' || fmt[i] == 'h'))
-                    i++;
-
-                if (i >= fmt.size())
-                    break;
-
-                char type = fmt[i];
-                std::string spec(fmt, start, i - start + 1);
-
-                if (type == 's') {
-                    if (ai < args.size() && args[ai].isChar())
-                        out << args[ai].toString();
-                    ai++;
-                } else if (type == 'c') {
-                    if (ai < args.size()) {
-                        if (args[ai].isChar()) {
-                            std::string s = args[ai].toString();
-                            out << (s.empty() ? ' ' : s[0]);
-                        } else {
-                            out << static_cast<char>(static_cast<int>(args[ai].toScalar()));
-                        }
-                    }
-                    ai++;
-                } else if (type == 'd' || type == 'i') {
-                    if (ai < args.size()) {
-                        char buf[64];
-                        std::string ispec = spec.substr(0, spec.size() - 1) + "lld";
-                        std::snprintf(buf,
-                                      sizeof(buf),
-                                      ispec.c_str(),
-                                      static_cast<long long>(args[ai].toScalar()));
-                        out << buf;
-                    }
-                    ai++;
-                } else if (type == 'u') {
-                    if (ai < args.size()) {
-                        char buf[64];
-                        std::string uspec = spec.substr(0, spec.size() - 1) + "llu";
-                        std::snprintf(buf,
-                                      sizeof(buf),
-                                      uspec.c_str(),
-                                      static_cast<unsigned long long>(args[ai].toScalar()));
-                        out << buf;
-                    }
-                    ai++;
-                } else if (type == 'x' || type == 'X') {
-                    if (ai < args.size()) {
-                        char buf[64];
-                        std::string xspec = spec.substr(0, spec.size() - 1) + "ll" + type;
-                        std::snprintf(buf,
-                                      sizeof(buf),
-                                      xspec.c_str(),
-                                      static_cast<unsigned long long>(args[ai].toScalar()));
-                        out << buf;
-                    }
-                    ai++;
-                } else if (type == 'o') {
-                    if (ai < args.size()) {
-                        char buf[64];
-                        std::string ospec = spec.substr(0, spec.size() - 1) + "llo";
-                        std::snprintf(buf,
-                                      sizeof(buf),
-                                      ospec.c_str(),
-                                      static_cast<unsigned long long>(args[ai].toScalar()));
-                        out << buf;
-                    }
-                    ai++;
-                } else if (type == 'f' || type == 'e' || type == 'E' || type == 'g' || type == 'G') {
-                    if (ai < args.size()) {
-                        char buf[128];
-                        std::snprintf(buf, sizeof(buf), spec.c_str(), args[ai].toScalar());
-                        out << buf;
-                    }
-                    ai++;
-                } else {
-                    out << spec;
-                }
-                continue;
-            }
-
-            out << fmt[i];
-        }
-        return out.str();
-    };
-
-    // MATLAB fprintf / sprintf apply the format string CYCLICALLY over
-    // array inputs, column-major: fprintf('%d %d\n', [1 2 3 4]) prints
-    //   1 2
-    //   3 4
-    // We flatten numeric array args into a stream of scalar MValues and
-    // invoke sprintfImpl once per chunk of (nSpecs) values. Char args
-    // stay as single placeholders (MATLAB's %s takes the whole string).
-    auto countFormatSpecs = [](const std::string &fmt) -> size_t {
-        size_t n = 0;
-        for (size_t i = 0; i < fmt.size(); ++i) {
-            if (fmt[i] != '%') continue;
-            if (i + 1 < fmt.size() && fmt[i + 1] == '%') { ++i; continue; } // literal %%
-            ++i;
-            while (i < fmt.size() &&
-                   (fmt[i] == '-' || fmt[i] == '+' || fmt[i] == '0' ||
-                    fmt[i] == ' ' || fmt[i] == '#' || fmt[i] == '.' ||
-                    std::isdigit(static_cast<unsigned char>(fmt[i]))))
-                ++i;
-            while (i < fmt.size() && (fmt[i] == 'l' || fmt[i] == 'h'))
-                ++i;
-            if (i < fmt.size()) ++n;
-        }
-        return n;
-    };
-
-    auto sprintfCyclic = [sprintfImpl, countFormatSpecs](
-                             const std::string &fmt, Span<const MValue> args, size_t argStart,
-                             Allocator *alloc) -> std::string {
-        std::vector<MValue> stream;
-        stream.reserve(args.size() - argStart);
-        for (size_t i = argStart; i < args.size(); ++i) {
-            const MValue &a = args[i];
-            if (a.isChar() || a.isScalar()) {
-                stream.push_back(a);
-                continue;
-            }
-            size_t n = a.numel();
-            for (size_t j = 0; j < n; ++j) {
-                double v;
-                if (a.type() == MType::DOUBLE) v = a.doubleData()[j];
-                else if (a.isLogical())        v = a.logicalData()[j] ? 1.0 : 0.0;
-                else                           v = a(j);
-                stream.push_back(MValue::scalar(v, alloc));
-            }
-        }
-
-        size_t nSpecs = countFormatSpecs(fmt);
-        if (nSpecs == 0 || stream.size() <= nSpecs) {
-            return sprintfImpl(fmt, Span<const MValue>{stream.data(), stream.size()}, 0);
-        }
-        std::string out;
-        size_t pos = 0;
-        while (pos < stream.size()) {
-            size_t end = std::min(pos + nSpecs, stream.size());
-            out += sprintfImpl(
-                fmt, Span<const MValue>{stream.data() + pos, end - pos}, 0);
-            pos = end;
-        }
-        return out;
-    };
+    // Note: sprintf / formatOnce / formatCyclic / countFormatSpecs have
+    // moved to libs/builtin/src/MStdFormat.cpp. Other lambdas in this
+    // file (fprintf, error, warning, MException, assert) call the public
+    // API via #include <numkit/m/builtin/MStdFormat.hpp>.
 
     engine.registerFunction(
         "fprintf",
-        [sprintfCyclic](Span<const MValue> args,
-                        size_t nargout,
-                        Span<MValue> outs,
-                        CallContext &ctx) {
+        [](Span<const MValue> args,
+           size_t nargout,
+           Span<MValue> outs,
+           CallContext &ctx) {
             if (args.empty())
                 return;
-            auto *alloc = &ctx.engine->allocator();
+            auto &alloc = ctx.engine->allocator();
 
             // First-arg-is-fid disambiguation: MATLAB allows both
             // fprintf(format, …) and fprintf(fid, format, …); we detect
@@ -356,7 +154,8 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             if (!args[fmtIdx].isChar())
                 return;
 
-            std::string result = sprintfCyclic(args[fmtIdx].toString(), args, fmtIdx + 1, alloc);
+            std::string result =
+                builtin::formatCyclic(alloc, args[fmtIdx].toString(), args, fmtIdx + 1);
 
             if (fid == 1 || fid == 2) {
                 ctx.engine->outputText(result);
@@ -377,24 +176,9 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             }
         });
 
-    engine.registerFunction("sprintf",
-                            [sprintfCyclic](Span<const MValue> args,
-                                            size_t nargout,
-                                            Span<MValue> outs,
-                                            CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.empty() || !args[0].isChar()) {
-                                    outs[0] = MValue::fromString("", alloc);
-                                    return;
-                                }
-                                std::string result =
-                                    sprintfCyclic(args[0].toString(), args, 1, alloc);
-                                outs[0] = MValue::fromString(result, alloc);
-                            });
-
     engine.registerFunction(
         "error",
-        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 throw MError("Error");
@@ -418,7 +202,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = first;
                 std::string msg;
                 if (args.size() > 2)
-                    msg = sprintfImpl(args[1].toString(), args, 2);
+                    msg = builtin::formatOnce(args[1].toString(), args, 2);
                 else
                     msg = args[1].toString();
                 throw MError(msg, 0, 0, "", "", id);
@@ -427,7 +211,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             // error(msg) or error(msg, arg1, ...) — sprintf formatting
             std::string msg;
             if (args.size() > 1)
-                msg = sprintfImpl(first, args, 1);
+                msg = builtin::formatOnce(first, args, 1);
             else
                 msg = first;
             throw MError(msg);
@@ -435,7 +219,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
 
     engine.registerFunction(
         "warning",
-        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 return;
@@ -446,11 +230,11 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 && (args[1].isChar() || args[1].isString())) {
                 // warning(id, msg, ...) — skip identifier, format message
                 if (args.size() > 2)
-                    msg = sprintfImpl(args[1].toString(), args, 2);
+                    msg = builtin::formatOnce(args[1].toString(), args, 2);
                 else
                     msg = args[1].toString();
             } else if (args.size() > 1) {
-                msg = sprintfImpl(first, args, 1);
+                msg = builtin::formatOnce(first, args, 1);
             } else {
                 msg = first;
             }
@@ -460,7 +244,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // MException(id, msg, ...) — create exception struct
     engine.registerFunction(
         "MException",
-        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             auto *alloc = &ctx.engine->allocator();
             if (args.size() < 2)
@@ -468,7 +252,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
             std::string id = args[0].toString();
             std::string msg;
             if (args.size() > 2)
-                msg = sprintfImpl(args[1].toString(), args, 2);
+                msg = builtin::formatOnce(args[1].toString(), args, 2);
             else
                 msg = args[1].toString();
             auto me = MValue::structure();
@@ -506,7 +290,7 @@ void StdLibrary::registerIOFunctions(Engine &engine)
     // assert(condition) / assert(condition, msg) / assert(condition, id, msg, ...)
     engine.registerFunction(
         "assert",
-        [sprintfImpl](Span<const MValue> args, size_t nargout, Span<MValue> outs,
+        [](Span<const MValue> args, size_t nargout, Span<MValue> outs,
                         CallContext &ctx) {
             if (args.empty())
                 throw std::runtime_error("assert requires at least one argument");
@@ -530,14 +314,14 @@ void StdLibrary::registerIOFunctions(Engine &engine)
                 std::string id = first;
                 std::string msg;
                 if (args.size() > 3)
-                    msg = sprintfImpl(args[2].toString(), args, 3);
+                    msg = builtin::formatOnce(args[2].toString(), args, 3);
                 else
                     msg = args[2].toString();
                 throw MError(msg, 0, 0, "", "", id);
             }
             std::string msg;
             if (args.size() > 2)
-                msg = sprintfImpl(first, args, 2);
+                msg = builtin::formatOnce(first, args, 2);
             else
                 msg = first;
             throw MError(msg, 0, 0, "", "", "m:assert");

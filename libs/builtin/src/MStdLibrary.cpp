@@ -100,6 +100,9 @@ void isequal_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isequaln_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void class_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdFormat.cpp
+void sprintf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdCellStruct.cpp
 void struct_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fieldnames_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -256,6 +259,9 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     engine.registerFunction("class",     &builtin::detail::class_reg);
+
+    // ── Phase 6c: MStdFormat public-API-backed built-ins ───────────
+    engine.registerFunction("sprintf",    &builtin::detail::sprintf_reg);
 
     // ── Phase 6c: MStdCellStruct public-API-backed built-ins ───────
     engine.registerFunction("struct",     &builtin::detail::struct_reg);

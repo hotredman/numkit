@@ -9,5 +9,6 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdComplex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdFormat.cpp
     PARENT_SCOPE
 )
