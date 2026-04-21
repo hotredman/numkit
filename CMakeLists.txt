@@ -6,10 +6,11 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(NUMKIT_M_BUILD_EXAMPLE "Build example executable" ON)
-option(NUMKIT_M_BUILD_TESTS   "Build tests"              ON)
-option(NUMKIT_M_BUILD_SHARED  "Build shared library"     OFF)
-option(NUMKIT_M_INSTALL       "Generate install target"  ON)
+option(NUMKIT_M_BUILD_EXAMPLE    "Build example executable"              ON)
+option(NUMKIT_M_BUILD_TESTS      "Build tests"                           ON)
+option(NUMKIT_M_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
+option(NUMKIT_M_BUILD_SHARED     "Build shared library"                  OFF)
+option(NUMKIT_M_INSTALL          "Generate install target"               ON)
 
 # Feature flags (NUMKIT_WITH_SIMD)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -189,6 +190,29 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(libs/dsp/tests)
     add_subdirectory(libs/fit/tests)
     add_subdirectory(libs/plt/tests)
+endif()
+
+# ──────────────────────────────────────────────
+# Benchmarks (Google Benchmark)
+# ──────────────────────────────────────────────
+
+if(NUMKIT_M_BUILD_BENCHMARKS AND NOT EMSCRIPTEN)
+    include(FetchContent)
+
+    FetchContent_Declare(
+        benchmark
+        GIT_REPOSITORY https://github.com/google/benchmark.git
+        GIT_TAG        v1.8.3
+    )
+
+    # Don't build Google Benchmark's own tests or docs inside our tree.
+    set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_INSTALL OFF CACHE BOOL "" FORCE)
+    set(BENCHMARK_ENABLE_GTEST_TESTS OFF CACHE BOOL "" FORCE)
+
+    FetchContent_MakeAvailable(benchmark)
+
+    add_subdirectory(benchmarks)
 endif()
 
 # ──────────────────────────────────────────────

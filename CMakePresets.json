@@ -37,6 +37,16 @@
       }
     },
     {
+      "name": "bench",
+      "inherits": "portable",
+      "displayName": "Bench (portable + Google Benchmark)",
+      "description": "Release build with NUMKIT_M_BUILD_BENCHMARKS=ON. Produces the m_bench executable for baseline performance numbers before any SIMD work.",
+      "binaryDir": "${sourceDir}/build-bench",
+      "cacheVariables": {
+        "NUMKIT_M_BUILD_BENCHMARKS": "ON"
+      }
+    },
+    {
       "name": "browser",
       "displayName": "Browser (WASM via Emscripten)",
       "description": "WebAssembly build for the mIDE browser UI. Requires EMSDK env var pointing to an Emscripten SDK install. Uses the Emscripten toolchain file directly — no need to launch via emcmake if EMSDK is set.",
@@ -54,6 +64,7 @@
     {"name": "portable",     "configurePreset": "portable",     "configuration": "Release"},
     {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release"},
     {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
+    {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
     {"name": "browser",      "configurePreset": "browser"}
   ],
   "testPresets": [
