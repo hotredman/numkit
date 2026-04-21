@@ -107,6 +107,17 @@ void sprintf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void disp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fprintf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdFileIO.cpp
+void fopen_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fclose_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fgetl_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fgets_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void feof_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ferror_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ftell_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fseek_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void frewind_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdDiagnostics.cpp
 void error_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void warning_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -278,6 +289,17 @@ void StdLibrary::install(Engine &engine)
     // ── Phase 6c: MStdPrint public-API-backed built-ins ────────────
     engine.registerFunction("disp",       &builtin::detail::disp_reg);
     engine.registerFunction("fprintf",    &builtin::detail::fprintf_reg);
+
+    // ── Phase 6c: MStdFileIO public-API-backed built-ins ───────────
+    engine.registerFunction("fopen",      &builtin::detail::fopen_reg);
+    engine.registerFunction("fclose",     &builtin::detail::fclose_reg);
+    engine.registerFunction("fgetl",      &builtin::detail::fgetl_reg);
+    engine.registerFunction("fgets",      &builtin::detail::fgets_reg);
+    engine.registerFunction("feof",       &builtin::detail::feof_reg);
+    engine.registerFunction("ferror",     &builtin::detail::ferror_reg);
+    engine.registerFunction("ftell",      &builtin::detail::ftell_reg);
+    engine.registerFunction("fseek",      &builtin::detail::fseek_reg);
+    engine.registerFunction("frewind",    &builtin::detail::frewind_reg);
 
     // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
