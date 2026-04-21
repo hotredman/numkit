@@ -14,6 +14,9 @@
 add_executable(m_bench
     fft_bench.cpp
     matmul_bench.cpp
+    conv_bench.cpp
+    elementwise_bench.cpp
+    sort_bench.cpp
 )
 
 target_link_libraries(m_bench
