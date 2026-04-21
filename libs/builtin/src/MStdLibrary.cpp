@@ -133,6 +133,10 @@ void csvwrite_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void setenv_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void getenv_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdSaveLoad.cpp
+void save_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void load_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdDiagnostics.cpp
 void error_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void warning_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -181,7 +185,6 @@ void StdLibrary::install(Engine &engine)
 {
     registerBinaryOps(engine);
     registerUnaryOps(engine);
-    registerIOFunctions(engine);
     registerTypeFunctions(engine);
     registerCellStructFunctions(engine);
     registerStringFunctions(engine);
@@ -330,6 +333,10 @@ void StdLibrary::install(Engine &engine)
     // ── Phase 6c: MStdEnv public-API-backed built-ins ──────────────
     engine.registerFunction("setenv",     &builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &builtin::detail::getenv_reg);
+
+    // ── Phase 6c: MStdSaveLoad public-API-backed built-ins ─────────
+    engine.registerFunction("save",       &builtin::detail::save_reg);
+    engine.registerFunction("load",       &builtin::detail::load_reg);
 
     // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
