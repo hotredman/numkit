@@ -103,6 +103,10 @@ void class_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 // MStdFormat.cpp
 void sprintf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdPrint.cpp
+void disp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fprintf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdDiagnostics.cpp
 void error_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void warning_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -270,6 +274,10 @@ void StdLibrary::install(Engine &engine)
 
     // ── Phase 6c: MStdFormat public-API-backed built-ins ───────────
     engine.registerFunction("sprintf",    &builtin::detail::sprintf_reg);
+
+    // ── Phase 6c: MStdPrint public-API-backed built-ins ────────────
+    engine.registerFunction("disp",       &builtin::detail::disp_reg);
+    engine.registerFunction("fprintf",    &builtin::detail::fprintf_reg);
 
     // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);

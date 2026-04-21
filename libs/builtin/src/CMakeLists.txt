@@ -11,5 +11,6 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdComplex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdFormat.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdDiagnostics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdPrint.cpp
     PARENT_SCOPE
 )
