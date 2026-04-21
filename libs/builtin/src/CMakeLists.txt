@@ -23,8 +23,10 @@ set(STDLIB_SOURCES
 # diff is readable when a new function gets a SIMD backend.
 if(NUMKIT_WITH_SIMD)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MStdAbs_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MStdTranscendental_simd.cpp)
 else()
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MStdAbs_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MStdTranscendental_portable.cpp)
 endif()
 
 set(STDLIB_SOURCES ${STDLIB_SOURCES} PARENT_SCOPE)

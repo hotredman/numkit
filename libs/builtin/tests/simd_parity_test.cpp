@@ -26,6 +26,10 @@
 #include <random>
 #include <vector>
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 using numkit::m::Allocator;
 using numkit::m::MType;
 using numkit::m::MValue;
@@ -152,4 +156,116 @@ TEST(SimdParity_Abs, ComplexFallsBackToScalarImpl)
     EXPECT_DOUBLE_EQ(y.doubleData()[0], 5.0);
     EXPECT_DOUBLE_EQ(y.doubleData()[1], 13.0);
     EXPECT_DOUBLE_EQ(y.doubleData()[2], 0.0);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// Transcendentals — ULP-tolerance checks
+//
+// SIMD transcendental approximations (Highway's hwy/contrib/math is
+// SLEEF-derived) aren't bit-exact vs std::sin / std::cos / etc.
+// Highway documents ULP <= 4 across all targets; we bound at 8 here to
+// leave some slack for tail-loop edge cases. Any larger drift means
+// something is genuinely wrong.
+// ════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Unsigned ULP distance between two finite doubles. Converts sign-magnitude
+// to a biased two's-complement representation so adjacent representable
+// values (across ±0) are 1 ULP apart.
+uint64_t ulpDistance(double a, double b)
+{
+    // NaN/NaN → max distance; caller should special-case these.
+    if (std::isnan(a) || std::isnan(b))
+        return UINT64_MAX;
+    int64_t ia, ib;
+    std::memcpy(&ia, &a, sizeof(ia));
+    std::memcpy(&ib, &b, sizeof(ib));
+    auto biased = [](int64_t i) -> int64_t {
+        return (i < 0) ? (INT64_MIN - i) : i;
+    };
+    int64_t ba = biased(ia);
+    int64_t bb = biased(ib);
+    return static_cast<uint64_t>(ba > bb ? ba - bb : bb - ba);
+}
+
+template <typename SimdFn, typename ScalarFn>
+void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
+                               double lo, double hi, const char *name,
+                               uint64_t ulpBudget = 8)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    constexpr size_t N = 1021;
+    std::mt19937 rng(271828);
+    std::uniform_real_distribution<double> dist(lo, hi);
+
+    std::vector<double> src(N);
+    for (auto &v : src) v = dist(rng);
+
+    MValue x = makeDoubleVector(alloc, src);
+    MValue y = simdFn(alloc, x);
+
+    ASSERT_EQ(y.numel(), N) << name;
+    uint64_t worst = 0;
+    size_t worstIdx = 0;
+    for (size_t i = 0; i < N; ++i) {
+        double got = y.doubleData()[i];
+        double ref = scalarFn(src[i]);
+        uint64_t dist = ulpDistance(got, ref);
+        if (dist > worst) { worst = dist; worstIdx = i; }
+    }
+    EXPECT_LE(worst, ulpBudget)
+        << name << " drifted " << worst << " ULP at index " << worstIdx
+        << " (in=" << src[worstIdx] << ", got=" << y.doubleData()[worstIdx]
+        << ", ref=" << scalarFn(src[worstIdx]) << ")";
+}
+
+} // namespace
+
+TEST(SimdParity_Sin, WithinUlpBudget)
+{
+    checkTranscendentalParity(
+        [](Allocator &a, const MValue &x) { return numkit::m::builtin::sin(a, x); },
+        [](double x) { return std::sin(x); },
+        -10.0, 10.0, "sin");
+}
+
+TEST(SimdParity_Cos, WithinUlpBudget)
+{
+    checkTranscendentalParity(
+        [](Allocator &a, const MValue &x) { return numkit::m::builtin::cos(a, x); },
+        [](double x) { return std::cos(x); },
+        -10.0, 10.0, "cos");
+}
+
+TEST(SimdParity_Exp, WithinUlpBudget)
+{
+    // Clamp to a range where exp() doesn't overflow — past ~709 it
+    // becomes Inf and ULP distance is undefined / infinite.
+    checkTranscendentalParity(
+        [](Allocator &a, const MValue &x) { return numkit::m::builtin::exp(a, x); },
+        [](double x) { return std::exp(x); },
+        -5.0, 5.0, "exp");
+}
+
+TEST(SimdParity_Log, WithinUlpBudget)
+{
+    // Strictly positive inputs — negatives produce NaN, whose ULP
+    // distance doesn't compare meaningfully.
+    checkTranscendentalParity(
+        [](Allocator &a, const MValue &x) { return numkit::m::builtin::log(a, x); },
+        [](double x) { return std::log(x); },
+        0.01, 100.0, "log");
+}
+
+TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    // MATLAB contract (preserved in both backends): scalar log(-1) → i·π.
+    MValue y = numkit::m::builtin::log(alloc, MValue::scalar(-1.0, &alloc));
+    EXPECT_TRUE(y.isComplex());
+    auto c = y.toComplex();
+    EXPECT_NEAR(c.real(), 0.0, 1e-12);
+    EXPECT_NEAR(c.imag(), M_PI, 1e-12);
 }

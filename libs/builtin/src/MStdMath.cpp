@@ -34,19 +34,11 @@ MValue sqrt(Allocator &alloc, const MValue &x)
 // scalar reference, the SIMD copy is identical for tiny / complex inputs
 // but dispatches the real-vector fast path to Highway.
 
-MValue sin(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sin(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::sin(v); }, &alloc);
-}
-
-MValue cos(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::cos(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::cos(v); }, &alloc);
-}
+// sin / cos / exp / log now live in
+// libs/builtin/src/backends/MStdTranscendental_{portable,simd}.cpp.
+// tan / asin / acos / atan stay here until they get SIMD backends —
+// Highway's hwy/contrib/math has atan/asin/acos/tan equivalents, so
+// they're reasonable follow-ups but weren't in the 7c bench scope.
 
 MValue tan(Allocator &alloc, const MValue &x)
 {
@@ -74,22 +66,6 @@ MValue atan(Allocator &alloc, const MValue &x)
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, &alloc);
     return unaryDouble(x, [](double v) { return std::atan(v); }, &alloc);
-}
-
-MValue exp(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::exp(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::exp(v); }, &alloc);
-}
-
-MValue log(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::log(c); }, &alloc);
-    if (x.isScalar() && x.toScalar() < 0)
-        return MValue::complexScalar(std::log(Complex(x.toScalar(), 0.0)), &alloc);
-    return unaryDouble(x, [](double v) { return std::log(v); }, &alloc);
 }
 
 // ── Elementwise unary — double only ───────────────────────────────────
