@@ -13,6 +13,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MDspHelpers.hpp"
+#include "backends/FftKernels.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -125,11 +126,11 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
             for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
             if (dir == -1) {
                 for (auto &v : buf) v = std::conj(v);
-                fftRadix2(buf.data(), fftLen, W.data());
+                detail::fftRadix2Impl(buf.data(), fftLen, W.data());
                 const double invN = 1.0 / static_cast<double>(fftLen);
                 for (auto &v : buf) v = std::conj(v) * invN;
             } else {
-                fftRadix2(buf.data(), fftLen, W.data());
+                detail::fftRadix2Impl(buf.data(), fftLen, W.data());
             }
             // Store contiguous (outAxisStride == 1 when dim==1)
             for (size_t k = 0; k < outAxisLen; ++k) dst[outBase + k] = buf[k];

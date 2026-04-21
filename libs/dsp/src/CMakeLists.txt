@@ -9,5 +9,14 @@ set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspTransform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspFft.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspConv.cpp
-    PARENT_SCOPE
 )
+
+# Backend-split FFT kernel — one line per function, same pattern as
+# libs/builtin/src/CMakeLists.txt.
+if(NUMKIT_WITH_SIMD)
+    list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_simd.cpp)
+else()
+    list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_portable.cpp)
+endif()
+
+set(DSPLIB_SOURCES ${DSPLIB_SOURCES} PARENT_SCOPE)
