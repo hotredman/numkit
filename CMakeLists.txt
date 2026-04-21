@@ -103,6 +103,7 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/MStdDiagnostics.hpp
     libs/builtin/include/numkit/m/builtin/MStdPrint.hpp
     libs/builtin/include/numkit/m/builtin/MStdFileIO.hpp
+    libs/builtin/include/numkit/m/builtin/MStdScan.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp

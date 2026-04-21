@@ -120,6 +120,11 @@ void frewind_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fread_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fwrite_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdScan.cpp
+void fscanf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void sscanf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void textscan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdDiagnostics.cpp
 void error_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void warning_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -304,6 +309,11 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("frewind",    &builtin::detail::frewind_reg);
     engine.registerFunction("fread",      &builtin::detail::fread_reg);
     engine.registerFunction("fwrite",     &builtin::detail::fwrite_reg);
+
+    // ── Phase 6c: MStdScan public-API-backed built-ins ─────────────
+    engine.registerFunction("fscanf",     &builtin::detail::fscanf_reg);
+    engine.registerFunction("sscanf",     &builtin::detail::sscanf_reg);
+    engine.registerFunction("textscan",   &builtin::detail::textscan_reg);
 
     // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
