@@ -20,4 +20,5 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vfs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fileio_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/complex_public_api_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/strings_public_api_test.cpp
 )

@@ -51,6 +51,25 @@ void conj_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void complex_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void angle_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
+// MStdStrings.cpp
+void num2str_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void str2num_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void str2double_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void string_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void char_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strcmp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strcmpi_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void upper_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void lower_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strtrim_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strsplit_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strlength_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void strrep_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void contains_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void startsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void endsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
 // MStdMatrix.cpp
 void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ones_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -151,6 +170,25 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("conj",    &builtin::detail::conj_reg);
     engine.registerFunction("complex", &builtin::detail::complex_reg);
     engine.registerFunction("angle",   &builtin::detail::angle_reg);
+
+    // ── Phase 6c: MStdStrings public-API-backed built-ins ──────────
+    engine.registerFunction("num2str",    &builtin::detail::num2str_reg);
+    engine.registerFunction("str2num",    &builtin::detail::str2num_reg);
+    engine.registerFunction("str2double", &builtin::detail::str2double_reg);
+    engine.registerFunction("string",     &builtin::detail::string_reg);
+    engine.registerFunction("char",       &builtin::detail::char_reg);
+    engine.registerFunction("strcmp",     &builtin::detail::strcmp_reg);
+    engine.registerFunction("strcmpi",    &builtin::detail::strcmpi_reg);
+    engine.registerFunction("upper",      &builtin::detail::upper_reg);
+    engine.registerFunction("lower",      &builtin::detail::lower_reg);
+    engine.registerFunction("strtrim",    &builtin::detail::strtrim_reg);
+    engine.registerFunction("strsplit",   &builtin::detail::strsplit_reg);
+    engine.registerFunction("strcat",     &builtin::detail::strcat_reg);
+    engine.registerFunction("strlength",  &builtin::detail::strlength_reg);
+    engine.registerFunction("strrep",     &builtin::detail::strrep_reg);
+    engine.registerFunction("contains",   &builtin::detail::contains_reg);
+    engine.registerFunction("startsWith", &builtin::detail::startsWith_reg);
+    engine.registerFunction("endsWith",   &builtin::detail::endsWith_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
