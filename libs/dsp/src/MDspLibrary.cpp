@@ -8,6 +8,9 @@ namespace numkit::m::dsp::detail {
 // Engine-registration bridges).
 void fft_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void ifft_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void conv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void deconv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -15,7 +18,6 @@ namespace numkit::m {
 void DspLibrary::install(Engine &engine)
 {
     registerSignalCoreFunctions(engine);
-    registerConvolutionFunctions(engine);
     registerWindowFunctions(engine);
     registerFilterFunctions(engine);
     registerFilterDesignFunctions(engine);
@@ -24,8 +26,11 @@ void DspLibrary::install(Engine &engine)
     registerTransformFunctions(engine);
 
     // ── Public-API-backed built-ins (Phase 5 pilot and onwards) ─────
-    engine.registerFunction("fft", &dsp::detail::fft_reg);
-    engine.registerFunction("ifft", &dsp::detail::ifft_reg);
+    engine.registerFunction("fft",    &dsp::detail::fft_reg);
+    engine.registerFunction("ifft",   &dsp::detail::ifft_reg);
+    engine.registerFunction("conv",   &dsp::detail::conv_reg);
+    engine.registerFunction("deconv", &dsp::detail::deconv_reg);
+    engine.registerFunction("xcorr",  &dsp::detail::xcorr_reg);
 }
 
 } // namespace numkit::m

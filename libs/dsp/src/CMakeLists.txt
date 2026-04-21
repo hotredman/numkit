@@ -1,7 +1,6 @@
 set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspLibrary.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspSignalCore.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspConvolution.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspWindows.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspFilter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspFilterDesign.cpp
@@ -9,5 +8,6 @@ set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspResample.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspTransform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspFft.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MDspConv.cpp
     PARENT_SCOPE
 )
