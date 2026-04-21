@@ -70,6 +70,14 @@
       }
     },
     {
+      "name": "bench-clang",
+      "inherits": "bench",
+      "displayName": "Bench with clang-cl (no Highway SIMD)",
+      "description": "Drives the Visual Studio 17 2022 generator through the ClangCL toolset (clang-cl shipped with VS 2022 Professional). Highway is DISABLED — this preset exists to measure clang-cl's own autovectoriser and register allocator against MSVC's. On FFT in particular, clang-cl without Highway matches or beats MSVC *with* Highway, confirming the MSVC-codegen cliff documented in feedback_fft_msvc_limits. A clang-cl+Highway preset was tried and crashed (latent ABI/alignment mismatch not yet root-caused); re-add once debugged.",
+      "binaryDir": "${sourceDir}/build-bench-clang",
+      "toolset": "ClangCL"
+    },
+    {
       "name": "bench-wasm",
       "inherits": "browser",
       "displayName": "Bench WASM (Emscripten + Highway WASM SIMD128)",
@@ -92,7 +100,8 @@
     {"name": "desktop-fast", "configurePreset": "desktop-fast", "configuration": "Release"},
     {"name": "apple-m",      "configurePreset": "apple-m",      "configuration": "Release"},
     {"name": "bench",        "configurePreset": "bench",        "configuration": "Release"},
-    {"name": "bench-simd",   "configurePreset": "bench-simd",   "configuration": "Release"},
+    {"name": "bench-simd",       "configurePreset": "bench-simd",       "configuration": "Release"},
+    {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release"},
     {"name": "browser",      "configurePreset": "browser"},
     {"name": "bench-wasm",   "configurePreset": "bench-wasm"}
   ],
