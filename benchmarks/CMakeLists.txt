@@ -16,6 +16,7 @@ add_executable(m_bench
     matmul_bench.cpp
     conv_bench.cpp
     elementwise_bench.cpp
+    binaryops_bench.cpp
     sort_bench.cpp
 )
 
