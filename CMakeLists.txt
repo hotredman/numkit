@@ -96,6 +96,7 @@ set(NUMKIT_M_HEADERS
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp
     libs/dsp/include/numkit/m/dsp/MDspFilter.hpp
     libs/dsp/include/numkit/m/dsp/MDspFilterDesign.hpp
+    libs/dsp/include/numkit/m/dsp/MDspResample.hpp
     libs/fit/include/numkit/m/fit/MFitLibrary.hpp
     libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )

@@ -1,4 +1,9 @@
-#include <numkit/m/dsp/MDspLibrary.hpp>
+// libs/dsp/src/MDspResample.cpp
+
+#include <numkit/m/dsp/MDspResample.hpp>
+
+#include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MTypes.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -9,186 +14,182 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m {
+namespace numkit::m::dsp {
 
-void DspLibrary::registerResampleFunctions(Engine &engine)
+namespace {
+
+// Windowed-sinc lowpass FIR, Hamming window, cutoff wc (radians).
+// Normalized so DC gain is 1. Order is filtLen - 1; filtLen must be >= 2.
+std::vector<double> designLowpassFir(size_t filtLen, double wc)
 {
-    // --- downsample(x, n) ---
-    engine.registerFunction("downsample",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error("downsample requires 2 arguments");
-                                auto &xv = args[0];
-                                size_t n = static_cast<size_t>(args[1].toScalar());
-                                size_t nx = xv.numel();
-                                size_t outLen = (nx + n - 1) / n;
+    const size_t filtOrder = filtLen - 1;
+    const double half = filtOrder / 2.0;
 
-                                bool isRow = xv.dims().rows() == 1;
-                                auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, alloc)
-                                               : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < outLen; ++i)
-                                    r.doubleDataMut()[i] = xv.doubleData()[i * n];
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    // --- upsample(x, n) ---
-    engine.registerFunction("upsample",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error("upsample requires 2 arguments");
-                                auto &xv = args[0];
-                                size_t n = static_cast<size_t>(args[1].toScalar());
-                                size_t nx = xv.numel();
-                                size_t outLen = nx * n;
-
-                                bool isRow = xv.dims().rows() == 1;
-                                auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, alloc)
-                                               : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < outLen; ++i)
-                                    r.doubleDataMut()[i] = 0.0;
-                                for (size_t i = 0; i < nx; ++i)
-                                    r.doubleDataMut()[i * n] = xv.doubleData()[i];
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    // --- decimate(x, r) --- downsample with anti-aliasing FIR
-    engine.registerFunction("decimate",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 2)
-                                    throw std::runtime_error("decimate requires 2 arguments");
-                                auto &xv = args[0];
-                                size_t factor = static_cast<size_t>(args[1].toScalar());
-                                size_t nx = xv.numel();
-                                const double *x = xv.doubleData();
-
-                                // FIR lowpass: windowed-sinc, cutoff at 1/(2*factor)
-                                size_t filtOrder = 8 * factor;
-                                if (filtOrder >= nx)
-                                    filtOrder = nx - 1;
-                                size_t filtLen = filtOrder + 1;
-                                double wc = M_PI / factor;
-
-                                std::vector<double> h(filtLen);
-                                double half = filtOrder / 2.0;
-                                double hSum = 0.0;
-                                for (size_t i = 0; i < filtLen; ++i) {
-                                    double n = i - half;
-                                    double sinc = (std::abs(n) < 1e-12)
-                                                      ? wc / M_PI
-                                                      : std::sin(wc * n) / (M_PI * n);
-                                    double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / filtOrder);
-                                    h[i] = sinc * win;
-                                    hSum += h[i];
-                                }
-                                for (size_t i = 0; i < filtLen; ++i)
-                                    h[i] /= hSum;
-
-                                // Apply FIR filter (Direct Form II transposed)
-                                std::vector<double> filtered(nx);
-                                std::vector<double> z(filtLen, 0.0);
-                                for (size_t n = 0; n < nx; ++n) {
-                                    filtered[n] = h[0] * x[n] + z[0];
-                                    for (size_t i = 1; i < filtLen; ++i)
-                                        z[i - 1] = h[i] * x[n] + (i < filtLen - 1 ? z[i] : 0.0);
-                                }
-
-                                // Downsample
-                                size_t outLen = (nx + factor - 1) / factor;
-                                bool isRow = xv.dims().rows() == 1;
-                                auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, alloc)
-                                               : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < outLen; ++i)
-                                    r.doubleDataMut()[i] = filtered[i * factor];
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
-
-    // --- resample(x, p, q) --- rational rate change p/q
-    engine.registerFunction("resample",
-                            [](Span<const MValue> args,
-                               size_t nargout,
-                               Span<MValue> outs,
-                               CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
-                                if (args.size() < 3)
-                                    throw std::runtime_error("resample requires 3 arguments");
-                                auto &xv = args[0];
-                                size_t p = static_cast<size_t>(args[1].toScalar());
-                                size_t q = static_cast<size_t>(args[2].toScalar());
-                                size_t nx = xv.numel();
-                                const double *x = xv.doubleData();
-
-                                // Upsample by p
-                                size_t upLen = nx * p;
-                                std::vector<double> up(upLen, 0.0);
-                                for (size_t i = 0; i < nx; ++i)
-                                    up[i * p] = static_cast<double>(p) * x[i];
-
-                                // Anti-aliasing FIR lowpass
-                                size_t filtOrder = 10 * std::max(p, q);
-                                if (filtOrder >= upLen)
-                                    filtOrder = upLen - 1;
-                                size_t filtLen = filtOrder + 1;
-                                double wc = M_PI / std::max(p, q);
-
-                                std::vector<double> h(filtLen);
-                                double half = filtOrder / 2.0;
-                                double hSum = 0.0;
-                                for (size_t i = 0; i < filtLen; ++i) {
-                                    double n = i - half;
-                                    double sinc = (std::abs(n) < 1e-12)
-                                                      ? wc / M_PI
-                                                      : std::sin(wc * n) / (M_PI * n);
-                                    double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / filtOrder);
-                                    h[i] = sinc * win;
-                                    hSum += h[i];
-                                }
-                                for (size_t i = 0; i < filtLen; ++i)
-                                    h[i] /= hSum;
-
-                                // Apply FIR
-                                std::vector<double> filtered(upLen);
-                                std::vector<double> z(filtLen, 0.0);
-                                for (size_t n = 0; n < upLen; ++n) {
-                                    filtered[n] = h[0] * up[n] + z[0];
-                                    for (size_t i = 1; i < filtLen; ++i)
-                                        z[i - 1] = h[i] * up[n] + (i < filtLen - 1 ? z[i] : 0.0);
-                                }
-
-                                // Downsample by q
-                                size_t outLen = (upLen + q - 1) / q;
-                                bool isRow = xv.dims().rows() == 1;
-                                auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, alloc)
-                                               : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
-                                for (size_t i = 0; i < outLen; ++i) {
-                                    size_t idx = i * q;
-                                    r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
-                                }
-                                {
-                                    outs[0] = r;
-                                    return;
-                                }
-                            });
+    std::vector<double> h(filtLen);
+    double hSum = 0.0;
+    for (size_t i = 0; i < filtLen; ++i) {
+        const double n = i - half;
+        const double sinc = (std::abs(n) < 1e-12)
+                                ? wc / M_PI
+                                : std::sin(wc * n) / (M_PI * n);
+        const double win = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / filtOrder);
+        h[i] = sinc * win;
+        hSum += h[i];
+    }
+    for (size_t i = 0; i < filtLen; ++i)
+        h[i] /= hSum;
+    return h;
 }
 
-} // namespace numkit::m
+// Direct Form II transposed FIR apply — matches MDspFilter's core for
+// the a = [1] denominator case. Used by decimate and resample.
+std::vector<double> applyFirDf2t(const std::vector<double> &h, const double *x, size_t nx)
+{
+    const size_t filtLen = h.size();
+    std::vector<double> out(nx);
+    std::vector<double> z(filtLen, 0.0);
+    for (size_t n = 0; n < nx; ++n) {
+        out[n] = h[0] * x[n] + z[0];
+        for (size_t i = 1; i < filtLen; ++i)
+            z[i - 1] = h[i] * x[n] + (i < filtLen - 1 ? z[i] : 0.0);
+    }
+    return out;
+}
+
+} // anonymous namespace
+
+// ── downsample ────────────────────────────────────────────────────────
+MValue downsample(Allocator &alloc, const MValue &x, size_t n)
+{
+    const size_t nx = x.numel();
+    const size_t outLen = (nx + n - 1) / n;
+    const bool isRow = x.dims().rows() == 1;
+
+    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
+                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < outLen; ++i)
+        r.doubleDataMut()[i] = x.doubleData()[i * n];
+    return r;
+}
+
+// ── upsample ──────────────────────────────────────────────────────────
+MValue upsample(Allocator &alloc, const MValue &x, size_t n)
+{
+    const size_t nx = x.numel();
+    const size_t outLen = nx * n;
+    const bool isRow = x.dims().rows() == 1;
+
+    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
+                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < outLen; ++i)
+        r.doubleDataMut()[i] = 0.0;
+    for (size_t i = 0; i < nx; ++i)
+        r.doubleDataMut()[i * n] = x.doubleData()[i];
+    return r;
+}
+
+// ── decimate ──────────────────────────────────────────────────────────
+MValue decimate(Allocator &alloc, const MValue &x, size_t factor)
+{
+    const size_t nx = x.numel();
+    const double *xd = x.doubleData();
+
+    size_t filtOrder = 8 * factor;
+    if (filtOrder >= nx)
+        filtOrder = nx - 1;
+    const size_t filtLen = filtOrder + 1;
+    const double wc = M_PI / factor;
+
+    auto h = designLowpassFir(filtLen, wc);
+    auto filtered = applyFirDf2t(h, xd, nx);
+
+    const size_t outLen = (nx + factor - 1) / factor;
+    const bool isRow = x.dims().rows() == 1;
+    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
+                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < outLen; ++i)
+        r.doubleDataMut()[i] = filtered[i * factor];
+    return r;
+}
+
+// ── resample ──────────────────────────────────────────────────────────
+MValue resample(Allocator &alloc, const MValue &x, size_t p, size_t q)
+{
+    const size_t nx = x.numel();
+    const double *xd = x.doubleData();
+
+    // Upsample by p (zero-stuff, multiply by p for gain)
+    const size_t upLen = nx * p;
+    std::vector<double> up(upLen, 0.0);
+    for (size_t i = 0; i < nx; ++i)
+        up[i * p] = static_cast<double>(p) * xd[i];
+
+    // Anti-alias FIR lowpass
+    size_t filtOrder = 10 * std::max(p, q);
+    if (filtOrder >= upLen)
+        filtOrder = upLen - 1;
+    const size_t filtLen = filtOrder + 1;
+    const double wc = M_PI / std::max(p, q);
+
+    auto h = designLowpassFir(filtLen, wc);
+    auto filtered = applyFirDf2t(h, up.data(), upLen);
+
+    // Downsample by q
+    const size_t outLen = (upLen + q - 1) / q;
+    const bool isRow = x.dims().rows() == 1;
+    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
+                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < outLen; ++i) {
+        const size_t idx = i * q;
+        r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
+    }
+    return r;
+}
+
+// ── Engine adapters ───────────────────────────────────────────────────
+namespace detail {
+
+void downsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("downsample: requires 2 arguments",
+                     0, 0, "downsample", "", "MATLAB:downsample:nargin");
+    outs[0] = downsample(ctx.engine->allocator(),
+                         args[0],
+                         static_cast<size_t>(args[1].toScalar()));
+}
+
+void upsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("upsample: requires 2 arguments",
+                     0, 0, "upsample", "", "MATLAB:upsample:nargin");
+    outs[0] = upsample(ctx.engine->allocator(),
+                       args[0],
+                       static_cast<size_t>(args[1].toScalar()));
+}
+
+void decimate_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("decimate: requires 2 arguments",
+                     0, 0, "decimate", "", "MATLAB:decimate:nargin");
+    outs[0] = decimate(ctx.engine->allocator(),
+                       args[0],
+                       static_cast<size_t>(args[1].toScalar()));
+}
+
+void resample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("resample: requires 3 arguments",
+                     0, 0, "resample", "", "MATLAB:resample:nargin");
+    outs[0] = resample(ctx.engine->allocator(),
+                       args[0],
+                       static_cast<size_t>(args[1].toScalar()),
+                       static_cast<size_t>(args[2].toScalar()));
+}
+
+} // namespace detail
+
+} // namespace numkit::m::dsp
