@@ -99,11 +99,91 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     // storage — no silent std::allocator-backed allocations here.
     std::pmr::vector<Complex> buf(fftLen, alloc->memoryResource());
 
-    // Precomputed twiddle table — size N/2, reused across every slice.
-    // The conjugate-trick below handles the inverse direction, so
-    // fftRadix2 is always called with forward (dir=+1) twiddles.
+    // Precomputed twiddle table — size fftLen/2, the N-point twiddles
+    // for an fftLen-point FFT. Reused across every slice. The
+    // conjugate-trick handles the inverse direction, so fftRadix2Impl
+    // is always called with forward (dir=+1) twiddles.
     std::pmr::vector<Complex> W(fftLen / 2, alloc->memoryResource());
     fillFftTwiddles(W.data(), fftLen, /*dir=*/+1);
+
+    // Real-input forward-FFT fast path (8e.4). Halves the work for the
+    // common fft(real_vector) case by treating N real values as N/2
+    // complex pairs, running an N/2-point complex FFT, then twisting.
+    // Only engaged when:
+    //   - forward direction (inverse doesn't benefit from this packing)
+    //   - input is real (not complex)
+    //   - no truncation / zero-padding (output length matches input exactly)
+    //   - fftLen >= 4 (smaller is trivial; not worth a fast path)
+    const bool rfftEligible = !srcIsComplex && dir == +1
+                              && outAxisLen == fftLen
+                              && useLen == fftLen
+                              && fftLen >= 4;
+    std::pmr::vector<Complex> W_half(rfftEligible ? fftLen / 4 : 0,
+                                     alloc->memoryResource());
+    if (rfftEligible) {
+        // W_half[k] = exp(+2πi · k / (N/2)) = exp(+2πi · 2k / N) = W[2k].
+        // Deriving from W avoids N/4 redundant sin/cos calls that otherwise
+        // show up as a measurable slowdown at 16k+ sizes.
+        for (std::size_t k = 0; k < fftLen / 4; ++k)
+            W_half[k] = W[2 * k];
+    }
+
+    // Per-slice rfft: pack src (strided) as N/2 complex into the first
+    // half of buf (buf is sized fftLen, we only need fftLen/2 here),
+    // run the half-size complex FFT in place, then twist into dst.
+    // Reusing buf avoids a second pmr allocation per call.
+    const auto runRfft = [&](const double *src, std::size_t srcStride,
+                             Complex *dstSlice, std::size_t dstStride) {
+        const std::size_t half = fftLen / 2;
+        for (std::size_t m = 0; m < half; ++m) {
+            const double a = src[(2 * m    ) * srcStride];
+            const double b = src[(2 * m + 1) * srcStride];
+            buf[m] = Complex(a, b);
+        }
+        detail::fftRadix2Impl(buf.data(), half, W_half.data());
+        // buf[0..half-1] now holds Z, the half-size complex FFT result.
+
+        // DC and Nyquist (both pure real).
+        dstSlice[0]                = Complex(buf[0].real() + buf[0].imag(), 0.0);
+        dstSlice[half * dstStride] = Complex(buf[0].real() - buf[0].imag(), 0.0);
+
+        // Twist for k in [1, half). buf is disjoint from dstSlice so
+        // there are no aliasing concerns.
+        for (std::size_t k = 1; k < half; ++k) {
+            const Complex Zk  = buf[k];
+            const Complex Zjc = std::conj(buf[half - k]);
+            const Complex E   = 0.5 * (Zk + Zjc);
+            const Complex D   = 0.5 * (Zk - Zjc);
+            const Complex O(D.imag(), -D.real());          // O = -i · D
+            const Complex Xk  = E + W[k] * O;
+            dstSlice[k             * dstStride] = Xk;
+            dstSlice[(fftLen - k)  * dstStride] = std::conj(Xk);
+        }
+    };
+
+    // Per-slice complex path (forward or inverse via conjugate trick).
+    const auto runComplex = [&](std::size_t inBase, std::size_t outBase,
+                                std::size_t inStride, std::size_t outStride) {
+        if (srcIsComplex) {
+            for (std::size_t k = 0; k < useLen; ++k)
+                buf[k] = srcC[inBase + k * inStride];
+        } else {
+            for (std::size_t k = 0; k < useLen; ++k)
+                buf[k] = Complex(srcD[inBase + k * inStride], 0.0);
+        }
+        for (std::size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
+
+        if (dir == -1) {
+            for (auto &v : buf) v = std::conj(v);
+            detail::fftRadix2Impl(buf.data(), fftLen, W.data());
+            const double invN = 1.0 / static_cast<double>(fftLen);
+            for (auto &v : buf) v = std::conj(v) * invN;
+        } else {
+            detail::fftRadix2Impl(buf.data(), fftLen, W.data());
+        }
+        for (std::size_t k = 0; k < outAxisLen; ++k)
+            dst[outBase + k * outStride] = buf[k];
+    };
 
     // Slice enumeration. The three cases (dim=1/2/3) are spelled out
     // with concrete stride constants rather than a generic
@@ -117,29 +197,17 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
             const size_t sliceC  = s % C;
             const size_t inBase  = sliceC * R    + slicePg * R    * C;
             const size_t outBase = sliceC * outR + slicePg * outR * outC;
-            // Load contiguous
-            if (srcIsComplex) {
-                for (size_t k = 0; k < useLen; ++k) buf[k] = srcC[inBase + k];
-            } else {
-                for (size_t k = 0; k < useLen; ++k) buf[k] = Complex(srcD[inBase + k], 0.0);
-            }
-            for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
-            if (dir == -1) {
-                for (auto &v : buf) v = std::conj(v);
-                detail::fftRadix2Impl(buf.data(), fftLen, W.data());
-                const double invN = 1.0 / static_cast<double>(fftLen);
-                for (auto &v : buf) v = std::conj(v) * invN;
-            } else {
-                detail::fftRadix2Impl(buf.data(), fftLen, W.data());
-            }
-            // Store contiguous (outAxisStride == 1 when dim==1)
-            for (size_t k = 0; k < outAxisLen; ++k) dst[outBase + k] = buf[k];
+            if (rfftEligible)
+                runRfft(srcD + inBase, /*srcStride=*/1,
+                        dst    + outBase, /*dstStride=*/1);
+            else
+                runComplex(inBase, outBase, /*inStride=*/1, /*outStride=*/1);
         }
     } else {
         // dim == 2 or dim == 3 — non-unit strides, fused generic loop.
-        const size_t o1Len    = (dim == 2) ? R : R;      // inner "other" dim
+        const size_t o1Len    = (dim == 2) ? R : R;
         const size_t o1Stride = 1;
-        const size_t o2Len    = (dim == 2) ? P : C;      // outer "other" dim
+        const size_t o2Len    = (dim == 2) ? P : C;
         const size_t o2Stride = (dim == 2) ? (R * C) : R;
         const size_t o2OutStride = (dim == 2) ? (outR * outC) : outR;
 
@@ -147,24 +215,11 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
             for (size_t i1 = 0; i1 < o1Len; ++i1) {
                 const size_t inBase  = i1 * o1Stride + i2 * o2Stride;
                 const size_t outBase = i1 * o1Stride + i2 * o2OutStride;
-                if (srcIsComplex) {
-                    for (size_t k = 0; k < useLen; ++k)
-                        buf[k] = srcC[inBase + k * axisStride];
-                } else {
-                    for (size_t k = 0; k < useLen; ++k)
-                        buf[k] = Complex(srcD[inBase + k * axisStride], 0.0);
-                }
-                for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
-                if (dir == -1) {
-                    for (auto &v : buf) v = std::conj(v);
-                    fftRadix2(buf, 1);
-                    const double invN = 1.0 / static_cast<double>(fftLen);
-                    for (auto &v : buf) v = std::conj(v) * invN;
-                } else {
-                    fftRadix2(buf, 1);
-                }
-                for (size_t k = 0; k < outAxisLen; ++k)
-                    dst[outBase + k * outAxisStride] = buf[k];
+                if (rfftEligible)
+                    runRfft(srcD + inBase, /*srcStride=*/axisStride,
+                            dst    + outBase, /*dstStride=*/outAxisStride);
+                else
+                    runComplex(inBase, outBase, axisStride, outAxisStride);
             }
         }
     }
