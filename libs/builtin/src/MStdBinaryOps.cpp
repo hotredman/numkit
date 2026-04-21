@@ -135,6 +135,16 @@ MValue times(Allocator &alloc, const MValue &a, const MValue &b)
 MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
 {
     Allocator *p = &alloc;
+
+    // Matrix-multiply is undefined for N-D arrays (N > 2) except the
+    // scalar * NDArray degenerate form, which is just an elementwise
+    // scale and is handled further down. Match MATLAB's error here —
+    // the pre-split code silently treated pages as 1 and produced
+    // garbage, which is worse than failing loudly.
+    if ((a.dims().is3D() || b.dims().is3D()) && !a.isScalar() && !b.isScalar())
+        throw MError("MTIMES is not supported for N-D arrays",
+                     0, 0, "mtimes", "", "m:mtimes:notSupportedND");
+
     if (a.isComplex() || b.isComplex()) {
         auto [ca, cb] = promoteToComplex(a, b, p);
         if (ca.isScalar() || cb.isScalar())

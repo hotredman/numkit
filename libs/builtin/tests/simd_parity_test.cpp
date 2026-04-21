@@ -555,6 +555,52 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
         EXPECT_TRUE(bitEquals(cCol.doubleData()[i], double(i) + 3.0));
 }
 
+TEST(SimdParity_Mtimes, ThrowsOn3DInput)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    // 3D * 3D — matrix multiply is undefined here; must throw, not
+    // silently strip pages and produce garbage. Pre-Phase 8 this
+    // quietly used (rows, cols) and ignored pages.
+    {
+        auto A = MValue::matrix3d(3, 4, 2, MType::DOUBLE, &alloc);
+        auto B = MValue::matrix3d(4, 3, 2, MType::DOUBLE, &alloc);
+        for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
+        for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
+        EXPECT_THROW({ (void)numkit::m::builtin::mtimes(alloc, A, B); },
+                     numkit::m::MError);
+    }
+
+    // 3D * 2D — also undefined.
+    {
+        auto A = MValue::matrix3d(3, 4, 2, MType::DOUBLE, &alloc);
+        auto B = MValue::matrix(4, 3, MType::DOUBLE, &alloc);
+        for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
+        for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
+        EXPECT_THROW({ (void)numkit::m::builtin::mtimes(alloc, A, B); },
+                     numkit::m::MError);
+    }
+}
+
+TEST(SimdParity_Mtimes, ScalarTimes3DArrayStillWorks)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    // scalar * 3D — MATLAB degenerates this to elementwise scaling;
+    // our code routes it through elementwiseDouble() and the result
+    // preserves the 3D shape with every element scaled.
+    auto A = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = double(i);
+    auto s = MValue::scalar(2.5, &alloc);
+
+    auto C = numkit::m::builtin::mtimes(alloc, s, A);
+    ASSERT_TRUE(C.dims().is3D());
+    EXPECT_EQ(C.dims().pages(), 4u);
+    EXPECT_EQ(C.numel(), 24u);
+    for (size_t i = 0; i < C.numel(); ++i)
+        EXPECT_DOUBLE_EQ(C.doubleData()[i], 2.5 * double(i));
+}
+
 TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
 {
     Allocator alloc = Allocator::defaultAllocator();
