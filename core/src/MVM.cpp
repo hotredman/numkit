@@ -572,6 +572,12 @@ enter_frame:
                     if (R[I.a].isEmpty() || R[I.a].isScalar() || i >= R[I.a].numel())
                         R[I.a].ensureSize(i, &engine_.allocator_);
                     R[I.a].elemSet(i, R[I.c]);
+                } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
+                    // Colon linear-assign: z(:) = rhs writes across every
+                    // element of z without changing its shape. resolveIndices
+                    // expands ':' to [0..numel-1] given the destination size.
+                    auto indices = MValue::resolveIndices(ix, R[I.a].numel());
+                    R[I.a].indexSet(indices.data(), indices.size(), R[I.c]);
                 } else {
                     // Vector or logical index
                     auto indices = MValue::resolveIndicesUnchecked(ix);

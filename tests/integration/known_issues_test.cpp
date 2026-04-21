@@ -146,6 +146,118 @@ TEST_P(KnownIssueIndexedAssign, ShiftElementsInFunction)
 INSTANTIATE_DUAL(KnownIssueIndexedAssign);
 
 // ============================================================
+// ISSUE #2b: Colon linear-assign `z(:) = rhs` in VM
+//
+// MATLAB: `z(:) = rhs` overwrites every element of an existing
+// array `z` in linear order, preserving z's shape. Valid when
+// rhs is a scalar (broadcast) or numel(rhs) == numel(z).
+//
+// Bug (pre-fix): VM's INDEX_SET was calling resolveIndicesUnchecked
+// on the index, which for ':' returns an empty vector by contract
+// ("caller must handle this separately"). INDEX_SET didn't handle
+// it, so indexSet(indices=0, rhs.numel()=N) raised a spurious
+// "left and right sides have a different number of elements"
+// regardless of shape. TreeWalker was unaffected — its resolveIndex
+// expands ':' to [0..numel-1] directly. See MVM.cpp INDEX_SET.
+// ============================================================
+
+class ColonLinearAssign : public DualEngineTest {};
+
+TEST_P(ColonLinearAssign, ColumnVectorRhsMatchesShape)
+{
+    eval(R"(
+        z = zeros(5, 1);
+        x = [10; 20; 30; 40; 50];
+        z(:) = x;
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 5u);
+    EXPECT_EQ(rows(*z), 5u);
+    EXPECT_EQ(cols(*z), 1u);
+    expectElem(*z, 0, 10.0);
+    expectElem(*z, 1, 20.0);
+    expectElem(*z, 2, 30.0);
+    expectElem(*z, 3, 40.0);
+    expectElem(*z, 4, 50.0);
+}
+
+TEST_P(ColonLinearAssign, RowVectorRhsFlattenedIntoColumn)
+{
+    // MATLAB: z(:) = rhs keeps z's shape. A row-vector rhs with
+    // same numel is accepted and written in linear (column-major)
+    // order into z.
+    eval(R"(
+        z = zeros(3, 1);
+        z(:) = [7 8 9];
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 3u);
+    ASSERT_EQ(cols(*z), 1u);
+    expectElem(*z, 0, 7.0);
+    expectElem(*z, 1, 8.0);
+    expectElem(*z, 2, 9.0);
+}
+
+TEST_P(ColonLinearAssign, ScalarRhsBroadcasts)
+{
+    eval(R"(
+        z = zeros(4, 1);
+        z(:) = 3.5;
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 4u);
+    for (size_t i = 0; i < 4; ++i)
+        expectElem(*z, i, 3.5);
+}
+
+TEST_P(ColonLinearAssign, PreservesShapeOfTwoDMatrix)
+{
+    // z is 2x3 — `z(:) = rhs` must not reshape z; it writes six
+    // elements in column-major order while keeping z 2x3.
+    eval(R"(
+        z = zeros(2, 3);
+        z(:) = [1 2 3 4 5 6];
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 2u);
+    ASSERT_EQ(cols(*z), 3u);
+    // Column-major traversal: (0,0), (1,0), (0,1), (1,1), (0,2), (1,2)
+    expectElem2D(*z, 0, 0, 1.0);
+    expectElem2D(*z, 1, 0, 2.0);
+    expectElem2D(*z, 0, 1, 3.0);
+    expectElem2D(*z, 1, 1, 4.0);
+    expectElem2D(*z, 0, 2, 5.0);
+    expectElem2D(*z, 1, 2, 6.0);
+}
+
+TEST_P(ColonLinearAssign, MismatchedSizeThrows)
+{
+    eval("z = zeros(5, 1);");
+    EXPECT_THROW(eval("z(:) = [1 2 3];"), std::exception);
+}
+
+TEST_P(ColonLinearAssign, RepeatedAssignReusesSlot)
+{
+    // The benchmark pattern that motivated this fix: loop over a
+    // pre-allocated output buffer. Just a smoke-test that the loop
+    // runs without throwing and leaves z in the expected final state.
+    eval(R"(
+        z = zeros(4, 1);
+        for k = 1:3
+            z(:) = k + [10; 20; 30; 40];
+        end
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 4u);
+    expectElem(*z, 0, 13.0);
+    expectElem(*z, 1, 23.0);
+    expectElem(*z, 2, 33.0);
+    expectElem(*z, 3, 43.0);
+}
+
+INSTANTIATE_DUAL(ColonLinearAssign);
+
+// ============================================================
 // ISSUE #3: nargin not supported in VM
 //
 // nargin should return the number of arguments passed to
