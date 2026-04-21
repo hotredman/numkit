@@ -20,6 +20,9 @@ void downsample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, 
 void upsample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void decimate_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void resample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void periodogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void pwelch_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void spectrogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -28,24 +31,26 @@ void DspLibrary::install(Engine &engine)
 {
     registerSignalCoreFunctions(engine);
     registerWindowFunctions(engine);
-    registerSpectralFunctions(engine);
     registerTransformFunctions(engine);
 
     // ── Public-API-backed built-ins (Phase 5 pilot and onwards) ─────
-    engine.registerFunction("fft",        &dsp::detail::fft_reg);
-    engine.registerFunction("ifft",       &dsp::detail::ifft_reg);
-    engine.registerFunction("conv",       &dsp::detail::conv_reg);
-    engine.registerFunction("deconv",     &dsp::detail::deconv_reg);
-    engine.registerFunction("xcorr",      &dsp::detail::xcorr_reg);
-    engine.registerFunction("filter",     &dsp::detail::filter_reg);
-    engine.registerFunction("filtfilt",   &dsp::detail::filtfilt_reg);
-    engine.registerFunction("butter",     &dsp::detail::butter_reg);
-    engine.registerFunction("fir1",       &dsp::detail::fir1_reg);
-    engine.registerFunction("freqz",      &dsp::detail::freqz_reg);
-    engine.registerFunction("downsample", &dsp::detail::downsample_reg);
-    engine.registerFunction("upsample",   &dsp::detail::upsample_reg);
-    engine.registerFunction("decimate",   &dsp::detail::decimate_reg);
-    engine.registerFunction("resample",   &dsp::detail::resample_reg);
+    engine.registerFunction("fft",         &dsp::detail::fft_reg);
+    engine.registerFunction("ifft",        &dsp::detail::ifft_reg);
+    engine.registerFunction("conv",        &dsp::detail::conv_reg);
+    engine.registerFunction("deconv",      &dsp::detail::deconv_reg);
+    engine.registerFunction("xcorr",       &dsp::detail::xcorr_reg);
+    engine.registerFunction("filter",      &dsp::detail::filter_reg);
+    engine.registerFunction("filtfilt",    &dsp::detail::filtfilt_reg);
+    engine.registerFunction("butter",      &dsp::detail::butter_reg);
+    engine.registerFunction("fir1",        &dsp::detail::fir1_reg);
+    engine.registerFunction("freqz",       &dsp::detail::freqz_reg);
+    engine.registerFunction("downsample",  &dsp::detail::downsample_reg);
+    engine.registerFunction("upsample",    &dsp::detail::upsample_reg);
+    engine.registerFunction("decimate",    &dsp::detail::decimate_reg);
+    engine.registerFunction("resample",    &dsp::detail::resample_reg);
+    engine.registerFunction("periodogram", &dsp::detail::periodogram_reg);
+    engine.registerFunction("pwelch",      &dsp::detail::pwelch_reg);
+    engine.registerFunction("spectrogram", &dsp::detail::spectrogram_reg);
 }
 
 } // namespace numkit::m
