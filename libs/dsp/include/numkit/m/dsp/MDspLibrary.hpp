@@ -12,7 +12,6 @@ public:
 private:
     static void registerSignalCoreFunctions(Engine &engine);
     static void registerWindowFunctions(Engine &engine);
-    static void registerFilterFunctions(Engine &engine);
     static void registerFilterDesignFunctions(Engine &engine);
     static void registerSpectralFunctions(Engine &engine);
     static void registerResampleFunctions(Engine &engine);
