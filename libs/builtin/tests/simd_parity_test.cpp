@@ -343,3 +343,89 @@ TEST(SimdParity_Rdivide, MatchesScalar)
         [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::rdivide(a, x, y); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// Matrix multiply — loose tolerance
+//
+// SIMD matmul uses fused multiply-add (MulAdd), scalar uses mul + add;
+// reduction order is identical but FMA skips one rounding step, so
+// results diverge by <=0.5 ULP per accumulated term. Over K=128 inner
+// products the worst-case drift is ~1e-13 relative — we bound at 1e-10
+// to give headroom on IEEE edge cases. Any larger drift means a genuine
+// algorithm mismatch.
+// ════════════════════════════════════════════════════════════════════════
+
+TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    // 128 is large enough to accumulate FMA/non-FMA divergence but
+    // small enough to compute a naive reference loop in the test.
+    constexpr size_t N = 128;
+    std::mt19937 rng(97);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+    MValue A = MValue::matrix(N, N, MType::DOUBLE, &alloc);
+    MValue B = MValue::matrix(N, N, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < N * N; ++i) {
+        A.doubleDataMut()[i] = dist(rng);
+        B.doubleDataMut()[i] = dist(rng);
+    }
+
+    MValue C = numkit::m::builtin::mtimes(alloc, A, B);
+    ASSERT_EQ(C.numel(), N * N);
+
+    // Independent scalar reference with the same (j,k,i) order so the
+    // only divergence vs the backend-under-test is FMA rounding.
+    std::vector<double> ref(N * N, 0.0);
+    for (size_t j = 0; j < N; ++j) {
+        for (size_t k = 0; k < N; ++k) {
+            const double bkj = B.doubleData()[j * N + k];
+            for (size_t i = 0; i < N; ++i)
+                ref[j * N + i] += bkj * A.doubleData()[k * N + i];
+        }
+    }
+
+    double maxRelErr = 0.0;
+    size_t worstIdx = 0;
+    for (size_t i = 0; i < N * N; ++i) {
+        double got = C.doubleData()[i];
+        double r   = ref[i];
+        double denom = std::max(1.0, std::fabs(r));
+        double err = std::fabs(got - r) / denom;
+        if (err > maxRelErr) { maxRelErr = err; worstIdx = i; }
+    }
+    EXPECT_LT(maxRelErr, 1e-10)
+        << "worst relative error " << maxRelErr << " at index " << worstIdx
+        << " (got=" << C.doubleData()[worstIdx] << ", ref=" << ref[worstIdx] << ")";
+}
+
+TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    // M=37, K=51, N=43 — all odd, none a multiple of typical SIMD
+    // widths (2/4/8). Exercises the scalar tail on every loop.
+    constexpr size_t M = 37, K = 51, N = 43;
+    std::mt19937 rng(11);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+    MValue A = MValue::matrix(M, K, MType::DOUBLE, &alloc);
+    MValue B = MValue::matrix(K, N, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
+    for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
+
+    MValue C = numkit::m::builtin::mtimes(alloc, A, B);
+    ASSERT_EQ(C.dims().rows(), M);
+    ASSERT_EQ(C.dims().cols(), N);
+
+    for (size_t j = 0; j < N; ++j) {
+        for (size_t i = 0; i < M; ++i) {
+            double ref = 0.0;
+            for (size_t k = 0; k < K; ++k)
+                ref += A.doubleData()[k * M + i] * B.doubleData()[j * K + k];
+            EXPECT_NEAR(C.doubleData()[j * M + i], ref, 1e-12)
+                << "at (" << i << "," << j << ")";
+        }
+    }
+}

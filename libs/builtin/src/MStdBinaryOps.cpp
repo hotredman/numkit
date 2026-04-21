@@ -168,13 +168,8 @@ MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
             throw MError("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
                          "m:innerdim");
         auto r = MValue::matrix(M, N, MType::DOUBLE, p);
-        for (size_t i = 0; i < M; ++i)
-            for (size_t j = 0; j < N; ++j) {
-                double s = 0;
-                for (size_t k = 0; k < K; ++k)
-                    s += a(i, k) * b(k, j);
-                r.elem(i, j) = s;
-            }
+        detail::matmulDoubleLoop(a.doubleData(), b.doubleData(), r.doubleDataMut(),
+                                 M, N, K);
         return r;
     }
     throw MError("Unsupported types for *", 0, 0, "mtimes", "", "m:mtimes:unsupportedTypes");
