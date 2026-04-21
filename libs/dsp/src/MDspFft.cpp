@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <memory_resource>
 #include <vector>
 
 namespace numkit::m::dsp {
@@ -91,7 +92,11 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     // [0, useLen) fully and only need the tail [useLen, fftLen) zeroed.
     // For the common power-of-two case useLen == fftLen and this costs
     // nothing; with zero-padding the reset is O(fftLen - useLen).
-    std::vector<Complex> buf(fftLen);
+    //
+    // Backed by the Engine's pmr-bridged allocator so scratch buffers
+    // are accounted for through the same tracked path as MValue heap
+    // storage — no silent std::allocator-backed allocations here.
+    std::pmr::vector<Complex> buf(fftLen, alloc->memoryResource());
 
     // Slice enumeration. The three cases (dim=1/2/3) are spelled out
     // with concrete stride constants rather than a generic

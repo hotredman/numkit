@@ -17,10 +17,13 @@ namespace numkit::m {
 // ============================================================
 // Iterative radix-2 Cooley-Tukey FFT (in-place)
 // N must be a power of 2. dir=1 forward, dir=-1 inverse.
+//
+// Takes a raw pointer + length instead of a container reference so
+// callers can back the buffer with std::vector, std::pmr::vector,
+// a stack array, or any other contiguous Complex storage.
 // ============================================================
-inline void fftRadix2(std::vector<Complex> &buf, int dir)
+inline void fftRadix2(Complex *buf, size_t N, int dir)
 {
-    size_t N = buf.size();
     if (N <= 1)
         return;
 
@@ -49,6 +52,15 @@ inline void fftRadix2(std::vector<Complex> &buf, int dir)
             }
         }
     }
+}
+
+// Convenience overload for container-backed buffers (passes .data() and
+// .size()). Works for std::vector, std::pmr::vector, std::array, etc.
+template <typename Container>
+inline auto fftRadix2(Container &buf, int dir)
+    -> decltype(buf.data(), buf.size(), void())
+{
+    fftRadix2(buf.data(), buf.size(), dir);
 }
 
 // ============================================================
