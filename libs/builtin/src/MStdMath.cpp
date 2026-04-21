@@ -407,7 +407,7 @@ namespace detail {
     {                                                                            \
         if (args.empty())                                                        \
             throw MError(#name ": requires 1 argument",                          \
-                         0, 0, #name, "", "MATLAB:" #name ":nargin");           \
+                         0, 0, #name, "", "m:" #name ":nargin");           \
         outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
     }
 
@@ -441,7 +441,7 @@ void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.size() < 2)
         throw MError("atan2: requires 2 arguments",
-                     0, 0, "atan2", "", "MATLAB:atan2:nargin");
+                     0, 0, "atan2", "", "m:atan2:nargin");
     outs[0] = atan2(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -449,7 +449,7 @@ void mod_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
 {
     if (args.size() < 2)
         throw MError("mod: requires 2 arguments",
-                     0, 0, "mod", "", "MATLAB:mod:nargin");
+                     0, 0, "mod", "", "m:mod:nargin");
     outs[0] = mod(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -457,7 +457,7 @@ void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
 {
     if (args.size() < 2)
         throw MError("rem: requires 2 arguments",
-                     0, 0, "rem", "", "MATLAB:rem:nargin");
+                     0, 0, "rem", "", "m:rem:nargin");
     outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -468,7 +468,7 @@ void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
 {
     if (args.empty())
         throw MError("max: requires at least 1 argument",
-                     0, 0, "max", "", "MATLAB:max:nargin");
+                     0, 0, "max", "", "m:max:nargin");
     if (args.size() >= 2 && !args[1].isEmpty()) {
         outs[0] = max(ctx.engine->allocator(), args[0], args[1]);
         return;
@@ -483,7 +483,7 @@ void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
 {
     if (args.empty())
         throw MError("min: requires at least 1 argument",
-                     0, 0, "min", "", "MATLAB:min:nargin");
+                     0, 0, "min", "", "m:min:nargin");
     if (args.size() >= 2 && !args[1].isEmpty()) {
         outs[0] = min(ctx.engine->allocator(), args[0], args[1]);
         return;
@@ -499,7 +499,7 @@ void linspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 2)
         throw MError("linspace: requires at least 2 arguments",
-                     0, 0, "linspace", "", "MATLAB:linspace:nargin");
+                     0, 0, "linspace", "", "m:linspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
@@ -510,7 +510,7 @@ void logspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 2)
         throw MError("logspace: requires at least 2 arguments",
-                     0, 0, "logspace", "", "MATLAB:logspace:nargin");
+                     0, 0, "logspace", "", "m:logspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;

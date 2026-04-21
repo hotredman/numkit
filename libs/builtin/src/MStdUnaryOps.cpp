@@ -46,7 +46,7 @@ MValue uminus(Allocator &alloc, const MValue &x)
         default: break;
         }
     }
-    throw MError("Unsupported unary -", 0, 0, "uminus", "", "MATLAB:uminus:unsupportedTypes");
+    throw MError("Unsupported unary -", 0, 0, "uminus", "", "m:uminus:unsupportedTypes");
 }
 
 MValue uplus(Allocator &, const MValue &x)
@@ -85,7 +85,7 @@ MValue ctranspose(Allocator &alloc, const MValue &x)
     Allocator *p = &alloc;
     if (x.dims().is3D())
         throw MError("transpose is not defined for N-D arrays",
-                     0, 0, "ctranspose", "", "MATLAB:transpose:3DInput");
+                     0, 0, "ctranspose", "", "m:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
 
     if (x.isComplex()) {
@@ -107,7 +107,7 @@ MValue ctranspose(Allocator &alloc, const MValue &x)
         return r;
     }
     throw MError("Transpose not supported for this type",
-                 0, 0, "ctranspose", "", "MATLAB:transpose:unsupportedType");
+                 0, 0, "ctranspose", "", "m:transpose:unsupportedType");
 }
 
 MValue transposeNC(Allocator &alloc, const MValue &x)
@@ -115,7 +115,7 @@ MValue transposeNC(Allocator &alloc, const MValue &x)
     Allocator *p = &alloc;
     if (x.dims().is3D())
         throw MError("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "MATLAB:transpose:3DInput");
+                     0, 0, "transpose", "", "m:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
 
     if (x.isComplex()) {
@@ -137,7 +137,7 @@ MValue transposeNC(Allocator &alloc, const MValue &x)
         return r;
     }
     throw MError("Transpose not supported for this type",
-                 0, 0, "transpose", "", "MATLAB:transpose:unsupportedType");
+                 0, 0, "transpose", "", "m:transpose:unsupportedType");
 }
 
 } // namespace numkit::m::builtin

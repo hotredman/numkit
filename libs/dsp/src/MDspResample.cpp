@@ -153,7 +153,7 @@ void downsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> ou
 {
     if (args.size() < 2)
         throw MError("downsample: requires 2 arguments",
-                     0, 0, "downsample", "", "MATLAB:downsample:nargin");
+                     0, 0, "downsample", "", "m:downsample:nargin");
     outs[0] = downsample(ctx.engine->allocator(),
                          args[0],
                          static_cast<size_t>(args[1].toScalar()));
@@ -163,7 +163,7 @@ void upsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 2)
         throw MError("upsample: requires 2 arguments",
-                     0, 0, "upsample", "", "MATLAB:upsample:nargin");
+                     0, 0, "upsample", "", "m:upsample:nargin");
     outs[0] = upsample(ctx.engine->allocator(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
@@ -173,7 +173,7 @@ void decimate_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 2)
         throw MError("decimate: requires 2 arguments",
-                     0, 0, "decimate", "", "MATLAB:decimate:nargin");
+                     0, 0, "decimate", "", "m:decimate:nargin");
     outs[0] = decimate(ctx.engine->allocator(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
@@ -183,7 +183,7 @@ void resample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 3)
         throw MError("resample: requires 3 arguments",
-                     0, 0, "resample", "", "MATLAB:resample:nargin");
+                     0, 0, "resample", "", "m:resample:nargin");
     outs[0] = resample(ctx.engine->allocator(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()),

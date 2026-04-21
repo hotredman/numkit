@@ -23,7 +23,7 @@ MValue structure(Allocator &, Span<const MValue> nameValuePairs)
     for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2) {
         if (!nameValuePairs[i].isChar() && !nameValuePairs[i].isString())
             throw MError("struct: field names must be char arrays", 0, 0, "struct", "",
-                         "MATLAB:struct:invalidFieldName");
+                         "m:struct:invalidFieldName");
         s.field(nameValuePairs[i].toString()) = nameValuePairs[i + 1];
     }
     return s;
@@ -33,7 +33,7 @@ MValue fieldnames(Allocator &alloc, const MValue &s)
 {
     if (!s.isStruct())
         throw MError("fieldnames requires a struct", 0, 0, "fieldnames", "",
-                     "MATLAB:fieldnames:notStruct");
+                     "m:fieldnames:notStruct");
     const auto &fields = s.structFields();
     auto c = MValue::cell(fields.size(), 1);
     size_t i = 0;
@@ -53,7 +53,7 @@ MValue rmfield(Allocator &, const MValue &s, const MValue &name)
 {
     if (!s.isStruct())
         throw MError("rmfield requires a struct", 0, 0, "rmfield", "",
-                     "MATLAB:rmfield:notStruct");
+                     "m:rmfield:notStruct");
     MValue out = s;
     out.structFields().erase(name.toString());
     return out;
@@ -91,7 +91,7 @@ void fieldnames_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallCont
 {
     if (args.empty())
         throw MError("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
-                     "MATLAB:fieldnames:nargin");
+                     "m:fieldnames:nargin");
     outs[0] = fieldnames(ctx.engine->allocator(), args[0]);
 }
 
@@ -99,7 +99,7 @@ void isfield_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.size() < 2)
         throw MError("isfield requires 2 arguments", 0, 0, "isfield", "",
-                     "MATLAB:isfield:nargin");
+                     "m:isfield:nargin");
     outs[0] = isfield(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -107,7 +107,7 @@ void rmfield_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.size() < 2)
         throw MError("rmfield requires 2 arguments", 0, 0, "rmfield", "",
-                     "MATLAB:rmfield:nargin");
+                     "m:rmfield:nargin");
     outs[0] = rmfield(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -115,7 +115,7 @@ void cell_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &c
 {
     Allocator &alloc = ctx.engine->allocator();
     if (args.empty())
-        throw MError("cell: requires 1 argument", 0, 0, "cell", "", "MATLAB:cell:nargin");
+        throw MError("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
     size_t r = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
         outs[0] = cell(alloc, r);

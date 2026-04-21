@@ -199,10 +199,10 @@ MValue interp1(Allocator &alloc,
 
     if (n != y.numel())
         throw MError("interp1: x and y must have same length",
-                     0, 0, "interp1", "", "MATLAB:interp1:lengthMismatch");
+                     0, 0, "interp1", "", "m:interp1:lengthMismatch");
     if (n < 2)
         throw MError("interp1: need at least 2 data points",
-                     0, 0, "interp1", "", "MATLAB:interp1:tooFewPoints");
+                     0, 0, "interp1", "", "m:interp1:tooFewPoints");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -219,7 +219,7 @@ MValue interp1(Allocator &alloc,
         yq = interpPchip(xd, yd, n, xqd, nq);
     else
         throw MError("interp1: unknown method '" + method + "'",
-                     0, 0, "interp1", "", "MATLAB:interp1:badMethod");
+                     0, 0, "interp1", "", "m:interp1:badMethod");
 
     return packInterpResult(yq, xq, alloc);
 }
@@ -230,10 +230,10 @@ MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &
     const size_t n = x.numel();
     if (n != y.numel())
         throw MError("spline: x and y must have same length",
-                     0, 0, "spline", "", "MATLAB:spline:lengthMismatch");
+                     0, 0, "spline", "", "m:spline:lengthMismatch");
     if (n < 2)
         throw MError("spline: need at least 2 data points",
-                     0, 0, "spline", "", "MATLAB:spline:tooFewPoints");
+                     0, 0, "spline", "", "m:spline:tooFewPoints");
 
     auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
     return packInterpResult(yq, xq, alloc);
@@ -245,10 +245,10 @@ MValue pchip(Allocator &alloc, const MValue &x, const MValue &y, const MValue &x
     const size_t n = x.numel();
     if (n != y.numel())
         throw MError("pchip: x and y must have same length",
-                     0, 0, "pchip", "", "MATLAB:pchip:lengthMismatch");
+                     0, 0, "pchip", "", "m:pchip:lengthMismatch");
     if (n < 2)
         throw MError("pchip: need at least 2 data points",
-                     0, 0, "pchip", "", "MATLAB:pchip:tooFewPoints");
+                     0, 0, "pchip", "", "m:pchip:tooFewPoints");
 
     auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
     return packInterpResult(yq, xq, alloc);
@@ -262,7 +262,7 @@ MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int deg)
 
     if (static_cast<size_t>(np) > m)
         throw MError("polyfit: not enough data points",
-                     0, 0, "polyfit", "", "MATLAB:polyfit:tooFewPoints");
+                     0, 0, "polyfit", "", "m:polyfit:tooFewPoints");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -311,7 +311,7 @@ MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int deg)
         const double pivot = aug[k * (np + 1) + k];
         if (std::abs(pivot) < 1e-15)
             throw MError("polyfit: singular matrix",
-                         0, 0, "polyfit", "", "MATLAB:polyfit:singular");
+                         0, 0, "polyfit", "", "m:polyfit:singular");
 
         for (int c = k; c <= np; ++c)
             aug[k * (np + 1) + c] /= pivot;
@@ -364,7 +364,7 @@ MValue trapz(Allocator &alloc, const MValue &x, const MValue &y)
     const size_t n = x.numel();
     if (y.numel() != n)
         throw MError("trapz: x and y must have same length",
-                     0, 0, "trapz", "", "MATLAB:trapz:lengthMismatch");
+                     0, 0, "trapz", "", "m:trapz:lengthMismatch");
 
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
@@ -381,7 +381,7 @@ void interp1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.size() < 3)
         throw MError("interp1: requires at least 3 arguments",
-                     0, 0, "interp1", "", "MATLAB:interp1:nargin");
+                     0, 0, "interp1", "", "m:interp1:nargin");
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
@@ -392,7 +392,7 @@ void spline_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.size() < 3)
         throw MError("spline: requires 3 arguments",
-                     0, 0, "spline", "", "MATLAB:spline:nargin");
+                     0, 0, "spline", "", "m:spline:nargin");
     outs[0] = spline(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
@@ -400,7 +400,7 @@ void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.size() < 3)
         throw MError("pchip: requires 3 arguments",
-                     0, 0, "pchip", "", "MATLAB:pchip:nargin");
+                     0, 0, "pchip", "", "m:pchip:nargin");
     outs[0] = pchip(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
@@ -408,7 +408,7 @@ void polyfit_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.size() < 3)
         throw MError("polyfit: requires 3 arguments",
-                     0, 0, "polyfit", "", "MATLAB:polyfit:nargin");
+                     0, 0, "polyfit", "", "m:polyfit:nargin");
     outs[0] = polyfit(ctx.engine->allocator(),
                       args[0], args[1],
                       static_cast<int>(args[2].toScalar()));
@@ -418,7 +418,7 @@ void polyval_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.size() < 2)
         throw MError("polyval: requires 2 arguments",
-                     0, 0, "polyval", "", "MATLAB:polyval:nargin");
+                     0, 0, "polyval", "", "m:polyval:nargin");
     outs[0] = polyval(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -426,7 +426,7 @@ void trapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.empty())
         throw MError("trapz: requires at least 1 argument",
-                     0, 0, "trapz", "", "MATLAB:trapz:nargin");
+                     0, 0, "trapz", "", "m:trapz:nargin");
     if (args.size() == 1)
         outs[0] = trapz(ctx.engine->allocator(), args[0]);
     else

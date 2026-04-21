@@ -149,7 +149,7 @@ private:
     int col_;
     std::string funcName_;
     std::string context_;    // e.g. "in call to 'sin'"
-    std::string identifier_; // e.g. "MATLAB:badInput"
+    std::string identifier_; // e.g. "m:badInput"
 };
 
 // ============================================================

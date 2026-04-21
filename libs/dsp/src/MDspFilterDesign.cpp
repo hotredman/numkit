@@ -104,10 +104,10 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw MError("butter: Wn must be between 0 and 1",
-                     0, 0, "butter", "", "MATLAB:butter:badWn");
+                     0, 0, "butter", "", "m:butter:badWn");
     if (type != "low" && type != "high")
         throw MError("butter: type must be 'low' or 'high'",
-                     0, 0, "butter", "", "MATLAB:butter:badType");
+                     0, 0, "butter", "", "m:butter:badType");
 
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
     auto sPoles = butterworthPoles(N);
@@ -133,10 +133,10 @@ MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw MError("fir1: Wn must be between 0 and 1",
-                     0, 0, "fir1", "", "MATLAB:fir1:badWn");
+                     0, 0, "fir1", "", "m:fir1:badWn");
     if (type != "low" && type != "high")
         throw MError("fir1: type must be 'low' or 'high'",
-                     0, 0, "fir1", "", "MATLAB:fir1:badType");
+                     0, 0, "fir1", "", "m:fir1:badType");
 
     const size_t filtLen = N + 1;
     const double wc = M_PI * Wn;
@@ -211,7 +211,7 @@ void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 {
     if (args.size() < 2)
         throw MError("butter: requires at least 2 arguments",
-                     0, 0, "butter", "", "MATLAB:butter:nargin");
+                     0, 0, "butter", "", "m:butter:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const double Wn = args[1].toScalar();
     std::string type = "low";
@@ -228,7 +228,7 @@ void fir1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.size() < 2)
         throw MError("fir1: requires at least 2 arguments",
-                     0, 0, "fir1", "", "MATLAB:fir1:nargin");
+                     0, 0, "fir1", "", "m:fir1:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const double Wn = args[1].toScalar();
     std::string type = "low";
@@ -242,7 +242,7 @@ void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
 {
     if (args.size() < 2)
         throw MError("freqz: requires at least 2 arguments",
-                     0, 0, "freqz", "", "MATLAB:freqz:nargin");
+                     0, 0, "freqz", "", "m:freqz:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
 
     auto [H, W] = freqz(ctx.engine->allocator(), args[0], args[1], npts);

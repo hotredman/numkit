@@ -149,7 +149,7 @@ static MValue fftAlongDim(const MValue &x, size_t N, int dim, int dir, Allocator
 MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
 {
     if (dim != 1 && dim != 2)
-        throw MError("fft: dim must be 1 or 2", 0, 0, "fft", "", "MATLAB:fft:invalidDim");
+        throw MError("fft: dim must be 1 or 2", 0, 0, "fft", "", "m:fft:invalidDim");
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
     return fftAlongDim(x, N, dim, /*dir=*/1, &alloc);
@@ -158,7 +158,7 @@ MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
 MValue ifft(Allocator &alloc, const MValue &X, int n, int dim)
 {
     if (dim != 1 && dim != 2)
-        throw MError("ifft: dim must be 1 or 2", 0, 0, "ifft", "", "MATLAB:ifft:invalidDim");
+        throw MError("ifft: dim must be 1 or 2", 0, 0, "ifft", "", "m:ifft:invalidDim");
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
     return fftAlongDim(X, N, dim, /*dir=*/-1, &alloc);
@@ -177,7 +177,7 @@ void fft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
 {
     if (args.empty())
         throw MError("fft: requires at least 1 argument",
-                     0, 0, "fft", "", "MATLAB:fft:nargin");
+                     0, 0, "fft", "", "m:fft:nargin");
 
     int n = -1;
     int dim = 1;
@@ -193,7 +193,7 @@ void ifft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.empty())
         throw MError("ifft: requires at least 1 argument",
-                     0, 0, "ifft", "", "MATLAB:ifft:nargin");
+                     0, 0, "ifft", "", "m:ifft:nargin");
 
     int n = -1;
     int dim = 1;

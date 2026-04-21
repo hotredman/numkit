@@ -71,7 +71,7 @@ MValue toString(Allocator &alloc, const MValue &x)
     if (x.isLogical())
         return MValue::stringScalar(x.toBool() ? "true" : "false", p);
     throw MError("Cannot convert input to string", 0, 0, "string", "",
-                 "MATLAB:string:unsupportedType");
+                 "m:string:unsupportedType");
 }
 
 MValue toChar(Allocator &alloc, const MValue &x)
@@ -92,7 +92,7 @@ MValue toChar(Allocator &alloc, const MValue &x)
         }
         return MValue::fromString(s, p);
     }
-    throw MError("Cannot convert to char", 0, 0, "char", "", "MATLAB:char:unsupportedType");
+    throw MError("Cannot convert to char", 0, 0, "char", "", "m:char:unsupportedType");
 }
 
 // ── Comparisons ─────────────────────────────────────────────────────────
@@ -193,7 +193,7 @@ MValue strlength(Allocator &alloc, const MValue &s)
     if (s.isChar())
         return MValue::scalar(static_cast<double>(s.numel()), p);
     throw MError("Input must be a string or char array", 0, 0, "strlength", "",
-                 "MATLAB:strlength:unsupportedType");
+                 "m:strlength:unsupportedType");
 }
 
 // ── Search / replace ────────────────────────────────────────────────────
@@ -250,14 +250,14 @@ namespace detail {
 void num2str_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("num2str: requires 1 argument", 0, 0, "num2str", "", "MATLAB:num2str:nargin");
+        throw MError("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
     outs[0] = num2str(ctx.engine->allocator(), args[0]);
 }
 
 void str2num_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("str2num: requires 1 argument", 0, 0, "str2num", "", "MATLAB:str2num:nargin");
+        throw MError("str2num: requires 1 argument", 0, 0, "str2num", "", "m:str2num:nargin");
     outs[0] = str2num(ctx.engine->allocator(), args[0]);
 }
 
@@ -265,7 +265,7 @@ void str2double_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallCont
 {
     if (args.empty())
         throw MError("str2double: requires 1 argument", 0, 0, "str2double", "",
-                     "MATLAB:str2double:nargin");
+                     "m:str2double:nargin");
     outs[0] = str2double(ctx.engine->allocator(), args[0]);
 }
 
@@ -282,14 +282,14 @@ void string_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext 
 void char_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("char requires an argument", 0, 0, "char", "", "MATLAB:char:nargin");
+        throw MError("char requires an argument", 0, 0, "char", "", "m:char:nargin");
     outs[0] = toChar(ctx.engine->allocator(), args[0]);
 }
 
 void strcmp_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "MATLAB:strcmp:nargin");
+        throw MError("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "m:strcmp:nargin");
     outs[0] = strcmp(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -297,21 +297,21 @@ void strcmpi_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.size() < 2)
         throw MError("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
-                     "MATLAB:strcmpi:nargin");
+                     "m:strcmpi:nargin");
     outs[0] = strcmpi(ctx.engine->allocator(), args[0], args[1]);
 }
 
 void upper_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("upper: requires 1 argument", 0, 0, "upper", "", "MATLAB:upper:nargin");
+        throw MError("upper: requires 1 argument", 0, 0, "upper", "", "m:upper:nargin");
     outs[0] = upper(ctx.engine->allocator(), args[0]);
 }
 
 void lower_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("lower: requires 1 argument", 0, 0, "lower", "", "MATLAB:lower:nargin");
+        throw MError("lower: requires 1 argument", 0, 0, "lower", "", "m:lower:nargin");
     outs[0] = lower(ctx.engine->allocator(), args[0]);
 }
 
@@ -319,7 +319,7 @@ void strtrim_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.empty())
         throw MError("strtrim: requires 1 argument", 0, 0, "strtrim", "",
-                     "MATLAB:strtrim:nargin");
+                     "m:strtrim:nargin");
     outs[0] = strtrim(ctx.engine->allocator(), args[0]);
 }
 
@@ -327,7 +327,7 @@ void strsplit_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContex
 {
     if (args.empty())
         throw MError("strsplit: requires 1 argument", 0, 0, "strsplit", "",
-                     "MATLAB:strsplit:nargin");
+                     "m:strsplit:nargin");
     if (args.size() == 1)
         outs[0] = strsplit(ctx.engine->allocator(), args[0]);
     else
@@ -343,14 +343,14 @@ void strlength_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallConte
 {
     if (args.empty())
         throw MError("strlength: requires 1 argument", 0, 0, "strlength", "",
-                     "MATLAB:strlength:nargin");
+                     "m:strlength:nargin");
     outs[0] = strlength(ctx.engine->allocator(), args[0]);
 }
 
 void strrep_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("strrep requires 3 arguments", 0, 0, "strrep", "", "MATLAB:strrep:nargin");
+        throw MError("strrep requires 3 arguments", 0, 0, "strrep", "", "m:strrep:nargin");
     outs[0] = strrep(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
@@ -358,7 +358,7 @@ void contains_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContex
 {
     if (args.size() < 2)
         throw MError("contains requires 2 arguments", 0, 0, "contains", "",
-                     "MATLAB:contains:nargin");
+                     "m:contains:nargin");
     outs[0] = contains(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -366,7 +366,7 @@ void startsWith_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallCont
 {
     if (args.size() < 2)
         throw MError("startsWith requires 2 arguments", 0, 0, "startsWith", "",
-                     "MATLAB:startsWith:nargin");
+                     "m:startsWith:nargin");
     outs[0] = startsWith(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -374,7 +374,7 @@ void endsWith_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContex
 {
     if (args.size() < 2)
         throw MError("endsWith requires 2 arguments", 0, 0, "endsWith", "",
-                     "MATLAB:endsWith:nargin");
+                     "m:endsWith:nargin");
     outs[0] = endsWith(ctx.engine->allocator(), args[0], args[1]);
 }
 

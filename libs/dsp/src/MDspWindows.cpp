@@ -119,7 +119,7 @@ void hamming_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.empty())
         throw MError("hamming: requires 1 argument",
-                     0, 0, "hamming", "", "MATLAB:hamming:nargin");
+                     0, 0, "hamming", "", "m:hamming:nargin");
     outs[0] = hamming(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
@@ -127,7 +127,7 @@ void hann_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.empty())
         throw MError("hann: requires 1 argument",
-                     0, 0, "hann", "", "MATLAB:hann:nargin");
+                     0, 0, "hann", "", "m:hann:nargin");
     outs[0] = hann(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
@@ -135,7 +135,7 @@ void blackman_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.empty())
         throw MError("blackman: requires 1 argument",
-                     0, 0, "blackman", "", "MATLAB:blackman:nargin");
+                     0, 0, "blackman", "", "m:blackman:nargin");
     outs[0] = blackman(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
@@ -143,7 +143,7 @@ void kaiser_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.empty())
         throw MError("kaiser: requires at least 1 argument",
-                     0, 0, "kaiser", "", "MATLAB:kaiser:nargin");
+                     0, 0, "kaiser", "", "m:kaiser:nargin");
     const size_t N = static_cast<size_t>(args[0].toScalar());
     const double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
     outs[0] = kaiser(ctx.engine->allocator(), N, beta);
@@ -153,7 +153,7 @@ void rectwin_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.empty())
         throw MError("rectwin: requires 1 argument",
-                     0, 0, "rectwin", "", "MATLAB:rectwin:nargin");
+                     0, 0, "rectwin", "", "m:rectwin:nargin");
     outs[0] = rectwin(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
@@ -161,7 +161,7 @@ void bartlett_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.empty())
         throw MError("bartlett: requires 1 argument",
-                     0, 0, "bartlett", "", "MATLAB:bartlett:nargin");
+                     0, 0, "bartlett", "", "m:bartlett:nargin");
     outs[0] = bartlett(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 

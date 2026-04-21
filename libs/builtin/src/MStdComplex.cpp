@@ -71,7 +71,7 @@ MValue complex(Allocator &alloc, const MValue &re, const MValue &im)
     const MValue &shape = re.isScalar() ? im : re;
     if (!re.isScalar() && !im.isScalar() && re.dims() != im.dims())
         throw MError("complex: real and imaginary parts must have matching dimensions",
-                     0, 0, "complex", "", "MATLAB:complex:dimagree");
+                     0, 0, "complex", "", "m:complex:dimagree");
     auto r = createLike(shape, MType::COMPLEX, p);
     Complex *dst = r.complexDataMut();
     const size_t n = shape.numel();
@@ -108,21 +108,21 @@ namespace detail {
 void real_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("real: requires 1 argument", 0, 0, "real", "", "MATLAB:real:nargin");
+        throw MError("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
     outs[0] = real(ctx.engine->allocator(), args[0]);
 }
 
 void imag_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("imag: requires 1 argument", 0, 0, "imag", "", "MATLAB:imag:nargin");
+        throw MError("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
     outs[0] = imag(ctx.engine->allocator(), args[0]);
 }
 
 void conj_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("conj: requires 1 argument", 0, 0, "conj", "", "MATLAB:conj:nargin");
+        throw MError("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
     outs[0] = conj(ctx.engine->allocator(), args[0]);
 }
 
@@ -130,7 +130,7 @@ void complex_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.empty())
         throw MError("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
-                     "MATLAB:complex:nargin");
+                     "m:complex:nargin");
     if (args.size() == 1)
         outs[0] = complex(ctx.engine->allocator(), args[0]);
     else
@@ -140,7 +140,7 @@ void complex_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 void angle_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("angle: requires 1 argument", 0, 0, "angle", "", "MATLAB:angle:nargin");
+        throw MError("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
     outs[0] = angle(ctx.engine->allocator(), args[0]);
 }
 

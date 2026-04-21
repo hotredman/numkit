@@ -69,7 +69,7 @@ MValue mexception(Allocator &alloc, Span<const MValue> args)
 {
     if (args.size() < 2)
         throw MError("MException requires identifier and message", 0, 0,
-                     "MException", "", "MATLAB:MException:nargin");
+                     "MException", "", "m:MException:nargin");
     std::string id = args[0].toString();
     std::string msg = (args.size() > 2) ? formatOnce(args[1].toString(), args, 2)
                                         : args[1].toString();
@@ -83,7 +83,7 @@ void rethrowStruct(const MValue &me)
 {
     if (!me.isStruct())
         throw MError("rethrow requires an MException struct", 0, 0, "rethrow", "",
-                     "MATLAB:rethrow:notStruct");
+                     "m:rethrow:notStruct");
     std::string msg = me.hasField("message") ? me.field("message").toString() : "Error";
     std::string id =
         me.hasField("identifier") ? me.field("identifier").toString() : "m:error";
@@ -94,7 +94,7 @@ void assertCond(Span<const MValue> args)
 {
     if (args.empty())
         throw MError("assert requires at least one argument", 0, 0, "assert", "",
-                     "MATLAB:assert:nargin");
+                     "m:assert:nargin");
     if (args[0].toBool())
         return; // assertion passed
     if (args.size() == 1)
@@ -152,7 +152,7 @@ void rethrow_reg(Span<const MValue> args, size_t, Span<MValue>, CallContext &)
 {
     if (args.empty())
         throw MError("rethrow requires an MException struct", 0, 0, "rethrow", "",
-                     "MATLAB:rethrow:nargin");
+                     "m:rethrow:nargin");
     rethrowStruct(args[0]);
 }
 
@@ -160,7 +160,7 @@ void throw_reg(Span<const MValue> args, size_t, Span<MValue>, CallContext &)
 {
     if (args.empty())
         throw MError("throw requires an MException struct", 0, 0, "throw", "",
-                     "MATLAB:throw:nargin");
+                     "m:throw:nargin");
     rethrowStruct(args[0]);
 }
 

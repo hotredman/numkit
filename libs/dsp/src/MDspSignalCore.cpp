@@ -64,7 +64,7 @@ void nextpow2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.empty())
         throw MError("nextpow2: requires 1 argument",
-                     0, 0, "nextpow2", "", "MATLAB:nextpow2:nargin");
+                     0, 0, "nextpow2", "", "m:nextpow2:nargin");
     outs[0] = nextpow2(ctx.engine->allocator(), args[0].toScalar());
 }
 
@@ -72,7 +72,7 @@ void fftshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.empty())
         throw MError("fftshift: requires 1 argument",
-                     0, 0, "fftshift", "", "MATLAB:fftshift:nargin");
+                     0, 0, "fftshift", "", "m:fftshift:nargin");
     outs[0] = fftshift(ctx.engine->allocator(), args[0]);
 }
 
@@ -80,7 +80,7 @@ void ifftshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
 {
     if (args.empty())
         throw MError("ifftshift: requires 1 argument",
-                     0, 0, "ifftshift", "", "MATLAB:ifftshift:nargin");
+                     0, 0, "ifftshift", "", "m:ifftshift:nargin");
     outs[0] = ifftshift(ctx.engine->allocator(), args[0]);
 }
 

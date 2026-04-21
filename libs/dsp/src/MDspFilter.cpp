@@ -47,7 +47,7 @@ MValue filter(Allocator &alloc, const MValue &b, const MValue &a, const MValue &
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw MError("filter: a(1) must be nonzero",
-                     0, 0, "filter", "", "MATLAB:filter:zeroLead");
+                     0, 0, "filter", "", "m:filter:zeroLead");
 
     std::vector<double> bn(nb), an(na);
     for (size_t i = 0; i < nb; ++i)
@@ -75,7 +75,7 @@ MValue filtfilt(Allocator &alloc, const MValue &b, const MValue &a, const MValue
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw MError("filtfilt: a(1) must be nonzero",
-                     0, 0, "filtfilt", "", "MATLAB:filtfilt:zeroLead");
+                     0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
 
     std::vector<double> bn(nb), an(na);
     for (size_t i = 0; i < nb; ++i)
@@ -118,7 +118,7 @@ void filter_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.size() < 3)
         throw MError("filter: requires 3 arguments",
-                     0, 0, "filter", "", "MATLAB:filter:nargin");
+                     0, 0, "filter", "", "m:filter:nargin");
     outs[0] = filter(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
@@ -126,7 +126,7 @@ void filtfilt_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.size() < 3)
         throw MError("filtfilt: requires 3 arguments",
-                     0, 0, "filtfilt", "", "MATLAB:filtfilt:nargin");
+                     0, 0, "filtfilt", "", "m:filtfilt:nargin");
     outs[0] = filtfilt(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 

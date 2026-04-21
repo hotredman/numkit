@@ -95,7 +95,7 @@ MValue reshape(Allocator &alloc, const MValue &x, size_t rows, size_t cols, size
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
         throw MError("Number of elements must not change in reshape",
-                     0, 0, "reshape", "", "MATLAB:reshape:elementCountMismatch");
+                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
 
     DimsArg d{rows, cols, pages};
 
@@ -125,7 +125,7 @@ MValue transpose(Allocator &alloc, const MValue &x)
 {
     if (x.dims().is3D())
         throw MError("transpose is not defined for N-D arrays",
-                     0, 0, "transpose", "", "MATLAB:transpose:3DInput");
+                     0, 0, "transpose", "", "m:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
     auto r = MValue::matrix(cols, rows, MType::DOUBLE, &alloc);
     for (size_t i = 0; i < rows; ++i)
@@ -273,7 +273,7 @@ MValue cross(Allocator &alloc, const MValue &a, const MValue &b)
 {
     if (a.numel() != 3 || b.numel() != 3)
         throw MError("cross requires 3-element vectors",
-                     0, 0, "cross", "", "MATLAB:cross:badSize");
+                     0, 0, "cross", "", "m:cross:badSize");
     auto r = MValue::matrix(1, 3, MType::DOUBLE, &alloc);
     r.doubleDataMut()[0] = a.doubleData()[1] * b.doubleData()[2] - a.doubleData()[2] * b.doubleData()[1];
     r.doubleDataMut()[1] = a.doubleData()[2] * b.doubleData()[0] - a.doubleData()[0] * b.doubleData()[2];
@@ -285,7 +285,7 @@ MValue dot(Allocator &alloc, const MValue &a, const MValue &b)
 {
     if (a.numel() != b.numel())
         throw MError("dot: vectors must have same length",
-                     0, 0, "dot", "", "MATLAB:dot:lengthMismatch");
+                     0, 0, "dot", "", "m:dot:lengthMismatch");
     double s = 0;
     for (size_t i = 0; i < a.numel(); ++i)
         s += a.doubleData()[i] * b.doubleData()[i];
@@ -320,7 +320,7 @@ void size_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCo
 {
     if (args.empty())
         throw MError("Not enough input arguments",
-                     0, 0, "size", "", "MATLAB:size:nargin");
+                     0, 0, "size", "", "m:size:nargin");
     auto &alloc = ctx.engine->allocator();
 
     if (args.size() >= 2) {
@@ -345,7 +345,7 @@ void length_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.empty())
         throw MError("length: requires 1 argument",
-                     0, 0, "length", "", "MATLAB:length:nargin");
+                     0, 0, "length", "", "m:length:nargin");
     outs[0] = length(ctx.engine->allocator(), args[0]);
 }
 
@@ -353,7 +353,7 @@ void numel_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.empty())
         throw MError("numel: requires 1 argument",
-                     0, 0, "numel", "", "MATLAB:numel:nargin");
+                     0, 0, "numel", "", "m:numel:nargin");
     outs[0] = numel(ctx.engine->allocator(), args[0]);
 }
 
@@ -361,7 +361,7 @@ void ndims_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.empty())
         throw MError("ndims: requires 1 argument",
-                     0, 0, "ndims", "", "MATLAB:ndims:nargin");
+                     0, 0, "ndims", "", "m:ndims:nargin");
     outs[0] = ndims(ctx.engine->allocator(), args[0]);
 }
 
@@ -369,7 +369,7 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.size() < 2)
         throw MError("reshape: requires at least 2 arguments",
-                     0, 0, "reshape", "", "MATLAB:reshape:nargin");
+                     0, 0, "reshape", "", "m:reshape:nargin");
 
     const auto &x = args[0];
     size_t rows, cols, pages;
@@ -391,7 +391,7 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
             if (args[i + 1].isEmpty()) {
                 if (inferPos >= 0)
                     throw MError("reshape: only one dimension may be inferred via []",
-                                 0, 0, "reshape", "", "MATLAB:reshape:tooManyInferred");
+                                 0, 0, "reshape", "", "m:reshape:tooManyInferred");
                 inferPos = static_cast<int>(i);
             } else {
                 dims[i] = static_cast<size_t>(args[i + 1].toScalar());
@@ -401,7 +401,7 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         if (inferPos >= 0) {
             if (knownProd == 0 || x.numel() % knownProd != 0)
                 throw MError("reshape: size of array must be divisible by product of known dims",
-                             0, 0, "reshape", "", "MATLAB:reshape:indivisible");
+                             0, 0, "reshape", "", "m:reshape:indivisible");
             dims[inferPos] = x.numel() / knownProd;
         }
         rows = dims[0];
@@ -416,7 +416,7 @@ void transpose_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
 {
     if (args.empty())
         throw MError("transpose: requires 1 argument",
-                     0, 0, "transpose", "", "MATLAB:transpose:nargin");
+                     0, 0, "transpose", "", "m:transpose:nargin");
     outs[0] = transpose(ctx.engine->allocator(), args[0]);
 }
 
@@ -424,7 +424,7 @@ void diag_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.empty())
         throw MError("diag: requires 1 argument",
-                     0, 0, "diag", "", "MATLAB:diag:nargin");
+                     0, 0, "diag", "", "m:diag:nargin");
     outs[0] = diag(ctx.engine->allocator(), args[0]);
 }
 
@@ -432,7 +432,7 @@ void sort_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCo
 {
     if (args.empty())
         throw MError("sort: requires 1 argument",
-                     0, 0, "sort", "", "MATLAB:sort:nargin");
+                     0, 0, "sort", "", "m:sort:nargin");
     auto [sorted, idx] = sort(ctx.engine->allocator(), args[0]);
     outs[0] = std::move(sorted);
     if (nargout > 1)
@@ -443,7 +443,7 @@ void find_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.empty())
         throw MError("find: requires 1 argument",
-                     0, 0, "find", "", "MATLAB:find:nargin");
+                     0, 0, "find", "", "m:find:nargin");
     outs[0] = find(ctx.engine->allocator(), args[0]);
 }
 
@@ -461,7 +461,7 @@ void meshgrid_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 {
     if (args.size() < 2)
         throw MError("meshgrid: requires 2 arguments",
-                     0, 0, "meshgrid", "", "MATLAB:meshgrid:nargin");
+                     0, 0, "meshgrid", "", "m:meshgrid:nargin");
     auto [X, Y] = meshgrid(ctx.engine->allocator(), args[0], args[1]);
     outs[0] = std::move(X);
     if (nargout > 1)
@@ -472,7 +472,7 @@ void cumsum_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.empty())
         throw MError("cumsum: requires 1 argument",
-                     0, 0, "cumsum", "", "MATLAB:cumsum:nargin");
+                     0, 0, "cumsum", "", "m:cumsum:nargin");
     outs[0] = cumsum(ctx.engine->allocator(), args[0]);
 }
 
@@ -480,7 +480,7 @@ void cross_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 {
     if (args.size() < 2)
         throw MError("cross: requires 2 arguments",
-                     0, 0, "cross", "", "MATLAB:cross:nargin");
+                     0, 0, "cross", "", "m:cross:nargin");
     outs[0] = cross(ctx.engine->allocator(), args[0], args[1]);
 }
 
@@ -488,7 +488,7 @@ void dot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
 {
     if (args.size() < 2)
         throw MError("dot: requires 2 arguments",
-                     0, 0, "dot", "", "MATLAB:dot:nargin");
+                     0, 0, "dot", "", "m:dot:nargin");
     outs[0] = dot(ctx.engine->allocator(), args[0], args[1]);
 }
 

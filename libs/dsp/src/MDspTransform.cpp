@@ -91,7 +91,7 @@ void unwrap_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 {
     if (args.empty())
         throw MError("unwrap: requires 1 argument",
-                     0, 0, "unwrap", "", "MATLAB:unwrap:nargin");
+                     0, 0, "unwrap", "", "m:unwrap:nargin");
     outs[0] = unwrap(ctx.engine->allocator(), args[0]);
 }
 
@@ -99,7 +99,7 @@ void hilbert_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 {
     if (args.empty())
         throw MError("hilbert: requires 1 argument",
-                     0, 0, "hilbert", "", "MATLAB:hilbert:nargin");
+                     0, 0, "hilbert", "", "m:hilbert:nargin");
     outs[0] = hilbert(ctx.engine->allocator(), args[0]);
 }
 
@@ -107,7 +107,7 @@ void envelope_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 {
     if (args.empty())
         throw MError("envelope: requires 1 argument",
-                     0, 0, "envelope", "", "MATLAB:envelope:nargin");
+                     0, 0, "envelope", "", "m:envelope:nargin");
     outs[0] = envelope(ctx.engine->allocator(), args[0]);
 }
 

@@ -269,7 +269,7 @@ void logical_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.empty())
         throw MError("logical: requires 1 argument", 0, 0, "logical", "",
-                     "MATLAB:logical:nargin");
+                     "m:logical:nargin");
     outs[0] = logical(ctx.engine->allocator(), args[0]);
 }
 
@@ -280,7 +280,7 @@ void logical_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
     {                                                                               \
         if (args.empty())                                                           \
             throw MError(#FN ": requires 1 argument", 0, 0, #FN, "",                \
-                         "MATLAB:" #FN ":nargin");                                  \
+                         "m:" #FN ":nargin");                                  \
         outs[0] = FN(ctx.engine->allocator(), args[0]);                             \
     }
 
@@ -305,7 +305,7 @@ void isequal_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 {
     if (args.size() < 2)
         throw MError("isequal requires at least 2 arguments", 0, 0, "isequal", "",
-                     "MATLAB:isequal:nargin");
+                     "m:isequal:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], false);
@@ -316,7 +316,7 @@ void isequaln_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContex
 {
     if (args.size() < 2)
         throw MError("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
-                     "MATLAB:isequaln:nargin");
+                     "m:isequaln:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], true);
@@ -327,7 +327,7 @@ void class_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &
 {
     if (args.empty())
         throw MError("class: requires 1 argument", 0, 0, "class", "",
-                     "MATLAB:class:nargin");
+                     "m:class:nargin");
     outs[0] = classOf(ctx.engine->allocator(), args[0]);
 }
 

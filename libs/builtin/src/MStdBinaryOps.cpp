@@ -64,7 +64,7 @@ MValue plus(Allocator &alloc, const MValue &a, const MValue &b)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateAdd(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw MError("Unsupported types for +", 0, 0, "plus", "", "MATLAB:plus:unsupportedTypes");
+    throw MError("Unsupported types for +", 0, 0, "plus", "", "m:plus:unsupportedTypes");
 }
 
 MValue minus(Allocator &alloc, const MValue &a, const MValue &b)
@@ -80,7 +80,7 @@ MValue minus(Allocator &alloc, const MValue &a, const MValue &b)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateSub(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw MError("Unsupported types for -", 0, 0, "minus", "", "MATLAB:minus:unsupportedTypes");
+    throw MError("Unsupported types for -", 0, 0, "minus", "", "m:minus:unsupportedTypes");
 }
 
 MValue times(Allocator &alloc, const MValue &a, const MValue &b)
@@ -96,7 +96,7 @@ MValue times(Allocator &alloc, const MValue &a, const MValue &b)
         auto r = dispatchIntegerBinaryOp(a, b, [](auto x, auto y) { return saturateMul(x, y); }, p);
         if (!r.isUnset()) return r;
     }
-    throw MError("Unsupported types for .*", 0, 0, "times", "", "MATLAB:times:unsupportedTypes");
+    throw MError("Unsupported types for .*", 0, 0, "times", "", "m:times:unsupportedTypes");
 }
 
 MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
@@ -109,7 +109,7 @@ MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
         size_t M = ca.dims().rows(), K = ca.dims().cols(), N = cb.dims().cols();
         if (K != cb.dims().rows())
             throw MError("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "MATLAB:innerdim");
+                         "m:innerdim");
         auto r = MValue::complexMatrix(M, N, p);
         for (size_t i = 0; i < M; ++i)
             for (size_t j = 0; j < N; ++j) {
@@ -131,7 +131,7 @@ MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
         size_t M = a.dims().rows(), K = a.dims().cols(), N = b.dims().cols();
         if (K != b.dims().rows())
             throw MError("Inner matrix dimensions must agree", 0, 0, "mtimes", "",
-                         "MATLAB:innerdim");
+                         "m:innerdim");
         auto r = MValue::matrix(M, N, MType::DOUBLE, p);
         for (size_t i = 0; i < M; ++i)
             for (size_t j = 0; j < N; ++j) {
@@ -142,7 +142,7 @@ MValue mtimes(Allocator &alloc, const MValue &a, const MValue &b)
             }
         return r;
     }
-    throw MError("Unsupported types for *", 0, 0, "mtimes", "", "MATLAB:mtimes:unsupportedTypes");
+    throw MError("Unsupported types for *", 0, 0, "mtimes", "", "m:mtimes:unsupportedTypes");
 }
 
 MValue rdivide(Allocator &alloc, const MValue &a, const MValue &b)
@@ -159,7 +159,7 @@ MValue rdivide(Allocator &alloc, const MValue &a, const MValue &b)
         if (!r.isUnset()) return r;
     }
     throw MError("Unsupported types for ./", 0, 0, "rdivide", "",
-                 "MATLAB:rdivide:unsupportedTypes");
+                 "m:rdivide:unsupportedTypes");
 }
 
 MValue mrdivide(Allocator &alloc, const MValue &a, const MValue &b)
@@ -178,7 +178,7 @@ MValue mrdivide(Allocator &alloc, const MValue &a, const MValue &b)
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(a.toScalar() / b.toScalar(), p);
     throw MError("Matrix right division not implemented", 0, 0, "mrdivide", "",
-                 "MATLAB:mrdivide:notImplemented");
+                 "m:mrdivide:notImplemented");
 }
 
 MValue mldivide(Allocator &alloc, const MValue &a, const MValue &b)
@@ -189,7 +189,7 @@ MValue mldivide(Allocator &alloc, const MValue &a, const MValue &b)
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(b.toScalar() / a.toScalar(), p);
     throw MError("Matrix left division not implemented", 0, 0, "mldivide", "",
-                 "MATLAB:mldivide:notImplemented");
+                 "m:mldivide:notImplemented");
 }
 
 MValue power(Allocator &alloc, const MValue &a, const MValue &b)
@@ -204,7 +204,7 @@ MValue power(Allocator &alloc, const MValue &a, const MValue &b)
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(std::pow(a.toScalar(), b.toScalar()), p);
     throw MError("Matrix power not implemented", 0, 0, "power", "",
-                 "MATLAB:power:notImplemented");
+                 "m:power:notImplemented");
 }
 
 MValue elementPower(Allocator &alloc, const MValue &a, const MValue &b)
@@ -236,7 +236,7 @@ MValue elementPower(Allocator &alloc, const MValue &a, const MValue &b)
         if (!r.isUnset()) return r;
     }
     throw MError("Unsupported types for .^", 0, 0, "elementPower", "",
-                 "MATLAB:elementPower:unsupportedTypes");
+                 "m:elementPower:unsupportedTypes");
 }
 
 // ── Comparisons ──────────────────────────────────────────────────────────
@@ -289,7 +289,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
             if (v.isString() || v.isChar())
                 return v.toString();
             throw MError("Comparison between string and non-string is not supported",
-                         0, 0, "compare", "", "MATLAB:compare:stringType");
+                         0, 0, "compare", "", "m:compare:stringType");
         };
         std::string sa = toStr(a), sb = toStr(b);
         switch (c) {
@@ -307,7 +307,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
         if (c != Cmp::EQ && c != Cmp::NE)
             throw MError(std::string("Operator '") + cmpOpName(c)
                              + "' is not supported for complex operands",
-                         0, 0, "compare", "", "MATLAB:compare:complexOrder");
+                         0, 0, "compare", "", "m:compare:complexOrder");
         const bool isEq = (c == Cmp::EQ);
         auto ceq = [](Complex x, Complex y) {
             return x.real() == y.real() && x.imag() == y.imag();
@@ -343,7 +343,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
         }
         if (a.dims() != b.dims())
             throw MError("Matrix dimensions must agree for comparison",
-                         0, 0, "compare", "", "MATLAB:dimagree");
+                         0, 0, "compare", "", "m:dimagree");
         auto r = createLike(a, MType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] =
@@ -389,7 +389,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
         }
         if (a.dims() != b.dims())
             throw MError("3D broadcasting not supported — dimensions must match",
-                         0, 0, "compare", "", "MATLAB:dimagree");
+                         0, 0, "compare", "", "m:dimagree");
         auto r = createLike(a, MType::LOGICAL, nullptr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.logicalDataMut()[i] = applyCmp(c, elemD(a, i), elemD(b, i)) ? 1 : 0;
@@ -401,7 +401,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
     size_t outR, outC;
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw MError("Matrix dimensions must agree for comparison",
-                     0, 0, "compare", "", "MATLAB:dimagree");
+                     0, 0, "compare", "", "m:dimagree");
 
     auto r = MValue::matrix(outR, outC, MType::LOGICAL, nullptr);
     uint8_t *dst = r.logicalDataMut();
@@ -475,7 +475,7 @@ MValue logicalBinary(const char *opName, Op op,
     }
     if (a.numel() != b.numel())
         throw MError(std::string("Matrix dimensions must agree for ") + opName,
-                     0, 0, opName, "", "MATLAB:dimagree");
+                     0, 0, opName, "", "m:dimagree");
     auto aa = toBoolArray(a);
     auto bb = toBoolArray(b);
     auto r = createLike(a, MType::LOGICAL, p);

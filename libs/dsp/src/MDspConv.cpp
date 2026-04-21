@@ -38,7 +38,7 @@ MValue conv(Allocator &alloc, const MValue &a, const MValue &b, const std::strin
         outStart = std::min(na, nb) - 1;
     } else if (shape != "full") {
         throw MError("conv: shape must be 'full', 'same', or 'valid'",
-                     0, 0, "conv", "", "MATLAB:conv:badShape");
+                     0, 0, "conv", "", "m:conv:badShape");
     }
 
     auto r = MValue::matrix(1, outLen, MType::DOUBLE, &alloc);
@@ -54,7 +54,7 @@ deconv(Allocator &alloc, const MValue &b, const MValue &a)
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb)
         throw MError("deconv: denominator longer than numerator",
-                     0, 0, "deconv", "", "MATLAB:deconv:denomTooLong");
+                     0, 0, "deconv", "", "m:deconv:denomTooLong");
 
     std::vector<double> rem(b.doubleData(), b.doubleData() + nb);
     const double *ad = a.doubleData();
@@ -65,7 +65,7 @@ deconv(Allocator &alloc, const MValue &b, const MValue &a)
     const double a0 = ad[0];
     if (a0 == 0.0)
         throw MError("deconv: leading coefficient is zero",
-                     0, 0, "deconv", "", "MATLAB:deconv:zeroLead");
+                     0, 0, "deconv", "", "m:deconv:zeroLead");
 
     for (size_t i = 0; i < nq; ++i) {
         q[i] = rem[i] / a0;
@@ -125,7 +125,7 @@ void conv_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 {
     if (args.size() < 2)
         throw MError("conv: requires at least 2 arguments",
-                     0, 0, "conv", "", "MATLAB:conv:nargin");
+                     0, 0, "conv", "", "m:conv:nargin");
 
     std::string shape = "full";
     if (args.size() >= 3 && args[2].isChar())
@@ -138,7 +138,7 @@ void deconv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 {
     if (args.size() < 2)
         throw MError("deconv: requires 2 arguments",
-                     0, 0, "deconv", "", "MATLAB:deconv:nargin");
+                     0, 0, "deconv", "", "m:deconv:nargin");
 
     auto [q, r] = deconv(ctx.engine->allocator(), args[0], args[1]);
     outs[0] = std::move(q);
@@ -150,7 +150,7 @@ void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
 {
     if (args.empty())
         throw MError("xcorr: requires at least 1 argument",
-                     0, 0, "xcorr", "", "MATLAB:xcorr:nargin");
+                     0, 0, "xcorr", "", "m:xcorr:nargin");
 
     // Autocorrelation when called with a single arg, or when second
     // arg is a char flag like 'unbiased' (MATLAB compat: flag is accepted

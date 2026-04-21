@@ -209,7 +209,7 @@ void periodogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 {
     if (args.empty())
         throw MError("periodogram: requires at least 1 argument",
-                     0, 0, "periodogram", "", "MATLAB:periodogram:nargin");
+                     0, 0, "periodogram", "", "m:periodogram:nargin");
 
     // MATLAB semantics: ignore char-typed (flag) arg 1, and treat wrong-size as empty.
     MValue window = MValue::empty();
@@ -227,7 +227,7 @@ void pwelch_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 {
     if (args.empty())
         throw MError("pwelch: requires at least 1 argument",
-                     0, 0, "pwelch", "", "MATLAB:pwelch:nargin");
+                     0, 0, "pwelch", "", "m:pwelch:nargin");
 
     MValue window = MValue::empty();
     if (args.size() >= 2 && !args[1].isChar())
@@ -245,7 +245,7 @@ void spectrogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 {
     if (args.empty())
         throw MError("spectrogram: requires at least 1 argument",
-                     0, 0, "spectrogram", "", "MATLAB:spectrogram:nargin");
+                     0, 0, "spectrogram", "", "m:spectrogram:nargin");
 
     // MATLAB's spectrogram(x, N) accepts a scalar-N (window length) and
     // builds a Hamming window of that length. If arg 1 is a vector, it's

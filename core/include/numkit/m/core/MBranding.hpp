@@ -18,7 +18,8 @@ namespace numkit::m {
 // NOT covered here (rename these manually alongside the prefix update):
 //   • C++ namespace `numkit::m`, target `numkit::m`
 //   • File names `M*.hpp` / `M*.cpp`
-//   • Error-identifier strings such as "m:assert" in MStdIO.cpp
+//   • Error-identifier strings such as "m:assert" (defined across
+//     libs/builtin/src/MStd*.cpp and libs/dsp/src/MDsp*.cpp)
 //   • Documentation, README, CMake project name
 inline constexpr const char *kEnvPrefix = "NUMKIT_M";
 
