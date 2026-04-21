@@ -23,133 +23,181 @@ namespace numkit::m::dsp {
 
 // ── Shared algorithm core ──────────────────────────────────────────────
 //
-// dir = +1 for forward FFT, -1 for inverse. Unifies fft() and ifft() — they
-// only differ in pre/post-conjugation and the 1/N scale for the inverse.
-static MValue fftAlongDim(const MValue &x, size_t N, int dim, int dir, Allocator *alloc)
+// 1-D / 2-D / 3-D FFT along the specified axis (dim ∈ {1, 2, 3}).
+//
+// For every input layout (column-major), the algorithm is the same:
+//   1. Extract the axis length + stride for the chosen dim.
+//   2. Enumerate every 1-D slice along that axis (numel / axisLen slices).
+//   3. For each slice: copy into a complex scratch buffer, run fftRadix2,
+//      copy result back along the same stride pattern.
+//
+// dir = +1 for forward, -1 for inverse (conjugate-trick). ifft downgrades
+// the result to real when every element's imaginary part is within 1e-10.
+//
+// Caller contract:
+//   - dim already validated to be 1, 2, or 3 by fft()/ifft() (the
+//     "first non-singleton" default — dim=0 in the public API — is
+//     resolved to a concrete axis before this is called).
+//   - axisLen == 1 with requested outLen > 1 throws (extending
+//     dimensionality isn't supported yet).
+static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Allocator *alloc)
 {
-    const auto &dims = x.dims();
-    const size_t rows = dims.rows(), cols = dims.cols();
+    const auto &d = x.dims();
+    const size_t R = d.rows();
+    const size_t C = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1;
 
-    // ── Vector case (rows == 1 or cols == 1) ───────────────────────────
-    if (rows == 1 || cols == 1) {
-        const size_t inputLen = x.numel();
-        const size_t outLen = (N > 0) ? N : inputLen;
-        const size_t useLen = std::min(inputLen, outLen);
-        const size_t fftLen = nextPow2(outLen);
-        auto buf = prepareFFTBuffer(x, useLen, fftLen);
-
-        if (dir == -1) {
-            for (auto &v : buf)
-                v = std::conj(v);
-            fftRadix2(buf, 1);
-            const double invN = 1.0 / static_cast<double>(fftLen);
-            for (auto &v : buf)
-                v = std::conj(v) * invN;
-
-            // If result is real within numerical tolerance, return as real
-            bool isReal = true;
-            for (size_t i = 0; i < outLen && isReal; ++i)
-                if (std::abs(buf[i].imag()) > 1e-10)
-                    isReal = false;
-            if (isReal) {
-                const bool isRow = (rows == 1);
-                auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, alloc)
-                               : MValue::matrix(outLen, 1, MType::DOUBLE, alloc);
-                for (size_t i = 0; i < outLen; ++i)
-                    r.doubleDataMut()[i] = buf[i].real();
-                return r;
-            }
-            const bool isRow = (rows == 1);
-            auto r = isRow ? MValue::complexMatrix(1, outLen, alloc)
-                           : MValue::complexMatrix(outLen, 1, alloc);
-            for (size_t i = 0; i < outLen; ++i)
-                r.complexDataMut()[i] = buf[i];
-            return r;
-        }
-
-        fftRadix2(buf, 1);
-        const bool isRow = (rows == 1);
-        auto r = isRow ? MValue::complexMatrix(1, outLen, alloc)
-                       : MValue::complexMatrix(outLen, 1, alloc);
-        for (size_t i = 0; i < outLen; ++i)
-            r.complexDataMut()[i] = buf[i];
-        return r;
+    size_t axisLen = 0, axisStride = 0;
+    switch (dim) {
+    case 1: axisLen = R; axisStride = 1;       break;
+    case 2: axisLen = C; axisStride = R;       break;
+    case 3: axisLen = P; axisStride = R * C;   break;
+    default: /* unreachable */                 break;
     }
 
-    // ── Matrix case: column-wise (dim==1) or row-wise (dim==2) ─────────
+    const size_t outAxisLen = (N_req > 0) ? N_req : axisLen;
+
+    // Extending a singleton axis into a new dimension (e.g. dim=3 on a
+    // 2-D input with N>1) would require producing a higher-rank output;
+    // it's a valid MATLAB shape but falls outside the current scope.
+    if (axisLen <= 1 && outAxisLen > 1)
+        throw MError("fft: extending dimension beyond ndims is not supported "
+                     "when the axis length is 1",
+                     0, 0, "fft", "", "m:fft:extendDim");
+
+    const size_t fftLen = nextPow2(outAxisLen);
+    const size_t useLen = std::min(axisLen, outAxisLen);
+
+    // Output shape: input shape with the chosen axis replaced.
+    size_t outR = R, outC = C, outP = P;
+    size_t outAxisStride = 0;
+    switch (dim) {
+    case 1: outR = outAxisLen; outAxisStride = 1;             break;
+    case 2: outC = outAxisLen; outAxisStride = outR;          break;
+    case 3: outP = outAxisLen; outAxisStride = outR * outC;   break;
+    }
+    const bool outIs3D = d.is3D();
+
+    auto result = outIs3D
+        ? MValue::matrix3d(outR, outC, outP, MType::COMPLEX, alloc)
+        : MValue::complexMatrix(outR, outC, alloc);
+    Complex *dst = result.complexDataMut();
+
+    const bool srcIsComplex = x.isComplex();
+    const Complex *srcC = srcIsComplex ? x.complexData() : nullptr;
+    const double *srcD  = srcIsComplex ? nullptr : x.doubleData();
+
+    // buf is default-constructed zero; subsequent slices overwrite
+    // [0, useLen) fully and only need the tail [useLen, fftLen) zeroed.
+    // For the common power-of-two case useLen == fftLen and this costs
+    // nothing; with zero-padding the reset is O(fftLen - useLen).
+    std::vector<Complex> buf(fftLen);
+
+    // Slice enumeration. The three cases (dim=1/2/3) are spelled out
+    // with concrete stride constants rather than a generic
+    // lambda-with-captures — MSVC's optimiser folds the contiguous
+    // (stride==1) axis-1 case into plain Load/Store sequences that way.
+    const size_t numSlices = x.numel() / axisLen;
     if (dim == 1) {
-        // FFT along columns
-        const size_t outRows = (N > 0) ? N : rows;
-        auto result = MValue::complexMatrix(outRows, cols, alloc);
-        Complex *dst = result.complexDataMut();
-        for (size_t c = 0; c < cols; ++c) {
-            const size_t useLen = std::min(rows, outRows);
-            const size_t fftLen = nextPow2(outRows);
-            std::vector<Complex> buf(fftLen, Complex(0.0, 0.0));
-            if (x.isComplex()) {
-                const Complex *src = x.complexData();
-                for (size_t r = 0; r < useLen; ++r)
-                    buf[r] = src[c * rows + r];
+        // axis = rows; inner stride is 1 — most common & tightest loop
+        for (size_t s = 0; s < numSlices; ++s) {
+            const size_t slicePg = s / C;
+            const size_t sliceC  = s % C;
+            const size_t inBase  = sliceC * R    + slicePg * R    * C;
+            const size_t outBase = sliceC * outR + slicePg * outR * outC;
+            // Load contiguous
+            if (srcIsComplex) {
+                for (size_t k = 0; k < useLen; ++k) buf[k] = srcC[inBase + k];
             } else {
-                const double *src = x.doubleData();
-                for (size_t r = 0; r < useLen; ++r)
-                    buf[r] = Complex(src[c * rows + r], 0.0);
+                for (size_t k = 0; k < useLen; ++k) buf[k] = Complex(srcD[inBase + k], 0.0);
             }
+            for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
             if (dir == -1) {
-                for (auto &v : buf)
-                    v = std::conj(v);
+                for (auto &v : buf) v = std::conj(v);
                 fftRadix2(buf, 1);
                 const double invN = 1.0 / static_cast<double>(fftLen);
-                for (auto &v : buf)
-                    v = std::conj(v) * invN;
+                for (auto &v : buf) v = std::conj(v) * invN;
             } else {
                 fftRadix2(buf, 1);
             }
-            for (size_t r = 0; r < outRows; ++r)
-                dst[c * outRows + r] = buf[r];
+            // Store contiguous (outAxisStride == 1 when dim==1)
+            for (size_t k = 0; k < outAxisLen; ++k) dst[outBase + k] = buf[k];
         }
-        return result;
     } else {
-        // FFT along rows (dim == 2)
-        const size_t outCols = (N > 0) ? N : cols;
-        auto result = MValue::complexMatrix(rows, outCols, alloc);
-        Complex *dst = result.complexDataMut();
-        for (size_t r = 0; r < rows; ++r) {
-            const size_t useLen = std::min(cols, outCols);
-            const size_t fftLen = nextPow2(outCols);
-            std::vector<Complex> buf(fftLen, Complex(0.0, 0.0));
-            if (x.isComplex()) {
-                const Complex *src = x.complexData();
-                for (size_t c = 0; c < useLen; ++c)
-                    buf[c] = src[c * rows + r];
-            } else {
-                const double *src = x.doubleData();
-                for (size_t c = 0; c < useLen; ++c)
-                    buf[c] = Complex(src[c * rows + r], 0.0);
+        // dim == 2 or dim == 3 — non-unit strides, fused generic loop.
+        const size_t o1Len    = (dim == 2) ? R : R;      // inner "other" dim
+        const size_t o1Stride = 1;
+        const size_t o2Len    = (dim == 2) ? P : C;      // outer "other" dim
+        const size_t o2Stride = (dim == 2) ? (R * C) : R;
+        const size_t o2OutStride = (dim == 2) ? (outR * outC) : outR;
+
+        for (size_t i2 = 0; i2 < o2Len; ++i2) {
+            for (size_t i1 = 0; i1 < o1Len; ++i1) {
+                const size_t inBase  = i1 * o1Stride + i2 * o2Stride;
+                const size_t outBase = i1 * o1Stride + i2 * o2OutStride;
+                if (srcIsComplex) {
+                    for (size_t k = 0; k < useLen; ++k)
+                        buf[k] = srcC[inBase + k * axisStride];
+                } else {
+                    for (size_t k = 0; k < useLen; ++k)
+                        buf[k] = Complex(srcD[inBase + k * axisStride], 0.0);
+                }
+                for (size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
+                if (dir == -1) {
+                    for (auto &v : buf) v = std::conj(v);
+                    fftRadix2(buf, 1);
+                    const double invN = 1.0 / static_cast<double>(fftLen);
+                    for (auto &v : buf) v = std::conj(v) * invN;
+                } else {
+                    fftRadix2(buf, 1);
+                }
+                for (size_t k = 0; k < outAxisLen; ++k)
+                    dst[outBase + k * outAxisStride] = buf[k];
             }
-            if (dir == -1) {
-                for (auto &v : buf)
-                    v = std::conj(v);
-                fftRadix2(buf, 1);
-                const double invN = 1.0 / static_cast<double>(fftLen);
-                for (auto &v : buf)
-                    v = std::conj(v) * invN;
-            } else {
-                fftRadix2(buf, 1);
-            }
-            for (size_t c = 0; c < outCols; ++c)
-                dst[c * rows + r] = buf[c];
         }
-        return result;
     }
+
+    // ifft: downgrade to real when every imaginary part is within
+    // tolerance. Applies uniformly to 1-D / 2-D / 3-D shapes.
+    if (dir == -1) {
+        bool allReal = true;
+        const Complex *out = result.complexData();
+        for (size_t i = 0; i < result.numel() && allReal; ++i)
+            if (std::abs(out[i].imag()) > 1e-10)
+                allReal = false;
+        if (allReal) {
+            auto realOut = outIs3D
+                ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc)
+                : MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+            for (size_t i = 0; i < realOut.numel(); ++i)
+                realOut.doubleDataMut()[i] = result.complexData()[i].real();
+            return realOut;
+        }
+    }
+
+    return result;
 }
 
 // ── Public API ─────────────────────────────────────────────────────────
 
+// Resolve dim=0 ("auto") to the first non-singleton axis, matching
+// MATLAB's default for fft/ifft. Returns 1 for a pure scalar input —
+// the resulting length-1 FFT is identity, so this is harmless.
+static int resolveDefaultDim(const MValue &x)
+{
+    const auto &d = x.dims();
+    if (d.rows() > 1) return 1;
+    if (d.cols() > 1) return 2;
+    if (d.is3D() && d.pages() > 1) return 3;
+    return 1;
+}
+
 MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
 {
-    if (dim != 1 && dim != 2)
-        throw MError("fft: dim must be 1 or 2", 0, 0, "fft", "", "m:fft:invalidDim");
+    if (dim < 0 || dim > 3)
+        throw MError("fft: dim must be 0 (auto), 1, 2, or 3",
+                     0, 0, "fft", "", "m:fft:invalidDim");
+    if (dim == 0) dim = resolveDefaultDim(x);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
     return fftAlongDim(x, N, dim, /*dir=*/1, &alloc);
@@ -157,8 +205,10 @@ MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
 
 MValue ifft(Allocator &alloc, const MValue &X, int n, int dim)
 {
-    if (dim != 1 && dim != 2)
-        throw MError("ifft: dim must be 1 or 2", 0, 0, "ifft", "", "m:ifft:invalidDim");
+    if (dim < 0 || dim > 3)
+        throw MError("ifft: dim must be 0 (auto), 1, 2, or 3",
+                     0, 0, "ifft", "", "m:ifft:invalidDim");
+    if (dim == 0) dim = resolveDefaultDim(X);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
     return fftAlongDim(X, N, dim, /*dir=*/-1, &alloc);
@@ -180,7 +230,7 @@ void fft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
                      0, 0, "fft", "", "m:fft:nargin");
 
     int n = -1;
-    int dim = 1;
+    int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
     if (args.size() >= 2 && !args[1].isEmpty())
         n = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3)
@@ -196,7 +246,7 @@ void ifft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
                      0, 0, "ifft", "", "m:ifft:nargin");
 
     int n = -1;
-    int dim = 1;
+    int dim = 0;   // 0 = auto (first non-singleton) — resolved in public fft()
     if (args.size() >= 2 && !args[1].isEmpty())
         n = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3)
