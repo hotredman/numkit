@@ -462,23 +462,66 @@ TEST(SimdParity_Dim, SinOn3D)
         EXPECT_LE(ulpDistance(y.doubleData()[i], std::sin(0.1 * double(i))), 8u);
 }
 
+namespace {
+
+// Parametric 3D binary-op check. After the Phase 8c+ fast-path
+// extension, every 3D same-shape DOUBLE op routes through the same
+// SIMD loop as 2D — so bit-exactness vs scalar is the right bound.
+template <typename BinaryFn, typename ScalarOp>
+void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    auto a = MValue::matrix3d(3, 5, 7, MType::DOUBLE, &alloc);  // 105 elems, all odd
+    auto b = MValue::matrix3d(3, 5, 7, MType::DOUBLE, &alloc);
+
+    std::mt19937 rng(65537);
+    std::uniform_real_distribution<double> dist(-100.0, 100.0);
+    for (size_t i = 0; i < a.numel(); ++i) {
+        a.doubleDataMut()[i] = dist(rng);
+        double bv = dist(rng);
+        if (std::fabs(bv) < 1.0) bv += std::copysign(1.0, bv);  // avoid /0 for rdivide
+        b.doubleDataMut()[i] = bv;
+    }
+
+    auto c = fn(alloc, a, b);
+    ASSERT_TRUE(c.dims().is3D()) << name;
+    EXPECT_EQ(c.dims().rows(), 3u) << name;
+    EXPECT_EQ(c.dims().cols(), 5u) << name;
+    EXPECT_EQ(c.dims().pages(), 7u) << name;
+    ASSERT_EQ(c.numel(), a.numel()) << name;
+    for (size_t i = 0; i < c.numel(); ++i)
+        EXPECT_TRUE(bitEquals(c.doubleData()[i], op(a.doubleData()[i], b.doubleData()[i])))
+            << name << " mismatch at i=" << i;
+}
+
+} // namespace
+
 TEST(SimdParity_Dim, PlusOn3D)
 {
-    // 3D same-shape — currently goes through scalar elementwiseDouble()
-    // since sameShapeDoubleFastPath excludes 3D. The result must still
-    // be correct, just not SIMD-accelerated.
-    Allocator alloc = Allocator::defaultAllocator();
-    auto a = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
-    auto b = MValue::matrix3d(2, 3, 4, MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < a.numel(); ++i) {
-        a.doubleDataMut()[i] = double(i);
-        b.doubleDataMut()[i] = 2.0;
-    }
-    auto c = numkit::m::builtin::plus(alloc, a, b);
-    ASSERT_TRUE(c.dims().is3D());
-    EXPECT_EQ(c.numel(), 24u);
-    for (size_t i = 0; i < c.numel(); ++i)
-        EXPECT_TRUE(bitEquals(c.doubleData()[i], double(i) + 2.0));
+    checkBinaryOn3D(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::plus(a, x, y); },
+        [](double x, double y) { return x + y; }, "plus");
+}
+
+TEST(SimdParity_Dim, MinusOn3D)
+{
+    checkBinaryOn3D(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::minus(a, x, y); },
+        [](double x, double y) { return x - y; }, "minus");
+}
+
+TEST(SimdParity_Dim, TimesOn3D)
+{
+    checkBinaryOn3D(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::times(a, x, y); },
+        [](double x, double y) { return x * y; }, "times");
+}
+
+TEST(SimdParity_Dim, RdivideOn3D)
+{
+    checkBinaryOn3D(
+        [](Allocator &a, const MValue &x, const MValue &y) { return numkit::m::builtin::rdivide(a, x, y); },
+        [](double x, double y) { return x / y; }, "rdivide");
 }
 
 TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
