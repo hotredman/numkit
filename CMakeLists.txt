@@ -276,12 +276,15 @@ if(NUMKIT_M_BUILD_BENCHMARKS)
 
     # Benchmark's own flag list also includes -pedantic-errors, which turns
     # the C2y __COUNTER__ extension warning into an error on upstream clang
-    # (emscripten). Scoped to the two benchmark libs only.
-    foreach(_t benchmark benchmark_main)
-        if(TARGET ${_t})
-            target_compile_options(${_t} PRIVATE -Wno-c2y-extensions)
-        endif()
-    endforeach()
+    # (emscripten). Scoped to the two benchmark libs only — and only on
+    # clang/gcc, since MSVC doesn't understand the flag.
+    if(NOT MSVC OR CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+        foreach(_t benchmark benchmark_main)
+            if(TARGET ${_t})
+                target_compile_options(${_t} PRIVATE -Wno-c2y-extensions)
+            endif()
+        endforeach()
+    endif()
 
     add_subdirectory(benchmarks)
 endif()

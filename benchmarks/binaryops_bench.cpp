@@ -58,3 +58,59 @@ static void BM_Times(benchmark::State &s) { runBinaryBench(s, numkit::m::builtin
 
 BENCHMARK(BM_Plus)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
 BENCHMARK(BM_Times)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(benchmark::oN);
+
+// ── Decomposed micro-benches ─────────────────────────────────
+// `z = x + y` from a .m script does three things:
+//   1. allocate a fresh N-element MValue for the result
+//   2. run the SIMD plusLoop into its buffer
+//   3. wrap up + return through the VM
+// To know which step matters, time them in isolation. The full
+// path is BM_Plus above; subtract these two from it to see where
+// the rest goes.
+
+namespace numkit::m::builtin::detail {
+// Forward-declare from libs/builtin/src/backends/BinaryOpsLoops.hpp.
+// Linked from the same numkit::m library; bypasses the public
+// plus()/elementwiseDouble() wrapping so we measure only the kernel.
+void plusLoop(const double *a, const double *b, double *out, std::size_t n);
+} // namespace numkit::m::builtin::detail
+
+// Pure alloc: how long does it take to ask the engine allocator
+// for a fresh N-element heap double? No data writes.
+static void BM_PlusAlloc(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+    Allocator alloc = Allocator::defaultAllocator();
+    for (auto _ : state) {
+        MValue c = MValue::matrix(n, 1, MType::DOUBLE, &alloc);
+        benchmark::DoNotOptimize(c);
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+    state.SetBytesProcessed(state.iterations() * static_cast<int64_t>(n) * sizeof(double));
+}
+
+// Pure kernel: pre-allocated output, no MValue plumbing —
+// just plusLoop on raw double buffers. Whatever Highway can pull
+// off in steady state.
+static void BM_PlusKernel(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+    MValue a = makeReal(n, 1);
+    MValue b = makeReal(n, 2);
+    MValue c = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    const double *ad = a.doubleData();
+    const double *bd = b.doubleData();
+    double       *cd = c.doubleDataMut();
+    for (auto _ : state) {
+        builtin::detail::plusLoop(ad, bd, cd, n);
+        benchmark::DoNotOptimize(cd);
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+    state.SetBytesProcessed(state.iterations() * static_cast<int64_t>(n) *
+                            3 * static_cast<int64_t>(sizeof(double)));
+}
+
+BENCHMARK(BM_PlusAlloc) ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
+BENCHMARK(BM_PlusKernel)->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
