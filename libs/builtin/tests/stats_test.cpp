@@ -777,3 +777,222 @@ TEST_P(NanReductionTest, NanmeanReturnsNaNForAllNaNSlice)
 }
 
 INSTANTIATE_DUAL(NanReductionTest);
+
+// ============================================================
+// Cumulative + logical reductions (Phase 3)
+// cumprod, cummax, cummin, any, all, xor, isfinite
+// ============================================================
+
+class CumLogicalTest : public DualEngineTest
+{};
+
+// ── cumprod ─────────────────────────────────────────────────
+
+TEST_P(CumLogicalTest, CumprodVector)
+{
+    eval("c = cumprod([1 2 3 4 5]);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 5u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 6.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 24.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[4], 120.0);
+}
+
+TEST_P(CumLogicalTest, CumprodMatrixDim2)
+{
+    eval("c = cumprod([1 2 3; 4 5 6], 2);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 3u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 2.0);   // 1*2
+    EXPECT_DOUBLE_EQ((*c)(0, 2), 6.0);   // 1*2*3
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 20.0);  // 4*5
+    EXPECT_DOUBLE_EQ((*c)(1, 2), 120.0); // 4*5*6
+}
+
+// ── cummax / cummin ─────────────────────────────────────────
+
+TEST_P(CumLogicalTest, CummaxVector)
+{
+    eval("c = cummax([3 1 4 1 5 9 2 6]);");
+    auto *c = getVarPtr("c");
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 4.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[4], 5.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[5], 9.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[6], 9.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[7], 9.0);
+}
+
+TEST_P(CumLogicalTest, CumminVector)
+{
+    eval("c = cummin([5 3 7 2 8 1 4]);");
+    auto *c = getVarPtr("c");
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 5.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 2.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[4], 2.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[5], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[6], 1.0);
+}
+
+TEST_P(CumLogicalTest, CummaxSkipsNaN)
+{
+    // NaN treated as identity (default 'omitnan' since R2018a).
+    eval("c = cummax([1 NaN 3 NaN 2]);");
+    auto *c = getVarPtr("c");
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[1], 1.0); // 1 vs NaN → 1
+    EXPECT_DOUBLE_EQ(c->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[3], 3.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[4], 3.0);
+}
+
+TEST_P(CumLogicalTest, CummaxMatrixDim1)
+{
+    eval("c = cummax([1 9 2; 5 3 8; 4 6 7], 1);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 3u);
+    // col 0: [1,5,5], col 1: [9,9,9], col 2: [2,8,8]
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 1), 9.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 2), 8.0);
+}
+
+TEST_P(CumLogicalTest, Cumprod3DDim3)
+{
+    eval("A = zeros(2, 2, 3); "
+         "A(:,:,1) = [1 2; 3 4]; "
+         "A(:,:,2) = [2 2; 2 2]; "
+         "A(:,:,3) = [3 3; 3 3]; "
+         "c = cumprod(A, 3);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 2u);
+    // Page 3 = page1 * page2 * page3
+    EXPECT_DOUBLE_EQ((*c)(0, 0, 2), 6.0);   // 1*2*3
+    EXPECT_DOUBLE_EQ((*c)(1, 0, 2), 18.0);  // 3*2*3
+    EXPECT_DOUBLE_EQ((*c)(0, 1, 2), 12.0);  // 2*2*3
+    EXPECT_DOUBLE_EQ((*c)(1, 1, 2), 24.0);  // 4*2*3
+}
+
+// ── any / all ───────────────────────────────────────────────
+
+TEST_P(CumLogicalTest, AnyVectorTrue)
+{
+    EXPECT_TRUE(evalBool("any([0 0 1 0]);"));
+}
+
+TEST_P(CumLogicalTest, AnyVectorFalse)
+{
+    EXPECT_FALSE(evalBool("any([0 0 0]);"));
+}
+
+TEST_P(CumLogicalTest, AnyEmpty)
+{
+    // any([]) → false (vacuous).
+    eval("v = any([]);");
+    auto *v = getVarPtr("v");
+    EXPECT_TRUE(v->numel() == 0 || v->toBool() == false);
+}
+
+TEST_P(CumLogicalTest, AllVectorTrue)
+{
+    EXPECT_TRUE(evalBool("all([1 2 -3 4]);"));
+}
+
+TEST_P(CumLogicalTest, AllVectorFalse)
+{
+    EXPECT_FALSE(evalBool("all([1 0 1]);"));
+}
+
+TEST_P(CumLogicalTest, AnyMatrixDim2)
+{
+    eval("v = any([0 0 0; 0 1 0; 0 0 0], 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_FALSE(v->logicalData()[0] != 0);
+    EXPECT_TRUE (v->logicalData()[1] != 0);
+    EXPECT_FALSE(v->logicalData()[2] != 0);
+}
+
+TEST_P(CumLogicalTest, AllMatrixDim1)
+{
+    eval("v = all([1 0 1; 1 1 0; 1 1 1]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_TRUE (v->logicalData()[0] != 0);  // col 0: [1,1,1]
+    EXPECT_FALSE(v->logicalData()[1] != 0);  // col 1: [0,1,1]
+    EXPECT_FALSE(v->logicalData()[2] != 0);  // col 2: [1,0,1]
+}
+
+TEST_P(CumLogicalTest, AnyTreatsNaNAsTrue)
+{
+    // MATLAB: any(NaN) → true (NaN != 0).
+    EXPECT_TRUE(evalBool("any([0 NaN 0]);"));
+}
+
+// ── xor ─────────────────────────────────────────────────────
+
+TEST_P(CumLogicalTest, XorBasic)
+{
+    EXPECT_TRUE(evalBool("xor(1, 0);"));
+    EXPECT_TRUE(evalBool("xor(0, 1);"));
+    EXPECT_FALSE(evalBool("xor(1, 1);"));
+    EXPECT_FALSE(evalBool("xor(0, 0);"));
+}
+
+TEST_P(CumLogicalTest, XorElementwise)
+{
+    eval("v = xor([1 0 1 0], [1 1 0 0]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 4u);
+    EXPECT_FALSE(v->logicalData()[0] != 0); // 1^1
+    EXPECT_TRUE (v->logicalData()[1] != 0); // 0^1
+    EXPECT_TRUE (v->logicalData()[2] != 0); // 1^0
+    EXPECT_FALSE(v->logicalData()[3] != 0); // 0^0
+}
+
+TEST_P(CumLogicalTest, XorTreatsNonZeroAsTrue)
+{
+    // 5 and -3 both truthy → xor = false. 5 and 0 → true.
+    EXPECT_FALSE(evalBool("xor(5, -3);"));
+    EXPECT_TRUE (evalBool("xor(5, 0);"));
+}
+
+// ── isfinite ────────────────────────────────────────────────
+
+TEST_P(CumLogicalTest, IsfiniteScalar)
+{
+    EXPECT_TRUE (evalBool("isfinite(3.14);"));
+    EXPECT_FALSE(evalBool("isfinite(NaN);"));
+    EXPECT_FALSE(evalBool("isfinite(Inf);"));
+    EXPECT_FALSE(evalBool("isfinite(-Inf);"));
+}
+
+TEST_P(CumLogicalTest, IsfiniteVector)
+{
+    eval("v = isfinite([1 NaN 2 Inf 3 -Inf]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 6u);
+    EXPECT_TRUE (v->logicalData()[0] != 0);
+    EXPECT_FALSE(v->logicalData()[1] != 0);
+    EXPECT_TRUE (v->logicalData()[2] != 0);
+    EXPECT_FALSE(v->logicalData()[3] != 0);
+    EXPECT_TRUE (v->logicalData()[4] != 0);
+    EXPECT_FALSE(v->logicalData()[5] != 0);
+}
+
+INSTANTIATE_DUAL(CumLogicalTest);

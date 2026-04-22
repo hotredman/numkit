@@ -46,6 +46,7 @@ MValue issingle(Allocator &alloc, const MValue &x);
 // ── Float-only predicates (elementwise) ──────────────────────────────
 MValue isnan(Allocator &alloc, const MValue &x);
 MValue isinf(Allocator &alloc, const MValue &x);
+MValue isfinite(Allocator &alloc, const MValue &x);
 
 // ── Equality ─────────────────────────────────────────────────────────
 /// isequal(a, b) — deep equality, NaN != NaN.

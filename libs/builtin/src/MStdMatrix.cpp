@@ -9,6 +9,7 @@
 #include "MStdReductionHelpers.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <vector>
 
@@ -322,6 +323,175 @@ MValue cumsum(Allocator &alloc, const MValue &x, int dim)
     return r;
 }
 
+// ── Generic cumulative kernel for cumprod / cummax / cummin ─────────
+//
+// Op is a binary functor (double, double) -> double. Init is the value
+// the running accumulator starts at; for cumulative ops we instead seed
+// with the first element of the slice, but seeding behavior is still
+// captured by Op (e.g. cumprod could just use init=1.0 multiplicative).
+// We use the seed-with-first style so cummax / cummin work without
+// needing to know +/- infinity for the initial value.
+namespace {
+
+template <typename Op>
+void cumKernel(const MValue &x, int d, Op op, double *dst)
+{
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    const double *src = x.doubleData();
+
+    if (d == 1) {
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t c = 0; c < C; ++c) {
+                const size_t base = pp * R * C + c * R;
+                if (R == 0) continue;
+                double acc = src[base];
+                dst[base] = acc;
+                for (size_t rr = 1; rr < R; ++rr) {
+                    acc = op(acc, src[base + rr]);
+                    dst[base + rr] = acc;
+                }
+            }
+    } else if (d == 2) {
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t rr = 0; rr < R; ++rr) {
+                const size_t pageBase = pp * R * C;
+                if (C == 0) continue;
+                double acc = src[pageBase + rr];
+                dst[pageBase + rr] = acc;
+                for (size_t c = 1; c < C; ++c) {
+                    acc = op(acc, src[pageBase + c * R + rr]);
+                    dst[pageBase + c * R + rr] = acc;
+                }
+            }
+    } else if (d == 3) {
+        for (size_t c = 0; c < C; ++c)
+            for (size_t rr = 0; rr < R; ++rr) {
+                if (P == 0) continue;
+                double acc = src[c * R + rr];
+                dst[c * R + rr] = acc;
+                for (size_t pp = 1; pp < P; ++pp) {
+                    acc = op(acc, src[pp * R * C + c * R + rr]);
+                    dst[pp * R * C + c * R + rr] = acc;
+                }
+            }
+    }
+}
+
+template <typename Op>
+MValue cumImpl(Allocator &alloc, const MValue &x, int dim,
+               Op op, const char *fn)
+{
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+
+    if (x.dims().isVector() || x.isScalar()) {
+        auto r = MValue::matrix(x.dims().rows(), x.dims().cols(),
+                                MType::DOUBLE, &alloc);
+        if (x.numel() == 0) return r;
+        double acc = x.doubleData()[0];
+        r.doubleDataMut()[0] = acc;
+        for (size_t i = 1; i < x.numel(); ++i) {
+            acc = op(acc, x.doubleData()[i]);
+            r.doubleDataMut()[i] = acc;
+        }
+        return r;
+    }
+
+    const int d = detail::resolveDim(x, dim, fn);
+    const auto &dd = x.dims();
+    auto r = dd.is3D() ? MValue::matrix3d(dd.rows(), dd.cols(), dd.pages(),
+                                          MType::DOUBLE, &alloc)
+                       : MValue::matrix(dd.rows(), dd.cols(),
+                                        MType::DOUBLE, &alloc);
+    cumKernel(x, d, op, r.doubleDataMut());
+    return r;
+}
+
+} // namespace
+
+MValue cumprod(Allocator &alloc, const MValue &x, int dim)
+{
+    return cumImpl(alloc, x, dim,
+                   [](double a, double b) { return a * b; }, "cumprod");
+}
+
+MValue cummax(Allocator &alloc, const MValue &x, int dim)
+{
+    // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
+    // and propagates otherwise. Default = 'omitnan' since R2018a; we
+    // skip NaN here, treating them as identity.
+    return cumImpl(alloc, x, dim,
+                   [](double a, double b) {
+                       if (std::isnan(b)) return a;
+                       if (std::isnan(a)) return b;
+                       return std::max(a, b);
+                   }, "cummax");
+}
+
+MValue cummin(Allocator &alloc, const MValue &x, int dim)
+{
+    return cumImpl(alloc, x, dim,
+                   [](double a, double b) {
+                       if (std::isnan(b)) return a;
+                       if (std::isnan(a)) return b;
+                       return std::min(a, b);
+                   }, "cummin");
+}
+
+// ── any / all (logical reductions) ──────────────────────────────────
+//
+// MATLAB's any(X) returns true if ANY element is non-zero (NaN counts
+// as true since NaN != 0). all(X) returns true if ALL elements are
+// non-zero. Empty: any → false, all → true (vacuously).
+MValue anyOf(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = detail::resolveDim(x, dim, "any");
+    auto r = detail::applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            for (size_t i = 0; i < n; ++i)
+                if (slice[i] != 0.0) return 1.0;
+            return 0.0;
+        }, &alloc);
+    // Convert DOUBLE result to LOGICAL to match MATLAB return type.
+    if (r.isScalar()) return MValue::logicalScalar(r.toScalar() != 0.0, &alloc);
+    auto rr = createLike(r, MType::LOGICAL, &alloc);
+    for (size_t i = 0; i < r.numel(); ++i)
+        rr.logicalDataMut()[i] = (r.doubleData()[i] != 0.0) ? 1 : 0;
+    return rr;
+}
+
+MValue allOf(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = detail::resolveDim(x, dim, "all");
+    auto r = detail::applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            for (size_t i = 0; i < n; ++i)
+                if (slice[i] == 0.0) return 0.0;
+            return 1.0;
+        }, &alloc);
+    if (r.isScalar()) return MValue::logicalScalar(r.toScalar() != 0.0, &alloc);
+    auto rr = createLike(r, MType::LOGICAL, &alloc);
+    for (size_t i = 0; i < r.numel(); ++i)
+        rr.logicalDataMut()[i] = (r.doubleData()[i] != 0.0) ? 1 : 0;
+    return rr;
+}
+
+// ── xor (elementwise logical) ────────────────────────────────────────
+MValue xorOf(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    auto d = elementwiseDouble(a, b,
+        [](double aa, double bb) {
+            return ((aa != 0.0) != (bb != 0.0)) ? 1.0 : 0.0;
+        }, &alloc);
+    if (d.isScalar()) return MValue::logicalScalar(d.toScalar() != 0.0, &alloc);
+    auto r = createLike(d, MType::LOGICAL, &alloc);
+    for (size_t i = 0; i < d.numel(); ++i)
+        r.logicalDataMut()[i] = (d.doubleData()[i] != 0.0) ? 1 : 0;
+    return r;
+}
+
 MValue cross(Allocator &alloc, const MValue &a, const MValue &b)
 {
     if (a.numel() != 3 || b.numel() != 3)
@@ -531,6 +701,51 @@ void cumsum_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
         dim = static_cast<int>(args[1].toScalar());
     outs[0] = (dim > 0) ? cumsum(ctx.engine->allocator(), args[0], dim)
                         : cumsum(ctx.engine->allocator(), args[0]);
+}
+
+#define NK_CUM_REG(name)                                                       \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
+                    Span<MValue> outs, CallContext &ctx)                       \
+    {                                                                          \
+        if (args.empty())                                                      \
+            throw MError(#name ": requires at least 1 argument",               \
+                         0, 0, #name, "", "m:" #name ":nargin");               \
+        int dim = 0;                                                           \
+        if (args.size() >= 2 && !args[1].isEmpty())                            \
+            dim = static_cast<int>(args[1].toScalar());                        \
+        outs[0] = name(ctx.engine->allocator(), args[0], dim);                 \
+    }
+
+NK_CUM_REG(cumprod)
+NK_CUM_REG(cummax)
+NK_CUM_REG(cummin)
+
+#undef NK_CUM_REG
+
+#define NK_LOGICAL_RED_REG(name, fn)                                           \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
+                    Span<MValue> outs, CallContext &ctx)                       \
+    {                                                                          \
+        if (args.empty())                                                      \
+            throw MError(#name ": requires at least 1 argument",               \
+                         0, 0, #name, "", "m:" #name ":nargin");               \
+        int dim = 0;                                                           \
+        if (args.size() >= 2 && !args[1].isEmpty())                            \
+            dim = static_cast<int>(args[1].toScalar());                        \
+        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                   \
+    }
+
+NK_LOGICAL_RED_REG(any, anyOf)
+NK_LOGICAL_RED_REG(all, allOf)
+
+#undef NK_LOGICAL_RED_REG
+
+void xor_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("xor: requires 2 arguments",
+                     0, 0, "xor", "", "m:xor:nargin");
+    outs[0] = xorOf(ctx.engine->allocator(), args[0], args[1]);
 }
 
 void cross_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

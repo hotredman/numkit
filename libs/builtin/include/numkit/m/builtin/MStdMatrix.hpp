@@ -71,11 +71,25 @@ MValue vertcat(Allocator &alloc, const MValue *values, size_t count);
 std::tuple<MValue, MValue> meshgrid(Allocator &alloc, const MValue &x, const MValue &y);
 
 // ── Reductions and products ──────────────────────────────────────────
-/// Cumulative sum along first non-singleton dimension.
-MValue cumsum(Allocator &alloc, const MValue &x);
+//
+// Cumulative ops keep the input shape; sum/prod/max/min along the
+// chosen dim. Two-arg form auto-detects the first non-singleton dim;
+// three-arg form takes an explicit 1-based dim (0 = auto).
+MValue cumsum (Allocator &alloc, const MValue &x);
+MValue cumsum (Allocator &alloc, const MValue &x, int dim);
+MValue cumprod(Allocator &alloc, const MValue &x, int dim = 0);
+MValue cummax (Allocator &alloc, const MValue &x, int dim = 0);
+MValue cummin (Allocator &alloc, const MValue &x, int dim = 0);
 
-/// Cumulative sum along an explicit 1-based dim. dim==0 → auto-detect.
-MValue cumsum(Allocator &alloc, const MValue &x, int dim);
+// Logical reductions: collapse the chosen dim to a single 0/1 value.
+// Empty slices: any → false, all → true (matches MATLAB).
+// Output type is LOGICAL.
+MValue anyOf(Allocator &alloc, const MValue &x, int dim = 0);
+MValue allOf(Allocator &alloc, const MValue &x, int dim = 0);
+
+// Elementwise xor — both inputs treated as boolean (non-zero = true).
+// Output type is LOGICAL. Standard broadcasting rules apply.
+MValue xorOf(Allocator &alloc, const MValue &a, const MValue &b);
 
 /// Cross product of 3-element vectors. Row vector output.
 MValue cross(Allocator &alloc, const MValue &a, const MValue &b);

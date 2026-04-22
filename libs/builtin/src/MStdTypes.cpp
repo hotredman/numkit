@@ -201,6 +201,17 @@ MValue isinf(Allocator &alloc, const MValue &x)
     return r;
 }
 
+MValue isfinite(Allocator &alloc, const MValue &x)
+{
+    Allocator *p = &alloc;
+    if (x.isScalar())
+        return MValue::logicalScalar(std::isfinite(x.toScalar()), p);
+    auto r = createLike(x, MType::LOGICAL, p);
+    for (size_t i = 0; i < x.numel(); ++i)
+        r.logicalDataMut()[i] = std::isfinite(x.doubleData()[i]) ? 1 : 0;
+    return r;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
@@ -298,6 +309,7 @@ NK_PRED_REG(isfloat)
 NK_PRED_REG(issingle)
 NK_PRED_REG(isnan)
 NK_PRED_REG(isinf)
+NK_PRED_REG(isfinite)
 
 #undef NK_PRED_REG
 

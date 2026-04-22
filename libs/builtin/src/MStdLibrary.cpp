@@ -111,6 +111,7 @@ void isfloat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void issingle_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isnan_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isinf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isfinite_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isequal_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isequaln_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void class_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -184,6 +185,12 @@ void horzcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void vertcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void meshgrid_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumsum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cumprod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cummax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cummin_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void any_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void all_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void xor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cross_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void dot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 } // namespace numkit::m::builtin::detail
@@ -275,6 +282,12 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
     engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);
     engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
+    engine.registerFunction("cumprod",   &builtin::detail::cumprod_reg);
+    engine.registerFunction("cummax",    &builtin::detail::cummax_reg);
+    engine.registerFunction("cummin",    &builtin::detail::cummin_reg);
+    engine.registerFunction("any",       &builtin::detail::any_reg);
+    engine.registerFunction("all",       &builtin::detail::all_reg);
+    engine.registerFunction("xor",       &builtin::detail::xor_reg);
     engine.registerFunction("cross",     &builtin::detail::cross_reg);
     engine.registerFunction("dot",       &builtin::detail::dot_reg);
 
@@ -330,6 +343,7 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("issingle",  &builtin::detail::issingle_reg);
     engine.registerFunction("isnan",     &builtin::detail::isnan_reg);
     engine.registerFunction("isinf",     &builtin::detail::isinf_reg);
+    engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     engine.registerFunction("class",     &builtin::detail::class_reg);
