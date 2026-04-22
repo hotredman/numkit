@@ -107,41 +107,120 @@ NK_BINOP_LOOP(RdivideLoop, Div, /)
 
 #undef NK_BINOP_LOOP
 
-// Vectorised SAXPY matrix multiply (column-major). Loop order matches
-// the portable scalar reference — identical k-reduction order means the
-// only numerical divergence comes from MulAdd being a fused op on
-// FMA-capable targets (AVX2 and later), which is at most 0.5 ULP per
-// accumulation tighter than scalar mul-then-add.
+// Matrix multiply (column-major). Two paths:
+//
+// * Blocked register-tiling kernel for the body (M/MR tiles down,
+//   N/NR tiles across). Inside the kernel we keep an MR×NR tile of
+//   C in registers and accumulate K outer-products. With MR=8, NR=4
+//   on AVX2 we use 8 vector accumulators (8 doubles per col × 4 cols
+//   ÷ 4 lanes = 8 vec) + 2 A-row vec + 4 B-broadcast vec, fitting
+//   in the 16 YMM registers comfortably. Each K-step issues 8 FMAs.
+//   Reuse: each loaded A-row vec is used 4× (once per col), each B
+//   broadcast 8× (across both A-row halves) — high arithmetic
+//   intensity, kernel becomes compute-bound rather than memory-bound.
+//
+// * Original SAXPY-down-the-column path for the tail (rows below
+//   M_body and cols past N_body) and for problems too small to tile.
+//   Same numeric semantics as before — k-reduction order matches.
+//
+// On a square 512×512 mtimes the body covers the whole matrix
+// (512 % 8 == 0, 512 % 4 == 0) so the tail path stays cold.
+
 void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
                 double *HWY_RESTRICT c, std::size_t M, std::size_t N, std::size_t K)
 {
     const hn::ScalableTag<double> d;
     const std::size_t lanes = hn::Lanes(d);
 
-    for (std::size_t j = 0; j < N; ++j) {
-        double *c_col = c + j * M;
-        // Zero the output column in SIMD-wide stores.
-        {
-            const auto zero = hn::Zero(d);
-            std::size_t i = 0;
-            for (; i + lanes <= M; i += lanes) hn::StoreU(zero, d, c_col + i);
-            for (; i < M; ++i) c_col[i] = 0.0;
-        }
+    constexpr std::size_t MR = 8;   // rows per tile (fits 2 vec of 4 lanes)
+    constexpr std::size_t NR = 4;   // cols per tile (4 outer-product accumulators)
+    const std::size_t MR_HALF = lanes;  // vec width — second half is offset by lanes
 
-        for (std::size_t k = 0; k < K; ++k) {
-            const double bkj = b[j * K + k];
-            const auto vb = hn::Set(d, bkj);
-            const double *a_col = a + k * M;
-
-            std::size_t i = 0;
-            for (; i + lanes <= M; i += lanes) {
-                const auto va = hn::LoadU(d, a_col + i);
-                const auto vc = hn::LoadU(d, c_col + i);
-                hn::StoreU(hn::MulAdd(va, vb, vc), d, c_col + i);
+    // Helper: SAXPY-down-column path for an arbitrary [j_lo, j_hi) col
+    // range and an arbitrary [i_lo, i_hi) row range. Used for the tail.
+    auto saxpyRange = [&](std::size_t i_lo, std::size_t i_hi,
+                          std::size_t j_lo, std::size_t j_hi) {
+        for (std::size_t j = j_lo; j < j_hi; ++j) {
+            double *c_col = c + j * M;
+            {
+                const auto zero = hn::Zero(d);
+                std::size_t i = i_lo;
+                for (; i + lanes <= i_hi; i += lanes) hn::StoreU(zero, d, c_col + i);
+                for (; i < i_hi; ++i) c_col[i] = 0.0;
             }
-            for (; i < M; ++i) c_col[i] += bkj * a_col[i];
+            for (std::size_t k = 0; k < K; ++k) {
+                const double bkj = b[j * K + k];
+                const auto vb = hn::Set(d, bkj);
+                const double *a_col = a + k * M;
+                std::size_t i = i_lo;
+                for (; i + lanes <= i_hi; i += lanes) {
+                    const auto va = hn::LoadU(d, a_col + i);
+                    const auto vc = hn::LoadU(d, c_col + i);
+                    hn::StoreU(hn::MulAdd(va, vb, vc), d, c_col + i);
+                }
+                for (; i < i_hi; ++i) c_col[i] += bkj * a_col[i];
+            }
+        }
+    };
+
+    // Lanes other than 4 (e.g. SSE2 = 2 doubles, AVX-512 = 8) need a
+    // different MR. For those targets just use the SAXPY path — the
+    // 8×4 tile sized for AVX2 wouldn't keep the registers busy on
+    // narrower SIMD or would overflow them on wider.
+    if (lanes != 4 || M < MR || N < NR) {
+        saxpyRange(0, M, 0, N);
+        return;
+    }
+
+    const std::size_t M_body = (M / MR) * MR;
+    const std::size_t N_body = (N / NR) * NR;
+
+    // Body: 8×4 register-tiling kernel.
+    for (std::size_t j0 = 0; j0 < N_body; j0 += NR) {
+        for (std::size_t i0 = 0; i0 < M_body; i0 += MR) {
+            // 8 zero accumulators — one per (row-half, col).
+            auto c00 = hn::Zero(d), c10 = hn::Zero(d);
+            auto c01 = hn::Zero(d), c11 = hn::Zero(d);
+            auto c02 = hn::Zero(d), c12 = hn::Zero(d);
+            auto c03 = hn::Zero(d), c13 = hn::Zero(d);
+
+            for (std::size_t k = 0; k < K; ++k) {
+                const double *a_col = a + k * M;
+                const auto    a0 = hn::LoadU(d, a_col + i0);
+                const auto    a1 = hn::LoadU(d, a_col + i0 + MR_HALF);
+                const auto    b0 = hn::Set(d, b[(j0 + 0) * K + k]);
+                const auto    b1 = hn::Set(d, b[(j0 + 1) * K + k]);
+                const auto    b2 = hn::Set(d, b[(j0 + 2) * K + k]);
+                const auto    b3 = hn::Set(d, b[(j0 + 3) * K + k]);
+
+                c00 = hn::MulAdd(a0, b0, c00);
+                c10 = hn::MulAdd(a1, b0, c10);
+                c01 = hn::MulAdd(a0, b1, c01);
+                c11 = hn::MulAdd(a1, b1, c11);
+                c02 = hn::MulAdd(a0, b2, c02);
+                c12 = hn::MulAdd(a1, b2, c12);
+                c03 = hn::MulAdd(a0, b3, c03);
+                c13 = hn::MulAdd(a1, b3, c13);
+            }
+
+            double *c_tile = c + i0;
+            hn::StoreU(c00, d, c_tile + (j0 + 0) * M);
+            hn::StoreU(c10, d, c_tile + (j0 + 0) * M + MR_HALF);
+            hn::StoreU(c01, d, c_tile + (j0 + 1) * M);
+            hn::StoreU(c11, d, c_tile + (j0 + 1) * M + MR_HALF);
+            hn::StoreU(c02, d, c_tile + (j0 + 2) * M);
+            hn::StoreU(c12, d, c_tile + (j0 + 2) * M + MR_HALF);
+            hn::StoreU(c03, d, c_tile + (j0 + 3) * M);
+            hn::StoreU(c13, d, c_tile + (j0 + 3) * M + MR_HALF);
         }
     }
+
+    // Tail rows (i in [M_body, M)) for the body cols.
+    if (M_body < M)
+        saxpyRange(M_body, M, 0, N_body);
+    // Tail cols (j in [N_body, N)) for all rows.
+    if (N_body < N)
+        saxpyRange(0, M, N_body, N);
 }
 
 } // namespace HWY_NAMESPACE
