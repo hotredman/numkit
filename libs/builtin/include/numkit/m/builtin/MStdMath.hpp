@@ -52,9 +52,18 @@ MValue mod(Allocator &alloc, const MValue &a, const MValue &b);
 MValue rem(Allocator &alloc, const MValue &a, const MValue &b);
 
 // ── Reductions (single-return) ───────────────────────────────────────
+//
+// Two-arg form picks the reduction axis automatically: vectors collapse
+// to a scalar, 2D matrices reduce along columns (dim=1), 3D arrays
+// reduce along the first non-singleton dim — matching MATLAB's no-arg
+// default. Three-arg form takes an explicit 1-based dim (passing 0 is
+// equivalent to omitting the argument).
 MValue sum(Allocator &alloc, const MValue &x);
+MValue sum(Allocator &alloc, const MValue &x, int dim);
 MValue prod(Allocator &alloc, const MValue &x);
+MValue prod(Allocator &alloc, const MValue &x, int dim);
 MValue mean(Allocator &alloc, const MValue &x);
+MValue mean(Allocator &alloc, const MValue &x, int dim);
 
 // ── max/min — multi-return with index, or elementwise binary form ────
 /// Return (value, index) reduction. Vector input → scalar (value, 1-based idx).
@@ -62,6 +71,11 @@ MValue mean(Allocator &alloc, const MValue &x);
 /// 3D input → reduction along first non-singleton dimension.
 std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x);
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x);
+
+/// Same as above but along an explicit 1-based dim (MATLAB's
+/// max(X, [], dim) / min(X, [], dim) form). dim==0 means auto-detect.
+std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim);
+std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim);
 
 /// Elementwise max/min of two arrays (with broadcasting).
 MValue max(Allocator &alloc, const MValue &a, const MValue &b);

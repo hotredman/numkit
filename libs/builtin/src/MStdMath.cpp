@@ -6,6 +6,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
+#include "MStdReductionHelpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -204,14 +205,50 @@ MValue sum(Allocator &alloc, const MValue &x)
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc);
 }
 
+MValue sum(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return sum(alloc, x);
+    const int d = detail::resolveDim(x, dim, "sum");
+    return detail::applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            double acc = 0.0;
+            for (size_t i = 0; i < n; ++i) acc += slice[i];
+            return acc;
+        }, &alloc);
+}
+
 MValue prod(Allocator &alloc, const MValue &x)
 {
     return reduce(x, [](double a, double b) { return a * b; }, 1.0, &alloc);
 }
 
+MValue prod(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return prod(alloc, x);
+    const int d = detail::resolveDim(x, dim, "prod");
+    return detail::applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            double acc = 1.0;
+            for (size_t i = 0; i < n; ++i) acc *= slice[i];
+            return acc;
+        }, &alloc);
+}
+
 MValue mean(Allocator &alloc, const MValue &x)
 {
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc, /*meanMode=*/true);
+}
+
+MValue mean(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return mean(alloc, x);
+    const int d = detail::resolveDim(x, dim, "mean");
+    return detail::applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            double acc = 0.0;
+            for (size_t i = 0; i < n; ++i) acc += slice[i];
+            return acc / static_cast<double>(n);
+        }, &alloc);
 }
 
 // ── max/min with index ───────────────────────────────────────────────
@@ -299,6 +336,34 @@ std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x)
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x)
 {
     return reduceWithIndex(x, [](double v, double best) { return v < best; }, &alloc);
+}
+
+std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return max(alloc, x);
+    const int d = detail::resolveDim(x, dim, "max");
+    auto [v, idx] = detail::applyAlongDimWithIndex(x, d,
+        [](double *slice, size_t n, double &outV, size_t &outIdx) {
+            double best = slice[0]; size_t bi = 0;
+            for (size_t i = 1; i < n; ++i)
+                if (slice[i] > best) { best = slice[i]; bi = i; }
+            outV = best; outIdx = bi;
+        }, &alloc);
+    return std::make_tuple(std::move(v), std::move(idx));
+}
+
+std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return min(alloc, x);
+    const int d = detail::resolveDim(x, dim, "min");
+    auto [v, idx] = detail::applyAlongDimWithIndex(x, d,
+        [](double *slice, size_t n, double &outV, size_t &outIdx) {
+            double best = slice[0]; size_t bi = 0;
+            for (size_t i = 1; i < n; ++i)
+                if (slice[i] < best) { best = slice[i]; bi = i; }
+            outV = best; outIdx = bi;
+        }, &alloc);
+    return std::make_tuple(std::move(v), std::move(idx));
 }
 
 MValue max(Allocator &alloc, const MValue &a, const MValue &b)
@@ -415,11 +480,32 @@ NK_UNARY_ADAPTER(fix,     fix)
 NK_UNARY_ADAPTER(sign,    sign)
 NK_UNARY_ADAPTER(deg2rad, deg2rad)
 NK_UNARY_ADAPTER(rad2deg, rad2deg)
-NK_UNARY_ADAPTER(sum,     sum)
-NK_UNARY_ADAPTER(prod,    prod)
-NK_UNARY_ADAPTER(mean,    mean)
 
 #undef NK_UNARY_ADAPTER
+
+// sum/prod/mean — accept an optional dim argument as args[1].
+// MATLAB allows sum(X), sum(X, dim) and sum(X, 'all'); the 'all' form
+// is not yet supported. Numeric args[1] is interpreted as 1-based dim.
+#define NK_REDUCTION_ADAPTER(name, fn)                                          \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
+                    Span<MValue> outs, CallContext &ctx)                        \
+    {                                                                            \
+        if (args.empty())                                                        \
+            throw MError(#name ": requires at least 1 argument",                 \
+                         0, 0, #name, "", "m:" #name ":nargin");                 \
+        int dim = 0;                                                             \
+        if (args.size() >= 2 && !args[1].isEmpty())                              \
+            dim = static_cast<int>(args[1].toScalar());                          \
+        outs[0] = (dim > 0)                                                      \
+                     ? fn(ctx.engine->allocator(), args[0], dim)                 \
+                     : fn(ctx.engine->allocator(), args[0]);                     \
+    }
+
+NK_REDUCTION_ADAPTER(sum,  sum)
+NK_REDUCTION_ADAPTER(prod, prod)
+NK_REDUCTION_ADAPTER(mean, mean)
+
+#undef NK_REDUCTION_ADAPTER
 
 // Binary adapters follow a slightly different pattern (variable name for 2nd arg)
 void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
@@ -446,19 +532,27 @@ void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
     outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
 }
 
-// max/min: two MATLAB forms:
-//   max(x)    — reduction, returns (value, index)
-//   max(a, b) — elementwise, single return
+// max/min: three MATLAB forms:
+//   max(X)         — reduction along first non-singleton dim, (value, idx)
+//   max(A, B)      — elementwise (with broadcasting), single return
+//   max(X, [], dim) — reduction along explicit dim, (value, idx)
+// Distinguishing the two-arg forms: max(X, []) hits the dim path with
+// auto-detect (idx returned); max(X, B) with non-empty B is elementwise.
 void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
         throw MError("max: requires at least 1 argument",
                      0, 0, "max", "", "m:max:nargin");
     if (args.size() >= 2 && !args[1].isEmpty()) {
+        // Elementwise max(A, B) — single-return form.
         outs[0] = max(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
-    auto [val, idx] = max(ctx.engine->allocator(), args[0]);
+    // Reduction: optional dim as args[2].
+    int dim = 0;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = static_cast<int>(args[2].toScalar());
+    auto [val, idx] = max(ctx.engine->allocator(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -473,7 +567,10 @@ void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
         outs[0] = min(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
-    auto [val, idx] = min(ctx.engine->allocator(), args[0]);
+    int dim = 0;
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = static_cast<int>(args[2].toScalar());
+    auto [val, idx] = min(ctx.engine->allocator(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);

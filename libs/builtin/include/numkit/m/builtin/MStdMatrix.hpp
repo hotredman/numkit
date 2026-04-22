@@ -74,6 +74,9 @@ std::tuple<MValue, MValue> meshgrid(Allocator &alloc, const MValue &x, const MVa
 /// Cumulative sum along first non-singleton dimension.
 MValue cumsum(Allocator &alloc, const MValue &x);
 
+/// Cumulative sum along an explicit 1-based dim. dim==0 → auto-detect.
+MValue cumsum(Allocator &alloc, const MValue &x, int dim);
+
 /// Cross product of 3-element vectors. Row vector output.
 MValue cross(Allocator &alloc, const MValue &a, const MValue &b);
 

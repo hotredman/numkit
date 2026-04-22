@@ -400,3 +400,207 @@ TEST_P(StatsTest, Std3DDim2)
 }
 
 INSTANTIATE_DUAL(StatsTest);
+
+// ============================================================
+// dim overloads for existing reductions
+// (sum, mean, prod, min, max, cumsum)
+// ============================================================
+//
+// The original implementations auto-detect the reduction axis (first
+// non-singleton). The three-arg form takes an explicit dim and routes
+// through applyAlongDim. These tests pin both shape and value behavior.
+
+class ReductionDimTest : public DualEngineTest
+{};
+
+// ── sum ─────────────────────────────────────────────────────
+
+TEST_P(ReductionDimTest, SumMatrixDim1)
+{
+    eval("v = sum([1 2 3; 4 5 6; 7 8 9]);");  // default = dim=1
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 12.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 15.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 18.0);
+}
+
+TEST_P(ReductionDimTest, SumMatrixExplicitDim1)
+{
+    eval("v = sum([1 2 3; 4 5 6; 7 8 9], 1);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 12.0);
+}
+
+TEST_P(ReductionDimTest, SumMatrixDim2)
+{
+    eval("v = sum([1 2 3; 4 5 6; 7 8 9], 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 6.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 15.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 24.0);
+}
+
+TEST_P(ReductionDimTest, Sum3DDim3)
+{
+    eval("A = zeros(2, 2, 3); "
+         "A(:,:,1) = [1 2; 3 4]; "
+         "A(:,:,2) = [5 6; 7 8]; "
+         "A(:,:,3) = [9 10; 11 12]; "
+         "v = sum(A, 3);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ((*v)(0, 0), 15.0);  // 1+5+9
+    EXPECT_DOUBLE_EQ((*v)(1, 0), 21.0);  // 3+7+11
+    EXPECT_DOUBLE_EQ((*v)(0, 1), 18.0);
+    EXPECT_DOUBLE_EQ((*v)(1, 1), 24.0);
+}
+
+TEST_P(ReductionDimTest, SumNoDimAutoDetectMatchesDim1)
+{
+    // sum(M) and sum(M, 1) must agree for 2D.
+    EXPECT_DOUBLE_EQ(evalScalar("a = sum([1 2 3; 4 5 6]); a(1)"),
+                     evalScalar("b = sum([1 2 3; 4 5 6], 1); b(1)"));
+}
+
+// ── mean ────────────────────────────────────────────────────
+
+TEST_P(ReductionDimTest, MeanMatrixDim2)
+{
+    eval("m = mean([1 2 3; 4 5 6], 2);");
+    auto *m = getVarPtr("m");
+    EXPECT_EQ(rows(*m), 2u);
+    EXPECT_EQ(cols(*m), 1u);
+    EXPECT_DOUBLE_EQ(m->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(m->doubleData()[1], 5.0);
+}
+
+// ── prod ────────────────────────────────────────────────────
+
+TEST_P(ReductionDimTest, ProdMatrixDim1)
+{
+    eval("p = prod([1 2; 3 4; 5 6], 1);");
+    auto *p = getVarPtr("p");
+    EXPECT_EQ(rows(*p), 1u);
+    EXPECT_EQ(cols(*p), 2u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 15.0);  // 1*3*5
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], 48.0);  // 2*4*6
+}
+
+TEST_P(ReductionDimTest, ProdMatrixDim2)
+{
+    eval("p = prod([1 2 3; 4 5 6], 2);");
+    auto *p = getVarPtr("p");
+    EXPECT_EQ(rows(*p), 2u);
+    EXPECT_EQ(cols(*p), 1u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 6.0);  // 1*2*3
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], 120.0); // 4*5*6
+}
+
+// ── max / min with dim ─────────────────────────────────────
+
+TEST_P(ReductionDimTest, MaxMatrixDim2)
+{
+    // max(M, [], 2) — reduce along rows. [] placeholder is empty.
+    eval("v = max([1 2 3; 6 5 4; 7 9 8], [], 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 9.0);
+}
+
+TEST_P(ReductionDimTest, MaxMatrixDim2WithIndex)
+{
+    eval("function [a, b] = wrap(M)\n"
+         "  [a, b] = max(M, [], 2);\n"
+         "end");
+    eval("[v, i] = wrap([1 2 3; 6 5 4; 7 9 8]);");
+    auto *v = getVarPtr("v");
+    auto *idx = getVarPtr("i");
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 6.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 9.0);
+    EXPECT_DOUBLE_EQ(idx->doubleData()[0], 3.0);  // 1-based
+    EXPECT_DOUBLE_EQ(idx->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(idx->doubleData()[2], 2.0);
+}
+
+TEST_P(ReductionDimTest, MinMatrixDim1)
+{
+    eval("v = min([3 1 4; 1 5 9; 2 6 5], [], 1);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 4.0);
+}
+
+TEST_P(ReductionDimTest, MaxElementwiseStillWorks)
+{
+    // Make sure adding the dim form didn't break elementwise max(A,B).
+    eval("v = max([1 5 3], [4 2 6]);");
+    auto *v = getVarPtr("v");
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 6.0);
+}
+
+// ── cumsum ──────────────────────────────────────────────────
+
+TEST_P(ReductionDimTest, CumsumMatrixDim1)
+{
+    eval("c = cumsum([1 2 3; 4 5 6; 7 8 9], 1);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 3u);
+    EXPECT_EQ(cols(*c), 3u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 0), 12.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 2), 18.0);  // 3+6+9
+}
+
+TEST_P(ReductionDimTest, CumsumMatrixDim2)
+{
+    eval("c = cumsum([1 2 3; 4 5 6], 2);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 3u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 3.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 2), 6.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 9.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 2), 15.0);
+}
+
+TEST_P(ReductionDimTest, Cumsum3DDim3)
+{
+    eval("A = zeros(2, 2, 3); "
+         "A(:,:,1) = [1 2; 3 4]; "
+         "A(:,:,2) = [5 6; 7 8]; "
+         "A(:,:,3) = [9 10; 11 12]; "
+         "c = cumsum(A, 3);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 2u);
+    EXPECT_EQ(cols(*c), 2u);
+    // Page 1 == input page 1
+    EXPECT_DOUBLE_EQ((*c)(0, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1, 0), 4.0);
+    // Page 2 = page1 + page2
+    EXPECT_DOUBLE_EQ((*c)(0, 0, 1), 6.0);   // 1+5
+    EXPECT_DOUBLE_EQ((*c)(1, 1, 1), 12.0);  // 4+8
+    // Page 3 cumulative
+    EXPECT_DOUBLE_EQ((*c)(0, 0, 2), 15.0);  // 1+5+9
+    EXPECT_DOUBLE_EQ((*c)(1, 1, 2), 24.0);  // 4+8+12
+}
+
+INSTANTIATE_DUAL(ReductionDimTest);

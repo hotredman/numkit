@@ -177,6 +177,40 @@ MValue applyAlongDim(const MValue &x, int dim, F &&f, Allocator *alloc)
     return out;
 }
 
+// Index-aware variant: F writes (value, 1-based index of source element)
+// per slice. Used by min/max with dim. Returns (values, indices).
+template <typename F>
+std::pair<MValue, MValue>
+applyAlongDimWithIndex(const MValue &x, int dim, F &&f, Allocator *alloc)
+{
+    if (x.isEmpty()) {
+        return {MValue::matrix(0, 0, MType::DOUBLE, alloc),
+                MValue::matrix(0, 0, MType::DOUBLE, alloc)};
+    }
+    if (x.dims().isVector() || x.isScalar()) {
+        std::vector<double> scratch(x.numel());
+        std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        double v = 0;
+        size_t idx = 0;
+        f(scratch.data(), x.numel(), v, idx);
+        return {MValue::scalar(v, alloc),
+                MValue::scalar(static_cast<double>(idx + 1), alloc)};
+    }
+    auto outShape = outShapeForDim(x, dim);
+    MValue out = createMatrix(outShape, MType::DOUBLE, alloc);
+    MValue outIdx = createMatrix(outShape, MType::DOUBLE, alloc);
+    double *dst = out.doubleDataMut();
+    double *dstI = outIdx.doubleDataMut();
+    forEachSlice(x, dim, [&](size_t outOff, double *slice, size_t n) {
+        double v = 0;
+        size_t idx = 0;
+        f(slice, n, v, idx);
+        dst[outOff] = v;
+        dstI[outOff] = static_cast<double>(idx + 1);
+    });
+    return {std::move(out), std::move(outIdx)};
+}
+
 // Two-output variant: F writes (value, secondary) per slice. Used by
 // mode (value + frequency). Returns a tuple of (out, out2).
 template <typename F>

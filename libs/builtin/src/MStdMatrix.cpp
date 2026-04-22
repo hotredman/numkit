@@ -6,6 +6,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
+#include "MStdReductionHelpers.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -269,6 +270,58 @@ MValue cumsum(Allocator &alloc, const MValue &x)
     return r;
 }
 
+// cumsum along an explicit dim. Output shape equals input shape (this is
+// not a reduction). Vector / scalar input ignores dim and walks linearly.
+MValue cumsum(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0) return cumsum(alloc, x);
+    if (x.dims().isVector() || x.isScalar()) return cumsum(alloc, x);
+
+    const int d = detail::resolveDim(x, dim, "cumsum");
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+
+    if (d == 1) {
+        // Walk down rows for each (column, page).
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t c = 0; c < C; ++c) {
+                double s = 0;
+                const size_t base = pp * R * C + c * R;
+                for (size_t rr = 0; rr < R; ++rr) {
+                    s += src[base + rr];
+                    dst[base + rr] = s;
+                }
+            }
+    } else if (d == 2) {
+        // Walk across columns for each (row, page). Stride = R.
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t rr = 0; rr < R; ++rr) {
+                double s = 0;
+                const size_t pageBase = pp * R * C;
+                for (size_t c = 0; c < C; ++c) {
+                    s += src[pageBase + c * R + rr];
+                    dst[pageBase + c * R + rr] = s;
+                }
+            }
+    } else if (d == 3) {
+        // Walk through pages for each (row, col). Stride = R*C.
+        for (size_t c = 0; c < C; ++c)
+            for (size_t rr = 0; rr < R; ++rr) {
+                double s = 0;
+                for (size_t pp = 0; pp < P; ++pp) {
+                    s += src[pp * R * C + c * R + rr];
+                    dst[pp * R * C + c * R + rr] = s;
+                }
+            }
+    }
+    return r;
+}
+
 MValue cross(Allocator &alloc, const MValue &a, const MValue &b)
 {
     if (a.numel() != 3 || b.numel() != 3)
@@ -471,9 +524,13 @@ void meshgrid_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void cumsum_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("cumsum: requires 1 argument",
+        throw MError("cumsum: requires at least 1 argument",
                      0, 0, "cumsum", "", "m:cumsum:nargin");
-    outs[0] = cumsum(ctx.engine->allocator(), args[0]);
+    int dim = 0;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        dim = static_cast<int>(args[1].toScalar());
+    outs[0] = (dim > 0) ? cumsum(ctx.engine->allocator(), args[0], dim)
+                        : cumsum(ctx.engine->allocator(), args[0]);
 }
 
 void cross_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
