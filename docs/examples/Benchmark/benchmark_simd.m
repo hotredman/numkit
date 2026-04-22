@@ -26,6 +26,28 @@ Rf  = 50;        % repetitions for fft
 x = randn(N, 1);
 y = randn(N, 1);
 
+% ── Warm-up — discarded calls so first-time JIT / Worker spawn /
+% Highway dynamic-dispatch resolution doesn't get charged to the
+% first timed kernel. Matters most for WASM-threaded (V8 JITs each
+% Worker's slice on first call — observed 50ms penalty otherwise),
+% negligible on native. Result of each call discarded by reassigning
+% the same variable.
+tmp = abs(x);
+tmp = sin(x);
+tmp = cos(x);
+tmp = exp(x);
+tmp = log(abs(x) + 1);
+tmp = x + y;
+tmp = x - y;
+tmp = x .* y;
+tmp = x ./ y;
+A_warm = randn(Mm, Mm);
+B_warm = randn(Mm, Mm);
+tmp = A_warm * B_warm;
+s_warm = randn(Nf, 1);
+tmp = fft(s_warm);
+clear tmp A_warm B_warm s_warm
+
 % ── 1. abs ─────────────────────────────────────────────────
 tic
 for k = 1:Re

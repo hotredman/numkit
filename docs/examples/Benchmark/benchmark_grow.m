@@ -20,6 +20,16 @@ fprintf('\n=== Array Grow Benchmark ===\n\n')
 
 N = 10000;
 
+% ── Warm-up — see comment in benchmark_simd.m. Run each pattern
+% once on a small N so JIT / Worker spawn / first-call overhead is
+% off the clock and patterns A/B compete fairly with C/D rather
+% than Pattern A absorbing everyone's startup cost.
+W_warm = []; for i = 1:8, W_warm = [W_warm, i]; end
+W_warm = []; for i = 1:8, W_warm(end+1) = i; end
+W_warm = []; for i = 1:8, W_warm(i) = i; end
+W_warm = zeros(1, 8); for i = 1:8, W_warm(i) = i; end
+clear W_warm
+
 % ── Pattern A: A = [A, i] — horzcat each iteration ─────────
 A = [];
 tic
