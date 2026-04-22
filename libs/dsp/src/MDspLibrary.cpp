@@ -35,6 +35,13 @@ void envelope_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void nextpow2_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void fftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void ifftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+
+// Phase 9 — DSP gaps (libs/dsp/src/MDspGaps.cpp)
+void medfilt1_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void findpeaks_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void goertzel_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void dct_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void idct_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -72,6 +79,13 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("nextpow2",    &dsp::detail::nextpow2_reg);
     engine.registerFunction("fftshift",    &dsp::detail::fftshift_reg);
     engine.registerFunction("ifftshift",   &dsp::detail::ifftshift_reg);
+
+    // ── Phase 9 DSP gaps ──────────────────────────────────────────
+    engine.registerFunction("medfilt1",  &dsp::detail::medfilt1_reg);
+    engine.registerFunction("findpeaks", &dsp::detail::findpeaks_reg);
+    engine.registerFunction("goertzel",  &dsp::detail::goertzel_reg);
+    engine.registerFunction("dct",       &dsp::detail::dct_reg);
+    engine.registerFunction("idct",      &dsp::detail::idct_reg);
 }
 
 } // namespace numkit::m
