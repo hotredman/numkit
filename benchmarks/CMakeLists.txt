@@ -26,6 +26,14 @@ target_link_libraries(m_bench
         benchmark::benchmark_main
 )
 
+# Some bench TUs (fft_bench) probe internal kernels — fftRadix2Impl,
+# fillFftTwiddles — to attribute time between the public wrapper and
+# the inner FFT loop without going through the pmr allocator. The
+# headers live in libs/dsp/src, so expose that path to the bench.
+target_include_directories(m_bench PRIVATE
+    "${CMAKE_SOURCE_DIR}/libs/dsp/src"
+)
+
 if(EMSCRIPTEN)
     # Emscripten ships a Node-runnable .js loader + .wasm sidecar when the
     # output has a .js suffix. Bench run via:  node m_bench.js

@@ -10,8 +10,15 @@
 #include <numkit/m/core/MValue.hpp>
 #include <numkit/m/dsp/MDspFft.hpp>
 
+// Private headers — exposed via libs/dsp/src include path in the
+// benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time
+// just the inner radix-2 dispatch loop.
+#include "MDspHelpers.hpp"
+#include "backends/FftKernels.hpp"
+
 #include <benchmark/benchmark.h>
 
+#include <cstring>
 #include <random>
 #include <vector>
 
@@ -100,3 +107,38 @@ BENCHMARK(BM_Fft_PowerOfTwo_Complex)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18)
     ->Complexity(benchmark::oNLogN);
+
+// Kernel-only timing: hoists the FFT scratch buffers out of the timed
+// loop so we measure only the radix-2 stages, not the per-call
+// pmr_allocator + twiddle-table-fill overhead. Compare the per-N
+// timing to BM_Fft_PowerOfTwo_Complex to attribute the cliff at
+// N=32k (native) to either the kernel or the wrapper.
+static void BM_Fft_KernelOnly_Complex(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+
+    // Pre-fill the input + twiddle table once. The bench loop just
+    // memcpy's input into a working buffer and runs the kernel.
+    std::vector<Complex> input(n);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < n; ++i)
+            input[i] = Complex(d(rng), d(rng));
+    }
+    std::vector<Complex> work(n);
+    std::vector<Complex> twid(n / 2);
+    fillFftTwiddles(twid.data(), n, /*dir=*/+1);
+
+    for (auto _ : state) {
+        std::memcpy(work.data(), input.data(), n * sizeof(Complex));
+        dsp::detail::fftRadix2Impl(work.data(), n, twid.data());
+        benchmark::DoNotOptimize(work.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_KernelOnly_Complex)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);

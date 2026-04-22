@@ -19,9 +19,83 @@
 #include <cmath>
 #include <complex>
 #include <memory_resource>
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 
 namespace numkit::m::dsp {
+
+namespace {
+
+// ── FFT scratch + twiddle cache ─────────────────────────────────────────
+//
+// At fftLen ≥ 32k the wrapper used to spend ~50% of its time on the
+// std::pmr allocations of `buf` (fftLen complex) and `W` (fftLen/2
+// complex). On Windows those translate to VirtualAlloc page commits
+// (~5-10 µs per 4 KB page), and at fftLen=32k we'd commit ~190 pages
+// per FFT call. WASM didn't show this cliff because its linear
+// memory model has no per-page commit cost. We close the cliff by
+// caching both:
+//
+//   * Twiddle tables — pure function of fftLen, read-only after fill,
+//     safely sharable across worker threads. One process-global
+//     unordered_map keyed by fftLen, mutex-guarded insert. The
+//     table-vector is held by unique_ptr so the data() pointer stays
+//     valid across map rehashes.
+//
+//   * The complex-typed working buffer — per-thread, grows monotonically.
+//     Each thread reuses the same heap allocation across FFT calls;
+//     resize() to fftLen is a no-op when the buffer is already large
+//     enough.
+//
+// Trade-off: scratch memory is no longer routed through the user's
+// Allocator (so it doesn't show up in Engine accounting). Output
+// MValues still go through the user's Allocator — only the internal
+// scratch is process-cached. Cache memory is bounded: one entry per
+// distinct power-of-two FFT size used in the program, and one per
+// thread for the working buffer (sized to the largest fftLen seen).
+
+struct TwiddleCache
+{
+    std::mutex mtx;
+    std::unordered_map<std::size_t, std::unique_ptr<std::vector<Complex>>> tables;
+};
+
+inline TwiddleCache &twiddleCache()
+{
+    static TwiddleCache c;
+    return c;
+}
+
+// Returns a pointer to a forward-direction twiddle table of length
+// fftLen/2 for an fftLen-point FFT. Caller must not write to it.
+// Inverse FFT is done via the conjugate trick in fftAlongDim, so
+// only forward tables are ever cached.
+const Complex *getCachedTwiddleFwd(std::size_t fftLen)
+{
+    auto &c = twiddleCache();
+    std::lock_guard<std::mutex> g(c.mtx);
+    auto it = c.tables.find(fftLen);
+    if (it != c.tables.end())
+        return it->second->data();
+    auto tbl = std::make_unique<std::vector<Complex>>(fftLen / 2);
+    fillFftTwiddles(tbl->data(), fftLen, /*dir=*/+1);
+    const Complex *ptr = tbl->data();
+    c.tables.emplace(fftLen, std::move(tbl));
+    return ptr;
+}
+
+// Per-thread reusable working buffer. Grows on first call at a new
+// max size; subsequent calls at smaller sizes reuse the same
+// allocation. Avoids the 0.5-1 ms VirtualAlloc page-commit cost on
+// large per-call allocations.
+inline std::vector<Complex> &threadFftBuf()
+{
+    thread_local std::vector<Complex> buf;
+    return buf;
+}
+
+} // namespace
 
 // ── Shared algorithm core ──────────────────────────────────────────────
 //
@@ -89,22 +163,23 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     const Complex *srcC = srcIsComplex ? x.complexData() : nullptr;
     const double *srcD  = srcIsComplex ? nullptr : x.doubleData();
 
-    // buf is default-constructed zero; subsequent slices overwrite
-    // [0, useLen) fully and only need the tail [useLen, fftLen) zeroed.
-    // For the common power-of-two case useLen == fftLen and this costs
-    // nothing; with zero-padding the reset is O(fftLen - useLen).
-    //
-    // Backed by the Engine's pmr-bridged allocator so scratch buffers
-    // are accounted for through the same tracked path as MValue heap
-    // storage — no silent std::allocator-backed allocations here.
-    std::pmr::vector<Complex> buf(fftLen, alloc->memoryResource());
+    // Scratch working buffer — thread-local, grows monotonically across
+    // calls. Avoids the per-call pmr/VirtualAlloc cost that was ~50% of
+    // total FFT time at fftLen ≥ 32k on Windows. The caller owns the
+    // workspace lifetime via the thread; clearing happens at thread exit.
+    // Subsequent slices overwrite [0, useLen) fully; the tail
+    // [useLen, fftLen) gets zero-filled per-slice (no-op when
+    // useLen == fftLen, which is the common pow2-input case).
+    std::vector<Complex> &buf = threadFftBuf();
+    if (buf.size() < fftLen)
+        buf.resize(fftLen);
 
-    // Precomputed twiddle table — size fftLen/2, the N-point twiddles
-    // for an fftLen-point FFT. Reused across every slice. The
-    // conjugate-trick handles the inverse direction, so fftRadix2Impl
-    // is always called with forward (dir=+1) twiddles.
-    std::pmr::vector<Complex> W(fftLen / 2, alloc->memoryResource());
-    fillFftTwiddles(W.data(), fftLen, /*dir=*/+1);
+    // Precomputed twiddle table — process-global cache keyed by fftLen.
+    // The conjugate-trick handles the inverse direction, so we only ever
+    // need the forward (dir=+1) twiddles. Cached pointer is valid for
+    // the entire program lifetime; safe to share read-only across worker
+    // threads.
+    const Complex *W = getCachedTwiddleFwd(fftLen);
 
     // Real-input forward-FFT fast path (8e.4). Halves the work for the
     // common fft(real_vector) case by treating N real values as N/2
@@ -118,15 +193,12 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
                               && outAxisLen == fftLen
                               && useLen == fftLen
                               && fftLen >= 4;
-    std::pmr::vector<Complex> W_half(rfftEligible ? fftLen / 4 : 0,
-                                     alloc->memoryResource());
-    if (rfftEligible) {
-        // W_half[k] = exp(+2πi · k / (N/2)) = exp(+2πi · 2k / N) = W[2k].
-        // Deriving from W avoids N/4 redundant sin/cos calls that otherwise
-        // show up as a measurable slowdown at 16k+ sizes.
-        for (std::size_t k = 0; k < fftLen / 4; ++k)
-            W_half[k] = W[2 * k];
-    }
+    // The half-size FFT inside rfft needs twiddles for an
+    // (fftLen/2)-point FFT. That's exactly what's cached for size
+    // fftLen/2 — W_half[k] = exp(+2πi·k/(fftLen/2)) = W_full(fftLen)[2k].
+    // Same cache, smaller key.
+    const Complex *W_half = rfftEligible ? getCachedTwiddleFwd(fftLen / 2)
+                                         : nullptr;
 
     // Per-slice rfft: pack src (strided) as N/2 complex into the first
     // half of buf (buf is sized fftLen, we only need fftLen/2 here),
@@ -140,7 +212,7 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
             const double b = src[(2 * m + 1) * srcStride];
             buf[m] = Complex(a, b);
         }
-        detail::fftRadix2Impl(buf.data(), half, W_half.data());
+        detail::fftRadix2Impl(buf.data(), half, W_half);
         // buf[0..half-1] now holds Z, the half-size complex FFT result.
 
         // DC and Nyquist (both pure real).
@@ -174,12 +246,15 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
         for (std::size_t k = useLen; k < fftLen; ++k) buf[k] = Complex(0.0, 0.0);
 
         if (dir == -1) {
-            for (auto &v : buf) v = std::conj(v);
-            detail::fftRadix2Impl(buf.data(), fftLen, W.data());
+            // Conjugate-trick over [0, fftLen) only — the thread-local
+            // buf may be larger from earlier calls, so don't iterate
+            // the whole vector with `for (auto &v : buf)`.
+            for (std::size_t k = 0; k < fftLen; ++k) buf[k] = std::conj(buf[k]);
+            detail::fftRadix2Impl(buf.data(), fftLen, W);
             const double invN = 1.0 / static_cast<double>(fftLen);
-            for (auto &v : buf) v = std::conj(v) * invN;
+            for (std::size_t k = 0; k < fftLen; ++k) buf[k] = std::conj(buf[k]) * invN;
         } else {
-            detail::fftRadix2Impl(buf.data(), fftLen, W.data());
+            detail::fftRadix2Impl(buf.data(), fftLen, W);
         }
         for (std::size_t k = 0; k < outAxisLen; ++k)
             dst[outBase + k * outStride] = buf[k];
