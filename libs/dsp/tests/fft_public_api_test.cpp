@@ -11,10 +11,19 @@
 #include <numkit/m/core/MValue.hpp>
 #include <numkit/m/dsp/MDspFft.hpp>
 
+// Private kernel-dispatch headers, exposed to this test target via
+// libs/dsp/tests/CMakeLists adding libs/dsp as a private include path.
+// Used by the DspFftStockham parity tests below to call the radix-2
+// + Stockham kernels directly (without going through the public
+// dsp::fft wrapper).
+#include "src/backends/FftKernels.hpp"
+#include "src/MDspHelpers.hpp"
+
 #include <gtest/gtest.h>
 
 #include <cmath>
 #include <complex>
+#include <vector>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -302,6 +311,120 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
         for (size_t i = 0; i < N; ++i)
             EXPECT_NEAR(yd[i], xd[i], 1e-9) << "at i=" << i;
     }
+}
+
+// ── Stockham kernel parity vs the in-place radix-2 reference ──────────
+//
+// The Stockham auto-sort kernel must produce bit-identical results to
+// the in-place r2 dispatcher (same butterfly, same twiddles, same
+// reduction order), for any pow-of-two N. These tests pin both
+// algorithms against a known input set and require their outputs
+// match within FP noise.
+//
+// Direct kernel calls — fftStockhamDispatch and fftRadix2Impl are
+// declared in libs/dsp/src/backends/FftKernels.hpp; we link against
+// the dsp library which exports them.
+
+// Fill a complex test vector deterministically. Use values with
+// non-trivial real+imag parts so any sign/order error in the
+// butterfly shows up.
+static void fillTestSignal(Complex *out, size_t N)
+{
+    for (size_t i = 0; i < N; ++i) {
+        const double t = double(i) / double(N);
+        out[i] = Complex(std::sin(2.0 * M_PI * 3.0 * t)
+                       + 0.4 * std::cos(2.0 * M_PI * 7.0 * t),
+                         0.5 * std::cos(2.0 * M_PI * 5.0 * t));
+    }
+}
+
+TEST(DspFftStockham, MatchesRadix2_SmallSizes)
+{
+    // Cover the small sizes the dispatcher might reach: 4..1024.
+    for (size_t N : {size_t{4}, size_t{8}, size_t{16}, size_t{64},
+                     size_t{256}, size_t{1024}}) {
+        std::vector<Complex> ref(N), test(N), W(N / 2);
+        fillTestSignal(ref.data(), N);
+        std::copy(ref.begin(), ref.end(), test.begin());
+        numkit::m::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+
+        numkit::m::dsp::detail::fftRadix2Impl(ref.data(), N, W.data());
+        numkit::m::dsp::detail::fftStockhamDispatch(test.data(), N, W.data());
+
+        for (size_t i = 0; i < N; ++i) {
+            EXPECT_NEAR(ref[i].real(), test[i].real(), 1e-10)
+                << "N=" << N << " i=" << i;
+            EXPECT_NEAR(ref[i].imag(), test[i].imag(), 1e-10)
+                << "N=" << N << " i=" << i;
+        }
+    }
+}
+
+TEST(DspFftStockham, MatchesRadix2_LargeSizes)
+{
+    // Sizes spanning the FFT cliff region the dispatcher cares about.
+    for (size_t N : {size_t{8192}, size_t{16384}, size_t{32768},
+                     size_t{65536}}) {
+        std::vector<Complex> ref(N), test(N), W(N / 2);
+        fillTestSignal(ref.data(), N);
+        std::copy(ref.begin(), ref.end(), test.begin());
+        numkit::m::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+
+        numkit::m::dsp::detail::fftRadix2Impl(ref.data(), N, W.data());
+        numkit::m::dsp::detail::fftStockhamDispatch(test.data(), N, W.data());
+
+        for (size_t i = 0; i < N; ++i) {
+            ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
+                << "N=" << N << " i=" << i;
+            ASSERT_NEAR(ref[i].imag(), test[i].imag(), 1e-7)
+                << "N=" << N << " i=" << i;
+        }
+    }
+}
+
+TEST(DspFftR2SoA, MatchesRadix2_AllSizes)
+{
+    // Parity vs the AoS in-place reference across small + large sizes.
+    // SoA path goes through AoS↔SoA conversion, bit-reverse on SoA,
+    // and butterflies on split re/im arrays — any error in any of
+    // those phases shows up here.
+    for (size_t N : {size_t{4},   size_t{8},   size_t{16},   size_t{64},
+                     size_t{256}, size_t{1024}, size_t{8192}, size_t{16384},
+                     size_t{32768}, size_t{65536}}) {
+        std::vector<Complex> ref(N), test(N), W(N / 2);
+        fillTestSignal(ref.data(), N);
+        std::copy(ref.begin(), ref.end(), test.begin());
+        numkit::m::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+
+        numkit::m::dsp::detail::fftRadix2Impl(ref.data(), N, W.data());
+        numkit::m::dsp::detail::fftRadix2SoaDispatch(test.data(), N, W.data());
+
+        for (size_t i = 0; i < N; ++i) {
+            ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
+                << "N=" << N << " i=" << i;
+            ASSERT_NEAR(ref[i].imag(), test[i].imag(), 1e-7)
+                << "N=" << N << " i=" << i;
+        }
+    }
+}
+
+TEST(DspFftR2SoA, EdgeCase_N1)
+{
+    std::vector<Complex> x = {Complex(7.0, -3.5)};
+    std::vector<Complex> W;
+    numkit::m::dsp::detail::fftRadix2SoaDispatch(x.data(), 1, W.data());
+    EXPECT_DOUBLE_EQ(x[0].real(), 7.0);
+    EXPECT_DOUBLE_EQ(x[0].imag(), -3.5);
+}
+
+TEST(DspFftStockham, EdgeCase_N1)
+{
+    // N=1 is identity — should leave the input unchanged.
+    std::vector<Complex> x = {Complex(3.14, 2.71)};
+    std::vector<Complex> W;  // empty, not used at N<=1
+    numkit::m::dsp::detail::fftStockhamDispatch(x.data(), 1, W.data());
+    EXPECT_DOUBLE_EQ(x[0].real(), 3.14);
+    EXPECT_DOUBLE_EQ(x[0].imag(), 2.71);
 }
 
 // ── Round-trip: x → fft → ifft ≈ x for 3-D input on each dim ──────────

@@ -24,4 +24,18 @@ namespace numkit::m::dsp::detail {
 // runs vectorised butterflies via Highway, and converts back.
 void fftRadix2Impl(Complex *buf, std::size_t N, const Complex *W);
 
+// Stockham auto-sort radix-2 dispatcher (SIMD backend only). Same
+// contract as fftRadix2Impl but uses an internal thread-local
+// scratch buffer instead of working in place — eliminates the
+// bit-reversal pre-pass at the cost of 2× memory for the working
+// state. Exposed for benchmarking from fft_bench; the public
+// fftRadix2Impl chooses whether to route here based on N.
+void fftStockhamDispatch(Complex *buf, std::size_t N, const Complex *W);
+
+// SoA radix-2 dispatcher: same in-place semantics as fftRadix2Impl,
+// but the kernel converts buf → split real/imag arrays internally to
+// avoid the AVX2 LoadInterleaved2/StoreInterleaved2 permute cost,
+// then converts back. Per-thread re/im scratch grows monotonically.
+void fftRadix2SoaDispatch(Complex *buf, std::size_t N, const Complex *W);
+
 } // namespace numkit::m::dsp::detail

@@ -142,3 +142,128 @@ static void BM_Fft_KernelOnly_Complex(benchmark::State &state)
 BENCHMARK(BM_Fft_KernelOnly_Complex)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18);
+
+// Stockham auto-sort kernel timing — same pre-allocated input/twiddle
+// strategy as BM_Fft_KernelOnly_Complex, just calling the Stockham
+// dispatcher directly. Compare side-by-side to see where Stockham's
+// no-bit-reversal advantage wins vs the in-place r2 path.
+static void BM_Fft_KernelOnly_Stockham(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+
+    std::vector<Complex> input(n);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < n; ++i)
+            input[i] = Complex(d(rng), d(rng));
+    }
+    std::vector<Complex> work(n);
+    std::vector<Complex> twid(n / 2);
+    fillFftTwiddles(twid.data(), n, /*dir=*/+1);
+
+    for (auto _ : state) {
+        std::memcpy(work.data(), input.data(), n * sizeof(Complex));
+        dsp::detail::fftStockhamDispatch(work.data(), n, twid.data());
+        benchmark::DoNotOptimize(work.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_KernelOnly_Stockham)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);
+
+// SoA r2 kernel — same in-place semantics as the AoS r2, but the
+// kernel internally splits to real/imag arrays to eliminate the
+// LoadInterleaved2 permute cost on AVX2.
+static void BM_Fft_KernelOnly_R2SoA(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+
+    std::vector<Complex> input(n);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < n; ++i)
+            input[i] = Complex(d(rng), d(rng));
+    }
+    std::vector<Complex> work(n);
+    std::vector<Complex> twid(n / 2);
+    fillFftTwiddles(twid.data(), n, /*dir=*/+1);
+
+    for (auto _ : state) {
+        std::memcpy(work.data(), input.data(), n * sizeof(Complex));
+        dsp::detail::fftRadix2SoaDispatch(work.data(), n, twid.data());
+        benchmark::DoNotOptimize(work.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_KernelOnly_R2SoA)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);
+
+// ── Diagnostics: micro-benchmarks of FFT sub-costs ──────────────────────
+//
+// Used to attribute the kernel time to (1) bit-reversal pre-pass that
+// r2 pays but Stockham skips, (2) per-call memcpy that Stockham pays
+// when log2(N) is odd, and (3) per-stage twiddle-table fill. If
+// bit-reversal cost is small, Stockham's headroom over r2 is small —
+// which is why the 12-22× kernel win in literature doesn't materialise
+// on our setup at moderate N.
+
+// Bit-reverse pass alone — what r2 pays at the start of every call,
+// and what Stockham eliminates. The expected upper bound on
+// Stockham-vs-r2 win at any size is roughly this time / r2 total.
+static void BM_Fft_BitReverseOnly(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+    std::vector<Complex> work(n);
+    for (size_t i = 0; i < n; ++i)
+        work[i] = Complex(double(i), 0.0);
+
+    for (auto _ : state) {
+        // Same in-place bit-reverse loop as MDspFft_r2_simd.cpp:bitReverse2
+        // (the SIMD r2 kernel calls it once per FFT call).
+        for (std::size_t i = 1, j = 0; i < n; ++i) {
+            std::size_t bit = n >> 1;
+            for (; j & bit; bit >>= 1) j ^= bit;
+            j ^= bit;
+            if (i < j) std::swap(work[i], work[j]);
+        }
+        benchmark::DoNotOptimize(work.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_BitReverseOnly)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);
+
+// Bulk memcpy of N complex elements — what Stockham pays at the end
+// of any call where log2(N) is odd (src ended up in scratch instead
+// of the original buffer). For powers of 2 N ∈ {1k, 4k, 16k, 64k, 256k}
+// log2 is even → no copy. For {2k, 8k, 32k, 128k} log2 is odd → copy
+// is paid. So this bench gives the ceiling of the memcpy penalty.
+static void BM_Fft_FinalMemcpyOnly(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+    std::vector<Complex> src(n), dst(n);
+    for (size_t i = 0; i < n; ++i)
+        src[i] = Complex(double(i), 0.0);
+
+    for (auto _ : state) {
+        std::memcpy(dst.data(), src.data(), n * sizeof(Complex));
+        benchmark::DoNotOptimize(dst.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_FinalMemcpyOnly)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);

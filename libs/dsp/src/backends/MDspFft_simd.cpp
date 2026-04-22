@@ -22,6 +22,8 @@ namespace numkit::m::dsp::detail {
 // around the per-target function inside its respective TU.
 void fftRadix2Dispatch    (Complex *buf, std::size_t N, const Complex *W);
 void fftRadix4Pow4Dispatch(Complex *buf, std::size_t N, const Complex *W);
+void fftStockhamDispatch  (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix2SoaDispatch (Complex *buf, std::size_t N, const Complex *W);
 
 namespace {
 
@@ -55,12 +57,56 @@ inline bool isPow4(std::size_t N)
 // (clang, NEON, AVX-512) can revisit without code surgery.
 constexpr std::size_t kRadix4Threshold = 1u << 15;
 
+// Stockham auto-sort kernel: out-of-place radix-2 that skips the
+// bit-reversal pre-pass. Costs 2× working memory (one extra N-complex
+// scratch held in a thread-local cache).
+//
+// Currently DISABLED on this stack — the bit-reversal cost it saves
+// (~35% of r2 kernel time at N=32k) is more than offset by the cold-
+// buffer write penalty Stockham incurs writing to a fresh scratch
+// instead of an already-L1-resident in-place buffer. Diagnostic
+// micro-benches at N=32k native AVX2/MSVC:
+//   r2 kernel total       : 282 µs
+//   bit-reverse alone     :  99 µs (35%)
+//   r2 stages alone       : 183 µs
+//   Stockham total        : 327 µs  (16% slower than r2!)
+//   Stockham "stages"     : ~320 µs (vs r2 stages 183 µs — write-allocate
+//                                     to the cold dst buffer dominates)
+//
+// Code + parity tests kept as documented exploration: revisit if/when
+// we move to SoA layout (where write-allocate cost may amortise) or
+// run on different ISAs (NEON, AVX-512). Threshold set to never-fire
+// so the dispatcher always reaches r2 / r4.
+constexpr std::size_t kStockhamThreshold = std::size_t(-1);
+
+// SoA r2 kernel: split-real/imag layout that eliminates the AVX2
+// LoadInterleaved2/StoreInterleaved2 permute cost. At N=2k–32k on
+// AVX2 it beats the AoS r2 kernel by 20–34%; at N=1024 the AoS↔SoA
+// conversion overhead costs more than the per-stage savings, so AoS
+// stays as the default for tiny N.
+//
+// Disabled on WASM (Emscripten target): WASM SIMD128 doubles have
+// only 2 lanes, so LoadInterleaved2 reduces to a cheap unpcklpd /
+// unpckhpd pair. The SoA path's conversion overhead doesn't pay
+// back on this ISA; bench at user N=32k showed a ~5-7% regression.
+// The 256-bit AVX2 LoadInterleaved2 is what's expensive, and only
+// native builds hit that path.
+#if defined(__EMSCRIPTEN__)
+constexpr std::size_t kRadix2SoaThreshold = std::size_t(-1);
+#else
+constexpr std::size_t kRadix2SoaThreshold = 1u << 11;
+#endif
+
 } // namespace
 
 void fftRadix2Impl(Complex *buf, std::size_t N, const Complex *W)
 {
     if (isPow4(N) && N >= kRadix4Threshold)
         fftRadix4Pow4Dispatch(buf, N, W);
+    else if (N >= kStockhamThreshold)
+        fftStockhamDispatch(buf, N, W);
+    else if (N >= kRadix2SoaThreshold)
+        fftRadix2SoaDispatch(buf, N, W);
     else
         fftRadix2Dispatch(buf, N, W);
 }
