@@ -37,6 +37,14 @@ void min_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void sum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void prod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void mean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdStats.cpp
+void var_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void std_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void median_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void quantile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void prctile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void mode_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void linspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void logspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -218,6 +226,15 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("sum",      &builtin::detail::sum_reg);
     engine.registerFunction("prod",     &builtin::detail::prod_reg);
     engine.registerFunction("mean",     &builtin::detail::mean_reg);
+
+    // ── Phase 1 stats: var/std/median/quantile/prctile/mode ────────
+    engine.registerFunction("var",      &builtin::detail::var_reg);
+    engine.registerFunction("std",      &builtin::detail::std_reg);
+    engine.registerFunction("median",   &builtin::detail::median_reg);
+    engine.registerFunction("quantile", &builtin::detail::quantile_reg);
+    engine.registerFunction("prctile",  &builtin::detail::prctile_reg);
+    engine.registerFunction("mode",     &builtin::detail::mode_reg);
+
     engine.registerFunction("linspace", &builtin::detail::linspace_reg);
     engine.registerFunction("logspace", &builtin::detail::logspace_reg);
     engine.registerFunction("rand",     &builtin::detail::rand_reg);

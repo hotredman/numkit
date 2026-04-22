@@ -4,6 +4,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdUnaryOps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdMath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdMatrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdStats.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
