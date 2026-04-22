@@ -91,6 +91,15 @@ void bitor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void bitxor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void bitshift_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void bitcmp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdSetOps.cpp
+void unique_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ismember_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void union_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void intersect_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void setdiff_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void histcounts_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void discretize_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -329,6 +338,15 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("bitxor",   &builtin::detail::bitxor_reg);
     engine.registerFunction("bitshift", &builtin::detail::bitshift_reg);
     engine.registerFunction("bitcmp",   &builtin::detail::bitcmp_reg);
+
+    // ── Phase 8 set / search ops ──────────────────────────────────
+    engine.registerFunction("unique",     &builtin::detail::unique_reg);
+    engine.registerFunction("ismember",   &builtin::detail::ismember_reg);
+    engine.registerFunction("union",      &builtin::detail::union_reg);
+    engine.registerFunction("intersect",  &builtin::detail::intersect_reg);
+    engine.registerFunction("setdiff",    &builtin::detail::setdiff_reg);
+    engine.registerFunction("histcounts", &builtin::detail::histcounts_reg);
+    engine.registerFunction("discretize", &builtin::detail::discretize_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
