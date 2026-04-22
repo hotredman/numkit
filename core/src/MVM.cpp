@@ -1111,6 +1111,25 @@ enter_frame:
                     if (extIt != engine_.externalFuncs_.end()) {
                         Span<const MValue> as(&R[argBase], na);
                         MValue ob[1];
+                        // Output-reuse hint: when no argument register
+                        // aliases the destination (so reading the args
+                        // can't observe a moved-out R[I.a]), hand the
+                        // destination's current value to the adapter
+                        // via outs[0]. Adapters that opt in (the
+                        // NK_UNARY_ADAPTER_HINT macro for abs/sin/cos/
+                        // exp/log) check for a uniquely-owned heap
+                        // double of matching shape and write straight
+                        // into its buffer instead of allocating fresh.
+                        // Adapters that don't opt in just overwrite
+                        // outs[0] — same observable behaviour, the
+                        // moved-out heap is freed when ob[0] is
+                        // overwritten.
+                        bool canHint = R[I.a].hasHeap();
+                        for (uint8_t i = 0; i < na && canHint; ++i)
+                            if (&R[argBase + i] == &R[I.a])
+                                canHint = false;
+                        if (canHint)
+                            ob[0] = std::move(R[I.a]);
                         Span<MValue> os(ob, 1);
                         CallContext ctx{&engine_, &engine_.workspaceEnv()};
                         extIt->second(as, nargout_val, os, ctx);
@@ -1931,6 +1950,17 @@ void VM::execCallBuiltin(const Instruction &I, MValue *R)
         if (extIt != engine_.externalFuncs_.end()) {
             Span<const MValue> as(&R[argBase], na);
             MValue ob[1];
+            // Output-reuse hint — same logic as the generic CALL path.
+            // Hand the destination's current value to the adapter via
+            // outs[0] when no arg register aliases R[I.a]; opt-in
+            // adapters (NK_UNARY_ADAPTER_HINT) reuse its buffer
+            // instead of allocating fresh.
+            bool canHint = R[I.a].hasHeap();
+            for (uint8_t i = 0; i < na && canHint; ++i)
+                if (&R[argBase + i] == &R[I.a])
+                    canHint = false;
+            if (canHint)
+                ob[0] = std::move(R[I.a]);
             Span<MValue> os(ob, 1);
             CallContext ctx{&engine_, &engine_.workspaceEnv()};
             extIt->second(as, 1, os, ctx);

@@ -10,16 +10,30 @@
 namespace numkit::m::builtin {
 
 // ── Elementwise unary — double with complex promotion ────────────────
+//
+// `hint` (when non-null and a uniquely-owned heap double of matching
+// shape) is reused as the result buffer instead of allocating a fresh
+// one. The function moves out of `*hint` into the returned MValue —
+// after the call `*hint` is empty. Saves the per-call N-element alloc
+// at large N where Windows HeapAlloc spills into VirtualAlloc / page
+// commit (see BM_PlusAlloc / BM_PlusKernel benches). When hint is
+// nullptr or doesn't match (different shape, complex, scalar input,
+// shared ownership) the function falls back to the standard alloc
+// path and `*hint` is left untouched.
+//
+// Only the SIMD-backed unaries (abs/sin/cos/exp/log) honour the hint;
+// the others ignore it for now (they go through the slower scalar
+// elementwiseDouble helper anyway, where the alloc cost matters less).
 MValue sqrt(Allocator &alloc, const MValue &x);
-MValue abs(Allocator &alloc, const MValue &x);
-MValue sin(Allocator &alloc, const MValue &x);
-MValue cos(Allocator &alloc, const MValue &x);
+MValue abs(Allocator &alloc, const MValue &x, MValue *hint = nullptr);
+MValue sin(Allocator &alloc, const MValue &x, MValue *hint = nullptr);
+MValue cos(Allocator &alloc, const MValue &x, MValue *hint = nullptr);
 MValue tan(Allocator &alloc, const MValue &x);
 MValue asin(Allocator &alloc, const MValue &x);
 MValue acos(Allocator &alloc, const MValue &x);
 MValue atan(Allocator &alloc, const MValue &x);
-MValue exp(Allocator &alloc, const MValue &x);
-MValue log(Allocator &alloc, const MValue &x);
+MValue exp(Allocator &alloc, const MValue &x, MValue *hint = nullptr);
+MValue log(Allocator &alloc, const MValue &x, MValue *hint = nullptr);
 
 // ── Elementwise unary — double only ───────────────────────────────────
 MValue log2(Allocator &alloc, const MValue &x);

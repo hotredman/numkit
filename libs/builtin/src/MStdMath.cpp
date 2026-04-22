@@ -379,16 +379,33 @@ namespace detail {
         outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
     }
 
+// Same as NK_UNARY_ADAPTER but passes &outs[0] through as an
+// output-buffer reuse hint. The callee MAY overwrite *outs[0]'s
+// existing buffer instead of allocating fresh, when the hint is
+// a uniquely-owned heap double of matching shape. The VM CALL
+// handler pre-fills outs[0] with R[I.a] (the destination register)
+// when none of the args alias the destination — so `z = sin(x)`
+// in a loop reuses z's buffer iteration after iteration.
+#define NK_UNARY_ADAPTER_HINT(name, fn)                                         \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
+                    Span<MValue> outs, CallContext &ctx)                        \
+    {                                                                            \
+        if (args.empty())                                                        \
+            throw MError(#name ": requires 1 argument",                          \
+                         0, 0, #name, "", "m:" #name ":nargin");           \
+        outs[0] = fn(ctx.engine->allocator(), args[0], &outs[0]);               \
+    }
+
 NK_UNARY_ADAPTER(sqrt,    sqrt)
-NK_UNARY_ADAPTER(abs,     abs)
-NK_UNARY_ADAPTER(sin,     sin)
-NK_UNARY_ADAPTER(cos,     cos)
+NK_UNARY_ADAPTER_HINT(abs,     abs)
+NK_UNARY_ADAPTER_HINT(sin,     sin)
+NK_UNARY_ADAPTER_HINT(cos,     cos)
 NK_UNARY_ADAPTER(tan,     tan)
 NK_UNARY_ADAPTER(asin,    asin)
 NK_UNARY_ADAPTER(acos,    acos)
 NK_UNARY_ADAPTER(atan,    atan)
-NK_UNARY_ADAPTER(exp,     exp)
-NK_UNARY_ADAPTER(log,     log)
+NK_UNARY_ADAPTER_HINT(exp,     exp)
+NK_UNARY_ADAPTER_HINT(log,     log)
 NK_UNARY_ADAPTER(log2,    log2)
 NK_UNARY_ADAPTER(log10,   log10)
 NK_UNARY_ADAPTER(floor,   floor)

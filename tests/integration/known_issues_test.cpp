@@ -10,6 +10,8 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <cmath>
+
 using namespace m_test;
 
 // ============================================================
@@ -877,6 +879,138 @@ TEST_P(OutputReuseBinaryOp, TwoDMatrixReuse)
 }
 
 INSTANTIATE_DUAL(OutputReuseBinaryOp);
+
+// ============================================================
+// ISSUE #2f: Output buffer reuse for `z = unary(x)`
+//
+// The VM CALL / CALL_BUILTIN handlers move R[dst]'s current value
+// into outs[0] before calling the registered adapter when no
+// argument register aliases dst. The HINT-variant adapters
+// (NK_UNARY_ADAPTER_HINT for abs/sin/cos/exp/log) pass &outs[0]
+// through to the underlying function, which steals the heap
+// double when its shape matches. Saves the per-call N-element
+// alloc — at N=1M the alloc is ~1.8 ms, the SIMD kernel itself
+// is ~0.5 ms.
+//
+// These tests validate semantics across the corner cases the
+// VM and adapters rely on.
+// ============================================================
+
+class OutputReuseUnary : public DualEngineTest {};
+
+TEST_P(OutputReuseUnary, RepeatedAbsReusesSameZ)
+{
+    eval(R"(
+        x = [-1, -2, -3, -4, -5];
+        z = zeros(1, 5);
+        for k = 1:3
+            z = abs(x);
+        end
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 5u);
+    expectElem(*z, 0, 1.0); expectElem(*z, 1, 2.0);
+    expectElem(*z, 2, 3.0); expectElem(*z, 3, 4.0);
+    expectElem(*z, 4, 5.0);
+}
+
+TEST_P(OutputReuseUnary, SelfAbsAliasingFallsBack)
+{
+    // z = abs(z) — the destination IS the input. The VM declines
+    // to pre-fill outs[0] (would empty z before reading it), so
+    // the adapter sees no hint and allocates fresh. Result must
+    // still be correct.
+    eval(R"(
+        z = [-7, -8, -9];
+        z = abs(z);
+    )");
+    auto *z = getVarPtr("z");
+    expectElem(*z, 0, 7.0);
+    expectElem(*z, 1, 8.0);
+    expectElem(*z, 2, 9.0);
+}
+
+TEST_P(OutputReuseUnary, ShapeChangeDeclinesHint)
+{
+    // Pre-existing z is 1x4 but x is 1x3 → shape mismatch in the
+    // hint check. Adapter falls back to alloc fresh; z ends up
+    // 1x3 with the right values.
+    eval(R"(
+        x = [10, 20, 30];
+        z = zeros(1, 4);
+        z = abs(x);
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 3u);
+    expectElem(*z, 0, 10.0);
+    expectElem(*z, 1, 20.0);
+    expectElem(*z, 2, 30.0);
+}
+
+TEST_P(OutputReuseUnary, ComplexInputDeclinesHint)
+{
+    // Complex input → public abs returns a heap double via the
+    // complex-magnitude path; hint check is bypassed earlier.
+    // Result must still be a real double of size matching x.
+    eval(R"(
+        x = [3+4i, 5+12i];
+        z = zeros(1, 2);
+        z = abs(x);
+    )");
+    auto *z = getVarPtr("z");
+    EXPECT_FALSE(z->isComplex());
+    expectElem(*z, 0, 5.0);
+    expectElem(*z, 1, 13.0);
+}
+
+TEST_P(OutputReuseUnary, CowKeepsOtherVariableIntact)
+{
+    // A and z share heap (refCount=2). `z = sin(x)` must NOT
+    // overwrite the shared buffer because A would then see
+    // sin-ified values. The heapRefCount==1 guard inside sin()
+    // prevents the steal; result allocates fresh and A is
+    // untouched.
+    eval(R"(
+        z = [1, 2, 3];
+        A = z;
+        x = [0, 0, 0];
+        z = sin(x);
+    )");
+    auto *A = getVarPtr("A");
+    auto *z = getVarPtr("z");
+    expectElem(*A, 0, 1.0);
+    expectElem(*A, 1, 2.0);
+    expectElem(*A, 2, 3.0);
+    expectElem(*z, 0, 0.0);
+    expectElem(*z, 1, 0.0);
+    expectElem(*z, 2, 0.0);
+}
+
+TEST_P(OutputReuseUnary, AllFiveSimdUnariesMatchScalar)
+{
+    // Smoke test all five hint-aware unaries with reused output.
+    // Each must produce values equal to the scalar reference.
+    eval(R"(
+        x = [0.1, 0.5, 1.0];
+        z1 = zeros(1, 3); z1 = abs(x);
+        z2 = zeros(1, 3); z2 = sin(x);
+        z3 = zeros(1, 3); z3 = cos(x);
+        z4 = zeros(1, 3); z4 = exp(x);
+        z5 = zeros(1, 3); z5 = log(x);
+    )");
+    auto *z1 = getVarPtr("z1");
+    auto *z2 = getVarPtr("z2");
+    auto *z3 = getVarPtr("z3");
+    auto *z4 = getVarPtr("z4");
+    auto *z5 = getVarPtr("z5");
+    EXPECT_NEAR(z1->doubleData()[1], 0.5, 1e-15);
+    EXPECT_NEAR(z2->doubleData()[2], std::sin(1.0), 1e-12);
+    EXPECT_NEAR(z3->doubleData()[2], std::cos(1.0), 1e-12);
+    EXPECT_NEAR(z4->doubleData()[1], std::exp(0.5), 1e-12);
+    EXPECT_NEAR(z5->doubleData()[2], std::log(1.0), 1e-15);
+}
+
+INSTANTIATE_DUAL(OutputReuseUnary);
 
 // ============================================================
 // ISSUE #3: nargin not supported in VM

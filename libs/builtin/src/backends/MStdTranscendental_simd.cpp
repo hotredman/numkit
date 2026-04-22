@@ -98,10 +98,14 @@ HWY_EXPORT(LogLoop);
 
 namespace {
 
-// Shared shape for sin/cos/exp: delegate complex / scalar to the
-// reference path, route real vectors through the dispatcher.
+// Shared shape for sin/cos/exp/log: delegate complex / scalar to the
+// reference path, route real vectors through the dispatcher. When
+// `hint` is a uniquely-owned heap double of matching shape, steal
+// its buffer instead of allocating a fresh result — saves the
+// per-call N-element alloc that dominates at large N. See the
+// docblock on abs() in MStdMath.hpp for the full hint contract.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
-MValue unaryRealDouble(Allocator &alloc, const MValue &x,
+MValue unaryRealDouble(Allocator &alloc, const MValue &x, MValue *hint,
                        LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)
 {
     if (x.isComplex()) {
@@ -111,7 +115,14 @@ MValue unaryRealDouble(Allocator &alloc, const MValue &x,
     }
     if (x.isScalar())
         return MValue::scalar(scalarOp(x.toScalar()), &alloc);
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+
+    MValue r;
+    if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
+        && hint->dims() == x.dims()) {
+        r = std::move(*hint);
+    } else {
+        r = createLike(x, MType::DOUBLE, &alloc);
+    }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
     // Transcendentals are heavier per element than +/-/.* — pays off
@@ -125,10 +136,10 @@ MValue unaryRealDouble(Allocator &alloc, const MValue &x,
 
 } // namespace
 
-MValue sin(Allocator &alloc, const MValue &x)
+MValue sin(Allocator &alloc, const MValue &x, MValue *hint)
 {
     return unaryRealDouble(
-        alloc, x,
+        alloc, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SinLoop)(in, out, n);
         },
@@ -136,10 +147,10 @@ MValue sin(Allocator &alloc, const MValue &x)
         [](const Complex &c) { return std::sin(c); });
 }
 
-MValue cos(Allocator &alloc, const MValue &x)
+MValue cos(Allocator &alloc, const MValue &x, MValue *hint)
 {
     return unaryRealDouble(
-        alloc, x,
+        alloc, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CosLoop)(in, out, n);
         },
@@ -147,10 +158,10 @@ MValue cos(Allocator &alloc, const MValue &x)
         [](const Complex &c) { return std::cos(c); });
 }
 
-MValue exp(Allocator &alloc, const MValue &x)
+MValue exp(Allocator &alloc, const MValue &x, MValue *hint)
 {
     return unaryRealDouble(
-        alloc, x,
+        alloc, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(ExpLoop)(in, out, n);
         },
@@ -162,7 +173,7 @@ MValue exp(Allocator &alloc, const MValue &x)
 // log(-1) → i·π), but the element-wise path on a real vector just
 // produces NaN for negatives — same as std::log. The SIMD Log()
 // mirrors that behaviour.
-MValue log(Allocator &alloc, const MValue &x)
+MValue log(Allocator &alloc, const MValue &x, MValue *hint)
 {
     if (x.isComplex())
         return unaryComplex(x, [](const Complex &c) { return std::log(c); }, &alloc);
@@ -170,8 +181,20 @@ MValue log(Allocator &alloc, const MValue &x)
         return MValue::complexScalar(std::log(Complex(x.toScalar(), 0.0)), &alloc);
     if (x.isScalar())
         return MValue::scalar(std::log(x.toScalar()), &alloc);
-    auto r = createLike(x, MType::DOUBLE, &alloc);
-    HWY_DYNAMIC_DISPATCH(LogLoop)(x.doubleData(), r.doubleDataMut(), x.numel());
+
+    MValue r;
+    if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
+        && hint->dims() == x.dims()) {
+        r = std::move(*hint);
+    } else {
+        r = createLike(x, MType::DOUBLE, &alloc);
+    }
+    const double *in  = x.doubleData();
+    double       *out = r.doubleDataMut();
+    numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(LogLoop)(in + s, out + s, e - s);
+        });
     return r;
 }
 

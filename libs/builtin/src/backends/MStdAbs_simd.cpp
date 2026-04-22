@@ -57,7 +57,7 @@ namespace numkit::m::builtin {
 
 HWY_EXPORT(AbsLoop);
 
-MValue abs(Allocator &alloc, const MValue &x)
+MValue abs(Allocator &alloc, const MValue &x, MValue *hint)
 {
     // Complex goes through scalar std::abs(Complex) — SIMD double-lane
     // implementations don't help here (sqrt of sum-of-squares with
@@ -74,7 +74,17 @@ MValue abs(Allocator &alloc, const MValue &x)
     if (x.isScalar())
         return MValue::scalar(std::fabs(x.toScalar()), &alloc);
 
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    // Output-reuse fast path: caller-provided hint is a heap double of
+    // matching shape with unique ownership — steal its buffer instead
+    // of allocating fresh. Skips the per-call N-element alloc that
+    // dominates at large N (1.8 ms at N=1M vs 0.5 ms for the kernel).
+    MValue r;
+    if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
+        && hint->dims() == x.dims()) {
+        r = std::move(*hint);
+    } else {
+        r = createLike(x, MType::DOUBLE, &alloc);
+    }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
     numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kElementwiseThreshold,

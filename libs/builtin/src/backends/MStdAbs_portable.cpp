@@ -18,7 +18,7 @@
 
 namespace numkit::m::builtin {
 
-MValue abs(Allocator &alloc, const MValue &x)
+MValue abs(Allocator &alloc, const MValue &x, MValue *hint)
 {
     if (x.isComplex()) {
         if (x.isScalar())
@@ -26,6 +26,20 @@ MValue abs(Allocator &alloc, const MValue &x)
         auto r = createLike(x, MType::DOUBLE, &alloc);
         for (size_t i = 0; i < x.numel(); ++i)
             r.doubleDataMut()[i] = std::abs(x.complexData()[i]);
+        return r;
+    }
+    if (x.isScalar())
+        return MValue::scalar(std::fabs(x.toScalar()), &alloc);
+    // Output-reuse fast path: caller-provided hint is a heap double
+    // of matching shape with unique ownership — write straight into
+    // its buffer instead of allocating a fresh one.
+    if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
+        && hint->dims() == x.dims()) {
+        MValue r = std::move(*hint);
+        const double *in  = x.doubleData();
+        double       *out = r.doubleDataMut();
+        for (size_t i = 0; i < x.numel(); ++i)
+            out[i] = std::fabs(in[i]);
         return r;
     }
     return unaryDouble(x, [](double v) { return std::abs(v); }, &alloc);

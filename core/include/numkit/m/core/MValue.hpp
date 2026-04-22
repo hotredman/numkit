@@ -301,6 +301,14 @@ public:
         return heap_->refCount.load(std::memory_order_relaxed);
     }
 
+    // True iff heap_ points at a real (non-tag, non-null) heap object.
+    // Public-facing companion to the private isHeap() used by VM
+    // output-reuse fast paths.
+    bool hasHeap() const
+    {
+        return heap_ != nullptr && !isTag();
+    }
+
     // Get mutable data pointer — skips detach when refcount == 1 (sole owner).
     // Caller must guarantee this is a heap DOUBLE array.
     double *doubleDataMutFast()
