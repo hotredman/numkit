@@ -40,14 +40,17 @@ ThreadPool::~ThreadPool()
             t.join();
 }
 
-void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)> fn)
+void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)> fn,
+                     int max_workers)
 {
     if (n == 0)
         return;
 
-    const int k = workers();
+    int k = workers();
+    if (max_workers > 0 && max_workers < k)
+        k = max_workers;
     if (k <= 1) {
-        // Pool unused or single-worker — just run on the caller's thread.
+        // Pool unused or capped to 1 — run on the caller's thread.
         fn(0, n);
         return;
     }
@@ -57,6 +60,7 @@ void ThreadPool::run(std::size_t n, std::function<void(std::size_t, std::size_t)
         task_           = std::move(fn);
         task_n_         = n;
         task_remaining_ = k;
+        active_         = k;
         ++epoch_;
     }
     cv_start_.notify_all();
@@ -85,9 +89,14 @@ void ThreadPool::worker_loop(int id)
             if (shutdown_)
                 return;
             seen_epoch = epoch_;
+            // Workers beyond the active cap skip this task entirely
+            // — they wake on cv_start_ broadcast but immediately go
+            // back to sleep, never touching task_remaining_.
+            if (id >= active_)
+                continue;
             fn         = task_;        // copy under lock
             n          = task_n_;
-            k          = workers();
+            k          = active_;
         }
 
         const std::size_t chunk = (n + static_cast<std::size_t>(k) - 1)

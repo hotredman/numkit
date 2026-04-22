@@ -35,17 +35,26 @@ namespace numkit::m::detail {
 inline constexpr std::size_t kElementwiseThreshold    = 16 * 1024;
 inline constexpr std::size_t kTranscendentalThreshold =  4 * 1024;
 
+// Worker caps for memory-bandwidth-bound kernels. On dual-channel
+// DDR5-6400 (≈ 100 GB/s aggregate), 4-6 workers already saturate
+// the bus on `z = x op y` and friends; more workers add signaling
+// noise without helping throughput. Compute-bound kernels (mtimes,
+// transcendentals) don't need a cap and benefit from every core.
+inline constexpr int         kElementwiseMaxWorkers   = 6;
+
 template <typename F>
-inline void parallel_for(std::size_t n, std::size_t threshold, F &&fn)
+inline void parallel_for(std::size_t n, std::size_t threshold, F &&fn,
+                         int max_workers = 0)
 {
 #if defined(NUMKIT_WITH_THREADS)
     auto &pool = ThreadPool::global();
     if (n >= threshold && pool.workers() > 1) {
-        pool.run(n, std::forward<F>(fn));
+        pool.run(n, std::forward<F>(fn), max_workers);
         return;
     }
 #else
     (void)threshold;
+    (void)max_workers;
 #endif
     if (n > 0)
         fn(static_cast<std::size_t>(0), n);

@@ -41,7 +41,13 @@ public:
     // Run `fn(start, end)` over an even split of [0, n) across workers,
     // blocking until every chunk finishes. With one or zero workers this
     // simply calls `fn(0, n)` on the calling thread.
-    void run(std::size_t n, std::function<void(std::size_t, std::size_t)> fn);
+    //
+    // `max_workers` (when > 0) caps the number of workers actually used
+    // for this task — useful for memory-bandwidth-bound kernels where
+    // 6+ workers don't help and just add signaling noise on dual-channel
+    // DDR5. Pass 0 (the default) to use every worker.
+    void run(std::size_t n, std::function<void(std::size_t, std::size_t)> fn,
+             int max_workers = 0);
 
 private:
     void worker_loop(int id);
@@ -52,10 +58,14 @@ private:
     std::condition_variable          cv_done_;
 
     // Current task. `epoch_` is bumped on every dispatch so workers
-    // can tell a new task apart from a spurious wake-up.
+    // can tell a new task apart from a spurious wake-up. `active_`
+    // is how many workers participate in this task (≤ workers_.size());
+    // workers with id ≥ active_ wake up on cv_start_ but skip the
+    // task body so they don't decrement task_remaining_.
     std::function<void(std::size_t, std::size_t)> task_;
     std::size_t                      task_n_         = 0;
     int                              task_remaining_ = 0;
+    int                              active_         = 0;
     int                              epoch_          = 0;
     bool                             shutdown_       = false;
 };

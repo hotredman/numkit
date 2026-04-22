@@ -14,9 +14,13 @@
 
 #include "../MStdHelpers.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <cstddef>
+#include <cstdint>
+
+#include <hwy/cache_control.h>
 
 // ── Highway dynamic-dispatch boilerplate ────────────────────────────────
 #undef HWY_TARGET_INCLUDE
@@ -33,17 +37,38 @@ namespace hn = hwy::HWY_NAMESPACE;
 // Per-target hot loop. Only operates on raw double buffers; the MValue
 // plumbing (complex / scalar / shape preservation) lives outside the
 // target namespace because it doesn't benefit from vectorisation.
+//
+// Uses the same head/body/tail NT-store pattern as the binary ops in
+// MStdBinaryOps_simd.cpp — see the comment block there for the
+// rationale. abs is also a write-once-discard-rest pattern at large N
+// so the cache-bypass payoff is similar.
 void AbsLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
 {
     const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
+    const std::size_t N           = hn::Lanes(d);
+    const std::size_t align_bytes = N * sizeof(double);
+
     std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Abs(v), d, out + i);
+    const auto addr = reinterpret_cast<std::uintptr_t>(out);
+    const auto rem  = addr % align_bytes;
+    const std::size_t head = (rem == 0) ? 0
+                                        : std::min<std::size_t>((align_bytes - rem) / sizeof(double), n);
+    for (std::size_t k = 0; k < head; ++k, ++i)
+        out[i] = std::fabs(in[i]);
+
+    // 4× unrolled body — independent loads + ops + Stream stores.
+    const std::size_t step4 = 4 * N;
+    for (; i + step4 <= n; i += step4) {
+        hn::Stream(hn::Abs(hn::LoadU(d, in + i + 0 * N)), d, out + i + 0 * N);
+        hn::Stream(hn::Abs(hn::LoadU(d, in + i + 1 * N)), d, out + i + 1 * N);
+        hn::Stream(hn::Abs(hn::LoadU(d, in + i + 2 * N)), d, out + i + 2 * N);
+        hn::Stream(hn::Abs(hn::LoadU(d, in + i + 3 * N)), d, out + i + 3 * N);
     }
+    for (; i + N <= n; i += N)
+        hn::Stream(hn::Abs(hn::LoadU(d, in + i)), d, out + i);
     for (; i < n; ++i)
         out[i] = std::fabs(in[i]);
+    // FlushStream issued once at the dispatcher level (see abs() below).
 }
 
 } // namespace HWY_NAMESPACE
@@ -90,7 +115,8 @@ MValue abs(Allocator &alloc, const MValue &x, MValue *hint)
     numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(AbsLoop)(in + s, out + s, e - s);
-        });
+        }, numkit::m::detail::kElementwiseMaxWorkers);
+    hwy::FlushStream();   // single sfence after all NT-store chunks
     return r;
 }
 
