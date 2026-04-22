@@ -20,5 +20,14 @@ option(NUMKIT_WITH_SIMD
     "Enable Google Highway dynamic-dispatch SIMD backends (pulls hwy dep)"
     OFF)
 
+option(NUMKIT_WITH_THREADS
+    "Enable multi-threaded SIMD kernels via a persistent std::thread pool. \
+Above per-kernel thresholds the work is split across hardware_concurrency() \
+workers; below them the kernel runs single-threaded as before. Bit-identical \
+to the single-threaded path for the supported elementwise ops (+ - .* ./ \
+abs sin cos exp log)."
+    OFF)
+
 message(STATUS "numkit-m feature flags:")
-message(STATUS "  NUMKIT_WITH_SIMD = ${NUMKIT_WITH_SIMD}")
+message(STATUS "  NUMKIT_WITH_SIMD    = ${NUMKIT_WITH_SIMD}")
+message(STATUS "  NUMKIT_WITH_THREADS = ${NUMKIT_WITH_THREADS}")

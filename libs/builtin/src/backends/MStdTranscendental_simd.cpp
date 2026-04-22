@@ -14,6 +14,7 @@
 #include <numkit/m/builtin/MStdMath.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MParallelFor.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include "../MStdHelpers.hpp"
@@ -111,7 +112,14 @@ MValue unaryRealDouble(Allocator &alloc, const MValue &x,
     if (x.isScalar())
         return MValue::scalar(scalarOp(x.toScalar()), &alloc);
     auto r = createLike(x, MType::DOUBLE, &alloc);
-    loop(x.doubleData(), r.doubleDataMut(), x.numel());
+    const double *in  = x.doubleData();
+    double       *out = r.doubleDataMut();
+    // Transcendentals are heavier per element than +/-/.* — pays off
+    // earlier, hence the smaller threshold.
+    numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kTranscendentalThreshold,
+        [=](std::size_t s, std::size_t e) {
+            loop(in + s, out + s, e - s);
+        });
     return r;
 }
 

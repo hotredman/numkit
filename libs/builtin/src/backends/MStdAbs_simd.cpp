@@ -9,6 +9,7 @@
 #include <numkit/m/builtin/MStdMath.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MParallelFor.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include "../MStdHelpers.hpp"
@@ -74,7 +75,12 @@ MValue abs(Allocator &alloc, const MValue &x)
         return MValue::scalar(std::fabs(x.toScalar()), &alloc);
 
     auto r = createLike(x, MType::DOUBLE, &alloc);
-    HWY_DYNAMIC_DISPATCH(AbsLoop)(x.doubleData(), r.doubleDataMut(), x.numel());
+    const double *in  = x.doubleData();
+    double       *out = r.doubleDataMut();
+    numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kElementwiseThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(AbsLoop)(in + s, out + s, e - s);
+        });
     return r;
 }
 

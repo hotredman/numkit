@@ -79,6 +79,10 @@ set(NUMKIT_M_CORE_SOURCES
     core/src/MDebugWorkspace.cpp
 )
 
+if(NUMKIT_WITH_THREADS)
+    list(APPEND NUMKIT_M_CORE_SOURCES core/src/MThreadPool.cpp)
+endif()
+
 # Each library defines its own source list (STDLIB_SOURCES, DSPLIB_SOURCES, ...)
 add_subdirectory(libs/builtin/src)
 add_subdirectory(libs/dsp/src)
@@ -111,7 +115,9 @@ set(NUMKIT_M_HEADERS
     core/include/numkit/m/core/MHeapObject.hpp
     core/include/numkit/m/core/MLexer.hpp
     core/include/numkit/m/core/MParser.hpp
+    core/include/numkit/m/core/MParallelFor.hpp
     core/include/numkit/m/core/MSpan.hpp
+    core/include/numkit/m/core/MThreadPool.hpp
     core/include/numkit/m/core/MTreeWalker.hpp
     core/include/numkit/m/core/MType.hpp
     core/include/numkit/m/core/MTypes.hpp
@@ -191,6 +197,16 @@ if(NUMKIT_WITH_SIMD)
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
     target_compile_definitions(m PRIVATE NUMKIT_WITH_SIMD=1)
+endif()
+
+if(NUMKIT_WITH_THREADS)
+    # std::thread support. The pool itself lives in core/src/MThreadPool.cpp
+    # and is only compiled when this option is ON. Without the option, the
+    # parallel_for helper falls through to a sequential `fn(0, n)` call
+    # (header-only inline) and pthread/Threads is not linked.
+    find_package(Threads REQUIRED)
+    target_link_libraries(m PUBLIC Threads::Threads)
+    target_compile_definitions(m PUBLIC NUMKIT_WITH_THREADS=1)
 endif()
 
 # ──────────────────────────────────────────────

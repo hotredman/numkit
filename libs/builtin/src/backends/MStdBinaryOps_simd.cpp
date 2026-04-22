@@ -9,6 +9,8 @@
 
 #include "BinaryOpsLoops.hpp"
 
+#include <numkit/m/core/MParallelFor.hpp>
+
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
@@ -117,24 +119,44 @@ HWY_EXPORT(TimesLoop);
 HWY_EXPORT(RdivideLoop);
 HWY_EXPORT(MatmulLoop);
 
+// Each dispatcher wraps the per-target SIMD body in a parallel_for so
+// big arrays split across worker threads. Each thread calls the same
+// per-target loop on its disjoint [start, end) slice — output buffers
+// don't overlap, so per-element semantics are bit-identical to the
+// single-threaded path. Below kElementwiseThreshold (and on builds
+// without NUMKIT_WITH_THREADS) parallel_for runs `fn(0, n)` directly,
+// preserving the prior fast path.
+
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    HWY_DYNAMIC_DISPATCH(PlusLoop)(a, b, out, n);
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(PlusLoop)(a + s, b + s, out + s, e - s);
+        });
 }
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    HWY_DYNAMIC_DISPATCH(MinusLoop)(a, b, out, n);
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(MinusLoop)(a + s, b + s, out + s, e - s);
+        });
 }
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    HWY_DYNAMIC_DISPATCH(TimesLoop)(a, b, out, n);
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(TimesLoop)(a + s, b + s, out + s, e - s);
+        });
 }
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    HWY_DYNAMIC_DISPATCH(RdivideLoop)(a, b, out, n);
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+        [=](std::size_t s, std::size_t e) {
+            HWY_DYNAMIC_DISPATCH(RdivideLoop)(a + s, b + s, out + s, e - s);
+        });
 }
 
 void matmulDoubleLoop(const double *a, const double *b, double *c,

@@ -630,3 +630,155 @@ TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
         }
     }
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// Large-N elementwise parity — exercises the parallel_for path in
+// the NUMKIT_WITH_THREADS build above the per-kernel parallel
+// threshold (kElementwiseThreshold = 16k, kTranscendentalThreshold = 4k).
+// Each kernel must produce bit-identical results to a scalar reference
+// regardless of how the work is split across worker threads, because
+// the supported ops (+ − .* ./ abs) and Highway's transcendental
+// approximations are defined per-element with no cross-element
+// dependency. On builds without threads this just runs sequentially
+// — same scalar reference, same bit-identical assertion.
+// ════════════════════════════════════════════════════════════════════════
+
+namespace {
+
+std::vector<double> makeReals(size_t n, uint32_t seed, double lo, double hi)
+{
+    std::mt19937                            rng(seed);
+    std::uniform_real_distribution<double>  dist(lo, hi);
+    std::vector<double>                     out(n);
+    for (auto &v : out) v = dist(rng);
+    return out;
+}
+
+} // namespace
+
+TEST(SimdParity_ParallelLarge, AbsBitIdenticalAcrossSplits)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;  // prime > kElementwiseThreshold
+    auto src = makeReals(N, 7, -1e6, 1e6);
+
+    MValue x = makeDoubleVector(alloc, src);
+    MValue y = numkit::m::builtin::abs(alloc, x);
+    ASSERT_EQ(y.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(y.doubleData()[i], std::fabs(src[i]))) << "i=" << i;
+}
+
+TEST(SimdParity_ParallelLarge, PlusBitIdenticalAcrossSplits)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;
+    auto a = makeReals(N, 11, -1e3, 1e3);
+    auto b = makeReals(N, 13, -1e3, 1e3);
+
+    MValue x = makeDoubleVector(alloc, a);
+    MValue y = makeDoubleVector(alloc, b);
+    MValue z = numkit::m::builtin::plus(alloc, x, y);
+    ASSERT_EQ(z.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i])) << "i=" << i;
+}
+
+TEST(SimdParity_ParallelLarge, MinusBitIdenticalAcrossSplits)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;
+    auto a = makeReals(N, 17, -1e3, 1e3);
+    auto b = makeReals(N, 19, -1e3, 1e3);
+
+    MValue x = makeDoubleVector(alloc, a);
+    MValue y = makeDoubleVector(alloc, b);
+    MValue z = numkit::m::builtin::minus(alloc, x, y);
+    ASSERT_EQ(z.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] - b[i])) << "i=" << i;
+}
+
+TEST(SimdParity_ParallelLarge, TimesBitIdenticalAcrossSplits)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;
+    auto a = makeReals(N, 23, -1e3, 1e3);
+    auto b = makeReals(N, 29, -1e3, 1e3);
+
+    MValue x = makeDoubleVector(alloc, a);
+    MValue y = makeDoubleVector(alloc, b);
+    MValue z = numkit::m::builtin::times(alloc, x, y);
+    ASSERT_EQ(z.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] * b[i])) << "i=" << i;
+}
+
+TEST(SimdParity_ParallelLarge, RdivideBitIdenticalAcrossSplits)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;
+    auto a = makeReals(N, 31, -1e3, 1e3);
+    auto b = makeReals(N, 37, 0.5, 1e3);   // strictly positive denom
+
+    MValue x = makeDoubleVector(alloc, a);
+    MValue y = makeDoubleVector(alloc, b);
+    MValue z = numkit::m::builtin::rdivide(alloc, x, y);
+    ASSERT_EQ(z.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] / b[i])) << "i=" << i;
+}
+
+// Transcendentals: SIMD math approximations have non-zero ULP error
+// vs std::sin/cos/exp/log, but the per-element output must still be
+// independent of how the array is split — assert bit-identical across
+// any potential split by repeating the call several times. (Each call
+// dispatches the same chunking; a thread-induced races would surface
+// as flaky bit changes between calls.)
+TEST(SimdParity_ParallelLarge, SinDeterministicAcrossCalls)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;     // also above kTranscendentalThreshold
+    auto src = makeReals(N, 41, -10.0, 10.0);
+
+    MValue x  = makeDoubleVector(alloc, src);
+    MValue y1 = numkit::m::builtin::sin(alloc, x);
+    MValue y2 = numkit::m::builtin::sin(alloc, x);
+    MValue y3 = numkit::m::builtin::sin(alloc, x);
+    ASSERT_EQ(y1.numel(), N);
+    for (size_t i = 0; i < N; ++i) {
+        EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
+        EXPECT_TRUE(bitEquals(y2.doubleData()[i], y3.doubleData()[i])) << "i=" << i;
+    }
+}
+
+TEST(SimdParity_ParallelLarge, ExpDeterministicAcrossCalls)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 100'003;
+    auto src = makeReals(N, 43, -5.0, 5.0);
+
+    MValue x  = makeDoubleVector(alloc, src);
+    MValue y1 = numkit::m::builtin::exp(alloc, x);
+    MValue y2 = numkit::m::builtin::exp(alloc, x);
+    ASSERT_EQ(y1.numel(), N);
+    for (size_t i = 0; i < N; ++i)
+        EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
+}
+
+// Just-at-the-threshold and just-above to exercise the boundary.
+TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    for (size_t N : {size_t(16383), size_t(16384), size_t(16385), size_t(65536)}) {
+        auto a = makeReals(N, 53 + static_cast<uint32_t>(N), -1.0, 1.0);
+        auto b = makeReals(N, 59 + static_cast<uint32_t>(N), -1.0, 1.0);
+        MValue x = makeDoubleVector(alloc, a);
+        MValue y = makeDoubleVector(alloc, b);
+        MValue z = numkit::m::builtin::plus(alloc, x, y);
+        ASSERT_EQ(z.numel(), N) << "N=" << N;
+        for (size_t i = 0; i < N; ++i)
+            EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i]))
+                << "N=" << N << " i=" << i;
+    }
+}
