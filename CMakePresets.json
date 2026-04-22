@@ -123,6 +123,31 @@
         "CMAKE_CXX_FLAGS":            "-msimd128 -mrelaxed-simd -fexceptions",
         "CMAKE_EXE_LINKER_FLAGS":     "-fexceptions"
       }
+    },
+    {
+      "name": "browser-threads",
+      "inherits": "browser",
+      "displayName": "Browser WASM (SIMD128 + pthreads)",
+      "description": "Same as 'browser' but adds Emscripten pthreads. Each pthread becomes a Web Worker; shared memory uses SharedArrayBuffer + Atomics. Requires the host page to be served with COOP=same-origin and COEP=require-corp (or to run in Electron with sharedArrayBufferAvailable). PTHREAD_POOL_SIZE pre-spawns workers at startup so the parallel SIMD kernels don't pay Worker spawn latency.",
+      "binaryDir": "${sourceDir}/build-browser-threads",
+      "cacheVariables": {
+        "NUMKIT_M_BUILD_TESTS":   "OFF",
+        "NUMKIT_WITH_THREADS":    "ON",
+        "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728"
+      }
+    },
+    {
+      "name": "bench-wasm-threads",
+      "inherits": "bench-wasm",
+      "displayName": "Bench WASM with pthreads (SIMD128 + threads)",
+      "description": "Same as bench-wasm but enables Emscripten pthreads to run the Highway parallel-SIMD kernels across Web Workers. Apples-to-apples vs bench-wasm to see what threading buys on WASM. Run with: node --experimental-wasm-threads build-bench-wasm-threads/benchmarks/m_bench.js (recent Node has it on by default).",
+      "binaryDir": "${sourceDir}/build-bench-wasm-threads",
+      "cacheVariables": {
+        "NUMKIT_WITH_THREADS":    "ON",
+        "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6"
+      }
     }
   ],
   "buildPresets": [
@@ -135,8 +160,10 @@
     {"name": "bench-simd-threads",  "configurePreset": "bench-simd-threads",  "configuration": "Release"},
     {"name": "bench-clang",      "configurePreset": "bench-clang",      "configuration": "Release"},
     {"name": "bench-simd-clang", "configurePreset": "bench-simd-clang", "configuration": "Release"},
-    {"name": "browser",      "configurePreset": "browser"},
-    {"name": "bench-wasm",   "configurePreset": "bench-wasm"}
+    {"name": "browser",            "configurePreset": "browser"},
+    {"name": "browser-threads",    "configurePreset": "browser-threads"},
+    {"name": "bench-wasm",         "configurePreset": "bench-wasm"},
+    {"name": "bench-wasm-threads", "configurePreset": "bench-wasm-threads"}
   ],
   "testPresets": [
     {

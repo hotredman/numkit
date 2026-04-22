@@ -42,7 +42,10 @@ void runElementwiseBench(benchmark::State &state, Fn fn, double lo, double hi)
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = fn(alloc, x);
+        // Pass nullptr hint explicitly so the call signature matches both
+        // the legacy 2-arg signature and the newer 3-arg one (with the
+        // optional output-reuse hint added in Phase B+).
+        MValue y = fn(alloc, x, nullptr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
