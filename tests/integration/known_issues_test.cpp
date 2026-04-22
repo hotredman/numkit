@@ -257,6 +257,82 @@ TEST_P(ColonLinearAssign, RepeatedAssignReusesSlot)
     expectElem(*z, 3, 43.0);
 }
 
+TEST_P(ColonLinearAssign, BufferSwapFromUnaryCall)
+{
+    // VM swap-buffer fast path — `z(:) = func(x)` should absorb the
+    // call's freshly-allocated buffer into z (no memcpy) when the
+    // shape matches. Verifies semantics survive the optimisation:
+    // z keeps its column-vector shape, values come from the call.
+    eval(R"(
+        z = zeros(5, 1);
+        x = [0; 1; 2; 3; 4];
+        z(:) = exp(x);
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 5u);
+    ASSERT_EQ(cols(*z), 1u);
+    expectElem(*z, 0, std::exp(0.0));
+    expectElem(*z, 1, std::exp(1.0));
+    expectElem(*z, 2, std::exp(2.0));
+    expectElem(*z, 3, std::exp(3.0));
+    expectElem(*z, 4, std::exp(4.0));
+}
+
+TEST_P(ColonLinearAssign, BufferSwapFromBinaryOp)
+{
+    // Same swap fast path with a binary-op rhs. Exercises the
+    // (sameCount && both unique heap) branch in INDEX_SET ":".
+    eval(R"(
+        z = zeros(4, 1);
+        a = [1; 2; 3; 4];
+        b = [10; 20; 30; 40];
+        z(:) = a + b;
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 4u);
+    ASSERT_EQ(cols(*z), 1u);
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 22.0);
+    expectElem(*z, 2, 33.0);
+    expectElem(*z, 3, 44.0);
+}
+
+TEST_P(ColonLinearAssign, BufferSwapPreservesRowOrientation)
+{
+    // z is a row vector; the call result is naturally a row vector
+    // too (matches input). Swap should keep z 1×N (not 1×N becoming
+    // any other shape) — this is the regression case the swap path
+    // would silently break if it inherited the rhs's dims instead of
+    // keeping dst's.
+    eval(R"(
+        z = zeros(1, 5);
+        x = [0 1 2 3 4];
+        z(:) = sin(x);
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 1u);
+    ASSERT_EQ(cols(*z), 5u);
+    for (size_t i = 0; i < 5; ++i)
+        expectElem(*z, i, std::sin(double(i)));
+}
+
+TEST_P(ColonLinearAssign, BufferSwapShapePreservedWhenRhsShapeDiffers)
+{
+    // z is a column vector, rhs (via a row-vector temp) has the same
+    // numel but row orientation. The swap path keeps z as a column
+    // vector (z.dims unchanged); only the buffer contents change.
+    eval(R"(
+        z = zeros(3, 1);
+        z(:) = [10 20 30] + [1 2 3];
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 3u);
+    ASSERT_EQ(cols(*z), 1u);
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 22.0);
+    expectElem(*z, 2, 33.0);
+}
+
 TEST_P(ColonLinearAssign, ComplexRhsIntoComplexLhs)
 {
     // Both sides complex, matching numel — exercises the complex

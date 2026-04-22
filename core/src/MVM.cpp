@@ -709,11 +709,13 @@ enter_frame:
                     dst.elemSet(i, rhs);
                 } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
                     // Colon linear-assign: z(:) = rhs writes across every
-                    // element of z without changing its shape. Three fast
+                    // element of z without changing its shape. Four fast
                     // paths cover the common MATLAB patterns; everything
                     // else falls through to the generic indexSet.
                     MValue &dst = R[I.a];
-                    const MValue &rhs = R[I.c];
+                    MValue &rhs = R[I.c];   // mutable so the buffer-steal
+                                            // fast path can absorb rhs's
+                                            // heap when it's a unique temp
                     const size_t n = dst.numel();
                     const bool sameCount = (rhs.numel() == n);
 
@@ -723,6 +725,24 @@ enter_frame:
                         const double v = rhs.toScalar();
                         double *d = dst.doubleDataMut();
                         std::fill_n(d, n, v);
+                        break;
+                    }
+
+                    // Buffer-steal fast path. When rhs is a uniquely-owned
+                    // heap value matching dst's shape (typically a freshly
+                    // computed temp from `sin(x)`, `x + y`, etc.), swap
+                    // their data buffers in place — dst keeps its dims,
+                    // rhs gets the old buffer which is freed on its next
+                    // overwrite. Skips the O(N) memcpy that would otherwise
+                    // copy rhs into dst. Saves ~2 ms per call at N=1M.
+                    if (sameCount
+                        && dst.hasHeap() && rhs.hasHeap()
+                        && dst.heapRefCount() == 1 && rhs.heapRefCount() == 1
+                        && dst.type() == rhs.type()
+                        && (dst.type() == MType::DOUBLE
+                            || dst.type() == MType::COMPLEX)
+                        && dst.isComplex() == rhs.isComplex()) {
+                        dst.swapHeapBufferUnchecked(rhs);
                         break;
                     }
 

@@ -328,6 +328,23 @@ public:
         return static_cast<const double *>(heap_->buffer->data());
     }
 
+    // Swap data buffers between this and `other`, keeping each MValue's
+    // dims/type unchanged. Used by the slice-assign fast path
+    // (`z(:) = expr`) to absorb a uniquely-owned temporary's buffer
+    // without an O(N) memcpy. Caller must guarantee:
+    //   * both MValues are heap (hasHeap() && !isTag())
+    //   * both heaps are uniquely owned (heapRefCount() == 1)
+    //   * both buffers are the same byte size
+    // After the swap, `other` holds this MValue's prior buffer; on its
+    // next overwrite (typically the temp-register reuse a few bytecode
+    // ops later) that buffer is freed.
+    void swapHeapBufferUnchecked(MValue &other) noexcept
+    {
+        DataBuffer *tmp = heap_->buffer;
+        heap_->buffer = other.heap_->buffer;
+        other.heap_->buffer = tmp;
+    }
+
 private:
     // ── 16-byte layout ───────────────────────────────────────
     double scalar_ = 0.0;
