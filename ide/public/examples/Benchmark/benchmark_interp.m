@@ -1,7 +1,11 @@
-% Benchmark — Interpreter performance tests
+% Benchmark Interp — Interpreter performance tests
 % Measures raw interpreter speed: loops, function calls,
 % indexing, and scalar math. Does NOT test library functions
 % like fft or inv — only the execution engine itself.
+% Companion benchmarks in this directory:
+%   benchmark_simd.m         library functions (abs/sin/.../mtimes/fft)
+%   benchmark_simd_inplace.m same with z(:) = rhs slice assignment
+%   benchmark_grow.m         incremental array build patterns
 clear
 
 fprintf('\n=== Interpreter Benchmark ===\n\n')

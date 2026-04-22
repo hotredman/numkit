@@ -487,7 +487,7 @@ TEST_P(HorzcatGrowRewrite, RowVectorAppendOne)
 
 TEST_P(HorzcatGrowRewrite, IncrementalBuildLoop)
 {
-    // The benchmark.m test 5 pattern in miniature.
+    // The benchmark_interp.m test 5 pattern in miniature.
     eval(R"(
         A = [];
         for i = 1:10

@@ -30,7 +30,7 @@
     {
       "name": "Benchmark",
       "files": [
-        "benchmark.m",
+        "benchmark_interp.m",
         "benchmark_simd.m",
         "benchmark_simd_inplace.m",
         "benchmark_grow.m"
