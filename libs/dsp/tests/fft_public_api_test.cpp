@@ -417,6 +417,30 @@ TEST(DspFftR2SoA, EdgeCase_N1)
     EXPECT_DOUBLE_EQ(x[0].imag(), -3.5);
 }
 
+TEST(DspFftR4SoA, MatchesRadix2_PowerOfFourSizes)
+{
+    // r4 SoA only handles powers of 4. Compare against AoS r2 which
+    // handles arbitrary pow-of-2 (and is the established reference).
+    for (size_t N : {size_t{4}, size_t{16}, size_t{64}, size_t{256},
+                     size_t{1024}, size_t{4096}, size_t{16384},
+                     size_t{65536}}) {
+        std::vector<Complex> ref(N), test(N), W(N / 2);
+        fillTestSignal(ref.data(), N);
+        std::copy(ref.begin(), ref.end(), test.begin());
+        numkit::m::fillFftTwiddles(W.data(), N, /*dir=*/+1);
+
+        numkit::m::dsp::detail::fftRadix2Impl(ref.data(), N, W.data());
+        numkit::m::dsp::detail::fftRadix4Pow4SoaDispatch(test.data(), N, W.data());
+
+        for (size_t i = 0; i < N; ++i) {
+            ASSERT_NEAR(ref[i].real(), test[i].real(), 1e-7)
+                << "N=" << N << " i=" << i;
+            ASSERT_NEAR(ref[i].imag(), test[i].imag(), 1e-7)
+                << "N=" << N << " i=" << i;
+        }
+    }
+}
+
 TEST(DspFftStockham, EdgeCase_N1)
 {
     // N=1 is identity — should leave the input unchanged.

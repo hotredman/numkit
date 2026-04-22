@@ -38,4 +38,10 @@ void fftStockhamDispatch(Complex *buf, std::size_t N, const Complex *W);
 // then converts back. Per-thread re/im scratch grows monotonically.
 void fftRadix2SoaDispatch(Complex *buf, std::size_t N, const Complex *W);
 
+// SoA radix-4 dispatcher: same algorithm as the AoS r4 path, but
+// using split real/imag layout to skip the AVX2 LoadInterleaved2 ×4
+// + StoreInterleaved2 ×4 permute cost per inner iteration. N must
+// be a power of 4. Per-thread re/im scratch grows monotonically.
+void fftRadix4Pow4SoaDispatch(Complex *buf, std::size_t N, const Complex *W);
+
 } // namespace numkit::m::dsp::detail

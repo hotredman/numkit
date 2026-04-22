@@ -206,6 +206,38 @@ BENCHMARK(BM_Fft_KernelOnly_R2SoA)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18);
 
+// SoA r4 kernel — only valid at powers of 4.
+static void BM_Fft_KernelOnly_R4SoA(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t n = static_cast<size_t>(state.range(0));
+
+    std::vector<Complex> input(n);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < n; ++i)
+            input[i] = Complex(d(rng), d(rng));
+    }
+    std::vector<Complex> work(n);
+    std::vector<Complex> twid(n / 2);
+    fillFftTwiddles(twid.data(), n, /*dir=*/+1);
+
+    for (auto _ : state) {
+        std::memcpy(work.data(), input.data(), n * sizeof(Complex));
+        dsp::detail::fftRadix4Pow4SoaDispatch(work.data(), n, twid.data());
+        benchmark::DoNotOptimize(work.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
+}
+
+BENCHMARK(BM_Fft_KernelOnly_R4SoA)
+    ->Arg(1 << 10)   // 1024  = 4^5
+    ->Arg(1 << 12)   // 4096  = 4^6
+    ->Arg(1 << 14)   // 16384 = 4^7  ← the user benchmark hits this internally
+    ->Arg(1 << 16)   // 65536 = 4^8
+    ->Arg(1 << 18);  // 262144= 4^9
+
 // ── Diagnostics: micro-benchmarks of FFT sub-costs ──────────────────────
 //
 // Used to attribute the kernel time to (1) bit-reversal pre-pass that
