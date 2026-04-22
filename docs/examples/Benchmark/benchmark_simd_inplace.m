@@ -24,24 +24,26 @@ z    = zeros(N, 1);
 C    = zeros(Mm, Mm);
 F    = complex(zeros(Nf, 1), zeros(Nf, 1));
 
-% ── Warm-up — see comment in benchmark_simd.m. JIT / Worker spawn /
-% Highway dispatch resolution off the timed clock so the first kernel
-% (abs) doesn't get charged with everyone else's first-call cost.
-tmp = abs(x);
-tmp = sin(x);
-tmp = cos(x);
-tmp = exp(x);
-tmp = log(abs(x) + 1);
-tmp = x + y;
-tmp = x - y;
-tmp = x .* y;
-tmp = x ./ y;
+% ── Warm-up — see comment in benchmark_simd.m. Three iterations to
+% let V8 fully tier up to TurboFan before any tic/toc.
 A_warm = randn(Mm, Mm);
 B_warm = randn(Mm, Mm);
-tmp = A_warm * B_warm;
 s_warm = randn(Nf, 1);
-tmp = fft(s_warm);
-clear tmp A_warm B_warm s_warm
+xp_warm = abs(x) + 1;
+for warm = 1:3
+    tmp = abs(x);
+    tmp = sin(x);
+    tmp = cos(x);
+    tmp = exp(x);
+    tmp = log(xp_warm);
+    tmp = x + y;
+    tmp = x - y;
+    tmp = x .* y;
+    tmp = x ./ y;
+    tmp = A_warm * B_warm;
+    tmp = fft(s_warm);
+end
+clear tmp A_warm B_warm s_warm xp_warm warm
 
 % ── 1. abs ─────────────────────────────────────────────────
 tic

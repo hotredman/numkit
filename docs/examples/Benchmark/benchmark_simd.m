@@ -28,25 +28,30 @@ y = randn(N, 1);
 
 % ── Warm-up — discarded calls so first-time JIT / Worker spawn /
 % Highway dynamic-dispatch resolution doesn't get charged to the
-% first timed kernel. Matters most for WASM-threaded (V8 JITs each
-% Worker's slice on first call — observed 50ms penalty otherwise),
-% negligible on native. Result of each call discarded by reassigning
-% the same variable.
-tmp = abs(x);
-tmp = sin(x);
-tmp = cos(x);
-tmp = exp(x);
-tmp = log(abs(x) + 1);
-tmp = x + y;
-tmp = x - y;
-tmp = x .* y;
-tmp = x ./ y;
+% first timed kernel. V8 (WASM-threaded) tiers up across multiple
+% invocations: the first call hits the baseline interpreter, the
+% second one might trigger Liftoff, the third gets to TurboFan.
+% Three iterations give every kernel a stable optimised path
+% before tic/toc. Native and Octave warm-up is microsecond-scale
+% (no JIT) so the extra repeats don't matter.
 A_warm = randn(Mm, Mm);
 B_warm = randn(Mm, Mm);
-tmp = A_warm * B_warm;
 s_warm = randn(Nf, 1);
-tmp = fft(s_warm);
-clear tmp A_warm B_warm s_warm
+xp_warm = abs(x) + 1;
+for warm = 1:3
+    tmp = abs(x);
+    tmp = sin(x);
+    tmp = cos(x);
+    tmp = exp(x);
+    tmp = log(xp_warm);
+    tmp = x + y;
+    tmp = x - y;
+    tmp = x .* y;
+    tmp = x ./ y;
+    tmp = A_warm * B_warm;
+    tmp = fft(s_warm);
+end
+clear tmp A_warm B_warm s_warm xp_warm warm
 
 % ── 1. abs ─────────────────────────────────────────────────
 tic
