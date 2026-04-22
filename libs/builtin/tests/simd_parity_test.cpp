@@ -400,6 +400,95 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
         << " (got=" << C.doubleData()[worstIdx] << ", ref=" << ref[worstIdx] << ")";
 }
 
+// K-blocked matmul kernel correctness. K must exceed the KC=256
+// internal block size so the kernel runs multiple k-blocks per
+// (i0, j0) tile, exercising the load+accumulate path on subsequent
+// blocks (vs zero-init only on the first). M and N are kept at MR
+// and NR multiples (8, 4) so the body kernel — not the saxpy tail —
+// is what's under test. K=300 gives one full kb=256 block plus one
+// partial kb=44 block; both initialization paths run.
+TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    constexpr size_t M = 16;
+    constexpr size_t K = 300;
+    constexpr size_t N = 12;
+
+    std::mt19937 rng(123);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+    MValue A = MValue::matrix(M, K, MType::DOUBLE, &alloc);
+    MValue B = MValue::matrix(K, N, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
+    for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
+
+    MValue C = numkit::m::builtin::mtimes(alloc, A, B);
+    ASSERT_EQ(C.numel(), M * N);
+
+    // Reference matches the kernel's (j, k, i) reduction order — the
+    // K-block split changes WHICH k indices are summed in WHICH register
+    // pass, but not the (j, k, i) sequence per output element, so FMA
+    // rounding stays bit-identical.
+    std::vector<double> ref(M * N, 0.0);
+    for (size_t j = 0; j < N; ++j) {
+        for (size_t k = 0; k < K; ++k) {
+            const double bkj = B.doubleData()[j * K + k];
+            for (size_t i = 0; i < M; ++i)
+                ref[j * M + i] += bkj * A.doubleData()[k * M + i];
+        }
+    }
+
+    double maxRelErr = 0.0;
+    size_t worstIdx = 0;
+    for (size_t i = 0; i < M * N; ++i) {
+        double got = C.doubleData()[i];
+        double r   = ref[i];
+        double denom = std::max(1.0, std::fabs(r));
+        double err = std::fabs(got - r) / denom;
+        if (err > maxRelErr) { maxRelErr = err; worstIdx = i; }
+    }
+    EXPECT_LT(maxRelErr, 1e-10)
+        << "worst relative error " << maxRelErr << " at index " << worstIdx;
+}
+
+// Same as above but K is exactly KC*3 (3 full blocks, no partial).
+// Catches off-by-one in the (k0 + KC < K) tail-handling branch.
+TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+
+    constexpr size_t M = 16;
+    constexpr size_t K = 768;   // = 3 * 256, exact multiple of KC
+    constexpr size_t N = 8;
+
+    std::mt19937 rng(456);
+    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+
+    MValue A = MValue::matrix(M, K, MType::DOUBLE, &alloc);
+    MValue B = MValue::matrix(K, N, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
+    for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
+
+    MValue C = numkit::m::builtin::mtimes(alloc, A, B);
+
+    std::vector<double> ref(M * N, 0.0);
+    for (size_t j = 0; j < N; ++j)
+        for (size_t k = 0; k < K; ++k) {
+            const double bkj = B.doubleData()[j * K + k];
+            for (size_t i = 0; i < M; ++i)
+                ref[j * M + i] += bkj * A.doubleData()[k * M + i];
+        }
+
+    double maxRelErr = 0.0;
+    for (size_t i = 0; i < M * N; ++i) {
+        double err = std::fabs(C.doubleData()[i] - ref[i])
+                     / std::max(1.0, std::fabs(ref[i]));
+        if (err > maxRelErr) maxRelErr = err;
+    }
+    EXPECT_LT(maxRelErr, 1e-10);
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Dimensionality coverage — 1D (row + column), 2D, 3D
 //

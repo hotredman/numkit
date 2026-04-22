@@ -253,6 +253,57 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
         }
 }
 
+// ── Radix-4 path correctness at large pow-of-4 sizes ──────────────────
+//
+// kRadix4Threshold inside MDspFft_simd.cpp is currently 1<<15 (32768);
+// pow-of-4 sizes ≥ that route to fftRadix4Pow4Dispatch. Other tests use
+// small N (≤ 16) and never trigger r4. This test guards r4 against
+// bitrot — if its threshold is later raised to disable r4, the test
+// stops exercising the kernel but doesn't fail (it goes through r2),
+// so the assertion is structural (DC bin, energy-preservation), not
+// algorithm-specific.
+TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
+{
+    Allocator alloc = Allocator::defaultAllocator();
+    constexpr size_t N = 65536;  // = 4^8, well above current r4 threshold
+
+    auto x = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    double *xd = x.doubleDataMut();
+    double sumX = 0.0, sumX2 = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        xd[i] = std::sin(0.0123 * double(i)) + 0.5 * std::cos(0.07 * double(i));
+        sumX  += xd[i];
+        sumX2 += xd[i] * xd[i];
+    }
+
+    MValue X = numkit::m::dsp::fft(alloc, x);
+    ASSERT_TRUE(X.isComplex());
+    ASSERT_EQ(X.numel(), N);
+    const Complex *Xd = X.complexData();
+
+    // DC bin equals sum of inputs (within FP tolerance).
+    EXPECT_NEAR(Xd[0].real(), sumX, 1e-6);
+    EXPECT_NEAR(Xd[0].imag(), 0.0, 1e-6);
+
+    // Parseval: sum |X[k]|^2 == N * sum |x[k]|^2.
+    double sumPow = 0.0;
+    for (size_t k = 0; k < N; ++k) sumPow += std::norm(Xd[k]);
+    EXPECT_NEAR(sumPow, double(N) * sumX2, 1e-3);
+
+    // Round-trip restores input.
+    MValue y = numkit::m::dsp::ifft(alloc, X);
+    ASSERT_EQ(y.numel(), N);
+    const double *yd = y.isComplex() ? nullptr : y.doubleData();
+    if (y.isComplex()) {
+        const Complex *yc = y.complexData();
+        for (size_t i = 0; i < N; ++i)
+            EXPECT_NEAR(yc[i].real(), xd[i], 1e-9) << "at i=" << i;
+    } else {
+        for (size_t i = 0; i < N; ++i)
+            EXPECT_NEAR(yd[i], xd[i], 1e-9) << "at i=" << i;
+    }
+}
+
 // ── Round-trip: x → fft → ifft ≈ x for 3-D input on each dim ──────────
 TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
 {

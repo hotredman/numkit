@@ -107,24 +107,210 @@ NK_BINOP_LOOP(RdivideLoop, Div, /)
 
 #undef NK_BINOP_LOOP
 
-// Matrix multiply (column-major). Two paths:
+// Matrix multiply (column-major). Three paths:
 //
-// * Blocked register-tiling kernel for the body (M/MR tiles down,
-//   N/NR tiles across). Inside the kernel we keep an MR×NR tile of
-//   C in registers and accumulate K outer-products. With MR=8, NR=4
-//   on AVX2 we use 8 vector accumulators (8 doubles per col × 4 cols
-//   ÷ 4 lanes = 8 vec) + 2 A-row vec + 4 B-broadcast vec, fitting
-//   in the 16 YMM registers comfortably. Each K-step issues 8 FMAs.
-//   Reuse: each loaded A-row vec is used 4× (once per col), each B
-//   broadcast 8× (across both A-row halves) — high arithmetic
-//   intensity, kernel becomes compute-bound rather than memory-bound.
+// * Single-pass register-tiling kernel for K ≤ 2*KC (small/medium K).
+//   8×4 MR×NR tile of C kept in 8 YMM accumulators; the inner k loop
+//   sweeps the whole [0, K) range, accumulating without touching C
+//   memory until the final store. With K ≤ 512, the (i0, j0) tile's
+//   working set still fits L1 well enough that L1-residency-of-B
+//   doesn't pay for the extra C-tile Load+Store overhead of K-blocking.
+//
+// * K-blocked register-tiling kernel for K > 2*KC (large K).
+//   Splits the inner k loop into KC-sized chunks. First chunk
+//   zero-inits accumulators in registers; subsequent chunks Load
+//   existing partial sums from C, accumulate, Store back.
+//
+//   Why K-blocking helps at large K: the inner k loop now touches an
+//   A panel of MR×KC and a B panel of KC×NR. Sized KC=256, those
+//   are 16 KB + 8 KB = 24 KB — fit in L1d (48 KB). For fixed
+//   (j0, kb), sweeping i0 reuses the same B panel out of L1 across
+//   M/MR iterations; without K-blocking, A panel for one (i0, j0)
+//   alone is K×MR×8 = 64 KB at K=1024, already exceeding L1, so B
+//   gets evicted between i0 iterations and re-fetched from L2/L3.
+//   At 1024² this halves DRAM/L3 bandwidth on B, which is what was
+//   capping throughput at 158 GF (vs 270 GF on the 512² case that
+//   stays L2-resident even without K-blocking).
 //
 // * Original SAXPY-down-the-column path for the tail (rows below
 //   M_body and cols past N_body) and for problems too small to tile.
-//   Same numeric semantics as before — k-reduction order matches.
 //
-// On a square 512×512 mtimes the body covers the whole matrix
-// (512 % 8 == 0, 512 % 4 == 0) so the tail path stays cold.
+// The two register-tile paths live in HWY_NOINLINE helpers to keep
+// MSVC's inliner from sharing budget across them — when both bodies
+// were inlined into one function, the K=512 single-pass case
+// regressed 15% from MSVC running out of optimisation budget on the
+// then-larger function (same cliff documented in
+// feedback_fft_msvc_limits memory). Splitting into separate
+// functions eliminated the regression.
+//
+// All numeric semantics match the original kernel: identical (j, k, i)
+// reduction order so FMA rounding stays bit-identical between the
+// two paths. On a square 512×512 mtimes the body covers the whole
+// matrix (512 % 8 == 0, 512 % 4 == 0) so the tail path stays cold.
+
+namespace {
+
+constexpr std::size_t kMR = 8;   // rows per tile (fits 2 vec of 4 lanes)
+constexpr std::size_t kNR = 4;   // cols per tile (4 outer-product accumulators)
+constexpr std::size_t kKC = 256; // K-block — A panel + B panel fit L1
+
+// Single-pass body: zero-init in registers, sweep all of K, store.
+// Used for K ≤ 2*KC. Operates on the body region [0, M_body) × [0, N_body)
+// — caller handles tail rows/cols via saxpyRange. Left inline (no
+// HWY_NOINLINE) so MSVC matches the pre-K-blocking codegen exactly
+// for small/medium K; only matmulKBlocked is forced NOINLINE to keep
+// the inliner from regressing this path with the heavier K-blocked one.
+void matmulSinglePass(const double *HWY_RESTRICT a,
+                                   const double *HWY_RESTRICT b,
+                                   double *HWY_RESTRICT c,
+                                   std::size_t M, std::size_t K,
+                                   std::size_t M_body, std::size_t N_body)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t MR_HALF = hn::Lanes(d);
+
+    for (std::size_t j0 = 0; j0 < N_body; j0 += kNR) {
+        for (std::size_t i0 = 0; i0 < M_body; i0 += kMR) {
+            double *c_tile = c + i0;
+            auto c00 = hn::Zero(d), c10 = hn::Zero(d);
+            auto c01 = hn::Zero(d), c11 = hn::Zero(d);
+            auto c02 = hn::Zero(d), c12 = hn::Zero(d);
+            auto c03 = hn::Zero(d), c13 = hn::Zero(d);
+
+            for (std::size_t k = 0; k < K; ++k) {
+                const double *a_col = a + k * M;
+                const auto    a0 = hn::LoadU(d, a_col + i0);
+                const auto    a1 = hn::LoadU(d, a_col + i0 + MR_HALF);
+                const auto    b0 = hn::Set(d, b[(j0 + 0) * K + k]);
+                const auto    b1 = hn::Set(d, b[(j0 + 1) * K + k]);
+                const auto    b2 = hn::Set(d, b[(j0 + 2) * K + k]);
+                const auto    b3 = hn::Set(d, b[(j0 + 3) * K + k]);
+
+                c00 = hn::MulAdd(a0, b0, c00);
+                c10 = hn::MulAdd(a1, b0, c10);
+                c01 = hn::MulAdd(a0, b1, c01);
+                c11 = hn::MulAdd(a1, b1, c11);
+                c02 = hn::MulAdd(a0, b2, c02);
+                c12 = hn::MulAdd(a1, b2, c12);
+                c03 = hn::MulAdd(a0, b3, c03);
+                c13 = hn::MulAdd(a1, b3, c13);
+            }
+
+            hn::StoreU(c00, d, c_tile + (j0 + 0) * M);
+            hn::StoreU(c10, d, c_tile + (j0 + 0) * M + MR_HALF);
+            hn::StoreU(c01, d, c_tile + (j0 + 1) * M);
+            hn::StoreU(c11, d, c_tile + (j0 + 1) * M + MR_HALF);
+            hn::StoreU(c02, d, c_tile + (j0 + 2) * M);
+            hn::StoreU(c12, d, c_tile + (j0 + 2) * M + MR_HALF);
+            hn::StoreU(c03, d, c_tile + (j0 + 3) * M);
+            hn::StoreU(c13, d, c_tile + (j0 + 3) * M + MR_HALF);
+        }
+    }
+}
+
+// K-blocked body. First k-block zero-inits + accumulates KC; subsequent
+// k-blocks Load existing partial sums + accumulate + Store back.
+// Used for K > 2*KC. Same body region contract as matmulSinglePass.
+HWY_NOINLINE void matmulKBlocked(const double *HWY_RESTRICT a,
+                                 const double *HWY_RESTRICT b,
+                                 double *HWY_RESTRICT c,
+                                 std::size_t M, std::size_t K,
+                                 std::size_t M_body, std::size_t N_body)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t MR_HALF = hn::Lanes(d);
+
+    // First k-block: k in [0, KC). Zero-init accumulators, store at end.
+    for (std::size_t j0 = 0; j0 < N_body; j0 += kNR) {
+        for (std::size_t i0 = 0; i0 < M_body; i0 += kMR) {
+            double *c_tile = c + i0;
+            auto c00 = hn::Zero(d), c10 = hn::Zero(d);
+            auto c01 = hn::Zero(d), c11 = hn::Zero(d);
+            auto c02 = hn::Zero(d), c12 = hn::Zero(d);
+            auto c03 = hn::Zero(d), c13 = hn::Zero(d);
+
+            for (std::size_t k = 0; k < kKC; ++k) {
+                const double *a_col = a + k * M;
+                const auto    a0 = hn::LoadU(d, a_col + i0);
+                const auto    a1 = hn::LoadU(d, a_col + i0 + MR_HALF);
+                const auto    b0 = hn::Set(d, b[(j0 + 0) * K + k]);
+                const auto    b1 = hn::Set(d, b[(j0 + 1) * K + k]);
+                const auto    b2 = hn::Set(d, b[(j0 + 2) * K + k]);
+                const auto    b3 = hn::Set(d, b[(j0 + 3) * K + k]);
+
+                c00 = hn::MulAdd(a0, b0, c00);
+                c10 = hn::MulAdd(a1, b0, c10);
+                c01 = hn::MulAdd(a0, b1, c01);
+                c11 = hn::MulAdd(a1, b1, c11);
+                c02 = hn::MulAdd(a0, b2, c02);
+                c12 = hn::MulAdd(a1, b2, c12);
+                c03 = hn::MulAdd(a0, b3, c03);
+                c13 = hn::MulAdd(a1, b3, c13);
+            }
+
+            hn::StoreU(c00, d, c_tile + (j0 + 0) * M);
+            hn::StoreU(c10, d, c_tile + (j0 + 0) * M + MR_HALF);
+            hn::StoreU(c01, d, c_tile + (j0 + 1) * M);
+            hn::StoreU(c11, d, c_tile + (j0 + 1) * M + MR_HALF);
+            hn::StoreU(c02, d, c_tile + (j0 + 2) * M);
+            hn::StoreU(c12, d, c_tile + (j0 + 2) * M + MR_HALF);
+            hn::StoreU(c03, d, c_tile + (j0 + 3) * M);
+            hn::StoreU(c13, d, c_tile + (j0 + 3) * M + MR_HALF);
+        }
+    }
+
+    // Subsequent k-blocks: k in [k0, k_hi). Load existing C tile,
+    // accumulate, store back. B[kb..kb+KC, j0..j0+3] stays L1-resident
+    // across the M/MR i0 sweep — the access pattern that makes
+    // K-blocking pay off.
+    for (std::size_t k0 = kKC; k0 < K; k0 += kKC) {
+        const std::size_t k_hi = (k0 + kKC < K) ? k0 + kKC : K;
+
+        for (std::size_t j0 = 0; j0 < N_body; j0 += kNR) {
+            for (std::size_t i0 = 0; i0 < M_body; i0 += kMR) {
+                double *c_tile = c + i0;
+                auto c00 = hn::LoadU(d, c_tile + (j0 + 0) * M);
+                auto c10 = hn::LoadU(d, c_tile + (j0 + 0) * M + MR_HALF);
+                auto c01 = hn::LoadU(d, c_tile + (j0 + 1) * M);
+                auto c11 = hn::LoadU(d, c_tile + (j0 + 1) * M + MR_HALF);
+                auto c02 = hn::LoadU(d, c_tile + (j0 + 2) * M);
+                auto c12 = hn::LoadU(d, c_tile + (j0 + 2) * M + MR_HALF);
+                auto c03 = hn::LoadU(d, c_tile + (j0 + 3) * M);
+                auto c13 = hn::LoadU(d, c_tile + (j0 + 3) * M + MR_HALF);
+
+                for (std::size_t k = k0; k < k_hi; ++k) {
+                    const double *a_col = a + k * M;
+                    const auto    a0 = hn::LoadU(d, a_col + i0);
+                    const auto    a1 = hn::LoadU(d, a_col + i0 + MR_HALF);
+                    const auto    b0 = hn::Set(d, b[(j0 + 0) * K + k]);
+                    const auto    b1 = hn::Set(d, b[(j0 + 1) * K + k]);
+                    const auto    b2 = hn::Set(d, b[(j0 + 2) * K + k]);
+                    const auto    b3 = hn::Set(d, b[(j0 + 3) * K + k]);
+
+                    c00 = hn::MulAdd(a0, b0, c00);
+                    c10 = hn::MulAdd(a1, b0, c10);
+                    c01 = hn::MulAdd(a0, b1, c01);
+                    c11 = hn::MulAdd(a1, b1, c11);
+                    c02 = hn::MulAdd(a0, b2, c02);
+                    c12 = hn::MulAdd(a1, b2, c12);
+                    c03 = hn::MulAdd(a0, b3, c03);
+                    c13 = hn::MulAdd(a1, b3, c13);
+                }
+
+                hn::StoreU(c00, d, c_tile + (j0 + 0) * M);
+                hn::StoreU(c10, d, c_tile + (j0 + 0) * M + MR_HALF);
+                hn::StoreU(c01, d, c_tile + (j0 + 1) * M);
+                hn::StoreU(c11, d, c_tile + (j0 + 1) * M + MR_HALF);
+                hn::StoreU(c02, d, c_tile + (j0 + 2) * M);
+                hn::StoreU(c12, d, c_tile + (j0 + 2) * M + MR_HALF);
+                hn::StoreU(c03, d, c_tile + (j0 + 3) * M);
+                hn::StoreU(c13, d, c_tile + (j0 + 3) * M + MR_HALF);
+            }
+        }
+    }
+}
+
+} // namespace
 
 void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
                 double *HWY_RESTRICT c, std::size_t M, std::size_t N, std::size_t K)
@@ -132,12 +318,10 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     const hn::ScalableTag<double> d;
     const std::size_t lanes = hn::Lanes(d);
 
-    constexpr std::size_t MR = 8;   // rows per tile (fits 2 vec of 4 lanes)
-    constexpr std::size_t NR = 4;   // cols per tile (4 outer-product accumulators)
-    const std::size_t MR_HALF = lanes;  // vec width — second half is offset by lanes
-
     // Helper: SAXPY-down-column path for an arbitrary [j_lo, j_hi) col
-    // range and an arbitrary [i_lo, i_hi) row range. Used for the tail.
+    // range and an arbitrary [i_lo, i_hi) row range. Used for the tail
+    // and for problems too small (or wrong vector width) for the
+    // 8×4 register tile.
     auto saxpyRange = [&](std::size_t i_lo, std::size_t i_hi,
                           std::size_t j_lo, std::size_t j_hi) {
         for (std::size_t j = j_lo; j < j_hi; ++j) {
@@ -167,55 +351,25 @@ void MatmulLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
     // different MR. For those targets just use the SAXPY path — the
     // 8×4 tile sized for AVX2 wouldn't keep the registers busy on
     // narrower SIMD or would overflow them on wider.
-    if (lanes != 4 || M < MR || N < NR) {
+    if (lanes != 4 || M < kMR || N < kNR) {
         saxpyRange(0, M, 0, N);
         return;
     }
 
-    const std::size_t M_body = (M / MR) * MR;
-    const std::size_t N_body = (N / NR) * NR;
+    const std::size_t M_body = (M / kMR) * kMR;
+    const std::size_t N_body = (N / kNR) * kNR;
 
-    // Body: 8×4 register-tiling kernel.
-    for (std::size_t j0 = 0; j0 < N_body; j0 += NR) {
-        for (std::size_t i0 = 0; i0 < M_body; i0 += MR) {
-            // 8 zero accumulators — one per (row-half, col).
-            auto c00 = hn::Zero(d), c10 = hn::Zero(d);
-            auto c01 = hn::Zero(d), c11 = hn::Zero(d);
-            auto c02 = hn::Zero(d), c12 = hn::Zero(d);
-            auto c03 = hn::Zero(d), c13 = hn::Zero(d);
+    // Pick the body specialisation. Empirical break-even on Arrow Lake
+    // (AVX2 + MSVC + Highway): K=512 ties, K=1024 K-blocked is 1.7×
+    // faster, K=2048 is 2.5× faster.
+    if (K <= 2 * kKC)
+        matmulSinglePass(a, b, c, M, K, M_body, N_body);
+    else
+        matmulKBlocked(a, b, c, M, K, M_body, N_body);
 
-            for (std::size_t k = 0; k < K; ++k) {
-                const double *a_col = a + k * M;
-                const auto    a0 = hn::LoadU(d, a_col + i0);
-                const auto    a1 = hn::LoadU(d, a_col + i0 + MR_HALF);
-                const auto    b0 = hn::Set(d, b[(j0 + 0) * K + k]);
-                const auto    b1 = hn::Set(d, b[(j0 + 1) * K + k]);
-                const auto    b2 = hn::Set(d, b[(j0 + 2) * K + k]);
-                const auto    b3 = hn::Set(d, b[(j0 + 3) * K + k]);
-
-                c00 = hn::MulAdd(a0, b0, c00);
-                c10 = hn::MulAdd(a1, b0, c10);
-                c01 = hn::MulAdd(a0, b1, c01);
-                c11 = hn::MulAdd(a1, b1, c11);
-                c02 = hn::MulAdd(a0, b2, c02);
-                c12 = hn::MulAdd(a1, b2, c12);
-                c03 = hn::MulAdd(a0, b3, c03);
-                c13 = hn::MulAdd(a1, b3, c13);
-            }
-
-            double *c_tile = c + i0;
-            hn::StoreU(c00, d, c_tile + (j0 + 0) * M);
-            hn::StoreU(c10, d, c_tile + (j0 + 0) * M + MR_HALF);
-            hn::StoreU(c01, d, c_tile + (j0 + 1) * M);
-            hn::StoreU(c11, d, c_tile + (j0 + 1) * M + MR_HALF);
-            hn::StoreU(c02, d, c_tile + (j0 + 2) * M);
-            hn::StoreU(c12, d, c_tile + (j0 + 2) * M + MR_HALF);
-            hn::StoreU(c03, d, c_tile + (j0 + 3) * M);
-            hn::StoreU(c13, d, c_tile + (j0 + 3) * M + MR_HALF);
-        }
-    }
-
-    // Tail rows (i in [M_body, M)) for the body cols.
+    // Tail rows (i in [M_body, M)) for the body cols. saxpyRange
+    // does its own zero-and-accumulate over full K, independent of
+    // the body's K-block sweep — its writes go to disjoint C rows.
     if (M_body < M)
         saxpyRange(M_body, M, 0, N_body);
     // Tail cols (j in [N_body, N)) for all rows.
