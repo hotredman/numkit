@@ -209,10 +209,35 @@ void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
     hwy::FlushStream();
 }
 
+// Threshold for parallel matmul. Below this many output columns the
+// per-worker overhead overshadows the kernel — the existing single-
+// thread MatmulLoop is faster for small N.
+inline constexpr std::size_t kMatmulParallelThreshold = 32;
+
 void matmulDoubleLoop(const double *a, const double *b, double *c,
                       std::size_t M, std::size_t N, std::size_t K)
 {
-    HWY_DYNAMIC_DISPATCH(MatmulLoop)(a, b, c, M, N, K);
+    // Outer loop is over columns of C. Each output column is computed
+    // from A (read-only) and one column of B; columns are independent,
+    // so partitioning [0, N) across workers parallelises the kernel
+    // with zero synchronisation. B and C pointers are advanced to the
+    // worker's column range (column-major: stride K for B, M for C).
+    //
+    // The per-target SIMD loop below handles the inner SAXPY; here we
+    // just slice the work. Below kMatmulParallelThreshold we skip the
+    // pool entirely.
+    if (N < kMatmulParallelThreshold) {
+        HWY_DYNAMIC_DISPATCH(MatmulLoop)(a, b, c, M, N, K);
+        return;
+    }
+    numkit::m::detail::parallel_for(N, kMatmulParallelThreshold,
+        [=](std::size_t j_start, std::size_t j_end) {
+            HWY_DYNAMIC_DISPATCH(MatmulLoop)(
+                a,
+                b + j_start * K,
+                c + j_start * M,
+                M, j_end - j_start, K);
+        });
 }
 
 } // namespace numkit::m::builtin::detail
