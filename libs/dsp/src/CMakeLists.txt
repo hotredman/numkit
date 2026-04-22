@@ -11,10 +11,14 @@ set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspConv.cpp
 )
 
-# Backend-split FFT kernel — one line per function, same pattern as
-# libs/builtin/src/CMakeLists.txt.
+# Backend-split FFT kernel — the SIMD path itself splits across
+# several TUs (one per radix family) so MSVC's per-TU inliner
+# budget isn't shared across butterflies; see
+# feedback_fft_msvc_limits memory for the rationale.
 if(NUMKIT_WITH_SIMD)
     list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_simd.cpp)
+    list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_r2_simd.cpp)
+    list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_r4_simd.cpp)
 else()
     list(APPEND DSPLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/MDspFft_portable.cpp)
 endif()
