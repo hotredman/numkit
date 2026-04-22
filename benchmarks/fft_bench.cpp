@@ -238,6 +238,89 @@ BENCHMARK(BM_Fft_KernelOnly_R4SoA)
     ->Arg(1 << 16)   // 65536 = 4^8
     ->Arg(1 << 18);  // 262144= 4^9
 
+// Rfft pack-only: deinterleave fftLen reals into half re + half im.
+// Measures the cost of the "pack" phase the wrapper does at the start
+// of each rfft call.
+static void BM_Fft_RfftPackOnly(benchmark::State &state)
+{
+    const size_t fftLen = static_cast<size_t>(state.range(0));
+    const size_t half = fftLen / 2;
+    std::vector<double> src(fftLen);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < fftLen; ++i) src[i] = d(rng);
+    }
+    std::vector<double> reBuf(half), imBuf(half);
+
+    for (auto _ : state) {
+        for (size_t m = 0; m < half; ++m) {
+            reBuf[m] = src[2 * m    ];
+            imBuf[m] = src[2 * m + 1];
+        }
+        benchmark::DoNotOptimize(reBuf.data());
+        benchmark::DoNotOptimize(imBuf.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(fftLen));
+}
+
+BENCHMARK(BM_Fft_RfftPackOnly)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);
+
+// Rfft twist-only: scalar version (matches the wrapper's scalar tail).
+// Used to compare against the SIMD twist that's now in the wrapper.
+// Reads SoA Z (rfftRe/Im of length half), writes dst (Complex of
+// length fftLen, AoS). Includes the DC/Nyquist setup.
+static void BM_Fft_RfftTwistOnlyScalar(benchmark::State &state)
+{
+    using namespace numkit::m;
+    const size_t fftLen = static_cast<size_t>(state.range(0));
+    const size_t half = fftLen / 2;
+    std::vector<double> reBuf(half), imBuf(half);
+    {
+        std::mt19937 rng(42);
+        std::uniform_real_distribution<double> d(-1.0, 1.0);
+        for (size_t i = 0; i < half; ++i) {
+            reBuf[i] = d(rng);
+            imBuf[i] = d(rng);
+        }
+    }
+    std::vector<Complex> W(fftLen / 2);
+    fillFftTwiddles(W.data(), fftLen, +1);
+    std::vector<Complex> dst(fftLen);
+
+    for (auto _ : state) {
+        const double z0re = reBuf[0], z0im = imBuf[0];
+        dst[0]    = Complex(z0re + z0im, 0.0);
+        dst[half] = Complex(z0re - z0im, 0.0);
+        for (size_t k = 1; k < half; ++k) {
+            const double Zk_re = reBuf[k];
+            const double Zk_im = imBuf[k];
+            const double Zj_re = reBuf[half - k];
+            const double Zj_im = -imBuf[half - k];
+            const double E_re = 0.5 * (Zk_re + Zj_re);
+            const double E_im = 0.5 * (Zk_im + Zj_im);
+            const double D_re = 0.5 * (Zk_re - Zj_re);
+            const double D_im = 0.5 * (Zk_im - Zj_im);
+            const double O_re =  D_im;
+            const double O_im = -D_re;
+            const double Wk_re = W[k].real();
+            const double Wk_im = W[k].imag();
+            const double WO_re = Wk_re * O_re - Wk_im * O_im;
+            const double WO_im = Wk_re * O_im + Wk_im * O_re;
+            dst[k]          = Complex(E_re + WO_re, E_im + WO_im);
+            dst[fftLen - k] = Complex(E_re + WO_re, -(E_im + WO_im));
+        }
+        benchmark::DoNotOptimize(dst.data());
+    }
+    state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(fftLen));
+}
+
+BENCHMARK(BM_Fft_RfftTwistOnlyScalar)
+    ->RangeMultiplier(2)
+    ->Range(1 << 10, 1 << 18);
+
 // ── Diagnostics: micro-benchmarks of FFT sub-costs ──────────────────────
 //
 // Used to attribute the kernel time to (1) bit-reversal pre-pass that
