@@ -333,6 +333,117 @@ TEST_P(ColonLinearAssign, BufferSwapShapePreservedWhenRhsShapeDiffers)
     expectElem(*z, 2, 33.0);
 }
 
+TEST_P(ColonLinearAssign, BufferSwap2DMatrixUnaryCall)
+{
+    // 2D matrix with a function-call rhs of matching numel.
+    // Buffer-swap path keeps Z's 3×4 shape (dims live on HeapObject,
+    // not the buffer being swapped).
+    eval(R"(
+        Z = zeros(3, 4);
+        X = reshape(0:11, 3, 4);
+        Z(:) = sin(X);
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_EQ(rows(*Z), 3u);
+    ASSERT_EQ(cols(*Z), 4u);
+    // Column-major linear traversal of the 3×4 matrix; the rhs
+    // came from sin(X) where X[i] = i (linear order).
+    for (size_t i = 0; i < 12; ++i)
+        expectElem(*Z, i, std::sin(double(i)));
+}
+
+TEST_P(ColonLinearAssign, BufferSwap2DMatrixBinaryOp)
+{
+    // 2D matrix lhs, 2D matrix rhs (same shape, binop produces same
+    // shape). Verifies the swap path for matched-shape 2D operands.
+    eval(R"(
+        Z = zeros(2, 3);
+        A = reshape(1:6,  2, 3);
+        B = reshape(10:10:60, 2, 3);
+        Z(:) = A + B;
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_EQ(rows(*Z), 2u);
+    ASSERT_EQ(cols(*Z), 3u);
+    // Column-major: (0,0)=1+10, (1,0)=2+20, (0,1)=3+30, (1,1)=4+40, ...
+    expectElem(*Z, 0, 11.0);
+    expectElem(*Z, 1, 22.0);
+    expectElem(*Z, 2, 33.0);
+    expectElem(*Z, 3, 44.0);
+    expectElem(*Z, 4, 55.0);
+    expectElem(*Z, 5, 66.0);
+}
+
+TEST_P(ColonLinearAssign, BufferSwap2DDifferentShapeRhsKeepsLhsShape)
+{
+    // Z is 4×2, rhs is 2×4 (same numel = 8, different orientation).
+    // Swap takes rhs's data buffer into Z; Z keeps its 4×2 shape;
+    // values land in column-major order.
+    eval(R"(
+        Z = zeros(4, 2);
+        Z(:) = reshape(1:8, 2, 4);
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_EQ(rows(*Z), 4u);
+    ASSERT_EQ(cols(*Z), 2u);
+    for (size_t i = 0; i < 8; ++i)
+        expectElem(*Z, i, double(i + 1));
+}
+
+TEST_P(ColonLinearAssign, BufferSwap3DMatrixUnaryCall)
+{
+    // 3D matrix Z (2×2×2 = 8 elements). The function call returns a
+    // 3D array of matching numel; swap should preserve Z's 2×2×2
+    // shape and the third-dim metadata.
+    eval(R"(
+        Z = zeros(2, 2, 2);
+        X = reshape(0:7, 2, 2, 2);
+        Z(:) = exp(X);
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_EQ(Z->numel(), 8u);
+    ASSERT_TRUE(Z->dims().is3D());
+    EXPECT_EQ(rows(*Z), 2u);
+    EXPECT_EQ(cols(*Z), 2u);
+    EXPECT_EQ(Z->dims().pages(), 2u);
+    for (size_t i = 0; i < 8; ++i)
+        expectElem(*Z, i, std::exp(double(i)));
+}
+
+TEST_P(ColonLinearAssign, BufferSwap3DLhsFromVectorRhs)
+{
+    // Z is 3D (2×3×2 = 12), rhs is a column vector of 12 elements.
+    // Different orientation, same numel — swap keeps Z's 3D shape.
+    eval(R"(
+        Z = zeros(2, 3, 2);
+        Z(:) = (1:12)';
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_TRUE(Z->dims().is3D());
+    ASSERT_EQ(rows(*Z), 2u);
+    ASSERT_EQ(cols(*Z), 3u);
+    ASSERT_EQ(Z->dims().pages(), 2u);
+    for (size_t i = 0; i < 12; ++i)
+        expectElem(*Z, i, double(i + 1));
+}
+
+TEST_P(ColonLinearAssign, BufferSwap3DRepeatedAssignKeepsShape)
+{
+    // Loop pattern over a 3D buffer. After three iterations Z must
+    // still be 3D with the third dim intact and last-iteration values.
+    eval(R"(
+        Z = zeros(2, 2, 3);
+        for k = 1:3
+            Z(:) = k * ones(2, 2, 3);
+        end
+    )");
+    auto *Z = getVarPtr("Z");
+    ASSERT_TRUE(Z->dims().is3D());
+    ASSERT_EQ(Z->dims().pages(), 3u);
+    for (size_t i = 0; i < Z->numel(); ++i)
+        expectElem(*Z, i, 3.0);
+}
+
 TEST_P(ColonLinearAssign, ComplexRhsIntoComplexLhs)
 {
     // Both sides complex, matching numel — exercises the complex
