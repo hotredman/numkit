@@ -519,6 +519,28 @@ enter_frame:
             case OpCode::HORZCAT:
                 R[I.a] = MValue::horzcat(&R[I.b], I.c, &engine_.allocator_);
                 break;
+            case OpCode::HORZCAT_APPEND: {
+                // Specialised `dst = [dst, val]` — emitted by the
+                // compiler when it sees `A = [A, x]` (the canonical
+                // MATLAB grow-by-one anti-pattern). Routes through
+                // appendScalar (geometric capacity → amortised O(1))
+                // when dst is empty / row-vector heap double, val is a
+                // real scalar, and dst's heap is uniquely owned.
+                // Anything else falls back to the generic two-element
+                // horzcat — same shape semantics as before, just slow.
+                MValue &dst = R[I.a];
+                const MValue &val = R[I.b];
+                if (val.isScalar() && !val.isComplex()
+                    && dst.heapRefCount() == 1
+                    && (dst.isEmpty()
+                        || (dst.isHeapDouble() && dst.dims().rows() == 1))) {
+                    dst.appendScalar(val.toScalar(), &engine_.allocator_);
+                    break;
+                }
+                MValue elems[2] = { dst, val };
+                R[I.a] = MValue::horzcat(elems, 2, &engine_.allocator_);
+                break;
+            }
             case OpCode::VERTCAT:
                 R[I.a] = MValue::vertcat(&R[I.b], I.c, &engine_.allocator_);
                 break;
@@ -1426,6 +1448,7 @@ static std::string describeInstruction(const Instruction &instr,
 
     // Matrix/cell construction
     case OpCode::HORZCAT:
+    case OpCode::HORZCAT_APPEND:
     case OpCode::VERTCAT:
         return "in matrix construction";
     case OpCode::CELL_LITERAL:

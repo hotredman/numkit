@@ -451,6 +451,182 @@ TEST_P(GrowByOneAssign, LargeBuildRemainsCorrect)
 INSTANTIATE_DUAL(GrowByOneAssign);
 
 // ============================================================
+// ISSUE #2d: HORZCAT-grow rewrite `A = [A, x]`
+//
+// The MATLAB-canonical incremental-build idiom. The compiler
+// detects this exact AST shape (LHS identifier, RHS a one-row
+// matrix literal whose first element is the same identifier and
+// whose second element is any expression) and emits the
+// HORZCAT_APPEND opcode instead of staging two registers and
+// calling MValue::horzcat. At runtime HORZCAT_APPEND uses the
+// appendScalar fast path when conditions allow (empty/row-vector
+// heap-double dst with unique ownership and a real-scalar rhs)
+// and otherwise falls back to a normal two-element horzcat — so
+// the rewrite must preserve the observable semantics across all
+// shape combinations.
+// ============================================================
+
+class HorzcatGrowRewrite : public DualEngineTest {};
+
+TEST_P(HorzcatGrowRewrite, RowVectorAppendOne)
+{
+    eval(R"(
+        A = [];
+        A = [A, 1];
+        A = [A, 2];
+        A = [A, 3];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 3u);
+    ASSERT_EQ(rows(*A), 1u);
+    ASSERT_EQ(cols(*A), 3u);
+    expectElem(*A, 0, 1.0);
+    expectElem(*A, 1, 2.0);
+    expectElem(*A, 2, 3.0);
+}
+
+TEST_P(HorzcatGrowRewrite, IncrementalBuildLoop)
+{
+    // The benchmark.m test 5 pattern in miniature.
+    eval(R"(
+        A = [];
+        for i = 1:10
+            A = [A, i * 2];
+        end
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 10u);
+    ASSERT_EQ(rows(*A), 1u);
+    for (size_t i = 0; i < 10; ++i)
+        expectElem(*A, i, static_cast<double>(2 * (i + 1)));
+}
+
+TEST_P(HorzcatGrowRewrite, ColumnVectorAppendFallsBackToHorzcat)
+{
+    // A is 3x1 (column). The fast path in HORZCAT_APPEND must NOT
+    // misinterpret this as "append one element to a row vector"
+    // and call appendScalar — that would yield a 1x4 instead of
+    // numkit-m's broadcast-to-column behaviour. Confirm the
+    // fallback path runs and produces a 3x2 (MATLAB raises
+    // dim-mismatch here; numkit-m chooses to broadcast — that is
+    // a separate question not in scope for this rewrite).
+    eval(R"(
+        A = [1; 2; 3];
+        A = [A, 4];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(rows(*A), 3u);
+    ASSERT_EQ(cols(*A), 2u);
+    expectElem2D(*A, 0, 0, 1.0);
+    expectElem2D(*A, 1, 0, 2.0);
+    expectElem2D(*A, 2, 0, 3.0);
+    expectElem2D(*A, 0, 1, 4.0);
+}
+
+TEST_P(HorzcatGrowRewrite, NonScalarRhsFallsBack)
+{
+    // Two-element row vector concat: [A, B] where B is a row
+    // vector. The fast path declines (rhs not scalar) and the
+    // fallback horzcat runs.
+    eval(R"(
+        A = [1, 2];
+        B = [3, 4];
+        A = [A, B];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 4u);
+    ASSERT_EQ(rows(*A), 1u);
+    expectElem(*A, 0, 1.0);
+    expectElem(*A, 1, 2.0);
+    expectElem(*A, 2, 3.0);
+    expectElem(*A, 3, 4.0);
+}
+
+TEST_P(HorzcatGrowRewrite, ComplexScalarRhsPromotes)
+{
+    // Real row-vector A, complex scalar rhs. Fast path declines
+    // (val.isComplex()), fallback horzcat promotes A to complex
+    // and produces a complex row vector.
+    eval(R"(
+        A = [1, 2, 3];
+        A = [A, 4 + 5i];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_TRUE(A->isComplex());
+    ASSERT_EQ(A->numel(), 4u);
+    EXPECT_DOUBLE_EQ(A->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[3].real(), 4.0);
+    EXPECT_DOUBLE_EQ(A->complexData()[3].imag(), 5.0);
+}
+
+TEST_P(HorzcatGrowRewrite, ExpressionRhs)
+{
+    // The second element of the row literal is a non-trivial
+    // expression. Compiler must compile it correctly and pass
+    // its register to HORZCAT_APPEND.
+    eval(R"(
+        A = [];
+        A = [A, 2 * 3 + 1];
+        A = [A, sin(0)];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 2u);
+    expectElem(*A, 0, 7.0);
+    expectElem(*A, 1, 0.0);
+}
+
+TEST_P(HorzcatGrowRewrite, NotPatternMatched_DifferentIdentifier)
+{
+    // RHS first element is a DIFFERENT identifier, not the LHS.
+    // Pattern doesn't match — must compile via the standard
+    // matrix-literal path. Sanity check that we didn't over-match.
+    eval(R"(
+        A = [1, 2, 3];
+        B = [4, 5];
+        C = [A, B];
+    )");
+    auto *C = getVarPtr("C");
+    ASSERT_EQ(C->numel(), 5u);
+    expectElem(*C, 0, 1.0);
+    expectElem(*C, 4, 5.0);
+}
+
+TEST_P(HorzcatGrowRewrite, NotPatternMatched_ThreeElements)
+{
+    // RHS has three elements rather than two. Pattern requires
+    // exactly two — falls through to the standard HORZCAT path.
+    eval(R"(
+        A = [1, 2];
+        A = [A, 3, 4];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 4u);
+    expectElem(*A, 0, 1.0);
+    expectElem(*A, 1, 2.0);
+    expectElem(*A, 2, 3.0);
+    expectElem(*A, 3, 4.0);
+}
+
+TEST_P(HorzcatGrowRewrite, LargeBuildRemainsCorrect)
+{
+    // Stress the HORZCAT_APPEND fast path: 1000 grow iterations.
+    eval(R"(
+        A = [];
+        for i = 1:1000
+            A = [A, i];
+        end
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->numel(), 1000u);
+    ASSERT_EQ(rows(*A), 1u);
+    for (size_t i = 0; i < 1000; ++i)
+        expectElem(*A, i, static_cast<double>(i + 1));
+}
+
+INSTANTIATE_DUAL(HorzcatGrowRewrite);
+
+// ============================================================
 // ISSUE #3: nargin not supported in VM
 //
 // nargin should return the number of arguments passed to

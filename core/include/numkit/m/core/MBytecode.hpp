@@ -102,6 +102,9 @@ enum class OpCode : uint8_t {
     COLON,        // dst, start, stop       R[dst] = R[start]:R[stop]
     COLON3,       // dst, start, step, stop R[dst] = R[start]:R[step]:R[stop]
     HORZCAT,      // dst, base, count       R[dst] = [R[base], ..., R[base+count-1]]
+    HORZCAT_APPEND,// dst, val              R[dst] = [R[dst], R[val]]   amortised O(1)
+                  //                        when dst is a row vector / empty and val is a real
+                  //                        scalar; falls back to a 2-elem horzcat otherwise
     VERTCAT,      // dst, base, count       R[dst] = [R[base]; ...; R[base+count-1]]
     MATRIX_BUILD, // [reserved] compiler uses HORZCAT/VERTCAT instead
     CELL_LITERAL, // dst, base, count       {R[base]..R[base+count-1]}

@@ -311,6 +311,12 @@ void Compiler::peepholeOptimize()
             for (uint8_t j = 0; j < ins.c; ++j)
                 readCount[ins.b + j]++;
             break;
+        case OpCode::HORZCAT_APPEND:
+            // dst = [dst, val] — reads ins.a and ins.b, writes ins.a
+            writeCount[ins.a]++;
+            readCount[ins.a]++;
+            readCount[ins.b]++;
+            break;
         case OpCode::CALL:
             writeCount[ins.a]++;
             for (uint8_t j = 0; j < ins.c; ++j)
@@ -725,6 +731,33 @@ uint8_t Compiler::compileAssign(const ASTNode *node)
     auto *rhs = node->children[1].get();
 
     if (lhs->type == NodeType::IDENTIFIER) {
+        // ── Grow-by-one rewrite ─────────────────────────────────
+        // `A = [A, x]` is the canonical MATLAB incremental-build
+        // pattern but compiles to a fresh O(N) HORZCAT every loop
+        // iteration. Detect it and emit HORZCAT_APPEND instead, which
+        // routes through MValue::appendScalar (geometric capacity)
+        // when the runtime shape allows — turning an O(N²) loop into
+        // amortised O(N). Same observable shape semantics: the
+        // HORZCAT_APPEND opcode falls back to a full two-element
+        // horzcat when fast-path conditions don't hold.
+        if (rhs->type == NodeType::MATRIX_LITERAL
+            && rhs->children.size() == 1                            // single row
+            && rhs->children[0]->children.size() == 2               // two elements
+            && rhs->children[0]->children[0]->type == NodeType::IDENTIFIER
+            && rhs->children[0]->children[0]->strValue == lhs->strValue
+            && varRegisters_.find(lhs->strValue) != varRegisters_.end()) {
+            uint8_t valReg = compileNode(rhs->children[0]->children[1].get());
+            uint8_t dst = varRegLookup(lhs->strValue);
+            markAssigned(lhs->strValue);
+            emitAB(OpCode::HORZCAT_APPEND, dst, valReg);
+            scalarRegs_.reset(dst);  // result is no longer scalar
+            if (!node->suppressOutput) {
+                int16_t nameIdx = addStringConstant(lhs->strValue);
+                emitAD(OpCode::DISPLAY, dst, nameIdx);
+            }
+            return dst;
+        }
+
         uint8_t src = compileNode(rhs);
 
         // MOVE elimination: redirect last instruction to write directly to var register
@@ -2963,6 +2996,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "COLON_ALL";
         case OpCode::HORZCAT:
             return "HORZCAT";
+        case OpCode::HORZCAT_APPEND:
+            return "HORZCAT_APPEND";
         case OpCode::VERTCAT:
             return "VERTCAT";
         case OpCode::INDEX_GET:
