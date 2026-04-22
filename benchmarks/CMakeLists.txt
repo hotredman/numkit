@@ -18,6 +18,12 @@ add_executable(m_bench
     elementwise_bench.cpp
     binaryops_bench.cpp
     sort_bench.cpp
+    # Phase 10 — sweep across the parity-expansion functions (Phase 1-9).
+    reductions_bench.cpp
+    manipulation_bench.cpp
+    setops_bench.cpp
+    dsp_bench.cpp
+    interp_bench.cpp
 )
 
 target_link_libraries(m_bench
