@@ -604,3 +604,176 @@ TEST_P(ReductionDimTest, Cumsum3DDim3)
 }
 
 INSTANTIATE_DUAL(ReductionDimTest);
+
+// ============================================================
+// NaN-aware reductions (Phase 2)
+// ============================================================
+//
+// Semantics summary (matches MATLAB):
+//   * nansum   : all-NaN slice → 0
+//   * nanmean / nanmax / nanmin / nanvar / nanstd / nanmedian
+//                : all-NaN slice → NaN
+//   * partial NaN : ignored, computed on remaining N_valid elements
+//   * nanvar/nanstd : N-1 normalisation uses N_valid (not the original N)
+
+class NanReductionTest : public DualEngineTest
+{};
+
+// ── nansum ──────────────────────────────────────────────────
+
+TEST_P(NanReductionTest, NansumSkipsNaN)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nansum([1 NaN 2 NaN 3]);"), 6.0);
+}
+
+TEST_P(NanReductionTest, NansumAllNaNReturnsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nansum([NaN NaN NaN]);"), 0.0);
+}
+
+TEST_P(NanReductionTest, NansumNoNaNMatchesSum)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nansum([1 2 3 4 5]);"),
+                     evalScalar("sum([1 2 3 4 5]);"));
+}
+
+TEST_P(NanReductionTest, NansumMatrixDim2)
+{
+    eval("v = nansum([1 NaN 3; NaN 5 6], 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 4.0);   // 1+3
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 11.0);  // 5+6
+}
+
+// ── nanmean ─────────────────────────────────────────────────
+
+TEST_P(NanReductionTest, NanmeanSkipsNaN)
+{
+    // Mean of [1, 2, 3, 4] (NaN filtered) = 2.5
+    EXPECT_DOUBLE_EQ(evalScalar("nanmean([1 NaN 2 3 NaN 4]);"), 2.5);
+}
+
+TEST_P(NanReductionTest, NanmeanAllNaNReturnsNaN)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("nanmean([NaN NaN]);")));
+}
+
+TEST_P(NanReductionTest, NanmeanMatrixDim1)
+{
+    eval("v = nanmean([1 NaN; 3 4; 5 6]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);  // mean(1,3,5)
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);  // mean(4,6)
+}
+
+// ── nanmax / nanmin ─────────────────────────────────────────
+
+TEST_P(NanReductionTest, NanmaxSkipsNaN)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nanmax([NaN 3 NaN 7 1 NaN]);"), 7.0);
+}
+
+TEST_P(NanReductionTest, NanmaxAllNaN)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("nanmax([NaN NaN]);")));
+}
+
+TEST_P(NanReductionTest, NanminSkipsNaN)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nanmin([NaN 3 NaN 7 1 NaN]);"), 1.0);
+}
+
+TEST_P(NanReductionTest, NanminMatrixDim2)
+{
+    eval("v = nanmin([5 NaN 3; NaN 1 NaN], 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 1.0);
+}
+
+// ── nanvar / nanstd ─────────────────────────────────────────
+
+TEST_P(NanReductionTest, NanvarSkipsNaN)
+{
+    // var([1 2 3 4 5]) = 2.5 — adding NaNs in between must give the same value
+    EXPECT_NEAR(evalScalar("nanvar([1 NaN 2 NaN 3 4 5]);"), 2.5, 1e-12);
+}
+
+TEST_P(NanReductionTest, NanvarPopulationFlag)
+{
+    // population variance of [1 2 3 4 5] = 2.0 with normFlag=1
+    EXPECT_NEAR(evalScalar("nanvar([NaN 1 2 3 NaN 4 5], 1);"), 2.0, 1e-12);
+}
+
+TEST_P(NanReductionTest, NanvarSingleValidValue)
+{
+    // Only one non-NaN: var with N-1 normalisation is undefined → NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("nanvar([NaN 5 NaN]);")));
+    // Population variance of one value = 0.
+    EXPECT_DOUBLE_EQ(evalScalar("nanvar([NaN 5 NaN], 1);"), 0.0);
+}
+
+TEST_P(NanReductionTest, NanstdSkipsNaN)
+{
+    EXPECT_NEAR(evalScalar("nanstd([1 NaN 2 NaN 3 4 5]);"), std::sqrt(2.5), 1e-12);
+}
+
+// ── nanmedian ───────────────────────────────────────────────
+
+TEST_P(NanReductionTest, NanmedianOddCount)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nanmedian([3 NaN 1 NaN 5 NaN 2 4]);"),
+                     3.0);  // median of [1,2,3,4,5]
+}
+
+TEST_P(NanReductionTest, NanmedianEvenCount)
+{
+    // Non-NaN values: [1,2,3,4] → median = 2.5
+    EXPECT_DOUBLE_EQ(evalScalar("nanmedian([4 NaN 1 2 NaN 3]);"), 2.5);
+}
+
+TEST_P(NanReductionTest, NanmedianAllNaN)
+{
+    EXPECT_TRUE(std::isnan(evalScalar("nanmedian([NaN NaN NaN]);")));
+}
+
+// ── 3D dim coverage ─────────────────────────────────────────
+
+TEST_P(NanReductionTest, Nansum3DDim3)
+{
+    eval("A = zeros(2, 2, 3); "
+         "A(:,:,1) = [1 2; NaN 4]; "
+         "A(:,:,2) = [NaN 6; 7 NaN]; "
+         "A(:,:,3) = [9 NaN; 11 12]; "
+         "v = nansum(A, 3);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 2u);
+    EXPECT_EQ(cols(*v), 2u);
+    // (0,0): [1, NaN, 9]    → 10
+    // (1,0): [NaN, 7, 11]   → 18
+    // (0,1): [2, 6, NaN]    → 8
+    // (1,1): [4, NaN, 12]   → 16
+    EXPECT_DOUBLE_EQ((*v)(0, 0), 10.0);
+    EXPECT_DOUBLE_EQ((*v)(1, 0), 18.0);
+    EXPECT_DOUBLE_EQ((*v)(0, 1), 8.0);
+    EXPECT_DOUBLE_EQ((*v)(1, 1), 16.0);
+}
+
+TEST_P(NanReductionTest, NanmeanReturnsNaNForAllNaNSlice)
+{
+    // Column 0 has a real value, column 1 is all-NaN.
+    eval("v = nanmean([1 NaN; 2 NaN; 3 NaN]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 2u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);
+    EXPECT_TRUE(std::isnan(v->doubleData()[1]));
+}
+
+INSTANTIATE_DUAL(NanReductionTest);

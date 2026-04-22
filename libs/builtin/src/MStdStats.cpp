@@ -323,6 +323,104 @@ mode(Allocator &alloc, const MValue &x, int dim)
     return std::make_tuple(std::move(v), std::move(c));
 }
 
+// ────────────────────────────────────────────────────────────────────
+// NaN-aware reductions (Phase 2)
+// ────────────────────────────────────────────────────────────────────
+//
+// All seven functions share the same skeleton:
+//   1) compactNonNan(slice) — moves non-NaN to the front, returns count k
+//   2) if k == 0, return the function-specific empty-slice sentinel
+//      (0 for nansum, NaN for the rest — matches MATLAB semantics)
+//   3) otherwise call the underlying kernel on (slice, k)
+// Routing is via the same applyAlongDim path used by var/std/median etc.
+
+using detail::compactNonNan;
+
+MValue nansum(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = resolveDim(x, dim, "nansum");
+    return applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            double acc = 0.0;
+            for (size_t i = 0; i < k; ++i) acc += slice[i];
+            return acc; // all-NaN → 0 (MATLAB nansum convention)
+        }, &alloc);
+}
+
+MValue nanmean(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = resolveDim(x, dim, "nanmean");
+    return applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            if (k == 0) return std::nan("");
+            double acc = 0.0;
+            for (size_t i = 0; i < k; ++i) acc += slice[i];
+            return acc / static_cast<double>(k);
+        }, &alloc);
+}
+
+MValue nanmax(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = resolveDim(x, dim, "nanmax");
+    return applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            if (k == 0) return std::nan("");
+            double best = slice[0];
+            for (size_t i = 1; i < k; ++i)
+                if (slice[i] > best) best = slice[i];
+            return best;
+        }, &alloc);
+}
+
+MValue nanmin(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = resolveDim(x, dim, "nanmin");
+    return applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            if (k == 0) return std::nan("");
+            double best = slice[0];
+            for (size_t i = 1; i < k; ++i)
+                if (slice[i] < best) best = slice[i];
+            return best;
+        }, &alloc);
+}
+
+MValue nanvar(Allocator &alloc, const MValue &x, int normFlag, int dim)
+{
+    validateNormFlag(normFlag, "nanvar");
+    const int d = resolveDim(x, dim, "nanvar");
+    return applyAlongDim(x, d,
+        [normFlag](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            return welfordVariance(slice, k, normFlag);
+        }, &alloc);
+}
+
+MValue nanstdev(Allocator &alloc, const MValue &x, int normFlag, int dim)
+{
+    validateNormFlag(normFlag, "nanstd");
+    const int d = resolveDim(x, dim, "nanstd");
+    return applyAlongDim(x, d,
+        [normFlag](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            return std::sqrt(welfordVariance(slice, k, normFlag));
+        }, &alloc);
+}
+
+MValue nanmedian(Allocator &alloc, const MValue &x, int dim)
+{
+    const int d = resolveDim(x, dim, "nanmedian");
+    return applyAlongDim(x, d,
+        [](size_t, double *slice, size_t n) {
+            const size_t k = compactNonNan(slice, n);
+            return medianFromSlice(slice, k); // returns NaN at k==0
+        }, &alloc);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -405,6 +503,58 @@ void mode_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);
+}
+
+// nan* adapters — all accept (X) or (X, dim), except nanvar/nanstd
+// which additionally take (X, w) / (X, w, dim).
+
+#define NK_NAN_REDUCTION_ADAPTER(name, fn)                                      \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
+                    Span<MValue> outs, CallContext &ctx)                        \
+    {                                                                            \
+        if (args.empty())                                                        \
+            throw MError(#name ": requires at least 1 argument",                 \
+                         0, 0, #name, "", "m:" #name ":nargin");                 \
+        int dim = 0;                                                             \
+        if (args.size() >= 2 && !args[1].isEmpty())                              \
+            dim = static_cast<int>(args[1].toScalar());                          \
+        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                     \
+    }
+
+NK_NAN_REDUCTION_ADAPTER(nansum,    nansum)
+NK_NAN_REDUCTION_ADAPTER(nanmean,   nanmean)
+NK_NAN_REDUCTION_ADAPTER(nanmax,    nanmax)
+NK_NAN_REDUCTION_ADAPTER(nanmin,    nanmin)
+NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
+
+#undef NK_NAN_REDUCTION_ADAPTER
+
+void nanvar_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+                CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("nanvar: requires at least 1 argument",
+                     0, 0, "nanvar", "", "m:nanvar:nargin");
+    int w = 0, dim = 0;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        w = static_cast<int>(args[1].toScalar());
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = static_cast<int>(args[2].toScalar());
+    outs[0] = nanvar(ctx.engine->allocator(), args[0], w, dim);
+}
+
+void nanstd_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+                CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("nanstd: requires at least 1 argument",
+                     0, 0, "nanstd", "", "m:nanstd:nargin");
+    int w = 0, dim = 0;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        w = static_cast<int>(args[1].toScalar());
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = static_cast<int>(args[2].toScalar());
+    outs[0] = nanstdev(ctx.engine->allocator(), args[0], w, dim);
 }
 
 } // namespace detail

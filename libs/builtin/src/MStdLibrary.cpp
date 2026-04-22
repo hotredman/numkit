@@ -45,6 +45,13 @@ void median_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void quantile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void prctile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void mode_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nansum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanmean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanmax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanmin_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanvar_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanstd_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nanmedian_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void linspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void logspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -234,6 +241,15 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("quantile", &builtin::detail::quantile_reg);
     engine.registerFunction("prctile",  &builtin::detail::prctile_reg);
     engine.registerFunction("mode",     &builtin::detail::mode_reg);
+
+    // ── Phase 2 NaN-aware reductions ───────────────────────────────
+    engine.registerFunction("nansum",    &builtin::detail::nansum_reg);
+    engine.registerFunction("nanmean",   &builtin::detail::nanmean_reg);
+    engine.registerFunction("nanmax",    &builtin::detail::nanmax_reg);
+    engine.registerFunction("nanmin",    &builtin::detail::nanmin_reg);
+    engine.registerFunction("nanvar",    &builtin::detail::nanvar_reg);
+    engine.registerFunction("nanstd",    &builtin::detail::nanstd_reg);
+    engine.registerFunction("nanmedian", &builtin::detail::nanmedian_reg);
 
     engine.registerFunction("linspace", &builtin::detail::linspace_reg);
     engine.registerFunction("logspace", &builtin::detail::logspace_reg);

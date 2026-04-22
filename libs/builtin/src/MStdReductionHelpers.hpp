@@ -26,6 +26,7 @@
 #include <numkit/m/core/MValue.hpp>
 
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <stdexcept>
 #include <string>
@@ -248,6 +249,23 @@ inline int resolveDim(const MValue &x, int explicitDim, const char *fn)
 {
     if (explicitDim > 0) return validateDim(x, explicitDim, fn);
     return firstNonSingletonDim(x);
+}
+
+// Compact NaN-free elements to the front of [data, data+n). Returns the
+// new count k (0 <= k <= n). Used by nan* reductions: after compacting
+// they call the regular reduction kernel on [data, data+k) and decide
+// what to return when k == 0 (which depends on the function — nansum
+// returns 0, nanmean/nanvar/nanstd/nanmedian/nanmax/nanmin return NaN).
+inline size_t compactNonNan(double *data, size_t n)
+{
+    size_t w = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (!std::isnan(data[i])) {
+            if (w != i) data[w] = data[i];
+            ++w;
+        }
+    }
+    return w;
 }
 
 } // namespace numkit::m::builtin::detail
