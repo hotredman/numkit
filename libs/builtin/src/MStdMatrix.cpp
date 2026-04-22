@@ -445,10 +445,29 @@ MValue cummin(Allocator &alloc, const MValue &x, int dim)
 // MATLAB's any(X) returns true if ANY element is non-zero (NaN counts
 // as true since NaN != 0). all(X) returns true if ALL elements are
 // non-zero. Empty: any → false, all → true (vacuously).
+//
+// MATLAB also accepts logical and integer inputs — most users hit the
+// any/all path via comparison ops (`x > 0`) which return LOGICAL.
+// Promote non-double inputs to double up front via elemAsDouble so the
+// applyAlongDim kernel's doubleData() read works uniformly.
+namespace {
+
+MValue promoteToDouble(const MValue &x, Allocator &alloc)
+{
+    if (x.type() == MType::DOUBLE) return x;
+    auto r = createLike(x, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < x.numel(); ++i)
+        r.doubleDataMut()[i] = x.elemAsDouble(i);
+    return r;
+}
+
+} // namespace
+
 MValue anyOf(Allocator &alloc, const MValue &x, int dim)
 {
-    const int d = detail::resolveDim(x, dim, "any");
-    auto r = detail::applyAlongDim(x, d,
+    auto xd = promoteToDouble(x, alloc);
+    const int d = detail::resolveDim(xd, dim, "any");
+    auto r = detail::applyAlongDim(xd, d,
         [](size_t, double *slice, size_t n) {
             for (size_t i = 0; i < n; ++i)
                 if (slice[i] != 0.0) return 1.0;
@@ -464,8 +483,9 @@ MValue anyOf(Allocator &alloc, const MValue &x, int dim)
 
 MValue allOf(Allocator &alloc, const MValue &x, int dim)
 {
-    const int d = detail::resolveDim(x, dim, "all");
-    auto r = detail::applyAlongDim(x, d,
+    auto xd = promoteToDouble(x, alloc);
+    const int d = detail::resolveDim(xd, dim, "all");
+    auto r = detail::applyAlongDim(xd, d,
         [](size_t, double *slice, size_t n) {
             for (size_t i = 0; i < n; ++i)
                 if (slice[i] == 0.0) return 0.0;
@@ -481,7 +501,9 @@ MValue allOf(Allocator &alloc, const MValue &x, int dim)
 // ── xor (elementwise logical) ────────────────────────────────────────
 MValue xorOf(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    auto d = elementwiseDouble(a, b,
+    auto ad = promoteToDouble(a, alloc);
+    auto bd = promoteToDouble(b, alloc);
+    auto d = elementwiseDouble(ad, bd,
         [](double aa, double bb) {
             return ((aa != 0.0) != (bb != 0.0)) ? 1.0 : 0.0;
         }, &alloc);
