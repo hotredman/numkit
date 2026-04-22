@@ -196,7 +196,11 @@ if(NUMKIT_WITH_SIMD)
     target_link_libraries(m PRIVATE
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
-    target_compile_definitions(m PRIVATE NUMKIT_WITH_SIMD=1)
+    # PUBLIC — backends/FftKernels.hpp declares SoA / Stockham dispatchers
+    # whose definitions are only built when SIMD is on. Direct callers
+    # (benchmarks, kernel-parity tests) need to gate themselves on this
+    # macro to avoid link errors against missing symbols on portable.
+    target_compile_definitions(m PUBLIC NUMKIT_WITH_SIMD=1)
 endif()
 
 if(NUMKIT_WITH_THREADS)
