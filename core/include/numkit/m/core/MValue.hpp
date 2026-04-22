@@ -68,6 +68,10 @@ public:
     // Colon range: start:stop (step=1) or start:step:stop
     static MValue colonRange(double start, double stop, Allocator *alloc = nullptr);
     static MValue colonRange(double start, double step, double stop, Allocator *alloc = nullptr);
+    // Number of elements in the colon range (no allocation). Used by the
+    // VM's lazy `for v = a:b` loop to size the iteration without
+    // materialising the row vector. Throws on infinite/zero step.
+    static size_t colonCount(double start, double step, double stop);
 
     // Concatenation: [a, b, c] and [a; b; c]
     static MValue horzcat(const MValue *elems, size_t count, Allocator *alloc = nullptr);

@@ -146,6 +146,13 @@ private:
         size_t index = 0;
         size_t count = 0;
         size_t rows = 0;
+        // Lazy colon range: `for v = start:stop` and `for v = start:step:stop`
+        // skip the COLON allocation by storing scalars here. forSetVar checks
+        // lazy first; when true, range/data/rawData are unused. Only valid
+        // when rangeType == MType::DOUBLE and rows == 1 (scalar each iter).
+        bool   lazy = false;
+        double lazyStart = 0.0;
+        double lazyStep  = 1.0;
     };
     std::vector<ForState> forStack_;
 

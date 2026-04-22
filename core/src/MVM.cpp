@@ -158,8 +158,15 @@ void VM::restorePausedState(std::unique_ptr<PausedState> s)
     R_ = regStack_.data();
     for (auto &f : frames_)
         f.R = &regStack_[f.regBase];
-    // Fix ForState data pointers (they point into ForState::range)
+    // Fix ForState data pointers (they point into ForState::range).
+    // Lazy ranges (FOR_INIT_RANGE) don't have a backing range MValue —
+    // the iteration value is recomputed from lazyStart/lazyStep each
+    // step — so skip the pointer fixup. Calling doubleData() on a
+    // default-constructed empty MValue would throw because empty
+    // MValues hold the emptyTag() sentinel rather than nullptr.
     for (auto &fs : forStack_) {
+        if (fs.lazy)
+            continue;
         if (fs.rangeType == MType::DOUBLE && fs.range.doubleData())
             fs.data = fs.range.doubleData();
         else
@@ -546,6 +553,32 @@ enter_frame:
                     ip += I.d;
                     continue;
                 }
+                forStack_.push_back(std::move(fs));
+                forSetVar(R[I.a], forStack_.back());
+                break;
+            }
+            case OpCode::FOR_INIT_RANGE: {
+                // Fused `for v = start:stop` / `for v = start:step:stop`.
+                // No COLON allocation: start/step/count live in the
+                // ForState, the loop var is recomputed as start + index*step
+                // each iteration.
+                const double start = R[I.b].toScalar();
+                const double stop  = R[I.c].toScalar();
+                const double step  = (I.e == 0xFF) ? 1.0
+                                                   : R[I.e].toScalar();
+                const size_t count = MValue::colonCount(start, step, stop);
+                if (count == 0) {
+                    ip += I.d;
+                    continue;
+                }
+                ForState fs;
+                fs.index = 0;
+                fs.count = count;
+                fs.rows  = 1;
+                fs.rangeType = MType::DOUBLE;
+                fs.lazy = true;
+                fs.lazyStart = start;
+                fs.lazyStep  = step;
                 forStack_.push_back(std::move(fs));
                 forSetVar(R[I.a], forStack_.back());
                 break;
@@ -1752,6 +1785,17 @@ void VM::setFrameDynVars(std::unordered_map<std::string, MValue> *dv)
 
 void VM::forSetVar(MValue &varReg, const ForState &fs)
 {
+    if (fs.lazy) {
+        // Lazy colon range: compute scalar from start + index*step.
+        // start/stop bounds are validated at FOR_INIT_RANGE time, so
+        // here we just emit the value with no allocation.
+        const double v = fs.lazyStart + static_cast<double>(fs.index) * fs.lazyStep;
+        if (varReg.isDoubleScalar())
+            varReg.setScalarFast(v);
+        else
+            varReg.setScalarVal(v);
+        return;
+    }
     if (fs.rows == 0) {
         // Scalar range — only one iteration, use safe path
         if (varReg.isDoubleScalar())

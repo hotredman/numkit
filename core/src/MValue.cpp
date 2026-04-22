@@ -257,7 +257,7 @@ MValue MValue::funcHandle(const std::string &name, Allocator *alloc)
 // ============================================================
 // Colon range: start:step:stop → row vector
 // ============================================================
-static size_t colonCount(double start, double step, double stop)
+size_t MValue::colonCount(double start, double step, double stop)
 {
     if (std::isnan(start) || std::isnan(step) || std::isnan(stop))
         return 0; // MATLAB: NaN in colon produces empty
@@ -289,7 +289,7 @@ MValue MValue::colonRange(double start, double stop, Allocator *alloc)
 
 MValue MValue::colonRange(double start, double step, double stop, Allocator *alloc)
 {
-    size_t count = colonCount(start, step, stop);
+    size_t count = MValue::colonCount(start, step, stop);
     auto result = MValue::matrix(1, count, MType::DOUBLE, alloc);
     if (count > 0) {
         double *d = result.doubleDataMut();

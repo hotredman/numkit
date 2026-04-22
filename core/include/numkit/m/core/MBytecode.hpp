@@ -58,8 +58,15 @@ enum class OpCode : uint8_t {
     JMP_FALSE, // reg, offset(int16)     jump if R[reg] == 0
 
     // ── For-loop ─────────────────────────────────────────────
-    FOR_INIT, // var, range, endOffset  setup iterator from R[range]
-    FOR_NEXT, // var, backOffset        advance iterator, jump back or fall through
+    FOR_INIT,       // var, range, endOffset  setup iterator from R[range]
+    FOR_INIT_RANGE, // var, start, stop, endOffset, step  fused `for v = a:b` /
+                    //                                    `for v = a:s:b` — skips
+                    //                                    materialising the colon
+                    //                                    range value (avoids the
+                    //                                    8N-byte allocation for
+                    //                                    `for i = 1:N` loops).
+                    //                                    e=0xFF → implicit step=1.
+    FOR_NEXT,       // var, backOffset        advance iterator, jump back or fall through
 
     // ── Function calls ───────────────────────────────────────
     CALL,          // dst, argBase, nargs, funcIdx, e=nargout  R[dst] = func(R[base..base+nargs-1])

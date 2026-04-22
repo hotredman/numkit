@@ -112,6 +112,50 @@ TEST_P(ControlFlowTest, WhileBreak)
     EXPECT_DOUBLE_EQ(getVar("x"), 5.0);
 }
 
+// FOR_INIT_RANGE fast-path coverage. The compiler emits FOR_INIT_RANGE
+// instead of COLON+FOR_INIT for `for v = a:b` and `for v = a:s:b` —
+// these tests pin the iteration boundaries and step semantics so a
+// regression in the lazy-range opcode is caught directly. The TW
+// (tree-walker) parametrisation runs the same scripts on the
+// non-VM engine, ensuring the two backends stay in agreement.
+TEST_P(ControlFlowTest, ForRangeStepNonOne)
+{
+    eval("s = 0; for i = 0:2:10, s = s + i; end");
+    EXPECT_DOUBLE_EQ(getVar("s"), 30.0);  // 0+2+4+6+8+10
+}
+
+TEST_P(ControlFlowTest, ForRangeNegativeStep)
+{
+    eval("s = 0; for i = 5:-1:1, s = s + i; end");
+    EXPECT_DOUBLE_EQ(getVar("s"), 15.0);  // 5+4+3+2+1
+}
+
+TEST_P(ControlFlowTest, ForRangeFractionalStep)
+{
+    eval("s = 0; for i = 0:0.5:2, s = s + i; end");
+    EXPECT_DOUBLE_EQ(getVar("s"), 5.0);  // 0+0.5+1+1.5+2
+}
+
+TEST_P(ControlFlowTest, ForRangeEmptyStartGreaterThanStop)
+{
+    // start > stop with implicit positive step → 0 iterations
+    eval("s = 0; for i = 5:1, s = s + 1; end");
+    EXPECT_DOUBLE_EQ(getVar("s"), 0.0);
+}
+
+TEST_P(ControlFlowTest, ForRangeSingleIteration)
+{
+    eval("s = 0; for i = 7:7, s = s + i; end");
+    EXPECT_DOUBLE_EQ(getVar("s"), 7.0);
+}
+
+TEST_P(ControlFlowTest, ForRangeVarsAfterLoop)
+{
+    // Loop variable retains its last value after the loop exits.
+    eval("for i = 1:5, end");
+    EXPECT_DOUBLE_EQ(getVar("i"), 5.0);
+}
+
 TEST_P(ControlFlowTest, ForOverMatrix)
 {
     eval(R"(

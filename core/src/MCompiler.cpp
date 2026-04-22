@@ -330,6 +330,13 @@ void Compiler::peepholeOptimize()
             writeCount[ins.a]++;
             readCount[ins.b]++;
             break;
+        case OpCode::FOR_INIT_RANGE:
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            if (ins.e != 0xFF)
+                readCount[ins.e]++;
+            break;
         case OpCode::FOR_NEXT:
             writeCount[ins.a]++;
             readCount[ins.a]++;
@@ -446,6 +453,7 @@ void Compiler::peepholeOptimize()
         case OpCode::JMP_TRUE:
         case OpCode::JMP_FALSE:
         case OpCode::FOR_INIT:
+        case OpCode::FOR_INIT_RANGE:
         case OpCode::TRY_BEGIN: {
             // d = relative offset from current instruction
             size_t target = static_cast<size_t>(static_cast<int>(i) + off);
@@ -1590,18 +1598,48 @@ uint8_t Compiler::compileFor(const ASTNode *node)
     //   FOR_NEXT varReg, backOffset  (jumps to L_body or falls through)
     // L_end:
 
-    uint8_t rangeReg = compileNode(node->children[0].get());
-    uint8_t vReg = varRegWrite(node->strValue);
+    // Fast path: `for v = a:b` and `for v = a:s:b` — emit FOR_INIT_RANGE
+    // directly so the colon range never gets materialised. Saves an
+    // 8N-byte heap allocation for the common `for i = 1:N` numeric loop.
+    // Bare ":" (no children) is the colon-all marker; falls through to
+    // the general path.
+    const ASTNode *rangeNode = node->children[0].get();
+    const bool isColonRange = rangeNode->type == NodeType::COLON_EXPR
+                              && (rangeNode->children.size() == 2
+                                  || rangeNode->children.size() == 3);
 
+    // Compile range expression(s) FIRST — they emit LOAD_CONST etc.
+    // Then capture forInitPos so the patchJump after the body targets
+    // the FOR_INIT[_RANGE] instruction itself, not whatever range
+    // emission ended up first in the bytecode.
+    uint8_t startReg = 0, stopReg = 0, stepReg = 0xFF, rangeReg = 0;
+    if (isColonRange) {
+        startReg = compileNode(rangeNode->children[0].get());
+        if (rangeNode->children.size() == 2) {
+            stopReg = compileNode(rangeNode->children[1].get());
+            stepReg = 0xFF;  // sentinel: implicit step=1
+        } else {
+            stepReg = compileNode(rangeNode->children[1].get());
+            stopReg = compileNode(rangeNode->children[2].get());
+        }
+    } else {
+        rangeReg = compileNode(rangeNode);
+    }
+    uint8_t vReg = varRegWrite(node->strValue);
     loopStack_.push_back(LoopContext{{}, {}, true});
 
     size_t forInitPos = currentPos();
-    // FOR_INIT: a=varReg, b=rangeReg, d=endOffset(placeholder)
-    emit(Instruction::make_abd(OpCode::FOR_INIT, vReg, rangeReg, 0));
-    // Mark loop variable as scalar only when range is a numeric colon expression
-    // (logical/char arrays produce non-double-scalar loop values)
-    if (node->children[0]->type == NodeType::COLON_EXPR)
+    if (isColonRange) {
+        // FOR_INIT_RANGE: a=vReg, b=start, c=stop, d=endOffset, e=step (or 0xFF)
+        emit(Instruction::make_abcde(OpCode::FOR_INIT_RANGE,
+                                     vReg, startReg, stopReg, 0, stepReg));
         scalarRegs_.set(vReg);
+    } else {
+        // FOR_INIT: a=varReg, b=rangeReg, d=endOffset(placeholder)
+        emit(Instruction::make_abd(OpCode::FOR_INIT, vReg, rangeReg, 0));
+        if (rangeNode->type == NodeType::COLON_EXPR)
+            scalarRegs_.set(vReg);
+    }
 
     size_t bodyStart = currentPos();
 
@@ -2988,6 +3026,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "FOR_INIT";
         case OpCode::FOR_NEXT:
             return "FOR_NEXT";
+        case OpCode::FOR_INIT_RANGE:
+            return "FOR_INIT_RANGE";
         case OpCode::COLON:
             return "COLON";
         case OpCode::COLON3:
