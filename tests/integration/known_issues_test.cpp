@@ -608,6 +608,68 @@ TEST_P(HorzcatGrowRewrite, NotPatternMatched_ThreeElements)
     expectElem(*A, 3, 4.0);
 }
 
+TEST_P(HorzcatGrowRewrite, TwoDMatrixAppendColumn)
+{
+    // A = [A, col] where A is 2x2 and col is 2x1.
+    // Fast path declines (rhs not scalar), fallback horzcat
+    // produces a 2x3 matrix.
+    eval(R"(
+        A = [1 2; 3 4];
+        A = [A, [5; 6]];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(rows(*A), 2u);
+    ASSERT_EQ(cols(*A), 3u);
+    expectElem2D(*A, 0, 0, 1.0);
+    expectElem2D(*A, 0, 1, 2.0);
+    expectElem2D(*A, 0, 2, 5.0);
+    expectElem2D(*A, 1, 0, 3.0);
+    expectElem2D(*A, 1, 1, 4.0);
+    expectElem2D(*A, 1, 2, 6.0);
+}
+
+TEST_P(HorzcatGrowRewrite, TwoDMatrixAppendMatrix)
+{
+    // A = [A, B] where both are 2x2 → 2x4.
+    eval(R"(
+        A = [1 2; 3 4];
+        A = [A, [10 20; 30 40]];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(rows(*A), 2u);
+    ASSERT_EQ(cols(*A), 4u);
+    expectElem2D(*A, 0, 0, 1.0);
+    expectElem2D(*A, 0, 1, 2.0);
+    expectElem2D(*A, 0, 2, 10.0);
+    expectElem2D(*A, 0, 3, 20.0);
+    expectElem2D(*A, 1, 0, 3.0);
+    expectElem2D(*A, 1, 1, 4.0);
+    expectElem2D(*A, 1, 2, 30.0);
+    expectElem2D(*A, 1, 3, 40.0);
+}
+
+TEST_P(HorzcatGrowRewrite, ThreeDArrayHorzcat)
+{
+    // A = [A, B] where both are 2x2x3 → 2x4x3 along columns.
+    // Stresses the fallback horzcat's 3D branch.
+    eval(R"(
+        A = ones(2, 2, 3);
+        B = ones(2, 2, 3) * 7;
+        A = [A, B];
+    )");
+    auto *A = getVarPtr("A");
+    ASSERT_EQ(A->dims().rows(), 2u);
+    ASSERT_EQ(A->dims().cols(), 4u);
+    ASSERT_EQ(A->dims().pages(), 3u);
+    // Spot-check a few elements: first half of each page is 1, second half is 7.
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(0, 0, 0)], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(1, 1, 0)], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(0, 2, 0)], 7.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(1, 3, 2)], 7.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(0, 0, 2)], 1.0);
+    EXPECT_DOUBLE_EQ(A->doubleData()[A->dims().sub2ind(1, 3, 1)], 7.0);
+}
+
 TEST_P(HorzcatGrowRewrite, LargeBuildRemainsCorrect)
 {
     // Stress the HORZCAT_APPEND fast path: 1000 grow iterations.
