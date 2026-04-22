@@ -440,18 +440,17 @@ MValue cummin(Allocator &alloc, const MValue &x, int dim)
                    }, "cummin");
 }
 
-// ── any / all (logical reductions) ──────────────────────────────────
+// ── any / all moved to backends/MStdLogicalReductions_{simd,portable}.cpp
 //
 // MATLAB's any(X) returns true if ANY element is non-zero (NaN counts
 // as true since NaN != 0). all(X) returns true if ALL elements are
-// non-zero. Empty: any → false, all → true (vacuously).
-//
-// MATLAB also accepts logical and integer inputs — most users hit the
-// any/all path via comparison ops (`x > 0`) which return LOGICAL.
-// Promote non-double inputs to double up front via elemAsDouble so the
-// applyAlongDim kernel's doubleData() read works uniformly.
+// non-zero. Empty: any → false, all → true (vacuously). The SIMD
+// backend scans LOGICAL bytes and DOUBLE lanes directly with early
+// exit (Phase P1 of project_perf_optimization_plan.md).
+
 namespace {
 
+// Used by xor below — small inputs, no need for a SIMD path.
 MValue promoteToDouble(const MValue &x, Allocator &alloc)
 {
     if (x.type() == MType::DOUBLE) return x;
@@ -462,41 +461,6 @@ MValue promoteToDouble(const MValue &x, Allocator &alloc)
 }
 
 } // namespace
-
-MValue anyOf(Allocator &alloc, const MValue &x, int dim)
-{
-    auto xd = promoteToDouble(x, alloc);
-    const int d = detail::resolveDim(xd, dim, "any");
-    auto r = detail::applyAlongDim(xd, d,
-        [](size_t, double *slice, size_t n) {
-            for (size_t i = 0; i < n; ++i)
-                if (slice[i] != 0.0) return 1.0;
-            return 0.0;
-        }, &alloc);
-    // Convert DOUBLE result to LOGICAL to match MATLAB return type.
-    if (r.isScalar()) return MValue::logicalScalar(r.toScalar() != 0.0, &alloc);
-    auto rr = createLike(r, MType::LOGICAL, &alloc);
-    for (size_t i = 0; i < r.numel(); ++i)
-        rr.logicalDataMut()[i] = (r.doubleData()[i] != 0.0) ? 1 : 0;
-    return rr;
-}
-
-MValue allOf(Allocator &alloc, const MValue &x, int dim)
-{
-    auto xd = promoteToDouble(x, alloc);
-    const int d = detail::resolveDim(xd, dim, "all");
-    auto r = detail::applyAlongDim(xd, d,
-        [](size_t, double *slice, size_t n) {
-            for (size_t i = 0; i < n; ++i)
-                if (slice[i] == 0.0) return 0.0;
-            return 1.0;
-        }, &alloc);
-    if (r.isScalar()) return MValue::logicalScalar(r.toScalar() != 0.0, &alloc);
-    auto rr = createLike(r, MType::LOGICAL, &alloc);
-    for (size_t i = 0; i < r.numel(); ++i)
-        rr.logicalDataMut()[i] = (r.doubleData()[i] != 0.0) ? 1 : 0;
-    return rr;
-}
 
 // ── xor (elementwise logical) ────────────────────────────────────────
 MValue xorOf(Allocator &alloc, const MValue &a, const MValue &b)

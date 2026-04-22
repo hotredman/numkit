@@ -8,6 +8,7 @@
 
 #include "MStdHelpers.hpp"
 #include "backends/BinaryOpsLoops.hpp"
+#include "backends/MStdCompare.hpp"
 
 #include <cmath>
 #include <cstdint>
@@ -394,6 +395,23 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
                 (isEq ? ceq(getC(a, i), getC(b, i)) : !ceq(getC(a, i), getC(b, i)))
                     ? 1 : 0;
         return r;
+    }
+
+    // SIMD fast path — pure DOUBLE × DOUBLE (or DOUBLE scalar broadcast).
+    // Returns unset MValue if it can't handle the case (logical/integer/
+    // complex operand, broadcast across mismatched non-scalar dims, both
+    // operands scalar) — scalar dispatch below picks up the leftovers.
+    {
+        MValue r;
+        switch (c) {
+        case Cmp::EQ: r = eqFast(a, b); break;
+        case Cmp::NE: r = neFast(a, b); break;
+        case Cmp::LT: r = ltFast(a, b); break;
+        case Cmp::GT: r = gtFast(a, b); break;
+        case Cmp::LE: r = leFast(a, b); break;
+        case Cmp::GE: r = geFast(a, b); break;
+        }
+        if (!r.isUnset()) return r;
     }
 
     // Numeric — double/logical/integer/single with broadcasting
