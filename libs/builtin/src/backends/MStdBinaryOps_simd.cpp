@@ -241,7 +241,7 @@ HWY_EXPORT(MatmulLoop);
 // big arrays split across worker threads. Each thread calls the same
 // per-target loop on its disjoint [start, end) slice — output buffers
 // don't overlap, so per-element semantics are bit-identical to the
-// single-threaded path. Below kElementwiseThreshold (and on builds
+// single-threaded path. Below kCheapElementwiseThreshold (and on builds
 // without NUMKIT_WITH_THREADS) parallel_for runs `fn(0, n)` directly,
 // preserving the prior fast path.
 
@@ -254,7 +254,7 @@ HWY_EXPORT(MatmulLoop);
 
 void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(PlusLoop)(a + s, b + s, out + s, e - s);
         }, numkit::m::detail::kElementwiseMaxWorkers);
@@ -263,7 +263,7 @@ void plusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(MinusLoop)(a + s, b + s, out + s, e - s);
         }, numkit::m::detail::kElementwiseMaxWorkers);
@@ -272,7 +272,7 @@ void minusLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(TimesLoop)(a + s, b + s, out + s, e - s);
         }, numkit::m::detail::kElementwiseMaxWorkers);
@@ -281,7 +281,7 @@ void timesLoop(const double *a, const double *b, double *out, std::size_t n)
 
 void rdivideLoop(const double *a, const double *b, double *out, std::size_t n)
 {
-    numkit::m::detail::parallel_for(n, numkit::m::detail::kElementwiseThreshold,
+    numkit::m::detail::parallel_for(n, numkit::m::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(RdivideLoop)(a + s, b + s, out + s, e - s);
         }, numkit::m::detail::kElementwiseMaxWorkers);

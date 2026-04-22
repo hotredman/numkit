@@ -112,7 +112,7 @@ MValue abs(Allocator &alloc, const MValue &x, MValue *hint)
     }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
-    numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kElementwiseThreshold,
+    numkit::m::detail::parallel_for(x.numel(), numkit::m::detail::kCheapElementwiseThreshold,
         [=](std::size_t s, std::size_t e) {
             HWY_DYNAMIC_DISPATCH(AbsLoop)(in + s, out + s, e - s);
         }, numkit::m::detail::kElementwiseMaxWorkers);

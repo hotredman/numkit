@@ -128,13 +128,13 @@
       "name": "browser-threads",
       "inherits": "browser",
       "displayName": "Browser WASM (SIMD128 + pthreads)",
-      "description": "Same as 'browser' but adds Emscripten pthreads. Each pthread becomes a Web Worker; shared memory uses SharedArrayBuffer + Atomics. Requires the host page to be served with COOP=same-origin and COEP=require-corp (or to run in Electron with sharedArrayBufferAvailable). PTHREAD_POOL_SIZE pre-spawns workers at startup so the parallel SIMD kernels don't pay Worker spawn latency.",
+      "description": "Same as 'browser' but adds Emscripten pthreads. Each pthread becomes a Web Worker; shared memory uses SharedArrayBuffer + Atomics. Requires the host page to be served with COOP=same-origin and COEP=require-corp (or to run in Electron with sharedArrayBufferAvailable). PTHREAD_POOL_SIZE pre-spawns workers at startup so the parallel SIMD kernels don't pay Worker spawn latency. Memory is fixed-size (no growth) — em++ warns that ALLOW_MEMORY_GROWTH + pthread runs non-wasm code slowly because every access checks shared state; we trade growth for the perf.",
       "binaryDir": "${sourceDir}/build-browser-threads",
       "cacheVariables": {
         "NUMKIT_M_BUILD_TESTS":   "OFF",
         "NUMKIT_WITH_THREADS":    "ON",
         "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
-        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=134217728"
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sINITIAL_MEMORY=268435456"
       }
     },
     {
@@ -146,7 +146,7 @@
       "cacheVariables": {
         "NUMKIT_WITH_THREADS":    "ON",
         "CMAKE_CXX_FLAGS":        "-msimd128 -mrelaxed-simd -fexceptions -pthread",
-        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6"
+        "CMAKE_EXE_LINKER_FLAGS": "-fexceptions -pthread -sPTHREAD_POOL_SIZE=6 -sINITIAL_MEMORY=536870912"
       }
     }
   ],
