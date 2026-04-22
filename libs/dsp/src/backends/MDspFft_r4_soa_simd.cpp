@@ -170,16 +170,12 @@ HWY_NOINLINE void radix4Stage_SoA(double *re, double *im,
     }
 }
 
-void Radix4Pow4_SoA(Complex *buf, std::size_t N, const Complex *W,
-                    double *re, double *im)
+// Stages-only entry — bit-reverse + butterfly stages on already-SoA
+// buffers. Skips the AoS↔SoA conversion that the AoS-public
+// Radix4Pow4_SoA() wraps around the same code.
+void Radix4Pow4_SoAStages(double *re, double *im, std::size_t N, const Complex *W)
 {
     if (N <= 1) return;
-
-    // AoS → SoA convert.
-    for (std::size_t i = 0; i < N; ++i) {
-        re[i] = buf[i].real();
-        im[i] = buf[i].imag();
-    }
 
     digitReverse4_SoA(re, im, N);
 
@@ -194,6 +190,21 @@ void Radix4Pow4_SoA(Complex *buf, std::size_t N, const Complex *W,
                         sW2r.data(), sW2i.data(),
                         sW3r.data(), sW3i.data());
     }
+}
+
+// AoS-in/out wrapper — converts buf → re/im, runs stages, converts back.
+void Radix4Pow4_SoA(Complex *buf, std::size_t N, const Complex *W,
+                    double *re, double *im)
+{
+    if (N <= 1) return;
+
+    // AoS → SoA convert.
+    for (std::size_t i = 0; i < N; ++i) {
+        re[i] = buf[i].real();
+        im[i] = buf[i].imag();
+    }
+
+    Radix4Pow4_SoAStages(re, im, N, W);
 
     // SoA → AoS convert.
     for (std::size_t i = 0; i < N; ++i) {
@@ -210,6 +221,7 @@ HWY_AFTER_NAMESPACE();
 namespace numkit::m::dsp::detail {
 
 HWY_EXPORT(Radix4Pow4_SoA);
+HWY_EXPORT(Radix4Pow4_SoAStages);
 
 // Same thread-local re/im scratch pattern as the SoA r2 dispatcher.
 void fftRadix4Pow4SoaDispatch(Complex *buf, std::size_t N, const Complex *W)
@@ -219,6 +231,14 @@ void fftRadix4Pow4SoaDispatch(Complex *buf, std::size_t N, const Complex *W)
     if (tlsRe.size() < N) tlsRe.resize(N);
     if (tlsIm.size() < N) tlsIm.resize(N);
     HWY_DYNAMIC_DISPATCH(Radix4Pow4_SoA)(buf, N, W, tlsRe.data(), tlsIm.data());
+}
+
+// Stages-only dispatcher — caller owns re/im. Used by the wrapper
+// when its scratch is already in SoA layout.
+void fftRadix4Pow4SoaStagesDispatch(double *re, double *im, std::size_t N,
+                                    const Complex *W)
+{
+    HWY_DYNAMIC_DISPATCH(Radix4Pow4_SoAStages)(re, im, N, W);
 }
 
 } // namespace numkit::m::dsp::detail

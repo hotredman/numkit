@@ -20,11 +20,13 @@ namespace numkit::m::dsp::detail {
 // Forward decls for the per-kernel dispatchers exported from the
 // individual radix files. Each is a HWY_DYNAMIC_DISPATCH wrapper
 // around the per-target function inside its respective TU.
-void fftRadix2Dispatch        (Complex *buf, std::size_t N, const Complex *W);
-void fftRadix4Pow4Dispatch    (Complex *buf, std::size_t N, const Complex *W);
-void fftStockhamDispatch      (Complex *buf, std::size_t N, const Complex *W);
-void fftRadix2SoaDispatch     (Complex *buf, std::size_t N, const Complex *W);
-void fftRadix4Pow4SoaDispatch (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix2Dispatch              (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix4Pow4Dispatch          (Complex *buf, std::size_t N, const Complex *W);
+void fftStockhamDispatch            (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix2SoaDispatch           (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix4Pow4SoaDispatch       (Complex *buf, std::size_t N, const Complex *W);
+void fftRadix2SoaStagesDispatch     (double *re, double *im, std::size_t N, const Complex *W);
+void fftRadix4Pow4SoaStagesDispatch (double *re, double *im, std::size_t N, const Complex *W);
 
 namespace {
 
@@ -114,6 +116,22 @@ void fftRadix2Impl(Complex *buf, std::size_t N, const Complex *W)
     // AoS r2 — fallback for tiny N and WASM.
     else
         fftRadix2Dispatch(buf, N, W);
+}
+
+void fftSoaStagesDispatch(double *re, double *im, std::size_t N, const Complex *W)
+{
+#if defined(__EMSCRIPTEN__)
+    // SoA paths are off on WASM (SIMD128's LoadInterleaved2 is cheap).
+    // The wrapper's rfft-SoA path doesn't get called there, but if it
+    // did, we'd need to materialise to AoS, run the AoS kernel, and
+    // split back. Ifdef'd to never compile that branch on native.
+    (void)re; (void)im; (void)N; (void)W;
+#else
+    if (isPow4(N) && N >= kRadix4SoaThreshold)
+        fftRadix4Pow4SoaStagesDispatch(re, im, N, W);
+    else
+        fftRadix2SoaStagesDispatch(re, im, N, W);
+#endif
 }
 
 } // namespace numkit::m::dsp::detail

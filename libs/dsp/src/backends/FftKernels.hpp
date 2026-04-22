@@ -44,4 +44,17 @@ void fftRadix2SoaDispatch(Complex *buf, std::size_t N, const Complex *W);
 // be a power of 4. Per-thread re/im scratch grows monotonically.
 void fftRadix4Pow4SoaDispatch(Complex *buf, std::size_t N, const Complex *W);
 
+// SoA-native FFT stages: caller provides split-real/imag scratch
+// already populated with the input. Runs bit-reverse + butterfly
+// stages in place on re/im, picks r2 or r4 internally based on N.
+// Used by the wrapper's rfft path which packs straight into SoA and
+// twists straight from SoA, avoiding the per-call AoS↔SoA conversion
+// the public AoS-in/out dispatchers wrap around the same kernels.
+//
+// On WASM (Emscripten target) — the dispatcher falls back to AoS in
+// the wrapper since SoA doesn't help SIMD128. This entry point still
+// works (it just routes to the AoS path with internal conversion);
+// the wrapper checks the platform and decides.
+void fftSoaStagesDispatch(double *re, double *im, std::size_t N, const Complex *W);
+
 } // namespace numkit::m::dsp::detail

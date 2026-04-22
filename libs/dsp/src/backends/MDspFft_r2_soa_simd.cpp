@@ -60,16 +60,13 @@ HWY_INLINE void bitReverse2_SoA(double *re, double *im, std::size_t N)
     }
 }
 
-void Radix2SoA(Complex *buf, std::size_t N, const Complex *W,
-               double *re, double *im)
+// Stages-only entry — bit-reverse + butterfly stages on already-SoA
+// buffers. Used by the FFT wrapper's rfft path which packs straight
+// into SoA and twists from SoA, skipping the AoS↔SoA conversion that
+// the AoS-public Radix2SoA() wraps around the same code.
+void Radix2SoAStages(double *re, double *im, std::size_t N, const Complex *W)
 {
     if (N <= 1) return;
-
-    // AoS → SoA convert. Sequential; HW prefetcher handles it.
-    for (std::size_t i = 0; i < N; ++i) {
-        re[i] = buf[i].real();
-        im[i] = buf[i].imag();
-    }
 
     bitReverse2_SoA(re, im, N);
 
@@ -124,6 +121,25 @@ void Radix2SoA(Complex *buf, std::size_t N, const Complex *W,
             }
         }
     }
+}
+
+// AoS-in/out wrapper — converts buf → re/im on entry, runs stages,
+// converts re/im → buf on exit. The two conversions are O(N) and
+// roughly cancel the per-stage permute saving for very small N
+// (kRadix2SoaThreshold guards against that). Used by callers that
+// can't yet hand SoA buffers in directly.
+void Radix2SoA(Complex *buf, std::size_t N, const Complex *W,
+               double *re, double *im)
+{
+    if (N <= 1) return;
+
+    // AoS → SoA convert. Sequential; HW prefetcher handles it.
+    for (std::size_t i = 0; i < N; ++i) {
+        re[i] = buf[i].real();
+        im[i] = buf[i].imag();
+    }
+
+    Radix2SoAStages(re, im, N, W);
 
     // SoA → AoS convert.
     for (std::size_t i = 0; i < N; ++i) {
@@ -140,6 +156,7 @@ HWY_AFTER_NAMESPACE();
 namespace numkit::m::dsp::detail {
 
 HWY_EXPORT(Radix2SoA);
+HWY_EXPORT(Radix2SoAStages);
 
 // Per-thread re/im scratch — same growth pattern as the FFT wrapper's
 // working buffer in MDspFft.cpp. One persistent allocation per thread,
@@ -151,6 +168,15 @@ void fftRadix2SoaDispatch(Complex *buf, std::size_t N, const Complex *W)
     if (tlsRe.size() < N) tlsRe.resize(N);
     if (tlsIm.size() < N) tlsIm.resize(N);
     HWY_DYNAMIC_DISPATCH(Radix2SoA)(buf, N, W, tlsRe.data(), tlsIm.data());
+}
+
+// Stages-only dispatcher — caller owns re/im. Used by the FFT wrapper
+// when its scratch is already in SoA layout (rfft path packs straight
+// into split real/imag, then twists from there).
+void fftRadix2SoaStagesDispatch(double *re, double *im, std::size_t N,
+                                const Complex *W)
+{
+    HWY_DYNAMIC_DISPATCH(Radix2SoAStages)(re, im, N, W);
 }
 
 } // namespace numkit::m::dsp::detail
