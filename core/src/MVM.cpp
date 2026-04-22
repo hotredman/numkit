@@ -10,7 +10,53 @@
 #include <sstream>
 #include <stdexcept>
 
+// Forward-declarations from libs/builtin/src/backends/BinaryOpsLoops.hpp.
+// Linked from the same numkit_m library; lets the VM bypass the public
+// builtin::plus()/etc. wrappers (which always allocate a fresh result
+// MValue) when it can write straight into a uniquely-owned destination
+// buffer of the right shape.
+namespace numkit::m::builtin::detail {
+void plusLoop   (const double *a, const double *b, double *out, std::size_t n);
+void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
+void timesLoop  (const double *a, const double *b, double *out, std::size_t n);
+void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
+} // namespace numkit::m::builtin::detail
+
 namespace numkit::m {
+
+// Output-reuse fast path for `dst = lhs op rhs` where both inputs and
+// the destination are real heap doubles of the same shape and dst has
+// unique ownership. Skips the N-element alloc + free that the public
+// builtin::plus()/etc. wrappers would otherwise do per call — at
+// N ≥ 256k that allocation hits Windows VirtualAlloc / page-commit
+// and starts costing 3× more than the SIMD kernel itself
+// (see benchmarks BM_PlusAlloc / BM_PlusKernel for the breakdown).
+//
+// Aliasing notes: the four supported ops (+ − .* ./) are independent
+// per element — output may safely alias either input (e.g. `z = z + z`
+// or `z = x + z`) because plusLoop reads (a[i], b[i]) before writing
+// out[i]. Cross-output sharing is the dangerous case; the
+// heapRefCount() == 1 guard rules it out (any other variable holding
+// dst's buffer would bump it to ≥2).
+static bool tryInPlaceBinaryOp(MValue &dst, OpCode op,
+                               const MValue &lhs, const MValue &rhs)
+{
+    if (!dst.isHeapDouble() || dst.heapRefCount() != 1) return false;
+    if (!lhs.isHeapDouble() || !rhs.isHeapDouble())     return false;
+    if (!(dst.dims() == lhs.dims()) || !(dst.dims() == rhs.dims())) return false;
+
+    const std::size_t n = dst.numel();
+    const double *a = lhs.doubleData();
+    const double *b = rhs.doubleData();
+    double       *o = dst.doubleDataMut();   // refCount==1 → no detach copy
+    switch (op) {
+    case OpCode::ADD:   builtin::detail::plusLoop   (a, b, o, n); return true;
+    case OpCode::SUB:   builtin::detail::minusLoop  (a, b, o, n); return true;
+    case OpCode::EMUL:  builtin::detail::timesLoop  (a, b, o, n); return true;
+    case OpCode::ERDIV: builtin::detail::rdivideLoop(a, b, o, n); return true;
+    default: return false;
+    }
+}
 
 // ============================================================
 // Shared helper: resolve an index operand to 0-based indices
@@ -281,28 +327,42 @@ enter_frame:
             case OpCode::ADD:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) + asScalar(R[I.c]));
-                } else
+                } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::ADD, R[I.b], R[I.c])) {
                     R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                }
                 break;
             case OpCode::SUB:
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) - asScalar(R[I.c]));
-                } else
+                } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::SUB, R[I.b], R[I.c])) {
                     R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                }
                 break;
-            case OpCode::MUL:
-            case OpCode::EMUL:
+            case OpCode::MUL:  // matrix multiply — output reuse skipped (different shape rules)
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
                 } else
                     R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
                 break;
-            case OpCode::RDIV:
-            case OpCode::ERDIV:
+            case OpCode::EMUL:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) * asScalar(R[I.c]));
+                } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::EMUL, R[I.b], R[I.c])) {
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                }
+                break;
+            case OpCode::RDIV:  // matrix right divide — output reuse skipped
                 if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
                     R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
                 } else
                     R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                break;
+            case OpCode::ERDIV:
+                if (isArithScalar(R[I.b]) && isArithScalar(R[I.c])) {
+                    R[I.a].setScalarFast(asScalar(R[I.b]) / asScalar(R[I.c]));
+                } else if (!tryInPlaceBinaryOp(R[I.a], OpCode::ERDIV, R[I.b], R[I.c])) {
+                    R[I.a] = binarySlowPath(I.op, R[I.b], R[I.c]);
+                }
                 break;
             case OpCode::LDIV:
             case OpCode::ELDIV:

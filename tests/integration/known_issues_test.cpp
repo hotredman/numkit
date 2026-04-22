@@ -689,6 +689,196 @@ TEST_P(HorzcatGrowRewrite, LargeBuildRemainsCorrect)
 INSTANTIATE_DUAL(HorzcatGrowRewrite);
 
 // ============================================================
+// ISSUE #2e: Output buffer reuse for `z = x op y`
+//
+// The VM detects when `z` already holds a heap double of the
+// right shape with unique ownership and writes the result
+// directly into z's buffer instead of allocating fresh — saves
+// the per-call N-element alloc that dominates the cost at
+// N ≥ 256k. The four ops covered are +, -, .*, ./ (matrix * /
+// stay on the slow path because their output shape is different
+// from the inputs).
+//
+// Tests below stress the aliasing and COW corner cases the
+// fast path's heapRefCount==1 guard relies on. TreeWalker is
+// untouched by this change but still runs every test for
+// regression cover.
+// ============================================================
+
+class OutputReuseBinaryOp : public DualEngineTest {};
+
+TEST_P(OutputReuseBinaryOp, RepeatedAssignSameShape)
+{
+    // Loop where z is written every iteration — the very
+    // pattern that motivated the fix. After iter 1 z is a heap
+    // double of the right shape; iters 2..R hit the in-place
+    // path. Must produce the same final value as a one-shot
+    // computation.
+    eval(R"(
+        x = 1:5;
+        y = 10:14;
+        z = zeros(1, 5);
+        for k = 1:3
+            z = x + y;
+        end
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 5u);
+    ASSERT_EQ(rows(*z), 1u);
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 13.0);
+    expectElem(*z, 2, 15.0);
+    expectElem(*z, 3, 17.0);
+    expectElem(*z, 4, 19.0);
+}
+
+TEST_P(OutputReuseBinaryOp, SelfAdd)
+{
+    // z = z + z — output aliases both inputs. Each element is
+    // read before being written so per-element semantics hold.
+    eval(R"(
+        z = [1, 2, 3, 4];
+        z = z + z;
+    )");
+    auto *z = getVarPtr("z");
+    expectElem(*z, 0, 2.0);
+    expectElem(*z, 1, 4.0);
+    expectElem(*z, 2, 6.0);
+    expectElem(*z, 3, 8.0);
+}
+
+TEST_P(OutputReuseBinaryOp, SelfMinus)
+{
+    eval(R"(
+        z = [10, 20, 30];
+        z = z - z;
+    )");
+    auto *z = getVarPtr("z");
+    for (size_t i = 0; i < 3; ++i)
+        expectElem(*z, i, 0.0);
+}
+
+TEST_P(OutputReuseBinaryOp, OutputAliasesOneInput)
+{
+    // z = x + z — output aliases only the second input. plusLoop
+    // reads (x[i], z[i]) before writing z[i].
+    eval(R"(
+        x = [10, 20, 30];
+        z = [1, 2, 3];
+        z = x + z;
+    )");
+    auto *z = getVarPtr("z");
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 22.0);
+    expectElem(*z, 2, 33.0);
+}
+
+TEST_P(OutputReuseBinaryOp, CowPreservesShared)
+{
+    // A and z share a heap (refCount=2 on z's heap after `A = z`).
+    // Then `z = x + y` must NOT scribble through z's buffer
+    // because A would then see corrupted data. The
+    // heapRefCount==1 guard prevents it; result must allocate
+    // fresh and leave A intact.
+    eval(R"(
+        z = [100, 200, 300];
+        A = z;
+        x = [1, 2, 3];
+        y = [10, 20, 30];
+        z = x + y;
+    )");
+    auto *A = getVarPtr("A");
+    auto *z = getVarPtr("z");
+    // A unchanged
+    expectElem(*A, 0, 100.0);
+    expectElem(*A, 1, 200.0);
+    expectElem(*A, 2, 300.0);
+    // z holds the new result
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 22.0);
+    expectElem(*z, 2, 33.0);
+}
+
+TEST_P(OutputReuseBinaryOp, ShapeMismatchAllocates)
+{
+    // Pre-existing z is 1x5 but result of x + y must be 1x3.
+    // Fast path declines on dim mismatch; slow path produces a
+    // fresh 1x3 z.
+    eval(R"(
+        x = [1, 2, 3];
+        y = [10, 20, 30];
+        z = zeros(1, 5);
+        z = x + y;
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(z->numel(), 3u);
+    expectElem(*z, 0, 11.0);
+    expectElem(*z, 1, 22.0);
+    expectElem(*z, 2, 33.0);
+}
+
+TEST_P(OutputReuseBinaryOp, ComplexInputForcesSlowPath)
+{
+    // Complex input — fast path is real-only, slow path runs and
+    // promotes z to complex.
+    eval(R"(
+        x = [1+1i, 2+2i];
+        y = [3, 4];
+        z = [9, 9];
+        z = x + y;
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_TRUE(z->isComplex());
+    EXPECT_DOUBLE_EQ(z->complexData()[0].real(), 4.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[0].imag(), 1.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].real(), 6.0);
+    EXPECT_DOUBLE_EQ(z->complexData()[1].imag(), 2.0);
+}
+
+TEST_P(OutputReuseBinaryOp, AllFourOps)
+{
+    // Cover all four ops registered for the fast path.
+    eval(R"(
+        x = [10, 20, 30, 40];
+        y = [2, 5, 6, 8];
+        a = zeros(1, 4); a = x + y;
+        b = zeros(1, 4); b = x - y;
+        c = zeros(1, 4); c = x .* y;
+        d = zeros(1, 4); d = x ./ y;
+    )");
+    auto *a = getVarPtr("a");
+    auto *b = getVarPtr("b");
+    auto *c = getVarPtr("c");
+    auto *d = getVarPtr("d");
+    expectElem(*a, 0, 12.0); expectElem(*a, 3, 48.0);
+    expectElem(*b, 0,  8.0); expectElem(*b, 3, 32.0);
+    expectElem(*c, 0, 20.0); expectElem(*c, 3, 320.0);
+    expectElem(*d, 0,  5.0); expectElem(*d, 3,  5.0);
+}
+
+TEST_P(OutputReuseBinaryOp, TwoDMatrixReuse)
+{
+    // 2D shape match: z is 2x3 from the prior assignment, next
+    // `x + y` produces 2x3 → fast path. Just verify correctness;
+    // the dim check covers any dimension count.
+    eval(R"(
+        x = [1 2 3; 4 5 6];
+        y = [10 20 30; 40 50 60];
+        z = zeros(2, 3);
+        for k = 1:3
+            z = x + y;
+        end
+    )");
+    auto *z = getVarPtr("z");
+    ASSERT_EQ(rows(*z), 2u);
+    ASSERT_EQ(cols(*z), 3u);
+    expectElem2D(*z, 0, 0, 11.0);
+    expectElem2D(*z, 1, 2, 66.0);
+}
+
+INSTANTIATE_DUAL(OutputReuseBinaryOp);
+
+// ============================================================
 // ISSUE #3: nargin not supported in VM
 //
 // nargin should return the number of arguments passed to
