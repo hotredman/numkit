@@ -599,23 +599,10 @@ void logspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = logspace(ctx.engine->allocator(), a, b, n);
 }
 
-// TODO: RNG state is currently process-wide (static). Known bug — multi-engine
-// calls share the same sequence. Fix is to extract RngState into Engine and
-// plumb through CallContext, which is a separate refactor (see project_architecture
-// memory). For now we preserve the pre-migration behavior bit-for-bit.
-void rand_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    static std::mt19937 gen(std::random_device{}());
-    auto d = parseDimsArgs(args);
-    outs[0] = rand(ctx.engine->allocator(), gen, d.rows, d.cols, d.pages);
-}
-
-void randn_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    static std::mt19937 gen(std::random_device{}());
-    auto d = parseDimsArgs(args);
-    outs[0] = randn(ctx.engine->allocator(), gen, d.rows, d.cols, d.pages);
-}
+// rand_reg / randn_reg moved to MStdRng.cpp — they share a single
+// process-static engine with randi / randperm so MATLAB-style
+// rng(seed) controls all of them. The C++ public APIs rand(alloc,
+// rng, …) / randn(alloc, rng, …) above stay here unchanged.
 
 } // namespace detail
 

@@ -54,8 +54,12 @@ void nanstd_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmedian_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void linspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void logspace_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+// MStdRng.cpp (rand/randn moved here from MStdMath.cpp; new functions added)
 void rand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void randn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void randi_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void randperm_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rng_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -262,6 +266,9 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("logspace", &builtin::detail::logspace_reg);
     engine.registerFunction("rand",     &builtin::detail::rand_reg);
     engine.registerFunction("randn",    &builtin::detail::randn_reg);
+    engine.registerFunction("randi",    &builtin::detail::randi_reg);
+    engine.registerFunction("randperm", &builtin::detail::randperm_reg);
+    engine.registerFunction("rng",      &builtin::detail::rng_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
