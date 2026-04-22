@@ -69,6 +69,13 @@ void rot90_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void circshift_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void tril_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void triu_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdNDManip.cpp
+void permute_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ipermute_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void squeeze_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void blkdiag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -287,6 +294,13 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("circshift", &builtin::detail::circshift_reg);
     engine.registerFunction("tril",      &builtin::detail::tril_reg);
     engine.registerFunction("triu",      &builtin::detail::triu_reg);
+
+    // ── Phase 6 N-D manipulation ──────────────────────────────────
+    engine.registerFunction("permute",  &builtin::detail::permute_reg);
+    engine.registerFunction("ipermute", &builtin::detail::ipermute_reg);
+    engine.registerFunction("squeeze",  &builtin::detail::squeeze_reg);
+    engine.registerFunction("cat",      &builtin::detail::cat_reg);
+    engine.registerFunction("blkdiag",  &builtin::detail::blkdiag_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
