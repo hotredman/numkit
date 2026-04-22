@@ -51,6 +51,19 @@ MValue atan2(Allocator &alloc, const MValue &y, const MValue &x);
 MValue mod(Allocator &alloc, const MValue &a, const MValue &b);
 MValue rem(Allocator &alloc, const MValue &a, const MValue &b);
 
+/// hypot(x, y) — sqrt(x^2 + y^2) without intermediate overflow.
+MValue hypot(Allocator &alloc, const MValue &x, const MValue &y);
+
+/// nthroot(x, n) — real n-th root. Negative x with odd n produces a
+/// negative real (unlike `x .^ (1/n)` which goes complex).
+MValue nthroot(Allocator &alloc, const MValue &x, const MValue &n);
+
+/// expm1(x) — exp(x) - 1, accurate near zero.
+MValue expm1(Allocator &alloc, const MValue &x);
+
+/// log1p(x) — log(1 + x), accurate near zero.
+MValue log1p(Allocator &alloc, const MValue &x);
+
 // ── Reductions (single-return) ───────────────────────────────────────
 //
 // Two-arg form picks the reduction axis automatically: vectors collapse

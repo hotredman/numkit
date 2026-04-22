@@ -141,6 +141,39 @@ MValue rem(Allocator &alloc, const MValue &a, const MValue &b)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, &alloc);
 }
 
+MValue hypot(Allocator &alloc, const MValue &x, const MValue &y)
+{
+    return elementwiseDouble(x, y,
+        [](double a, double b) { return std::hypot(a, b); }, &alloc);
+}
+
+// nthroot(x, n): real n-th root. For negative x with odd integer n,
+// returns the negative real root (sign(x) * |x|^(1/n)). For negative x
+// with non-odd n, returns NaN — MATLAB throws there but NaN keeps
+// vectorised callers from having to special-case before the call.
+MValue nthroot(Allocator &alloc, const MValue &x, const MValue &n)
+{
+    return elementwiseDouble(x, n, [](double xv, double nv) {
+        if (nv == 0.0) return std::nan("");
+        if (xv >= 0.0) return std::pow(xv, 1.0 / nv);
+        const double rounded = std::round(nv);
+        if (rounded != nv) return std::nan("");
+        const long long ni = static_cast<long long>(rounded);
+        if (ni % 2 == 0) return std::nan("");
+        return -std::pow(-xv, 1.0 / nv);
+    }, &alloc);
+}
+
+MValue expm1(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::expm1(v); }, &alloc);
+}
+
+MValue log1p(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::log1p(v); }, &alloc);
+}
+
 // ── Reductions (single-return) ───────────────────────────────────────
 namespace {
 
@@ -506,6 +539,43 @@ NK_REDUCTION_ADAPTER(prod, prod)
 NK_REDUCTION_ADAPTER(mean, mean)
 
 #undef NK_REDUCTION_ADAPTER
+
+// Phase 7: hypot/nthroot are binary; expm1/log1p are unary.
+void hypot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+               CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("hypot: requires 2 arguments",
+                     0, 0, "hypot", "", "m:hypot:nargin");
+    outs[0] = hypot(ctx.engine->allocator(), args[0], args[1]);
+}
+
+void nthroot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("nthroot: requires 2 arguments",
+                     0, 0, "nthroot", "", "m:nthroot:nargin");
+    outs[0] = nthroot(ctx.engine->allocator(), args[0], args[1]);
+}
+
+void expm1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("expm1: requires 1 argument",
+                     0, 0, "expm1", "", "m:expm1:nargin");
+    outs[0] = expm1(ctx.engine->allocator(), args[0]);
+}
+
+void log1p_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("log1p: requires 1 argument",
+                     0, 0, "log1p", "", "m:log1p:nargin");
+    outs[0] = log1p(ctx.engine->allocator(), args[0]);
+}
 
 // Binary adapters follow a slightly different pattern (variable name for 2nd arg)
 void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

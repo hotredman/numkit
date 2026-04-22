@@ -76,6 +76,21 @@ void ipermute_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void squeeze_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void blkdiag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdMath.cpp (Phase 7 floating-point additions)
+void hypot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nthroot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void expm1_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void log1p_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdIntMath.cpp
+void gcd_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void lcm_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void bitand_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void bitor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void bitxor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void bitshift_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void bitcmp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -301,6 +316,19 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("squeeze",  &builtin::detail::squeeze_reg);
     engine.registerFunction("cat",      &builtin::detail::cat_reg);
     engine.registerFunction("blkdiag",  &builtin::detail::blkdiag_reg);
+
+    // ── Phase 7 numeric utilities ─────────────────────────────────
+    engine.registerFunction("hypot",    &builtin::detail::hypot_reg);
+    engine.registerFunction("nthroot",  &builtin::detail::nthroot_reg);
+    engine.registerFunction("expm1",    &builtin::detail::expm1_reg);
+    engine.registerFunction("log1p",    &builtin::detail::log1p_reg);
+    engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
+    engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
+    engine.registerFunction("bitand",   &builtin::detail::bitand_reg);
+    engine.registerFunction("bitor",    &builtin::detail::bitor_reg);
+    engine.registerFunction("bitxor",   &builtin::detail::bitxor_reg);
+    engine.registerFunction("bitshift", &builtin::detail::bitshift_reg);
+    engine.registerFunction("bitcmp",   &builtin::detail::bitcmp_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
