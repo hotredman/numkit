@@ -60,6 +60,15 @@ void randn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void randi_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void randperm_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rng_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdManip.cpp
+void repmat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void fliplr_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void flipud_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void rot90_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void circshift_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void tril_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void triu_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -269,6 +278,15 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("randi",    &builtin::detail::randi_reg);
     engine.registerFunction("randperm", &builtin::detail::randperm_reg);
     engine.registerFunction("rng",      &builtin::detail::rng_reg);
+
+    // ── Phase 5 array manipulation ─────────────────────────────────
+    engine.registerFunction("repmat",    &builtin::detail::repmat_reg);
+    engine.registerFunction("fliplr",    &builtin::detail::fliplr_reg);
+    engine.registerFunction("flipud",    &builtin::detail::flipud_reg);
+    engine.registerFunction("rot90",     &builtin::detail::rot90_reg);
+    engine.registerFunction("circshift", &builtin::detail::circshift_reg);
+    engine.registerFunction("tril",      &builtin::detail::tril_reg);
+    engine.registerFunction("triu",      &builtin::detail::triu_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 

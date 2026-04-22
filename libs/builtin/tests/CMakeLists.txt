@@ -8,6 +8,7 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/builtins_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/stats_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/rng_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/manip_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_test.cpp
