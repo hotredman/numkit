@@ -7,6 +7,7 @@
 
 #include "MStdHelpers.hpp"
 #include "MStdReductionHelpers.hpp"
+#include "backends/MStdVarReduction.hpp"  // for sumScan + addInto
 
 #include <algorithm>
 #include <cmath>
@@ -242,6 +243,28 @@ MValue sum(Allocator &alloc, const MValue &x, int dim)
 {
     if (dim <= 0) return sum(alloc, x);
     const int d = detail::resolveDim(x, dim, "sum");
+
+    // Phase P6 followup: 2D dim=2 column-pass row reduction. The
+    // applyAlongDim path gathers each row into a scratch buffer with a
+    // strided per-element copy (R reads at stride R per row, R rows ->
+    // O(R^2) accesses with bad cache locality), then scalar-sums each
+    // slice. Column-pass reads each input column contiguously and
+    // accumulates into a row-totals vector with SIMD addInto. Net cost
+    // floors at 1 read of M + 1 write of totals = roughly memory
+    // bandwidth.
+    if (d == 2 && x.type() == MType::DOUBLE && !x.dims().is3D()
+        && !x.isScalar() && !x.dims().isVector()) {
+        const size_t R = x.dims().rows(), C = x.dims().cols();
+        auto r = MValue::matrix(R, 1, MType::DOUBLE, &alloc);
+        double *totals = r.doubleDataMut();
+        std::fill(totals, totals + R, 0.0);
+        const double *src = x.doubleData();
+        for (size_t c = 0; c < C; ++c)
+            addInto(totals, src + c * R, R);
+        return r;
+    }
+
+    // Generic dim path (1D, 3D, dim=1, dim=3) — slice through scratch.
     return detail::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 0.0;

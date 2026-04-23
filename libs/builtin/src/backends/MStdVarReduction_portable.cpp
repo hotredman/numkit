@@ -29,6 +29,11 @@ double sumSquaredDeviationsScan(const double *p, std::size_t n, double mean)
     return ss;
 }
 
+void addInto(double *dst, const double *src, std::size_t n)
+{
+    for (std::size_t i = 0; i < n; ++i) dst[i] += src[i];
+}
+
 double varianceTwoPass(const double *p, std::size_t n, int normFlag)
 {
     if (n == 0) return std::nan("");

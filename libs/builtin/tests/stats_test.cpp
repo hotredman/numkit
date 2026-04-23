@@ -554,6 +554,45 @@ TEST_P(ReductionDimTest, SumMatrixDim2)
     EXPECT_DOUBLE_EQ(v->doubleData()[2], 24.0);
 }
 
+TEST_P(ReductionDimTest, SumMatrixDim2LargeColumnPass)
+{
+    // 64-row × 4-col matrix. dim=2 routes through the column-pass
+    // SIMD addInto kernel — slice = 4 columns, totals = 64 rows
+    // (one full SIMD body per column iter on AVX2).
+    // Element M(r, c) = (r + 1) + 100 * (c - 1);
+    //   row r totals = sum_{c=0..3} ((r+1) + 100*c) = 4*(r+1) + 100*0+100*1+100*2+100*3
+    //                 = 4*(r+1) + 600.
+    eval("R = 64; C = 4; "
+         "M = repmat((1:R)', 1, C) + 100 * repmat(0:C-1, R, 1); "
+         "v = sum(M, 2);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 64u);
+    EXPECT_EQ(cols(*v), 1u);
+    for (size_t r = 0; r < 64; ++r) {
+        const double expected = 4.0 * static_cast<double>(r + 1) + 600.0;
+        EXPECT_DOUBLE_EQ(v->doubleData()[r], expected) << "at row " << r;
+    }
+}
+
+TEST_P(ReductionDimTest, SumMatrixDim2OddSizesAroundSimdLanes)
+{
+    // R = 17/33/65/127 to exercise body + partial-vector + scalar tail
+    // on the addInto column-pass kernel.
+    for (int r : {17, 33, 65, 127}) {
+        const std::string rs = std::to_string(r);
+        eval("R = " + rs + "; C = 5; "
+             "M = repmat((1:R)', 1, C); "
+             "v = sum(M, 2);");
+        auto *v = getVarPtr("v");
+        ASSERT_EQ(rows(*v), static_cast<size_t>(r));
+        for (size_t i = 0; i < static_cast<size_t>(r); ++i) {
+            const double expected = 5.0 * static_cast<double>(i + 1);
+            EXPECT_DOUBLE_EQ(v->doubleData()[i], expected)
+                << "at R=" << r << " row=" << i;
+        }
+    }
+}
+
 TEST_P(ReductionDimTest, Sum3DDim3)
 {
     eval("A = zeros(2, 2, 3); "

@@ -43,6 +43,35 @@ double SumScanLoop(const double *HWY_RESTRICT p, std::size_t n)
     return s;
 }
 
+// In-place accumulate: dst += src. 4× unrolled for ILP, regular
+// cached stores (caller reads dst again on the next column-pass iter).
+void AddIntoLoop(double *HWY_RESTRICT dst, const double *HWY_RESTRICT src,
+                 std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+
+    std::size_t i = 0;
+    for (; i + 4 * N <= n; i += 4 * N) {
+        const auto d0 = hn::Add(hn::LoadU(d, dst + i + 0 * N),
+                                hn::LoadU(d, src + i + 0 * N));
+        const auto d1 = hn::Add(hn::LoadU(d, dst + i + 1 * N),
+                                hn::LoadU(d, src + i + 1 * N));
+        const auto d2 = hn::Add(hn::LoadU(d, dst + i + 2 * N),
+                                hn::LoadU(d, src + i + 2 * N));
+        const auto d3 = hn::Add(hn::LoadU(d, dst + i + 3 * N),
+                                hn::LoadU(d, src + i + 3 * N));
+        hn::StoreU(d0, d, dst + i + 0 * N);
+        hn::StoreU(d1, d, dst + i + 1 * N);
+        hn::StoreU(d2, d, dst + i + 2 * N);
+        hn::StoreU(d3, d, dst + i + 3 * N);
+    }
+    for (; i + N <= n; i += N)
+        hn::StoreU(hn::Add(hn::LoadU(d, dst + i), hn::LoadU(d, src + i)),
+                   d, dst + i);
+    for (; i < n; ++i) dst[i] += src[i];
+}
+
 double SumSquaredDeviationsScanLoop(const double *HWY_RESTRICT p, std::size_t n,
                                     double mean)
 {
@@ -84,6 +113,7 @@ namespace numkit::m::builtin {
 
 HWY_EXPORT(SumScanLoop);
 HWY_EXPORT(SumSquaredDeviationsScanLoop);
+HWY_EXPORT(AddIntoLoop);
 
 double sumScan(const double *p, std::size_t n)
 {
@@ -95,6 +125,12 @@ double sumSquaredDeviationsScan(const double *p, std::size_t n, double mean)
 {
     if (n == 0) return 0.0;
     return HWY_DYNAMIC_DISPATCH(SumSquaredDeviationsScanLoop)(p, n, mean);
+}
+
+void addInto(double *dst, const double *src, std::size_t n)
+{
+    if (n == 0) return;
+    HWY_DYNAMIC_DISPATCH(AddIntoLoop)(dst, src, n);
 }
 
 double varianceTwoPass(const double *p, std::size_t n, int normFlag)
