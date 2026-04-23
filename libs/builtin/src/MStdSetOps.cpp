@@ -334,6 +334,27 @@ size_t findBin(const double *edges, size_t nEdges, double v)
     return static_cast<size_t>(it - edges) - 1;
 }
 
+// Phase P4: detect uniform edges so the per-element cost drops from
+// O(log B) std::upper_bound to O(1) `(v - e0) * invStep`. Walks the
+// edges once (O(B)) — cheap relative to the N >> B input. Returns true
+// and sets `outStep` to e[1]-e[0] when uniform.
+bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
+{
+    if (nEdges < 3) return false;
+    const double step = e[1] - e[0];
+    if (!(step > 0)) return false;
+    // Allow drift of a few ULPs per gap. For the bench-representative
+    // input (-3000:300:6000) the tolerance never trips because the edges
+    // are exactly representable integers.
+    const double tol = std::abs(step) * 1e-12;
+    for (size_t i = 2; i < nEdges; ++i) {
+        const double g = e[i] - e[i - 1];
+        if (std::abs(g - step) > tol) return false;
+    }
+    outStep = step;
+    return true;
+}
+
 } // namespace
 
 MValue histcounts(Allocator &alloc, const MValue &x, const MValue &edges)
@@ -345,8 +366,33 @@ MValue histcounts(Allocator &alloc, const MValue &x, const MValue &edges)
     std::fill(dst, dst + nBins, 0.0);
 
     const double *e = edges.doubleData();
-    for (size_t i = 0; i < x.numel(); ++i) {
-        const size_t bin = findBin(e, edges.numel(), x.doubleData()[i]);
+    const double *p = x.doubleData();
+    const size_t n = x.numel();
+
+    double step;
+    if (edgesAreUniform(e, edges.numel(), step)) {
+        const double e0 = e[0];
+        const double eN = e[nBins];
+        const double invStep = 1.0 / step;
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            // NaN compares false on both sides → treated as out-of-range.
+            if (v >= e0 && v <= eN) {
+                size_t bin;
+                if (v == eN) {
+                    bin = nBins - 1;          // last bin is right-closed
+                } else {
+                    bin = static_cast<size_t>((v - e0) * invStep);
+                    if (bin >= nBins) bin = nBins - 1;  // FP rounding guard
+                }
+                dst[bin] += 1.0;
+            }
+        }
+        return r;
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+        const size_t bin = findBin(e, edges.numel(), p[i]);
         if (bin != SIZE_MAX) dst[bin] += 1.0;
     }
     return r;
@@ -357,11 +403,38 @@ MValue discretize(Allocator &alloc, const MValue &x, const MValue &edges)
     validateEdges(edges, "discretize");
     auto r = createLike(x, MType::DOUBLE, &alloc);
     const double *e = edges.doubleData();
-    for (size_t i = 0; i < x.numel(); ++i) {
-        const size_t bin = findBin(e, edges.numel(), x.doubleData()[i]);
-        r.doubleDataMut()[i] = (bin == SIZE_MAX)
-            ? std::nan("")
-            : static_cast<double>(bin + 1);  // 1-based
+    const double *p = x.doubleData();
+    double *dst = r.doubleDataMut();
+    const size_t n = x.numel();
+    const size_t nBins = edges.numel() - 1;
+
+    double step;
+    if (edgesAreUniform(e, edges.numel(), step)) {
+        const double e0 = e[0];
+        const double eN = e[nBins];
+        const double invStep = 1.0 / step;
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            if (v >= e0 && v <= eN) {
+                size_t bin;
+                if (v == eN) {
+                    bin = nBins - 1;
+                } else {
+                    bin = static_cast<size_t>((v - e0) * invStep);
+                    if (bin >= nBins) bin = nBins - 1;
+                }
+                dst[i] = static_cast<double>(bin + 1); // 1-based
+            } else {
+                dst[i] = std::nan("");
+            }
+        }
+        return r;
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+        const size_t bin = findBin(e, edges.numel(), p[i]);
+        dst[i] = (bin == SIZE_MAX) ? std::nan("")
+                                   : static_cast<double>(bin + 1);
     }
     return r;
 }
