@@ -7,6 +7,7 @@
 
 #include "MStdHelpers.hpp"
 #include "MStdReductionHelpers.hpp"
+#include "backends/MStdCumSum.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -250,24 +251,23 @@ std::tuple<MValue, MValue> meshgrid(Allocator &alloc, const MValue &x, const MVa
 // ── Reductions and products ──────────────────────────────────────────
 MValue cumsum(Allocator &alloc, const MValue &x)
 {
-    if (x.dims().isVector() || x.isScalar()) {
+    if (x.isScalar()) {
         auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, &alloc);
-        double s = 0;
-        for (size_t i = 0; i < x.numel(); ++i) {
-            s += x.doubleData()[i];
-            r.doubleDataMut()[i] = s;
-        }
+        r.doubleDataMut()[0] = x.toScalar();
+        return r;
+    }
+    if (x.dims().isVector()) {
+        auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, &alloc);
+        cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
         return r;
     }
     const size_t R = x.dims().rows(), C = x.dims().cols();
     auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
-    for (size_t c = 0; c < C; ++c) {
-        double s = 0;
-        for (size_t rr = 0; rr < R; ++rr) {
-            s += x(rr, c);
-            r.elem(rr, c) = s;
-        }
-    }
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    // Per-column inclusive scan — column data is contiguous.
+    for (size_t c = 0; c < C; ++c)
+        cumsumScan(src + c * R, dst + c * R, R);
     return r;
 }
 
@@ -288,15 +288,12 @@ MValue cumsum(Allocator &alloc, const MValue &x, int dim)
     double *dst = r.doubleDataMut();
 
     if (d == 1) {
-        // Walk down rows for each (column, page).
+        // dim=1: scan down each column. Column data is contiguous so
+        // route through the SIMD prefix-sum kernel.
         for (size_t pp = 0; pp < P; ++pp)
             for (size_t c = 0; c < C; ++c) {
-                double s = 0;
                 const size_t base = pp * R * C + c * R;
-                for (size_t rr = 0; rr < R; ++rr) {
-                    s += src[base + rr];
-                    dst[base + rr] = s;
-                }
+                cumsumScan(src + base, dst + base, R);
             }
     } else if (d == 2) {
         // Walk across columns for each (row, page). Stride = R.
