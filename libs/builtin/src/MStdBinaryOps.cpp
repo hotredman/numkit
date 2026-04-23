@@ -449,12 +449,32 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
                 r.logicalDataMut()[i] = applyCmp(c, elemD(a, i), s) ? 1 : 0;
             return r;
         }
-        if (a.dims() != b.dims())
-            throw MError("3D broadcasting not supported — dimensions must match",
+        const size_t aR = a.dims().rows(), aC = a.dims().cols();
+        const size_t aP = a.dims().is3D() ? a.dims().pages() : 1;
+        const size_t bR = b.dims().rows(), bC = b.dims().cols();
+        const size_t bP = b.dims().is3D() ? b.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
+            throw MError("3D dimensions must broadcast for comparison: each axis must match or be 1",
                          0, 0, "compare", "", "m:dimagree");
-        auto r = createLike(a, MType::LOGICAL, nullptr);
-        for (size_t i = 0; i < a.numel(); ++i)
-            r.logicalDataMut()[i] = applyCmp(c, elemD(a, i), elemD(b, i)) ? 1 : 0;
+
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = createLike(a, MType::LOGICAL, nullptr);
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.logicalDataMut()[i] = applyCmp(c, elemD(a, i), elemD(b, i)) ? 1 : 0;
+            return r;
+        }
+        auto r = (outP > 1) ? MValue::matrix3d(outR, outC, outP, MType::LOGICAL, nullptr)
+                            : MValue::matrix(outR, outC, MType::LOGICAL, nullptr);
+        uint8_t *dst = r.logicalDataMut();
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] =
+                        applyCmp(c, elemD(a, aOff), elemD(b, bOff)) ? 1 : 0;
+                }
         return r;
     }
 

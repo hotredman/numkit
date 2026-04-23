@@ -477,18 +477,72 @@ TEST_P(HeapSafety3DTest, ComparisonMismatchThrows)
         std::exception);
 }
 
-TEST_P(HeapSafety3DTest, Comparison3DVs2DMismatchThrowsCleanly)
+TEST_P(HeapSafety3DTest, Comparison3DVs2DBroadcastsAcrossPages)
 {
-    // 3D vs 2D: MATLAB broadcasts singleton page of the 2D over the
-    // 3D's pages. Our impl doesn't yet do 3D broadcasting, so this
-    // must throw rather than corrupt the heap or fall through to the
-    // 2D broadcastDims path.
+    // 3D vs 2D: 2D operand is broadcast across the 3D's pages (MATLAB
+    // semantics — added 2026-04-23). Output is the 3D shape with all
+    // entries true since both sides hold ones.
+    eval("A = ones(2, 3, 2); B = ones(2, 3); M = A == B;");
+    auto *M = getVarPtr("M");
+    ASSERT_NE(M, nullptr);
+    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_TRUE(M->dims().is3D());
+    EXPECT_EQ(M->dims().pages(), 2u);
+    for (size_t i = 0; i < M->numel(); ++i)
+        EXPECT_TRUE(M->logicalData()[i] != 0) << "at i=" << i;
+
+    // Reverse operand order — same broadcast.
+    eval("A = ones(2, 3); B = ones(2, 3, 2); M = A == B;");
+    auto *M2 = getVarPtr("M");
+    EXPECT_TRUE(M2->dims().is3D());
+    EXPECT_EQ(M2->dims().pages(), 2u);
+}
+
+TEST_P(HeapSafety3DTest, Comparison3DAxisMismatchStillThrows)
+{
+    // True dimension mismatch (axis 1 differs and neither is singleton)
+    // must still throw — broadcast only collapses singleton axes.
     EXPECT_THROW(
-        { eval("A = ones(2, 3, 2); B = ones(2, 3); M = A == B;"); },
+        { eval("A = ones(2, 3, 2); B = ones(4, 3); M = A == B;"); },
         std::exception);
-    EXPECT_THROW(
-        { eval("A = ones(2, 3); B = ones(2, 3, 2); M = A == B;"); },
-        std::exception);
+}
+
+TEST_P(HeapSafety3DTest, Arithmetic3DVs2DBroadcastsAcrossPages)
+{
+    // A: 2×3×2 with all ones. B: 2×3 = [1 2 3; 4 5 6]. A + B should
+    // broadcast B over A's two pages → C(:,:,k) = ones + B for k=1,2.
+    eval("A = ones(2, 3, 2); B = [1 2 3; 4 5 6]; C = A + B;");
+    auto *C = getVarPtr("C");
+    ASSERT_NE(C, nullptr);
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(C->dims().pages(), 2u);
+    // page 1: 1 + B = [2 3 4; 5 6 7]
+    EXPECT_DOUBLE_EQ((*C)(0, 0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(0, 2, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 0, 0), 5.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 2, 0), 7.0);
+    // page 2: same.
+    EXPECT_DOUBLE_EQ((*C)(0, 0, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 2, 1), 7.0);
+}
+
+TEST_P(HeapSafety3DTest, Arithmetic3DSingletonAxisBroadcasts)
+{
+    // 3D × 3D where one operand has singleton row (1×3×2) and the other
+    // has full rows (2×3×2). MATLAB broadcasts singleton row across both.
+    eval("A = ones(2, 3, 2); "
+         "B = zeros(1, 3, 2); B(:,:,1) = [1 2 3]; B(:,:,2) = [10 20 30]; "
+         "C = A + B;");
+    auto *C = getVarPtr("C");
+    EXPECT_TRUE(C->dims().is3D());
+    EXPECT_EQ(rows(*C), 2u);
+    // page 1, row 0 and row 1 both = 1 + [1 2 3] = [2 3 4]
+    EXPECT_DOUBLE_EQ((*C)(0, 0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 2, 0), 4.0);
+    // page 2: 1 + [10 20 30] = [11 21 31]
+    EXPECT_DOUBLE_EQ((*C)(0, 0, 1), 11.0);
+    EXPECT_DOUBLE_EQ((*C)(1, 2, 1), 31.0);
 }
 
 INSTANTIATE_DUAL(HeapSafety3DTest);

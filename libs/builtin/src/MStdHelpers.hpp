@@ -40,6 +40,34 @@ inline bool broadcastDims(size_t ar, size_t ac, size_t br, size_t bc,
     return true;
 }
 
+// 3D variant — each axis must match or be 1. A 2D operand is treated as
+// having pages = 1 (caller passes ap = 1 for 2D inputs).
+inline bool broadcastDims3D(size_t ar, size_t ac, size_t ap,
+                            size_t br, size_t bc, size_t bp,
+                            size_t &outR, size_t &outC, size_t &outP)
+{
+    if (ar != br && ar != 1 && br != 1) return false;
+    if (ac != bc && ac != 1 && bc != 1) return false;
+    if (ap != bp && ap != 1 && bp != 1) return false;
+    outR = std::max(ar, br);
+    outC = std::max(ac, bc);
+    outP = std::max(ap, bp);
+    return true;
+}
+
+// Linearise (r, c, p) into a column-major + page-stride buffer offset,
+// applying broadcast (an axis of 1 collapses its index to 0). Used by
+// the 3D broadcast loops in elementwise{Double,Complex} and compareImpl.
+inline size_t broadcastOffset3D(size_t r, size_t c, size_t p,
+                                size_t aR, size_t aC, size_t aP)
+{
+    const size_t rr = (aR == 1) ? 0 : r;
+    const size_t cc = (aC == 1) ? 0 : c;
+    const size_t pp = (aP == 1) ? 0 : p;
+    (void)aP; // strides are R*C per page regardless
+    return pp * aR * aC + cc * aR + rr;
+}
+
 // ============================================================
 // Shape helpers (must precede the elementwise templates below —
 // template bodies reference these as non-dependent names and the
@@ -113,8 +141,8 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
 
-    // 3D paths — same-shape elementwise and scalar broadcasting only.
-    // General 3D broadcasting is not yet supported.
+    // 3D paths — same-shape, scalar, or general 3D broadcasting (each
+    // axis must equal or be 1; 2D operands implicitly have pages = 1).
     if (a.dims().is3D() || b.dims().is3D()) {
         if (a.isScalar()) {
             auto r = createLike(b, MType::DOUBLE, alloc);
@@ -130,12 +158,34 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
                 r.doubleDataMut()[i] = op(a.doubleData()[i], s);
             return r;
         }
-        if (a.dims() != b.dims())
+        const size_t aR = a.dims().rows(), aC = a.dims().cols();
+        const size_t aP = a.dims().is3D() ? a.dims().pages() : 1;
+        const size_t bR = b.dims().rows(), bC = b.dims().cols();
+        const size_t bP = b.dims().is3D() ? b.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
             throw std::runtime_error(
-                "3D broadcasting not supported — dimensions must match");
-        auto r = createLike(a, MType::DOUBLE, alloc);
-        for (size_t i = 0; i < a.numel(); ++i)
-            r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        // Same-shape fast path skips the per-axis broadcast index math.
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = (outP > 1) ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc)
+                                : MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+            for (size_t i = 0; i < a.numel(); ++i)
+                r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
+            return r;
+        }
+        auto r = (outP > 1) ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc)
+                            : MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+        double *dst = r.doubleDataMut();
+        const double *da = a.doubleData(), *db = b.doubleData();
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] = op(da[aOff], db[bOff]);
+                }
         return r;
     }
 
@@ -196,12 +246,32 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
                 r.complexDataMut()[i] = op(ca.complexData()[i], s);
             return r;
         }
-        if (ca.dims() != cb.dims())
+        const size_t aR = ca.dims().rows(), aC = ca.dims().cols();
+        const size_t aP = ca.dims().is3D() ? ca.dims().pages() : 1;
+        const size_t bR = cb.dims().rows(), bC = cb.dims().cols();
+        const size_t bP = cb.dims().is3D() ? cb.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
             throw std::runtime_error(
-                "3D broadcasting not supported — dimensions must match");
-        auto r = createLike(ca, MType::COMPLEX, alloc);
-        for (size_t i = 0; i < ca.numel(); ++i)
-            r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = createLike(ca, MType::COMPLEX, alloc);
+            for (size_t i = 0; i < ca.numel(); ++i)
+                r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
+            return r;
+        }
+        auto r = (outP > 1) ? MValue::matrix3d(outR, outC, outP, MType::COMPLEX, alloc)
+                            : MValue::matrix(outR, outC, MType::COMPLEX, alloc);
+        Complex *dst = r.complexDataMut();
+        const Complex *da = ca.complexData(), *db = cb.complexData();
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] = op(da[aOff], db[bOff]);
+                }
         return r;
     }
 
@@ -449,14 +519,35 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
                 dst[i] = op(readLinear(a, targetType, i), sb);
             return r;
         }
-        if (a.dims() != b.dims())
+        const size_t aR = a.dims().rows(), aC = a.dims().cols();
+        const size_t aP = a.dims().is3D() ? a.dims().pages() : 1;
+        const size_t bR = b.dims().rows(), bC = b.dims().cols();
+        const size_t bP = b.dims().is3D() ? b.dims().pages() : 1;
+        size_t outR, outC, outP;
+        if (!broadcastDims3D(aR, aC, aP, bR, bC, bP, outR, outC, outP))
             throw std::runtime_error(
-                "3D broadcasting not supported — dimensions must match");
-        auto r = createLike(a, targetType, alloc);
+                "3D dimensions must broadcast: each axis must match or be 1");
+
+        if (aR == bR && aC == bC && aP == bP) {
+            auto r = createLike(a, targetType, alloc);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinear(a, targetType, i),
+                            readLinear(b, targetType, i));
+            return r;
+        }
+        auto r = (outP > 1) ? MValue::matrix3d(outR, outC, outP, targetType, alloc)
+                            : MValue::matrix(outR, outC, targetType, alloc);
         T *dst = static_cast<T *>(r.rawDataMut());
-        for (size_t i = 0; i < a.numel(); ++i)
-            dst[i] = op(readLinear(a, targetType, i),
-                        readLinear(b, targetType, i));
+        for (size_t pp = 0; pp < outP; ++pp)
+            for (size_t cc = 0; cc < outC; ++cc)
+                for (size_t rr = 0; rr < outR; ++rr) {
+                    const size_t aOff = broadcastOffset3D(rr, cc, pp, aR, aC, aP);
+                    const size_t bOff = broadcastOffset3D(rr, cc, pp, bR, bC, bP);
+                    dst[pp * outR * outC + cc * outR + rr] =
+                        op(readLinear(a, targetType, aOff),
+                           readLinear(b, targetType, bOff));
+                }
         return r;
     }
 
