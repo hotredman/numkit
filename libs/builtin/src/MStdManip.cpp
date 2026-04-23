@@ -41,24 +41,28 @@ MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
 
-    // Build one full output page first (outR × outC), then memcpy
-    // it across the page dimension. For each (tilRow, tilCol) of the
-    // m×n grid, copy the source's columns into the corresponding
-    // block of the output page.
+    // Phase P6: build the first output page once, then replicate via
+    // page memcpy for the remaining p-1 page tiles. The within-page
+    // copy is the same m*n*C tile-of-memcpy structure as before — the
+    // total bytes written floor at outR*outC*outP, no algorithmic
+    // shortcut on the per-page cost. The win here is ONLY for p > 1
+    // (page replication) where one big memcpy per page beats redoing
+    // the per-column tile loop.
     for (size_t srcPage = 0; srcPage < P; ++srcPage) {
-        for (size_t pTile = 0; pTile < p; ++pTile) {
-            const size_t outPage = pTile * P + srcPage;
-            double *page = dst + outPage * outR * outC;
-
-            for (size_t cTile = 0; cTile < n; ++cTile) {
-                for (size_t c = 0; c < C; ++c) {
-                    const double *colSrc = src + srcPage * R * C + c * R;
-                    for (size_t rTile = 0; rTile < m; ++rTile) {
-                        double *colDst = page + (cTile * C + c) * outR + rTile * R;
-                        std::memcpy(colDst, colSrc, R * sizeof(double));
-                    }
+        double *firstPage = dst + (0 * P + srcPage) * outR * outC;
+        for (size_t cTile = 0; cTile < n; ++cTile) {
+            for (size_t c = 0; c < C; ++c) {
+                const double *colSrc = src + srcPage * R * C + c * R;
+                for (size_t rTile = 0; rTile < m; ++rTile) {
+                    double *colDst = firstPage + (cTile * C + c) * outR
+                                                 + rTile * R;
+                    std::memcpy(colDst, colSrc, R * sizeof(double));
                 }
             }
+        }
+        for (size_t pTile = 1; pTile < p; ++pTile) {
+            double *targetPage = dst + (pTile * P + srcPage) * outR * outC;
+            std::memcpy(targetPage, firstPage, outR * outC * sizeof(double));
         }
     }
     return r;
