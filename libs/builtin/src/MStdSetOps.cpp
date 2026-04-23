@@ -318,22 +318,6 @@ void validateEdges(const MValue &edges, const char *fn)
                          0, 0, fn, "", std::string("m:") + fn + ":badEdges");
 }
 
-// Find the 0-based bin index for value v given sorted edges.
-// Returns SIZE_MAX if v is out of range or NaN.
-size_t findBin(const double *edges, size_t nEdges, double v)
-{
-    if (std::isnan(v)) return SIZE_MAX;
-    const size_t nBins = nEdges - 1;
-    const double last = edges[nEdges - 1];
-    if (v < edges[0]) return SIZE_MAX;
-    // Last bin is closed at the right.
-    if (v == last) return nBins - 1;
-    if (v > last) return SIZE_MAX;
-    // upper_bound finds first edge > v; bin index = pos - 1.
-    auto it = std::upper_bound(edges, edges + nEdges, v);
-    return static_cast<size_t>(it - edges) - 1;
-}
-
 // Phase P4: detect uniform edges so the per-element cost drops from
 // O(log B) std::upper_bound to O(1) `(v - e0) * invStep`. Walks the
 // edges once (O(B)) — cheap relative to the N >> B input. Returns true
@@ -391,9 +375,41 @@ MValue histcounts(Allocator &alloc, const MValue &x, const MValue &edges)
         return r;
     }
 
-    for (size_t i = 0; i < n; ++i) {
-        const size_t bin = findBin(e, edges.numel(), p[i]);
-        if (bin != SIZE_MAX) dst[bin] += 1.0;
+    // Phase P6 followup: irregular-edges path. Inline the bounds check +
+    // upper_bound as an unrolled binary search; for very small B (<= 8)
+    // a straight linear scan is faster than std::upper_bound's branchy
+    // dispatch. Keeps the +1 per match flat in the hot loop instead of
+    // bouncing through findBin's call+throw scaffolding.
+    const double e0  = e[0];
+    const double eN  = e[nBins];
+    const size_t nE  = edges.numel();
+    if (nBins <= 8) {
+        // Linear scan unrolls cleanly under -O2; no branch mispredict on
+        // typical Gaussian-into-uniform-bin patterns.
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            if (!(v >= e0 && v <= eN)) continue;
+            // Find bin: largest k such that e[k] <= v. Last bin closed.
+            if (v == eN) { dst[nBins - 1] += 1.0; continue; }
+            size_t k = 0;
+            while (k + 1 < nBins && e[k + 1] <= v) ++k;
+            dst[k] += 1.0;
+        }
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            if (!(v >= e0 && v <= eN)) continue;
+            if (v == eN) { dst[nBins - 1] += 1.0; continue; }
+            // Inline std::upper_bound: first index `mid` such that
+            // e[mid] > v. The bin is mid - 1.
+            size_t lo = 0, hi = nE;
+            while (lo < hi) {
+                const size_t mid = lo + (hi - lo) / 2;
+                if (e[mid] <= v) lo = mid + 1;
+                else hi = mid;
+            }
+            dst[lo - 1] += 1.0;
+        }
     }
     return r;
 }
@@ -431,10 +447,32 @@ MValue discretize(Allocator &alloc, const MValue &x, const MValue &edges)
         return r;
     }
 
-    for (size_t i = 0; i < n; ++i) {
-        const size_t bin = findBin(e, edges.numel(), p[i]);
-        dst[i] = (bin == SIZE_MAX) ? std::nan("")
-                                   : static_cast<double>(bin + 1);
+    // Same inlined-binary-search / linear-scan split as histcounts.
+    const double e0 = e[0];
+    const double eN = e[nBins];
+    const size_t nE = edges.numel();
+    if (nBins <= 8) {
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            if (!(v >= e0 && v <= eN)) { dst[i] = std::nan(""); continue; }
+            if (v == eN) { dst[i] = static_cast<double>(nBins); continue; }
+            size_t k = 0;
+            while (k + 1 < nBins && e[k + 1] <= v) ++k;
+            dst[i] = static_cast<double>(k + 1); // 1-based
+        }
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            const double v = p[i];
+            if (!(v >= e0 && v <= eN)) { dst[i] = std::nan(""); continue; }
+            if (v == eN) { dst[i] = static_cast<double>(nBins); continue; }
+            size_t lo = 0, hi = nE;
+            while (lo < hi) {
+                const size_t mid = lo + (hi - lo) / 2;
+                if (e[mid] <= v) lo = mid + 1;
+                else hi = mid;
+            }
+            dst[i] = static_cast<double>(lo); // (lo-1)+1
+        }
     }
     return r;
 }
