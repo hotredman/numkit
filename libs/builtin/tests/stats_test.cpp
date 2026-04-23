@@ -399,6 +399,61 @@ TEST_P(StatsTest, Std3DDim2)
     EXPECT_NEAR((*s)(1, 0, 1), 10.0, 1e-12);
 }
 
+// ── Phase P5 SIMD two-pass var/std coverage ─────────────────
+//
+// The existing StatsTest cases work on tiny vectors that don't
+// exercise the 4× unrolled SIMD body of varianceTwoPass. These tests
+// hit N >> 4*lanes (Highway: 4 doubles on AVX2, 8 on AVX-512) so the
+// body, partial-vector tail, and scalar-final-tail paths all execute.
+
+TEST_P(StatsTest, VarLargeNMatchesReference)
+{
+    // Build a deterministic sequence: x = 1..1000. Reference variance
+    // for [1..N] (sample form, /N-1) = N*(N+1)/12.
+    eval("x = 1:1000; v = var(x);");
+    auto *v = getVarPtr("v");
+    const double ref = 1000.0 * 1001.0 / 12.0;     // = 83416.6666...
+    EXPECT_NEAR(v->toScalar(), ref, 1e-9 * std::abs(ref));
+}
+
+TEST_P(StatsTest, VarLargeNRandomMatchesScalarReference)
+{
+    // Compare two-pass output against an explicit sum-of-squared-
+    // deviations computed by the script itself. Catches drift between
+    // the SIMD kernel and the scalar reference at N=4096 (well past
+    // any unroll boundary).
+    eval("rng(7); x = randn(4096, 1); "
+         "m = mean(x); ref = sum((x - m).^2) / (numel(x) - 1); "
+         "v = var(x); err = abs(v - ref) / abs(ref);");
+    auto *err = getVarPtr("err");
+    EXPECT_LT(err->toScalar(), 1e-12);
+}
+
+TEST_P(StatsTest, StdMatchesSqrtVar)
+{
+    eval("rng(11); x = randn(2048, 1); "
+         "delta = abs(std(x) - sqrt(var(x)));");
+    auto *delta = getVarPtr("delta");
+    EXPECT_LT(delta->toScalar(), 1e-12);
+}
+
+// SIMD tail handling — N just past a multiple of typical lane counts.
+// Covers cases where i + 4*N <= n is false but i + N <= n is true
+// (1× SIMD body), and where i < n is the only remainder (scalar tail).
+TEST_P(StatsTest, VarOddSizesAroundSimdLanes)
+{
+    for (int n : {17, 33, 65, 127, 257}) {
+        const std::string code =
+            "x = 1:" + std::to_string(n) + "; v = var(x);";
+        eval(code);
+        auto *v = getVarPtr("v");
+        const double N = static_cast<double>(n);
+        const double ref = N * (N + 1.0) / 12.0;
+        EXPECT_NEAR(v->toScalar(), ref, 1e-9 * std::abs(ref))
+            << "at n=" << n;
+    }
+}
+
 INSTANTIATE_DUAL(StatsTest);
 
 // ============================================================
@@ -776,6 +831,61 @@ TEST_P(NanReductionTest, NanmeanReturnsNaNForAllNaNSlice)
     EXPECT_TRUE(std::isnan(v->doubleData()[1]));
 }
 
+// ── Phase P2 SIMD single-pass coverage ───────────────────────
+//
+// The SIMD nansum/nanmean kernels read 4× lanes per iteration. Existing
+// tests work on tiny vectors that don't cross those unroll boundaries.
+// The cases below pin: large N + scattered NaN, NaN at SIMD-block
+// boundaries, and the parallel-count accumulator's correctness under
+// dense NaN.
+
+TEST_P(NanReductionTest, NansumLargeNScatteredNaN)
+{
+    // 1000 elements with NaN injected at known positions via for-loop
+    // (avoids logical-indexed assignment which isn't a builtin yet).
+    // Every 7th index (1-based: 1, 8, 15, ..., 995) becomes NaN.
+    eval("x = (1:1000)'; for i = 1:7:1000, x(i) = NaN; end; "
+         "ref = 0; for i = 1:1000, if ~isnan(x(i)), ref = ref + x(i); end; end; "
+         "got = nansum(x); err = abs(got - ref);");
+    auto *err = getVarPtr("err");
+    EXPECT_DOUBLE_EQ(err->toScalar(), 0.0);
+}
+
+TEST_P(NanReductionTest, NanmeanLargeNDenseNaNCount)
+{
+    // 1024 elements, every other one NaN. The SIMD path's parallel
+    // double-accumulated count must divide the SIMD-summed values
+    // correctly. Reference: mean of the surviving 512 odd-indexed
+    // (1-based: 1, 3, 5, ... 1023) values.
+    eval("x = (1:1024)'; for i = 2:2:1024, x(i) = NaN; end; "
+         "got = nanmean(x); "
+         "ref_sum = 0; ref_n = 0; "
+         "for i = 1:1024, "
+         "  if ~isnan(x(i)), ref_sum = ref_sum + x(i); ref_n = ref_n + 1; end; "
+         "end; "
+         "ref = ref_sum / ref_n; err = abs(got - ref);");
+    auto *err = getVarPtr("err");
+    EXPECT_LT(err->toScalar(), 1e-10);
+}
+
+TEST_P(NanReductionTest, NansumOddSizesAroundSimdLanes)
+{
+    // Tail-handling under odd N: SIMD body covers floor(n/4N)*4N
+    // elements, then a 1× SIMD partial, then scalar final tail.
+    // x(1) and x(n) are NaN — sum(x(2:n-1)) is the reference.
+    for (int n : {17, 33, 65, 127, 257}) {
+        const std::string ns = std::to_string(n);
+        const std::string code =
+            "x = (1:" + ns + ")'; x(1) = NaN; x(" + ns + ") = NaN; "
+            "got = nansum(x); "
+            "ref = 0; for i = 2:" + std::to_string(n - 1) + ", ref = ref + x(i); end;";
+        eval(code);
+        auto *got = getVarPtr("got");
+        auto *ref = getVarPtr("ref");
+        EXPECT_DOUBLE_EQ(got->toScalar(), ref->toScalar()) << "at n=" << n;
+    }
+}
+
 INSTANTIATE_DUAL(NanReductionTest);
 
 // ============================================================
@@ -942,6 +1052,56 @@ TEST_P(CumLogicalTest, AnyTreatsNaNAsTrue)
 {
     // MATLAB: any(NaN) → true (NaN != 0).
     EXPECT_TRUE(evalBool("any([0 NaN 0]);"));
+}
+
+// ── Phase P1 SIMD any/all coverage ──────────────────────────
+//
+// These exercise the 4× unrolled SIMD scan in
+// MStdLogicalReductions_simd.cpp. Cover: large-N early-exit (any), full-
+// scan (all), LOGICAL-byte path (mask = x > 0 returns LOGICAL), DOUBLE
+// path, and odd N around SIMD lane boundaries.
+
+TEST_P(CumLogicalTest, AnyLargeNVectorEarlyExit)
+{
+    // The non-zero is buried near the end so the SIMD body has to scan
+    // many full vectors before it triggers. Empirically this is the
+    // worst case for early-exit; correctness check, not perf.
+    eval("z = zeros(1, 1024); z(1023) = 1; r = any(z);");
+    EXPECT_TRUE(evalBool("r"));
+}
+
+TEST_P(CumLogicalTest, AllLargeNFalseInTail)
+{
+    // Mostly-true with a single zero in the SIMD scalar tail (n = 4N+3
+    // on AVX2). Catches the case where the body says "all true" but the
+    // tail flips it.
+    eval("z = ones(1, 35); z(34) = 0; r = all(z);");
+    EXPECT_FALSE(evalBool("r"));
+}
+
+TEST_P(CumLogicalTest, AnyLogicalInputDirectByteScan)
+{
+    // mask is LOGICAL (output of comparison) — exercises AnyByteScan
+    // (uint8 lane SIMD) instead of the DOUBLE path. The early-exit
+    // must fire on the lone 1 buried near the middle.
+    eval("m = (1:2048) == 1500; r = any(m);");
+    EXPECT_TRUE(evalBool("r"));
+    eval("r2 = all(m);");
+    EXPECT_FALSE(evalBool("r2"));
+}
+
+TEST_P(CumLogicalTest, AnyAllOddSizesAroundSimdLanes)
+{
+    // SIMD body covers floor(n/4N)*4N elements, then a 1× SIMD partial,
+    // then scalar tail. Verify any/all decisions across that boundary.
+    for (int n : {17, 33, 65, 127, 257}) {
+        const std::string code =
+            "x = zeros(1, " + std::to_string(n) + "); "
+            "y = any(x); z = all(ones(1, " + std::to_string(n) + "));";
+        eval(code);
+        EXPECT_FALSE(evalBool("y")) << "any(zeros) at n=" << n;
+        EXPECT_TRUE (evalBool("z")) << "all(ones) at n=" << n;
+    }
 }
 
 // ── xor ─────────────────────────────────────────────────────

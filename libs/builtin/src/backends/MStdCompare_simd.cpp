@@ -35,11 +35,23 @@ namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
 
+// IEEE-correct `!=` for SIMD: Highway's `Ne` lowers to `_CMP_NEQ_OQ`
+// (ordered) which returns false for NaN-vs-anything — the opposite of
+// C++/IEEE `a != b` which is true for NaN. `Not(Eq(a, b))` gets it
+// right: `Eq` is also ordered (false for NaN-NaN), so `Not(false) =
+// true`, matching IEEE. Used only by the Ne loop below; the other 5
+// ops are correct under Highway's ordered semantics (NaN comparison =
+// false matches the C++ scalar baseline for <, >, <=, >=, ==).
+#define NK_IEEE_NE(d, a, b) hn::Not(hn::Eq((a), (b)))
+
 // One SIMD vector → up-to-8 mask bits → up-to-8 output bytes. For double
 // `Lanes(d)` is at most 8 across all targets we support, so a single byte
 // of bit-storage is always sufficient and the unrolled inner loop emits
 // straight-line stores after `-O2`.
-#define NK_CMP_LOOP(NAME, VEC_OP, SCALAR_OP)                                            \
+// CMP_EXPR(d, va, vb) is an expression that evaluates to a Mask. For
+// most ops it's `hn::Lt(va, vb)` / `hn::Gt(...)` etc.; for Ne it's
+// `NK_IEEE_NE(d, va, vb)` to preserve IEEE NaN semantics.
+#define NK_CMP_LOOP(NAME, CMP_EXPR, SCALAR_OP)                                          \
     void NAME##VV(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,           \
                   uint8_t *HWY_RESTRICT out, std::size_t n)                             \
     {                                                                                   \
@@ -47,7 +59,9 @@ namespace hn = hwy::HWY_NAMESPACE;
         const std::size_t N = hn::Lanes(d);                                             \
         std::size_t i = 0;                                                              \
         for (; i + N <= n; i += N) {                                                    \
-            const auto m = hn::VEC_OP(hn::LoadU(d, a + i), hn::LoadU(d, b + i));        \
+            const auto va = hn::LoadU(d, a + i);                                        \
+            const auto vb = hn::LoadU(d, b + i);                                        \
+            const auto m = CMP_EXPR(d, va, vb);                                         \
             uint8_t bits[8] = {};                                                       \
             hn::StoreMaskBits(d, m, bits);                                              \
             for (std::size_t k = 0; k < N; ++k)                                         \
@@ -64,7 +78,8 @@ namespace hn = hwy::HWY_NAMESPACE;
         const auto sv = hn::Set(d, s);                                                  \
         std::size_t i = 0;                                                              \
         for (; i + N <= n; i += N) {                                                    \
-            const auto m = hn::VEC_OP(hn::LoadU(d, a + i), sv);                         \
+            const auto va = hn::LoadU(d, a + i);                                        \
+            const auto m = CMP_EXPR(d, va, sv);                                         \
             uint8_t bits[8] = {};                                                       \
             hn::StoreMaskBits(d, m, bits);                                              \
             for (std::size_t k = 0; k < N; ++k)                                         \
@@ -81,7 +96,8 @@ namespace hn = hwy::HWY_NAMESPACE;
         const auto sv = hn::Set(d, s);                                                  \
         std::size_t i = 0;                                                              \
         for (; i + N <= n; i += N) {                                                    \
-            const auto m = hn::VEC_OP(sv, hn::LoadU(d, b + i));                         \
+            const auto vb = hn::LoadU(d, b + i);                                        \
+            const auto m = CMP_EXPR(d, sv, vb);                                         \
             uint8_t bits[8] = {};                                                       \
             hn::StoreMaskBits(d, m, bits);                                              \
             for (std::size_t k = 0; k < N; ++k)                                         \
@@ -91,14 +107,26 @@ namespace hn = hwy::HWY_NAMESPACE;
             out[i] = (s SCALAR_OP b[i]) ? 1 : 0;                                        \
     }
 
-NK_CMP_LOOP(EqLoop, Eq, ==)
-NK_CMP_LOOP(NeLoop, Ne, !=)
-NK_CMP_LOOP(LtLoop, Lt, < )
-NK_CMP_LOOP(GtLoop, Gt, > )
-NK_CMP_LOOP(LeLoop, Le, <=)
-NK_CMP_LOOP(GeLoop, Ge, >=)
+#define NK_VEC_EQ(d, a, b) hn::Eq((a), (b))
+#define NK_VEC_LT(d, a, b) hn::Lt((a), (b))
+#define NK_VEC_GT(d, a, b) hn::Gt((a), (b))
+#define NK_VEC_LE(d, a, b) hn::Le((a), (b))
+#define NK_VEC_GE(d, a, b) hn::Ge((a), (b))
+
+NK_CMP_LOOP(EqLoop, NK_VEC_EQ,  ==)
+NK_CMP_LOOP(NeLoop, NK_IEEE_NE, !=)
+NK_CMP_LOOP(LtLoop, NK_VEC_LT,  < )
+NK_CMP_LOOP(GtLoop, NK_VEC_GT,  > )
+NK_CMP_LOOP(LeLoop, NK_VEC_LE,  <=)
+NK_CMP_LOOP(GeLoop, NK_VEC_GE,  >=)
 
 #undef NK_CMP_LOOP
+#undef NK_VEC_EQ
+#undef NK_VEC_LT
+#undef NK_VEC_GT
+#undef NK_VEC_LE
+#undef NK_VEC_GE
+#undef NK_IEEE_NE
 
 } // namespace HWY_NAMESPACE
 } // namespace numkit::m::builtin

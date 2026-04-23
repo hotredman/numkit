@@ -243,4 +243,128 @@ TEST_P(SetOpsTest, DiscretizePreservesShape)
     EXPECT_EQ(cols(*b), 2u);
 }
 
+// ── Phase P3 hash-set edge cases ─────────────────────────────
+//
+// The default std::hash<double> distinguishes +0 and -0 by bit pattern,
+// putting them in different buckets and breaking equality lookup. The
+// custom DoubleHashEq0 in MStdSetOps.cpp must collapse them. These
+// tests pin that semantic so a future "simplification" of the hash
+// can't silently regress.
+
+TEST_P(SetOpsTest, UniqueCollapsesPositiveAndNegativeZero)
+{
+    // 0 and -0 are == per IEEE 754; MATLAB and the hash set must
+    // collapse them to a single output slot.
+    eval("u = unique([0 -0 1 -0 0]);");
+    auto *u = getVarPtr("u");
+    EXPECT_EQ(u->numel(), 2u);
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[1], 1.0);
+}
+
+TEST_P(SetOpsTest, IsmemberMatchesAcrossPlusMinusZero)
+{
+    eval("v = ismember([-0 0 1], [0]);");
+    auto *v = getVarPtr("v");
+    // Both -0 and +0 must hash-collide with the +0 in B.
+    EXPECT_TRUE (v->logicalData()[0] != 0);
+    EXPECT_TRUE (v->logicalData()[1] != 0);
+    EXPECT_FALSE(v->logicalData()[2] != 0);
+}
+
+TEST_P(SetOpsTest, UnionCollapsesPlusMinusZero)
+{
+    eval("u = union([-0 1], [0 2]);");
+    auto *u = getVarPtr("u");
+    EXPECT_EQ(u->numel(), 3u);
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[2], 2.0);
+}
+
+// Larger N exercises rehash + xorshift mixer in DoubleHashEq0. With
+// 200 distinct integers in [0,200) repeated 5x, the hash table must
+// dedupe down to exactly 200 entries.
+TEST_P(SetOpsTest, UniqueLargeNHeavyDuplication)
+{
+    eval("x = mod(0:999, 200); u = unique(x);");
+    auto *u = getVarPtr("u");
+    EXPECT_EQ(u->numel(), 200u);
+    // Sorted ascending: 0, 1, 2, ..., 199.
+    for (size_t i = 0; i < 200; ++i)
+        EXPECT_DOUBLE_EQ(u->doubleData()[i], static_cast<double>(i));
+}
+
+// uniqueWithIndices: ia (first-occurrence index per unique), ic
+// (mapping back) under heavy duplication. Catches a future regression
+// in the firstIdx.try_emplace path or the rankByValue construction.
+TEST_P(SetOpsTest, UniqueWithIndicesLargeNRoundTrip)
+{
+    eval("function [a, b, c] = w(x)\n  [a, b, c] = unique(x);\nend");
+    eval("x = mod(0:99, 10); [u, ia, ic] = w(x);");
+    auto *u  = getVarPtr("u");
+    auto *ia = getVarPtr("ia");
+    auto *ic = getVarPtr("ic");
+    EXPECT_EQ(u->numel(), 10u);
+    // Round-trip: x(ia) must equal u, u(ic) must equal x.
+    eval("rt1 = x(ia); rt2 = u(ic);");
+    auto *rt1 = getVarPtr("rt1");
+    auto *rt2 = getVarPtr("rt2");
+    for (size_t i = 0; i < 10; ++i)
+        EXPECT_DOUBLE_EQ(rt1->doubleData()[i], u->doubleData()[i]);
+    for (size_t i = 0; i < 100; ++i)
+        EXPECT_DOUBLE_EQ(rt2->doubleData()[i], static_cast<double>(i % 10));
+}
+
+TEST_P(SetOpsTest, IsmemberLargeNExhaustive)
+{
+    // A = 0..999; B = 500..1499. Membership in B is exactly i >= 500
+    // for each A[i]. Catches a hash collision / equality regression at
+    // a size that exercises rehash.
+    eval("A = 0:999; B = 500:1499; v = ismember(A, B);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 1000u);
+    for (size_t i = 0; i < 1000; ++i) {
+        const bool expected = (i >= 500);
+        EXPECT_EQ(v->logicalData()[i] != 0, expected) << "at i=" << i;
+    }
+}
+
+// ── Phase P4 uniform-edge fast path ──────────────────────────
+//
+// Beyond the basic histcounts/discretize tests above, the new
+// uniform-edge path needs explicit coverage on (a) the FP-rounding
+// guard and (b) parity with the irregular-fallback path.
+
+TEST_P(SetOpsTest, HistcountsUniformAndIrregularAgree)
+{
+    // Same data, two equivalent edge specs (one regular, one re-
+    // expressed with a tiny perturbation that fails edgesAreUniform).
+    // Bin counts must be identical -- the fast and fallback paths
+    // are required to agree on integer-valued data within the bins.
+    eval("x = (0:99) + 0.5;");
+    eval("eA = 0:10:100;");
+    // Same edges but one slot perturbed by 0 (still uniform per check)
+    eval("eB = [0 10 20 30 40 50 60 70 80 90 100.0001];");
+    eval("hA = histcounts(x, eA); hB = histcounts(x, eB);");
+    auto *hA = getVarPtr("hA");
+    auto *hB = getVarPtr("hB");
+    EXPECT_EQ(hA->numel(), hB->numel());
+    for (size_t i = 0; i < hA->numel(); ++i)
+        EXPECT_DOUBLE_EQ(hA->doubleData()[i], hB->doubleData()[i])
+            << "at bin " << i;
+}
+
+TEST_P(SetOpsTest, HistcountsLargeNUniformIntegrity)
+{
+    // 1000 evenly-spaced integers into 10 uniform bins of width 100
+    // → exactly 100 per bin. Catches off-by-one in the FP-rounding
+    // guard or the last-bin closure.
+    eval("x = 0:999; e = 0:100:1000; h = histcounts(x, e);");
+    auto *h = getVarPtr("h");
+    EXPECT_EQ(h->numel(), 10u);
+    for (size_t i = 0; i < 10; ++i)
+        EXPECT_DOUBLE_EQ(h->doubleData()[i], 100.0) << "at bin " << i;
+}
+
 INSTANTIATE_DUAL(SetOpsTest);

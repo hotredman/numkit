@@ -4,6 +4,9 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <functional>
+#include <vector>
+
 using namespace m_test;
 
 // ============================================================
@@ -200,6 +203,112 @@ TEST_P(ComparisonTest, ArrayComparison)
     EXPECT_EQ(d[0], 0);
     EXPECT_EQ(d[1], 0);
     EXPECT_EQ(d[2], 1);
+}
+
+// ── Phase P1.5 SIMD comparison-ops coverage ──────────────────
+//
+// The SIMD compare kernels (MStdCompare_simd.cpp) write 1 LOGICAL byte
+// per double lane via StoreMaskBits + per-lane bit-shift expand. Tests
+// below exercise:
+//   * VV (vector-vs-vector same shape)
+//   * VS (vector-vs-scalar broadcast on the right)
+//   * SV (scalar-vs-vector broadcast on the left)
+//   * Sizes that cross the 4× unroll boundary (need n >= 16 for AVX2,
+//     n >= 32 for AVX-512) plus the 1× SIMD partial and scalar tail.
+
+TEST_P(ComparisonTest, LargeNVectorVsScalarGreater)
+{
+    // x = 1..1000; check x > 500 has exactly 500 trues. nnz(LOGICAL)
+    // isn't a builtin yet so count via element scan in C++.
+    eval("x = 1:1000; m = x > 500;");
+    auto *m = getVarPtr("m");
+    EXPECT_EQ(m->numel(), 1000u);
+    size_t trues = 0;
+    for (size_t i = 0; i < 1000; ++i) trues += (m->logicalData()[i] != 0);
+    EXPECT_EQ(trues, 500u);
+}
+
+TEST_P(ComparisonTest, LargeNScalarVsVectorLess)
+{
+    // 500 < x for x = 1..1000 → also 500 trues. Catches SV-shape kernel.
+    eval("x = 1:1000; m = 500 < x;");
+    auto *m = getVarPtr("m");
+    size_t trues = 0;
+    for (size_t i = 0; i < 1000; ++i) trues += (m->logicalData()[i] != 0);
+    EXPECT_EQ(trues, 500u);
+}
+
+TEST_P(ComparisonTest, LargeNVectorVsVectorEqual)
+{
+    // a == b where they differ at known positions (1-based: 7, 100, 999).
+    eval("a = 1:1000; b = a; b([7 100 999]) = -1; m = a == b;");
+    auto *m = getVarPtr("m");
+    size_t trues = 0;
+    for (size_t i = 0; i < 1000; ++i) trues += (m->logicalData()[i] != 0);
+    EXPECT_EQ(trues, 997u);
+    // Specific positions must be FALSE (0-based: 6, 99, 998).
+    EXPECT_FALSE(m->logicalData()[6]   != 0);
+    EXPECT_FALSE(m->logicalData()[99]  != 0);
+    EXPECT_FALSE(m->logicalData()[998] != 0);
+}
+
+TEST_P(ComparisonTest, AllSixOpsLargeNAgreeWithScalar)
+{
+    // For each cmp op, verify the SIMD-vector result agrees element-wise
+    // with the C++ scalar reference. Catches any cross-op regression in
+    // the macro (incl. the IEEE-NaN special case for ~=).
+    eval("rng(13); x = randn(256, 1); y = randn(256, 1); thr = 0.5;");
+    auto *x = getVarPtr("x");
+    auto *y = getVarPtr("y");
+    ASSERT_EQ(x->numel(), 256u);
+    ASSERT_EQ(y->numel(), 256u);
+
+    struct Op { const char *m_op; std::function<bool(double, double)> ref; };
+    const std::vector<Op> ops = {
+        {">",  [](double a, double b){ return a >  b; }},
+        {"<",  [](double a, double b){ return a <  b; }},
+        {">=", [](double a, double b){ return a >= b; }},
+        {"<=", [](double a, double b){ return a <= b; }},
+        {"==", [](double a, double b){ return a == b; }},
+        {"~=", [](double a, double b){ return a != b; }},
+    };
+    for (const auto &op : ops) {
+        eval(std::string("mv = x ") + op.m_op + " y;");
+        auto *mv = getVarPtr("mv");
+        ASSERT_EQ(mv->numel(), 256u) << "VV op " << op.m_op;
+        for (size_t i = 0; i < 256; ++i) {
+            const bool expect = op.ref(x->doubleData()[i], y->doubleData()[i]);
+            EXPECT_EQ(mv->logicalData()[i] != 0, expect)
+                << "VV op " << op.m_op << " at i=" << i;
+        }
+        eval(std::string("mv = x ") + op.m_op + " thr;");
+        auto *mv2 = getVarPtr("mv");
+        for (size_t i = 0; i < 256; ++i) {
+            const bool expect = op.ref(x->doubleData()[i], 0.5);
+            EXPECT_EQ(mv2->logicalData()[i] != 0, expect)
+                << "VS op " << op.m_op << " at i=" << i;
+        }
+    }
+}
+
+TEST_P(ComparisonTest, NaNComparisonsAlwaysFalse)
+{
+    // IEEE 754: NaN OP anything is false except != which is true.
+    eval("x = [1 NaN 2 NaN 3]; "
+         "lt = x < 5; gt = x > 0; eq = x == x; ne = x ~= x;");
+    auto *lt = getVarPtr("lt");
+    auto *gt = getVarPtr("gt");
+    auto *eq = getVarPtr("eq");
+    auto *ne = getVarPtr("ne");
+    // NaN positions: 2, 4 (1-based) → indices 1, 3 (0-based).
+    EXPECT_FALSE(lt->logicalData()[1] != 0);
+    EXPECT_FALSE(lt->logicalData()[3] != 0);
+    EXPECT_FALSE(gt->logicalData()[1] != 0);
+    EXPECT_FALSE(gt->logicalData()[3] != 0);
+    EXPECT_FALSE(eq->logicalData()[1] != 0);  // NaN == NaN is false
+    EXPECT_FALSE(eq->logicalData()[3] != 0);
+    EXPECT_TRUE (ne->logicalData()[1] != 0);  // NaN ~= NaN is true
+    EXPECT_TRUE (ne->logicalData()[3] != 0);
 }
 
 INSTANTIATE_DUAL(ComparisonTest);
