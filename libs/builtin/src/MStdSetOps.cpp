@@ -15,12 +15,51 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <numeric>
+#include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace numkit::m::builtin {
 
 namespace {
+
+// Phase P3 — hash-based set ops. The previous sort-based path was
+// O(N log N) on every call; for the bench input (1M doubles drawn from
+// a small integer range, K ≈ 8000 unique) it spent ~95% of its time
+// sorting duplicates. Hash dedupe drops that to O(N) + O(K log K).
+//
+// MATLAB semantics that the kernel must preserve:
+//   * +0 and -0 are equal — collapse to one slot in unique / lookup.
+//   * NaN never equals anything (including itself). For unique each NaN
+//     is its own slot; for ismember NaN never matches; for
+//     union/intersect/setdiff NaN is dropped entirely (matches the
+//     previous sortedUnique helper's behaviour).
+//   * Output of unique / union / intersect / setdiff is sorted ascending,
+//     NaN entries (if any) appended last (matches MATLAB sort convention).
+
+// Hash that normalises -0 → +0 so the two share a bucket. std::hash<double>
+// on most STL implementations hashes the bit pattern, which puts +0 and
+// -0 in different buckets and breaks lookup-equality (since lookup uses
+// the hash first, then operator==).
+struct DoubleHashEq0 {
+    size_t operator()(double v) const noexcept {
+        if (v == 0.0) return 0;          // covers both +0 and -0
+        std::uint64_t bits;
+        std::memcpy(&bits, &v, sizeof(bits));
+        // xorshift mix — std::hash<uint64_t> is identity on libstdc++,
+        // which clusters double bit patterns badly (sign + exponent dominate).
+        bits ^= bits >> 33;
+        bits *= 0xff51afd7ed558ccdULL;
+        bits ^= bits >> 33;
+        bits *= 0xc4ceb9fe1a85ec53ULL;
+        bits ^= bits >> 33;
+        return static_cast<size_t>(bits);
+    }
+};
 
 // Stable sorted-with-original-indices buffer. Used by uniqueWithIndices
 // to recover ia (= original index of first occurrence per unique val)
@@ -29,23 +68,6 @@ struct IndexedVal {
     double v;
     size_t origIdx;
 };
-
-// Standard MATLAB sort treats NaN as larger than any number. We follow
-// that convention — NaN values land at the end of the sorted output.
-inline bool lessForSet(double a, double b)
-{
-    if (std::isnan(a)) return false;
-    if (std::isnan(b)) return true;
-    return a < b;
-}
-
-// MATLAB convention: equal up to bit identity. NaN != NaN here too,
-// so each NaN is its own unique value.
-inline bool equalForSet(double a, double b)
-{
-    if (std::isnan(a) || std::isnan(b)) return false;
-    return a == b;
-}
 
 // Empty result (1×0 row) — MATLAB returns this for "no elements".
 inline MValue emptyRow(Allocator &alloc)
@@ -72,19 +94,23 @@ MValue unique(Allocator &alloc, const MValue &x)
     const size_t n = x.numel();
     if (n == 0) return emptyRow(alloc);
 
-    std::vector<double> buf(n);
-    std::copy(x.doubleData(), x.doubleData() + n, buf.data());
-    std::sort(buf.begin(), buf.end(), lessForSet);
+    std::unordered_set<double, DoubleHashEq0> seen;
+    seen.reserve(n / 2 + 1);
+    size_t nanCount = 0;
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i) {
+        if (std::isnan(p[i])) ++nanCount;
+        else seen.insert(p[i]);
+    }
 
     std::vector<double> out;
-    out.reserve(n);
-    out.push_back(buf[0]);
-    for (size_t i = 1; i < n; ++i) {
-        // Append if this value is distinct from the last one written.
-        // For NaNs we always append (NaN != NaN by equalForSet).
-        if (!equalForSet(buf[i], out.back()))
-            out.push_back(buf[i]);
-    }
+    out.reserve(seen.size() + nanCount);
+    out.assign(seen.begin(), seen.end());
+    std::sort(out.begin(), out.end());
+    // Each NaN in the input stays as its own unique entry (matches
+    // MATLAB and the previous sort-then-dedupe behaviour).
+    for (size_t i = 0; i < nanCount; ++i)
+        out.push_back(std::nan(""));
     return rowFromVec(alloc, out);
 }
 
@@ -97,45 +123,63 @@ uniqueWithIndices(Allocator &alloc, const MValue &x)
                                emptyRow(alloc));
     }
 
-    // Sort with original-index tracking to recover ia / ic.
-    std::vector<IndexedVal> sorted(n);
-    for (size_t i = 0; i < n; ++i)
-        sorted[i] = {x.doubleData()[i], i};
-    std::sort(sorted.begin(), sorted.end(),
-              [](const IndexedVal &a, const IndexedVal &b) {
-                  return lessForSet(a.v, b.v);
-              });
-
-    std::vector<double> uniq;
-    std::vector<size_t> ia;            // original idx of first occurrence
-    std::vector<size_t> rankInUniq(n); // for each sorted element, its slot in uniq
-    uniq.reserve(n);
-    ia.reserve(n);
-
-    uniq.push_back(sorted[0].v);
-    ia.push_back(sorted[0].origIdx);
-    rankInUniq[0] = 0;
-    for (size_t i = 1; i < n; ++i) {
-        if (!equalForSet(sorted[i].v, uniq.back())) {
-            uniq.push_back(sorted[i].v);
-            ia.push_back(sorted[i].origIdx);
+    // Pass 1: hash-track first-occurrence index for non-NaN values, plus
+    // ordered list of NaN-occurrence indices (NaN can't go in a hash —
+    // each one is its own unique slot in the output).
+    std::unordered_map<double, size_t, DoubleHashEq0> firstIdx;
+    firstIdx.reserve(n / 2 + 1);
+    std::vector<size_t> nanIdxOrder;
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i) {
+        if (std::isnan(p[i])) {
+            nanIdxOrder.push_back(i);
+        } else {
+            firstIdx.try_emplace(p[i], i);
         }
-        rankInUniq[i] = uniq.size() - 1;
     }
 
-    // ic[origIdx] = rankInUniq for that original element. We have
-    // sorted[i].origIdx and rankInUniq[i]; invert.
-    std::vector<double> ic(n);
-    for (size_t i = 0; i < n; ++i)
-        ic[sorted[i].origIdx] = static_cast<double>(rankInUniq[i] + 1);
+    // Sort the non-NaN unique entries (value, first-occurrence-index)
+    // by value, then append NaN entries in input order at the end.
+    std::vector<IndexedVal> sorted;
+    sorted.reserve(firstIdx.size() + nanIdxOrder.size());
+    for (const auto &kv : firstIdx)
+        sorted.push_back({kv.first, kv.second});
+    std::sort(sorted.begin(), sorted.end(),
+              [](const IndexedVal &a, const IndexedVal &b) {
+                  return a.v < b.v;
+              });
+    for (size_t idx : nanIdxOrder)
+        sorted.push_back({std::nan(""), idx});
 
-    auto cOut = rowFromVec(alloc, uniq);
-    auto iaRow = MValue::matrix(1, ia.size(), MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < ia.size(); ++i)
-        iaRow.doubleDataMut()[i] = static_cast<double>(ia[i] + 1);
+    // For ic we need: input-index → rank in `sorted`. Non-NaN values
+    // get the rank from a value→rank map; NaN entries get their own
+    // slot in the order they appeared in the input.
+    std::unordered_map<double, size_t, DoubleHashEq0> rankByValue;
+    rankByValue.reserve(firstIdx.size());
+    const size_t nanRankBase = sorted.size() - nanIdxOrder.size();
+    for (size_t r = 0; r < nanRankBase; ++r)
+        rankByValue[sorted[r].v] = r;
+
+    std::vector<double> ic(n);
+    size_t nanSeen = 0;
+    for (size_t i = 0; i < n; ++i) {
+        if (std::isnan(p[i])) {
+            ic[i] = static_cast<double>(nanRankBase + nanSeen + 1);
+            ++nanSeen;
+        } else {
+            ic[i] = static_cast<double>(rankByValue[p[i]] + 1);
+        }
+    }
+
+    // Build outputs.
+    auto cOut = MValue::matrix(1, sorted.size(), MType::DOUBLE, &alloc);
+    auto iaRow = MValue::matrix(1, sorted.size(), MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < sorted.size(); ++i) {
+        cOut.doubleDataMut()[i]  = sorted[i].v;
+        iaRow.doubleDataMut()[i] = static_cast<double>(sorted[i].origIdx + 1);
+    }
     auto icRow = MValue::matrix(1, n, MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < n; ++i)
-        icRow.doubleDataMut()[i] = ic[i];
+    std::copy(ic.begin(), ic.end(), icRow.doubleDataMut());
 
     return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
 }
@@ -144,8 +188,8 @@ uniqueWithIndices(Allocator &alloc, const MValue &x)
 // ismember
 // ────────────────────────────────────────────────────────────────────
 //
-// Sort B once, then binary-search each element of A. Output shape
-// matches A; logical type. NaN in A or B never matches.
+// Hash B once, then O(1) lookup per element of A. Output shape matches
+// A; logical type. NaN in A or B never matches.
 MValue ismember(Allocator &alloc, const MValue &a, const MValue &b)
 {
     const size_t na = a.numel();
@@ -159,22 +203,17 @@ MValue ismember(Allocator &alloc, const MValue &a, const MValue &b)
         return r;
     }
 
-    // Build sorted, NaN-stripped copy of B.
-    std::vector<double> sortedB;
-    sortedB.reserve(nb);
-    for (size_t i = 0; i < nb; ++i) {
-        const double v = b.doubleData()[i];
-        if (!std::isnan(v)) sortedB.push_back(v);
-    }
-    std::sort(sortedB.begin(), sortedB.end());
+    std::unordered_set<double, DoubleHashEq0> setB;
+    setB.reserve(nb);
+    const double *pb = b.doubleData();
+    for (size_t i = 0; i < nb; ++i)
+        if (!std::isnan(pb[i])) setB.insert(pb[i]);
 
+    const double *pa = a.doubleData();
+    uint8_t *out = r.logicalDataMut();
     for (size_t i = 0; i < na; ++i) {
-        const double v = a.doubleData()[i];
-        bool present = false;
-        if (!std::isnan(v) && !sortedB.empty()) {
-            present = std::binary_search(sortedB.begin(), sortedB.end(), v);
-        }
-        r.logicalDataMut()[i] = present ? 1 : 0;
+        const double v = pa[i];
+        out[i] = (!std::isnan(v) && setB.count(v) != 0) ? 1 : 0;
     }
     return r;
 }
@@ -188,54 +227,72 @@ MValue ismember(Allocator &alloc, const MValue &a, const MValue &b)
 
 namespace {
 
-std::vector<double> sortedUnique(const MValue &x)
+// Build the dedupe'd non-NaN set from x. NaN entries are dropped per
+// MATLAB convention for union/intersect/setdiff.
+std::unordered_set<double, DoubleHashEq0> hashSetNoNaN(const MValue &x)
 {
-    std::vector<double> v;
-    v.reserve(x.numel());
-    for (size_t i = 0; i < x.numel(); ++i) {
-        const double d = x.doubleData()[i];
-        if (!std::isnan(d)) v.push_back(d);
-    }
-    std::sort(v.begin(), v.end());
-    v.erase(std::unique(v.begin(), v.end()), v.end());
-    return v;
+    std::unordered_set<double, DoubleHashEq0> s;
+    s.reserve(x.numel() / 2 + 1);
+    const double *p = x.doubleData();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i)
+        if (!std::isnan(p[i])) s.insert(p[i]);
+    return s;
 }
 
 } // namespace
 
 MValue setUnion(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    auto sa = sortedUnique(a);
-    auto sb = sortedUnique(b);
-    std::vector<double> out;
-    out.reserve(sa.size() + sb.size());
-    std::set_union(sa.begin(), sa.end(),
-                   sb.begin(), sb.end(),
-                   std::back_inserter(out));
+    auto s = hashSetNoNaN(a);
+    const double *pb = b.doubleData();
+    for (size_t i = 0; i < b.numel(); ++i)
+        if (!std::isnan(pb[i])) s.insert(pb[i]);
+    std::vector<double> out(s.begin(), s.end());
+    std::sort(out.begin(), out.end());
     return rowFromVec(alloc, out);
 }
 
 MValue setIntersect(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    auto sa = sortedUnique(a);
-    auto sb = sortedUnique(b);
+    // Hash the smaller side, walk the larger — minimises hash misses
+    // and keeps the dedupe set bounded by min(|A|, |B|).
+    const bool aSmaller = a.numel() <= b.numel();
+    const MValue &small = aSmaller ? a : b;
+    const MValue &large = aSmaller ? b : a;
+
+    auto smallSet = hashSetNoNaN(small);
+    std::unordered_set<double, DoubleHashEq0> seenInLarge;
+    seenInLarge.reserve(smallSet.size());
     std::vector<double> out;
-    out.reserve(std::min(sa.size(), sb.size()));
-    std::set_intersection(sa.begin(), sa.end(),
-                          sb.begin(), sb.end(),
-                          std::back_inserter(out));
+    out.reserve(smallSet.size());
+
+    const double *pl = large.doubleData();
+    for (size_t i = 0; i < large.numel(); ++i) {
+        const double v = pl[i];
+        if (std::isnan(v)) continue;
+        if (smallSet.count(v) && seenInLarge.insert(v).second)
+            out.push_back(v);
+    }
+    std::sort(out.begin(), out.end());
     return rowFromVec(alloc, out);
 }
 
 MValue setDiff(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    auto sa = sortedUnique(a);
-    auto sb = sortedUnique(b);
+    auto setB = hashSetNoNaN(b);
+    std::unordered_set<double, DoubleHashEq0> seen;
+    seen.reserve(a.numel() / 2 + 1);
     std::vector<double> out;
-    out.reserve(sa.size());
-    std::set_difference(sa.begin(), sa.end(),
-                        sb.begin(), sb.end(),
-                        std::back_inserter(out));
+    out.reserve(a.numel());
+    const double *pa = a.doubleData();
+    for (size_t i = 0; i < a.numel(); ++i) {
+        const double v = pa[i];
+        if (std::isnan(v)) continue;
+        if (setB.count(v) == 0 && seen.insert(v).second)
+            out.push_back(v);
+    }
+    std::sort(out.begin(), out.end());
     return rowFromVec(alloc, out);
 }
 
