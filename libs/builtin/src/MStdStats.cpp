@@ -12,6 +12,7 @@
 
 #include "MStdHelpers.hpp"
 #include "MStdReductionHelpers.hpp"
+#include "backends/MStdNanReductions.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -336,28 +337,43 @@ mode(Allocator &alloc, const MValue &x, int dim)
 
 using detail::compactNonNan;
 
+// Phase P2: route nansum / nanmean through the single-pass scan kernels
+// in backends/MStdNanReductions_{simd,portable}.cpp. These read the input
+// once with an IsNaN mask and skip the compactNonNan scratch copy that
+// the older scalar lambda needed. Vector input bypasses applyAlongDim
+// entirely (no per-call scratch alloc); matrix dim slices still go
+// through applyAlongDim but the lambda no longer mutates the slice.
+
 MValue nansum(Allocator &alloc, const MValue &x, int dim)
 {
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
+        return MValue::scalar(nanSumScan(x.doubleData(), x.numel()), &alloc);
+
     const int d = resolveDim(x, dim, "nansum");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            double acc = 0.0;
-            for (size_t i = 0; i < k; ++i) acc += slice[i];
-            return acc; // all-NaN → 0 (MATLAB nansum convention)
+            return nanSumScan(slice, n); // all-NaN → 0
         }, &alloc);
 }
 
 MValue nanmean(Allocator &alloc, const MValue &x, int dim)
 {
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE) {
+        const auto r = nanSumCountScan(x.doubleData(), x.numel());
+        return MValue::scalar(r.count > 0 ? r.sum / static_cast<double>(r.count)
+                                          : std::nan(""), &alloc);
+    }
+
     const int d = resolveDim(x, dim, "nanmean");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            if (k == 0) return std::nan("");
-            double acc = 0.0;
-            for (size_t i = 0; i < k; ++i) acc += slice[i];
-            return acc / static_cast<double>(k);
+            const auto r = nanSumCountScan(slice, n);
+            return r.count > 0 ? r.sum / static_cast<double>(r.count)
+                               : std::nan("");
         }, &alloc);
 }
 
