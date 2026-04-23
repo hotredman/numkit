@@ -408,10 +408,61 @@ MValue cumImpl(Allocator &alloc, const MValue &x, int dim,
 
 } // namespace
 
+// cumprod / cummax / cummin: SIMD prefix-op kernels in
+// backends/MStdCumSum_{simd,portable}.cpp handle vector input and the
+// dim=1 (column) path where access is contiguous. For dim=2/3 the
+// strided access pattern doesn't benefit from SIMD; cumImpl's scalar
+// cumKernel still handles those (with the same Op as before).
+namespace {
+
+using ScanFn = void (*)(const double *, double *, std::size_t);
+
+template <typename Op>
+MValue cumScanDispatch(Allocator &alloc, const MValue &x, int dim,
+                       ScanFn scan, Op scalarOp, const char *fn)
+{
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if (x.isScalar()) {
+        auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, &alloc);
+        r.doubleDataMut()[0] = x.toScalar();
+        return r;
+    }
+    if (x.dims().isVector()) {
+        auto r = MValue::matrix(x.dims().rows(), x.dims().cols(), MType::DOUBLE, &alloc);
+        scan(x.doubleData(), r.doubleDataMut(), x.numel());
+        return r;
+    }
+
+    const int d = detail::resolveDim(x, dim, fn);
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+
+    if (d == 1) {
+        // Per-column scan — column data is contiguous, route through SIMD.
+        for (size_t pp = 0; pp < P; ++pp)
+            for (size_t c = 0; c < C; ++c) {
+                const size_t base = pp * R * C + c * R;
+                scan(src + base, dst + base, R);
+            }
+    } else {
+        // dim=2/3: strided access; reuse the existing scalar cumKernel.
+        cumKernel(x, d, scalarOp, dst);
+    }
+    return r;
+}
+
+} // namespace
+
 MValue cumprod(Allocator &alloc, const MValue &x, int dim)
 {
-    return cumImpl(alloc, x, dim,
-                   [](double a, double b) { return a * b; }, "cumprod");
+    return cumScanDispatch(alloc, x, dim, cumprodScan,
+                           [](double a, double b) { return a * b; }, "cumprod");
 }
 
 MValue cummax(Allocator &alloc, const MValue &x, int dim)
@@ -419,22 +470,22 @@ MValue cummax(Allocator &alloc, const MValue &x, int dim)
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
-    return cumImpl(alloc, x, dim,
-                   [](double a, double b) {
-                       if (std::isnan(b)) return a;
-                       if (std::isnan(a)) return b;
-                       return std::max(a, b);
-                   }, "cummax");
+    return cumScanDispatch(alloc, x, dim, cummaxScan,
+                           [](double a, double b) {
+                               if (std::isnan(b)) return a;
+                               if (std::isnan(a)) return b;
+                               return std::max(a, b);
+                           }, "cummax");
 }
 
 MValue cummin(Allocator &alloc, const MValue &x, int dim)
 {
-    return cumImpl(alloc, x, dim,
-                   [](double a, double b) {
-                       if (std::isnan(b)) return a;
-                       if (std::isnan(a)) return b;
-                       return std::min(a, b);
-                   }, "cummin");
+    return cumScanDispatch(alloc, x, dim, cumminScan,
+                           [](double a, double b) {
+                               if (std::isnan(b)) return a;
+                               if (std::isnan(a)) return b;
+                               return std::min(a, b);
+                           }, "cummin");
 }
 
 // ── any / all moved to backends/MStdLogicalReductions_{simd,portable}.cpp

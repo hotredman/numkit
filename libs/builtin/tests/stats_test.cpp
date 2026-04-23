@@ -17,6 +17,8 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <cmath>
+
 using namespace m_test;
 
 class StatsTest : public DualEngineTest
@@ -1088,6 +1090,106 @@ TEST_P(CumLogicalTest, AnyLogicalInputDirectByteScan)
     EXPECT_TRUE(evalBool("r"));
     eval("r2 = all(m);");
     EXPECT_FALSE(evalBool("r2"));
+}
+
+// ── Cumulative SIMD-body coverage (Phase P6 followup) ───────
+//
+// Existing CumprodVector / CummaxVector / CumminVector tests use 5-8
+// element vectors that don't fully cross the 4× SIMD body / scalar
+// tail boundary. The cumsum/cumprod/cummax/cummin SIMD path uses a
+// Hillis-Steele scan with cross-lane SlideUpLanes — got this wrong
+// once with ShiftLeftLanes (AVX2 lane-crossing limitation), produced
+// silently-wrong results that no test caught. These cases pin the fix
+// at sizes that exercise the full body + partial-vector + scalar tail.
+
+TEST_P(CumLogicalTest, CumsumLargeNMatchesArithmeticSequence)
+{
+    // x = 1..100 → cumsum is the triangular numbers k*(k+1)/2.
+    eval("x = 1:100; c = cumsum(x);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 100u);
+    for (size_t k = 0; k < 100; ++k) {
+        const double k1 = static_cast<double>(k + 1);
+        const double expected = k1 * (k1 + 1.0) / 2.0;
+        EXPECT_DOUBLE_EQ(c->doubleData()[k], expected) << "at k=" << k;
+    }
+}
+
+TEST_P(CumLogicalTest, CumprodLargeNMatchesScalarReference)
+{
+    // Use small values to keep result in range. x = 1.01.^[0..63]; the
+    // cumulative product builds up exponentially but stays finite.
+    eval("x = 1.01 .^ (0:63); c = cumprod(x);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 64u);
+    double acc = 1.0;
+    for (size_t k = 0; k < 64; ++k) {
+        acc *= std::pow(1.01, static_cast<double>(k));
+        EXPECT_NEAR(c->doubleData()[k], acc, 1e-10 * std::abs(acc))
+            << "at k=" << k;
+    }
+}
+
+TEST_P(CumLogicalTest, CummaxLargeNMonotonicData)
+{
+    // Strictly decreasing input: cummax stays at the first element.
+    eval("x = (100:-1:1); c = cummax(x);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 100u);
+    for (size_t k = 0; k < 100; ++k)
+        EXPECT_DOUBLE_EQ(c->doubleData()[k], 100.0) << "at k=" << k;
+}
+
+TEST_P(CumLogicalTest, CummaxLargeNZigzagWithKnownPeaks)
+{
+    // Zigzag pattern with peaks at known positions (k=0, 7, 19, 49).
+    // Running max is the most-recent peak value.
+    eval("x = (1:64) - 100;"            // -99..-36, all increasing
+         "x([8 20 50]) = [50 75 200];"  // inject peaks (1-based)
+         "c = cummax(x);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(c->numel(), 64u);
+    // Before the first peak, running max follows x[0]=−99 then climbs
+    // with the increasing prefix until index 7 where x = 50 takes over.
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], -99.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[6], -93.0); // max(x[0..6]) climb
+    EXPECT_DOUBLE_EQ(c->doubleData()[7], 50.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[18], 50.0); // until next peak
+    EXPECT_DOUBLE_EQ(c->doubleData()[19], 75.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[49], 200.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[63], 200.0); // stays at 200
+}
+
+TEST_P(CumLogicalTest, CumminLargeNZigzag)
+{
+    // Mirror of cummax with min: troughs at the same indices.
+    eval("x = -((1:64) - 100);"          // 99..36, all decreasing
+         "x([8 20 50]) = [-50 -75 -200];"
+         "c = cummin(x);");
+    auto *c = getVarPtr("c");
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 99.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[7], -50.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[19], -75.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[49], -200.0);
+}
+
+TEST_P(CumLogicalTest, CumOdSizesAroundSimdLanes)
+{
+    // Sizes just past 1×, 2×, 4× the SIMD lane count to exercise the
+    // body + partial-SIMD + scalar-tail combinations.
+    for (int n : {17, 33, 65, 127}) {
+        const std::string ns = std::to_string(n);
+        // Reference cumsum of 1..n: triangular numbers.
+        eval("x = 1:" + ns + "; c = cumsum(x);");
+        auto *c = getVarPtr("c");
+        ASSERT_EQ(c->numel(), static_cast<size_t>(n));
+        for (size_t k = 0; k < static_cast<size_t>(n); ++k) {
+            const double k1 = static_cast<double>(k + 1);
+            const double expected = k1 * (k1 + 1.0) / 2.0;
+            EXPECT_DOUBLE_EQ(c->doubleData()[k], expected)
+                << "cumsum at n=" << n << " k=" << k;
+        }
+    }
 }
 
 TEST_P(CumLogicalTest, AnyAllOddSizesAroundSimdLanes)
