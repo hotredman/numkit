@@ -442,6 +442,57 @@ TEST_P(StatsTest, StdMatchesSqrtVar)
 // SIMD tail handling — N just past a multiple of typical lane counts.
 // Covers cases where i + 4*N <= n is false but i + N <= n is true
 // (1× SIMD body), and where i < n is the only remainder (scalar tail).
+// ── 2D / 3D matrix-dim coverage that exercises the SIMD body ─
+//
+// Existing VarMatrixDim*/StdMatrixDim*/Var3DDim* use 3-row matrices;
+// the per-slice SIMD scan body needs slice length >= 4 (AVX2) or >= 8
+// (AVX-512) before the unrolled body fires. These cases use 64-row
+// matrices so the body, partial-vector, and scalar-tail all execute
+// per slice.
+
+TEST_P(StatsTest, VarMatrixDim1LargeRowsPerColumnReference)
+{
+    // 64-row, 3-col matrix. var(M) reduces along columns (dim=1).
+    // Column k = (1..64) + 100*k; var of arithmetic progression
+    // 1..64 = N*(N+1)/12 where N=64, so reference = 64*65/12.
+    eval("M = repmat((1:64)', 1, 3) + 100 * repmat(0:2, 64, 1); v = var(M);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    const double ref = 64.0 * 65.0 / 12.0;
+    for (size_t c = 0; c < 3; ++c)
+        EXPECT_NEAR(v->doubleData()[c], ref, 1e-9 * std::abs(ref))
+            << "at col " << c;
+}
+
+TEST_P(StatsTest, StdMatrixDim1LargeRows)
+{
+    eval("M = repmat((1:64)', 1, 3); s = std(M);");
+    auto *s = getVarPtr("s");
+    const double ref = std::sqrt(64.0 * 65.0 / 12.0);
+    for (size_t c = 0; c < 3; ++c)
+        EXPECT_NEAR(s->doubleData()[c], ref, 1e-9 * std::abs(ref));
+}
+
+TEST_P(StatsTest, Var3DDim1LargeRowsPerColumnPerPage)
+{
+    // 64×3×2: var along dim=1 → 1×3×2 result. Each column-page slice
+    // is a 64-element column → SIMD body fires.
+    eval("R = 64; C = 3; P = 2; "
+         "M = zeros(R, C, P); "
+         "for p = 1:P, for c = 1:C, M(:,c,p) = (1:R)' + 1000*p; end; end; "
+         "v = var(M);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 1u);
+    EXPECT_EQ(cols(*v), 3u);
+    EXPECT_EQ(v->dims().pages(), 2u);
+    const double ref = 64.0 * 65.0 / 12.0;
+    for (size_t p = 0; p < 2; ++p)
+        for (size_t c = 0; c < 3; ++c)
+            EXPECT_NEAR((*v)(0, c, p), ref, 1e-9 * std::abs(ref))
+                << "at p=" << p << " c=" << c;
+}
+
 TEST_P(StatsTest, VarOddSizesAroundSimdLanes)
 {
     for (int n : {17, 33, 65, 127, 257}) {
@@ -870,6 +921,66 @@ TEST_P(NanReductionTest, NanmeanLargeNDenseNaNCount)
     EXPECT_LT(err->toScalar(), 1e-10);
 }
 
+TEST_P(NanReductionTest, NansumMatrixDim1LargeRowsScatteredNaN)
+{
+    // 32-row, 3-col matrix; inject NaNs at known positions in each col,
+    // verify per-column nansum matches the explicit NaN-skip sum.
+    eval("R = 32; M = repmat((1:R)', 1, 3); "
+         "M(5, 1) = NaN; M(15, 1) = NaN; "
+         "M(8, 2) = NaN; M(20, 2) = NaN; "
+         "M(1, 3) = NaN; M(31, 3) = NaN; "
+         "got = nansum(M); "
+         "ref = zeros(1, 3); "
+         "for c = 1:3, "
+         "  for r = 1:R, "
+         "    if ~isnan(M(r,c)), ref(c) = ref(c) + M(r,c); end; "
+         "  end; "
+         "end;");
+    auto *got = getVarPtr("got");
+    auto *ref = getVarPtr("ref");
+    EXPECT_EQ(cols(*got), 3u);
+    for (size_t c = 0; c < 3; ++c)
+        EXPECT_DOUBLE_EQ(got->doubleData()[c], ref->doubleData()[c])
+            << "at col " << c;
+}
+
+TEST_P(NanReductionTest, NanmaxMatrixDim1LargeRowsScatteredNaN)
+{
+    eval("R = 32; M = repmat((1:R)', 1, 3); "
+         "M(R, 1) = NaN;"  // would-be max in col 1 is now NaN; max = R-1
+         "M(1:R-1, 2) = NaN; "  // col 2: only last element = R is non-NaN
+         "got = nanmax(M);");
+    auto *got = getVarPtr("got");
+    EXPECT_DOUBLE_EQ(got->doubleData()[0], 31.0); // R - 1
+    EXPECT_DOUBLE_EQ(got->doubleData()[1], 32.0); // last valid
+    EXPECT_DOUBLE_EQ(got->doubleData()[2], 32.0); // no NaN, max = R
+}
+
+TEST_P(NanReductionTest, NanvarMatrixDim1LargeRowsCountNonNaN)
+{
+    // 32-row × 2-col; col 1 has 4 NaNs (count=28), col 2 has none.
+    // Verify the SIMD per-slice two-pass variance handles a per-slice
+    // count correctly.
+    eval("R = 32; M = repmat((1:R)', 1, 2); "
+         "M([3 10 17 24], 1) = NaN; "
+         "got = nanvar(M); "
+         "ref = zeros(1, 2); "
+         "for c = 1:2, "
+         "  s = 0; n = 0; "
+         "  for r = 1:R, if ~isnan(M(r,c)), s = s + M(r,c); n = n + 1; end; end; "
+         "  m = s / n; "
+         "  ss = 0; "
+         "  for r = 1:R, if ~isnan(M(r,c)), ss = ss + (M(r,c) - m)^2; end; end; "
+         "  ref(c) = ss / (n - 1); "
+         "end;");
+    auto *got = getVarPtr("got");
+    auto *ref = getVarPtr("ref");
+    for (size_t c = 0; c < 2; ++c)
+        EXPECT_NEAR(got->doubleData()[c], ref->doubleData()[c],
+                    1e-10 * std::abs(ref->doubleData()[c]))
+            << "at col " << c;
+}
+
 TEST_P(NanReductionTest, NansumOddSizesAroundSimdLanes)
 {
     // Tail-handling under odd N: SIMD body covers floor(n/4N)*4N
@@ -1190,6 +1301,60 @@ TEST_P(CumLogicalTest, CumOdSizesAroundSimdLanes)
                 << "cumsum at n=" << n << " k=" << k;
         }
     }
+}
+
+TEST_P(CumLogicalTest, CumsumMatrixDim1LargeRowsPerColumn)
+{
+    // 64-row × 3-col matrix. cumsum(M, 1) scans down each column via
+    // the SIMD prefix-sum kernel — slice = 64 elements > AVX2 lane (4),
+    // so the body fires per column.
+    eval("R = 64; M = repmat((1:R)', 1, 3) + 100 * repmat(0:2, R, 1); "
+         "C = cumsum(M, 1);");
+    auto *C = getVarPtr("C");
+    EXPECT_EQ(rows(*C), 64u);
+    EXPECT_EQ(cols(*C), 3u);
+    // For column k: M(:,k) = (1..64) + 100*k; cumsum at row r is
+    //   sum_{i=1..r+1} (i + 100*k) = (r+1)*(r+2)/2 + 100*k*(r+1).
+    for (size_t r = 0; r < 64; ++r)
+        for (size_t c = 0; c < 3; ++c) {
+            const double r1 = static_cast<double>(r + 1);
+            const double expected = r1 * (r1 + 1.0) / 2.0
+                                  + 100.0 * static_cast<double>(c) * r1;
+            EXPECT_DOUBLE_EQ((*C)(r, c), expected) << "at r=" << r << " c=" << c;
+        }
+}
+
+TEST_P(CumLogicalTest, CummaxMatrixDim1LargeRowsPerColumn)
+{
+    // Increasing-then-flat per-column: column k = (1..64). cummax = column itself.
+    eval("R = 64; M = repmat((1:R)', 1, 3); C = cummax(M, 1);");
+    auto *C = getVarPtr("C");
+    for (size_t r = 0; r < 64; ++r)
+        for (size_t c = 0; c < 3; ++c)
+            EXPECT_DOUBLE_EQ((*C)(r, c), static_cast<double>(r + 1))
+                << "at r=" << r << " c=" << c;
+}
+
+TEST_P(CumLogicalTest, Cumprod3DDim1LargePerPagePerColumn)
+{
+    // 16-row × 2-col × 2-page array; cumprod along dim=1 routes every
+    // column on every page through the SIMD prefix-prod kernel.
+    eval("R = 16; "
+         "M = ones(R, 2, 2); "
+         "for p = 1:2, M(:,:,p) = 1.05; end; "  // all 1.05
+         "C = cumprod(M, 1);");
+    auto *C = getVarPtr("C");
+    EXPECT_EQ(rows(*C), 16u);
+    EXPECT_EQ(C->dims().pages(), 2u);
+    // cumprod of constant 1.05 is 1.05^(r+1).
+    for (size_t p = 0; p < 2; ++p)
+        for (size_t c = 0; c < 2; ++c)
+            for (size_t r = 0; r < 16; ++r) {
+                const double expected = std::pow(1.05, static_cast<double>(r + 1));
+                EXPECT_NEAR((*C)(r, c, p), expected,
+                            1e-12 * std::abs(expected))
+                    << "at r=" << r << " c=" << c << " p=" << p;
+            }
 }
 
 TEST_P(CumLogicalTest, AnyAllOddSizesAroundSimdLanes)
