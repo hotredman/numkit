@@ -119,67 +119,84 @@ MValue flipud(Allocator &alloc, const MValue &x)
 // is clockwise.
 namespace {
 
-MValue rot90Once(Allocator &alloc, const MValue &x)
+// Per-page rotation kernels. Each takes a single page (R*C contiguous
+// elements, column-major) of the input and writes the rotated page to
+// the output buffer. Output strides depend on the rotation: rot90/270
+// swap (R, C); rot180 keeps (R, C). 3D dispatch in rot90() loops these
+// over all pages.
+
+inline void rot90OncePage(const double *src, double *dst, size_t R, size_t C)
 {
-    const auto &dd = x.dims();
-    const size_t R = dd.rows(), C = dd.cols();
-    auto r = MValue::matrix(C, R, MType::DOUBLE, &alloc);
-    if (x.numel() == 0) return r;
+    // Output shape (C, R): out[(C-1-c)*1 + r*C] = src[c*R + r]
     for (size_t c = 0; c < C; ++c)
         for (size_t rr = 0; rr < R; ++rr)
-            r.elem(C - 1 - c, rr) = x(rr, c);
-    return r;
+            dst[rr * C + (C - 1 - c)] = src[c * R + rr];
 }
 
-MValue rot180(Allocator &alloc, const MValue &x)
+inline void rot180Page(const double *src, double *dst, size_t R, size_t C)
 {
-    const auto &dd = x.dims();
-    const size_t R = dd.rows(), C = dd.cols();
-    auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
-    if (x.numel() == 0) return r;
     for (size_t c = 0; c < C; ++c)
         for (size_t rr = 0; rr < R; ++rr)
-            r.elem(R - 1 - rr, C - 1 - c) = x(rr, c);
-    return r;
+            dst[(C - 1 - c) * R + (R - 1 - rr)] = src[c * R + rr];
 }
 
-MValue rot270(Allocator &alloc, const MValue &x)
+inline void rot270Page(const double *src, double *dst, size_t R, size_t C)
 {
-    // Equivalent to rot90 clockwise.
-    const auto &dd = x.dims();
-    const size_t R = dd.rows(), C = dd.cols();
-    auto r = MValue::matrix(C, R, MType::DOUBLE, &alloc);
-    if (x.numel() == 0) return r;
+    // Output shape (C, R): out[c + (R-1-r)*C] = src[c*R + r]
     for (size_t c = 0; c < C; ++c)
         for (size_t rr = 0; rr < R; ++rr)
-            r.elem(c, R - 1 - rr) = x(rr, c);
-    return r;
+            dst[(R - 1 - rr) * C + c] = src[c * R + rr];
 }
 
 } // namespace
 
 MValue rot90(Allocator &alloc, const MValue &x, int k)
 {
-    if (x.dims().is3D())
-        throw MError("rot90: not yet supported for 3D arrays",
-                     0, 0, "rot90", "", "m:rot90:3D");
     int kMod = k % 4;
     if (kMod < 0) kMod += 4;
-    switch (kMod) {
-        case 0: {
-            // Copy unchanged.
-            const auto &dd = x.dims();
-            auto r = MValue::matrix(dd.rows(), dd.cols(), MType::DOUBLE, &alloc);
-            if (x.numel() > 0)
-                std::memcpy(r.doubleDataMut(), x.doubleData(),
-                            x.numel() * sizeof(double));
-            return r;
-        }
-        case 1: return rot90Once(alloc, x);
-        case 2: return rot180(alloc, x);
-        case 3: return rot270(alloc, x);
+
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    const bool is3D = dd.is3D();
+
+    // k mod 4 == 0 → identity (just copy). Same shape as input.
+    if (kMod == 0) {
+        auto r = is3D ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                      : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+        if (x.numel() > 0)
+            std::memcpy(r.doubleDataMut(), x.doubleData(),
+                        x.numel() * sizeof(double));
+        return r;
     }
-    return MValue();  // unreachable
+
+    // k mod 4 == 2 → same shape (R, C) but elements reflected.
+    if (kMod == 2) {
+        auto r = is3D ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                      : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+        if (x.numel() == 0) return r;
+        const double *src = x.doubleData();
+        double *dst = r.doubleDataMut();
+        for (size_t pp = 0; pp < P; ++pp)
+            rot180Page(src + pp * R * C, dst + pp * R * C, R, C);
+        return r;
+    }
+
+    // k mod 4 == 1 (90° CCW) or == 3 (90° CW = 270°): output shape is
+    // (C, R, P) — the per-page rows and cols swap.
+    auto r = is3D ? MValue::matrix3d(C, R, P, MType::DOUBLE, &alloc)
+                  : MValue::matrix(C, R, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    if (kMod == 1) {
+        for (size_t pp = 0; pp < P; ++pp)
+            rot90OncePage(src + pp * R * C, dst + pp * C * R, R, C);
+    } else { // kMod == 3
+        for (size_t pp = 0; pp < P; ++pp)
+            rot270Page(src + pp * R * C, dst + pp * C * R, R, C);
+    }
+    return r;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -265,40 +282,56 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t kRow, int64_t kCol)
 //   k = -1  → first sub-diagonal (below main)
 // tril keeps elements where col - row <= k. triu keeps col - row >= k.
 
-MValue tril(Allocator &alloc, const MValue &x, int k)
+namespace {
+
+// Per-page lower-triangular mask: zero entries where col - row > k.
+inline void trilPage(const double *src, double *dst, size_t R, size_t C, int k)
 {
-    if (x.dims().is3D())
-        throw MError("tril: not supported for 3D arrays",
-                     0, 0, "tril", "", "m:tril:3D");
-    const size_t R = x.dims().rows(), C = x.dims().cols();
-    auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
-    if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
     for (size_t c = 0; c < C; ++c)
         for (size_t rr = 0; rr < R; ++rr) {
-            // col - row <= k  ⇔  c - rr <= k
             const int diff = static_cast<int>(c) - static_cast<int>(rr);
             dst[c * R + rr] = (diff <= k) ? src[c * R + rr] : 0.0;
         }
-    return r;
 }
 
-MValue triu(Allocator &alloc, const MValue &x, int k)
+inline void triuPage(const double *src, double *dst, size_t R, size_t C, int k)
 {
-    if (x.dims().is3D())
-        throw MError("triu: not supported for 3D arrays",
-                     0, 0, "triu", "", "m:triu:3D");
-    const size_t R = x.dims().rows(), C = x.dims().cols();
-    auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
-    if (x.numel() == 0) return r;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
     for (size_t c = 0; c < C; ++c)
         for (size_t rr = 0; rr < R; ++rr) {
             const int diff = static_cast<int>(c) - static_cast<int>(rr);
             dst[c * R + rr] = (diff >= k) ? src[c * R + rr] : 0.0;
         }
+}
+
+} // namespace
+
+MValue tril(Allocator &alloc, const MValue &x, int k)
+{
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t pp = 0; pp < P; ++pp)
+        trilPage(src + pp * R * C, dst + pp * R * C, R, C, k);
+    return r;
+}
+
+MValue triu(Allocator &alloc, const MValue &x, int k)
+{
+    const auto &dd = x.dims();
+    const size_t R = dd.rows(), C = dd.cols();
+    const size_t P = dd.is3D() ? dd.pages() : 1;
+    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
+                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t pp = 0; pp < P; ++pp)
+        triuPage(src + pp * R * C, dst + pp * R * C, R, C, k);
     return r;
 }
 

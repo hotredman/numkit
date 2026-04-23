@@ -311,4 +311,98 @@ TEST_P(ManipTest, TriuRectangular)
     EXPECT_DOUBLE_EQ((*A)(2, 1), 0.0);
 }
 
+// ── 3D coverage for rot90 / tril / triu ──────────────────────
+//
+// Pre-2026-04-23 these threw on 3D inputs. New implementations apply
+// the operation per page (preserving the page count, swapping rows/cols
+// for rot90 odd-k as expected for 2D rotation).
+
+TEST_P(ManipTest, Rot90On3DRotatesEachPage)
+{
+    // Two 2×3 pages: page 1 = [1 2 3; 4 5 6], page 2 = [10 20 30; 40 50 60]
+    eval("A = zeros(2, 3, 2); "
+         "A(:,:,1) = [1 2 3; 4 5 6]; "
+         "A(:,:,2) = [10 20 30; 40 50 60]; "
+         "B = rot90(A);");
+    auto *B = getVarPtr("B");
+    // rot90 on 2x3 page → 3x2 page; pages preserved.
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 2u);
+    EXPECT_TRUE(B->dims().is3D());
+    EXPECT_EQ(B->dims().pages(), 2u);
+    // Page 1: rot90([1 2 3; 4 5 6]) =
+    //   [3 6;
+    //    2 5;
+    //    1 4]
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*B)(0, 1, 0), 6.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 1, 0), 4.0);
+    // Page 2: rot90([10 20 30; 40 50 60]) = [30 60; 20 50; 10 40]
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 1), 30.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0, 1), 10.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 1, 1), 40.0);
+}
+
+TEST_P(ManipTest, Rot90KEquals2On3DPreservesShape)
+{
+    eval("A = zeros(2, 3, 2); "
+         "A(:,:,1) = [1 2 3; 4 5 6]; "
+         "A(:,:,2) = [10 20 30; 40 50 60]; "
+         "B = rot90(A, 2);");
+    auto *B = getVarPtr("B");
+    // rot180 keeps shape (2, 3, 2)
+    EXPECT_EQ(rows(*B), 2u);
+    EXPECT_EQ(cols(*B), 3u);
+    EXPECT_EQ(B->dims().pages(), 2u);
+    // Page 1: rot180([1 2 3; 4 5 6]) = [6 5 4; 3 2 1]
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 0), 6.0);
+    EXPECT_DOUBLE_EQ((*B)(0, 2, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 2, 0), 1.0);
+    // Page 2 spot-check
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 1), 60.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 2, 1), 10.0);
+}
+
+TEST_P(ManipTest, TrilOn3DAppliesPerPage)
+{
+    eval("A = zeros(3, 3, 2); "
+         "A(:,:,1) = [1 2 3; 4 5 6; 7 8 9]; "
+         "A(:,:,2) = [10 20 30; 40 50 60; 70 80 90]; "
+         "B = tril(A);");
+    auto *B = getVarPtr("B");
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 3u);
+    EXPECT_EQ(B->dims().pages(), 2u);
+    // Page 1: lower triangular of [1 2 3; 4 5 6; 7 8 9]
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(0, 1, 0), 0.0); // above diag
+    EXPECT_DOUBLE_EQ((*B)(0, 2, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0, 0), 7.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 2, 0), 9.0);
+    // Page 2: spot
+    EXPECT_DOUBLE_EQ((*B)(1, 0, 1), 40.0);
+    EXPECT_DOUBLE_EQ((*B)(0, 2, 1), 0.0);
+}
+
+TEST_P(ManipTest, TriuOn3DAppliesPerPage)
+{
+    eval("A = zeros(3, 3, 2); "
+         "A(:,:,1) = [1 2 3; 4 5 6; 7 8 9]; "
+         "A(:,:,2) = [10 20 30; 40 50 60; 70 80 90]; "
+         "B = triu(A);");
+    auto *B = getVarPtr("B");
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(B->dims().pages(), 2u);
+    // Page 1: upper triangular
+    EXPECT_DOUBLE_EQ((*B)(0, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(0, 2, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 0, 0), 0.0); // below diag
+    EXPECT_DOUBLE_EQ((*B)(1, 0, 0), 0.0);
+    // Page 2: spot
+    EXPECT_DOUBLE_EQ((*B)(0, 2, 1), 30.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 0, 1), 0.0);
+}
+
 INSTANTIATE_DUAL(ManipTest);
