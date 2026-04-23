@@ -28,4 +28,19 @@ struct NanSumCount {
 // elements. The caller computes mean = count > 0 ? sum/count : NaN.
 NanSumCount nanSumCountScan(const double *p, std::size_t n);
 
+// Single-pass min / max over [p, p+n) skipping NaN. NaN lanes are
+// masked to the neutral element (+inf for min, -inf for max) before the
+// SIMD reduction. Returns NaN for empty / all-NaN slices (matches
+// MATLAB's nanmin / nanmax convention).
+double nanMaxScan(const double *p, std::size_t n);
+double nanMinScan(const double *p, std::size_t n);
+
+// Two-pass NaN-skipping variance:
+//   pass 1: nanSumCountScan -> mean (NaN if count == 0)
+//   pass 2: SIMD sum of (x - mean)^2 over non-NaN lanes only
+// Result divided by (count - {0,1}) per the normFlag (matches MATLAB
+// var(x, 0/1) semantics). All-NaN -> NaN; one valid value -> 0 for
+// normFlag==1, NaN for normFlag==0.
+double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag);
+
 } // namespace numkit::m::builtin

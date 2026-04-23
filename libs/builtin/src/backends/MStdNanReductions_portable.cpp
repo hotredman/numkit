@@ -9,6 +9,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <limits>
 
 namespace numkit::m::builtin {
 
@@ -31,6 +32,51 @@ NanSumCount nanSumCountScan(const double *p, std::size_t n)
         }
     }
     return {sum, cnt};
+}
+
+double nanMaxScan(const double *p, std::size_t n)
+{
+    double best = -std::numeric_limits<double>::infinity();
+    bool seen = false;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!std::isnan(p[i])) {
+            if (!seen || p[i] > best) best = p[i];
+            seen = true;
+        }
+    }
+    return seen ? best : std::nan("");
+}
+
+double nanMinScan(const double *p, std::size_t n)
+{
+    double best = std::numeric_limits<double>::infinity();
+    bool seen = false;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!std::isnan(p[i])) {
+            if (!seen || p[i] < best) best = p[i];
+            seen = true;
+        }
+    }
+    return seen ? best : std::nan("");
+}
+
+double nanVarianceTwoPass(const double *p, std::size_t n, int normFlag)
+{
+    if (n == 0) return std::nan("");
+    const auto sc = nanSumCountScan(p, n);
+    if (sc.count == 0) return std::nan("");
+    if (sc.count == 1) return (normFlag == 1) ? 0.0 : std::nan("");
+    const double mean = sc.sum / static_cast<double>(sc.count);
+    double ss = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        if (!std::isnan(p[i])) {
+            const double d = p[i] - mean;
+            ss += d * d;
+        }
+    }
+    const double denom = (normFlag == 1) ? static_cast<double>(sc.count)
+                                         : static_cast<double>(sc.count - 1);
+    return ss / denom;
 }
 
 } // namespace numkit::m::builtin

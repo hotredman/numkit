@@ -31,17 +31,10 @@ using detail::resolveDim;
 // var / std
 // ────────────────────────────────────────────────────────────────────
 //
-// Phase P5: var / std now route through the SIMD-friendly two-pass
-// kernel in backends/MStdVarReduction_{simd,portable}.cpp. Welford's
-// recurrence (numerically pristine but fully serial) is replaced by
-// pass1 sum→mean + pass2 sum-of-squared-deviations, both lane-parallel
-// with FMA in the inner accumulator. The 1-2 ULP precision drop at
-// N=1M is well below the test tolerances (1e-12) and matches what
-// MATLAB's own SIMD variance does.
-//
-// nanvar / nanstd in this file still use the old welford+compactNonNan
-// path — the new kernel doesn't yet skip NaN. That's a P2-followup
-// candidate if those rows become bench-relevant.
+// Phase P5 + P2-followup: var / std / nanvar / nanstd all route through
+// the SIMD two-pass kernels in backends/MStdVarReduction_{simd,portable}.cpp
+// and MStdNanReductions_{simd,portable}.cpp. Welford's recurrence
+// (numerically pristine but fully serial) is no longer used here.
 namespace {
 
 void validateNormFlag(int w, const char *fn)
@@ -49,27 +42,6 @@ void validateNormFlag(int w, const char *fn)
     if (w != 0 && w != 1)
         throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
-}
-
-// Welford retained ONLY for the nanvar / nanstd path below — those still
-// run on a NaN-compacted prefix, which the SIMD two-pass kernel doesn't
-// special-case yet.
-double welfordVariance(const double *data, size_t n, int normFlag)
-{
-    if (n == 0) return std::nan("");
-    if (n == 1) return (normFlag == 1) ? 0.0 : std::nan("");
-    double mean = 0.0;
-    double M2   = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-        const double x  = data[i];
-        const double d1 = x - mean;
-        mean += d1 / static_cast<double>(i + 1);
-        const double d2 = x - mean;
-        M2 += d1 * d2;
-    }
-    const double denom = (normFlag == 1) ? static_cast<double>(n)
-                                         : static_cast<double>(n - 1);
-    return M2 / denom;
 }
 
 } // namespace
@@ -399,53 +371,67 @@ MValue nanmean(Allocator &alloc, const MValue &x, int dim)
         }, &alloc);
 }
 
+// Phase P2-followup: nanmax / nanmin / nanvar / nanstd now use the
+// single-pass SIMD scans in MStdNanReductions_{simd,portable}.cpp. Same
+// pattern as nansum/nanmean: vector input bypasses applyAlongDim
+// entirely; matrix dim slices keep the helper. compactNonNan is no
+// longer needed for these — the kernels mask NaN lanes inline.
+
 MValue nanmax(Allocator &alloc, const MValue &x, int dim)
 {
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
+        return MValue::scalar(nanMaxScan(x.doubleData(), x.numel()), &alloc);
+
     const int d = resolveDim(x, dim, "nanmax");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            if (k == 0) return std::nan("");
-            double best = slice[0];
-            for (size_t i = 1; i < k; ++i)
-                if (slice[i] > best) best = slice[i];
-            return best;
+            return nanMaxScan(slice, n);
         }, &alloc);
 }
 
 MValue nanmin(Allocator &alloc, const MValue &x, int dim)
 {
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
+        return MValue::scalar(nanMinScan(x.doubleData(), x.numel()), &alloc);
+
     const int d = resolveDim(x, dim, "nanmin");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            if (k == 0) return std::nan("");
-            double best = slice[0];
-            for (size_t i = 1; i < k; ++i)
-                if (slice[i] < best) best = slice[i];
-            return best;
+            return nanMinScan(slice, n);
         }, &alloc);
 }
 
 MValue nanvar(Allocator &alloc, const MValue &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "nanvar");
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
+        return MValue::scalar(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
+
     const int d = resolveDim(x, dim, "nanvar");
     return applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            return welfordVariance(slice, k, normFlag);
+            return nanVarianceTwoPass(slice, n, normFlag);
         }, &alloc);
 }
 
 MValue nanstdev(Allocator &alloc, const MValue &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "nanstd");
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
+        return MValue::scalar(std::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
+
     const int d = resolveDim(x, dim, "nanstd");
     return applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            return std::sqrt(welfordVariance(slice, k, normFlag));
+            return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
         }, &alloc);
 }
 
