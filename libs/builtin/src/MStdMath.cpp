@@ -184,10 +184,17 @@ namespace {
 template<typename Op>
 MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMode = false)
 {
+    // Reads each element as double — supports DOUBLE / SINGLE / integer
+    // / LOGICAL transparently. DOUBLE keeps the contiguous fast path.
+    const bool fastDouble = (x.type() == MType::DOUBLE);
+    auto readD = [&](size_t i) -> double {
+        return fastDouble ? x.doubleData()[i] : x.elemAsDouble(i);
+    };
+
     if (x.dims().isVector() || x.isScalar()) {
         double acc = init;
         for (size_t i = 0; i < x.numel(); ++i)
-            acc = op(acc, x.doubleData()[i]);
+            acc = op(acc, readD(i));
         if (meanMode)
             acc /= static_cast<double>(x.numel());
         return MValue::scalar(acc, alloc);
@@ -211,7 +218,7 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
                         const size_t rIdx = (redDim == 0) ? k : rr;
                         const size_t cIdx = (redDim == 1) ? k : c;
                         const size_t pIdx = (redDim == 2) ? k : pp;
-                        acc = op(acc, x(rIdx, cIdx, pIdx));
+                        acc = op(acc, readD(pIdx * R * C + cIdx * R + rIdx));
                     }
                     if (meanMode)
                         acc /= static_cast<double>(N);
@@ -224,7 +231,7 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
     for (size_t c = 0; c < C; ++c) {
         double acc = init;
         for (size_t rr = 0; rr < R; ++rr)
-            acc = op(acc, x(rr, c));
+            acc = op(acc, readD(c * R + rr));
         if (meanMode)
             acc /= static_cast<double>(R);
         r.doubleDataMut()[c] = acc;
@@ -252,7 +259,7 @@ MValue sum(Allocator &alloc, const MValue &x, int dim)
     // accumulates into a row-totals vector with SIMD addInto. Net cost
     // floors at 1 read of M + 1 write of totals = roughly memory
     // bandwidth.
-    if (d == 2 && x.type() == MType::DOUBLE && !x.dims().is3D()
+    if (d == 2 && x.type() == MType::DOUBLE && x.dims().ndim() == 2
         && !x.isScalar() && !x.dims().isVector()) {
         const size_t R = x.dims().rows(), C = x.dims().cols();
         auto r = MValue::matrix(R, 1, MType::DOUBLE, &alloc);
@@ -308,128 +315,279 @@ MValue mean(Allocator &alloc, const MValue &x, int dim)
 }
 
 // ── max/min with index ───────────────────────────────────────────────
+//
+// Per MATLAB semantics, min/max preserve the input element type
+// (default 'native' mode). The value array is T-typed; the index
+// array is always DOUBLE. COMPLEX inputs are rejected (no order
+// defined on complex). Dispatch over MType picks the right T
+// instantiation for DOUBLE, SINGLE, INT8..INT64, UINT8..UINT64,
+// LOGICAL (storage = uint8) and CHAR (storage = char).
+
 namespace {
 
-// Generic reducer that tracks (value, index). Cmp(a, b) returns true when
-// a "wins" over b (for max: a > b, for min: a < b).
-template<typename Cmp>
-std::tuple<MValue, MValue>
-reduceWithIndex(const MValue &x, Cmp cmp, Allocator *alloc)
+// Read x[i] as T. Direct buffer access when source storage matches T;
+// otherwise convert via elemAsDouble (with saturating cast for
+// integers) — this branch only fires for the (rare) typeMatch=false
+// dispatch error case, but kept for safety.
+template <typename T>
+inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
 {
-    if (x.dims().isVector() || x.isScalar()) {
-        double best = x.doubleData()[0];
+    if (typeMatch)
+        return static_cast<const T *>(x.rawData())[i];
+    if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<T>(x.elemAsDouble(i));
+    } else {
+        const double d = x.elemAsDouble(i);
+        return static_cast<T>(std::clamp(std::round(d),
+            static_cast<double>(std::numeric_limits<T>::lowest()),
+            static_cast<double>(std::numeric_limits<T>::max())));
+    }
+}
+
+template <typename T>
+inline MValue makeScalarT(T v, MType outType, Allocator *alloc)
+{
+    if (outType == MType::DOUBLE)
+        return MValue::scalar(static_cast<double>(v), alloc);
+    if (outType == MType::LOGICAL)
+        return MValue::logicalScalar(v != 0, alloc);
+    auto r = MValue::matrix(1, 1, outType, alloc);
+    static_cast<T *>(r.rawDataMut())[0] = v;
+    return r;
+}
+
+// Walk every output cell along dim `redDim` (1-based). For each cell,
+// gather the slice into `scratch`, find best via cmp, write best to
+// dst[outIdx] and (1-based) source position to dstI[outIdx]. Handles
+// 2D / 3D / ND uniformly via stride arithmetic.
+template <typename T, typename Cmp>
+void minMaxAlongDim(const MValue &x, int redDim, T *dst, double *dstI, Cmp cmp,
+                    bool typeMatch)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    if (sliceLen == 0) return;  // empty slice — caller has set output to defaults
+
+    std::vector<T> scratch(sliceLen);
+    auto runSlice = [&](size_t outIdx, size_t baseOff, size_t stride) {
+        for (size_t k = 0; k < sliceLen; ++k)
+            scratch[k] = readSrcAsT<T>(x, baseOff + k * stride, typeMatch);
+        T best = scratch[0];
+        size_t bi = 0;
+        for (size_t k = 1; k < sliceLen; ++k)
+            if (cmp(scratch[k], best)) { best = scratch[k]; bi = k; }
+        dst[outIdx] = best;
+        dstI[outIdx] = static_cast<double>(bi + 1);
+    };
+
+    if (B == 1) {
+        // Reducing axis 0 → contiguous gather (stride = 1).
+        for (size_t o = 0; o < O; ++o)
+            runSlice(o, o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            const size_t outIdx = o * B + b;
+            runSlice(outIdx, base, B);
+        }
+    }
+}
+
+// Construct the right-shaped (value, idx) output pair for reduction
+// along `redDim` of x: value array has `outType`, idx array has DOUBLE.
+inline std::pair<MValue, MValue>
+allocMinMaxOutputs(const MValue &x, int redDim, MType outType, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return {MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc),
+                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc)};
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return {createMatrix(outShape, outType, alloc),
+            createMatrix(outShape, MType::DOUBLE, alloc)};
+}
+
+template <typename T, typename Cmp>
+std::tuple<MValue, MValue>
+reduceMinMaxAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
+{
+    const bool typeMatch = (x.type() == outType);
+    if (x.numel() == 0)
+        throw std::runtime_error("min/max of empty array is not supported");
+    if (x.isScalar() || x.dims().isVector()) {
+        T best = readSrcAsT<T>(x, 0, typeMatch);
         size_t bi = 0;
         for (size_t i = 1; i < x.numel(); ++i) {
-            if (cmp(x.doubleData()[i], best)) {
-                best = x.doubleData()[i];
-                bi = i;
-            }
+            const T v = readSrcAsT<T>(x, i, typeMatch);
+            if (cmp(v, best)) { best = v; bi = i; }
         }
-        return std::make_tuple(MValue::scalar(best, alloc),
+        return std::make_tuple(makeScalarT<T>(best, outType, alloc),
                                MValue::scalar(static_cast<double>(bi + 1), alloc));
     }
+    // Multi-dim: reduce along first non-singleton dim (MATLAB rule).
+    const int redDim = detail::firstNonSingletonDim(x);
+    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, alloc);
+    minMaxAlongDim<T>(x, redDim,
+                     static_cast<T *>(out.rawDataMut()),
+                     outIdx.doubleDataMut(),
+                     cmp, typeMatch);
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
 
-    const size_t R = x.dims().rows(), C = x.dims().cols();
-
-    if (x.dims().is3D()) {
-        const size_t P = x.dims().pages();
-        const int redDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
-        const size_t outR = (redDim == 0) ? 1 : R;
-        const size_t outC = (redDim == 1) ? 1 : C;
-        const size_t outP = (redDim == 2) ? 1 : P;
-        const size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-        auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-        auto idx = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
-        for (size_t pp = 0; pp < outP; ++pp)
-            for (size_t c = 0; c < outC; ++c)
-                for (size_t rr = 0; rr < outR; ++rr) {
-                    auto atK = [&](size_t k) {
-                        const size_t rIdx = (redDim == 0) ? k : rr;
-                        const size_t cIdx = (redDim == 1) ? k : c;
-                        const size_t pIdx = (redDim == 2) ? k : pp;
-                        return x(rIdx, cIdx, pIdx);
-                    };
-                    double best = atK(0);
-                    size_t bi = 0;
-                    for (size_t k = 1; k < N; ++k) {
-                        const double v = atK(k);
-                        if (cmp(v, best)) {
-                            best = v;
-                            bi = k;
-                        }
-                    }
-                    const size_t o = pp * outR * outC + c * outR + rr;
-                    r.doubleDataMut()[o] = best;
-                    idx.doubleDataMut()[o] = static_cast<double>(bi + 1);
-                }
-        return std::make_tuple(std::move(r), std::move(idx));
-    }
-
-    auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
-    auto idx = MValue::matrix(1, C, MType::DOUBLE, alloc);
-    for (size_t c = 0; c < C; ++c) {
-        double best = x(0, c);
-        size_t bi = 0;
-        for (size_t rr = 1; rr < R; ++rr) {
-            if (cmp(x(rr, c), best)) {
-                best = x(rr, c);
-                bi = rr;
+template <typename T, typename Cmp>
+std::tuple<MValue, MValue>
+reduceMinMaxAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocator *alloc)
+{
+    const bool typeMatch = (x.type() == outType);
+    if (x.isScalar() || x.dims().isVector()) {
+        // For vectors, MATLAB ignores explicit dim and reduces all elements
+        // when dim == firstNonSingleton; otherwise (dim past ndim or singleton
+        // dim) it returns the input unchanged with idx = ones.
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity reduction: copy x as outType (cast where needed) and
+            // return ones as idx.
+            const size_t n = x.numel();
+            MValue out, outIdx;
+            if (x.dims().isVector()) {
+                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE, alloc);
+            } else {
+                out    = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
+                outIdx = MValue::scalar(1.0, alloc);
+                return std::make_tuple(std::move(out), std::move(outIdx));
             }
+            T *dst = static_cast<T *>(out.rawDataMut());
+            double *dstI = outIdx.doubleDataMut();
+            for (size_t i = 0; i < n; ++i) {
+                dst[i]  = readSrcAsT<T>(x, i, typeMatch);
+                dstI[i] = 1.0;
+            }
+            return std::make_tuple(std::move(out), std::move(outIdx));
         }
-        r.doubleDataMut()[c] = best;
-        idx.doubleDataMut()[c] = static_cast<double>(bi + 1);
+        // Reduce-all on a vector → scalar (matches the no-dim form).
+        return reduceMinMaxAllT<T>(x, cmp, outType, alloc);
     }
-    return std::make_tuple(std::move(r), std::move(idx));
+    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, alloc);
+    minMaxAlongDim<T>(x, dim,
+                     static_cast<T *>(out.rawDataMut()),
+                     outIdx.doubleDataMut(),
+                     cmp, typeMatch);
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+// Dispatch on x.type(), instantiate reducer with right T/outType pair.
+// LOGICAL maps to T=uint8_t (storage type). CHAR maps to T=char.
+// COMPLEX throws (no order on complex).
+template <typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
+{
+    switch (x.type()) {
+    case MType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, MType::DOUBLE,  alloc);
+    case MType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, MType::SINGLE,  alloc);
+    case MType::INT8:    return reduceMinMaxAllT<int8_t  >(x, cmp, MType::INT8,    alloc);
+    case MType::INT16:   return reduceMinMaxAllT<int16_t >(x, cmp, MType::INT16,   alloc);
+    case MType::INT32:   return reduceMinMaxAllT<int32_t >(x, cmp, MType::INT32,   alloc);
+    case MType::INT64:   return reduceMinMaxAllT<int64_t >(x, cmp, MType::INT64,   alloc);
+    case MType::UINT8:   return reduceMinMaxAllT<uint8_t >(x, cmp, MType::UINT8,   alloc);
+    case MType::UINT16:  return reduceMinMaxAllT<uint16_t>(x, cmp, MType::UINT16,  alloc);
+    case MType::UINT32:  return reduceMinMaxAllT<uint32_t>(x, cmp, MType::UINT32,  alloc);
+    case MType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, MType::UINT64,  alloc);
+    case MType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, MType::LOGICAL, alloc);
+    case MType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, MType::CHAR,    alloc);
+    case MType::COMPLEX:
+        throw MError(std::string(fn) + ": not defined for complex inputs",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    default:
+        throw MError(std::string(fn) + ": unsupported input type",
+                     0, 0, fn, "", std::string("m:") + fn + ":type");
+    }
+}
+
+template <typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, const char *fn)
+{
+    switch (x.type()) {
+    case MType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, MType::DOUBLE,  alloc);
+    case MType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, MType::SINGLE,  alloc);
+    case MType::INT8:    return reduceMinMaxAlongDimT<int8_t  >(x, dim, cmp, MType::INT8,    alloc);
+    case MType::INT16:   return reduceMinMaxAlongDimT<int16_t >(x, dim, cmp, MType::INT16,   alloc);
+    case MType::INT32:   return reduceMinMaxAlongDimT<int32_t >(x, dim, cmp, MType::INT32,   alloc);
+    case MType::INT64:   return reduceMinMaxAlongDimT<int64_t >(x, dim, cmp, MType::INT64,   alloc);
+    case MType::UINT8:   return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, MType::UINT8,   alloc);
+    case MType::UINT16:  return reduceMinMaxAlongDimT<uint16_t>(x, dim, cmp, MType::UINT16,  alloc);
+    case MType::UINT32:  return reduceMinMaxAlongDimT<uint32_t>(x, dim, cmp, MType::UINT32,  alloc);
+    case MType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, MType::UINT64,  alloc);
+    case MType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, MType::LOGICAL, alloc);
+    case MType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, MType::CHAR,    alloc);
+    case MType::COMPLEX:
+        throw MError(std::string(fn) + ": not defined for complex inputs",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    default:
+        throw MError(std::string(fn) + ": unsupported input type",
+                     0, 0, fn, "", std::string("m:") + fn + ":type");
+    }
 }
 
 } // anonymous namespace
 
 std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x)
 {
-    return reduceWithIndex(x, [](double v, double best) { return v > best; }, &alloc);
+    return dispatchMinMaxAll(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x)
 {
-    return reduceWithIndex(x, [](double v, double best) { return v < best; }, &alloc);
+    return dispatchMinMaxAll(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
 std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim)
 {
     if (dim <= 0) return max(alloc, x);
     const int d = detail::resolveDim(x, dim, "max");
-    auto [v, idx] = detail::applyAlongDimWithIndex(x, d,
-        [](double *slice, size_t n, double &outV, size_t &outIdx) {
-            double best = slice[0]; size_t bi = 0;
-            for (size_t i = 1; i < n; ++i)
-                if (slice[i] > best) { best = slice[i]; bi = i; }
-            outV = best; outIdx = bi;
-        }, &alloc);
-    return std::make_tuple(std::move(v), std::move(idx));
+    return dispatchMinMaxAlongDim(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim)
 {
     if (dim <= 0) return min(alloc, x);
     const int d = detail::resolveDim(x, dim, "min");
-    auto [v, idx] = detail::applyAlongDimWithIndex(x, d,
-        [](double *slice, size_t n, double &outV, size_t &outIdx) {
-            double best = slice[0]; size_t bi = 0;
-            for (size_t i = 1; i < n; ++i)
-                if (slice[i] < best) { best = slice[i]; bi = i; }
-            outV = best; outIdx = bi;
-        }, &alloc);
-    return std::make_tuple(std::move(v), std::move(idx));
+    return dispatchMinMaxAlongDim(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
 MValue max(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, &alloc);
+    Allocator *p = &alloc;
+    // Integer / single binary form: result follows MATLAB type promotion
+    // (integer wins over double; single wins over double; same-class
+    // integers stay; mixed-class integers throw).
+    {
+        auto r = dispatchIntegerBinaryOp(a, b,
+            [](auto x, auto y) { return x > y ? x : y; }, p);
+        if (!r.isUnset()) return r;
+    }
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, p);
 }
 
 MValue min(Allocator &alloc, const MValue &a, const MValue &b)
 {
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::min(aa, bb); }, &alloc);
+    Allocator *p = &alloc;
+    {
+        auto r = dispatchIntegerBinaryOp(a, b,
+            [](auto x, auto y) { return x < y ? x : y; }, p);
+        if (!r.isUnset()) return r;
+    }
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::min(aa, bb); }, p);
 }
 
 // ── Generators ───────────────────────────────────────────────────────

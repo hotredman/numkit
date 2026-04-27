@@ -962,6 +962,271 @@ TEST_P(ReductionDimTest, Nanmedian4DAlongDim3)
     EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 13.0);
 }
 
+// ── Phase 4 (round-3): min/max preserve source type ─────────────
+//
+// MATLAB rule: min/max default to 'native' mode, returning the same
+// element type as the input. Only the index output is always DOUBLE.
+
+TEST_P(ReductionDimTest, MaxInt32VectorReturnsInt32)
+{
+    eval("v = int32([5 1 9 2]); m = max(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MinInt8MatrixWithIndex)
+{
+    eval("M = int8([3 7 2; 5 1 9]); [v, i] = min(M);");
+    // Per-column min: [3, 1, 2], indices [1, 2, 1]
+    EXPECT_DOUBLE_EQ(evalScalar("v(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(v);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2);"), 2.0);
+}
+
+TEST_P(ReductionDimTest, MaxUint8MatrixDim2)
+{
+    eval("M = uint8([3 7 2; 5 1 9]); m = max(M, [], 2);");
+    // Per-row max: [7; 9]
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MinSingleVector)
+{
+    eval("v = single([3.5 1.5 2.0]); m = min(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MaxInt64Reduction)
+{
+    // int64 reduction must use the typed kernel (not double-promoted),
+    // so values past the 53-bit double mantissa remain bit-exact.
+    eval("v = int64([100; 200; 50]); m = max(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 200.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+    // Round-trip a large value through int64 reduction: subtract from
+    // result and verify exactness.
+    eval("big = int64(2) ^ int64(60);"          // 1152921504606846976
+         "u = int64([1; big; 5]);"
+         "mb = max(u);"
+         "diff = mb - big;");
+    EXPECT_DOUBLE_EQ(evalScalar("double(diff);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, MinMax4DInt16AlongDim4)
+{
+    eval("A = int16(reshape(1:24, [2, 3, 2, 2])); [v, i] = max(A, [], 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(v);"),     4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 4);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(v);"), 1.0);
+    // v(1,1,1,1) = max(A(1,1,1,1), A(1,1,1,2)) = max(1, 13) = 13
+    EXPECT_DOUBLE_EQ(evalScalar("v(1, 1, 1, 1);"), 13.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1, 1, 1, 1);"), 2.0);
+}
+
+TEST_P(ReductionDimTest, MaxLogicalReturnsLogical)
+{
+    eval("v = logical([0 1 0 0]); m = max(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MaxCharReturnsChar)
+{
+    eval("s = 'banana'; m = max(s);");
+    // ASCII: 'a'=97, 'b'=98, 'n'=110 → max = 'n'
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m);"), 110.0);
+}
+
+TEST_P(ReductionDimTest, MaxComplexThrows)
+{
+    eval("v = [1+2i, 3+4i, 5+0i];");
+    EXPECT_THROW(eval("m = max(v);"), std::exception);
+}
+
+TEST_P(ReductionDimTest, BinaryMinInt32SameClass)
+{
+    eval("a = int32([3 7 2]); b = int32([5 1 9]); m = min(a, b);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, BinaryMaxIntDoubleReturnsInt)
+{
+    // MATLAB: int wins over double in mixed arithmetic.
+    eval("a = int32([3 7 2]); b = [5 1 9]; m = max(a, b);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, BinaryMinSingleDoubleReturnsSingle)
+{
+    eval("a = single([3 7 2]); b = [5 1 9]; m = min(a, b);");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, BinaryMinMixedIntClassThrows)
+{
+    eval("a = int32([1 2]); b = int16([3 4]);");
+    EXPECT_THROW(eval("m = min(a, b);"), std::exception);
+}
+
+// ── ND empty-input shape preservation (rank ≥ 4) ────────────────
+//
+// MATLAB collapses the reduced dim to 1 and preserves all other dims.
+// For zeros([2, 0, 3, 2]), reducing dim 2 (the empty axis) gives
+// 2×1×3×2 of zeros — the slice is empty so sum of empty slice = 0.
+// 2D/3D empty inputs intentionally still collapse to 0×0 (legacy).
+
+TEST_P(ReductionDimTest, Sum4DEmptyAlongEmptyDimPreservesShape)
+{
+    eval("A = zeros([2, 0, 3, 2]); m = sum(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m);"), 12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2, 1, 3, 2);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, Sum4DEmptyAlongNonEmptyDimStaysEmpty)
+{
+    // Reducing a non-empty axis of an empty array preserves emptiness.
+    // zeros([2,0,3,2]) sum dim=1 → 1×0×3×2, numel still 0.
+    eval("A = zeros([2, 0, 3, 2]); m = sum(A, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, Mean5DEmptyAlongEmptyDim)
+{
+    // mean of empty slice = NaN (matches MATLAB).
+    eval("A = zeros([2, 3, 0, 4, 2]); m = mean(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(m);"),  48.0);
+    // mean of 0 elements is NaN
+    eval("v = m(1, 1, 1, 1, 1);");
+    EXPECT_TRUE(std::isnan(evalScalar("v;")));
+}
+
+// ── ND reductions on non-DOUBLE inputs ───────────────────────────
+//
+// MATLAB sum/mean/etc. on integer/logical ND inputs return DOUBLE
+// (since the cast int → accumulator → double is the natural path
+// for sum). We follow that convention: non-DOUBLE input is read via
+// elemAsDouble inside the reduction kernel; output is DOUBLE.
+
+TEST_P(ReductionDimTest, Sum4DInt32AlongDim2)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 2, 2])); m = sum(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),    4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"),  1.0);
+    // m(1,1,1,1) = A(1,1,1,1)+A(1,2,1,1)+A(1,3,1,1) = 1+3+5 = 9
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 9.0);
+    // m(2,1,2,2) = A(2,1,2,2)+A(2,2,2,2)+A(2,3,2,2) = 20+22+24 = 66
+    EXPECT_DOUBLE_EQ(evalScalar("m(2, 1, 2, 2);"), 66.0);
+}
+
+TEST_P(ReductionDimTest, Mean4DLogicalAlongDim4)
+{
+    // logical() on 4D input now preserves rank (was capping at 3D).
+    eval("A = logical(reshape(mod(1:24, 2), [2, 3, 2, 2])); m = mean(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 4);"), 1.0);
+    // mean of two 0/1 values along axis 4 must be in [0, 1]
+    double v = evalScalar("m(1, 1, 1, 1);");
+    EXPECT_TRUE(v >= 0.0 && v <= 1.0);
+}
+
+TEST_P(ReductionDimTest, Sum4DUint8AlongDim4)
+{
+    eval("A = uint8(reshape(1:24, [2, 3, 2, 2])); m = sum(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 4);"), 1.0);
+    // m(1,1,1,1) = A(1,1,1,1) + A(1,1,1,2) = 1 + 13 = 14
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 14.0);
+    // m(2,3,2,1) = A(2,3,2,1) + A(2,3,2,2) = 12 + 24 = 36
+    EXPECT_DOUBLE_EQ(evalScalar("m(2, 3, 2, 1);"), 36.0);
+}
+
+// ── 1D/2D/3D reductions on non-DOUBLE inputs (round-2 bonus) ────
+//
+// Same lift as the ND case: vector path + forEachSlice (2D/3D) +
+// reduce() now read non-DOUBLE input via elemAsDouble. Output stays
+// DOUBLE per MATLAB convention.
+
+TEST_P(ReductionDimTest, SumInt32VectorReturnsScalar)
+{
+    eval("v = int32([1 2 3 4 5]); s = sum(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 15.0);
+}
+
+TEST_P(ReductionDimTest, MeanUint8MatrixDim1)
+{
+    eval("M = uint8(reshape(1:12, [3, 4])); m = mean(M, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"), 4.0);
+    // mean of column 1 = (1+2+3)/3 = 2
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1);"), 2.0);
+    // mean of column 4 = (10+11+12)/3 = 11
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 4);"), 11.0);
+}
+
+TEST_P(ReductionDimTest, ProdInt16MatrixDim2)
+{
+    eval("M = int16(reshape(1:6, [2, 3])); p = prod(M, 2);");
+    // M = [1 3 5; 2 4 6]; prod row 1 = 15, row 2 = 48
+    EXPECT_DOUBLE_EQ(evalScalar("p(1);"), 15.0);
+    EXPECT_DOUBLE_EQ(evalScalar("p(2);"), 48.0);
+}
+
+TEST_P(ReductionDimTest, SumSingle3DAlongDim3)
+{
+    eval("A = single(reshape(1:24, [2, 3, 4])); s = sum(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 2);"), 3.0);
+    // s(1,1) = A(1,1,1) + A(1,1,2) + A(1,1,3) + A(1,1,4) = 1 + 7 + 13 + 19 = 40
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1);"), 40.0);
+}
+
+TEST_P(ReductionDimTest, SumLogicalMatrixDim2)
+{
+    eval("M = logical([1 0 1; 0 1 1]); s = sum(M, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("s(1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(2);"), 2.0);
+}
+
+TEST_P(ReductionDimTest, Sum4DSingleAlongDim3)
+{
+    eval("A = single(reshape(1:48, [2, 3, 4, 2])); m = sum(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // m(1,1,1,1) = sum over k of A(1,1,k,1), k=1..4
+    // A(1,1,1,1)=1, A(1,1,2,1)=7, A(1,1,3,1)=13, A(1,1,4,1)=19 → 40
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 40.0);
+}
+
 INSTANTIATE_DUAL(ReductionDimTest);
 
 // ============================================================
