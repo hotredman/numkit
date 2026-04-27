@@ -622,3 +622,93 @@ TEST_P(SortFindTest, Find3DReturnsCol)
 
 INSTANTIATE_DUAL(SortFindTest);
 
+// ============================================================
+// ND foundation (Phase 3a.1) — ones/zeros/reshape/size for 4D+
+// ============================================================
+
+class NDFoundationTest : public DualEngineTest {};
+
+TEST_P(NDFoundationTest, Ones4DSize)
+{
+    eval("A = ones([2, 3, 4, 5]); s = size(A);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(cols(*s), 4u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[3], 5.0);
+}
+
+TEST_P(NDFoundationTest, Ones4DNumel)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("numel(ones([2, 3, 4, 5]));"), 120.0);
+}
+
+TEST_P(NDFoundationTest, Ones4DNdims)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(ones([2, 3, 4, 5]));"), 4.0);
+}
+
+TEST_P(NDFoundationTest, Zeros5DSize)
+{
+    // 5D trips the heap path in SBO Dims (kInlineCap = 4).
+    eval("A = zeros([2, 3, 4, 5, 6]); s = size(A);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(cols(*s), 5u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[4], 6.0);
+}
+
+TEST_P(NDFoundationTest, Zeros5DNumel)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("numel(zeros([2, 3, 4, 5, 6]));"), 720.0);
+}
+
+TEST_P(NDFoundationTest, ReshapeTo4DRoundTrip)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); s = size(A);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(cols(*s), 4u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[3], 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 120.0);
+}
+
+TEST_P(NDFoundationTest, ReshapeTo5DRoundTrip)
+{
+    eval("A = reshape(1:720, [2, 3, 4, 5, 6]); s = size(A);");
+    EXPECT_EQ(cols(*getVarPtr("s")), 5u);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 720.0);
+}
+
+TEST_P(NDFoundationTest, OnesScalarArgsForm4D)
+{
+    // Multi-scalar form: ones(2, 3, 4, 5) — same as ones([2 3 4 5]).
+    eval("A = ones(2, 3, 4, 5); s = size(A);");
+    EXPECT_EQ(cols(*getVarPtr("s")), 4u);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 120.0);
+}
+
+TEST_P(NDFoundationTest, ReshapeStripsTrailingOnes)
+{
+    // reshape(1:6, [2 3 1 1]) collapses trailing 1s → 2D matrix.
+    eval("A = reshape(1:6, [2, 3, 1, 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 2.0);
+}
+
+TEST_P(NDFoundationTest, SizeWithDimArg4D)
+{
+    eval("A = ones([2, 3, 4, 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 5);"), 1.0);  // past ndim → 1
+}
+
+INSTANTIATE_DUAL(NDFoundationTest);
+

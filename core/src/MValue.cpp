@@ -145,6 +145,32 @@ MValue MValue::matrix3d(size_t rows, size_t cols, size_t pages, MType t, Allocat
     m.heap_ = h;
     return m;
 }
+MValue MValue::matrixND(const size_t *dims, int nd, MType t, Allocator *alloc)
+{
+    if (nd <= 0) return empty();
+    if (nd == 1)
+        return matrix(dims[0], 1, t, alloc);
+    if (nd == 2)
+        return matrix(dims[0], dims[1], t, alloc);
+    if (nd == 3)
+        return matrix3d(dims[0], dims[1], dims[2], t, alloc);
+    // nd >= 4 — go through the ND Dims ctor. Heap allocation in Dims only
+    // kicks in for nd > kInlineCap (4); 4D stays fully inline.
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = t;
+    h->dims = Dims(dims, nd);
+    h->allocator = alloc;
+    size_t bytes = elementSize(t);
+    for (int i = 0; i < nd; ++i)
+        bytes *= dims[i];
+    if (bytes > 0) {
+        h->buffer = new DataBuffer(bytes, alloc);
+        std::memset(h->buffer->data(), 0, bytes);
+    }
+    m.heap_ = h;
+    return m;
+}
 MValue MValue::fromString(const std::string &s, Allocator *alloc)
 {
     MValue m;

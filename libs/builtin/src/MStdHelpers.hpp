@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace numkit::m {
 
@@ -369,6 +370,63 @@ inline DimsArg parseDimsArgs(Span<const MValue> args)
     }
 
     return {r, c, 0};
+}
+
+// ND dim parser. Same call shapes as parseDimsArgs but produces a full
+// ND dim vector (no 3-cap). Returns at least 2 dims (matrices stay 2D).
+//   * f(n)              → {n, n}
+//   * f(m, n, p, ...)   → {m, n, p, ...}
+//   * f([m n])          → {m, n}
+//   * f([m n p q ...])  → {m, n, p, q, ...}
+// Caller can decide whether to use the 2D / 3D fast paths or matrixND.
+inline std::vector<size_t> parseDimsArgsND(Span<const MValue> args)
+{
+    std::vector<size_t> out;
+    if (args.empty()) {
+        out = {1, 1};
+        return out;
+    }
+    // Vector form: f([m n p ...])
+    if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
+        const double *d = args[0].doubleData();
+        const size_t n = args[0].numel();
+        out.reserve(n);
+        for (size_t i = 0; i < n; ++i)
+            out.push_back(static_cast<size_t>(d[i]));
+        return out;
+    }
+    // Single scalar: f(n) → n×n
+    if (args.size() == 1) {
+        const size_t n = static_cast<size_t>(args[0].toScalar());
+        out = {n, n};
+        return out;
+    }
+    // Multiple scalars: f(m, n, p, ...)
+    out.reserve(args.size());
+    for (const auto &a : args)
+        out.push_back(static_cast<size_t>(a.toScalar()));
+    return out;
+}
+
+// Strip trailing 1s past the 2nd dim (MATLAB convention: ones(3,4,1)
+// returns a 2D matrix, not 3D). Keeps at least 2 dims so a vector stays
+// {1, n} rather than collapsing to scalar shape.
+inline void stripTrailingOnes(std::vector<size_t> &dims)
+{
+    while (dims.size() > 2 && dims.back() == 1)
+        dims.pop_back();
+}
+
+// Create a zeros matrix from an ND dim vector, picking the matrix /
+// matrix3d / matrixND constructor that matches the rank.
+inline MValue createMatrixND(const std::vector<size_t> &dims, MType type,
+                             Allocator *alloc)
+{
+    const int nd = static_cast<int>(dims.size());
+    if (nd <= 1) return MValue::matrix(nd == 1 ? dims[0] : 0, 1, type, alloc);
+    if (nd == 2) return MValue::matrix(dims[0], dims[1], type, alloc);
+    if (nd == 3) return MValue::matrix3d(dims[0], dims[1], dims[2], type, alloc);
+    return MValue::matrixND(dims.data(), nd, type, alloc);
 }
 
 // ============================================================

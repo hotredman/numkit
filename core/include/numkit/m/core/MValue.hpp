@@ -56,6 +56,15 @@ public:
                            size_t pages,
                            MType t = MType::DOUBLE,
                            Allocator *alloc = nullptr);
+    // ND factory. dims[0..nd) is the shape, column-major. For nd <= 3 the
+    // result is observably equivalent to matrix() / matrix3d(); for nd > 3
+    // the heap object's Dims uses SBO storage (inline up to 4D, heap for
+    // 5D+). Allocates dims[0]*dims[1]*...*dims[nd-1] * elementSize(t)
+    // bytes and zero-fills.
+    static MValue matrixND(const size_t *dims,
+                           int nd,
+                           MType t = MType::DOUBLE,
+                           Allocator *alloc = nullptr);
     static MValue fromString(const std::string &s, Allocator *alloc = nullptr);
     static MValue cell(size_t rows, size_t cols);
     static MValue cell3D(size_t rows, size_t cols, size_t pages);

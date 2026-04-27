@@ -35,6 +35,23 @@ MValue ones(Allocator &alloc, size_t rows, size_t cols, size_t pages)
     return m;
 }
 
+// ND overloads: caller passes a full dim vector. For nd <= 3 these just
+// route to the legacy 2D/3D ctors via createMatrixND; nd > 3 hits the
+// MValue::matrixND ctor and the SBO Dims storage.
+MValue zerosND(Allocator &alloc, const std::vector<size_t> &dims)
+{
+    return createMatrixND(dims, MType::DOUBLE, &alloc);
+}
+
+MValue onesND(Allocator &alloc, const std::vector<size_t> &dims)
+{
+    auto m = createMatrixND(dims, MType::DOUBLE, &alloc);
+    double *p = m.doubleDataMut();
+    for (size_t i = 0; i < m.numel(); ++i)
+        p[i] = 1.0;
+    return m;
+}
+
 MValue eye(Allocator &alloc, size_t rows, size_t cols)
 {
     auto m = MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
@@ -47,16 +64,14 @@ MValue eye(Allocator &alloc, size_t rows, size_t cols)
 MValue size(Allocator &alloc, const MValue &x)
 {
     const auto &dims = x.dims();
-    if (dims.is3D()) {
-        auto sv = MValue::matrix(1, 3, MType::DOUBLE, &alloc);
-        sv.doubleDataMut()[0] = static_cast<double>(dims.rows());
-        sv.doubleDataMut()[1] = static_cast<double>(dims.cols());
-        sv.doubleDataMut()[2] = static_cast<double>(dims.pages());
-        return sv;
-    }
-    auto sv = MValue::matrix(1, 2, MType::DOUBLE, &alloc);
-    sv.doubleDataMut()[0] = static_cast<double>(dims.rows());
-    sv.doubleDataMut()[1] = static_cast<double>(dims.cols());
+    // Output ndim: at least 2 (MATLAB convention — a row vector reports
+    // [1, n], not [n]). Otherwise the actual rank, including any extra
+    // dims past 3.
+    const int n = std::max(2, dims.ndim());
+    auto sv = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    double *out = sv.doubleDataMut();
+    for (int i = 0; i < n; ++i)
+        out[i] = static_cast<double>(dims.dim(i));
     return sv;
 }
 
@@ -119,6 +134,35 @@ MValue reshape(Allocator &alloc, const MValue &x, size_t rows, size_t cols, size
     }
 
     auto r = createMatrix(d, x.type(), &alloc);
+    if (x.rawBytes() > 0)
+        std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
+    return r;
+}
+
+// ND reshape. Same elem-count check, then route to matrixND for nd > 3.
+// CELL/STRING ND not supported yet (matches the 2D/3D behaviour: only
+// CELL/STRING currently handles 2D and 3D shapes via cell3D/stringArray3D).
+MValue reshapeND(Allocator &alloc, const MValue &x,
+                 const std::vector<size_t> &dims)
+{
+    size_t newNumel = 1;
+    for (size_t d : dims) newNumel *= d;
+    if (newNumel != x.numel())
+        throw MError("Number of elements must not change in reshape",
+                     0, 0, "reshape", "", "m:reshape:elementCountMismatch");
+
+    if (x.type() == MType::CELL || x.type() == MType::STRING) {
+        if (dims.size() > 3)
+            throw MError("reshape: ND CELL/STRING (>3) not yet supported",
+                         0, 0, "reshape", "", "m:reshape:cellND");
+        // Fall through to legacy path for 2D / 3D cell.
+        const size_t r = dims.size() > 0 ? dims[0] : 1;
+        const size_t c = dims.size() > 1 ? dims[1] : 1;
+        const size_t p = dims.size() > 2 ? dims[2] : 0;
+        return reshape(alloc, x, r, c, p);
+    }
+
+    auto r = createMatrixND(dims, x.type(), &alloc);
     if (x.rawBytes() > 0)
         std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
     return r;
@@ -557,14 +601,16 @@ namespace detail {
 
 void zeros_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
-    outs[0] = zeros(ctx.engine->allocator(), d.rows, d.cols, d.pages);
+    auto d = parseDimsArgsND(args);
+    stripTrailingOnes(d);
+    outs[0] = zerosND(ctx.engine->allocator(), d);
 }
 
 void ones_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
-    outs[0] = ones(ctx.engine->allocator(), d.rows, d.cols, d.pages);
+    auto d = parseDimsArgsND(args);
+    stripTrailingOnes(d);
+    outs[0] = onesND(ctx.engine->allocator(), d);
 }
 
 void eye_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
@@ -587,11 +633,24 @@ void size_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCo
 
     if (nargout > 1) {
         const auto &dims = args[0].dims();
-        outs[0] = MValue::scalar(static_cast<double>(dims.rows()), &alloc);
-        if (nargout > 1)
-            outs[1] = MValue::scalar(static_cast<double>(dims.cols()), &alloc);
-        if (nargout > 2)
-            outs[2] = MValue::scalar(static_cast<double>(dims.pages()), &alloc);
+        // Multi-output form: [r, c] = size(A) or [r, c, p, ...] = size(A).
+        // For ND tensors, dims past nargout-1 are gathered into the last
+        // requested output (MATLAB behaviour: extra-dim sizes multiplied
+        // into the trailing slot). For dims past actual ndim, return 1.
+        for (size_t i = 0; i < nargout && i < outs.size(); ++i) {
+            double v;
+            if (i + 1 < nargout) {
+                v = static_cast<double>(dims.dim(static_cast<int>(i)));
+            } else {
+                // Last requested output: multiply remaining dims (if any).
+                size_t prod = 1;
+                for (int j = static_cast<int>(i); j < dims.ndim(); ++j)
+                    prod *= dims.dim(j);
+                if (dims.ndim() <= static_cast<int>(i)) prod = 1;
+                v = static_cast<double>(prod);
+            }
+            outs[i] = MValue::scalar(v, &alloc);
+        }
         return;
     }
 
@@ -629,22 +688,19 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                      0, 0, "reshape", "", "m:reshape:nargin");
 
     const auto &x = args[0];
-    size_t rows, cols, pages;
+    std::vector<size_t> dims;
 
-    // Dims-vector form: reshape(A, [m n]) or [m n p]. No [] inference supported here.
+    // Dims-vector form: reshape(A, [m n p ...]). No [] inference here.
     if (args.size() == 2 && !args[1].isScalar() && !args[1].isEmpty()) {
-        auto d = parseDimsArgs(args.subspan(1));
-        rows = d.rows;
-        cols = d.cols;
-        pages = d.pages;
+        dims = parseDimsArgsND(args.subspan(1));
     } else {
-        // Scalar-args form: reshape(A, m, n) or (A, m, n, p). One [] allowed
-        // for dimension inference from x.numel().
+        // Scalar-args form: reshape(A, m, n, ...). One [] allowed for
+        // dimension inference from x.numel().
         const size_t dimCount = args.size() - 1;
-        size_t dims[3] = {1, 1, static_cast<size_t>((dimCount >= 3) ? 1 : 0)};
+        dims.assign(dimCount, 1);
         int inferPos = -1;
         size_t knownProd = 1;
-        for (size_t i = 0; i < dimCount && i < 3; ++i) {
+        for (size_t i = 0; i < dimCount; ++i) {
             if (args[i + 1].isEmpty()) {
                 if (inferPos >= 0)
                     throw MError("reshape: only one dimension may be inferred via []",
@@ -661,12 +717,11 @@ void reshape_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                              0, 0, "reshape", "", "m:reshape:indivisible");
             dims[inferPos] = x.numel() / knownProd;
         }
-        rows = dims[0];
-        cols = dims[1];
-        pages = (dimCount >= 3) ? dims[2] : 0;
     }
 
-    outs[0] = reshape(ctx.engine->allocator(), x, rows, cols, pages);
+    // Strip trailing 1s past the 2nd dim (MATLAB convention).
+    stripTrailingOnes(dims);
+    outs[0] = reshapeND(ctx.engine->allocator(), x, dims);
 }
 
 void transpose_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
