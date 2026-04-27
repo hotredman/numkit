@@ -9,4 +9,6 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vm_benchmark.cpp
     # Thread pool — no-op file body when NUMKIT_WITH_THREADS is OFF
     ${CMAKE_CURRENT_SOURCE_DIR}/thread_pool_test.cpp
+    # ND shape ops — broadcasting, strides, coord-walking
+    ${CMAKE_CURRENT_SOURCE_DIR}/shape_ops_test.cpp
 )
