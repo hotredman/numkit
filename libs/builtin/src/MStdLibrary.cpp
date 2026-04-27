@@ -222,6 +222,7 @@ void numel_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void ndims_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void reshape_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void transpose_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void pagemtimes_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void diag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void sort_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void find_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -360,6 +361,7 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("ndims",     &builtin::detail::ndims_reg);
     engine.registerFunction("reshape",   &builtin::detail::reshape_reg);
     engine.registerFunction("transpose", &builtin::detail::transpose_reg);
+    engine.registerFunction("pagemtimes",&builtin::detail::pagemtimes_reg);
     engine.registerFunction("diag",      &builtin::detail::diag_reg);
     engine.registerFunction("sort",      &builtin::detail::sort_reg);
     engine.registerFunction("find",      &builtin::detail::find_reg);

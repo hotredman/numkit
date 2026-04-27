@@ -712,3 +712,214 @@ TEST_P(NDFoundationTest, SizeWithDimArg4D)
 
 INSTANTIATE_DUAL(NDFoundationTest);
 
+// ── pagemtimes — ND batched matmul (Polish round-2 item 7) ─────────
+
+class PagemtimesTest : public DualEngineTest
+{};
+
+TEST_P(PagemtimesTest, Pure2DMatchesMtimes)
+{
+    eval("A = reshape(1:6, [2, 3]); B = reshape(1:12, [3, 4]);");
+    eval("Z = pagemtimes(A, B);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(Z);"),   2.0);
+    eval("R = A * B;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z(:) - R(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, Pages3DSameBatch)
+{
+    // X: 2×3×4 batch, Y: 3×5×4 batch → Z: 2×5×4
+    eval("X = reshape(1:24, [2, 3, 4]); Y = reshape(1:60, [3, 5, 4]);");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(Z);"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 3);"), 4.0);
+    eval("Xp = X(:,:,2); Yp = Y(:,:,2); Rp = Xp * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(reshape(Z(:,:,2) - Rp, 1, [])));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, BroadcastOneOperand2D)
+{
+    // 2D X (1 page) broadcast across 3D Y batch.
+    eval("X = reshape(1:6, [2, 3]); Y = reshape(1:24, [3, 2, 4]);");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(Z);"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 3);"), 4.0);
+    eval("Yp = Y(:,:,3); Rp = X * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(reshape(Z(:,:,3) - Rp, 1, [])));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, Broadcast4DBatch)
+{
+    // X: [m=2,k=3,3,1], Y: [k=3,n=4,1,2] → Z: [2,4,3,2]
+    eval("X = reshape(1:18, [2, 3, 3, 1]); Y = reshape(1:24, [3, 4, 1, 2]);");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(Z);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 4);"), 2.0);
+    eval("Xp = X(:,:,2,1); Yp = Y(:,:,1,1); Rp = Xp * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(reshape(Z(:,:,2,1) - Rp, 1, [])));"), 0.0);
+    eval("Xp = X(:,:,3,1); Yp = Y(:,:,1,2); Rp = Xp * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(reshape(Z(:,:,3,2) - Rp, 1, [])));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, InnerDimMismatchThrows)
+{
+    eval("X = ones(2, 3); Y = ones(4, 5);");
+    EXPECT_THROW(eval("Z = pagemtimes(X, Y);"), std::exception);
+}
+
+// ── Phase 2: transpose flags (4-arg form) ────────────────────────
+
+TEST_P(PagemtimesTest, TransposeXNone2D)
+{
+    // X' * Y where X: 3×2, Y: 3×4 → result 2×4
+    eval("X = reshape(1:6, [3, 2]); Y = reshape(1:12, [3, 4]);");
+    eval("Z = pagemtimes(X, 'transpose', Y, 'none');");
+    eval("R = X' * Y;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z(:) - R(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, NoneXTransposeY2D)
+{
+    // X * Y' where X: 2×3, Y: 4×3 → result 2×4
+    eval("X = reshape(1:6, [2, 3]); Y = reshape(1:12, [4, 3]);");
+    eval("Z = pagemtimes(X, 'none', Y, 'transpose');");
+    eval("R = X * Y';");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z(:) - R(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, TransposeBoth2D)
+{
+    // X' * Y' where X: 3×2, Y: 4×3 → result 2×4
+    eval("X = reshape(1:6, [3, 2]); Y = reshape(1:12, [4, 3]);");
+    eval("Z = pagemtimes(X, 'transpose', Y, 'transpose');");
+    eval("R = X' * Y';");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z(:) - R(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, TransposeBatched3D)
+{
+    // 3-D batched: X^T per page * Y per page.
+    eval("X = reshape(1:24, [3, 2, 4]); Y = reshape(1:60, [3, 5, 4]);");
+    eval("Z = pagemtimes(X, 'transpose', Y, 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 2);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 3);"), 4.0);
+    eval("Xp = X(:,:,3); Yp = Y(:,:,3); Rp = Xp' * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(reshape(Z(:,:,3) - Rp, 1, [])));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, CTransposeMatchesTransposeForReal)
+{
+    // For real-valued input 'ctranspose' is identical to 'transpose'.
+    eval("X = reshape(1:6, [3, 2]); Y = reshape(1:12, [3, 4]);");
+    eval("Z1 = pagemtimes(X, 'transpose',  Y, 'none');");
+    eval("Z2 = pagemtimes(X, 'ctranspose', Y, 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z1(:) - Z2(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, NoneNoneEqualsTwoArgForm)
+{
+    eval("X = reshape(1:6, [2, 3]); Y = reshape(1:12, [3, 4]);");
+    eval("Z1 = pagemtimes(X, Y);");
+    eval("Z2 = pagemtimes(X, 'none', Y, 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(Z1(:) - Z2(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, InvalidFlagThrows)
+{
+    eval("X = ones(2, 3); Y = ones(3, 4);");
+    EXPECT_THROW(eval("Z = pagemtimes(X, 'foo', Y, 'none');"), std::exception);
+}
+
+TEST_P(PagemtimesTest, BadArgCountThrows)
+{
+    eval("X = ones(2, 3); Y = ones(3, 4);");
+    EXPECT_THROW(eval("Z = pagemtimes(X);"), std::exception);
+    EXPECT_THROW(eval("Z = pagemtimes(X, 'transpose', Y);"), std::exception);
+}
+
+TEST_P(PagemtimesTest, InnerDimMismatchUnderTranspose)
+{
+    // Under transpose: X is 3×2 → X' is 2×3, Y is 4×5 → inner = 3 vs 4 → throw.
+    eval("X = ones(3, 2); Y = ones(4, 5);");
+    EXPECT_THROW(eval("Z = pagemtimes(X, 'transpose', Y, 'none');"), std::exception);
+}
+
+// ── Phase 3: SINGLE-precision input ──────────────────────────────
+
+TEST_P(PagemtimesTest, SingleSingle2D)
+{
+    eval("X = single(reshape(1:6, [2, 3])); Y = single(reshape(1:12, [3, 4]));");
+    eval("Z = pagemtimes(X, Y);");
+    // Expected: same value as double matmul, but stored as single.
+    eval("Xd = double(X); Yd = double(Y); Rd = Xd * Yd;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(double(Z(:)) - Rd(:)));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(Z);"), 1.0);
+}
+
+TEST_P(PagemtimesTest, SingleDoubleMixedReturnsSingle)
+{
+    eval("X = single(reshape(1:6, [2, 3])); Y = reshape(1:12, [3, 4]);");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(Z);"), 1.0);
+    eval("Rd = double(X) * Y;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(double(Z(:)) - Rd(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, DoubleSingleMixedReturnsSingle)
+{
+    eval("X = reshape(1:6, [2, 3]); Y = single(reshape(1:12, [3, 4]));");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(Z);"), 1.0);
+    eval("Rd = X * double(Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(double(Z(:)) - Rd(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, SingleBatched3D)
+{
+    eval("X = single(reshape(1:24, [2, 3, 4])); Y = single(reshape(1:60, [3, 5, 4]));");
+    eval("Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(Z);"),    1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 1);"),     2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Z, 3);"),     4.0);
+    eval("Xp = double(X(:,:,2)); Yp = double(Y(:,:,2)); Rp = Xp * Yp;");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(double(reshape(Z(:,:,2), 1, [])) - reshape(Rp, 1, [])));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, SingleWithTranspose)
+{
+    // Transpose flag combined with SINGLE input.
+    eval("X = single(reshape(1:6, [3, 2])); Y = single(reshape(1:12, [3, 4]));");
+    eval("Z = pagemtimes(X, 'transpose', Y, 'none');");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(Z);"), 1.0);
+    eval("Rd = double(X)' * double(Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("max(abs(double(Z(:)) - Rd(:)));"), 0.0);
+}
+
+TEST_P(PagemtimesTest, IntegerInputThrows)
+{
+    eval("X = int32(ones(2, 3)); Y = int32(ones(3, 4));");
+    EXPECT_THROW(eval("Z = pagemtimes(X, Y);"), std::exception);
+}
+
+TEST_P(PagemtimesTest, LogicalInputThrows)
+{
+    eval("X = logical(ones(2, 3)); Y = logical(ones(3, 4));");
+    EXPECT_THROW(eval("Z = pagemtimes(X, Y);"), std::exception);
+}
+
+INSTANTIATE_DUAL(PagemtimesTest);
+

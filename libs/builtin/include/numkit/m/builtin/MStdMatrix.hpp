@@ -53,6 +53,20 @@ MValue reshapeND(Allocator &alloc, const MValue &x, const std::vector<size_t> &d
 /// 2D matrix transpose (no complex conjugation). Throws MError on 3D input.
 MValue transpose(Allocator &alloc, const MValue &x);
 
+/// Page-wise matrix multiply: treats axes 1-2 as M×K / K×N matrices,
+/// axes ≥3 as batch dims. Output shape is [M, N, ...broadcast(batchX, batchY)].
+/// DOUBLE only. Inner dim mismatch throws.
+///
+/// Transpose flags map MATLAB strings: "none" = no op, "transpose" =
+/// per-page transpose, "ctranspose" = per-page conjugate-transpose
+/// (identical to transpose for real input; complex input not yet
+/// supported).
+enum class TranspOp { None, Transpose, CTranspose };
+MValue pagemtimes(Allocator &alloc, const MValue &x, const MValue &y);
+MValue pagemtimes(Allocator &alloc,
+                  const MValue &x, TranspOp tx,
+                  const MValue &y, TranspOp ty);
+
 /// Main diagonal of a matrix as a column vector, or vector → diagonal matrix.
 MValue diag(Allocator &alloc, const MValue &x);
 

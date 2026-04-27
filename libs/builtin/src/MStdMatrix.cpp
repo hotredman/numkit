@@ -7,6 +7,7 @@
 
 #include "MStdHelpers.hpp"
 #include "MStdReductionHelpers.hpp"
+#include "backends/BinaryOpsLoops.hpp"
 #include "backends/MStdCumSum.hpp"
 
 #include <algorithm>
@@ -179,6 +180,230 @@ MValue transpose(Allocator &alloc, const MValue &x)
         for (size_t j = 0; j < cols; ++j)
             r.elem(j, i) = x(i, j);
     return r;
+}
+
+// ── pagemtimes: page-wise matrix multiply ──────────────────────────────
+//
+// MATLAB R2020b+ batched matmul. Treats axes 1-2 of each operand as the
+// matrix (M×K, K×N) and axes ≥3 as a batch index. Output batch shape is
+// the NumPy broadcast of the two batch shapes. Supports DOUBLE and
+// SINGLE (mixed → SINGLE, matching MATLAB's promotion rule).
+//
+//   Z = pagemtimes(X, Y)                     // tx = ty = None
+//   Z = pagemtimes(X, "transpose", Y, "none")
+//
+// 'transpose' / 'ctranspose' transpose each X (or Y) page before
+// multiply. For real input the two flags are identical (no imaginary
+// component to conjugate). 2D × 2D collapses to ordinary matmul. One
+// operand may be 2D (broadcast across the other's batch dims).
+
+namespace {
+
+// Per-page matmul kernel, parameterised by element type. The DOUBLE
+// specialisation hands off to the SIMD-aware matmulDoubleLoop in the
+// backend; the SINGLE one uses the same (j, k, i) ordering as a
+// portable inline loop.
+template <typename T>
+inline void runPageMatmul(const T *, const T *, T *,
+                          size_t, size_t, size_t);
+
+template <>
+inline void runPageMatmul<double>(const double *a, const double *b, double *c,
+                                  size_t M, size_t N, size_t K)
+{
+    detail::matmulDoubleLoop(a, b, c, M, N, K);
+}
+
+template <>
+inline void runPageMatmul<float>(const float *a, const float *b, float *c,
+                                 size_t M, size_t N, size_t K)
+{
+    for (size_t j = 0; j < N; ++j) {
+        float *cj = c + j * M;
+        for (size_t i = 0; i < M; ++i) cj[i] = 0.0f;
+        for (size_t k = 0; k < K; ++k) {
+            const float bkj = b[j * K + k];
+            const float *ak = a + k * M;
+            for (size_t i = 0; i < M; ++i)
+                cj[i] += ak[i] * bkj;
+        }
+    }
+}
+
+template <typename T> constexpr MType pagemtimesElemMType();
+template <> constexpr MType pagemtimesElemMType<double>() { return MType::DOUBLE; }
+template <> constexpr MType pagemtimesElemMType<float>()  { return MType::SINGLE; }
+
+// Materialise one page from `src` into typed scratch `dst`, optionally
+// transposing. Direct copy (no per-element conversion) when src already
+// holds the target type.
+template <typename T>
+void materialisePage(T *dst, const MValue &src, size_t pageOff,
+                     size_t rowDim, size_t colDim, TranspOp tr)
+{
+    const size_t pageElems = rowDim * colDim;
+    const size_t base = pageOff * pageElems;
+    const bool typeMatches = (src.type() == pagemtimesElemMType<T>());
+    const T *typedSrc = typeMatches ? static_cast<const T *>(src.rawData()) : nullptr;
+
+    if (tr == TranspOp::None) {
+        if (typeMatches) {
+            std::memcpy(dst, typedSrc + base, pageElems * sizeof(T));
+        } else {
+            for (size_t i = 0; i < pageElems; ++i)
+                dst[i] = static_cast<T>(src.elemAsDouble(base + i));
+        }
+    } else {
+        // dst is colDim × rowDim col-major: dst[r * colDim + c] = src[c * rowDim + r].
+        for (size_t r = 0; r < rowDim; ++r) {
+            for (size_t c = 0; c < colDim; ++c) {
+                const size_t srcOff = base + c * rowDim + r;
+                dst[r * colDim + c] = typeMatches
+                    ? typedSrc[srcOff]
+                    : static_cast<T>(src.elemAsDouble(srcOff));
+            }
+        }
+    }
+}
+
+template <typename T>
+MValue pagemtimesImpl(Allocator &alloc,
+                      const MValue &x, TranspOp tx,
+                      const MValue &y, TranspOp ty)
+{
+    const auto &xd = x.dims();
+    const auto &yd = y.dims();
+    const int xnd = xd.ndim();
+    const int ynd = yd.ndim();
+    if (xnd < 2 || ynd < 2)
+        throw MError("pagemtimes: each input must have at least 2 dimensions",
+                     0, 0, "pagemtimes", "", "m:pagemtimes:rank");
+
+    const size_t xRowDim = xd.dim(0), xColDim = xd.dim(1);
+    const size_t yRowDim = yd.dim(0), yColDim = yd.dim(1);
+
+    const size_t M  = (tx == TranspOp::None) ? xRowDim : xColDim;
+    const size_t Kx = (tx == TranspOp::None) ? xColDim : xRowDim;
+    const size_t Ky = (ty == TranspOp::None) ? yRowDim : yColDim;
+    const size_t N  = (ty == TranspOp::None) ? yColDim : yRowDim;
+    if (Kx != Ky)
+        throw MError("pagemtimes: inner matrix dimensions must agree",
+                     0, 0, "pagemtimes", "", "m:pagemtimes:innerdim");
+    const size_t K = Kx;
+
+    constexpr int kMaxNd = Dims::kMaxRank;
+    const int xb = std::max(0, xnd - 2);
+    const int yb = std::max(0, ynd - 2);
+    const int outBatchNd = std::max(xb, yb);
+    size_t xBatch[kMaxNd], yBatch[kMaxNd], outBatch[kMaxNd];
+    for (int i = 0; i < outBatchNd; ++i) {
+        xBatch[i] = (i < xb) ? xd.dim(2 + i) : 1;
+        yBatch[i] = (i < yb) ? yd.dim(2 + i) : 1;
+        if (xBatch[i] != yBatch[i] && xBatch[i] != 1 && yBatch[i] != 1)
+            throw MError("pagemtimes: batch dimensions must broadcast "
+                         "(each axis must match or be 1)",
+                         0, 0, "pagemtimes", "", "m:pagemtimes:dimagree");
+        outBatch[i] = std::max(xBatch[i], yBatch[i]);
+    }
+
+    size_t batchN = 1;
+    for (int i = 0; i < outBatchNd; ++i) batchN *= outBatch[i];
+
+    const int outNd = 2 + outBatchNd;
+    size_t outDimArr[kMaxNd];
+    outDimArr[0] = M;
+    outDimArr[1] = N;
+    for (int i = 0; i < outBatchNd; ++i) outDimArr[2 + i] = outBatch[i];
+    auto z = createForDims(Dims(outDimArr, outNd), pagemtimesElemMType<T>(), &alloc);
+    if (M == 0 || N == 0 || batchN == 0)
+        return z;
+
+    T *zData = static_cast<T *>(z.rawDataMut());
+    const size_t xPageStride = xRowDim * xColDim;
+    const size_t yPageStride = yRowDim * yColDim;
+    const size_t zPageStride = M * N;
+
+    // Direct-pass when source already matches T and no transpose is
+    // needed; otherwise materialise into typed scratch (one per call,
+    // reused across all batch pages).
+    const bool xDirect = (x.type() == pagemtimesElemMType<T>()) && (tx == TranspOp::None);
+    const bool yDirect = (y.type() == pagemtimesElemMType<T>()) && (ty == TranspOp::None);
+    std::vector<T> scratchX, scratchY;
+    if (!xDirect) scratchX.resize(xPageStride);
+    if (!yDirect) scratchY.resize(yPageStride);
+
+    auto getXPage = [&](size_t pageOff) -> const T * {
+        if (xDirect)
+            return static_cast<const T *>(x.rawData()) + pageOff * xPageStride;
+        materialisePage(scratchX.data(), x, pageOff, xRowDim, xColDim, tx);
+        return scratchX.data();
+    };
+    auto getYPage = [&](size_t pageOff) -> const T * {
+        if (yDirect)
+            return static_cast<const T *>(y.rawData()) + pageOff * yPageStride;
+        materialisePage(scratchY.data(), y, pageOff, yRowDim, yColDim, ty);
+        return scratchY.data();
+    };
+
+    if (outBatchNd == 0) {
+        runPageMatmul<T>(getXPage(0), getYPage(0), zData, M, N, K);
+        return z;
+    }
+
+    size_t xBatchStride[kMaxNd], yBatchStride[kMaxNd];
+    {
+        size_t sx = 1, sy = 1;
+        for (int i = 0; i < outBatchNd; ++i) {
+            xBatchStride[i] = sx;
+            yBatchStride[i] = sy;
+            sx *= xBatch[i];
+            sy *= yBatch[i];
+        }
+    }
+
+    size_t coords[kMaxNd] = {0};
+    Dims outBatchDims(outBatch, outBatchNd);
+    size_t pageIdx = 0;
+    do {
+        size_t xOff = 0, yOff = 0;
+        for (int i = 0; i < outBatchNd; ++i) {
+            const size_t xc = (xBatch[i] == 1) ? 0 : coords[i];
+            const size_t yc = (yBatch[i] == 1) ? 0 : coords[i];
+            xOff += xc * xBatchStride[i];
+            yOff += yc * yBatchStride[i];
+        }
+        runPageMatmul<T>(getXPage(xOff), getYPage(yOff),
+                         zData + pageIdx * zPageStride,
+                         M, N, K);
+        ++pageIdx;
+    } while (incrementCoords(coords, outBatchDims));
+
+    return z;
+}
+
+} // namespace
+
+MValue pagemtimes(Allocator &alloc, const MValue &x, const MValue &y)
+{
+    return pagemtimes(alloc, x, TranspOp::None, y, TranspOp::None);
+}
+
+MValue pagemtimes(Allocator &alloc,
+                  const MValue &x, TranspOp tx,
+                  const MValue &y, TranspOp ty)
+{
+    if (x.isComplex() || y.isComplex())
+        throw MError("pagemtimes: complex inputs are not yet supported",
+                     0, 0, "pagemtimes", "", "m:pagemtimes:complex");
+    const bool xOk = (x.type() == MType::DOUBLE || x.type() == MType::SINGLE);
+    const bool yOk = (y.type() == MType::DOUBLE || y.type() == MType::SINGLE);
+    if (!xOk || !yOk)
+        throw MError("pagemtimes: inputs must be 'single' or 'double'",
+                     0, 0, "pagemtimes", "", "m:pagemtimes:type");
+    // MATLAB: single dominates double in mixed-type arithmetic.
+    if (x.type() == MType::SINGLE || y.type() == MType::SINGLE)
+        return pagemtimesImpl<float >(alloc, x, tx, y, ty);
+    return     pagemtimesImpl<double>(alloc, x, tx, y, ty);
 }
 
 MValue diag(Allocator &alloc, const MValue &x)
@@ -807,6 +1032,35 @@ void transpose_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
         throw MError("transpose: requires 1 argument",
                      0, 0, "transpose", "", "m:transpose:nargin");
     outs[0] = transpose(ctx.engine->allocator(), args[0]);
+}
+
+void pagemtimes_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    auto parseFlag = [](const MValue &v) -> TranspOp {
+        if (!v.isChar() && !v.isString())
+            throw MError("pagemtimes: transpose flag must be a string",
+                         0, 0, "pagemtimes", "", "m:pagemtimes:flagType");
+        const std::string s = v.toString();
+        if (s == "none")       return TranspOp::None;
+        if (s == "transpose")  return TranspOp::Transpose;
+        if (s == "ctranspose") return TranspOp::CTranspose;
+        throw MError("pagemtimes: invalid transpose flag '" + s
+                     + "' (expected 'none', 'transpose', or 'ctranspose')",
+                     0, 0, "pagemtimes", "", "m:pagemtimes:invalidFlag");
+    };
+    Allocator &alloc = ctx.engine->allocator();
+    if (args.size() == 2) {
+        outs[0] = pagemtimes(alloc, args[0], args[1]);
+        return;
+    }
+    if (args.size() == 4) {
+        outs[0] = pagemtimes(alloc,
+                             args[0], parseFlag(args[1]),
+                             args[2], parseFlag(args[3]));
+        return;
+    }
+    throw MError("pagemtimes: expected 2 or 4 arguments",
+                 0, 0, "pagemtimes", "", "m:pagemtimes:nargin");
 }
 
 void diag_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
