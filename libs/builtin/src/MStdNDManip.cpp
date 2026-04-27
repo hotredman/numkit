@@ -116,21 +116,24 @@ MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
 
     const auto &dd = x.dims();
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(perm.size()));
-    const auto p = padPerm(perm, inNd);
+    if (inNd > Dims::kMaxRank)
+        throw MError("permute: rank exceeds 32",
+                     0, 0, "permute", "", "m:permute:tooManyDims");
 
-    // Build input dim vector (trailing 1s implicit past dd.ndim).
-    std::vector<size_t> inDims(inNd);
+    // All shape arrays on the stack — no per-call heap traffic. Avoids
+    // 4 std::vector allocs that dominated cost at small sizes (post-ND
+    // generalisation regressed BM_Permute3D /16 by 1.77× before this).
+    int p[Dims::kMaxRank];
+    size_t inDims[Dims::kMaxRank];
+    size_t outDimsArr[Dims::kMaxRank];
+    for (int i = 0; i < inNd; ++i)
+        p[i] = (i < static_cast<int>(perm.size())) ? perm[i] : (i + 1);
     for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
+    for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
 
-    // Output dims: outDims[k] = inDims[p[k] - 1].
-    std::vector<size_t> outDims(inNd);
-    for (int k = 0; k < inNd; ++k)
-        outDims[k] = inDims[p[k] - 1];
-
-    // 2D / 3D fast path uses createMatrix / createMatrix3d via createMatrixND;
-    // ≥ 4D goes through MValue::matrixND. Trailing 1s are kept (we don't
-    // strip here — permute should preserve user-requested rank).
-    auto r = createMatrixND(outDims, MType::DOUBLE, &alloc);
+    // 2D / 3D fast path uses createMatrix / createMatrix3d via matrixND;
+    // ≥ 4D goes through MValue::matrixND. Trailing 1s are kept.
+    auto r = MValue::matrixND(outDimsArr, inNd, MType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -155,14 +158,48 @@ MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
         }
     }
 
-    // General ND permute — strided gather. Iterate output coords in
-    // column-major order (innermost dim varies fastest), compute the
-    // input offset by mapping out-coord k → in-coord (p[k] - 1).
-    std::vector<size_t> inStrides(inNd);
-    computeStridesColMajor(Dims(inDims.data(), inNd), inStrides.data());
+    // 3D fast path — explicit nested loops with constant strides. Avoids
+    // the per-element coord-walk overhead that dominated pre-fix at
+    // small sizes (BM_Permute3D /16: 7.5us → expected ≤ 5us).
+    if (inNd == 3) {
+        const size_t s[3] = {1, inDims[0], inDims[0] * inDims[1]};
+        const size_t sa = s[p[0] - 1];
+        const size_t sb = s[p[1] - 1];
+        const size_t sc = s[p[2] - 1];
+        const size_t outR = outDimsArr[0], outC = outDimsArr[1], outP = outDimsArr[2];
+        size_t dstIdx = 0;
+        for (size_t k = 0; k < outP; ++k) {
+            const size_t baseK = k * sc;
+            for (size_t j = 0; j < outC; ++j) {
+                const size_t baseJK = baseK + j * sb;
+                for (size_t i = 0; i < outR; ++i)
+                    dst[dstIdx++] = src[baseJK + i * sa];
+            }
+        }
+        return r;
+    }
 
-    std::vector<size_t> outCoords(inNd, 0);
-    Dims outDimsObj(outDims.data(), inNd);
+    // 2D fast path — same idea, two nested loops.
+    if (inNd == 2) {
+        const size_t s[2] = {1, inDims[0]};
+        const size_t sa = s[p[0] - 1];
+        const size_t sb = s[p[1] - 1];
+        const size_t outR = outDimsArr[0], outC = outDimsArr[1];
+        size_t dstIdx = 0;
+        for (size_t j = 0; j < outC; ++j) {
+            const size_t baseJ = j * sb;
+            for (size_t i = 0; i < outR; ++i)
+                dst[dstIdx++] = src[baseJ + i * sa];
+        }
+        return r;
+    }
+
+    // General ND permute (4D+) — strided gather via incrementCoords.
+    size_t inStrides[Dims::kMaxRank];
+    computeStridesColMajor(Dims(inDims, inNd), inStrides);
+
+    size_t outCoords[Dims::kMaxRank] = {0};
+    Dims outDimsObj(outDimsArr, inNd);
     size_t dstOff = 0;
     do {
         size_t srcOff = 0;
@@ -172,7 +209,7 @@ MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
         }
         dst[dstOff] = src[srcOff];
         ++dstOff;
-    } while (incrementCoords(outCoords.data(), outDimsObj));
+    } while (incrementCoords(outCoords, outDimsObj));
     return r;
 }
 
