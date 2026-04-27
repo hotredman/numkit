@@ -1169,7 +1169,8 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
                         colIdx.data(), colIdx.size(),
                         pageIdx.data(), pageIdx.size(), rhs);
     } else {
-        // ND assign: nargs >= 4. No auto-expand for ranks > 3.
+        // ND assign: nargs >= 4. indexSetND auto-grows the target rank
+        // (and per-axis size) to fit any out-of-range subscripts.
         const int nd = static_cast<int>(nargs);
         std::vector<std::vector<size_t>> idxLists(nd);
         std::vector<const size_t *> idxPtrs(nd);
@@ -1275,7 +1276,39 @@ void TreeWalker::execCellAssign(const ASTNode *lhs, const MValue &rhs, Environme
         size_t idx = var->dims().sub2indChecked(r, c, p);
         var->cellAt(idx) = rhs;
     } else {
-        throw std::runtime_error("Cell assignment with more than 3 indices not supported");
+        // ND brace-cell write (nidx ≥ 4). Auto-grows the cell array if
+        // any subscript exceeds the current dim, including new trailing
+        // axes (rank ↑) — matches MATLAB's `C{i,j,k,l} = v` semantics.
+        std::vector<size_t> coords(nidx);
+        for (size_t i = 0; i < nidx; ++i) {
+            IndexContextGuard guard(indexContextStack_, {var, static_cast<int>(i),
+                                                          static_cast<int>(nidx)});
+            MValue v = execNode(lhs->children[i + 1].get(), env);
+            coords[i] = static_cast<size_t>(v.toScalar()) - 1;
+        }
+        const int curNd = var->dims().ndim();
+        const int newNd = std::max(static_cast<int>(nidx), curNd);
+        std::vector<size_t> need(newNd, 1);
+        for (int i = 0; i < newNd; ++i)
+            need[i] = (i < curNd) ? var->dims().dim(i) : 1;
+        bool grow = (static_cast<int>(nidx) > curNd);
+        for (size_t i = 0; i < nidx; ++i) {
+            if (coords[i] + 1 > need[i]) {
+                need[i] = coords[i] + 1;
+                grow = true;
+            }
+        }
+        if (grow)
+            var->resizeND(need.data(), newNd, &engine_.allocator_);
+
+        const auto &d = var->dims();
+        size_t idx = 0, stride = 1;
+        for (size_t i = 0; i < nidx; ++i) {
+            const size_t lim = (static_cast<int>(i) < d.ndim()) ? d.dim(static_cast<int>(i)) : 1;
+            idx += coords[i] * stride;
+            stride *= lim;
+        }
+        var->cellAt(idx) = rhs;
     }
 }
 
@@ -1397,6 +1430,21 @@ MValue TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
                            colIdx.data(), colIdx.size(),
                            pageIdx.data(), pageIdx.size(),
                            &engine_.allocator_);
+    } else {
+        // ND delete: A(i_1, ..., i_n) = []. Resolve every dim's index
+        // vector, then dispatch to the generic ND deleter (which checks
+        // exactly-one-partial-axis itself).
+        std::vector<std::vector<size_t>> perDim(nargs);
+        std::vector<const size_t *> perDimPtrs(nargs);
+        std::vector<size_t> perDimCount(nargs);
+        for (size_t i = 0; i < nargs; ++i) {
+            perDim[i] = resolveIndex(lhs->children[i + 1].get(), *var,
+                                     static_cast<int>(i), static_cast<int>(nargs), env);
+            perDimPtrs[i]  = perDim[i].data();
+            perDimCount[i] = perDim[i].size();
+        }
+        var->indexDeleteND(perDimPtrs.data(), perDimCount.data(),
+                           static_cast<int>(nargs), &engine_.allocator_);
     }
     return MValue::empty();
 }
@@ -1732,7 +1780,27 @@ MValue TreeWalker::execCellIndex(const ASTNode *node, Environment *env)
         size_t p = static_cast<size_t>(pidx.toScalar()) - 1;
         return obj.cellAt(obj.dims().sub2indChecked(r, c, p));
     }
-    throw std::runtime_error("Cell indexing with more than 3 dimensions not supported");
+    // ND brace-cell read (nidx ≥ 4): column-major linear index, bounds-checked.
+    std::vector<size_t> coords(nidx);
+    for (size_t i = 0; i < nidx; ++i) {
+        IndexContextGuard guard(indexContextStack_, {&obj, static_cast<int>(i),
+                                                     static_cast<int>(nidx)});
+        MValue v = execNode(node->children[i + 1].get(), env);
+        coords[i] = static_cast<size_t>(v.toScalar()) - 1;
+    }
+    const auto &d = obj.dims();
+    size_t idx = 0, stride = 1;
+    for (size_t i = 0; i < nidx; ++i) {
+        const size_t lim = (static_cast<int>(i) < d.ndim()) ? d.dim(static_cast<int>(i)) : 1;
+        if (coords[i] >= lim)
+            throw std::runtime_error("Cell index out of bounds (dim "
+                                     + std::to_string(i + 1)
+                                     + ": " + std::to_string(coords[i] + 1)
+                                     + " > " + std::to_string(lim) + ")");
+        idx += coords[i] * stride;
+        stride *= lim;
+    }
+    return obj.cellAt(idx);
 }
 
 MValue TreeWalker::execFieldAccess(const ASTNode *node, Environment *env)

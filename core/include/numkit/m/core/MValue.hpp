@@ -68,6 +68,8 @@ public:
     static MValue fromString(const std::string &s, Allocator *alloc = nullptr);
     static MValue cell(size_t rows, size_t cols);
     static MValue cell3D(size_t rows, size_t cols, size_t pages);
+    // ND CELL constructor — picks 2D / 3D / true-ND backing as needed.
+    static MValue cellND(const size_t *dims, int nd);
     static MValue structure();
     static MValue funcHandle(const std::string &name, Allocator *alloc = nullptr);
     static MValue empty();
@@ -144,6 +146,13 @@ public:
     void indexDelete3D(const size_t *rowIdx, size_t nrows,
                        const size_t *colIdx, size_t ncols,
                        const size_t *pageIdx, size_t npages,
+                       Allocator *alloc = nullptr);
+    // ND delete: A(i_1, ..., i_n) = []. Exactly one axis must be a
+    // strict subset; all others must be the full range. Result has
+    // that axis shrunk by the count of deleted indices.
+    void indexDeleteND(const size_t *const *perDimIdx,
+                       const size_t *perDimCount,
+                       int nd,
                        Allocator *alloc = nullptr);
 
     // ── Factories — complex ──────────────────────────────────
@@ -248,6 +257,10 @@ public:
     // ── Resize ───────────────────────────────────────────────
     void resize(size_t newRows, size_t newCols, Allocator *alloc = nullptr);
     void resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator *alloc = nullptr);
+    // ND resize: re-shape to `newDims` (length `nd`), preserving the
+    // intersection of old and new shapes (per-axis min). Pads with 0
+    // (or ' ' for CHAR). Delegates to resize/resize3d for nd ≤ 3.
+    void resizeND(const size_t *newDims, int nd, Allocator *alloc = nullptr);
     void ensureSize(size_t linearIdx, Allocator *alloc = nullptr);
     void appendScalar(double v, Allocator *alloc = nullptr);
 

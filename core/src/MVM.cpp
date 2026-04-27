@@ -843,10 +843,7 @@ enter_frame:
                                            pageIds.data(), pageIds.size(),
                                            &engine_.allocator_);
                 } else {
-                    if (mv.isCell())
-                        throw std::runtime_error(
-                            "VM: ND cell indexing with " + std::to_string(ndims)
-                            + " dims not yet supported");
+                    // ND read (≥4): CELL handled by indexGetND directly now.
                     const int nd = static_cast<int>(ndims);
                     std::vector<std::vector<size_t>> idxLists(nd);
                     std::vector<const size_t *> idxPtrs(nd);
@@ -902,11 +899,37 @@ enter_frame:
                                       pageIds.data(), pageIds.size(),
                                       R[I.e]);
                 } else {
-                    if (R[I.a].isCell())
-                        throw std::runtime_error(
-                            "VM: ND cell indexed assignment with " + std::to_string(ndims)
-                            + " dims not yet supported");
+                    // ND write (≥4): grow the target *first* so the
+                    // subsequent resolveIndices bounds checks succeed.
                     const int nd = static_cast<int>(ndims);
+                    const int curNd = R[I.a].dims().ndim();
+                    const int newNd = std::max(nd, curNd);
+                    std::vector<size_t> need(newNd, 1);
+                    for (int i = 0; i < newNd; ++i)
+                        need[i] = (i < curNd) ? R[I.a].dims().dim(i) : 1;
+                    auto isColon = [](const MValue &v) {
+                        return v.isChar() && v.numel() == 1 && v.charData()[0] == ':';
+                    };
+                    for (int i = 0; i < nd; ++i) {
+                        const MValue &iv = R[base + i];
+                        if (isColon(iv) || iv.isLogical()) continue;
+                        if (iv.isDoubleScalar()) {
+                            size_t v = static_cast<size_t>(iv.toScalar());
+                            if (v > need[i]) need[i] = v;
+                        } else if (iv.type() == MType::DOUBLE) {
+                            const double *d = iv.doubleData();
+                            for (size_t k = 0; k < iv.numel(); ++k) {
+                                size_t v = static_cast<size_t>(d[k]);
+                                if (v > need[i]) need[i] = v;
+                            }
+                        }
+                    }
+                    bool grow = (newNd > curNd);
+                    for (int i = 0; i < curNd && !grow; ++i)
+                        if (need[i] > R[I.a].dims().dim(i)) grow = true;
+                    if (grow)
+                        R[I.a].resizeND(need.data(), newNd, &engine_.allocator_);
+
                     std::vector<std::vector<size_t>> idxLists(nd);
                     std::vector<const size_t *> idxPtrs(nd);
                     std::vector<size_t> idxCounts(nd);
@@ -942,18 +965,19 @@ enter_frame:
             case OpCode::INDEX_DELETE_ND: {
                 // a=arr, b=base, c=ndims
                 uint8_t base = I.b, ndims = I.c;
-                if (ndims == 3) {
-                    auto rowIdx = MValue::resolveIndices(R[base], R[I.a].dims().rows());
-                    auto colIdx = MValue::resolveIndices(R[base + 1], R[I.a].dims().cols());
-                    auto pageIdx = MValue::resolveIndices(R[base + 2], R[I.a].dims().pages());
-                    R[I.a].indexDelete3D(rowIdx.data(), rowIdx.size(),
-                                         colIdx.data(), colIdx.size(),
-                                         pageIdx.data(), pageIdx.size(),
-                                         &engine_.allocator_);
-                } else {
-                    throw std::runtime_error("VM: unsupported delete with "
-                                             + std::to_string(ndims) + " dimensions");
+                std::vector<std::vector<size_t>> perDim(ndims);
+                std::vector<const size_t *> perDimPtrs(ndims);
+                std::vector<size_t> perDimCount(ndims);
+                const auto &srcDims = R[I.a].dims();
+                const int srcNd = srcDims.ndim();
+                for (uint8_t i = 0; i < ndims; ++i) {
+                    const size_t lim = (i < srcNd) ? srcDims.dim(i) : 1;
+                    perDim[i] = MValue::resolveIndices(R[base + i], lim);
+                    perDimPtrs[i]  = perDim[i].data();
+                    perDimCount[i] = perDim[i].size();
                 }
+                R[I.a].indexDeleteND(perDimPtrs.data(), perDimCount.data(),
+                                     ndims, &engine_.allocator_);
                 break;
             }
 
@@ -1091,13 +1115,14 @@ enter_frame:
                     size_t idx = R[I.b].dims().sub2ind(r, c, p);
                     R[I.a] = R[I.b].cellAt(idx);
                 } else {
-                    // General ND: compute linear index
+                    // General ND (≥4): column-major linear index from
+                    // per-axis subscripts using actual dim(i).
                     const auto &d = R[I.b].dims();
                     size_t idx = 0, stride = 1;
                     for (uint8_t i = 0; i < ndims; ++i) {
                         size_t si = (size_t) R[base + i].toScalar() - 1;
                         idx += si * stride;
-                        stride *= (i == 0) ? d.rows() : (i == 1) ? d.cols() : d.pages();
+                        stride *= d.dim(i);
                     }
                     R[I.a] = R[I.b].cellAt(idx);
                 }
@@ -1134,13 +1159,31 @@ enter_frame:
                     size_t idx = R[I.a].dims().sub2ind(r, c, p);
                     R[I.a].cellAt(idx) = R[I.e];
                 } else {
-                    // General ND: compute linear index
+                    // General ND (≥4): auto-grow on out-of-range subscripts
+                    // (rank ↑ for new trailing axes, axis-size ↑ otherwise),
+                    // then column-major linear-index assign.
+                    std::vector<size_t> coords(ndims);
+                    for (uint8_t i = 0; i < ndims; ++i)
+                        coords[i] = (size_t) R[base + i].toScalar() - 1;
+                    const int curNd = R[I.a].dims().ndim();
+                    const int newNd = std::max(static_cast<int>(ndims), curNd);
+                    std::vector<size_t> need(newNd, 1);
+                    for (int i = 0; i < newNd; ++i)
+                        need[i] = (i < curNd) ? R[I.a].dims().dim(i) : 1;
+                    bool grow = (static_cast<int>(ndims) > curNd);
+                    for (uint8_t i = 0; i < ndims; ++i) {
+                        if (coords[i] + 1 > need[i]) {
+                            need[i] = coords[i] + 1;
+                            grow = true;
+                        }
+                    }
+                    if (grow)
+                        R[I.a].resizeND(need.data(), newNd, &engine_.allocator_);
                     const auto &d = R[I.a].dims();
                     size_t idx = 0, stride = 1;
                     for (uint8_t i = 0; i < ndims; ++i) {
-                        size_t si = (size_t) R[base + i].toScalar() - 1;
-                        idx += si * stride;
-                        stride *= (i == 0) ? d.rows() : (i == 1) ? d.cols() : d.pages();
+                        idx += coords[i] * stride;
+                        stride *= d.dim(i);
                     }
                     R[I.a].cellAt(idx) = R[I.e];
                 }
@@ -2173,11 +2216,8 @@ void VM::execIndirectIndex(const Instruction &I, MValue *R)
                                    &engine_.allocator_);
         }
     } else {
-        // ND indexing fallback for na >= 4. Cell ND not yet supported.
+        // ND indexing fallback for na >= 4. CELL handled by indexGetND.
         const MValue &mv = R[fhReg];
-        if (mv.isCell())
-            throw std::runtime_error("VM: ND cell indexing with " + std::to_string(na)
-                                     + " args not yet supported");
         const int nd = static_cast<int>(na);
         std::vector<std::vector<size_t>> idxLists(nd);
         std::vector<const size_t *> idxPtrs(nd);

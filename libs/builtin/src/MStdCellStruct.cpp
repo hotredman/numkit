@@ -114,20 +114,39 @@ void rmfield_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
 void cell_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
 {
     Allocator &alloc = ctx.engine->allocator();
+    (void)alloc;
     if (args.empty())
         throw MError("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
-    size_t r = static_cast<size_t>(args[0].toScalar());
-    if (args.size() == 1) {
-        outs[0] = cell(alloc, r);
+    // Single vector arg: cell([m n p ...]).
+    if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
+        const size_t n = args[0].numel();
+        std::vector<size_t> dims(n);
+        for (size_t i = 0; i < n; ++i)
+            dims[i] = static_cast<size_t>(args[0].elemAsDouble(i));
+        outs[0] = MValue::cellND(dims.data(), static_cast<int>(n));
         return;
     }
-    size_t c = static_cast<size_t>(args[1].toScalar());
-    if (args.size() >= 3) {
-        size_t p = static_cast<size_t>(args[2].toScalar());
-        outs[0] = cell(alloc, r, c, p);
-    } else {
-        outs[0] = cell(alloc, r, c);
+    size_t r = static_cast<size_t>(args[0].toScalar());
+    if (args.size() == 1) {
+        outs[0] = MValue::cell(r, r);
+        return;
     }
+    if (args.size() == 2) {
+        size_t c = static_cast<size_t>(args[1].toScalar());
+        outs[0] = MValue::cell(r, c);
+        return;
+    }
+    if (args.size() == 3) {
+        size_t c = static_cast<size_t>(args[1].toScalar());
+        size_t p = static_cast<size_t>(args[2].toScalar());
+        outs[0] = (p > 0) ? MValue::cell3D(r, c, p) : MValue::cell(r, c);
+        return;
+    }
+    // 4+ scalar args: cell(m, n, p, q, ...).
+    std::vector<size_t> dims(args.size());
+    for (size_t i = 0; i < args.size(); ++i)
+        dims[i] = static_cast<size_t>(args[i].toScalar());
+    outs[0] = MValue::cellND(dims.data(), static_cast<int>(args.size()));
 }
 
 } // namespace detail

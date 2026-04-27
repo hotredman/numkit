@@ -206,6 +206,22 @@ MValue MValue::cell3D(size_t rows, size_t cols, size_t pages)
     m.heap_ = h;
     return m;
 }
+MValue MValue::cellND(const size_t *dims, int nd)
+{
+    if (nd <= 0) return cell(0, 0);
+    if (nd == 1) return cell(dims[0], 1);
+    if (nd == 2) return cell(dims[0], dims[1]);
+    if (nd == 3) return cell3D(dims[0], dims[1], dims[2]);
+    MValue m;
+    auto *h = new HeapObject();
+    h->type = MType::CELL;
+    h->dims = Dims(dims, nd);
+    size_t total = 1;
+    for (int i = 0; i < nd; ++i) total *= dims[i];
+    h->cellData = new std::vector<MValue>(total);
+    m.heap_ = h;
+    return m;
+}
 MValue MValue::stringScalar(const std::string &s, Allocator *alloc)
 {
     MValue m;
@@ -907,11 +923,9 @@ MValue MValue::indexGetND(const size_t *const *perDimIdx,
                           perDimIdx[2], perDimCount[2], alloc);
 
     MType t = type();
-    if (t == MType::CELL)
-        throw std::runtime_error("indexGetND not yet supported for CELL with nd > 3");
-
-    size_t es = elementSize(t);
-    if (es == 0)
+    const bool isCell = (t == MType::CELL);
+    size_t es = isCell ? 0 : elementSize(t);
+    if (!isCell && es == 0)
         throw std::runtime_error(
             std::string("indexGetND not supported for type '") + mtypeName(t) + "'");
 
@@ -919,7 +933,8 @@ MValue MValue::indexGetND(const size_t *const *perDimIdx,
     // produce an empty tensor.
     size_t totalOut = 1;
     for (int i = 0; i < nd; ++i) totalOut *= perDimCount[i];
-    auto result = MValue::matrixND(perDimCount, nd, t, alloc);
+    auto result = isCell ? MValue::cellND(perDimCount, nd)
+                         : MValue::matrixND(perDimCount, nd, t, alloc);
     if (totalOut == 0) return result;
 
     // Source strides (column-major) for the existing tensor's actual rank.
@@ -944,23 +959,35 @@ MValue MValue::indexGetND(const size_t *const *perDimIdx,
                     + std::to_string(lim) + ")");
     }
 
-    const char *src = static_cast<const char *>(rawData());
-    char *dst = static_cast<char *>(result.rawDataMut());
-
     Dims outIter(perDimCount, nd);
     size_t coords[kMaxNd] = {0};
     size_t outIdx = 0;
-    do {
-        size_t srcOff = 0;
-        const int loopN = std::min(nd, srcNd);
-        for (int i = 0; i < loopN; ++i) {
-            const size_t pickedIdx = perDimIdx[i][coords[i]];
-            srcOff += pickedIdx * srcStrides[i];
-        }
-        // Dims i ≥ srcNd contribute 0 (idx already known to be 0 from bounds check).
-        std::memcpy(dst + outIdx * es, src + srcOff * es, es);
-        ++outIdx;
-    } while (incrementCoords(coords, outIter));
+    if (isCell) {
+        do {
+            size_t srcOff = 0;
+            const int loopN = std::min(nd, srcNd);
+            for (int i = 0; i < loopN; ++i) {
+                const size_t pickedIdx = perDimIdx[i][coords[i]];
+                srcOff += pickedIdx * srcStrides[i];
+            }
+            result.cellAt(outIdx) = cellAt(srcOff);
+            ++outIdx;
+        } while (incrementCoords(coords, outIter));
+    } else {
+        const char *src = static_cast<const char *>(rawData());
+        char *dst = static_cast<char *>(result.rawDataMut());
+        do {
+            size_t srcOff = 0;
+            const int loopN = std::min(nd, srcNd);
+            for (int i = 0; i < loopN; ++i) {
+                const size_t pickedIdx = perDimIdx[i][coords[i]];
+                srcOff += pickedIdx * srcStrides[i];
+            }
+            // Dims i ≥ srcNd contribute 0 (already verified by bounds check).
+            std::memcpy(dst + outIdx * es, src + srcOff * es, es);
+            ++outIdx;
+        } while (incrementCoords(coords, outIter));
+    }
 
     return result;
 }
@@ -1301,29 +1328,44 @@ void MValue::indexSetND(const size_t *const *perDimIdx,
         return;
     }
 
-    if (type() == MType::CELL)
-        throw std::runtime_error("indexSetND not yet supported for CELL with nd > 3");
+    // CELL is handled element-wise via writeScalar/writeElem (which use
+    // cellAt under the hood) — no special-casing needed here past the
+    // shared scalar/elementwise loops below.
     if (type() == MType::DOUBLE && val.isComplex())
         promoteToComplex();
 
-    auto &d = dims();
     constexpr int kMaxNd = Dims::kMaxRank;
-    if (d.ndim() > kMaxNd)
+    if (dims().ndim() > kMaxNd)
         throw std::runtime_error("indexSetND: target rank exceeds 32");
+
+    // Auto-grow: expand any axis whose largest assignment index exceeds
+    // current dim, including new trailing axes (rank goes up). Matches
+    // MATLAB: `A(i,j,k,l) = v` creates / extends as needed.
+    {
+        const int curNd = dims().ndim();
+        const int newNd = std::max(nd, curNd);
+        if (newNd > kMaxNd)
+            throw std::runtime_error("indexSetND: target rank exceeds 32");
+        size_t need[kMaxNd];
+        for (int i = 0; i < newNd; ++i)
+            need[i] = (i < curNd) ? dims().dim(i) : 1;
+        bool grow = false;
+        for (int i = 0; i < nd; ++i) {
+            for (size_t k = 0; k < perDimCount[i]; ++k) {
+                if (perDimIdx[i][k] + 1 > need[i]) {
+                    need[i] = perDimIdx[i][k] + 1;
+                    grow = true;
+                }
+            }
+        }
+        if (grow)
+            resizeND(need, newNd, nullptr);
+    }
+
+    auto &d = dims();
     size_t dstStrides[kMaxNd];
     computeStridesColMajor(d, dstStrides);
     const int dstNd = d.ndim();
-
-    // Bounds check (no auto-expand for nd > 3 in Phase 6).
-    for (int i = 0; i < nd; ++i) {
-        const size_t lim = (i < dstNd) ? d.dim(i) : 1;
-        for (size_t k = 0; k < perDimCount[i]; ++k)
-            if (perDimIdx[i][k] >= lim)
-                throw std::runtime_error(
-                    "Index exceeds array dimensions (dim " + std::to_string(i + 1)
-                    + ": " + std::to_string(perDimIdx[i][k] + 1) + " > "
-                    + std::to_string(lim) + ")");
-    }
 
     size_t total = 1;
     for (int i = 0; i < nd; ++i) total *= perDimCount[i];
@@ -1635,6 +1677,114 @@ void MValue::indexDelete3D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         }
     }
+}
+
+void MValue::indexDeleteND(const size_t *const *perDimIdx,
+                           const size_t *perDimCount,
+                           int nd,
+                           Allocator *alloc)
+{
+    if (nd <= 0) return;
+    if (nd == 1) { indexDelete(perDimIdx[0], perDimCount[0], alloc); return; }
+    if (nd == 2) {
+        indexDelete2D(perDimIdx[0], perDimCount[0],
+                      perDimIdx[1], perDimCount[1], alloc);
+        return;
+    }
+    if (nd == 3) {
+        indexDelete3D(perDimIdx[0], perDimCount[0],
+                      perDimIdx[1], perDimCount[1],
+                      perDimIdx[2], perDimCount[2], alloc);
+        return;
+    }
+
+    MType t = type();
+    if (t == MType::STRUCT || t == MType::FUNC_HANDLE || t == MType::EMPTY
+        || t == MType::STRING)
+        throw std::runtime_error(
+            std::string("Delete indexing not supported for type '") + mtypeName(t) + "'");
+
+    auto &d = dims();
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (d.ndim() > kMaxNd)
+        throw std::runtime_error("indexDeleteND: target rank exceeds 32");
+    const int srcNd = d.ndim();
+
+    // Find the partial axis. All other axes must be the full range.
+    int partial = -1;
+    for (int i = 0; i < nd; ++i) {
+        const size_t lim = (i < srcNd) ? d.dim(i) : 1;
+        if (perDimCount[i] != lim) {
+            if (partial != -1)
+                throw std::runtime_error(
+                    "ND delete requires exactly one dimension to be partially selected");
+            partial = i;
+        }
+    }
+    if (partial == -1)
+        throw std::runtime_error(
+            "ND delete requires exactly one dimension to be partially selected");
+    if (partial >= srcNd)
+        throw std::runtime_error(
+            "ND delete: partial axis exceeds source rank");
+
+    const size_t axisLen = d.dim(partial);
+    std::vector<bool> delMask(axisLen, false);
+    for (size_t k = 0; k < perDimCount[partial]; ++k)
+        if (perDimIdx[partial][k] < axisLen)
+            delMask[perDimIdx[partial][k]] = true;
+    const size_t newLen = std::count(delMask.begin(), delMask.end(), false);
+
+    size_t newShape[kMaxNd];
+    for (int i = 0; i < srcNd; ++i)
+        newShape[i] = (i == partial) ? newLen : d.dim(i);
+
+    const bool isCell = (t == MType::CELL);
+    const size_t es = isCell ? 0 : elementSize(t);
+    if (!isCell && es == 0)
+        throw std::runtime_error(
+            std::string("indexDeleteND not supported for type '") + mtypeName(t) + "'");
+
+    MValue result = isCell ? MValue::cellND(newShape, srcNd)
+                           : MValue::matrixND(newShape, srcNd, t, alloc);
+    if (newLen == 0) {
+        *this = std::move(result);
+        return;
+    }
+
+    size_t srcStrides[kMaxNd], dstStrides[kMaxNd];
+    computeStridesColMajor(d, srcStrides);
+    Dims newDims(newShape, srcNd);
+    computeStridesColMajor(newDims, dstStrides);
+
+    // Per-axis-value compressed-output index.
+    std::vector<size_t> remap(axisLen, 0);
+    {
+        size_t j = 0;
+        for (size_t i = 0; i < axisLen; ++i)
+            if (!delMask[i]) remap[i] = j++;
+    }
+
+    char *dstRaw = isCell ? nullptr : static_cast<char *>(result.rawDataMut());
+    const char *srcRaw = isCell ? nullptr : static_cast<const char *>(rawData());
+
+    size_t coords[kMaxNd] = {0};
+    do {
+        if (delMask[coords[partial]])
+            continue;
+        size_t srcOff = 0, dstOff = 0;
+        for (int i = 0; i < srcNd; ++i) {
+            srcOff += coords[i] * srcStrides[i];
+            const size_t dc = (i == partial) ? remap[coords[i]] : coords[i];
+            dstOff += dc * dstStrides[i];
+        }
+        if (isCell)
+            result.cellAt(dstOff) = cellAt(srcOff);
+        else
+            std::memcpy(dstRaw + dstOff * es, srcRaw + srcOff * es, es);
+    } while (incrementCoords(coords, d));
+
+    *this = std::move(result);
 }
 
 MValue MValue::complexScalar(Complex v, Allocator *alloc)
@@ -2153,6 +2303,110 @@ void MValue::resize3d(size_t nr, size_t nc, size_t np, Allocator *alloc)
     heap_->buffer = nb2;
     heap_->allocator = alloc;
     heap_->dims = {nr, nc, np};
+    heap_->appendCapacity = 0;
+}
+
+void MValue::resizeND(const size_t *newDims, int nd, Allocator *alloc)
+{
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (nd <= 0 || nd > kMaxNd)
+        throw std::runtime_error("resizeND: rank out of range");
+    if (nd == 1) { resize(newDims[0], 1, alloc); return; }
+    if (nd == 2) { resize(newDims[0], newDims[1], alloc); return; }
+    if (nd == 3) { resize3d(newDims[0], newDims[1], newDims[2], alloc); return; }
+
+    // Promote scalar (no heap_) to a 1×1 DOUBLE array so the rest can
+    // assume heap_ is set and detach() is meaningful.
+    if (heap_ == nullptr) {
+        double v = scalar_;
+        auto *h = new HeapObject();
+        h->type = MType::DOUBLE;
+        h->dims = {1, 1};
+        h->allocator = alloc;
+        h->buffer = new DataBuffer(sizeof(double), alloc);
+        *static_cast<double *>(h->buffer->data()) = v;
+        heap_ = h;
+    }
+    // Empty (tag) → fresh DOUBLE heap with the requested shape; no
+    // existing data to preserve. Same path is used for the auto-grow
+    // case `A(i,j,k,l) = v` when A doesn't exist yet.
+    if (heap_ == emptyTag()) {
+        *this = matrixND(newDims, nd, MType::DOUBLE, alloc);
+        return;
+    }
+    if (!isHeap())
+        throw std::runtime_error("Cannot resize");
+    detach();
+    if (!alloc) alloc = heap_->allocator;
+
+    const MType t = heap_->type;
+    const Dims oldDims = heap_->dims;
+    const int oldNd = oldDims.ndim();
+
+    size_t newTotal = 1;
+    for (int i = 0; i < nd; ++i) newTotal *= newDims[i];
+
+    size_t oldStrides[kMaxNd], newStrides[kMaxNd];
+    computeStridesColMajor(oldDims, oldStrides);
+    Dims newD(newDims, nd);
+    computeStridesColMajor(newD, newStrides);
+
+    const int commonNd = std::min(nd, oldNd);
+    size_t commonDims[kMaxNd];
+    size_t commonTotal = 1;
+    for (int i = 0; i < commonNd; ++i) {
+        commonDims[i] = std::min(oldDims.dim(i), newDims[i]);
+        commonTotal *= commonDims[i];
+    }
+
+    if (t == MType::CELL) {
+        auto newCell = MValue::cellND(newDims, nd);
+        if (commonTotal > 0) {
+            Dims commonD(commonDims, commonNd);
+            size_t coords[kMaxNd] = {0};
+            do {
+                size_t oldOff = 0, newOff = 0;
+                for (int i = 0; i < commonNd; ++i) {
+                    oldOff += coords[i] * oldStrides[i];
+                    newOff += coords[i] * newStrides[i];
+                }
+                newCell.cellAt(newOff) = cellAt(oldOff);
+            } while (incrementCoords(coords, commonD));
+        }
+        *this = std::move(newCell);
+        return;
+    }
+
+    const size_t es = elementSize(t);
+    if (es == 0)
+        throw std::runtime_error(
+            std::string("resizeND not supported for type '") + mtypeName(t) + "'");
+
+    const size_t nb = newTotal * es;
+    auto *nb2 = new DataBuffer(nb, alloc);
+    if (nb > 0) {
+        const int fill = (t == MType::CHAR) ? ' ' : 0;
+        std::memset(nb2->data(), fill, nb);
+    }
+    if (heap_->buffer && commonTotal > 0) {
+        const char *src = static_cast<const char *>(heap_->buffer->data());
+        char *dst = static_cast<char *>(nb2->data());
+        Dims commonD(commonDims, commonNd);
+        size_t coords[kMaxNd] = {0};
+        do {
+            size_t oldOff = 0, newOff = 0;
+            for (int i = 0; i < commonNd; ++i) {
+                oldOff += coords[i] * oldStrides[i];
+                newOff += coords[i] * newStrides[i];
+            }
+            std::memcpy(dst + newOff * es, src + oldOff * es, es);
+        } while (incrementCoords(coords, commonD));
+    }
+    if (heap_->buffer && heap_->buffer->release())
+        delete heap_->buffer;
+    heap_->buffer = nb2;
+    heap_->allocator = alloc;
+    heap_->dims = newD;
     heap_->appendCapacity = 0;
 }
 

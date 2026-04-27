@@ -123,11 +123,43 @@ TEST_P(NDIndexingTest, Write5DScalar)
     EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 5.0);
 }
 
-TEST_P(NDIndexingTest, Write4DOOBThrows)
+TEST_P(NDIndexingTest, Write4DAutoGrowsOnOOB)
 {
-    eval("A = zeros([2, 3, 4, 5]);");
-    EXPECT_THROW(eval("A(3, 1, 1, 1) = 5;"), std::exception);
-    EXPECT_THROW(eval("A(1, 1, 1, 6) = 5;"), std::exception);
+    // Polish round-2 item 6: ND scalar assign past current dims now
+    // grows the target instead of throwing (matches MATLAB).
+    eval("A = zeros([2, 3, 4, 5]); A(3, 1, 1, 1) = 5;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(3, 1, 1, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 0.0);
+
+    eval("B = zeros([2, 3, 4, 5]); B(1, 1, 1, 6) = 7;");
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 6);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 4, 5);"), 0.0);
+}
+
+TEST_P(NDIndexingTest, Write5DCreatesFromUninitialized)
+{
+    // Auto-create + auto-grow at rank 5 from an empty/unset variable.
+    eval("clear C; C(2, 1, 3, 1, 2) = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 5);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 1, 3, 1, 2);"), 42.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1, 1, 1, 1);"), 0.0);
+}
+
+TEST_P(NDIndexingTest, Write4DGrowsRankFrom2D)
+{
+    // 2D → 4D auto-grow when the assignment uses 4 indices and the
+    // higher dims exceed 1.
+    eval("D = zeros(2, 3); D(2, 3, 2, 2) = 11;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(D);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2, 3, 2, 2);"), 11.0);
 }
 
 // ── Round-trip via permute (uses 4-arg subscript both for verify and for the
@@ -265,6 +297,121 @@ TEST_P(NDIndexingTest, NDBroadcastRowAndColumnOn4D)
     EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 11.0);
     // A(2, 3, 1, 2) = r(1,3,1,2) + c(2,1,1,1) = 60 + 2 = 62
     EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 1, 2);"), 62.0);
+}
+
+// ── CELL ND indexing (Polish round-2 item 5) ───────────────────────
+//
+// Build a 2×2×2×2 cell, write per-element MValues, then read scalar +
+// slice + delete a slab. Exercises indexGetND/indexSetND/indexDeleteND
+// CELL paths and the cellND factory.
+
+TEST_P(NDIndexingTest, Cell4DScalarReadWrite)
+{
+    eval("C = cell(2, 2, 2, 2);"
+         "C{1, 1, 1, 1} = 'first';"
+         "C{2, 2, 2, 2} = 'last';"
+         "C{1, 2, 1, 2} = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C);"), 16.0);
+    // Scalar reads
+    EXPECT_DOUBLE_EQ(evalScalar("C{1, 2, 1, 2};"), 42.0);
+    // String returns CHAR vector — check via length
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C{1, 1, 1, 1});"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C{2, 2, 2, 2});"), 4.0);
+}
+
+TEST_P(NDIndexingTest, Cell4DSliceCopy)
+{
+    // Build C(2,2,1,1)..(2,2,2,2), assign one slab, then slice it.
+    eval("C = cell(2, 2, 1, 2);"
+         "C{1, 1, 1, 1} = 11;"
+         "C{2, 1, 1, 1} = 21;"
+         "C{1, 2, 1, 1} = 12;"
+         "C{2, 2, 1, 1} = 22;"
+         "C{1, 1, 1, 2} = 110;"
+         "C{2, 2, 1, 2} = 220;"
+         "S = C(:, :, 1, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(S);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S{1, 1};"),   110.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S{2, 2};"),   220.0);
+}
+
+TEST_P(NDIndexingTest, Cell4DDeleteSlab)
+{
+    // Delete one slab along axis 4 — result shrinks to 2×2×1×1.
+    eval("C = cell(2, 2, 1, 2);"
+         "C{1, 1, 1, 1} = 'a';"
+         "C{1, 1, 1, 2} = 'b';"
+         "C(:, :, :, 2) = [];");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C);"),   4.0);
+    // Surviving element should be 'a'
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C{1, 1, 1, 1});"), 1.0);
+}
+
+TEST_P(NDIndexingTest, Cell4DBraceAutoGrowsOnOOB)
+{
+    // Round-3 Phase 1: brace-cell ND assign now grows the target instead
+    // of throwing. Matches MATLAB `C{i,j,k,l} = v`.
+    eval("C = cell(2, 2, 2, 2); C{3, 4, 1, 1} = 'x';");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C);"), 48.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C{3, 4, 1, 1});"), 1.0);
+}
+
+TEST_P(NDIndexingTest, Cell5DBraceCreatesFromUninitialized)
+{
+    // Auto-create + auto-grow at rank 5 from an undefined variable.
+    eval("clear D; D{2, 1, 3, 1, 2} = 42;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(D);"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 5);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D{2, 1, 3, 1, 2};"), 42.0);
+}
+
+TEST_P(NDIndexingTest, Cell4DBraceGrowsRankFrom2D)
+{
+    // 2D cell → 4D auto-grow when assignment uses 4 indices and the
+    // higher dims exceed 1.
+    eval("E = cell(2, 2); E{2, 2, 1, 4} = 'last';");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(E);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(E, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(E, 4);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(E{2, 2, 1, 4});"), 4.0);
+}
+
+TEST_P(NDIndexingTest, Cell4DBracePreservesOldDataOnGrow)
+{
+    // Existing cell content must survive the growth.
+    eval("F = cell(2, 2, 1, 2); F{1, 1, 1, 1} = 'a'; F{2, 2, 1, 2} = 'z';"
+         "F{3, 3, 2, 3} = 'new';");
+    EXPECT_DOUBLE_EQ(evalScalar("size(F, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(F, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(F, 3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(F, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(F{1, 1, 1, 1});"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(F{2, 2, 1, 2});"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(F{3, 3, 2, 3});"), 3.0);
+}
+
+TEST_P(NDIndexingTest, Numeric4DDeleteRowsAcrossSlab)
+{
+    // Smoke for non-CELL ND delete: drop row 1 from a 4D numeric tensor.
+    eval("A = reshape(1:24, [2, 3, 2, 2]); A(1, :, :, :) = [];");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),   12.0);
+    // Original A(2,1,1,1)=2 → now A(1,1,1,1)=2
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 2.0);
+    // Original A(2,3,2,2)=24 → now A(1,3,2,2)=24
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 3, 2, 2);"), 24.0);
 }
 
 INSTANTIATE_DUAL(NDIndexingTest);
