@@ -158,4 +158,27 @@ TEST_P(NDIndexingTest, Permute4DSwapFirstTwoPositional)
     EXPECT_DOUBLE_EQ(evalScalar("B(3, 2, 4, 5);"), 120.0);
 }
 
+// ── ND format / disp (Phase 3d) ─────────────────────────────────
+
+TEST_P(NDIndexingTest, Disp4DEmitsHeadersForEachOuterPage)
+{
+    // 2x2x2x2 has 4 outer pages: (1,1), (2,1), (1,2), (2,2). disp must
+    // emit a header for each. capturedOutput collects engine stdout.
+    capturedOutput.clear();
+    eval("disp(reshape(1:16, [2, 2, 2, 2]));");
+    EXPECT_NE(capturedOutput.find("(:,:,1,1)"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("(:,:,2,1)"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("(:,:,1,2)"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("(:,:,2,2)"), std::string::npos);
+}
+
+TEST_P(NDIndexingTest, Disp5DEmitsFiveCommaHeaders)
+{
+    capturedOutput.clear();
+    eval("disp(reshape(1:8, [2, 2, 1, 1, 2]));");
+    // Two pages along axis 5; axes 3..4 are singletons.
+    EXPECT_NE(capturedOutput.find("(:,:,1,1,1)"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("(:,:,1,1,2)"), std::string::npos);
+}
+
 INSTANTIATE_DUAL(NDIndexingTest);

@@ -60,19 +60,35 @@ std::string dispFormat(const MValue &a)
                         os << "   " << v;
                 }
             } else {
-                for (size_t p = 0; p < d.pages(); ++p) {
-                    if (d.is3D())
-                        os << "(:,:," << p + 1 << ") =\n";
-                    for (size_t r = 0; r < d.rows(); ++r) {
+                const size_t R = d.rows(), C = d.cols();
+                const int nd = d.ndim();
+                size_t outerCount = 1;
+                for (int i = 2; i < nd; ++i) outerCount *= d.dim(i);
+                constexpr int kMaxNd = 32;
+                size_t outerCoords[kMaxNd] = {0};
+                const double *base0 = a.doubleData();
+                for (size_t plin = 0; plin < outerCount; ++plin) {
+                    if (nd >= 3) {
+                        os << "(:,:";
+                        for (int i = 2; i < nd; ++i)
+                            os << "," << outerCoords[i - 2] + 1;
+                        os << ") =\n";
+                    }
+                    const double *page = base0 + plin * R * C;
+                    for (size_t r = 0; r < R; ++r) {
                         if (r > 0) os << "\n";
                         os << "   ";
-                        for (size_t c = 0; c < d.cols(); ++c) {
-                            double v = a(r, c, p);
+                        for (size_t c = 0; c < C; ++c) {
+                            double v = page[c * R + r];
                             if (v == std::floor(v) && std::isfinite(v))
                                 os << " " << static_cast<long long>(v);
                             else
                                 os << " " << v;
                         }
+                    }
+                    for (int i = 2; i < nd; ++i) {
+                        if (++outerCoords[i - 2] < d.dim(i)) break;
+                        outerCoords[i - 2] = 0;
                     }
                 }
             }

@@ -2455,31 +2455,44 @@ std::string MValue::formatDisplay(const std::string &name) const
             os << "     []\n";
         } else {
             auto &d = dims();
-            // Compute column widths for alignment
-            for (size_t p = 0; p < d.pages(); ++p) {
-                if (d.is3D())
-                    os << "\n(:,:," << p + 1 << ") =\n\n";
-
+            const size_t R = d.rows(), C = d.cols();
+            const int nd = d.ndim();
+            size_t outerCount = 1;
+            for (int i = 2; i < nd; ++i) outerCount *= d.dim(i);
+            constexpr int kMaxNd = 32;
+            size_t outerCoords[kMaxNd] = {0};
+            const double *base0 = doubleData();
+            for (size_t plin = 0; plin < outerCount; ++plin) {
+                if (nd >= 3) {
+                    os << "\n(:,:";
+                    for (int i = 2; i < nd; ++i)
+                        os << "," << outerCoords[i - 2] + 1;
+                    os << ") =\n\n";
+                }
+                const double *page = base0 + plin * R * C;
                 // Pre-format all values to determine column widths
-                std::vector<std::vector<std::string>> cells(d.rows());
-                std::vector<size_t> colWidth(d.cols(), 0);
-                for (size_t r = 0; r < d.rows(); ++r) {
-                    cells[r].resize(d.cols());
-                    for (size_t c = 0; c < d.cols(); ++c) {
-                        cells[r][c] = fmtDouble((*this)(r, c, p));
+                std::vector<std::vector<std::string>> cells(R);
+                std::vector<size_t> colWidth(C, 0);
+                for (size_t r = 0; r < R; ++r) {
+                    cells[r].resize(C);
+                    for (size_t c = 0; c < C; ++c) {
+                        cells[r][c] = fmtDouble(page[c * R + r]);
                         colWidth[c] = std::max(colWidth[c], cells[r][c].size());
                     }
                 }
-
-                for (size_t r = 0; r < d.rows(); ++r) {
+                for (size_t r = 0; r < R; ++r) {
                     os << "   ";
-                    for (size_t c = 0; c < d.cols(); ++c) {
-                        // Right-align within column
+                    for (size_t c = 0; c < C; ++c) {
                         size_t pad = colWidth[c] - cells[r][c].size();
                         for (size_t i = 0; i < pad + 1; ++i) os << ' ';
                         os << cells[r][c];
                     }
                     os << "\n";
+                }
+                // Increment outer coords (axes 2..nd-1) in column-major
+                for (int i = 2; i < nd; ++i) {
+                    if (++outerCoords[i - 2] < d.dim(i)) break;
+                    outerCoords[i - 2] = 0;
                 }
             }
         }

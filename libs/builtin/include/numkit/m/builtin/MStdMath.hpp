@@ -115,4 +115,12 @@ MValue randn(Allocator &alloc,
              size_t cols = 1,
              size_t pages = 0);
 
+/// ND uniform [0, 1) — accepts any rank ≥ 1.
+MValue randND(Allocator &alloc, std::mt19937 &rng,
+              const size_t *dims, int ndims);
+
+/// ND standard normal — accepts any rank ≥ 1.
+MValue randnND(Allocator &alloc, std::mt19937 &rng,
+               const size_t *dims, int ndims);
+
 } // namespace numkit::m::builtin

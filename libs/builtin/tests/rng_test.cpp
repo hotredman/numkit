@@ -211,4 +211,33 @@ TEST_P(RngTest, RandiBadRangeThrows)
     EXPECT_THROW(eval("randi([10 5], 3);"), std::runtime_error);
 }
 
+// ── ND rand / randn / randi (Phase 3d-e) ────────────────────────
+
+TEST_P(RngTest, Rand4DShape)
+{
+    eval("A = rand(2, 3, 2, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),    4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),   36.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(A(:)) >= 0;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(A(:)) < 1;"),  1.0);
+}
+
+TEST_P(RngTest, Randn5DShape)
+{
+    eval("A = randn([2, 3, 2, 2, 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),     5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),    48.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 5);"),   2.0);
+}
+
+TEST_P(RngTest, Randi4DShape)
+{
+    eval("A = randi(10, 2, 3, 2, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),    4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),   24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(A(:)) >= 1;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(A(:)) <= 10;"), 1.0);
+}
+
 INSTANTIATE_DUAL(RngTest);

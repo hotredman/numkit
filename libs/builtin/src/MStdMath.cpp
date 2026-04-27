@@ -483,6 +483,24 @@ MValue randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size
     return m;
 }
 
+MValue randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+{
+    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+MValue randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+{
+    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════

@@ -206,19 +206,37 @@ namespace detail {
 void rand_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
               CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
+    auto dims = parseDimsArgsND(args);
+    stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
-    outs[0] = rand(ctx.engine->allocator(), sharedEngine(),
-                   d.rows, d.cols, d.pages);
+    auto &alloc = ctx.engine->allocator();
+    if (dims.size() <= 3) {
+        const size_t r = dims.size() >= 1 ? dims[0] : 1;
+        const size_t c = dims.size() >= 2 ? dims[1] : 1;
+        const size_t p = dims.size() >= 3 ? dims[2] : 0;
+        outs[0] = rand(alloc, sharedEngine(), r, c, p);
+    } else {
+        outs[0] = randND(alloc, sharedEngine(),
+                         dims.data(), static_cast<int>(dims.size()));
+    }
 }
 
 void randn_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                CallContext &ctx)
 {
-    auto d = parseDimsArgs(args);
+    auto dims = parseDimsArgsND(args);
+    stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
-    outs[0] = randn(ctx.engine->allocator(), sharedEngine(),
-                    d.rows, d.cols, d.pages);
+    auto &alloc = ctx.engine->allocator();
+    if (dims.size() <= 3) {
+        const size_t r = dims.size() >= 1 ? dims[0] : 1;
+        const size_t c = dims.size() >= 2 ? dims[1] : 1;
+        const size_t p = dims.size() >= 3 ? dims[2] : 0;
+        outs[0] = randn(alloc, sharedEngine(), r, c, p);
+    } else {
+        outs[0] = randnND(alloc, sharedEngine(),
+                          dims.data(), static_cast<int>(dims.size()));
+    }
 }
 
 // randi MATLAB forms:
@@ -251,8 +269,23 @@ void randi_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         outs[0] = randi(alloc, imin, imax, 1, 1, 0);
         return;
     }
-    auto d = parseDimsArgs(dimArgs);
-    outs[0] = randi(alloc, imin, imax, d.rows, d.cols, d.pages);
+    auto dims = parseDimsArgsND(dimArgs);
+    stripTrailingOnes(dims);
+    if (dims.size() <= 3) {
+        const size_t r = dims.size() >= 1 ? dims[0] : 1;
+        const size_t c = dims.size() >= 2 ? dims[1] : 1;
+        const size_t p = dims.size() >= 3 ? dims[2] : 0;
+        outs[0] = randi(alloc, imin, imax, r, c, p);
+    } else {
+        // ND form: allocate matrixND and fill via the same uniform-int pass.
+        auto m = MValue::matrixND(dims.data(), static_cast<int>(dims.size()),
+                                  MType::DOUBLE, &alloc);
+        std::lock_guard<std::mutex> lock(rngMutex());
+        std::uniform_int_distribution<int64_t> dist(imin, imax);
+        for (size_t i = 0; i < m.numel(); ++i)
+            m.doubleDataMut()[i] = static_cast<double>(dist(sharedEngine()));
+        outs[0] = std::move(m);
+    }
 }
 
 void randperm_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
