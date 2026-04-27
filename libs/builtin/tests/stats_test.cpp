@@ -750,6 +750,119 @@ TEST_P(ReductionDimTest, Cumsum3DDim3)
     EXPECT_DOUBLE_EQ((*c)(1, 1, 2), 24.0);  // 4+8+12
 }
 
+// ── ND reductions (Phase 3b) ────────────────────────────────────
+
+TEST_P(ReductionDimTest, Sum4DAlongDim1)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); s = sum(A, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(s);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 3);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 4);"), 5.0);
+    // s(1,1,1,1) = sum A(:,1,1,1) = 1+2 = 3
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 3.0);
+    // s(1,3,4,5) = sum A(:,3,4,5) = 119+120 = 239
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 3, 4, 5);"), 239.0);
+}
+
+TEST_P(ReductionDimTest, Sum4DAlongDim4)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); s = sum(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(s);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 4);"), 1.0);
+    // s(1,1,1,1) = sum_l A(1,1,1,l) = 1 + 25 + 49 + 73 + 97 = 245
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 245.0);
+    // sum-over-all check
+    EXPECT_DOUBLE_EQ(evalScalar("sum(s(:));"), evalScalar("sum(1:120);"));
+}
+
+TEST_P(ReductionDimTest, Mean5DAlongDim3)
+{
+    eval("A = reshape(1:720, [2, 3, 4, 5, 6]); m = mean(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // m(1,1,1,1,1) = mean A(1,1,:,1,1) = mean of [1, 7, 13, 19] = 10
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1, 1);"), 10.0);
+}
+
+TEST_P(ReductionDimTest, Max5DAlongDim4WithIndex)
+{
+    eval("A = reshape(1:720, [2, 3, 4, 5, 6]); [v, i] = max(A, [], 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 4);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(i, 4);"), 1.0);
+    // max along axis 4 of stride-24 entries — last (largest) is at l=5.
+    // v(1,1,1,1,1) = max A(1,1,1,1,1..5) = max(1, 25, 49, 73, 97) = 97
+    EXPECT_DOUBLE_EQ(evalScalar("v(1, 1, 1, 1, 1);"), 97.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1, 1, 1, 1, 1);"), 5.0);
+}
+
+TEST_P(ReductionDimTest, Cumsum4DAlongDim2)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); c = cumsum(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(c);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(c, 2);"), 3.0);
+    // First column unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 1, 1, 1);"), 1.0);
+    // c(1,2,1,1) = A(1,1,1,1) + A(1,2,1,1) = 1 + 3 = 4
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 2, 1, 1);"), 4.0);
+    // c(1,3,1,1) = 1 + 3 + 5 = 9
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 3, 1, 1);"), 9.0);
+}
+
+TEST_P(ReductionDimTest, Cumprod4DAlongDim4)
+{
+    // cumprod along the last axis (stride-large axis). Build [2 4 8 ...]
+    // along axis 4 by reshaping powers-of-2 and indexing.
+    eval("A = reshape(1:36, [2, 3, 2, 3]); c = cumprod(A, 4);");
+    // First axis-4 plane unchanged
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 1, 1, 1);"), 1.0);
+    // c(1,1,1,2) = A(1,1,1,1) * A(1,1,1,2) = 1 * 13 = 13
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 1, 1, 2);"), 13.0);
+    // c(1,1,1,3) = 1 * 13 * 25 = 325
+    EXPECT_DOUBLE_EQ(evalScalar("c(1, 1, 1, 3);"), 325.0);
+}
+
+TEST_P(ReductionDimTest, Any4DAlongDim3)
+{
+    eval("A = zeros(2, 3, 4, 2); A(1, 1, 2, 1) = 1; B = any(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 2, 1, 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 2);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, All4DAlongDim4)
+{
+    eval("A = ones(2, 3, 2, 5); A(1, 1, 1, 3) = 0; B = all(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 0.0); // one zero in slice
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 1.0); // all ones
+}
+
+TEST_P(ReductionDimTest, Var4DAlongDim2)
+{
+    // var along dim 2: each (1, :, k, l) slice's variance
+    eval("A = reshape(1:120, [2, 3, 4, 5]); v = var(A, 0, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(v);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 2);"), 1.0);
+    // var of [1, 3, 5] (n=3, normFlag=0 → /n-1 = 2) = ((1-3)^2+(3-3)^2+(5-3)^2)/2 = 8/2 = 4
+    EXPECT_DOUBLE_EQ(evalScalar("v(1, 1, 1, 1);"), 4.0);
+}
+
+TEST_P(ReductionDimTest, Nansum4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]);"
+         "A(1, 1, 2, 1) = NaN;"
+         "s = nansum(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(s);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 3);"), 1.0);
+    // Slice A(1,1,:,1) = [1, 7, 13, 19] → with A(1,1,2,1)=NaN nansum = 1+13+19 = 33
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 33.0);
+    // Untouched slice
+    EXPECT_DOUBLE_EQ(evalScalar("s(2, 1, 1, 1);"), 2.0 + 8.0 + 14.0 + 20.0);
+}
+
 INSTANTIATE_DUAL(ReductionDimTest);
 
 // ============================================================

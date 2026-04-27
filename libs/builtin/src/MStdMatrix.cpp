@@ -324,6 +324,45 @@ MValue cumsum(Allocator &alloc, const MValue &x, int dim)
 
     const int d = detail::resolveDim(x, dim, "cumsum");
     const auto &dd = x.dims();
+
+    // ND fallback for rank ≥ 4: per-slice scan along axis d-1. Inner
+    // block size B = prod(dim[0..d-2]); outer count O = prod(dim[d..]).
+    if (dd.ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        if (dd.ndim() > kMaxNd)
+            throw MError("cumsum: rank exceeds 32",
+                         0, 0, "cumsum", "", "m:cumsum:tooManyDims");
+        size_t outDims[kMaxNd];
+        for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
+        auto r = MValue::matrixND(outDims, dd.ndim(), MType::DOUBLE, &alloc);
+        const size_t sliceLen = dd.dim(d - 1);
+        size_t B = 1;
+        for (int i = 0; i < d - 1; ++i) B *= dd.dim(i);
+        size_t O = 1;
+        for (int i = d; i < dd.ndim(); ++i) O *= dd.dim(i);
+        const double *src = x.doubleData();
+        double *dst = r.doubleDataMut();
+        if (B == 1) {
+            for (size_t o = 0; o < O; ++o) {
+                const size_t base = o * sliceLen;
+                cumsumScan(src + base, dst + base, sliceLen);
+            }
+        } else {
+            for (size_t o = 0; o < O; ++o)
+                for (size_t b = 0; b < B; ++b) {
+                    const size_t base = o * sliceLen * B + b;
+                    if (sliceLen == 0) continue;
+                    double acc = src[base];
+                    dst[base] = acc;
+                    for (size_t k = 1; k < sliceLen; ++k) {
+                        acc += src[base + k * B];
+                        dst[base + k * B] = acc;
+                    }
+                }
+        }
+        return r;
+    }
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
@@ -480,6 +519,44 @@ MValue cumScanDispatch(Allocator &alloc, const MValue &x, int dim,
 
     const int d = detail::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
+
+    // ND fallback (rank ≥ 4): per-slice scan along axis d-1.
+    if (dd.ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        if (dd.ndim() > kMaxNd)
+            throw MError(std::string(fn) + ": rank exceeds 32",
+                         0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+        size_t outDims[kMaxNd];
+        for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
+        auto r = MValue::matrixND(outDims, dd.ndim(), MType::DOUBLE, &alloc);
+        const size_t sliceLen = dd.dim(d - 1);
+        size_t B = 1;
+        for (int i = 0; i < d - 1; ++i) B *= dd.dim(i);
+        size_t O = 1;
+        for (int i = d; i < dd.ndim(); ++i) O *= dd.dim(i);
+        const double *src = x.doubleData();
+        double *dst = r.doubleDataMut();
+        if (B == 1) {
+            for (size_t o = 0; o < O; ++o) {
+                const size_t base = o * sliceLen;
+                scan(src + base, dst + base, sliceLen);
+            }
+        } else {
+            for (size_t o = 0; o < O; ++o)
+                for (size_t b = 0; b < B; ++b) {
+                    const size_t base = o * sliceLen * B + b;
+                    if (sliceLen == 0) continue;
+                    double acc = src[base];
+                    dst[base] = acc;
+                    for (size_t k = 1; k < sliceLen; ++k) {
+                        acc = scalarOp(acc, src[base + k * B]);
+                        dst[base + k * B] = acc;
+                    }
+                }
+        }
+        return r;
+    }
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)

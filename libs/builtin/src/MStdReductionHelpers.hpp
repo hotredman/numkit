@@ -39,28 +39,24 @@ namespace numkit::m::builtin::detail {
 inline int firstNonSingletonDim(const MValue &x)
 {
     const auto &d = x.dims();
-    if (d.rows() > 1) return 1;
-    if (d.cols() > 1) return 2;
-    if (d.is3D() && d.pages() > 1) return 3;
+    const int nd = d.ndim();
+    for (int i = 0; i < nd; ++i)
+        if (d.dim(i) > 1) return i + 1;
     return 1;
 }
 
-// Validate user-supplied dim. MATLAB allows dim > ndims (treated as a
-// trailing singleton). For Phase 1 we accept 1..3 only — extending to
-// >ndims-as-singleton requires returning the input shape unchanged,
-// which we'll add when the first script needs it.
+// Validate user-supplied dim. dim must be a positive integer; dim
+// past the input's actual ndim is treated as a trailing-singleton
+// (returns sentinel = ndim+1 so callers know to do an identity copy).
 inline int validateDim(const MValue &x, int dim, const char *fn)
 {
     if (dim < 1)
         throw MError(std::string(fn) + ": dim must be a positive integer",
                      0, 0, fn, "", std::string("m:") + fn + ":badDim");
-    const int maxDim = x.dims().is3D() ? 3 : 2;
-    if (dim > maxDim) {
-        // Trailing-singleton semantics: reducing along a dim of size 1
-        // is a no-op for value-producing reductions but still requires
-        // the output shape to match. Phase 1: clamp to maxDim and let
-        // the slice-of-length-1 case produce identity.
-        return maxDim + 1; // sentinel — caller treats as "no reduction"
+    const int nd = x.dims().ndim();
+    if (dim > nd) {
+        // Trailing-singleton semantics — caller produces an identity copy.
+        return nd + 1;
     }
     return dim;
 }
@@ -153,6 +149,54 @@ void forEachSlice(const MValue &x, int dim, F &&f)
     }
 }
 
+// ND output-shape helper (any rank): copies all input dims, sets the
+// reduced dim to 1. dim is 1-based; dim > ndim means trailing
+// singleton (identity reduction) — caller handles separately.
+inline std::vector<size_t> outShapeForDimND(const MValue &x, int dim)
+{
+    const auto &d = x.dims();
+    std::vector<size_t> shape(d.ndim());
+    for (int i = 0; i < d.ndim(); ++i)
+        shape[i] = (i + 1 == dim) ? 1 : d.dim(i);
+    return shape;
+}
+
+// ND apply core: walks each axis-`redAxis` slice via stride arithmetic
+// and feeds it to F. Output is dense column-major matching the
+// reduced-dim shape. DOUBLE-only.
+template <typename F>
+void forEachSliceND(const MValue &x, int dim, double *dst, F &&f)
+{
+    const auto &d = x.dims();
+    const int redAxis = dim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    const double *src = x.doubleData();
+    std::vector<double> scratch(sliceLen);
+    if (B == 1) {
+        // Reducing axis 0 → contiguous gather.
+        for (size_t o = 0; o < O; ++o) {
+            const double *base = src + o * sliceLen;
+            std::copy(base, base + sliceLen, scratch.data());
+            dst[o] = f(o, scratch.data(), sliceLen);
+        }
+        return;
+    }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            for (size_t k = 0; k < sliceLen; ++k)
+                scratch[k] = src[base + k * B];
+            const size_t outIdx = o * B + b;
+            dst[outIdx] = f(outIdx, scratch.data(), sliceLen);
+        }
+    }
+}
+
 // applyAlongDim: most common case — F maps a slice to a single double.
 // Returns an MValue with the dim collapsed to 1. dim==-1 means "reduce
 // all elements to a single scalar" (vector/scalar case).
@@ -168,6 +212,17 @@ MValue applyAlongDim(const MValue &x, int dim, F &&f, Allocator *alloc)
         std::vector<double> scratch(x.numel());
         std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
         return MValue::scalar(f(0, scratch.data(), x.numel()), alloc);
+    }
+    // ND fallback for rank ≥ 4. dim out-of-range was already mapped by
+    // validateDim → ndim+1 sentinel, but we may receive dim ∈ [1, ndim].
+    if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
+        auto shape = outShapeForDimND(x, dim);
+        MValue out = MValue::matrixND(shape.data(),
+                                      static_cast<int>(shape.size()),
+                                      MType::DOUBLE, alloc);
+        double *dst = out.doubleDataMut();
+        forEachSliceND(x, dim, dst, std::forward<F>(f));
+        return out;
     }
     auto outShape = outShapeForDim(x, dim);
     MValue out = createMatrix(outShape, MType::DOUBLE, alloc);
@@ -196,6 +251,26 @@ applyAlongDimWithIndex(const MValue &x, int dim, F &&f, Allocator *alloc)
         f(scratch.data(), x.numel(), v, idx);
         return {MValue::scalar(v, alloc),
                 MValue::scalar(static_cast<double>(idx + 1), alloc)};
+    }
+    // ND fallback (rank ≥ 4)
+    if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
+        auto shape = outShapeForDimND(x, dim);
+        MValue out    = MValue::matrixND(shape.data(),
+                                         static_cast<int>(shape.size()),
+                                         MType::DOUBLE, alloc);
+        MValue outIdx = MValue::matrixND(shape.data(),
+                                         static_cast<int>(shape.size()),
+                                         MType::DOUBLE, alloc);
+        double *dst  = out.doubleDataMut();
+        double *dstI = outIdx.doubleDataMut();
+        forEachSliceND(x, dim, dst,
+            [&](size_t outOff, double *slice, size_t n) {
+                double v = 0; size_t idx = 0;
+                f(slice, n, v, idx);
+                dstI[outOff] = static_cast<double>(idx + 1);
+                return v;
+            });
+        return {std::move(out), std::move(outIdx)};
     }
     auto outShape = outShapeForDim(x, dim);
     MValue out = createMatrix(outShape, MType::DOUBLE, alloc);
@@ -228,6 +303,26 @@ applyAlongDimPair(const MValue &x, int dim, F &&f, Allocator *alloc)
         double v = 0, s = 0;
         f(scratch.data(), x.numel(), v, s);
         return {MValue::scalar(v, alloc), MValue::scalar(s, alloc)};
+    }
+    // ND fallback (rank ≥ 4)
+    if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
+        auto shape = outShapeForDimND(x, dim);
+        MValue out  = MValue::matrixND(shape.data(),
+                                       static_cast<int>(shape.size()),
+                                       MType::DOUBLE, alloc);
+        MValue out2 = MValue::matrixND(shape.data(),
+                                       static_cast<int>(shape.size()),
+                                       MType::DOUBLE, alloc);
+        double *d1 = out.doubleDataMut();
+        double *d2 = out2.doubleDataMut();
+        forEachSliceND(x, dim, d1,
+            [&](size_t outIdx, double *slice, size_t n) {
+                double v = 0, s = 0;
+                f(slice, n, v, s);
+                d2[outIdx] = s;
+                return v;
+            });
+        return {std::move(out), std::move(out2)};
     }
     auto outShape = outShapeForDim(x, dim);
     MValue out = createMatrix(outShape, MType::DOUBLE, alloc);

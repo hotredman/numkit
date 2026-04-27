@@ -86,11 +86,32 @@ MValue logicalReduceImpl(Allocator &alloc, const MValue &x, int dim)
     }
 
     const int d = detail::resolveDim(x, dim, IsAny ? "any" : "all");
+    const auto &dd = x.dims();
+
+    // ND fallback: rank ≥ 4 — stride arithmetic via scanSlice.
+    if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
+        auto shape = detail::outShapeForDimND(x, d);
+        MValue out = MValue::matrixND(shape.data(),
+                                      static_cast<int>(shape.size()),
+                                      MType::LOGICAL, &alloc);
+        uint8_t *dst = out.logicalDataMut();
+        const std::size_t sliceLen = dd.dim(d - 1);
+        std::size_t B = 1;
+        for (int i = 0; i < d - 1; ++i) B *= dd.dim(i);
+        std::size_t O = 1;
+        for (int i = d; i < dd.ndim(); ++i) O *= dd.dim(i);
+        for (std::size_t o = 0; o < O; ++o)
+            for (std::size_t b = 0; b < B; ++b) {
+                const std::size_t base = o * sliceLen * B + b;
+                dst[o * B + b] = scanSlice<IsAny>(x, base, sliceLen, B);
+            }
+        return out;
+    }
+
     const auto outShape = detail::outShapeForDim(x, d);
     MValue out = createMatrix(outShape, MType::LOGICAL, &alloc);
     uint8_t *dst = out.logicalDataMut();
 
-    const auto &dd = x.dims();
     const std::size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
 
     if (d == 1) {
