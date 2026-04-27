@@ -547,11 +547,35 @@ void mode_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 
 NK_NAN_REDUCTION_ADAPTER(nansum,    nansum)
 NK_NAN_REDUCTION_ADAPTER(nanmean,   nanmean)
-NK_NAN_REDUCTION_ADAPTER(nanmax,    nanmax)
-NK_NAN_REDUCTION_ADAPTER(nanmin,    nanmin)
 NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
 
 #undef NK_NAN_REDUCTION_ADAPTER
+
+// nanmax / nanmin accept both signatures:
+//   nanmax(A)         — reduce over first non-singleton
+//   nanmax(A, dim)    — legacy/numkit form (dim in arg 1)
+//   nanmax(A, [], d)  — MATLAB-style 3-arg form (dim in arg 2; arg 1 = [])
+// The 2-arg form is preferred by older tests; the 3-arg form is what
+// MATLAB / Stats Toolbox documents.
+#define NK_NAN_MAXMIN_ADAPTER(name, fn)                                          \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                 \
+                    Span<MValue> outs, CallContext &ctx)                         \
+    {                                                                             \
+        if (args.empty())                                                         \
+            throw MError(#name ": requires at least 1 argument",                  \
+                         0, 0, #name, "", "m:" #name ":nargin");                  \
+        int dim = 0;                                                              \
+        if (args.size() == 2 && !args[1].isEmpty())                               \
+            dim = static_cast<int>(args[1].toScalar());                           \
+        else if (args.size() >= 3 && !args[2].isEmpty())                          \
+            dim = static_cast<int>(args[2].toScalar());                           \
+        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                      \
+    }
+
+NK_NAN_MAXMIN_ADAPTER(nanmax, nanmax)
+NK_NAN_MAXMIN_ADAPTER(nanmin, nanmin)
+
+#undef NK_NAN_MAXMIN_ADAPTER
 
 void nanvar_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                 CallContext &ctx)

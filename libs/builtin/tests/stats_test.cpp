@@ -863,6 +863,105 @@ TEST_P(ReductionDimTest, Nansum4DAlongDim3)
     EXPECT_DOUBLE_EQ(evalScalar("s(2, 1, 1, 1);"), 2.0 + 8.0 + 14.0 + 20.0);
 }
 
+// ── Phase A audit: reductions assumed "free via applyAlongDim" ───
+// These exercise paths that should work without explicit ND code in
+// the per-op function. Failures here mean a missing dispatcher branch.
+
+TEST_P(ReductionDimTest, Min4DAlongDim2WithIndex)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); [v, i] = min(A, [], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(i, 2);"), 1.0);
+    // min along dim 2 of A(1,:,1,1) = [1, 3, 5] → v=1, i=1
+    EXPECT_DOUBLE_EQ(evalScalar("v(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1, 1, 1, 1);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, Prod4DAlongDim1)
+{
+    // 2-element products along dim 1 of A(1:2,j,k,l) for reshape(1:120,[2,3,4,5])
+    eval("A = reshape(1:120, [2, 3, 4, 5]); p = prod(A, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(p, 1);"), 1.0);
+    // p(1,1,1,1) = A(1,1,1,1)*A(2,1,1,1) = 1*2 = 2
+    EXPECT_DOUBLE_EQ(evalScalar("p(1, 1, 1, 1);"), 2.0);
+    // p(1,3,4,5) = 119*120 = 14280
+    EXPECT_DOUBLE_EQ(evalScalar("p(1, 3, 4, 5);"), 14280.0);
+}
+
+TEST_P(ReductionDimTest, Std4DAlongDim2)
+{
+    // Slice A(1,:,1,1) = [1, 3, 5]; sample std (normFlag=0, /n-1) = sqrt(4) = 2
+    eval("A = reshape(1:120, [2, 3, 4, 5]); s = std(A, 0, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 2.0);
+}
+
+TEST_P(ReductionDimTest, Median4DAlongDim2)
+{
+    // median of [1,3,5] = 3
+    eval("A = reshape(1:120, [2, 3, 4, 5]); m = median(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 3.0);
+}
+
+TEST_P(ReductionDimTest, Mode4DAlongDim2)
+{
+    // Each slice along dim 2: [a, b, c]. With reshape(1:120,...) all distinct
+    // → mode picks smallest. Slice A(1,:,1,1)=[1,3,5] → mode=1.
+    eval("A = reshape(1:120, [2, 3, 4, 5]); m = mode(A, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 2);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 1.0);
+}
+
+// ── nan* family ND ──
+
+TEST_P(ReductionDimTest, Nanmean4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,2,1) = NaN; m = nanmean(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // A(1,1,:,1) with NaN = [1, NaN, 13, 19] → nanmean = 33/3 = 11
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 11.0);
+}
+
+TEST_P(ReductionDimTest, Nanvar4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,2,1) = NaN; v = nanvar(A, 0, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 3);"), 1.0);
+    // [1, 13, 19] mean=11, variance (n-1) = ((1-11)^2 + (13-11)^2 + (19-11)^2)/2
+    // = (100 + 4 + 64) / 2 = 84
+    EXPECT_DOUBLE_EQ(evalScalar("v(1, 1, 1, 1);"), 84.0);
+}
+
+TEST_P(ReductionDimTest, Nanstd4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,2,1) = NaN; s = nanstd(A, 0, 3);");
+    EXPECT_NEAR(evalScalar("s(1, 1, 1, 1);"), std::sqrt(84.0), 1e-12);
+}
+
+TEST_P(ReductionDimTest, Nanmax4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(2,3,4,5) = NaN; m = nanmax(A, [], 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // A(2,3,:,5) = [102, 108, 114, 120]; with NaN at A(2,3,4,5) → max of [102,108,114] = 114
+    EXPECT_DOUBLE_EQ(evalScalar("m(2, 3, 1, 5);"), 114.0);
+}
+
+TEST_P(ReductionDimTest, Nanmin4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,1,1) = NaN; m = nanmin(A, [], 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // A(1,1,:,1) = [NaN, 7, 13, 19] → nanmin = 7
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 7.0);
+}
+
+TEST_P(ReductionDimTest, Nanmedian4DAlongDim3)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]); A(1,1,2,1) = NaN; m = nanmedian(A, 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 3);"), 1.0);
+    // [1, NaN, 13, 19] → nanmedian over [1, 13, 19] = 13
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 13.0);
+}
+
 INSTANTIATE_DUAL(ReductionDimTest);
 
 // ============================================================

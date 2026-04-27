@@ -1042,4 +1042,70 @@ TEST_P(NDElementwiseTest, FourDDivideByFourD)
     EXPECT_DOUBLE_EQ(evalScalar("max(C(:));"), 2.0);
 }
 
+// ── Phase A audit: complex elementwise + unaryDouble ND ─────────
+
+TEST_P(NDElementwiseTest, Complex4DPlusComplex4D)
+{
+    // 4D real + 4D imag → complex 4D, then add
+    eval("A = complex(reshape(1:24, [2, 3, 2, 2]),"
+         "            reshape(101:124, [2, 3, 2, 2]));"
+         "B = complex(reshape(1:24, [2, 3, 2, 2]),"
+         "            reshape(1:24, [2, 3, 2, 2]));"
+         "C = A + B;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(C(1,1,1,1));"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(C(1,1,1,1));"), 102.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(C(2,3,2,2));"),  48.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(C(2,3,2,2));"), 148.0);
+}
+
+TEST_P(NDElementwiseTest, ComplexScalarTimes4D)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]); C = (1+2i) * A;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(C(2,3,2,2));"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(C(2,3,2,2));"), 48.0);
+}
+
+TEST_P(NDElementwiseTest, UnarySin4D)
+{
+    eval("A = zeros(2, 3, 2, 2); B = sin(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(B(:));"), 0.0);
+}
+
+TEST_P(NDElementwiseTest, UnaryCos5D)
+{
+    eval("A = zeros([2, 2, 2, 2, 2]); B = cos(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(B(:));"), 1.0);
+}
+
+TEST_P(NDElementwiseTest, UnaryAbs4DNegativeInputs)
+{
+    eval("A = -reshape(1:24, [2, 3, 2, 2]); B = abs(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2);"), 24.0);
+}
+
+TEST_P(NDElementwiseTest, UnarySqrt4D)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]).^2; B = sqrt(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2);"), 24.0);
+}
+
+TEST_P(NDElementwiseTest, UnaryExpLog4DRoundTrip)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]) / 24; B = log(exp(A));");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_NEAR(evalScalar("B(1, 1, 1, 1);"),  1.0/24.0, 1e-12);
+    EXPECT_NEAR(evalScalar("B(2, 3, 2, 2);"),  1.0,       1e-12);
+}
+
 INSTANTIATE_DUAL(NDElementwiseTest);

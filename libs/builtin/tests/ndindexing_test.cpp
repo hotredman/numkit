@@ -217,4 +217,54 @@ TEST_P(NDIndexingTest, NDZeroDimShape)
     EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
 }
 
+// ── Phase A audit: end-keyword 5D, 2-arg subscript-write 4D, ND broadcast row×col
+
+TEST_P(NDIndexingTest, EndKeyword5D)
+{
+    eval("A = reshape(1:720, [2, 3, 4, 5, 6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("A(end, end, end, end, end);"), 720.0);
+    // A(1,1,1,1,end) — last along axis 5 = 6. lin0 = 0+0+0+0+5*120=600 → 601
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1, end);"), 601.0);
+    // A(end, end, 1, 1, 1) — A(2,3,1,1,1) lin0 = 1+2*2 = 5 → 6
+    EXPECT_DOUBLE_EQ(evalScalar("A(end, end, 1, 1, 1);"), 6.0);
+}
+
+TEST_P(NDIndexingTest, TwoArgSubscriptWriteOn4DInput)
+{
+    // A is 4D. A(i, j) = scalar — what does MATLAB do? It assigns to a 1D
+    // linear interpretation: A(i,j) treats remaining dims as flat. We follow
+    // the same convention: 2-arg write targets the first 2 dims if other
+    // dims are 1, otherwise should throw or treat as linear. Expected
+    // behaviour here: should NOT silently corrupt the 4D buffer.
+    eval("A = reshape(1:24, [2, 3, 2, 2]);");
+    // Either it should reject (MATLAB error) or write correctly. We don't
+    // care which path — just that it doesn't return garbage.
+    bool threwOrSucceeded = false;
+    try {
+        eval("A(1, 1) = 99;");
+        // If it succeeded, A(1,1,1,1) should be 99 (overwrite first elem).
+        threwOrSucceeded = (evalScalar("A(1, 1, 1, 1);") == 99.0);
+    } catch (...) {
+        threwOrSucceeded = true;  // accepted: throws is OK
+    }
+    EXPECT_TRUE(threwOrSucceeded);
+}
+
+TEST_P(NDIndexingTest, NDBroadcastRowAndColumnOn4D)
+{
+    // 1×3×1×2 row-tile + 2×1×4×1 col-tile → 2×3×4×2 result.
+    eval("r = reshape([10 20 30 40 50 60], [1, 3, 1, 2]);"
+         "c = reshape([1 2], [2, 1, 1, 1]);"
+         "A = r + c;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
+    // A(1, 1, 1, 1) = r(1,1,1,1) + c(1,1,1,1) = 10 + 1 = 11
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 11.0);
+    // A(2, 3, 1, 2) = r(1,3,1,2) + c(2,1,1,1) = 60 + 2 = 62
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 1, 2);"), 62.0);
+}
+
 INSTANTIATE_DUAL(NDIndexingTest);
