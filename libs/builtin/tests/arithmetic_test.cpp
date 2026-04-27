@@ -1108,4 +1108,45 @@ TEST_P(NDElementwiseTest, UnaryExpLog4DRoundTrip)
     EXPECT_NEAR(evalScalar("B(2, 3, 2, 2);"),  1.0,       1e-12);
 }
 
+// ── Phase B: ND elementwise on integer / single / logical ──
+
+TEST_P(NDElementwiseTest, Int32_4DPlusInt32_4D)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 2, 2]));"
+         "B = int32(reshape(101:124, [2, 3, 2, 2]));"
+         "C = A + B;");
+    EXPECT_TRUE(evalBool("isequal(class(C), 'int32');"));
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1, 1, 1, 1));"), 102.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2, 3, 2, 2));"), 148.0);
+}
+
+TEST_P(NDElementwiseTest, Int16_4DTimesScalar)
+{
+    // int16 * int32(scalar) — typed elementwise with integer scalar broadcast
+    eval("A = int16(reshape(1:24, [2, 3, 2, 2])); B = A .* int16(3);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int16');"));
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 3, 2, 2));"), 72.0);
+}
+
+TEST_P(NDElementwiseTest, Single4DDivideByScalar)
+{
+    eval("A = single(reshape(2:2:48, [2, 3, 2, 2])); B = A / single(2);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 3, 2, 2));"), 24.0);
+}
+
+TEST_P(NDElementwiseTest, Uint8_4DSubtractWithSaturation)
+{
+    // uint8 saturating subtract (underflow clamps at 0)
+    eval("A = uint8(reshape(1:24, [2, 3, 2, 2])); B = A - uint8(10);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'uint8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"),  0.0);  // 1 - 10 → 0
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 3, 2, 2));"), 14.0);  // 24 - 10 = 14
+}
+
 INSTANTIATE_DUAL(NDElementwiseTest);
