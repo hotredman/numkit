@@ -288,6 +288,35 @@ inline void rot270Page(const double *src, double *dst, size_t R, size_t C)
             dst[(R - 1 - rr) * C + c] = src[c * R + rr];
 }
 
+// Type-agnostic byte-copy variants for ND fallback. Same index math as
+// the DOUBLE kernels above, but each cell is es bytes via memcpy.
+inline void rot90OncePageBytes(const char *src, char *dst,
+                               size_t R, size_t C, size_t es)
+{
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr)
+            std::memcpy(dst + (rr * C + (C - 1 - c)) * es,
+                        src + (c * R + rr) * es, es);
+}
+
+inline void rot180PageBytes(const char *src, char *dst,
+                            size_t R, size_t C, size_t es)
+{
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr)
+            std::memcpy(dst + ((C - 1 - c) * R + (R - 1 - rr)) * es,
+                        src + (c * R + rr) * es, es);
+}
+
+inline void rot270PageBytes(const char *src, char *dst,
+                            size_t R, size_t C, size_t es)
+{
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr)
+            std::memcpy(dst + ((R - 1 - rr) * C + c) * es,
+                        src + (c * R + rr) * es, es);
+}
+
 } // namespace
 
 MValue rot90(Allocator &alloc, const MValue &x, int k)
@@ -301,9 +330,13 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
 
     // ND fallback (rank ≥ 4): rotate every (R×C) slice indexed by axes
     // 2..N-1. Output rank matches input; axes 0 and 1 swap for kMod 1/3.
+    // Type-agnostic via byte-copy.
     if (nd >= 4) {
-        if (x.type() != MType::DOUBLE)
-            throw MError("rot90: ND fallback supports DOUBLE inputs only",
+        const MType t = x.type();
+        if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+            || t == MType::FUNC_HANDLE)
+            throw MError(std::string("rot90: ND fallback does not support type '")
+                         + mtypeName(t) + "'",
                          0, 0, "rot90", "", "m:rot90:typeND");
         constexpr int kMaxNd = 32;
         if (nd > kMaxNd)
@@ -313,24 +346,28 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
         for (int i = 2; i < nd; ++i) outDims[i] = dd.dim(i);
-        auto r = MValue::matrixND(outDims, nd, MType::DOUBLE, &alloc);
+        auto r = MValue::matrixND(outDims, nd, t, &alloc);
         if (x.numel() == 0) return r;
+        const size_t es = elementSize(t);
         size_t outerCount = 1;
         for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
-        const double *src = x.doubleData();
-        double *dst = r.doubleDataMut();
-        const size_t pageBytes = R * C;
+        const char *src = static_cast<const char *>(x.rawData());
+        char *dst = static_cast<char *>(r.rawDataMut());
+        const size_t pageElems = R * C;
         if (kMod == 0) {
-            std::memcpy(dst, src, x.numel() * sizeof(double));
+            std::memcpy(dst, src, x.numel() * es);
         } else if (kMod == 1) {
             for (size_t pp = 0; pp < outerCount; ++pp)
-                rot90OncePage(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+                rot90OncePageBytes(src + pp * pageElems * es,
+                                   dst + pp * pageElems * es, R, C, es);
         } else if (kMod == 2) {
             for (size_t pp = 0; pp < outerCount; ++pp)
-                rot180Page(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+                rot180PageBytes(src + pp * pageElems * es,
+                                dst + pp * pageElems * es, R, C, es);
         } else { // kMod == 3
             for (size_t pp = 0; pp < outerCount; ++pp)
-                rot270Page(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+                rot270PageBytes(src + pp * pageElems * es,
+                                dst + pp * pageElems * es, R, C, es);
         }
         return r;
     }
@@ -556,16 +593,44 @@ inline void triuPage(const double *src, double *dst, size_t R, size_t C, int k)
         }
 }
 
+// Type-agnostic per-page tril/triu via byte-copy + memset(0). All numeric
+// types (DOUBLE, SINGLE, integer, LOGICAL, COMPLEX) zero correctly via
+// memset since their zero element is all-zero bits.
+inline void trilPageBytes(const char *src, char *dst, size_t R, size_t C,
+                          int k, size_t es)
+{
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr) {
+            const int diff = static_cast<int>(c) - static_cast<int>(rr);
+            const size_t off = (c * R + rr) * es;
+            if (diff <= k) std::memcpy(dst + off, src + off, es);
+            else           std::memset(dst + off, 0, es);
+        }
+}
+
+inline void triuPageBytes(const char *src, char *dst, size_t R, size_t C,
+                          int k, size_t es)
+{
+    for (size_t c = 0; c < C; ++c)
+        for (size_t rr = 0; rr < R; ++rr) {
+            const int diff = static_cast<int>(c) - static_cast<int>(rr);
+            const size_t off = (c * R + rr) * es;
+            if (diff >= k) std::memcpy(dst + off, src + off, es);
+            else           std::memset(dst + off, 0, es);
+        }
+}
+
 } // namespace
 
-// ND tril/triu: apply the 2D mask to every outer-axis slice.
+// ND tril/triu: apply the 2D byte-level mask to every outer-axis slice.
 // The first two axes form the matrix; axes 2..N-1 are "outer pages".
-// DOUBLE-only.
+// All numeric types supported via byte-copy + memset(0) (zero bit pattern
+// is the canonical zero for DOUBLE/SINGLE/integer/LOGICAL/COMPLEX).
 namespace {
 
-template <typename PageFn>
-MValue trilTriuND(Allocator &alloc, const MValue &x, int k, PageFn pageFn,
-                  const char *fn)
+template <typename PageBytesFn>
+MValue trilTriuND(Allocator &alloc, const MValue &x, int k,
+                  PageBytesFn pageFn, const char *fn)
 {
     const auto &dd = x.dims();
     constexpr int kMaxNd = 32;
@@ -573,23 +638,27 @@ MValue trilTriuND(Allocator &alloc, const MValue &x, int k, PageFn pageFn,
     if (nd > kMaxNd)
         throw MError(std::string(fn) + ": rank exceeds 32",
                      0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
-    if (x.type() != MType::DOUBLE)
-        throw MError(std::string(fn) + ": ND fallback supports DOUBLE inputs only",
+    const MType t = x.type();
+    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+        || t == MType::FUNC_HANDLE)
+        throw MError(std::string(fn) + ": ND fallback does not support type '"
+                     + mtypeName(t) + "'",
                      0, 0, fn, "", std::string("m:") + fn + ":typeND");
 
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = dd.dim(i);
-    auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, &alloc);
+    auto r = MValue::matrixND(outDimArr, nd, t, &alloc);
     if (x.numel() == 0) return r;
 
+    const size_t es = elementSize(t);
     size_t outerCount = 1;
     for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
-    const size_t pageSize = R * C;
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
+    const size_t pageBytes = R * C * es;
     for (size_t pp = 0; pp < outerCount; ++pp)
-        pageFn(src + pp * pageSize, dst + pp * pageSize, R, C, k);
+        pageFn(src + pp * pageBytes, dst + pp * pageBytes, R, C, k, es);
     return r;
 }
 
@@ -599,7 +668,7 @@ MValue tril(Allocator &alloc, const MValue &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(alloc, x, k, trilPage, "tril");
+        return trilTriuND(alloc, x, k, trilPageBytes, "tril");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -617,7 +686,7 @@ MValue triu(Allocator &alloc, const MValue &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(alloc, x, k, triuPage, "triu");
+        return trilTriuND(alloc, x, k, triuPageBytes, "triu");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;

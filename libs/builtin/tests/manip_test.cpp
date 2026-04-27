@@ -627,4 +627,33 @@ TEST_P(ManipTest, Circshift4DPreservesIntegerType)
     EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 2, 1, 1));"), 1.0);
 }
 
+TEST_P(ManipTest, Tril4DPreservesIntegerType)
+{
+    eval("A = int16(reshape(1:36, [3, 3, 2, 2])); B = tril(A);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int16');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 2, 1, 1));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(3, 1, 1, 1));"), 3.0);
+}
+
+TEST_P(ManipTest, Triu4DPreservesSingleType)
+{
+    eval("A = single(reshape(1:36, [3, 3, 2, 2])); B = triu(A);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 3, 1, 1));"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 1, 1, 1));"), 0.0);
+}
+
+TEST_P(ManipTest, Rot904DPreservesIntegerType)
+{
+    eval("A = int8(reshape(1:24, [2, 3, 2, 2])); B = rot90(A);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 2);"), 2.0);
+    // First-slice CCW rot of [1 3 5; 2 4 6] = [5 6; 3 4; 1 2]
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(3, 2, 1, 1));"), 2.0);
+}
+
 INSTANTIATE_DUAL(ManipTest);
