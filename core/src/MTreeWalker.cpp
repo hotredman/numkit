@@ -1168,6 +1168,18 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const MValue &rhs, Enviro
         var->indexSet3D(rowIdx.data(), rowIdx.size(),
                         colIdx.data(), colIdx.size(),
                         pageIdx.data(), pageIdx.size(), rhs);
+    } else {
+        // ND assign: nargs >= 4. No auto-expand for ranks > 3.
+        const int nd = static_cast<int>(nargs);
+        std::vector<std::vector<size_t>> idxLists(nd);
+        std::vector<const size_t *> idxPtrs(nd);
+        std::vector<size_t> idxCounts(nd);
+        for (int i = 0; i < nd; ++i) {
+            idxLists[i] = resolveIndex(lhs->children[i + 1].get(), *var, i, nd, env);
+            idxPtrs[i] = idxLists[i].data();
+            idxCounts[i] = idxLists[i].size();
+        }
+        var->indexSetND(idxPtrs.data(), idxCounts.data(), nd, rhs);
     }
 }
 
@@ -1658,7 +1670,19 @@ MValue TreeWalker::execIndexAccess(const MValue &var, const ASTNode *callNode, E
         return var.indexGet3D(ri.data(), ri.size(), ci.data(), ci.size(),
                              pi.data(), pi.size(), &engine_.allocator_);
     }
-    throw std::runtime_error("Too many indexing dimensions (max 3)");
+    // ND read: nargs >= 4
+    {
+        const int nd = static_cast<int>(nargs);
+        std::vector<std::vector<size_t>> idxLists(nd);
+        std::vector<const size_t *> idxPtrs(nd);
+        std::vector<size_t> idxCounts(nd);
+        for (int i = 0; i < nd; ++i) {
+            idxLists[i] = resolveIndex(callNode->children[i + 1].get(), var, i, nd, env);
+            idxPtrs[i] = idxLists[i].data();
+            idxCounts[i] = idxLists[i].size();
+        }
+        return var.indexGetND(idxPtrs.data(), idxCounts.data(), nd, &engine_.allocator_);
+    }
 }
 
 // ============================================================

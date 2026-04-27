@@ -843,8 +843,22 @@ enter_frame:
                                            pageIds.data(), pageIds.size(),
                                            &engine_.allocator_);
                 } else {
-                    size_t idx = (size_t) R[base].toScalar() - 1;
-                    R[I.a] = mv.elemAt(idx, &engine_.allocator_);
+                    if (mv.isCell())
+                        throw std::runtime_error(
+                            "VM: ND cell indexing with " + std::to_string(ndims)
+                            + " dims not yet supported");
+                    const int nd = static_cast<int>(ndims);
+                    std::vector<std::vector<size_t>> idxLists(nd);
+                    std::vector<const size_t *> idxPtrs(nd);
+                    std::vector<size_t> idxCounts(nd);
+                    for (int i = 0; i < nd; ++i) {
+                        const size_t lim = (i < mv.dims().ndim()) ? mv.dims().dim(i) : 1;
+                        idxLists[i] = MValue::resolveIndices(R[base + i], lim);
+                        idxPtrs[i] = idxLists[i].data();
+                        idxCounts[i] = idxLists[i].size();
+                    }
+                    R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd,
+                                           &engine_.allocator_);
                 }
                 break;
             }
@@ -888,11 +902,21 @@ enter_frame:
                                       pageIds.data(), pageIds.size(),
                                       R[I.e]);
                 } else {
-                    size_t idx = (size_t) R[base].toScalar() - 1;
                     if (R[I.a].isCell())
-                        R[I.a].cellAt(idx) = R[I.e];
-                    else
-                        R[I.a].elemSet(idx, R[I.e]);
+                        throw std::runtime_error(
+                            "VM: ND cell indexed assignment with " + std::to_string(ndims)
+                            + " dims not yet supported");
+                    const int nd = static_cast<int>(ndims);
+                    std::vector<std::vector<size_t>> idxLists(nd);
+                    std::vector<const size_t *> idxPtrs(nd);
+                    std::vector<size_t> idxCounts(nd);
+                    for (int i = 0; i < nd; ++i) {
+                        const size_t lim = (i < R[I.a].dims().ndim()) ? R[I.a].dims().dim(i) : 1;
+                        idxLists[i] = MValue::resolveIndices(R[base + i], lim);
+                        idxPtrs[i] = idxLists[i].data();
+                        idxCounts[i] = idxLists[i].size();
+                    }
+                    R[I.a].indexSetND(idxPtrs.data(), idxCounts.data(), nd, R[I.e]);
                 }
                 break;
             }
@@ -2149,8 +2173,22 @@ void VM::execIndirectIndex(const Instruction &I, MValue *R)
                                    &engine_.allocator_);
         }
     } else {
-        throw std::runtime_error("VM: unsupported CALL_INDIRECT with "
-                                 + std::to_string(na) + " args");
+        // ND indexing fallback for na >= 4. Cell ND not yet supported.
+        const MValue &mv = R[fhReg];
+        if (mv.isCell())
+            throw std::runtime_error("VM: ND cell indexing with " + std::to_string(na)
+                                     + " args not yet supported");
+        const int nd = static_cast<int>(na);
+        std::vector<std::vector<size_t>> idxLists(nd);
+        std::vector<const size_t *> idxPtrs(nd);
+        std::vector<size_t> idxCounts(nd);
+        for (int i = 0; i < nd; ++i) {
+            const size_t lim = (i < mv.dims().ndim()) ? mv.dims().dim(i) : 1;
+            idxLists[i] = MValue::resolveIndices(R[argBase + i], lim);
+            idxPtrs[i] = idxLists[i].data();
+            idxCounts[i] = idxLists[i].size();
+        }
+        R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd, &engine_.allocator_);
     }
 }
 

@@ -257,15 +257,17 @@ TEST_P(NDManipTest, Permute4DRoundTrip)
     EXPECT_EQ(dB.dim(3), 2u);
 }
 
-TEST_P(NDManipTest, Permute4DPreservesElementsViaLinear)
+TEST_P(NDManipTest, Permute4DPreservesElementsPositional)
 {
-    // 4-arg subscript indexing isn't in the parser yet (Phase 6 follow-up).
-    // Use linear indexing — flat-buffer access works at any rank.
+    // permute(A, [4 3 2 1]) reverses axis order: B(d, c, b, a) = A(a, b, c, d).
+    // Verify direct positional mapping at corners + interior cell.
     eval("A = reshape(1:120, [2, 3, 4, 5]); B = permute(A, [4, 3, 2, 1]);");
-    EXPECT_DOUBLE_EQ(evalScalar("A(1);"),   1.0);
-    EXPECT_DOUBLE_EQ(evalScalar("A(120);"), 120.0);
-    EXPECT_DOUBLE_EQ(evalScalar("B(1);"),   1.0);    // first elem stays first
-    EXPECT_DOUBLE_EQ(evalScalar("B(120);"), 120.0);  // last stays last
+    // Corners: A(1,1,1,1)=1, A(2,3,4,5)=120
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(5, 4, 3, 2);"), 120.0);
+    // Interior: A(1,2,3,4)=87 → B(4,3,2,1)=87
+    EXPECT_DOUBLE_EQ(evalScalar("B(4, 3, 2, 1);"),  87.0);
+    // Element-set preservation as a backstop
     EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("numel(A) == numel(B);"), 1.0);
 }
@@ -284,8 +286,7 @@ TEST_P(NDManipTest, Permute5DAllocatesAndIsInvertible)
 TEST_P(NDManipTest, Permute4DTransposeOfFirstTwoUsesFastPath)
 {
     // [2 1 3 4] swaps the first two axes per "page" of the trailing
-    // dims. Verified via shape + element-set preservation; positional
-    // checks need 4-arg subscript indexing (Phase 6 follow-up).
+    // dims. B(j, i, k, l) = A(i, j, k, l).
     eval("A = reshape(1:120, [2, 3, 4, 5]); B = permute(A, [2, 1, 3, 4]);");
     auto *B = getVarPtr("B");
     const auto &dB = B->dims();
@@ -293,8 +294,12 @@ TEST_P(NDManipTest, Permute4DTransposeOfFirstTwoUsesFastPath)
     EXPECT_EQ(dB.dim(1), 2u);
     EXPECT_EQ(dB.dim(2), 4u);
     EXPECT_EQ(dB.dim(3), 5u);
+    // Positional verification (4-arg subscript now supported, Phase 6).
+    // A(1, 2, 1, 1) = 3 → B(2, 1, 1, 1) = 3
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"),   3.0);
+    // A(2, 3, 4, 5) = 120 → B(3, 2, 4, 5) = 120
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 2, 4, 5);"), 120.0);
     EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
-    EXPECT_DOUBLE_EQ(evalScalar("isequal(sort(A(:)), sort(B(:)));"), 1.0);
 }
 
 // ── squeeze ND (Phase 3a.2) ─────────────────────────────────────

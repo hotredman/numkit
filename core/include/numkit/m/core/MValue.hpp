@@ -98,6 +98,14 @@ public:
     MValue indexGet3D(const size_t *rowIdx, size_t nrows,
                       const size_t *colIdx, size_t ncols,
                       const size_t *pageIdx, size_t npages, Allocator *alloc = nullptr) const;
+    /// ND subscript read for arbitrary rank. perDimIdx[i] points at a
+    /// 0-based index list of length perDimCount[i] for dim i. nd ≤ 3
+    /// delegates to the 1D/2D/3D fast paths. CELL is not yet supported
+    /// for nd > 3.
+    MValue indexGetND(const size_t *const *perDimIdx,
+                      const size_t *perDimCount,
+                      int nd,
+                      Allocator *alloc = nullptr) const;
     MValue logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc = nullptr) const;
 
     // ── Index resolution ────────────────────────────────────
@@ -119,6 +127,13 @@ public:
     void indexSet3D(const size_t *rowIdx, size_t nrows,
                     const size_t *colIdx, size_t ncols,
                     const size_t *pageIdx, size_t npages,
+                    const MValue &val);
+    /// ND subscript write for arbitrary rank. nd ≤ 3 delegates. val is
+    /// either a scalar (broadcast) or has numel == prod(perDimCount).
+    /// No auto-expand for nd > 3 — out-of-range indices throw.
+    void indexSetND(const size_t *const *perDimIdx,
+                    const size_t *perDimCount,
+                    int nd,
                     const MValue &val);
 
     // ── Type-preserving deletion (v(idx) = []) ─────────────

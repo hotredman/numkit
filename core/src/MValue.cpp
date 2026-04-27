@@ -1,3 +1,4 @@
+#include <numkit/m/core/MShapeOps.hpp>
 #include <numkit/m/core/MValue.hpp>
 #include <algorithm>
 #include <cmath>
@@ -889,6 +890,81 @@ MValue MValue::indexGet3D(const size_t *rowIdx, size_t nrows,
     return result;
 }
 
+// ND slice: extract sub-tensor at given per-dim indices.
+MValue MValue::indexGetND(const size_t *const *perDimIdx,
+                          const size_t *perDimCount,
+                          int nd,
+                          Allocator *alloc) const
+{
+    if (nd <= 0) return empty();
+    if (nd == 1) return indexGet(perDimIdx[0], perDimCount[0], alloc);
+    if (nd == 2)
+        return indexGet2D(perDimIdx[0], perDimCount[0],
+                          perDimIdx[1], perDimCount[1], alloc);
+    if (nd == 3)
+        return indexGet3D(perDimIdx[0], perDimCount[0],
+                          perDimIdx[1], perDimCount[1],
+                          perDimIdx[2], perDimCount[2], alloc);
+
+    MType t = type();
+    if (t == MType::CELL)
+        throw std::runtime_error("indexGetND not yet supported for CELL with nd > 3");
+
+    size_t es = elementSize(t);
+    if (es == 0)
+        throw std::runtime_error(
+            std::string("indexGetND not supported for type '") + mtypeName(t) + "'");
+
+    // Build output shape from perDimCount; trailing zero-extent dims
+    // produce an empty tensor.
+    size_t totalOut = 1;
+    for (int i = 0; i < nd; ++i) totalOut *= perDimCount[i];
+    auto result = MValue::matrixND(perDimCount, nd, t, alloc);
+    if (totalOut == 0) return result;
+
+    // Source strides (column-major) for the existing tensor's actual rank.
+    auto &srcDims = dims();
+    constexpr int kMaxNd = 32;
+    size_t srcStrides[kMaxNd];
+    if (srcDims.ndim() > kMaxNd)
+        throw std::runtime_error("indexGetND: source rank exceeds 32");
+    computeStridesColMajor(srcDims, srcStrides);
+    const int srcNd = srcDims.ndim();
+
+    // Bounds check: for any dim i picked from perDimIdx[i], idx < srcDims.dim(i).
+    // For dims i beyond the source's actual ndim, the source is implicitly
+    // extended with trailing singletons — only idx == 0 is valid.
+    for (int i = 0; i < nd; ++i) {
+        const size_t lim = (i < srcNd) ? srcDims.dim(i) : 1;
+        for (size_t k = 0; k < perDimCount[i]; ++k)
+            if (perDimIdx[i][k] >= lim)
+                throw std::runtime_error(
+                    "Index exceeds array dimensions (dim " + std::to_string(i + 1)
+                    + ": " + std::to_string(perDimIdx[i][k] + 1) + " > "
+                    + std::to_string(lim) + ")");
+    }
+
+    const char *src = static_cast<const char *>(rawData());
+    char *dst = static_cast<char *>(result.rawDataMut());
+
+    Dims outIter(perDimCount, nd);
+    size_t coords[kMaxNd] = {0};
+    size_t outIdx = 0;
+    do {
+        size_t srcOff = 0;
+        const int loopN = std::min(nd, srcNd);
+        for (int i = 0; i < loopN; ++i) {
+            const size_t pickedIdx = perDimIdx[i][coords[i]];
+            srcOff += pickedIdx * srcStrides[i];
+        }
+        // Dims i ≥ srcNd contribute 0 (idx already known to be 0 from bounds check).
+        std::memcpy(dst + outIdx * es, src + srcOff * es, es);
+        ++outIdx;
+    } while (incrementCoords(coords, outIter));
+
+    return result;
+}
+
 // Logical indexing: extract elements where mask is true → row vector of same type.
 MValue MValue::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc) const
 {
@@ -1203,6 +1279,79 @@ void MValue::indexSet3D(const size_t *rowIdx, size_t nrows,
             for (size_t c = 0; c < ncols; ++c)
                 for (size_t r = 0; r < nrows; ++r)
                     writeElem(*this, d.sub2ind(rowIdx[r], colIdx[c], pageIdx[p]), val, k++);
+    }
+}
+
+void MValue::indexSetND(const size_t *const *perDimIdx,
+                        const size_t *perDimCount,
+                        int nd,
+                        const MValue &val)
+{
+    if (nd <= 0) return;
+    if (nd == 1) { indexSet(perDimIdx[0], perDimCount[0], val); return; }
+    if (nd == 2) {
+        indexSet2D(perDimIdx[0], perDimCount[0],
+                   perDimIdx[1], perDimCount[1], val);
+        return;
+    }
+    if (nd == 3) {
+        indexSet3D(perDimIdx[0], perDimCount[0],
+                   perDimIdx[1], perDimCount[1],
+                   perDimIdx[2], perDimCount[2], val);
+        return;
+    }
+
+    if (type() == MType::CELL)
+        throw std::runtime_error("indexSetND not yet supported for CELL with nd > 3");
+    if (type() == MType::DOUBLE && val.isComplex())
+        promoteToComplex();
+
+    auto &d = dims();
+    constexpr int kMaxNd = 32;
+    if (d.ndim() > kMaxNd)
+        throw std::runtime_error("indexSetND: target rank exceeds 32");
+    size_t dstStrides[kMaxNd];
+    computeStridesColMajor(d, dstStrides);
+    const int dstNd = d.ndim();
+
+    // Bounds check (no auto-expand for nd > 3 in Phase 6).
+    for (int i = 0; i < nd; ++i) {
+        const size_t lim = (i < dstNd) ? d.dim(i) : 1;
+        for (size_t k = 0; k < perDimCount[i]; ++k)
+            if (perDimIdx[i][k] >= lim)
+                throw std::runtime_error(
+                    "Index exceeds array dimensions (dim " + std::to_string(i + 1)
+                    + ": " + std::to_string(perDimIdx[i][k] + 1) + " > "
+                    + std::to_string(lim) + ")");
+    }
+
+    size_t total = 1;
+    for (int i = 0; i < nd; ++i) total *= perDimCount[i];
+    if (total == 0) return;
+
+    Dims iter(perDimCount, nd);
+    size_t coords[kMaxNd] = {0};
+
+    if (val.isScalar()) {
+        do {
+            size_t off = 0;
+            const int loopN = std::min(nd, dstNd);
+            for (int i = 0; i < loopN; ++i)
+                off += perDimIdx[i][coords[i]] * dstStrides[i];
+            writeScalar(*this, off, val);
+        } while (incrementCoords(coords, iter));
+    } else {
+        if (total != val.numel())
+            throw std::runtime_error(
+                "Unable to perform assignment because the left and right sides have a different number of elements");
+        size_t k = 0;
+        do {
+            size_t off = 0;
+            const int loopN = std::min(nd, dstNd);
+            for (int i = 0; i < loopN; ++i)
+                off += perDimIdx[i][coords[i]] * dstStrides[i];
+            writeElem(*this, off, val, k++);
+        } while (incrementCoords(coords, iter));
     }
 }
 

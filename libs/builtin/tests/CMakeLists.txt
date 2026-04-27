@@ -16,6 +16,7 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/indexing_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ndindexing_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/concat_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/scope_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/types_test.cpp
