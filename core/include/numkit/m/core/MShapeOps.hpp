@@ -131,4 +131,33 @@ inline bool incrementCoords(size_t *coords, const Dims &d)
     return false;
 }
 
+// ============================================================
+// forEachOuterPage
+// ------------------------------------------------------------
+// Walk every (R×C) "page" of d, indexed by axes 2..ndim-1 in column-
+// major order (axis 2 fastest, then axis 3, ...). For each page index
+// `plin ∈ [0, outerCount)`, calls fn(plin, outerCoords) where
+// outerCoords[i] is the 0-based position along axis i+2.
+//
+// Used by ND format / disp (header per page) and by trilTriuND /
+// rot90 ND (per-page byte kernel). For ndim ≤ 2 there's exactly one
+// "page" with empty outerCoords.
+// ============================================================
+template <typename Fn>
+inline void forEachOuterPage(const Dims &d, Fn &&fn)
+{
+    const int nd = d.ndim();
+    size_t outerCount = 1;
+    for (int i = 2; i < nd; ++i) outerCount *= d.dim(i);
+    size_t outerCoords[Dims::kMaxRank] = {0};
+    for (size_t plin = 0; plin < outerCount; ++plin) {
+        fn(plin, outerCoords);
+        // Increment outer coords (axis 2..nd-1) in column-major order.
+        for (int i = 2; i < nd; ++i) {
+            if (++outerCoords[i - 2] < d.dim(i)) break;
+            outerCoords[i - 2] = 0;
+        }
+    }
+}
+
 } // namespace numkit::m

@@ -437,7 +437,7 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
 
     // ND fallback (rank ≥ 4)
     if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
-        constexpr int kMaxNd = 32;
+        constexpr int kMaxNd = Dims::kMaxRank;
         if (a.isScalar()) {
             const int nd = b.dims().ndim();
             size_t bDims[kMaxNd];

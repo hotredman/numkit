@@ -84,7 +84,7 @@ MValue repmatND(Allocator &alloc, const MValue &x,
                      0, 0, "repmat", "", "m:repmat:typeND");
 
     const auto &inDims = x.dims();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
         throw MError("repmat: rank exceeds 32",
@@ -165,7 +165,7 @@ MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
                      0, 0, fn, "", std::string("m:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw MError(std::string(fn) + ": rank exceeds 32",
                      0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
@@ -338,7 +338,7 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
             throw MError(std::string("rot90: ND fallback does not support type '")
                          + mtypeName(t) + "'",
                          0, 0, "rot90", "", "m:rot90:typeND");
-        constexpr int kMaxNd = 32;
+        constexpr int kMaxNd = Dims::kMaxRank;
         if (nd > kMaxNd)
             throw MError("rot90: rank exceeds 32",
                          0, 0, "rot90", "", "m:rot90:tooManyDims");
@@ -349,25 +349,19 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
         auto r = MValue::matrixND(outDims, nd, t, &alloc);
         if (x.numel() == 0) return r;
         const size_t es = elementSize(t);
-        size_t outerCount = 1;
-        for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
         const char *src = static_cast<const char *>(x.rawData());
         char *dst = static_cast<char *>(r.rawDataMut());
         const size_t pageElems = R * C;
         if (kMod == 0) {
             std::memcpy(dst, src, x.numel() * es);
-        } else if (kMod == 1) {
-            for (size_t pp = 0; pp < outerCount; ++pp)
-                rot90OncePageBytes(src + pp * pageElems * es,
-                                   dst + pp * pageElems * es, R, C, es);
-        } else if (kMod == 2) {
-            for (size_t pp = 0; pp < outerCount; ++pp)
-                rot180PageBytes(src + pp * pageElems * es,
-                                dst + pp * pageElems * es, R, C, es);
-        } else { // kMod == 3
-            for (size_t pp = 0; pp < outerCount; ++pp)
-                rot270PageBytes(src + pp * pageElems * es,
-                                dst + pp * pageElems * es, R, C, es);
+        } else {
+            auto pageFn = (kMod == 1) ? rot90OncePageBytes
+                        : (kMod == 2) ? rot180PageBytes
+                                      : rot270PageBytes;
+            forEachOuterPage(dd, [&](size_t pp, const size_t *) {
+                pageFn(src + pp * pageElems * es,
+                       dst + pp * pageElems * es, R, C, es);
+            });
         }
         return r;
     }
@@ -479,7 +473,7 @@ MValue circshiftND(Allocator &alloc, const MValue &x,
                      0, 0, "circshift", "", "m:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
         throw MError("circshift: rank exceeds 32",
                      0, 0, "circshift", "", "m:circshift:tooManyDims");
@@ -633,7 +627,7 @@ MValue trilTriuND(Allocator &alloc, const MValue &x, int k,
                   PageBytesFn pageFn, const char *fn)
 {
     const auto &dd = x.dims();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     const int nd = dd.ndim();
     if (nd > kMaxNd)
         throw MError(std::string(fn) + ": rank exceeds 32",
@@ -652,13 +646,12 @@ MValue trilTriuND(Allocator &alloc, const MValue &x, int k,
     if (x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
-    size_t outerCount = 1;
-    for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
     const char *src = static_cast<const char *>(x.rawData());
     char *dst = static_cast<char *>(r.rawDataMut());
     const size_t pageBytes = R * C * es;
-    for (size_t pp = 0; pp < outerCount; ++pp)
+    forEachOuterPage(dd, [&](size_t pp, const size_t *) {
         pageFn(src + pp * pageBytes, dst + pp * pageBytes, R, C, k, es);
+    });
     return r;
 }
 

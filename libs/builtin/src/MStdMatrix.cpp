@@ -328,7 +328,7 @@ MValue cumsum(Allocator &alloc, const MValue &x, int dim)
     // ND fallback for rank ≥ 4: per-slice scan along axis d-1. Inner
     // block size B = prod(dim[0..d-2]); outer count O = prod(dim[d..]).
     if (dd.ndim() >= 4) {
-        constexpr int kMaxNd = 32;
+        constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw MError("cumsum: rank exceeds 32",
                          0, 0, "cumsum", "", "m:cumsum:tooManyDims");
@@ -522,7 +522,7 @@ MValue cumScanDispatch(Allocator &alloc, const MValue &x, int dim,
 
     // ND fallback (rank ≥ 4): per-slice scan along axis d-1.
     if (dd.ndim() >= 4) {
-        constexpr int kMaxNd = 32;
+        constexpr int kMaxNd = Dims::kMaxRank;
         if (dd.ndim() > kMaxNd)
             throw MError(std::string(fn) + ": rank exceeds 32",
                          0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");

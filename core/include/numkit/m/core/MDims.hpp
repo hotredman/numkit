@@ -29,6 +29,10 @@ namespace numkit::m {
 struct Dims
 {
     static constexpr int kInlineCap = 4;
+    // Maximum supported rank for any ND op. Used as a stack-buffer
+    // bound (e.g. `size_t coords[Dims::kMaxRank]`) and a sanity-check
+    // ceiling. 32 is well above any practical use.
+    static constexpr int kMaxRank   = 32;
 
     Dims();
     Dims(size_t r, size_t c);

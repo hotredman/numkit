@@ -5,6 +5,7 @@
 #include <numkit/m/builtin/MStdPrint.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MShapeOps.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include <cmath>
@@ -62,12 +63,8 @@ std::string dispFormat(const MValue &a)
             } else {
                 const size_t R = d.rows(), C = d.cols();
                 const int nd = d.ndim();
-                size_t outerCount = 1;
-                for (int i = 2; i < nd; ++i) outerCount *= d.dim(i);
-                constexpr int kMaxNd = 32;
-                size_t outerCoords[kMaxNd] = {0};
                 const double *base0 = a.doubleData();
-                for (size_t plin = 0; plin < outerCount; ++plin) {
+                forEachOuterPage(d, [&](size_t plin, const size_t *outerCoords) {
                     if (nd >= 3) {
                         os << "(:,:";
                         for (int i = 2; i < nd; ++i)
@@ -86,11 +83,7 @@ std::string dispFormat(const MValue &a)
                                 os << " " << v;
                         }
                     }
-                    for (int i = 2; i < nd; ++i) {
-                        if (++outerCoords[i - 2] < d.dim(i)) break;
-                        outerCoords[i - 2] = 0;
-                    }
-                }
+                });
             }
         }
     } else if (a.isLogical()) {

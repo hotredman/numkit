@@ -292,7 +292,7 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
         if (v.isEmpty() || v.numel() == 0) continue;
         outNdim = std::max(outNdim, v.dims().ndim());
     }
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     if (outNdim > kMaxNd)
         throw MError("cat: rank exceeds 32",
                      0, 0, "cat", "", "m:cat:tooManyDims");

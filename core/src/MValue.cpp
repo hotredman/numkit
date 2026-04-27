@@ -924,7 +924,7 @@ MValue MValue::indexGetND(const size_t *const *perDimIdx,
 
     // Source strides (column-major) for the existing tensor's actual rank.
     auto &srcDims = dims();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     size_t srcStrides[kMaxNd];
     if (srcDims.ndim() > kMaxNd)
         throw std::runtime_error("indexGetND: source rank exceeds 32");
@@ -1307,7 +1307,7 @@ void MValue::indexSetND(const size_t *const *perDimIdx,
         promoteToComplex();
 
     auto &d = dims();
-    constexpr int kMaxNd = 32;
+    constexpr int kMaxNd = Dims::kMaxRank;
     if (d.ndim() > kMaxNd)
         throw std::runtime_error("indexSetND: target rank exceeds 32");
     size_t dstStrides[kMaxNd];
@@ -2457,12 +2457,8 @@ std::string MValue::formatDisplay(const std::string &name) const
             auto &d = dims();
             const size_t R = d.rows(), C = d.cols();
             const int nd = d.ndim();
-            size_t outerCount = 1;
-            for (int i = 2; i < nd; ++i) outerCount *= d.dim(i);
-            constexpr int kMaxNd = 32;
-            size_t outerCoords[kMaxNd] = {0};
             const double *base0 = doubleData();
-            for (size_t plin = 0; plin < outerCount; ++plin) {
+            forEachOuterPage(d, [&](size_t plin, const size_t *outerCoords) {
                 if (nd >= 3) {
                     os << "\n(:,:";
                     for (int i = 2; i < nd; ++i)
@@ -2470,7 +2466,6 @@ std::string MValue::formatDisplay(const std::string &name) const
                     os << ") =\n\n";
                 }
                 const double *page = base0 + plin * R * C;
-                // Pre-format all values to determine column widths
                 std::vector<std::vector<std::string>> cells(R);
                 std::vector<size_t> colWidth(C, 0);
                 for (size_t r = 0; r < R; ++r) {
@@ -2489,12 +2484,7 @@ std::string MValue::formatDisplay(const std::string &name) const
                     }
                     os << "\n";
                 }
-                // Increment outer coords (axes 2..nd-1) in column-major
-                for (int i = 2; i < nd; ++i) {
-                    if (++outerCoords[i - 2] < d.dim(i)) break;
-                    outerCoords[i - 2] = 0;
-                }
-            }
+            });
         }
         break;
     }
