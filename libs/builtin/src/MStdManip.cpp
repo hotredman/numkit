@@ -149,9 +149,63 @@ MValue repmatND(Allocator &alloc, const MValue &x,
 // fliplr / flipud
 // ────────────────────────────────────────────────────────────────────
 
+namespace {
+
+// ND flip helper: reverses the order of slabs along `axis` (0-based).
+// The slab stride is B = prod(dims[0..axis-1]) elements; outer count
+// O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
+// (axis=1) and flipud (axis=0). DOUBLE-only.
+MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
+                       const char *fn)
+{
+    if (x.type() != MType::DOUBLE)
+        throw MError(std::string(fn) + ": ND fallback supports DOUBLE inputs only",
+                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+    const auto &d = x.dims();
+    const int nd = d.ndim();
+    constexpr int kMaxNd = 32;
+    if (nd > kMaxNd)
+        throw MError(std::string(fn) + ": rank exceeds 32",
+                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+
+    size_t outDimArr[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
+    auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+
+    // axis past the actual rank, or singleton dim → identity copy.
+    const size_t flipDim = (axis < nd) ? d.dim(axis) : 1;
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    if (flipDim <= 1) {
+        std::memcpy(dst, src, x.numel() * sizeof(double));
+        return r;
+    }
+
+    size_t B = 1;
+    for (int i = 0; i < axis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = axis + 1; i < nd; ++i) O *= d.dim(i);
+
+    const size_t es = sizeof(double);
+    for (size_t o = 0; o < O; ++o) {
+        const size_t outerBase = o * flipDim * B;
+        for (size_t i = 0; i < flipDim; ++i) {
+            std::memcpy(dst + outerBase + i * B,
+                        src + outerBase + (flipDim - 1 - i) * B,
+                        B * es);
+        }
+    }
+    return r;
+}
+
+} // namespace
+
 MValue fliplr(Allocator &alloc, const MValue &x)
 {
     const auto &dd = x.dims();
+    if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 1, "fliplr");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
@@ -172,6 +226,8 @@ MValue fliplr(Allocator &alloc, const MValue &x)
 MValue flipud(Allocator &alloc, const MValue &x)
 {
     const auto &dd = x.dims();
+    if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 0, "flipud");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
@@ -237,7 +293,45 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
     if (kMod < 0) kMod += 4;
 
     const auto &dd = x.dims();
+    const int nd = dd.ndim();
     const size_t R = dd.rows(), C = dd.cols();
+
+    // ND fallback (rank ≥ 4): rotate every (R×C) slice indexed by axes
+    // 2..N-1. Output rank matches input; axes 0 and 1 swap for kMod 1/3.
+    if (nd >= 4) {
+        if (x.type() != MType::DOUBLE)
+            throw MError("rot90: ND fallback supports DOUBLE inputs only",
+                         0, 0, "rot90", "", "m:rot90:typeND");
+        constexpr int kMaxNd = 32;
+        if (nd > kMaxNd)
+            throw MError("rot90: rank exceeds 32",
+                         0, 0, "rot90", "", "m:rot90:tooManyDims");
+        size_t outDims[kMaxNd];
+        outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
+        outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
+        for (int i = 2; i < nd; ++i) outDims[i] = dd.dim(i);
+        auto r = MValue::matrixND(outDims, nd, MType::DOUBLE, &alloc);
+        if (x.numel() == 0) return r;
+        size_t outerCount = 1;
+        for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
+        const double *src = x.doubleData();
+        double *dst = r.doubleDataMut();
+        const size_t pageBytes = R * C;
+        if (kMod == 0) {
+            std::memcpy(dst, src, x.numel() * sizeof(double));
+        } else if (kMod == 1) {
+            for (size_t pp = 0; pp < outerCount; ++pp)
+                rot90OncePage(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+        } else if (kMod == 2) {
+            for (size_t pp = 0; pp < outerCount; ++pp)
+                rot180Page(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+        } else { // kMod == 3
+            for (size_t pp = 0; pp < outerCount; ++pp)
+                rot270Page(src + pp * pageBytes, dst + pp * pageBytes, R, C);
+        }
+        return r;
+    }
+
     const size_t P = dd.is3D() ? dd.pages() : 1;
     const bool is3D = dd.is3D();
 
@@ -334,6 +428,71 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t k)
     return circshift(alloc, x, k, 0);
 }
 
+MValue circshiftND(Allocator &alloc, const MValue &x,
+                   const int64_t *shifts, int nshifts)
+{
+    if (x.type() != MType::DOUBLE)
+        throw MError("circshift: ND fallback supports DOUBLE inputs only",
+                     0, 0, "circshift", "", "m:circshift:typeND");
+    const auto &d = x.dims();
+    const int nd = d.ndim();
+    constexpr int kMaxNd = 32;
+    if (nd > kMaxNd)
+        throw MError("circshift: rank exceeds 32",
+                     0, 0, "circshift", "", "m:circshift:tooManyDims");
+
+    size_t outDims[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
+    auto r = MValue::matrixND(outDims, nd, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+
+    // Per-axis wrapped shifts. Shifts past input ndim are no-ops (their
+    // axis size is 1).
+    size_t shiftMod[kMaxNd] = {0};
+    for (int i = 0; i < nd; ++i) {
+        const int64_t s = (i < nshifts) ? shifts[i] : 0;
+        shiftMod[i] = wrap(s, d.dim(i));
+    }
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    const size_t R = d.dim(0);
+    const size_t shift0 = shiftMod[0];
+
+    if (nd == 1) {
+        for (size_t i = 0; i < R; ++i)
+            dst[i] = src[(i + R - shift0) % R];
+        return r;
+    }
+
+    size_t srcStrides[kMaxNd];
+    computeStridesColMajor(d, srcStrides);
+
+    size_t outerDimsArr[kMaxNd];
+    for (int i = 1; i < nd; ++i) outerDimsArr[i - 1] = d.dim(i);
+    Dims outerIter(outerDimsArr, nd - 1);
+
+    size_t outerCoords[kMaxNd] = {0};
+    do {
+        size_t srcOuterOff = 0, dstOuterOff = 0;
+        for (int i = 1; i < nd; ++i) {
+            const size_t dimI = d.dim(i);
+            const size_t srcCoord = (outerCoords[i - 1] + dimI - shiftMod[i]) % dimI;
+            srcOuterOff += srcCoord * srcStrides[i];
+            dstOuterOff += outerCoords[i - 1] * srcStrides[i];
+        }
+        if (shift0 == 0) {
+            std::memcpy(dst + dstOuterOff, src + srcOuterOff,
+                        R * sizeof(double));
+        } else {
+            for (size_t i = 0; i < R; ++i)
+                dst[dstOuterOff + i] = src[srcOuterOff + (i + R - shift0) % R];
+        }
+    } while (incrementCoords(outerCoords, outerIter));
+
+    return r;
+}
+
 MValue circshift(Allocator &alloc, const MValue &x, int64_t kRow, int64_t kCol)
 {
     const auto &dd = x.dims();
@@ -346,6 +505,10 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t kRow, int64_t kCol)
                     r.doubleDataMut() + pp * R * C,
                     R, C, kRow, kCol);
         return r;
+    }
+    if (dd.ndim() >= 4) {
+        const int64_t shifts[2] = {kRow, kCol};
+        return circshiftND(alloc, x, shifts, 2);
     }
     const size_t R = dd.rows(), C = dd.cols();
     auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
@@ -386,9 +549,49 @@ inline void triuPage(const double *src, double *dst, size_t R, size_t C, int k)
 
 } // namespace
 
+// ND tril/triu: apply the 2D mask to every outer-axis slice.
+// The first two axes form the matrix; axes 2..N-1 are "outer pages".
+// DOUBLE-only.
+namespace {
+
+template <typename PageFn>
+MValue trilTriuND(Allocator &alloc, const MValue &x, int k, PageFn pageFn,
+                  const char *fn)
+{
+    const auto &dd = x.dims();
+    constexpr int kMaxNd = 32;
+    const int nd = dd.ndim();
+    if (nd > kMaxNd)
+        throw MError(std::string(fn) + ": rank exceeds 32",
+                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+    if (x.type() != MType::DOUBLE)
+        throw MError(std::string(fn) + ": ND fallback supports DOUBLE inputs only",
+                     0, 0, fn, "", std::string("m:") + fn + ":typeND");
+
+    const size_t R = dd.rows(), C = dd.cols();
+    size_t outDimArr[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDimArr[i] = dd.dim(i);
+    auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, &alloc);
+    if (x.numel() == 0) return r;
+
+    size_t outerCount = 1;
+    for (int i = 2; i < nd; ++i) outerCount *= dd.dim(i);
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    const size_t pageSize = R * C;
+    for (size_t pp = 0; pp < outerCount; ++pp)
+        pageFn(src + pp * pageSize, dst + pp * pageSize, R, C, k);
+    return r;
+}
+
+} // namespace
+
 MValue tril(Allocator &alloc, const MValue &x, int k)
 {
     const auto &dd = x.dims();
+    if (dd.ndim() >= 4)
+        return trilTriuND(alloc, x, k, trilPage, "tril");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
@@ -404,6 +607,9 @@ MValue tril(Allocator &alloc, const MValue &x, int k)
 MValue triu(Allocator &alloc, const MValue &x, int k)
 {
     const auto &dd = x.dims();
+    if (dd.ndim() >= 4)
+        return trilTriuND(alloc, x, k, triuPage, "triu");
+
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
     auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
@@ -501,20 +707,30 @@ void circshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
                    CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("circshift: requires (X, k) or (X, [r c])",
+        throw MError("circshift: requires (X, k) or (X, shiftVec)",
                      0, 0, "circshift", "", "m:circshift:nargin");
     const MValue &k = args[1];
     auto &alloc = ctx.engine->allocator();
-    if (k.numel() == 1) {
+    const size_t nk = k.numel();
+    if (nk == 0)
+        throw MError("circshift: shift vector must not be empty",
+                     0, 0, "circshift", "", "m:circshift:badShift");
+
+    if (nk == 1) {
         outs[0] = circshift(alloc, args[0], static_cast<int64_t>(k.toScalar()));
-    } else if (k.numel() == 2) {
+        return;
+    }
+    if (nk == 2 && args[0].dims().ndim() <= 3) {
         outs[0] = circshift(alloc, args[0],
                             static_cast<int64_t>(k.doubleData()[0]),
                             static_cast<int64_t>(k.doubleData()[1]));
-    } else {
-        throw MError("circshift: shift vector must have 1 or 2 elements",
-                     0, 0, "circshift", "", "m:circshift:badShift");
+        return;
     }
+    // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
+    std::vector<int64_t> shifts(nk);
+    for (size_t i = 0; i < nk; ++i)
+        shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
+    outs[0] = circshiftND(alloc, args[0], shifts.data(), static_cast<int>(nk));
 }
 
 #define NK_TRI_REG(name)                                                       \

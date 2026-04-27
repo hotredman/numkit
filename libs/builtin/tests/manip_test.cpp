@@ -466,4 +466,122 @@ TEST_P(ManipTest, TriuOn3DAppliesPerPage)
     EXPECT_DOUBLE_EQ((*B)(1, 0, 1), 0.0);
 }
 
+// ── ND fliplr / flipud / tril / triu / rot90 / circshift (Phase 3a.6) ──
+
+TEST_P(ManipTest, Fliplr4DPerSlice)
+{
+    // 2×3×2×2 input. fliplr reverses axis 1 within each (page, vol) slice.
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = fliplr(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B);"), 24.0);
+    // A(:,1,1,1) = [1; 2]; A(:,3,1,1) = [5; 6] → B(:,1,1,1) = [5; 6]
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 1, 1);"), 1.0);
+    // Last slice: A(:,1,2,2) = [19;20], A(:,3,2,2) = [23;24]
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 2, 2);"), 23.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 2, 2);"), 19.0);
+}
+
+TEST_P(ManipTest, Flipud4DPerSlice)
+{
+    // 2×3×2×2 input. flipud reverses axis 0 within each (col, page, vol).
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = flipud(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 1);"), 2.0);
+    // A(1,1,1,1)=1, A(2,1,1,1)=2 → B(1,1,1,1)=2, B(2,1,1,1)=1
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 2, 2);"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2);"), 23.0);
+}
+
+TEST_P(ManipTest, Tril4DPerSlice)
+{
+    // 3×3×2×2 input → tril zeros above-main per slice.
+    eval("A = reshape(1:36, [3, 3, 2, 2]); B = tril(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    // For first slice A(:,:,1,1) = reshape(1:9,3,3); diag and below kept.
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 1, 1, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 2, 1, 1);"), 0.0);  // above main
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 1, 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 2, 1, 1);"), 5.0);
+    // Last slice spot
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 3, 2, 2);"), 36.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 2, 2);"),  0.0);
+}
+
+TEST_P(ManipTest, Triu4DPerSlice)
+{
+    eval("A = reshape(1:36, [3, 3, 2, 2]); B = triu(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 3, 1, 1);"), 7.0);  // A(1,3,1,1)=7
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 0.0);  // below main
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 1, 1, 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 2, 2, 2);"), 32.0);
+}
+
+TEST_P(ManipTest, Rot904DPerSliceCCW)
+{
+    // 2×3×2×2 input. rot90 (k=1) takes (R,C)=(2,3) → output (3,2,2,2).
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = rot90(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"),    4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 2.0);
+    // First slice A(:,:,1,1) = [1 3 5; 2 4 6]; CCW rotation:
+    //   B(:,:,1,1) = [5 6; 3 4; 1 2]
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 2, 1, 1);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 2, 1, 1);"), 2.0);
+    // Last slice
+    EXPECT_DOUBLE_EQ(evalScalar("B(3, 2, 2, 2);"), 20.0);
+}
+
+TEST_P(ManipTest, Rot904DTwoSwapsBack)
+{
+    // rot90 four times = identity, on ND
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = rot90(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(A, B);"), 1.0);
+}
+
+TEST_P(ManipTest, Circshift4DAxis2)
+{
+    // 2×3×2×2 input, shift vec [0 1 0 0] rotates axis 2 (cols) by 1.
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = circshift(A, [0 1 0 0]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    // B(:,1,1,1) = A(:,3,1,1) = [5;6]
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 2, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 2, 1, 1);"), 2.0);
+    // Element count + sum preservation
+    EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
+}
+
+TEST_P(ManipTest, Circshift4DAllAxes)
+{
+    // Shift along all four axes simultaneously.
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = circshift(A, [1 1 1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A) == numel(B);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
+    // B(i,j,k,l) = A((i-2)mod2+1, (j-2)mod3+1, (k-2)mod2+1, (l-2)mod2+1)
+    // B(1,1,1,1) = A(2,3,2,2) = 24
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 24.0);
+    // B(2,1,1,1) = A(1,3,2,2) = 23
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 1, 1, 1);"), 23.0);
+}
+
+TEST_P(ManipTest, Circshift4DFullCycleIsIdentity)
+{
+    // Shift by exactly the dim along each axis = identity (modulo wrap).
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = circshift(A, [2 3 2 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(A, B);"), 1.0);
+}
+
 INSTANTIATE_DUAL(ManipTest);

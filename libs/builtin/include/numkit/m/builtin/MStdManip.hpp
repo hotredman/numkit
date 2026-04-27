@@ -31,7 +31,8 @@ MValue fliplr(Allocator &alloc, const MValue &x);
 MValue flipud(Allocator &alloc, const MValue &x);
 
 /// rot90(A) / rot90(A, k) — counter-clockwise 90° rotations of a 2D matrix.
-/// k can be negative (clockwise). Modulo 4 cycles. 2D only — 3D throws.
+/// k can be negative (clockwise). Modulo 4 cycles. ND inputs are
+/// rotated per (R×C) slice (axes 2..N-1 are outer pages).
 MValue rot90(Allocator &alloc, const MValue &x, int k = 1);
 
 /// circshift(A, k) — circular shift along first non-singleton dim by k
@@ -39,6 +40,12 @@ MValue rot90(Allocator &alloc, const MValue &x, int k = 1);
 MValue circshift(Allocator &alloc, const MValue &x, int64_t k);
 MValue circshift(Allocator &alloc, const MValue &x,
                  int64_t kRow, int64_t kCol);
+
+/// ND circshift — shift vector of arbitrary length. shifts[i] applies to
+/// axis i; entries past input rank are no-ops. Negative shifts wrap.
+/// DOUBLE inputs only.
+MValue circshiftND(Allocator &alloc, const MValue &x,
+                   const int64_t *shifts, int nshifts);
 
 /// Lower / upper triangular extraction. k is the diagonal offset
 /// (0 = main, +1 = above main, -1 = below main). 2D only.
