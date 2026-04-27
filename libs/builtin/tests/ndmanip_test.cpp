@@ -239,6 +239,64 @@ TEST_P(NDManipTest, BlkdiagThreeMatrices)
     EXPECT_DOUBLE_EQ((*A)(3, 3), 6.0);
 }
 
+// ── permute ND (Phase 3a.3) ─────────────────────────────────────
+
+TEST_P(NDManipTest, Permute4DRoundTrip)
+{
+    // 2×3×4×5 → permute [4 3 2 1] → 5×4×3×2. ipermute reverses.
+    eval("A = reshape(1:120, [2, 3, 4, 5]); "
+         "B = permute(A, [4, 3, 2, 1]); "
+         "C = ipermute(B, [4, 3, 2, 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(A, C);"), 1.0);
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    const auto &dB = B->dims();
+    EXPECT_EQ(dB.dim(0), 5u);
+    EXPECT_EQ(dB.dim(1), 4u);
+    EXPECT_EQ(dB.dim(2), 3u);
+    EXPECT_EQ(dB.dim(3), 2u);
+}
+
+TEST_P(NDManipTest, Permute4DPreservesElementsViaLinear)
+{
+    // 4-arg subscript indexing isn't in the parser yet (Phase 6 follow-up).
+    // Use linear indexing — flat-buffer access works at any rank.
+    eval("A = reshape(1:120, [2, 3, 4, 5]); B = permute(A, [4, 3, 2, 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("A(1);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(120);"), 120.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1);"),   1.0);    // first elem stays first
+    EXPECT_DOUBLE_EQ(evalScalar("B(120);"), 120.0);  // last stays last
+    EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A) == numel(B);"), 1.0);
+}
+
+TEST_P(NDManipTest, Permute5DAllocatesAndIsInvertible)
+{
+    eval("A = reshape(1:720, [2, 3, 4, 5, 6]); "
+         "B = permute(A, [5, 4, 3, 2, 1]); "
+         "C = permute(B, [5, 4, 3, 2, 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(A, C);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 1);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 5);"), 2.0);
+}
+
+TEST_P(NDManipTest, Permute4DTransposeOfFirstTwoUsesFastPath)
+{
+    // [2 1 3 4] swaps the first two axes per "page" of the trailing
+    // dims. Verified via shape + element-set preservation; positional
+    // checks need 4-arg subscript indexing (Phase 6 follow-up).
+    eval("A = reshape(1:120, [2, 3, 4, 5]); B = permute(A, [2, 1, 3, 4]);");
+    auto *B = getVarPtr("B");
+    const auto &dB = B->dims();
+    EXPECT_EQ(dB.dim(0), 3u);
+    EXPECT_EQ(dB.dim(1), 2u);
+    EXPECT_EQ(dB.dim(2), 4u);
+    EXPECT_EQ(dB.dim(3), 5u);
+    EXPECT_DOUBLE_EQ(evalScalar("sum(A(:)) == sum(B(:));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isequal(sort(A(:)), sort(B(:)));"), 1.0);
+}
+
 // ── squeeze ND (Phase 3a.2) ─────────────────────────────────────
 
 TEST_P(NDManipTest, Squeeze4DTrailingSingleton)

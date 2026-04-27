@@ -11,6 +11,7 @@
 
 #include <numkit/m/builtin/MStdMatrix.hpp>  // reshape, horzcat, vertcat
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MShapeOps.hpp>      // computeStridesColMajor, incrementCoords
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
@@ -42,13 +43,16 @@ size_t validatePerm(const std::vector<int> &perm, const char *fn)
     return N;
 }
 
-// Pad perm to 3 dims with identity for any missing axis. So perm=[2 1]
-// applied to a 2D matrix becomes [2 1 3]. This lets the 3D code path
-// handle both cases uniformly.
-std::vector<int> padPerm(const std::vector<int> &perm)
+// Pad perm to at least nd dims with identity for any missing axis. So
+// perm=[2 1] applied to a 2D matrix becomes [2 1]; for a 4D input it
+// becomes [2 1 3 4]. The 2D/3D fast paths still pad to 3 specifically
+// (since they rely on inDims[3] arrays); the ND general path pads to
+// max(perm.size(), input ndim).
+std::vector<int> padPerm(const std::vector<int> &perm, int target)
 {
     std::vector<int> p = perm;
-    while (p.size() < 3) p.push_back(static_cast<int>(p.size() + 1));
+    while (static_cast<int>(p.size()) < target)
+        p.push_back(static_cast<int>(p.size() + 1));
     return p;
 }
 
@@ -108,66 +112,72 @@ inline bool isTransposePerm(const std::vector<int> &p3)
 // of output along axis k equals the size of input along perm[k].
 MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
 {
-    if (perm.size() > 3)
-        throw MError("permute: numkit-m supports up to 3 dimensions",
-                     0, 0, "permute", "", "m:permute:tooManyDims");
     validatePerm(perm, "permute");
 
     const auto &dd = x.dims();
-    const size_t inDims[3] = { dd.rows(), dd.cols(),
-                               dd.is3D() ? dd.pages() : 1 };
-    const auto p = padPerm(perm);
-    const size_t outR = inDims[p[0] - 1];
-    const size_t outC = inDims[p[1] - 1];
-    const size_t outP = inDims[p[2] - 1];
-    const bool out3D = (outP > 1) || dd.is3D();
+    const int inNd = std::max<int>(dd.ndim(), static_cast<int>(perm.size()));
+    const auto p = padPerm(perm, inNd);
 
-    auto r = out3D ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outR, outC, MType::DOUBLE, &alloc);
+    // Build input dim vector (trailing 1s implicit past dd.ndim).
+    std::vector<size_t> inDims(inNd);
+    for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
+
+    // Output dims: outDims[k] = inDims[p[k] - 1].
+    std::vector<size_t> outDims(inNd);
+    for (int k = 0; k < inNd; ++k)
+        outDims[k] = inDims[p[k] - 1];
+
+    // 2D / 3D fast path uses createMatrix / createMatrix3d via createMatrixND;
+    // ≥ 4D goes through MValue::matrixND. Trailing 1s are kept (we don't
+    // strip here — permute should preserve user-requested rank).
+    auto r = createMatrixND(outDims, MType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
 
-    const size_t inR = inDims[0], inC = inDims[1];
     const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    double *dst       = r.doubleDataMut();
 
-    // Phase P6 fast path: per-page transpose ([2, 1] or [2, 1, 3]). 2.3×
-    // win on 512×512 (cache-blocked vs strided gather).
-    if (isTransposePerm(p)) {
-        const size_t P = inDims[2];
-        for (size_t pp = 0; pp < P; ++pp)
-            transposePage(src + pp * inR * inC,
-                          dst + pp * outR * outC,
-                          inR, inC);
-        return r;
-    }
-
-    // General N-D permute — strided gather. Inner loop cannot be
-    // SIMD-vectorised (input strides differ per axis after the perm).
-    const size_t inStride[3] = { 1, inR, inR * inC };
-    for (size_t i2 = 0; i2 < outP; ++i2) {
-        for (size_t i1 = 0; i1 < outC; ++i1) {
-            for (size_t i0 = 0; i0 < outR; ++i0) {
-                const size_t outIdx[3] = { i0, i1, i2 };
-                size_t inIdx[3] = { 0, 0, 0 };
-                inIdx[p[0] - 1] = outIdx[0];
-                inIdx[p[1] - 1] = outIdx[1];
-                inIdx[p[2] - 1] = outIdx[2];
-                const size_t srcOff = inIdx[0] * inStride[0]
-                                    + inIdx[1] * inStride[1]
-                                    + inIdx[2] * inStride[2];
-                const size_t dstOff = i2 * outR * outC + i1 * outR + i0;
-                dst[dstOff] = src[srcOff];
-            }
+    // Phase P6 fast path: per-page transpose ([2, 1] or [2, 1, 3] for
+    // ≤ 3D inputs). 2.3× win on 512×512 (cache-blocked vs strided gather).
+    // For ND inputs, iterate over the trailing pages of the first 2 axes.
+    if (inNd >= 2 && p[0] == 2 && p[1] == 1) {
+        bool tailIsIdentity = true;
+        for (int k = 2; k < inNd; ++k)
+            if (p[k] != k + 1) { tailIsIdentity = false; break; }
+        if (tailIsIdentity) {
+            const size_t inR = inDims[0], inC = inDims[1];
+            size_t P = 1;
+            for (int k = 2; k < inNd; ++k) P *= inDims[k];
+            for (size_t pp = 0; pp < P; ++pp)
+                transposePage(src + pp * inR * inC,
+                              dst + pp * inC * inR,
+                              inR, inC);
+            return r;
         }
     }
+
+    // General ND permute — strided gather. Iterate output coords in
+    // column-major order (innermost dim varies fastest), compute the
+    // input offset by mapping out-coord k → in-coord (p[k] - 1).
+    std::vector<size_t> inStrides(inNd);
+    computeStridesColMajor(Dims(inDims.data(), inNd), inStrides.data());
+
+    std::vector<size_t> outCoords(inNd, 0);
+    Dims outDimsObj(outDims.data(), inNd);
+    size_t dstOff = 0;
+    do {
+        size_t srcOff = 0;
+        for (int k = 0; k < inNd; ++k) {
+            const int axIn = p[k] - 1;
+            srcOff += outCoords[k] * inStrides[axIn];
+        }
+        dst[dstOff] = src[srcOff];
+        ++dstOff;
+    } while (incrementCoords(outCoords.data(), outDimsObj));
     return r;
 }
 
 MValue ipermute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
 {
-    if (perm.size() > 3)
-        throw MError("ipermute: numkit-m supports up to 3 dimensions",
-                     0, 0, "ipermute", "", "m:ipermute:tooManyDims");
     validatePerm(perm, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
     std::vector<int> inv(perm.size());
