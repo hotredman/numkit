@@ -195,24 +195,25 @@ MValue ipermute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
 MValue squeeze(Allocator &alloc, const MValue &x)
 {
     const auto &dd = x.dims();
-    if (!dd.is3D()) {
-        // 2D / vector / scalar: shape preserved; copy buffer.
+    const int nd = dd.ndim();
+
+    // 2D and below: shape preserved (MATLAB never collapses below 2D).
+    if (nd <= 2)
         return reshape(alloc, x, dd.rows(), dd.cols(), 0);
-    }
-    const size_t R = dd.rows(), C = dd.cols(), P = dd.pages();
 
-    // Build the kept-dims list (skip singletons but keep at least 2).
+    // ND (≥ 3): drop every singleton dim, preserve the rest in order.
+    // Pad to at least 2 dims with trailing 1s so a fully-singleton input
+    // (1×1×1, 1×1×1×1, etc.) collapses to scalar shape (1×1) rather than
+    // an invalid 0D shape.
     std::vector<size_t> kept;
-    if (R != 1) kept.push_back(R);
-    if (C != 1) kept.push_back(C);
-    if (P != 1) kept.push_back(P);
-    while (kept.size() < 2) kept.push_back(1);  // preserve 2D minimum
-
-    if (kept.size() == 2) {
-        return reshape(alloc, x, kept[0], kept[1], 0);
+    kept.reserve(nd);
+    for (int i = 0; i < nd; ++i) {
+        const size_t d = dd.dim(i);
+        if (d != 1) kept.push_back(d);
     }
-    // All three dims > 1 → no-op, return shape-preserving copy.
-    return reshape(alloc, x, R, C, P);
+    while (kept.size() < 2) kept.push_back(1);
+
+    return reshapeND(alloc, x, kept);
 }
 
 // ────────────────────────────────────────────────────────────────────

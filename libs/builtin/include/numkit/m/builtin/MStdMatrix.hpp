@@ -5,6 +5,7 @@
 #include <numkit/m/core/MValue.hpp>
 
 #include <tuple>
+#include <vector>
 
 namespace numkit::m::builtin {
 
@@ -43,6 +44,11 @@ MValue ndims(Allocator &alloc, const MValue &x);
 /// For dimension inference (MATLAB's [] placeholder), resolve in caller
 /// before invoking — this function requires concrete dims.
 MValue reshape(Allocator &alloc, const MValue &x, size_t rows, size_t cols, size_t pages = 0);
+
+/// ND reshape — accepts a dim vector of arbitrary rank (≥ 1). Same
+/// elem-count check as the 2D/3D form. CELL/STRING reshape past 3D is
+/// not yet supported (throws m:reshape:cellND).
+MValue reshapeND(Allocator &alloc, const MValue &x, const std::vector<size_t> &dims);
 
 /// 2D matrix transpose (no complex conjugation). Throws MError on 3D input.
 MValue transpose(Allocator &alloc, const MValue &x);

@@ -239,4 +239,60 @@ TEST_P(NDManipTest, BlkdiagThreeMatrices)
     EXPECT_DOUBLE_EQ((*A)(3, 3), 6.0);
 }
 
+// ── squeeze ND (Phase 3a.2) ─────────────────────────────────────
+
+TEST_P(NDManipTest, Squeeze4DTrailingSingleton)
+{
+    // 2×3×4×1 — a 2D-vector dim trailing 1 is already stripped by the
+    // ones() constructor, so this collapses to 3D 2×3×4. squeeze is a
+    // no-op past that since no internal singletons remain.
+    eval("A = ones([2, 3, 4, 1]); B = squeeze(A); s = size(B);");
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(cols(*s), 3u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[2], 4.0);
+}
+
+TEST_P(NDManipTest, Squeeze4DLeadingSingleton)
+{
+    // 1×3×4×5 → 3×4×5
+    eval("A = ones([1, 3, 4, 5]); B = squeeze(A); s = size(B);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(cols(*s), 3u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[2], 5.0);
+}
+
+TEST_P(NDManipTest, Squeeze5DMixedSingletons)
+{
+    // 3×1×4×1×5 → 3×4×5
+    eval("A = ones([3, 1, 4, 1, 5]); B = squeeze(A); s = size(B);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(cols(*s), 3u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[2], 5.0);
+}
+
+TEST_P(NDManipTest, SqueezeAllSingletonsCollapsesTo1x1)
+{
+    // 1×1×1×1 → 1×1 (preserve 2D minimum)
+    eval("A = ones([1, 1, 1, 1]); B = squeeze(A); s = size(B);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(cols(*s), 2u);
+    EXPECT_DOUBLE_EQ(s->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(s->doubleData()[1], 1.0);
+}
+
+TEST_P(NDManipTest, SqueezeNDPreservesElementCount)
+{
+    // 2×1×3×1×4 → 2×3×4. Same element count.
+    eval("A = ones([2, 1, 3, 1, 4]); B = squeeze(A);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B);"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 3.0);
+}
+
 INSTANTIATE_DUAL(NDManipTest);
