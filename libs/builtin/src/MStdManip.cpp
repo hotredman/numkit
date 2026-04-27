@@ -72,12 +72,15 @@ MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
 // ND repmat — tile vector of arbitrary length. Outer-coord walk maps
 // each output column-of-axis-0 back to its source column via per-axis
 // modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
-// output column. DOUBLE-only first cut.
+// output column. Type-preserving via byte-copy (elementSize-based).
 MValue repmatND(Allocator &alloc, const MValue &x,
                 const size_t *tiles, int ntiles)
 {
-    if (x.type() != MType::DOUBLE)
-        throw MError("repmat: ND repmat (rank > 3) currently supports DOUBLE inputs only",
+    const MType t = x.type();
+    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+        || t == MType::FUNC_HANDLE)
+        throw MError(std::string("repmat: ND repmat does not support type '")
+                     + mtypeName(t) + "'",
                      0, 0, "repmat", "", "m:repmat:typeND");
 
     const auto &inDims = x.dims();
@@ -97,17 +100,18 @@ MValue repmatND(Allocator &alloc, const MValue &x,
         outDim[i] = inDimPadded[i] * tilesPadded[i];
     }
 
-    auto r = MValue::matrixND(outDim, outNdim, MType::DOUBLE, &alloc);
+    auto r = MValue::matrixND(outDim, outNdim, t, &alloc);
     if (r.numel() == 0 || x.numel() == 0) return r;
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
 
     // 1D special case: input is a row/col, output is `tilesPadded[0]` copies.
     if (outNdim == 1) {
         for (size_t k = 0; k < tilesPadded[0]; ++k)
-            std::memcpy(dst + k * inDimPadded[0], src,
-                        inDimPadded[0] * sizeof(double));
+            std::memcpy(dst + k * inDimPadded[0] * es, src,
+                        inDimPadded[0] * es);
         return r;
     }
 
@@ -117,15 +121,12 @@ MValue repmatND(Allocator &alloc, const MValue &x,
     computeStridesColMajor(inDims, srcStrides);
     for (int i = inDims.ndim(); i < outNdim; ++i) srcStrides[i] = 0;
 
-    // Walk outer coords (axes 1..outNdim-1) of the OUTPUT. Skip axis 0
-    // since that's the contiguous run we batch via memcpy.
     size_t outerDimsArr[kMaxNd];
     for (int i = 1; i < outNdim; ++i) outerDimsArr[i - 1] = outDim[i];
     Dims outerIter(outerDimsArr, outNdim - 1);
 
     size_t outerCoords[kMaxNd] = {0};
     do {
-        // Map each output outer coord to source coord via modulo.
         size_t srcOff = 0;
         size_t dstOff = 0;
         for (int i = 1; i < outNdim; ++i) {
@@ -134,12 +135,10 @@ MValue repmatND(Allocator &alloc, const MValue &x,
             srcOff += (oc % inDimI) * srcStrides[i];
             dstOff += oc * outStrides[i];
         }
-        // Fill output's axis-0 column at this outer position with
-        // tilesPadded[0] copies of inDimPadded[0] source elements.
         for (size_t k = 0; k < tilesPadded[0]; ++k)
-            std::memcpy(dst + dstOff + k * inDimPadded[0],
-                        src + srcOff,
-                        inDimPadded[0] * sizeof(double));
+            std::memcpy(dst + (dstOff + k * inDimPadded[0]) * es,
+                        src + srcOff * es,
+                        inDimPadded[0] * es);
     } while (incrementCoords(outerCoords, outerIter));
 
     return r;
@@ -154,12 +153,15 @@ namespace {
 // ND flip helper: reverses the order of slabs along `axis` (0-based).
 // The slab stride is B = prod(dims[0..axis-1]) elements; outer count
 // O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
-// (axis=1) and flipud (axis=0). DOUBLE-only.
+// (axis=1) and flipud (axis=0). Type-preserving via byte-copy.
 MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
                        const char *fn)
 {
-    if (x.type() != MType::DOUBLE)
-        throw MError(std::string(fn) + ": ND fallback supports DOUBLE inputs only",
+    const MType t = x.type();
+    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+        || t == MType::FUNC_HANDLE)
+        throw MError(std::string(fn) + ": ND fallback does not support type '"
+                     + mtypeName(t) + "'",
                      0, 0, fn, "", std::string("m:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
@@ -170,15 +172,17 @@ MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
-    auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, &alloc);
+    auto r = MValue::matrixND(outDimArr, nd, t, &alloc);
     if (x.numel() == 0) return r;
+
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
 
     // axis past the actual rank, or singleton dim → identity copy.
     const size_t flipDim = (axis < nd) ? d.dim(axis) : 1;
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
     if (flipDim <= 1) {
-        std::memcpy(dst, src, x.numel() * sizeof(double));
+        std::memcpy(dst, src, x.numel() * es);
         return r;
     }
 
@@ -187,12 +191,11 @@ MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
     size_t O = 1;
     for (int i = axis + 1; i < nd; ++i) O *= d.dim(i);
 
-    const size_t es = sizeof(double);
     for (size_t o = 0; o < O; ++o) {
         const size_t outerBase = o * flipDim * B;
         for (size_t i = 0; i < flipDim; ++i) {
-            std::memcpy(dst + outerBase + i * B,
-                        src + outerBase + (flipDim - 1 - i) * B,
+            std::memcpy(dst + (outerBase + i * B) * es,
+                        src + (outerBase + (flipDim - 1 - i) * B) * es,
                         B * es);
         }
     }
@@ -431,8 +434,11 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t k)
 MValue circshiftND(Allocator &alloc, const MValue &x,
                    const int64_t *shifts, int nshifts)
 {
-    if (x.type() != MType::DOUBLE)
-        throw MError("circshift: ND fallback supports DOUBLE inputs only",
+    const MType t = x.type();
+    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+        || t == MType::FUNC_HANDLE)
+        throw MError(std::string("circshift: ND fallback does not support type '")
+                     + mtypeName(t) + "'",
                      0, 0, "circshift", "", "m:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
@@ -443,25 +449,25 @@ MValue circshiftND(Allocator &alloc, const MValue &x,
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
-    auto r = MValue::matrixND(outDims, nd, MType::DOUBLE, &alloc);
+    auto r = MValue::matrixND(outDims, nd, t, &alloc);
     if (x.numel() == 0) return r;
 
-    // Per-axis wrapped shifts. Shifts past input ndim are no-ops (their
-    // axis size is 1).
     size_t shiftMod[kMaxNd] = {0};
     for (int i = 0; i < nd; ++i) {
         const int64_t s = (i < nshifts) ? shifts[i] : 0;
         shiftMod[i] = wrap(s, d.dim(i));
     }
 
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
+    const size_t es = elementSize(t);
+    const char *src = static_cast<const char *>(x.rawData());
+    char *dst = static_cast<char *>(r.rawDataMut());
     const size_t R = d.dim(0);
     const size_t shift0 = shiftMod[0];
 
     if (nd == 1) {
         for (size_t i = 0; i < R; ++i)
-            dst[i] = src[(i + R - shift0) % R];
+            std::memcpy(dst + i * es,
+                        src + ((i + R - shift0) % R) * es, es);
         return r;
     }
 
@@ -482,11 +488,14 @@ MValue circshiftND(Allocator &alloc, const MValue &x,
             dstOuterOff += outerCoords[i - 1] * srcStrides[i];
         }
         if (shift0 == 0) {
-            std::memcpy(dst + dstOuterOff, src + srcOuterOff,
-                        R * sizeof(double));
+            std::memcpy(dst + dstOuterOff * es,
+                        src + srcOuterOff * es,
+                        R * es);
         } else {
             for (size_t i = 0; i < R; ++i)
-                dst[dstOuterOff + i] = src[srcOuterOff + (i + R - shift0) % R];
+                std::memcpy(dst + (dstOuterOff + i) * es,
+                            src + (srcOuterOff + (i + R - shift0) % R) * es,
+                            es);
         }
     } while (incrementCoords(outerCoords, outerIter));
 
@@ -663,10 +672,12 @@ void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
             tiles.push_back(static_cast<size_t>(args[i].toScalar()));
     }
 
-    // Fast path: rank ≤ 3 + tile vector ≤ 3 → existing 2D/3D kernel.
+    // Fast path: rank ≤ 3 + tile vector ≤ 3 + DOUBLE → existing 2D/3D
+    // kernel. Anything else (higher rank, longer tile vector, or non-
+    // DOUBLE type) goes through repmatND.
     const auto &inDims = args[0].dims();
     const int outNdim = std::max(inDims.ndim(), static_cast<int>(tiles.size()));
-    if (outNdim <= 3 && args[0].type() == MType::DOUBLE) {
+    if (outNdim <= 3 && tiles.size() <= 3 && args[0].type() == MType::DOUBLE) {
         const size_t m = tiles[0];
         const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;

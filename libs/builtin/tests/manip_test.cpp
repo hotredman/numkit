@@ -584,4 +584,47 @@ TEST_P(ManipTest, Circshift4DFullCycleIsIdentity)
     EXPECT_DOUBLE_EQ(evalScalar("isequal(A, B);"), 1.0);
 }
 
+// ── Phase B: ND type promotion tests for cat/repmat/flip/circshift ──
+
+TEST_P(ManipTest, Repmat4DPreservesIntegerType)
+{
+    eval("A = int16([1 2; 3 4]); B = repmat(A, [1 1 2 3]);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int16');"));
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 2, 2, 3));"), 4.0);
+}
+
+TEST_P(ManipTest, Repmat4DPreservesLogicalType)
+{
+    eval("A = logical([1 0; 1 1]); B = repmat(A, [1 1 2 2]);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'logical');"));
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 2.0);
+}
+
+TEST_P(ManipTest, Fliplr4DPreservesIntegerType)
+{
+    eval("A = int8(reshape(1:24, [2, 3, 2, 2])); B = fliplr(A);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int8');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 3, 1, 1));"), 1.0);
+}
+
+TEST_P(ManipTest, Flipud4DPreservesSingleType)
+{
+    eval("A = single(reshape(1:24, [2, 3, 2, 2])); B = flipud(A);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 1, 1, 1));"), 1.0);
+}
+
+TEST_P(ManipTest, Circshift4DPreservesIntegerType)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 2, 2]));"
+         "B = circshift(A, [0 1 0 0]);");
+    EXPECT_TRUE(evalBool("isequal(class(B), 'int32');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 2, 1, 1));"), 1.0);
+}
+
 INSTANTIATE_DUAL(ManipTest);

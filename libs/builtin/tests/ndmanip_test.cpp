@@ -243,6 +243,34 @@ TEST_P(NDManipTest, CatDim4MismatchedNonCatAxisThrows)
     EXPECT_THROW(eval("cat(4, ones(2, 3), ones(2, 4));"), std::runtime_error);
 }
 
+TEST_P(NDManipTest, CatDim4PreservesIntegerType)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 2, 2]));"
+         "B = int32(reshape(25:48, [2, 3, 2, 2]));"
+         "C = cat(4, A, B);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"), 4.0);
+    EXPECT_TRUE(evalBool("isequal(class(C), 'int32');"));
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1, 1, 1, 1));"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2, 3, 2, 4));"), 48.0);
+}
+
+TEST_P(NDManipTest, CatDim4PreservesSingleType)
+{
+    eval("A = single(reshape(1:24, [2, 3, 2, 2]));"
+         "B = single(reshape(25:48, [2, 3, 2, 2]));"
+         "C = cat(4, A, B);");
+    EXPECT_TRUE(evalBool("isequal(class(C), 'single');"));
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1, 1, 1, 1));"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2, 3, 2, 4));"), 48.0);
+}
+
+TEST_P(NDManipTest, CatDim4MismatchedTypesThrows)
+{
+    EXPECT_THROW(eval("cat(4, ones(2,3), int32(ones(2,3)));"), std::runtime_error);
+}
+
 TEST_P(NDManipTest, CatDim4SkipsEmpties)
 {
     // Empty inputs are tolerated — match MATLAB behaviour from catDim3.

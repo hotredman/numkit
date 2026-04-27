@@ -277,8 +277,9 @@ MValue catDim3(Allocator &alloc, const MValue *values, size_t count)
 
 // ND cat for dim >= 4. All non-cat axes must agree across inputs (treating
 // ranks past an input's actual ndim as trailing 1s). Result rank =
-// max(dim, max input ndim). Currently DOUBLE-only — matches the existing
-// catDim3 scope; non-DOUBLE inputs throw.
+// max(dim, max input ndim). All numeric types supported via byte-copy
+// (elementSize-based). All inputs must share a type (no implicit
+// promotion). CELL / STRUCT / STRING / FUNC_HANDLE rejected.
 MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
 {
     if (count == 0) return MValue::empty();
@@ -299,19 +300,27 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
     size_t outDim[kMaxNd];
     for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
     bool anchored = false;
+    MType outType = MType::DOUBLE;
 
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
-        if (v.type() != MType::DOUBLE)
-            throw MError("cat: ND cat (dim >= 4) currently supports DOUBLE inputs only",
+        const MType t = v.type();
+        if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
+            || t == MType::FUNC_HANDLE)
+            throw MError(std::string("cat: ND cat does not support type '")
+                         + mtypeName(t) + "'",
                          0, 0, "cat", "", "m:cat:typeND");
         const auto &d = v.dims();
         if (!anchored) {
             for (int j = 0; j < outNdim; ++j)
                 outDim[j] = (j < d.ndim()) ? d.dim(j) : 1;
+            outType = t;
             anchored = true;
         } else {
+            if (t != outType)
+                throw MError("cat: ND cat requires all inputs to share a type",
+                             0, 0, "cat", "", "m:cat:typeMismatchND");
             for (int j = 0; j < outNdim; ++j) {
                 const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
                 if (j == k) {
@@ -333,10 +342,11 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
     size_t O = 1;
     for (int j = k + 1; j < outNdim; ++j) O *= outDim[j];
 
-    auto result = MValue::matrixND(outDim, outNdim, MType::DOUBLE, &alloc);
+    auto result = MValue::matrixND(outDim, outNdim, outType, &alloc);
     if (B == 0 || O == 0 || outDim[k] == 0) return result;
 
-    double *dst = result.doubleDataMut();
+    const size_t es = elementSize(outType);
+    char *dst = static_cast<char *>(result.rawDataMut());
     const size_t resultOuterStride = outDim[k] * B;
     size_t accumK = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -345,13 +355,13 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
         const auto &d = v.dims();
         const size_t inputDimK = (k < d.ndim()) ? d.dim(k) : 1;
         if (inputDimK == 0) continue;
-        const double *src = v.doubleData();
+        const char *src = static_cast<const char *>(v.rawData());
         const size_t inputOuterStride = inputDimK * B;
-        const size_t blockElems = inputDimK * B;
+        const size_t blockBytes = inputDimK * B * es;
         for (size_t o = 0; o < O; ++o) {
-            std::memcpy(dst + (o * resultOuterStride + accumK * B),
-                        src + o * inputOuterStride,
-                        blockElems * sizeof(double));
+            std::memcpy(dst + (o * resultOuterStride + accumK * B) * es,
+                        src + o * inputOuterStride * es,
+                        blockBytes);
         }
         accumK += inputDimK;
     }
