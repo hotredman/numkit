@@ -181,4 +181,40 @@ TEST_P(NDIndexingTest, Disp5DEmitsFiveCommaHeaders)
     EXPECT_NE(capturedOutput.find("(:,:,1,1,2)"), std::string::npos);
 }
 
+// ── 6D smoke + ND-empty input coverage (Phase 4) ────────────────
+
+TEST_P(NDIndexingTest, SixDSmokeAllOpsBasicSanity)
+{
+    // 2×2×2×2×2×2 = 64 elements. Exercise all the ops we lifted to ND.
+    eval("A = reshape(1:64, [2, 2, 2, 2, 2, 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 64.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 6);"), 2.0);
+    // Subscript read at all corners
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1, 1, 1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 2, 2, 2, 2, 2);"), 64.0);
+    // Sum along last axis
+    EXPECT_DOUBLE_EQ(evalScalar("s = sum(A, 6); s(1, 1, 1, 1, 1, 1);"),
+                     1.0 + 33.0);  // A(1,1,1,1,1,1)=1 + A(1,1,1,1,1,2)=33
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 6);"), 1.0);
+    // Permute axes 1..6 reversed
+    EXPECT_DOUBLE_EQ(evalScalar("B = permute(A, [6 5 4 3 2 1]);"
+                                "B(1, 1, 1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 2, 2, 2, 2, 2);"), 64.0);
+    // Elementwise scalar ×
+    EXPECT_DOUBLE_EQ(evalScalar("C = A * 2; C(2, 2, 2, 2, 2, 2);"), 128.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 6.0);
+}
+
+TEST_P(NDIndexingTest, NDZeroDimShape)
+{
+    // A 4D with one zero dim. zeros() should accept the zero-dim shape
+    // and return a tensor with the expected per-axis sizes (numel = 0).
+    eval("A = zeros([2, 0, 3, 2]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),   4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),   0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
+}
+
 INSTANTIATE_DUAL(NDIndexingTest);
