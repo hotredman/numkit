@@ -80,6 +80,67 @@ TEST_P(ManipTest, Repmat3D)
     EXPECT_DOUBLE_EQ(A->doubleData()[11], 4.0);
 }
 
+// ── repmat ND (Phase 3a.5) ──────────────────────────────────
+
+TEST_P(ManipTest, Repmat4DTileVector2DInput)
+{
+    // 2D source tiled into 4D output via [1 1 2 3] → 2×2×2×3.
+    eval("A = repmat([1 2; 3 4], [1 1 2 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 24.0);
+    // Each [page, vol] cell is a copy of [1 2; 3 4]
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 2, 1, 1);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 2, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 2, 2, 3);"), 4.0);
+}
+
+TEST_P(ManipTest, Repmat4DTilesGrowEveryAxis)
+{
+    // [2 3] tiled by [3 2 4 5] → 6×6×4×5 = 720
+    eval("A = repmat([1 2 3; 4 5 6], [3 2 4 5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"),  6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"),  6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),  720.0);
+    // Tile-modulo verification: A(i,j,k,l) = src((i-1)%2+1, (j-1)%3+1).
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 1.0); // src(1,1)
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 2, 1, 1);"), 5.0); // src(2,2)
+    EXPECT_DOUBLE_EQ(evalScalar("A(3, 4, 1, 1);"), 1.0); // src(1,1) wrap
+    EXPECT_DOUBLE_EQ(evalScalar("A(6, 6, 4, 5);"), 6.0); // src(2,3)
+}
+
+TEST_P(ManipTest, Repmat5DOf4DInput)
+{
+    // 4D source tiled along a fifth dim — exercises rank promotion.
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = repmat(A, [1 1 1 1 3]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"),    5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 5);"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(B);"), 72.0);
+    // Each "page" along dim 5 is a copy of A
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1, 1);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2, 1);"),  24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1, 2);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2, 3);"),  24.0);
+}
+
+TEST_P(ManipTest, Repmat4DPositionalArgs)
+{
+    // Positional repmat(A, m, n, p, q) should match the vector form.
+    eval("A = repmat([1 2; 3 4], 1, 2, 3, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"),    4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"),   48.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 4, 3, 2);"), 4.0); // wrap on cols
+}
+
 // ── fliplr / flipud ─────────────────────────────────────────
 
 TEST_P(ManipTest, FliplrRowVector)

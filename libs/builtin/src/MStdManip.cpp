@@ -8,6 +8,7 @@
 #include <numkit/m/builtin/MStdManip.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MShapeOps.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
@@ -65,6 +66,82 @@ MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
             std::memcpy(targetPage, firstPage, outR * outC * sizeof(double));
         }
     }
+    return r;
+}
+
+// ND repmat — tile vector of arbitrary length. Outer-coord walk maps
+// each output column-of-axis-0 back to its source column via per-axis
+// modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
+// output column. DOUBLE-only first cut.
+MValue repmatND(Allocator &alloc, const MValue &x,
+                const size_t *tiles, int ntiles)
+{
+    if (x.type() != MType::DOUBLE)
+        throw MError("repmat: ND repmat (rank > 3) currently supports DOUBLE inputs only",
+                     0, 0, "repmat", "", "m:repmat:typeND");
+
+    const auto &inDims = x.dims();
+    constexpr int kMaxNd = 32;
+    int outNdim = std::max(inDims.ndim(), ntiles);
+    if (outNdim > kMaxNd)
+        throw MError("repmat: rank exceeds 32",
+                     0, 0, "repmat", "", "m:repmat:tooManyDims");
+    if (outNdim < 1) outNdim = 1;
+
+    size_t inDimPadded[kMaxNd];
+    size_t tilesPadded[kMaxNd];
+    size_t outDim[kMaxNd];
+    for (int i = 0; i < outNdim; ++i) {
+        inDimPadded[i] = (i < inDims.ndim()) ? inDims.dim(i) : 1;
+        tilesPadded[i] = (i < ntiles) ? tiles[i] : 1;
+        outDim[i] = inDimPadded[i] * tilesPadded[i];
+    }
+
+    auto r = MValue::matrixND(outDim, outNdim, MType::DOUBLE, &alloc);
+    if (r.numel() == 0 || x.numel() == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+
+    // 1D special case: input is a row/col, output is `tilesPadded[0]` copies.
+    if (outNdim == 1) {
+        for (size_t k = 0; k < tilesPadded[0]; ++k)
+            std::memcpy(dst + k * inDimPadded[0], src,
+                        inDimPadded[0] * sizeof(double));
+        return r;
+    }
+
+    size_t outStrides[kMaxNd];
+    computeStridesColMajor(r.dims(), outStrides);
+    size_t srcStrides[kMaxNd];
+    computeStridesColMajor(inDims, srcStrides);
+    for (int i = inDims.ndim(); i < outNdim; ++i) srcStrides[i] = 0;
+
+    // Walk outer coords (axes 1..outNdim-1) of the OUTPUT. Skip axis 0
+    // since that's the contiguous run we batch via memcpy.
+    size_t outerDimsArr[kMaxNd];
+    for (int i = 1; i < outNdim; ++i) outerDimsArr[i - 1] = outDim[i];
+    Dims outerIter(outerDimsArr, outNdim - 1);
+
+    size_t outerCoords[kMaxNd] = {0};
+    do {
+        // Map each output outer coord to source coord via modulo.
+        size_t srcOff = 0;
+        size_t dstOff = 0;
+        for (int i = 1; i < outNdim; ++i) {
+            const size_t oc = outerCoords[i - 1];
+            const size_t inDimI = inDimPadded[i];
+            srcOff += (oc % inDimI) * srcStrides[i];
+            dstOff += oc * outStrides[i];
+        }
+        // Fill output's axis-0 column at this outer position with
+        // tilesPadded[0] copies of inDimPadded[0] source elements.
+        for (size_t k = 0; k < tilesPadded[0]; ++k)
+            std::memcpy(dst + dstOff + k * inDimPadded[0],
+                        src + srcOff,
+                        inDimPadded[0] * sizeof(double));
+    } while (incrementCoords(outerCoords, outerIter));
+
     return r;
 }
 
@@ -355,31 +432,42 @@ void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     // Forms:
     //   repmat(A, n)            → m=n=arg
     //   repmat(A, [m n])        → vector
-    //   repmat(A, [m n p])      → vector
+    //   repmat(A, [m n p ...])  → vector (any length ≥ 1)
     //   repmat(A, m, n)         → two scalars
-    //   repmat(A, m, n, p)      → three scalars
-    size_t m = 1, n = 1, p = 1;
+    //   repmat(A, m, n, p, ...) → ≥ 2 scalars
+    std::vector<size_t> tiles;
     if (args.size() == 2) {
         const MValue &v = args[1];
-        if (v.numel() == 1) {
-            m = n = static_cast<size_t>(v.toScalar());
-        } else if (v.numel() == 2) {
-            m = static_cast<size_t>(v.doubleData()[0]);
-            n = static_cast<size_t>(v.doubleData()[1]);
-        } else if (v.numel() == 3) {
-            m = static_cast<size_t>(v.doubleData()[0]);
-            n = static_cast<size_t>(v.doubleData()[1]);
-            p = static_cast<size_t>(v.doubleData()[2]);
-        } else {
-            throw MError("repmat: tile vector must have 1, 2, or 3 elements",
+        const size_t k = v.numel();
+        if (k == 0) {
+            throw MError("repmat: tile vector must not be empty",
                          0, 0, "repmat", "", "m:repmat:badTileVec");
         }
+        if (k == 1) {
+            const size_t s = static_cast<size_t>(v.toScalar());
+            tiles = {s, s};
+        } else {
+            tiles.reserve(k);
+            for (size_t i = 0; i < k; ++i)
+                tiles.push_back(static_cast<size_t>(v.doubleData()[i]));
+        }
     } else {
-        m = static_cast<size_t>(args[1].toScalar());
-        n = static_cast<size_t>(args[2].toScalar());
-        if (args.size() >= 4) p = static_cast<size_t>(args[3].toScalar());
+        tiles.reserve(args.size() - 1);
+        for (size_t i = 1; i < args.size(); ++i)
+            tiles.push_back(static_cast<size_t>(args[i].toScalar()));
     }
-    outs[0] = repmat(alloc, args[0], m, n, p);
+
+    // Fast path: rank ≤ 3 + tile vector ≤ 3 → existing 2D/3D kernel.
+    const auto &inDims = args[0].dims();
+    const int outNdim = std::max(inDims.ndim(), static_cast<int>(tiles.size()));
+    if (outNdim <= 3 && args[0].type() == MType::DOUBLE) {
+        const size_t m = tiles[0];
+        const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
+        const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
+        outs[0] = repmat(alloc, args[0], m, n, p);
+    } else {
+        outs[0] = repmatND(alloc, args[0], tiles.data(), static_cast<int>(tiles.size()));
+    }
 }
 
 #define NK_FLIP_REG(name)                                                      \
