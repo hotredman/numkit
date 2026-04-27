@@ -429,12 +429,65 @@ MValue compareImpl(Cmp c, const MValue &a, const MValue &b)
     if (a.isScalar() && b.isScalar())
         return MValue::logicalScalar(applyCmp(c, getDScalar(a), getDScalar(b)), nullptr);
 
+    auto elemD = [](const MValue &v, size_t i) -> double {
+        if (v.isLogical()) return v.logicalData()[i];
+        if (v.type() == MType::DOUBLE) return v.doubleData()[i];
+        return v.elemAsDouble(i);
+    };
+
+    // ND fallback (rank ≥ 4)
+    if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        if (a.isScalar()) {
+            const int nd = b.dims().ndim();
+            size_t bDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) bDims[i] = b.dims().dim(i);
+            auto r = MValue::matrixND(bDims, nd, MType::LOGICAL, nullptr);
+            double s = getDScalar(a);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < b.numel(); ++i)
+                dst[i] = applyCmp(c, s, elemD(b, i)) ? 1 : 0;
+            return r;
+        }
+        if (b.isScalar()) {
+            const int nd = a.dims().ndim();
+            size_t aDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) aDims[i] = a.dims().dim(i);
+            auto r = MValue::matrixND(aDims, nd, MType::LOGICAL, nullptr);
+            double s = getDScalar(b);
+            uint8_t *dst = r.logicalDataMut();
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = applyCmp(c, elemD(a, i), s) ? 1 : 0;
+            return r;
+        }
+        Dims outD;
+        if (!broadcastDimsND(a.dims(), b.dims(), outD))
+            throw MError("ND dimensions must broadcast for comparison: each axis must match or be 1",
+                         0, 0, "compare", "", "m:dimagree");
+        const int nd = outD.ndim();
+        if (nd > kMaxNd)
+            throw MError("compare: rank exceeds 32",
+                         0, 0, "compare", "", "m:tooManyDims");
+        size_t outDimArr[kMaxNd];
+        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
+        auto r = MValue::matrixND(outDimArr, nd, MType::LOGICAL, nullptr);
+        uint8_t *dst = r.logicalDataMut();
+        if (a.dims() == b.dims() && a.dims() == outD) {
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = applyCmp(c, elemD(a, i), elemD(b, i)) ? 1 : 0;
+            return r;
+        }
+        size_t coords[kMaxNd] = {0};
+        size_t outIdx = 0;
+        do {
+            const size_t aOff = broadcastOffsetND(coords, nd, a.dims());
+            const size_t bOff = broadcastOffsetND(coords, nd, b.dims());
+            dst[outIdx++] = applyCmp(c, elemD(a, aOff), elemD(b, bOff)) ? 1 : 0;
+        } while (incrementCoords(coords, outD));
+        return r;
+    }
+
     if (a.dims().is3D() || b.dims().is3D()) {
-        auto elemD = [](const MValue &v, size_t i) -> double {
-            if (v.isLogical()) return v.logicalData()[i];
-            if (v.type() == MType::DOUBLE) return v.doubleData()[i];
-            return v.elemAsDouble(i);
-        };
         if (a.isScalar()) {
             auto r = createLike(b, MType::LOGICAL, nullptr);
             double s = getDScalar(a);

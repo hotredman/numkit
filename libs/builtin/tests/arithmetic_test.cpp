@@ -954,3 +954,92 @@ TEST_P(HeapSafety3DExtendedTest, Strlength3DPreservesShape)
 }
 
 INSTANTIATE_DUAL(HeapSafety3DExtendedTest);
+
+// ── ND elementwise / broadcasting / compare (Phase 3c) ──────────────
+
+class NDElementwiseTest : public DualEngineTest
+{};
+
+TEST_P(NDElementwiseTest, ScalarTimes4DPreservesRank)
+{
+    // Regression: ones(2,3,2,3) * 2 used to collapse to 2D (rank loss).
+    eval("A = ones(2, 3, 2, 3) * 2;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(A);"), 36.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 2, 3);"), 2.0);
+}
+
+TEST_P(NDElementwiseTest, FourDPlusFourDSameShape)
+{
+    eval("A = reshape(1:120, [2, 3, 4, 5]);"
+         "B = reshape(121:240, [2, 3, 4, 5]);"
+         "C = A + B;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1, 1, 1);"),  122.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 3, 4, 5);"),  360.0);
+}
+
+TEST_P(NDElementwiseTest, FourDTimesScalarBroadcast)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = A .* 10;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"),  2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1, 1, 1, 1);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(2, 3, 2, 2);"), 240.0);
+}
+
+TEST_P(NDElementwiseTest, BroadcastNDColumnAcross4D)
+{
+    // 2x1x1x1 column broadcast across 2x3x2x2 result.
+    eval("c = reshape([10; 20], [2, 1, 1, 1]);"
+         "A = reshape(1:24, [2, 3, 2, 2]) + c;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    // Row 1 gets +10 added; row 2 gets +20.
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 1, 1, 1);"), 22.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 3, 2, 2);"), 33.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 2, 2);"), 44.0);
+}
+
+TEST_P(NDElementwiseTest, Compare4DScalar)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]); B = A > 12;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(B);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(B, 4);"), 2.0);
+    // Spot positions
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 3, 2, 2));"), 1.0); // A=24>12
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 1));"), 0.0); // A=1>12 false
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(1, 1, 1, 2));"), 1.0); // A=13>12
+    EXPECT_DOUBLE_EQ(evalScalar("double(B(2, 3, 2, 1));"), 0.0); // A=12>12 false
+}
+
+TEST_P(NDElementwiseTest, Compare4DFourDNoMatches)
+{
+    // A goes 1..24, B goes 24..1; A(i)+B(i) = 25 always → no equal pair.
+    eval("A = reshape(1:24, [2, 3, 2, 2]);"
+         "B = reshape(24:-1:1, [2, 3, 2, 2]);"
+         "C = A == B;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    // Spot check: every position should be 0
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1, 1, 1, 1));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(2, 3, 2, 2));"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(C(1, 2, 1, 1));"), 0.0);
+}
+
+TEST_P(NDElementwiseTest, FourDDivideByFourD)
+{
+    eval("A = reshape(2:2:240, [2, 3, 4, 5]);"
+         "B = reshape(1:120,   [2, 3, 4, 5]);"
+         "C = A ./ B;");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    // C(i,j,k,l) = (2*lin)/lin = 2 for all elements
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1, 1, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 3, 4, 5);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("min(C(:));"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("max(C(:));"), 2.0);
+}
+
+INSTANTIATE_DUAL(NDElementwiseTest);

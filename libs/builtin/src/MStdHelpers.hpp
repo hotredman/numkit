@@ -1,6 +1,7 @@
 #pragma once
 
 #include <numkit/m/core/MEngine.hpp>
+#include <numkit/m/core/MShapeOps.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -86,14 +87,22 @@ inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
     return MValue::matrix(d.rows, d.cols, type, alloc);
 }
 
-// Allocate an MValue with the same shape (2D or 3D) as `src`, optionally
-// of a different type. Required for any "elementwise" output: callers
-// that write numel() elements into a 2D-only allocation silently
-// corrupt the heap when src is 3D.
+// Allocate an MValue with the same shape as `src`, optionally of a
+// different type. Required for any "elementwise" output: callers that
+// write numel() elements into a 2D-only allocation silently corrupt
+// the heap when src is 3D+.
 inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
 {
-    return createMatrix({src.dims().rows(), src.dims().cols(),
-                         src.dims().is3D() ? src.dims().pages() : 0},
+    const auto &d = src.dims();
+    if (d.ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        size_t dims[kMaxNd];
+        const int nd = d.ndim();
+        for (int i = 0; i < nd; ++i) dims[i] = d.dim(i);
+        return MValue::matrixND(dims, nd, type, alloc);
+    }
+    return createMatrix({d.rows(), d.cols(),
+                         d.is3D() ? d.pages() : 0},
                         type, alloc);
 }
 
@@ -141,6 +150,63 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
         return emptyResultForBinary(a, b, MType::DOUBLE, alloc);
     if (a.isScalar() && b.isScalar())
         return MValue::scalar(op(a.toScalar(), b.toScalar()), alloc);
+
+    // ND fallback — at least one operand has rank ≥ 4, or NumPy-style
+    // broadcasting needed past 3D. Handles same-shape (fast path) and
+    // arbitrary-rank broadcast via per-operand offset arithmetic.
+    if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
+        if (a.isScalar()) {
+            constexpr int kMaxNd = 32;
+            const int nd = b.dims().ndim();
+            size_t bDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) bDims[i] = b.dims().dim(i);
+            auto r = MValue::matrixND(bDims, nd, MType::DOUBLE, alloc);
+            const double s = a.toScalar();
+            const double *db = b.doubleData();
+            double *dst = r.doubleDataMut();
+            for (size_t i = 0; i < b.numel(); ++i) dst[i] = op(s, db[i]);
+            return r;
+        }
+        if (b.isScalar()) {
+            constexpr int kMaxNd = 32;
+            const int nd = a.dims().ndim();
+            size_t aDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) aDims[i] = a.dims().dim(i);
+            auto r = MValue::matrixND(aDims, nd, MType::DOUBLE, alloc);
+            const double s = b.toScalar();
+            const double *da = a.doubleData();
+            double *dst = r.doubleDataMut();
+            for (size_t i = 0; i < a.numel(); ++i) dst[i] = op(da[i], s);
+            return r;
+        }
+        // ND broadcast (NumPy: align right, dims match or 1)
+        Dims outD;
+        if (!broadcastDimsND(a.dims(), b.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        constexpr int kMaxNd = 32;
+        const int nd = outD.ndim();
+        if (nd > kMaxNd)
+            throw std::runtime_error("elementwise: rank exceeds 32");
+        size_t outDimArr[kMaxNd];
+        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
+        auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, alloc);
+        const double *da = a.doubleData(), *db = b.doubleData();
+        double *dst = r.doubleDataMut();
+        // Same-shape fast path
+        if (a.dims() == b.dims() && a.dims() == outD) {
+            for (size_t i = 0; i < a.numel(); ++i) dst[i] = op(da[i], db[i]);
+            return r;
+        }
+        // General ND broadcast — walk output coords, compute per-operand offset.
+        size_t coords[kMaxNd] = {0};
+        size_t outIdx = 0;
+        do {
+            const size_t aOff = broadcastOffsetND(coords, nd, a.dims());
+            const size_t bOff = broadcastOffsetND(coords, nd, b.dims());
+            dst[outIdx++] = op(da[aOff], db[bOff]);
+        } while (incrementCoords(coords, outD));
+        return r;
+    }
 
     // 3D paths — same-shape, scalar, or general 3D broadcasting (each
     // axis must equal or be 1; 2D operands implicitly have pages = 1).
@@ -231,6 +297,56 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
     auto [ca, cb] = promoteToComplex(a, b, alloc);
     if (ca.isScalar() && cb.isScalar())
         return MValue::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);
+
+    // ND fallback (rank ≥ 4 or NumPy-style broadcast past 3D)
+    if (ca.dims().ndim() >= 4 || cb.dims().ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        if (ca.isScalar()) {
+            const int nd = cb.dims().ndim();
+            size_t bDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) bDims[i] = cb.dims().dim(i);
+            auto r = MValue::matrixND(bDims, nd, MType::COMPLEX, alloc);
+            Complex s = ca.toComplex();
+            const Complex *db = cb.complexData();
+            Complex *dst = r.complexDataMut();
+            for (size_t i = 0; i < cb.numel(); ++i) dst[i] = op(s, db[i]);
+            return r;
+        }
+        if (cb.isScalar()) {
+            const int nd = ca.dims().ndim();
+            size_t aDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) aDims[i] = ca.dims().dim(i);
+            auto r = MValue::matrixND(aDims, nd, MType::COMPLEX, alloc);
+            Complex s = cb.toComplex();
+            const Complex *da = ca.complexData();
+            Complex *dst = r.complexDataMut();
+            for (size_t i = 0; i < ca.numel(); ++i) dst[i] = op(da[i], s);
+            return r;
+        }
+        Dims outD;
+        if (!broadcastDimsND(ca.dims(), cb.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        const int nd = outD.ndim();
+        if (nd > kMaxNd)
+            throw std::runtime_error("elementwise: rank exceeds 32");
+        size_t outDimArr[kMaxNd];
+        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
+        auto r = MValue::matrixND(outDimArr, nd, MType::COMPLEX, alloc);
+        const Complex *da = ca.complexData(), *db = cb.complexData();
+        Complex *dst = r.complexDataMut();
+        if (ca.dims() == cb.dims() && ca.dims() == outD) {
+            for (size_t i = 0; i < ca.numel(); ++i) dst[i] = op(da[i], db[i]);
+            return r;
+        }
+        size_t coords[kMaxNd] = {0};
+        size_t outIdx = 0;
+        do {
+            const size_t aOff = broadcastOffsetND(coords, nd, ca.dims());
+            const size_t bOff = broadcastOffsetND(coords, nd, cb.dims());
+            dst[outIdx++] = op(da[aOff], db[bOff]);
+        } while (incrementCoords(coords, outD));
+        return r;
+    }
 
     if (ca.dims().is3D() || cb.dims().is3D()) {
         if (ca.isScalar()) {
@@ -547,20 +663,74 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
         else
             return static_cast<T>(d);
     };
+    auto readLinearTyped = [](const MValue &v, MType tgt, size_t i) -> T {
+        if (v.type() == tgt) return static_cast<const T *>(v.rawData())[i];
+        double d = v.elemAsDouble(i);
+        if constexpr (std::is_integral_v<T>)
+            return static_cast<T>(std::clamp(std::round(d),
+                static_cast<double>(std::numeric_limits<T>::min()),
+                static_cast<double>(std::numeric_limits<T>::max())));
+        else
+            return static_cast<T>(d);
+    };
+
+    // ND fallback (rank ≥ 4) — uses ND broadcast helpers.
+    if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
+        constexpr int kMaxNd = 32;
+        if (a.isScalar()) {
+            const int nd = b.dims().ndim();
+            size_t bDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) bDims[i] = b.dims().dim(i);
+            auto r = MValue::matrixND(bDims, nd, targetType, alloc);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sa = readLinearTyped(a, targetType, 0);
+            for (size_t i = 0; i < b.numel(); ++i)
+                dst[i] = op(sa, readLinearTyped(b, targetType, i));
+            return r;
+        }
+        if (b.isScalar()) {
+            const int nd = a.dims().ndim();
+            size_t aDims[kMaxNd];
+            for (int i = 0; i < nd; ++i) aDims[i] = a.dims().dim(i);
+            auto r = MValue::matrixND(aDims, nd, targetType, alloc);
+            T *dst = static_cast<T *>(r.rawDataMut());
+            T sb = readLinearTyped(b, targetType, 0);
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinearTyped(a, targetType, i), sb);
+            return r;
+        }
+        Dims outD;
+        if (!broadcastDimsND(a.dims(), b.dims(), outD))
+            throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
+        const int nd = outD.ndim();
+        if (nd > kMaxNd)
+            throw std::runtime_error("elementwise: rank exceeds 32");
+        size_t outDimArr[kMaxNd];
+        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
+        auto r = MValue::matrixND(outDimArr, nd, targetType, alloc);
+        T *dst = static_cast<T *>(r.rawDataMut());
+        if (a.dims() == b.dims() && a.dims() == outD) {
+            for (size_t i = 0; i < a.numel(); ++i)
+                dst[i] = op(readLinearTyped(a, targetType, i),
+                            readLinearTyped(b, targetType, i));
+            return r;
+        }
+        size_t coords[kMaxNd] = {0};
+        size_t outIdx = 0;
+        do {
+            const size_t aOff = broadcastOffsetND(coords, nd, a.dims());
+            const size_t bOff = broadcastOffsetND(coords, nd, b.dims());
+            dst[outIdx++] = op(readLinearTyped(a, targetType, aOff),
+                               readLinearTyped(b, targetType, bOff));
+        } while (incrementCoords(coords, outD));
+        return r;
+    }
+
     // 3D path — same-shape elementwise and scalar broadcasting only.
     // broadcastDims below is 2D-only; reach here for 3D and we would
     // silently drop the page dim.
     if (a.dims().is3D() || b.dims().is3D()) {
-        auto readLinear = [](const MValue &v, MType tgt, size_t i) -> T {
-            if (v.type() == tgt) return static_cast<const T *>(v.rawData())[i];
-            double d = v.elemAsDouble(i);
-            if constexpr (std::is_integral_v<T>)
-                return static_cast<T>(std::clamp(std::round(d),
-                    static_cast<double>(std::numeric_limits<T>::min()),
-                    static_cast<double>(std::numeric_limits<T>::max())));
-            else
-                return static_cast<T>(d);
-        };
+        auto readLinear = readLinearTyped;
         if (a.isScalar()) {
             auto r = createLike(b, targetType, alloc);
             T *dst = static_cast<T *>(r.rawDataMut());
