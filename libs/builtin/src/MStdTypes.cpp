@@ -154,9 +154,7 @@ MValue logical(Allocator &alloc, const MValue &x)
         return x;
     if (x.isScalar())
         return MValue::logicalScalar(x.toScalar() != 0, p);
-    MValue r = createMatrix({x.dims().rows(), x.dims().cols(),
-                             x.dims().is3D() ? x.dims().pages() : 0},
-                            MType::LOGICAL, p);
+    MValue r = createLike(x, MType::LOGICAL, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.logicalDataMut()[i] = x.elemAsDouble(i) != 0 ? 1 : 0;
     return r;

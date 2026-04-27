@@ -132,6 +132,40 @@ inline bool incrementCoords(size_t *coords, const Dims &d)
 }
 
 // ============================================================
+// forEachNDPair
+// ------------------------------------------------------------
+// Walk every output coordinate of a binary elementwise op under NumPy
+// broadcasting and call fn(outIdx, aOff, bOff) with the column-major
+// linear offsets into operand A and B.
+//
+// Same-shape fast path: aDims == bDims == outDims collapses to a single
+// linear loop where all three indices coincide. General path walks
+// coords with carry and uses broadcastOffsetND per operand.
+//
+// Precondition: outDims was produced by broadcastDimsND (so its ndim
+// is already ≤ kMaxRank). Fn signature: (size_t outIdx, size_t aOff,
+// size_t bOff).
+// ============================================================
+template <typename Fn>
+inline void forEachNDPair(const Dims &aDims, const Dims &bDims,
+                          const Dims &outDims, Fn &&fn)
+{
+    if (aDims == bDims && aDims == outDims) {
+        const size_t n = outDims.numel();
+        for (size_t i = 0; i < n; ++i) fn(i, i, i);
+        return;
+    }
+    const int nd = outDims.ndim();
+    size_t coords[Dims::kMaxRank] = {0};
+    size_t outIdx = 0;
+    do {
+        const size_t aOff = broadcastOffsetND(coords, nd, aDims);
+        const size_t bOff = broadcastOffsetND(coords, nd, bDims);
+        fn(outIdx++, aOff, bOff);
+    } while (incrementCoords(coords, outDims));
+}
+
+// ============================================================
 // forEachOuterPage
 // ------------------------------------------------------------
 // Walk every (R×C) "page" of d, indexed by axes 2..ndim-1 in column-

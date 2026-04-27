@@ -87,23 +87,29 @@ inline MValue createMatrix(DimsArg d, MType type, Allocator *alloc)
     return MValue::matrix(d.rows, d.cols, type, alloc);
 }
 
-// Allocate an MValue with the same shape as `src`, optionally of a
-// different type. Required for any "elementwise" output: callers that
-// write numel() elements into a 2D-only allocation silently corrupt
-// the heap when src is 3D+.
-inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
+// Allocate an MValue with the given Dims, picking the rank-appropriate
+// MValue ctor (matrix / matrix3d / matrixND).
+inline MValue createForDims(const Dims &d, MType type, Allocator *alloc)
 {
-    const auto &d = src.dims();
-    if (d.ndim() >= 4) {
+    const int nd = d.ndim();
+    if (nd >= 4) {
         constexpr int kMaxNd = Dims::kMaxRank;
         size_t dims[kMaxNd];
-        const int nd = d.ndim();
         for (int i = 0; i < nd; ++i) dims[i] = d.dim(i);
         return MValue::matrixND(dims, nd, type, alloc);
     }
     return createMatrix({d.rows(), d.cols(),
                          d.is3D() ? d.pages() : 0},
                         type, alloc);
+}
+
+// Allocate an MValue with the same shape as `src`, optionally of a
+// different type. Required for any "elementwise" output: callers that
+// write numel() elements into a 2D-only allocation silently corrupt
+// the heap when src is 3D+.
+inline MValue createLike(const MValue &src, MType type, Allocator *alloc)
+{
+    return createForDims(src.dims(), type, alloc);
 }
 
 // Shape-preserving empty result for a binary op where at least one
@@ -156,11 +162,7 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
     // arbitrary-rank broadcast via per-operand offset arithmetic.
     if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
         if (a.isScalar()) {
-            constexpr int kMaxNd = Dims::kMaxRank;
-            const int nd = b.dims().ndim();
-            size_t bDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) bDims[i] = b.dims().dim(i);
-            auto r = MValue::matrixND(bDims, nd, MType::DOUBLE, alloc);
+            auto r = createLike(b, MType::DOUBLE, alloc);
             const double s = a.toScalar();
             const double *db = b.doubleData();
             double *dst = r.doubleDataMut();
@@ -168,11 +170,7 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
             return r;
         }
         if (b.isScalar()) {
-            constexpr int kMaxNd = Dims::kMaxRank;
-            const int nd = a.dims().ndim();
-            size_t aDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) aDims[i] = a.dims().dim(i);
-            auto r = MValue::matrixND(aDims, nd, MType::DOUBLE, alloc);
+            auto r = createLike(a, MType::DOUBLE, alloc);
             const double s = b.toScalar();
             const double *da = a.doubleData();
             double *dst = r.doubleDataMut();
@@ -183,28 +181,13 @@ MValue elementwiseDouble(const MValue &a, const MValue &b, Op op, Allocator *all
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        constexpr int kMaxNd = Dims::kMaxRank;
-        const int nd = outD.ndim();
-        if (nd > kMaxNd)
-            throw std::runtime_error("elementwise: rank exceeds 32");
-        size_t outDimArr[kMaxNd];
-        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
-        auto r = MValue::matrixND(outDimArr, nd, MType::DOUBLE, alloc);
+        auto r = createForDims(outD, MType::DOUBLE, alloc);
         const double *da = a.doubleData(), *db = b.doubleData();
         double *dst = r.doubleDataMut();
-        // Same-shape fast path
-        if (a.dims() == b.dims() && a.dims() == outD) {
-            for (size_t i = 0; i < a.numel(); ++i) dst[i] = op(da[i], db[i]);
-            return r;
-        }
-        // General ND broadcast — walk output coords, compute per-operand offset.
-        size_t coords[kMaxNd] = {0};
-        size_t outIdx = 0;
-        do {
-            const size_t aOff = broadcastOffsetND(coords, nd, a.dims());
-            const size_t bOff = broadcastOffsetND(coords, nd, b.dims());
-            dst[outIdx++] = op(da[aOff], db[bOff]);
-        } while (incrementCoords(coords, outD));
+        forEachNDPair(a.dims(), b.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(da[aOff], db[bOff]);
+            });
         return r;
     }
 
@@ -300,12 +283,8 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
 
     // ND fallback (rank ≥ 4 or NumPy-style broadcast past 3D)
     if (ca.dims().ndim() >= 4 || cb.dims().ndim() >= 4) {
-        constexpr int kMaxNd = Dims::kMaxRank;
         if (ca.isScalar()) {
-            const int nd = cb.dims().ndim();
-            size_t bDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) bDims[i] = cb.dims().dim(i);
-            auto r = MValue::matrixND(bDims, nd, MType::COMPLEX, alloc);
+            auto r = createLike(cb, MType::COMPLEX, alloc);
             Complex s = ca.toComplex();
             const Complex *db = cb.complexData();
             Complex *dst = r.complexDataMut();
@@ -313,10 +292,7 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
             return r;
         }
         if (cb.isScalar()) {
-            const int nd = ca.dims().ndim();
-            size_t aDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) aDims[i] = ca.dims().dim(i);
-            auto r = MValue::matrixND(aDims, nd, MType::COMPLEX, alloc);
+            auto r = createLike(ca, MType::COMPLEX, alloc);
             Complex s = cb.toComplex();
             const Complex *da = ca.complexData();
             Complex *dst = r.complexDataMut();
@@ -326,25 +302,13 @@ MValue elementwiseComplex(const MValue &a, const MValue &b, Op op, Allocator *al
         Dims outD;
         if (!broadcastDimsND(ca.dims(), cb.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        const int nd = outD.ndim();
-        if (nd > kMaxNd)
-            throw std::runtime_error("elementwise: rank exceeds 32");
-        size_t outDimArr[kMaxNd];
-        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
-        auto r = MValue::matrixND(outDimArr, nd, MType::COMPLEX, alloc);
+        auto r = createForDims(outD, MType::COMPLEX, alloc);
         const Complex *da = ca.complexData(), *db = cb.complexData();
         Complex *dst = r.complexDataMut();
-        if (ca.dims() == cb.dims() && ca.dims() == outD) {
-            for (size_t i = 0; i < ca.numel(); ++i) dst[i] = op(da[i], db[i]);
-            return r;
-        }
-        size_t coords[kMaxNd] = {0};
-        size_t outIdx = 0;
-        do {
-            const size_t aOff = broadcastOffsetND(coords, nd, ca.dims());
-            const size_t bOff = broadcastOffsetND(coords, nd, cb.dims());
-            dst[outIdx++] = op(da[aOff], db[bOff]);
-        } while (incrementCoords(coords, outD));
+        forEachNDPair(ca.dims(), cb.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(da[aOff], db[bOff]);
+            });
         return r;
     }
 
@@ -676,12 +640,8 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
 
     // ND fallback (rank ≥ 4) — uses ND broadcast helpers.
     if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
-        constexpr int kMaxNd = Dims::kMaxRank;
         if (a.isScalar()) {
-            const int nd = b.dims().ndim();
-            size_t bDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) bDims[i] = b.dims().dim(i);
-            auto r = MValue::matrixND(bDims, nd, targetType, alloc);
+            auto r = createLike(b, targetType, alloc);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sa = readLinearTyped(a, targetType, 0);
             for (size_t i = 0; i < b.numel(); ++i)
@@ -689,10 +649,7 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
             return r;
         }
         if (b.isScalar()) {
-            const int nd = a.dims().ndim();
-            size_t aDims[kMaxNd];
-            for (int i = 0; i < nd; ++i) aDims[i] = a.dims().dim(i);
-            auto r = MValue::matrixND(aDims, nd, targetType, alloc);
+            auto r = createLike(a, targetType, alloc);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sb = readLinearTyped(b, targetType, 0);
             for (size_t i = 0; i < a.numel(); ++i)
@@ -702,27 +659,13 @@ MValue elementwiseTyped(const MValue &a, const MValue &b, MType targetType, Op o
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        const int nd = outD.ndim();
-        if (nd > kMaxNd)
-            throw std::runtime_error("elementwise: rank exceeds 32");
-        size_t outDimArr[kMaxNd];
-        for (int i = 0; i < nd; ++i) outDimArr[i] = outD.dim(i);
-        auto r = MValue::matrixND(outDimArr, nd, targetType, alloc);
+        auto r = createForDims(outD, targetType, alloc);
         T *dst = static_cast<T *>(r.rawDataMut());
-        if (a.dims() == b.dims() && a.dims() == outD) {
-            for (size_t i = 0; i < a.numel(); ++i)
-                dst[i] = op(readLinearTyped(a, targetType, i),
-                            readLinearTyped(b, targetType, i));
-            return r;
-        }
-        size_t coords[kMaxNd] = {0};
-        size_t outIdx = 0;
-        do {
-            const size_t aOff = broadcastOffsetND(coords, nd, a.dims());
-            const size_t bOff = broadcastOffsetND(coords, nd, b.dims());
-            dst[outIdx++] = op(readLinearTyped(a, targetType, aOff),
-                               readLinearTyped(b, targetType, bOff));
-        } while (incrementCoords(coords, outD));
+        forEachNDPair(a.dims(), b.dims(), outD,
+            [&](size_t outIdx, size_t aOff, size_t bOff) {
+                dst[outIdx] = op(readLinearTyped(a, targetType, aOff),
+                                 readLinearTyped(b, targetType, bOff));
+            });
         return r;
     }
 

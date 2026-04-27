@@ -96,7 +96,8 @@ inline size_t sliceCountForDim(const MValue &x, int dim)
 
 // Iterate every (output_index, slice_data) pair. F receives a pointer
 // to a contiguous buffer of length sliceLenForDim and writes outputs
-// via `outBuf[outIdx] = …`.
+// via `outBuf[outIdx] = …`. Non-DOUBLE inputs are read via
+// elemAsDouble (DOUBLE keeps the contiguous-memcpy fast path).
 //
 // NOTE: F is called once per output element. For multi-output ops
 // (like mode returning value+count) the caller must allocate two
@@ -107,7 +108,8 @@ void forEachSlice(const MValue &x, int dim, F &&f)
     const auto &d = x.dims();
     const size_t R = d.rows(), C = d.cols(), P = d.is3D() ? d.pages() : 1;
     const size_t N = sliceLenForDim(x, dim);
-    const double *src = x.doubleData();
+    const bool fastDouble = (x.type() == MType::DOUBLE);
+    const double *src = fastDouble ? x.doubleData() : nullptr;
 
     std::vector<double> scratch(N);
 
@@ -116,21 +118,29 @@ void forEachSlice(const MValue &x, int dim, F &&f)
         size_t outIdx = 0;
         for (size_t pp = 0; pp < P; ++pp) {
             for (size_t c = 0; c < C; ++c) {
-                const double *base = src + pp * R * C + c * R;
-                std::copy(base, base + N, scratch.data());
+                const size_t base = pp * R * C + c * R;
+                if (fastDouble) {
+                    std::copy(src + base, src + base + N, scratch.data());
+                } else {
+                    for (size_t k = 0; k < N; ++k)
+                        scratch[k] = x.elemAsDouble(base + k);
+                }
                 f(outIdx, scratch.data(), N);
                 ++outIdx;
             }
         }
     } else if (dim == 2) {
         // Slice = a row (within a page). Stride = R.
-        // Output shape is (R, 1, P) column-major: dst[pp*R + r] —
-        // walk r in inner loop so outIdx increments contiguously.
         size_t outIdx = 0;
         for (size_t pp = 0; pp < P; ++pp) {
             for (size_t r = 0; r < R; ++r) {
-                for (size_t c = 0; c < C; ++c)
-                    scratch[c] = src[pp * R * C + c * R + r];
+                if (fastDouble) {
+                    for (size_t c = 0; c < C; ++c)
+                        scratch[c] = src[pp * R * C + c * R + r];
+                } else {
+                    for (size_t c = 0; c < C; ++c)
+                        scratch[c] = x.elemAsDouble(pp * R * C + c * R + r);
+                }
                 f(outIdx, scratch.data(), N);
                 ++outIdx;
             }
@@ -140,8 +150,13 @@ void forEachSlice(const MValue &x, int dim, F &&f)
         size_t outIdx = 0;
         for (size_t c = 0; c < C; ++c) {
             for (size_t r = 0; r < R; ++r) {
-                for (size_t pp = 0; pp < P; ++pp)
-                    scratch[pp] = src[pp * R * C + c * R + r];
+                if (fastDouble) {
+                    for (size_t pp = 0; pp < P; ++pp)
+                        scratch[pp] = src[pp * R * C + c * R + r];
+                } else {
+                    for (size_t pp = 0; pp < P; ++pp)
+                        scratch[pp] = x.elemAsDouble(pp * R * C + c * R + r);
+                }
                 f(outIdx, scratch.data(), N);
                 ++outIdx;
             }
@@ -163,7 +178,9 @@ inline std::vector<size_t> outShapeForDimND(const MValue &x, int dim)
 
 // ND apply core: walks each axis-`redAxis` slice via stride arithmetic
 // and feeds it to F. Output is dense column-major matching the
-// reduced-dim shape. DOUBLE-only.
+// reduced-dim shape. Output is always DOUBLE (matches MATLAB convention
+// for sum/mean/etc.); non-DOUBLE input is read via elemAsDouble so
+// integer / single / logical inputs reduce correctly.
 template <typename F>
 void forEachSliceND(const MValue &x, int dim, double *dst, F &&f)
 {
@@ -175,22 +192,37 @@ void forEachSliceND(const MValue &x, int dim, double *dst, F &&f)
     size_t O = 1;
     for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
-    const double *src = x.doubleData();
+    const bool fastDouble = (x.type() == MType::DOUBLE);
+    const double *src = fastDouble ? x.doubleData() : nullptr;
     std::vector<double> scratch(sliceLen);
     if (B == 1) {
         // Reducing axis 0 → contiguous gather.
-        for (size_t o = 0; o < O; ++o) {
-            const double *base = src + o * sliceLen;
-            std::copy(base, base + sliceLen, scratch.data());
-            dst[o] = f(o, scratch.data(), sliceLen);
+        if (fastDouble) {
+            for (size_t o = 0; o < O; ++o) {
+                const double *base = src + o * sliceLen;
+                std::copy(base, base + sliceLen, scratch.data());
+                dst[o] = f(o, scratch.data(), sliceLen);
+            }
+        } else {
+            for (size_t o = 0; o < O; ++o) {
+                const size_t base = o * sliceLen;
+                for (size_t k = 0; k < sliceLen; ++k)
+                    scratch[k] = x.elemAsDouble(base + k);
+                dst[o] = f(o, scratch.data(), sliceLen);
+            }
         }
         return;
     }
     for (size_t o = 0; o < O; ++o) {
         for (size_t b = 0; b < B; ++b) {
             const size_t base = o * sliceLen * B + b;
-            for (size_t k = 0; k < sliceLen; ++k)
-                scratch[k] = src[base + k * B];
+            if (fastDouble) {
+                for (size_t k = 0; k < sliceLen; ++k)
+                    scratch[k] = src[base + k * B];
+            } else {
+                for (size_t k = 0; k < sliceLen; ++k)
+                    scratch[k] = x.elemAsDouble(base + k * B);
+            }
             const size_t outIdx = o * B + b;
             dst[outIdx] = f(outIdx, scratch.data(), sliceLen);
         }
@@ -203,14 +235,20 @@ void forEachSliceND(const MValue &x, int dim, double *dst, F &&f)
 template <typename F>
 MValue applyAlongDim(const MValue &x, int dim, F &&f, Allocator *alloc)
 {
-    if (x.isEmpty()) {
-        // MATLAB: sum/mean/var of empty = various things. Caller decides
-        // by passing an empty-handler in F when needed. Default = 0×0.
+    // 2D/3D empty: collapse to 0×0 (legacy behaviour; MATLAB's
+    // shape-preservation for empty 2D inputs was never wired up here).
+    // ND empty (rank ≥ 4): fall through to the ND path, which produces
+    // a correctly-shaped output (e.g. sum(zeros([2,0,3,2]), 2) → 2×1×3×2).
+    if (x.isEmpty() && x.dims().ndim() < 4) {
         return MValue::matrix(0, 0, MType::DOUBLE, alloc);
     }
     if (x.dims().isVector() || x.isScalar()) {
         std::vector<double> scratch(x.numel());
-        std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        if (x.type() == MType::DOUBLE)
+            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        else
+            for (size_t i = 0; i < x.numel(); ++i)
+                scratch[i] = x.elemAsDouble(i);
         return MValue::scalar(f(0, scratch.data(), x.numel()), alloc);
     }
     // ND fallback for rank ≥ 4. dim out-of-range was already mapped by
@@ -239,13 +277,17 @@ template <typename F>
 std::pair<MValue, MValue>
 applyAlongDimWithIndex(const MValue &x, int dim, F &&f, Allocator *alloc)
 {
-    if (x.isEmpty()) {
+    if (x.isEmpty() && x.dims().ndim() < 4) {
         return {MValue::matrix(0, 0, MType::DOUBLE, alloc),
                 MValue::matrix(0, 0, MType::DOUBLE, alloc)};
     }
     if (x.dims().isVector() || x.isScalar()) {
         std::vector<double> scratch(x.numel());
-        std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        if (x.type() == MType::DOUBLE)
+            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        else
+            for (size_t i = 0; i < x.numel(); ++i)
+                scratch[i] = x.elemAsDouble(i);
         double v = 0;
         size_t idx = 0;
         f(scratch.data(), x.numel(), v, idx);
@@ -293,13 +335,17 @@ template <typename F>
 std::pair<MValue, MValue>
 applyAlongDimPair(const MValue &x, int dim, F &&f, Allocator *alloc)
 {
-    if (x.isEmpty()) {
+    if (x.isEmpty() && x.dims().ndim() < 4) {
         return {MValue::matrix(0, 0, MType::DOUBLE, alloc),
                 MValue::matrix(0, 0, MType::DOUBLE, alloc)};
     }
     if (x.dims().isVector() || x.isScalar()) {
         std::vector<double> scratch(x.numel());
-        std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        if (x.type() == MType::DOUBLE)
+            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+        else
+            for (size_t i = 0; i < x.numel(); ++i)
+                scratch[i] = x.elemAsDouble(i);
         double v = 0, s = 0;
         f(scratch.data(), x.numel(), v, s);
         return {MValue::scalar(v, alloc), MValue::scalar(s, alloc)};
