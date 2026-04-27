@@ -275,17 +275,101 @@ MValue catDim3(Allocator &alloc, const MValue *values, size_t count)
     return r;
 }
 
+// ND cat for dim >= 4. All non-cat axes must agree across inputs (treating
+// ranks past an input's actual ndim as trailing 1s). Result rank =
+// max(dim, max input ndim). Currently DOUBLE-only — matches the existing
+// catDim3 scope; non-DOUBLE inputs throw.
+MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
+{
+    if (count == 0) return MValue::empty();
+    const int k = dim - 1;
+
+    // Determine output rank: at least `dim`, plus any input may force higher.
+    int outNdim = dim;
+    for (size_t i = 0; i < count; ++i) {
+        const auto &v = values[i];
+        if (v.isEmpty() || v.numel() == 0) continue;
+        outNdim = std::max(outNdim, v.dims().ndim());
+    }
+    constexpr int kMaxNd = 32;
+    if (outNdim > kMaxNd)
+        throw MError("cat: rank exceeds 32",
+                     0, 0, "cat", "", "m:cat:tooManyDims");
+
+    size_t outDim[kMaxNd];
+    for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
+    bool anchored = false;
+
+    for (size_t i = 0; i < count; ++i) {
+        const auto &v = values[i];
+        if (v.isEmpty() || v.numel() == 0) continue;
+        if (v.type() != MType::DOUBLE)
+            throw MError("cat: ND cat (dim >= 4) currently supports DOUBLE inputs only",
+                         0, 0, "cat", "", "m:cat:typeND");
+        const auto &d = v.dims();
+        if (!anchored) {
+            for (int j = 0; j < outNdim; ++j)
+                outDim[j] = (j < d.ndim()) ? d.dim(j) : 1;
+            anchored = true;
+        } else {
+            for (int j = 0; j < outNdim; ++j) {
+                const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
+                if (j == k) {
+                    outDim[j] += vd;
+                } else if (vd != outDim[j]) {
+                    throw MError("cat: dim " + std::to_string(dim)
+                                 + " inputs must agree on all axes except dim "
+                                 + std::to_string(dim),
+                                 0, 0, "cat", "", "m:cat:badDims");
+                }
+            }
+        }
+    }
+    if (!anchored) return MValue::empty();
+
+    // Inner block size B = prod(outDim[0..k-1]); outer count O = prod(outDim[k+1..]).
+    size_t B = 1;
+    for (int j = 0; j < k; ++j) B *= outDim[j];
+    size_t O = 1;
+    for (int j = k + 1; j < outNdim; ++j) O *= outDim[j];
+
+    auto result = MValue::matrixND(outDim, outNdim, MType::DOUBLE, &alloc);
+    if (B == 0 || O == 0 || outDim[k] == 0) return result;
+
+    double *dst = result.doubleDataMut();
+    const size_t resultOuterStride = outDim[k] * B;
+    size_t accumK = 0;
+    for (size_t i = 0; i < count; ++i) {
+        const auto &v = values[i];
+        if (v.isEmpty() || v.numel() == 0) continue;
+        const auto &d = v.dims();
+        const size_t inputDimK = (k < d.ndim()) ? d.dim(k) : 1;
+        if (inputDimK == 0) continue;
+        const double *src = v.doubleData();
+        const size_t inputOuterStride = inputDimK * B;
+        const size_t blockElems = inputDimK * B;
+        for (size_t o = 0; o < O; ++o) {
+            std::memcpy(dst + (o * resultOuterStride + accumK * B),
+                        src + o * inputOuterStride,
+                        blockElems * sizeof(double));
+        }
+        accumK += inputDimK;
+    }
+    return result;
+}
+
 } // namespace
 
 MValue cat(Allocator &alloc, int dim, const MValue *values, size_t count)
 {
+    if (dim < 1)
+        throw MError("cat: dim must be a positive integer",
+                     0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
         case 1: return vertcat(alloc, values, count);
         case 2: return horzcat(alloc, values, count);
         case 3: return catDim3(alloc, values, count);
-        default:
-            throw MError("cat: dim must be 1, 2, or 3",
-                         0, 0, "cat", "", "m:cat:badDim");
+        default: return catND(alloc, dim, values, count);
     }
 }
 

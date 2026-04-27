@@ -178,8 +178,79 @@ TEST_P(NDManipTest, CatDim3MismatchThrows)
 
 TEST_P(NDManipTest, CatBadDimThrows)
 {
+    // Non-positive dim is invalid. dim >= 4 is now valid (Phase 3a.4) — see
+    // CatDim4* tests below.
     EXPECT_THROW(eval("cat(0, [1 2], [3 4]);"), std::runtime_error);
-    EXPECT_THROW(eval("cat(4, [1 2], [3 4]);"), std::runtime_error);
+    EXPECT_THROW(eval("cat(-1, [1 2], [3 4]);"), std::runtime_error);
+}
+
+// ── cat ND (Phase 3a.4) ─────────────────────────────────────────
+
+TEST_P(NDManipTest, CatDim4Stacks2DInputsTo4D)
+{
+    // Two 2x3 matrices catted along dim 4 → shape [2 3 1 2] tensor.
+    eval("A = cat(4, [1 2 3; 4 5 6], [7 8 9; 10 11 12]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
+    // First input fills A(:,:,1,1)
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 1, 1);"),  6.0);
+    // Second input fills A(:,:,1,2)
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 2);"),  7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(2, 3, 1, 2);"), 12.0);
+}
+
+TEST_P(NDManipTest, CatDim4Of4DInputsAccumulates)
+{
+    // Two 2×3×4×5 inputs catted along dim 4 → 2×3×4×10. Verify shape and
+    // a few well-defined positions.
+    eval("A = reshape(1:120, [2, 3, 4, 5]);"
+         "B = reshape(121:240, [2, 3, 4, 5]);"
+         "C = cat(4, A, B);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(C);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 4);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(C);"), 240.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1, 1, 1);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 3, 4, 5);"), 120.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1, 1, 6);"), 121.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 3, 4, 10);"), 240.0);
+}
+
+TEST_P(NDManipTest, CatDim5StacksThree4DInputsTo5D)
+{
+    // Three 2×3×4×5 inputs catted along dim 5 → 2×3×4×5×3.
+    eval("A = reshape(1:120, [2, 3, 4, 5]);"
+         "B = reshape(121:240, [2, 3, 4, 5]);"
+         "C = reshape(241:360, [2, 3, 4, 5]);"
+         "D = cat(5, A, B, C);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(D);"),   5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(D, 5);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(D);"), 360.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1, 1, 1, 1, 1);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2, 3, 4, 5, 1);"), 120.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1, 1, 1, 1, 2);"), 121.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2, 3, 4, 5, 2);"), 240.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(1, 1, 1, 1, 3);"), 241.0);
+    EXPECT_DOUBLE_EQ(evalScalar("D(2, 3, 4, 5, 3);"), 360.0);
+}
+
+TEST_P(NDManipTest, CatDim4MismatchedNonCatAxisThrows)
+{
+    // 2x3 vs 2x4 disagree on dim 2 (a non-cat axis when cat'ing along dim 4).
+    EXPECT_THROW(eval("cat(4, ones(2, 3), ones(2, 4));"), std::runtime_error);
+}
+
+TEST_P(NDManipTest, CatDim4SkipsEmpties)
+{
+    // Empty inputs are tolerated — match MATLAB behaviour from catDim3.
+    eval("A = cat(4, [], [1 2; 3 4], [], [5 6; 7 8]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(A);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(A, 4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("A(1, 1, 1, 2);"), 5.0);
 }
 
 // ── blkdiag ─────────────────────────────────────────────────
