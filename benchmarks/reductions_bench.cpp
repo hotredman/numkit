@@ -13,7 +13,7 @@
 
 #include <numkit/m/builtin/lang/arrays/matrix.hpp>
 #include <numkit/m/builtin/math/elementary/reductions.hpp>
-#include <numkit/m/builtin/MStdStats.hpp>
+#include <numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp>
 #include <numkit/m/stats/nan_aware/nan_aware.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>

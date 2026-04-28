@@ -202,10 +202,10 @@ All classes live in `namespace numkit::m`.
 | **Value** | `MValue` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
 | **Environment** | `MEnvironment` | Scoped variable storage with global store |
 | **Allocator** | `MAllocator` | Pluggable memory allocator |
-| **StdLibrary** | `MStdLibrary` | Math, matrix, I/O, string, type built-ins |
-| **DspLibrary** | `MDspLibrary` | Signal processing: FFT, filtering, windows, spectral analysis |
-| **FitLibrary** | `MFitLibrary` | Interpolation, polynomial fitting, integration |
-| **PltLibrary** | `MPltLibrary` | Plot commands, figure/close/clf/subplot |
+| **StdLibrary** | `MStdLibrary` | Math, matrix, I/O, string, type built-ins (base MATLAB) |
+| **SignalLibrary** | `MSignalLibrary` | Signal Processing Toolbox: FFT, filtering, windows, spectral analysis |
+| **StatsLibrary** | `MStatsLibrary` | Statistics Toolbox: skewness/kurtosis, nan-aware reductions |
+| **GraphicsLibrary** | `MGraphicsLibrary` | Plot commands, figure/close/clf/subplot |
 | **FigureManager** | `MFigureManager` | Plot state management with subplot/axes support |
 
 ### Key Design Decisions
@@ -480,10 +480,10 @@ include/                        # Public headers (namespace numkit::m)
     MEnvironment.hpp            # Scoped variable storage
     MAllocator.hpp              # Pluggable allocator
     MFigureManager.hpp          # Plot state management
-    MStdLibrary.hpp             # Standard library
-    MDspLibrary.hpp             # Signal processing library
-    MFitLibrary.hpp             # Interpolation / fitting library
-    MPltLibrary.hpp             # Plot library
+    MStdLibrary.hpp             # Standard library (base MATLAB)
+    MSignalLibrary.hpp          # Signal Processing Toolbox
+    MStatsLibrary.hpp           # Statistics Toolbox
+    MGraphicsLibrary.hpp        # Plot / figure library
     MVfs.hpp                    # Virtual filesystem (IDE hooks)
     MBranding.hpp               # Env-var prefix (NUMKIT_M_FS, …)
     MTypes.hpp                  # Shared types (CallContext, Span)

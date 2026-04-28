@@ -1,4 +1,4 @@
-// libs/builtin/include/numkit/m/builtin/MStdStats.hpp
+// libs/builtin/include/numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp
 //
 // Descriptive statistics — Phase 1 of the parity expansion plan.
 // MATLAB-compatible signatures with explicit `dim` argument support.

@@ -158,6 +158,7 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/datatypes/strings/print.hpp
     libs/builtin/include/numkit/m/builtin/datatypes/strings/scan.hpp
     libs/builtin/include/numkit/m/builtin/programming/errors/diagnostics.hpp
+    libs/builtin/include/numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp
     libs/signal/include/numkit/m/signal/MSignalLibrary.hpp
     libs/signal/include/numkit/m/signal/waveform_generation/waveform_generation.hpp
     libs/signal/include/numkit/m/signal/filter_design/filter_design.hpp

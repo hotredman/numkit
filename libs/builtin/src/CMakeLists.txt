@@ -1,6 +1,5 @@
 set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdStats.cpp
     # lang/
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/binary_ops.cpp
@@ -40,6 +39,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/struct/struct.cpp
     # programming/
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
+    # data_analysis/
+    ${CMAKE_CURRENT_SOURCE_DIR}/data_analysis/descriptive_statistics/stats.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

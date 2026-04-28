@@ -5,7 +5,7 @@
 // non-singleton"). Implementations route through applyAlongDim from
 // MStdReductionHelpers, which handles vector/2D/3D layouts uniformly.
 
-#include <numkit/m/builtin/MStdStats.hpp>
+#include <numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp>
 
 #include <numkit/m/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
