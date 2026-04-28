@@ -134,4 +134,107 @@ TEST_P(CombinatoricsTest, PermsPromotesIntegerToDouble)
     EXPECT_DOUBLE_EQ((*P)(0, 1), 10.0);
 }
 
+// ── factorial ──────────────────────────────────────────────────
+
+TEST_P(CombinatoricsTest, FactorialKnownValues)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("factorial(0);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("factorial(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("factorial(5);"), 120.0);
+    EXPECT_DOUBLE_EQ(evalScalar("factorial(10);"), 3628800.0);
+}
+
+TEST_P(CombinatoricsTest, FactorialArrayElementwise)
+{
+    eval("y = factorial([0 1 2 3 4 5]);");
+    auto *y = getVarPtr("y");
+    EXPECT_EQ(y->numel(), 6u);
+    const double expected[] = {1, 1, 2, 6, 24, 120};
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_DOUBLE_EQ(y->doubleData()[i], expected[i]);
+}
+
+TEST_P(CombinatoricsTest, FactorialPreservesShape)
+{
+    eval("y = factorial([1 2; 3 4]);");
+    auto *y = getVarPtr("y");
+    EXPECT_EQ(rows(*y), 2u);
+    EXPECT_EQ(cols(*y), 2u);
+    EXPECT_DOUBLE_EQ((*y)(0, 0), 1.0);   // 1!
+    EXPECT_DOUBLE_EQ((*y)(0, 1), 2.0);   // 2!
+    EXPECT_DOUBLE_EQ((*y)(1, 0), 6.0);   // 3!
+    EXPECT_DOUBLE_EQ((*y)(1, 1), 24.0);  // 4!
+}
+
+TEST_P(CombinatoricsTest, FactorialOverflowsToInf)
+{
+    // 171! exceeds double range.
+    EXPECT_TRUE(std::isinf(evalScalar("factorial(171);")));
+}
+
+TEST_P(CombinatoricsTest, FactorialNegativeThrows)
+{
+    EXPECT_THROW(eval("factorial(-1);"), std::exception);
+}
+
+TEST_P(CombinatoricsTest, FactorialNonIntegerThrows)
+{
+    EXPECT_THROW(eval("factorial(2.5);"), std::exception);
+}
+
+TEST_P(CombinatoricsTest, FactorialComplexThrows)
+{
+    EXPECT_THROW(eval("factorial(3+4i);"), std::exception);
+}
+
+// ── nchoosek ───────────────────────────────────────────────────
+
+TEST_P(CombinatoricsTest, NchoosekKnownValues)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(0, 0);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(5, 0);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(5, 5);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(5, 2);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(10, 3);"), 120.0);
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(20, 10);"), 184756.0);
+}
+
+TEST_P(CombinatoricsTest, NchoosekSymmetry)
+{
+    // C(n, k) == C(n, n-k).
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(15, 4);"),
+                     evalScalar("nchoosek(15, 11);"));
+    EXPECT_DOUBLE_EQ(evalScalar("nchoosek(30, 7);"),
+                     evalScalar("nchoosek(30, 23);"));
+}
+
+TEST_P(CombinatoricsTest, NchoosekLargeValuesSurviveOverflow)
+{
+    // C(100, 50) ≈ 1.0089e29 — fits in double.
+    const double v = evalScalar("nchoosek(100, 50);");
+    EXPECT_NEAR(v, 1.00891344545564e29, 1e25);
+}
+
+TEST_P(CombinatoricsTest, NchoosekKExceedsNThrows)
+{
+    EXPECT_THROW(eval("nchoosek(5, 10);"), std::exception);
+}
+
+TEST_P(CombinatoricsTest, NchoosekNegativeThrows)
+{
+    EXPECT_THROW(eval("nchoosek(-3, 2);"), std::exception);
+    EXPECT_THROW(eval("nchoosek(5, -1);"), std::exception);
+}
+
+TEST_P(CombinatoricsTest, NchoosekNonIntegerThrows)
+{
+    EXPECT_THROW(eval("nchoosek(5.5, 2);"), std::exception);
+}
+
+TEST_P(CombinatoricsTest, NchoosekVectorFormThrows)
+{
+    // Vector form nchoosek(v, k) is not yet supported.
+    EXPECT_THROW(eval("nchoosek([1 2 3 4], 2);"), std::exception);
+}
+
 INSTANTIATE_DUAL(CombinatoricsTest);
