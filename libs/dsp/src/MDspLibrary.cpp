@@ -38,6 +38,10 @@ void nextpow2_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void fftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void ifftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void chirp_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void rectpuls_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void tripuls_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void gauspuls_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void pulstran_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 
 // Phase 9 — DSP gaps (libs/dsp/src/MDspGaps.cpp)
 void medfilt1_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
@@ -90,6 +94,10 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("fftshift",    &dsp::detail::fftshift_reg);
     engine.registerFunction("ifftshift",   &dsp::detail::ifftshift_reg);
     engine.registerFunction("chirp",       &dsp::detail::chirp_reg);
+    engine.registerFunction("rectpuls",    &dsp::detail::rectpuls_reg);
+    engine.registerFunction("tripuls",     &dsp::detail::tripuls_reg);
+    engine.registerFunction("gauspuls",    &dsp::detail::gauspuls_reg);
+    engine.registerFunction("pulstran",    &dsp::detail::pulstran_reg);
 
     // ── Phase 9 DSP gaps ──────────────────────────────────────────
     engine.registerFunction("medfilt1",  &dsp::detail::medfilt1_reg);

@@ -8,7 +8,10 @@
 #include "MDspHelpers.hpp"   // Complex typedef
 #include "MStdHelpers.hpp"   // createLike
 
+#include <cctype>
 #include <cmath>
+#include <cstring>
+#include <string>
 
 namespace numkit::m::dsp {
 
@@ -55,6 +58,130 @@ MValue fftshift(Allocator &alloc, const MValue &x)
 MValue ifftshift(Allocator &alloc, const MValue &x)
 {
     return cyclicShift(x, (x.numel() + 1) / 2, alloc);
+}
+
+// ── Pulse generators ──────────────────────────────────────────────────
+namespace {
+
+double gauspulsAlpha(double fc, double bw)
+{
+    // MATLAB: gauspuls envelope is exp(-α·t²) where α is chosen so that
+    // the spectrum is bw·fc wide at the -6 dB (bwr) level. Derivation
+    // gives α = (π·bw·fc)² / (2·log(10^(-bwr/-20))) = (π·bw·fc)² · 0.5
+    // / log(10^0.3). Using bwr = -6 dB hard-coded:
+    //   0.5 / log(10^0.3) = 0.5 / (0.3·ln(10)) ≈ 0.7237 ?
+    // Reference numerical: alpha = -(π·bw·fc)² / (4·log(0.5)).
+    // (because |H(f)|² at f = fc·(1+bw/2) hits -6 dB → factor 10^(-6/10)
+    // = 0.25 = (1/2)² → log envelope: 0.5).
+    constexpr double kPi = 3.14159265358979323846;
+    const double pifb = kPi * fc * bw;
+    return -(pifb * pifb) / (4.0 * std::log(0.5));
+}
+
+double rectpulsScalar(double tv, double w)
+{
+    const double half = 0.5 * w;
+    const double a = std::abs(tv);
+    if (a < half) return 1.0;
+    return 0.0;  // boundary and outside
+}
+
+double tripulsScalar(double tv, double w)
+{
+    const double half = 0.5 * w;
+    const double a = std::abs(tv);
+    if (a >= half) return 0.0;
+    return 1.0 - a / half;
+}
+
+double gauspulsScalar(double tv, double fc, double alpha)
+{
+    constexpr double kTwoPi = 6.28318530717958647692;
+    return std::exp(-alpha * tv * tv) * std::cos(kTwoPi * fc * tv);
+}
+
+} // namespace
+
+MValue rectpuls(Allocator &alloc, const MValue &t, double w)
+{
+    if (w <= 0)
+        throw MError("rectpuls: width w must be positive",
+                     0, 0, "rectpuls", "", "m:rectpuls:badWidth");
+    auto out = createLike(t, MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = rectpulsScalar(t.elemAsDouble(i), w);
+    return out;
+}
+
+MValue tripuls(Allocator &alloc, const MValue &t, double w)
+{
+    if (w <= 0)
+        throw MError("tripuls: width w must be positive",
+                     0, 0, "tripuls", "", "m:tripuls:badWidth");
+    auto out = createLike(t, MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = tripulsScalar(t.elemAsDouble(i), w);
+    return out;
+}
+
+MValue gauspuls(Allocator &alloc, const MValue &t, double fc, double bw)
+{
+    if (fc <= 0 || bw <= 0)
+        throw MError("gauspuls: fc and bw must be positive",
+                     0, 0, "gauspuls", "", "m:gauspuls:badArg");
+    const double alpha = gauspulsAlpha(fc, bw);
+    auto out = createLike(t, MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = gauspulsScalar(t.elemAsDouble(i), fc, alpha);
+    return out;
+}
+
+MValue pulstran(Allocator &alloc, const MValue &t, const MValue &d,
+                const std::string &fnName, double fcOrW, double bw)
+{
+    auto out = createLike(t, MType::DOUBLE, &alloc);
+    const size_t n = t.numel();
+    std::memset(out.doubleDataMut(), 0, n * sizeof(double));
+    double *dst = out.doubleDataMut();
+
+    std::string lower;
+    lower.reserve(fnName.size());
+    for (char c : fnName)
+        lower.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+
+    auto applyKernel = [&](double (*kernel)(double, double, double),
+                           double a, double b) {
+        const size_t nd = d.numel();
+        for (size_t k = 0; k < nd; ++k) {
+            const double dk = d.elemAsDouble(k);
+            for (size_t i = 0; i < n; ++i)
+                dst[i] += kernel(t.elemAsDouble(i) - dk, a, b);
+        }
+    };
+
+    if (lower == "rectpuls") {
+        applyKernel([](double tv, double w, double) { return rectpulsScalar(tv, w); },
+                    fcOrW, 0.0);
+    } else if (lower == "tripuls") {
+        applyKernel([](double tv, double w, double) { return tripulsScalar(tv, w); },
+                    fcOrW, 0.0);
+    } else if (lower == "gauspuls") {
+        const double alpha = gauspulsAlpha(fcOrW, bw);
+        applyKernel([](double tv, double fc, double a) { return gauspulsScalar(tv, fc, a); },
+                    fcOrW, alpha);
+    } else {
+        throw MError("pulstran: unsupported pulse function '" + fnName
+                     + "' (built-ins: 'rectpuls'/'tripuls'/'gauspuls'). "
+                     + "Custom handles need the engine callback API (planned).",
+                     0, 0, "pulstran", "", "m:pulstran:fnUnsupported");
+    }
+    return out;
 }
 
 // ── chirp ─────────────────────────────────────────────────────────────
@@ -155,6 +282,49 @@ void ifftshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
         throw MError("ifftshift: requires 1 argument",
                      0, 0, "ifftshift", "", "m:ifftshift:nargin");
     outs[0] = ifftshift(ctx.engine->allocator(), args[0]);
+}
+
+void rectpuls_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("rectpuls: requires at least 1 argument",
+                     0, 0, "rectpuls", "", "m:rectpuls:nargin");
+    const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
+    outs[0] = rectpuls(ctx.engine->allocator(), args[0], w);
+}
+
+void tripuls_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("tripuls: requires at least 1 argument",
+                     0, 0, "tripuls", "", "m:tripuls:nargin");
+    const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
+    outs[0] = tripuls(ctx.engine->allocator(), args[0], w);
+}
+
+void gauspuls_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("gauspuls: requires at least 2 arguments (t, fc)",
+                     0, 0, "gauspuls", "", "m:gauspuls:nargin");
+    const double fc = args[1].toScalar();
+    const double bw = (args.size() >= 3) ? args[2].toScalar() : 0.5;
+    outs[0] = gauspuls(ctx.engine->allocator(), args[0], fc, bw);
+}
+
+void pulstran_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("pulstran: requires at least 3 arguments (t, d, fnName)",
+                     0, 0, "pulstran", "", "m:pulstran:nargin");
+    if (!args[2].isChar() && !args[2].isString())
+        throw MError("pulstran: 3rd argument must be a string naming a pulse generator "
+                     "(custom function handles need the engine callback API)",
+                     0, 0, "pulstran", "", "m:pulstran:fnHandleUnsupported");
+    const std::string fnName = args[2].toString();
+    const double fcOrW = (args.size() >= 4) ? args[3].toScalar() : 1.0;
+    const double bw    = (args.size() >= 5) ? args[4].toScalar() : 0.5;
+    outs[0] = pulstran(ctx.engine->allocator(), args[0], args[1], fnName, fcOrW, bw);
 }
 
 void chirp_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

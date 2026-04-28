@@ -312,3 +312,102 @@ TEST_F(SignalCoreTest, ChirpBadT1Throws)
     EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, 0, 10);"), std::exception);
     EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, -1, 10);"), std::exception);
 }
+
+// ============================================================
+// rectpuls / tripuls / gauspuls / pulstran
+// ============================================================
+
+TEST_F(SignalCoreTest, RectpulsDefaultWidthOne)
+{
+    // Default width 1 → support is (-0.5, 0.5).
+    eval("y = rectpuls([-0.6 -0.5 -0.3 0 0.3 0.5 0.6]);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 0.0);  // boundary excluded
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(6)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(7)"), 0.0);
+}
+
+TEST_F(SignalCoreTest, RectpulsCustomWidth)
+{
+    eval("y = rectpuls([-1.5 -0.5 0 0.5 1.5], 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 0.0);
+}
+
+TEST_F(SignalCoreTest, TripulsDefaultWidth)
+{
+    // y = max(1 - 2|t|/1, 0); at t=0 → 1, at t=±0.25 → 0.5, at t=±0.5 → 0.
+    eval("y = tripuls([-0.5 -0.25 0 0.25 0.5]);");
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(2)"), 0.5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(3)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("y(4)"), 0.5);
+    EXPECT_DOUBLE_EQ(evalScalar("y(5)"), 0.0);
+}
+
+TEST_F(SignalCoreTest, GauspulsAtZero)
+{
+    // gauspuls(0, fc) = exp(0) · cos(0) = 1.
+    EXPECT_NEAR(evalScalar("gauspuls(0, 1);"), 1.0, 1e-12);
+}
+
+TEST_F(SignalCoreTest, GauspulsEnvelopeSymmetric)
+{
+    eval("y_pos = gauspuls(0.3, 1);"
+         "y_neg = gauspuls(-0.3, 1);");
+    EXPECT_NEAR(evalScalar("y_pos;"), evalScalar("y_neg;"), 1e-12);
+}
+
+TEST_F(SignalCoreTest, GauspulsBadArgsThrow)
+{
+    EXPECT_THROW(eval("y = gauspuls([0 0.1], -1);"), std::exception);
+    EXPECT_THROW(eval("y = gauspuls([0 0.1], 1, -0.5);"), std::exception);
+}
+
+TEST_F(SignalCoreTest, PulstranRectSumsTwoPulses)
+{
+    // Two delays: 0 and 5, width 1 → unit pulse at each.
+    eval("t = -0.6:0.2:5.6;"  // includes both supports
+         "y = pulstran(t, [0, 5], 'rectpuls', 1);");
+    // Pulse at delay 0 covers t ∈ (-0.5, 0.5); pulse at delay 5 covers t ∈ (4.5, 5.5).
+    EXPECT_DOUBLE_EQ(evalScalar("y(1);"), 0.0);   // t = -0.6
+    EXPECT_DOUBLE_EQ(evalScalar("y(3);"), 1.0);   // t = -0.2 (in pulse 0)
+    EXPECT_DOUBLE_EQ(evalScalar("y(28);"), 1.0);  // t ≈ 4.8 (in pulse 1)
+    // Sum at points where both pulses overlap = 2; verify they don't here.
+    EXPECT_LE(evalScalar("max(y);"), 1.0);
+}
+
+TEST_F(SignalCoreTest, PulstranTriDecayingHeights)
+{
+    // tripuls(0, 1) = 1; sum at t=0 of pulses centred at 0 and 0.5 (overlap):
+    eval("y = pulstran(0, [0, 0.5], 'tripuls', 1);");
+    // pulse @ 0 evaluated at 0 → 1; pulse @ 0.5 evaluated at -0.5 → tripuls(-0.5, 1) = 0.
+    EXPECT_DOUBLE_EQ(evalScalar("y;"), 1.0);
+}
+
+TEST_F(SignalCoreTest, PulstranGausPulsLinear)
+{
+    // Sanity: pulstran(t, [0], 'gauspuls', fc) should match gauspuls(t, fc) exactly.
+    eval("t = (-2:0.1:2);"
+         "y_train = pulstran(t, [0], 'gauspuls', 1);"
+         "y_dir   = gauspuls(t, 1);"
+         "delta = max(abs(y_train - y_dir));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
+
+TEST_F(SignalCoreTest, PulstranUnknownFnThrows)
+{
+    EXPECT_THROW(eval("y = pulstran([0 1 2], [0 1], 'noSuchPulse');"), std::exception);
+}
+
+TEST_F(SignalCoreTest, PulstranAnonHandleThrows)
+{
+    // Custom function handles aren't supported until the engine callback API.
+    EXPECT_THROW(eval("y = pulstran([0 1 2], [0 1], @(t) cos(t));"), std::exception);
+}
