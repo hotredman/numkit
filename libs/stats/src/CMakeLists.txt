@@ -1,0 +1,7 @@
+set(STATSLIB_SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStatsLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
+)
+
+set(STATSLIB_SOURCES ${STATSLIB_SOURCES} PARENT_SCOPE)

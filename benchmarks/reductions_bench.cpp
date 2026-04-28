@@ -14,6 +14,7 @@
 #include <numkit/m/builtin/lang/arrays/matrix.hpp>
 #include <numkit/m/builtin/math/elementary/reductions.hpp>
 #include <numkit/m/builtin/MStdStats.hpp>
+#include <numkit/m/stats/nan_aware/nan_aware.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
@@ -140,9 +141,9 @@ static void runNanBench(benchmark::State &s, Fn fn)
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
 }
 
-static void BM_Nansum   (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return builtin::nansum   (a, x); }); }
-static void BM_Nanmean  (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return builtin::nanmean  (a, x); }); }
-static void BM_Nanmedian(benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return builtin::nanmedian(a, x); }); }
+static void BM_Nansum   (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nansum   (a, x); }); }
+static void BM_Nanmean  (benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmean  (a, x); }); }
+static void BM_Nanmedian(benchmark::State &s) { runNanBench(s, [](auto &a, auto &x){ return stats::nanmedian(a, x); }); }
 
 BENCHMARK(BM_Nansum)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 BENCHMARK(BM_Nanmean)  ->RangeMultiplier(4)->Range(1 << 10, 1 << 22);

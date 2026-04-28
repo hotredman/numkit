@@ -86,12 +86,14 @@ endif()
 # Each library defines its own source list (STDLIB_SOURCES, SIGNALLIB_SOURCES, ...)
 add_subdirectory(libs/builtin/src)
 add_subdirectory(libs/signal/src)
+add_subdirectory(libs/stats/src)
 add_subdirectory(libs/graphics/src)
 
 set(NUMKIT_M_SOURCES
     ${NUMKIT_M_CORE_SOURCES}
     ${STDLIB_SOURCES}
     ${SIGNALLIB_SOURCES}
+    ${STATSLIB_SOURCES}
     ${GRAPHICSLIB_SOURCES}
 )
 
@@ -178,6 +180,9 @@ set(NUMKIT_M_HEADERS
     libs/signal/include/numkit/m/signal/time_frequency/spectrogram.hpp
     libs/signal/include/numkit/m/signal/windows/windows.hpp
     libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
+    libs/stats/include/numkit/m/stats/MStatsLibrary.hpp
+    libs/stats/include/numkit/m/stats/moments/moments.hpp
+    libs/stats/include/numkit/m/stats/nan_aware/nan_aware.hpp
     libs/graphics/include/numkit/m/graphics/MGraphicsLibrary.hpp
 )
 
@@ -194,6 +199,7 @@ target_include_directories(m
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
@@ -355,10 +361,11 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
     )
 
     # Public headers — every component ships its own numkit/m/<name>/ subtree
-    install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/signal/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/graphics/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY core/include/numkit          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/builtin/include/numkit  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/signal/include/numkit   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/stats/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/graphics/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT mTargets
         FILE        mTargets.cmake

@@ -7,6 +7,8 @@
 
 #include <numkit/m/builtin/MStdStats.hpp>
 
+#include <numkit/m/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
+
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
@@ -658,102 +660,7 @@ mode(Allocator &alloc, const MValue &x, int dim)
     return dispatchMode(x, d, &alloc, "mode");
 }
 
-// ────────────────────────────────────────────────────────────────────
-// skewness / kurtosis
-// ────────────────────────────────────────────────────────────────────
-namespace {
-
-// Per-slice skewness. n < 2: NaN (m2 == 0 by definition). normFlag=0
-// requires n >= 3 for the bias correction; otherwise NaN.
-double skewnessFromSlice(const double *data, size_t n, int normFlag)
-{
-    if (n < 2) return std::nan("");
-    double mean = 0.0;
-    for (size_t i = 0; i < n; ++i) mean += data[i];
-    mean /= static_cast<double>(n);
-    double m2 = 0.0, m3 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-        const double d = data[i] - mean;
-        const double d2 = d * d;
-        m2 += d2;
-        m3 += d2 * d;
-    }
-    m2 /= static_cast<double>(n);
-    m3 /= static_cast<double>(n);
-    if (m2 <= 0.0) return std::nan("");
-    double y = m3 / std::pow(m2, 1.5);
-    if (normFlag == 0) {
-        if (n < 3) return std::nan("");
-        const double nd = static_cast<double>(n);
-        y *= std::sqrt(nd * (nd - 1.0)) / (nd - 2.0);
-    }
-    return y;
-}
-
-// Per-slice kurtosis (NON-excess; equals 3 for normal). normFlag=0
-// requires n >= 4 for the bias correction; otherwise NaN.
-double kurtosisFromSlice(const double *data, size_t n, int normFlag)
-{
-    if (n < 2) return std::nan("");
-    double mean = 0.0;
-    for (size_t i = 0; i < n; ++i) mean += data[i];
-    mean /= static_cast<double>(n);
-    double m2 = 0.0, m4 = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-        const double d = data[i] - mean;
-        const double d2 = d * d;
-        m2 += d2;
-        m4 += d2 * d2;
-    }
-    m2 /= static_cast<double>(n);
-    m4 /= static_cast<double>(n);
-    if (m2 <= 0.0) return std::nan("");
-    double y = m4 / (m2 * m2);
-    if (normFlag == 0) {
-        if (n < 4) return std::nan("");
-        const double nd = static_cast<double>(n);
-        y = ((nd - 1.0) / ((nd - 2.0) * (nd - 3.0)))
-                * ((nd + 1.0) * y - 3.0 * (nd - 1.0))
-            + 3.0;
-    }
-    return y;
-}
-
-MValue dispatchMomentReduction(Allocator &alloc, const MValue &x, int dim,
-                               int normFlag, const char *fn,
-                               double (*fromSlice)(const double *, size_t, int))
-{
-    if (normFlag != 0 && normFlag != 1)
-        throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
-                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
-    if (x.type() == MType::COMPLEX)
-        throw MError(std::string(fn) + ": complex inputs are not supported",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    const int d = resolveDim(x, dim, fn);
-    MValue r = applyAlongDim(x, d,
-        [normFlag, fromSlice](size_t, double *slice, size_t n) {
-            return fromSlice(slice, n, normFlag);
-        }, &alloc);
-    if (x.type() == MType::SINGLE)
-        r = narrowToSingle(std::move(r), &alloc);
-    return r;
-}
-
-} // namespace
-
-MValue skewness(Allocator &alloc, const MValue &x, int normFlag, int dim)
-{
-    return dispatchMomentReduction(alloc, x, dim, normFlag, "skewness",
-                                   skewnessFromSlice);
-}
-
-MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag, int dim)
-{
-    return dispatchMomentReduction(alloc, x, dim, normFlag, "kurtosis",
-                                   kurtosisFromSlice);
-}
+// skewness / kurtosis moved to libs/stats/src/moments/moments.cpp.
 
 // ────────────────────────────────────────────────────────────────────
 // cov / corrcoef
@@ -951,112 +858,8 @@ using detail::compactNonNan;
 // entirely (no per-call scratch alloc); matrix dim slices still go
 // through applyAlongDim but the lambda no longer mutates the slice.
 
-MValue nansum(Allocator &alloc, const MValue &x, int dim)
-{
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(nanSumScan(x.doubleData(), x.numel()), &alloc);
-
-    const int d = resolveDim(x, dim, "nansum");
-    return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            return nanSumScan(slice, n); // all-NaN → 0
-        }, &alloc);
-}
-
-MValue nanmean(Allocator &alloc, const MValue &x, int dim)
-{
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE) {
-        const auto r = nanSumCountScan(x.doubleData(), x.numel());
-        return MValue::scalar(r.count > 0 ? r.sum / static_cast<double>(r.count)
-                                          : std::nan(""), &alloc);
-    }
-
-    const int d = resolveDim(x, dim, "nanmean");
-    return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            const auto r = nanSumCountScan(slice, n);
-            return r.count > 0 ? r.sum / static_cast<double>(r.count)
-                               : std::nan("");
-        }, &alloc);
-}
-
-// Phase P2-followup: nanmax / nanmin / nanvar / nanstd now use the
-// single-pass SIMD scans in MStdNanReductions_{simd,portable}.cpp. Same
-// pattern as nansum/nanmean: vector input bypasses applyAlongDim
-// entirely; matrix dim slices keep the helper. compactNonNan is no
-// longer needed for these — the kernels mask NaN lanes inline.
-
-MValue nanmax(Allocator &alloc, const MValue &x, int dim)
-{
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(nanMaxScan(x.doubleData(), x.numel()), &alloc);
-
-    const int d = resolveDim(x, dim, "nanmax");
-    return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            return nanMaxScan(slice, n);
-        }, &alloc);
-}
-
-MValue nanmin(Allocator &alloc, const MValue &x, int dim)
-{
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(nanMinScan(x.doubleData(), x.numel()), &alloc);
-
-    const int d = resolveDim(x, dim, "nanmin");
-    return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            return nanMinScan(slice, n);
-        }, &alloc);
-}
-
-MValue nanvar(Allocator &alloc, const MValue &x, int normFlag, int dim)
-{
-    validateNormFlag(normFlag, "nanvar");
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
-
-    const int d = resolveDim(x, dim, "nanvar");
-    return applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
-            return nanVarianceTwoPass(slice, n, normFlag);
-        }, &alloc);
-}
-
-MValue nanstdev(Allocator &alloc, const MValue &x, int normFlag, int dim)
-{
-    validateNormFlag(normFlag, "nanstd");
-    if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(std::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
-
-    const int d = resolveDim(x, dim, "nanstd");
-    return applyAlongDim(x, d,
-        [normFlag](size_t, double *slice, size_t n) {
-            return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
-        }, &alloc);
-}
-
-MValue nanmedian(Allocator &alloc, const MValue &x, int dim)
-{
-    const int d = resolveDim(x, dim, "nanmedian");
-    return applyAlongDim(x, d,
-        [](size_t, double *slice, size_t n) {
-            const size_t k = compactNonNan(slice, n);
-            return medianFromSlice(slice, k); // returns NaN at k==0
-        }, &alloc);
-}
+// nansum / nanmean / nanmax / nanmin / nanvar / nanstdev / nanmedian
+// all moved to libs/stats/src/nan_aware/nan_aware.cpp.
 
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
@@ -1110,7 +913,7 @@ void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                                       /*sqrtIt=*/false, /*omitNan=*/true);
             return;
         }
-        MValue r = nanvar(ctx.engine->allocator(), args[0], w, dim);
+        MValue r = stats::nanvar(ctx.engine->allocator(), args[0], w, dim);
         if (args[0].type() == MType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
@@ -1137,7 +940,7 @@ void std_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                                       /*sqrtIt=*/true, /*omitNan=*/true);
             return;
         }
-        MValue r = nanstdev(ctx.engine->allocator(), args[0], w, dim);
+        MValue r = stats::nanstdev(ctx.engine->allocator(), args[0], w, dim);
         if (args[0].type() == MType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
@@ -1192,7 +995,7 @@ void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        MValue r = nanmedian(ctx.engine->allocator(), args[0], dim);
+        MValue r = stats::nanmedian(ctx.engine->allocator(), args[0], dim);
         if (args[0].type() == MType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
@@ -1240,35 +1043,7 @@ void mode_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         outs[1] = std::move(c);
 }
 
-void skewness_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-                  CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("skewness: requires at least 1 argument",
-                     0, 0, "skewness", "", "m:skewness:nargin");
-    int normFlag = 1;  // MATLAB default
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        normFlag = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = skewness(ctx.engine->allocator(), args[0], normFlag, dim);
-}
-
-void kurtosis_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-                  CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("kurtosis: requires at least 1 argument",
-                     0, 0, "kurtosis", "", "m:kurtosis:nargin");
-    int normFlag = 1;
-    int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        normFlag = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = kurtosis(ctx.engine->allocator(), args[0], normFlag, dim);
-}
+// skewness_reg / kurtosis_reg moved to libs/stats/src/moments/moments.cpp
 
 void cov_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
              CallContext &ctx)
@@ -1314,81 +1089,7 @@ void corrcoef_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = corrcoef(alloc, args[0], args[1]);
 }
 
-// nan* adapters — all accept (X) or (X, dim), except nanvar/nanstd
-// which additionally take (X, w) / (X, w, dim).
-
-#define NK_NAN_REDUCTION_ADAPTER(name, fn)                                      \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
-    {                                                                            \
-        if (args.empty())                                                        \
-            throw MError(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
-        int dim = 0;                                                             \
-        if (args.size() >= 2 && !args[1].isEmpty())                              \
-            dim = static_cast<int>(args[1].toScalar());                          \
-        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                     \
-    }
-
-NK_NAN_REDUCTION_ADAPTER(nansum,    nansum)
-NK_NAN_REDUCTION_ADAPTER(nanmean,   nanmean)
-NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
-
-#undef NK_NAN_REDUCTION_ADAPTER
-
-// nanmax / nanmin accept both signatures:
-//   nanmax(A)         — reduce over first non-singleton
-//   nanmax(A, dim)    — legacy/numkit form (dim in arg 1)
-//   nanmax(A, [], d)  — MATLAB-style 3-arg form (dim in arg 2; arg 1 = [])
-// The 2-arg form is preferred by older tests; the 3-arg form is what
-// MATLAB / Stats Toolbox documents.
-#define NK_NAN_MAXMIN_ADAPTER(name, fn)                                          \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                 \
-                    Span<MValue> outs, CallContext &ctx)                         \
-    {                                                                             \
-        if (args.empty())                                                         \
-            throw MError(#name ": requires at least 1 argument",                  \
-                         0, 0, #name, "", "m:" #name ":nargin");                  \
-        int dim = 0;                                                              \
-        if (args.size() == 2 && !args[1].isEmpty())                               \
-            dim = static_cast<int>(args[1].toScalar());                           \
-        else if (args.size() >= 3 && !args[2].isEmpty())                          \
-            dim = static_cast<int>(args[2].toScalar());                           \
-        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                      \
-    }
-
-NK_NAN_MAXMIN_ADAPTER(nanmax, nanmax)
-NK_NAN_MAXMIN_ADAPTER(nanmin, nanmin)
-
-#undef NK_NAN_MAXMIN_ADAPTER
-
-void nanvar_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-                CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("nanvar: requires at least 1 argument",
-                     0, 0, "nanvar", "", "m:nanvar:nargin");
-    int w = 0, dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        w = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanvar(ctx.engine->allocator(), args[0], w, dim);
-}
-
-void nanstd_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-                CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("nanstd: requires at least 1 argument",
-                     0, 0, "nanstd", "", "m:nanstd:nargin");
-    int w = 0, dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        w = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanstdev(ctx.engine->allocator(), args[0], w, dim);
-}
+// nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.
 
 } // namespace detail
 

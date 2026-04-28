@@ -61,37 +61,11 @@ MValue prctile(Allocator &alloc, const MValue &x, const MValue &p, int dim = 0);
 std::tuple<MValue, MValue>
 mode(Allocator &alloc, const MValue &x, int dim = 0);
 
-// ── NaN-aware reductions ──────────────────────────────────────────────
-// All-NaN slice handling matches MATLAB:
-//   * nansum  → returns 0    (treat NaN as additive identity)
-//   * others  → return NaN   (no defined value when nothing is observed)
-// For partial-NaN slices, NaNs are skipped and the count of valid
-// observations is the divisor for nanmean/nanvar/nanstd.
-//
-// nanvar/nanstd take the same normalization flag as var/std (0 = N-1
-// where N is the non-NaN count, 1 = N).
-MValue nansum   (Allocator &alloc, const MValue &x, int dim = 0);
-MValue nanmean  (Allocator &alloc, const MValue &x, int dim = 0);
-MValue nanmax   (Allocator &alloc, const MValue &x, int dim = 0);
-MValue nanmin   (Allocator &alloc, const MValue &x, int dim = 0);
-MValue nanvar   (Allocator &alloc, const MValue &x, int normFlag = 0, int dim = 0);
-MValue nanstdev (Allocator &alloc, const MValue &x, int normFlag = 0, int dim = 0);
-MValue nanmedian(Allocator &alloc, const MValue &x, int dim = 0);
-
-// ── skewness / kurtosis ───────────────────────────────────────────────
-// skewness(X[, normFlag[, dim]]) — sample skewness E[((X-μ)/σ)^3].
-//   normFlag = 1 (default): uncorrected y = m3 / m2^1.5
-//   normFlag = 0: bias-corrected y *= sqrt(n*(n-1))/(n-2). Requires n ≥ 3.
-// MATLAB convention; default normFlag = 1.
-MValue skewness(Allocator &alloc, const MValue &x, int normFlag = 1, int dim = 0);
-
-// kurtosis(X[, normFlag[, dim]]) — sample kurtosis (NON-excess; equals
-// 3 for a normal distribution per MATLAB convention).
-//   normFlag = 1 (default): uncorrected y = m4 / m2^2
-//   normFlag = 0: bias-corrected
-//     y = ((n-1)/((n-2)(n-3))) * ((n+1)*g2 - 3*(n-1)) + 3,
-//     where g2 = m4/m2^2. Requires n ≥ 4.
-MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag = 1, int dim = 0);
+// nan-aware reductions (nansum, nanmean, nanmax, nanmin, nanvar,
+// nanstdev, nanmedian) and the higher moments (skewness, kurtosis)
+// moved to libs/stats — Statistics Toolbox content. See:
+//   <numkit/m/stats/nan_aware/nan_aware.hpp>
+//   <numkit/m/stats/moments/moments.hpp>
 
 // ── cov / corrcoef ────────────────────────────────────────────────────
 //
