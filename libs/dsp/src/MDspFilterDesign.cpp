@@ -6,6 +6,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MDspHelpers.hpp"   // Complex typedef
+#include "MStdPolyHelpers.hpp"  // polyExpandFromRoots
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -33,18 +34,13 @@ std::vector<Complex> butterworthPoles(int N)
     return poles;
 }
 
-std::vector<double> expandPoly(const std::vector<Complex> &roots)
+// Polynomial expansion from roots — lifted into MStdPolyHelpers.hpp
+// so tf2zp / zp2tf can share. Re-export the local name to keep call
+// sites readable.
+using numkit::m::builtin::detail::polyExpandFromRoots;
+inline std::vector<double> expandPoly(const std::vector<Complex> &roots)
 {
-    const int n = static_cast<int>(roots.size());
-    std::vector<Complex> poly(n + 1, Complex(0.0, 0.0));
-    poly[0] = Complex(1.0, 0.0);
-    for (int i = 0; i < n; ++i)
-        for (int j = i + 1; j >= 1; --j)
-            poly[j] = poly[j] - roots[i] * poly[j - 1];
-    std::vector<double> result(n + 1);
-    for (int i = 0; i <= n; ++i)
-        result[i] = poly[i].real();
-    return result;
+    return polyExpandFromRoots(roots);
 }
 
 void bilinearTransform(const std::vector<Complex> &sPoles,

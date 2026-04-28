@@ -37,4 +37,17 @@ polyder(Allocator &alloc, const MValue &b, const MValue &a);
 /// integration constant k (default 0). Output length is length(p) + 1.
 MValue polyint(Allocator &alloc, const MValue &p, double k = 0.0);
 
+/// tf2zp(b, a) — transfer function H(z) = b(z)/a(z) → (zeros, poles, gain).
+/// gain = b(1)/a(1) (leading coefficient ratio).
+std::tuple<MValue, MValue, MValue>
+tf2zp(Allocator &alloc, const MValue &b, const MValue &a);
+
+/// zp2tf(z, p, k) — zero/pole/gain → (b, a) coefficient rows.
+/// b = k · ∏ (x - z); a = ∏ (x - p). Roots may be complex but must
+/// come in conjugate pairs (the imaginary residue is dropped — silent
+/// non-conjugate input would yield a non-real polynomial; caller is
+/// responsible for the pairing).
+std::tuple<MValue, MValue>
+zp2tf(Allocator &alloc, const MValue &z, const MValue &p, double k);
+
 } // namespace numkit::m::builtin

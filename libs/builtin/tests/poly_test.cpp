@@ -238,4 +238,78 @@ TEST_P(PolyTest, PolyintComplexThrows)
     EXPECT_THROW(eval("P = polyint([1+2i, 3]);"), std::exception);
 }
 
+// ── tf2zp / zp2tf ──────────────────────────────────────────────
+
+TEST_P(PolyTest, Tf2zpReturnsRootsAndGain)
+{
+    // b = 2*(x - 3)(x - 5) = 2x² - 16x + 30 → b = [2 -16 30]
+    // a = (x - 1)             → a = [1 -1]
+    // → zeros [3, 5], poles [1], gain 2.
+    eval("[z, p, k] = tf2zp([2 -16 30], [1 -1]);"
+         "z = sort(z); p = sort(p);");
+    auto *z = getVarPtr("z");
+    auto *p = getVarPtr("p");
+    EXPECT_NEAR(z->elemAsDouble(0), 3.0, 1e-9);
+    EXPECT_NEAR(z->elemAsDouble(1), 5.0, 1e-9);
+    EXPECT_NEAR(p->elemAsDouble(0), 1.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("k;"), 2.0);
+}
+
+TEST_P(PolyTest, Tf2zpEmptyNumeratorGivesZeroGain)
+{
+    eval("[z, p, k] = tf2zp([], [1 -1]);");
+    auto *z = getVarPtr("z");
+    auto *p = getVarPtr("p");
+    EXPECT_EQ(z->numel(), 0u);
+    EXPECT_NEAR(p->elemAsDouble(0), 1.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("k;"), 0.0);
+}
+
+TEST_P(PolyTest, Tf2zpZeroLeadingDenThrows)
+{
+    EXPECT_THROW(eval("[z, p, k] = tf2zp([1 2], [0 1]);"), std::exception);
+}
+
+TEST_P(PolyTest, Zp2tfBasic)
+{
+    // zeros = [3, 5], poles = [1], k = 2.
+    // b = 2 * (x - 3)(x - 5) = 2x² - 16x + 30
+    // a = x - 1
+    eval("[b, a] = zp2tf([3; 5], [1], 2);");
+    auto *b = getVarPtr("b");
+    auto *a = getVarPtr("a");
+    EXPECT_EQ(b->numel(), 3u);
+    EXPECT_DOUBLE_EQ(b->doubleData()[0],   2.0);
+    EXPECT_DOUBLE_EQ(b->doubleData()[1], -16.0);
+    EXPECT_DOUBLE_EQ(b->doubleData()[2],  30.0);
+    EXPECT_EQ(a->numel(), 2u);
+    EXPECT_DOUBLE_EQ(a->doubleData()[0],  1.0);
+    EXPECT_DOUBLE_EQ(a->doubleData()[1], -1.0);
+}
+
+TEST_P(PolyTest, Zp2tfWithComplexConjugatePair)
+{
+    // Zeros = ±i (conjugate pair) → b = (x - i)(x + i) = x² + 1.
+    eval("[b, a] = zp2tf([1i; -1i], [], 1);");
+    auto *b = getVarPtr("b");
+    EXPECT_EQ(b->numel(), 3u);
+    EXPECT_NEAR(b->doubleData()[0], 1.0, 1e-12);
+    EXPECT_NEAR(b->doubleData()[1], 0.0, 1e-12);
+    EXPECT_NEAR(b->doubleData()[2], 1.0, 1e-12);
+}
+
+TEST_P(PolyTest, Tf2zpZp2tfRoundTrip)
+{
+    // Real-coefficient polynomial → tf2zp → zp2tf → original (modulo
+    // ordering of zeros/poles and floating-point round-off).
+    eval("b = [2 -10 12 -2];"
+         "a = [1 -3 2];"
+         "[z, p, k] = tf2zp(b, a);"
+         "[b2, a2] = zp2tf(z, p, k);"
+         "db = max(abs(b - b2));"
+         "da = max(abs(a - a2));");
+    EXPECT_LT(evalScalar("db;"), 1e-8);
+    EXPECT_LT(evalScalar("da;"), 1e-12);
+}
+
 INSTANTIATE_DUAL(PolyTest);

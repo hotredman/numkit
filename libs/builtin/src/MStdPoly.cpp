@@ -140,6 +140,53 @@ polyder(Allocator &alloc, const MValue &b, const MValue &a)
     return std::make_tuple(rowFromVec(alloc, num), rowFromVec(alloc, den));
 }
 
+// Read a vector input of (real or COMPLEX) numbers as a Complex vector.
+namespace {
+
+std::vector<detail::Complex> readVecAsComplex(const MValue &v, const char *fn)
+{
+    if (!v.dims().isVector() && !v.isScalar() && !v.isEmpty())
+        throw MError(std::string(fn) + ": argument must be a vector",
+                     0, 0, fn, "", std::string("m:") + fn + ":notVector");
+    const std::size_t n = v.numel();
+    std::vector<detail::Complex> r(n);
+    if (v.type() == MType::COMPLEX) {
+        const auto *p = v.complexData();
+        for (std::size_t i = 0; i < n; ++i) r[i] = p[i];
+    } else {
+        for (std::size_t i = 0; i < n; ++i)
+            r[i] = detail::Complex(v.elemAsDouble(i), 0.0);
+    }
+    return r;
+}
+
+MValue complexColFromVec(Allocator &alloc, const std::vector<detail::Complex> &v)
+{
+    auto out = MValue::complexMatrix(v.size(), 1, &alloc);
+    for (std::size_t i = 0; i < v.size(); ++i)
+        out.complexDataMut()[i] = v[i];
+    return out;
+}
+
+MValue realColIfFlat(Allocator &alloc, const std::vector<detail::Complex> &v)
+{
+    bool anyComplex = false;
+    for (const auto &c : v)
+        if (std::abs(c.imag()) > 1e-12 * (std::abs(c.real()) + 1.0)) {
+            anyComplex = true;
+            break;
+        }
+    if (!anyComplex) {
+        auto out = MValue::matrix(v.size(), 1, MType::DOUBLE, &alloc);
+        for (std::size_t i = 0; i < v.size(); ++i)
+            out.doubleDataMut()[i] = v[i].real();
+        return out;
+    }
+    return complexColFromVec(alloc, v);
+}
+
+} // namespace
+
 MValue polyint(Allocator &alloc, const MValue &p, double k)
 {
     auto pv = readPolyAsDouble(p, "polyint");
@@ -157,6 +204,43 @@ MValue polyint(Allocator &alloc, const MValue &p, double k)
     }
     r[n] = k;
     return rowFromVec(alloc, r);
+}
+
+// ── tf2zp / zp2tf ───────────────────────────────────────────────────
+std::tuple<MValue, MValue, MValue>
+tf2zp(Allocator &alloc, const MValue &b, const MValue &a)
+{
+    auto bv = readPolyAsDouble(b, "tf2zp");
+    auto av = readPolyAsDouble(a, "tf2zp");
+    if (av.empty() || av[0] == 0.0)
+        throw MError("tf2zp: leading denominator coefficient must be non-zero",
+                     0, 0, "tf2zp", "", "m:tf2zp:badDen");
+    if (bv.empty()) {
+        // Numerator = 0 → no zeros, gain 0.
+        auto z = MValue::matrix(0, 1, MType::DOUBLE, &alloc);
+        auto p = realColIfFlat(alloc, detail::polyRootsDurandKerner(av));
+        auto k = MValue::scalar(0.0, &alloc);
+        return std::make_tuple(std::move(z), std::move(p), std::move(k));
+    }
+    auto zRoots = detail::polyRootsDurandKerner(bv);
+    auto pRoots = detail::polyRootsDurandKerner(av);
+    const double k = bv[0] / av[0];
+
+    return std::make_tuple(realColIfFlat(alloc, zRoots),
+                           realColIfFlat(alloc, pRoots),
+                           MValue::scalar(k, &alloc));
+}
+
+std::tuple<MValue, MValue>
+zp2tf(Allocator &alloc, const MValue &z, const MValue &p, double k)
+{
+    auto zv = readVecAsComplex(z, "zp2tf");
+    auto pv = readVecAsComplex(p, "zp2tf");
+    auto bRaw = detail::polyExpandFromRoots(zv);
+    auto aRaw = detail::polyExpandFromRoots(pv);
+    for (auto &v : bRaw) v *= k;
+    return std::make_tuple(rowFromVec(alloc, bRaw),
+                           rowFromVec(alloc, aRaw));
 }
 
 namespace detail {
@@ -193,6 +277,28 @@ void polyint_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     double k = 0.0;
     if (args.size() >= 2) k = args[1].toScalar();
     outs[0] = polyint(alloc, args[0], k);
+}
+
+void tf2zp_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("tf2zp: requires 2 arguments (b, a)",
+                     0, 0, "tf2zp", "", "m:tf2zp:nargin");
+    auto [zr, pr, kr] = tf2zp(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = std::move(zr);
+    if (nargout > 1) outs[1] = std::move(pr);
+    if (nargout > 2) outs[2] = std::move(kr);
+}
+
+void zp2tf_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("zp2tf: requires 3 arguments (z, p, k)",
+                     0, 0, "zp2tf", "", "m:zp2tf:nargin");
+    auto [bv, av] = zp2tf(ctx.engine->allocator(), args[0], args[1],
+                          args[2].toScalar());
+    outs[0] = std::move(bv);
+    if (nargout > 1) outs[1] = std::move(av);
 }
 
 } // namespace detail

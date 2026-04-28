@@ -58,6 +58,8 @@ void cumtrapz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void roots_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void polyder_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void polyint_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void tf2zp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void zp2tf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nansum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -335,6 +337,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);
     engine.registerFunction("polyint",   &builtin::detail::polyint_reg);
+    engine.registerFunction("tf2zp",     &builtin::detail::tf2zp_reg);
+    engine.registerFunction("zp2tf",     &builtin::detail::zp2tf_reg);
 
     // ── Phase 2 NaN-aware reductions ───────────────────────────────
     engine.registerFunction("nansum",    &builtin::detail::nansum_reg);

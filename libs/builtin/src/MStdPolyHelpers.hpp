@@ -100,4 +100,25 @@ polyRootsDurandKerner(const std::vector<double> &coeffs)
     return roots;
 }
 
+// Expand a list of polynomial roots into a real-coefficient polynomial
+// via repeated convolution by (x - r). Output length = roots.size() + 1
+// in MATLAB order (leading coefficient first). Imaginary residue is
+// dropped — caller is responsible for ensuring the roots come in
+// complex-conjugate pairs (otherwise the imaginary parts won't cancel
+// to zero).
+inline std::vector<double>
+polyExpandFromRoots(const std::vector<Complex> &roots)
+{
+    const int n = static_cast<int>(roots.size());
+    std::vector<Complex> poly(n + 1, Complex(0.0, 0.0));
+    poly[0] = Complex(1.0, 0.0);
+    for (int i = 0; i < n; ++i)
+        for (int j = i + 1; j >= 1; --j)
+            poly[j] = poly[j] - roots[i] * poly[j - 1];
+    std::vector<double> r(n + 1);
+    for (int i = 0; i <= n; ++i)
+        r[i] = poly[i].real();
+    return r;
+}
+
 } // namespace numkit::m::builtin::detail
