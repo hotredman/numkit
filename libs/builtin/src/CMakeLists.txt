@@ -44,26 +44,29 @@ set(STDLIB_SOURCES
 )
 
 # Backend-split functions: one definition per TU, picked at configure
-# time via NUMKIT_WITH_SIMD. Keep these lines 1-per-function so the
+# time via NUMKIT_WITH_SIMD. Co-located in backends/ next to their
+# public-API consumer folder. Keep these lines 1-per-function so the
 # diff is readable when a new function gets a SIMD backend.
 if(NUMKIT_WITH_SIMD)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/abs_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/transcendental_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/binary_ops_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/logical_reductions_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/compare_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/nan_reductions_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/var_reduction_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/cumsum_simd.cpp)
+    # math/elementary kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/abs_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/transcendental_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/logical_reductions_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/var_reduction_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/cumsum_simd.cpp)
+    # lang/operators kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/backends/binary_ops_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/backends/compare_simd.cpp)
 else()
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/abs_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/transcendental_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/binary_ops_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/logical_reductions_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/compare_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/nan_reductions_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/var_reduction_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/cumsum_portable.cpp)
+    # math/elementary kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/abs_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/transcendental_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/logical_reductions_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/var_reduction_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/backends/cumsum_portable.cpp)
+    # lang/operators kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/backends/binary_ops_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/backends/compare_portable.cpp)
 endif()
 
 set(STDLIB_SOURCES ${STDLIB_SOURCES} PARENT_SCOPE)

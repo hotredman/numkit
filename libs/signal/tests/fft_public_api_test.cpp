@@ -16,7 +16,7 @@
 // Used by the DspFftStockham parity tests below to call the radix-2
 // + Stockham kernels directly (without going through the public
 // dsp::fft wrapper).
-#include "src/backends/FftKernels.hpp"
+#include "src/transforms/backends/FftKernels.hpp"
 #include "src/dsp_helpers.hpp"
 
 #include <gtest/gtest.h>

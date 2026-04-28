@@ -22,11 +22,11 @@ namespace numkit::stats {
 
 using ::numkit::builtin::detail::applyAlongDim;
 using ::numkit::builtin::detail::resolveDim;
-using ::numkit::builtin::nanSumScan;
-using ::numkit::builtin::nanSumCountScan;
-using ::numkit::builtin::nanMaxScan;
-using ::numkit::builtin::nanMinScan;
-using ::numkit::builtin::nanVarianceTwoPass;
+using ::numkit::stats::detail::nanSumScan;
+using ::numkit::stats::detail::nanSumCountScan;
+using ::numkit::stats::detail::nanMaxScan;
+using ::numkit::stats::detail::nanMinScan;
+using ::numkit::stats::detail::nanVarianceTwoPass;
 using ::numkit::builtin::detail::compactNonNan;
 
 namespace {

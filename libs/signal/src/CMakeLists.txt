@@ -40,14 +40,14 @@ set(SIGNALLIB_SOURCES
 # budget isn't shared across butterflies; see
 # feedback_fft_msvc_limits memory for the rationale.
 if(NUMKIT_WITH_SIMD)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_r2_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_r4_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_stockham_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_r2_soa_simd.cpp)
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_r4_soa_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r2_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r4_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_stockham_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r2_soa_simd.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_r4_soa_simd.cpp)
 else()
-    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/backends/fft_portable.cpp)
+    list(APPEND SIGNALLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/transforms/backends/fft_portable.cpp)
 endif()
 
 set(SIGNALLIB_SOURCES ${SIGNALLIB_SOURCES} PARENT_SCOPE)
