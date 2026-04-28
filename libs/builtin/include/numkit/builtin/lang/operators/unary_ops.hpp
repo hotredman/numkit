@@ -25,7 +25,7 @@ Value ctranspose(Allocator &alloc, const Value &x);
 
 /// x.' — non-conjugate transpose. For complex matrices, does NOT conjugate.
 /// Throws Error on 3D input. Supports DOUBLE and COMPLEX.
-/// Note: distinct from `builtin::transpose` (MStdMatrix), which is
+/// Note: distinct from `builtin::transpose` (matrix.cpp), which is
 /// DOUBLE-only and registered as the `transpose()` function call.
 Value transposeNC(Allocator &alloc, const Value &x);
 

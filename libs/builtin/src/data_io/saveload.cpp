@@ -1,8 +1,7 @@
-// libs/builtin/src/MStdSaveLoad.cpp
+// libs/builtin/src/data_io/saveload.cpp
 //
-// Workspace-persistence builtins (save / load). Last of MStdIO's
-// functions; after this migration MStdIO.cpp and
-// BuiltinLibrary::registerIOFunctions are gone.
+// Workspace-persistence builtins (save / load). The last of the legacy
+// I/O TU's functions to migrate to the data_io/ split.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/data_io/saveload.hpp>

@@ -4,7 +4,7 @@
 // NUMKIT_WITH_SIMD=OFF. Same dispatch contract as the Highway variant —
 // returns LOGICAL output for pure DOUBLE × DOUBLE inputs (or DOUBLE
 // scalar broadcast), otherwise returns an unset Value so the generic
-// `compareImpl` in MStdBinaryOps.cpp handles it.
+// `compareImpl` in binary_ops.cpp handles it.
 
 #include "compare.hpp"
 

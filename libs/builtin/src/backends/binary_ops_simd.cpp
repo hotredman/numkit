@@ -4,7 +4,7 @@
 // rdivide on real double arrays. One HWY_EXPORT / HWY_DYNAMIC_DISPATCH
 // pair per op — the public entry points in the same detail namespace
 // forward to the dispatcher. The surrounding public plus() / minus()
-// / times() / rdivide() in MStdBinaryOps.cpp are unchanged; they
+// / times() / rdivide() in binary_ops.cpp are unchanged; they
 // call these loops only for the 2D same-shape DOUBLE fast path.
 
 #include "BinaryOpsLoops.hpp"

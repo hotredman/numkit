@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdDiagnostics.cpp
+// libs/builtin/src/programming/errors/diagnostics.cpp
 
 #include <numkit/builtin/programming/errors/diagnostics.hpp>
 #include <numkit/builtin/datatypes/strings/format.hpp>

@@ -1,7 +1,7 @@
 // libs/builtin/src/backends/var_reduction.hpp
 //
 // Internal contract for SIMD-friendly two-pass variance used by
-// var / std in MStdStats.cpp. Phase P5 of project_perf_optimization_plan.md.
+// var / std in stats.cpp. Phase P5 of project_perf_optimization_plan.md.
 //
 // The previous Welford recurrence is numerically pristine but has a
 // data dependency between iterations (each step needs the running mean

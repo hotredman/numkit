@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdNDManip.cpp
+// libs/builtin/src/lang/arrays/nd_manip.cpp
 //
 // Phase 6: N-D array manipulation. numkit-m's Value is capped at
 // 3D so the perm vector must have length 2 or 3. The general

@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdComplex.cpp
+// libs/builtin/src/math/elementary/complex.cpp
 
 #include <numkit/builtin/math/elementary/complex.hpp>
 #include <numkit/builtin/library.hpp>
@@ -149,10 +149,10 @@ void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
 } // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
-// Registration — hand off to MStdLibrary install() via forward decls.
+// Registration — hand off to library.cpp install() via forward decls.
 //
 // The existing BuiltinLibrary::registerComplexFunctions() is kept (empty) so
-// the MStdLibrary.hpp interface is unchanged. The actual registrations
+// the library.hpp interface is unchanged. The actual registrations
 // happen in library.cpp alongside the other Phase-6c builtins.
 // ════════════════════════════════════════════════════════════════════════
 

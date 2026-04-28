@@ -1,6 +1,6 @@
 // libs/stats/src/moments/moments.cpp
 //
-// skewness + kurtosis. Extracted from libs/builtin/src/MStdStats.cpp
+// skewness + kurtosis. Extracted from libs/builtin/src/stats.cpp
 // during the MATLAB-taxonomy refactor — they're Statistics Toolbox
 // content (var/std/median stay in libs/builtin as base MATLAB).
 

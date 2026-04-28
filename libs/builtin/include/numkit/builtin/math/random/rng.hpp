@@ -3,9 +3,9 @@
 // RNG management + integer-typed random generators.
 //
 // Phase-4 of the parity expansion plan. Supersedes the per-function
-// `static std::mt19937` in MStdMath.cpp, which made it impossible to
-// (a) seed reproducibly from MATLAB code or (b) keep `rand` and
-// `randn` on the same sequence as MATLAB does.
+// `static std::mt19937` previously baked into the math TUs, which made
+// it impossible to (a) seed reproducibly from MATLAB code or (b) keep
+// `rand` and `randn` on the same sequence as MATLAB does.
 //
 // All RNG-using functions (rand, randn, randi, randperm) share a
 // single process-static engine. Reproducibility:

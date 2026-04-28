@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdPoly.cpp
+// libs/builtin/src/math/elementary/polynomials.cpp
 
 #include <numkit/builtin/math/elementary/polynomials.hpp>
 

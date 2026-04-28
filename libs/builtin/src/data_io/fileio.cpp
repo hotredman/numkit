@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdFileIO.cpp
+// libs/builtin/src/data_io/fileio.cpp
 //
 // Simple file-I/O builtins (fopen/fclose/fgetl/fgets/feof/ferror/
 // ftell/fseek/frewind). fread/fwrite + scan family live elsewhere

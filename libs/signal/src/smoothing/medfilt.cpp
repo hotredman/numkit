@@ -1,6 +1,6 @@
 // libs/signal/src/smoothing/medfilt.cpp
 //
-// medfilt1 — sliding-window median. Split from MDspGaps.
+// medfilt1 — sliding-window median. Split from libs/signal/src/.
 
 #include <numkit/signal/smoothing/medfilt.hpp>
 

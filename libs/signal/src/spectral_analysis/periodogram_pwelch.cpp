@@ -1,6 +1,6 @@
 // libs/signal/src/spectral_analysis/periodogram_pwelch.cpp
 //
-// periodogram + pwelch. Split from MDspSpectral. spectrogram lives in
+// periodogram + pwelch. Split from spectral_analysis/. spectrogram lives in
 // time_frequency/spectrogram.cpp.
 
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>

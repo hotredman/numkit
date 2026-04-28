@@ -9,8 +9,8 @@ namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Process-environment builtins — thin wrappers over _putenv_s / ::setenv
-// and MBranding's cross-platform envGet. No Engine needed; getenv just
-// needs an Allocator for its Value result.
+// and the cross-platform envGet from numkit/core/branding.hpp. No Engine
+// needed; getenv just needs an Allocator for its Value result.
 // ════════════════════════════════════════════════════════════════════════
 
 void setenv(Span<const Value> args);

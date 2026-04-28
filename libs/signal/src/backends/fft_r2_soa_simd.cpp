@@ -159,7 +159,7 @@ HWY_EXPORT(Radix2SoA);
 HWY_EXPORT(Radix2SoAStages);
 
 // Per-thread re/im scratch — same growth pattern as the FFT wrapper's
-// working buffer in MDspFft.cpp. One persistent allocation per thread,
+// working buffer in fft.cpp. One persistent allocation per thread,
 // grows to the largest N seen.
 void fftRadix2SoaDispatch(Complex *buf, std::size_t N, const Complex *W)
 {

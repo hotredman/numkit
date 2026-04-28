@@ -1,7 +1,6 @@
-// libs/builtin/src/MStdCsv.cpp
+// libs/builtin/src/data_io/csv.cpp
 //
 // CSV text I/O (csvread / csvwrite), routed through Engine's Vfs.
-// Split off from MStdIO.cpp in Phase 6c.8.6.
 
 #include <numkit/builtin/data_io/csv.hpp>
 #include <numkit/builtin/library.hpp>

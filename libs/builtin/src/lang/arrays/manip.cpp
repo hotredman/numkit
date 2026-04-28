@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdManip.cpp
+// libs/builtin/src/lang/arrays/manip.cpp
 //
 // Phase-5 array manipulation kernels. All input/output is column-major
 // double; 3D layout stored as page-stride R*C. Most ops are pure data

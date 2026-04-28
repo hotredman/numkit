@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdFormat.cpp
+// libs/builtin/src/datatypes/strings/format.cpp
 
 #include <numkit/builtin/datatypes/strings/format.hpp>
 #include <numkit/builtin/library.hpp>

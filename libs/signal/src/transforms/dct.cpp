@@ -1,7 +1,7 @@
 // libs/signal/src/transforms/dct.cpp
 //
 // Type-II Discrete Cosine Transform + inverse (MATLAB default).
-// Split from MDspGaps. Direct O(N²); FFT-based path can be added
+// Split from libs/signal/src/. Direct O(N²); FFT-based path can be added
 // later if benches show dct hot.
 
 #include <numkit/signal/transforms/dct.hpp>

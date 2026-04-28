@@ -1894,7 +1894,7 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     outs[0] = logspace(ctx.engine->allocator(), a, b, n);
 }
 
-// rand_reg / randn_reg moved to MStdRng.cpp — they share a single
+// rand_reg / randn_reg moved to rng.cpp — they share a single
 // process-static engine with randi / randperm so MATLAB-style
 // rng(seed) controls all of them. The C++ public APIs rand(alloc,
 // rng, …) / randn(alloc, rng, …) above stay here unchanged.

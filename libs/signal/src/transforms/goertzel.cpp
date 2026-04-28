@@ -1,6 +1,6 @@
 // libs/signal/src/transforms/goertzel.cpp
 //
-// Goertzel single-bin DFT. Split from MDspGaps.
+// Goertzel single-bin DFT. Split from libs/signal/src/.
 
 #include <numkit/signal/transforms/goertzel.hpp>
 

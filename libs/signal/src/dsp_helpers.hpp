@@ -25,7 +25,7 @@ namespace numkit {
 // SIMD vectorisation (relevant for Phase 8e.2+).
 //
 // dir=+1 matches the current sign convention used by fftRadix2 and
-// its conjugate-trick inverse wrapper in MDspFft.cpp.
+// its conjugate-trick inverse wrapper in fft.cpp.
 // ============================================================
 inline void fillFftTwiddles(Complex *W, size_t N, int dir)
 {
@@ -79,8 +79,8 @@ inline void fftRadix2(Complex *buf, size_t N, const Complex *W)
 
 // Legacy convenience overload: generates a one-shot twiddle table
 // on each call. Still used by callers that haven't hoisted the table
-// outside their own loops (MDspSpectral, MDspTransform). For hot paths
-// (fftAlongDim in MDspFft.cpp, convFFT below), prefer the primary
+// outside their own loops (spectral_analysis/, transforms/). For hot paths
+// (fftAlongDim in fft.cpp, convFFT below), prefer the primary
 // overload + fillFftTwiddles so the table cost amortises.
 inline void fftRadix2(Complex *buf, size_t N, int dir)
 {

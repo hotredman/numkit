@@ -1,4 +1,4 @@
-// libs/signal/src/MDspResample.cpp
+// libs/signal/src/multirate/multirate.cpp
 
 #include <numkit/signal/multirate/multirate.hpp>
 
@@ -41,7 +41,7 @@ std::vector<double> designLowpassFir(size_t filtLen, double wc)
     return h;
 }
 
-// Direct Form II transposed FIR apply — matches MDspFilter's core for
+// Direct Form II transposed FIR apply — matches filter.cpp's core for
 // the a = [1] denominator case. Used by decimate and resample.
 std::vector<double> applyFirDf2t(const std::vector<double> &h, const double *x, size_t nx)
 {

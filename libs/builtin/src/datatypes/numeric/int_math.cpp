@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdIntMath.cpp
+// libs/builtin/src/datatypes/numeric/int_math.cpp
 //
 // Phase 7: integer-flavored numeric utilities — gcd / lcm and the
 // bit* family. All inputs flow through the existing elementwise

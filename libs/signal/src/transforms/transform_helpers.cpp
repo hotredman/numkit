@@ -1,6 +1,6 @@
 // libs/signal/src/transforms/transform_helpers.cpp
 //
-// nextpow2 / fftshift / ifftshift. Split from MDspSignalCore.
+// nextpow2 / fftshift / ifftshift. Split from library.cpp.
 
 #include <numkit/signal/transforms/transform_helpers.hpp>
 

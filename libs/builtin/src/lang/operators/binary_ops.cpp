@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdBinaryOps.cpp
+// libs/builtin/src/lang/operators/binary_ops.cpp
 
 #include <numkit/builtin/lang/operators/binary_ops.hpp>
 #include <numkit/builtin/library.hpp>

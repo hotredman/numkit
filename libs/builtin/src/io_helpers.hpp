@@ -1,7 +1,7 @@
 // libs/builtin/src/io_helpers.hpp
 //
-// Private helpers shared between MStdFileIO.cpp (fread/fwrite) and
-// MStdScan.cpp (fscanf/sscanf/textscan). Not a public header — lives
+// Private helpers shared between fileio.cpp (fread/fwrite) and
+// scan.cpp (fscanf/sscanf/textscan). Not a public header — lives
 // in src/ and is only on the PRIVATE include path for libs/builtin.
 
 #pragma once

@@ -1,6 +1,6 @@
 // libs/builtin/src/backends/compare.hpp
 //
-// Internal contract between MStdBinaryOps.cpp's compareImpl and the
+// Internal contract between binary_ops.cpp's compareImpl and the
 // SIMD/portable Compare backends. Six fast-path entry points — one per
 // MATLAB cmp op — that handle the two common shapes:
 //   * a and b are both DOUBLE arrays of identical 2D/3D shape, OR

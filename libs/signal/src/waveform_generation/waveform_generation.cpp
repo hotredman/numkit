@@ -1,7 +1,7 @@
 // libs/signal/src/waveform_generation/waveform_generation.cpp
 //
 // rectpuls, tripuls, gauspuls, pulstran (+ pulstranHandle), chirp.
-// Split from MDspSignalCore (transform-domain helpers nextpow2 /
+// Split from library.cpp (transform-domain helpers nextpow2 /
 // fftshift / ifftshift moved to transforms/transform_helpers.cpp).
 
 #include <numkit/signal/waveform_generation/waveform_generation.hpp>

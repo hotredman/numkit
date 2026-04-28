@@ -2,9 +2,8 @@
 //
 // Shared cellfun / structfun helpers — built-in fast-path dispatch for
 // common function handles (numel, length, isnumeric, sum, ...) plus the
-// callback fallback for anonymous handles. Lifted out of the original
-// MStdCellStruct.cpp so cell.cpp and struct.cpp can share it without
-// risking ODR violations.
+// callback fallback for anonymous handles. Header-only so cell.cpp and
+// struct.cpp can share it without risking ODR violations.
 //
 // Everything is `inline` to keep this header-only.
 

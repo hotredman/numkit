@@ -1,9 +1,9 @@
-// libs/builtin/src/MStdStats.cpp
+// libs/builtin/src/data_analysis/descriptive_statistics/stats.cpp
 //
 // Phase-1 stats: var, std, median, quantile, prctile, mode.
 // All take an explicit `dim` argument (1-based, or 0 for "first
 // non-singleton"). Implementations route through applyAlongDim from
-// MStdReductionHelpers, which handles vector/2D/3D layouts uniformly.
+// reduction_helpers.hpp, which handles vector/2D/3D layouts uniformly.
 
 #include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
 

@@ -1,4 +1,4 @@
-// include/ValueType.hpp
+// core/include/numkit/core/value_type.hpp
 #pragma once
 
 #include <cstddef>

@@ -23,7 +23,7 @@ namespace {
 // Shared scaffolding: complex / scalar shortcuts, then either reuse
 // `*hint` (uniquely-owned heap double of matching shape) or allocate
 // a fresh result and apply ScalarOp element-wise. See the docblock
-// on abs() in MStdMath.hpp for the full hint contract.
+// on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename ScalarOp, typename ComplexOp>
 Value unaryRealDoubleHint(Allocator &alloc, const Value &x, Value *hint,
                            ScalarOp scalarOp, ComplexOp complexOp)

@@ -1,7 +1,7 @@
 // libs/builtin/src/backends/nan_reductions.hpp
 //
 // Internal contract for single-pass NaN-skipping reductions used by
-// nansum / nanmean in MStdStats.cpp. SIMD-dispatched (Highway) when
+// nansum / nanmean in stats.cpp. SIMD-dispatched (Highway) when
 // NUMKIT_WITH_SIMD=ON, scalar otherwise.
 //
 // Phase P2 of project_perf_optimization_plan.md — replaces the two-pass

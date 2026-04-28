@@ -1,6 +1,6 @@
-// libs/signal/src/MDspConv.cpp
+// libs/signal/src/convolution/convolution.cpp
 //
-// Public C++ API for convolution and friends. See MDspConv.hpp for
+// Public C++ API for convolution and friends. See convolution.hpp for
 // contracts. Algorithms unchanged from the previous lambda form — only
 // moved into named free functions that take Allocator& explicitly.
 

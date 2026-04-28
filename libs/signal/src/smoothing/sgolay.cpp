@@ -1,4 +1,4 @@
-// libs/signal/src/MDspSgolay.cpp
+// libs/signal/src/smoothing/sgolay.cpp
 
 #include <numkit/signal/smoothing/sgolay.hpp>
 

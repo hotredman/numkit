@@ -1,7 +1,6 @@
-// libs/builtin/src/MStdEnv.cpp
+// libs/builtin/src/lang/commands/env.cpp
 //
-// Process-environment builtins (setenv / getenv). Split off from
-// MStdIO.cpp in Phase 6c.8.6.
+// Process-environment builtins (setenv / getenv).
 
 #include <numkit/builtin/lang/commands/env.hpp>
 #include <numkit/builtin/library.hpp>

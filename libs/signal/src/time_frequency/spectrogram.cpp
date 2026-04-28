@@ -1,6 +1,6 @@
 // libs/signal/src/time_frequency/spectrogram.cpp
 //
-// Short-time Fourier transform. Split from MDspSpectral. The
+// Short-time Fourier transform. Split from spectral_analysis/. The
 // time-collapsed power-spectrum estimators periodogram / pwelch
 // live in spectral_analysis/periodogram_pwelch.cpp.
 

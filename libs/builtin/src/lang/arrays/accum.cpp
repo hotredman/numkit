@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdAccum.cpp
+// libs/builtin/src/lang/arrays/accum.cpp
 //
 // accumarray — group-by reduction. See public header for the user-
 // facing contract. Implementation notes:

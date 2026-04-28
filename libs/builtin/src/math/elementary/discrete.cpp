@@ -1,8 +1,7 @@
 // libs/builtin/src/math/elementary/discrete.cpp
 //
-// Discrete-math builtins. Three legacy TUs merged here, separated by
-// section headers: set operations (was MStdSetOps), number theory (was
-// MStdNumberTheory), combinatorics (was MStdCombinatorics).
+// Discrete-math builtins. Three legacy TUs were merged here, separated
+// by section headers: set operations, number theory, combinatorics.
 
 #include <numkit/builtin/math/elementary/discrete.hpp>
 

@@ -1,4 +1,4 @@
-// libs/signal/src/MDspWindows.cpp
+// libs/signal/src/windows/windows.cpp
 
 #include <numkit/signal/windows/windows.hpp>
 

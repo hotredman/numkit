@@ -2,7 +2,7 @@
 //
 // Shared helper for builtins that take a function-handle argument and
 // invoke it once per scalar input (fzero, integral, ...). Lifted out of
-// the original MStdCalculus.cpp so each split TU can include it without
+// the original integration.cpp / fzero.cpp so each split TU can include it without
 // linker collisions. Inline to keep the header self-contained.
 
 #pragma once

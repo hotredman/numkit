@@ -1,6 +1,6 @@
 // libs/signal/src/measurements/findpeaks.cpp
 //
-// findpeaks — strict local maxima. Split from MDspGaps.
+// findpeaks — strict local maxima. Split from libs/signal/src/.
 
 #include <numkit/signal/measurements/findpeaks.hpp>
 

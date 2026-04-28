@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdPrint.cpp
+// libs/builtin/src/datatypes/strings/print.cpp
 
 #include <numkit/builtin/datatypes/strings/format.hpp>
 #include <numkit/builtin/library.hpp>

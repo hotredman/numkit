@@ -1,8 +1,7 @@
-// libs/builtin/src/MStdScan.cpp
+// libs/builtin/src/datatypes/strings/scan.cpp
 //
-// Scan-family builtins (fscanf / sscanf / textscan). Split off from the
-// original MStdIO.cpp in Phase 6c.8.5. Shares SizeSpec / parseReadSize /
-// shapeFreadOutput with MStdFileIO.cpp via io_helpers.hpp.
+// Scan-family builtins (fscanf / sscanf / textscan). Shares SizeSpec /
+// parseReadSize / shapeFreadOutput with fileio.cpp via io_helpers.hpp.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/datatypes/strings/scan.hpp>

@@ -9,9 +9,10 @@
 
 namespace numkit::builtin::detail {
 // Forward declarations for Phase 6c public-API-backed adapters.
-// Each is defined in the corresponding M<Name>.cpp translation unit.
+// Each is defined in the corresponding source file under the section
+// path indicated in the comment header.
 
-// MStdMath.cpp
+// math/elementary/
 void sqrt_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void abs_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -38,7 +39,7 @@ void sum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void prod_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mean_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdStats.cpp
+// stats.cpp
 void var_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void std_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void median_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -78,14 +79,14 @@ void zp2tf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // moved to libs/stats (see StatsLibrary::install)
 void linspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void logspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// MStdRng.cpp (rand/randn moved here from MStdMath.cpp; new functions added)
+// math/random/rng.cpp
 void rand_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void randn_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void randi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void randperm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rng_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdManip.cpp
+// manip.cpp
 void repmat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fliplr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void flipud_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -94,14 +95,14 @@ void circshift_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void tril_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void triu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdNDManip.cpp
+// nd_manip.cpp
 void permute_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ipermute_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void squeeze_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void blkdiag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdMath.cpp (Phase 7 floating-point additions)
+// math/elementary/ (Phase 7 floating-point additions)
 void hypot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void nthroot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void expm1_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -112,7 +113,7 @@ void erf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdIntMath.cpp
+// int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void lcm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitand_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -121,7 +122,7 @@ void bitxor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitshift_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitcmp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdSetOps.cpp
+// discrete.cpp
 void unique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ismember_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void union_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -130,19 +131,19 @@ void setdiff_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void discretize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdAccum.cpp
+// accum.cpp
 void accumarray_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void deg2rad_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rad2deg_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdComplex.cpp
+// complex.cpp
 void real_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void imag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void conj_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void complex_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void angle_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdStrings.cpp
+// strings.cpp
 void num2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2num_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void str2double_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -164,7 +165,7 @@ void regexp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexpi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexprep_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdTypes.cpp
+// types.cpp
 void double_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void single_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void int8_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -195,14 +196,14 @@ void isequal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void class_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdFormat.cpp
+// format.cpp
 void sprintf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdPrint.cpp
+// print.cpp
 void disp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fprintf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdFileIO.cpp
+// fileio.cpp
 void fopen_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fclose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fgetl_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -215,24 +216,24 @@ void frewind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fread_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fwrite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdScan.cpp
+// scan.cpp
 void fscanf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sscanf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void textscan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdCsv.cpp
+// csv.cpp
 void csvread_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void csvwrite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdEnv.cpp
+// env.cpp
 void setenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void getenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdSaveLoad.cpp
+// saveload.cpp
 void save_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void load_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdDiagnostics.cpp
+// diagnostics.cpp
 void error_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void warning_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void MException_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -240,7 +241,7 @@ void rethrow_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void throw_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void assert_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdCellStruct.cpp
+// datatypes/{cell,struct}/
 void struct_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fieldnames_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -249,7 +250,7 @@ void cell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cellfun_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void structfun_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// MStdMatrix.cpp
+// matrix.cpp
 void zeros_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ones_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void eye_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -302,7 +303,7 @@ void BuiltinLibrary::install(Engine &engine)
 
     registerWorkspaceBuiltins(engine);
 
-    // ── Phase 6c: MStdMath public-API-backed built-ins ─────────────
+    // ── Phase 6c: math/elementary/ public-API-backed built-ins ─────────────
     engine.registerFunction("sqrt",     &builtin::detail::sqrt_reg);
     engine.registerFunction("abs",      &builtin::detail::abs_reg);
     engine.registerFunction("sin",      &builtin::detail::sin_reg);
@@ -421,7 +422,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 
-    // ── Phase 6c: MStdMatrix public-API-backed built-ins ───────────
+    // ── Phase 6c: matrix.cpp public-API-backed built-ins ───────────
     engine.registerFunction("zeros",     &builtin::detail::zeros_reg);
     engine.registerFunction("ones",      &builtin::detail::ones_reg);
     engine.registerFunction("eye",       &builtin::detail::eye_reg);
@@ -454,14 +455,14 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("cross",     &builtin::detail::cross_reg);
     engine.registerFunction("dot",       &builtin::detail::dot_reg);
 
-    // ── Phase 6c: MStdComplex public-API-backed built-ins ──────────
+    // ── Phase 6c: math/elementary/complex.cpp public-API-backed built-ins ──────────
     engine.registerFunction("real",    &builtin::detail::real_reg);
     engine.registerFunction("imag",    &builtin::detail::imag_reg);
     engine.registerFunction("conj",    &builtin::detail::conj_reg);
     engine.registerFunction("complex", &builtin::detail::complex_reg);
     engine.registerFunction("angle",   &builtin::detail::angle_reg);
 
-    // ── Phase 6c: MStdStrings public-API-backed built-ins ──────────
+    // ── Phase 6c: strings.cpp public-API-backed built-ins ──────────
     engine.registerFunction("num2str",    &builtin::detail::num2str_reg);
     engine.registerFunction("str2num",    &builtin::detail::str2num_reg);
     engine.registerFunction("str2double", &builtin::detail::str2double_reg);
@@ -483,7 +484,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("regexpi",    &builtin::detail::regexpi_reg);
     engine.registerFunction("regexprep",  &builtin::detail::regexprep_reg);
 
-    // ── Phase 6c: MStdTypes public-API-backed built-ins ────────────
+    // ── Phase 6c: types.cpp public-API-backed built-ins ────────────
     engine.registerFunction("double",    &builtin::detail::double_reg);
     engine.registerFunction("single",    &builtin::detail::single_reg);
     engine.registerFunction("int8",      &builtin::detail::int8_reg);
@@ -514,14 +515,14 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     engine.registerFunction("class",     &builtin::detail::class_reg);
 
-    // ── Phase 6c: MStdFormat public-API-backed built-ins ───────────
+    // ── Phase 6c: datatypes/strings/format.cpp public-API-backed built-ins ───────────
     engine.registerFunction("sprintf",    &builtin::detail::sprintf_reg);
 
-    // ── Phase 6c: MStdPrint public-API-backed built-ins ────────────
+    // ── Phase 6c: print.cpp public-API-backed built-ins ────────────
     engine.registerFunction("disp",       &builtin::detail::disp_reg);
     engine.registerFunction("fprintf",    &builtin::detail::fprintf_reg);
 
-    // ── Phase 6c: MStdFileIO public-API-backed built-ins ───────────
+    // ── Phase 6c: data_io/fileio.cpp public-API-backed built-ins ───────────
     engine.registerFunction("fopen",      &builtin::detail::fopen_reg);
     engine.registerFunction("fclose",     &builtin::detail::fclose_reg);
     engine.registerFunction("fgetl",      &builtin::detail::fgetl_reg);
@@ -534,24 +535,24 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("fread",      &builtin::detail::fread_reg);
     engine.registerFunction("fwrite",     &builtin::detail::fwrite_reg);
 
-    // ── Phase 6c: MStdScan public-API-backed built-ins ─────────────
+    // ── Phase 6c: scan.cpp public-API-backed built-ins ─────────────
     engine.registerFunction("fscanf",     &builtin::detail::fscanf_reg);
     engine.registerFunction("sscanf",     &builtin::detail::sscanf_reg);
     engine.registerFunction("textscan",   &builtin::detail::textscan_reg);
 
-    // ── Phase 6c: MStdCsv public-API-backed built-ins ──────────────
+    // ── Phase 6c: data_io/csv.cpp public-API-backed built-ins ──────────────
     engine.registerFunction("csvread",    &builtin::detail::csvread_reg);
     engine.registerFunction("csvwrite",   &builtin::detail::csvwrite_reg);
 
-    // ── Phase 6c: MStdEnv public-API-backed built-ins ──────────────
+    // ── Phase 6c: lang/commands/env.cpp public-API-backed built-ins ──────────────
     engine.registerFunction("setenv",     &builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &builtin::detail::getenv_reg);
 
-    // ── Phase 6c: MStdSaveLoad public-API-backed built-ins ─────────
+    // ── Phase 6c: saveload.cpp public-API-backed built-ins ─────────
     engine.registerFunction("save",       &builtin::detail::save_reg);
     engine.registerFunction("load",       &builtin::detail::load_reg);
 
-    // ── Phase 6c: MStdDiagnostics public-API-backed built-ins ──────
+    // ── Phase 6c: programming/errors/diagnostics.cpp public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
     engine.registerFunction("warning",    &builtin::detail::warning_reg);
     engine.registerFunction("MException", &builtin::detail::MException_reg);
@@ -559,7 +560,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("throw",      &builtin::detail::throw_reg);
     engine.registerFunction("assert",     &builtin::detail::assert_reg);
 
-    // ── Phase 6c: MStdCellStruct public-API-backed built-ins ───────
+    // ── Phase 6c: datatypes/{cell,struct}/ public-API-backed built-ins ───────
     engine.registerFunction("struct",     &builtin::detail::struct_reg);
     engine.registerFunction("fieldnames", &builtin::detail::fieldnames_reg);
     engine.registerFunction("isfield",    &builtin::detail::isfield_reg);

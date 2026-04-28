@@ -10,7 +10,7 @@ namespace numkit::signal::detail {
 
 void fftRadix2Impl(Complex *buf, std::size_t N, const Complex *W)
 {
-    // MDspHelpers' fftRadix2 overload already takes (buf, N, W).
+    // dsp_helpers.hpp' fftRadix2 overload already takes (buf, N, W).
     numkit::fftRadix2(buf, N, W);
 }
 

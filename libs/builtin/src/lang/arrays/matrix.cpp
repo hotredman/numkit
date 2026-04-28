@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdMatrix.cpp
+// libs/builtin/src/lang/arrays/matrix.cpp
 
 #include <numkit/builtin/lang/arrays/matrix.hpp>
 

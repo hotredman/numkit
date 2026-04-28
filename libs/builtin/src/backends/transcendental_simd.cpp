@@ -104,7 +104,7 @@ namespace {
 // `hint` is a uniquely-owned heap double of matching shape, steal
 // its buffer instead of allocating a fresh result — saves the
 // per-call N-element alloc that dominates at large N. See the
-// docblock on abs() in MStdMath.hpp for the full hint contract.
+// docblock on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
 Value unaryRealDouble(Allocator &alloc, const Value &x, Value *hint,
                        LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)

@@ -247,7 +247,7 @@ TEST_P(SetOpsTest, DiscretizePreservesShape)
 //
 // The default std::hash<double> distinguishes +0 and -0 by bit pattern,
 // putting them in different buckets and breaking equality lookup. The
-// custom DoubleHashEq0 in MStdSetOps.cpp must collapse them. These
+// custom DoubleHashEq0 in discrete.cpp must collapse them. These
 // tests pin that semantic so a future "simplification" of the hash
 // can't silently regress.
 

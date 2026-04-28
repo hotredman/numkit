@@ -1,8 +1,8 @@
-// libs/signal/src/MDspFft.cpp
+// libs/signal/src/transforms/fft.cpp
 //
 // Public C++ API for 1D FFT / IFFT plus the adapters that bridge the
 // Engine's MATLAB-style calling convention onto it. Algorithm is the same
-// Cooley-Tukey radix-2 as before (via the fftRadix2 helper in MDspHelpers)
+// Cooley-Tukey radix-2 as before (via the fftRadix2 helper in dsp_helpers.hpp)
 // — this file only restructures WHERE the logic lives (public free
 // functions with an explicit Allocator parameter vs an engine-registered
 // lambda that reached into CallContext).

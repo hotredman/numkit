@@ -1,7 +1,7 @@
 // libs/stats/src/nan_aware/nan_aware.cpp
 //
 // nansum / nanmean / nanmax / nanmin / nanvar / nanstdev / nanmedian.
-// Extracted from libs/builtin/src/MStdStats.cpp during the
+// Extracted from libs/builtin/src/stats.cpp during the
 // MATLAB-taxonomy refactor — Statistics Toolbox content.
 
 #include <numkit/stats/nan_aware/nan_aware.hpp>

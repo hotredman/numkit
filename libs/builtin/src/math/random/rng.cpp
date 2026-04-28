@@ -1,4 +1,4 @@
-// libs/builtin/src/MStdRng.cpp
+// libs/builtin/src/math/random/rng.cpp
 //
 // Shared RNG manager + integer random generators + rng() control
 // function. Routes rand/randn/randi/randperm through one process-
@@ -108,9 +108,9 @@ void rngRestore(const Value &state)
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Real-valued random (uniform / standard-normal). Moved here from the
-// old MStdMath.cpp; the previous static-RNG versions had no shared
-// state with randi/randperm.
+// Real-valued random (uniform / standard-normal). The previous
+// static-RNG versions (replaced by this file) had no shared state with
+// randi/randperm.
 // ────────────────────────────────────────────────────────────────────
 
 Value rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
@@ -243,9 +243,9 @@ Value randperm(Allocator &alloc, size_t n, size_t k)
 // ════════════════════════════════════════════════════════════════════
 namespace detail {
 
-// rand / randn supersede the previous static-RNG versions in
-// MStdMath.cpp. Same shape API (parseDimsArgs); the only change is
-// they now share the engine that rng() controls.
+// rand / randn supersede the earlier static-RNG versions. Same shape
+// API (parseDimsArgs); the only change is they now share the engine
+// that rng() controls.
 void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {

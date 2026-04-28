@@ -164,7 +164,7 @@ namespace numkit::signal::detail {
 HWY_EXPORT(Stockham);
 
 // Same thread-local-scratch pattern as the FFT wrapper's working
-// buffer (see MDspFft.cpp). One persistent allocation per thread,
+// buffer (see fft.cpp). One persistent allocation per thread,
 // grows monotonically across calls. Lifetime tied to the thread.
 void fftStockhamDispatch(Complex *buf, std::size_t N, const Complex *W)
 {

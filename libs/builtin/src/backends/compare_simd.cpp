@@ -12,7 +12,7 @@
 //
 // Anything that isn't pure DOUBLE × DOUBLE (LOGICAL, integer, single,
 // complex, broadcast across mismatched non-scalar shapes) falls through
-// to the generic scalar `compareImpl` in MStdBinaryOps.cpp.
+// to the generic scalar `compareImpl` in binary_ops.cpp.
 
 #include "compare.hpp"
 

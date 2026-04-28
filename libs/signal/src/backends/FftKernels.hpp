@@ -3,7 +3,7 @@
 // Private kernel-dispatch header for FFT backends. Compiled by
 // exactly one of backends/MDspFft_{portable,simd}.cpp based on
 // NUMKIT_WITH_SIMD. The only caller of fftRadix2Impl is fftAlongDim
-// in MDspFft.cpp — other FFT users (MDspTransform, MDspSpectral,
+// in fft.cpp — other FFT users (transforms/, spectral_analysis/,
 // convFFT) still call the inline scalar fftRadix2 in helpers.hpp
 // directly; migrate them individually if their perf matters.
 

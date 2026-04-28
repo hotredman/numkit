@@ -43,19 +43,19 @@ void tripuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 void gauspuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pulstran_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
-// Phase 9 — DSP gaps (libs/dsp/src/MDspGaps.cpp)
+// Phase 9 — DSP gaps (libs/dsp/src/libs/signal/src/.cpp)
 void medfilt1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void goertzel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void dct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void idct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
-// SOS family (libs/dsp/src/MDspSos.cpp)
+// SOS family (libs/signal/src/digital_filtering/sosfilt.cpp)
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
-// Savitzky-Golay (libs/dsp/src/MDspSgolay.cpp)
+// Savitzky-Golay (libs/dsp/src/sgolay.cpp)
 void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void sgolayfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 } // namespace numkit::signal::detail

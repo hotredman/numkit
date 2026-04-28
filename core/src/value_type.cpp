@@ -1,4 +1,4 @@
-// src/ValueType.cpp
+// core/src/value_type.cpp
 #include <numkit/core/value_type.hpp>
 
 namespace numkit {

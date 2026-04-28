@@ -1,6 +1,6 @@
 // libs/signal/src/filter_analysis/unwrap.cpp
 //
-// unwrap — split out from MDspTransform.cpp. The hilbert/envelope
+// unwrap — split out from transforms/.cpp. The hilbert/envelope
 // pair lives in transforms/hilbert.cpp.
 
 #include <numkit/signal/filter_analysis/unwrap.hpp>
