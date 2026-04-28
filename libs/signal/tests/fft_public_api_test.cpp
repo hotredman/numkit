@@ -12,10 +12,10 @@
 #include <numkit/signal/transforms/fft.hpp>
 
 // Private kernel-dispatch headers, exposed to this test target via
-// libs/signal/tests/CMakeLists adding libs/dsp as a private include path.
-// Used by the DspFftStockham parity tests below to call the radix-2
-// + Stockham kernels directly (without going through the public
-// dsp::fft wrapper).
+// libs/signal/tests/CMakeLists adding libs/signal as a private include
+// path. Used by the DspFftStockham parity tests below to call the
+// radix-2 + Stockham kernels directly (without going through the public
+// signal::fft wrapper).
 #include "src/transforms/backends/fft_kernels.hpp"
 #include "src/dsp_helpers.hpp"
 
@@ -322,8 +322,8 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
 // match within FP noise.
 //
 // Direct kernel calls — fftStockhamDispatch and fftRadix2Impl are
-// declared in libs/dsp/src/backends/fft_kernels.hpp; we link against
-// the dsp library which exports them.
+// declared in libs/signal/src/transforms/backends/fft_kernels.hpp; we
+// link against the signal library which exports them.
 //
 // Stockham + SoA dispatchers are SIMD-only (no portable backend), so
 // the tests that exercise those symbols compile only when SIMD is on.

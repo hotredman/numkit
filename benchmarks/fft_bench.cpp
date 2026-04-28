@@ -10,7 +10,7 @@
 #include <numkit/core/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
 
-// Private headers — exposed via libs/dsp/src include path in the
+// Private headers — exposed via libs/signal/src include path in the
 // benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time
 // just the inner radix-2 dispatch loop.
 #include "dsp_helpers.hpp"

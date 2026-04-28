@@ -43,7 +43,7 @@ void tripuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 void gauspuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pulstran_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
-// Phase 9 — DSP gaps (libs/dsp/src/libs/signal/src/.cpp)
+// Phase 9 — DSP gaps
 void medfilt1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void goertzel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -55,7 +55,7 @@ void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
-// Savitzky-Golay (libs/dsp/src/sgolay.cpp)
+// Savitzky-Golay (libs/signal/src/smoothing/sgolay.cpp)
 void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void sgolayfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 } // namespace numkit::signal::detail
