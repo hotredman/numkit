@@ -1891,10 +1891,59 @@ TEST_P(ReductionDimTest, MaxOmitnanAlongDim)
     EXPECT_DOUBLE_EQ(evalScalar("i(2);"), 3.0);
 }
 
-TEST_P(ReductionDimTest, MinMaxOmitnanWithBinaryFormThrows)
+// ── Round 8 Item 1: binary max(A,B,'omitnan') / min(A,B,'omitnan') ─
+
+
+TEST_P(ReductionDimTest, BinaryMaxOmitnanDouble)
 {
-    eval("a = [1 2]; b = [3 4];");
-    EXPECT_THROW(eval("m = max(a, b, 'omitnan');"), std::exception);
+    // max(NaN, 2, 'omitnan') = 2; max(1, NaN, 'omitnan') = 1; max(NaN, NaN) = NaN.
+    // Build vectors via assignment to side-step a TW-specific parser
+    // quirk with NaN literals inside [] (unrelated to this feature).
+    eval("a = [1.0, 1.0, 1.0]; a(1) = NaN; a(3) = NaN;"
+         "b = [2.0, 2.0, 2.0]; b(2) = NaN; b(3) = NaN;"
+         "m = max(a, b, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.0);
+    EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
+}
+
+TEST_P(ReductionDimTest, BinaryMinOmitnanDouble)
+{
+    eval("a = [5.0, 5.0, 5.0]; a(1) = NaN; a(3) = NaN;"
+         "b = [3.0, 3.0, 3.0]; b(2) = NaN; b(3) = NaN;"
+         "m = min(a, b, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 5.0);
+    EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
+}
+
+TEST_P(ReductionDimTest, BinaryMaxOmitnanSinglePreserves)
+{
+    eval("a = single([1.5, 1.5, 3.0]); a(1) = NaN;"
+         "b = single([2.5, 2.5, 1.0]); b(2) = NaN;"
+         "m = max(a, b, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 3.0);
+}
+
+TEST_P(ReductionDimTest, BinaryMaxOmitnanIntIsNoop)
+{
+    // Integer types have no NaN — omitnan is no-op.
+    eval("a = int32([1 5 2]); b = int32([3 1 4]); m = max(a, b, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 4.0);
+}
+
+TEST_P(ReductionDimTest, BinaryMaxOmitnanBroadcastsScalar)
+{
+    eval("a = [1.0, 1.0, 5.0]; a(1) = NaN; m = max(a, 3, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 5.0);
 }
 
 // ── Round 7 Item 3: median 'all' flag ─────────────────────────────

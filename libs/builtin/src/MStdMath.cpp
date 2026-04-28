@@ -641,6 +641,18 @@ reduceMinMaxComplexAlongDim(const MValue &x, int dim, Allocator *alloc, const ch
     return std::make_tuple(std::move(out), std::move(outIdx));
 }
 
+// Forward declarations for the regular dispatchers (defined further
+// down). Needed because the nan-aware dispatchers fall through to
+// these for integer types — clang's strict two-phase lookup requires
+// the declaration to be visible at the point of (template) reference.
+template <bool IsMax, typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn);
+
+template <bool IsMax, typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, const char *fn);
+
 // ── NaN-aware min/max (omitnan flag) ─────────────────────────────────
 //
 // Per-MType dispatch identical to round-3 minMaxAlongDim, but skips
@@ -1032,6 +1044,54 @@ MValue min(Allocator &alloc, const MValue &a, const MValue &b)
         if (!r.isUnset()) return r;
     }
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::min(aa, bb); }, p);
+}
+
+// Binary nan-aware variants. For floating types, NaN propagates as
+// "missing": when one arg is NaN, take the other; both NaN → NaN.
+// For integer types, NaN can't occur so omitnan is a no-op (same as
+// the regular max/min).
+MValue maxOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    Allocator *p = &alloc;
+    {
+        auto r = dispatchIntegerBinaryOp(a, b,
+            [](auto x, auto y) {
+                using T = decltype(x);
+                if constexpr (std::is_floating_point_v<T>) {
+                    if (std::isnan(x)) return y;
+                    if (std::isnan(y)) return x;
+                }
+                return x > y ? x : y;
+            }, p);
+        if (!r.isUnset()) return r;
+    }
+    return elementwiseDouble(a, b, [](double aa, double bb) {
+        if (std::isnan(aa)) return bb;
+        if (std::isnan(bb)) return aa;
+        return std::max(aa, bb);
+    }, p);
+}
+
+MValue minOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    Allocator *p = &alloc;
+    {
+        auto r = dispatchIntegerBinaryOp(a, b,
+            [](auto x, auto y) {
+                using T = decltype(x);
+                if constexpr (std::is_floating_point_v<T>) {
+                    if (std::isnan(x)) return y;
+                    if (std::isnan(y)) return x;
+                }
+                return x < y ? x : y;
+            }, p);
+        if (!r.isUnset()) return r;
+    }
+    return elementwiseDouble(a, b, [](double aa, double bb) {
+        if (std::isnan(aa)) return bb;
+        if (std::isnan(bb)) return aa;
+        return std::min(aa, bb);
+    }, p);
 }
 
 // ── Generators ───────────────────────────────────────────────────────
@@ -2012,11 +2072,11 @@ void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
-        if (omitNan)
-            throw MError("max: 'omitnan' with binary max(A, B) is not supported",
-                         0, 0, "max", "", "m:max:omitnanBinary");
-        // Elementwise max(A, B) — single-return form.
-        outs[0] = max(ctx.engine->allocator(), args[0], args[1]);
+        // Elementwise max(A, B) — single-return form. NaN-aware variant
+        // when 'omitnan' was passed.
+        outs[0] = omitNan
+            ? maxOmitNanBinary(ctx.engine->allocator(), args[0], args[1])
+            : max(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
     // Reduction: optional dim as args[2].
@@ -2039,10 +2099,9 @@ void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
-        if (omitNan)
-            throw MError("min: 'omitnan' with binary min(A, B) is not supported",
-                         0, 0, "min", "", "m:min:omitnanBinary");
-        outs[0] = min(ctx.engine->allocator(), args[0], args[1]);
+        outs[0] = omitNan
+            ? minOmitNanBinary(ctx.engine->allocator(), args[0], args[1])
+            : min(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
     int dim = 0;
