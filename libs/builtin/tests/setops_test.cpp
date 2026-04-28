@@ -367,4 +367,108 @@ TEST_P(SetOpsTest, HistcountsLargeNUniformIntegrity)
         EXPECT_DOUBLE_EQ(h->doubleData()[i], 100.0) << "at bin " << i;
 }
 
+// ── unique 'rows' flag (post-parity round 10) ──────────────────────
+
+TEST_P(SetOpsTest, UniqueRowsBasic)
+{
+    // 4 rows, 2nd row duplicates 1st → 3 unique rows lex-sorted
+    // [1 2; 3 4; 1 2; 5 6] → [1 2; 3 4; 5 6]
+    eval("M = [1 2; 3 4; 1 2; 5 6]; C = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3, 1);"), 5.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsLexSort)
+{
+    // Lex sort: by col 1 first, then col 2, etc.
+    eval("M = [2 1; 1 9; 2 0; 1 9]; C = unique(M, 'rows');");
+    // distinct: (1,9), (2,0), (2,1) → lex sorted
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 2);"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 2);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(3, 2);"), 1.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsThreeOutputs)
+{
+    eval("M = [1 2; 3 4; 1 2; 5 6]; [C, ia, ic] = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    // ia: original row index per unique row
+    // sorted unique = [(1,2) row 1, (3,4) row 2, (5,6) row 4]
+    EXPECT_DOUBLE_EQ(evalScalar("ia(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ia(3);"), 4.0);
+    // ic: each original row → rank in unique
+    // M(1,:) and M(3,:) are unique #1; M(2,:) is #2; M(4,:) is #3
+    EXPECT_DOUBLE_EQ(evalScalar("ic(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ic(4);"), 3.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsNanRowsKeptDistinct)
+{
+    // Each NaN-row stays as its own unique slot, appended at the end.
+    eval("M = [1 2; NaN 0; 1 2; NaN 0]; C = unique(M, 'rows');");
+    // Non-NaN unique = [(1,2)]; NaN rows: 2 of them, each distinct
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 2);"), 2.0);
+    EXPECT_TRUE(std::isnan(evalScalar("C(2, 1);")));
+    EXPECT_DOUBLE_EQ(evalScalar("C(2, 2);"), 0.0);
+    EXPECT_TRUE(std::isnan(evalScalar("C(3, 1);")));
+}
+
+TEST_P(SetOpsTest, UniqueRowsEmpty)
+{
+    eval("M = zeros(0, 3); C = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 2);"), 3.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsNegativeZeroNormalized)
+{
+    // -0 and +0 must hash to the same slot (otherwise [-0 1] and [0 1]
+    // would be treated as distinct rows).
+    eval("M = [-0 1; 0 1; 0 1]; C = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 2);"), 1.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsAllSame)
+{
+    eval("M = [7 8; 7 8; 7 8]; C = unique(M, 'rows');");
+    EXPECT_DOUBLE_EQ(evalScalar("size(C, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 1);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1, 2);"), 8.0);
+}
+
+TEST_P(SetOpsTest, UniqueRowsNDThrows)
+{
+    // 'rows' flag is 2D-only.
+    eval("A = reshape(1:24, [2, 3, 4]);");
+    EXPECT_THROW(eval("C = unique(A, 'rows');"), std::exception);
+}
+
+TEST_P(SetOpsTest, UniqueRowsBadFlagThrows)
+{
+    eval("M = [1 2; 3 4];");
+    EXPECT_THROW(eval("C = unique(M, 'banana');"), std::exception);
+}
+
+TEST_P(SetOpsTest, UniqueAcceptsNoOpFlags)
+{
+    // 'first', 'sorted' etc. are MATLAB-recognised but no-op for our impl.
+    eval("v = [3 1 2 1]; c = unique(v, 'sorted');");
+    EXPECT_DOUBLE_EQ(evalScalar("c(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c(3);"), 3.0);
+}
+
 INSTANTIATE_DUAL(SetOpsTest);

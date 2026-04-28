@@ -26,6 +26,20 @@ MValue unique(Allocator &alloc, const MValue &x);
 std::tuple<MValue, MValue, MValue>
 uniqueWithIndices(Allocator &alloc, const MValue &x);
 
+/// unique(X, 'rows') — unique rows of a matrix, sorted lexicographically.
+/// Output shape is K×C where K is the number of distinct rows. Rows
+/// containing NaN are kept distinct (each its own slot, appended after
+/// the sorted non-NaN rows in input order — same convention as the flat
+/// unique on NaN scalars).
+MValue uniqueRows(Allocator &alloc, const MValue &x);
+
+/// [C, ia, ic] = unique(X, 'rows')
+///   C  : unique rows, lex-sorted (NaN rows appended last in input order).
+///   ia : 1-based row indices into X such that C = X(ia, :).
+///   ic : 1-based row indices into C such that X = C(ic, :).
+std::tuple<MValue, MValue, MValue>
+uniqueRowsWithIndices(Allocator &alloc, const MValue &x);
+
 /// ismember(A, B) — for each element of A, true if found in B.
 /// Output shape matches A. Output type LOGICAL.
 MValue ismember(Allocator &alloc, const MValue &a, const MValue &b);

@@ -100,6 +100,9 @@ void intersect_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void setdiff_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void histcounts_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void discretize_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+
+// MStdAccum.cpp
+void accumarray_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void deg2rad_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rad2deg_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
@@ -348,6 +351,7 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("setdiff",    &builtin::detail::setdiff_reg);
     engine.registerFunction("histcounts", &builtin::detail::histcounts_reg);
     engine.registerFunction("discretize", &builtin::detail::discretize_reg);
+    engine.registerFunction("accumarray", &builtin::detail::accumarray_reg);
     engine.registerFunction("deg2rad",  &builtin::detail::deg2rad_reg);
     engine.registerFunction("rad2deg",  &builtin::detail::rad2deg_reg);
 

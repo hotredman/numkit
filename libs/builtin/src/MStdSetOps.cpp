@@ -83,6 +83,97 @@ inline MValue rowFromVec(Allocator &alloc, const std::vector<double> &v)
     return r;
 }
 
+// ── 'rows' helpers ─────────────────────────────────────────────
+//
+// Row signature for hashing: an N-double vector with ±0 normalised
+// to +0 (so [-0 1] and [0 1] compare equal, matching MATLAB).
+
+using RowKey = std::vector<double>;
+
+struct RowKeyHash {
+    size_t operator()(const RowKey &k) const noexcept {
+        // Mix all lanes via the same xorshift mixer used for scalar
+        // double hashing — keeps the per-element distribution good.
+        std::uint64_t h = 0xcbf29ce484222325ULL;  // FNV-ish seed
+        for (double v : k) {
+            std::uint64_t bits;
+            if (v == 0.0) bits = 0;  // collapse +0 / -0
+            else          std::memcpy(&bits, &v, sizeof(bits));
+            bits ^= bits >> 33;
+            bits *= 0xff51afd7ed558ccdULL;
+            bits ^= bits >> 33;
+            h ^= bits + 0x9e3779b97f4a7c15ULL + (h << 6) + (h >> 2);
+        }
+        return static_cast<size_t>(h);
+    }
+};
+
+struct RowKeyEq {
+    bool operator()(const RowKey &a, const RowKey &b) const noexcept {
+        if (a.size() != b.size()) return false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            // Treat ±0 as equal but NaN as never-equal (this
+            // path is only hit for NaN-free rows — caller filters).
+            if (a[i] != b[i]) return false;
+        }
+        return true;
+    }
+};
+
+inline bool rowHasNan(const double *p, size_t cols, size_t rows, size_t r)
+{
+    for (size_t c = 0; c < cols; ++c)
+        if (std::isnan(p[c * rows + r])) return true;
+    return false;
+}
+
+inline RowKey extractRow(const double *p, size_t cols, size_t rows, size_t r)
+{
+    RowKey k(cols);
+    for (size_t c = 0; c < cols; ++c) {
+        const double v = p[c * rows + r];
+        // Normalise ±0 to +0 in the key so the hash equality also matches.
+        k[c] = (v == 0.0) ? 0.0 : v;
+    }
+    return k;
+}
+
+// Lex-compare two rows (column-major underlying buffer).
+inline int rowLexCmp(const double *p, size_t cols, size_t rows, size_t a, size_t b)
+{
+    for (size_t c = 0; c < cols; ++c) {
+        const double av = p[c * rows + a];
+        const double bv = p[c * rows + b];
+        if (av < bv) return -1;
+        if (av > bv) return  1;
+    }
+    return 0;
+}
+
+inline MValue emptyRowsResult(Allocator &alloc, size_t cols)
+{
+    // 0×C matrix — preserves column count so callers can still
+    // introspect the original row width.
+    return MValue::matrix(0, cols, MType::DOUBLE, &alloc);
+}
+
+inline MValue collectRowsByIndex(Allocator &alloc, const MValue &x,
+                                 const std::vector<size_t> &origRows)
+{
+    const size_t rows = x.dims().rows();
+    const size_t cols = x.dims().cols();
+    const size_t outRows = origRows.size();
+    auto r = MValue::matrix(outRows, cols, MType::DOUBLE, &alloc);
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t newRow = 0; newRow < outRows; ++newRow) {
+        const size_t srcRow = origRows[newRow];
+        for (size_t c = 0; c < cols; ++c)
+            dst[c * outRows + newRow] = src[c * rows + srcRow];
+    }
+    return r;
+}
+
 } // namespace
 
 // ────────────────────────────────────────────────────────────────────
@@ -182,6 +273,126 @@ uniqueWithIndices(Allocator &alloc, const MValue &x)
     std::copy(ic.begin(), ic.end(), icRow.doubleDataMut());
 
     return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
+}
+
+// ────────────────────────────────────────────────────────────────────
+// unique with 'rows' flag
+// ────────────────────────────────────────────────────────────────────
+//
+// Treats each row of x as a single key. Matches MATLAB:
+//   * lex-sorted output for non-NaN rows
+//   * NaN rows kept distinct (each its own slot, appended after the
+//     sorted rows in input order — same convention as scalar unique)
+//   * ±0 normalised to +0 in the row signature
+// Inputs are validated as 2D — 3D+ throws (matches MATLAB).
+
+namespace {
+
+void validateUniqueRowsInput(const MValue &x, const char *fn)
+{
+    if (x.type() != MType::DOUBLE)
+        throw MError(std::string(fn) + ": 'rows' flag requires a DOUBLE matrix",
+                     0, 0, fn, "", std::string("m:") + fn + ":rowsType");
+    if (x.dims().ndim() > 2)
+        throw MError(std::string(fn) + ": 'rows' flag requires a 2D matrix",
+                     0, 0, fn, "", std::string("m:") + fn + ":rowsND");
+}
+
+} // namespace
+
+MValue uniqueRows(Allocator &alloc, const MValue &x)
+{
+    validateUniqueRowsInput(x, "unique");
+    const size_t rows = x.dims().rows();
+    const size_t cols = x.dims().cols();
+    if (rows == 0) return emptyRowsResult(alloc, cols);
+
+    const double *src = x.doubleData();
+    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
+    firstIdx.reserve(rows);
+    std::vector<size_t> nanRows;
+    for (size_t r = 0; r < rows; ++r) {
+        if (rowHasNan(src, cols, rows, r)) {
+            nanRows.push_back(r);
+        } else {
+            firstIdx.try_emplace(extractRow(src, cols, rows, r), r);
+        }
+    }
+
+    std::vector<size_t> uniqRows;
+    uniqRows.reserve(firstIdx.size() + nanRows.size());
+    for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
+    std::sort(uniqRows.begin(), uniqRows.end(),
+              [src, cols, rows](size_t a, size_t b) {
+                  return rowLexCmp(src, cols, rows, a, b) < 0;
+              });
+    uniqRows.insert(uniqRows.end(), nanRows.begin(), nanRows.end());
+
+    return collectRowsByIndex(alloc, x, uniqRows);
+}
+
+std::tuple<MValue, MValue, MValue>
+uniqueRowsWithIndices(Allocator &alloc, const MValue &x)
+{
+    validateUniqueRowsInput(x, "unique");
+    const size_t rows = x.dims().rows();
+    const size_t cols = x.dims().cols();
+    if (rows == 0) {
+        return std::make_tuple(emptyRowsResult(alloc, cols),
+                               emptyRow(alloc), emptyRow(alloc));
+    }
+
+    const double *src = x.doubleData();
+    // Pass 1: hash non-NaN rows; collect NaN rows in input order.
+    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
+    firstIdx.reserve(rows);
+    std::vector<size_t> nanRowOrder;
+    for (size_t r = 0; r < rows; ++r) {
+        if (rowHasNan(src, cols, rows, r)) {
+            nanRowOrder.push_back(r);
+        } else {
+            firstIdx.try_emplace(extractRow(src, cols, rows, r), r);
+        }
+    }
+
+    // Sort non-NaN rows lex; NaN rows appended in input order.
+    std::vector<size_t> uniqRows;
+    uniqRows.reserve(firstIdx.size() + nanRowOrder.size());
+    for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
+    std::sort(uniqRows.begin(), uniqRows.end(),
+              [src, cols, rows](size_t a, size_t b) {
+                  return rowLexCmp(src, cols, rows, a, b) < 0;
+              });
+    const size_t nanRankBase = uniqRows.size();
+    uniqRows.insert(uniqRows.end(), nanRowOrder.begin(), nanRowOrder.end());
+
+    // Pass 2: build value→rank map for non-NaN keys.
+    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey;
+    rankByKey.reserve(nanRankBase);
+    for (size_t r = 0; r < nanRankBase; ++r)
+        rankByKey[extractRow(src, cols, rows, uniqRows[r])] = r;
+
+    // Pass 3: ic — every original row → its rank in the unique output.
+    auto icRow = MValue::matrix(rows, 1, MType::DOUBLE, &alloc);
+    double *ic = icRow.doubleDataMut();
+    size_t nanSeen = 0;
+    for (size_t r = 0; r < rows; ++r) {
+        if (rowHasNan(src, cols, rows, r)) {
+            ic[r] = static_cast<double>(nanRankBase + nanSeen + 1);
+            ++nanSeen;
+        } else {
+            ic[r] = static_cast<double>(rankByKey[extractRow(src, cols, rows, r)] + 1);
+        }
+    }
+
+    // ia: original row index per unique row (column vector, MATLAB convention).
+    auto iaCol = MValue::matrix(uniqRows.size(), 1, MType::DOUBLE, &alloc);
+    double *ia = iaCol.doubleDataMut();
+    for (size_t i = 0; i < uniqRows.size(); ++i)
+        ia[i] = static_cast<double>(uniqRows[i] + 1);
+
+    return std::make_tuple(collectRowsByIndex(alloc, x, uniqRows),
+                           std::move(iaCol), std::move(icRow));
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -489,6 +700,38 @@ void unique_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         throw MError("unique: requires 1 argument",
                      0, 0, "unique", "", "m:unique:nargin");
     auto &alloc = ctx.engine->allocator();
+
+    // Detect a trailing string flag. Currently only 'rows' is recognised
+    // — 'first'/'last'/'sorted'/'stable' are accepted in MATLAB but
+    // map to no-ops here since our scalar-unique already returns sorted-
+    // first (MATLAB's default). Bad strings throw.
+    bool useRows = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        const MValue &a = args[i];
+        if (a.type() != MType::CHAR)
+            throw MError("unique: extra arguments must be string flags",
+                         0, 0, "unique", "", "m:unique:badArg");
+        std::string s = a.toString();
+        std::transform(s.begin(), s.end(), s.begin(),
+                       [](unsigned char c) { return std::tolower(c); });
+        if (s == "rows") useRows = true;
+        else if (s == "first" || s == "last" || s == "sorted" || s == "stable") {
+            // accepted but no-op for now
+        } else {
+            throw MError("unique: unknown flag '" + s + "'",
+                         0, 0, "unique", "", "m:unique:badFlag");
+        }
+    }
+
+    if (useRows) {
+        if (nargout <= 1) { outs[0] = uniqueRows(alloc, args[0]); return; }
+        auto [c, ia, ic] = uniqueRowsWithIndices(alloc, args[0]);
+        outs[0] = std::move(c);
+        if (nargout > 1) outs[1] = std::move(ia);
+        if (nargout > 2) outs[2] = std::move(ic);
+        return;
+    }
+
     if (nargout <= 1) {
         outs[0] = unique(alloc, args[0]);
         return;
