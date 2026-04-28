@@ -8,6 +8,8 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MValue.hpp>
 
+#include <tuple>
+
 namespace numkit::m::builtin {
 
 /// roots(p) — finds the roots of the polynomial whose coefficients are
@@ -21,5 +23,18 @@ namespace numkit::m::builtin {
 ///     non-trivial imaginary part; otherwise DOUBLE.
 ///   * Trailing zeros in p → corresponding number of roots at 0.
 MValue roots(Allocator &alloc, const MValue &p);
+
+/// polyder(p) — coefficient row of d/dx p(x). For p of length n+1 the
+/// derivative has length n.
+MValue polyder(Allocator &alloc, const MValue &p);
+
+/// polyder(b, a) — coefficients of d/dx (b(x) / a(x)) as (numerator,
+/// denominator). The denominator becomes a^2; numerator is a·b' - b·a'.
+std::tuple<MValue, MValue>
+polyder(Allocator &alloc, const MValue &b, const MValue &a);
+
+/// polyint(p[, k]) — coefficients of the antiderivative ∫ p(x) dx with
+/// integration constant k (default 0). Output length is length(p) + 1.
+MValue polyint(Allocator &alloc, const MValue &p, double k = 0.0);
 
 } // namespace numkit::m::builtin

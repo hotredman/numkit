@@ -139,4 +139,103 @@ TEST_P(PolyTest, RootsMatrixInputThrows)
     EXPECT_THROW(eval("r = roots([1 2; 3 4]);"), std::exception);
 }
 
+// ── polyder ────────────────────────────────────────────────────
+
+TEST_P(PolyTest, PolyderQuadratic)
+{
+    // p = x² + 2x + 3 → p' = 2x + 2.
+    eval("d = polyder([1 2 3]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 2u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 2.0);
+}
+
+TEST_P(PolyTest, PolyderCubic)
+{
+    // p = 3x³ - x² + 5 → p' = 9x² - 2x.
+    eval("d = polyder([3 -1 0 5]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 3u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0],  9.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], -2.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2],  0.0);
+}
+
+TEST_P(PolyTest, PolyderConstantIsZero)
+{
+    eval("d = polyder([7]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 1u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 0.0);
+}
+
+TEST_P(PolyTest, PolyderQuotientForm)
+{
+    // d/dx ((x + 1) / (x - 1)) = -2 / (x - 1)²
+    // num: a·b' - b·a' = (x-1)·1 - (x+1)·1 = -2.
+    // den: (x - 1)² = x² - 2x + 1.
+    eval("[num, den] = polyder([1 1], [1 -1]);");
+    auto *num = getVarPtr("num");
+    auto *den = getVarPtr("den");
+    EXPECT_EQ(num->numel(), 1u);
+    EXPECT_DOUBLE_EQ(num->doubleData()[0], -2.0);
+    EXPECT_EQ(den->numel(), 3u);
+    EXPECT_DOUBLE_EQ(den->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(den->doubleData()[1], -2.0);
+    EXPECT_DOUBLE_EQ(den->doubleData()[2], 1.0);
+}
+
+TEST_P(PolyTest, PolyderComplexThrows)
+{
+    EXPECT_THROW(eval("d = polyder([1+2i, 3]);"), std::exception);
+}
+
+// ── polyint ────────────────────────────────────────────────────
+
+TEST_P(PolyTest, PolyintQuadratic)
+{
+    // ∫ (x² + 2x + 3) dx = (1/3)x³ + x² + 3x + 0.
+    eval("P = polyint([1 2 3]);");
+    auto *P = getVarPtr("P");
+    EXPECT_EQ(P->numel(), 4u);
+    EXPECT_NEAR(P->doubleData()[0], 1.0/3.0, 1e-15);
+    EXPECT_DOUBLE_EQ(P->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(P->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(P->doubleData()[3], 0.0);
+}
+
+TEST_P(PolyTest, PolyintWithConstant)
+{
+    eval("P = polyint([1 2], 5);");
+    auto *P = getVarPtr("P");
+    EXPECT_EQ(P->numel(), 3u);
+    EXPECT_DOUBLE_EQ(P->doubleData()[0], 0.5);  // x²/2
+    EXPECT_DOUBLE_EQ(P->doubleData()[1], 2.0);  // 2x
+    EXPECT_DOUBLE_EQ(P->doubleData()[2], 5.0);  // constant
+}
+
+TEST_P(PolyTest, PolyintInverseOfPolyder)
+{
+    // polyder(polyint(p)) should equal p (modulo trailing-constant differences).
+    eval("p = [1 -3 2 4];"
+         "P = polyint(p);"
+         "p2 = polyder(P);"
+         "delta = max(abs(p - p2));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
+
+TEST_P(PolyTest, PolyintEmptyReturnsConstant)
+{
+    eval("P = polyint([], 7);");
+    auto *P = getVarPtr("P");
+    EXPECT_EQ(P->numel(), 1u);
+    EXPECT_DOUBLE_EQ(P->doubleData()[0], 7.0);
+}
+
+TEST_P(PolyTest, PolyintComplexThrows)
+{
+    EXPECT_THROW(eval("P = polyint([1+2i, 3]);"), std::exception);
+}
+
 INSTANTIATE_DUAL(PolyTest);
