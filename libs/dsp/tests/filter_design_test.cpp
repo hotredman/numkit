@@ -155,3 +155,87 @@ TEST_F(FilterDesignTest, FreqzButterAtCutoff)
     double gainAtCutoff = evalScalar("Hmag(idx)");
     EXPECT_NEAR(gainAtCutoff, 1.0 / std::sqrt(2.0), 0.05);
 }
+
+// ============================================================
+// phasez
+// ============================================================
+
+TEST_F(FilterDesignTest, PhasezPassthroughIsZero)
+{
+    // b=[1], a=[1] → H(w) = 1 for all w → phase = 0.
+    eval("[phi, W] = phasez([1], [1], 64);");
+    for (int i = 1; i <= 64; ++i) {
+        std::string p = "phi(" + std::to_string(i) + ")";
+        EXPECT_NEAR(evalScalar(p), 0.0, 1e-12);
+    }
+}
+
+TEST_F(FilterDesignTest, PhasezReturnsCorrectShape)
+{
+    eval("[phi, W] = phasez([1 -0.5], [1], 128);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(phi)"), 128.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(W)"), 128.0);
+    EXPECT_NEAR(evalScalar("W(1)"), 0.0, 1e-10);
+    EXPECT_NEAR(evalScalar("W(128)"), M_PI, 1e-10);
+}
+
+TEST_F(FilterDesignTest, PhasezPureDelayFilterIsLinear)
+{
+    // b = [0 0 0 1] (3-sample delay), a = [1] → phase = -3·w (linear, slope = -3).
+    eval("[phi, W] = phasez([0 0 0 1], [1], 256);");
+    double slope = evalScalar("(phi(200) - phi(50)) / (W(200) - W(50));");
+    EXPECT_NEAR(slope, -3.0, 1e-9);
+}
+
+TEST_F(FilterDesignTest, PhasezUnwrappedIsContinuous)
+{
+    // After unwrap, no consecutive jump may exceed pi.
+    eval("[phi, W] = phasez([0 0 0 0 0 0 0 0 1], [1], 128);");
+    for (int i = 2; i <= 128; ++i) {
+        double d = evalScalar("phi(" + std::to_string(i) + ") - phi("
+                              + std::to_string(i - 1) + ");");
+        EXPECT_LT(std::abs(d), M_PI);
+    }
+}
+
+// ============================================================
+// grpdelay
+// ============================================================
+
+TEST_F(FilterDesignTest, GrpdelayPassthroughIsZero)
+{
+    eval("[gd, W] = grpdelay([1], [1], 64);");
+    for (int i = 1; i <= 64; ++i) {
+        std::string g = "gd(" + std::to_string(i) + ")";
+        EXPECT_NEAR(evalScalar(g), 0.0, 1e-9);
+    }
+}
+
+TEST_F(FilterDesignTest, GrpdelayPureDelayIsConstant)
+{
+    // 3-sample delay → group delay = 3 samples everywhere.
+    eval("[gd, W] = grpdelay([0 0 0 1], [1], 128);");
+    for (int i = 1; i <= 128; ++i) {
+        double v = evalScalar("gd(" + std::to_string(i) + ");");
+        EXPECT_NEAR(v, 3.0, 1e-6);
+    }
+}
+
+TEST_F(FilterDesignTest, GrpdelayMatchesNegativeDerivativeOfPhasez)
+{
+    // Sanity: numerical -dphi/dw at an interior point matches gd.
+    eval("[phi, W] = phasez([1 -0.4 0.2], [1 0.3], 128);"
+         "[gd,  W2] = grpdelay([1 -0.4 0.2], [1 0.3], 128);"
+         "i = 64;"
+         "expected = -(phi(i+1) - phi(i-1)) / (W(i+1) - W(i-1));");
+    double expected = evalScalar("expected");
+    double actual   = evalScalar("gd(64)");
+    EXPECT_NEAR(actual, expected, 1e-12);
+}
+
+TEST_F(FilterDesignTest, GrpdelayShape)
+{
+    eval("[gd, W] = grpdelay([1 0.5], [1], 64);");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(gd)"), 64.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(W)"),  64.0);
+}

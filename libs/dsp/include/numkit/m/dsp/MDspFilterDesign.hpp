@@ -36,4 +36,17 @@ MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type = "low")
 std::tuple<MValue, MValue>
 freqz(Allocator &alloc, const MValue &b, const MValue &a, size_t npts = 512);
 
+/// phasez(b, a[, n]) — unwrapped phase response of H(e^{jw}).
+/// Returns (phi, W) — phi = unwrap(angle(H)) and the same frequency
+/// grid that freqz produces. Output length is n (default 512).
+std::tuple<MValue, MValue>
+phasez(Allocator &alloc, const MValue &b, const MValue &a, size_t npts = 512);
+
+/// grpdelay(b, a[, n]) — group delay = -d(phase)/d(omega).
+/// Computed as the discrete derivative of unwrap(angle(freqz)) on the
+/// uniform grid w in [0, π]. Returns (gd, W). Endpoints use the same
+/// step (forward at 0, backward at π).
+std::tuple<MValue, MValue>
+grpdelay(Allocator &alloc, const MValue &b, const MValue &a, size_t npts = 512);
+
 } // namespace numkit::m::dsp

@@ -16,6 +16,8 @@ void filtfilt_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void fir1_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void phasez_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void grpdelay_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void downsample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void upsample_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void decimate_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
@@ -65,6 +67,8 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("butter",      &dsp::detail::butter_reg);
     engine.registerFunction("fir1",        &dsp::detail::fir1_reg);
     engine.registerFunction("freqz",       &dsp::detail::freqz_reg);
+    engine.registerFunction("phasez",      &dsp::detail::phasez_reg);
+    engine.registerFunction("grpdelay",    &dsp::detail::grpdelay_reg);
     engine.registerFunction("downsample",  &dsp::detail::downsample_reg);
     engine.registerFunction("upsample",    &dsp::detail::upsample_reg);
     engine.registerFunction("decimate",    &dsp::detail::decimate_reg);
