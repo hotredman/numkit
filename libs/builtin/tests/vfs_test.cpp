@@ -70,20 +70,20 @@ public:
 
 TEST_P(VfsTest, SetenvGetenvRoundTrip)
 {
-    eval("setenv('NUMKIT_M_TEST_VAR', 'hello');");
-    EXPECT_EQ(evalString("v = getenv('NUMKIT_M_TEST_VAR');"), "hello");
+    eval("setenv('NUMKIT_TEST_VAR', 'hello');");
+    EXPECT_EQ(evalString("v = getenv('NUMKIT_TEST_VAR');"), "hello");
 }
 
 TEST_P(VfsTest, GetenvReturnsEmptyWhenUnset)
 {
-    EXPECT_EQ(evalString("v = getenv('NUMKIT_M_TOTALLY_UNLIKELY_NAME_XYZ');"), "");
+    EXPECT_EQ(evalString("v = getenv('NUMKIT_TOTALLY_UNLIKELY_NAME_XYZ');"), "");
 }
 
 TEST_P(VfsTest, SetenvWithSingleArgClearsValue)
 {
-    eval("setenv('NUMKIT_M_TEST_VAR_2', 'stuff');");
-    eval("setenv('NUMKIT_M_TEST_VAR_2');");
-    EXPECT_EQ(evalString("v = getenv('NUMKIT_M_TEST_VAR_2');"), "");
+    eval("setenv('NUMKIT_TEST_VAR_2', 'stuff');");
+    eval("setenv('NUMKIT_TEST_VAR_2');");
+    EXPECT_EQ(evalString("v = getenv('NUMKIT_TEST_VAR_2');"), "");
 }
 
 // ── NUMKIT_FS routing ────────────────────────────────────────
