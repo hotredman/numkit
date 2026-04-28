@@ -12,7 +12,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <complex>
 #include <cstring>
+#include <type_traits>
 #include <vector>
 
 namespace numkit::m::builtin {
@@ -230,13 +232,54 @@ inline void runPageMatmul<float>(const float *a, const float *b, float *c,
     }
 }
 
+template <>
+inline void runPageMatmul<Complex>(const Complex *a, const Complex *b, Complex *c,
+                                   size_t M, size_t N, size_t K)
+{
+    for (size_t j = 0; j < N; ++j) {
+        Complex *cj = c + j * M;
+        for (size_t i = 0; i < M; ++i) cj[i] = Complex(0.0, 0.0);
+        for (size_t k = 0; k < K; ++k) {
+            const Complex bkj = b[j * K + k];
+            const Complex *ak = a + k * M;
+            for (size_t i = 0; i < M; ++i)
+                cj[i] += ak[i] * bkj;
+        }
+    }
+}
+
 template <typename T> constexpr MType pagemtimesElemMType();
-template <> constexpr MType pagemtimesElemMType<double>() { return MType::DOUBLE; }
-template <> constexpr MType pagemtimesElemMType<float>()  { return MType::SINGLE; }
+template <> constexpr MType pagemtimesElemMType<double >() { return MType::DOUBLE;  }
+template <> constexpr MType pagemtimesElemMType<float  >() { return MType::SINGLE;  }
+template <> constexpr MType pagemtimesElemMType<Complex>() { return MType::COMPLEX; }
+
+// Read element i of `src` as T. For T = Complex, real-typed sources
+// upgrade to (real, 0); for T ∈ {double, float}, complex sources are
+// rejected upstream so we never reach the if-branch with COMPLEX input.
+template <typename T>
+inline T readElemAsT(const MValue &src, size_t i, bool typeMatches)
+{
+    if constexpr (std::is_same_v<T, Complex>) {
+        if (typeMatches) return src.complexData()[i];
+        return Complex(src.elemAsDouble(i), 0.0);
+    } else {
+        if (typeMatches) return static_cast<const T *>(src.rawData())[i];
+        return static_cast<T>(src.elemAsDouble(i));
+    }
+}
+
+// Conjugate a value if T is Complex; identity for real T.
+template <typename T>
+inline T conjIfComplex(T v)
+{
+    if constexpr (std::is_same_v<T, Complex>) return std::conj(v);
+    else return v;
+}
 
 // Materialise one page from `src` into typed scratch `dst`, optionally
-// transposing. Direct copy (no per-element conversion) when src already
-// holds the target type.
+// transposing (and conjugating, for ctranspose on Complex). Direct copy
+// (no per-element conversion) when src already holds the target type
+// AND no transpose is needed.
 template <typename T>
 void materialisePage(T *dst, const MValue &src, size_t pageOff,
                      size_t rowDim, size_t colDim, TranspOp tr)
@@ -244,24 +287,26 @@ void materialisePage(T *dst, const MValue &src, size_t pageOff,
     const size_t pageElems = rowDim * colDim;
     const size_t base = pageOff * pageElems;
     const bool typeMatches = (src.type() == pagemtimesElemMType<T>());
-    const T *typedSrc = typeMatches ? static_cast<const T *>(src.rawData()) : nullptr;
 
     if (tr == TranspOp::None) {
         if (typeMatches) {
-            std::memcpy(dst, typedSrc + base, pageElems * sizeof(T));
+            std::memcpy(dst, static_cast<const T *>(src.rawData()) + base,
+                        pageElems * sizeof(T));
         } else {
             for (size_t i = 0; i < pageElems; ++i)
-                dst[i] = static_cast<T>(src.elemAsDouble(base + i));
+                dst[i] = readElemAsT<T>(src, base + i, false);
         }
-    } else {
-        // dst is colDim × rowDim col-major: dst[r * colDim + c] = src[c * rowDim + r].
-        for (size_t r = 0; r < rowDim; ++r) {
-            for (size_t c = 0; c < colDim; ++c) {
-                const size_t srcOff = base + c * rowDim + r;
-                dst[r * colDim + c] = typeMatches
-                    ? typedSrc[srcOff]
-                    : static_cast<T>(src.elemAsDouble(srcOff));
-            }
+        return;
+    }
+    // Transpose: dst is colDim × rowDim col-major;
+    // dst[r * colDim + c] = src[c * rowDim + r] (then conjugate if ctranspose+Complex).
+    const bool needsConj = (tr == TranspOp::CTranspose);
+    for (size_t r = 0; r < rowDim; ++r) {
+        for (size_t c = 0; c < colDim; ++c) {
+            const size_t srcOff = base + c * rowDim + r;
+            T v = readElemAsT<T>(src, srcOff, typeMatches);
+            if (needsConj) v = conjIfComplex<T>(v);
+            dst[r * colDim + c] = v;
         }
     }
 }
@@ -392,18 +437,20 @@ MValue pagemtimes(Allocator &alloc,
                   const MValue &x, TranspOp tx,
                   const MValue &y, TranspOp ty)
 {
-    if (x.isComplex() || y.isComplex())
-        throw MError("pagemtimes: complex inputs are not yet supported",
-                     0, 0, "pagemtimes", "", "m:pagemtimes:complex");
-    const bool xOk = (x.type() == MType::DOUBLE || x.type() == MType::SINGLE);
-    const bool yOk = (y.type() == MType::DOUBLE || y.type() == MType::SINGLE);
-    if (!xOk || !yOk)
-        throw MError("pagemtimes: inputs must be 'single' or 'double'",
+    // MATLAB type promotion: COMPLEX wins over real; SINGLE wins over
+    // DOUBLE. Integer/logical/char inputs are rejected — pagemtimes
+    // requires floating or complex inputs.
+    auto isFloatLike = [](MType t) {
+        return t == MType::DOUBLE || t == MType::SINGLE || t == MType::COMPLEX;
+    };
+    if (!isFloatLike(x.type()) || !isFloatLike(y.type()))
+        throw MError("pagemtimes: inputs must be 'single', 'double', or complex",
                      0, 0, "pagemtimes", "", "m:pagemtimes:type");
-    // MATLAB: single dominates double in mixed-type arithmetic.
+    if (x.isComplex() || y.isComplex())
+        return pagemtimesImpl<Complex>(alloc, x, tx, y, ty);
     if (x.type() == MType::SINGLE || y.type() == MType::SINGLE)
-        return pagemtimesImpl<float >(alloc, x, tx, y, ty);
-    return     pagemtimesImpl<double>(alloc, x, tx, y, ty);
+        return pagemtimesImpl<float  >(alloc, x, tx, y, ty);
+    return     pagemtimesImpl<double >(alloc, x, tx, y, ty);
 }
 
 MValue diag(Allocator &alloc, const MValue &x)

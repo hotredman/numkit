@@ -1044,10 +1044,56 @@ TEST_P(ReductionDimTest, MaxCharReturnsChar)
     EXPECT_DOUBLE_EQ(evalScalar("double(m);"), 110.0);
 }
 
-TEST_P(ReductionDimTest, MaxComplexThrows)
+// COMPLEX min/max — MATLAB rule: compare by |z| (modulus); ties broken
+// by angle(z). All-real complex (zero imag throughout) → real ordering.
+
+TEST_P(ReductionDimTest, MaxComplexByModulus)
 {
-    eval("v = [1+2i, 3+4i, 5+0i];");
-    EXPECT_THROW(eval("m = max(v);"), std::exception);
+    // |1+2i|=√5, |3+4i|=5, |5+0i|=5 → max by |z| = 5 → tie between
+    // (3+4i) and (5+0i). angle(3+4i) ≈ 0.927, angle(5+0i) = 0
+    // → max angle wins → 3+4i.
+    eval("v = [1+2i, 3+4i, 5+0i]; [m, i] = max(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i;"), 2.0);
+}
+
+TEST_P(ReductionDimTest, MinComplexByModulus)
+{
+    // |1+2i|=√5≈2.236, |3+4i|=5, |5+0i|=5 → min by |z| = √5 → 1+2i
+    eval("v = [1+2i, 3+4i, 5+0i]; [m, i] = min(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i;"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MinComplexAllRealUsesRealCompare)
+{
+    // All-zero imaginary parts → MATLAB falls back to real comparison.
+    // min([1+0i, -3+0i, 2+0i]) → -3 (not the smallest |z|, which would be 1).
+    eval("v = complex([1, -3, 2], [0, 0, 0]); m = min(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"),  0.0);
+}
+
+TEST_P(ReductionDimTest, MaxComplexAlongDim)
+{
+    // Per-column max: M = [1+0i 3+4i; 5+0i 1+2i]
+    // col 1 = [1+0i, 5+0i]   all-real → max real = 5
+    // col 2 = [3+4i, 1+2i]   |3+4i|=5, |1+2i|=√5 → max = 3+4i
+    eval("M = [1+0i, 3+4i; 5+0i, 1+2i]; [m, i] = max(M, [], 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m(1));"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(m(2));"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m(2));"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MinComplexScalar)
+{
+    eval("v = 3+4i; m = min(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"), 4.0);
 }
 
 TEST_P(ReductionDimTest, BinaryMinInt32SameClass)

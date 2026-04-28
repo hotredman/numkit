@@ -921,5 +921,85 @@ TEST_P(PagemtimesTest, LogicalInputThrows)
     EXPECT_THROW(eval("Z = pagemtimes(X, Y);"), std::exception);
 }
 
+// ── Round 4 Item 3: COMPLEX pagemtimes ────────────────────────────
+
+TEST_P(PagemtimesTest, ComplexComplex2D)
+{
+    // (1+2i) * (3+4i) = -5+10i; (1+2i)*(5+6i) = -7+16i; etc.
+    // Manually verify against equivalent matmul.
+    eval("X = [1+2i, 3+4i; 5+0i, 0+1i];"        // 2x2
+         "Y = [1+0i, 0+1i; 2+1i, 1+0i];"        // 2x2
+         "Z = pagemtimes(X, Y);"
+         "Zref = X * Y;"                         // mtimes, our reference
+         "diff = max(abs(reshape(Z - Zref, 1, [])));");
+    EXPECT_LT(evalScalar("diff;"), 1e-12);
+}
+
+TEST_P(PagemtimesTest, RealPromotedToComplex)
+{
+    // Mixed real / complex → output is COMPLEX.
+    eval("X = [1, 2; 3, 4];"
+         "Y = [1+1i, 2+0i; 0+1i, 1+0i];"
+         "Z = pagemtimes(X, Y);");
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(Z);"), 0.0);
+    // Z(1,1) = X(1,:)*Y(:,1) = 1*(1+1i) + 2*(0+1i) = 1+3i
+    EXPECT_DOUBLE_EQ(evalScalar("real(Z(1,1));"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Z(1,1));"), 3.0);
+}
+
+TEST_P(PagemtimesTest, ComplexBatched3D)
+{
+    eval("X = complex(reshape(1:12, [2, 3, 2]), reshape(13:24, [2, 3, 2]));"  // 2x3x2
+         "Y = complex(reshape(1:12, [3, 2, 2]), reshape(13:24, [3, 2, 2]));"  // 3x2x2
+         "Z = pagemtimes(X, Y);"
+         "Zref1 = X(:,:,1) * Y(:,:,1);"
+         "Zref2 = X(:,:,2) * Y(:,:,2);"
+         "diff1 = max(abs(reshape(Z(:,:,1) - Zref1, 1, [])));"
+         "diff2 = max(abs(reshape(Z(:,:,2) - Zref2, 1, [])));");
+    EXPECT_LT(evalScalar("diff1;"), 1e-10);
+    EXPECT_LT(evalScalar("diff2;"), 1e-10);
+}
+
+TEST_P(PagemtimesTest, ComplexCTransposeConjugates)
+{
+    // ctranspose: swap + conjugate. Y' = conj(transpose(Y)).
+    // X * Y' should differ from X * Y.' (transpose, no conjugate) when imag(Y) != 0.
+    eval("X = [1+0i, 2+0i];"             // 1x2
+         "Y = [3+1i, 4+2i];"             // 1x2 → Y' is 2x1
+         "Zct = pagemtimes(X, 'none', Y, 'ctranspose');"
+         "Zt  = pagemtimes(X, 'none', Y, 'transpose');");
+    // Y' (ctranspose) = [3-1i; 4-2i] → X*Y' = 1*(3-1i) + 2*(4-2i) = 11-5i
+    // Y.' (transpose) = [3+1i; 4+2i] → X*Y.' = 1*(3+1i) + 2*(4+2i) = 11+5i
+    EXPECT_DOUBLE_EQ(evalScalar("real(Zct(1,1));"), 11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Zct(1,1));"), -5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(Zt(1,1));"),  11.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(Zt(1,1));"),   5.0);
+}
+
+TEST_P(PagemtimesTest, ComplexCTransposeOnRealEqualsTranspose)
+{
+    // For real input, ctranspose ≡ transpose (no imaginary part to flip).
+    eval("X = [1, 2];"                   // 1x2
+         "Y = [3, 4];"                   // 1x2 → Y' is 2x1
+         "Zct = pagemtimes(X, 'none', Y, 'ctranspose');"
+         "Zt  = pagemtimes(X, 'none', Y, 'transpose');"
+         "diff = max(abs(reshape(Zct - Zt, 1, [])));");
+    EXPECT_LT(evalScalar("diff;"), 1e-12);
+}
+
+TEST_P(PagemtimesTest, ComplexCTransposeBatched)
+{
+    // 3D batch with ctranspose on the second operand.
+    eval("X = complex(reshape(1:8, [2, 2, 2]), zeros(2, 2, 2));"
+         "Y = complex(reshape(1:8, [2, 2, 2]), reshape(1:8, [2, 2, 2]));"
+         "Z = pagemtimes(X, 'none', Y, 'ctranspose');"
+         "Zref1 = X(:,:,1) * Y(:,:,1)';"
+         "Zref2 = X(:,:,2) * Y(:,:,2)';"
+         "diff1 = max(abs(reshape(Z(:,:,1) - Zref1, 1, [])));"
+         "diff2 = max(abs(reshape(Z(:,:,2) - Zref2, 1, [])));");
+    EXPECT_LT(evalScalar("diff1;"), 1e-10);
+    EXPECT_LT(evalScalar("diff2;"), 1e-10);
+}
+
 INSTANTIATE_DUAL(PagemtimesTest);
 

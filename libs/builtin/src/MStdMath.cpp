@@ -486,10 +486,165 @@ reduceMinMaxAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocato
     return std::make_tuple(std::move(out), std::move(outIdx));
 }
 
+// COMPLEX min/max — MATLAB rule: compare by |z| (modulus) primary key,
+// angle(z) (argument) secondary key for ties. Special case: when the
+// entire input has all-zero imaginary parts, MATLAB falls back to
+// comparing the real parts directly (so min([1 -3 2]) = -3, not the
+// element with smallest |z|).
+//
+// Output value array is COMPLEX; index array is always DOUBLE (matches
+// the round-3 typed reducers). The all-real check is one O(n) scan over
+// the input — fast and amortised across the per-slice work.
+inline bool allImagZero(const Complex *data, size_t n)
+{
+    for (size_t i = 0; i < n; ++i)
+        if (data[i].imag() != 0.0) return false;
+    return true;
+}
+
+template <bool IsMax>
+inline bool complexBetter(Complex v, Complex best, bool allReal)
+{
+    if (allReal) {
+        if constexpr (IsMax) return v.real() > best.real();
+        else                 return v.real() < best.real();
+    }
+    const double absV = std::abs(v), absB = std::abs(best);
+    if (absV != absB) {
+        if constexpr (IsMax) return absV > absB;
+        else                 return absV < absB;
+    }
+    const double angV = std::arg(v), angB = std::arg(best);
+    if constexpr (IsMax) return angV > angB;
+    else                 return angV < angB;
+}
+
+inline std::pair<MValue, MValue>
+allocComplexMinMaxOutputs(const MValue &x, int redDim, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return {MValue::matrixND(shape.data(), (int) shape.size(), MType::COMPLEX, alloc),
+                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE,  alloc)};
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return {createMatrix(outShape, MType::COMPLEX, alloc),
+            createMatrix(outShape, MType::DOUBLE,  alloc)};
+}
+
+template <bool IsMax>
+std::tuple<MValue, MValue>
+reduceMinMaxComplexAll(const MValue &x, Allocator *alloc, const char *fn)
+{
+    if (x.numel() == 0)
+        throw MError(std::string(fn) + " of empty array is not supported",
+                     0, 0, fn, "", std::string("m:") + fn + ":empty");
+    const Complex *data = x.complexData();
+    const bool allReal = allImagZero(data, x.numel());
+    if (x.isScalar() || x.dims().isVector()) {
+        Complex best = data[0];
+        size_t bi = 0;
+        for (size_t i = 1; i < x.numel(); ++i)
+            if (complexBetter<IsMax>(data[i], best, allReal)) { best = data[i]; bi = i; }
+        return std::make_tuple(MValue::complexScalar(best, alloc),
+                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
+    Complex *dst  = out.complexDataMut();
+    double  *dstI = outIdx.doubleDataMut();
+
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto runSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        Complex best = data[baseOff];
+        size_t bi = 0;
+        for (size_t k = 1; k < sliceLen; ++k) {
+            const Complex v = data[baseOff + k * stride];
+            if (complexBetter<IsMax>(v, best, allReal)) { best = v; bi = k; }
+        }
+        dst[outOff] = best;
+        dstI[outOff] = static_cast<double>(bi + 1);
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+    } else {
+        for (size_t o = 0; o < O; ++o)
+            for (size_t b = 0; b < B; ++b)
+                runSlice(o * B + b, o * sliceLen * B + b, B);
+    }
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+template <bool IsMax>
+std::tuple<MValue, MValue>
+reduceMinMaxComplexAlongDim(const MValue &x, int dim, Allocator *alloc, const char *fn)
+{
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity reduction: copy x as COMPLEX, idx = ones.
+            const size_t n = x.numel();
+            MValue out, outIdx;
+            if (x.dims().isVector()) {
+                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::COMPLEX, alloc);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE,  alloc);
+            } else {
+                out    = MValue::complexScalar(x.complexData()[0], alloc);
+                outIdx = MValue::scalar(1.0, alloc);
+                return std::make_tuple(std::move(out), std::move(outIdx));
+            }
+            Complex *dst = out.complexDataMut();
+            double  *dstI = outIdx.doubleDataMut();
+            const Complex *src = x.complexData();
+            for (size_t i = 0; i < n; ++i) { dst[i] = src[i]; dstI[i] = 1.0; }
+            return std::make_tuple(std::move(out), std::move(outIdx));
+        }
+        return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
+    }
+    const Complex *data = x.complexData();
+    const bool allReal = allImagZero(data, x.numel());
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, alloc);
+    Complex *dst  = out.complexDataMut();
+    double  *dstI = outIdx.doubleDataMut();
+
+    const auto &d = x.dims();
+    const int redAxis = dim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto runSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        Complex best = data[baseOff];
+        size_t bi = 0;
+        for (size_t k = 1; k < sliceLen; ++k) {
+            const Complex v = data[baseOff + k * stride];
+            if (complexBetter<IsMax>(v, best, allReal)) { best = v; bi = k; }
+        }
+        dst[outOff] = best;
+        dstI[outOff] = static_cast<double>(bi + 1);
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+    } else {
+        for (size_t o = 0; o < O; ++o)
+            for (size_t b = 0; b < B; ++b)
+                runSlice(o * B + b, o * sliceLen * B + b, B);
+    }
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
 // Dispatch on x.type(), instantiate reducer with right T/outType pair.
 // LOGICAL maps to T=uint8_t (storage type). CHAR maps to T=char.
-// COMPLEX throws (no order on complex).
-template <typename Cmp>
+// COMPLEX uses the |z|-then-angle comparator (MATLAB rule).
+template <bool IsMax, typename Cmp>
 std::tuple<MValue, MValue>
 dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
 {
@@ -506,16 +661,14 @@ dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
     case MType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, MType::UINT64,  alloc);
     case MType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, MType::LOGICAL, alloc);
     case MType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, MType::CHAR,    alloc);
-    case MType::COMPLEX:
-        throw MError(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    case MType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
     default:
         throw MError(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
 }
 
-template <typename Cmp>
+template <bool IsMax, typename Cmp>
 std::tuple<MValue, MValue>
 dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, const char *fn)
 {
@@ -532,9 +685,7 @@ dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, cons
     case MType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, MType::UINT64,  alloc);
     case MType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, MType::LOGICAL, alloc);
     case MType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, MType::CHAR,    alloc);
-    case MType::COMPLEX:
-        throw MError(std::string(fn) + ": not defined for complex inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    case MType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
     default:
         throw MError(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
@@ -545,26 +696,26 @@ dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, cons
 
 std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x)
 {
-    return dispatchMinMaxAll(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    return dispatchMinMaxAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x)
 {
-    return dispatchMinMaxAll(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    return dispatchMinMaxAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
 std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim)
 {
     if (dim <= 0) return max(alloc, x);
     const int d = detail::resolveDim(x, dim, "max");
-    return dispatchMinMaxAlongDim(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim)
 {
     if (dim <= 0) return min(alloc, x);
     const int d = detail::resolveDim(x, dim, "min");
-    return dispatchMinMaxAlongDim(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
 MValue max(Allocator &alloc, const MValue &a, const MValue &b)
