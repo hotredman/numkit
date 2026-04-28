@@ -45,6 +45,8 @@ void median_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void quantile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void prctile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void mode_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void skewness_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void kurtosis_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nansum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -302,6 +304,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("quantile", &builtin::detail::quantile_reg);
     engine.registerFunction("prctile",  &builtin::detail::prctile_reg);
     engine.registerFunction("mode",     &builtin::detail::mode_reg);
+    engine.registerFunction("skewness", &builtin::detail::skewness_reg);
+    engine.registerFunction("kurtosis", &builtin::detail::kurtosis_reg);
 
     // ── Phase 2 NaN-aware reductions ───────────────────────────────
     engine.registerFunction("nansum",    &builtin::detail::nansum_reg);

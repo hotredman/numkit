@@ -507,6 +507,136 @@ TEST_P(StatsTest, VarOddSizesAroundSimdLanes)
     }
 }
 
+// ── skewness ────────────────────────────────────────────────
+
+TEST_P(StatsTest, SkewnessSymmetricVectorIsZero)
+{
+    // Symmetric distribution → skewness ≈ 0.
+    EXPECT_NEAR(evalScalar("skewness([-3 -1 0 1 3]);"), 0.0, 1e-12);
+}
+
+TEST_P(StatsTest, SkewnessRightSkewedIsPositive)
+{
+    EXPECT_GT(evalScalar("skewness([1 1 1 1 10]);"), 0.5);
+}
+
+TEST_P(StatsTest, SkewnessLeftSkewedIsNegative)
+{
+    EXPECT_LT(evalScalar("skewness([1 10 10 10 10]);"), -0.5);
+}
+
+TEST_P(StatsTest, SkewnessKnownValueUncorrected)
+{
+    // x = [1 2 3 4 5]: mean=3, m2 = (4+1+0+1+4)/5 = 2, m3 = 0
+    // → skewness = 0/2^1.5 = 0 (symmetric).
+    EXPECT_NEAR(evalScalar("skewness([1 2 3 4 5]);"), 0.0, 1e-12);
+    // x = [2 4 4 4 5 5 7 9]: known reference m3/m2^1.5 ≈ 0.65...
+    // Compute via formulas to double-check our impl.
+    const double xs[] = {2,4,4,4,5,5,7,9};
+    double m = 0; for (double v : xs) m += v; m /= 8;
+    double m2 = 0, m3 = 0;
+    for (double v : xs) { double d=v-m; m2+=d*d; m3+=d*d*d; }
+    m2 /= 8; m3 /= 8;
+    const double ref = m3 / std::pow(m2, 1.5);
+    EXPECT_NEAR(evalScalar("skewness([2 4 4 4 5 5 7 9]);"), ref, 1e-10);
+}
+
+TEST_P(StatsTest, SkewnessBiasCorrectedDiffers)
+{
+    // For finite samples, normFlag=0 multiplies by sqrt(n*(n-1))/(n-2).
+    // n=5: factor = sqrt(5*4)/3 = sqrt(20)/3 ≈ 1.491
+    eval("y = skewness([1 1 1 1 10], 0);"
+         "u = skewness([1 1 1 1 10], 1);"
+         "ratio = y / u;");
+    EXPECT_NEAR(evalScalar("ratio;"),
+                std::sqrt(5.0 * 4.0) / 3.0, 1e-10);
+}
+
+TEST_P(StatsTest, SkewnessAlongDim)
+{
+    eval("M = [1 2; 3 4; 5 6; 7 8; 9 10];"
+         "s = skewness(M, 1);");
+    auto *s = getVarPtr("s");
+    EXPECT_EQ(rows(*s), 1u);
+    EXPECT_EQ(cols(*s), 2u);
+    // Each column is symmetric around its mean → skewness = 0.
+    EXPECT_NEAR(s->doubleData()[0], 0.0, 1e-12);
+    EXPECT_NEAR(s->doubleData()[1], 0.0, 1e-12);
+}
+
+TEST_P(StatsTest, SkewnessBiasCorrectedTooFewSamples)
+{
+    // n < 3 with normFlag=0 → NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("skewness([1 2], 0);")));
+}
+
+TEST_P(StatsTest, SkewnessBadFlagThrows)
+{
+    EXPECT_THROW(eval("skewness([1 2 3], 2);"), std::exception);
+}
+
+// ── kurtosis ────────────────────────────────────────────────
+
+TEST_P(StatsTest, KurtosisUniformIsApproxOnePointEight)
+{
+    // For a discrete uniform distribution, kurtosis approaches 1.8.
+    // Use a 10-element integer sample.
+    EXPECT_NEAR(evalScalar("kurtosis(0:9);"), 1.7757575757575759, 1e-10);
+}
+
+TEST_P(StatsTest, KurtosisHeavyTailIsLarger)
+{
+    // Heavy-tailed distribution → kurtosis > 3 (leptokurtic).
+    EXPECT_GT(evalScalar("kurtosis([0 0 0 0 -10 10 0 0 0 0]);"), 3.0);
+}
+
+TEST_P(StatsTest, KurtosisKnownValueUncorrected)
+{
+    // Same hand-derived reference for [2 4 4 4 5 5 7 9]: m4/m2^2.
+    const double xs[] = {2,4,4,4,5,5,7,9};
+    double m = 0; for (double v : xs) m += v; m /= 8;
+    double m2 = 0, m4 = 0;
+    for (double v : xs) {
+        double d = v - m; double d2 = d*d;
+        m2 += d2; m4 += d2*d2;
+    }
+    m2 /= 8; m4 /= 8;
+    const double ref = m4 / (m2 * m2);
+    EXPECT_NEAR(evalScalar("kurtosis([2 4 4 4 5 5 7 9]);"), ref, 1e-10);
+}
+
+TEST_P(StatsTest, KurtosisBiasCorrectedNeedsFour)
+{
+    // n < 4 with normFlag=0 → NaN.
+    EXPECT_TRUE(std::isnan(evalScalar("kurtosis([1 2 3], 0);")));
+}
+
+TEST_P(StatsTest, KurtosisBiasCorrectedDiffers)
+{
+    // y_corrected != y_uncorrected for small n.
+    eval("y = kurtosis([1 2 3 4 5], 0);"
+         "u = kurtosis([1 2 3 4 5], 1);");
+    double y = evalScalar("y");
+    double u = evalScalar("u");
+    EXPECT_NE(y, u);
+}
+
+TEST_P(StatsTest, KurtosisAlongDim2)
+{
+    eval("M = [1 2 3 4 5; 5 4 3 2 1];"
+         "k = kurtosis(M, 1, 2);");
+    auto *k = getVarPtr("k");
+    EXPECT_EQ(rows(*k), 2u);
+    EXPECT_EQ(cols(*k), 1u);
+    // Both rows are symmetric permutations → same kurtosis.
+    EXPECT_NEAR(k->doubleData()[0], k->doubleData()[1], 1e-12);
+}
+
+TEST_P(StatsTest, KurtosisComplexThrows)
+{
+    EXPECT_THROW(eval("kurtosis([1+2i, 3+4i, 5+0i]);"), std::exception);
+}
+
 INSTANTIATE_DUAL(StatsTest);
 
 // ============================================================
