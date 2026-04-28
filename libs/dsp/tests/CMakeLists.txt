@@ -10,6 +10,7 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/fft_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dspgaps_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/sos_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/sgolay_test.cpp
 )
 
 # fft_public_api_test reaches into libs/dsp/src/backends/FftKernels.hpp

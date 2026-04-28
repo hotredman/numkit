@@ -54,6 +54,10 @@ void idct_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCo
 void sosfilt_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void zp2sos_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void tf2sos_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+
+// Savitzky-Golay (libs/dsp/src/MDspSgolay.cpp)
+void sgolay_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void sgolayfilt_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -110,6 +114,10 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("sosfilt",   &dsp::detail::sosfilt_reg);
     engine.registerFunction("zp2sos",    &dsp::detail::zp2sos_reg);
     engine.registerFunction("tf2sos",    &dsp::detail::tf2sos_reg);
+
+    // ── Savitzky-Golay ─────────────────────────────────────────────
+    engine.registerFunction("sgolay",     &dsp::detail::sgolay_reg);
+    engine.registerFunction("sgolayfilt", &dsp::detail::sgolayfilt_reg);
 }
 
 } // namespace numkit::m

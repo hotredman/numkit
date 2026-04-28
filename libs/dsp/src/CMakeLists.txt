@@ -11,6 +11,7 @@ set(DSPLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspConv.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspGaps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MDspSos.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MDspSgolay.cpp
 )
 
 # Backend-split FFT kernel — the SIMD path itself splits across
