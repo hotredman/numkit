@@ -620,6 +620,167 @@ TEST_P(SortFindTest, Find3DReturnsCol)
     EXPECT_DOUBLE_EQ(ix->doubleData()[1], 7.0);
 }
 
+// ── nnz ─────────────────────────────────────────────────────────
+
+TEST_P(SortFindTest, NnzVector)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([0 1 0 2 0 3]);"), 3.0);
+}
+
+TEST_P(SortFindTest, NnzMatrix)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([1 0 2; 0 3 0; 4 0 5]);"), 5.0);
+}
+
+TEST_P(SortFindTest, NnzAllZerosIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(zeros(3, 4));"), 0.0);
+}
+
+TEST_P(SortFindTest, NnzAllNonzero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(ones(2, 3));"), 6.0);
+}
+
+TEST_P(SortFindTest, NnzNanCountsAsNonzero)
+{
+    // NaN != 0, so it counts.
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([0 NaN 0 NaN]);"), 2.0);
+}
+
+TEST_P(SortFindTest, NnzLogical)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([true false true true false]);"), 3.0);
+}
+
+TEST_P(SortFindTest, NnzInteger)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(int32([0 -1 0 5 0 7]));"), 3.0);
+}
+
+TEST_P(SortFindTest, NnzComplexBothPartsZero)
+{
+    // 0+0i is zero; everything else (real-only or imag-only) counts.
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([0+0i, 1+0i, 0+2i, 3+4i]);"), 3.0);
+}
+
+TEST_P(SortFindTest, Nnz3D)
+{
+    eval("A = zeros(2, 2, 2); A(1) = 1; A(4) = 2; A(8) = 3;");
+    EXPECT_DOUBLE_EQ(evalScalar("nnz(A);"), 3.0);
+}
+
+TEST_P(SortFindTest, NnzEmptyIsZero)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("nnz([]);"), 0.0);
+}
+
+// ── nonzeros ────────────────────────────────────────────────────
+
+TEST_P(SortFindTest, NonzerosRowVectorReturnsCol)
+{
+    // Returns column vector regardless of input orientation.
+    eval("v = nonzeros([0 1 0 2 0 3]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 3.0);
+}
+
+TEST_P(SortFindTest, NonzerosMatrixColumnMajorOrder)
+{
+    // [1 0 5; 0 3 0; 2 0 6] in column-major: col0=[1,0,2], col1=[0,3,0],
+    // col2=[5,0,6]. Non-zeros in column-major: 1, 2, 3, 5, 6.
+    eval("v = nonzeros([1 0 5; 0 3 0; 2 0 6]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 5u);
+    EXPECT_EQ(cols(*v), 1u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 6.0);
+}
+
+TEST_P(SortFindTest, NonzerosNoneReturnsEmpty)
+{
+    eval("v = nonzeros(zeros(3, 4));");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 0u);
+    EXPECT_EQ(rows(*v), 0u);
+    EXPECT_EQ(cols(*v), 1u);
+}
+
+TEST_P(SortFindTest, NonzerosPreservesIntegerType)
+{
+    eval("v = nonzeros(int32([0 -1 0 5 0 7]));");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::INT32);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_EQ(v->int32Data()[0], -1);
+    EXPECT_EQ(v->int32Data()[1], 5);
+    EXPECT_EQ(v->int32Data()[2], 7);
+}
+
+TEST_P(SortFindTest, NonzerosPreservesSingleType)
+{
+    eval("v = nonzeros(single([0 1.5 0 -2.5]));");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::SINGLE);
+    EXPECT_EQ(v->numel(), 2u);
+    EXPECT_FLOAT_EQ(v->singleData()[0], 1.5f);
+    EXPECT_FLOAT_EQ(v->singleData()[1], -2.5f);
+}
+
+TEST_P(SortFindTest, NonzerosPreservesLogicalType)
+{
+    eval("v = nonzeros([true false true true false]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::LOGICAL);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_NE(v->logicalData()[0], 0);
+    EXPECT_NE(v->logicalData()[1], 0);
+    EXPECT_NE(v->logicalData()[2], 0);
+}
+
+TEST_P(SortFindTest, NonzerosComplex)
+{
+    // 0+0i excluded; 1+0i, 0+2i, 3+4i included.
+    eval("v = nonzeros([0+0i, 1+0i, 0+2i, 3+4i]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->type(), MType::COMPLEX);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 0.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].real(), 0.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[1].imag(), 2.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[2].real(), 3.0);
+    EXPECT_DOUBLE_EQ(v->complexData()[2].imag(), 4.0);
+}
+
+TEST_P(SortFindTest, NonzerosNanCountsAsNonzero)
+{
+    eval("v = nonzeros([0 NaN 0 1 NaN]);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_TRUE(std::isnan(v->doubleData()[0]));
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 1.0);
+    EXPECT_TRUE(std::isnan(v->doubleData()[2]));
+}
+
+TEST_P(SortFindTest, Nonzeros3DColumnMajor)
+{
+    eval("A = zeros(2, 2, 2); A(2) = 10; A(5) = 20; A(8) = 30;"
+         "v = nonzeros(A);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 10.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 20.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 30.0);
+}
+
 INSTANTIATE_DUAL(SortFindTest);
 
 // ============================================================

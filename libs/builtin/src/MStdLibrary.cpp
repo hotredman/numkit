@@ -229,6 +229,8 @@ void pagemtimes_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void diag_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void sort_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void find_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nnz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void nonzeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void horzcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void vertcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void meshgrid_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -370,6 +372,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("diag",      &builtin::detail::diag_reg);
     engine.registerFunction("sort",      &builtin::detail::sort_reg);
     engine.registerFunction("find",      &builtin::detail::find_reg);
+    engine.registerFunction("nnz",       &builtin::detail::nnz_reg);
+    engine.registerFunction("nonzeros",  &builtin::detail::nonzeros_reg);
     engine.registerFunction("horzcat",   &builtin::detail::horzcat_reg);
     engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
     engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);

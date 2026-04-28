@@ -79,6 +79,16 @@ std::tuple<MValue, MValue> sort(Allocator &alloc, const MValue &x);
 /// when x is a row, column vector otherwise.
 MValue find(Allocator &alloc, const MValue &x);
 
+/// nnz(x) — number of non-zero elements. NaN counts as non-zero
+/// (NaN != 0). For COMPLEX, an element is non-zero iff real or imag
+/// part is non-zero. Returns DOUBLE scalar.
+MValue nnz(Allocator &alloc, const MValue &x);
+
+/// nonzeros(x) — column vector of non-zero elements in column-major
+/// order. Output type matches input type (DOUBLE/SINGLE/COMPLEX/INT*/
+/// LOGICAL preserved).
+MValue nonzeros(Allocator &alloc, const MValue &x);
+
 // ── Concatenation ────────────────────────────────────────────────────
 /// Horizontal concatenation (along columns).
 MValue horzcat(Allocator &alloc, const MValue *values, size_t count);

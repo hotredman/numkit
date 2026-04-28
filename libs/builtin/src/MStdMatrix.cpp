@@ -535,6 +535,209 @@ MValue find(Allocator &alloc, const MValue &x)
     return r;
 }
 
+// ── nnz / nonzeros ───────────────────────────────────────────────────
+namespace {
+
+// Type-aware predicate: element at linear index i non-zero?
+// NaN counts as non-zero (NaN != 0). For COMPLEX both parts checked.
+template <typename T>
+inline bool isNonzeroElemT(const T *p, size_t i) { return p[i] != T{0}; }
+
+inline bool isNonzeroComplex(const Complex *p, size_t i)
+{
+    return p[i].real() != 0.0 || p[i].imag() != 0.0;
+}
+
+template <typename Visit>
+void forEachNonzero(const MValue &x, Visit visit)
+{
+    const size_t n = x.numel();
+    switch (x.type()) {
+    case MType::LOGICAL: {
+        const uint8_t *p = x.logicalData();
+        for (size_t i = 0; i < n; ++i) if (p[i]) visit(i);
+        break;
+    }
+    case MType::DOUBLE: {
+        const double *p = x.doubleData();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::SINGLE: {
+        const float *p = x.singleData();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::COMPLEX: {
+        const Complex *p = x.complexData();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroComplex(p, i)) visit(i);
+        break;
+    }
+    case MType::INT8: {
+        const int8_t *p = x.int8Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::INT16: {
+        const int16_t *p = x.int16Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::INT32: {
+        const int32_t *p = x.int32Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::INT64: {
+        const int64_t *p = x.int64Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::UINT8: {
+        const uint8_t *p = x.uint8Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::UINT16: {
+        const uint16_t *p = x.uint16Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::UINT32: {
+        const uint32_t *p = x.uint32Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    case MType::UINT64: {
+        const uint64_t *p = x.uint64Data();
+        for (size_t i = 0; i < n; ++i) if (isNonzeroElemT(p, i)) visit(i);
+        break;
+    }
+    default:
+        throw MError("nnz/nonzeros: unsupported element type",
+                     0, 0, "nnz", "", "m:nnz:badType");
+    }
+}
+
+template <typename T>
+T *typedDstFor(MValue &r, MType outType)
+{
+    switch (outType) {
+    case MType::LOGICAL: return reinterpret_cast<T *>(r.logicalDataMut());
+    case MType::DOUBLE:  return reinterpret_cast<T *>(r.doubleDataMut());
+    case MType::SINGLE:  return reinterpret_cast<T *>(r.singleDataMut());
+    case MType::COMPLEX: return reinterpret_cast<T *>(r.complexDataMut());
+    case MType::INT8:    return reinterpret_cast<T *>(r.int8DataMut());
+    case MType::INT16:   return reinterpret_cast<T *>(r.int16DataMut());
+    case MType::INT32:   return reinterpret_cast<T *>(r.int32DataMut());
+    case MType::INT64:   return reinterpret_cast<T *>(r.int64DataMut());
+    case MType::UINT8:   return reinterpret_cast<T *>(r.uint8DataMut());
+    case MType::UINT16:  return reinterpret_cast<T *>(r.uint16DataMut());
+    case MType::UINT32:  return reinterpret_cast<T *>(r.uint32DataMut());
+    case MType::UINT64:  return reinterpret_cast<T *>(r.uint64DataMut());
+    default: return nullptr;
+    }
+}
+
+template <typename T, typename Reader>
+MValue collectTypedNonzeros(Allocator &alloc, const MValue &x,
+                            MType outType, Reader read)
+{
+    std::vector<T> vals;
+    forEachNonzero(x, [&](size_t i) { vals.push_back(read(i)); });
+    auto r = MValue::matrix(vals.size(), 1, outType, &alloc);
+    if (!vals.empty()) {
+        T *dst = typedDstFor<T>(r, outType);
+        std::memcpy(dst, vals.data(), vals.size() * sizeof(T));
+    }
+    return r;
+}
+
+} // namespace
+
+MValue nnz(Allocator &alloc, const MValue &x)
+{
+    if (x.numel() == 0)
+        return MValue::scalar(0.0, &alloc);
+    size_t count = 0;
+    forEachNonzero(x, [&](size_t) { ++count; });
+    return MValue::scalar(static_cast<double>(count), &alloc);
+}
+
+MValue nonzeros(Allocator &alloc, const MValue &x)
+{
+    if (x.numel() == 0) {
+        // Empty input → 0×1 column of the source type (DOUBLE if unknown).
+        const MType outT = (x.type() == MType::EMPTY) ? MType::DOUBLE : x.type();
+        return MValue::matrix(0, 1, outT, &alloc);
+    }
+    switch (x.type()) {
+    case MType::LOGICAL: {
+        const uint8_t *p = x.logicalData();
+        return collectTypedNonzeros<uint8_t>(alloc, x, MType::LOGICAL,
+            [&](size_t i) -> uint8_t { return p[i]; });
+    }
+    case MType::DOUBLE: {
+        const double *p = x.doubleData();
+        return collectTypedNonzeros<double>(alloc, x, MType::DOUBLE,
+            [&](size_t i) -> double { return p[i]; });
+    }
+    case MType::SINGLE: {
+        const float *p = x.singleData();
+        return collectTypedNonzeros<float>(alloc, x, MType::SINGLE,
+            [&](size_t i) -> float { return p[i]; });
+    }
+    case MType::COMPLEX: {
+        const Complex *p = x.complexData();
+        return collectTypedNonzeros<Complex>(alloc, x, MType::COMPLEX,
+            [&](size_t i) -> Complex { return p[i]; });
+    }
+    case MType::INT8: {
+        const int8_t *p = x.int8Data();
+        return collectTypedNonzeros<int8_t>(alloc, x, MType::INT8,
+            [&](size_t i) -> int8_t { return p[i]; });
+    }
+    case MType::INT16: {
+        const int16_t *p = x.int16Data();
+        return collectTypedNonzeros<int16_t>(alloc, x, MType::INT16,
+            [&](size_t i) -> int16_t { return p[i]; });
+    }
+    case MType::INT32: {
+        const int32_t *p = x.int32Data();
+        return collectTypedNonzeros<int32_t>(alloc, x, MType::INT32,
+            [&](size_t i) -> int32_t { return p[i]; });
+    }
+    case MType::INT64: {
+        const int64_t *p = x.int64Data();
+        return collectTypedNonzeros<int64_t>(alloc, x, MType::INT64,
+            [&](size_t i) -> int64_t { return p[i]; });
+    }
+    case MType::UINT8: {
+        const uint8_t *p = x.uint8Data();
+        return collectTypedNonzeros<uint8_t>(alloc, x, MType::UINT8,
+            [&](size_t i) -> uint8_t { return p[i]; });
+    }
+    case MType::UINT16: {
+        const uint16_t *p = x.uint16Data();
+        return collectTypedNonzeros<uint16_t>(alloc, x, MType::UINT16,
+            [&](size_t i) -> uint16_t { return p[i]; });
+    }
+    case MType::UINT32: {
+        const uint32_t *p = x.uint32Data();
+        return collectTypedNonzeros<uint32_t>(alloc, x, MType::UINT32,
+            [&](size_t i) -> uint32_t { return p[i]; });
+    }
+    case MType::UINT64: {
+        const uint64_t *p = x.uint64Data();
+        return collectTypedNonzeros<uint64_t>(alloc, x, MType::UINT64,
+            [&](size_t i) -> uint64_t { return p[i]; });
+    }
+    default:
+        throw MError("nonzeros: unsupported element type",
+                     0, 0, "nonzeros", "", "m:nonzeros:badType");
+    }
+}
+
 // ── Concatenation ────────────────────────────────────────────────────
 MValue horzcat(Allocator &alloc, const MValue *values, size_t count)
 {
@@ -1244,6 +1447,22 @@ void find_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
         throw MError("find: requires 1 argument",
                      0, 0, "find", "", "m:find:nargin");
     outs[0] = find(ctx.engine->allocator(), args[0]);
+}
+
+void nnz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("nnz: requires 1 argument",
+                     0, 0, "nnz", "", "m:nnz:nargin");
+    outs[0] = nnz(ctx.engine->allocator(), args[0]);
+}
+
+void nonzeros_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("nonzeros: requires 1 argument",
+                     0, 0, "nonzeros", "", "m:nonzeros:nargin");
+    outs[0] = nonzeros(ctx.engine->allocator(), args[0]);
 }
 
 void horzcat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
