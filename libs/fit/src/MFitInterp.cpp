@@ -8,7 +8,10 @@
 #include "MStdHelpers.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
+#include <cstring>
+#include <string>
 #include <vector>
 
 namespace numkit::m::fit {
@@ -224,6 +227,165 @@ MValue interp1(Allocator &alloc,
     return packInterpResult(yq, xq, alloc);
 }
 
+// ── interp2 ───────────────────────────────────────────────────────────
+namespace {
+
+enum class Interp2Method { Linear, Nearest };
+
+Interp2Method parseInterp2Method(const std::string &m)
+{
+    std::string s = m;
+    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (s.empty() || s == "linear") return Interp2Method::Linear;
+    if (s == "nearest")             return Interp2Method::Nearest;
+    if (s == "spline" || s == "cubic" || s == "pchip")
+        throw MError("interp2: '" + m + "' method not yet supported "
+                     "(only 'linear' and 'nearest' for now)",
+                     0, 0, "interp2", "", "m:interp2:unsupportedMethod");
+    throw MError("interp2: unknown method '" + m + "'",
+                 0, 0, "interp2", "", "m:interp2:badMethod");
+}
+
+// Locate the cell index i such that grid[i] <= q <= grid[i+1]; returns
+// SIZE_MAX if q is outside [grid[0], grid[n-1]] (caller emits NaN).
+inline std::size_t findCell(const double *grid, std::size_t n, double q)
+{
+    if (n < 2) return std::size_t(-1);
+    if (q < grid[0] || q > grid[n - 1]) return std::size_t(-1);
+    // Binary search.
+    std::size_t lo = 0, hi = n - 1;
+    while (hi - lo > 1) {
+        const std::size_t mid = (lo + hi) / 2;
+        if (grid[mid] <= q) lo = mid; else hi = mid;
+    }
+    return lo;
+}
+
+void validateMonotonicAscending(const double *g, std::size_t n, const char *axis)
+{
+    for (std::size_t i = 1; i < n; ++i)
+        if (g[i] <= g[i - 1])
+            throw MError(std::string("interp2: ") + axis
+                         + " must be strictly increasing",
+                         0, 0, "interp2", "", "m:interp2:notMonotonic");
+}
+
+// Fast path: V is column-major (rows = R, cols = C). Sample one bilinear
+// or nearest-neighbour value at (xq, yq) using x grid (length C) and y
+// grid (length R).
+double interp2Sample(const double *V, std::size_t R, std::size_t C,
+                     const double *xGrid, const double *yGrid,
+                     double xq, double yq, Interp2Method method)
+{
+    const std::size_t ix = findCell(xGrid, C, xq);
+    const std::size_t iy = findCell(yGrid, R, yq);
+    if (ix == std::size_t(-1) || iy == std::size_t(-1))
+        return std::nan("");
+    if (method == Interp2Method::Nearest) {
+        const std::size_t cx = (xq - xGrid[ix] <= xGrid[ix + 1] - xq) ? ix : ix + 1;
+        const std::size_t cy = (yq - yGrid[iy] <= yGrid[iy + 1] - yq) ? iy : iy + 1;
+        return V[cx * R + cy];
+    }
+    // Bilinear. v(r, c) = V[c*R + r].
+    const double x0 = xGrid[ix], x1 = xGrid[ix + 1];
+    const double y0 = yGrid[iy], y1 = yGrid[iy + 1];
+    const double tx = (xq - x0) / (x1 - x0);
+    const double ty = (yq - y0) / (y1 - y0);
+    const double v00 = V[ix       * R + iy];
+    const double v10 = V[(ix + 1) * R + iy];
+    const double v01 = V[ix       * R + (iy + 1)];
+    const double v11 = V[(ix + 1) * R + (iy + 1)];
+    return (1.0 - tx) * (1.0 - ty) * v00
+         + tx         * (1.0 - ty) * v10
+         + (1.0 - tx) * ty         * v01
+         + tx         * ty         * v11;
+}
+
+void readGridAxis(const MValue &g, std::vector<double> &out, const char *axis)
+{
+    if (!g.dims().isVector() && !g.isScalar())
+        throw MError(std::string("interp2: ") + axis
+                     + " must be a vector",
+                     0, 0, "interp2", "", "m:interp2:notVector");
+    out.resize(g.numel());
+    for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
+}
+
+MValue interp2Impl(Allocator &alloc, const MValue &V,
+                   const std::vector<double> &xGrid,
+                   const std::vector<double> &yGrid,
+                   const MValue &Xq, const MValue &Yq,
+                   const std::string &method)
+{
+    if (V.type() == MType::COMPLEX)
+        throw MError("interp2: complex inputs are not supported",
+                     0, 0, "interp2", "", "m:interp2:complex");
+    if (V.dims().is3D() || V.dims().ndim() > 2)
+        throw MError("interp2: V must be a 2D matrix",
+                     0, 0, "interp2", "", "m:interp2:rank");
+    if (Xq.numel() != Yq.numel())
+        throw MError("interp2: Xq and Yq must have the same numel",
+                     0, 0, "interp2", "", "m:interp2:queryShape");
+
+    const std::size_t R = V.dims().rows();
+    const std::size_t C = V.dims().cols();
+    if (xGrid.size() != C)
+        throw MError("interp2: length(X) must equal cols(V)",
+                     0, 0, "interp2", "", "m:interp2:gridSize");
+    if (yGrid.size() != R)
+        throw MError("interp2: length(Y) must equal rows(V)",
+                     0, 0, "interp2", "", "m:interp2:gridSize");
+    validateMonotonicAscending(xGrid.data(), C, "X");
+    validateMonotonicAscending(yGrid.data(), R, "Y");
+
+    const Interp2Method m = parseInterp2Method(method);
+    // V as DOUBLE (promote if needed).
+    std::vector<double> Vd(R * C);
+    if (V.type() == MType::DOUBLE)
+        std::memcpy(Vd.data(), V.doubleData(), R * C * sizeof(double));
+    else
+        for (std::size_t i = 0; i < R * C; ++i) Vd[i] = V.elemAsDouble(i);
+
+    // Output shape: take Xq's shape (or rather build same-shape result).
+    const auto &qd = Xq.dims();
+    const std::size_t nq = Xq.numel();
+    auto out = MValue::matrix(qd.rows(), qd.cols(), MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < nq; ++i) {
+        const double xq = Xq.elemAsDouble(i);
+        const double yq = Yq.elemAsDouble(i);
+        dst[i] = interp2Sample(Vd.data(), R, C, xGrid.data(), yGrid.data(),
+                               xq, yq, m);
+    }
+    return out;
+}
+
+} // namespace
+
+MValue interp2(Allocator &alloc, const MValue &V,
+               const MValue &Xq, const MValue &Yq, const std::string &method)
+{
+    if (V.dims().is3D() || V.dims().ndim() > 2)
+        throw MError("interp2: V must be a 2D matrix",
+                     0, 0, "interp2", "", "m:interp2:rank");
+    const std::size_t R = V.dims().rows();
+    const std::size_t C = V.dims().cols();
+    std::vector<double> xGrid(C), yGrid(R);
+    for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
+    for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
+    return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
+}
+
+MValue interp2(Allocator &alloc, const MValue &X, const MValue &Y,
+               const MValue &V, const MValue &Xq, const MValue &Yq,
+               const std::string &method)
+{
+    std::vector<double> xGrid, yGrid;
+    readGridAxis(X, xGrid, "X");
+    readGridAxis(Y, yGrid, "Y");
+    return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
+}
+
 // ── spline ────────────────────────────────────────────────────────────
 MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq)
 {
@@ -394,6 +556,33 @@ void spline_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
         throw MError("spline: requires 3 arguments",
                      0, 0, "spline", "", "m:spline:nargin");
     outs[0] = spline(ctx.engine->allocator(), args[0], args[1], args[2]);
+}
+
+void interp2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("interp2: requires at least 3 arguments",
+                     0, 0, "interp2", "", "m:interp2:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    auto isMethodArg = [](const MValue &v) {
+        return v.isChar() || v.isString();
+    };
+    // Form A: interp2(V, Xq, Yq[, method]) — first arg is the matrix.
+    // Form B: interp2(X, Y, V, Xq, Yq[, method]) — 5 or 6 numeric args.
+    if (args.size() == 3 || (args.size() == 4 && isMethodArg(args[3]))) {
+        std::string method = "linear";
+        if (args.size() == 4) method = args[3].toString();
+        outs[0] = interp2(alloc, args[0], args[1], args[2], method);
+        return;
+    }
+    if (args.size() == 5 || (args.size() == 6 && isMethodArg(args[5]))) {
+        std::string method = "linear";
+        if (args.size() == 6) method = args[5].toString();
+        outs[0] = interp2(alloc, args[0], args[1], args[2], args[3], args[4], method);
+        return;
+    }
+    throw MError("interp2: invalid argument count or types",
+                 0, 0, "interp2", "", "m:interp2:nargin");
 }
 
 void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

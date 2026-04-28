@@ -18,6 +18,24 @@ MValue interp1(Allocator &alloc,
                const MValue &xq,
                const std::string &method = "linear");
 
+/// 2D interpolation at query points (Xq, Yq).
+///
+///   interp2(V, Xq, Yq[, method])         — implicit X = 1:cols(V), Y = 1:rows(V).
+///   interp2(X, Y, V, Xq, Yq[, method])   — explicit grid (X / Y must be vectors
+///                                           giving column / row coordinates,
+///                                           strictly monotonic ascending).
+///
+/// Supported methods: "linear" (default, bilinear), "nearest". Output
+/// shape matches Xq (which must broadcast-shape-equal Yq). Out-of-grid
+/// queries return NaN. V must be a real 2D matrix.
+MValue interp2(Allocator &alloc,
+               const MValue &V, const MValue &Xq, const MValue &Yq,
+               const std::string &method = "linear");
+MValue interp2(Allocator &alloc,
+               const MValue &X, const MValue &Y, const MValue &V,
+               const MValue &Xq, const MValue &Yq,
+               const std::string &method = "linear");
+
 /// Natural cubic-spline interpolation — equivalent to interp1(..., "spline").
 MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq);
 

@@ -258,3 +258,103 @@ TEST_F(InterpTest, TrapzUnevenSpacing)
     // x = [0 1 3], y = [0 1 1] → 0.5*(0+1)*1 + 0.5*(1+1)*2 = 0.5 + 2 = 2.5
     EXPECT_NEAR(evalScalar("trapz([0 1 3], [0 1 1])"), 2.5, 1e-10);
 }
+
+// ============================================================
+// interp2 — bilinear / nearest
+// ============================================================
+
+TEST_F(InterpTest, Interp2ImplicitGridLinearAtVertex)
+{
+    // V = [10 20; 30 40] (R=2, C=2). At (Xq=1, Yq=1) value should be V(1,1) = 10.
+    eval("V = [10 20; 30 40];");
+    EXPECT_NEAR(evalScalar("interp2(V, 1, 1);"), 10.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp2(V, 2, 1);"), 20.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp2(V, 1, 2);"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp2(V, 2, 2);"), 40.0, 1e-12);
+}
+
+TEST_F(InterpTest, Interp2BilinearMidpoint)
+{
+    // V = [0 0; 0 1] → bilinear value at (xq=1.5, yq=1.5) = 0.25.
+    eval("V = [0 0; 0 1];");
+    EXPECT_NEAR(evalScalar("interp2(V, 1.5, 1.5);"), 0.25, 1e-12);
+}
+
+TEST_F(InterpTest, Interp2BilinearKnownPlane)
+{
+    // f(x, y) = 2x + 3y → bilinear is exact.
+    // Build V where V(r, c) = 2*c + 3*r (row r maps to y=r, col c maps to x=c).
+    eval("V = [5 7 9; 8 10 12; 11 13 15];");  // V(r,c) = 2c+3r at 1-based
+    EXPECT_NEAR(evalScalar("interp2(V, 1.5, 2.0);"), 2.0*1.5 + 3.0*2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp2(V, 2.7, 1.3);"), 2.0*2.7 + 3.0*1.3, 1e-12);
+}
+
+TEST_F(InterpTest, Interp2NearestNeighbour)
+{
+    eval("V = [10 20; 30 40];");
+    // At (1.7, 1.2) nearest is (2, 1) → 20. At (1.4, 1.6) nearest is (1, 2) → 30.
+    EXPECT_NEAR(evalScalar("interp2(V, 1.7, 1.2, 'nearest');"), 20.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp2(V, 1.4, 1.6, 'nearest');"), 30.0, 1e-12);
+}
+
+TEST_F(InterpTest, Interp2OutsideGridIsNaN)
+{
+    eval("V = [10 20; 30 40];"
+         "y = interp2(V, 0.5, 1);");
+    EXPECT_TRUE(std::isnan(evalScalar("y;")));
+    eval("y2 = interp2(V, 1, 3);");
+    EXPECT_TRUE(std::isnan(evalScalar("y2;")));
+}
+
+TEST_F(InterpTest, Interp2ExplicitGrids)
+{
+    // V over X = [0 0.5 1], Y = [0 1] → V(r,c) at (xq, yq)
+    eval("X = [0 0.5 1];"
+         "Y = [0 1];"
+         "V = [0 5 10; 10 15 20];");
+    // At (xq=0.25, yq=0.5): bilinear of V over the bottom-left cell.
+    // V(1,1)=0, V(1,2)=5, V(2,1)=10, V(2,2)=15. tx=(0.25-0)/0.5=0.5; ty=(0.5-0)/1=0.5.
+    // → 0.25*0 + 0.25*5 + 0.25*10 + 0.25*15 = 7.5.
+    EXPECT_NEAR(evalScalar("interp2(X, Y, V, 0.25, 0.5);"), 7.5, 1e-12);
+}
+
+TEST_F(InterpTest, Interp2ArrayQuery)
+{
+    eval("V = [0 0; 0 1];"
+         "Xq = [1 1.5 2];"
+         "Yq = [1 1.5 2];"
+         "y = interp2(V, Xq, Yq);");
+    // Diagonal of bilinear interpolation through V → [0, 0.25, 1].
+    EXPECT_NEAR(evalScalar("y(1);"), 0.0,  1e-12);
+    EXPECT_NEAR(evalScalar("y(2);"), 0.25, 1e-12);
+    EXPECT_NEAR(evalScalar("y(3);"), 1.0,  1e-12);
+}
+
+TEST_F(InterpTest, Interp2GridSizeMismatchThrows)
+{
+    eval("V = [1 2; 3 4]; X = [0 1 2];");  // X length 3 but V has 2 cols
+    EXPECT_THROW(eval("y = interp2(X, [0 1], V, 0.5, 0.5);"), std::exception);
+}
+
+TEST_F(InterpTest, Interp2NonMonotonicGridThrows)
+{
+    eval("V = [1 2; 3 4];");
+    EXPECT_THROW(eval("y = interp2([1 0], [0 1], V, 0.5, 0.5);"), std::exception);
+}
+
+TEST_F(InterpTest, Interp2UnsupportedMethodThrows)
+{
+    eval("V = [1 2; 3 4];");
+    EXPECT_THROW(eval("y = interp2(V, 1.5, 1.5, 'spline');"), std::exception);
+}
+
+TEST_F(InterpTest, Interp2ComplexThrows)
+{
+    EXPECT_THROW(eval("y = interp2([1+2i, 3; 4, 5], 1.5, 1.5);"), std::exception);
+}
+
+TEST_F(InterpTest, Interp2QueryShapeMismatchThrows)
+{
+    eval("V = [1 2; 3 4];");
+    EXPECT_THROW(eval("y = interp2(V, [1 1.5], [1 1.5 2]);"), std::exception);
+}
