@@ -15,6 +15,7 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/accum_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cellfun_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/numbertheory_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/combinatorics_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_test.cpp
