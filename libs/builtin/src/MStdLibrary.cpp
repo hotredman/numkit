@@ -88,6 +88,11 @@ void hypot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nthroot_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void expm1_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void log1p_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void gamma_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void gammaln_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void erf_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void erfc_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void erfinv_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
 // MStdIntMath.cpp
 void gcd_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -353,6 +358,11 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("nthroot",  &builtin::detail::nthroot_reg);
     engine.registerFunction("expm1",    &builtin::detail::expm1_reg);
     engine.registerFunction("log1p",    &builtin::detail::log1p_reg);
+    engine.registerFunction("gamma",    &builtin::detail::gamma_reg);
+    engine.registerFunction("gammaln",  &builtin::detail::gammaln_reg);
+    engine.registerFunction("erf",      &builtin::detail::erf_reg);
+    engine.registerFunction("erfc",     &builtin::detail::erfc_reg);
+    engine.registerFunction("erfinv",   &builtin::detail::erfinv_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

@@ -64,6 +64,21 @@ MValue expm1(Allocator &alloc, const MValue &x);
 /// log1p(x) — log(1 + x), accurate near zero.
 MValue log1p(Allocator &alloc, const MValue &x);
 
+// ── Special functions ────────────────────────────────────────────────
+/// gamma(x)   — Γ(x). Real-only; tgamma backed.
+/// gammaln(x) — log|Γ(x)|. Real-only; lgamma backed.
+/// erf(x)     — error function 2/√π ∫₀ˣ e^{-t²} dt.
+/// erfc(x)    — 1 - erf(x), accurate for large x.
+/// erfinv(y)  — inverse error function on (-1, 1).
+///              y == ±1 → ±Inf, |y| > 1 (real input) → NaN.
+///              Implementation: Winitzki's closed-form initial estimate
+///              followed by 2 Newton steps for double precision.
+MValue gammaFn(Allocator &alloc, const MValue &x);
+MValue gammaln(Allocator &alloc, const MValue &x);
+MValue erf(Allocator &alloc, const MValue &x);
+MValue erfc(Allocator &alloc, const MValue &x);
+MValue erfinv(Allocator &alloc, const MValue &x);
+
 // ── Reductions (single-return) ───────────────────────────────────────
 //
 // Two-arg form picks the reduction axis automatically: vectors collapse

@@ -177,6 +177,68 @@ MValue log1p(Allocator &alloc, const MValue &x)
     return unaryDouble(x, [](double v) { return std::log1p(v); }, &alloc);
 }
 
+// ── Special functions ────────────────────────────────────────────────
+namespace {
+
+// Inverse error function via Winitzki's approximation + 2 Newton steps.
+// Winitzki (2008) gives an initial estimate accurate to ~10⁻³ uniformly
+// on (-1, 1); two Newton iterations on f(z) = erf(z) - y, f'(z) =
+// 2/√π · exp(-z²) bring us to double precision.
+double erfinvScalar(double y)
+{
+    if (std::isnan(y))            return y;
+    if (y >  1.0 || y < -1.0)     return std::nan("");
+    if (y ==  1.0)                return std::numeric_limits<double>::infinity();
+    if (y == -1.0)                return -std::numeric_limits<double>::infinity();
+    if (y ==  0.0)                return 0.0;
+
+    constexpr double kA  = 0.147;            // Winitzki constant
+    constexpr double k2P = 2.0 / 3.14159265358979323846;
+    const double s   = (y < 0) ? -1.0 : 1.0;
+    const double ay  = std::abs(y);
+    const double L   = std::log(1.0 - ay * ay);
+    const double t   = k2P / kA + 0.5 * L;
+    double z = s * std::sqrt(std::sqrt(t * t - L / kA) - t);
+
+    // Newton: z_{n+1} = z_n - (erf(z_n) - y) / (2/√π · exp(-z_n²)).
+    // Two iterations get us to ~1e-11 in the tails (|y| > 0.95);
+    // three iterations bring full double precision uniformly on (-1, 1).
+    constexpr double kInvSqrtPi = 0.56418958354775628694;
+    for (int i = 0; i < 3; ++i) {
+        const double err = std::erf(z) - y;
+        const double dz  = err / (2.0 * kInvSqrtPi * std::exp(-z * z));
+        z -= dz;
+    }
+    return z;
+}
+
+} // namespace
+
+MValue gammaFn(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::tgamma(v); }, &alloc);
+}
+
+MValue gammaln(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::lgamma(v); }, &alloc);
+}
+
+MValue erf(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::erf(v); }, &alloc);
+}
+
+MValue erfc(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return std::erfc(v); }, &alloc);
+}
+
+MValue erfinv(Allocator &alloc, const MValue &x)
+{
+    return unaryDouble(x, [](double v) { return erfinvScalar(v); }, &alloc);
+}
+
 // ── Reductions (single-return) ───────────────────────────────────────
 namespace {
 
@@ -2008,6 +2070,22 @@ void log1p_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                      0, 0, "log1p", "", "m:log1p:nargin");
     outs[0] = log1p(ctx.engine->allocator(), args[0]);
 }
+
+#define NK_SIMPLE_UNARY_REG(name, fn)                                          \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
+                    Span<MValue> outs, CallContext &ctx)                       \
+    {                                                                           \
+        if (args.empty())                                                       \
+            throw MError(#name ": requires 1 argument",                         \
+                         0, 0, #name, "", "m:" #name ":nargin");                \
+        outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
+    }
+
+NK_SIMPLE_UNARY_REG(gamma,   gammaFn)
+NK_SIMPLE_UNARY_REG(gammaln, gammaln)
+NK_SIMPLE_UNARY_REG(erf,     erf)
+NK_SIMPLE_UNARY_REG(erfc,    erfc)
+NK_SIMPLE_UNARY_REG(erfinv,  erfinv)
 
 // Binary adapters follow a slightly different pattern (variable name for 2nd arg)
 void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
