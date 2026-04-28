@@ -14,6 +14,8 @@
 #include <complex>
 #include <limits>
 #include <random>
+#include <string>
+#include <type_traits>
 
 namespace numkit::m::builtin {
 
@@ -715,27 +717,294 @@ NK_UNARY_ADAPTER(rad2deg, rad2deg)
 
 #undef NK_UNARY_ADAPTER
 
-// sum/prod/mean — accept an optional dim argument as args[1].
-// MATLAB allows sum(X), sum(X, dim) and sum(X, 'all'); the 'all' form
-// is not yet supported. Numeric args[1] is interpreted as 1-based dim.
-#define NK_REDUCTION_ADAPTER(name, fn)                                          \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
-    {                                                                            \
-        if (args.empty())                                                        \
-            throw MError(#name ": requires at least 1 argument",                 \
-                         0, 0, #name, "", "m:" #name ":nargin");                 \
-        int dim = 0;                                                             \
-        if (args.size() >= 2 && !args[1].isEmpty())                              \
-            dim = static_cast<int>(args[1].toScalar());                          \
-        outs[0] = (dim > 0)                                                      \
-                     ? fn(ctx.engine->allocator(), args[0], dim)                 \
-                     : fn(ctx.engine->allocator(), args[0]);                     \
+// sum/prod/mean — MATLAB signatures:
+//   sum(X)                  — scalar reduce, default output type
+//   sum(X, dim)             — reduce along dim, default output type
+//   sum(X, outtype)         — scalar reduce with explicit output type
+//   sum(X, dim, outtype)    — reduce along dim with explicit output type
+// outtype ∈ {'default', 'double', 'native'}:
+//   'default' — DOUBLE (current numkit-m behaviour for all input types)
+//   'double'  — same as default
+//   'native'  — preserve input element class (integer types saturate;
+//               LOGICAL/CHAR/COMPLEX rejected — matches MATLAB).
+// 'all' as a dim placeholder is not yet supported.
+
+namespace {
+
+enum class OutTypeMode { Default, Double, Native };
+
+inline bool isStringArg(const MValue &v)
+{
+    return v.type() == MType::CHAR;
+}
+
+OutTypeMode parseOutTypeMode(const MValue &arg, const char *fn)
+{
+    std::string s = arg.toString();
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (s == "default") return OutTypeMode::Default;
+    if (s == "double")  return OutTypeMode::Double;
+    if (s == "native")  return OutTypeMode::Native;
+    throw MError(std::string(fn) + ": unknown output type '" + s + "'",
+                 0, 0, fn, "", std::string("m:") + fn + ":outtype");
+}
+
+MType resolveNativeOutType(MType inType, const char *fn)
+{
+    switch (inType) {
+    case MType::DOUBLE: case MType::SINGLE:
+    case MType::INT8:   case MType::INT16:  case MType::INT32:  case MType::INT64:
+    case MType::UINT8:  case MType::UINT16: case MType::UINT32: case MType::UINT64:
+        return inType;
+    case MType::LOGICAL:
+    case MType::CHAR:
+        // MATLAB: 'native' is only defined for numeric (non-logical) inputs.
+        throw MError(std::string(fn) + ": 'native' is not defined for logical/char inputs",
+                     0, 0, fn, "", std::string("m:") + fn + ":nativeType");
+    case MType::COMPLEX:
+        throw MError(std::string(fn) + ": 'native' is not defined for complex inputs",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    default:
+        throw MError(std::string(fn) + ": unsupported input type for 'native'",
+                     0, 0, fn, "", std::string("m:") + fn + ":type");
+    }
+}
+
+template <typename T>
+inline T toOutT(double v)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<T>(v);
+    } else {
+        if (std::isnan(v)) return T{};
+        v = std::round(v);
+        constexpr double lo = static_cast<double>(std::numeric_limits<T>::min());
+        constexpr double hi = static_cast<double>(std::numeric_limits<T>::max());
+        if (v < lo) return std::numeric_limits<T>::min();
+        if (v > hi) return std::numeric_limits<T>::max();
+        return static_cast<T>(v);
+    }
+}
+
+template <typename T>
+inline MValue makeNativeScalar(T v, MType outType, Allocator *alloc)
+{
+    if (outType == MType::DOUBLE)
+        return MValue::scalar(static_cast<double>(v), alloc);
+    auto r = MValue::matrix(1, 1, outType, alloc);
+    static_cast<T *>(r.rawDataMut())[0] = v;
+    return r;
+}
+
+// Slice-walker that produces typed output. Walks 2D/3D/ND uniformly via
+// stride math (mirrors round-3 minMaxAlongDim). `accumOp` accumulates a
+// double over the slice; `finalize` converts (sum, sliceLen) to T.
+template <typename T, typename Init, typename AccumOp, typename Finalize>
+void typedReduceAlongDim(const MValue &x, int redDim, T *dst,
+                         Init init, AccumOp accumOp, Finalize finalize)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto reduceSlice = [&](size_t baseOff, size_t stride) -> T {
+        double acc = init;
+        for (size_t k = 0; k < sliceLen; ++k)
+            acc = accumOp(acc, x.elemAsDouble(baseOff + k * stride));
+        return finalize(acc, sliceLen);
+    };
+
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) dst[o] = reduceSlice(o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            const size_t outIdx = o * B + b;
+            dst[outIdx] = reduceSlice(base, B);
+        }
+    }
+}
+
+inline MValue allocReduceOutput(const MValue &x, int redDim, MType outType, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc);
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return createMatrix(outShape, outType, alloc);
+}
+
+template <typename T, typename Init, typename AccumOp, typename Finalize>
+MValue reduceTypedAll(const MValue &x, MType outType, Allocator *alloc,
+                      Init init, AccumOp accumOp, Finalize finalize)
+{
+    if (x.isEmpty()) {
+        // Empty input: scalar reduce → identity (sum=0, prod=1, mean=NaN).
+        const T v = finalize(static_cast<double>(init), 0);
+        return makeNativeScalar<T>(v, outType, alloc);
+    }
+    if (x.isScalar() || x.dims().isVector()) {
+        double acc = init;
+        for (size_t i = 0; i < x.numel(); ++i)
+            acc = accumOp(acc, x.elemAsDouble(i));
+        return makeNativeScalar<T>(finalize(acc, x.numel()), outType, alloc);
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    MValue out = allocReduceOutput(x, redDim, outType, alloc);
+    typedReduceAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()),
+                           init, accumOp, finalize);
+    return out;
+}
+
+template <typename T, typename Init, typename AccumOp, typename Finalize>
+MValue reduceTypedAlongDim(const MValue &x, int dim, MType outType, Allocator *alloc,
+                           Init init, AccumOp accumOp, Finalize finalize)
+{
+    if (x.isEmpty() && x.dims().ndim() < 4) {
+        return MValue::matrix(0, 0, outType, alloc);
+    }
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity: copy x cast to T.
+            const size_t n = x.numel();
+            MValue out;
+            if (x.dims().isVector())
+                out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+            else
+                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, alloc);
+            T *dst = static_cast<T *>(out.rawDataMut());
+            for (size_t i = 0; i < n; ++i)
+                dst[i] = toOutT<T>(x.elemAsDouble(i));
+            return out;
+        }
+        return reduceTypedAll<T>(x, outType, alloc, init, accumOp, finalize);
+    }
+    MValue out = allocReduceOutput(x, dim, outType, alloc);
+    typedReduceAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()),
+                           init, accumOp, finalize);
+    return out;
+}
+
+// Operation tags so the dispatcher can pick init/op/finalize uniformly
+// across sum/prod/mean.
+struct SumOp {
+    static constexpr double init = 0.0;
+    static double accum(double a, double b) { return a + b; }
+    template<typename T>
+    static T finalize(double acc, size_t /*n*/) { return toOutT<T>(acc); }
+};
+struct ProdOp {
+    static constexpr double init = 1.0;
+    static double accum(double a, double b) { return a * b; }
+    template<typename T>
+    static T finalize(double acc, size_t /*n*/) { return toOutT<T>(acc); }
+};
+struct MeanOp {
+    static constexpr double init = 0.0;
+    static double accum(double a, double b) { return a + b; }
+    template<typename T>
+    static T finalize(double acc, size_t n) {
+        return toOutT<T>(n == 0 ? std::nan("") : acc / static_cast<double>(n));
+    }
+};
+
+template <typename Op>
+MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *alloc)
+{
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        return (dim > 0)
+            ? reduceTypedAlongDim<T>(x, dim, outType, alloc,
+                                     Op::init, Op::accum, Op::template finalize<T>)
+            : reduceTypedAll<T>(x, outType, alloc,
+                                Op::init, Op::accum, Op::template finalize<T>);
+    };
+    switch (outType) {
+    case MType::DOUBLE: return run(double  {});
+    case MType::SINGLE: return run(float   {});
+    case MType::INT8:   return run(int8_t  {});
+    case MType::INT16:  return run(int16_t {});
+    case MType::INT32:  return run(int32_t {});
+    case MType::INT64:  return run(int64_t {});
+    case MType::UINT8:  return run(uint8_t {});
+    case MType::UINT16: return run(uint16_t{});
+    case MType::UINT32: return run(uint32_t{});
+    case MType::UINT64: return run(uint64_t{});
+    default:
+        throw MError("internal: unsupported native output type",
+                     0, 0, "", "", "m:nativeReduce:type");
+    }
+}
+
+// Parse args and pick the right reduction path.
+//   defaultFn — called for OutTypeMode::Default / Double (existing DOUBLE-output path)
+//   nativeFn  — called for OutTypeMode::Native (new typed path)
+template <typename DefaultFn, typename NativeFn>
+MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
+                                DefaultFn defaultFn, NativeFn nativeFn)
+{
+    int dim = 0;
+    OutTypeMode mode = OutTypeMode::Default;
+    bool haveOutType = false;
+
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (isStringArg(args[1])) {
+            mode = parseOutTypeMode(args[1], fn);
+            haveOutType = true;
+        } else {
+            dim = static_cast<int>(args[1].toScalar());
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (haveOutType)
+            throw MError(std::string(fn) + ": output type specified twice",
+                         0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
+        if (!isStringArg(args[2]))
+            throw MError(std::string(fn) + ": third argument must be the output-type string",
+                         0, 0, fn, "", std::string("m:") + fn + ":badArg");
+        mode = parseOutTypeMode(args[2], fn);
+    }
+    if (args.size() > 3)
+        throw MError(std::string(fn) + ": too many arguments",
+                     0, 0, fn, "", std::string("m:") + fn + ":nargin");
+
+    if (mode == OutTypeMode::Native) {
+        const MType outT = resolveNativeOutType(args[0].type(), fn);
+        return nativeFn(args[0], dim, outT);
+    }
+    return defaultFn(args[0], dim);
+}
+
+} // namespace
+
+#define NK_REDUCTION_ADAPTER(name, fn, op)                                       \
+    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                 \
+                    Span<MValue> outs, CallContext &ctx)                         \
+    {                                                                             \
+        if (args.empty())                                                         \
+            throw MError(#name ": requires at least 1 argument",                  \
+                         0, 0, #name, "", "m:" #name ":nargin");                  \
+        outs[0] = dispatchReductionAdapter(args, #name,                           \
+            [&](const MValue &x, int dim) {                                       \
+                return (dim > 0) ? fn(ctx.engine->allocator(), x, dim)            \
+                                 : fn(ctx.engine->allocator(), x);                \
+            },                                                                    \
+            [&](const MValue &x, int dim, MType outT) {                           \
+                return runNativeReduction<op>(x, dim, outT, &ctx.engine->allocator()); \
+            });                                                                   \
     }
 
-NK_REDUCTION_ADAPTER(sum,  sum)
-NK_REDUCTION_ADAPTER(prod, prod)
-NK_REDUCTION_ADAPTER(mean, mean)
+NK_REDUCTION_ADAPTER(sum,  sum,  SumOp)
+NK_REDUCTION_ADAPTER(prod, prod, ProdOp)
+NK_REDUCTION_ADAPTER(mean, mean, MeanOp)
 
 #undef NK_REDUCTION_ADAPTER
 

@@ -1227,6 +1227,227 @@ TEST_P(ReductionDimTest, Sum4DSingleAlongDim3)
     EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 40.0);
 }
 
+// ── Phase 4 (round-4): mode preserves source type ───────────────
+//
+// MATLAB rule: mode preserves the input element type. Value array has
+// the same class as input; frequency stays DOUBLE. Tie → smallest.
+// COMPLEX rejected. NaN ignored for floating types.
+
+TEST_P(ReductionDimTest, ModeInt32VectorReturnsInt32)
+{
+    eval("v = int32([5 1 5 2 5 1]); [m, f] = mode(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeInt8MatrixDim1)
+{
+    eval("M = int8([1 2 3; 1 2 3; 4 2 5]); m = mode(M);");
+    // Per-column mode: col1=[1,1,4]→1, col2=[2,2,2]→2, col3=[3,3,5]→3
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeUint8TieBreakSmallest)
+{
+    // MATLAB: ties → smallest value wins.
+    eval("v = uint8([3 1 3 1 5]); [m, f] = mode(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.0);  // 1 and 3 both occur 2x → 1 wins
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeSingleVector)
+{
+    eval("v = single([1.5 2.5 1.5 3.0 1.5]); m = mode(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.5);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeInt64Reduction)
+{
+    // int64 reduction must use the typed kernel (no double-promotion
+    // at the 53-bit cliff).
+    eval("big = int64(2) ^ int64(60);"  // 1152921504606846976
+         "v = int64([1; big; big; 5]);"
+         "[m, f] = mode(v);"
+         "diff = m - big;");
+    EXPECT_DOUBLE_EQ(evalScalar("double(diff);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, Mode4DInt16AlongDim4)
+{
+    // Each slice along dim 4 has length 2; reshape gives all-distinct
+    // values so each slice ties at count=1 → smallest of the two wins.
+    eval("A = int16(reshape(1:24, [2, 3, 2, 2])); [m, f] = mode(A, 4);");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(m);"),     4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(m, 4);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+    // A(1,1,1,1)=1, A(1,1,1,2)=13 → mode = min(1,13) = 1, count=1
+    EXPECT_DOUBLE_EQ(evalScalar("m(1, 1, 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f(1, 1, 1, 1);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeLogicalReturnsLogical)
+{
+    eval("v = logical([1 0 1 1 0]); [m, f] = mode(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("islogical(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ModeCharReturnsChar)
+{
+    // ASCII: 'a'=97 occurs 3x in 'banana' → mode = 'a'
+    eval("s = 'banana'; [m, f] = mode(s);");
+    EXPECT_DOUBLE_EQ(evalScalar("ischar(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(m);"), 97.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 3.0);
+}
+
+TEST_P(ReductionDimTest, ModeComplexThrows)
+{
+    eval("v = [1+2i, 3+4i, 1+2i];");
+    EXPECT_THROW(eval("m = mode(v);"), std::exception);
+}
+
+TEST_P(ReductionDimTest, ModeNanIgnored)
+{
+    // MATLAB ignores NaN when counting frequencies.
+    eval("v = [1, NaN, 1, NaN, 2]; [m, f] = mode(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 2.0);
+}
+
+TEST_P(ReductionDimTest, ModeAllNanReturnsNan)
+{
+    eval("v = [NaN, NaN, NaN]; [m, f] = mode(v);");
+    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+    EXPECT_DOUBLE_EQ(evalScalar("f;"), 0.0);
+}
+
+// ── Phase 5 (round-4): 'native' / 'default' / 'double' output type ───
+//
+// MATLAB outtype flag for sum/prod/mean. 'default' and 'double' both
+// give DOUBLE output; 'native' preserves the input class. Integer
+// natives saturate; LOGICAL/CHAR/COMPLEX inputs reject 'native'.
+
+TEST_P(ReductionDimTest, SumNativeInt32PreservesType)
+{
+    eval("v = int32([1 2 3 4 5]); s = sum(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 15.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumNativeInt8Saturates)
+{
+    // 100 + 100 = 200 → saturates at int8 max (127).
+    eval("v = int8([100 100]); s = sum(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumNativeUint8SaturatesLow)
+{
+    // unsigned: any negative-headed sum clamps to 0. uint8 sum of 250+250
+    // = 500 → saturates at 255.
+    eval("v = uint8([250 250]); s = sum(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 255.0);
+}
+
+TEST_P(ReductionDimTest, SumNativeAlongDim)
+{
+    eval("M = int16([1 2 3; 4 5 6]); s = sum(M, 1, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s(1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(2);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(3);"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumDoubleFlagForcesDouble)
+{
+    // 'double' on an int input gives double output.
+    eval("v = int32([1 2 3]); s = sum(v, 'double');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, SumDefaultFlagReturnsDouble)
+{
+    eval("v = int32([1 2 3]); s = sum(v, 'default');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, SumNativeRejectsLogical)
+{
+    eval("v = logical([1 0 1]);");
+    EXPECT_THROW(eval("s = sum(v, 'native');"), std::exception);
+}
+
+TEST_P(ReductionDimTest, SumNativeRejectsComplex)
+{
+    eval("v = [1+2i, 3+4i];");
+    EXPECT_THROW(eval("s = sum(v, 'native');"), std::exception);
+}
+
+TEST_P(ReductionDimTest, ProdNativeInt16)
+{
+    eval("v = int16([2 3 4]); p = prod(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("p;"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(p);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ProdNativeInt8Saturates)
+{
+    // 50 * 50 = 2500 → saturates at int8 max (127).
+    eval("v = int8([50 50]); p = prod(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("p;"), 127.0);
+}
+
+TEST_P(ReductionDimTest, MeanNativeInt32Rounds)
+{
+    // mean([1, 2, 3]) = 2 → int32(2)
+    eval("v = int32([1 2 3]); m = mean(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MeanNativeInt32RoundsToNearest)
+{
+    // mean([1, 2, 4]) = 7/3 = 2.333… → rounds to 2 (nearest integer)
+    eval("v = int32([1 2 4]); m = mean(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.0);
+}
+
+TEST_P(ReductionDimTest, NativeBadFlagThrows)
+{
+    eval("v = int32([1 2 3]);");
+    EXPECT_THROW(eval("s = sum(v, 'banana');"), std::exception);
+}
+
+TEST_P(ReductionDimTest, SumNativeOnSingleStaysSingle)
+{
+    eval("v = single([1.5 2.5 3.0]); s = sum(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumNative4DAlongDim)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 2, 2])); s = sum(A, 4, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("ndims(s);"),     4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(s, 4);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+    // s(1,1,1,1) = A(1,1,1,1) + A(1,1,1,2) = 1 + 13 = 14
+    EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 14.0);
+}
+
 INSTANTIATE_DUAL(ReductionDimTest);
 
 // ============================================================

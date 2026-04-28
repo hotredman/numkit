@@ -18,13 +18,16 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
+#include <limits>
+#include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 namespace numkit::m::builtin {
 
 using detail::applyAlongDim;
-using detail::applyAlongDimPair;
 using detail::resolveDim;
 
 // ────────────────────────────────────────────────────────────────────
@@ -268,41 +271,256 @@ MValue prctile(Allocator &alloc, const MValue &x, const MValue &p, int dim)
 // mode
 // ────────────────────────────────────────────────────────────────────
 //
-// Sort + run-length scan. For ties, MATLAB returns the smallest value —
-// since we sort ascending, the first run achieving the max length is
-// the smallest, so we use strict-greater comparison to keep it.
+// MATLAB rule: mode preserves the input element type. The value array
+// has the same type as input (DOUBLE/SINGLE/INT*/UINT*/LOGICAL/CHAR);
+// the frequency array is always DOUBLE. NaN values are ignored when
+// counting (floating types only — integers have no NaN). Ties resolve
+// to the smallest value: we sort ascending, then use strict-greater
+// comparison so the first run achieving the max count wins.
+
 namespace {
 
-void modeFromSlice(double *data, size_t n, double &outVal, double &outCount)
+template <typename T>
+inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
 {
-    if (n == 0) {
-        outVal = std::nan("");
+    if (typeMatch)
+        return static_cast<const T *>(x.rawData())[i];
+    if constexpr (std::is_floating_point_v<T>) {
+        return static_cast<T>(x.elemAsDouble(i));
+    } else {
+        const double d = x.elemAsDouble(i);
+        return static_cast<T>(std::clamp(std::round(d),
+            static_cast<double>(std::numeric_limits<T>::lowest()),
+            static_cast<double>(std::numeric_limits<T>::max())));
+    }
+}
+
+template <typename T>
+inline MValue makeScalarT(T v, MType outType, Allocator *alloc)
+{
+    if (outType == MType::DOUBLE)
+        return MValue::scalar(static_cast<double>(v), alloc);
+    if (outType == MType::LOGICAL)
+        return MValue::logicalScalar(v != 0, alloc);
+    auto r = MValue::matrix(1, 1, outType, alloc);
+    static_cast<T *>(r.rawDataMut())[0] = v;
+    return r;
+}
+
+template <typename T>
+inline T modeEmptyValue()
+{
+    if constexpr (std::is_floating_point_v<T>)
+        return std::numeric_limits<T>::quiet_NaN();
+    else
+        return T{};
+}
+
+template <typename T>
+inline size_t compactNonNanT(T *data, size_t n)
+{
+    if constexpr (std::is_floating_point_v<T>) {
+        size_t w = 0;
+        for (size_t i = 0; i < n; ++i)
+            if (!std::isnan(data[i])) {
+                if (w != i) data[w] = data[i];
+                ++w;
+            }
+        return w;
+    } else {
+        (void) data;
+        return n;
+    }
+}
+
+template <typename T>
+inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
+{
+    const size_t k = compactNonNanT<T>(data, n);
+    if (k == 0) {
+        outVal = modeEmptyValue<T>();
         outCount = 0.0;
         return;
     }
-    std::sort(data, data + n);
-    double bestVal = data[0];
+    std::sort(data, data + k);
+    T bestVal = data[0];
     size_t bestCount = 1;
-    double curVal = data[0];
+    T curVal = data[0];
     size_t curCount = 1;
-    for (size_t i = 1; i < n; ++i) {
+    for (size_t i = 1; i < k; ++i) {
         if (data[i] == curVal) {
             ++curCount;
         } else {
-            if (curCount > bestCount) {
-                bestCount = curCount;
-                bestVal = curVal;
-            }
+            if (curCount > bestCount) { bestCount = curCount; bestVal = curVal; }
             curVal = data[i];
             curCount = 1;
         }
     }
-    if (curCount > bestCount) {
-        bestCount = curCount;
-        bestVal = curVal;
-    }
+    if (curCount > bestCount) { bestCount = curCount; bestVal = curVal; }
     outVal = bestVal;
     outCount = static_cast<double>(bestCount);
+}
+
+// Walk every output cell along dim `redDim` (1-based). For each cell,
+// gather the slice into `scratch`, run modeFromSliceT, and write the
+// (value, count) pair. Handles 2D / 3D / ND uniformly via stride math.
+// On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
+// integer T) — matches MATLAB's mode-of-empty-slice convention.
+template <typename T>
+void modeAlongDim(const MValue &x, int redDim, T *dst, double *dstC,
+                  bool typeMatch)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    if (sliceLen == 0) {
+        const T defVal = modeEmptyValue<T>();
+        const size_t total = B * O;
+        for (size_t i = 0; i < total; ++i) { dst[i] = defVal; dstC[i] = 0.0; }
+        return;
+    }
+
+    std::vector<T> scratch(sliceLen);
+    auto runSlice = [&](size_t outIdx, size_t baseOff, size_t stride) {
+        for (size_t k = 0; k < sliceLen; ++k)
+            scratch[k] = readSrcAsT<T>(x, baseOff + k * stride, typeMatch);
+        T v; double c;
+        modeFromSliceT<T>(scratch.data(), sliceLen, v, c);
+        dst[outIdx] = v;
+        dstC[outIdx] = c;
+    };
+
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            const size_t outIdx = o * B + b;
+            runSlice(outIdx, base, B);
+        }
+    }
+}
+
+inline std::pair<MValue, MValue>
+allocModeOutputs(const MValue &x, int redDim, MType outType, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return {MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc),
+                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc)};
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return {createMatrix(outShape, outType, alloc),
+            createMatrix(outShape, MType::DOUBLE, alloc)};
+}
+
+template <typename T>
+std::tuple<MValue, MValue>
+modeAllT(const MValue &x, MType outType, Allocator *alloc)
+{
+    const bool typeMatch = (x.type() == outType);
+    if (x.isEmpty() && x.dims().ndim() < 4) {
+        return std::make_tuple(MValue::matrix(0, 0, outType, alloc),
+                               MValue::matrix(0, 0, MType::DOUBLE, alloc));
+    }
+    if (x.isScalar() || x.dims().isVector()) {
+        std::vector<T> scratch(x.numel());
+        for (size_t i = 0; i < x.numel(); ++i)
+            scratch[i] = readSrcAsT<T>(x, i, typeMatch);
+        T v; double c;
+        modeFromSliceT<T>(scratch.data(), x.numel(), v, c);
+        return std::make_tuple(makeScalarT<T>(v, outType, alloc),
+                               MValue::scalar(c, alloc));
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    auto [out, outC] = allocModeOutputs(x, redDim, outType, alloc);
+    modeAlongDim<T>(x, redDim,
+                    static_cast<T *>(out.rawDataMut()),
+                    outC.doubleDataMut(),
+                    typeMatch);
+    return std::make_tuple(std::move(out), std::move(outC));
+}
+
+template <typename T>
+std::tuple<MValue, MValue>
+modeAlongDimT(const MValue &x, int dim, MType outType, Allocator *alloc)
+{
+    const bool typeMatch = (x.type() == outType);
+    if (x.isEmpty() && x.dims().ndim() < 4) {
+        return std::make_tuple(MValue::matrix(0, 0, outType, alloc),
+                               MValue::matrix(0, 0, MType::DOUBLE, alloc));
+    }
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity reduction: copy x as outType, frequencies = ones.
+            const size_t n = x.numel();
+            MValue out, outC;
+            if (x.dims().isVector()) {
+                out  = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+                outC = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE, alloc);
+            } else {
+                out  = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
+                outC = MValue::scalar(1.0, alloc);
+                return std::make_tuple(std::move(out), std::move(outC));
+            }
+            T *dst = static_cast<T *>(out.rawDataMut());
+            double *dstC = outC.doubleDataMut();
+            for (size_t i = 0; i < n; ++i) {
+                dst[i]  = readSrcAsT<T>(x, i, typeMatch);
+                dstC[i] = 1.0;
+            }
+            return std::make_tuple(std::move(out), std::move(outC));
+        }
+        return modeAllT<T>(x, outType, alloc);
+    }
+    auto [out, outC] = allocModeOutputs(x, dim, outType, alloc);
+    modeAlongDim<T>(x, dim,
+                    static_cast<T *>(out.rawDataMut()),
+                    outC.doubleDataMut(),
+                    typeMatch);
+    return std::make_tuple(std::move(out), std::move(outC));
+}
+
+// Dispatch on x.type(). LOGICAL maps to T=uint8_t (storage type) and
+// outType=LOGICAL so the result preserves logical class. CHAR uses
+// T=char. COMPLEX has no defined order → throw.
+std::tuple<MValue, MValue>
+dispatchMode(const MValue &x, int dim, Allocator *alloc, const char *fn)
+{
+    const bool useDimReducer = (dim > 0);
+    auto run = [&](auto tag, MType outT) {
+        using T = decltype(tag);
+        return useDimReducer
+            ? modeAlongDimT<T>(x, dim, outT, alloc)
+            : modeAllT<T>(x, outT, alloc);
+    };
+    switch (x.type()) {
+    case MType::DOUBLE:  return run(double  {}, MType::DOUBLE);
+    case MType::SINGLE:  return run(float   {}, MType::SINGLE);
+    case MType::INT8:    return run(int8_t  {}, MType::INT8);
+    case MType::INT16:   return run(int16_t {}, MType::INT16);
+    case MType::INT32:   return run(int32_t {}, MType::INT32);
+    case MType::INT64:   return run(int64_t {}, MType::INT64);
+    case MType::UINT8:   return run(uint8_t {}, MType::UINT8);
+    case MType::UINT16:  return run(uint16_t{}, MType::UINT16);
+    case MType::UINT32:  return run(uint32_t{}, MType::UINT32);
+    case MType::UINT64:  return run(uint64_t{}, MType::UINT64);
+    case MType::LOGICAL: return run(uint8_t {}, MType::LOGICAL);
+    case MType::CHAR:    return run(char    {}, MType::CHAR);
+    case MType::COMPLEX:
+        throw MError(std::string(fn) + ": not defined for complex inputs",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    default:
+        throw MError(std::string(fn) + ": unsupported input type",
+                     0, 0, fn, "", std::string("m:") + fn + ":type");
+    }
 }
 
 } // namespace
@@ -311,11 +529,7 @@ std::tuple<MValue, MValue>
 mode(Allocator &alloc, const MValue &x, int dim)
 {
     const int d = resolveDim(x, dim, "mode");
-    auto [v, c] = applyAlongDimPair(x, d,
-        [](double *slice, size_t n, double &outV, double &outC) {
-            modeFromSlice(slice, n, outV, outC);
-        }, &alloc);
-    return std::make_tuple(std::move(v), std::move(c));
+    return dispatchMode(x, d, &alloc, "mode");
 }
 
 // ────────────────────────────────────────────────────────────────────

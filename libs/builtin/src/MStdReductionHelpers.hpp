@@ -329,61 +329,6 @@ applyAlongDimWithIndex(const MValue &x, int dim, F &&f, Allocator *alloc)
     return {std::move(out), std::move(outIdx)};
 }
 
-// Two-output variant: F writes (value, secondary) per slice. Used by
-// mode (value + frequency). Returns a tuple of (out, out2).
-template <typename F>
-std::pair<MValue, MValue>
-applyAlongDimPair(const MValue &x, int dim, F &&f, Allocator *alloc)
-{
-    if (x.isEmpty() && x.dims().ndim() < 4) {
-        return {MValue::matrix(0, 0, MType::DOUBLE, alloc),
-                MValue::matrix(0, 0, MType::DOUBLE, alloc)};
-    }
-    if (x.dims().isVector() || x.isScalar()) {
-        std::vector<double> scratch(x.numel());
-        if (x.type() == MType::DOUBLE)
-            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
-        else
-            for (size_t i = 0; i < x.numel(); ++i)
-                scratch[i] = x.elemAsDouble(i);
-        double v = 0, s = 0;
-        f(scratch.data(), x.numel(), v, s);
-        return {MValue::scalar(v, alloc), MValue::scalar(s, alloc)};
-    }
-    // ND fallback (rank ≥ 4)
-    if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(x, dim);
-        MValue out  = MValue::matrixND(shape.data(),
-                                       static_cast<int>(shape.size()),
-                                       MType::DOUBLE, alloc);
-        MValue out2 = MValue::matrixND(shape.data(),
-                                       static_cast<int>(shape.size()),
-                                       MType::DOUBLE, alloc);
-        double *d1 = out.doubleDataMut();
-        double *d2 = out2.doubleDataMut();
-        forEachSliceND(x, dim, d1,
-            [&](size_t outIdx, double *slice, size_t n) {
-                double v = 0, s = 0;
-                f(slice, n, v, s);
-                d2[outIdx] = s;
-                return v;
-            });
-        return {std::move(out), std::move(out2)};
-    }
-    auto outShape = outShapeForDim(x, dim);
-    MValue out = createMatrix(outShape, MType::DOUBLE, alloc);
-    MValue out2 = createMatrix(outShape, MType::DOUBLE, alloc);
-    double *d1 = out.doubleDataMut();
-    double *d2 = out2.doubleDataMut();
-    forEachSlice(x, dim, [&](size_t outIdx, double *slice, size_t n) {
-        double v = 0, s = 0;
-        f(slice, n, v, s);
-        d1[outIdx] = v;
-        d2[outIdx] = s;
-    });
-    return {std::move(out), std::move(out2)};
-}
-
 // Resolve effective dim: explicit user-supplied if provided, else the
 // "first non-singleton" rule. Returns 1-based dim or 0 for "scalar".
 inline int resolveDim(const MValue &x, int explicitDim, const char *fn)
