@@ -7,7 +7,6 @@
 
 #include <numkit/m/builtin/math/random/rng.hpp>
 
-#include <numkit/m/builtin/MStdMath.hpp>   // rand / randn (real-valued)
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
@@ -106,6 +105,50 @@ void rngRestore(const MValue &state)
                      0, 0, "rng", "", "m:rng:badState");
     std::lock_guard<std::mutex> lock(rngMutex());
     deserializeEngine(blob.toString());
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Real-valued random (uniform / standard-normal). Moved here from the
+// old MStdMath.cpp; the previous static-RNG versions had no shared
+// state with randi/randperm.
+// ────────────────────────────────────────────────────────────────────
+
+MValue rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+{
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
+                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+MValue randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+{
+    std::normal_distribution<double> dist(0.0, 1.0);
+    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
+                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+MValue randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+{
+    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
+}
+
+MValue randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+{
+    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    std::normal_distribution<double> dist(0.0, 1.0);
+    for (size_t i = 0; i < m.numel(); ++i)
+        m.doubleDataMut()[i] = dist(rng);
+    return m;
 }
 
 // ────────────────────────────────────────────────────────────────────

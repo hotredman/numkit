@@ -6,7 +6,9 @@
 // should cluster within a factor of 2 across the family; any big
 // outlier on the baseline is worth investigating before Highway work.
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/exponents.hpp>
+#include <numkit/m/builtin/math/elementary/rounding.hpp>
+#include <numkit/m/builtin/math/elementary/trigonometry.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

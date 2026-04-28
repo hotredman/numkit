@@ -6,7 +6,7 @@
 // HWY_ONCE pass at the bottom publishes the single external abs().
 // See MStdAbs_portable.cpp for the scalar reference.
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/rounding.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MParallelFor.hpp>

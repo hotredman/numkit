@@ -1,6 +1,18 @@
-// libs/builtin/src/MStdMath.cpp
+// libs/builtin/src/math/elementary/reductions.cpp
+//
+// Reductions (sum / prod / mean / max / min — single-return forms,
+// NaN-aware variants, complex variants) plus the typed-output dispatcher
+// used by their adapters. Also hosts linspace / logspace.
+//
+// trigonometry / exponents / rounding / misc / special live in sibling
+// files under math/elementary/. Random generators (rand/randn) live in
+// math/random/rng.cpp.
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/m/builtin/math/elementary/exponents.hpp>      // exp / log adapters
+#include <numkit/m/builtin/math/elementary/reductions.hpp>
+#include <numkit/m/builtin/math/elementary/rounding.hpp>       // abs adapter
+#include <numkit/m/builtin/math/elementary/trigonometry.hpp>   // sin / cos adapters
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
@@ -13,233 +25,14 @@
 #include <cmath>
 #include <complex>
 #include <limits>
-#include <random>
 #include <string>
 #include <type_traits>
 
 namespace numkit::m::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
-// Public API
+// Reductions (single-return) — sum / prod / mean
 // ════════════════════════════════════════════════════════════════════════
-
-// ── Elementwise unary — complex-promoting ──────────────────────────────
-MValue sqrt(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, &alloc);
-    if (x.isScalar() && x.toScalar() < 0)
-        return MValue::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), &alloc);
-    return unaryDouble(x, [](double v) { return std::sqrt(v); }, &alloc);
-}
-
-// abs() now lives in libs/builtin/src/backends/MStdAbs_{portable,simd}.cpp.
-// CMake picks one based on NUMKIT_WITH_SIMD; the portable copy is the
-// scalar reference, the SIMD copy is identical for tiny / complex inputs
-// but dispatches the real-vector fast path to Highway.
-
-// sin / cos / exp / log now live in
-// libs/builtin/src/backends/MStdTranscendental_{portable,simd}.cpp.
-// tan / asin / acos / atan stay here until they get SIMD backends —
-// Highway's hwy/contrib/math has atan/asin/acos/tan equivalents, so
-// they're reasonable follow-ups but weren't in the 7c bench scope.
-
-MValue tan(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::tan(v); }, &alloc);
-}
-
-MValue asin(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::asin(v); }, &alloc);
-}
-
-MValue acos(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::acos(v); }, &alloc);
-}
-
-MValue atan(Allocator &alloc, const MValue &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::atan(v); }, &alloc);
-}
-
-// ── Elementwise unary — double only ───────────────────────────────────
-MValue log2(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::log2(v); }, &alloc);
-}
-
-MValue log10(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::log10(v); }, &alloc);
-}
-
-MValue floor(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::floor(v); }, &alloc);
-}
-
-MValue ceil(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::ceil(v); }, &alloc);
-}
-
-MValue round(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::round(v); }, &alloc);
-}
-
-MValue fix(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::trunc(v); }, &alloc);
-}
-
-MValue sign(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x,
-                       [](double v) {
-                           return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
-                       },
-                       &alloc);
-}
-
-MValue deg2rad(Allocator &alloc, const MValue &x)
-{
-    constexpr double k = 3.14159265358979323846 / 180.0;
-    return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
-}
-
-MValue rad2deg(Allocator &alloc, const MValue &x)
-{
-    constexpr double k = 180.0 / 3.14159265358979323846;
-    return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
-}
-
-// ── Elementwise binary ───────────────────────────────────────────────
-MValue atan2(Allocator &alloc, const MValue &y, const MValue &x)
-{
-    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, &alloc);
-}
-
-MValue mod(Allocator &alloc, const MValue &a, const MValue &b)
-{
-    return elementwiseDouble(a, b,
-                             [](double aa, double bb) {
-                                 return bb != 0 ? aa - std::floor(aa / bb) * bb : aa;
-                             },
-                             &alloc);
-}
-
-MValue rem(Allocator &alloc, const MValue &a, const MValue &b)
-{
-    return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, &alloc);
-}
-
-MValue hypot(Allocator &alloc, const MValue &x, const MValue &y)
-{
-    return elementwiseDouble(x, y,
-        [](double a, double b) { return std::hypot(a, b); }, &alloc);
-}
-
-// nthroot(x, n): real n-th root. For negative x with odd integer n,
-// returns the negative real root (sign(x) * |x|^(1/n)). For negative x
-// with non-odd n, returns NaN — MATLAB throws there but NaN keeps
-// vectorised callers from having to special-case before the call.
-MValue nthroot(Allocator &alloc, const MValue &x, const MValue &n)
-{
-    return elementwiseDouble(x, n, [](double xv, double nv) {
-        if (nv == 0.0) return std::nan("");
-        if (xv >= 0.0) return std::pow(xv, 1.0 / nv);
-        const double rounded = std::round(nv);
-        if (rounded != nv) return std::nan("");
-        const long long ni = static_cast<long long>(rounded);
-        if (ni % 2 == 0) return std::nan("");
-        return -std::pow(-xv, 1.0 / nv);
-    }, &alloc);
-}
-
-MValue expm1(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::expm1(v); }, &alloc);
-}
-
-MValue log1p(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::log1p(v); }, &alloc);
-}
-
-// ── Special functions ────────────────────────────────────────────────
-namespace {
-
-// Inverse error function via Winitzki's approximation + 2 Newton steps.
-// Winitzki (2008) gives an initial estimate accurate to ~10⁻³ uniformly
-// on (-1, 1); two Newton iterations on f(z) = erf(z) - y, f'(z) =
-// 2/√π · exp(-z²) bring us to double precision.
-double erfinvScalar(double y)
-{
-    if (std::isnan(y))            return y;
-    if (y >  1.0 || y < -1.0)     return std::nan("");
-    if (y ==  1.0)                return std::numeric_limits<double>::infinity();
-    if (y == -1.0)                return -std::numeric_limits<double>::infinity();
-    if (y ==  0.0)                return 0.0;
-
-    constexpr double kA  = 0.147;            // Winitzki constant
-    constexpr double k2P = 2.0 / 3.14159265358979323846;
-    const double s   = (y < 0) ? -1.0 : 1.0;
-    const double ay  = std::abs(y);
-    const double L   = std::log(1.0 - ay * ay);
-    const double t   = k2P / kA + 0.5 * L;
-    double z = s * std::sqrt(std::sqrt(t * t - L / kA) - t);
-
-    // Newton: z_{n+1} = z_n - (erf(z_n) - y) / (2/√π · exp(-z_n²)).
-    // Two iterations get us to ~1e-11 in the tails (|y| > 0.95);
-    // three iterations bring full double precision uniformly on (-1, 1).
-    constexpr double kInvSqrtPi = 0.56418958354775628694;
-    for (int i = 0; i < 3; ++i) {
-        const double err = std::erf(z) - y;
-        const double dz  = err / (2.0 * kInvSqrtPi * std::exp(-z * z));
-        z -= dz;
-    }
-    return z;
-}
-
-} // namespace
-
-MValue gammaFn(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::tgamma(v); }, &alloc);
-}
-
-MValue gammaln(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::lgamma(v); }, &alloc);
-}
-
-MValue erf(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::erf(v); }, &alloc);
-}
-
-MValue erfc(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return std::erfc(v); }, &alloc);
-}
-
-MValue erfinv(Allocator &alloc, const MValue &x)
-{
-    return unaryDouble(x, [](double v) { return erfinvScalar(v); }, &alloc);
-}
-
-// ── Reductions (single-return) ───────────────────────────────────────
 namespace {
 
 // Generic column-/dim-wise reducer: applies op(acc, x) and initializes
@@ -1187,43 +980,7 @@ MValue logspace(Allocator &alloc, double a, double b, size_t n)
     return r;
 }
 
-MValue rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
-{
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
-                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
-    return m;
-}
-
-MValue randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
-{
-    std::normal_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
-                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
-    return m;
-}
-
-MValue randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
-{
-    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
-    std::uniform_real_distribution<double> dist(0.0, 1.0);
-    for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
-    return m;
-}
-
-MValue randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
-{
-    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
-    std::normal_distribution<double> dist(0.0, 1.0);
-    for (size_t i = 0; i < m.numel(); ++i)
-        m.doubleDataMut()[i] = dist(rng);
-    return m;
-}
+// rand / randn / randND / randnND — moved to math/random/rng.cpp.
 
 // ════════════════════════════════════════════════════════════════════════
 // Engine adapters
@@ -1259,25 +1016,19 @@ namespace detail {
         outs[0] = fn(ctx.engine->allocator(), args[0], &outs[0]);               \
     }
 
-NK_UNARY_ADAPTER(sqrt,    sqrt)
+// SIMD-backed unaries — abs lives in backends/MStdAbs_*.cpp,
+// sin/cos/exp/log in backends/MStdTranscendental_*.cpp. We host their
+// engine adapters here because no other TU does.
 NK_UNARY_ADAPTER_HINT(abs,     abs)
 NK_UNARY_ADAPTER_HINT(sin,     sin)
 NK_UNARY_ADAPTER_HINT(cos,     cos)
-NK_UNARY_ADAPTER(tan,     tan)
-NK_UNARY_ADAPTER(asin,    asin)
-NK_UNARY_ADAPTER(acos,    acos)
-NK_UNARY_ADAPTER(atan,    atan)
 NK_UNARY_ADAPTER_HINT(exp,     exp)
 NK_UNARY_ADAPTER_HINT(log,     log)
-NK_UNARY_ADAPTER(log2,    log2)
-NK_UNARY_ADAPTER(log10,   log10)
-NK_UNARY_ADAPTER(floor,   floor)
-NK_UNARY_ADAPTER(ceil,    ceil)
-NK_UNARY_ADAPTER(round,   round)
-NK_UNARY_ADAPTER(fix,     fix)
-NK_UNARY_ADAPTER(sign,    sign)
-NK_UNARY_ADAPTER(deg2rad, deg2rad)
-NK_UNARY_ADAPTER(rad2deg, rad2deg)
+
+// All other unary adapters (sqrt / tan / asin / acos / atan / log2 /
+// log10 / floor / ceil / round / fix / sign / deg2rad / rad2deg /
+// expm1 / log1p / gamma / erf / ...) live next to their public APIs
+// under math/elementary/{trigonometry,exponents,rounding,misc,special}.cpp.
 
 #undef NK_UNARY_ADAPTER
 
@@ -2034,83 +1785,10 @@ NK_REDUCTION_ADAPTER(mean, mean, MeanOp)
 
 #undef NK_REDUCTION_ADAPTER
 
-// Phase 7: hypot/nthroot are binary; expm1/log1p are unary.
-void hypot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-               CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("hypot: requires 2 arguments",
-                     0, 0, "hypot", "", "m:hypot:nargin");
-    outs[0] = hypot(ctx.engine->allocator(), args[0], args[1]);
-}
-
-void nthroot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-                 CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("nthroot: requires 2 arguments",
-                     0, 0, "nthroot", "", "m:nthroot:nargin");
-    outs[0] = nthroot(ctx.engine->allocator(), args[0], args[1]);
-}
-
-void expm1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-               CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("expm1: requires 1 argument",
-                     0, 0, "expm1", "", "m:expm1:nargin");
-    outs[0] = expm1(ctx.engine->allocator(), args[0]);
-}
-
-void log1p_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
-               CallContext &ctx)
-{
-    if (args.empty())
-        throw MError("log1p: requires 1 argument",
-                     0, 0, "log1p", "", "m:log1p:nargin");
-    outs[0] = log1p(ctx.engine->allocator(), args[0]);
-}
-
-#define NK_SIMPLE_UNARY_REG(name, fn)                                          \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
-                    Span<MValue> outs, CallContext &ctx)                       \
-    {                                                                           \
-        if (args.empty())                                                       \
-            throw MError(#name ": requires 1 argument",                         \
-                         0, 0, #name, "", "m:" #name ":nargin");                \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
-    }
-
-NK_SIMPLE_UNARY_REG(gamma,   gammaFn)
-NK_SIMPLE_UNARY_REG(gammaln, gammaln)
-NK_SIMPLE_UNARY_REG(erf,     erf)
-NK_SIMPLE_UNARY_REG(erfc,    erfc)
-NK_SIMPLE_UNARY_REG(erfinv,  erfinv)
-
-// Binary adapters follow a slightly different pattern (variable name for 2nd arg)
-void atan2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("atan2: requires 2 arguments",
-                     0, 0, "atan2", "", "m:atan2:nargin");
-    outs[0] = atan2(ctx.engine->allocator(), args[0], args[1]);
-}
-
-void mod_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("mod: requires 2 arguments",
-                     0, 0, "mod", "", "m:mod:nargin");
-    outs[0] = mod(ctx.engine->allocator(), args[0], args[1]);
-}
-
-void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("rem: requires 2 arguments",
-                     0, 0, "rem", "", "m:rem:nargin");
-    outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
-}
+// hypot / nthroot / expm1 / log1p adapters → math/elementary/{misc,exponents}.cpp
+// gamma / gammaln / erf / erfc / erfinv adapters → math/elementary/special.cpp
+// atan2 adapter → math/elementary/trigonometry.cpp
+// mod / rem adapters → math/elementary/misc.cpp
 
 // max/min: MATLAB forms:
 //   max(X)                       — reduction along first non-singleton dim, (value, idx)

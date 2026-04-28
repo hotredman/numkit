@@ -13,7 +13,9 @@
 // ULP budget instead.
 
 #include <numkit/m/builtin/lang/operators/binary_ops.hpp>
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/exponents.hpp>
+#include <numkit/m/builtin/math/elementary/rounding.hpp>
+#include <numkit/m/builtin/math/elementary/trigonometry.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>

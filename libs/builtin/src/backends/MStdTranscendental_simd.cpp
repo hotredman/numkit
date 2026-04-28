@@ -11,7 +11,8 @@
 // exactly — SIMD doesn't help there. Parity vs the scalar reference is
 // verified in libs/builtin/tests/simd_parity_test.cpp.
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/exponents.hpp>
+#include <numkit/m/builtin/math/elementary/trigonometry.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MParallelFor.hpp>

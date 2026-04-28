@@ -10,7 +10,7 @@
 
 #pragma once
 
-#include <numkit/m/builtin/MStdMath.hpp>            // sum / prod / mean
+#include <numkit/m/builtin/math/elementary/reductions.hpp>   // sum / prod / mean
 #include <numkit/m/builtin/lang/arrays/matrix.hpp>  // length / ndims
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>

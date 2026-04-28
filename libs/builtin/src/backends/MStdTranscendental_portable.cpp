@@ -5,7 +5,8 @@
 // MStdTranscendental_simd.cpp and matches this file bit-for-bit on
 // complex inputs (SIMD only helps the real-vector fast path).
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/exponents.hpp>
+#include <numkit/m/builtin/math/elementary/trigonometry.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>

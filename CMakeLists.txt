@@ -126,7 +126,13 @@ set(NUMKIT_M_HEADERS
     core/include/numkit/m/core/MVfs.hpp
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
-    libs/builtin/include/numkit/m/builtin/MStdMath.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/trigonometry.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/exponents.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/rounding.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/misc.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/special.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/reductions.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/discrete.hpp
     libs/builtin/include/numkit/m/builtin/datatypes/cell/cell.hpp
     libs/builtin/include/numkit/m/builtin/datatypes/struct/struct.hpp
     libs/builtin/include/numkit/m/builtin/datatypes/strings/strings.hpp

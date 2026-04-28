@@ -6,7 +6,7 @@
 // exactly this behaviour for small / complex / scalar inputs; the
 // SIMD backend only diverges on the real-vector fast path.
 
-#include <numkit/m/builtin/MStdMath.hpp>
+#include <numkit/m/builtin/math/elementary/rounding.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>

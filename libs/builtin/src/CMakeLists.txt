@@ -1,6 +1,5 @@
 set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdMath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStats.cpp
     # lang/
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/commands/env.cpp
@@ -15,6 +14,12 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/polynomials.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/discrete.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/trigonometry.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/exponents.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/rounding.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/misc.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/special.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/reductions.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/optim/fzero.cpp
     # data_io/
