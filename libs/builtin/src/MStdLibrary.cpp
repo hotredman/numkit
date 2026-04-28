@@ -53,6 +53,8 @@ void factor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void perms_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void factorial_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nchoosek_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void gradient_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cumtrapz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nansum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -323,6 +325,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("perms",     &builtin::detail::perms_reg);
     engine.registerFunction("factorial", &builtin::detail::factorial_reg);
     engine.registerFunction("nchoosek",  &builtin::detail::nchoosek_reg);
+    engine.registerFunction("gradient",  &builtin::detail::gradient_reg);
+    engine.registerFunction("cumtrapz",  &builtin::detail::cumtrapz_reg);
 
     // ── Phase 2 NaN-aware reductions ───────────────────────────────
     engine.registerFunction("nansum",    &builtin::detail::nansum_reg);

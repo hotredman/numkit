@@ -13,6 +13,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdAccum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdNumberTheory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCombinatorics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCalculus.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
