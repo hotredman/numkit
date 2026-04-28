@@ -231,20 +231,16 @@ std::vector<MValue> Engine::callFunctionHandleMulti(const MValue &handle,
     }
 
     // 2) TW user-function path. Works for any named user function and
-    // for anonymous handles created under the TW backend (which stores
-    // them in engine.userFuncs_).
-    //
-    // KNOWN LIMITATION: anonymous handles created under the VM backend
-    // are stored only in the compiler's compiledFuncs_ table (not in
-    // userFuncs_) and the VM is non-reentrant — so calling them from a
-    // builtin during a VM run currently throws "Undefined function in
-    // handle: @__anon_*". Workaround for now: switch to the TW backend
-    // when you need to pass anonymous handles to cellfun / structfun /
-    // pulstran. Lifting this limitation would require either making
-    // VM::execute reentrant or mirror-registering VM anon-funcs into
-    // engine.userFuncs_ at compile time.
+    // for anonymous handles regardless of which backend created them:
+    // VM-compiled anon-funcs are mirror-registered into
+    // engine.userFuncs_ by Compiler::compileAnonFunc, so TW finds them
+    // here even when the VM was the active backend at handle creation
+    // time. Captures travel as appended args (the closure-cell unwrap
+    // above) — both backends use the same `[user_params, captures]`
+    // parameter layout. Pass the BARE handle (not the closure cell) so
+    // TW resolves the funcHandleName correctly.
     if (treeWalker_)
-        return treeWalker_->callHandleMultiPublic(handle, args, e, nout);
+        return treeWalker_->callHandleMultiPublic(*bareHandle, args, e, nout);
 
     throw std::runtime_error("callFunctionHandle: undefined function in handle '@"
                              + name + "'");

@@ -408,10 +408,8 @@ TEST_F(SignalCoreTest, PulstranUnknownFnThrows)
 
 TEST_F(SignalCoreTest, PulstranCustomHandleViaCallback)
 {
-    // After round-11 item 27 the engine callback API allows function-
-    // handle pulse generators — under TW. (VM-side anonymous handle
-    // callback is a known gap; see Engine::callFunctionHandleMulti.)
-    engine.setBackend(Engine::Backend::TreeWalker);
+    // Engine callback API + VM mirror-register fix → anon handles work
+    // on the default (VM) backend too.
     eval("t = -1:0.5:2;"
          "y = pulstran(t, [0, 1], @(x) abs(x) <= 0.25);");
     // pulse @ 0 covers [-0.25, 0.25] → t=0 only.

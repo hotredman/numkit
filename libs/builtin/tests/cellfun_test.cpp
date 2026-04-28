@@ -195,22 +195,10 @@ TEST_P(CellFunTest, CellfunNonCellSecondArgThrows)
     EXPECT_THROW(eval("n = cellfun(@numel, [1 2 3]);"), std::exception);
 }
 
-// VM-skip helper: anonymous handles compiled by VM aren't yet visible to
-// the engine callback API (re-entrant VM::execute would need to be safe;
-// see comment in Engine::callFunctionHandleMulti). The TW backend works.
-#define SKIP_IF_VM_FOR_ANON_CALLBACK()                                           \
-    do {                                                                          \
-        if (GetParam() == BackendParam::VM)                                       \
-            GTEST_SKIP() << "VM-side anonymous handle callback "                  \
-                            "not yet supported (round 11 item 27 limitation)";   \
-    } while (0)
-
 TEST_P(CellFunTest, CellfunCustomHandleViaEngineCallback)
 {
-    SKIP_IF_VM_FOR_ANON_CALLBACK();
-    // After round-11 item 27 the engine callback API allows anonymous
-    // handles in cellfun under TW: this should now WORK (previously
-    // threw m:cellfun:fnUnsupported).
+    // After round-11 item 27 + the VM mirror-register fix, the engine
+    // callback API allows anonymous handles in cellfun on BOTH backends.
     eval("c = {1, 2, 3, 4};"
          "n = cellfun(@(x) x * x, c);");
     auto *n = getVarPtr("n");
@@ -223,7 +211,6 @@ TEST_P(CellFunTest, CellfunCustomHandleViaEngineCallback)
 
 TEST_P(CellFunTest, CellfunCustomHandleClosureCapture)
 {
-    SKIP_IF_VM_FOR_ANON_CALLBACK();
     eval("k = 10;"
          "c = {1, 2, 3};"
          "n = cellfun(@(x) x + k, c);");
@@ -235,7 +222,6 @@ TEST_P(CellFunTest, CellfunCustomHandleClosureCapture)
 
 TEST_P(CellFunTest, CellfunCustomHandleNonScalarThrows)
 {
-    SKIP_IF_VM_FOR_ANON_CALLBACK();
     // Anonymous handle returning a non-scalar must hit the uniform-mode
     // contract violation.
     eval("c = {1, 2};");
@@ -244,7 +230,6 @@ TEST_P(CellFunTest, CellfunCustomHandleNonScalarThrows)
 
 TEST_P(CellFunTest, CellfunCustomHandleUniformFalse)
 {
-    SKIP_IF_VM_FOR_ANON_CALLBACK();
     eval("c = {1, 2, 3};"
          "out = cellfun(@(x) [x; x*2], c, 'UniformOutput', false);");
     auto *out = getVarPtr("out");
@@ -344,7 +329,6 @@ TEST_P(CellFunTest, StructfunEmptyStruct)
 
 TEST_P(CellFunTest, StructfunCustomHandleViaCallback)
 {
-    SKIP_IF_VM_FOR_ANON_CALLBACK();
     eval("s.a = 2;"
          "s.b = 5;"
          "s.c = 7;"

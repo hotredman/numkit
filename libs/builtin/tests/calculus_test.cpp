@@ -198,18 +198,8 @@ TEST_P(CalculusTest, CumtrapzComplexThrows)
 
 // ── fzero ──────────────────────────────────────────────────────
 
-// fzero relies on the engine callback API which needs the TW backend
-// for anonymous handles (see Engine::callFunctionHandleMulti).
-#define FZERO_REQUIRE_TW()                                                  \
-    do {                                                                     \
-        if (GetParam() == BackendParam::VM)                                  \
-            GTEST_SKIP() << "fzero: VM-side anonymous handle callback not "  \
-                            "yet supported (round 11 item 27 limitation)";   \
-    } while (0)
-
 TEST_P(CalculusTest, FzeroQuadraticBracket)
 {
-    FZERO_REQUIRE_TW();
     // Find root of x^2 - 4 in [0, 10] → 2.
     eval("r = fzero(@(x) x.^2 - 4, [0, 10]);");
     EXPECT_NEAR(evalScalar("r;"), 2.0, 1e-10);
@@ -217,7 +207,6 @@ TEST_P(CalculusTest, FzeroQuadraticBracket)
 
 TEST_P(CalculusTest, FzeroStartFromX0)
 {
-    FZERO_REQUIRE_TW();
     // Same root but only an x0 hint.
     eval("r = fzero(@(x) x - sqrt(2), 1);");
     EXPECT_NEAR(evalScalar("r;"), std::sqrt(2.0), 1e-12);
@@ -225,14 +214,12 @@ TEST_P(CalculusTest, FzeroStartFromX0)
 
 TEST_P(CalculusTest, FzeroSineRootNearPi)
 {
-    FZERO_REQUIRE_TW();
     eval("r = fzero(@(x) sin(x), [3, 4]);");
     EXPECT_NEAR(evalScalar("r;"), M_PI, 1e-10);
 }
 
 TEST_P(CalculusTest, FzeroLinearWithClosure)
 {
-    FZERO_REQUIRE_TW();
     // f(x) = x - k where k is captured.
     eval("k = 7.5;"
          "r = fzero(@(x) x - k, 0);");
@@ -249,13 +236,11 @@ TEST_P(CalculusTest, FzeroBuiltinHandle)
 
 TEST_P(CalculusTest, FzeroNoSignChangeThrows)
 {
-    FZERO_REQUIRE_TW();
     EXPECT_THROW(eval("r = fzero(@(x) x.^2 + 1, [-1, 1]);"), std::exception);
 }
 
 TEST_P(CalculusTest, FzeroBadIntervalThrows)
 {
-    FZERO_REQUIRE_TW();
     // a >= b is invalid.
     EXPECT_THROW(eval("r = fzero(@(x) x, [5, 1]);"), std::exception);
 }
@@ -269,7 +254,6 @@ TEST_P(CalculusTest, FzeroNonHandleThrows)
 
 TEST_P(CalculusTest, IntegralPolynomial)
 {
-    FZERO_REQUIRE_TW();  // anonymous handle → TW only
     // ∫_0^1 x^2 dx = 1/3.
     eval("r = integral(@(x) x.^2, 0, 1);");
     EXPECT_NEAR(evalScalar("r;"), 1.0 / 3.0, 1e-10);
@@ -277,7 +261,6 @@ TEST_P(CalculusTest, IntegralPolynomial)
 
 TEST_P(CalculusTest, IntegralSinPi)
 {
-    FZERO_REQUIRE_TW();
     eval("r = integral(@(x) sin(x), 0, pi);");
     EXPECT_NEAR(evalScalar("r;"), 2.0, 1e-10);
 }
@@ -291,7 +274,6 @@ TEST_P(CalculusTest, IntegralBuiltinHandleCos)
 
 TEST_P(CalculusTest, IntegralBoundsReversed)
 {
-    FZERO_REQUIRE_TW();
     // ∫_1^0 x dx = -1/2.
     eval("r = integral(@(x) x, 1, 0);");
     EXPECT_NEAR(evalScalar("r;"), -0.5, 1e-12);
@@ -305,7 +287,6 @@ TEST_P(CalculusTest, IntegralEqualBoundsZero)
 
 TEST_P(CalculusTest, IntegralCustomTolerance)
 {
-    FZERO_REQUIRE_TW();
     // Use a loose tolerance — should still be near-exact for smooth integrand.
     eval("r = integral(@(x) exp(-x.^2), -3, 3, 'AbsTol', 1e-6);");
     // Reference: 2 * sqrt(pi) * erf(3) ≈ 1.7724528...

@@ -2603,6 +2603,23 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     funcChunk.capturedRegisters = capturedOuterRegs;
     compiledFuncs_[anonName] = std::move(funcChunk);
 
+    // Mirror-register the anon-fn into engine.userFuncs_ so that callbacks
+    // routed through Engine::callFunctionHandle (TW-side) can find it
+    // even when VM was the active backend at handle creation time.
+    // Captures travel as appended args (Engine::callFunctionHandle
+    // unwraps the {handle, captures} closure cell), and our funcNode's
+    // paramNames is exactly [user_params..., captured_names...] — the
+    // same layout VM uses for the cell→params mapping.
+    {
+        UserFunction uf;
+        uf.name = anonName;
+        uf.params = funcNode->paramNames;
+        uf.returns = {"__result__"};
+        uf.body = std::shared_ptr<const ASTNode>(cloneNode(funcNode->children[0].get()));
+        uf.closureEnv = nullptr;
+        engine_.userFuncs_[anonName] = std::move(uf);
+    }
+
     if (capturedOuterRegs.empty()) {
         // No captures — simple func handle
         uint8_t dst = tempReg();
