@@ -93,4 +93,22 @@ MValue skewness(Allocator &alloc, const MValue &x, int normFlag = 1, int dim = 0
 //     where g2 = m4/m2^2. Requires n ≥ 4.
 MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag = 1, int dim = 0);
 
+// ── cov / corrcoef ────────────────────────────────────────────────────
+//
+// cov(X)            — for vector X returns var(X); for n×p matrix X
+//                     returns the p×p sample covariance matrix
+//                     C = (X - mean(X))' * (X - mean(X)) / (n - 1).
+// cov(X, Y)         — joint covariance of two equal-length vectors,
+//                     2×2 matrix.
+// cov(X, normFlag)  — normFlag=0 → divide by n-1 (default, sample);
+//                     normFlag=1 → divide by n (population).
+// 2D matrix path only — 3D / N-D arrays throw.
+MValue cov(Allocator &alloc, const MValue &x, int normFlag = 0);
+MValue cov(Allocator &alloc, const MValue &x, const MValue &y, int normFlag = 0);
+
+// corrcoef(X) / corrcoef(X, Y) — correlation coefficient matrix.
+// R(i,j) = C(i,j) / sqrt(C(i,i) * C(j,j)) where C = cov(...).
+MValue corrcoef(Allocator &alloc, const MValue &x);
+MValue corrcoef(Allocator &alloc, const MValue &x, const MValue &y);
+
 } // namespace numkit::m::builtin

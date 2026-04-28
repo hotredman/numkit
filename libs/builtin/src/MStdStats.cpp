@@ -756,6 +756,182 @@ MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag, int dim)
 }
 
 // ────────────────────────────────────────────────────────────────────
+// cov / corrcoef
+// ────────────────────────────────────────────────────────────────────
+namespace {
+
+void validateCovInputs(const MValue &x, const char *fn)
+{
+    if (x.type() == MType::COMPLEX)
+        throw MError(std::string(fn) + ": complex inputs are not supported",
+                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+    if (x.dims().is3D() || x.dims().ndim() > 2)
+        throw MError(std::string(fn) + ": only vector and 2D matrix inputs are supported",
+                     0, 0, fn, "", std::string("m:") + fn + ":rank");
+}
+
+void validateNormFlagCov(int w, const char *fn)
+{
+    if (w != 0 && w != 1)
+        throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
+                     0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+}
+
+// Build an n×p column-major DOUBLE buffer from x. Vector input is
+// treated as a single column. Returns the raw data, n, and p.
+void readMatrix(const MValue &x, std::vector<double> &out,
+                std::size_t &n, std::size_t &p)
+{
+    if (x.dims().isVector() || x.isScalar()) {
+        n = x.numel();
+        p = 1;
+    } else {
+        n = x.dims().rows();
+        p = x.dims().cols();
+    }
+    out.assign(n * p, 0.0);
+    if (x.type() == MType::DOUBLE && (x.dims().isVector() || x.isScalar()
+                                       || (!x.dims().is3D() && x.dims().ndim() == 2))) {
+        // Column-major source; for a single-column vector either
+        // orientation already lays the elements contiguously.
+        const double *src = x.doubleData();
+        std::memcpy(out.data(), src, n * p * sizeof(double));
+        return;
+    }
+    for (std::size_t i = 0; i < n * p; ++i)
+        out[i] = x.elemAsDouble(i);
+}
+
+// In-place: subtract per-column mean from a column-major n×p buffer.
+void centerColumns(double *data, std::size_t n, std::size_t p)
+{
+    for (std::size_t c = 0; c < p; ++c) {
+        double s = 0.0;
+        for (std::size_t r = 0; r < n; ++r)
+            s += data[c * n + r];
+        const double m = s / static_cast<double>(n);
+        for (std::size_t r = 0; r < n; ++r)
+            data[c * n + r] -= m;
+    }
+}
+
+// covImpl: take a centered n×p buffer, compute X' * X / divisor → p×p.
+MValue covMatrixFromCentered(Allocator &alloc, const double *X,
+                             std::size_t n, std::size_t p, double divisor)
+{
+    auto out = MValue::matrix(p, p, MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            double s = 0.0;
+            for (std::size_t r = 0; r < n; ++r)
+                s += X[i * n + r] * X[j * n + r];
+            dst[j * p + i] = s / divisor;
+        }
+    return out;
+}
+
+} // namespace
+
+MValue cov(Allocator &alloc, const MValue &x, int normFlag)
+{
+    validateNormFlagCov(normFlag, "cov");
+    validateCovInputs(x, "cov");
+
+    std::vector<double> data;
+    std::size_t n, p;
+    readMatrix(x, data, n, p);
+    if (n == 0) {
+        // MATLAB: cov of empty → NaN (or empty p×p depending on shape).
+        if (p == 1) return MValue::scalar(std::nan(""), &alloc);
+        return MValue::matrix(p, p, MType::DOUBLE, &alloc);
+    }
+    centerColumns(data.data(), n, p);
+
+    const double divisor = (normFlag == 0)
+        ? std::max(1.0, static_cast<double>(n) - 1.0)
+        : static_cast<double>(n);
+
+    if (p == 1) {
+        // Vector input → return scalar variance.
+        double s = 0.0;
+        for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
+        return MValue::scalar(s / divisor, &alloc);
+    }
+    return covMatrixFromCentered(alloc, data.data(), n, p, divisor);
+}
+
+MValue cov(Allocator &alloc, const MValue &x, const MValue &y, int normFlag)
+{
+    validateNormFlagCov(normFlag, "cov");
+    validateCovInputs(x, "cov");
+    validateCovInputs(y, "cov");
+    if (!x.dims().isVector() || !y.dims().isVector())
+        throw MError("cov: two-input form requires vector arguments",
+                     0, 0, "cov", "", "m:cov:notVector");
+    if (x.numel() != y.numel())
+        throw MError("cov: x and y must have the same length",
+                     0, 0, "cov", "", "m:cov:lengthMismatch");
+    const std::size_t n = x.numel();
+    if (n == 0)
+        return MValue::matrix(2, 2, MType::DOUBLE, &alloc);
+    std::vector<double> data(n * 2);
+    for (std::size_t i = 0; i < n; ++i) {
+        data[i] = x.elemAsDouble(i);          // column 0 (= x)
+        data[n + i] = y.elemAsDouble(i);      // column 1 (= y)
+    }
+    centerColumns(data.data(), n, 2);
+    const double divisor = (normFlag == 0)
+        ? std::max(1.0, static_cast<double>(n) - 1.0)
+        : static_cast<double>(n);
+    return covMatrixFromCentered(alloc, data.data(), n, 2, divisor);
+}
+
+namespace {
+
+MValue corrcoefFromCov(Allocator &alloc, const MValue &C)
+{
+    if (C.dims().rows() != C.dims().cols())
+        throw MError("corrcoef: covariance matrix must be square",
+                     0, 0, "corrcoef", "", "m:corrcoef:internal");
+    const std::size_t p = C.dims().rows();
+    auto R = MValue::matrix(p, p, MType::DOUBLE, &alloc);
+    if (p == 0) return R;
+    const double *cd = C.doubleData();
+    double *rd = R.doubleDataMut();
+    std::vector<double> diag(p);
+    for (std::size_t i = 0; i < p; ++i)
+        diag[i] = std::sqrt(cd[i * p + i]);
+    for (std::size_t i = 0; i < p; ++i)
+        for (std::size_t j = 0; j < p; ++j) {
+            const double denom = diag[i] * diag[j];
+            rd[j * p + i] = (denom == 0.0) ? std::nan("") : cd[j * p + i] / denom;
+        }
+    return R;
+}
+
+} // namespace
+
+MValue corrcoef(Allocator &alloc, const MValue &x)
+{
+    // Special case: vector input → 1×1 matrix [1] (variable correlated
+    // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
+    if (x.dims().isVector() || x.isScalar()) {
+        auto R = MValue::matrix(1, 1, MType::DOUBLE, &alloc);
+        R.doubleDataMut()[0] = 1.0;
+        return R;
+    }
+    auto C = cov(alloc, x);
+    return corrcoefFromCov(alloc, C);
+}
+
+MValue corrcoef(Allocator &alloc, const MValue &x, const MValue &y)
+{
+    auto C = cov(alloc, x, y);
+    return corrcoefFromCov(alloc, C);
+}
+
+// ────────────────────────────────────────────────────────────────────
 // NaN-aware reductions (Phase 2)
 // ────────────────────────────────────────────────────────────────────
 //
@@ -1092,6 +1268,50 @@ void kurtosis_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
     outs[0] = kurtosis(ctx.engine->allocator(), args[0], normFlag, dim);
+}
+
+void cov_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+             CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("cov: requires at least 1 argument",
+                     0, 0, "cov", "", "m:cov:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    if (args.size() == 1) {
+        outs[0] = cov(alloc, args[0]);
+        return;
+    }
+    // 2-arg form is ambiguous: cov(x, normFlag) vs cov(x, y).
+    // Disambiguate exactly the way MATLAB does: if the second arg is a
+    // scalar (0 or 1), it's normFlag; otherwise it's y.
+    if (args.size() == 2) {
+        if (args[1].isScalar()) {
+            const double v = args[1].toScalar();
+            if (v == 0.0 || v == 1.0) {
+                outs[0] = cov(alloc, args[0], static_cast<int>(v));
+                return;
+            }
+        }
+        outs[0] = cov(alloc, args[0], args[1]);
+        return;
+    }
+    // 3-arg form: cov(x, y, normFlag).
+    const int w = static_cast<int>(args[2].toScalar());
+    outs[0] = cov(alloc, args[0], args[1], w);
+}
+
+void corrcoef_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+                  CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("corrcoef: requires at least 1 argument",
+                     0, 0, "corrcoef", "", "m:corrcoef:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    if (args.size() == 1) {
+        outs[0] = corrcoef(alloc, args[0]);
+        return;
+    }
+    outs[0] = corrcoef(alloc, args[0], args[1]);
 }
 
 // nan* adapters — all accept (X) or (X, dim), except nanvar/nanstd

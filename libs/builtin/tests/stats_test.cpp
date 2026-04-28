@@ -637,6 +637,135 @@ TEST_P(StatsTest, KurtosisComplexThrows)
     EXPECT_THROW(eval("kurtosis([1+2i, 3+4i, 5+0i]);"), std::exception);
 }
 
+// ── cov ─────────────────────────────────────────────────────
+
+TEST_P(StatsTest, CovVectorEqualsVar)
+{
+    EXPECT_NEAR(evalScalar("cov([1 2 3 4 5]);"), 2.5, 1e-12);
+}
+
+TEST_P(StatsTest, CovTwoVectors)
+{
+    // x = 1:5, y = [2 4 6 8 10] → y = 2x. C = [var(x) cov(x,y); cov(x,y) var(y)]
+    // var(x) = 2.5, var(y) = 10, cov(x,y) = 5.
+    eval("C = cov([1 2 3 4 5], [2 4 6 8 10]);");
+    auto *C = getVarPtr("C");
+    EXPECT_EQ(rows(*C), 2u);
+    EXPECT_EQ(cols(*C), 2u);
+    EXPECT_NEAR((*C)(0, 0),  2.5, 1e-12);
+    EXPECT_NEAR((*C)(0, 1),  5.0, 1e-12);
+    EXPECT_NEAR((*C)(1, 0),  5.0, 1e-12);
+    EXPECT_NEAR((*C)(1, 1), 10.0, 1e-12);
+}
+
+TEST_P(StatsTest, CovMatrixDiagonalEqualsColumnVariance)
+{
+    // Build M whose columns are independent vectors with known variances.
+    eval("M = [1 10; 2 20; 3 30; 4 40; 5 50];"
+         "C = cov(M);");
+    auto *C = getVarPtr("C");
+    EXPECT_EQ(rows(*C), 2u);
+    EXPECT_EQ(cols(*C), 2u);
+    EXPECT_NEAR((*C)(0, 0),   2.5, 1e-12);   // var of [1..5]
+    EXPECT_NEAR((*C)(1, 1), 250.0, 1e-12);   // var of [10..50]
+    // Off-diagonal: cov([1..5], [10..50]) = 25.
+    EXPECT_NEAR((*C)(0, 1),  25.0, 1e-12);
+    EXPECT_NEAR((*C)(1, 0),  25.0, 1e-12);
+}
+
+TEST_P(StatsTest, CovIsSymmetric)
+{
+    // For real input, cov is symmetric.
+    eval("M = randn(20, 4);"
+         "C = cov(M);"
+         "delta = max(max(abs(C - C')));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
+
+TEST_P(StatsTest, CovNormFlagOneDividesByN)
+{
+    // n=5, divisor switches from 4 to 5 → ratio 4/5.
+    eval("c0 = cov([1 2 3 4 5], 0);"
+         "c1 = cov([1 2 3 4 5], 1);"
+         "ratio = c1 / c0;");
+    EXPECT_NEAR(evalScalar("ratio;"), 4.0 / 5.0, 1e-12);
+}
+
+TEST_P(StatsTest, CovTwoArgScalarFlagDisambiguates)
+{
+    // cov(x, 0) should be normFlag=0, NOT cov(x, y) with y=0 scalar.
+    EXPECT_NEAR(evalScalar("cov([1 2 3 4 5], 0);"), 2.5, 1e-12);
+    EXPECT_NEAR(evalScalar("cov([1 2 3 4 5], 1);"), 2.0, 1e-12);
+}
+
+TEST_P(StatsTest, CovLengthMismatchThrows)
+{
+    EXPECT_THROW(eval("C = cov([1 2 3], [4 5]);"), std::exception);
+}
+
+TEST_P(StatsTest, CovComplexThrows)
+{
+    EXPECT_THROW(eval("C = cov([1+2i, 3, 5]);"), std::exception);
+}
+
+TEST_P(StatsTest, CovBadFlagThrows)
+{
+    EXPECT_THROW(eval("C = cov([1 2 3 4 5], 2);"), std::exception);
+}
+
+// ── corrcoef ───────────────────────────────────────────────
+
+TEST_P(StatsTest, CorrcoefVectorIsOne)
+{
+    // corrcoef of a single variable is [1].
+    eval("R = corrcoef([1 2 3 4 5]);");
+    auto *R = getVarPtr("R");
+    EXPECT_EQ(rows(*R), 1u);
+    EXPECT_EQ(cols(*R), 1u);
+    EXPECT_DOUBLE_EQ(R->doubleData()[0], 1.0);
+}
+
+TEST_P(StatsTest, CorrcoefPerfectLinearIsOne)
+{
+    // y = 2x → R = [1 1; 1 1].
+    eval("R = corrcoef([1 2 3 4 5], [2 4 6 8 10]);");
+    auto *R = getVarPtr("R");
+    EXPECT_NEAR((*R)(0, 0), 1.0, 1e-12);
+    EXPECT_NEAR((*R)(0, 1), 1.0, 1e-12);
+    EXPECT_NEAR((*R)(1, 0), 1.0, 1e-12);
+    EXPECT_NEAR((*R)(1, 1), 1.0, 1e-12);
+}
+
+TEST_P(StatsTest, CorrcoefNegativeLinear)
+{
+    // y = -x + c → R = [1 -1; -1 1].
+    eval("R = corrcoef([1 2 3 4 5], [10 8 6 4 2]);");
+    auto *R = getVarPtr("R");
+    EXPECT_NEAR((*R)(0, 1), -1.0, 1e-12);
+    EXPECT_NEAR((*R)(1, 0), -1.0, 1e-12);
+}
+
+TEST_P(StatsTest, CorrcoefMatrixDiagonalIsOne)
+{
+    eval("M = [1 10; 2 20; 3 30; 4 40; 5 50];"
+         "R = corrcoef(M);");
+    auto *R = getVarPtr("R");
+    EXPECT_NEAR((*R)(0, 0), 1.0, 1e-12);
+    EXPECT_NEAR((*R)(1, 1), 1.0, 1e-12);
+    EXPECT_NEAR((*R)(0, 1), 1.0, 1e-12);  // perfect collinearity
+}
+
+TEST_P(StatsTest, CorrcoefWithNoiseInRange)
+{
+    eval("rng(0);"
+         "x = randn(100, 1);"
+         "y = 0.5 * x + 0.5 * randn(100, 1);"
+         "R = corrcoef(x, y);");
+    const double r = evalScalar("R(1, 2);");
+    EXPECT_GT(r, 0.4);
+    EXPECT_LT(r, 0.9);
+}
+
 INSTANTIATE_DUAL(StatsTest);
 
 // ============================================================

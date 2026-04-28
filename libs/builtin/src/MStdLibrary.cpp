@@ -47,6 +47,8 @@ void prctile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void mode_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void skewness_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void kurtosis_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cov_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void corrcoef_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void primes_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isprime_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void factor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -326,6 +328,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("mode",     &builtin::detail::mode_reg);
     engine.registerFunction("skewness", &builtin::detail::skewness_reg);
     engine.registerFunction("kurtosis", &builtin::detail::kurtosis_reg);
+    engine.registerFunction("cov",      &builtin::detail::cov_reg);
+    engine.registerFunction("corrcoef", &builtin::detail::corrcoef_reg);
     engine.registerFunction("primes",   &builtin::detail::primes_reg);
     engine.registerFunction("isprime",  &builtin::detail::isprime_reg);
     engine.registerFunction("factor",   &builtin::detail::factor_reg);
