@@ -19,6 +19,7 @@
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
+#include "MStdPolyHelpers.hpp"
 
 #include <algorithm>
 #include <array>
@@ -59,90 +60,15 @@ void biquadDf2t(double b0, double b1, double b2,
     }
 }
 
-// ─────────────────────────────────────────────────────────────────
-// Polynomial root finder (Durand-Kerner)
-// ─────────────────────────────────────────────────────────────────
-//
-// Used by tf2sos to find roots of b(z) and a(z) without depending on
-// an eigenvalue solver. Durand-Kerner is iterative, simultaneously
-// converging on all N roots of a degree-N polynomial. Quadratic
-// convergence near simple roots; ~50 iterations is sufficient for
-// IEEE-double precision on coefficient magnitudes typical for IIR
-// filter design (degrees 2..32).
-
-void evalPoly(const std::vector<Complex> &coeffs, Complex z,
-              Complex &out, Complex &deriv)
+// Polynomial root finder lifted into shared MStdPolyHelpers.hpp so
+// that the public roots() builtin and DSP filter design (tf2sos /
+// tf2zp) can share the implementation. We re-export the function name
+// `rootsDurandKerner` as a thin alias to keep the call sites below
+// readable.
+using numkit::m::builtin::detail::polyRootsDurandKerner;
+inline std::vector<Complex> rootsDurandKerner(const std::vector<double> &c)
 {
-    // Horner evaluation of poly + derivative.
-    Complex p = coeffs[0];
-    Complex dp(0.0, 0.0);
-    for (size_t i = 1; i < coeffs.size(); ++i) {
-        dp = dp * z + p;
-        p = p * z + coeffs[i];
-    }
-    out = p;
-    deriv = dp;
-}
-
-// Accept coefficients in MATLAB convention: c[0] is the leading
-// coefficient (highest power), c[n] is the constant. Returns the n
-// (possibly complex) roots.
-std::vector<Complex> rootsDurandKerner(const std::vector<double> &coeffs)
-{
-    // Strip leading zeros (degree drop); strip trailing zeros (root
-    // at origin) so DK doesn't see a singular Jacobian.
-    size_t lo = 0, hi = coeffs.size();
-    while (lo < hi && coeffs[lo] == 0.0) ++lo;
-    size_t origZeros = 0;
-    while (hi > lo && coeffs[hi - 1] == 0.0) { --hi; ++origZeros; }
-    if (hi - lo <= 1) {
-        // Constant or empty — the only "roots" are the origin ones we
-        // stripped (if any).
-        return std::vector<Complex>(origZeros, Complex(0.0, 0.0));
-    }
-    std::vector<Complex> c(hi - lo);
-    for (size_t i = 0; i < c.size(); ++i)
-        c[i] = Complex(coeffs[lo + i] / coeffs[lo], 0.0);
-    // c is now monic with c[0] = 1.
-    const size_t n = c.size() - 1;
-
-    // Initial guesses on a circle of radius ~ Cauchy bound, avoiding
-    // a real-axis cluster (factor of e^(j·0.4) chosen empirically by
-    // numerical-recipes-style implementations).
-    double maxCoef = 0.0;
-    for (size_t i = 1; i <= n; ++i)
-        maxCoef = std::max(maxCoef, std::abs(c[i].real()));
-    const double R = 1.0 + maxCoef;
-    std::vector<Complex> roots(n);
-    const double twoPi = 6.283185307179586;
-    for (size_t k = 0; k < n; ++k) {
-        const double theta = twoPi * static_cast<double>(k) / static_cast<double>(n) + 0.4;
-        roots[k] = Complex(R * std::cos(theta), R * std::sin(theta));
-    }
-
-    // Durand-Kerner with relaxation: x_k ← x_k - p(x_k) / Π_{j≠k}(x_k - x_j).
-    constexpr int kMaxIter = 200;
-    constexpr double kTol = 1e-14;
-    for (int it = 0; it < kMaxIter; ++it) {
-        double maxStep = 0.0;
-        for (size_t k = 0; k < n; ++k) {
-            Complex p, dp;
-            evalPoly(c, roots[k], p, dp);
-            Complex denom(1.0, 0.0);
-            for (size_t j = 0; j < n; ++j)
-                if (j != k) denom *= (roots[k] - roots[j]);
-            if (std::abs(denom) < 1e-300) continue;
-            const Complex step = p / denom;
-            roots[k] -= step;
-            const double s = std::abs(step);
-            if (s > maxStep) maxStep = s;
-        }
-        if (maxStep < kTol) break;
-    }
-
-    for (size_t i = 0; i < origZeros; ++i)
-        roots.push_back(Complex(0.0, 0.0));
-    return roots;
+    return polyRootsDurandKerner(c);
 }
 
 // ─────────────────────────────────────────────────────────────────
