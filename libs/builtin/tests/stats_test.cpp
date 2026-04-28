@@ -1436,10 +1436,13 @@ TEST_P(ReductionDimTest, SumNativeRejectsLogical)
     EXPECT_THROW(eval("s = sum(v, 'native');"), std::exception);
 }
 
-TEST_P(ReductionDimTest, SumNativeRejectsComplex)
+TEST_P(ReductionDimTest, SumNativeOnComplexPreservesComplex)
 {
-    eval("v = [1+2i, 3+4i];");
-    EXPECT_THROW(eval("s = sum(v, 'native');"), std::exception);
+    // COMPLEX is preserved across all output-type modes (round 5).
+    eval("v = [1+2i, 3+4i]; s = sum(v, 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("real(s);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s);"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(s);"), 0.0);
 }
 
 TEST_P(ReductionDimTest, ProdNativeInt16)
@@ -1492,6 +1495,145 @@ TEST_P(ReductionDimTest, SumNative4DAlongDim)
     EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
     // s(1,1,1,1) = A(1,1,1,1) + A(1,1,1,2) = 1 + 13 = 14
     EXPECT_DOUBLE_EQ(evalScalar("s(1, 1, 1, 1);"), 14.0);
+}
+
+// ── Round 5 Item 1: 'all' dim placeholder ───────────────────────
+//
+// MATLAB: sum(A, 'all') reduces across all dims to a scalar (same as
+// no-dim form). 'all' may be combined with the outtype flag.
+
+TEST_P(ReductionDimTest, SumAllOnMatrix)
+{
+    eval("M = [1 2 3; 4 5 6]; s = sum(M, 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 21.0);
+}
+
+TEST_P(ReductionDimTest, SumAllOn4D)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]); s = sum(A, 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 300.0);
+}
+
+TEST_P(ReductionDimTest, SumAllNativeOnInt8Saturates)
+{
+    // sum([100 100 100], 'all', 'native') = 300 → saturates at int8 max (127).
+    eval("v = int8([100 100 100]); s = sum(v, 'all', 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MeanAllOn4D)
+{
+    eval("A = reshape(1:24, [2, 3, 2, 2]); m = mean(A, 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 12.5);
+}
+
+TEST_P(ReductionDimTest, ProdAllOnVector)
+{
+    eval("v = [1 2 3 4 5]; p = prod(v, 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("p;"), 120.0);
+}
+
+TEST_P(ReductionDimTest, AllAndOutTypeBothAllowed)
+{
+    eval("A = int32(reshape(1:24, [2, 3, 4])); s = sum(A, 'all', 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 300.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, AllStringIsCaseInsensitive)
+{
+    // 'ALL', 'All' etc. should also work.
+    eval("M = [1 2; 3 4]; s = sum(M, 'ALL');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 10.0);
+}
+
+// ── Round 5 Item 2: implicit-default SINGLE / COMPLEX preservation ───
+//
+// MATLAB: sum(single(...)) returns single (not double). sum(complex(...))
+// returns complex (we used to silently drop the imaginary part because
+// `reduce()` called elemAsDouble — that returns just the real part).
+
+TEST_P(ReductionDimTest, SumSingleVectorReturnsSingle)
+{
+    eval("v = single([1.5 2.5 3.0]); s = sum(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumSingleMatrixDimReturnsSingle)
+{
+    eval("M = single([1 2 3; 4 5 6]); s = sum(M, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(2);"), 7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(3);"), 9.0);
+}
+
+TEST_P(ReductionDimTest, MeanSingleReturnsSingle)
+{
+    eval("v = single([1 2 3 4]); m = mean(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, ProdSingleReturnsSingle)
+{
+    eval("v = single([2 3 4]); p = prod(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("p;"), 24.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(p);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumSingleDoubleFlagPromotes)
+{
+    // 'double' explicit override forces SINGLE → DOUBLE.
+    eval("v = single([1.5 2.5]); s = sum(v, 'double');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, SumComplexVectorPreservesImag)
+{
+    // sum(complex_vec) used to drop imag (elemAsDouble bug). Now correct.
+    eval("v = [1+2i, 3+4i, 5+6i]; s = sum(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("real(s);"), 9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s);"), 12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(s);"), 0.0);
+}
+
+TEST_P(ReductionDimTest, SumComplexMatrixDim)
+{
+    eval("M = [1+1i, 2+2i; 3+3i, 4+4i]; s = sum(M, 1);");
+    // col 1 = (1+1i) + (3+3i) = 4+4i
+    // col 2 = (2+2i) + (4+4i) = 6+6i
+    EXPECT_DOUBLE_EQ(evalScalar("real(s(1));"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s(1));"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("real(s(2));"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s(2));"), 6.0);
+}
+
+TEST_P(ReductionDimTest, ProdComplexPreservesImag)
+{
+    // (1+i) * (2+0i) * (1-i) = (1+i)(1-i) * 2 = (1-i²) * 2 = 2 * 2 = 4 + 0i
+    eval("v = [1+1i, 2+0i, 1-1i]; p = prod(v);");
+    EXPECT_NEAR(evalScalar("real(p);"), 4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("imag(p);"), 0.0, 1e-12);
+}
+
+TEST_P(ReductionDimTest, MeanComplexPreservesImag)
+{
+    eval("v = [1+2i, 3+4i, 5+6i]; m = mean(v);");
+    // mean = (9+12i)/3 = 3+4i
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"), 4.0);
+}
+
+TEST_P(ReductionDimTest, SumComplexAllReducesToScalar)
+{
+    eval("M = [1+1i, 2+2i; 3+3i, 4+4i]; s = sum(M, 'all');");
+    // sum = 10 + 10i
+    EXPECT_DOUBLE_EQ(evalScalar("real(s);"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s);"), 10.0);
 }
 
 INSTANTIATE_DUAL(ReductionDimTest);

@@ -914,8 +914,10 @@ MType resolveNativeOutType(MType inType, const char *fn)
         throw MError(std::string(fn) + ": 'native' is not defined for logical/char inputs",
                      0, 0, fn, "", std::string("m:") + fn + ":nativeType");
     case MType::COMPLEX:
-        throw MError(std::string(fn) + ": 'native' is not defined for complex inputs",
-                     0, 0, fn, "", std::string("m:") + fn + ":complex");
+        // COMPLEX is handled before this call (dispatchReductionAdapter
+        // routes it to the complex path), so reaching this branch is a
+        // bug in the dispatcher.
+        return MType::COMPLEX;
     default:
         throw MError(std::string(fn) + ": unsupported input type for 'native'",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
@@ -1045,18 +1047,27 @@ MValue reduceTypedAlongDim(const MValue &x, int dim, MType outType, Allocator *a
 }
 
 // Operation tags so the dispatcher can pick init/op/finalize uniformly
-// across sum/prod/mean.
+// across sum/prod/mean. Each tag exposes both a real (double-accumulator)
+// and a complex (Complex-accumulator) family — the real one feeds the
+// typed path (DOUBLE/SINGLE/integer outputs), the complex one feeds the
+// COMPLEX path.
 struct SumOp {
     static constexpr double init = 0.0;
     static double accum(double a, double b) { return a + b; }
     template<typename T>
     static T finalize(double acc, size_t /*n*/) { return toOutT<T>(acc); }
+    static Complex cInit() { return Complex(0.0, 0.0); }
+    static Complex cAccum(Complex a, Complex b) { return a + b; }
+    static Complex cFinalize(Complex acc, size_t /*n*/) { return acc; }
 };
 struct ProdOp {
     static constexpr double init = 1.0;
     static double accum(double a, double b) { return a * b; }
     template<typename T>
     static T finalize(double acc, size_t /*n*/) { return toOutT<T>(acc); }
+    static Complex cInit() { return Complex(1.0, 0.0); }
+    static Complex cAccum(Complex a, Complex b) { return a * b; }
+    static Complex cFinalize(Complex acc, size_t /*n*/) { return acc; }
 };
 struct MeanOp {
     static constexpr double init = 0.0;
@@ -1065,13 +1076,160 @@ struct MeanOp {
     static T finalize(double acc, size_t n) {
         return toOutT<T>(n == 0 ? std::nan("") : acc / static_cast<double>(n));
     }
+    static Complex cInit() { return Complex(0.0, 0.0); }
+    static Complex cAccum(Complex a, Complex b) { return a + b; }
+    static Complex cFinalize(Complex acc, size_t n) {
+        return n == 0 ? Complex(std::nan(""), 0.0) : acc / static_cast<double>(n);
+    }
 };
 
+// Reduce *every* element of x to a single scalar of type T. Used for
+// the 'all' dim placeholder; differs from reduceTypedAll (which does
+// "along first non-singleton dim", returning a vector for matrices).
+template <typename T, typename Init, typename AccumOp, typename Finalize>
+MValue reduceAllElementsScalar(const MValue &x, MType outType, Allocator *alloc,
+                               Init init, AccumOp accumOp, Finalize finalize)
+{
+    double acc = init;
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i)
+        acc = accumOp(acc, x.elemAsDouble(i));
+    return makeNativeScalar<T>(finalize(acc, n), outType, alloc);
+}
+
+// ── Complex reductions ──────────────────────────────────────────────
+//
+// MATLAB: sum/prod/mean preserve COMPLEX class. Non-complex inputs
+// upgrade to Complex(real, 0). The accumulator must be Complex (NOT
+// double — the round-4 default path used `elemAsDouble` which silently
+// dropped imaginary parts and gave wrong results for sum(complex)).
+
+inline Complex readElemAsComplex(const MValue &x, size_t i, bool typeMatches)
+{
+    if (typeMatches) return x.complexData()[i];
+    return Complex(x.elemAsDouble(i), 0.0);
+}
+
+inline MValue allocComplexReduceOutput(const MValue &x, int redDim, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return MValue::matrixND(shape.data(), (int) shape.size(), MType::COMPLEX, alloc);
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return createMatrix(outShape, MType::COMPLEX, alloc);
+}
+
+template <typename AccumOp, typename Finalize>
+void complexReduceAlongDim(const MValue &x, int redDim, Complex *dst,
+                           Complex init, AccumOp accumOp, Finalize finalize)
+{
+    const bool typeMatches = (x.type() == MType::COMPLEX);
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto reduceSlice = [&](size_t baseOff, size_t stride) -> Complex {
+        Complex acc = init;
+        for (size_t k = 0; k < sliceLen; ++k)
+            acc = accumOp(acc, readElemAsComplex(x, baseOff + k * stride, typeMatches));
+        return finalize(acc, sliceLen);
+    };
+
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) dst[o] = reduceSlice(o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o) {
+        for (size_t b = 0; b < B; ++b) {
+            const size_t base = o * sliceLen * B + b;
+            const size_t outIdx = o * B + b;
+            dst[outIdx] = reduceSlice(base, B);
+        }
+    }
+}
+
+template <typename AccumOp, typename Finalize>
+MValue reduceComplexAll(const MValue &x, Allocator *alloc,
+                        Complex init, AccumOp accumOp, Finalize finalize)
+{
+    if (x.isEmpty() && x.dims().ndim() < 4)
+        return MValue::matrix(0, 0, MType::COMPLEX, alloc);
+    const bool typeMatches = (x.type() == MType::COMPLEX);
+    if (x.isScalar() || x.dims().isVector()) {
+        Complex acc = init;
+        for (size_t i = 0; i < x.numel(); ++i)
+            acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
+        return MValue::complexScalar(finalize(acc, x.numel()), alloc);
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    MValue out = allocComplexReduceOutput(x, redDim, alloc);
+    complexReduceAlongDim(x, redDim, out.complexDataMut(), init, accumOp, finalize);
+    return out;
+}
+
+template <typename AccumOp, typename Finalize>
+MValue reduceComplexAlongDim(const MValue &x, int dim, Allocator *alloc,
+                             Complex init, AccumOp accumOp, Finalize finalize)
+{
+    if (x.isEmpty() && x.dims().ndim() < 4)
+        return MValue::matrix(0, 0, MType::COMPLEX, alloc);
+    const bool typeMatches = (x.type() == MType::COMPLEX);
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity reduction.
+            const size_t n = x.numel();
+            if (!x.dims().isVector())
+                return MValue::complexScalar(readElemAsComplex(x, 0, typeMatches), alloc);
+            MValue out = createMatrix({x.dims().rows(), x.dims().cols(), 0},
+                                      MType::COMPLEX, alloc);
+            Complex *dst = out.complexDataMut();
+            for (size_t i = 0; i < n; ++i)
+                dst[i] = readElemAsComplex(x, i, typeMatches);
+            return out;
+        }
+        return reduceComplexAll(x, alloc, init, accumOp, finalize);
+    }
+    MValue out = allocComplexReduceOutput(x, dim, alloc);
+    complexReduceAlongDim(x, dim, out.complexDataMut(), init, accumOp, finalize);
+    return out;
+}
+
+template <typename AccumOp, typename Finalize>
+MValue reduceComplexAllElementsScalar(const MValue &x, Allocator *alloc,
+                                      Complex init, AccumOp accumOp, Finalize finalize)
+{
+    const bool typeMatches = (x.type() == MType::COMPLEX);
+    Complex acc = init;
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i)
+        acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
+    return MValue::complexScalar(finalize(acc, n), alloc);
+}
+
 template <typename Op>
-MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *alloc)
+MValue runComplexReduction(const MValue &x, int dim, Allocator *alloc, bool isAll = false)
+{
+    if (isAll)
+        return reduceComplexAllElementsScalar(x, alloc, Op::cInit(), Op::cAccum, Op::cFinalize);
+    return (dim > 0)
+        ? reduceComplexAlongDim(x, dim, alloc, Op::cInit(), Op::cAccum, Op::cFinalize)
+        : reduceComplexAll(x, alloc, Op::cInit(), Op::cAccum, Op::cFinalize);
+}
+
+template <typename Op>
+MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *alloc,
+                          bool isAll = false)
 {
     auto run = [&](auto tag) {
         using T = decltype(tag);
+        if (isAll)
+            return reduceAllElementsScalar<T>(x, outType, alloc,
+                                              Op::init, Op::accum, Op::template finalize<T>);
         return (dim > 0)
             ? reduceTypedAlongDim<T>(x, dim, outType, alloc,
                                      Op::init, Op::accum, Op::template finalize<T>)
@@ -1095,29 +1253,66 @@ MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *al
     }
 }
 
+inline bool isAllString(const MValue &v)
+{
+    if (!isStringArg(v)) return false;
+    std::string s = v.toString();
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    return s == "all";
+}
+
 // Parse args and pick the right reduction path.
-//   defaultFn — called for OutTypeMode::Default / Double (existing DOUBLE-output path)
-//   nativeFn  — called for OutTypeMode::Native (new typed path)
-template <typename DefaultFn, typename NativeFn>
+//   defaultFn — called for DOUBLE output (existing fast path)
+//   nativeFn  — called for typed (DOUBLE/SINGLE/integer) output via the
+//               typed pipeline; covers both 'native' and the implicit
+//               SINGLE-preserving default.
+//   complexFn — called for COMPLEX inputs (Complex accumulator)
+//   isAll     — true when 'all' was passed; impls must produce a scalar
+//               reduction across every element.
+//
+// MATLAB syntax handled:
+//   fn(X)                         — first-non-singleton reduce (vector → scalar)
+//   fn(X, dim)                    — along dim
+//   fn(X, 'all')                  — scalar reduce across all elements
+//   fn(X, outtype)                — first-non-singleton reduce with outtype
+//   fn(X, dim, outtype)           — along dim with explicit outtype
+//   fn(X, 'all', outtype)         — scalar reduce with explicit outtype
+//
+// Output-type rules (matches MATLAB):
+//   Default: SINGLE→SINGLE, COMPLEX→COMPLEX, others→DOUBLE
+//   Double:  COMPLEX→COMPLEX (already double precision), others→DOUBLE
+//   Native:  preserve input class; LOGICAL/CHAR rejected.
+template <typename DefaultFn, typename NativeFn, typename ComplexFn>
 MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
-                                DefaultFn defaultFn, NativeFn nativeFn)
+                                DefaultFn defaultFn, NativeFn nativeFn,
+                                ComplexFn complexFn)
 {
     int dim = 0;
+    bool isAll = false;
     OutTypeMode mode = OutTypeMode::Default;
     bool haveOutType = false;
+    bool allowOutTypeIn3rdArg = false;
 
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        if (isStringArg(args[1])) {
+        if (isAllString(args[1])) {
+            isAll = true;
+            allowOutTypeIn3rdArg = true;
+        } else if (isStringArg(args[1])) {
             mode = parseOutTypeMode(args[1], fn);
             haveOutType = true;
         } else {
             dim = static_cast<int>(args[1].toScalar());
+            allowOutTypeIn3rdArg = true;
         }
     }
     if (args.size() >= 3 && !args[2].isEmpty()) {
         if (haveOutType)
             throw MError(std::string(fn) + ": output type specified twice",
                          0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
+        if (!allowOutTypeIn3rdArg)
+            throw MError(std::string(fn) + ": unexpected third argument",
+                         0, 0, fn, "", std::string("m:") + fn + ":badArg");
         if (!isStringArg(args[2]))
             throw MError(std::string(fn) + ": third argument must be the output-type string",
                          0, 0, fn, "", std::string("m:") + fn + ":badArg");
@@ -1127,11 +1322,22 @@ MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
         throw MError(std::string(fn) + ": too many arguments",
                      0, 0, fn, "", std::string("m:") + fn + ":nargin");
 
+    const MType inT = args[0].type();
+
+    // COMPLEX input always uses the complex path (any mode preserves
+    // the complex value; 'native' on COMPLEX returns COMPLEX, 'double'
+    // on COMPLEX is also COMPLEX since DOUBLE precision is implicit).
+    if (inT == MType::COMPLEX)
+        return complexFn(args[0], dim, isAll);
+
     if (mode == OutTypeMode::Native) {
-        const MType outT = resolveNativeOutType(args[0].type(), fn);
-        return nativeFn(args[0], dim, outT);
+        const MType outT = resolveNativeOutType(inT, fn);
+        return nativeFn(args[0], dim, outT, isAll);
     }
-    return defaultFn(args[0], dim);
+    // Default mode: preserve SINGLE → SINGLE. Double mode forces DOUBLE.
+    if (mode == OutTypeMode::Default && inT == MType::SINGLE)
+        return nativeFn(args[0], dim, MType::SINGLE, isAll);
+    return defaultFn(args[0], dim, isAll);
 }
 
 } // namespace
@@ -1144,12 +1350,20 @@ MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
             throw MError(#name ": requires at least 1 argument",                  \
                          0, 0, #name, "", "m:" #name ":nargin");                  \
         outs[0] = dispatchReductionAdapter(args, #name,                           \
-            [&](const MValue &x, int dim) {                                       \
+            [&](const MValue &x, int dim, bool isAll) {                           \
+                if (isAll)                                                        \
+                    return runNativeReduction<op>(x, 0, MType::DOUBLE,            \
+                                                  &ctx.engine->allocator(), true);\
                 return (dim > 0) ? fn(ctx.engine->allocator(), x, dim)            \
                                  : fn(ctx.engine->allocator(), x);                \
             },                                                                    \
-            [&](const MValue &x, int dim, MType outT) {                           \
-                return runNativeReduction<op>(x, dim, outT, &ctx.engine->allocator()); \
+            [&](const MValue &x, int dim, MType outT, bool isAll) {               \
+                return runNativeReduction<op>(x, dim, outT,                       \
+                                              &ctx.engine->allocator(), isAll);   \
+            },                                                                    \
+            [&](const MValue &x, int dim, bool isAll) {                           \
+                return runComplexReduction<op>(x, dim,                            \
+                                               &ctx.engine->allocator(), isAll);  \
             });                                                                   \
     }
 
