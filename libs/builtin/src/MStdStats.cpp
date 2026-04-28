@@ -47,36 +47,142 @@ void validateNormFlag(int w, const char *fn)
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
 }
 
+// Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
+// input type without writing parallel single-precision kernels —
+// arithmetic happens at double precision (more precise than MATLAB)
+// then narrows at the end.
+MValue narrowToSingle(MValue d, Allocator *alloc)
+{
+    if (d.type() != MType::DOUBLE) return d;
+    MValue r = createForDims(d.dims(), MType::SINGLE, alloc);
+    const double *src = d.doubleData();
+    float *dst = r.singleDataMut();
+    for (size_t i = 0; i < d.numel(); ++i)
+        dst[i] = static_cast<float>(src[i]);
+    return r;
+}
+
+// Complex variance: E[|x - mean|²]. Returns real-valued DOUBLE per
+// MATLAB convention. With normFlag == 0 (default) divides by n-1;
+// normFlag == 1 divides by n.
+double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag)
+{
+    if (n == 0) return std::nan("");
+    if (n == 1) return (normFlag == 0) ? std::nan("") : 0.0;
+    Complex mean(0.0, 0.0);
+    for (size_t i = 0; i < n; ++i) mean += data[i];
+    mean /= static_cast<double>(n);
+    double acc = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const Complex d = data[i] - mean;
+        acc += d.real() * d.real() + d.imag() * d.imag();
+    }
+    const double divisor = static_cast<double>(n - (normFlag == 0 ? 1 : 0));
+    return acc / divisor;
+}
+
+inline MValue allocVarianceOutput(const MValue &x, int redDim, Allocator *alloc)
+{
+    if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
+        auto shape = detail::outShapeForDimND(x, redDim);
+        return MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc);
+    }
+    auto outShape = detail::outShapeForDim(x, redDim);
+    return createMatrix(outShape, MType::DOUBLE, alloc);
+}
+
+// Complex variance along dim: walks slices via stride math, gathers
+// each slice into a Complex scratch buffer, computes per-slice complex
+// variance, writes DOUBLE output.
+void complexVarianceAlongDim(const MValue &x, int redDim, double *dst, int normFlag)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    const Complex *src = x.complexData();
+    std::vector<Complex> scratch(sliceLen);
+    auto reduceSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        for (size_t k = 0; k < sliceLen; ++k)
+            scratch[k] = src[baseOff + k * stride];
+        dst[outOff] = complexVarianceFromSlice(scratch.data(), sliceLen, normFlag);
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) reduceSlice(o, o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b)
+            reduceSlice(o * B + b, o * sliceLen * B + b, B);
+}
+
+MValue varianceComplex(const MValue &x, int normFlag, int dim,
+                       Allocator *alloc, bool sqrtIt)
+{
+    if (x.isEmpty())
+        return MValue::matrix(0, 0, MType::DOUBLE, alloc);
+    const Complex *src = x.complexData();
+    if (x.isScalar() || x.dims().isVector()) {
+        double v = complexVarianceFromSlice(src, x.numel(), normFlag);
+        if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
+        return MValue::scalar(v, alloc);
+    }
+    const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
+    MValue out = allocVarianceOutput(x, d, alloc);
+    complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag);
+    if (sqrtIt) {
+        double *p = out.doubleDataMut();
+        const size_t n = out.numel();
+        for (size_t i = 0; i < n; ++i)
+            if (!std::isnan(p[i])) p[i] = std::sqrt(p[i]);
+    }
+    return out;
+}
+
 } // namespace
 
 MValue var(Allocator &alloc, const MValue &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "var");
+    if (x.type() == MType::COMPLEX)
+        return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/false);
     if (x.isEmpty())
         return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
         return MValue::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
 
     const int d = resolveDim(x, dim, "var");
-    return applyAlongDim(x, d,
+    MValue r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return varianceTwoPass(slice, n, normFlag);
         }, &alloc);
+    if (x.type() == MType::SINGLE)
+        r = narrowToSingle(std::move(r), &alloc);
+    return r;
 }
 
 MValue stdev(Allocator &alloc, const MValue &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "std");
+    if (x.type() == MType::COMPLEX)
+        return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/true);
     if (x.isEmpty())
         return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
         return MValue::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
 
     const int d = resolveDim(x, dim, "std");
-    return applyAlongDim(x, d,
+    MValue r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
         }, &alloc);
+    if (x.type() == MType::SINGLE)
+        r = narrowToSingle(std::move(r), &alloc);
+    return r;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -108,11 +214,17 @@ double medianFromSlice(double *data, size_t n)
 
 MValue median(Allocator &alloc, const MValue &x, int dim)
 {
+    if (x.type() == MType::COMPLEX)
+        throw MError("median: complex inputs are not supported (no defined ordering)",
+                     0, 0, "median", "", "m:median:complex");
     const int d = resolveDim(x, dim, "median");
-    return applyAlongDim(x, d,
+    MValue r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return medianFromSlice(slice, n);
         }, &alloc);
+    if (x.type() == MType::SINGLE)
+        r = narrowToSingle(std::move(r), &alloc);
+    return r;
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -662,6 +774,35 @@ MValue nanmedian(Allocator &alloc, const MValue &x, int dim)
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
+namespace {
+
+// If the last positional arg is a 'omitnan'/'includenan' string,
+// strip it from the count and return the omit flag. Throws on unknown
+// trailing strings so user errors don't get silently ignored.
+size_t stripNanFlag(Span<const MValue> args, bool &omitNan, const char *fn)
+{
+    omitNan = false;
+    if (args.empty()) return 0;
+    const MValue &last = args[args.size() - 1];
+    if (last.type() != MType::CHAR) return args.size();
+    std::string s = last.toString();
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (s == "omitnan") { omitNan = true; return args.size() - 1; }
+    if (s == "includenan")                 return args.size() - 1;
+    // Not a nan flag — leave it to the caller to handle (e.g. 'all').
+    return args.size();
+}
+
+inline void rejectComplexOmitNan(const MValue &x, const char *fn)
+{
+    if (x.type() == MType::COMPLEX)
+        throw MError(std::string(fn) + ": 'omitnan' for complex input is not supported",
+                     0, 0, fn, "", std::string("m:") + fn + ":complexOmitNan");
+}
+
+} // namespace
+
 namespace detail {
 
 void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
@@ -670,11 +811,19 @@ void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     if (args.empty())
         throw MError("var: requires at least 1 argument",
                      0, 0, "var", "", "m:var:nargin");
+    bool omitNan = false;
+    const size_t n = stripNanFlag(args, omitNan, "var");
     int w = 0, dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        w = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
+    if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
+    if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
+    if (omitNan) {
+        rejectComplexOmitNan(args[0], "var");
+        MValue r = nanvar(ctx.engine->allocator(), args[0], w, dim);
+        if (args[0].type() == MType::SINGLE)
+            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+        outs[0] = std::move(r);
+        return;
+    }
     outs[0] = var(ctx.engine->allocator(), args[0], w, dim);
 }
 
@@ -684,11 +833,19 @@ void std_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     if (args.empty())
         throw MError("std: requires at least 1 argument",
                      0, 0, "std", "", "m:std:nargin");
+    bool omitNan = false;
+    const size_t n = stripNanFlag(args, omitNan, "std");
     int w = 0, dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        w = static_cast<int>(args[1].toScalar());
-    if (args.size() >= 3 && !args[2].isEmpty())
-        dim = static_cast<int>(args[2].toScalar());
+    if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
+    if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
+    if (omitNan) {
+        rejectComplexOmitNan(args[0], "std");
+        MValue r = nanstdev(ctx.engine->allocator(), args[0], w, dim);
+        if (args[0].type() == MType::SINGLE)
+            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+        outs[0] = std::move(r);
+        return;
+    }
     outs[0] = stdev(ctx.engine->allocator(), args[0], w, dim);
 }
 
@@ -698,9 +855,18 @@ void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     if (args.empty())
         throw MError("median: requires at least 1 argument",
                      0, 0, "median", "", "m:median:nargin");
+    bool omitNan = false;
+    const size_t n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
-    if (args.size() >= 2 && !args[1].isEmpty())
-        dim = static_cast<int>(args[1].toScalar());
+    if (n >= 2 && !args[1].isEmpty()) dim = static_cast<int>(args[1].toScalar());
+    if (omitNan) {
+        rejectComplexOmitNan(args[0], "median");
+        MValue r = nanmedian(ctx.engine->allocator(), args[0], dim);
+        if (args[0].type() == MType::SINGLE)
+            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+        outs[0] = std::move(r);
+        return;
+    }
     outs[0] = median(ctx.engine->allocator(), args[0], dim);
 }
 

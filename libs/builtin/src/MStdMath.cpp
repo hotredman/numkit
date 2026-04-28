@@ -1253,91 +1253,331 @@ MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *al
     }
 }
 
-inline bool isAllString(const MValue &v)
+inline std::string lowercaseStr(const MValue &v)
 {
-    if (!isStringArg(v)) return false;
     std::string s = v.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
-    return s == "all";
+    return s;
+}
+
+inline bool isAllString(const MValue &v)
+{
+    return isStringArg(v) && lowercaseStr(v) == "all";
+}
+
+enum class StringFlag { Unknown, All, OutType, NanFlag };
+
+inline StringFlag classifyStringFlag(const MValue &v)
+{
+    if (!isStringArg(v)) return StringFlag::Unknown;
+    const std::string s = lowercaseStr(v);
+    if (s == "all") return StringFlag::All;
+    if (s == "default" || s == "double" || s == "native") return StringFlag::OutType;
+    if (s == "omitnan" || s == "includenan") return StringFlag::NanFlag;
+    return StringFlag::Unknown;
+}
+
+// ── NaN-aware reductions (omitnan flag) ──────────────────────────────
+//
+// MATLAB modern API: sum/mean/prod/var/std/min/max accept 'omitnan' as
+// a flag that skips NaN inputs. This is independent of the existing
+// nansum/nanmean entry points (those stay for backward compatibility).
+//
+// For non-floating types (integer/logical/char) NaN can't occur, so
+// 'omitnan' is identical to 'includenan' (the default).
+//
+// For COMPLEX, an element is NaN if either its real or imag part is NaN.
+
+template <typename Op>
+inline void nanAccumDouble(double &acc, size_t &count, double v)
+{
+    if (std::isnan(v)) return;
+    acc = Op::accum(acc, v);
+    ++count;
+}
+
+template <typename T, typename Op>
+inline T nanFinalize(double acc, size_t nonNanCount)
+{
+    if constexpr (std::is_same_v<Op, MeanOp>)
+        return toOutT<T>(nonNanCount == 0 ? std::nan("")
+                                          : acc / static_cast<double>(nonNanCount));
+    else
+        // sum: empty → 0 (matches MATLAB nansum). prod: empty → 1.
+        return toOutT<T>(acc);
+}
+
+template <typename T, typename Op>
+void nanReduceAlongDim(const MValue &x, int redDim, T *dst)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto reduceSlice = [&](size_t baseOff, size_t stride) -> T {
+        double acc = Op::init;
+        size_t count = 0;
+        for (size_t k = 0; k < sliceLen; ++k)
+            nanAccumDouble<Op>(acc, count, x.elemAsDouble(baseOff + k * stride));
+        return nanFinalize<T, Op>(acc, count);
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) dst[o] = reduceSlice(o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b)
+            dst[o * B + b] = reduceSlice(o * sliceLen * B + b, B);
+}
+
+template <typename T, typename Op>
+MValue nanReduceAll(const MValue &x, MType outType, Allocator *alloc)
+{
+    if (x.isEmpty() && x.dims().ndim() < 4)
+        return MValue::matrix(0, 0, outType, alloc);
+    if (x.isScalar() || x.dims().isVector()) {
+        double acc = Op::init;
+        size_t count = 0;
+        for (size_t i = 0; i < x.numel(); ++i)
+            nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
+        return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, alloc);
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    MValue out = allocReduceOutput(x, redDim, outType, alloc);
+    nanReduceAlongDim<T, Op>(x, redDim, static_cast<T *>(out.rawDataMut()));
+    return out;
+}
+
+template <typename T, typename Op>
+MValue nanReduceAlongDimImpl(const MValue &x, int dim, MType outType, Allocator *alloc)
+{
+    if (x.isEmpty() && x.dims().ndim() < 4)
+        return MValue::matrix(0, 0, outType, alloc);
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x)) {
+            // Identity: copy x as outType (cast where needed).
+            const size_t n = x.numel();
+            if (!x.dims().isVector())
+                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, alloc);
+            MValue out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+            T *dst = static_cast<T *>(out.rawDataMut());
+            for (size_t i = 0; i < n; ++i) dst[i] = toOutT<T>(x.elemAsDouble(i));
+            return out;
+        }
+        return nanReduceAll<T, Op>(x, outType, alloc);
+    }
+    MValue out = allocReduceOutput(x, dim, outType, alloc);
+    nanReduceAlongDim<T, Op>(x, dim, static_cast<T *>(out.rawDataMut()));
+    return out;
+}
+
+template <typename T, typename Op>
+MValue nanReduceAllElementsScalar(const MValue &x, MType outType, Allocator *alloc)
+{
+    double acc = Op::init;
+    size_t count = 0;
+    for (size_t i = 0; i < x.numel(); ++i)
+        nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
+    return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, alloc);
+}
+
+template <typename Op>
+MValue runNanReduction(const MValue &x, int dim, MType outType, Allocator *alloc,
+                       bool isAll = false)
+{
+    auto run = [&](auto tag) {
+        using T = decltype(tag);
+        if (isAll)
+            return nanReduceAllElementsScalar<T, Op>(x, outType, alloc);
+        return (dim > 0)
+            ? nanReduceAlongDimImpl<T, Op>(x, dim, outType, alloc)
+            : nanReduceAll<T, Op>(x, outType, alloc);
+    };
+    switch (outType) {
+    case MType::DOUBLE: return run(double  {});
+    case MType::SINGLE: return run(float   {});
+    case MType::INT8:   return run(int8_t  {});
+    case MType::INT16:  return run(int16_t {});
+    case MType::INT32:  return run(int32_t {});
+    case MType::INT64:  return run(int64_t {});
+    case MType::UINT8:  return run(uint8_t {});
+    case MType::UINT16: return run(uint16_t{});
+    case MType::UINT32: return run(uint32_t{});
+    case MType::UINT64: return run(uint64_t{});
+    default:
+        throw MError("internal: unsupported nan-aware output type",
+                     0, 0, "", "", "m:nanReduce:type");
+    }
+}
+
+// COMPLEX nan-aware reduction: an element is NaN if either its real
+// or imag part is NaN.
+inline bool isComplexNaN(Complex c)
+{
+    return std::isnan(c.real()) || std::isnan(c.imag());
+}
+
+template <typename Op>
+MValue runComplexNanReduction(const MValue &x, int dim, Allocator *alloc,
+                              bool isAll = false)
+{
+    const bool typeMatches = (x.type() == MType::COMPLEX);
+    auto readC = [&](size_t i) { return readElemAsComplex(x, i, typeMatches); };
+
+    auto finalizeOne = [](Complex acc, size_t count) -> Complex {
+        if constexpr (std::is_same_v<Op, MeanOp>)
+            return count == 0 ? Complex(std::nan(""), 0.0)
+                              : acc / static_cast<double>(count);
+        else
+            return acc;
+    };
+    auto reduceRange = [&](size_t baseOff, size_t stride, size_t n) -> Complex {
+        Complex acc = Op::cInit();
+        size_t count = 0;
+        for (size_t k = 0; k < n; ++k) {
+            const Complex v = readC(baseOff + k * stride);
+            if (isComplexNaN(v)) continue;
+            acc = Op::cAccum(acc, v);
+            ++count;
+        }
+        return finalizeOne(acc, count);
+    };
+
+    if (isAll || x.isScalar() || x.dims().isVector()) {
+        return MValue::complexScalar(reduceRange(0, 1, x.numel()), alloc);
+    }
+    const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
+    MValue out = allocComplexReduceOutput(x, d, alloc);
+    Complex *dst = out.complexDataMut();
+
+    const auto &dd = x.dims();
+    const int redAxis = d - 1;
+    const size_t sliceLen = dd.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= dd.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < dd.ndim(); ++i) O *= dd.dim(i);
+
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o)
+            dst[o] = reduceRange(o * sliceLen, 1, sliceLen);
+    } else {
+        for (size_t o = 0; o < O; ++o)
+            for (size_t b = 0; b < B; ++b)
+                dst[o * B + b] = reduceRange(o * sliceLen * B + b, B, sliceLen);
+    }
+    return out;
+}
+
+struct ReductionFlags {
+    int          dim     = 0;
+    bool         isAll   = false;
+    OutTypeMode  outMode = OutTypeMode::Default;
+    bool         omitNan = false;
+};
+
+// Parse args[1..] and populate the reduction-flag struct. Each kind of
+// flag (dim/all, outtype, nanflag) appears at most once. Strings are
+// classified by their content, so order is flexible.
+ReductionFlags parseReductionFlags(Span<const MValue> args, const char *fn)
+{
+    ReductionFlags r;
+    bool haveDim = false;     // either explicit dim or 'all'
+    bool haveOutType = false;
+    bool haveNanFlag = false;
+    for (size_t i = 1; i < args.size(); ++i) {
+        const MValue &a = args[i];
+        if (a.isEmpty()) continue;
+        if (isStringArg(a)) {
+            switch (classifyStringFlag(a)) {
+            case StringFlag::All:
+                if (haveDim)
+                    throw MError(std::string(fn) + ": dim specified twice",
+                                 0, 0, fn, "", std::string("m:") + fn + ":dupDim");
+                r.isAll = true; haveDim = true; break;
+            case StringFlag::OutType:
+                if (haveOutType)
+                    throw MError(std::string(fn) + ": output type specified twice",
+                                 0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
+                r.outMode = parseOutTypeMode(a, fn); haveOutType = true; break;
+            case StringFlag::NanFlag:
+                if (haveNanFlag)
+                    throw MError(std::string(fn) + ": nan flag specified twice",
+                                 0, 0, fn, "", std::string("m:") + fn + ":nanFlagDup");
+                r.omitNan = (lowercaseStr(a) == "omitnan");
+                haveNanFlag = true; break;
+            default:
+                throw MError(std::string(fn) + ": unknown flag '" + lowercaseStr(a) + "'",
+                             0, 0, fn, "", std::string("m:") + fn + ":badFlag");
+            }
+        } else {
+            if (haveDim)
+                throw MError(std::string(fn) + ": dim specified twice",
+                             0, 0, fn, "", std::string("m:") + fn + ":dupDim");
+            r.dim = static_cast<int>(a.toScalar());
+            haveDim = true;
+        }
+    }
+    return r;
 }
 
 // Parse args and pick the right reduction path.
-//   defaultFn — called for DOUBLE output (existing fast path)
-//   nativeFn  — called for typed (DOUBLE/SINGLE/integer) output via the
-//               typed pipeline; covers both 'native' and the implicit
-//               SINGLE-preserving default.
-//   complexFn — called for COMPLEX inputs (Complex accumulator)
-//   isAll     — true when 'all' was passed; impls must produce a scalar
-//               reduction across every element.
+//   defaultFn — DOUBLE output (existing fast path)
+//   nativeFn  — typed pipeline (covers 'native' and SINGLE-preserving default)
+//   complexFn — COMPLEX accumulator path
+//   nanFn     — NaN-aware typed pipeline (for omitnan)
+//   nanCFn    — NaN-aware complex path (for omitnan + complex)
 //
 // MATLAB syntax handled:
-//   fn(X)                         — first-non-singleton reduce (vector → scalar)
-//   fn(X, dim)                    — along dim
-//   fn(X, 'all')                  — scalar reduce across all elements
-//   fn(X, outtype)                — first-non-singleton reduce with outtype
-//   fn(X, dim, outtype)           — along dim with explicit outtype
-//   fn(X, 'all', outtype)         — scalar reduce with explicit outtype
+//   fn(X)                                — default reduce
+//   fn(X, dim)                           — along dim
+//   fn(X, 'all')                         — scalar reduce
+//   fn(X, ..., outtype)                  — outtype ∈ {default, double, native}
+//   fn(X, ..., 'omitnan' | 'includenan') — modern nan flag
 //
-// Output-type rules (matches MATLAB):
+// Output-type rules:
 //   Default: SINGLE→SINGLE, COMPLEX→COMPLEX, others→DOUBLE
-//   Double:  COMPLEX→COMPLEX (already double precision), others→DOUBLE
-//   Native:  preserve input class; LOGICAL/CHAR rejected.
-template <typename DefaultFn, typename NativeFn, typename ComplexFn>
+//   Double:  COMPLEX→COMPLEX, others→DOUBLE
+//   Native:  preserve class; LOGICAL/CHAR rejected.
+template <typename DefaultFn, typename NativeFn, typename ComplexFn,
+          typename NanFn, typename NanComplexFn>
 MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
                                 DefaultFn defaultFn, NativeFn nativeFn,
-                                ComplexFn complexFn)
+                                ComplexFn complexFn, NanFn nanFn,
+                                NanComplexFn nanCFn)
 {
-    int dim = 0;
-    bool isAll = false;
-    OutTypeMode mode = OutTypeMode::Default;
-    bool haveOutType = false;
-    bool allowOutTypeIn3rdArg = false;
-
-    if (args.size() >= 2 && !args[1].isEmpty()) {
-        if (isAllString(args[1])) {
-            isAll = true;
-            allowOutTypeIn3rdArg = true;
-        } else if (isStringArg(args[1])) {
-            mode = parseOutTypeMode(args[1], fn);
-            haveOutType = true;
-        } else {
-            dim = static_cast<int>(args[1].toScalar());
-            allowOutTypeIn3rdArg = true;
-        }
-    }
-    if (args.size() >= 3 && !args[2].isEmpty()) {
-        if (haveOutType)
-            throw MError(std::string(fn) + ": output type specified twice",
-                         0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
-        if (!allowOutTypeIn3rdArg)
-            throw MError(std::string(fn) + ": unexpected third argument",
-                         0, 0, fn, "", std::string("m:") + fn + ":badArg");
-        if (!isStringArg(args[2]))
-            throw MError(std::string(fn) + ": third argument must be the output-type string",
-                         0, 0, fn, "", std::string("m:") + fn + ":badArg");
-        mode = parseOutTypeMode(args[2], fn);
-    }
-    if (args.size() > 3)
-        throw MError(std::string(fn) + ": too many arguments",
-                     0, 0, fn, "", std::string("m:") + fn + ":nargin");
-
+    const ReductionFlags f = parseReductionFlags(args, fn);
     const MType inT = args[0].type();
 
-    // COMPLEX input always uses the complex path (any mode preserves
-    // the complex value; 'native' on COMPLEX returns COMPLEX, 'double'
-    // on COMPLEX is also COMPLEX since DOUBLE precision is implicit).
+    // COMPLEX input always preserves complex type. Branch on omitnan.
     if (inT == MType::COMPLEX)
-        return complexFn(args[0], dim, isAll);
+        return f.omitNan ? nanCFn(args[0], f.dim, f.isAll)
+                         : complexFn(args[0], f.dim, f.isAll);
 
-    if (mode == OutTypeMode::Native) {
-        const MType outT = resolveNativeOutType(inT, fn);
-        return nativeFn(args[0], dim, outT, isAll);
+    // Resolve the output type for typed/nan pipelines.
+    auto resolveOut = [&]() -> MType {
+        if (f.outMode == OutTypeMode::Native) return resolveNativeOutType(inT, fn);
+        if (f.outMode == OutTypeMode::Default && inT == MType::SINGLE) return MType::SINGLE;
+        return MType::DOUBLE;
+    };
+
+    if (f.omitNan) {
+        const MType outT = resolveOut();
+        return nanFn(args[0], f.dim, outT, f.isAll);
     }
-    // Default mode: preserve SINGLE → SINGLE. Double mode forces DOUBLE.
-    if (mode == OutTypeMode::Default && inT == MType::SINGLE)
-        return nativeFn(args[0], dim, MType::SINGLE, isAll);
-    return defaultFn(args[0], dim, isAll);
+
+    if (f.outMode == OutTypeMode::Native) {
+        const MType outT = resolveNativeOutType(inT, fn);
+        return nativeFn(args[0], f.dim, outT, f.isAll);
+    }
+    if (f.outMode == OutTypeMode::Default && inT == MType::SINGLE)
+        return nativeFn(args[0], f.dim, MType::SINGLE, f.isAll);
+    return defaultFn(args[0], f.dim, f.isAll);
 }
 
 } // namespace
@@ -1364,6 +1604,14 @@ MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
             [&](const MValue &x, int dim, bool isAll) {                           \
                 return runComplexReduction<op>(x, dim,                            \
                                                &ctx.engine->allocator(), isAll);  \
+            },                                                                    \
+            [&](const MValue &x, int dim, MType outT, bool isAll) {               \
+                return runNanReduction<op>(x, dim, outT,                          \
+                                           &ctx.engine->allocator(), isAll);      \
+            },                                                                    \
+            [&](const MValue &x, int dim, bool isAll) {                           \
+                return runComplexNanReduction<op>(x, dim,                         \
+                                                  &ctx.engine->allocator(), isAll);\
             });                                                                   \
     }
 

@@ -1636,6 +1636,188 @@ TEST_P(ReductionDimTest, SumComplexAllReducesToScalar)
     EXPECT_DOUBLE_EQ(evalScalar("imag(s);"), 10.0);
 }
 
+// ── Round 6 Item 1: var/std/median SINGLE & COMPLEX preservation ─
+
+TEST_P(ReductionDimTest, VarSingleReturnsSingle)
+{
+    // var([1 2 3 4]) = 5/3 (sample, normFlag=0). Float-precision result.
+    eval("v = single([1 2 3 4]); s = var(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+    EXPECT_NEAR(evalScalar("s;"), 5.0 / 3.0, 1e-6);
+}
+
+TEST_P(ReductionDimTest, StdSingleReturnsSingle)
+{
+    eval("v = single([1 2 3 4 5]); s = std(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+    EXPECT_NEAR(evalScalar("s;"), std::sqrt(2.5), 1e-6);
+}
+
+TEST_P(ReductionDimTest, MedianSingleReturnsSingle)
+{
+    eval("v = single([5 1 3 2 4]); m = median(v);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 3.0);
+}
+
+TEST_P(ReductionDimTest, VarComplexReturnsRealVariance)
+{
+    // var of [1+0i, 1+2i] (n=2, normFlag=0):
+    //   mean = 1+i; |1+0i - (1+i)|² = |-i|² = 1; |1+2i - (1+i)|² = |i|² = 1
+    //   sum = 2; divide by (n-1)=1 → 2.0
+    eval("v = [1+0i, 1+2i]; s = var(v);");
+    EXPECT_NEAR(evalScalar("s;"), 2.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, StdComplexReturnsRealStd)
+{
+    // std = sqrt(var), still real-valued.
+    eval("v = [1+0i, 1+2i]; s = std(v);");
+    EXPECT_NEAR(evalScalar("s;"), std::sqrt(2.0), 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, VarComplexAlongDim)
+{
+    // M = [1+0i, 5+0i; 1+2i, 5+2i]; var col 1 = var([1+0i, 1+2i]) = 2.0
+    // var col 2 = var([5+0i, 5+2i]) = 2.0
+    eval("M = [1+0i, 5+0i; 1+2i, 5+2i]; v = var(M, 0, 1);");
+    EXPECT_NEAR(evalScalar("v(1);"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("v(2);"), 2.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(v);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MedianComplexThrows)
+{
+    eval("v = [1+2i, 3+4i, 5+6i];");
+    EXPECT_THROW(eval("m = median(v);"), std::exception);
+}
+
+TEST_P(ReductionDimTest, VarSingleMatrixDimReturnsSingle)
+{
+    eval("M = single([1 2 3; 4 5 6]); v = var(M, 0, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(v);"), 1.0);
+    // var([1 2 3]) = 1, var([4 5 6]) = 1
+    EXPECT_NEAR(evalScalar("v(1);"), 1.0, 1e-6);
+    EXPECT_NEAR(evalScalar("v(2);"), 1.0, 1e-6);
+}
+
+// ── Round 6 Item 2: 'omitnan' flag ────────────────────────────────
+//
+// MATLAB: sum/mean/prod/var/std/median accept 'omitnan' as a trailing
+// flag string that skips NaN inputs. Routes to the corresponding
+// nan* helper (nansum/nanmean/nanvar/nanstd/nanmedian) under the hood.
+// 'includenan' (default) is also recognised but is a no-op.
+
+TEST_P(ReductionDimTest, SumOmitnanSkipsNaN)
+{
+    eval("v = [1 NaN 2 NaN 3]; s = sum(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 6.0);
+}
+
+TEST_P(ReductionDimTest, SumIncludenanPropagates)
+{
+    eval("v = [1 NaN 2]; s = sum(v, 'includenan');");
+    EXPECT_TRUE(std::isnan(evalScalar("s;")));
+}
+
+TEST_P(ReductionDimTest, MeanOmitnanSkipsNaN)
+{
+    eval("v = [1 NaN 2 NaN 3]; m = mean(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.0);
+}
+
+TEST_P(ReductionDimTest, MeanOmitnanAllNaNReturnsNaN)
+{
+    eval("v = [NaN NaN]; m = mean(v, 'omitnan');");
+    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+}
+
+TEST_P(ReductionDimTest, ProdOmitnanSkipsNaN)
+{
+    eval("v = [2 NaN 3 NaN 4]; p = prod(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("p;"), 24.0);
+}
+
+TEST_P(ReductionDimTest, SumOmitnanAlongDim)
+{
+    eval("M = [1 NaN; 2 3; NaN 4]; s = sum(M, 1, 'omitnan');");
+    // col 1 = 1+2 = 3; col 2 = 3+4 = 7
+    EXPECT_DOUBLE_EQ(evalScalar("s(1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s(2);"), 7.0);
+}
+
+TEST_P(ReductionDimTest, SumOmitnanAllReducesToScalar)
+{
+    eval("M = [1 NaN; NaN 2]; s = sum(M, 'all', 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 3.0);
+}
+
+TEST_P(ReductionDimTest, SumOmitnanWithNativeOutType)
+{
+    // 'omitnan' combined with 'native' on int input — int has no NaN
+    // so the result is the same as without omitnan.
+    eval("v = int32([1 2 3]); s = sum(v, 'omitnan', 'native');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumOmitnanSinglePreservesSingle)
+{
+    eval("v = single([1 NaN 2]); s = sum(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("s;"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(s);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, SumOmitnanComplex)
+{
+    // For complex, NaN is when either real or imag is NaN.
+    eval("v = [1+2i, complex(NaN, 0), 3+4i]; s = sum(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("real(s);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(s);"), 6.0);
+}
+
+TEST_P(ReductionDimTest, VarOmitnanSkipsNaN)
+{
+    eval("v = [1 NaN 2 NaN 3]; r = var(v, 'omitnan');");
+    // var([1 2 3], 0) = 1
+    EXPECT_DOUBLE_EQ(evalScalar("r;"), 1.0);
+}
+
+TEST_P(ReductionDimTest, StdOmitnanWithDim)
+{
+    eval("M = [1 NaN 3; 2 5 4]; r = std(M, 0, 1, 'omitnan');");
+    // col 1: std([1, 2], 0) = sqrt(0.5)
+    // col 2: std([5], 0) = NaN (only 1 element, sample variance undefined)
+    // col 3: std([3, 4], 0) = sqrt(0.5)
+    EXPECT_NEAR(evalScalar("r(1);"), std::sqrt(0.5), 1e-12);
+    EXPECT_TRUE(std::isnan(evalScalar("r(2);")));
+    EXPECT_NEAR(evalScalar("r(3);"), std::sqrt(0.5), 1e-12);
+}
+
+TEST_P(ReductionDimTest, MedianOmitnanSkipsNaN)
+{
+    eval("v = [1 NaN 2 NaN 3]; m = median(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.0);
+}
+
+TEST_P(ReductionDimTest, MedianOmitnanSinglePreservesSingle)
+{
+    eval("v = single([1 NaN 2 3 NaN 4]); m = median(v, 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+    // median([1 2 3 4]) = 2.5
+    EXPECT_NEAR(evalScalar("m;"), 2.5, 1e-6);
+}
+
+TEST_P(ReductionDimTest, VarOmitnanComplexThrows)
+{
+    // COMPLEX + omitnan not supported (would need a complex+nan-aware
+    // variance kernel; deferred).
+    eval("v = [1+2i, complex(NaN, 0), 3+4i];");
+    EXPECT_THROW(eval("r = var(v, 'omitnan');"), std::exception);
+}
+
 INSTANTIATE_DUAL(ReductionDimTest);
 
 // ============================================================
