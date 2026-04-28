@@ -75,6 +75,17 @@ MValue diag(Allocator &alloc, const MValue &x);
 /// Indices are 1-based permutation. For 3D input, operates per-slice.
 std::tuple<MValue, MValue> sort(Allocator &alloc, const MValue &x);
 
+/// sortrows(M) — lex-sort the rows of a 2D matrix in ascending order
+/// across all columns (column 1 most significant). Stable sort.
+/// Returns (sorted, idx) where idx is the 1-based original row order.
+/// `cols` form: each entry is a 1-based column index; negative entries
+/// flip direction for that key (descending). Empty `cols` means "all
+/// columns ascending" (same as the 1-arg form).
+/// Promotes integer/logical input to DOUBLE.
+std::tuple<MValue, MValue> sortrows(Allocator &alloc, const MValue &x);
+std::tuple<MValue, MValue> sortrows(Allocator &alloc, const MValue &x,
+                                    const std::vector<int> &cols);
+
 /// Linear indices of non-zero (or true) entries. Result is a row vector
 /// when x is a row, column vector otherwise.
 MValue find(Allocator &alloc, const MValue &x);

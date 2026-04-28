@@ -620,6 +620,167 @@ TEST_P(SortFindTest, Find3DReturnsCol)
     EXPECT_DOUBLE_EQ(ix->doubleData()[1], 7.0);
 }
 
+// ── sortrows ────────────────────────────────────────────────────
+
+TEST_P(SortFindTest, SortrowsAscByAllColumns)
+{
+    eval("S = sortrows([3 1 2; 1 5 9; 2 6 5; 1 3 4]);");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(rows(*S), 4u);
+    EXPECT_EQ(cols(*S), 3u);
+    // Expected order: rows where first col ascending; ties broken by col 2.
+    // [1 3 4], [1 5 9], [2 6 5], [3 1 2].
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 3.0); EXPECT_DOUBLE_EQ((*S)(0, 2), 4.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 5.0); EXPECT_DOUBLE_EQ((*S)(1, 2), 9.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 2.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 6.0); EXPECT_DOUBLE_EQ((*S)(2, 2), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 3.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 1.0); EXPECT_DOUBLE_EQ((*S)(3, 2), 2.0);
+}
+
+TEST_P(SortFindTest, SortrowsReturnsIndices)
+{
+    eval("[S, ix] = sortrows([3 1; 1 5; 2 6; 1 3]);");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(ix->numel(), 4u);
+    // Original order: row1=[3 1], row2=[1 5], row3=[2 6], row4=[1 3].
+    // Sorted: row4 [1 3], row2 [1 5], row3 [2 6], row1 [3 1] → idx [4 2 3 1].
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 1.0);
+}
+
+TEST_P(SortFindTest, SortrowsByExplicitColumn)
+{
+    // Sort by column 2 only.
+    eval("S = sortrows([3 1 2; 1 5 9; 2 6 5; 1 3 4], 2);");
+    auto *S = getVarPtr("S");
+    // col2 ascending: 1, 3, 5, 6 → rows [3 1 2], [1 3 4], [1 5 9], [2 6 5].
+    EXPECT_DOUBLE_EQ((*S)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 1), 3.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 1), 6.0);
+}
+
+TEST_P(SortFindTest, SortrowsByNegativeColumnDescending)
+{
+    eval("S = sortrows([3 1; 1 5; 2 6; 1 3], -1);");
+    auto *S = getVarPtr("S");
+    // col1 descending: 3, 2, 1, 1 → first row [3 1], then [2 6], then ties.
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 1.0);
+}
+
+TEST_P(SortFindTest, SortrowsMultiKeyMixedDirections)
+{
+    // Sort by col1 ascending, then col2 descending: -2 means desc on col2.
+    eval("S = sortrows([1 5; 2 1; 1 9; 2 8], [1, -2]);");
+    auto *S = getVarPtr("S");
+    // col1 asc: rows {[1 5], [1 9]} then {[2 1], [2 8]}; tie-break col2 desc.
+    // → [1 9], [1 5], [2 8], [2 1].
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(0, 1), 9.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 1.0); EXPECT_DOUBLE_EQ((*S)(1, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 2.0); EXPECT_DOUBLE_EQ((*S)(2, 1), 8.0);
+    EXPECT_DOUBLE_EQ((*S)(3, 0), 2.0); EXPECT_DOUBLE_EQ((*S)(3, 1), 1.0);
+}
+
+TEST_P(SortFindTest, SortrowsStableForTies)
+{
+    // All rows equal except for col2; tie on col1 should preserve original order.
+    eval("[S, ix] = sortrows([1 5; 1 3; 1 9; 1 1], 1);");
+    auto *ix = getVarPtr("ix");
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[3], 4.0);
+}
+
+TEST_P(SortFindTest, SortrowsColumnVector)
+{
+    // Column vector — single column → sort ascending.
+    eval("[S, ix] = sortrows([3; 1; 2; 1]);");
+    auto *S = getVarPtr("S");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(rows(*S), 4u);
+    EXPECT_EQ(cols(*S), 1u);
+    EXPECT_DOUBLE_EQ(S->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[3], 3.0);
+    // Stable: original [3 1 2 1] → sorted [1(2), 1(4), 2(3), 3(1)].
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[1], 4.0);
+}
+
+TEST_P(SortFindTest, SortrowsRowVectorPassThrough)
+{
+    // Single-row matrix: nothing to reorder, returns unchanged.
+    eval("[S, ix] = sortrows([7 2 9 1]);");
+    auto *S = getVarPtr("S");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(rows(*S), 1u);
+    EXPECT_EQ(cols(*S), 4u);
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 7.0);
+    EXPECT_DOUBLE_EQ((*S)(0, 3), 1.0);
+    EXPECT_EQ(ix->numel(), 1u);
+    EXPECT_DOUBLE_EQ(ix->doubleData()[0], 1.0);
+}
+
+TEST_P(SortFindTest, SortrowsEmptyMatrixReturnsEmpty)
+{
+    eval("[S, ix] = sortrows(zeros(0, 3));");
+    auto *S = getVarPtr("S");
+    auto *ix = getVarPtr("ix");
+    EXPECT_EQ(rows(*S), 0u);
+    EXPECT_EQ(cols(*S), 3u);
+    EXPECT_EQ(ix->numel(), 0u);
+}
+
+TEST_P(SortFindTest, SortrowsNaNGoesToBottom)
+{
+    eval("S = sortrows([2 1; NaN 3; 1 5]);");
+    auto *S = getVarPtr("S");
+    // [1 5], [2 1], [NaN 3]
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 2.0);
+    EXPECT_TRUE(std::isnan((*S)(2, 0)));
+}
+
+TEST_P(SortFindTest, SortrowsPromotesIntegerToDouble)
+{
+    eval("S = sortrows(int32([3 1; 1 5; 2 6]));");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->type(), MType::DOUBLE);
+    EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*S)(1, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*S)(2, 0), 3.0);
+}
+
+TEST_P(SortFindTest, SortrowsBadColumnThrows)
+{
+    eval("M = [1 2; 3 4];");
+    EXPECT_THROW(eval("S = sortrows(M, 5);"), std::exception);
+}
+
+TEST_P(SortFindTest, SortrowsZeroColumnThrows)
+{
+    eval("M = [1 2; 3 4];");
+    EXPECT_THROW(eval("S = sortrows(M, 0);"), std::exception);
+}
+
+TEST_P(SortFindTest, SortrowsNonIntegerColumnThrows)
+{
+    eval("M = [1 2; 3 4];");
+    EXPECT_THROW(eval("S = sortrows(M, 1.5);"), std::exception);
+}
+
+TEST_P(SortFindTest, Sortrows3DInputThrows)
+{
+    eval("A = zeros(2, 2, 2);");
+    EXPECT_THROW(eval("S = sortrows(A);"), std::exception);
+}
+
 // ── nnz ─────────────────────────────────────────────────────────
 
 TEST_P(SortFindTest, NnzVector)

@@ -7,6 +7,7 @@
 
 #include "MStdHelpers.hpp"
 #include "MStdReductionHelpers.hpp"
+#include "MStdRowsHelpers.hpp"
 #include "backends/BinaryOpsLoops.hpp"
 #include "backends/MStdCumSum.hpp"
 
@@ -511,6 +512,94 @@ std::tuple<MValue, MValue> sort(Allocator &alloc, const MValue &x)
                 }
             }
     return std::make_tuple(std::move(r), std::move(idx));
+}
+
+// ── sortrows ─────────────────────────────────────────────────────────
+namespace {
+
+// Promote to a 2D DOUBLE matrix for row-tuple ops. Returns a copy if the
+// type or shape differs; for already-2D-DOUBLE input returns by value
+// (cheap COW in the engine).
+MValue toDoubleMatrix2D(Allocator &alloc, const MValue &x, const char *fn)
+{
+    if (x.dims().is3D() || x.dims().ndim() > 2)
+        throw MError(std::string(fn) + ": input must be 2D",
+                     0, 0, fn, "", std::string("m:") + fn + ":bad2D");
+    const size_t R = x.dims().rows();
+    const size_t C = x.dims().cols();
+    if (x.type() == MType::DOUBLE) {
+        // Return a fresh DOUBLE matrix identical to x — cheap, avoids
+        // touching the input through a shared buffer later.
+        auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
+        if (x.numel() > 0)
+            std::memcpy(r.doubleDataMut(), x.doubleData(),
+                        x.numel() * sizeof(double));
+        return r;
+    }
+    auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    double *dst = r.doubleDataMut();
+    for (size_t i = 0; i < x.numel(); ++i)
+        dst[i] = x.elemAsDouble(i);
+    return r;
+}
+
+std::tuple<MValue, MValue>
+sortRowsImpl(Allocator &alloc, const MValue &x, const std::vector<int> &cols)
+{
+    auto m = toDoubleMatrix2D(alloc, x, "sortrows");
+    const size_t R = m.dims().rows();
+    const size_t C = m.dims().cols();
+
+    if (R == 0) {
+        // Empty rows — return as-is and an empty 0×1 idx column.
+        auto idx = MValue::matrix(0, 1, MType::DOUBLE, &alloc);
+        return std::make_tuple(std::move(m), std::move(idx));
+    }
+
+    // Validate cols list. Empty list ⇒ all columns ascending in order.
+    std::vector<int> sortKeys;
+    if (cols.empty()) {
+        sortKeys.reserve(C);
+        for (size_t c = 1; c <= C; ++c)
+            sortKeys.push_back(static_cast<int>(c));
+    } else {
+        sortKeys = cols;
+        for (int rawCol : sortKeys) {
+            const int absC = (rawCol < 0) ? -rawCol : rawCol;
+            if (rawCol == 0 || static_cast<size_t>(absC) > C)
+                throw MError("sortrows: column index out of range",
+                             0, 0, "sortrows", "", "m:sortrows:badCol");
+        }
+    }
+
+    std::vector<size_t> perm(R);
+    for (size_t i = 0; i < R; ++i) perm[i] = i;
+
+    const double *src = m.doubleData();
+    std::stable_sort(perm.begin(), perm.end(),
+        [&](size_t a, size_t b) {
+            return detail::rowLexCmpByCols(src, C, R, a, b, sortKeys) < 0;
+        });
+
+    auto sorted = detail::collectRowsByIndex(alloc, m, perm);
+    auto idx = MValue::matrix(R, 1, MType::DOUBLE, &alloc);
+    double *idxP = idx.doubleDataMut();
+    for (size_t i = 0; i < R; ++i)
+        idxP[i] = static_cast<double>(perm[i] + 1);
+    return std::make_tuple(std::move(sorted), std::move(idx));
+}
+
+} // namespace
+
+std::tuple<MValue, MValue> sortrows(Allocator &alloc, const MValue &x)
+{
+    return sortRowsImpl(alloc, x, {});
+}
+
+std::tuple<MValue, MValue> sortrows(Allocator &alloc, const MValue &x,
+                                    const std::vector<int> &cols)
+{
+    return sortRowsImpl(alloc, x, cols);
 }
 
 MValue find(Allocator &alloc, const MValue &x)
@@ -1436,6 +1525,33 @@ void sort_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCo
         throw MError("sort: requires 1 argument",
                      0, 0, "sort", "", "m:sort:nargin");
     auto [sorted, idx] = sort(ctx.engine->allocator(), args[0]);
+    outs[0] = std::move(sorted);
+    if (nargout > 1)
+        outs[1] = std::move(idx);
+}
+
+void sortrows_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("sortrows: requires at least 1 argument",
+                     0, 0, "sortrows", "", "m:sortrows:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    std::vector<int> cols;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const auto &c = args[1];
+        if (c.type() == MType::CHAR || c.type() == MType::STRING)
+            throw MError("sortrows: column spec must be numeric",
+                         0, 0, "sortrows", "", "m:sortrows:badColType");
+        cols.reserve(c.numel());
+        for (size_t i = 0; i < c.numel(); ++i) {
+            const double v = c.elemAsDouble(i);
+            if (v != std::floor(v))
+                throw MError("sortrows: column index must be an integer",
+                             0, 0, "sortrows", "", "m:sortrows:badCol");
+            cols.push_back(static_cast<int>(v));
+        }
+    }
+    auto [sorted, idx] = sortrows(alloc, args[0], cols);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
