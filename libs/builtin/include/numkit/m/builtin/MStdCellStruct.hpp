@@ -39,4 +39,27 @@ MValue cell(Allocator &alloc, size_t rows, size_t cols);
 /// cell(r, c, p) — 3D cell array when p > 0; else 2D r×c.
 MValue cell(Allocator &alloc, size_t rows, size_t cols, size_t pages);
 
+// ── cellfun / structfun ──────────────────────────────────────────────
+//
+// Apply a function handle to each cell of `C` (or each field of `S`).
+// Built-in handles supported (fast path via funcHandleName()):
+//
+//   shape:    numel, length, ndims, isempty
+//   type:     isnumeric, ischar, islogical, iscell, isstruct,
+//             isreal, isnan, isinf, isfinite
+//   reduce:   sum, prod, mean
+//   text:     class           (always non-uniform — string output)
+//
+// Custom (anonymous) handles throw `m:cellfun:fnUnsupported` with a hint
+// to wait for the engine callback API (round 11 item 27).
+//
+// Default uniformOutput=true packs scalars into a numeric/logical array
+// of the same shape as `C` (or a column vector of length numFields for
+// structfun). uniformOutput=false packs into a cell array of the same
+// shape (or a 1×N cell row for structfun).
+MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
+               bool uniformOutput);
+MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
+                 bool uniformOutput);
+
 } // namespace numkit::m::builtin

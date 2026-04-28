@@ -214,6 +214,8 @@ void fieldnames_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void isfield_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void rmfield_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cell_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void cellfun_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void structfun_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
 // MStdMatrix.cpp
 void zeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -498,6 +500,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("isfield",    &builtin::detail::isfield_reg);
     engine.registerFunction("rmfield",    &builtin::detail::rmfield_reg);
     engine.registerFunction("cell",       &builtin::detail::cell_reg);
+    engine.registerFunction("cellfun",    &builtin::detail::cellfun_reg);
+    engine.registerFunction("structfun",  &builtin::detail::structfun_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",
