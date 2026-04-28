@@ -6,7 +6,7 @@
 // uniform integers in [1, N/4] to give a realistic distribution of
 // duplicates.
 
-#include <numkit/m/builtin/MStdSetOps.hpp>
+#include <numkit/m/builtin/math/elementary/discrete.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

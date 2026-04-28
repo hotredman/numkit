@@ -2,9 +2,6 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdLibrary.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdMath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStats.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdSetOps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdNumberTheory.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCombinatorics.cpp
     # lang/
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/binary_ops.cpp
@@ -17,6 +14,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/polynomials.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/discrete.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/optim/fzero.cpp
     # data_io/
