@@ -2732,4 +2732,217 @@ TEST_P(CumLogicalTest, IsfiniteVector)
     EXPECT_FALSE(v->logicalData()[5] != 0);
 }
 
+// ── diff ────────────────────────────────────────────────────
+
+TEST_P(CumLogicalTest, DiffRowVector)
+{
+    eval("d = diff([1 3 6 10 15]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 1u);
+    EXPECT_EQ(cols(*d), 4u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 4.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[3], 5.0);
+}
+
+TEST_P(CumLogicalTest, DiffColumnVector)
+{
+    eval("d = diff([1; 3; 6; 10]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 3u);
+    EXPECT_EQ(cols(*d), 1u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 4.0);
+}
+
+TEST_P(CumLogicalTest, DiffScalarReturnsEmptyRow)
+{
+    eval("d = diff(7);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 1u);
+    EXPECT_EQ(cols(*d), 0u);
+    EXPECT_EQ(d->numel(), 0u);
+}
+
+TEST_P(CumLogicalTest, DiffMatrixDefaultDim1)
+{
+    // Default dim = first non-singleton (rows). Result is (R-1)×C.
+    eval("d = diff([1 2 3; 4 6 8; 9 12 15]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 2u);
+    EXPECT_EQ(cols(*d), 3u);
+    EXPECT_DOUBLE_EQ((*d)(0, 0), 3.0);  // 4-1
+    EXPECT_DOUBLE_EQ((*d)(1, 0), 5.0);  // 9-4
+    EXPECT_DOUBLE_EQ((*d)(0, 1), 4.0);  // 6-2
+    EXPECT_DOUBLE_EQ((*d)(1, 1), 6.0);  // 12-6
+    EXPECT_DOUBLE_EQ((*d)(0, 2), 5.0);  // 8-3
+    EXPECT_DOUBLE_EQ((*d)(1, 2), 7.0);  // 15-8
+}
+
+TEST_P(CumLogicalTest, DiffMatrixDim2)
+{
+    eval("d = diff([1 2 4 7; 10 11 13 16], 1, 2);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 2u);
+    EXPECT_EQ(cols(*d), 3u);
+    EXPECT_DOUBLE_EQ((*d)(0, 0), 1.0);  // 2-1
+    EXPECT_DOUBLE_EQ((*d)(0, 1), 2.0);  // 4-2
+    EXPECT_DOUBLE_EQ((*d)(0, 2), 3.0);  // 7-4
+    EXPECT_DOUBLE_EQ((*d)(1, 0), 1.0);  // 11-10
+    EXPECT_DOUBLE_EQ((*d)(1, 1), 2.0);  // 13-11
+    EXPECT_DOUBLE_EQ((*d)(1, 2), 3.0);  // 16-13
+}
+
+TEST_P(CumLogicalTest, DiffSecondOrder)
+{
+    // diff(x, 2) = diff(diff(x)). For [1 3 6 10 15] → [2 3 4 5] → [1 1 1].
+    eval("d = diff([1 3 6 10 15], 2);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 3u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 1.0);
+}
+
+TEST_P(CumLogicalTest, DiffOrderEqualsLengthReturnsEmpty)
+{
+    // diff(x, length(x)) → empty along that dim.
+    eval("d = diff([1 3 6 10 15], 5);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 1u);
+    EXPECT_EQ(cols(*d), 0u);
+}
+
+TEST_P(CumLogicalTest, DiffOrderExceedsLengthReturnsEmpty)
+{
+    eval("d = diff([1 3 6 10 15], 10);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 1u);
+    EXPECT_EQ(cols(*d), 0u);
+}
+
+TEST_P(CumLogicalTest, DiffOrderZeroReturnsCopy)
+{
+    eval("d = diff([1 3 6 10 15], 0);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 1u);
+    EXPECT_EQ(cols(*d), 5u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[4], 15.0);
+}
+
+TEST_P(CumLogicalTest, DiffMatrixSecondOrderDim2)
+{
+    // diff([1 3 6 10; 0 1 3 6], 2, 2) -> diff each row twice.
+    // row0: [1 3 6 10] -> [2 3 4] -> [1 1]
+    // row1: [0 1 3 6]  -> [1 2 3] -> [1 1]
+    eval("d = diff([1 3 6 10; 0 1 3 6], 2, 2);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 2u);
+    EXPECT_EQ(cols(*d), 2u);
+    EXPECT_DOUBLE_EQ((*d)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*d)(0, 1), 1.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 1), 1.0);
+}
+
+TEST_P(CumLogicalTest, Diff3DDim3)
+{
+    // 3D: diff along page dim. (2,2,3) -> (2,2,2).
+    eval("A = zeros(2, 2, 3);"
+         "A(:,:,1) = [1 2; 3 4];"
+         "A(:,:,2) = [3 5; 6 9];"
+         "A(:,:,3) = [6 9; 11 16];"
+         "d = diff(A, 1, 3);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 2u);
+    EXPECT_EQ(cols(*d), 2u);
+    EXPECT_EQ(d->dims().pages(), 2u);
+    // page0 = page2 - page1 = [2 3; 3 5]
+    EXPECT_DOUBLE_EQ((*d)(0, 0, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*d)(0, 1, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 1, 0), 5.0);
+    // page1 = page3 - page2 = [3 4; 5 7]
+    EXPECT_DOUBLE_EQ((*d)(0, 0, 1), 3.0);
+    EXPECT_DOUBLE_EQ((*d)(0, 1, 1), 4.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 0, 1), 5.0);
+    EXPECT_DOUBLE_EQ((*d)(1, 1, 1), 7.0);
+}
+
+TEST_P(CumLogicalTest, DiffNDDim2)
+{
+    // 4D input shape (2, 4, 2, 2). diff along dim=2 → (2, 3, 2, 2).
+    eval("A = reshape(1:32, [2, 4, 2, 2]);"
+         "d = diff(A, 1, 2);"
+         "sz = size(d);");
+    auto *sz = getVarPtr("sz");
+    EXPECT_EQ(sz->numel(), 4u);
+    EXPECT_DOUBLE_EQ(sz->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(sz->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(sz->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(sz->doubleData()[3], 2.0);
+    // For column-major reshape(1:32), the values along dim=2 increase
+    // by 2 per step (rows=2 stride). diff along dim=2 → all entries 2.
+    auto *d = getVarPtr("d");
+    for (size_t i = 0; i < d->numel(); ++i)
+        EXPECT_DOUBLE_EQ(d->doubleData()[i], 2.0);
+}
+
+TEST_P(CumLogicalTest, DiffPromotesIntegerToDouble)
+{
+    eval("d = diff(int32([10 25 60 100]));");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->type(), MType::DOUBLE);
+    EXPECT_EQ(d->numel(), 3u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], 15.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 35.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 40.0);
+}
+
+TEST_P(CumLogicalTest, DiffPromotesLogicalToDouble)
+{
+    eval("d = diff([true false true true false]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->type(), MType::DOUBLE);
+    EXPECT_EQ(d->numel(), 4u);
+    EXPECT_DOUBLE_EQ(d->doubleData()[0], -1.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 0.0);
+    EXPECT_DOUBLE_EQ(d->doubleData()[3], -1.0);
+}
+
+TEST_P(CumLogicalTest, DiffPropagatesNaN)
+{
+    // No omitnan flag — NaN propagates by subtraction.
+    eval("d = diff([1 NaN 3 4]);");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->numel(), 3u);
+    EXPECT_TRUE(std::isnan(d->doubleData()[0]));  // NaN - 1
+    EXPECT_TRUE(std::isnan(d->doubleData()[1]));  // 3 - NaN
+    EXPECT_DOUBLE_EQ(d->doubleData()[2], 1.0);    // 4 - 3
+}
+
+TEST_P(CumLogicalTest, DiffNegativeOrderThrows)
+{
+    EXPECT_THROW(eval("d = diff([1 2 3], -1);"), std::exception);
+}
+
+TEST_P(CumLogicalTest, DiffNonIntegerOrderThrows)
+{
+    EXPECT_THROW(eval("d = diff([1 2 3], 1.5);"), std::exception);
+}
+
+TEST_P(CumLogicalTest, DiffEmptyInputPreservesShape)
+{
+    // diff on (3, 0) along default dim (rows, since rows>1) → (2, 0).
+    eval("d = diff(zeros(3, 0));");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(rows(*d), 2u);
+    EXPECT_EQ(cols(*d), 0u);
+    EXPECT_EQ(d->numel(), 0u);
+}
+
 INSTANTIATE_DUAL(CumLogicalTest);

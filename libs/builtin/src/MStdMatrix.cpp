@@ -881,6 +881,115 @@ MValue cummin(Allocator &alloc, const MValue &x, int dim)
                            }, "cummin");
 }
 
+// ── diff: discrete difference ────────────────────────────────────────
+namespace {
+
+// One pass of forward differences along axis `d` (1-based). Source has
+// dim[d-1] = sliceLen; output has dim[d-1] = sliceLen - 1. Column-major
+// strides (innerStride = prod(dim[0..d-2])).
+void diffOnceDouble(const double *src, double *dst,
+                    const Dims &srcDims, int d)
+{
+    const int nd = srcDims.ndim();
+    const size_t sliceLen = srcDims.dim(d - 1);
+    if (sliceLen < 2) return;  // out has zero elements
+
+    size_t innerStride = 1;
+    for (int i = 0; i < d - 1; ++i) innerStride *= srcDims.dim(i);
+    size_t outerCount = 1;
+    for (int i = d; i < nd; ++i) outerCount *= srcDims.dim(i);
+    const size_t outSliceLen = sliceLen - 1;
+
+    if (innerStride == 1) {
+        // Contiguous along the diff axis — simple linear pass per outer block.
+        for (size_t o = 0; o < outerCount; ++o) {
+            const double *s = src + o * sliceLen;
+            double *t = dst + o * outSliceLen;
+            for (size_t k = 0; k < outSliceLen; ++k)
+                t[k] = s[k + 1] - s[k];
+        }
+    } else {
+        for (size_t o = 0; o < outerCount; ++o)
+            for (size_t b = 0; b < innerStride; ++b) {
+                const size_t srcBase = o * innerStride * sliceLen + b;
+                const size_t dstBase = o * innerStride * outSliceLen + b;
+                for (size_t k = 0; k < outSliceLen; ++k)
+                    dst[dstBase + k * innerStride] =
+                        src[srcBase + (k + 1) * innerStride] -
+                        src[srcBase + k * innerStride];
+            }
+    }
+}
+
+MValue makeDiffOutput(Allocator &alloc, const Dims &srcDims, int d, size_t step)
+{
+    const int nd = srcDims.ndim();
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (nd > kMaxNd)
+        throw MError("diff: rank exceeds 32",
+                     0, 0, "diff", "", "m:diff:tooManyDims");
+    size_t outDims[kMaxNd];
+    for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
+    outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
+    return MValue::matrixND(outDims, nd, MType::DOUBLE, &alloc);
+}
+
+MValue copyToDouble(Allocator &alloc, const MValue &x)
+{
+    const auto &dd = x.dims();
+    const int nd = dd.ndim();
+    constexpr int kMaxNd = Dims::kMaxRank;
+    size_t dims[kMaxNd];
+    for (int i = 0; i < nd; ++i) dims[i] = dd.dim(i);
+    auto r = MValue::matrixND(dims, nd, MType::DOUBLE, &alloc);
+    if (x.type() == MType::DOUBLE) {
+        std::memcpy(r.doubleDataMut(), x.doubleData(),
+                    x.numel() * sizeof(double));
+    } else {
+        double *dst = r.doubleDataMut();
+        for (size_t i = 0; i < x.numel(); ++i)
+            dst[i] = x.elemAsDouble(i);
+    }
+    return r;
+}
+
+} // namespace
+
+MValue diff(Allocator &alloc, const MValue &x, int n, int dim)
+{
+    if (n < 0)
+        throw MError("diff: order n must be non-negative",
+                     0, 0, "diff", "", "m:diff:badOrder");
+
+    if (n == 0) {
+        // Identity copy preserving DOUBLE shape.
+        return copyToDouble(alloc, x);
+    }
+
+    // Scalar: MATLAB returns 1×0 empty.
+    if (x.isScalar())
+        return MValue::matrix(1, 0, MType::DOUBLE, &alloc);
+
+    const int d = detail::resolveDim(x, dim, "diff");
+    const auto &dd = x.dims();
+    const size_t sliceLen = (d >= 1 && d <= dd.ndim()) ? dd.dim(d - 1) : 1;
+
+    // If n collapses or exceeds the dim, return correctly-shaped empty.
+    if (sliceLen <= static_cast<size_t>(n))
+        return makeDiffOutput(alloc, dd, d, sliceLen);
+
+    // Promote integer/logical to DOUBLE first (consistent with cumsum).
+    MValue cur = copyToDouble(alloc, x);
+
+    for (int pass = 0; pass < n; ++pass) {
+        const auto &curDims = cur.dims();
+        auto out = makeDiffOutput(alloc, curDims, d, 1);
+        diffOnceDouble(cur.doubleData(), out.doubleDataMut(), curDims, d);
+        cur = std::move(out);
+    }
+    return cur;
+}
+
 // ── any / all moved to backends/MStdLogicalReductions_{simd,portable}.cpp
 //
 // MATLAB's any(X) returns true if ANY element is non-zero (NaN counts
@@ -1186,6 +1295,25 @@ void cumsum_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, 
 NK_CUM_REG(cumprod)
 NK_CUM_REG(cummax)
 NK_CUM_REG(cummin)
+
+void diff_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("diff: requires at least 1 argument",
+                     0, 0, "diff", "", "m:diff:nargin");
+    int n = 1;
+    int dim = 0;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const double nv = args[1].toScalar();
+        if (nv != std::floor(nv) || nv < 0)
+            throw MError("diff: order n must be a non-negative integer",
+                         0, 0, "diff", "", "m:diff:badOrder");
+        n = static_cast<int>(nv);
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        dim = static_cast<int>(args[2].toScalar());
+    outs[0] = diff(ctx.engine->allocator(), args[0], n, dim);
+}
 
 #undef NK_CUM_REG
 

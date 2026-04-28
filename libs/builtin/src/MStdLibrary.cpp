@@ -236,6 +236,7 @@ void cumsum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumprod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cummax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cummin_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void diff_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void any_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void all_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void xor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -376,6 +377,7 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("cumprod",   &builtin::detail::cumprod_reg);
     engine.registerFunction("cummax",    &builtin::detail::cummax_reg);
     engine.registerFunction("cummin",    &builtin::detail::cummin_reg);
+    engine.registerFunction("diff",      &builtin::detail::diff_reg);
     engine.registerFunction("any",       &builtin::detail::any_reg);
     engine.registerFunction("all",       &builtin::detail::all_reg);
     engine.registerFunction("xor",       &builtin::detail::xor_reg);

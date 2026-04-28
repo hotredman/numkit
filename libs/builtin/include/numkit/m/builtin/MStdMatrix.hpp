@@ -101,6 +101,12 @@ MValue cumprod(Allocator &alloc, const MValue &x, int dim = 0);
 MValue cummax (Allocator &alloc, const MValue &x, int dim = 0);
 MValue cummin (Allocator &alloc, const MValue &x, int dim = 0);
 
+// diff(x[, n[, dim]]) — n-th order discrete difference along dim.
+// out[i] = x[i+1] - x[i]. Output shape: input with dim[d-1] decremented
+// by n (clamped to 0). n=0 returns a copy. Default dim = first non-
+// singleton. Scalar input returns 1×0 empty (MATLAB convention).
+MValue diff(Allocator &alloc, const MValue &x, int n = 1, int dim = 0);
+
 // Logical reductions: collapse the chosen dim to a single 0/1 value.
 // Empty slices: any → false, all → true (matches MATLAB).
 // Output type is LOGICAL.
