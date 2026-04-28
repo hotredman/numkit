@@ -111,6 +111,22 @@ MValue vertcat(Allocator &alloc, const MValue *values, size_t count);
 /// meshgrid(x, y) returns (X, Y) matrices of size [ny, nx].
 std::tuple<MValue, MValue> meshgrid(Allocator &alloc, const MValue &x, const MValue &y);
 
+/// ndgrid(x, y) — N-D companion to meshgrid. Each output has shape
+/// [numel(x), numel(y), ...] (first-arg axes-major) — the opposite
+/// of meshgrid's MATLAB convention. Output type DOUBLE.
+std::tuple<MValue, MValue>
+ndgrid(Allocator &alloc, const MValue &x, const MValue &y);
+
+/// 3-input ndgrid(x, y, z) — outputs have shape [numel(x), numel(y), numel(z)].
+std::tuple<MValue, MValue, MValue>
+ndgrid(Allocator &alloc, const MValue &x, const MValue &y, const MValue &z);
+
+/// kron(A, B) — Kronecker product. Output is (rA*rB) × (cA*cB);
+/// the (i, j)-th block (rB × cB) equals A[i, j] · B. Vector inputs
+/// are treated as matrices of their natural orientation. DOUBLE only
+/// for now (integer/logical/single promoted; complex throws).
+MValue kron(Allocator &alloc, const MValue &a, const MValue &b);
+
 // ── Reductions and products ──────────────────────────────────────────
 //
 // Cumulative ops keep the input shape; sum/prod/max/min along the

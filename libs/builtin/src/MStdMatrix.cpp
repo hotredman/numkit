@@ -856,6 +856,73 @@ std::tuple<MValue, MValue> meshgrid(Allocator &alloc, const MValue &x, const MVa
     return std::make_tuple(std::move(X), std::move(Y));
 }
 
+// ── ndgrid ──────────────────────────────────────────────────────────
+std::tuple<MValue, MValue>
+ndgrid(Allocator &alloc, const MValue &x, const MValue &y)
+{
+    const size_t nx = x.numel(), ny = y.numel();
+    // Output shape: [nx, ny] — first arg is row dim (axes-major).
+    auto X = MValue::matrix(nx, ny, MType::DOUBLE, &alloc);
+    auto Y = MValue::matrix(nx, ny, MType::DOUBLE, &alloc);
+    for (size_t r = 0; r < nx; ++r)
+        for (size_t c = 0; c < ny; ++c) {
+            X.elem(r, c) = x.elemAsDouble(r);
+            Y.elem(r, c) = y.elemAsDouble(c);
+        }
+    return std::make_tuple(std::move(X), std::move(Y));
+}
+
+std::tuple<MValue, MValue, MValue>
+ndgrid(Allocator &alloc, const MValue &x, const MValue &y, const MValue &z)
+{
+    const size_t nx = x.numel(), ny = y.numel(), nz = z.numel();
+    auto X = MValue::matrix3d(nx, ny, nz, MType::DOUBLE, &alloc);
+    auto Y = MValue::matrix3d(nx, ny, nz, MType::DOUBLE, &alloc);
+    auto Z = MValue::matrix3d(nx, ny, nz, MType::DOUBLE, &alloc);
+    for (size_t p = 0; p < nz; ++p)
+        for (size_t c = 0; c < ny; ++c)
+            for (size_t r = 0; r < nx; ++r) {
+                X.elem(r, c, p) = x.elemAsDouble(r);
+                Y.elem(r, c, p) = y.elemAsDouble(c);
+                Z.elem(r, c, p) = z.elemAsDouble(p);
+            }
+    return std::make_tuple(std::move(X), std::move(Y), std::move(Z));
+}
+
+// ── kron ────────────────────────────────────────────────────────────
+MValue kron(Allocator &alloc, const MValue &a, const MValue &b)
+{
+    if (a.type() == MType::COMPLEX || b.type() == MType::COMPLEX)
+        throw MError("kron: complex inputs are not supported",
+                     0, 0, "kron", "", "m:kron:complex");
+    if (a.dims().is3D() || a.dims().ndim() > 2
+        || b.dims().is3D() || b.dims().ndim() > 2)
+        throw MError("kron: inputs must be 2D",
+                     0, 0, "kron", "", "m:kron:rank");
+
+    const size_t rA = a.dims().rows(), cA = a.dims().cols();
+    const size_t rB = b.dims().rows(), cB = b.dims().cols();
+    const size_t rOut = rA * rB, cOut = cA * cB;
+
+    auto out = MValue::matrix(rOut, cOut, MType::DOUBLE, &alloc);
+    if (rOut == 0 || cOut == 0) return out;
+
+    double *dst = out.doubleDataMut();
+    for (size_t ja = 0; ja < cA; ++ja)
+        for (size_t ia = 0; ia < rA; ++ia) {
+            const double av = a.elemAsDouble(ia + ja * rA);
+            for (size_t jb = 0; jb < cB; ++jb) {
+                const size_t jOut = ja * cB + jb;
+                for (size_t ib = 0; ib < rB; ++ib) {
+                    const size_t iOut = ia * rB + ib;
+                    const double bv = b.elemAsDouble(ib + jb * rB);
+                    dst[jOut * rOut + iOut] = av * bv;
+                }
+            }
+        }
+    return out;
+}
+
 // ── Reductions and products ──────────────────────────────────────────
 MValue cumsum(Allocator &alloc, const MValue &x)
 {
@@ -1600,6 +1667,37 @@ void meshgrid_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
     outs[0] = std::move(X);
     if (nargout > 1)
         outs[1] = std::move(Y);
+}
+
+void ndgrid_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("ndgrid: requires at least 2 arguments",
+                     0, 0, "ndgrid", "", "m:ndgrid:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    if (args.size() == 2) {
+        auto [X, Y] = ndgrid(alloc, args[0], args[1]);
+        outs[0] = std::move(X);
+        if (nargout > 1) outs[1] = std::move(Y);
+        return;
+    }
+    if (args.size() == 3) {
+        auto [X, Y, Z] = ndgrid(alloc, args[0], args[1], args[2]);
+        outs[0] = std::move(X);
+        if (nargout > 1) outs[1] = std::move(Y);
+        if (nargout > 2) outs[2] = std::move(Z);
+        return;
+    }
+    throw MError("ndgrid: 4+ inputs are not yet supported",
+                 0, 0, "ndgrid", "", "m:ndgrid:tooManyInputs");
+}
+
+void kron_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("kron: requires 2 arguments",
+                     0, 0, "kron", "", "m:kron:nargin");
+    outs[0] = kron(ctx.engine->allocator(), args[0], args[1]);
 }
 
 void cumsum_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

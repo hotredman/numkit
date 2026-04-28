@@ -1325,3 +1325,168 @@ TEST_P(PagemtimesTest, ComplexCTransposeBatched)
 
 INSTANTIATE_DUAL(PagemtimesTest);
 
+// ============================================================
+// ndgrid + kron
+// ============================================================
+
+class GridKronTest : public DualEngineTest {};
+
+// ── ndgrid ──────────────────────────────────────────────────────
+
+TEST_P(GridKronTest, NdgridTwoArgsShape)
+{
+    eval("[X, Y] = ndgrid(1:3, 1:5);");
+    auto *X = getVarPtr("X");
+    auto *Y = getVarPtr("Y");
+    // ndgrid: X has shape [numel(x), numel(y)] = [3, 5].
+    EXPECT_EQ(rows(*X), 3u);
+    EXPECT_EQ(cols(*X), 5u);
+    EXPECT_EQ(rows(*Y), 3u);
+    EXPECT_EQ(cols(*Y), 5u);
+}
+
+TEST_P(GridKronTest, NdgridXVariesAlongRows)
+{
+    eval("[X, Y] = ndgrid([10 20 30], [1 2 3 4]);");
+    auto *X = getVarPtr("X");
+    auto *Y = getVarPtr("Y");
+    // X(r, c) = x(r)
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < 4; ++c)
+            EXPECT_DOUBLE_EQ((*X)(r, c), (r + 1) * 10.0)
+                << "X at (" << r << "," << c << ")";
+    // Y(r, c) = y(c)
+    for (size_t r = 0; r < 3; ++r)
+        for (size_t c = 0; c < 4; ++c)
+            EXPECT_DOUBLE_EQ((*Y)(r, c), static_cast<double>(c + 1))
+                << "Y at (" << r << "," << c << ")";
+}
+
+TEST_P(GridKronTest, NdgridDiffersFromMeshgridShape)
+{
+    // meshgrid: [Xm, Ym] = meshgrid(1:3, 1:2) → 2×3 matrices.
+    // ndgrid:   [Xn, Yn] = ndgrid  (1:3, 1:2) → 3×2 matrices.
+    eval("[Xm, Ym] = meshgrid(1:3, 1:2);"
+         "[Xn, Yn] = ndgrid  (1:3, 1:2);");
+    EXPECT_DOUBLE_EQ(evalScalar("size(Xm, 1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Xm, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Xn, 1);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(Xn, 2);"), 2.0);
+}
+
+TEST_P(GridKronTest, NdgridThreeArgsShape)
+{
+    eval("[X, Y, Z] = ndgrid(1:2, 1:3, 1:4);"
+         "sx = size(X);");
+    auto *sx = getVarPtr("sx");
+    EXPECT_EQ(sx->numel(), 3u);
+    EXPECT_DOUBLE_EQ(sx->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(sx->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(sx->doubleData()[2], 4.0);
+    // Spot-check Z (varies along page dim).
+    auto *Z = getVarPtr("Z");
+    EXPECT_DOUBLE_EQ((*Z)(0, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*Z)(0, 0, 3), 4.0);
+    EXPECT_DOUBLE_EQ((*Z)(1, 2, 2), 3.0);
+}
+
+TEST_P(GridKronTest, NdgridFourArgsThrows)
+{
+    EXPECT_THROW(eval("[A, B, C, D] = ndgrid(1:2, 1:2, 1:2, 1:2);"),
+                 std::exception);
+}
+
+TEST_P(GridKronTest, NdgridSingleArgThrows)
+{
+    EXPECT_THROW(eval("X = ndgrid(1:5);"), std::exception);
+}
+
+// ── kron ────────────────────────────────────────────────────────
+
+TEST_P(GridKronTest, KronOnesShape)
+{
+    eval("K = kron(ones(2, 3), ones(4, 5));");
+    auto *K = getVarPtr("K");
+    EXPECT_EQ(rows(*K), 8u);
+    EXPECT_EQ(cols(*K), 15u);
+    for (size_t i = 0; i < K->numel(); ++i)
+        EXPECT_DOUBLE_EQ(K->doubleData()[i], 1.0);
+}
+
+TEST_P(GridKronTest, KronIdentityWithMatrix)
+{
+    // kron(eye(2), B) places B on the diagonal blocks, zeros off-diagonal.
+    eval("B = [10 20; 30 40];"
+         "K = kron(eye(2), B);");
+    auto *K = getVarPtr("K");
+    EXPECT_EQ(rows(*K), 4u);
+    EXPECT_EQ(cols(*K), 4u);
+    // Block (0,0) = B; block (1,1) = B; block (0,1) = (1,0) = 0.
+    EXPECT_DOUBLE_EQ((*K)(0, 0), 10.0); EXPECT_DOUBLE_EQ((*K)(0, 1), 20.0);
+    EXPECT_DOUBLE_EQ((*K)(1, 0), 30.0); EXPECT_DOUBLE_EQ((*K)(1, 1), 40.0);
+    EXPECT_DOUBLE_EQ((*K)(2, 2), 10.0); EXPECT_DOUBLE_EQ((*K)(2, 3), 20.0);
+    EXPECT_DOUBLE_EQ((*K)(3, 2), 30.0); EXPECT_DOUBLE_EQ((*K)(3, 3), 40.0);
+    // Off-diagonal blocks zero.
+    EXPECT_DOUBLE_EQ((*K)(0, 2), 0.0);
+    EXPECT_DOUBLE_EQ((*K)(2, 0), 0.0);
+}
+
+TEST_P(GridKronTest, KronVectorVector)
+{
+    // kron([1 2 3], [10 20]) = [10 20 20 40 30 60].
+    eval("K = kron([1 2 3], [10 20]);");
+    auto *K = getVarPtr("K");
+    EXPECT_EQ(rows(*K), 1u);
+    EXPECT_EQ(cols(*K), 6u);
+    const double expected[] = {10, 20, 20, 40, 30, 60};
+    for (size_t i = 0; i < 6; ++i)
+        EXPECT_DOUBLE_EQ(K->doubleData()[i], expected[i]);
+}
+
+TEST_P(GridKronTest, KronKnownSmallExample)
+{
+    // [1 2; 3 4] ⊗ [0 1; 1 0] =
+    //   [1*0 1*1 2*0 2*1;
+    //    1*1 1*0 2*1 2*0;
+    //    3*0 3*1 4*0 4*1;
+    //    3*1 3*0 4*1 4*0]
+    // = [0 1 0 2;
+    //    1 0 2 0;
+    //    0 3 0 4;
+    //    3 0 4 0]
+    eval("K = kron([1 2; 3 4], [0 1; 1 0]);");
+    auto *K = getVarPtr("K");
+    EXPECT_EQ(rows(*K), 4u);
+    EXPECT_EQ(cols(*K), 4u);
+    const double expected[4][4] = {
+        {0, 1, 0, 2},
+        {1, 0, 2, 0},
+        {0, 3, 0, 4},
+        {3, 0, 4, 0},
+    };
+    for (size_t r = 0; r < 4; ++r)
+        for (size_t c = 0; c < 4; ++c)
+            EXPECT_DOUBLE_EQ((*K)(r, c), expected[r][c])
+                << "at (" << r << "," << c << ")";
+}
+
+TEST_P(GridKronTest, KronEmptyAGivesEmpty)
+{
+    eval("K = kron(zeros(0, 0), [1 2; 3 4]);");
+    auto *K = getVarPtr("K");
+    EXPECT_EQ(K->numel(), 0u);
+}
+
+TEST_P(GridKronTest, KronComplexThrows)
+{
+    EXPECT_THROW(eval("K = kron([1 2], [3+4i, 5]);"), std::exception);
+}
+
+TEST_P(GridKronTest, Kron3DInputThrows)
+{
+    eval("A = zeros(2, 2, 2);");
+    EXPECT_THROW(eval("K = kron(A, [1 2; 3 4]);"), std::exception);
+}
+
+INSTANTIATE_DUAL(GridKronTest);
+

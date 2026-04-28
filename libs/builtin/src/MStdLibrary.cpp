@@ -252,6 +252,8 @@ void nonzeros_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void horzcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void vertcat_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void meshgrid_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void ndgrid_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void kron_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumsum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumprod_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cummax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -411,6 +413,8 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("horzcat",   &builtin::detail::horzcat_reg);
     engine.registerFunction("vertcat",   &builtin::detail::vertcat_reg);
     engine.registerFunction("meshgrid",  &builtin::detail::meshgrid_reg);
+    engine.registerFunction("ndgrid",    &builtin::detail::ndgrid_reg);
+    engine.registerFunction("kron",      &builtin::detail::kron_reg);
     engine.registerFunction("cumsum",    &builtin::detail::cumsum_reg);
     engine.registerFunction("cumprod",   &builtin::detail::cumprod_reg);
     engine.registerFunction("cummax",    &builtin::detail::cummax_reg);
