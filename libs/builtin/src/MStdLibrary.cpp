@@ -58,6 +58,7 @@ void nchoosek_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void gradient_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumtrapz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fzero_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void integral_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void roots_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void polyder_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void polyint_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -340,6 +341,7 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("gradient",  &builtin::detail::gradient_reg);
     engine.registerFunction("cumtrapz",  &builtin::detail::cumtrapz_reg);
     engine.registerFunction("fzero",     &builtin::detail::fzero_reg);
+    engine.registerFunction("integral",  &builtin::detail::integral_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);
     engine.registerFunction("polyint",   &builtin::detail::polyint_reg);

@@ -265,4 +265,72 @@ TEST_P(CalculusTest, FzeroNonHandleThrows)
     EXPECT_THROW(eval("r = fzero('not a handle', 1);"), std::exception);
 }
 
+// ── integral ───────────────────────────────────────────────────
+
+TEST_P(CalculusTest, IntegralPolynomial)
+{
+    FZERO_REQUIRE_TW();  // anonymous handle → TW only
+    // ∫_0^1 x^2 dx = 1/3.
+    eval("r = integral(@(x) x.^2, 0, 1);");
+    EXPECT_NEAR(evalScalar("r;"), 1.0 / 3.0, 1e-10);
+}
+
+TEST_P(CalculusTest, IntegralSinPi)
+{
+    FZERO_REQUIRE_TW();
+    eval("r = integral(@(x) sin(x), 0, pi);");
+    EXPECT_NEAR(evalScalar("r;"), 2.0, 1e-10);
+}
+
+TEST_P(CalculusTest, IntegralBuiltinHandleCos)
+{
+    // @cos works on both backends.
+    eval("r = integral(@cos, 0, pi/2);");
+    EXPECT_NEAR(evalScalar("r;"), 1.0, 1e-10);
+}
+
+TEST_P(CalculusTest, IntegralBoundsReversed)
+{
+    FZERO_REQUIRE_TW();
+    // ∫_1^0 x dx = -1/2.
+    eval("r = integral(@(x) x, 1, 0);");
+    EXPECT_NEAR(evalScalar("r;"), -0.5, 1e-12);
+}
+
+TEST_P(CalculusTest, IntegralEqualBoundsZero)
+{
+    eval("r = integral(@cos, 1, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("r;"), 0.0);
+}
+
+TEST_P(CalculusTest, IntegralCustomTolerance)
+{
+    FZERO_REQUIRE_TW();
+    // Use a loose tolerance — should still be near-exact for smooth integrand.
+    eval("r = integral(@(x) exp(-x.^2), -3, 3, 'AbsTol', 1e-6);");
+    // Reference: 2 * sqrt(pi) * erf(3) ≈ 1.7724528...
+    EXPECT_NEAR(evalScalar("r;"), 1.77241469951526, 1e-5);
+}
+
+TEST_P(CalculusTest, IntegralBadBoundsThrows)
+{
+    EXPECT_THROW(eval("r = integral(@cos, NaN, 1);"), std::exception);
+    EXPECT_THROW(eval("r = integral(@cos, 0, Inf);"), std::exception);
+}
+
+TEST_P(CalculusTest, IntegralBadTolThrows)
+{
+    EXPECT_THROW(eval("r = integral(@cos, 0, 1, 'AbsTol', -1e-6);"), std::exception);
+}
+
+TEST_P(CalculusTest, IntegralUnknownFlagThrows)
+{
+    EXPECT_THROW(eval("r = integral(@cos, 0, 1, 'NoSuchFlag', 1);"), std::exception);
+}
+
+TEST_P(CalculusTest, IntegralNonHandleThrows)
+{
+    EXPECT_THROW(eval("r = integral('not a handle', 0, 1);"), std::exception);
+}
+
 INSTANTIATE_DUAL(CalculusTest);

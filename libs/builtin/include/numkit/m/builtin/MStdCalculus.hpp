@@ -43,4 +43,12 @@ MValue cumtrapz(Allocator &alloc, const MValue &x, const MValue &y);
 MValue fzero(Allocator &alloc, const MValue &fn, const MValue &x0OrInterval,
              Engine *engine);
 
+/// integral(fn, a, b[, absTol]) — definite integral via adaptive
+/// Gauss-Kronrod quadrature (15-point Kronrod with embedded 7-point
+/// Gauss). Recurses on subintervals where the absolute difference
+/// between G and K exceeds absTol. Default absTol = 1e-10.
+/// Up to ~16 subdivision levels per branch.
+MValue integral(Allocator &alloc, const MValue &fn, double a, double b,
+                double absTol, Engine *engine);
+
 } // namespace numkit::m::builtin

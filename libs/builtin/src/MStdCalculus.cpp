@@ -347,6 +347,115 @@ MValue fzero(Allocator &alloc, const MValue &fn, const MValue &x0OrInterval,
     return MValue::scalar(brent(engine, fn, a, b), &alloc);
 }
 
+// ── integral (adaptive Gauss-Kronrod) ────────────────────────────────
+namespace {
+
+// 15-point Gauss-Kronrod nodes (symmetric about 0) and weights.
+// Source: Davis & Rabinowitz, "Methods of Numerical Integration".
+// xk[15], wk[15] for Kronrod; wg[7] for embedded Gauss on positive
+// half (mirror for negative side automatically).
+constexpr double kKronrodX[15] = {
+    -0.991455371120813,
+    -0.949107912342759,
+    -0.864864423359769,
+    -0.741531185599394,
+    -0.586087235467691,
+    -0.405845151377397,
+    -0.207784955007898,
+     0.0,
+     0.207784955007898,
+     0.405845151377397,
+     0.586087235467691,
+     0.741531185599394,
+     0.864864423359769,
+     0.949107912342759,
+     0.991455371120813,
+};
+constexpr double kKronrodW[15] = {
+    0.022935322010529,
+    0.063092092629979,
+    0.104790010322250,
+    0.140653259715525,
+    0.169004726639267,
+    0.190350578064785,
+    0.204432940075298,
+    0.209482141084728,
+    0.204432940075298,
+    0.190350578064785,
+    0.169004726639267,
+    0.140653259715525,
+    0.104790010322250,
+    0.063092092629979,
+    0.022935322010529,
+};
+// Gauss weights at the 7 Kronrod nodes that coincide with Gauss nodes
+// (indices 1, 3, 5, 7, 9, 11, 13 in the Kronrod array).
+constexpr double kGaussW[7] = {
+    0.129484966168870,
+    0.279705391489277,
+    0.381830050505119,
+    0.417959183673469,
+    0.381830050505119,
+    0.279705391489277,
+    0.129484966168870,
+};
+
+// One Gauss-Kronrod step on [a, b]; returns (kronrod, gauss).
+std::pair<double, double>
+gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
+{
+    const double half  = 0.5 * (b - a);
+    const double mid   = 0.5 * (b + a);
+    double K = 0.0, G = 0.0;
+    for (int i = 0; i < 15; ++i) {
+        const double x  = mid + half * kKronrodX[i];
+        const double fv = evalCallback(engine, fn, x);
+        K += kKronrodW[i] * fv;
+        if (i % 2 == 1)
+            G += kGaussW[i / 2] * fv;
+    }
+    return {half * K, half * G};
+}
+
+// Recursive subdivision; depth-bounded to avoid pathological infinite
+// recursion on a discontinuity inside [a, b].
+double adaptiveIntegral(Engine *engine, const MValue &fn, double a, double b,
+                        double absTol, int depth, int maxDepth)
+{
+    auto [K, G] = gaussKronrod15(engine, fn, a, b);
+    const double err = std::abs(K - G);
+    if (err < absTol || depth >= maxDepth) return K;
+    const double mid = 0.5 * (a + b);
+    return adaptiveIntegral(engine, fn, a, mid, absTol * 0.5, depth + 1, maxDepth)
+         + adaptiveIntegral(engine, fn, mid, b, absTol * 0.5, depth + 1, maxDepth);
+}
+
+} // namespace
+
+MValue integral(Allocator &alloc, const MValue &fn, double a, double b,
+                double absTol, Engine *engine)
+{
+    if (engine == nullptr)
+        throw MError("integral: requires an Engine pointer (callback API)",
+                     0, 0, "integral", "", "m:integral:noEngine");
+    if (!fn.isFuncHandle()
+        && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
+        throw MError("integral: 1st argument must be a function handle",
+                     0, 0, "integral", "", "m:integral:fnType");
+    if (!std::isfinite(a) || !std::isfinite(b))
+        throw MError("integral: bounds must be finite",
+                     0, 0, "integral", "", "m:integral:badBounds");
+    if (absTol <= 0)
+        throw MError("integral: absTol must be positive",
+                     0, 0, "integral", "", "m:integral:badTol");
+    const double sign = (b < a) ? -1.0 : 1.0;
+    if (b < a) std::swap(a, b);
+    if (a == b) return MValue::scalar(0.0, &alloc);
+    constexpr int kMaxDepth = 20;
+    const double r = adaptiveIntegral(engine, fn, a, b, absTol, 0, kMaxDepth);
+    return MValue::scalar(sign * r, &alloc);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -391,6 +500,31 @@ void fzero_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
         throw MError("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
     outs[0] = fzero(ctx.engine->allocator(), args[0], args[1], ctx.engine);
+}
+
+void integral_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("integral: requires at least 3 arguments (fn, a, b)",
+                     0, 0, "integral", "", "m:integral:nargin");
+    const double a = args[1].toScalar();
+    const double b = args[2].toScalar();
+    double absTol = 1e-10;
+    // Optional name-value 'AbsTol', tol.
+    for (size_t i = 3; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw MError("integral: expected option name (string)",
+                         0, 0, "integral", "", "m:integral:badFlag");
+        std::string key = args[i].toString();
+        for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        if (key == "abstol") {
+            absTol = args[i + 1].toScalar();
+        } else {
+            throw MError("integral: unsupported option '" + key + "'",
+                         0, 0, "integral", "", "m:integral:badFlag");
+        }
+    }
+    outs[0] = integral(ctx.engine->allocator(), args[0], a, b, absTol, ctx.engine);
 }
 
 } // namespace detail
