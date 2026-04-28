@@ -236,3 +236,79 @@ TEST_F(SignalCoreTest, FftshiftComplex)
     EXPECT_TRUE(r.isComplex());
     EXPECT_EQ(r.numel(), 4u);
 }
+
+// ============================================================
+// chirp
+// ============================================================
+
+TEST_F(SignalCoreTest, ChirpLinearAtT0EqualsCos0)
+{
+    // At t=0, regardless of f0/f1/t1, phase=0 ⇒ y[0] = cos(0) = 1.
+    eval("t = 0:0.001:0.5;"
+         "y = chirp(t, 0, 0.5, 50);");  // default 'linear'
+    EXPECT_DOUBLE_EQ(evalScalar("y(1)"), 1.0);
+}
+
+TEST_F(SignalCoreTest, ChirpLinearShape)
+{
+    eval("t = linspace(0, 1, 100);"
+         "y = chirp(t, 0, 1, 10);");
+    auto y = eval("y");
+    EXPECT_EQ(y.numel(), 100u);
+    EXPECT_EQ(y.dims().rows(), 1u);
+    EXPECT_EQ(y.dims().cols(), 100u);
+}
+
+TEST_F(SignalCoreTest, ChirpLinearMidpointPhase)
+{
+    // Linear chirp: phase(t) = 2π·(f0·t + 0.5·k·t²), k=(f1-f0)/t1.
+    // f0=10, f1=30, t1=1, t=0.5: k=20, phase = 2π·(10·0.5 + 0.5·20·0.25)
+    //   = 2π·(5 + 2.5) = 2π·7.5 = 15π ⇒ cos = cos(15π) = cos(π) = -1.
+    eval("y = chirp(0.5, 10, 1, 30);");
+    EXPECT_NEAR(evalScalar("y"), -1.0, 1e-12);
+}
+
+TEST_F(SignalCoreTest, ChirpQuadratic)
+{
+    // Quadratic: phase(t) = 2π·(f0·t + (k/3)·t³), k=(f1-f0)/t1²
+    // f0=2, f1=8, t1=1 ⇒ k=6. At t=1: phase = 2π·(2 + 2) = 8π ⇒ cos=1.
+    eval("y = chirp(1, 2, 1, 8, 'quadratic');");
+    EXPECT_NEAR(evalScalar("y"), 1.0, 1e-12);
+}
+
+TEST_F(SignalCoreTest, ChirpLogarithmic)
+{
+    // Logarithmic: phase(t) = 2π·f0·((β^t - 1)/log(β)), β=(f1/f0)^(1/t1).
+    // At t=0: phase=0 ⇒ y=1.
+    eval("y = chirp(0, 1, 1, 100, 'logarithmic');");
+    EXPECT_NEAR(evalScalar("y"), 1.0, 1e-12);
+}
+
+TEST_F(SignalCoreTest, ChirpLogarithmicNonNegativeFreqsRequired)
+{
+    // f0=0 not allowed for logarithmic.
+    EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, 1, 100, 'logarithmic');"),
+                 std::exception);
+}
+
+TEST_F(SignalCoreTest, ChirpPreservesShape)
+{
+    // Column vector input → column vector output.
+    eval("t = (0:0.1:0.5)';"
+         "y = chirp(t, 0, 0.5, 10);");
+    auto y = eval("y");
+    EXPECT_EQ(y.dims().rows(), 6u);
+    EXPECT_EQ(y.dims().cols(), 1u);
+}
+
+TEST_F(SignalCoreTest, ChirpInvalidMethodThrows)
+{
+    EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, 1, 10, 'noSuchMethod');"),
+                 std::exception);
+}
+
+TEST_F(SignalCoreTest, ChirpBadT1Throws)
+{
+    EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, 0, 10);"), std::exception);
+    EXPECT_THROW(eval("y = chirp([0 0.5 1], 0, -1, 10);"), std::exception);
+}

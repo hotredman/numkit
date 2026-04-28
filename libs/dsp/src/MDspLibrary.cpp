@@ -35,6 +35,7 @@ void envelope_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 void nextpow2_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void fftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void ifftshift_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void chirp_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 
 // Phase 9 — DSP gaps (libs/dsp/src/MDspGaps.cpp)
 void medfilt1_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
@@ -84,6 +85,7 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("nextpow2",    &dsp::detail::nextpow2_reg);
     engine.registerFunction("fftshift",    &dsp::detail::fftshift_reg);
     engine.registerFunction("ifftshift",   &dsp::detail::ifftshift_reg);
+    engine.registerFunction("chirp",       &dsp::detail::chirp_reg);
 
     // ── Phase 9 DSP gaps ──────────────────────────────────────────
     engine.registerFunction("medfilt1",  &dsp::detail::medfilt1_reg);
