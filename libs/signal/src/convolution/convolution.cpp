@@ -4,21 +4,21 @@
 // contracts. Algorithms unchanged from the previous lambda form — only
 // moved into named free functions that take Allocator& explicitly.
 
-#include <numkit/m/signal/convolution/convolution.hpp>
+#include <numkit/signal/convolution/convolution.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MDspHelpers.hpp"
+#include "../dsp_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 // ── conv ──────────────────────────────────────────────────────────────
-MValue conv(Allocator &alloc, const MValue &a, const MValue &b, const std::string &shape)
+Value conv(Allocator &alloc, const Value &a, const Value &b, const std::string &shape)
 {
     const size_t na = a.numel(), nb = b.numel();
 
@@ -37,23 +37,23 @@ MValue conv(Allocator &alloc, const MValue &a, const MValue &b, const std::strin
         outLen = (na >= nb) ? na - nb + 1 : nb - na + 1;
         outStart = std::min(na, nb) - 1;
     } else if (shape != "full") {
-        throw MError("conv: shape must be 'full', 'same', or 'valid'",
+        throw Error("conv: shape must be 'full', 'same', or 'valid'",
                      0, 0, "conv", "", "m:conv:badShape");
     }
 
-    auto r = MValue::matrix(1, outLen, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, outLen, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = c[outStart + i];
     return r;
 }
 
 // ── deconv ────────────────────────────────────────────────────────────
-std::tuple<MValue, MValue>
-deconv(Allocator &alloc, const MValue &b, const MValue &a)
+std::tuple<Value, Value>
+deconv(Allocator &alloc, const Value &b, const Value &a)
 {
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb)
-        throw MError("deconv: denominator longer than numerator",
+        throw Error("deconv: denominator longer than numerator",
                      0, 0, "deconv", "", "m:deconv:denomTooLong");
 
     std::vector<double> rem(b.doubleData(), b.doubleData() + nb);
@@ -64,7 +64,7 @@ deconv(Allocator &alloc, const MValue &b, const MValue &a)
 
     const double a0 = ad[0];
     if (a0 == 0.0)
-        throw MError("deconv: leading coefficient is zero",
+        throw Error("deconv: leading coefficient is zero",
                      0, 0, "deconv", "", "m:deconv:zeroLead");
 
     for (size_t i = 0; i < nq; ++i) {
@@ -73,11 +73,11 @@ deconv(Allocator &alloc, const MValue &b, const MValue &a)
             rem[i + j] -= q[i] * ad[j];
     }
 
-    auto qv = MValue::matrix(1, nq, MType::DOUBLE, &alloc);
+    auto qv = Value::matrix(1, nq, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nq; ++i)
         qv.doubleDataMut()[i] = q[i];
 
-    auto rv = MValue::matrix(1, nb, MType::DOUBLE, &alloc);
+    auto rv = Value::matrix(1, nb, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nb; ++i)
         rv.doubleDataMut()[i] = rem[i];
 
@@ -85,8 +85,8 @@ deconv(Allocator &alloc, const MValue &b, const MValue &a)
 }
 
 // ── xcorr ─────────────────────────────────────────────────────────────
-std::tuple<MValue, MValue>
-xcorr(Allocator &alloc, const MValue &x, const MValue &y)
+std::tuple<Value, Value>
+xcorr(Allocator &alloc, const Value &x, const Value &y)
 {
     const double *xd = x.doubleData();
     const size_t nx = x.numel();
@@ -106,12 +106,12 @@ xcorr(Allocator &alloc, const MValue &x, const MValue &y)
     else
         c = convDirect(xd, nx, yRev.data(), ny);
 
-    auto r = MValue::matrix(1, nc, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, nc, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nc; ++i)
         r.doubleDataMut()[i] = c[i];
 
     const int maxLag = static_cast<int>(maxLen) - 1;
-    auto lags = MValue::matrix(1, nc, MType::DOUBLE, &alloc);
+    auto lags = Value::matrix(1, nc, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nc; ++i)
         lags.doubleDataMut()[i] = static_cast<double>(static_cast<int>(i) - maxLag);
 
@@ -121,10 +121,10 @@ xcorr(Allocator &alloc, const MValue &x, const MValue &y)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void conv_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("conv: requires at least 2 arguments",
+        throw Error("conv: requires at least 2 arguments",
                      0, 0, "conv", "", "m:conv:nargin");
 
     std::string shape = "full";
@@ -134,10 +134,10 @@ void conv_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
     outs[0] = conv(ctx.engine->allocator(), args[0], args[1], shape);
 }
 
-void deconv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("deconv: requires 2 arguments",
+        throw Error("deconv: requires 2 arguments",
                      0, 0, "deconv", "", "m:deconv:nargin");
 
     auto [q, r] = deconv(ctx.engine->allocator(), args[0], args[1]);
@@ -146,10 +146,10 @@ void deconv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
         outs[1] = std::move(r);
 }
 
-void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("xcorr: requires at least 1 argument",
+        throw Error("xcorr: requires at least 1 argument",
                      0, 0, "xcorr", "", "m:xcorr:nargin");
 
     // Autocorrelation when called with a single arg, or when second
@@ -157,7 +157,7 @@ void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
     // but currently ignored — scaling mode not implemented).
     const bool autoCorr = (args.size() < 2 || args[1].isChar());
 
-    std::tuple<MValue, MValue> result = autoCorr
+    std::tuple<Value, Value> result = autoCorr
         ? xcorr(ctx.engine->allocator(), args[0])
         : xcorr(ctx.engine->allocator(), args[0], args[1]);
 
@@ -168,4 +168,4 @@ void xcorr_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

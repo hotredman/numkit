@@ -7,12 +7,12 @@
 // functions with an explicit Allocator parameter vs an engine-registered
 // lambda that reached into CallContext).
 
-#include <numkit/m/signal/transforms/fft.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MDspHelpers.hpp"
+#include "../dsp_helpers.hpp"
 #include "backends/FftKernels.hpp"
 
 // Highway intrinsics for the SIMD twist loop in the rfft path. Only
@@ -30,7 +30,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -123,7 +123,7 @@ inline std::vector<Complex> &threadFftBuf()
 //     resolved to a concrete axis before this is called).
 //   - axisLen == 1 with requested outLen > 1 throws (extending
 //     dimensionality isn't supported yet).
-static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Allocator *alloc)
+static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, Allocator *alloc)
 {
     const auto &d = x.dims();
     const size_t R = d.rows();
@@ -144,7 +144,7 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     // 2-D input with N>1) would require producing a higher-rank output;
     // it's a valid MATLAB shape but falls outside the current scope.
     if (axisLen <= 1 && outAxisLen > 1)
-        throw MError("fft: extending dimension beyond ndims is not supported "
+        throw Error("fft: extending dimension beyond ndims is not supported "
                      "when the axis length is 1",
                      0, 0, "fft", "", "m:fft:extendDim");
 
@@ -162,8 +162,8 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     const bool outIs3D = d.is3D();
 
     auto result = outIs3D
-        ? MValue::matrix3d(outR, outC, outP, MType::COMPLEX, alloc)
-        : MValue::complexMatrix(outR, outC, alloc);
+        ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, alloc)
+        : Value::complexMatrix(outR, outC, alloc);
     Complex *dst = result.complexDataMut();
 
     const bool srcIsComplex = x.isComplex();
@@ -226,7 +226,7 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
     // * WASM (SIMD128): pack into AoS buf (memcpy when srcStride==1),
     //   call AoS FFT, twist from AoS. SoA paths regress on this ISA
     //   because LoadInterleaved2 is cheap on 128-bit lanes — see
-    //   MDspFft_simd.cpp threshold comments.
+    //   fft_simd.cpp threshold comments.
 #if !defined(__EMSCRIPTEN__) && defined(NUMKIT_WITH_SIMD)
     const std::size_t halfLen = fftLen / 2;
     if (rfftEligible) {
@@ -479,8 +479,8 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
                 allReal = false;
         if (allReal) {
             auto realOut = outIs3D
-                ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc)
-                : MValue::matrix(outR, outC, MType::DOUBLE, alloc);
+                ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc)
+                : Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
             for (size_t i = 0; i < realOut.numel(); ++i)
                 realOut.doubleDataMut()[i] = result.complexData()[i].real();
             return realOut;
@@ -495,7 +495,7 @@ static MValue fftAlongDim(const MValue &x, size_t N_req, int dim, int dir, Alloc
 // Resolve dim=0 ("auto") to the first non-singleton axis, matching
 // MATLAB's default for fft/ifft. Returns 1 for a pure scalar input —
 // the resulting length-1 FFT is identity, so this is harmless.
-static int resolveDefaultDim(const MValue &x)
+static int resolveDefaultDim(const Value &x)
 {
     const auto &d = x.dims();
     if (d.rows() > 1) return 1;
@@ -504,10 +504,10 @@ static int resolveDefaultDim(const MValue &x)
     return 1;
 }
 
-MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
+Value fft(Allocator &alloc, const Value &x, int n, int dim)
 {
     if (dim < 0 || dim > 3)
-        throw MError("fft: dim must be 0 (auto), 1, 2, or 3",
+        throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
                      0, 0, "fft", "", "m:fft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(x);
 
@@ -515,10 +515,10 @@ MValue fft(Allocator &alloc, const MValue &x, int n, int dim)
     return fftAlongDim(x, N, dim, /*dir=*/1, &alloc);
 }
 
-MValue ifft(Allocator &alloc, const MValue &X, int n, int dim)
+Value ifft(Allocator &alloc, const Value &X, int n, int dim)
 {
     if (dim < 0 || dim > 3)
-        throw MError("ifft: dim must be 0 (auto), 1, 2, or 3",
+        throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
                      0, 0, "ifft", "", "m:ifft:invalidDim");
     if (dim == 0) dim = resolveDefaultDim(X);
 
@@ -528,17 +528,17 @@ MValue ifft(Allocator &alloc, const MValue &X, int n, int dim)
 
 // ── Engine adapters ────────────────────────────────────────────────────
 //
-// Marshal MATLAB calling convention (variable nargin, MValue args)
+// Marshal MATLAB calling convention (variable nargin, Value args)
 // onto the explicit-alloc public API above. Throws from the public API
 // propagate up — TreeWalker / VM catch blocks attach source location via
-// MError::attachIfMissing.
+// Error::attachIfMissing.
 
 namespace detail {
 
-void fft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("fft: requires at least 1 argument",
+        throw Error("fft: requires at least 1 argument",
                      0, 0, "fft", "", "m:fft:nargin");
 
     int n = -1;
@@ -551,10 +551,10 @@ void fft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
     outs[0] = fft(ctx.engine->allocator(), args[0], n, dim);
 }
 
-void ifft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("ifft: requires at least 1 argument",
+        throw Error("ifft: requires at least 1 argument",
                      0, 0, "ifft", "", "m:ifft:nargin");
 
     int n = -1;
@@ -569,4 +569,4 @@ void ifft_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

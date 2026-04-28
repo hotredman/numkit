@@ -6,12 +6,12 @@
 //   - integral             — adaptive Gauss-Kronrod definite integral
 // fzero lives in math/optim/fzero.cpp (uses the same callback helper).
 
-#include <numkit/m/builtin/math/integration/integration.hpp>
+#include <numkit/builtin/math/integration/integration.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 #include "../_callback_helpers.hpp"
 
 #include <algorithm>
@@ -20,9 +20,9 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-namespace cb = ::numkit::m::builtin::detail::callback;
+namespace cb = ::numkit::builtin::detail::callback;
 
 namespace {
 
@@ -74,10 +74,10 @@ void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, doubl
     (void)invH;
 }
 
-MValue toDoubleCopy(Allocator &alloc, const MValue &x)
+Value toDoubleCopy(Allocator &alloc, const Value &x)
 {
-    auto r = createLike(x, MType::DOUBLE, &alloc);
-    if (x.type() == MType::DOUBLE) {
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    if (x.type() == ValueType::DOUBLE) {
         std::memcpy(r.doubleDataMut(), x.doubleData(),
                     x.numel() * sizeof(double));
     } else {
@@ -90,17 +90,17 @@ MValue toDoubleCopy(Allocator &alloc, const MValue &x)
 
 } // namespace
 
-MValue gradient(Allocator &alloc, const MValue &f, double h)
+Value gradient(Allocator &alloc, const Value &f, double h)
 {
     if (h <= 0)
-        throw MError("gradient: spacing h must be positive",
+        throw Error("gradient: spacing h must be positive",
                      0, 0, "gradient", "", "m:gradient:badSpacing");
-    if (f.type() == MType::COMPLEX)
-        throw MError("gradient: complex inputs are not supported",
+    if (f.type() == ValueType::COMPLEX)
+        throw Error("gradient: complex inputs are not supported",
                      0, 0, "gradient", "", "m:gradient:complex");
 
     auto src = toDoubleCopy(alloc, f);
-    auto out = createLike(f, MType::DOUBLE, &alloc);
+    auto out = createLike(f, ValueType::DOUBLE, &alloc);
     const auto &d = f.dims();
 
     if (f.dims().isVector() || f.isScalar()) {
@@ -108,30 +108,30 @@ MValue gradient(Allocator &alloc, const MValue &f, double h)
         return out;
     }
     if (d.is3D() || d.ndim() > 2)
-        throw MError("gradient: only 1D vector and 2D matrix inputs are supported",
+        throw Error("gradient: only 1D vector and 2D matrix inputs are supported",
                      0, 0, "gradient", "", "m:gradient:rank");
     gradientAlongCols(src.doubleData(), out.doubleDataMut(),
                       d.rows(), d.cols(), h);
     return out;
 }
 
-std::tuple<MValue, MValue>
-gradient2(Allocator &alloc, const MValue &f, double hx, double hy)
+std::tuple<Value, Value>
+gradient2(Allocator &alloc, const Value &f, double hx, double hy)
 {
     if (hx <= 0 || hy <= 0)
-        throw MError("gradient: spacing arguments must be positive",
+        throw Error("gradient: spacing arguments must be positive",
                      0, 0, "gradient", "", "m:gradient:badSpacing");
-    if (f.type() == MType::COMPLEX)
-        throw MError("gradient: complex inputs are not supported",
+    if (f.type() == ValueType::COMPLEX)
+        throw Error("gradient: complex inputs are not supported",
                      0, 0, "gradient", "", "m:gradient:complex");
     const auto &d = f.dims();
     if (d.is3D() || d.ndim() > 2)
-        throw MError("gradient: 2-output form requires a 2D matrix input",
+        throw Error("gradient: 2-output form requires a 2D matrix input",
                      0, 0, "gradient", "", "m:gradient:rank");
 
     auto src = toDoubleCopy(alloc, f);
-    auto fx = createLike(f, MType::DOUBLE, &alloc);
-    auto fy = createLike(f, MType::DOUBLE, &alloc);
+    auto fx = createLike(f, ValueType::DOUBLE, &alloc);
+    auto fy = createLike(f, ValueType::DOUBLE, &alloc);
 
     if (f.dims().isVector() || f.isScalar()) {
         gradient1D(src.doubleData(), fx.doubleDataMut(), f.numel(), hx);
@@ -148,10 +148,10 @@ gradient2(Allocator &alloc, const MValue &f, double hx, double hy)
 // ── cumtrapz ─────────────────────────────────────────────────────────
 namespace {
 
-MValue cumtrapzVector(Allocator &alloc, const double *y, const double *x,
+Value cumtrapzVector(Allocator &alloc, const double *y, const double *x,
                       size_t n, const Dims &shape, bool unitSpacing)
 {
-    auto out = MValue::matrix(shape.rows(), shape.cols(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(shape.rows(), shape.cols(), ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     if (n == 0) return out;
     dst[0] = 0.0;
@@ -164,13 +164,13 @@ MValue cumtrapzVector(Allocator &alloc, const double *y, const double *x,
 
 } // namespace
 
-MValue cumtrapz(Allocator &alloc, const MValue &y)
+Value cumtrapz(Allocator &alloc, const Value &y)
 {
-    if (y.type() == MType::COMPLEX)
-        throw MError("cumtrapz: complex inputs are not supported",
+    if (y.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
     if (!y.dims().isVector() && !y.isScalar())
-        throw MError("cumtrapz: matrix inputs are not yet supported "
+        throw Error("cumtrapz: matrix inputs are not yet supported "
                      "(use vector input for now)",
                      0, 0, "cumtrapz", "", "m:cumtrapz:matrixUnsupported");
 
@@ -179,16 +179,16 @@ MValue cumtrapz(Allocator &alloc, const MValue &y)
                           y.dims(), /*unitSpacing=*/true);
 }
 
-MValue cumtrapz(Allocator &alloc, const MValue &x, const MValue &y)
+Value cumtrapz(Allocator &alloc, const Value &x, const Value &y)
 {
-    if (x.type() == MType::COMPLEX || y.type() == MType::COMPLEX)
-        throw MError("cumtrapz: complex inputs are not supported",
+    if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
+        throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
     if (!x.dims().isVector() || !y.dims().isVector())
-        throw MError("cumtrapz: matrix inputs are not yet supported",
+        throw Error("cumtrapz: matrix inputs are not yet supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:matrixUnsupported");
     if (x.numel() != y.numel())
-        throw MError("cumtrapz: x and y must have the same length",
+        throw Error("cumtrapz: x and y must have the same length",
                      0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
 
     auto xs = toDoubleCopy(alloc, x);
@@ -247,7 +247,7 @@ constexpr double kGaussW[7] = {
 };
 
 std::pair<double, double>
-gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
+gaussKronrod15(Engine *engine, const Value &fn, double a, double b)
 {
     const double half  = 0.5 * (b - a);
     const double mid   = 0.5 * (b + a);
@@ -262,7 +262,7 @@ gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
     return {half * K, half * G};
 }
 
-double adaptiveIntegral(Engine *engine, const MValue &fn, double a, double b,
+double adaptiveIntegral(Engine *engine, const Value &fn, double a, double b,
                         double absTol, int depth, int maxDepth)
 {
     auto [K, G] = gaussKronrod15(engine, fn, a, b);
@@ -275,37 +275,37 @@ double adaptiveIntegral(Engine *engine, const MValue &fn, double a, double b,
 
 } // namespace
 
-MValue integral(Allocator &alloc, const MValue &fn, double a, double b,
+Value integral(Allocator &alloc, const Value &fn, double a, double b,
                 double absTol, Engine *engine)
 {
     if (engine == nullptr)
-        throw MError("integral: requires an Engine pointer (callback API)",
+        throw Error("integral: requires an Engine pointer (callback API)",
                      0, 0, "integral", "", "m:integral:noEngine");
     if (!fn.isFuncHandle()
         && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
-        throw MError("integral: 1st argument must be a function handle",
+        throw Error("integral: 1st argument must be a function handle",
                      0, 0, "integral", "", "m:integral:fnType");
     if (!std::isfinite(a) || !std::isfinite(b))
-        throw MError("integral: bounds must be finite",
+        throw Error("integral: bounds must be finite",
                      0, 0, "integral", "", "m:integral:badBounds");
     if (absTol <= 0)
-        throw MError("integral: absTol must be positive",
+        throw Error("integral: absTol must be positive",
                      0, 0, "integral", "", "m:integral:badTol");
     const double sign = (b < a) ? -1.0 : 1.0;
     if (b < a) std::swap(a, b);
-    if (a == b) return MValue::scalar(0.0, &alloc);
+    if (a == b) return Value::scalar(0.0, &alloc);
     constexpr int kMaxDepth = 20;
     const double r = adaptiveIntegral(engine, fn, a, b, absTol, 0, kMaxDepth);
-    return MValue::scalar(sign * r, &alloc);
+    return Value::scalar(sign * r, &alloc);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
-void gradient_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("gradient: requires at least 1 argument",
+        throw Error("gradient: requires at least 1 argument",
                      0, 0, "gradient", "", "m:gradient:nargin");
     Allocator &alloc = ctx.engine->allocator();
 
@@ -323,10 +323,10 @@ void gradient_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
     outs[1] = std::move(fy);
 }
 
-void cumtrapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("cumtrapz: requires at least 1 argument",
+        throw Error("cumtrapz: requires at least 1 argument",
                      0, 0, "cumtrapz", "", "m:cumtrapz:nargin");
     Allocator &alloc = ctx.engine->allocator();
     if (args.size() == 1) {
@@ -336,34 +336,34 @@ void cumtrapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = cumtrapz(alloc, args[0], args[1]);
 }
 
-void integral_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("integral: requires at least 3 arguments (fn, a, b)",
+        throw Error("integral: requires at least 3 arguments (fn, a, b)",
                      0, 0, "integral", "", "m:integral:nargin");
     const double a = args[1].toScalar();
     const double b = args[2].toScalar();
     double absTol = 1e-10;
     for (size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
-            throw MError("integral: expected option name (string)",
+            throw Error("integral: expected option name (string)",
                          0, 0, "integral", "", "m:integral:badFlag");
         std::string key = args[i].toString();
         for (auto &c : key) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         if (key == "abstol") {
             absTol = args[i + 1].toScalar();
         } else {
-            throw MError("integral: unsupported option '" + key + "'",
+            throw Error("integral: unsupported option '" + key + "'",
                          0, 0, "integral", "", "m:integral:badFlag");
         }
     }
     outs[0] = integral(ctx.engine->allocator(), args[0], a, b, absTol, ctx.engine);
 }
 
-void trapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("trapz: requires at least 1 argument",
+        throw Error("trapz: requires at least 1 argument",
                      0, 0, "trapz", "", "m:trapz:nargin");
     if (args.size() == 1)
         outs[0] = trapz(ctx.engine->allocator(), args[0]);
@@ -377,21 +377,21 @@ void trapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 // trapz (moved from libs/fit) — uniform-spacing trapezoidal integration.
 // ════════════════════════════════════════════════════════════════════════
 
-MValue trapz(Allocator &alloc, const MValue &y)
+Value trapz(Allocator &alloc, const Value &y)
 {
     const double *yd = y.doubleData();
     const size_t n = y.numel();
     double s = 0.0;
     for (size_t i = 1; i < n; ++i)
         s += 0.5 * (yd[i - 1] + yd[i]);
-    return MValue::scalar(s, &alloc);
+    return Value::scalar(s, &alloc);
 }
 
-MValue trapz(Allocator &alloc, const MValue &x, const MValue &y)
+Value trapz(Allocator &alloc, const Value &x, const Value &y)
 {
     const size_t n = x.numel();
     if (y.numel() != n)
-        throw MError("trapz: x and y must have same length",
+        throw Error("trapz: x and y must have same length",
                      0, 0, "trapz", "", "m:trapz:lengthMismatch");
 
     const double *xd = x.doubleData();
@@ -399,7 +399,7 @@ MValue trapz(Allocator &alloc, const MValue &x, const MValue &y)
     double s = 0.0;
     for (size_t i = 1; i < n; ++i)
         s += 0.5 * (yd[i - 1] + yd[i]) * (xd[i] - xd[i - 1]);
-    return MValue::scalar(s, &alloc);
+    return Value::scalar(s, &alloc);
 }
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

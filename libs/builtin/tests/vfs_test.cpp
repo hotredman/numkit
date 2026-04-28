@@ -1,6 +1,6 @@
 // tests/stdlib/vfs_test.cpp — VirtualFS routing, setenv/getenv, script origin
 
-#include <numkit/m/core/MVfs.hpp>
+#include <numkit/core/vfs.hpp>
 #include "dual_engine_fixture.hpp"
 
 #include <map>
@@ -12,7 +12,7 @@ namespace {
 
 // In-memory FS for tests — mimics what the IDE's tempFS/localFS would expose
 // through CallbackFS in a real WASM build.
-class MemoryFS final : public numkit::m::VirtualFS
+class MemoryFS final : public numkit::VirtualFS
 {
 public:
     explicit MemoryFS(std::string n) : name_(std::move(n)) {}
@@ -60,8 +60,8 @@ public:
     void TearDown() override
     {
         // Clear any env vars this test might have set so they don't leak.
-        eval("setenv('NUMKIT_M_FS','');");
-        eval("setenv('NUMKIT_M_CWD','');");
+        eval("setenv('NUMKIT_FS','');");
+        eval("setenv('NUMKIT_CWD','');");
         DualEngineTest::TearDown();
     }
 };
@@ -86,11 +86,11 @@ TEST_P(VfsTest, SetenvWithSingleArgClearsValue)
     EXPECT_EQ(evalString("v = getenv('NUMKIT_M_TEST_VAR_2');"), "");
 }
 
-// ── NUMKIT_M_FS routing ────────────────────────────────────────
+// ── NUMKIT_FS routing ────────────────────────────────────────
 
 TEST_P(VfsTest, MlabFsRoutesCsvwriteToTemporary)
 {
-    eval("setenv('NUMKIT_M_FS', 'temporary');");
+    eval("setenv('NUMKIT_FS', 'temporary');");
     eval("csvwrite('data.csv', [1 2; 3 4]);");
 
     ASSERT_EQ(tempFs->files().size(), 1u);
@@ -102,7 +102,7 @@ TEST_P(VfsTest, MlabFsRoutesCsvwriteToTemporary)
 TEST_P(VfsTest, MlabFsRoutesCsvreadFromLocal)
 {
     localFs->files()["m.csv"] = "7,8\n9,10\n";
-    eval("setenv('NUMKIT_M_FS', 'local');");
+    eval("setenv('NUMKIT_FS', 'local');");
     eval("M = csvread('m.csv');");
 
     auto *M = getVarPtr("M");
@@ -120,7 +120,7 @@ TEST_P(VfsTest, ExplicitPrefixOverridesEnv)
     tempFs->files()["a.csv"] = "1\n";
     localFs->files()["a.csv"] = "999\n";
 
-    eval("setenv('NUMKIT_M_FS', 'temporary');");
+    eval("setenv('NUMKIT_FS', 'temporary');");
     // Explicit "local:" prefix: should hit localFs even though env says temporary.
     eval("M = csvread('local:a.csv');");
 
@@ -129,13 +129,13 @@ TEST_P(VfsTest, ExplicitPrefixOverridesEnv)
     expectElem2D(*M, 0, 0, 999.0);
 }
 
-// ── NUMKIT_M_CWD prefixes relative paths ───────────────────────
+// ── NUMKIT_CWD prefixes relative paths ───────────────────────
 
 TEST_P(VfsTest, MlabCwdJoinsRelativePaths)
 {
     tempFs->files()["/data/a.csv"] = "42\n";
-    eval("setenv('NUMKIT_M_FS', 'temporary');");
-    eval("setenv('NUMKIT_M_CWD', '/data');");
+    eval("setenv('NUMKIT_FS', 'temporary');");
+    eval("setenv('NUMKIT_CWD', '/data');");
     eval("M = csvread('a.csv');");
 
     auto *M = getVarPtr("M");
@@ -148,8 +148,8 @@ TEST_P(VfsTest, AbsolutePathIgnoresMlabCwd)
     tempFs->files()["/absolute/x.csv"] = "7\n";
     tempFs->files()["/data/absolute/x.csv"] = "999\n";
 
-    eval("setenv('NUMKIT_M_FS', 'temporary');");
-    eval("setenv('NUMKIT_M_CWD', '/data');");
+    eval("setenv('NUMKIT_FS', 'temporary');");
+    eval("setenv('NUMKIT_CWD', '/data');");
     eval("M = csvread('/absolute/x.csv');");
 
     auto *M = getVarPtr("M");
@@ -177,7 +177,7 @@ TEST_P(VfsTest, EnvOverridesScriptOrigin)
     localFs->files()["x.csv"] = "2\n";
 
     engine.pushScriptOrigin("temporary");
-    eval("setenv('NUMKIT_M_FS', 'local');");
+    eval("setenv('NUMKIT_FS', 'local');");
     eval("M = csvread('x.csv');");
     engine.popScriptOrigin();
 
@@ -190,7 +190,7 @@ TEST_P(VfsTest, EnvOverridesScriptOrigin)
 
 TEST_P(VfsTest, UnknownFsNameThrows)
 {
-    eval("setenv('NUMKIT_M_FS', 'no_such_fs');");
+    eval("setenv('NUMKIT_FS', 'no_such_fs');");
     EXPECT_THROW(eval("M = csvread('x.csv');"), std::exception);
 }
 

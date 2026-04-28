@@ -1,25 +1,25 @@
 // libs/builtin/tests/cellstruct_public_api_test.cpp
 //
-// Direct-call tests for numkit::m::builtin cell/struct functions.
+// Direct-call tests for numkit::builtin cell/struct functions.
 
-#include <numkit/m/builtin/datatypes/cell/cell.hpp>
-#include <numkit/m/builtin/datatypes/struct/struct.hpp>
+#include <numkit/builtin/datatypes/cell/cell.hpp>
+#include <numkit/builtin/datatypes/struct/struct.hpp>
 
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <gtest/gtest.h>
 
-using numkit::m::Allocator;
-using numkit::m::MError;
-using numkit::m::MType;
-using numkit::m::MValue;
-using numkit::m::Span;
+using numkit::Allocator;
+using numkit::Error;
+using numkit::ValueType;
+using numkit::Value;
+using numkit::Span;
 
 namespace {
 
-MValue mkStr(Allocator &alloc, const char *s) { return MValue::fromString(s, &alloc); }
+Value mkStr(Allocator &alloc, const char *s) { return Value::fromString(s, &alloc); }
 
 } // namespace
 
@@ -27,7 +27,7 @@ MValue mkStr(Allocator &alloc, const char *s) { return MValue::fromString(s, &al
 TEST(BuiltinCellStructPublicApi, EmptyStructure)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue s = numkit::m::builtin::structure(alloc);
+    Value s = numkit::builtin::structure(alloc);
     EXPECT_TRUE(s.isStruct());
     EXPECT_EQ(s.structFields().size(), 0u);
 }
@@ -35,12 +35,12 @@ TEST(BuiltinCellStructPublicApi, EmptyStructure)
 TEST(BuiltinCellStructPublicApi, StructureFromNameValuePairs)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {
-        mkStr(alloc, "x"), MValue::scalar(3.14, &alloc),
-        mkStr(alloc, "y"), MValue::scalar(42.0, &alloc),
+    Value pairs[] = {
+        mkStr(alloc, "x"), Value::scalar(3.14, &alloc),
+        mkStr(alloc, "y"), Value::scalar(42.0, &alloc),
     };
-    Span<const MValue> span(pairs, 4);
-    MValue s = numkit::m::builtin::structure(alloc, span);
+    Span<const Value> span(pairs, 4);
+    Value s = numkit::builtin::structure(alloc, span);
     ASSERT_TRUE(s.isStruct());
     EXPECT_TRUE(s.hasField("x"));
     EXPECT_TRUE(s.hasField("y"));
@@ -51,20 +51,20 @@ TEST(BuiltinCellStructPublicApi, StructureFromNameValuePairs)
 TEST(BuiltinCellStructPublicApi, StructureRejectsNonCharName)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {MValue::scalar(1.0, &alloc), MValue::scalar(2.0, &alloc)};
-    Span<const MValue> span(pairs, 2);
-    EXPECT_THROW(numkit::m::builtin::structure(alloc, span), MError);
+    Value pairs[] = {Value::scalar(1.0, &alloc), Value::scalar(2.0, &alloc)};
+    Span<const Value> span(pairs, 2);
+    EXPECT_THROW(numkit::builtin::structure(alloc, span), Error);
 }
 
 TEST(BuiltinCellStructPublicApi, StructureOddArgDropsTrailingName)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {
-        mkStr(alloc, "a"), MValue::scalar(1.0, &alloc),
+    Value pairs[] = {
+        mkStr(alloc, "a"), Value::scalar(1.0, &alloc),
         mkStr(alloc, "b"),  // no matching value
     };
-    Span<const MValue> span(pairs, 3);
-    MValue s = numkit::m::builtin::structure(alloc, span);
+    Span<const Value> span(pairs, 3);
+    Value s = numkit::builtin::structure(alloc, span);
     EXPECT_TRUE(s.hasField("a"));
     EXPECT_FALSE(s.hasField("b"));
 }
@@ -73,12 +73,12 @@ TEST(BuiltinCellStructPublicApi, StructureOddArgDropsTrailingName)
 TEST(BuiltinCellStructPublicApi, FieldnamesReturnsAllNames)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {
-        mkStr(alloc, "alpha"), MValue::scalar(1.0, &alloc),
-        mkStr(alloc, "beta"),  MValue::scalar(2.0, &alloc),
+    Value pairs[] = {
+        mkStr(alloc, "alpha"), Value::scalar(1.0, &alloc),
+        mkStr(alloc, "beta"),  Value::scalar(2.0, &alloc),
     };
-    MValue s = numkit::m::builtin::structure(alloc, Span<const MValue>(pairs, 4));
-    MValue names = numkit::m::builtin::fieldnames(alloc, s);
+    Value s = numkit::builtin::structure(alloc, Span<const Value>(pairs, 4));
+    Value names = numkit::builtin::fieldnames(alloc, s);
     ASSERT_EQ(names.numel(), 2u);
     // Insertion order preserved.
     EXPECT_EQ(names.cellAt(0).toString(), "alpha");
@@ -89,22 +89,22 @@ TEST(BuiltinCellStructPublicApi, FieldnamesThrowsOnNonStruct)
 {
     Allocator alloc = Allocator::defaultAllocator();
     EXPECT_THROW(
-        numkit::m::builtin::fieldnames(alloc, MValue::scalar(1.0, &alloc)), MError);
+        numkit::builtin::fieldnames(alloc, Value::scalar(1.0, &alloc)), Error);
 }
 
 TEST(BuiltinCellStructPublicApi, IsfieldPresent)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {mkStr(alloc, "x"), MValue::scalar(1.0, &alloc)};
-    MValue s = numkit::m::builtin::structure(alloc, Span<const MValue>(pairs, 2));
-    EXPECT_TRUE(numkit::m::builtin::isfield(alloc, s, mkStr(alloc, "x")).toBool());
-    EXPECT_FALSE(numkit::m::builtin::isfield(alloc, s, mkStr(alloc, "y")).toBool());
+    Value pairs[] = {mkStr(alloc, "x"), Value::scalar(1.0, &alloc)};
+    Value s = numkit::builtin::structure(alloc, Span<const Value>(pairs, 2));
+    EXPECT_TRUE(numkit::builtin::isfield(alloc, s, mkStr(alloc, "x")).toBool());
+    EXPECT_FALSE(numkit::builtin::isfield(alloc, s, mkStr(alloc, "y")).toBool());
 }
 
 TEST(BuiltinCellStructPublicApi, IsfieldOnNonStructReturnsFalse)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::isfield(alloc, MValue::scalar(1.0, &alloc),
+    Value r = numkit::builtin::isfield(alloc, Value::scalar(1.0, &alloc),
                                            mkStr(alloc, "x"));
     EXPECT_FALSE(r.toBool());
 }
@@ -112,12 +112,12 @@ TEST(BuiltinCellStructPublicApi, IsfieldOnNonStructReturnsFalse)
 TEST(BuiltinCellStructPublicApi, RmfieldRemovesExistingField)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue pairs[] = {
-        mkStr(alloc, "a"), MValue::scalar(1.0, &alloc),
-        mkStr(alloc, "b"), MValue::scalar(2.0, &alloc),
+    Value pairs[] = {
+        mkStr(alloc, "a"), Value::scalar(1.0, &alloc),
+        mkStr(alloc, "b"), Value::scalar(2.0, &alloc),
     };
-    MValue s = numkit::m::builtin::structure(alloc, Span<const MValue>(pairs, 4));
-    MValue r = numkit::m::builtin::rmfield(alloc, s, mkStr(alloc, "a"));
+    Value s = numkit::builtin::structure(alloc, Span<const Value>(pairs, 4));
+    Value r = numkit::builtin::rmfield(alloc, s, mkStr(alloc, "a"));
     EXPECT_FALSE(r.hasField("a"));
     EXPECT_TRUE(r.hasField("b"));
 }
@@ -125,8 +125,8 @@ TEST(BuiltinCellStructPublicApi, RmfieldRemovesExistingField)
 TEST(BuiltinCellStructPublicApi, RmfieldIgnoresMissingField)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue s = numkit::m::builtin::structure(alloc);
-    MValue r = numkit::m::builtin::rmfield(alloc, s, mkStr(alloc, "nope"));
+    Value s = numkit::builtin::structure(alloc);
+    Value r = numkit::builtin::rmfield(alloc, s, mkStr(alloc, "nope"));
     EXPECT_TRUE(r.isStruct());
     EXPECT_EQ(r.structFields().size(), 0u);
 }
@@ -135,7 +135,7 @@ TEST(BuiltinCellStructPublicApi, RmfieldIgnoresMissingField)
 TEST(BuiltinCellStructPublicApi, CellOneArgIsSquare)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue c = numkit::m::builtin::cell(alloc, 3);
+    Value c = numkit::builtin::cell(alloc, 3);
     EXPECT_EQ(c.dims().rows(), 3u);
     EXPECT_EQ(c.dims().cols(), 3u);
 }
@@ -143,7 +143,7 @@ TEST(BuiltinCellStructPublicApi, CellOneArgIsSquare)
 TEST(BuiltinCellStructPublicApi, CellTwoArgs)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue c = numkit::m::builtin::cell(alloc, 2, 5);
+    Value c = numkit::builtin::cell(alloc, 2, 5);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 5u);
 }
@@ -151,7 +151,7 @@ TEST(BuiltinCellStructPublicApi, CellTwoArgs)
 TEST(BuiltinCellStructPublicApi, CellThreeArgsIs3D)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue c = numkit::m::builtin::cell(alloc, 2, 3, 4);
+    Value c = numkit::builtin::cell(alloc, 2, 3, 4);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 3u);
     EXPECT_EQ(c.dims().pages(), 4u);
@@ -160,7 +160,7 @@ TEST(BuiltinCellStructPublicApi, CellThreeArgsIs3D)
 TEST(BuiltinCellStructPublicApi, CellThreeArgsPagesZeroIs2D)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue c = numkit::m::builtin::cell(alloc, 2, 3, 0);
+    Value c = numkit::builtin::cell(alloc, 2, 3, 0);
     EXPECT_EQ(c.dims().rows(), 2u);
     EXPECT_EQ(c.dims().cols(), 3u);
     EXPECT_FALSE(c.dims().is3D());

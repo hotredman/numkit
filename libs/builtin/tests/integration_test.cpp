@@ -5,15 +5,15 @@
 #include <string>
 #include <vector>
 
-using namespace numkit::m;
+using namespace numkit;
 using namespace m_test;
 
 class EngineAdvancedTest : public DualEngineTest
 {
 public:
-    double toDouble(const MValue &v) { return v.toScalar(); }
+    double toDouble(const Value &v) { return v.toScalar(); }
 
-    void expectNearElem2D(const MValue &val, size_t r, size_t c, double expected, double tol)
+    void expectNearElem2D(const Value &val, size_t r, size_t c, double expected, double tol)
     {
         EXPECT_NEAR(val(r, c), expected, tol) << "at (" << r << "," << c << ")";
     }
@@ -34,7 +34,7 @@ TEST_P(EngineAdvancedTest, RecursiveFactorial)
             end
         end
     )");
-    MValue result = eval("factorial_rec(10);");
+    Value result = eval("factorial_rec(10);");
     EXPECT_DOUBLE_EQ(toDouble(result), 3628800.0);
 }
 
@@ -122,7 +122,7 @@ TEST_P(EngineAdvancedTest, NestedForLoops)
             end
         end
     )");
-    MValue result = eval("result;");
+    Value result = eval("result;");
     expectElem2D(result, 0, 0, 11);
     expectElem2D(result, 0, 2, 13);
     expectElem2D(result, 2, 2, 33);
@@ -218,7 +218,7 @@ TEST_P(EngineAdvancedTest, MatrixMultiplication)
         B = [5 6; 7 8];
         C = A * B;
     )");
-    MValue C = eval("C;");
+    Value C = eval("C;");
     expectElem2D(C, 0, 0, 19); // 1*5+2*7
     expectElem2D(C, 0, 1, 22); // 1*6+2*8
     expectElem2D(C, 1, 0, 43); // 3*5+4*7
@@ -231,7 +231,7 @@ TEST_P(EngineAdvancedTest, MatrixTranspose)
         A = [1 2 3; 4 5 6];
         B = A';
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     EXPECT_EQ(rows(B), 3u);
     EXPECT_EQ(cols(B), 2u);
     expectElem2D(B, 0, 0, 1);
@@ -249,11 +249,11 @@ TEST_P(EngineAdvancedTest, ElementWiseOperations)
         D = A ./ B;
         E = A .^ 2;
     )");
-    MValue C = eval("C;");
+    Value C = eval("C;");
     expectElem2D(C, 0, 0, 7);
     expectElem2D(C, 1, 2, 72);
 
-    MValue E = eval("E;");
+    Value E = eval("E;");
     expectElem2D(E, 0, 0, 1);
     expectElem2D(E, 0, 1, 4);
     expectElem2D(E, 1, 2, 36);
@@ -267,13 +267,13 @@ TEST_P(EngineAdvancedTest, MatrixConcatenation)
         H = [A, B];
         V = [A; B];
     )");
-    MValue H = eval("H;");
+    Value H = eval("H;");
     EXPECT_EQ(rows(H), 2u);
     EXPECT_EQ(cols(H), 4u);
     expectElem2D(H, 0, 2, 5);
     expectElem2D(H, 1, 3, 8);
 
-    MValue V = eval("V;");
+    Value V = eval("V;");
     EXPECT_EQ(rows(V), 4u);
     EXPECT_EQ(cols(V), 2u);
     expectElem2D(V, 2, 0, 5);
@@ -286,7 +286,7 @@ TEST_P(EngineAdvancedTest, MatrixSlicing)
         A = [1 2 3 4; 5 6 7 8; 9 10 11 12];
         B = A(1:2, 2:3);
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     EXPECT_EQ(rows(B), 2u);
     EXPECT_EQ(cols(B), 2u);
     expectElem2D(B, 0, 0, 2);
@@ -311,7 +311,7 @@ TEST_P(EngineAdvancedTest, MatrixLogicalIndexing)
         A = [1 2 3 4 5 6 7 8 9 10];
         B = A(A > 5);
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     // Should be [6 7 8 9 10]
     EXPECT_EQ(B.numel(), 5u);
 }
@@ -322,7 +322,7 @@ TEST_P(EngineAdvancedTest, ColonAsFullIndex)
         A = [1 2 3; 4 5 6; 7 8 9];
         B = A(:, 2);
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     EXPECT_EQ(rows(B), 3u);
     EXPECT_EQ(cols(B), 1u);
     expectElem2D(B, 0, 0, 2);
@@ -336,7 +336,7 @@ TEST_P(EngineAdvancedTest, MatrixDeletion)
         A = [1 2 3 4 5];
         A(3) = [];
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     EXPECT_EQ(A.numel(), 4u);
 }
 
@@ -348,7 +348,7 @@ TEST_P(EngineAdvancedTest, DynamicMatrixGrowth)
             A = [A, i^2];
         end
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     EXPECT_EQ(A.numel(), 5u);
     expectElem(A, 0, 1);
     expectElem(A, 1, 4);
@@ -363,7 +363,7 @@ TEST_P(EngineAdvancedTest, MatrixAutoExpand)
         A = zeros(2, 2);
         A(5, 5) = 99;
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     EXPECT_EQ(rows(A), 5u);
     EXPECT_EQ(cols(A), 5u);
     expectElem2D(A, 4, 4, 99);
@@ -377,7 +377,7 @@ TEST_P(EngineAdvancedTest, MatrixAutoExpand)
 TEST_P(EngineAdvancedTest, ColonWithStep)
 {
     eval("x = 0:0.5:2;");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_EQ(x.numel(), 5u);
     expectElem(x, 0, 0.0);
     expectElem(x, 1, 0.5);
@@ -387,7 +387,7 @@ TEST_P(EngineAdvancedTest, ColonWithStep)
 TEST_P(EngineAdvancedTest, ColonDescending)
 {
     eval("x = 5:-1:1;");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_EQ(x.numel(), 5u);
     expectElem(x, 0, 5.0);
     expectElem(x, 4, 1.0);
@@ -396,7 +396,7 @@ TEST_P(EngineAdvancedTest, ColonDescending)
 TEST_P(EngineAdvancedTest, ColonEmptyRange)
 {
     eval("x = 5:1:1;");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_EQ(x.numel(), 0u);
 }
 
@@ -527,7 +527,7 @@ TEST_P(EngineAdvancedTest, FunctionHandle)
 TEST_P(EngineAdvancedTest, CellArrayCreation)
 {
     eval("c = {1, 'hello', [1 2 3]};");
-    MValue c = eval("c;");
+    Value c = eval("c;");
     EXPECT_TRUE(c.isCell());
 }
 
@@ -546,7 +546,7 @@ TEST_P(EngineAdvancedTest, CellArrayAssignment)
         c = {1, 2, 3};
         c{2} = 'updated';
     )");
-    MValue c = eval("c;");
+    Value c = eval("c;");
     EXPECT_TRUE(c.isCell());
 }
 
@@ -841,7 +841,7 @@ TEST_P(EngineAdvancedTest, BubbleSort)
         end
     )");
     eval("sorted = bubble_sort([5 3 8 1 9 2 7 4 6]);");
-    MValue sorted = eval("sorted;");
+    Value sorted = eval("sorted;");
     for (size_t i = 0; i < 9; ++i) {
         expectElem(sorted, i, static_cast<double>(i + 1));
     }
@@ -875,7 +875,7 @@ TEST_P(EngineAdvancedTest, MatrixPowerFibonacci)
         end
     )");
     eval("M = mat_power([1 1; 1 0], 10);");
-    MValue M = eval("M;");
+    Value M = eval("M;");
     // [[F(11), F(10)], [F(10), F(9)]]
     expectElem2D(M, 0, 0, 89); // F(11)
     expectElem2D(M, 0, 1, 55); // F(10)
@@ -918,7 +918,7 @@ TEST_P(EngineAdvancedTest, PrimesSieve)
         end
     )");
     eval("p = sieve(30);");
-    MValue p = eval("p;");
+    Value p = eval("p;");
     // Primes up to 30: 2,3,5,7,11,13,17,19,23,29
     EXPECT_EQ(p.numel(), 10u);
     expectElem(p, 0, 2);
@@ -950,7 +950,7 @@ TEST_P(EngineAdvancedTest, RunningAverage)
         end
     )");
     eval("a = running_avg([2 4 6 8 10]);");
-    MValue a = eval("a;");
+    Value a = eval("a;");
     expectElem(a, 0, 2.0);
     expectElem(a, 1, 3.0);
     expectElem(a, 2, 4.0);
@@ -989,7 +989,7 @@ TEST_P(EngineAdvancedTest, StringConcatenation)
         b = ' World';
         c = [a, b];
     )");
-    MValue c = eval("c;");
+    Value c = eval("c;");
     EXPECT_TRUE(c.isChar());
     EXPECT_EQ(c.toString(), "Hello World");
 }
@@ -1048,17 +1048,17 @@ TEST_P(EngineAdvancedTest, LogicalOperatorsOnMatrices)
         D = A | B;
         E = ~A;
     )");
-    MValue C = eval("C;");
+    Value C = eval("C;");
     expectElem2D(C, 0, 0, 1);
     expectElem2D(C, 0, 1, 0);
     expectElem2D(C, 0, 2, 0);
 
-    MValue D = eval("D;");
+    Value D = eval("D;");
     expectElem2D(D, 0, 0, 1);
     expectElem2D(D, 0, 1, 1);
     expectElem2D(D, 0, 2, 1);
 
-    MValue E = eval("E;");
+    Value E = eval("E;");
     expectElem2D(E, 0, 0, 0);
     expectElem2D(E, 0, 1, 1);
 }
@@ -1075,7 +1075,7 @@ TEST_P(EngineAdvancedTest, ComparisonOnMatrices)
         C = A == 3;
         D = A <= 3;
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     expectElem(B, 0, 0);
     expectElem(B, 1, 1);
     expectElem(B, 2, 0);
@@ -1090,7 +1090,7 @@ TEST_P(EngineAdvancedTest, ComparisonOnMatrices)
 TEST_P(EngineAdvancedTest, EmptyMatrix)
 {
     eval("A = [];");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     EXPECT_EQ(A.numel(), 0u);
 }
 
@@ -1102,12 +1102,12 @@ TEST_P(EngineAdvancedTest, ScalarMatrixOperations)
         C = 2 * A;
         D = A / 2;
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     expectElem(B, 0, 11);
     expectElem(B, 1, 12);
     expectElem(B, 2, 13);
 
-    MValue C = eval("C;");
+    Value C = eval("C;");
     expectElem(C, 0, 2);
     expectElem(C, 1, 4);
     expectElem(C, 2, 6);
@@ -1182,7 +1182,7 @@ TEST_P(EngineAdvancedTest, UnaryMinus)
 TEST_P(EngineAdvancedTest, NegativeMatrixElements)
 {
     eval("A = [-1 -2; -3 -4];");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     expectElem2D(A, 0, 0, -1);
     expectElem2D(A, 1, 1, -4);
 }
@@ -1213,17 +1213,17 @@ TEST_P(EngineAdvancedTest, LengthFunction)
 TEST_P(EngineAdvancedTest, ZerosOnesEye)
 {
     eval("Z = zeros(3, 4);");
-    MValue Z = eval("Z;");
+    Value Z = eval("Z;");
     EXPECT_EQ(rows(Z), 3u);
     EXPECT_EQ(cols(Z), 4u);
     expectElem2D(Z, 1, 2, 0);
 
     eval("O = ones(2, 3);");
-    MValue O = eval("O;");
+    Value O = eval("O;");
     expectElem2D(O, 1, 2, 1);
 
     eval("I = eye(3);");
-    MValue I = eval("I;");
+    Value I = eval("I;");
     expectElem2D(I, 0, 0, 1);
     expectElem2D(I, 1, 1, 1);
     expectElem2D(I, 0, 1, 0);
@@ -1244,7 +1244,7 @@ TEST_P(EngineAdvancedTest, ReshapeFunction)
         A = [1 2 3 4 5 6];
         B = reshape(A, 2, 3);
     )");
-    MValue B = eval("B;");
+    Value B = eval("B;");
     EXPECT_EQ(rows(B), 2u);
     EXPECT_EQ(cols(B), 3u);
 }
@@ -1252,7 +1252,7 @@ TEST_P(EngineAdvancedTest, ReshapeFunction)
 TEST_P(EngineAdvancedTest, LinspaceFunction)
 {
     eval("x = linspace(0, 1, 5);");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_EQ(x.numel(), 5u);
     expectElem(x, 0, 0.0);
     expectElem(x, 4, 1.0);
@@ -1262,7 +1262,7 @@ TEST_P(EngineAdvancedTest, LinspaceFunction)
 TEST_P(EngineAdvancedTest, AbsFunction)
 {
     eval("x = abs([-3 -1 0 2 -5]);");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     expectElem(x, 0, 3);
     expectElem(x, 1, 1);
     expectElem(x, 2, 0);
@@ -1349,7 +1349,7 @@ TEST_P(EngineAdvancedTest, BreakContinueInteraction)
             result = [result, i];
         end
     )");
-    MValue result = eval("result;");
+    Value result = eval("result;");
     // Odd numbers <= 7: 1, 3, 5, 7
     EXPECT_EQ(result.numel(), 4u);
     expectElem(result, 0, 1);
@@ -1458,7 +1458,7 @@ TEST_P(EngineAdvancedTest, PascalTriangle)
         end
     )");
     eval("P = pascal_triangle(6);");
-    MValue P = eval("P;");
+    Value P = eval("P;");
     // Row 6 (0-indexed row 5): 1 5 10 10 5 1
     expectElem2D(P, 5, 0, 1);
     expectElem2D(P, 5, 1, 5);
@@ -1658,7 +1658,7 @@ TEST_P(EngineAdvancedTest, GaussianElimination)
     )");
     // Solve: 2x + y = 5, x + 3y = 7 => x=1.6, y=1.8
     eval("x = gauss_solve([2 1; 1 3], [5; 7]);");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_NEAR(x(0), 1.6, 1e-10);
     EXPECT_NEAR(x(1), 1.8, 1e-10);
 }
@@ -1680,7 +1680,7 @@ TEST_P(EngineAdvancedTest, StructArrayOfResults)
         end
     )");
     EXPECT_DOUBLE_EQ(toDouble(eval("results.iterations;")), 5.0);
-    MValue values = eval("results.values;");
+    Value values = eval("results.values;");
     EXPECT_EQ(values.numel(), 5u);
     expectElem(values, 0, 2);
     expectElem(values, 1, 4);
@@ -1772,7 +1772,7 @@ TEST_P(EngineAdvancedTest, EndKeywordInIndexing)
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 50.0);
     EXPECT_DOUBLE_EQ(toDouble(eval("y;")), 40.0);
 
-    MValue z = eval("z;");
+    Value z = eval("z;");
     EXPECT_EQ(z.numel(), 3u);
     expectElem(z, 0, 30);
     expectElem(z, 1, 40);
@@ -1788,7 +1788,7 @@ TEST_P(EngineAdvancedTest, EndKeywordIn2DIndexing)
     )");
     EXPECT_DOUBLE_EQ(toDouble(eval("x;")), 9.0);
 
-    MValue y = eval("y;");
+    Value y = eval("y;");
     EXPECT_EQ(y.numel(), 3u);
     expectElem(y, 0, 3);
     expectElem(y, 1, 6);
@@ -1836,7 +1836,7 @@ TEST_P(EngineAdvancedTest, MapFunction)
         end
     )");
     eval("r = my_map(@(x) x^2, [1 2 3 4 5]);");
-    MValue r = eval("r;");
+    Value r = eval("r;");
     expectElem(r, 0, 1);
     expectElem(r, 1, 4);
     expectElem(r, 2, 9);
@@ -1873,7 +1873,7 @@ TEST_P(EngineAdvancedTest, VariableReassignmentTypes)
         x = [1 2 3];
         x = {1, 'two', 3};
     )");
-    MValue x = eval("x;");
+    Value x = eval("x;");
     EXPECT_TRUE(x.isCell());
 }
 
@@ -1886,7 +1886,7 @@ TEST_P(EngineAdvancedTest, SelfReferentialUpdate)
         end
     )");
     // Prefix sums: [1, 3, 6, 10, 15]
-    MValue A = eval("A;");
+    Value A = eval("A;");
     expectElem(A, 0, 1);
     expectElem(A, 1, 3);
     expectElem(A, 2, 6);
@@ -1910,7 +1910,7 @@ TEST_P(EngineAdvancedTest, ConvolutionManual)
         end
     )");
     eval("r = my_conv([1 2 3], [4 5]);");
-    MValue r = eval("r;");
+    Value r = eval("r;");
     // [1*4, 1*5+2*4, 2*5+3*4, 3*5] = [4, 13, 22, 15]
     EXPECT_EQ(r.numel(), 4u);
     expectElem(r, 0, 4);
@@ -1944,7 +1944,7 @@ TEST_P(EngineAdvancedTest, RecursiveQuicksort)
         end
     )");
     eval("sorted = qsort([3 6 8 10 1 2 1]);");
-    MValue sorted = eval("sorted;");
+    Value sorted = eval("sorted;");
     EXPECT_EQ(sorted.numel(), 7u);
     expectElem(sorted, 0, 1);
     expectElem(sorted, 1, 1);
@@ -1993,7 +1993,7 @@ TEST_P(EngineAdvancedTest, MergeSort)
         end
     )");
     eval("sorted = msort([38 27 43 3 9 82 10]);");
-    MValue sorted = eval("sorted;");
+    Value sorted = eval("sorted;");
     EXPECT_EQ(sorted.numel(), 7u);
     expectElem(sorted, 0, 3);
     expectElem(sorted, 1, 9);
@@ -2033,7 +2033,7 @@ TEST_P(EngineAdvancedTest, CounterWithClosure)
         end
     )");
     eval("[inc, get] = make_counter();");
-    MValue r = eval("get();");
+    Value r = eval("get();");
     EXPECT_DOUBLE_EQ(toDouble(r), 0.0);
 }
 
@@ -2047,7 +2047,7 @@ TEST_P(EngineAdvancedTest, MatrixRowAssignment)
         A = zeros(3, 3);
         A(2, :) = [4 5 6];
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     expectElem2D(A, 1, 0, 4);
     expectElem2D(A, 1, 1, 5);
     expectElem2D(A, 1, 2, 6);
@@ -2060,7 +2060,7 @@ TEST_P(EngineAdvancedTest, MatrixColumnAssignment)
         A = zeros(3, 3);
         A(:, 2) = [10; 20; 30];
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     expectElem2D(A, 0, 1, 10);
     expectElem2D(A, 1, 1, 20);
     expectElem2D(A, 2, 1, 30);
@@ -2072,7 +2072,7 @@ TEST_P(EngineAdvancedTest, SubmatrixAssignment)
         A = zeros(4, 4);
         A(2:3, 2:3) = [5 6; 7 8];
     )");
-    MValue A = eval("A;");
+    Value A = eval("A;");
     expectElem2D(A, 1, 1, 5);
     expectElem2D(A, 1, 2, 6);
     expectElem2D(A, 2, 1, 7);
@@ -2094,7 +2094,7 @@ TEST_P(EngineAdvancedTest, DiagonalExtraction)
         end
         d = my_diag([1 2 3; 4 5 6; 7 8 9]);
     )");
-    MValue d = eval("d;");
+    Value d = eval("d;");
     expectElem(d, 0, 1);
     expectElem(d, 1, 5);
     expectElem(d, 2, 9);
@@ -2107,7 +2107,7 @@ TEST_P(EngineAdvancedTest, DiagonalExtraction)
 TEST_P(EngineAdvancedTest, TypeCoercionBroadcast)
 {
     eval("r = [1 2 3] + 10;");
-    MValue r = eval("r;");
+    Value r = eval("r;");
     expectElem(r, 0, 11);
     expectElem(r, 1, 12);
     expectElem(r, 2, 13);

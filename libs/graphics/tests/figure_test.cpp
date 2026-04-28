@@ -10,9 +10,9 @@
 //   - Name-value pairs (LineWidth, MarkerSize)
 //   - Subplot
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MFigureManager.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/figure_manager.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -21,7 +21,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit::m;
+using namespace numkit;
 
 // ============================================================
 // FigureManager — direct API tests (no engine)
@@ -163,7 +163,7 @@ TEST_F(FigureManagerTest, DefaultAxesState)
 }
 
 // ============================================================
-// Fixture for tests requiring engine + StdLibrary
+// Fixture for tests requiring engine + BuiltinLibrary
 // ============================================================
 
 class FigureEngineTest : public ::testing::Test
@@ -174,12 +174,12 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
     }
 
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
     FigureManager &fm() { return engine.figureManager(); }
     AxesState &ax() { return fm().currentAxes(); }

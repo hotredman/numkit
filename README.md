@@ -186,7 +186,7 @@ Source Code → Lexer → Tokens → Parser → AST → Compiler → Bytecode �
                                                                   (pause/resume/eval)
 ```
 
-All classes live in `namespace numkit::m`.
+All classes live in `namespace numkit`.
 
 | Module | Files | Responsibility |
 |---|---|---|
@@ -196,13 +196,13 @@ All classes live in `namespace numkit::m`.
 | **Compiler** | `MCompiler`, `MBytecode` | AST → bytecode compiler with source maps |
 | **VM** | `MVM` | Non-recursive bytecode interpreter with explicit call stack |
 | **TreeWalker** | `MTreeWalker` | AST-walking interpreter (automatic fallback) |
-| **Engine** | `MEngine` | Dual-backend orchestrator, function registry, variable store |
+| **Engine** | `Engine` | Dual-backend orchestrator, function registry, variable store |
 | **Debugger** | `MDebugger` | Breakpoints, stepping, call stack, debug observer protocol |
 | **DebugSession** | `MDebugSession` | Pausable execution, expression eval in context, VM state save/restore |
-| **Value** | `MValue` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
+| **Value** | `Value` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
 | **Environment** | `MEnvironment` | Scoped variable storage with global store |
-| **Allocator** | `MAllocator` | Pluggable memory allocator |
-| **StdLibrary** | `MStdLibrary` | Math, matrix, I/O, string, type built-ins (base MATLAB) |
+| **Allocator** | `Allocator` | Pluggable memory allocator |
+| **BuiltinLibrary** | `BuiltinLibrary` | Math, matrix, I/O, string, type built-ins (base MATLAB) |
 | **SignalLibrary** | `MSignalLibrary` | Signal Processing Toolbox: FFT, filtering, windows, spectral analysis |
 | **StatsLibrary** | `MStatsLibrary` | Statistics Toolbox: skewness/kurtosis, nan-aware reductions |
 | **GraphicsLibrary** | `MGraphicsLibrary` | Plot commands, figure/close/clf/subplot |
@@ -270,13 +270,13 @@ Or: `./build.sh --wasm` / `build.bat --wasm`.
 ### Basic Embedding
 
 ```c++
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 
 int main()
 {
-    numkit::m::Engine engine;
-    numkit::m::StdLibrary::install(engine);
+    numkit::Engine engine;
+    numkit::BuiltinLibrary::install(engine);
 
     engine.eval("x = [1 2 3; 4 5 6]");
     engine.eval("disp(size(x))");
@@ -289,7 +289,7 @@ int main()
 ### Custom Allocator
 
 ```c++
-numkit::m::Engine engine;
+numkit::Engine engine;
 
 size_t totalAllocated = 0;
 engine.setAllocator({
@@ -303,7 +303,7 @@ engine.setAllocator({
     }
 });
 
-numkit::m::StdLibrary::install(engine);
+numkit::BuiltinLibrary::install(engine);
 engine.eval("A = rand(100, 100);");
 std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ```
@@ -311,16 +311,16 @@ std::cout << "Memory used: " << totalAllocated << " bytes\n";
 ### C++ <-> M Data Exchange
 
 ```c++
-using numkit::m::Engine;
-using numkit::m::MValue;
-using numkit::m::StdLibrary;
+using numkit::Engine;
+using numkit::Value;
+using numkit::BuiltinLibrary;
 
 Engine engine;
-StdLibrary::install(engine);
+BuiltinLibrary::install(engine);
 
 // C++ -> M
 auto& alloc = engine.allocator();
-engine.setVariable("radius", MValue::scalar(5.0, &alloc));
+engine.setVariable("radius", Value::scalar(5.0, &alloc));
 engine.eval("area = pi * radius^2;");
 
 // M -> C++
@@ -332,14 +332,14 @@ if (area)
 ### Registering Custom Functions
 
 ```c++
-using numkit::m::MValue;
+using numkit::Value;
 
 engine.registerFunction("myfunc",
-    [&engine](const std::vector<MValue>& args) -> std::vector<MValue> {
+    [&engine](const std::vector<Value>& args) -> std::vector<Value> {
         auto* alloc = &engine.allocator();
         double x = args[0].toScalar();
         double y = args[1].toScalar();
-        return {MValue::scalar(x * x + y * y, alloc)};
+        return {Value::scalar(x * x + y * y, alloc)};
     });
 
 engine.eval("disp(myfunc(3, 4))");  // 25
@@ -349,8 +349,8 @@ engine.eval("disp(myfunc(3, 4))");  // 25
 
 ```c++
 // FigureManager collects plot data; output goes through engine's outputFunc
-numkit::m::Engine engine;
-numkit::m::StdLibrary::install(engine);
+numkit::Engine engine;
+numkit::BuiltinLibrary::install(engine);
 
 engine.setOutputFunc([](const std::string &s) {
     // Parse __FIGURE_DATA__ markers from output for your renderer
@@ -388,13 +388,13 @@ spectrogram(x, hamming(256), 128, 512, fs);
 ### Debugger (C++ API)
 
 ```c++
-using numkit::m::Engine;
-using numkit::m::StdLibrary;
-using numkit::m::DebugSession;
-using numkit::m::DebugAction;
+using numkit::Engine;
+using numkit::BuiltinLibrary;
+using numkit::DebugSession;
+using numkit::DebugAction;
 
 Engine engine;
-StdLibrary::install(engine);
+BuiltinLibrary::install(engine);
 
 DebugSession session(engine);
 session.setBreakpoints({3, 7});
@@ -465,42 +465,42 @@ disp(fieldnames(config))    % {'db', 'server'}
 ## Project Structure
 
 ```
-include/                        # Public headers (namespace numkit::m)
-    MEngine.hpp                 # Dual-backend engine
-    MVM.hpp                     # Bytecode virtual machine
-    MCompiler.hpp               # AST -> bytecode compiler
-    MBytecode.hpp               # Bytecode instruction set
-    MTreeWalker.hpp             # AST interpreter (fallback)
-    MDebugger.hpp               # Breakpoints, stepping, debug controller
-    MDebugSession.hpp           # Pausable debug execution
-    MValue.hpp                  # Copy-on-write value system
-    MAst.hpp                    # AST node types
-    MLexer.hpp                  # Tokenizer
-    MParser.hpp                 # Recursive descent parser
-    MEnvironment.hpp            # Scoped variable storage
-    MAllocator.hpp              # Pluggable allocator
-    MFigureManager.hpp          # Plot state management
-    MStdLibrary.hpp             # Standard library (base MATLAB)
-    MSignalLibrary.hpp          # Signal Processing Toolbox
-    MStatsLibrary.hpp           # Statistics Toolbox
-    MGraphicsLibrary.hpp        # Plot / figure library
-    MVfs.hpp                    # Virtual filesystem (IDE hooks)
-    MBranding.hpp               # Env-var prefix (NUMKIT_M_FS, …)
-    MTypes.hpp                  # Shared types (CallContext, Span)
+include/                        # Public headers (namespace numkit)
+    engine.hpp                 # Dual-backend engine
+    vm.hpp                     # Bytecode virtual machine
+    compiler.hpp               # AST -> bytecode compiler
+    bytecode.hpp               # Bytecode instruction set
+    tree_walker.hpp             # AST interpreter (fallback)
+    debugger.hpp               # Breakpoints, stepping, debug controller
+    debug_session.hpp           # Pausable debug execution
+    value.hpp                  # Copy-on-write value system
+    ast.hpp                    # AST node types
+    lexer.hpp                  # Tokenizer
+    parser.hpp                 # Recursive descent parser
+    environment.hpp            # Scoped variable storage
+    allocator.hpp              # Pluggable allocator
+    figure_manager.hpp          # Plot state management
+    library.hpp             # Standard library (base MATLAB)
+    signal/library.hpp          # Signal Processing Toolbox
+    stats/library.hpp           # Statistics Toolbox
+    graphics/library.hpp        # Plot / figure library
+    vfs.hpp                    # Virtual filesystem (IDE hooks)
+    branding.hpp               # Env-var prefix (NUMKIT_FS, …)
+    types.hpp                  # Shared types (CallContext, Span)
 src/
-    MEngine.cpp                 # Engine orchestration
-    MVM.cpp                     # VM dispatch loop
-    MCompiler.cpp               # Bytecode compilation
-    MTreeWalker.cpp             # Tree-walking interpreter
-    MDebugger.cpp               # Debug controller logic
-    MDebugSession.cpp           # Debug session (pause/resume/eval)
-    MValue.cpp                  # Value operations
-    MLexer.cpp                  # Lexer
-    MParser.cpp                 # Parser
-    MEnvironment.cpp            # Environment
-    MAllocator.cpp              # Allocator
-    MAst.cpp                    # AST utilities
-    MVfs.cpp                    # Virtual filesystem
+    engine.cpp                 # Engine orchestration
+    vm.cpp                     # VM dispatch loop
+    compiler.cpp               # Bytecode compilation
+    tree_walker.cpp             # Tree-walking interpreter
+    debugger.cpp               # Debug controller logic
+    debug_session.cpp           # Debug session (pause/resume/eval)
+    value.cpp                  # Value operations
+    lexer.cpp                  # Lexer
+    parser.cpp                 # Parser
+    environment.cpp            # Environment
+    allocator.cpp              # Allocator
+    ast.cpp                    # AST utilities
+    vfs.cpp                    # Virtual filesystem
     stdlib/                     # Standard library (math, I/O, types, file I/O, CSV)
     dsplib/                     # DSP library
     fitlib/                     # Fit library

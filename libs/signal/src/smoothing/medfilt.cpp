@@ -2,17 +2,17 @@
 //
 // medfilt1 — sliding-window median. Split from MDspGaps.
 
-#include <numkit/m/signal/smoothing/medfilt.hpp>
+#include <numkit/signal/smoothing/medfilt.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 // Window length k is centered on each sample. For even k MATLAB places
 // the center off by half a sample; we follow MATLAB's convention by
@@ -21,14 +21,14 @@ namespace numkit::m::signal {
 //
 // At the boundaries the window is truncated rather than zero-padded,
 // so output length always equals input length.
-MValue medfilt1(Allocator &alloc, const MValue &x, size_t k)
+Value medfilt1(Allocator &alloc, const Value &x, size_t k)
 {
     if (k == 0)
-        throw MError("medfilt1: window length must be >= 1",
+        throw Error("medfilt1: window length must be >= 1",
                      0, 0, "medfilt1", "", "m:medfilt1:badK");
 
     const size_t n = x.numel();
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     if (n == 0) return r;
 
     const size_t leftHalf  = (k - 1) / 2;
@@ -58,11 +58,11 @@ MValue medfilt1(Allocator &alloc, const MValue &x, size_t k)
 
 namespace detail {
 
-void medfilt1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
-        throw MError("medfilt1: requires at least 1 argument",
+        throw Error("medfilt1: requires at least 1 argument",
                      0, 0, "medfilt1", "", "m:medfilt1:nargin");
     size_t k = 3;
     if (args.size() >= 2 && !args[1].isEmpty())
@@ -72,4 +72,4 @@ void medfilt1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

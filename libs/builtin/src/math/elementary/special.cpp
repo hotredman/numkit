@@ -2,18 +2,18 @@
 //
 // Special functions — gamma / gammaln / erf / erfc / erfinv.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/math/elementary/special.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/elementary/special.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <limits>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 namespace {
 
@@ -49,27 +49,27 @@ double erfinvScalar(double y)
 
 } // namespace
 
-MValue gammaFn(Allocator &alloc, const MValue &x)
+Value gammaFn(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::tgamma(v); }, &alloc);
 }
 
-MValue gammaln(Allocator &alloc, const MValue &x)
+Value gammaln(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::lgamma(v); }, &alloc);
 }
 
-MValue erf(Allocator &alloc, const MValue &x)
+Value erf(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::erf(v); }, &alloc);
 }
 
-MValue erfc(Allocator &alloc, const MValue &x)
+Value erfc(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::erfc(v); }, &alloc);
 }
 
-MValue erfinv(Allocator &alloc, const MValue &x)
+Value erfinv(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return erfinvScalar(v); }, &alloc);
 }
@@ -78,11 +78,11 @@ MValue erfinv(Allocator &alloc, const MValue &x)
 namespace detail {
 
 #define NK_UNARY_ADAPTER(name, fn)                                              \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
+                    Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         if (args.empty())                                                        \
-            throw MError(#name ": requires 1 argument",                          \
+            throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
     }
@@ -97,4 +97,4 @@ NK_UNARY_ADAPTER(erfinv,  erfinv)
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

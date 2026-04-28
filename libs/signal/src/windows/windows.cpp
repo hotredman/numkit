@@ -1,9 +1,9 @@
 // libs/dsp/src/MDspWindows.cpp
 
-#include <numkit/m/signal/windows/windows.hpp>
+#include <numkit/signal/windows/windows.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -12,7 +12,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -33,9 +33,9 @@ double besseli0(double x)
 } // anonymous namespace
 
 // ── hamming ───────────────────────────────────────────────────────────
-MValue hamming(Allocator &alloc, size_t N)
+Value hamming(Allocator &alloc, size_t N)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -46,9 +46,9 @@ MValue hamming(Allocator &alloc, size_t N)
 }
 
 // ── hann ──────────────────────────────────────────────────────────────
-MValue hann(Allocator &alloc, size_t N)
+Value hann(Allocator &alloc, size_t N)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -59,9 +59,9 @@ MValue hann(Allocator &alloc, size_t N)
 }
 
 // ── blackman ──────────────────────────────────────────────────────────
-MValue blackman(Allocator &alloc, size_t N)
+Value blackman(Allocator &alloc, size_t N)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -74,9 +74,9 @@ MValue blackman(Allocator &alloc, size_t N)
 }
 
 // ── kaiser ────────────────────────────────────────────────────────────
-MValue kaiser(Allocator &alloc, size_t N, double beta)
+Value kaiser(Allocator &alloc, size_t N, double beta)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -90,18 +90,18 @@ MValue kaiser(Allocator &alloc, size_t N, double beta)
 }
 
 // ── rectwin ───────────────────────────────────────────────────────────
-MValue rectwin(Allocator &alloc, size_t N)
+Value rectwin(Allocator &alloc, size_t N)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < N; ++i)
         r.doubleDataMut()[i] = 1.0;
     return r;
 }
 
 // ── bartlett ──────────────────────────────────────────────────────────
-MValue bartlett(Allocator &alloc, size_t N)
+Value bartlett(Allocator &alloc, size_t N)
 {
-    auto r = MValue::matrix(N, 1, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -115,56 +115,56 @@ MValue bartlett(Allocator &alloc, size_t N)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void hamming_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void hamming_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("hamming: requires 1 argument",
+        throw Error("hamming: requires 1 argument",
                      0, 0, "hamming", "", "m:hamming:nargin");
     outs[0] = hamming(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
-void hann_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("hann: requires 1 argument",
+        throw Error("hann: requires 1 argument",
                      0, 0, "hann", "", "m:hann:nargin");
     outs[0] = hann(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
-void blackman_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("blackman: requires 1 argument",
+        throw Error("blackman: requires 1 argument",
                      0, 0, "blackman", "", "m:blackman:nargin");
     outs[0] = blackman(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
-void kaiser_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("kaiser: requires at least 1 argument",
+        throw Error("kaiser: requires at least 1 argument",
                      0, 0, "kaiser", "", "m:kaiser:nargin");
     const size_t N = static_cast<size_t>(args[0].toScalar());
     const double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
     outs[0] = kaiser(ctx.engine->allocator(), N, beta);
 }
 
-void rectwin_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("rectwin: requires 1 argument",
+        throw Error("rectwin: requires 1 argument",
                      0, 0, "rectwin", "", "m:rectwin:nargin");
     outs[0] = rectwin(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
-void bartlett_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("bartlett: requires 1 argument",
+        throw Error("bartlett: requires 1 argument",
                      0, 0, "bartlett", "", "m:bartlett:nargin");
     outs[0] = bartlett(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

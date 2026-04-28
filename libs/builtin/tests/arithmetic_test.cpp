@@ -310,7 +310,7 @@ INSTANTIATE_DUAL(LogicalTest);
 // 3D heap-safety regressions
 //
 // These exercise code paths that used to allocate a 2D result buffer
-// (MValue::matrix(rows, cols)) and then iterate over numel() elements.
+// (Value::matrix(rows, cols)) and then iterate over numel() elements.
 // For 3D inputs numel = rows*cols*pages, so the write ran past the
 // end of the heap allocation. All sites now go through createLike()
 // which dispatches to matrix3d when pages > 0.
@@ -323,7 +323,7 @@ TEST_P(HeapSafety3DTest, UnaryDoubleSin)
     eval("A = ones(2, 3, 2); B = sin(A);");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_EQ(B->type(), ValueType::DOUBLE);
     EXPECT_TRUE(B->dims().is3D());
     EXPECT_EQ(B->numel(), 12u);
     EXPECT_NEAR(B->doubleData()[0], std::sin(1.0), 1e-12);
@@ -335,7 +335,7 @@ TEST_P(HeapSafety3DTest, UnaryTypedIntegerNegate)
     eval("A = int32(ones(2, 3, 2)); B = -A;");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::INT32);
+    EXPECT_EQ(B->type(), ValueType::INT32);
     EXPECT_TRUE(B->dims().is3D());
     EXPECT_EQ(B->numel(), 12u);
     EXPECT_EQ(B->int32Data()[0], -1);
@@ -360,7 +360,7 @@ TEST_P(HeapSafety3DTest, EqualityDoubleVsScalar)
     eval("A = ones(2, 3, 2) * 3; M = (A == 3);");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 12u);
     for (size_t i = 0; i < 12; ++i)
@@ -372,7 +372,7 @@ TEST_P(HeapSafety3DTest, EqualityComplexVsScalar)
     eval("A = ones(2, 2, 2) + 0i; M = (A == 1);");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     for (size_t i = 0; i < 8; ++i)
@@ -384,7 +384,7 @@ TEST_P(HeapSafety3DTest, LogicalAndBothArrays)
     eval("A = ones(2, 2, 2); B = zeros(2, 2, 2); B(1) = 1; M = A & B;");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     EXPECT_EQ(M->logicalData()[0], 1u);
@@ -397,7 +397,7 @@ TEST_P(HeapSafety3DTest, LogicalOrBothArrays)
     eval("A = zeros(2, 2, 2); B = zeros(2, 2, 2); B(3) = 1; M = A | B;");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     EXPECT_EQ(M->logicalData()[2], 1u);
@@ -408,7 +408,7 @@ TEST_P(HeapSafety3DTest, ElementwiseDoubleAddSameShape)
     eval("A = ones(2, 3, 2); B = ones(2, 3, 2) * 2; C = A + B;");
     auto *C = getVarPtr("C");
     ASSERT_NE(C, nullptr);
-    EXPECT_EQ(C->type(), MType::DOUBLE);
+    EXPECT_EQ(C->type(), ValueType::DOUBLE);
     EXPECT_TRUE(C->dims().is3D());
     EXPECT_EQ(C->numel(), 12u);
     for (size_t i = 0; i < 12; ++i)
@@ -451,7 +451,7 @@ TEST_P(HeapSafety3DTest, ComparisonSameShape)
     eval("A = ones(2, 2, 2) * 5; B = ones(2, 2, 2) * 3; M = A > B;");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     for (size_t i = 0; i < 8; ++i)
@@ -463,7 +463,7 @@ TEST_P(HeapSafety3DTest, ComparisonScalarOnLeft)
     eval("A = ones(2, 2, 2) * 4; M = 10 > A;");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     for (size_t i = 0; i < 8; ++i)
@@ -485,7 +485,7 @@ TEST_P(HeapSafety3DTest, Comparison3DVs2DBroadcastsAcrossPages)
     eval("A = ones(2, 3, 2); B = ones(2, 3); M = A == B;");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->dims().pages(), 2u);
     for (size_t i = 0; i < M->numel(); ++i)
@@ -558,7 +558,7 @@ TEST_P(EmptyArith2Test, DoublePlusScalarPreservesShape)
     eval("a = zeros(2, 0); b = a + 5;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->dims().rows(), 2u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
@@ -568,7 +568,7 @@ TEST_P(EmptyArith2Test, ScalarPlusDoublePreservesShape)
     eval("a = zeros(3, 0); b = 5 + a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->dims().rows(), 3u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
@@ -602,7 +602,7 @@ TEST_P(EmptyArith2Test, IntegerEmptyPlusScalarKeepsType)
     eval("a = int32(zeros(2, 0)); b = a + int32(5);");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::INT32);
+    EXPECT_EQ(b->type(), ValueType::INT32);
     EXPECT_EQ(b->dims().rows(), 2u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
@@ -639,7 +639,7 @@ TEST_P(EmptyArith2Test, CharEmptyPlusScalarPromotesToDouble)
     eval("b = '' + 5;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->numel(), 0u);
 }
 
@@ -684,7 +684,7 @@ TEST_P(MatmulEmptyTest, InnerZeroProducesAllZeros)
     eval("A = zeros(3, 0); B = zeros(0, 5); C = A * B;");
     auto *C = getVarPtr("C");
     ASSERT_NE(C, nullptr);
-    EXPECT_EQ(C->type(), MType::DOUBLE);
+    EXPECT_EQ(C->type(), ValueType::DOUBLE);
     EXPECT_FALSE(C->dims().is3D());
     EXPECT_EQ(C->dims().rows(), 3u);
     EXPECT_EQ(C->dims().cols(), 5u);
@@ -757,7 +757,7 @@ TEST_P(HeapSafety3DExtendedTest, AbsOf3DComplex)
     eval("A = ones(2, 2, 2) + 1i; B = abs(A);");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_EQ(B->type(), ValueType::DOUBLE);
     EXPECT_TRUE(B->dims().is3D());
     EXPECT_EQ(B->numel(), 8u);
     for (size_t i = 0; i < 8; ++i)
@@ -769,7 +769,7 @@ TEST_P(HeapSafety3DExtendedTest, RealOf3DComplex)
     eval("A = ones(2, 2, 2) * 3 + 4i; B = real(A);");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_EQ(B->type(), ValueType::DOUBLE);
     EXPECT_TRUE(B->dims().is3D());
     for (size_t i = 0; i < 8; ++i)
         EXPECT_DOUBLE_EQ(B->doubleData()[i], 3.0);
@@ -780,7 +780,7 @@ TEST_P(HeapSafety3DExtendedTest, ImagOf3DComplex)
     eval("A = ones(2, 2, 2) * 3 + 4i; B = imag(A);");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::DOUBLE);
+    EXPECT_EQ(B->type(), ValueType::DOUBLE);
     EXPECT_TRUE(B->dims().is3D());
     for (size_t i = 0; i < 8; ++i)
         EXPECT_DOUBLE_EQ(B->doubleData()[i], 4.0);
@@ -791,7 +791,7 @@ TEST_P(HeapSafety3DExtendedTest, IsNan3D)
     eval("A = zeros(2, 2, 2); A(3) = nan; M = isnan(A);");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->numel(), 8u);
     EXPECT_EQ(M->logicalData()[2], 1u);
@@ -803,7 +803,7 @@ TEST_P(HeapSafety3DExtendedTest, IsInf3D)
     eval("A = zeros(2, 2, 2); A(5) = inf; M = isinf(A);");
     auto *M = getVarPtr("M");
     ASSERT_NE(M, nullptr);
-    EXPECT_EQ(M->type(), MType::LOGICAL);
+    EXPECT_EQ(M->type(), ValueType::LOGICAL);
     EXPECT_TRUE(M->dims().is3D());
     EXPECT_EQ(M->logicalData()[4], 1u);
     EXPECT_EQ(M->logicalData()[0], 0u);
@@ -816,7 +816,7 @@ TEST_P(HeapSafety3DExtendedTest, ElementwiseTypedInt32SameShape)
     eval("C = A + B;");
     auto *C = getVarPtr("C");
     ASSERT_NE(C, nullptr);
-    EXPECT_EQ(C->type(), MType::INT32);
+    EXPECT_EQ(C->type(), ValueType::INT32);
     EXPECT_TRUE(C->dims().is3D());
     EXPECT_EQ(C->numel(), 12u);
     for (size_t i = 0; i < 12; ++i)
@@ -829,7 +829,7 @@ TEST_P(HeapSafety3DExtendedTest, ElementwiseTypedInt32ScalarBroadcast)
     eval("B = A + int32(10);");
     auto *B = getVarPtr("B");
     ASSERT_NE(B, nullptr);
-    EXPECT_EQ(B->type(), MType::INT32);
+    EXPECT_EQ(B->type(), ValueType::INT32);
     EXPECT_TRUE(B->dims().is3D());
     for (size_t i = 0; i < 8; ++i)
         EXPECT_EQ(B->int32Data()[i], static_cast<int32_t>(11 + i));
@@ -841,7 +841,7 @@ TEST_P(HeapSafety3DExtendedTest, Polyval3D)
     eval("X = ones(2, 2, 2) * 5; Y = polyval([1 2 3], X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
     // 5^2 + 2*5 + 3 = 38
@@ -860,7 +860,7 @@ TEST_P(HeapSafety3DExtendedTest, Filter3DShapePreserved)
     eval("X = ones(2, 2, 2); Y = filter([1], [1], X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
 }
@@ -879,7 +879,7 @@ TEST_P(HeapSafety3DExtendedTest, Unwrap3DShapePreserved)
     eval("X = zeros(2, 2, 2); Y = unwrap(X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
 }
@@ -889,7 +889,7 @@ TEST_P(HeapSafety3DExtendedTest, Envelope3DShapePreserved)
     eval("X = ones(2, 2, 2); Y = envelope(X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
 }
@@ -899,7 +899,7 @@ TEST_P(HeapSafety3DExtendedTest, Fftshift3DDoubleShapePreserved)
     eval("X = ones(2, 2, 2); for k = 1:8, X(k) = k; end; Y = fftshift(X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
     // Linear circular shift by N/2 = 4: output[0] = input[4] = 5.
@@ -922,7 +922,7 @@ TEST_P(HeapSafety3DExtendedTest, Ifftshift3DDoubleShapePreserved)
     eval("X = ones(2, 2, 2); for k = 1:8, X(k) = k; end; Y = ifftshift(X);");
     auto *Y = getVarPtr("Y");
     ASSERT_NE(Y, nullptr);
-    EXPECT_EQ(Y->type(), MType::DOUBLE);
+    EXPECT_EQ(Y->type(), ValueType::DOUBLE);
     EXPECT_TRUE(Y->dims().is3D());
     EXPECT_EQ(Y->numel(), 8u);
 }
@@ -943,7 +943,7 @@ TEST_P(HeapSafety3DExtendedTest, Strlength3DPreservesShape)
     eval("L = strlength(S);");
     auto *L = getVarPtr("L");
     ASSERT_NE(L, nullptr);
-    EXPECT_EQ(L->type(), MType::DOUBLE);
+    EXPECT_EQ(L->type(), ValueType::DOUBLE);
     EXPECT_TRUE(L->dims().is3D());
     EXPECT_EQ(L->numel(), 8u);
     EXPECT_DOUBLE_EQ(L->doubleData()[0], 2.0);

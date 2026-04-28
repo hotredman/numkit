@@ -1,7 +1,7 @@
 // tests/transform_test.cpp
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,14 +9,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit::m;
+using namespace numkit;
 
 class TransformTest : public ::testing::Test
 {
 public:
     Engine engine;
-    void SetUp() override { StdLibrary::install(engine); }
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    void SetUp() override { BuiltinLibrary::install(engine); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
 
@@ -117,7 +117,7 @@ TEST_F(TransformTest, HilbertPreservesLength)
 TEST_F(TransformTest, EnvelopeReturnsReal)
 {
     auto r = eval("envelope([1 2 3 4 5 6 7 8])");
-    EXPECT_TRUE(r.type() == MType::DOUBLE);
+    EXPECT_TRUE(r.type() == ValueType::DOUBLE);
 }
 
 TEST_F(TransformTest, EnvelopeNonnegative)

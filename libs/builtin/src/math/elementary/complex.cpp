@@ -1,49 +1,49 @@
 // libs/builtin/src/MStdComplex.cpp
 
-#include <numkit/m/builtin/math/elementary/complex.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/math/elementary/complex.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <complex>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-MValue real(Allocator &alloc, const MValue &x)
+Value real(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (!x.isComplex())
         return x;
     if (x.isScalar())
-        return MValue::scalar(x.toComplex().real(), p);
-    auto r = createLike(x, MType::DOUBLE, p);
+        return Value::scalar(x.toComplex().real(), p);
+    auto r = createLike(x, ValueType::DOUBLE, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.doubleDataMut()[i] = x.complexData()[i].real();
     return r;
 }
 
-MValue imag(Allocator &alloc, const MValue &x)
+Value imag(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (!x.isComplex())
-        return MValue::scalar(0.0, p);
+        return Value::scalar(0.0, p);
     if (x.isScalar())
-        return MValue::scalar(x.toComplex().imag(), p);
-    auto r = createLike(x, MType::DOUBLE, p);
+        return Value::scalar(x.toComplex().imag(), p);
+    auto r = createLike(x, ValueType::DOUBLE, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.doubleDataMut()[i] = x.complexData()[i].imag();
     return r;
 }
 
-MValue conj(Allocator &alloc, const MValue &x)
+Value conj(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (!x.isComplex())
@@ -51,28 +51,28 @@ MValue conj(Allocator &alloc, const MValue &x)
     return unaryComplex(x, [](const Complex &c) { return std::conj(c); }, p);
 }
 
-MValue complex(Allocator &alloc, const MValue &re)
+Value complex(Allocator &alloc, const Value &re)
 {
     Allocator *p = &alloc;
     if (re.isScalar())
-        return MValue::complexScalar(re.toScalar(), 0.0, p);
-    auto r = createLike(re, MType::COMPLEX, p);
+        return Value::complexScalar(re.toScalar(), 0.0, p);
+    auto r = createLike(re, ValueType::COMPLEX, p);
     Complex *dst = r.complexDataMut();
     for (size_t i = 0; i < re.numel(); ++i)
         dst[i] = Complex(re.elemAsDouble(i), 0.0);
     return r;
 }
 
-MValue complex(Allocator &alloc, const MValue &re, const MValue &im)
+Value complex(Allocator &alloc, const Value &re, const Value &im)
 {
     Allocator *p = &alloc;
     if (re.isScalar() && im.isScalar())
-        return MValue::complexScalar(re.toScalar(), im.toScalar(), p);
-    const MValue &shape = re.isScalar() ? im : re;
+        return Value::complexScalar(re.toScalar(), im.toScalar(), p);
+    const Value &shape = re.isScalar() ? im : re;
     if (!re.isScalar() && !im.isScalar() && re.dims() != im.dims())
-        throw MError("complex: real and imaginary parts must have matching dimensions",
+        throw Error("complex: real and imaginary parts must have matching dimensions",
                      0, 0, "complex", "", "m:complex:dimagree");
-    auto r = createLike(shape, MType::COMPLEX, p);
+    auto r = createLike(shape, ValueType::COMPLEX, p);
     Complex *dst = r.complexDataMut();
     const size_t n = shape.numel();
     const double reScalar = re.isScalar() ? re.toScalar() : 0.0;
@@ -85,13 +85,13 @@ MValue complex(Allocator &alloc, const MValue &re, const MValue &im)
     return r;
 }
 
-MValue angle(Allocator &alloc, const MValue &x)
+Value angle(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isComplex()) {
         if (x.isScalar())
-            return MValue::scalar(std::arg(x.toComplex()), p);
-        auto r = createLike(x, MType::DOUBLE, p);
+            return Value::scalar(std::arg(x.toComplex()), p);
+        auto r = createLike(x, ValueType::DOUBLE, p);
         for (size_t i = 0; i < x.numel(); ++i)
             r.doubleDataMut()[i] = std::arg(x.complexData()[i]);
         return r;
@@ -105,31 +105,31 @@ MValue angle(Allocator &alloc, const MValue &x)
 
 namespace detail {
 
-void real_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
+        throw Error("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
     outs[0] = real(ctx.engine->allocator(), args[0]);
 }
 
-void imag_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void imag_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
+        throw Error("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
     outs[0] = imag(ctx.engine->allocator(), args[0]);
 }
 
-void conj_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void conj_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
+        throw Error("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
     outs[0] = conj(ctx.engine->allocator(), args[0]);
 }
 
-void complex_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
+        throw Error("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
                      "m:complex:nargin");
     if (args.size() == 1)
         outs[0] = complex(ctx.engine->allocator(), args[0]);
@@ -137,31 +137,31 @@ void complex_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext
         outs[0] = complex(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void angle_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
+        throw Error("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
     outs[0] = angle(ctx.engine->allocator(), args[0]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — hand off to MStdLibrary install() via forward decls.
 //
-// The existing StdLibrary::registerComplexFunctions() is kept (empty) so
+// The existing BuiltinLibrary::registerComplexFunctions() is kept (empty) so
 // the MStdLibrary.hpp interface is unchanged. The actual registrations
-// happen in MStdLibrary.cpp alongside the other Phase-6c builtins.
+// happen in library.cpp alongside the other Phase-6c builtins.
 // ════════════════════════════════════════════════════════════════════════
 
-namespace numkit::m {
+namespace numkit {
 
-void StdLibrary::registerComplexFunctions(Engine &)
+void BuiltinLibrary::registerComplexFunctions(Engine &)
 {
     // Intentionally empty — real/imag/conj/complex/angle now register
-    // via the Phase-6c function-pointer path in StdLibrary::install().
+    // via the Phase-6c function-pointer path in BuiltinLibrary::install().
 }
 
-} // namespace numkit::m
+} // namespace numkit

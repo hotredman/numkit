@@ -7,25 +7,25 @@
 
 #pragma once
 
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
-namespace numkit::m::builtin::detail::callback {
+namespace numkit::builtin::detail::callback {
 
-using ::numkit::m::Engine;
+using ::numkit::Engine;
 
-inline double evalCallback(Engine *engine, const MValue &fn, double x)
+inline double evalCallback(Engine *engine, const Value &fn, double x)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue arg = MValue::scalar(x, &alloc);
-    Span<const MValue> args(&arg, 1);
-    MValue r = engine->callFunctionHandle(fn, args);
+    Value arg = Value::scalar(x, &alloc);
+    Span<const Value> args(&arg, 1);
+    Value r = engine->callFunctionHandle(fn, args);
     if (!r.isScalar() && r.numel() != 1)
-        throw MError("callback: handle must return a scalar value",
+        throw Error("callback: handle must return a scalar value",
                      0, 0, "callback", "", "m:callback:nonScalar");
     return r.elemAsDouble(0);
 }
 
-} // namespace numkit::m::builtin::detail::callback
+} // namespace numkit::builtin::detail::callback

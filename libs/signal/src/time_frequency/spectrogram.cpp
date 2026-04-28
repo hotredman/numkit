@@ -4,19 +4,19 @@
 // time-collapsed power-spectrum estimators periodogram / pwelch
 // live in spectral_analysis/periodogram_pwelch.cpp.
 
-#include <numkit/m/signal/time_frequency/spectrogram.hpp>
+#include <numkit/signal/time_frequency/spectrogram.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"
+#include "../dsp_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -35,10 +35,10 @@ std::vector<double> hammingWindow(size_t N)
 
 } // anonymous namespace
 
-std::tuple<MValue, MValue, MValue>
+std::tuple<Value, Value, Value>
 spectrogram(Allocator &alloc,
-            const MValue &x,
-            const MValue &window,
+            const Value &x,
+            const Value &window,
             size_t noverlap,
             size_t nfft)
 {
@@ -73,9 +73,9 @@ spectrogram(Allocator &alloc,
     for (size_t start = 0; start + winLen <= nx; start += step)
         nSegments++;
 
-    auto S = MValue::complexMatrix(nFreqs, nSegments, &alloc);
-    auto F = MValue::matrix(nFreqs, 1, MType::DOUBLE, &alloc);
-    auto T = MValue::matrix(1, nSegments, MType::DOUBLE, &alloc);
+    auto S = Value::complexMatrix(nFreqs, nSegments, &alloc);
+    auto F = Value::matrix(nFreqs, 1, ValueType::DOUBLE, &alloc);
+    auto T = Value::matrix(1, nSegments, ValueType::DOUBLE, &alloc);
 
     size_t seg = 0;
     for (size_t start = 0; start + winLen <= nx; start += step) {
@@ -100,21 +100,21 @@ spectrogram(Allocator &alloc,
 
 namespace detail {
 
-void spectrogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("spectrogram: requires at least 1 argument",
+        throw Error("spectrogram: requires at least 1 argument",
                      0, 0, "spectrogram", "", "m:spectrogram:nargin");
 
     // MATLAB's spectrogram(x, N) accepts a scalar-N (window length) and
     // builds a Hamming window of that length. If arg 1 is a vector, it's
     // the explicit window. Adapter handles both by synthesizing a Hamming
     // vector here when it sees a scalar.
-    MValue window = MValue::empty();
+    Value window = Value::empty();
     if (args.size() >= 2 && !args[1].isChar()) {
         if (args[1].numel() == 1) {
             const size_t winLen = static_cast<size_t>(args[1].toScalar());
-            auto w = MValue::matrix(1, winLen, MType::DOUBLE, &ctx.engine->allocator());
+            auto w = Value::matrix(1, winLen, ValueType::DOUBLE, &ctx.engine->allocator());
             if (winLen == 1) {
                 w.doubleDataMut()[0] = 1.0;
             } else {
@@ -139,4 +139,4 @@ void spectrogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

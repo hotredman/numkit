@@ -4,7 +4,7 @@
 // The round-trip target is always a CallbackFS-backed in-memory VirtualFS
 // so the tests don't touch disk and are independent of the native FS.
 
-#include <numkit/m/core/MVfs.hpp>
+#include <numkit/core/vfs.hpp>
 #include "dual_engine_fixture.hpp"
 
 #include <map>
@@ -16,7 +16,7 @@ namespace {
 
 // Minimal in-memory VFS used as a test sink for fprintf-to-file writes.
 // Mirrors the pattern from vfs_test.cpp.
-class MemoryFS final : public numkit::m::VirtualFS
+class MemoryFS final : public numkit::VirtualFS
 {
 public:
     explicit MemoryFS(std::string n) : name_(std::move(n)) {}
@@ -236,7 +236,7 @@ TEST_P(FileIoTest, EveryFopenYieldsDistinctFid)
 
 TEST_P(FileIoTest, FopenHonorsMlabFsEnvVar)
 {
-    // Register a second backend and redirect fopen to it via NUMKIT_M_FS —
+    // Register a second backend and redirect fopen to it via NUMKIT_FS —
     // the script origin stack still says 'temporary', so this verifies
     // env-var precedence for fopen specifically (same contract we
     // already test for csvread/csvwrite in vfs_test.cpp).
@@ -244,11 +244,11 @@ TEST_P(FileIoTest, FopenHonorsMlabFsEnvVar)
     auto *otherPtr = other.get();
     engine.registerVirtualFS(std::move(other));
 
-    eval("setenv('NUMKIT_M_FS', 'other');");
+    eval("setenv('NUMKIT_FS', 'other');");
     eval("fid = fopen('x.txt', 'w');");
     eval("fprintf(fid, 'via other');");
     eval("fclose(fid);");
-    eval("setenv('NUMKIT_M_FS', '');");
+    eval("setenv('NUMKIT_FS', '');");
 
     EXPECT_EQ(otherPtr->files()["x.txt"], "via other");
     EXPECT_TRUE(fs->files().empty());
@@ -1947,14 +1947,14 @@ TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
     // engine's lifetime, so we can inspect it after engine destruction.
     std::map<std::string, std::string> persisted;
     {
-        numkit::m::Engine local;
-        StdLibrary::install(local);
+        numkit::Engine local;
+        BuiltinLibrary::install(local);
         if (GetParam() == BackendParam::TreeWalker)
             local.setBackend(Engine::Backend::TreeWalker);
         else
             local.setBackend(Engine::Backend::VM);
 
-        auto fs = std::make_unique<numkit::m::CallbackFS>(
+        auto fs = std::make_unique<numkit::CallbackFS>(
             "temporary",
             [](const std::string &) -> std::string { return ""; },
             [&persisted](const std::string &p, const std::string &c) { persisted[p] = c; },

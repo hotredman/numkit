@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 add_executable(numkit_mide_wasm src/repl_bindings.cpp)
-target_link_libraries(numkit_mide_wasm PRIVATE numkit::m)
+target_link_libraries(numkit_mide_wasm PRIVATE numkit::numkit)
 
 if(EMSCRIPTEN)
     set_target_properties(numkit_mide_wasm PROPERTIES
@@ -28,5 +28,5 @@ if(EMSCRIPTEN)
     )
 
 else()
-    message(WARNING "wasm/ is designed for Emscripten. Use: emcmake cmake .. -DNUMKIT_M_BUILD_REPL=ON")
+    message(WARNING "wasm/ is designed for Emscripten. Use: emcmake cmake .. -DNUMKIT_BUILD_REPL=ON")
 endif()

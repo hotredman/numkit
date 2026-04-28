@@ -4,31 +4,31 @@
 // during the MATLAB-taxonomy refactor — they're Statistics Toolbox
 // content (var/std/median stay in libs/builtin as base MATLAB).
 
-#include <numkit/m/stats/moments/moments.hpp>
+#include <numkit/stats/moments/moments.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
-#include "MStdReductionHelpers.hpp"
+#include "helpers.hpp"
+#include "reduction_helpers.hpp"
 
 #include <cmath>
 #include <utility>
 
-namespace numkit::m::stats {
+namespace numkit::stats {
 
-using ::numkit::m::builtin::detail::applyAlongDim;
-using ::numkit::m::builtin::detail::resolveDim;
-using ::numkit::m::createForDims;
+using ::numkit::builtin::detail::applyAlongDim;
+using ::numkit::builtin::detail::resolveDim;
+using ::numkit::createForDims;
 
 namespace {
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
 // input type — arithmetic happens at double precision then narrows.
-MValue narrowToSingle(MValue d, Allocator *alloc)
+Value narrowToSingle(Value d, Allocator *alloc)
 {
-    if (d.type() != MType::DOUBLE) return d;
-    MValue r = createForDims(d.dims(), MType::SINGLE, alloc);
+    if (d.type() != ValueType::DOUBLE) return d;
+    Value r = createForDims(d.dims(), ValueType::SINGLE, alloc);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (size_t i = 0; i < d.numel(); ++i)
@@ -92,37 +92,37 @@ double kurtosisFromSlice(const double *data, size_t n, int normFlag)
     return y;
 }
 
-MValue dispatchMomentReduction(Allocator &alloc, const MValue &x, int dim,
+Value dispatchMomentReduction(Allocator &alloc, const Value &x, int dim,
                                int normFlag, const char *fn,
                                double (*fromSlice)(const double *, size_t, int))
 {
     if (normFlag != 0 && normFlag != 1)
-        throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
+        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
-    if (x.type() == MType::COMPLEX)
-        throw MError(std::string(fn) + ": complex inputs are not supported",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error(std::string(fn) + ": complex inputs are not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":complex");
     if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
     const int d = resolveDim(x, dim, fn);
-    MValue r = applyAlongDim(x, d,
+    Value r = applyAlongDim(x, d,
         [normFlag, fromSlice](size_t, double *slice, size_t n) {
             return fromSlice(slice, n, normFlag);
         }, &alloc);
-    if (x.type() == MType::SINGLE)
+    if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), &alloc);
     return r;
 }
 
 } // namespace
 
-MValue skewness(Allocator &alloc, const MValue &x, int normFlag, int dim)
+Value skewness(Allocator &alloc, const Value &x, int normFlag, int dim)
 {
     return dispatchMomentReduction(alloc, x, dim, normFlag, "skewness",
                                    skewnessFromSlice);
 }
 
-MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag, int dim)
+Value kurtosis(Allocator &alloc, const Value &x, int normFlag, int dim)
 {
     return dispatchMomentReduction(alloc, x, dim, normFlag, "kurtosis",
                                    kurtosisFromSlice);
@@ -131,11 +131,11 @@ MValue kurtosis(Allocator &alloc, const MValue &x, int normFlag, int dim)
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
-void skewness_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
-        throw MError("skewness: requires at least 1 argument",
+        throw Error("skewness: requires at least 1 argument",
                      0, 0, "skewness", "", "m:skewness:nargin");
     int normFlag = 1;  // MATLAB default
     int dim = 0;
@@ -146,11 +146,11 @@ void skewness_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = skewness(ctx.engine->allocator(), args[0], normFlag, dim);
 }
 
-void kurtosis_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
-        throw MError("kurtosis: requires at least 1 argument",
+        throw Error("kurtosis: requires at least 1 argument",
                      0, 0, "kurtosis", "", "m:kurtosis:nargin");
     int normFlag = 1;
     int dim = 0;
@@ -163,4 +163,4 @@ void kurtosis_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::stats
+} // namespace numkit::stats

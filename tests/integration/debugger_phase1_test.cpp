@@ -1,13 +1,13 @@
-// tests/test_debugger_phase1.cpp — Source mapping, error locations, MError
+// tests/test_debugger_phase1.cpp — Source mapping, error locations, Error
 // Parameterized: runs on both TreeWalker and VM backends
 
-#include <numkit/m/core/MCompiler.hpp>
-#include <numkit/m/core/MLexer.hpp>
-#include <numkit/m/core/MParser.hpp>
+#include <numkit/core/compiler.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit::m;
+using namespace numkit;
 
 // ============================================================
 // Test fixture
@@ -128,7 +128,7 @@ TEST_P(DebugPhase1Test, SourceCodeSharedAcrossFunctions)
 }
 
 // ============================================================
-// 3. VM errors include source location (MError)
+// 3. VM errors include source location (Error)
 // ============================================================
 
 TEST_P(DebugPhase1Test, UndefinedVarErrorHasLocation)
@@ -138,7 +138,7 @@ TEST_P(DebugPhase1Test, UndefinedVarErrorHasLocation)
         try {
             eval("x = 1;\nv = [1 2 3];\nv(100);\n");
             FAIL() << "Should have thrown";
-        } catch (const MError &e) {
+        } catch (const Error &e) {
             EXPECT_GT(e.line(), 0) << "TW error should have line info";
         } catch (...) {
             // Some TW paths may not enrich — acceptable
@@ -150,7 +150,7 @@ TEST_P(DebugPhase1Test, UndefinedVarErrorHasLocation)
     try {
         eval("x = 1;\nv = [1 2 3];\nv(100);\n");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
+    } catch (const Error &e) {
         EXPECT_GT(e.line(), 0) << "VM error should include line number";
         EXPECT_GE(e.line(), 3) << "Error should be on line 3 (v(100))";
         std::string msg = e.what();
@@ -165,7 +165,7 @@ TEST_P(DebugPhase1Test, IndexErrorHasLocation)
     try {
         eval("v = [1 2 3];\nv(10);\n");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
+    } catch (const Error &e) {
         EXPECT_GT(e.line(), 0) << "Index error should have line info";
     } catch (const std::runtime_error &) {
         // Also acceptable — some paths may not enrich yet
@@ -186,7 +186,7 @@ TEST_P(DebugPhase1Test, UndefinedVarInFunctionHasLocation)
             bad_func();
         )");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
+    } catch (const Error &e) {
         EXPECT_GT(e.line(), 0) << "ASSERT_DEF error should have line info";
         std::string msg = e.what();
         EXPECT_TRUE(msg.find("some_undefined_thing") != std::string::npos)
@@ -202,7 +202,7 @@ TEST_P(DebugPhase1Test, UndefinedVarInFunctionHasLocation)
 
 TEST_P(DebugPhase1Test, FormattedWhatIncludesLocation)
 {
-    MError err("bad stuff", 15, 3, "my_func");
+    Error err("bad stuff", 15, 3, "my_func");
 
     EXPECT_EQ(err.line(), 15);
     EXPECT_EQ(err.col(), 3);
@@ -217,7 +217,7 @@ TEST_P(DebugPhase1Test, FormattedWhatIncludesLocation)
 
 TEST_P(DebugPhase1Test, FormattedWhatNoLocationJustMessage)
 {
-    MError err("plain error");
+    Error err("plain error");
 
     EXPECT_STREQ(err.what(), "plain error");
     EXPECT_EQ(err.formattedWhat(), "plain error")
@@ -227,7 +227,7 @@ TEST_P(DebugPhase1Test, FormattedWhatNoLocationJustMessage)
 TEST_P(DebugPhase1Test, WhatIsRawMessage)
 {
     // Verify what() does NOT contain "Error at line" formatting
-    MError err("divide by zero", 10, 5, "calc");
+    Error err("divide by zero", 10, 5, "calc");
     std::string w = err.what();
     EXPECT_EQ(w, "divide by zero") << "what() should be raw message, not formatted";
     EXPECT_TRUE(w.find("Error at line") == std::string::npos)
@@ -293,7 +293,7 @@ TEST_P(DebugPhase1Test, NestedFunctionErrorLocation)
             inner([1 2 3]);
         )");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
+    } catch (const Error &e) {
         EXPECT_GT(e.line(), 0);
         // Error should reference the inner function
         EXPECT_EQ(e.funcName(), "inner") << "Error should name the function where it occurred";
@@ -367,7 +367,7 @@ TEST_P(DebugPhase1Test, VariablesSurviveErrorPartialAssign)
 
 TEST_P(DebugPhase1Test, RuntimeErrorStillCatchable)
 {
-    // Verify MError is still catchable as std::runtime_error
+    // Verify Error is still catchable as std::runtime_error
     EXPECT_THROW(eval("undefined_xyz;"), std::runtime_error);
 }
 

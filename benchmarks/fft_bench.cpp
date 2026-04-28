@@ -1,19 +1,19 @@
 // benchmarks/fft_bench.cpp
 //
-// Timed region covers only numkit::m::signal::fft(). Input allocation
+// Timed region covers only numkit::signal::fft(). Input allocation
 // and RNG fill happen in SetUp / per-iteration prologue and are NOT
 // counted. Sizes are powers of two (the common case) across a range
 // that spans the cache hierarchy on a typical workstation.
 
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
-#include <numkit/m/signal/transforms/fft.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 
 // Private headers — exposed via libs/dsp/src include path in the
 // benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time
 // just the inner radix-2 dispatch loop.
-#include "MDspHelpers.hpp"
+#include "dsp_helpers.hpp"
 #include "backends/FftKernels.hpp"
 
 #include <benchmark/benchmark.h>
@@ -26,13 +26,13 @@ namespace {
 
 // Build a real column vector of length n filled with a deterministic
 // pseudo-random sequence. Allocator is nullptr → engine-free path.
-numkit::m::MValue makeRealSignal(size_t n)
+numkit::Value makeRealSignal(size_t n)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     std::mt19937 rng(42);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    MValue x = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value x = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *data = x.doubleDataMut();
     for (size_t i = 0; i < n; ++i)
         data[i] = dist(rng);
@@ -43,13 +43,13 @@ numkit::m::MValue makeRealSignal(size_t n)
 // inside signal::fft so the underlying complex r2/r4 kernel sees the full
 // size N (not the rfft-halved N/2). Used to isolate where the cliff at
 // N=32k actually lives: in the kernel or in the rfft wrapper.
-numkit::m::MValue makeComplexSignal(size_t n)
+numkit::Value makeComplexSignal(size_t n)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     std::mt19937 rng(42);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    MValue x = MValue::complexMatrix(n, 1, nullptr);
+    Value x = Value::complexMatrix(n, 1, nullptr);
     Complex *data = x.complexDataMut();
     for (size_t i = 0; i < n; ++i)
         data[i] = Complex(dist(rng), dist(rng));
@@ -60,13 +60,13 @@ numkit::m::MValue makeComplexSignal(size_t n)
 
 static void BM_Fft_PowerOfTwo(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue x = makeRealSignal(n);
+    Value x = makeRealSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -90,13 +90,13 @@ BENCHMARK(BM_Fft_PowerOfTwo)
 // kernel timing should be lower than (real_at_2N - linear_overhead).
 static void BM_Fft_PowerOfTwo_Complex(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue x = makeComplexSignal(n);
+    Value x = makeComplexSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -115,7 +115,7 @@ BENCHMARK(BM_Fft_PowerOfTwo_Complex)
 // N=32k (native) to either the kernel or the wrapper.
 static void BM_Fft_KernelOnly_Complex(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
 
     // Pre-fill the input + twiddle table once. The bench loop just
@@ -149,7 +149,7 @@ BENCHMARK(BM_Fft_KernelOnly_Complex)
 // no-bit-reversal advantage wins vs the in-place r2 path.
 static void BM_Fft_KernelOnly_Stockham(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
 
     std::vector<Complex> input(n);
@@ -180,7 +180,7 @@ BENCHMARK(BM_Fft_KernelOnly_Stockham)
 // LoadInterleaved2 permute cost on AVX2.
 static void BM_Fft_KernelOnly_R2SoA(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
 
     std::vector<Complex> input(n);
@@ -209,7 +209,7 @@ BENCHMARK(BM_Fft_KernelOnly_R2SoA)
 // SoA r4 kernel — only valid at powers of 4.
 static void BM_Fft_KernelOnly_R4SoA(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
 
     std::vector<Complex> input(n);
@@ -274,7 +274,7 @@ BENCHMARK(BM_Fft_RfftPackOnly)
 // length fftLen, AoS). Includes the DC/Nyquist setup.
 static void BM_Fft_RfftTwistOnlyScalar(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t fftLen = static_cast<size_t>(state.range(0));
     const size_t half = fftLen / 2;
     std::vector<double> reBuf(half), imBuf(half);
@@ -335,14 +335,14 @@ BENCHMARK(BM_Fft_RfftTwistOnlyScalar)
 // Stockham-vs-r2 win at any size is roughly this time / r2 total.
 static void BM_Fft_BitReverseOnly(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     std::vector<Complex> work(n);
     for (size_t i = 0; i < n; ++i)
         work[i] = Complex(double(i), 0.0);
 
     for (auto _ : state) {
-        // Same in-place bit-reverse loop as MDspFft_r2_simd.cpp:bitReverse2
+        // Same in-place bit-reverse loop as fft_r2_simd.cpp:bitReverse2
         // (the SIMD r2 kernel calls it once per FFT call).
         for (std::size_t i = 1, j = 0; i < n; ++i) {
             std::size_t bit = n >> 1;
@@ -366,7 +366,7 @@ BENCHMARK(BM_Fft_BitReverseOnly)
 // is paid. So this bench gives the ceiling of the memcpy penalty.
 static void BM_Fft_FinalMemcpyOnly(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     std::vector<Complex> src(n), dst(n);
     for (size_t i = 0; i < n; ++i)

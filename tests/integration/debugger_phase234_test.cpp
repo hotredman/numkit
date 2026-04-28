@@ -1,9 +1,9 @@
 // tests/test_debugger_phase234.cpp — Debug observer, line hooks, breakpoints, stepping
-#include <numkit/m/core/MDebugger.hpp>
+#include <numkit/core/debugger.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit::m;
+using namespace numkit;
 
 // ============================================================
 // Test observer that records all events
@@ -564,7 +564,7 @@ INSTANTIATE_DUAL(DebugPhase234Test);
 TEST(DebugVMBackend, StopExceptionPropagates)
 {
     Engine engine;
-    StdLibrary::install(engine);
+    BuiltinLibrary::install(engine);
     engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
@@ -580,7 +580,7 @@ TEST(DebugVMBackend, StopExceptionPropagates)
 TEST(DebugVMBackend, BreakpointContinueThenStop)
 {
     Engine engine;
-    StdLibrary::install(engine);
+    BuiltinLibrary::install(engine);
     engine.setBackend(Engine::Backend::VM);
 
     auto obs = std::make_shared<RecordingObserver>();
@@ -608,7 +608,7 @@ TEST(DebugVMBackend, BreakpointContinueThenStop)
 TEST(DebugVMBackend, FunctionAtBottomWithClear)
 {
     Engine engine;
-    StdLibrary::install(engine);
+    BuiltinLibrary::install(engine);
     engine.setBackend(Engine::Backend::VM);
 
     std::string output;

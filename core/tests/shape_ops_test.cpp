@@ -1,24 +1,24 @@
 // core/tests/shape_ops_test.cpp
 //
-// Unit tests for ND shape helpers in MShapeOps.hpp: broadcasting,
+// Unit tests for ND shape helpers in shape_ops.hpp: broadcasting,
 // strides, coord-walking. Direct C++ tests (not driven through the
 // dual-engine VM/TreeWalker fixture) — they exercise pure functions
 // on Dims and don't need an interpreter.
 
 #include <gtest/gtest.h>
 
-#include <numkit/m/core/MDims.hpp>
-#include <numkit/m/core/MShapeOps.hpp>
+#include <numkit/core/dims.hpp>
+#include <numkit/core/shape_ops.hpp>
 
 #include <array>
 #include <vector>
 
-using numkit::m::Dims;
-using numkit::m::broadcastDimsND;
-using numkit::m::broadcastOffsetND;
-using numkit::m::computeStridesColMajor;
-using numkit::m::incrementCoords;
-using numkit::m::linearizeFromCoords;
+using numkit::Dims;
+using numkit::broadcastDimsND;
+using numkit::broadcastOffsetND;
+using numkit::computeStridesColMajor;
+using numkit::incrementCoords;
+using numkit::linearizeFromCoords;
 
 // ─── broadcastDimsND ────────────────────────────────────────────
 

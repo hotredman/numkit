@@ -9,17 +9,17 @@
 // fast feedback) to 64k (where the FFT-backed kernels start to show
 // their cost).
 
-#include <numkit/m/signal/convolution/convolution.hpp>
-#include <numkit/m/signal/digital_filtering/filter.hpp>
-#include <numkit/m/signal/filter_design/filter_design.hpp>
-#include <numkit/m/signal/measurements/findpeaks.hpp>
-#include <numkit/m/signal/smoothing/medfilt.hpp>
-#include <numkit/m/signal/spectral_analysis/periodogram_pwelch.hpp>
-#include <numkit/m/signal/transforms/dct.hpp>
-#include <numkit/m/signal/transforms/hilbert.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/signal/convolution/convolution.hpp>
+#include <numkit/signal/digital_filtering/filter.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/measurements/findpeaks.hpp>
+#include <numkit/signal/smoothing/medfilt.hpp>
+#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/signal/transforms/dct.hpp>
+#include <numkit/signal/transforms/hilbert.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -27,13 +27,13 @@
 
 namespace {
 
-using namespace numkit::m;
+using namespace numkit;
 
-MValue makeSignal(size_t n, uint32_t seed = 7)
+Value makeSignal(size_t n, uint32_t seed = 7)
 {
     std::mt19937 rng(seed);
     std::normal_distribution<double> d(0.0, 1.0);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = d(rng);
     return v;
@@ -41,8 +41,8 @@ MValue makeSignal(size_t n, uint32_t seed = 7)
 
 // Build a small lowpass filter (length 32) to feed filter / filtfilt.
 struct FilterCoeffs {
-    MValue b;
-    MValue a;
+    Value b;
+    Value a;
 };
 
 FilterCoeffs makeLowpass32()
@@ -50,7 +50,7 @@ FilterCoeffs makeLowpass32()
     Allocator alloc = Allocator::defaultAllocator();
     auto b = signal::fir1(alloc, 32, 0.25, "low");  // 33-tap FIR
     // a = [1] for FIR
-    MValue a = MValue::matrix(1, 1, MType::DOUBLE, nullptr);
+    Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
     a.doubleDataMut()[0] = 1.0;
     return {b, a};
 }
@@ -110,7 +110,7 @@ static void BM_Pwelch(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    MValue emptyWin = MValue::matrix(0, 0, MType::DOUBLE, nullptr);
+    Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
         auto [pxx, f] = signal::pwelch(alloc, x, emptyWin, 0, 0);

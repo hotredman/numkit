@@ -1,27 +1,27 @@
 // libs/builtin/tests/strings_public_api_test.cpp
 //
-// Direct-call tests for numkit::m::builtin string functions.
+// Direct-call tests for numkit::builtin string functions.
 // Exercises algorithm without Engine/Parser/VM.
 
-#include <numkit/m/builtin/datatypes/strings/strings.hpp>
-#include <numkit/m/builtin/datatypes/strings/regex.hpp>
+#include <numkit/builtin/datatypes/strings/strings.hpp>
+#include <numkit/builtin/datatypes/strings/regex.hpp>
 
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using numkit::m::Allocator;
-using numkit::m::MError;
-using numkit::m::MType;
-using numkit::m::MValue;
+using numkit::Allocator;
+using numkit::Error;
+using numkit::ValueType;
+using numkit::Value;
 
 namespace {
 
-MValue mkStr(Allocator &alloc, const char *s) { return MValue::fromString(s, &alloc); }
+Value mkStr(Allocator &alloc, const char *s) { return Value::fromString(s, &alloc); }
 
 } // namespace
 
@@ -29,7 +29,7 @@ MValue mkStr(Allocator &alloc, const char *s) { return MValue::fromString(s, &al
 TEST(BuiltinStringsPublicApi, Num2StrScalar)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::num2str(alloc, MValue::scalar(3.14, &alloc));
+    Value r = numkit::builtin::num2str(alloc, Value::scalar(3.14, &alloc));
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "3.14");
 }
@@ -37,28 +37,28 @@ TEST(BuiltinStringsPublicApi, Num2StrScalar)
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::str2num(alloc, mkStr(alloc, "42.5"));
+    Value r = numkit::builtin::str2num(alloc, mkStr(alloc, "42.5"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 42.5);
 }
 
 TEST(BuiltinStringsPublicApi, Str2NumFailureReturnsEmpty)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::str2num(alloc, mkStr(alloc, "not a number"));
+    Value r = numkit::builtin::str2num(alloc, mkStr(alloc, "not a number"));
     EXPECT_TRUE(r.isEmpty());
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleSuccess)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::str2double(alloc, mkStr(alloc, "3.14e2"));
+    Value r = numkit::builtin::str2double(alloc, mkStr(alloc, "3.14e2"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 314.0);
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::str2double(alloc, mkStr(alloc, "xyz"));
+    Value r = numkit::builtin::str2double(alloc, mkStr(alloc, "xyz"));
     EXPECT_TRUE(std::isnan(r.toScalar()));
 }
 
@@ -66,7 +66,7 @@ TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
 TEST(BuiltinStringsPublicApi, ToStringFromScalar)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::toString(alloc, MValue::scalar(7.5, &alloc));
+    Value r = numkit::builtin::toString(alloc, Value::scalar(7.5, &alloc));
     ASSERT_TRUE(r.isString());
     EXPECT_EQ(r.toString(), "7.5");
 }
@@ -74,10 +74,10 @@ TEST(BuiltinStringsPublicApi, ToStringFromScalar)
 TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    auto v = MValue::matrix(1, 3, MType::DOUBLE, &alloc);
+    auto v = Value::matrix(1, 3, ValueType::DOUBLE, &alloc);
     double *d = v.doubleDataMut();
     d[0] = 72; d[1] = 105; d[2] = 33; // "Hi!"
-    MValue r = numkit::m::builtin::toChar(alloc, v);
+    Value r = numkit::builtin::toChar(alloc, v);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "Hi!");
 }
@@ -86,10 +86,10 @@ TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
 TEST(BuiltinStringsPublicApi, StrcmpExact)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::m::builtin::strcmp(alloc, mkStr(alloc, "abc"),
+    EXPECT_TRUE(numkit::builtin::strcmp(alloc, mkStr(alloc, "abc"),
                                            mkStr(alloc, "abc"))
                     .toBool());
-    EXPECT_FALSE(numkit::m::builtin::strcmp(alloc, mkStr(alloc, "abc"),
+    EXPECT_FALSE(numkit::builtin::strcmp(alloc, mkStr(alloc, "abc"),
                                             mkStr(alloc, "ABC"))
                      .toBool());
 }
@@ -97,7 +97,7 @@ TEST(BuiltinStringsPublicApi, StrcmpExact)
 TEST(BuiltinStringsPublicApi, StrcmpiCaseInsensitive)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::m::builtin::strcmpi(alloc, mkStr(alloc, "Hello"),
+    EXPECT_TRUE(numkit::builtin::strcmpi(alloc, mkStr(alloc, "Hello"),
                                             mkStr(alloc, "hELLO"))
                     .toBool());
 }
@@ -106,14 +106,14 @@ TEST(BuiltinStringsPublicApi, StrcmpiCaseInsensitive)
 TEST(BuiltinStringsPublicApi, UpperAscii)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::upper(alloc, mkStr(alloc, "Mixed Case"));
+    Value r = numkit::builtin::upper(alloc, mkStr(alloc, "Mixed Case"));
     EXPECT_EQ(r.toString(), "MIXED CASE");
 }
 
 TEST(BuiltinStringsPublicApi, LowerAscii)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::lower(alloc, mkStr(alloc, "Mixed Case"));
+    Value r = numkit::builtin::lower(alloc, mkStr(alloc, "Mixed Case"));
     EXPECT_EQ(r.toString(), "mixed case");
 }
 
@@ -121,14 +121,14 @@ TEST(BuiltinStringsPublicApi, LowerAscii)
 TEST(BuiltinStringsPublicApi, StrtrimStripsWhitespace)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strtrim(alloc, mkStr(alloc, "  \t hello\n "));
+    Value r = numkit::builtin::strtrim(alloc, mkStr(alloc, "  \t hello\n "));
     EXPECT_EQ(r.toString(), "hello");
 }
 
 TEST(BuiltinStringsPublicApi, StrtrimAllWhitespaceReturnsEmpty)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strtrim(alloc, mkStr(alloc, "   \n\t"));
+    Value r = numkit::builtin::strtrim(alloc, mkStr(alloc, "   \n\t"));
     EXPECT_EQ(r.toString(), "");
 }
 
@@ -136,7 +136,7 @@ TEST(BuiltinStringsPublicApi, StrtrimAllWhitespaceReturnsEmpty)
 TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strsplit(alloc, mkStr(alloc, "one two three"));
+    Value r = numkit::builtin::strsplit(alloc, mkStr(alloc, "one two three"));
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "one");
     EXPECT_EQ(r.cellAt(1).toString(), "two");
@@ -146,7 +146,7 @@ TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 TEST(BuiltinStringsPublicApi, StrsplitCustomDelim)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strsplit(alloc, mkStr(alloc, "a,b,c"),
+    Value r = numkit::builtin::strsplit(alloc, mkStr(alloc, "a,b,c"),
                                             mkStr(alloc, ","));
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "a");
@@ -157,12 +157,12 @@ TEST(BuiltinStringsPublicApi, StrsplitCustomDelim)
 TEST(BuiltinStringsPublicApi, StrcatConcatenatesAll)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue a = mkStr(alloc, "foo");
-    MValue b = mkStr(alloc, "bar");
-    MValue c = mkStr(alloc, "baz");
-    MValue parts[] = {a, b, c};
-    numkit::m::Span<const MValue> span(parts, 3);
-    MValue r = numkit::m::builtin::strcat(alloc, span);
+    Value a = mkStr(alloc, "foo");
+    Value b = mkStr(alloc, "bar");
+    Value c = mkStr(alloc, "baz");
+    Value parts[] = {a, b, c};
+    numkit::Span<const Value> span(parts, 3);
+    Value r = numkit::builtin::strcat(alloc, span);
     EXPECT_EQ(r.toString(), "foobarbaz");
 }
 
@@ -170,7 +170,7 @@ TEST(BuiltinStringsPublicApi, StrcatConcatenatesAll)
 TEST(BuiltinStringsPublicApi, StrlengthOfCharArray)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strlength(alloc, mkStr(alloc, "hello"));
+    Value r = numkit::builtin::strlength(alloc, mkStr(alloc, "hello"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 5.0);
 }
 
@@ -178,7 +178,7 @@ TEST(BuiltinStringsPublicApi, StrlengthOfCharArray)
 TEST(BuiltinStringsPublicApi, StrrepReplacesAllOccurrences)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strrep(alloc,
+    Value r = numkit::builtin::strrep(alloc,
                                           mkStr(alloc, "foo bar foo baz foo"),
                                           mkStr(alloc, "foo"),
                                           mkStr(alloc, "XYZ"));
@@ -188,7 +188,7 @@ TEST(BuiltinStringsPublicApi, StrrepReplacesAllOccurrences)
 TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    MValue r = numkit::m::builtin::strrep(alloc, mkStr(alloc, "abc"),
+    Value r = numkit::builtin::strrep(alloc, mkStr(alloc, "abc"),
                                           mkStr(alloc, ""),
                                           mkStr(alloc, "X"));
     EXPECT_EQ(r.toString(), "abc");
@@ -198,7 +198,7 @@ TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 TEST(BuiltinStringsPublicApi, ContainsPositive)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::m::builtin::contains(alloc, mkStr(alloc, "hello world"),
+    EXPECT_TRUE(numkit::builtin::contains(alloc, mkStr(alloc, "hello world"),
                                              mkStr(alloc, "lo wo"))
                     .toBool());
 }
@@ -206,7 +206,7 @@ TEST(BuiltinStringsPublicApi, ContainsPositive)
 TEST(BuiltinStringsPublicApi, ContainsNegative)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_FALSE(numkit::m::builtin::contains(alloc, mkStr(alloc, "hello"),
+    EXPECT_FALSE(numkit::builtin::contains(alloc, mkStr(alloc, "hello"),
                                               mkStr(alloc, "xyz"))
                      .toBool());
 }
@@ -214,10 +214,10 @@ TEST(BuiltinStringsPublicApi, ContainsNegative)
 TEST(BuiltinStringsPublicApi, StartsWithTrueFalse)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::m::builtin::startsWith(alloc, mkStr(alloc, "hello"),
+    EXPECT_TRUE(numkit::builtin::startsWith(alloc, mkStr(alloc, "hello"),
                                                mkStr(alloc, "hel"))
                     .toBool());
-    EXPECT_FALSE(numkit::m::builtin::startsWith(alloc, mkStr(alloc, "hello"),
+    EXPECT_FALSE(numkit::builtin::startsWith(alloc, mkStr(alloc, "hello"),
                                                 mkStr(alloc, "world"))
                      .toBool());
 }
@@ -225,10 +225,10 @@ TEST(BuiltinStringsPublicApi, StartsWithTrueFalse)
 TEST(BuiltinStringsPublicApi, EndsWithTrueFalse)
 {
     Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::m::builtin::endsWith(alloc, mkStr(alloc, "hello.txt"),
+    EXPECT_TRUE(numkit::builtin::endsWith(alloc, mkStr(alloc, "hello.txt"),
                                              mkStr(alloc, ".txt"))
                     .toBool());
-    EXPECT_FALSE(numkit::m::builtin::endsWith(alloc, mkStr(alloc, "hello"),
+    EXPECT_FALSE(numkit::builtin::endsWith(alloc, mkStr(alloc, "hello"),
                                               mkStr(alloc, ".txt"))
                      .toBool());
 }

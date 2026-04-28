@@ -1,9 +1,9 @@
 // libs/dsp/src/MDspResample.cpp
 
-#include <numkit/m/signal/multirate/multirate.hpp>
+#include <numkit/signal/multirate/multirate.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
@@ -14,7 +14,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -59,28 +59,28 @@ std::vector<double> applyFirDf2t(const std::vector<double> &h, const double *x, 
 } // anonymous namespace
 
 // ── downsample ────────────────────────────────────────────────────────
-MValue downsample(Allocator &alloc, const MValue &x, size_t n)
+Value downsample(Allocator &alloc, const Value &x, size_t n)
 {
     const size_t nx = x.numel();
     const size_t outLen = (nx + n - 1) / n;
     const bool isRow = x.dims().rows() == 1;
 
-    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = x.doubleData()[i * n];
     return r;
 }
 
 // ── upsample ──────────────────────────────────────────────────────────
-MValue upsample(Allocator &alloc, const MValue &x, size_t n)
+Value upsample(Allocator &alloc, const Value &x, size_t n)
 {
     const size_t nx = x.numel();
     const size_t outLen = nx * n;
     const bool isRow = x.dims().rows() == 1;
 
-    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = 0.0;
     for (size_t i = 0; i < nx; ++i)
@@ -89,7 +89,7 @@ MValue upsample(Allocator &alloc, const MValue &x, size_t n)
 }
 
 // ── decimate ──────────────────────────────────────────────────────────
-MValue decimate(Allocator &alloc, const MValue &x, size_t factor)
+Value decimate(Allocator &alloc, const Value &x, size_t factor)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -105,15 +105,15 @@ MValue decimate(Allocator &alloc, const MValue &x, size_t factor)
 
     const size_t outLen = (nx + factor - 1) / factor;
     const bool isRow = x.dims().rows() == 1;
-    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = filtered[i * factor];
     return r;
 }
 
 // ── resample ──────────────────────────────────────────────────────────
-MValue resample(Allocator &alloc, const MValue &x, size_t p, size_t q)
+Value resample(Allocator &alloc, const Value &x, size_t p, size_t q)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -137,8 +137,8 @@ MValue resample(Allocator &alloc, const MValue &x, size_t p, size_t q)
     // Downsample by q
     const size_t outLen = (upLen + q - 1) / q;
     const bool isRow = x.dims().rows() == 1;
-    auto r = isRow ? MValue::matrix(1, outLen, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outLen, 1, MType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < outLen; ++i) {
         const size_t idx = i * q;
         r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
@@ -149,40 +149,40 @@ MValue resample(Allocator &alloc, const MValue &x, size_t p, size_t q)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void downsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void downsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("downsample: requires 2 arguments",
+        throw Error("downsample: requires 2 arguments",
                      0, 0, "downsample", "", "m:downsample:nargin");
     outs[0] = downsample(ctx.engine->allocator(),
                          args[0],
                          static_cast<size_t>(args[1].toScalar()));
 }
 
-void upsample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("upsample: requires 2 arguments",
+        throw Error("upsample: requires 2 arguments",
                      0, 0, "upsample", "", "m:upsample:nargin");
     outs[0] = upsample(ctx.engine->allocator(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
 }
 
-void decimate_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("decimate: requires 2 arguments",
+        throw Error("decimate: requires 2 arguments",
                      0, 0, "decimate", "", "m:decimate:nargin");
     outs[0] = decimate(ctx.engine->allocator(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
 }
 
-void resample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("resample: requires 3 arguments",
+        throw Error("resample: requires 3 arguments",
                      0, 0, "resample", "", "m:resample:nargin");
     outs[0] = resample(ctx.engine->allocator(),
                        args[0],
@@ -192,4 +192,4 @@ void resample_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

@@ -3,13 +3,13 @@
 // zp2sos / tf2sos — convert filter representations to SOS form. The
 // cascade applicator sosfilt lives in digital_filtering/sosfilt.cpp.
 
-#include <numkit/m/signal/filter_implementation/conversions.hpp>
+#include <numkit/signal/filter_implementation/conversions.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
-#include "MStdPolyHelpers.hpp"
+#include "../dsp_helpers.hpp"
+#include "poly_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -19,14 +19,14 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
-using numkit::m::Complex;
+using numkit::Complex;
 
 namespace {
 
-// Polynomial root finder lifted into shared MStdPolyHelpers.hpp.
-using numkit::m::builtin::detail::polyRootsDurandKerner;
+// Polynomial root finder lifted into shared poly_helpers.hpp.
+using numkit::builtin::detail::polyRootsDurandKerner;
 inline std::vector<Complex> rootsDurandKerner(const std::vector<double> &c)
 {
     return polyRootsDurandKerner(c);
@@ -80,7 +80,7 @@ bool popPair(std::vector<Complex> &pool, RootPair &out)
             if (d < bestDist) { bestDist = d; mateIdx = i; }
         }
         if (mateIdx >= pool.size())
-            throw MError("zp2sos: complex root has no conjugate in input",
+            throw Error("zp2sos: complex root has no conjugate in input",
                          0, 0, "zp2sos", "", "m:zp2sos:noConj");
         out = { pick, pool[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
@@ -153,7 +153,7 @@ bool popClosestZeroPair(std::vector<Complex> &zeros, Complex target,
             if (d < bestDist2) { bestDist2 = d; mateIdx = i; }
         }
         if (mateIdx >= zeros.size())
-            throw MError("zp2sos: complex zero has no conjugate in input",
+            throw Error("zp2sos: complex zero has no conjugate in input",
                          0, 0, "zp2sos", "", "m:zp2sos:noConj");
         out = { pick, zeros[mateIdx], true };
         const size_t hi = std::max(pickIdx, mateIdx);
@@ -164,25 +164,25 @@ bool popClosestZeroPair(std::vector<Complex> &zeros, Complex target,
     return true;
 }
 
-std::vector<Complex> readComplexVec(const MValue &v, const char *fn)
+std::vector<Complex> readComplexVec(const Value &v, const char *fn)
 {
     if (v.isEmpty()) return {};
     std::vector<Complex> out;
     out.reserve(v.numel());
-    if (v.type() == MType::COMPLEX) {
+    if (v.type() == ValueType::COMPLEX) {
         const Complex *p = v.complexData();
         for (size_t i = 0; i < v.numel(); ++i) out.push_back(p[i]);
-    } else if (v.type() == MType::DOUBLE) {
+    } else if (v.type() == ValueType::DOUBLE) {
         const double *p = v.doubleData();
         for (size_t i = 0; i < v.numel(); ++i) out.push_back(Complex(p[i], 0.0));
     } else {
-        throw MError(std::string(fn) + ": zeros/poles must be DOUBLE or COMPLEX",
+        throw Error(std::string(fn) + ": zeros/poles must be DOUBLE or COMPLEX",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
     return out;
 }
 
-MValue buildSosMatrix(Allocator &alloc,
+Value buildSosMatrix(Allocator &alloc,
                       const std::vector<double> &b1s,
                       const std::vector<double> &b2s,
                       const std::vector<double> &a1s,
@@ -190,7 +190,7 @@ MValue buildSosMatrix(Allocator &alloc,
                       double leadingGain)
 {
     const size_t L = a1s.size();
-    auto sos = MValue::matrix(L, 6, MType::DOUBLE, &alloc);
+    auto sos = Value::matrix(L, 6, ValueType::DOUBLE, &alloc);
     double *p = sos.doubleDataMut();
     for (size_t r = 0; r < L; ++r) {
         const double scale = (r == 0) ? leadingGain : 1.0;
@@ -204,10 +204,10 @@ MValue buildSosMatrix(Allocator &alloc,
     return sos;
 }
 
-inline std::vector<double> coeffsAsVector(const MValue &v)
+inline std::vector<double> coeffsAsVector(const Value &v)
 {
-    if (v.type() != MType::DOUBLE || !v.dims().isVector())
-        throw MError("tf2sos: b/a must be DOUBLE row/column vectors",
+    if (v.type() != ValueType::DOUBLE || !v.dims().isVector())
+        throw Error("tf2sos: b/a must be DOUBLE row/column vectors",
                      0, 0, "tf2sos", "", "m:tf2sos:type");
     const size_t n = v.numel();
     std::vector<double> out(n);
@@ -218,11 +218,11 @@ inline std::vector<double> coeffsAsVector(const MValue &v)
 
 } // namespace
 
-std::tuple<MValue, double>
-zp2sosWithGain(Allocator &alloc, const MValue &zerosV, const MValue &polesV, double gain)
+std::tuple<Value, double>
+zp2sosWithGain(Allocator &alloc, const Value &zerosV, const Value &polesV, double gain)
 {
     if (polesV.isEmpty())
-        throw MError("zp2sos: at least one pole is required",
+        throw Error("zp2sos: at least one pole is required",
                      0, 0, "zp2sos", "", "m:zp2sos:noPoles");
 
     auto zeros = readComplexVec(zerosV, "zp2sos");
@@ -234,7 +234,7 @@ zp2sosWithGain(Allocator &alloc, const MValue &zerosV, const MValue &polesV, dou
     for (size_t s = 0; s < L; ++s) {
         RootPair polePair;
         if (!popPair(poles, polePair))
-            throw MError("zp2sos: internal — ran out of poles",
+            throw Error("zp2sos: internal — ran out of poles",
                          0, 0, "zp2sos", "", "m:zp2sos:internal");
         const auto polQ = pairToQuad(polePair);
         a1s[s] = polQ.b1;
@@ -252,14 +252,14 @@ zp2sosWithGain(Allocator &alloc, const MValue &zerosV, const MValue &polesV, dou
         }
     }
     if (!zeros.empty())
-        throw MError("zp2sos: more zeros than poles is not supported",
+        throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "m:zp2sos:moreZeros");
 
     return std::make_tuple(buildSosMatrix(alloc, b1s, b2s, a1s, a2s, /*leadingGain=*/1.0),
                            gain);
 }
 
-MValue zp2sos(Allocator &alloc, const MValue &zerosV, const MValue &polesV, double gain)
+Value zp2sos(Allocator &alloc, const Value &zerosV, const Value &polesV, double gain)
 {
     auto [sos, g] = zp2sosWithGain(alloc, zerosV, polesV, gain);
     const size_t L = sos.dims().rows();
@@ -270,26 +270,26 @@ MValue zp2sos(Allocator &alloc, const MValue &zerosV, const MValue &polesV, doub
     return sos;
 }
 
-std::tuple<MValue, double>
-tf2sosWithGain(Allocator &alloc, const MValue &b, const MValue &a)
+std::tuple<Value, double>
+tf2sosWithGain(Allocator &alloc, const Value &b, const Value &a)
 {
     auto bv = coeffsAsVector(b);
     auto av = coeffsAsVector(a);
     if (av.empty() || av[0] == 0.0)
-        throw MError("tf2sos: a(1) must be nonzero",
+        throw Error("tf2sos: a(1) must be nonzero",
                      0, 0, "tf2sos", "", "m:tf2sos:zeroLead");
     if (bv.empty())
-        throw MError("tf2sos: b is empty",
+        throw Error("tf2sos: b is empty",
                      0, 0, "tf2sos", "", "m:tf2sos:emptyB");
 
     const double gain = bv[0] / av[0];
     auto zeros = rootsDurandKerner(bv);
     auto poles = rootsDurandKerner(av);
 
-    auto toCplxVec = [&](const std::vector<Complex> &v) -> MValue {
+    auto toCplxVec = [&](const std::vector<Complex> &v) -> Value {
         if (v.empty())
-            return MValue::matrix(0, 0, MType::COMPLEX, &alloc);
-        auto r = MValue::matrix(v.size(), 1, MType::COMPLEX, &alloc);
+            return Value::matrix(0, 0, ValueType::COMPLEX, &alloc);
+        auto r = Value::matrix(v.size(), 1, ValueType::COMPLEX, &alloc);
         Complex *p = r.complexDataMut();
         for (size_t i = 0; i < v.size(); ++i) p[i] = v[i];
         return r;
@@ -297,7 +297,7 @@ tf2sosWithGain(Allocator &alloc, const MValue &b, const MValue &a)
     return zp2sosWithGain(alloc, toCplxVec(zeros), toCplxVec(poles), gain);
 }
 
-MValue tf2sos(Allocator &alloc, const MValue &b, const MValue &a)
+Value tf2sos(Allocator &alloc, const Value &b, const Value &a)
 {
     auto [sos, g] = tf2sosWithGain(alloc, b, a);
     const size_t L = sos.dims().rows();
@@ -310,11 +310,11 @@ MValue tf2sos(Allocator &alloc, const MValue &b, const MValue &a)
 
 namespace detail {
 
-void zp2sos_reg(Span<const MValue> args, size_t nargout,
-                Span<MValue> outs, CallContext &ctx)
+void zp2sos_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2 || args.size() > 3)
-        throw MError("zp2sos: requires (z, p[, k])",
+        throw Error("zp2sos: requires (z, p[, k])",
                      0, 0, "zp2sos", "", "m:zp2sos:nargin");
     const double gain = (args.size() >= 3 && !args[2].isEmpty())
                             ? args[2].toScalar()
@@ -323,23 +323,23 @@ void zp2sos_reg(Span<const MValue> args, size_t nargout,
     if (nargout >= 2) {
         auto [sos, g] = zp2sosWithGain(alloc, args[0], args[1], gain);
         outs[0] = std::move(sos);
-        outs[1] = MValue::scalar(g, &alloc);
+        outs[1] = Value::scalar(g, &alloc);
     } else {
         outs[0] = zp2sos(alloc, args[0], args[1], gain);
     }
 }
 
-void tf2sos_reg(Span<const MValue> args, size_t nargout,
-                Span<MValue> outs, CallContext &ctx)
+void tf2sos_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
 {
     if (args.size() != 2)
-        throw MError("tf2sos: requires (b, a)",
+        throw Error("tf2sos: requires (b, a)",
                      0, 0, "tf2sos", "", "m:tf2sos:nargin");
     auto &alloc = ctx.engine->allocator();
     if (nargout >= 2) {
         auto [sos, g] = tf2sosWithGain(alloc, args[0], args[1]);
         outs[0] = std::move(sos);
-        outs[1] = MValue::scalar(g, &alloc);
+        outs[1] = Value::scalar(g, &alloc);
     } else {
         outs[0] = tf2sos(alloc, args[0], args[1]);
     }
@@ -347,4 +347,4 @@ void tf2sos_reg(Span<const MValue> args, size_t nargout,
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

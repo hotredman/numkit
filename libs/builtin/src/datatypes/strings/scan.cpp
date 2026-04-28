@@ -2,15 +2,15 @@
 //
 // Scan-family builtins (fscanf / sscanf / textscan). Split off from the
 // original MStdIO.cpp in Phase 6c.8.5. Shares SizeSpec / parseReadSize /
-// shapeFreadOutput with MStdFileIO.cpp via MStdIOHelpers.hpp.
+// shapeFreadOutput with MStdFileIO.cpp via io_helpers.hpp.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/datatypes/strings/scan.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/datatypes/strings/scan.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdIOHelpers.hpp"
+#include "io_helpers.hpp"
 
 #include <algorithm>
 #include <array>
@@ -23,7 +23,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // scanf-cycle primitives (shared between fscanf and sscanf)
@@ -232,7 +232,7 @@ ScanfOut scanfCycle(const std::string &input, const std::string &fmt, size_t lim
                 break;
             }
             default:
-                throw MError(std::string("scanf: unsupported conversion '%")
+                throw Error(std::string("scanf: unsupported conversion '%")
                                 + spec + "'");
             }
             if (!ok) break;
@@ -255,36 +255,36 @@ ScanfOut scanfCycle(const std::string &input, const std::string &fmt, size_t lim
     return ScanfOut{std::move(out), count, inPos};
 }
 
-MValue makeColumn(std::vector<double> &&vals, Allocator *alloc)
+Value makeColumn(std::vector<double> &&vals, Allocator *alloc)
 {
     if (vals.empty())
-        return MValue::matrix(0, 0, MType::DOUBLE, alloc);
-    auto M = MValue::matrix(vals.size(), 1, MType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
+    auto M = Value::matrix(vals.size(), 1, ValueType::DOUBLE, alloc);
     double *data = M.doubleDataMut();
     std::memcpy(data, vals.data(), vals.size() * sizeof(double));
     return M;
 }
 
-MValue makeCharRow(const std::vector<double> &vals, Allocator *alloc)
+Value makeCharRow(const std::vector<double> &vals, Allocator *alloc)
 {
     std::string s;
     s.reserve(vals.size());
     for (double v : vals)
         s.push_back(static_cast<char>(static_cast<int>(v)));
-    return MValue::fromString(s, alloc);
+    return Value::fromString(s, alloc);
 }
 
 // Column-major char matrix from the flat `vals` vector. Unfilled
 // cells stay zero (MATLAB's documented fill for partial char reads).
-MValue makeCharMatrix(const std::vector<double> &vals, detail::SizeSpec sz, Allocator *alloc)
+Value makeCharMatrix(const std::vector<double> &vals, detail::SizeSpec sz, Allocator *alloc)
 {
     size_t n = vals.size();
     size_t cols_out = (sz.cols == SIZE_MAX)
                          ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
                          : sz.cols;
     if (sz.rows == 0 || cols_out == 0)
-        return MValue::matrix(sz.rows, cols_out, MType::CHAR, alloc);
-    MValue M = MValue::matrix(sz.rows, cols_out, MType::CHAR, alloc);
+        return Value::matrix(sz.rows, cols_out, ValueType::CHAR, alloc);
+    Value M = Value::matrix(sz.rows, cols_out, ValueType::CHAR, alloc);
     char *data = M.charDataMut();
     for (size_t i = 0; i < n; ++i)
         data[i] = static_cast<char>(static_cast<int>(vals[i]));
@@ -295,7 +295,7 @@ MValue makeCharMatrix(const std::vector<double> &vals, detail::SizeSpec sz, Allo
 // the format has only %s/%c conversions, column-of-doubles otherwise.
 // Takes a pre-computed `hasNumericConv` flag so the caller doesn't
 // need to re-walk the format string.
-MValue shapeScanfOutput(std::vector<double> &&vals, bool hasNumericConv, Allocator *alloc)
+Value shapeScanfOutput(std::vector<double> &&vals, bool hasNumericConv, Allocator *alloc)
 {
     if (hasNumericConv)
         return makeColumn(std::move(vals), alloc);
@@ -306,7 +306,7 @@ MValue shapeScanfOutput(std::vector<double> &&vals, bool hasNumericConv, Allocat
 // Fills outs[0] with the shaped result and, if requested, outs[1] with
 // the count. The caller handles optional outputs beyond that.
 void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpec sz,
-               size_t nargout, Span<MValue> outs, Allocator *alloc, ScanfOut &r)
+               size_t nargout, Span<Value> outs, Allocator *alloc, ScanfOut &r)
 {
     r = scanfCycle(input, fmt, sz.limit);
     const bool hasNum = formatHasNumeric(fmt);
@@ -320,7 +320,7 @@ void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpe
     else
         outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
     if (nargout > 1)
-        outs[1] = MValue::scalar(static_cast<double>(r.count), alloc);
+        outs[1] = Value::scalar(static_cast<double>(r.count), alloc);
 }
 
 } // namespace
@@ -349,15 +349,15 @@ void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpe
 // characters concatenated in order.
 // ════════════════════════════════════════════════════════════════════════
 
-void fscanf(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.size() < 2 || !args[0].isScalar() || !args[1].isChar())
-        throw MError("fscanf: requires (fid, format [, size])");
+        throw Error("fscanf: requires (fid, format [, size])");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f || !f->forRead)
-        throw MError("fscanf: invalid file identifier");
+        throw Error("fscanf: invalid file identifier");
 
     detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
@@ -378,10 +378,10 @@ void fscanf(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue
         f->lastError = "Matching failure.";
 }
 
-void sscanf(Allocator &alloc, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void sscanf(Allocator &alloc, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     if (args.size() < 2 || !args[0].isChar() || !args[1].isChar())
-        throw MError("sscanf: requires (str, format [, size])");
+        throw Error("sscanf: requires (str, format [, size])");
 
     detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 3)
@@ -392,9 +392,9 @@ void sscanf(Allocator &alloc, Span<const MValue> args, size_t nargout, Span<MVal
     scanfEmit(args[0].toString(), fmt, sz, nargout, outs, &alloc, r);
 
     if (nargout > 2)
-        outs[2] = MValue::fromString("", &alloc); // errmsg — always empty for now
+        outs[2] = Value::fromString("", &alloc); // errmsg — always empty for now
     if (nargout > 3)
-        outs[3] = MValue::scalar(static_cast<double>(r.bytesConsumed + 1), &alloc);
+        outs[3] = Value::scalar(static_cast<double>(r.bytesConsumed + 1), &alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -472,7 +472,7 @@ std::vector<TextscanConv> parseTextscanFormat(const std::string &fmt)
             ++i;
         }
         if (i >= fmt.size())
-            throw MError("textscan: truncated format specifier");
+            throw Error("textscan: truncated format specifier");
         char spec = fmt[i];
         switch (spec) {
         case 'd': case 'i': case 'u':
@@ -481,24 +481,24 @@ std::vector<TextscanConv> parseTextscanFormat(const std::string &fmt)
         case 's':
             break;
         default:
-            throw MError(std::string("textscan: unsupported conversion '%")
+            throw Error(std::string("textscan: unsupported conversion '%")
                             + spec + "'");
         }
         out.push_back({spec, suppress, width});
     }
     if (out.empty())
-        throw MError("textscan: format must contain at least one conversion");
+        throw Error("textscan: format must contain at least one conversion");
     return out;
 }
 
 } // namespace
 
-void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     (void)nargout;
     Allocator *alloc = &engine.allocator();
     if (args.size() < 2 || !args[1].isChar())
-        throw MError("textscan: requires (source, format [, N] [, opt, value …])");
+        throw Error("textscan: requires (source, format [, N] [, opt, value …])");
 
     // Source — fid scalar or char array.
     std::string input;
@@ -509,11 +509,11 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
         int fid = static_cast<int>(args[0].toScalar());
         srcFile = engine.findFile(fid);
         if (!srcFile || !srcFile->forRead)
-            throw MError("textscan: invalid file identifier");
+            throw Error("textscan: invalid file identifier");
         input.assign(srcFile->buffer.begin() + srcFile->cursor,
                      srcFile->buffer.end());
     } else {
-        throw MError("textscan: source must be a file identifier or char array");
+        throw Error("textscan: source must be a file identifier or char array");
     }
 
     std::string fmt = args[1].toString();
@@ -526,7 +526,7 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
         double d = args[argIdx].toScalar();
         if (!std::isinf(d)) {
             if (d < 0 || !std::isfinite(d))
-                throw MError("textscan: N must be Inf or a non-negative integer");
+                throw Error("textscan: N must be Inf or a non-negative integer");
             cycleCap = static_cast<size_t>(d);
         }
         ++argIdx;
@@ -540,9 +540,9 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
     };
     while (argIdx + 1 < args.size()) {
         if (!args[argIdx].isChar())
-            throw MError("textscan: option name must be a char array");
+            throw Error("textscan: option name must be a char array");
         std::string name = lower(args[argIdx].toString());
-        const MValue &val = args[argIdx + 1];
+        const Value &val = args[argIdx + 1];
         if (name == "delimiter") {
             if (val.isChar()) {
                 opts.delimiters = val.toString();
@@ -550,46 +550,46 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
                 // Concatenate every char in the cells into one delimiter set.
                 opts.delimiters.clear();
                 for (size_t i = 0; i < val.numel(); ++i) {
-                    const MValue &d = val.cellAt(i);
+                    const Value &d = val.cellAt(i);
                     if (d.isChar()) opts.delimiters += d.toString();
                 }
             } else {
-                throw MError("textscan: 'Delimiter' must be a char array or cell");
+                throw Error("textscan: 'Delimiter' must be a char array or cell");
             }
         } else if (name == "endofline") {
             if (!val.isChar())
-                throw MError("textscan: 'EndOfLine' must be a char array");
+                throw Error("textscan: 'EndOfLine' must be a char array");
             opts.endOfLine = val.toString();
         } else if (name == "headerlines") {
             double d = val.toScalar();
             if (d < 0 || !std::isfinite(d))
-                throw MError("textscan: 'HeaderLines' must be a non-negative integer");
+                throw Error("textscan: 'HeaderLines' must be a non-negative integer");
             opts.headerLines = static_cast<size_t>(d);
         } else if (name == "commentstyle") {
             if (!val.isChar())
-                throw MError("textscan: 'CommentStyle' must be a char array");
+                throw Error("textscan: 'CommentStyle' must be a char array");
             opts.commentStyle = val.toString();
         } else if (name == "treatasempty") {
             if (val.isChar()) {
                 opts.treatAsEmpty.push_back(val.toString());
             } else if (val.isCell()) {
                 for (size_t i = 0; i < val.numel(); ++i) {
-                    const MValue &e = val.cellAt(i);
+                    const Value &e = val.cellAt(i);
                     if (e.isChar()) opts.treatAsEmpty.push_back(e.toString());
                 }
             } else {
-                throw MError("textscan: 'TreatAsEmpty' must be a char array or cell");
+                throw Error("textscan: 'TreatAsEmpty' must be a char array or cell");
             }
         } else if (name == "multipledelimsasone") {
             if (!val.isScalar() && !val.isLogical())
-                throw MError("textscan: 'MultipleDelimsAsOne' must be logical/numeric");
+                throw Error("textscan: 'MultipleDelimsAsOne' must be logical/numeric");
             opts.multipleDelimsAsOne = (val.toScalar() != 0.0);
         } else if (name == "emptyvalue") {
             if (!val.isScalar())
-                throw MError("textscan: 'EmptyValue' must be a numeric scalar");
+                throw Error("textscan: 'EmptyValue' must be a numeric scalar");
             opts.emptyValue = val.toScalar();
         } else {
-            throw MError("textscan: unsupported option '" + args[argIdx].toString()
+            throw Error("textscan: unsupported option '" + args[argIdx].toString()
                             + "'");
         }
         argIdx += 2;
@@ -837,21 +837,21 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
     // conversion. Suppressed conversions contribute no column.
     size_t nonSup = 0;
     for (auto &c : convs) if (!c.suppress) ++nonSup;
-    MValue result = MValue::cell(1, nonSup);
+    Value result = Value::cell(1, nonSup);
     size_t slot = 0;
     for (size_t i = 0; i < convs.size(); ++i) {
         if (convs[i].suppress) continue;
         if (convs[i].spec == 's') {
             size_t k = strCols[i].size();
-            MValue inner = MValue::cell(k, 1);
+            Value inner = Value::cell(k, 1);
             for (size_t j = 0; j < k; ++j)
-                inner.cellAt(j) = MValue::fromString(strCols[i][j], alloc);
+                inner.cellAt(j) = Value::fromString(strCols[i][j], alloc);
             result.cellAt(slot++) = std::move(inner);
         } else {
             size_t k = numCols[i].size();
-            MValue col = (k == 0)
-                             ? MValue::matrix(0, 0, MType::DOUBLE, alloc)
-                             : MValue::matrix(k, 1, MType::DOUBLE, alloc);
+            Value col = (k == 0)
+                             ? Value::matrix(0, 0, ValueType::DOUBLE, alloc)
+                             : Value::matrix(k, 1, ValueType::DOUBLE, alloc);
             if (k > 0)
                 std::memcpy(col.doubleDataMut(), numCols[i].data(),
                             k * sizeof(double));
@@ -867,21 +867,21 @@ void textscan(Engine &engine, Span<const MValue> args, size_t nargout, Span<MVal
 
 namespace detail {
 
-void fscanf_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void fscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     fscanf(*ctx.engine, args, nargout, outs);
 }
 
-void sscanf_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void sscanf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     sscanf(ctx.engine->allocator(), args, nargout, outs);
 }
 
-void textscan_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void textscan_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     textscan(*ctx.engine, args, nargout, outs);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

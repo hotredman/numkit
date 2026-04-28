@@ -207,7 +207,7 @@ TEST_P(ComparisonTest, ArrayComparison)
 
 // ── Phase P1.5 SIMD comparison-ops coverage ──────────────────
 //
-// The SIMD compare kernels (MStdCompare_simd.cpp) write 1 LOGICAL byte
+// The SIMD compare kernels (compare_simd.cpp) write 1 LOGICAL byte
 // per double lane via StoreMaskBits + per-lane bit-shift expand. Tests
 // below exercise:
 //   * VV (vector-vs-vector same shape)

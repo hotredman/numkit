@@ -4,7 +4,7 @@
 // Each test should PASS after the corresponding fix is applied.
 //
 // Run only these:
-//   ./m_tests --gtest_filter="TW_VM/KnownIssue*"
+//   ./numkit_tests --gtest_filter="TW_VM/KnownIssue*"
 //
 // Parameterized: runs on both TreeWalker and VM backends
 
@@ -160,7 +160,7 @@ INSTANTIATE_DUAL(KnownIssueIndexedAssign);
 // it, so indexSet(indices=0, rhs.numel()=N) raised a spurious
 // "left and right sides have a different number of elements"
 // regardless of shape. TreeWalker was unaffected — its resolveIndex
-// expands ':' to [0..numel-1] directly. See MVM.cpp INDEX_SET.
+// expands ':' to [0..numel-1] directly. See vm.cpp INDEX_SET.
 // ============================================================
 
 class ColonLinearAssign : public DualEngineTest {};
@@ -489,7 +489,7 @@ INSTANTIATE_DUAL(ColonLinearAssign);
 // Before the fix, the VM path called ensureSize + elemSet every
 // iteration and ensureSize allocated *exactly* numel+1 elements,
 // giving O(N²) work for an N-length build. After the fix, when
-// `i == numel(A)` the VM routes through MValue::appendScalar which
+// `i == numel(A)` the VM routes through Value::appendScalar which
 // preserves a geometric capacity — amortised O(1) per append.
 //
 // Tests below validate semantics, not timing. The benchmark that
@@ -647,7 +647,7 @@ INSTANTIATE_DUAL(GrowByOneAssign);
 // matrix literal whose first element is the same identifier and
 // whose second element is any expression) and emits the
 // HORZCAT_APPEND opcode instead of staging two registers and
-// calling MValue::horzcat. At runtime HORZCAT_APPEND uses the
+// calling Value::horzcat. At runtime HORZCAT_APPEND uses the
 // appendScalar fast path when conditions allow (empty/row-vector
 // heap-double dst with unique ownership and a real-scalar rhs)
 // and otherwise falls back to a normal two-element horzcat — so

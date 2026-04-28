@@ -3,18 +3,18 @@
 // Apply an SOS biquad cascade to a signal. Conversions
 // zp2sos / tf2sos live in filter_implementation/conversions.cpp.
 
-#include <numkit/m/signal/digital_filtering/sosfilt.hpp>
+#include <numkit/signal/digital_filtering/sosfilt.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <array>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -37,18 +37,18 @@ void biquadDf2t(double b0, double b1, double b2,
     }
 }
 
-size_t validateSosMatrix(const MValue &sos)
+size_t validateSosMatrix(const Value &sos)
 {
     if (sos.dims().ndim() != 2 || sos.dims().cols() != 6 || sos.dims().rows() == 0)
-        throw MError("sosfilt: sos matrix must be L×6 with L >= 1",
+        throw Error("sosfilt: sos matrix must be L×6 with L >= 1",
                      0, 0, "sosfilt", "", "m:sosfilt:sosShape");
-    if (sos.type() != MType::DOUBLE)
-        throw MError("sosfilt: sos matrix must be DOUBLE",
+    if (sos.type() != ValueType::DOUBLE)
+        throw Error("sosfilt: sos matrix must be DOUBLE",
                      0, 0, "sosfilt", "", "m:sosfilt:sosType");
     return sos.dims().rows();
 }
 
-void applyCascade(const MValue &sos, const double *xs, double *out, size_t n,
+void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
                   std::vector<double> &scratch)
 {
     const size_t L = sos.dims().rows();
@@ -56,7 +56,7 @@ void applyCascade(const MValue &sos, const double *xs, double *out, size_t n,
     auto readSection = [&](size_t r) {
         const double a0 = p[3 * L + r];
         if (a0 == 0.0)
-            throw MError("sosfilt: section a0 is zero",
+            throw Error("sosfilt: section a0 is zero",
                          0, 0, "sosfilt", "", "m:sosfilt:zeroLead");
         return std::array<double, 5>{
             p[0 * L + r] / a0,  // b0
@@ -82,17 +82,17 @@ void applyCascade(const MValue &sos, const double *xs, double *out, size_t n,
 
 } // namespace
 
-MValue sosfilt(Allocator &alloc, const MValue &sos, const MValue &x)
+Value sosfilt(Allocator &alloc, const Value &sos, const Value &x)
 {
     const size_t L = validateSosMatrix(sos);
-    if (x.type() != MType::DOUBLE)
-        throw MError("sosfilt: signal x must be DOUBLE",
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("sosfilt: signal x must be DOUBLE",
                      0, 0, "sosfilt", "", "m:sosfilt:xType");
     if (x.isEmpty())
-        return createLike(x, MType::DOUBLE, &alloc);
+        return createLike(x, ValueType::DOUBLE, &alloc);
     (void) L;
 
-    auto out = createLike(x, MType::DOUBLE, &alloc);
+    auto out = createLike(x, ValueType::DOUBLE, &alloc);
     if (x.dims().isVector() || x.isScalar()) {
         const size_t n = x.numel();
         std::vector<double> scratch(n);
@@ -111,15 +111,15 @@ MValue sosfilt(Allocator &alloc, const MValue &sos, const MValue &x)
 
 namespace detail {
 
-void sosfilt_reg(Span<const MValue> args, size_t /*nargout*/,
-                 Span<MValue> outs, CallContext &ctx)
+void sosfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("sosfilt: requires (sos, x)",
+        throw Error("sosfilt: requires (sos, x)",
                      0, 0, "sosfilt", "", "m:sosfilt:nargin");
     outs[0] = sosfilt(ctx.engine->allocator(), args[0], args[1]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

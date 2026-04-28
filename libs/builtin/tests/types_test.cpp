@@ -559,7 +559,7 @@ TEST_P(TypeOpsTest, Int32OfZeroColsPreservesShape)
     eval("a = int32(zeros(3, 0));");
     auto *a = getVarPtr("a");
     ASSERT_NE(a, nullptr);
-    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->type(), ValueType::INT32);
     EXPECT_EQ(a->dims().rows(), 3u);
     EXPECT_EQ(a->dims().cols(), 0u);
     EXPECT_EQ(a->numel(), 0u);
@@ -570,7 +570,7 @@ TEST_P(TypeOpsTest, Uint16OfZeroRowsPreservesShape)
     eval("a = uint16(zeros(0, 4));");
     auto *a = getVarPtr("a");
     ASSERT_NE(a, nullptr);
-    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->type(), ValueType::UINT16);
     EXPECT_EQ(a->dims().rows(), 0u);
     EXPECT_EQ(a->dims().cols(), 4u);
     EXPECT_EQ(a->numel(), 0u);
@@ -583,7 +583,7 @@ TEST_P(TypeOpsTest, UnaryMinusEmptyDoublePreservesShape)
     eval("a = zeros(3, 0); b = -a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->dims().rows(), 3u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
@@ -593,7 +593,7 @@ TEST_P(TypeOpsTest, UnaryMinusEmptyInt32PreservesShape)
     eval("a = int32(zeros(2, 0)); b = -a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::INT32);
+    EXPECT_EQ(b->type(), ValueType::INT32);
     EXPECT_EQ(b->dims().rows(), 2u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
@@ -603,7 +603,7 @@ TEST_P(TypeOpsTest, UnaryMinusEmptyCharPromotesToDouble)
     eval("b = -'';");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->numel(), 0u);
 }
 
@@ -612,19 +612,19 @@ TEST_P(TypeOpsTest, LogicalNotEmptyPreservesShape)
     eval("a = zeros(3, 0); b = ~a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_EQ(b->type(), ValueType::LOGICAL);
     EXPECT_EQ(b->dims().rows(), 3u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }
 
 TEST_P(TypeOpsTest, LogicalNot3DPreservesShape)
 {
-    // Was a heap-corruption site: ~ used MValue::matrix(rows, cols) for
+    // Was a heap-corruption site: ~ used Value::matrix(rows, cols) for
     // the result then wrote numel bytes — past the 2D buffer end for 3D.
     eval("a = zeros(2, 3, 2); b = ~a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_EQ(b->type(), ValueType::LOGICAL);
     EXPECT_TRUE(b->dims().is3D());
     EXPECT_EQ(b->numel(), 12u);
     for (size_t i = 0; i < 12; ++i)
@@ -657,7 +657,7 @@ TEST_P(TypeOpsTest, UnaryMinusEmptyLogicalPromotesToDouble)
     eval("a = logical(zeros(3, 0)); b = -a;");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::DOUBLE);
+    EXPECT_EQ(b->type(), ValueType::DOUBLE);
     EXPECT_EQ(b->dims().rows(), 3u);
     EXPECT_EQ(b->dims().cols(), 0u);
 }

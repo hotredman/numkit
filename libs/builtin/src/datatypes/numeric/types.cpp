@@ -1,12 +1,12 @@
 // libs/builtin/src/MStdTypes.cpp
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/datatypes/numeric/types.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/datatypes/numeric/types.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -15,7 +15,7 @@
 #include <limits>
 #include <type_traits>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Implementation helpers
@@ -36,12 +36,12 @@ T saturateCast(double v)
 }
 
 template <typename T>
-MValue numericConstructor(MType targetType, const MValue &x, Allocator *alloc)
+Value numericConstructor(ValueType targetType, const Value &x, Allocator *alloc)
 {
     if (x.type() == targetType)
         return x;
     const size_t n = x.numel();
-    MValue r = createLike(x, targetType, alloc);
+    Value r = createLike(x, targetType, alloc);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
         double v = x.elemAsDouble(i);
@@ -53,17 +53,17 @@ MValue numericConstructor(MType targetType, const MValue &x, Allocator *alloc)
     return r;
 }
 
-bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
+bool valuesEqual(const Value &a, const Value &b, bool nanEqual)
 {
     if (a.type() != b.type()) return false;
     if (a.dims().rows() != b.dims().rows() || a.dims().cols() != b.dims().cols()) return false;
     if (a.dims().is3D() != b.dims().is3D()) return false;
     if (a.dims().is3D() && a.dims().pages() != b.dims().pages()) return false;
 
-    MType t = a.type();
+    ValueType t = a.type();
     size_t n = a.numel();
 
-    if (t == MType::DOUBLE) {
+    if (t == ValueType::DOUBLE) {
         const double *da = a.doubleData(), *db = b.doubleData();
         for (size_t i = 0; i < n; ++i) {
             if (da[i] == db[i]) continue;
@@ -72,7 +72,7 @@ bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         }
         return true;
     }
-    if (t == MType::SINGLE) {
+    if (t == ValueType::SINGLE) {
         const float *fa = a.singleData(), *fb = b.singleData();
         for (size_t i = 0; i < n; ++i) {
             if (fa[i] == fb[i]) continue;
@@ -81,7 +81,7 @@ bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         }
         return true;
     }
-    if (t == MType::COMPLEX) {
+    if (t == ValueType::COMPLEX) {
         const Complex *ca = a.complexData(), *cb = b.complexData();
         for (size_t i = 0; i < n; ++i) {
             if (ca[i] == cb[i]) continue;
@@ -96,18 +96,18 @@ bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         }
         return true;
     }
-    if (t == MType::CHAR)
+    if (t == ValueType::CHAR)
         return std::memcmp(a.charData(), b.charData(), n) == 0;
-    if (t == MType::LOGICAL)
+    if (t == ValueType::LOGICAL)
         return std::memcmp(a.logicalData(), b.logicalData(), n) == 0;
     if (isIntegerType(t))
         return std::memcmp(a.rawData(), b.rawData(), n * elementSize(t)) == 0;
-    if (t == MType::CELL) {
+    if (t == ValueType::CELL) {
         for (size_t i = 0; i < n; ++i)
             if (!valuesEqual(a.cellAt(i), b.cellAt(i), nanEqual)) return false;
         return true;
     }
-    if (t == MType::STRUCT) {
+    if (t == ValueType::STRUCT) {
         auto &fa = a.structFields(), &fb = b.structFields();
         if (fa.size() != fb.size()) return false;
         for (auto &[k, v] : fa) {
@@ -117,7 +117,7 @@ bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
         }
         return true;
     }
-    if (t == MType::STRING)
+    if (t == ValueType::STRING)
         return a.toString() == b.toString();
     return false;
 }
@@ -128,33 +128,33 @@ bool valuesEqual(const MValue &a, const MValue &b, bool nanEqual)
 // Public API — numeric constructors
 // ════════════════════════════════════════════════════════════════════════
 
-MValue toDouble(Allocator &alloc, const MValue &x)
+Value toDouble(Allocator &alloc, const Value &x)
 {
-    return numericConstructor<double>(MType::DOUBLE, x, &alloc);
+    return numericConstructor<double>(ValueType::DOUBLE, x, &alloc);
 }
 
-MValue single(Allocator &alloc, const MValue &x)
+Value single(Allocator &alloc, const Value &x)
 {
-    return numericConstructor<float>(MType::SINGLE, x, &alloc);
+    return numericConstructor<float>(ValueType::SINGLE, x, &alloc);
 }
 
-MValue int8(Allocator &alloc, const MValue &x)   { return numericConstructor<int8_t>(MType::INT8, x, &alloc); }
-MValue int16(Allocator &alloc, const MValue &x)  { return numericConstructor<int16_t>(MType::INT16, x, &alloc); }
-MValue int32(Allocator &alloc, const MValue &x)  { return numericConstructor<int32_t>(MType::INT32, x, &alloc); }
-MValue int64(Allocator &alloc, const MValue &x)  { return numericConstructor<int64_t>(MType::INT64, x, &alloc); }
-MValue uint8(Allocator &alloc, const MValue &x)  { return numericConstructor<uint8_t>(MType::UINT8, x, &alloc); }
-MValue uint16(Allocator &alloc, const MValue &x) { return numericConstructor<uint16_t>(MType::UINT16, x, &alloc); }
-MValue uint32(Allocator &alloc, const MValue &x) { return numericConstructor<uint32_t>(MType::UINT32, x, &alloc); }
-MValue uint64(Allocator &alloc, const MValue &x) { return numericConstructor<uint64_t>(MType::UINT64, x, &alloc); }
+Value int8(Allocator &alloc, const Value &x)   { return numericConstructor<int8_t>(ValueType::INT8, x, &alloc); }
+Value int16(Allocator &alloc, const Value &x)  { return numericConstructor<int16_t>(ValueType::INT16, x, &alloc); }
+Value int32(Allocator &alloc, const Value &x)  { return numericConstructor<int32_t>(ValueType::INT32, x, &alloc); }
+Value int64(Allocator &alloc, const Value &x)  { return numericConstructor<int64_t>(ValueType::INT64, x, &alloc); }
+Value uint8(Allocator &alloc, const Value &x)  { return numericConstructor<uint8_t>(ValueType::UINT8, x, &alloc); }
+Value uint16(Allocator &alloc, const Value &x) { return numericConstructor<uint16_t>(ValueType::UINT16, x, &alloc); }
+Value uint32(Allocator &alloc, const Value &x) { return numericConstructor<uint32_t>(ValueType::UINT32, x, &alloc); }
+Value uint64(Allocator &alloc, const Value &x) { return numericConstructor<uint64_t>(ValueType::UINT64, x, &alloc); }
 
-MValue logical(Allocator &alloc, const MValue &x)
+Value logical(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isLogical())
         return x;
     if (x.isScalar())
-        return MValue::logicalScalar(x.toScalar() != 0, p);
-    MValue r = createLike(x, MType::LOGICAL, p);
+        return Value::logicalScalar(x.toScalar() != 0, p);
+    Value r = createLike(x, ValueType::LOGICAL, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.logicalDataMut()[i] = x.elemAsDouble(i) != 0 ? 1 : 0;
     return r;
@@ -164,47 +164,47 @@ MValue logical(Allocator &alloc, const MValue &x)
 // Public API — type predicates
 // ════════════════════════════════════════════════════════════════════════
 
-MValue isnumeric(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(x.isNumeric(), &alloc); }
-MValue islogical(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(x.isLogical(), &alloc); }
-MValue ischar(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(x.isChar(), &alloc); }
-MValue isstring(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isString(), &alloc); }
-MValue iscell(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(x.isCell(), &alloc); }
-MValue isstruct(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isStruct(), &alloc); }
-MValue isempty(Allocator &alloc, const MValue &x)   { return MValue::logicalScalar(x.isEmpty(), &alloc); }
-MValue isscalar(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.isScalar(), &alloc); }
-MValue isreal(Allocator &alloc, const MValue &x)    { return MValue::logicalScalar(!x.isComplex(), &alloc); }
-MValue isinteger(Allocator &alloc, const MValue &x) { return MValue::logicalScalar(isIntegerType(x.type()), &alloc); }
-MValue isfloat(Allocator &alloc, const MValue &x)   { return MValue::logicalScalar(isFloatType(x.type()), &alloc); }
-MValue issingle(Allocator &alloc, const MValue &x)  { return MValue::logicalScalar(x.type() == MType::SINGLE, &alloc); }
+Value isnumeric(Allocator &alloc, const Value &x) { return Value::logicalScalar(x.isNumeric(), &alloc); }
+Value islogical(Allocator &alloc, const Value &x) { return Value::logicalScalar(x.isLogical(), &alloc); }
+Value ischar(Allocator &alloc, const Value &x)    { return Value::logicalScalar(x.isChar(), &alloc); }
+Value isstring(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isString(), &alloc); }
+Value iscell(Allocator &alloc, const Value &x)    { return Value::logicalScalar(x.isCell(), &alloc); }
+Value isstruct(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isStruct(), &alloc); }
+Value isempty(Allocator &alloc, const Value &x)   { return Value::logicalScalar(x.isEmpty(), &alloc); }
+Value isscalar(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isScalar(), &alloc); }
+Value isreal(Allocator &alloc, const Value &x)    { return Value::logicalScalar(!x.isComplex(), &alloc); }
+Value isinteger(Allocator &alloc, const Value &x) { return Value::logicalScalar(isIntegerType(x.type()), &alloc); }
+Value isfloat(Allocator &alloc, const Value &x)   { return Value::logicalScalar(isFloatType(x.type()), &alloc); }
+Value issingle(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, &alloc); }
 
-MValue isnan(Allocator &alloc, const MValue &x)
+Value isnan(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isScalar())
-        return MValue::logicalScalar(std::isnan(x.toScalar()), p);
-    auto r = createLike(x, MType::LOGICAL, p);
+        return Value::logicalScalar(std::isnan(x.toScalar()), p);
+    auto r = createLike(x, ValueType::LOGICAL, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.logicalDataMut()[i] = std::isnan(x.doubleData()[i]) ? 1 : 0;
     return r;
 }
 
-MValue isinf(Allocator &alloc, const MValue &x)
+Value isinf(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isScalar())
-        return MValue::logicalScalar(std::isinf(x.toScalar()), p);
-    auto r = createLike(x, MType::LOGICAL, p);
+        return Value::logicalScalar(std::isinf(x.toScalar()), p);
+    auto r = createLike(x, ValueType::LOGICAL, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.logicalDataMut()[i] = std::isinf(x.doubleData()[i]) ? 1 : 0;
     return r;
 }
 
-MValue isfinite(Allocator &alloc, const MValue &x)
+Value isfinite(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isScalar())
-        return MValue::logicalScalar(std::isfinite(x.toScalar()), p);
-    auto r = createLike(x, MType::LOGICAL, p);
+        return Value::logicalScalar(std::isfinite(x.toScalar()), p);
+    auto r = createLike(x, ValueType::LOGICAL, p);
     for (size_t i = 0; i < x.numel(); ++i)
         r.logicalDataMut()[i] = std::isfinite(x.doubleData()[i]) ? 1 : 0;
     return r;
@@ -214,19 +214,19 @@ MValue isfinite(Allocator &alloc, const MValue &x)
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
 
-MValue isequal(Allocator &alloc, const MValue &a, const MValue &b)
+Value isequal(Allocator &alloc, const Value &a, const Value &b)
 {
-    return MValue::logicalScalar(valuesEqual(a, b, false), &alloc);
+    return Value::logicalScalar(valuesEqual(a, b, false), &alloc);
 }
 
-MValue isequaln(Allocator &alloc, const MValue &a, const MValue &b)
+Value isequaln(Allocator &alloc, const Value &a, const Value &b)
 {
-    return MValue::logicalScalar(valuesEqual(a, b, true), &alloc);
+    return Value::logicalScalar(valuesEqual(a, b, true), &alloc);
 }
 
-MValue classOf(Allocator &alloc, const MValue &x)
+Value classOf(Allocator &alloc, const Value &x)
 {
-    return MValue::fromString(mtypeName(x.type()), &alloc);
+    return Value::fromString(mtypeName(x.type()), &alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -237,13 +237,13 @@ namespace detail {
 
 // Numeric-constructor adapters need the zero-arg MATLAB form:
 // double(), int32(), etc. → scalar zero of that type.
-template <typename T, MType targetType>
-void numericConstructor_reg(Span<const MValue> args, size_t, Span<MValue> outs,
+template <typename T, ValueType targetType>
+void numericConstructor_reg(Span<const Value> args, size_t, Span<Value> outs,
                             CallContext &ctx)
 {
     Allocator *alloc = &ctx.engine->allocator();
     if (args.empty()) {
-        auto r = MValue::matrix(1, 1, targetType, alloc);
+        auto r = Value::matrix(1, 1, targetType, alloc);
         *static_cast<T *>(r.rawDataMut()) = static_cast<T>(0);
         outs[0] = std::move(r);
         return;
@@ -251,44 +251,44 @@ void numericConstructor_reg(Span<const MValue> args, size_t, Span<MValue> outs,
     outs[0] = numericConstructor<T>(targetType, args[0], alloc);
 }
 
-void double_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<double, MType::DOUBLE>(args, n, outs, ctx); }
+void double_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<double, ValueType::DOUBLE>(args, n, outs, ctx); }
 
-void single_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<float, MType::SINGLE>(args, n, outs, ctx); }
+void single_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<float, ValueType::SINGLE>(args, n, outs, ctx); }
 
-void int8_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<int8_t, MType::INT8>(args, n, outs, ctx); }
-void int16_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<int16_t, MType::INT16>(args, n, outs, ctx); }
-void int32_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<int32_t, MType::INT32>(args, n, outs, ctx); }
-void int64_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<int64_t, MType::INT64>(args, n, outs, ctx); }
-void uint8_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<uint8_t, MType::UINT8>(args, n, outs, ctx); }
-void uint16_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<uint16_t, MType::UINT16>(args, n, outs, ctx); }
-void uint32_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<uint32_t, MType::UINT32>(args, n, outs, ctx); }
-void uint64_reg(Span<const MValue> args, size_t n, Span<MValue> outs, CallContext &ctx)
-{ numericConstructor_reg<uint64_t, MType::UINT64>(args, n, outs, ctx); }
+void int8_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<int8_t, ValueType::INT8>(args, n, outs, ctx); }
+void int16_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<int16_t, ValueType::INT16>(args, n, outs, ctx); }
+void int32_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<int32_t, ValueType::INT32>(args, n, outs, ctx); }
+void int64_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<int64_t, ValueType::INT64>(args, n, outs, ctx); }
+void uint8_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<uint8_t, ValueType::UINT8>(args, n, outs, ctx); }
+void uint16_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<uint16_t, ValueType::UINT16>(args, n, outs, ctx); }
+void uint32_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<uint32_t, ValueType::UINT32>(args, n, outs, ctx); }
+void uint64_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
+{ numericConstructor_reg<uint64_t, ValueType::UINT64>(args, n, outs, ctx); }
 
-void logical_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("logical: requires 1 argument", 0, 0, "logical", "",
+        throw Error("logical: requires 1 argument", 0, 0, "logical", "",
                      "m:logical:nargin");
     outs[0] = logical(ctx.engine->allocator(), args[0]);
 }
 
 // ── Simple predicate adapters ────────────────────────────────────────────
 #define NK_PRED_REG(FN)                                                             \
-    void FN##_reg(Span<const MValue> args, size_t, Span<MValue> outs,               \
+    void FN##_reg(Span<const Value> args, size_t, Span<Value> outs,               \
                   CallContext &ctx)                                                 \
     {                                                                               \
         if (args.empty())                                                           \
-            throw MError(#FN ": requires 1 argument", 0, 0, #FN, "",                \
+            throw Error(#FN ": requires 1 argument", 0, 0, #FN, "",                \
                          "m:" #FN ":nargin");                                  \
         outs[0] = FN(ctx.engine->allocator(), args[0]);                             \
     }
@@ -311,50 +311,50 @@ NK_PRED_REG(isfinite)
 
 #undef NK_PRED_REG
 
-void isequal_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("isequal requires at least 2 arguments", 0, 0, "isequal", "",
+        throw Error("isequal requires at least 2 arguments", 0, 0, "isequal", "",
                      "m:isequal:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], false);
-    outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
+    outs[0] = Value::logicalScalar(eq, &ctx.engine->allocator());
 }
 
-void isequaln_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void isequaln_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
+        throw Error("isequaln requires at least 2 arguments", 0, 0, "isequaln", "",
                      "m:isequaln:nargin");
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], true);
-    outs[0] = MValue::logicalScalar(eq, &ctx.engine->allocator());
+    outs[0] = Value::logicalScalar(eq, &ctx.engine->allocator());
 }
 
-void class_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("class: requires 1 argument", 0, 0, "class", "",
+        throw Error("class: requires 1 argument", 0, 0, "class", "",
                      "m:class:nargin");
     outs[0] = classOf(ctx.engine->allocator(), args[0]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
-// Registration — keep the StdLibrary::registerTypeFunctions hook empty;
-// actual wiring happens in MStdLibrary.cpp via Phase-6c function pointers.
+// Registration — keep the BuiltinLibrary::registerTypeFunctions hook empty;
+// actual wiring happens in library.cpp via Phase-6c function pointers.
 // ════════════════════════════════════════════════════════════════════════
 
-namespace numkit::m {
+namespace numkit {
 
-void StdLibrary::registerTypeFunctions(Engine &)
+void BuiltinLibrary::registerTypeFunctions(Engine &)
 {
-    // Intentionally empty — see StdLibrary::install() in MStdLibrary.cpp.
+    // Intentionally empty — see BuiltinLibrary::install() in library.cpp.
 }
 
-} // namespace numkit::m
+} // namespace numkit

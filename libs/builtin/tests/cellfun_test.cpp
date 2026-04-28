@@ -43,7 +43,7 @@ TEST_P(CellFunTest, CellfunIsempty)
     eval("c = {[], [1], [], 'x'};"
          "n = cellfun(@isempty, c);");
     auto *n = getVarPtr("n");
-    EXPECT_EQ(n->type(), MType::LOGICAL);
+    EXPECT_EQ(n->type(), ValueType::LOGICAL);
     EXPECT_NE(n->logicalData()[0], 0);
     EXPECT_EQ(n->logicalData()[1], 0);
     EXPECT_NE(n->logicalData()[2], 0);
@@ -69,7 +69,7 @@ TEST_P(CellFunTest, CellfunIsnumeric)
     eval("c = {1, 'x', true, [1 2 3]};"
          "n = cellfun(@isnumeric, c);");
     auto *n = getVarPtr("n");
-    EXPECT_EQ(n->type(), MType::LOGICAL);
+    EXPECT_EQ(n->type(), ValueType::LOGICAL);
     EXPECT_NE(n->logicalData()[0], 0);
     EXPECT_EQ(n->logicalData()[1], 0);
     EXPECT_EQ(n->logicalData()[2], 0);
@@ -285,7 +285,7 @@ TEST_P(CellFunTest, StructfunIsempty)
          "s.y = 1;"
          "v = structfun(@isempty, s);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::LOGICAL);
+    EXPECT_EQ(v->type(), ValueType::LOGICAL);
     EXPECT_NE(v->logicalData()[0], 0);
     EXPECT_EQ(v->logicalData()[1], 0);
 }

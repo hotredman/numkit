@@ -1,17 +1,17 @@
 // example/main.cpp — numkit-m console runner.
 //
 // Two modes:
-//   m_example               interactive REPL with multi-line input support
-//   m_example script.m      batch: read file, evaluate, print output, exit
-//   m_example -h | --help   usage
+//   numkit_example               interactive REPL with multi-line input support
+//   numkit_example script.m      batch: read file, evaluate, print output, exit
+//   numkit_example -h | --help   usage
 //
 // Builds natively (portable / desktop-fast / bench presets) and under
 // Emscripten (browser / bench-wasm presets). When compiled to WASM,
 // launch via Node with filesystem access:
-//   node build-browser/example/m_example.js path/to/script.m
+//   node build-browser/example/numkit_example.js path/to/script.m
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MLexer.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/lexer.hpp>
 
 #include <fstream>
 #include <iostream>
@@ -20,9 +20,9 @@
 
 namespace {
 
-using numkit::m::Engine;
-using numkit::m::Lexer;
-using numkit::m::TokenType;
+using numkit::Engine;
+using numkit::Lexer;
+using numkit::TokenType;
 
 // Decide whether the accumulated buffer is still waiting for more input.
 // Runs the lexer, balances brackets and block-keywords, and also honours
@@ -101,7 +101,7 @@ int runScript(const std::string &path)
 {
     std::ifstream f(path, std::ios::binary);
     if (!f) {
-        std::cerr << "m_example: cannot open '" << path << "'\n";
+        std::cerr << "numkit_example: cannot open '" << path << "'\n";
         return 1;
     }
     std::ostringstream ss;

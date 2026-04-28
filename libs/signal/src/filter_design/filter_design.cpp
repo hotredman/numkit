@@ -4,13 +4,13 @@
 // freqz / phasez / grpdelay (frequency-domain analysis of an existing
 // filter) live in filter_analysis/frequency_response.cpp.
 
-#include <numkit/m/signal/filter_design/filter_design.hpp>
+#include <numkit/signal/filter_design/filter_design.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"           // Complex typedef
-#include "MStdPolyHelpers.hpp"          // polyExpandFromRoots
+#include "../dsp_helpers.hpp"           // Complex typedef
+#include "poly_helpers.hpp"          // polyExpandFromRoots
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -21,7 +21,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -36,7 +36,7 @@ std::vector<Complex> butterworthPoles(int N)
     return poles;
 }
 
-using numkit::m::builtin::detail::polyExpandFromRoots;
+using numkit::builtin::detail::polyExpandFromRoots;
 inline std::vector<double> expandPoly(const std::vector<Complex> &roots)
 {
     return polyExpandFromRoots(roots);
@@ -93,14 +93,14 @@ void lpToHp(std::vector<double> &b, std::vector<double> &a)
 
 } // anonymous namespace
 
-std::tuple<MValue, MValue>
+std::tuple<Value, Value>
 butter(Allocator &alloc, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
-        throw MError("butter: Wn must be between 0 and 1",
+        throw Error("butter: Wn must be between 0 and 1",
                      0, 0, "butter", "", "m:butter:badWn");
     if (type != "low" && type != "high")
-        throw MError("butter: type must be 'low' or 'high'",
+        throw Error("butter: type must be 'low' or 'high'",
                      0, 0, "butter", "", "m:butter:badType");
 
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
@@ -112,8 +112,8 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type)
     if (type == "high")
         lpToHp(b, a);
 
-    auto bv = MValue::matrix(1, b.size(), MType::DOUBLE, &alloc);
-    auto av = MValue::matrix(1, a.size(), MType::DOUBLE, &alloc);
+    auto bv = Value::matrix(1, b.size(), ValueType::DOUBLE, &alloc);
+    auto av = Value::matrix(1, a.size(), ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < b.size(); ++i)
         bv.doubleDataMut()[i] = b[i];
     for (size_t i = 0; i < a.size(); ++i)
@@ -122,13 +122,13 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type)
     return std::make_tuple(std::move(bv), std::move(av));
 }
 
-MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type)
+Value fir1(Allocator &alloc, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
-        throw MError("fir1: Wn must be between 0 and 1",
+        throw Error("fir1: Wn must be between 0 and 1",
                      0, 0, "fir1", "", "m:fir1:badWn");
     if (type != "low" && type != "high")
-        throw MError("fir1: type must be 'low' or 'high'",
+        throw Error("fir1: type must be 'low' or 'high'",
                      0, 0, "fir1", "", "m:fir1:badType");
 
     const size_t filtLen = N + 1;
@@ -158,7 +158,7 @@ MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type)
         h[static_cast<size_t>(half)] += 1.0;
     }
 
-    auto bv = MValue::matrix(1, filtLen, MType::DOUBLE, &alloc);
+    auto bv = Value::matrix(1, filtLen, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < filtLen; ++i)
         bv.doubleDataMut()[i] = h[i];
     return bv;
@@ -167,10 +167,10 @@ MValue fir1(Allocator &alloc, int N, double Wn, const std::string &type)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("butter: requires at least 2 arguments",
+        throw Error("butter: requires at least 2 arguments",
                      0, 0, "butter", "", "m:butter:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const double Wn = args[1].toScalar();
@@ -184,10 +184,10 @@ void butter_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
         outs[1] = std::move(av);
 }
 
-void fir1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void fir1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("fir1: requires at least 2 arguments",
+        throw Error("fir1: requires at least 2 arguments",
                      0, 0, "fir1", "", "m:fir1:nargin");
     const int N = static_cast<int>(args[0].toScalar());
     const double Wn = args[1].toScalar();
@@ -200,4 +200,4 @@ void fir1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

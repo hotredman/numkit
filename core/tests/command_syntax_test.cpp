@@ -6,12 +6,12 @@
 //   grid on    ≡  grid('on')
 //   load data.mat x y  ≡  load('data.mat','x','y')
 
-#include <numkit/m/core/MAst.hpp>
-#include <numkit/m/core/MLexer.hpp>
-#include <numkit/m/core/MParser.hpp>
+#include <numkit/core/ast.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
 #include <gtest/gtest.h>
 
-using namespace numkit::m;
+using namespace numkit;
 
 static ASTNodePtr parseSource(const std::string &source)
 {

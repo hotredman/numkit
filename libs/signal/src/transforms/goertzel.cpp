@@ -2,12 +2,12 @@
 //
 // Goertzel single-bin DFT. Split from MDspGaps.
 
-#include <numkit/m/signal/transforms/goertzel.hpp>
+#include <numkit/signal/transforms/goertzel.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"   // Complex typedef
+#include "../dsp_helpers.hpp"   // Complex typedef
 
 #include <cmath>
 #include <complex>
@@ -16,7 +16,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 // Goertzel computes a single DFT bin via a 2nd-order IIR. For each
 // 1-based bin index k in `ind` (1 == DC, 2 == lowest non-DC, ..., N
@@ -24,11 +24,11 @@ namespace numkit::m::signal {
 //
 // Two-coefficient form. Numerically stable for reasonable N; matches
 // MATLAB's `goertzel(x, ind)` to FP roundoff.
-MValue goertzel(Allocator &alloc, const MValue &x, const MValue &ind)
+Value goertzel(Allocator &alloc, const Value &x, const Value &ind)
 {
     const size_t N = x.numel();
     const size_t M = ind.numel();
-    auto r = MValue::complexMatrix(ind.dims().rows(), ind.dims().cols(), &alloc);
+    auto r = Value::complexMatrix(ind.dims().rows(), ind.dims().cols(), &alloc);
 
     if (N == 0) return r;
 
@@ -64,15 +64,15 @@ MValue goertzel(Allocator &alloc, const MValue &x, const MValue &ind)
 
 namespace detail {
 
-void goertzel_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void goertzel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("goertzel: requires (x, ind)",
+        throw Error("goertzel: requires (x, ind)",
                      0, 0, "goertzel", "", "m:goertzel:nargin");
     outs[0] = goertzel(ctx.engine->allocator(), args[0], args[1]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

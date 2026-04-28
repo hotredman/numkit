@@ -4,10 +4,10 @@
 // a fixed-size kernel (which matches the typical filtering use case),
 // plus a symmetric equal-length case at the low end.
 
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
-#include <numkit/m/signal/convolution/convolution.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
+#include <numkit/signal/convolution/convolution.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -16,13 +16,13 @@
 
 namespace {
 
-numkit::m::MValue makeRealVector(size_t n, uint32_t seed)
+numkit::Value makeRealVector(size_t n, uint32_t seed)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *data = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i)
         data[i] = dist(rng);
@@ -35,14 +35,14 @@ numkit::m::MValue makeRealVector(size_t n, uint32_t seed)
 // typical filter() / conv(sig, kernel) shape seen in DSP pipelines.
 static void BM_Conv_FixedKernel64(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue sig    = makeRealVector(n, 11);
-    MValue kernel = makeRealVector(64, 22);
+    Value sig    = makeRealVector(n, 11);
+    Value kernel = makeRealVector(64, 22);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = signal::conv(alloc, sig, kernel, "full");
+        Value y = signal::conv(alloc, sig, kernel, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -58,14 +58,14 @@ BENCHMARK(BM_Conv_FixedKernel64)
 // hot path vs any future FFT-based fallback.
 static void BM_Conv_SquareLen(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue a = makeRealVector(n, 33);
-    MValue b = makeRealVector(n, 44);
+    Value a = makeRealVector(n, 33);
+    Value b = makeRealVector(n, 44);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = signal::conv(alloc, a, b, "full");
+        Value y = signal::conv(alloc, a, b, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

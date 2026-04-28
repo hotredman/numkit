@@ -1,7 +1,7 @@
 // tests/signal_core_test.cpp
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
@@ -9,7 +9,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit::m;
+using namespace numkit;
 
 class SignalCoreTest : public ::testing::Test
 {
@@ -19,12 +19,12 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
     }
 
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
 
@@ -125,7 +125,7 @@ TEST_F(SignalCoreTest, IfftReturnsRealForRealInput)
 {
     auto r = eval("ifft(fft([1 2 3 4]))");
     // Should be real (imaginary part < 1e-10)
-    EXPECT_TRUE(r.type() == MType::DOUBLE);
+    EXPECT_TRUE(r.type() == ValueType::DOUBLE);
 }
 
 TEST_F(SignalCoreTest, IfftWithN)

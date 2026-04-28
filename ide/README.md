@@ -132,8 +132,8 @@ access token input in the GitRepoBrowser component.
 Add this to your top-level `CMakeLists.txt`:
 
 ```cmake
-option(NUMKIT_M_BUILD_REPL "Build web REPL" OFF)
-if(NUMKIT_M_BUILD_REPL)
+option(NUMKIT_BUILD_REPL "Build web REPL" OFF)
+if(NUMKIT_BUILD_REPL)
     add_subdirectory(repl)
 endif()
 ```

@@ -6,10 +6,10 @@
 // uniform integers in [1, N/4] to give a realistic distribution of
 // duplicates.
 
-#include <numkit/m/builtin/math/elementary/discrete.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/math/elementary/discrete.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -17,31 +17,31 @@
 
 namespace {
 
-using namespace numkit::m;
+using namespace numkit;
 
-MValue makeIntVec(size_t n, int64_t hi, uint32_t seed)
+Value makeIntVec(size_t n, int64_t hi, uint32_t seed)
 {
     std::mt19937 rng(seed);
     std::uniform_int_distribution<int64_t> d(1, hi);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = static_cast<double>(d(rng));
     return v;
 }
 
-MValue makeRealVec(size_t n, uint32_t seed)
+Value makeRealVec(size_t n, uint32_t seed)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(0.0, 100.0);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = d(rng);
     return v;
 }
 
-MValue makeEdges(size_t n)
+Value makeEdges(size_t n)
 {
-    MValue v = MValue::matrix(1, n + 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(1, n + 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i <= n; ++i)
         p[i] = 100.0 * static_cast<double>(i) / static_cast<double>(n);

@@ -335,7 +335,7 @@ TEST_P(IndexingOpsTest, FFTSpectrumSlicing)
     EXPECT_EQ(half->numel(), 129u); // N/2+1 = 256/2+1 = 129
 
     auto *mag = getVarPtr("mag");
-    EXPECT_EQ(mag->type(), numkit::m::MType::DOUBLE);
+    EXPECT_EQ(mag->type(), numkit::ValueType::DOUBLE);
     EXPECT_EQ(mag->numel(), 129u);
 }
 
@@ -365,7 +365,7 @@ TEST_P(IndexingOpsTest, CellCurlyIndex)
 {
     eval("c = {10, 'hello', [1 2 3]}; r = c{3};");
     auto *r = getVarPtr("r");
-    EXPECT_EQ(r->type(), numkit::m::MType::DOUBLE);
+    EXPECT_EQ(r->type(), numkit::ValueType::DOUBLE);
     EXPECT_EQ(r->numel(), 3u);
 }
 
@@ -562,7 +562,7 @@ TEST_P(IndexingOpsTest, COWPromoteToComplex)
 {
     eval("a = [1 2 3]; b = a; a(1) = 1i;");
     EXPECT_TRUE(getVarPtr("a")->isComplex());
-    EXPECT_TRUE(getVarPtr("b")->type() == numkit::m::MType::DOUBLE); // b stays double
+    EXPECT_TRUE(getVarPtr("b")->type() == numkit::ValueType::DOUBLE); // b stays double
     EXPECT_DOUBLE_EQ(getVarPtr("b")->doubleData()[0], 1.0);
 }
 
@@ -800,7 +800,7 @@ TEST_P(IndexingOpsTest, Int32LinearReadKeepsType)
     eval("x = a(2);");
     auto *x = getVarPtr("x");
     ASSERT_NE(x, nullptr);
-    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->type(), ValueType::INT32);
     EXPECT_EQ(x->int32Data()[0], 20);
 }
 
@@ -810,7 +810,7 @@ TEST_P(IndexingOpsTest, Int32VectorSliceKeepsType)
     eval("x = a([2 4 5]);");
     auto *x = getVarPtr("x");
     ASSERT_NE(x, nullptr);
-    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->type(), ValueType::INT32);
     EXPECT_EQ(x->numel(), 3u);
     EXPECT_EQ(x->int32Data()[0], 20);
     EXPECT_EQ(x->int32Data()[1], 40);
@@ -824,7 +824,7 @@ TEST_P(IndexingOpsTest, Uint8MatrixScalar2D)
     eval("v = a(2,3);");
     auto *v = getVarPtr("v");
     ASSERT_NE(v, nullptr);
-    EXPECT_EQ(v->type(), MType::UINT8);
+    EXPECT_EQ(v->type(), ValueType::UINT8);
     EXPECT_EQ(*static_cast<const uint8_t *>(v->rawData()), 6u);
 }
 
@@ -834,7 +834,7 @@ TEST_P(IndexingOpsTest, Uint8SubMatrix2D)
     eval("s = a(:, 2:3);");
     auto *s = getVarPtr("s");
     ASSERT_NE(s, nullptr);
-    EXPECT_EQ(s->type(), MType::UINT8);
+    EXPECT_EQ(s->type(), ValueType::UINT8);
     EXPECT_EQ(s->dims().rows(), 2u);
     EXPECT_EQ(s->dims().cols(), 2u);
     // Column-major: 3,4 then 5,6
@@ -848,12 +848,12 @@ TEST_P(IndexingOpsTest, SingleScalarAndSlice)
     eval("a = single([1.5 2.5 3.5 4.5]);");
     eval("v = a(3);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::SINGLE);
+    EXPECT_EQ(v->type(), ValueType::SINGLE);
     EXPECT_FLOAT_EQ(v->singleData()[0], 3.5f);
 
     eval("s = a([1 4]);");
     auto *s = getVarPtr("s");
-    EXPECT_EQ(s->type(), MType::SINGLE);
+    EXPECT_EQ(s->type(), ValueType::SINGLE);
     EXPECT_EQ(s->numel(), 2u);
     EXPECT_FLOAT_EQ(s->singleData()[0], 1.5f);
     EXPECT_FLOAT_EQ(s->singleData()[1], 4.5f);
@@ -865,7 +865,7 @@ TEST_P(IndexingOpsTest, Int16LogicalIndex)
     eval("mask = [true false true false];");
     eval("x = a(mask);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::INT16);
+    EXPECT_EQ(x->type(), ValueType::INT16);
     EXPECT_EQ(x->numel(), 2u);
     EXPECT_EQ(x->int16Data()[0], 10);
     EXPECT_EQ(x->int16Data()[1], 30);
@@ -876,7 +876,7 @@ TEST_P(IndexingOpsTest, Int32AssignScalarBroadcast)
     // a(i) = scalar — writeScalar path.
     eval("a = int32([1 2 3 4 5]); a(3) = 99;");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->type(), ValueType::INT32);
     EXPECT_EQ(a->int32Data()[2], 99);
     EXPECT_EQ(a->int32Data()[0], 1);
     EXPECT_EQ(a->int32Data()[4], 5);
@@ -887,7 +887,7 @@ TEST_P(IndexingOpsTest, Uint16AssignVectorPerElement)
     // a(idx) = [v1 v2 ...] — writeElem path.
     eval("a = uint16([1 2 3 4 5]); a([2 4]) = [77 88];");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->type(), ValueType::UINT16);
     EXPECT_EQ(a->uint16Data()[1], 77u);
     EXPECT_EQ(a->uint16Data()[3], 88u);
     EXPECT_EQ(a->uint16Data()[2], 3u);   // unchanged
@@ -898,7 +898,7 @@ TEST_P(IndexingOpsTest, SingleAssign2D)
     eval("a = single(reshape([1 2 3 4 5 6], 2, 3));");
     eval("a(1,2) = 9.25;");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::SINGLE);
+    EXPECT_EQ(a->type(), ValueType::SINGLE);
     EXPECT_FLOAT_EQ(a->singleData()[2], 9.25f);
 }
 
@@ -910,7 +910,7 @@ TEST_P(IndexingOpsTest, Int8SaturationOnWrite)
     // just check the assignment doesn't crash and the type is kept.
     eval("a = int8([0 0 0]); a(2) = 200;");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::INT8);
+    EXPECT_EQ(a->type(), ValueType::INT8);
     EXPECT_EQ(a->numel(), 3u);
 }
 
@@ -972,7 +972,7 @@ TEST_P(IndexingOpsTest, Uint16_3DSubArrayKeepsType)
     eval("S = A(:, :, 2);");
     auto *s = getVarPtr("S");
     ASSERT_NE(s, nullptr);
-    EXPECT_EQ(s->type(), MType::UINT16);
+    EXPECT_EQ(s->type(), ValueType::UINT16);
     EXPECT_EQ(s->dims().rows(), 2u);
     EXPECT_EQ(s->dims().cols(), 3u);
     EXPECT_EQ(s->uint16Data()[0], 7u);
@@ -986,7 +986,7 @@ TEST_P(IndexingOpsTest, Int32_3DScalarAccess)
     eval("v = A(2, 2, 2);");
     auto *v = getVarPtr("v");
     ASSERT_NE(v, nullptr);
-    EXPECT_EQ(v->type(), MType::INT32);
+    EXPECT_EQ(v->type(), ValueType::INT32);
     EXPECT_EQ(v->int32Data()[0], 80);
 }
 
@@ -997,7 +997,7 @@ TEST_P(IndexingOpsTest, Int8_2DMatrix)
     eval("a = int8(reshape([1 2 3 4 5 6], 2, 3));");
     eval("v = a(2, 3);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::INT8);
+    EXPECT_EQ(v->type(), ValueType::INT8);
     EXPECT_EQ(v->int8Data()[0], 6);
 }
 
@@ -1006,7 +1006,7 @@ TEST_P(IndexingOpsTest, Int16_2DSubMatrix)
     eval("a = int16(reshape([10 20 30 40 50 60], 2, 3));");
     eval("s = a(:, 2);");
     auto *s = getVarPtr("s");
-    EXPECT_EQ(s->type(), MType::INT16);
+    EXPECT_EQ(s->type(), ValueType::INT16);
     EXPECT_EQ(s->numel(), 2u);
     EXPECT_EQ(s->int16Data()[0], 30);
     EXPECT_EQ(s->int16Data()[1], 40);
@@ -1017,7 +1017,7 @@ TEST_P(IndexingOpsTest, Int64_2DAssign)
     eval("a = int64(reshape([1 2 3 4 5 6], 2, 3));");
     eval("a(1, 2) = 999;");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::INT64);
+    EXPECT_EQ(a->type(), ValueType::INT64);
     EXPECT_EQ(a->int64Data()[2], 999);
 }
 
@@ -1026,7 +1026,7 @@ TEST_P(IndexingOpsTest, Uint32_2DMatrix)
     eval("a = uint32(reshape([1 2 3 4 5 6], 2, 3));");
     eval("v = a(1, 3);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::UINT32);
+    EXPECT_EQ(v->type(), ValueType::UINT32);
     EXPECT_EQ(v->uint32Data()[0], 5u);
 }
 
@@ -1035,7 +1035,7 @@ TEST_P(IndexingOpsTest, Uint64_2DSubMatrix)
     eval("a = uint64(reshape([1 2 3 4 5 6], 2, 3));");
     eval("s = a(2, :);");
     auto *s = getVarPtr("s");
-    EXPECT_EQ(s->type(), MType::UINT64);
+    EXPECT_EQ(s->type(), ValueType::UINT64);
     EXPECT_EQ(s->dims().rows(), 1u);
     EXPECT_EQ(s->dims().cols(), 3u);
     EXPECT_EQ(s->uint64Data()[0], 2u);
@@ -1049,7 +1049,7 @@ TEST_P(IndexingOpsTest, Int32LogicalIndex)
     eval("a = int32([10 20 30 40 50]);");
     eval("x = a([false true false true false]);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::INT32);
+    EXPECT_EQ(x->type(), ValueType::INT32);
     EXPECT_EQ(x->numel(), 2u);
     EXPECT_EQ(x->int32Data()[0], 20);
     EXPECT_EQ(x->int32Data()[1], 40);
@@ -1060,7 +1060,7 @@ TEST_P(IndexingOpsTest, Uint8LogicalIndex)
     eval("a = uint8([1 2 3 4 5]);");
     eval("x = a([true true false false true]);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::UINT8);
+    EXPECT_EQ(x->type(), ValueType::UINT8);
     EXPECT_EQ(x->numel(), 3u);
     EXPECT_EQ(x->uint8Data()[0], 1u);
     EXPECT_EQ(x->uint8Data()[2], 5u);
@@ -1071,7 +1071,7 @@ TEST_P(IndexingOpsTest, SingleLogicalIndex)
     eval("a = single([0.1 0.2 0.3 0.4]);");
     eval("x = a([true false true false]);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::SINGLE);
+    EXPECT_EQ(x->type(), ValueType::SINGLE);
     EXPECT_EQ(x->numel(), 2u);
     EXPECT_FLOAT_EQ(x->singleData()[0], 0.1f);
     EXPECT_FLOAT_EQ(x->singleData()[1], 0.3f);
@@ -1084,7 +1084,7 @@ TEST_P(IndexingOpsTest, Int8BoundariesRoundTripThroughIndex)
     eval("a = int8([-128 0 127]);");
     eval("x = a([1 3]);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::INT8);
+    EXPECT_EQ(x->type(), ValueType::INT8);
     EXPECT_EQ(x->int8Data()[0], -128);
     EXPECT_EQ(x->int8Data()[1], 127);
 }
@@ -1094,7 +1094,7 @@ TEST_P(IndexingOpsTest, Uint32MaxPreservedThroughIndex)
     eval("a = uint32([0 1 4294967295]);");
     eval("x = a(3);");
     auto *x = getVarPtr("x");
-    EXPECT_EQ(x->type(), MType::UINT32);
+    EXPECT_EQ(x->type(), ValueType::UINT32);
     EXPECT_EQ(x->uint32Data()[0], 4294967295u);
 }
 
@@ -1104,7 +1104,7 @@ TEST_P(IndexingOpsTest, Int32AssignFromSingleTruncates)
 {
     eval("a = int32([0 0 0]); a(2) = single(42.7);");
     auto *a = getVarPtr("a");
-    EXPECT_EQ(a->type(), MType::INT32);
+    EXPECT_EQ(a->type(), ValueType::INT32);
     EXPECT_EQ(a->int32Data()[1], 42);
 }
 
@@ -1112,7 +1112,7 @@ TEST_P(IndexingOpsTest, CharAssignFromInt)
 {
     eval("s = 'XXXX'; s(2) = int32(65);");
     auto *s = getVarPtr("s");
-    EXPECT_EQ(s->type(), MType::CHAR);
+    EXPECT_EQ(s->type(), ValueType::CHAR);
     EXPECT_EQ(s->toString(), "XAXX");
 }
 
@@ -1133,7 +1133,7 @@ TEST_P(IndexingOpsTest, Uint8SourceConvertsToUint16)
     eval("a = uint16(uint8([10 20 30]));");
     auto *a = getVarPtr("a");
     ASSERT_NE(a, nullptr);
-    EXPECT_EQ(a->type(), MType::UINT16);
+    EXPECT_EQ(a->type(), ValueType::UINT16);
     EXPECT_EQ(a->uint16Data()[0], 10u);
     EXPECT_EQ(a->uint16Data()[2], 30u);
 }
@@ -1143,7 +1143,7 @@ TEST_P(IndexingOpsTest, Uint8SourceConvertsToLogical)
     eval("b = logical(uint8([0 5 0 7]));");
     auto *b = getVarPtr("b");
     ASSERT_NE(b, nullptr);
-    EXPECT_EQ(b->type(), MType::LOGICAL);
+    EXPECT_EQ(b->type(), ValueType::LOGICAL);
     EXPECT_EQ(b->numel(), 4u);
     EXPECT_EQ(b->logicalData()[0], 0u);
     EXPECT_EQ(b->logicalData()[1], 1u);

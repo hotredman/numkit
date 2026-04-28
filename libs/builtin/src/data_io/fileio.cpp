@@ -5,13 +5,13 @@
 // (6c.8.4b / 6c.8.5) because they need the shared precision / size
 // helpers.
 
-#include <numkit/m/builtin/data_io/fileio.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/data_io/fileio.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdIOHelpers.hpp"
+#include "io_helpers.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Shared small helper
@@ -27,14 +27,14 @@ namespace numkit::m::builtin {
 
 namespace {
 
-Engine::OpenFile *requireReadFid(Engine &engine, Span<const MValue> args, const char *fn)
+Engine::OpenFile *requireReadFid(Engine &engine, Span<const Value> args, const char *fn)
 {
     if (args.empty() || !args[0].isScalar())
-        throw MError(std::string(fn) + ": file identifier required");
+        throw Error(std::string(fn) + ": file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f || !f->forRead)
-        throw MError(std::string(fn) + ": invalid file identifier");
+        throw Error(std::string(fn) + ": invalid file identifier");
     return f;
 }
 
@@ -44,11 +44,11 @@ Engine::OpenFile *requireReadFid(Engine &engine, Span<const MValue> args, const 
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-void fopen(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void fopen(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isChar())
-        throw MError("fopen: filename must be a char array");
+        throw Error("fopen: filename must be a char array");
 
     // `fopen('all')` — only as the sole argument — returns a row vector
     // of every user-opened fid. With a mode arg, 'all' becomes a literal
@@ -56,9 +56,9 @@ void fopen(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue>
     if (args.size() == 1 && args[0].toString() == "all") {
         auto ids = engine.openFileIds();
         if (ids.empty()) {
-            outs[0] = MValue::matrix(1, 0, MType::DOUBLE, alloc);
+            outs[0] = Value::matrix(1, 0, ValueType::DOUBLE, alloc);
         } else {
-            auto row = MValue::matrix(1, ids.size(), MType::DOUBLE, alloc);
+            auto row = Value::matrix(1, ids.size(), ValueType::DOUBLE, alloc);
             double *d = row.doubleDataMut();
             for (size_t i = 0; i < ids.size(); ++i)
                 d[i] = static_cast<double>(ids[i]);
@@ -70,39 +70,39 @@ void fopen(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue>
     std::string path = args[0].toString();
     std::string mode = (args.size() >= 2 && args[1].isChar()) ? args[1].toString() : "r";
     int fid = engine.openFile(path, mode);
-    outs[0] = MValue::scalar(static_cast<double>(fid), alloc);
+    outs[0] = Value::scalar(static_cast<double>(fid), alloc);
     // [fid, errmsg] = fopen(...) — errmsg is '' on success.
     if (nargout > 1)
-        outs[1] = MValue::fromString(fid < 0 ? engine.lastFopenError() : std::string(), alloc);
+        outs[1] = Value::fromString(fid < 0 ? engine.lastFopenError() : std::string(), alloc);
 }
 
-void fclose(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void fclose(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty())
-        throw MError("fclose: requires a file identifier or 'all'");
+        throw Error("fclose: requires a file identifier or 'all'");
 
     if (args[0].isChar() && args[0].toString() == "all") {
         engine.closeAllFiles();
-        outs[0] = MValue::scalar(0.0, alloc);
+        outs[0] = Value::scalar(0.0, alloc);
         return;
     }
 
     if (!args[0].isScalar())
-        throw MError("fclose: argument must be a numeric fid or 'all'");
+        throw Error("fclose: argument must be a numeric fid or 'all'");
     int fid = static_cast<int>(args[0].toScalar());
     bool ok = engine.closeFile(fid);
-    outs[0] = MValue::scalar(ok ? 0.0 : -1.0, alloc);
+    outs[0] = Value::scalar(ok ? 0.0 : -1.0, alloc);
 }
 
-void fgetl(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void fgetl(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     auto *f = requireReadFid(engine, args, "fgetl");
 
     if (f->cursor >= f->buffer.size()) {
         f->lastError = "End of file reached.";
-        outs[0] = MValue::scalar(-1.0, alloc);
+        outs[0] = Value::scalar(-1.0, alloc);
         return;
     }
     size_t start = f->cursor;
@@ -115,17 +115,17 @@ void fgetl(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
         --trimEnd;
     std::string line = f->buffer.substr(start, trimEnd - start);
     f->cursor = (nl == std::string::npos) ? f->buffer.size() : nl + 1;
-    outs[0] = MValue::fromString(line, alloc);
+    outs[0] = Value::fromString(line, alloc);
 }
 
-void fgets(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void fgets(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     auto *f = requireReadFid(engine, args, "fgets");
 
     if (f->cursor >= f->buffer.size()) {
         f->lastError = "End of file reached.";
-        outs[0] = MValue::scalar(-1.0, alloc);
+        outs[0] = Value::scalar(-1.0, alloc);
         return;
     }
     size_t start = f->cursor;
@@ -141,61 +141,61 @@ void fgets(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
         end = std::min(start + nchar, f->buffer.size());
     std::string line = f->buffer.substr(start, end - start);
     f->cursor = end;
-    outs[0] = MValue::fromString(line, alloc);
+    outs[0] = Value::fromString(line, alloc);
 }
 
-void feof(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void feof(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isScalar())
-        throw MError("feof: file identifier required");
+        throw Error("feof: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f)
-        throw MError("feof: invalid file identifier");
-    outs[0] = MValue::logicalScalar(f->cursor >= f->buffer.size(), alloc);
+        throw Error("feof: invalid file identifier");
+    outs[0] = Value::logicalScalar(f->cursor >= f->buffer.size(), alloc);
 }
 
-void ferror(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void ferror(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isScalar())
-        throw MError("ferror: file identifier required");
+        throw Error("ferror: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f)
-        throw MError("ferror: invalid file identifier");
+        throw Error("ferror: invalid file identifier");
 
     bool clear = args.size() >= 2 && args[1].isChar() && args[1].toString() == "clear";
     std::string msg = f->lastError;
     if (clear)
         f->lastError.clear();
 
-    outs[0] = MValue::fromString(msg, alloc);
+    outs[0] = Value::fromString(msg, alloc);
     if (nargout > 1)
-        outs[1] = MValue::scalar(msg.empty() ? 0.0 : -1.0, alloc);
+        outs[1] = Value::scalar(msg.empty() ? 0.0 : -1.0, alloc);
 }
 
-void ftell(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void ftell(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isScalar())
-        throw MError("ftell: file identifier required");
+        throw Error("ftell: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f) {
-        outs[0] = MValue::scalar(-1.0, alloc);
+        outs[0] = Value::scalar(-1.0, alloc);
         return;
     }
     // Write-mode: report end-of-buffer (where next append lands).
     size_t pos = f->forWrite ? f->buffer.size() : f->cursor;
-    outs[0] = MValue::scalar(static_cast<double>(pos), alloc);
+    outs[0] = Value::scalar(static_cast<double>(pos), alloc);
 }
 
-void fseek(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void fseek(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
-    auto fail = [&]() { outs[0] = MValue::scalar(-1.0, alloc); };
+    auto fail = [&]() { outs[0] = Value::scalar(-1.0, alloc); };
 
     if (args.size() < 2 || !args[0].isScalar() || !args[1].isScalar())
         return fail();
@@ -239,31 +239,31 @@ void fseek(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
         return fail();
 
     f->cursor = static_cast<size_t>(target);
-    outs[0] = MValue::scalar(0.0, alloc);
+    outs[0] = Value::scalar(0.0, alloc);
 }
 
-void frewind(Engine &engine, Span<const MValue> args, size_t, Span<MValue>)
+void frewind(Engine &engine, Span<const Value> args, size_t, Span<Value>)
 {
     if (args.empty() || !args[0].isScalar())
-        throw MError("frewind: file identifier required");
+        throw Error("frewind: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f || !f->forRead)
-        throw MError("frewind: invalid file identifier");
+        throw Error("frewind: invalid file identifier");
     f->cursor = 0;
 }
 
 // ── Binary I/O ──────────────────────────────────────────────────────────
 
-void fread(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue> outs)
+void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isScalar())
-        throw MError("fread: file identifier required");
+        throw Error("fread: file identifier required");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f || !f->forRead)
-        throw MError("fread: invalid file identifier");
+        throw Error("fread: invalid file identifier");
 
     detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 2)
@@ -272,19 +272,19 @@ void fread(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue>
     std::string precStr = "uint8";
     if (args.size() >= 3) {
         if (!args[2].isChar())
-            throw MError("fread: precision must be a char array");
+            throw Error("fread: precision must be a char array");
         precStr = args[2].toString();
     }
     auto precOpt = detail::parsePrecision(precStr);
     if (!precOpt)
-        throw MError("fread: unsupported precision '" + precStr + "'");
+        throw Error("fread: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
     size_t bsize = precOpt->second;
 
     bool be = false;
     if (args.size() >= 4) {
         if (!args[3].isChar())
-            throw MError("fread: machine format must be a char array");
+            throw Error("fread: machine format must be a char array");
         be = detail::parseEndian(args[3].toString(), "fread");
     }
 
@@ -325,45 +325,45 @@ void fread(Engine &engine, Span<const MValue> args, size_t nargout, Span<MValue>
     f->cursor += n * bsize;
     outs[0] = detail::shapeFreadOutput(std::move(values), sz, alloc);
     if (nargout > 1)
-        outs[1] = MValue::scalar(static_cast<double>(n), alloc);
+        outs[1] = Value::scalar(static_cast<double>(n), alloc);
 }
 
-void fwrite(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
+void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.size() < 2 || !args[0].isScalar())
-        throw MError("fwrite: requires (fid, array [, precision [, machineformat]])");
+        throw Error("fwrite: requires (fid, array [, precision [, machineformat]])");
     int fid = static_cast<int>(args[0].toScalar());
     auto *f = engine.findFile(fid);
     if (!f || !f->forWrite)
-        throw MError("fwrite: invalid file identifier");
+        throw Error("fwrite: invalid file identifier");
 
     std::string precStr = "uint8";
     if (args.size() >= 3) {
         if (!args[2].isChar())
-            throw MError("fwrite: precision must be a char array");
+            throw Error("fwrite: precision must be a char array");
         precStr = args[2].toString();
     }
     auto precOpt = detail::parsePrecision(precStr);
     if (!precOpt)
-        throw MError("fwrite: unsupported precision '" + precStr + "'");
+        throw Error("fwrite: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
     size_t bsize = precOpt->second;
 
     bool be = false;
     if (args.size() >= 4) {
         if (!args[3].isChar())
-            throw MError("fwrite: machine format must be a char array");
+            throw Error("fwrite: machine format must be a char array");
         be = detail::parseEndian(args[3].toString(), "fwrite");
     }
 
-    const MValue &A = args[1];
+    const Value &A = args[1];
     size_t numel = A.numel();
 
     auto elemAsDouble = [&A](size_t i) -> double {
-        if (A.type() == MType::DOUBLE) return A.doubleData()[i];
+        if (A.type() == ValueType::DOUBLE) return A.doubleData()[i];
         if (A.isLogical())             return A.logicalData()[i] ? 1.0 : 0.0;
-        throw MError("fwrite: unsupported array element type");
+        throw Error("fwrite: unsupported array element type");
     };
 
     std::string bytes(numel * bsize, '\0');
@@ -400,7 +400,7 @@ void fwrite(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
         f->buffer.resize(writePos + bytes.size());
     std::memcpy(f->buffer.data() + writePos, bytes.data(), bytes.size());
     f->cursor = writePos + bytes.size();
-    outs[0] = MValue::scalar(static_cast<double>(numel), alloc);
+    outs[0] = Value::scalar(static_cast<double>(numel), alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -410,7 +410,7 @@ void fwrite(Engine &engine, Span<const MValue> args, size_t, Span<MValue> outs)
 namespace detail {
 
 #define NK_FILEIO_REG(FN)                                                                          \
-    void FN##_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)    \
+    void FN##_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)    \
     {                                                                                              \
         FN(*ctx.engine, args, nargout, outs);                                                      \
     }
@@ -431,4 +431,4 @@ NK_FILEIO_REG(fwrite)
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

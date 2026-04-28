@@ -2,18 +2,18 @@
 //
 // regexp / regexpi / regexprep — ECMAScript regex via std::regex.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/datatypes/strings/regex.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/datatypes/strings/regex.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cctype>
 #include <regex>
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 namespace {
 
@@ -24,34 +24,34 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
     try {
         return std::regex(pat, flags);
     } catch (const std::regex_error &e) {
-        throw MError(std::string("regex: invalid pattern — ") + e.what(),
+        throw Error(std::string("regex: invalid pattern — ") + e.what(),
                      0, 0, "regexp", "", "m:regexp:badPattern");
     }
 }
 
-MValue rowFromIndices(Allocator &alloc, const std::vector<double> &v)
+Value rowFromIndices(Allocator &alloc, const std::vector<double> &v)
 {
-    auto out = MValue::matrix(1, v.size(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, &alloc);
     for (std::size_t i = 0; i < v.size(); ++i)
         out.doubleDataMut()[i] = v[i];
     return out;
 }
 
-MValue rowCellOfStrings(Allocator &alloc, const std::vector<std::string> &v)
+Value rowCellOfStrings(Allocator &alloc, const std::vector<std::string> &v)
 {
-    auto out = MValue::cell(1, v.size());
+    auto out = Value::cell(1, v.size());
     for (std::size_t i = 0; i < v.size(); ++i)
-        out.cellAt(i) = MValue::fromString(v[i], &alloc);
+        out.cellAt(i) = Value::fromString(v[i], &alloc);
     return out;
 }
 
 } // namespace
 
-MValue regexpFind(Allocator &alloc, const MValue &s, const MValue &pat,
+Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
                   const std::string &option, bool ignoreCase)
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
-        throw MError("regexp: s and pat must be strings",
+        throw Error("regexp: s and pat must be strings",
                      0, 0, "regexp", "", "m:regexp:badArg");
     const std::string text = s.toString();
     const std::regex  re   = compileRegex(pat.toString(), ignoreCase);
@@ -92,14 +92,14 @@ MValue regexpFind(Allocator &alloc, const MValue &s, const MValue &pat,
                 grp.emplace_back(it->str(g));
             all.push_back(std::move(grp));
         }
-        auto out = MValue::cell(1, all.size());
+        auto out = Value::cell(1, all.size());
         for (std::size_t i = 0; i < all.size(); ++i)
             out.cellAt(i) = rowCellOfStrings(alloc, all[i]);
         return out;
     }
 
     if (!opt.empty())
-        throw MError("regexp: unknown option '" + option
+        throw Error("regexp: unknown option '" + option
                      + "' (supported: 'match' / 'tokens' / 'split')",
                      0, 0, "regexp", "", "m:regexp:badOption");
 
@@ -111,19 +111,19 @@ MValue regexpFind(Allocator &alloc, const MValue &s, const MValue &pat,
     return rowFromIndices(alloc, idx);
 }
 
-MValue regexprep(Allocator &alloc, const MValue &s, const MValue &pat,
-                 const MValue &rep, bool ignoreCase)
+Value regexprep(Allocator &alloc, const Value &s, const Value &pat,
+                 const Value &rep, bool ignoreCase)
 {
     if ((!s.isChar() && !s.isString())
         || (!pat.isChar() && !pat.isString())
         || (!rep.isChar() && !rep.isString()))
-        throw MError("regexprep: s, pat, rep must be strings",
+        throw Error("regexprep: s, pat, rep must be strings",
                      0, 0, "regexprep", "", "m:regexprep:badArg");
     const std::string text    = s.toString();
     const std::regex  re      = compileRegex(pat.toString(), ignoreCase);
     const std::string repText = rep.toString();
     const std::string out     = std::regex_replace(text, re, repText);
-    return MValue::fromString(out, &alloc);
+    return Value::fromString(out, &alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -132,44 +132,44 @@ MValue regexprep(Allocator &alloc, const MValue &s, const MValue &pat,
 
 namespace detail {
 
-void regexp_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void regexp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("regexp: requires at least 2 arguments (s, pat)",
+        throw Error("regexp: requires at least 2 arguments (s, pat)",
                      0, 0, "regexp", "", "m:regexp:nargin");
     std::string opt;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
-            throw MError("regexp: option must be a string",
+            throw Error("regexp: option must be a string",
                          0, 0, "regexp", "", "m:regexp:badOption");
         opt = args[2].toString();
     }
     outs[0] = regexpFind(ctx.engine->allocator(), args[0], args[1], opt, false);
 }
 
-void regexpi_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("regexpi: requires at least 2 arguments (s, pat)",
+        throw Error("regexpi: requires at least 2 arguments (s, pat)",
                      0, 0, "regexpi", "", "m:regexpi:nargin");
     std::string opt;
     if (args.size() >= 3) {
         if (!args[2].isChar() && !args[2].isString())
-            throw MError("regexpi: option must be a string",
+            throw Error("regexpi: option must be a string",
                          0, 0, "regexpi", "", "m:regexpi:badOption");
         opt = args[2].toString();
     }
     outs[0] = regexpFind(ctx.engine->allocator(), args[0], args[1], opt, true);
 }
 
-void regexprep_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("regexprep: requires 3 arguments (s, pat, rep)",
+        throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "m:regexprep:nargin");
     outs[0] = regexprep(ctx.engine->allocator(), args[0], args[1], args[2], false);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

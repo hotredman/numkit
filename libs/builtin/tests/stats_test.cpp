@@ -2739,7 +2739,7 @@ TEST_P(CumLogicalTest, AnyTreatsNaNAsTrue)
 // ── Phase P1 SIMD any/all coverage ──────────────────────────
 //
 // These exercise the 4× unrolled SIMD scan in
-// MStdLogicalReductions_simd.cpp. Cover: large-N early-exit (any), full-
+// logical_reductions_simd.cpp. Cover: large-N early-exit (any), full-
 // scan (all), LOGICAL-byte path (mask = x > 0 returns LOGICAL), DOUBLE
 // path, and odd N around SIMD lane boundaries.
 
@@ -3154,7 +3154,7 @@ TEST_P(CumLogicalTest, DiffPromotesIntegerToDouble)
 {
     eval("d = diff(int32([10 25 60 100]));");
     auto *d = getVarPtr("d");
-    EXPECT_EQ(d->type(), MType::DOUBLE);
+    EXPECT_EQ(d->type(), ValueType::DOUBLE);
     EXPECT_EQ(d->numel(), 3u);
     EXPECT_DOUBLE_EQ(d->doubleData()[0], 15.0);
     EXPECT_DOUBLE_EQ(d->doubleData()[1], 35.0);
@@ -3165,7 +3165,7 @@ TEST_P(CumLogicalTest, DiffPromotesLogicalToDouble)
 {
     eval("d = diff([true false true true false]);");
     auto *d = getVarPtr("d");
-    EXPECT_EQ(d->type(), MType::DOUBLE);
+    EXPECT_EQ(d->type(), ValueType::DOUBLE);
     EXPECT_EQ(d->numel(), 4u);
     EXPECT_DOUBLE_EQ(d->doubleData()[0], -1.0);
     EXPECT_DOUBLE_EQ(d->doubleData()[1], 1.0);

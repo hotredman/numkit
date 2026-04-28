@@ -4,83 +4,83 @@
 // Shares function-handle dispatch helpers with cell.cpp via the inline
 // header below.
 
-#include <numkit/m/builtin/datatypes/struct/struct.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/datatypes/struct/struct.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
 
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-namespace hf = ::numkit::m::builtin::detail::handlefn;
+namespace hf = ::numkit::builtin::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-MValue structure(Allocator &)
+Value structure(Allocator &)
 {
-    return MValue::structure();
+    return Value::structure();
 }
 
-MValue structure(Allocator &, Span<const MValue> nameValuePairs)
+Value structure(Allocator &, Span<const Value> nameValuePairs)
 {
-    auto s = MValue::structure();
+    auto s = Value::structure();
     for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2) {
         if (!nameValuePairs[i].isChar() && !nameValuePairs[i].isString())
-            throw MError("struct: field names must be char arrays", 0, 0, "struct", "",
+            throw Error("struct: field names must be char arrays", 0, 0, "struct", "",
                          "m:struct:invalidFieldName");
         s.field(nameValuePairs[i].toString()) = nameValuePairs[i + 1];
     }
     return s;
 }
 
-MValue fieldnames(Allocator &alloc, const MValue &s)
+Value fieldnames(Allocator &alloc, const Value &s)
 {
     if (!s.isStruct())
-        throw MError("fieldnames requires a struct", 0, 0, "fieldnames", "",
+        throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
                      "m:fieldnames:notStruct");
     const auto &fields = s.structFields();
-    auto c = MValue::cell(fields.size(), 1);
+    auto c = Value::cell(fields.size(), 1);
     size_t i = 0;
     for (const auto &[k, v] : fields)
-        c.cellAt(i++) = MValue::fromString(k, &alloc);
+        c.cellAt(i++) = Value::fromString(k, &alloc);
     return c;
 }
 
-MValue isfield(Allocator &alloc, const MValue &s, const MValue &name)
+Value isfield(Allocator &alloc, const Value &s, const Value &name)
 {
     if (!s.isStruct())
-        return MValue::logicalScalar(false, &alloc);
-    return MValue::logicalScalar(s.hasField(name.toString()), &alloc);
+        return Value::logicalScalar(false, &alloc);
+    return Value::logicalScalar(s.hasField(name.toString()), &alloc);
 }
 
-MValue rmfield(Allocator &, const MValue &s, const MValue &name)
+Value rmfield(Allocator &, const Value &s, const Value &name)
 {
     if (!s.isStruct())
-        throw MError("rmfield requires a struct", 0, 0, "rmfield", "",
+        throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
                      "m:rmfield:notStruct");
-    MValue out = s;
+    Value out = s;
     out.structFields().erase(name.toString());
     return out;
 }
 
-MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
+Value structfun(Allocator &alloc, const Value &fn, const Value &s,
                  bool uniformOutput, Engine *engine)
 {
     if (!s.isStruct())
-        throw MError("structfun: second argument must be a scalar struct",
+        throw Error("structfun: second argument must be a scalar struct",
                      0, 0, "structfun", "", "m:structfun:notStruct");
     hf::BuiltinFn f = hf::BuiltinFn::Numel;  // placeholder
     const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "structfun");
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
-    std::vector<MValue> results;
+    std::vector<Value> results;
     results.reserve(n);
     for (const auto &kv : fields)
         results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,
@@ -89,22 +89,22 @@ MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
     if (uniformOutput) {
         // Uniform: column vector of length n.
         if (isBuiltin && hf::builtinReturnsString(f))
-            throw MError("structfun: @class output must use UniformOutput=false",
+            throw Error("structfun: @class output must use UniformOutput=false",
                          0, 0, "structfun", "", "m:structfun:nonUniform");
         // For built-in handles use the static return-type tag; for
         // anonymous handles infer from the first result.
-        MType outT = MType::DOUBLE;
+        ValueType outT = ValueType::DOUBLE;
         if (isBuiltin && hf::builtinReturnsLogical(f))
-            outT = MType::LOGICAL;
+            outT = ValueType::LOGICAL;
         else if (!isBuiltin && n > 0 && results[0].isLogical())
-            outT = MType::LOGICAL;
-        auto out = MValue::matrix(n, 1, outT, &alloc);
+            outT = ValueType::LOGICAL;
+        auto out = Value::matrix(n, 1, outT, &alloc);
         for (size_t i = 0; i < n; ++i) {
-            const MValue &v = results[i];
+            const Value &v = results[i];
             if (!v.isScalar())
-                throw MError("structfun: fn returned a non-scalar; pass 'UniformOutput', false",
+                throw Error("structfun: fn returned a non-scalar; pass 'UniformOutput', false",
                              0, 0, "structfun", "", "m:structfun:notScalar");
-            if (outT == MType::LOGICAL)
+            if (outT == ValueType::LOGICAL)
                 out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else
                 out.doubleDataMut()[i]  = v.toScalar();
@@ -113,7 +113,7 @@ MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
     }
 
     // Cell output, column vector (1 entry per field).
-    auto out = MValue::cell(n, 1);
+    auto out = Value::cell(n, 1);
     for (size_t i = 0; i < n; ++i)
         out.cellAt(i) = std::move(results[i]);
     return out;
@@ -125,39 +125,39 @@ MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
 
 namespace detail {
 
-void struct_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     outs[0] = structure(ctx.engine->allocator(), args);
 }
 
-void fieldnames_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
+        throw Error("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
                      "m:fieldnames:nargin");
     outs[0] = fieldnames(ctx.engine->allocator(), args[0]);
 }
 
-void isfield_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("isfield requires 2 arguments", 0, 0, "isfield", "",
+        throw Error("isfield requires 2 arguments", 0, 0, "isfield", "",
                      "m:isfield:nargin");
     outs[0] = isfield(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void rmfield_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("rmfield requires 2 arguments", 0, 0, "rmfield", "",
+        throw Error("rmfield requires 2 arguments", 0, 0, "rmfield", "",
                      "m:rmfield:nargin");
     outs[0] = rmfield(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void structfun_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("structfun: requires at least 2 arguments (fn, S)",
+        throw Error("structfun: requires at least 2 arguments (fn, S)",
                      0, 0, "structfun", "", "m:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
     outs[0] = structfun(ctx.engine->allocator(), args[0], args[1], uniform, ctx.engine);
@@ -165,4 +165,4 @@ void structfun_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallConte
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

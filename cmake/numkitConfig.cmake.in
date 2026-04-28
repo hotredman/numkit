@@ -1,0 +1,4 @@
+# cmake/numkitConfig.cmake.in
+@PACKAGE_INIT@
+include("${CMAKE_CURRENT_LIST_DIR}/numkitTargets.cmake")
+check_required_components(numkit)

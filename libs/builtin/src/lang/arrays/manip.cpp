@@ -5,20 +5,20 @@
 // movement (memcpy where possible) — no SIMD opportunity beyond what
 // the compiler auto-vectorises in the inner copy loops.
 
-#include <numkit/m/builtin/lang/arrays/manip.hpp>
+#include <numkit/builtin/lang/arrays/manip.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MShapeOps.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/shape_ops.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ────────────────────────────────────────────────────────────────────
 // repmat
@@ -26,7 +26,7 @@ namespace numkit::m::builtin {
 //
 // Tile the input matrix m × n times (and optionally p times along
 // pages for the 3D form). Output dims: (R*m) × (C*n) × (P*p).
-MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
+Value repmat(Allocator &alloc, const Value &x, size_t m, size_t n, size_t p)
 {
     const auto &dd = x.dims();
     const size_t R = dd.rows(), C = dd.cols();
@@ -34,8 +34,8 @@ MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
     const size_t outR = R * m, outC = C * n, outP = P * p;
     const bool out3D = (outP > 1) || dd.is3D();
 
-    auto r = out3D ? MValue::matrix3d(outR, outC, outP, MType::DOUBLE, &alloc)
-                   : MValue::matrix(outR, outC, MType::DOUBLE, &alloc);
+    auto r = out3D ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(outR, outC, ValueType::DOUBLE, &alloc);
     if (R == 0 || C == 0 || P == 0 || m == 0 || n == 0 || p == 0)
         return r;
 
@@ -73,13 +73,13 @@ MValue repmat(Allocator &alloc, const MValue &x, size_t m, size_t n, size_t p)
 // each output column-of-axis-0 back to its source column via per-axis
 // modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
 // output column. Type-preserving via byte-copy (elementSize-based).
-MValue repmatND(Allocator &alloc, const MValue &x,
+Value repmatND(Allocator &alloc, const Value &x,
                 const size_t *tiles, int ntiles)
 {
-    const MType t = x.type();
-    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-        || t == MType::FUNC_HANDLE)
-        throw MError(std::string("repmat: ND repmat does not support type '")
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error(std::string("repmat: ND repmat does not support type '")
                      + mtypeName(t) + "'",
                      0, 0, "repmat", "", "m:repmat:typeND");
 
@@ -87,7 +87,7 @@ MValue repmatND(Allocator &alloc, const MValue &x,
     constexpr int kMaxNd = Dims::kMaxRank;
     int outNdim = std::max(inDims.ndim(), ntiles);
     if (outNdim > kMaxNd)
-        throw MError("repmat: rank exceeds 32",
+        throw Error("repmat: rank exceeds 32",
                      0, 0, "repmat", "", "m:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
 
@@ -100,7 +100,7 @@ MValue repmatND(Allocator &alloc, const MValue &x,
         outDim[i] = inDimPadded[i] * tilesPadded[i];
     }
 
-    auto r = MValue::matrixND(outDim, outNdim, t, &alloc);
+    auto r = Value::matrixND(outDim, outNdim, t, &alloc);
     if (r.numel() == 0 || x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -154,25 +154,25 @@ namespace {
 // The slab stride is B = prod(dims[0..axis-1]) elements; outer count
 // O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
 // (axis=1) and flipud (axis=0). Type-preserving via byte-copy.
-MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
+Value flipNDAlongAxis(Allocator &alloc, const Value &x, int axis,
                        const char *fn)
 {
-    const MType t = x.type();
-    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-        || t == MType::FUNC_HANDLE)
-        throw MError(std::string(fn) + ": ND fallback does not support type '"
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
                      0, 0, fn, "", std::string("m:") + fn + ":typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
-        throw MError(std::string(fn) + ": rank exceeds 32",
+        throw Error(std::string(fn) + ": rank exceeds 32",
                      0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
-    auto r = MValue::matrixND(outDimArr, nd, t, &alloc);
+    auto r = Value::matrixND(outDimArr, nd, t, &alloc);
     if (x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -204,15 +204,15 @@ MValue flipNDAlongAxis(Allocator &alloc, const MValue &x, int axis,
 
 } // namespace
 
-MValue fliplr(Allocator &alloc, const MValue &x)
+Value fliplr(Allocator &alloc, const Value &x)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 1, "fliplr");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -226,15 +226,15 @@ MValue fliplr(Allocator &alloc, const MValue &x)
     return r;
 }
 
-MValue flipud(Allocator &alloc, const MValue &x)
+Value flipud(Allocator &alloc, const Value &x)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 0, "flipud");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -319,7 +319,7 @@ inline void rot270PageBytes(const char *src, char *dst,
 
 } // namespace
 
-MValue rot90(Allocator &alloc, const MValue &x, int k)
+Value rot90(Allocator &alloc, const Value &x, int k)
 {
     int kMod = k % 4;
     if (kMod < 0) kMod += 4;
@@ -332,21 +332,21 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
     // 2..N-1. Output rank matches input; axes 0 and 1 swap for kMod 1/3.
     // Type-agnostic via byte-copy.
     if (nd >= 4) {
-        const MType t = x.type();
-        if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-            || t == MType::FUNC_HANDLE)
-            throw MError(std::string("rot90: ND fallback does not support type '")
+        const ValueType t = x.type();
+        if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+            || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("rot90: ND fallback does not support type '")
                          + mtypeName(t) + "'",
                          0, 0, "rot90", "", "m:rot90:typeND");
         constexpr int kMaxNd = Dims::kMaxRank;
         if (nd > kMaxNd)
-            throw MError("rot90: rank exceeds 32",
+            throw Error("rot90: rank exceeds 32",
                          0, 0, "rot90", "", "m:rot90:tooManyDims");
         size_t outDims[kMaxNd];
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
         for (int i = 2; i < nd; ++i) outDims[i] = dd.dim(i);
-        auto r = MValue::matrixND(outDims, nd, t, &alloc);
+        auto r = Value::matrixND(outDims, nd, t, &alloc);
         if (x.numel() == 0) return r;
         const size_t es = elementSize(t);
         const char *src = static_cast<const char *>(x.rawData());
@@ -371,8 +371,8 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
 
     // k mod 4 == 0 → identity (just copy). Same shape as input.
     if (kMod == 0) {
-        auto r = is3D ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                      : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                      : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
         if (x.numel() > 0)
             std::memcpy(r.doubleDataMut(), x.doubleData(),
                         x.numel() * sizeof(double));
@@ -381,8 +381,8 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
 
     // k mod 4 == 2 → same shape (R, C) but elements reflected.
     if (kMod == 2) {
-        auto r = is3D ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                      : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                      : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
         if (x.numel() == 0) return r;
         const double *src = x.doubleData();
         double *dst = r.doubleDataMut();
@@ -393,8 +393,8 @@ MValue rot90(Allocator &alloc, const MValue &x, int k)
 
     // k mod 4 == 1 (90° CCW) or == 3 (90° CW = 270°): output shape is
     // (C, R, P) — the per-page rows and cols swap.
-    auto r = is3D ? MValue::matrix3d(C, R, P, MType::DOUBLE, &alloc)
-                  : MValue::matrix(C, R, MType::DOUBLE, &alloc);
+    auto r = is3D ? Value::matrix3d(C, R, P, ValueType::DOUBLE, &alloc)
+                  : Value::matrix(C, R, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -444,13 +444,13 @@ void shift2D(const double *src, double *dst, size_t R, size_t C,
 
 } // namespace
 
-MValue circshift(Allocator &alloc, const MValue &x, int64_t k)
+Value circshift(Allocator &alloc, const Value &x, int64_t k)
 {
     const auto &dd = x.dims();
-    if (x.isScalar()) return MValue::scalar(x.toScalar(), &alloc);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), &alloc);
     if (dd.isVector()) {
         const size_t n = x.numel();
-        auto r = MValue::matrix(dd.rows(), dd.cols(), MType::DOUBLE, &alloc);
+        auto r = Value::matrix(dd.rows(), dd.cols(), ValueType::DOUBLE, &alloc);
         const size_t sh = wrap(k, n);
         for (size_t i = 0; i < n; ++i)
             r.doubleDataMut()[i] = x.doubleData()[(i + n - sh) % n];
@@ -462,25 +462,25 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t k)
     return circshift(alloc, x, k, 0);
 }
 
-MValue circshiftND(Allocator &alloc, const MValue &x,
+Value circshiftND(Allocator &alloc, const Value &x,
                    const int64_t *shifts, int nshifts)
 {
-    const MType t = x.type();
-    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-        || t == MType::FUNC_HANDLE)
-        throw MError(std::string("circshift: ND fallback does not support type '")
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error(std::string("circshift: ND fallback does not support type '")
                      + mtypeName(t) + "'",
                      0, 0, "circshift", "", "m:circshift:typeND");
     const auto &d = x.dims();
     const int nd = d.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd > kMaxNd)
-        throw MError("circshift: rank exceeds 32",
+        throw Error("circshift: rank exceeds 32",
                      0, 0, "circshift", "", "m:circshift:tooManyDims");
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
-    auto r = MValue::matrixND(outDims, nd, t, &alloc);
+    auto r = Value::matrixND(outDims, nd, t, &alloc);
     if (x.numel() == 0) return r;
 
     size_t shiftMod[kMaxNd] = {0};
@@ -533,13 +533,13 @@ MValue circshiftND(Allocator &alloc, const MValue &x,
     return r;
 }
 
-MValue circshift(Allocator &alloc, const MValue &x, int64_t kRow, int64_t kCol)
+Value circshift(Allocator &alloc, const Value &x, int64_t kRow, int64_t kCol)
 {
     const auto &dd = x.dims();
-    if (x.isScalar()) return MValue::scalar(x.toScalar(), &alloc);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), &alloc);
     if (dd.is3D()) {
         const size_t R = dd.rows(), C = dd.cols(), P = dd.pages();
-        auto r = MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc);
+        auto r = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
         for (size_t pp = 0; pp < P; ++pp)
             shift2D(x.doubleData() + pp * R * C,
                     r.doubleDataMut() + pp * R * C,
@@ -551,7 +551,7 @@ MValue circshift(Allocator &alloc, const MValue &x, int64_t kRow, int64_t kCol)
         return circshiftND(alloc, x, shifts, 2);
     }
     const size_t R = dd.rows(), C = dd.cols();
-    auto r = MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(R, C, ValueType::DOUBLE, &alloc);
     shift2D(x.doubleData(), r.doubleDataMut(), R, C, kRow, kCol);
     return r;
 }
@@ -623,26 +623,26 @@ inline void triuPageBytes(const char *src, char *dst, size_t R, size_t C,
 namespace {
 
 template <typename PageBytesFn>
-MValue trilTriuND(Allocator &alloc, const MValue &x, int k,
+Value trilTriuND(Allocator &alloc, const Value &x, int k,
                   PageBytesFn pageFn, const char *fn)
 {
     const auto &dd = x.dims();
     constexpr int kMaxNd = Dims::kMaxRank;
     const int nd = dd.ndim();
     if (nd > kMaxNd)
-        throw MError(std::string(fn) + ": rank exceeds 32",
+        throw Error(std::string(fn) + ": rank exceeds 32",
                      0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
-    const MType t = x.type();
-    if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-        || t == MType::FUNC_HANDLE)
-        throw MError(std::string(fn) + ": ND fallback does not support type '"
+    const ValueType t = x.type();
+    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+        || t == ValueType::FUNC_HANDLE)
+        throw Error(std::string(fn) + ": ND fallback does not support type '"
                      + mtypeName(t) + "'",
                      0, 0, fn, "", std::string("m:") + fn + ":typeND");
 
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = dd.dim(i);
-    auto r = MValue::matrixND(outDimArr, nd, t, &alloc);
+    auto r = Value::matrixND(outDimArr, nd, t, &alloc);
     if (x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -657,7 +657,7 @@ MValue trilTriuND(Allocator &alloc, const MValue &x, int k,
 
 } // namespace
 
-MValue tril(Allocator &alloc, const MValue &x, int k)
+Value tril(Allocator &alloc, const Value &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
@@ -665,8 +665,8 @@ MValue tril(Allocator &alloc, const MValue &x, int k)
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -675,7 +675,7 @@ MValue tril(Allocator &alloc, const MValue &x, int k)
     return r;
 }
 
-MValue triu(Allocator &alloc, const MValue &x, int k)
+Value triu(Allocator &alloc, const Value &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
@@ -683,8 +683,8 @@ MValue triu(Allocator &alloc, const MValue &x, int k)
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? MValue::matrix3d(R, C, P, MType::DOUBLE, &alloc)
-                       : MValue::matrix(R, C, MType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
+                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -698,11 +698,11 @@ MValue triu(Allocator &alloc, const MValue &x, int k)
 // ════════════════════════════════════════════════════════════════════
 namespace detail {
 
-void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
-        throw MError("repmat: requires at least 2 arguments",
+        throw Error("repmat: requires at least 2 arguments",
                      0, 0, "repmat", "", "m:repmat:nargin");
     auto &alloc = ctx.engine->allocator();
 
@@ -714,10 +714,10 @@ void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     //   repmat(A, m, n, p, ...) → ≥ 2 scalars
     std::vector<size_t> tiles;
     if (args.size() == 2) {
-        const MValue &v = args[1];
+        const Value &v = args[1];
         const size_t k = v.numel();
         if (k == 0) {
-            throw MError("repmat: tile vector must not be empty",
+            throw Error("repmat: tile vector must not be empty",
                          0, 0, "repmat", "", "m:repmat:badTileVec");
         }
         if (k == 1) {
@@ -739,7 +739,7 @@ void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     // DOUBLE type) goes through repmatND.
     const auto &inDims = args[0].dims();
     const int outNdim = std::max(inDims.ndim(), static_cast<int>(tiles.size()));
-    if (outNdim <= 3 && tiles.size() <= 3 && args[0].type() == MType::DOUBLE) {
+    if (outNdim <= 3 && tiles.size() <= 3 && args[0].type() == ValueType::DOUBLE) {
         const size_t m = tiles[0];
         const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
@@ -750,11 +750,11 @@ void repmat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 }
 
 #define NK_FLIP_REG(name)                                                      \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
-                    Span<MValue> outs, CallContext &ctx)                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
+                    Span<Value> outs, CallContext &ctx)                       \
     {                                                                          \
         if (args.empty())                                                      \
-            throw MError(#name ": requires 1 argument",                        \
+            throw Error(#name ": requires 1 argument",                        \
                          0, 0, #name, "", "m:" #name ":nargin");               \
         outs[0] = name(ctx.engine->allocator(), args[0]);                      \
     }
@@ -764,11 +764,11 @@ NK_FLIP_REG(flipud)
 
 #undef NK_FLIP_REG
 
-void rot90_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
     if (args.empty())
-        throw MError("rot90: requires at least 1 argument",
+        throw Error("rot90: requires at least 1 argument",
                      0, 0, "rot90", "", "m:rot90:nargin");
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
@@ -776,17 +776,17 @@ void rot90_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = rot90(ctx.engine->allocator(), args[0], k);
 }
 
-void circshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                    CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("circshift: requires (X, k) or (X, shiftVec)",
+        throw Error("circshift: requires (X, k) or (X, shiftVec)",
                      0, 0, "circshift", "", "m:circshift:nargin");
-    const MValue &k = args[1];
+    const Value &k = args[1];
     auto &alloc = ctx.engine->allocator();
     const size_t nk = k.numel();
     if (nk == 0)
-        throw MError("circshift: shift vector must not be empty",
+        throw Error("circshift: shift vector must not be empty",
                      0, 0, "circshift", "", "m:circshift:badShift");
 
     if (nk == 1) {
@@ -807,11 +807,11 @@ void circshift_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> out
 }
 
 #define NK_TRI_REG(name)                                                       \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
-                    Span<MValue> outs, CallContext &ctx)                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
+                    Span<Value> outs, CallContext &ctx)                       \
     {                                                                          \
         if (args.empty())                                                      \
-            throw MError(#name ": requires at least 1 argument",               \
+            throw Error(#name ": requires at least 1 argument",               \
                          0, 0, #name, "", "m:" #name ":nargin");               \
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
@@ -826,4 +826,4 @@ NK_TRI_REG(triu)
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

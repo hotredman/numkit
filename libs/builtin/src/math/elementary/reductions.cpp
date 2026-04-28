@@ -8,18 +8,18 @@
 // files under math/elementary/. Random generators (rand/randn) live in
 // math/random/rng.cpp.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/math/elementary/exponents.hpp>      // exp / log adapters
-#include <numkit/m/builtin/math/elementary/reductions.hpp>
-#include <numkit/m/builtin/math/elementary/rounding.hpp>       // abs adapter
-#include <numkit/m/builtin/math/elementary/trigonometry.hpp>   // sin / cos adapters
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/elementary/exponents.hpp>      // exp / log adapters
+#include <numkit/builtin/math/elementary/reductions.hpp>
+#include <numkit/builtin/math/elementary/rounding.hpp>       // abs adapter
+#include <numkit/builtin/math/elementary/trigonometry.hpp>   // sin / cos adapters
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
-#include "MStdReductionHelpers.hpp"
-#include "backends/MStdVarReduction.hpp"  // for sumScan + addInto
+#include "helpers.hpp"
+#include "reduction_helpers.hpp"
+#include "backends/var_reduction.hpp"  // for sumScan + addInto
 
 #include <algorithm>
 #include <cmath>
@@ -28,7 +28,7 @@
 #include <string>
 #include <type_traits>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Reductions (single-return) — sum / prod / mean
@@ -39,11 +39,11 @@ namespace {
 // acc with init. For 2D: reduces across rows → row vector of cols. For 3D:
 // reduces along first non-singleton dimension. For vectors/scalars: scalar.
 template<typename Op>
-MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMode = false)
+Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode = false)
 {
     // Reads each element as double — supports DOUBLE / SINGLE / integer
     // / LOGICAL transparently. DOUBLE keeps the contiguous fast path.
-    const bool fastDouble = (x.type() == MType::DOUBLE);
+    const bool fastDouble = (x.type() == ValueType::DOUBLE);
     auto readD = [&](size_t i) -> double {
         return fastDouble ? x.doubleData()[i] : x.elemAsDouble(i);
     };
@@ -54,7 +54,7 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
             acc = op(acc, readD(i));
         if (meanMode)
             acc /= static_cast<double>(x.numel());
-        return MValue::scalar(acc, alloc);
+        return Value::scalar(acc, alloc);
     }
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
@@ -66,7 +66,7 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
         const size_t outC = (redDim == 1) ? 1 : C;
         const size_t outP = (redDim == 2) ? 1 : P;
         const size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-        auto r = MValue::matrix3d(outR, outC, outP, MType::DOUBLE, alloc);
+        auto r = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc);
         for (size_t pp = 0; pp < outP; ++pp)
             for (size_t c = 0; c < outC; ++c)
                 for (size_t rr = 0; rr < outR; ++rr) {
@@ -84,7 +84,7 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
         return r;
     }
 
-    auto r = MValue::matrix(1, C, MType::DOUBLE, alloc);
+    auto r = Value::matrix(1, C, ValueType::DOUBLE, alloc);
     for (size_t c = 0; c < C; ++c) {
         double acc = init;
         for (size_t rr = 0; rr < R; ++rr)
@@ -98,12 +98,12 @@ MValue reduce(const MValue &x, Op op, double init, Allocator *alloc, bool meanMo
 
 } // anonymous namespace
 
-MValue sum(Allocator &alloc, const MValue &x)
+Value sum(Allocator &alloc, const Value &x)
 {
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc);
 }
 
-MValue sum(Allocator &alloc, const MValue &x, int dim)
+Value sum(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0) return sum(alloc, x);
     const int d = detail::resolveDim(x, dim, "sum");
@@ -116,10 +116,10 @@ MValue sum(Allocator &alloc, const MValue &x, int dim)
     // accumulates into a row-totals vector with SIMD addInto. Net cost
     // floors at 1 read of M + 1 write of totals = roughly memory
     // bandwidth.
-    if (d == 2 && x.type() == MType::DOUBLE && x.dims().ndim() == 2
+    if (d == 2 && x.type() == ValueType::DOUBLE && x.dims().ndim() == 2
         && !x.isScalar() && !x.dims().isVector()) {
         const size_t R = x.dims().rows(), C = x.dims().cols();
-        auto r = MValue::matrix(R, 1, MType::DOUBLE, &alloc);
+        auto r = Value::matrix(R, 1, ValueType::DOUBLE, &alloc);
         double *totals = r.doubleDataMut();
         std::fill(totals, totals + R, 0.0);
         const double *src = x.doubleData();
@@ -137,12 +137,12 @@ MValue sum(Allocator &alloc, const MValue &x, int dim)
         }, &alloc);
 }
 
-MValue prod(Allocator &alloc, const MValue &x)
+Value prod(Allocator &alloc, const Value &x)
 {
     return reduce(x, [](double a, double b) { return a * b; }, 1.0, &alloc);
 }
 
-MValue prod(Allocator &alloc, const MValue &x, int dim)
+Value prod(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0) return prod(alloc, x);
     const int d = detail::resolveDim(x, dim, "prod");
@@ -154,12 +154,12 @@ MValue prod(Allocator &alloc, const MValue &x, int dim)
         }, &alloc);
 }
 
-MValue mean(Allocator &alloc, const MValue &x)
+Value mean(Allocator &alloc, const Value &x)
 {
     return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc, /*meanMode=*/true);
 }
 
-MValue mean(Allocator &alloc, const MValue &x, int dim)
+Value mean(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0) return mean(alloc, x);
     const int d = detail::resolveDim(x, dim, "mean");
@@ -176,7 +176,7 @@ MValue mean(Allocator &alloc, const MValue &x, int dim)
 // Per MATLAB semantics, min/max preserve the input element type
 // (default 'native' mode). The value array is T-typed; the index
 // array is always DOUBLE. COMPLEX inputs are rejected (no order
-// defined on complex). Dispatch over MType picks the right T
+// defined on complex). Dispatch over ValueType picks the right T
 // instantiation for DOUBLE, SINGLE, INT8..INT64, UINT8..UINT64,
 // LOGICAL (storage = uint8) and CHAR (storage = char).
 
@@ -187,7 +187,7 @@ namespace {
 // integers) — this branch only fires for the (rare) typeMatch=false
 // dispatch error case, but kept for safety.
 template <typename T>
-inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
+inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
 {
     if (typeMatch)
         return static_cast<const T *>(x.rawData())[i];
@@ -202,13 +202,13 @@ inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
 }
 
 template <typename T>
-inline MValue makeScalarT(T v, MType outType, Allocator *alloc)
+inline Value makeScalarT(T v, ValueType outType, Allocator *alloc)
 {
-    if (outType == MType::DOUBLE)
-        return MValue::scalar(static_cast<double>(v), alloc);
-    if (outType == MType::LOGICAL)
-        return MValue::logicalScalar(v != 0, alloc);
-    auto r = MValue::matrix(1, 1, outType, alloc);
+    if (outType == ValueType::DOUBLE)
+        return Value::scalar(static_cast<double>(v), alloc);
+    if (outType == ValueType::LOGICAL)
+        return Value::logicalScalar(v != 0, alloc);
+    auto r = Value::matrix(1, 1, outType, alloc);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -218,7 +218,7 @@ inline MValue makeScalarT(T v, MType outType, Allocator *alloc)
 // dst[outIdx] and (1-based) source position to dstI[outIdx]. Handles
 // 2D / 3D / ND uniformly via stride arithmetic.
 template <typename T, typename Cmp>
-void minMaxAlongDim(const MValue &x, int redDim, T *dst, double *dstI, Cmp cmp,
+void minMaxAlongDim(const Value &x, int redDim, T *dst, double *dstI, Cmp cmp,
                     bool typeMatch)
 {
     const auto &d = x.dims();
@@ -260,22 +260,22 @@ void minMaxAlongDim(const MValue &x, int redDim, T *dst, double *dstI, Cmp cmp,
 
 // Construct the right-shaped (value, idx) output pair for reduction
 // along `redDim` of x: value array has `outType`, idx array has DOUBLE.
-inline std::pair<MValue, MValue>
-allocMinMaxOutputs(const MValue &x, int redDim, MType outType, Allocator *alloc)
+inline std::pair<Value, Value>
+allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return {MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc),
-                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc)};
+        return {Value::matrixND(shape.data(), (int) shape.size(), outType, alloc),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
     return {createMatrix(outShape, outType, alloc),
-            createMatrix(outShape, MType::DOUBLE, alloc)};
+            createMatrix(outShape, ValueType::DOUBLE, alloc)};
 }
 
 template <typename T, typename Cmp>
-std::tuple<MValue, MValue>
-reduceMinMaxAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.numel() == 0)
@@ -288,7 +288,7 @@ reduceMinMaxAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
             if (cmp(v, best)) { best = v; bi = i; }
         }
         return std::make_tuple(makeScalarT<T>(best, outType, alloc),
-                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+                               Value::scalar(static_cast<double>(bi + 1), alloc));
     }
     // Multi-dim: reduce along first non-singleton dim (MATLAB rule).
     const int redDim = detail::firstNonSingletonDim(x);
@@ -301,8 +301,8 @@ reduceMinMaxAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
 }
 
 template <typename T, typename Cmp>
-std::tuple<MValue, MValue>
-reduceMinMaxAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Allocator *alloc)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isScalar() || x.dims().isVector()) {
@@ -313,13 +313,13 @@ reduceMinMaxAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocato
             // Identity reduction: copy x as outType (cast where needed) and
             // return ones as idx.
             const size_t n = x.numel();
-            MValue out, outIdx;
+            Value out, outIdx;
             if (x.dims().isVector()) {
                 out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
-                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE, alloc);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, alloc);
             } else {
                 out    = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
-                outIdx = MValue::scalar(1.0, alloc);
+                outIdx = Value::scalar(1.0, alloc);
                 return std::make_tuple(std::move(out), std::move(outIdx));
             }
             T *dst = static_cast<T *>(out.rawDataMut());
@@ -374,25 +374,25 @@ inline bool complexBetter(Complex v, Complex best, bool allReal)
     else                 return angV < angB;
 }
 
-inline std::pair<MValue, MValue>
-allocComplexMinMaxOutputs(const MValue &x, int redDim, Allocator *alloc)
+inline std::pair<Value, Value>
+allocComplexMinMaxOutputs(const Value &x, int redDim, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return {MValue::matrixND(shape.data(), (int) shape.size(), MType::COMPLEX, alloc),
-                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE,  alloc)};
+        return {Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, alloc),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE,  alloc)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return {createMatrix(outShape, MType::COMPLEX, alloc),
-            createMatrix(outShape, MType::DOUBLE,  alloc)};
+    return {createMatrix(outShape, ValueType::COMPLEX, alloc),
+            createMatrix(outShape, ValueType::DOUBLE,  alloc)};
 }
 
 template <bool IsMax>
-std::tuple<MValue, MValue>
-reduceMinMaxComplexAll(const MValue &x, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+reduceMinMaxComplexAll(const Value &x, Allocator *alloc, const char *fn)
 {
     if (x.numel() == 0)
-        throw MError(std::string(fn) + " of empty array is not supported",
+        throw Error(std::string(fn) + " of empty array is not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":empty");
     const Complex *data = x.complexData();
     const bool allReal = allImagZero(data, x.numel());
@@ -401,8 +401,8 @@ reduceMinMaxComplexAll(const MValue &x, Allocator *alloc, const char *fn)
         size_t bi = 0;
         for (size_t i = 1; i < x.numel(); ++i)
             if (complexBetter<IsMax>(data[i], best, allReal)) { best = data[i]; bi = i; }
-        return std::make_tuple(MValue::complexScalar(best, alloc),
-                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+        return std::make_tuple(Value::complexScalar(best, alloc),
+                               Value::scalar(static_cast<double>(bi + 1), alloc));
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
@@ -438,20 +438,20 @@ reduceMinMaxComplexAll(const MValue &x, Allocator *alloc, const char *fn)
 }
 
 template <bool IsMax>
-std::tuple<MValue, MValue>
-reduceMinMaxComplexAlongDim(const MValue &x, int dim, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+reduceMinMaxComplexAlongDim(const Value &x, int dim, Allocator *alloc, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity reduction: copy x as COMPLEX, idx = ones.
             const size_t n = x.numel();
-            MValue out, outIdx;
+            Value out, outIdx;
             if (x.dims().isVector()) {
-                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::COMPLEX, alloc);
-                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE,  alloc);
+                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::COMPLEX, alloc);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE,  alloc);
             } else {
-                out    = MValue::complexScalar(x.complexData()[0], alloc);
-                outIdx = MValue::scalar(1.0, alloc);
+                out    = Value::complexScalar(x.complexData()[0], alloc);
+                outIdx = Value::scalar(1.0, alloc);
                 return std::make_tuple(std::move(out), std::move(outIdx));
             }
             Complex *dst = out.complexDataMut();
@@ -501,16 +501,16 @@ reduceMinMaxComplexAlongDim(const MValue &x, int dim, Allocator *alloc, const ch
 // these for integer types — clang's strict two-phase lookup requires
 // the declaration to be visible at the point of (template) reference.
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn);
+std::tuple<Value, Value>
+dispatchMinMaxAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn);
 
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, const char *fn);
+std::tuple<Value, Value>
+dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, Allocator *alloc, const char *fn);
 
 // ── NaN-aware min/max (omitnan flag) ─────────────────────────────────
 //
-// Per-MType dispatch identical to round-3 minMaxAlongDim, but skips
+// Per-ValueType dispatch identical to round-3 minMaxAlongDim, but skips
 // NaN values during comparison. For floating types (DOUBLE/SINGLE) and
 // COMPLEX (NaN if real or imag is NaN), filter out NaNs. For integer
 // types, NaN can't occur so the regular kernel is used.
@@ -526,7 +526,7 @@ inline bool isElemNan(T v)
 }
 
 template <typename T, typename Cmp>
-void minMaxNanAlongDim(const MValue &x, int redDim, T *dst, double *dstI,
+void minMaxNanAlongDim(const Value &x, int redDim, T *dst, double *dstI,
                        Cmp cmp, bool typeMatch)
 {
     const auto &d = x.dims();
@@ -573,8 +573,8 @@ void minMaxNanAlongDim(const MValue &x, int redDim, T *dst, double *dstI,
 }
 
 template <typename T, typename Cmp>
-std::tuple<MValue, MValue>
-reduceMinMaxNanAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
 {
     if (x.numel() == 0)
         throw std::runtime_error("min/max of empty array is not supported");
@@ -591,13 +591,13 @@ reduceMinMaxNanAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
         if (firstValid == SIZE_MAX) {
             if constexpr (std::is_floating_point_v<T>)
                 return std::make_tuple(makeScalarT<T>(std::numeric_limits<T>::quiet_NaN(), outType, alloc),
-                                       MValue::scalar(1.0, alloc));
+                                       Value::scalar(1.0, alloc));
             else
                 return std::make_tuple(makeScalarT<T>(T{}, outType, alloc),
-                                       MValue::scalar(1.0, alloc));
+                                       Value::scalar(1.0, alloc));
         }
         return std::make_tuple(makeScalarT<T>(best, outType, alloc),
-                               MValue::scalar(static_cast<double>(firstValid + 1), alloc));
+                               Value::scalar(static_cast<double>(firstValid + 1), alloc));
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, alloc);
@@ -609,8 +609,8 @@ reduceMinMaxNanAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
 }
 
 template <typename T, typename Cmp>
-std::tuple<MValue, MValue>
-reduceMinMaxNanAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+reduceMinMaxNanAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Allocator *alloc)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isScalar() || x.dims().isVector()) {
@@ -629,11 +629,11 @@ reduceMinMaxNanAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Alloc
 // COMPLEX nan-aware min/max — same |z|+angle comparator, but skips
 // elements where either real or imag part is NaN.
 template <bool IsMax>
-std::tuple<MValue, MValue>
-reduceMinMaxComplexNanAll(const MValue &x, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+reduceMinMaxComplexNanAll(const Value &x, Allocator *alloc, const char *fn)
 {
     if (x.numel() == 0)
-        throw MError(std::string(fn) + " of empty array is not supported",
+        throw Error(std::string(fn) + " of empty array is not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":empty");
     const Complex *data = x.complexData();
     auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
@@ -662,10 +662,10 @@ reduceMinMaxComplexNanAll(const MValue &x, Allocator *alloc, const char *fn)
         Complex best;
         size_t bi = 0;
         if (!findBest(0, 1, x.numel(), best, bi))
-            return std::make_tuple(MValue::complexScalar(Complex(std::nan(""), 0.0), alloc),
-                                   MValue::scalar(1.0, alloc));
-        return std::make_tuple(MValue::complexScalar(best, alloc),
-                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+            return std::make_tuple(Value::complexScalar(Complex(std::nan(""), 0.0), alloc),
+                                   Value::scalar(1.0, alloc));
+        return std::make_tuple(Value::complexScalar(best, alloc),
+                               Value::scalar(static_cast<double>(bi + 1), alloc));
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
@@ -702,8 +702,8 @@ reduceMinMaxComplexNanAll(const MValue &x, Allocator *alloc, const char *fn)
 }
 
 template <bool IsMax>
-std::tuple<MValue, MValue>
-reduceMinMaxComplexNanAlongDim(const MValue &x, int dim, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+reduceMinMaxComplexNanAlongDim(const Value &x, int dim, Allocator *alloc, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x))
@@ -758,27 +758,27 @@ reduceMinMaxComplexNanAlongDim(const MValue &x, int dim, Allocator *alloc, const
 }
 
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxNanAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+dispatchMinMaxNanAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn)
 {
     switch (x.type()) {
-    case MType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, MType::DOUBLE, alloc);
-    case MType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, MType::SINGLE, alloc);
-    case MType::COMPLEX: return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, ValueType::DOUBLE, alloc);
+    case ValueType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, ValueType::SINGLE, alloc);
+    case ValueType::COMPLEX: return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
     // Integer/logical/char have no NaN — fall through to the regular path.
     default: return dispatchMinMaxAll<IsMax>(x, cmp, alloc, fn);
     }
 }
 
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxNanAlongDim(const MValue &x, int dim, Cmp cmp,
+std::tuple<Value, Value>
+dispatchMinMaxNanAlongDim(const Value &x, int dim, Cmp cmp,
                           Allocator *alloc, const char *fn)
 {
     switch (x.type()) {
-    case MType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, MType::DOUBLE, alloc);
-    case MType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, MType::SINGLE, alloc);
-    case MType::COMPLEX: return reduceMinMaxComplexNanAlongDim<IsMax>(x, dim, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, ValueType::DOUBLE, alloc);
+    case ValueType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, ValueType::SINGLE, alloc);
+    case ValueType::COMPLEX: return reduceMinMaxComplexNanAlongDim<IsMax>(x, dim, alloc, fn);
     default: return dispatchMinMaxAlongDim<IsMax>(x, dim, cmp, alloc, fn);
     }
 }
@@ -787,73 +787,73 @@ dispatchMinMaxNanAlongDim(const MValue &x, int dim, Cmp cmp,
 // LOGICAL maps to T=uint8_t (storage type). CHAR maps to T=char.
 // COMPLEX uses the |z|-then-angle comparator (MATLAB rule).
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+dispatchMinMaxAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn)
 {
     switch (x.type()) {
-    case MType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, MType::DOUBLE,  alloc);
-    case MType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, MType::SINGLE,  alloc);
-    case MType::INT8:    return reduceMinMaxAllT<int8_t  >(x, cmp, MType::INT8,    alloc);
-    case MType::INT16:   return reduceMinMaxAllT<int16_t >(x, cmp, MType::INT16,   alloc);
-    case MType::INT32:   return reduceMinMaxAllT<int32_t >(x, cmp, MType::INT32,   alloc);
-    case MType::INT64:   return reduceMinMaxAllT<int64_t >(x, cmp, MType::INT64,   alloc);
-    case MType::UINT8:   return reduceMinMaxAllT<uint8_t >(x, cmp, MType::UINT8,   alloc);
-    case MType::UINT16:  return reduceMinMaxAllT<uint16_t>(x, cmp, MType::UINT16,  alloc);
-    case MType::UINT32:  return reduceMinMaxAllT<uint32_t>(x, cmp, MType::UINT32,  alloc);
-    case MType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, MType::UINT64,  alloc);
-    case MType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, MType::LOGICAL, alloc);
-    case MType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, MType::CHAR,    alloc);
-    case MType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, ValueType::DOUBLE,  alloc);
+    case ValueType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, ValueType::SINGLE,  alloc);
+    case ValueType::INT8:    return reduceMinMaxAllT<int8_t  >(x, cmp, ValueType::INT8,    alloc);
+    case ValueType::INT16:   return reduceMinMaxAllT<int16_t >(x, cmp, ValueType::INT16,   alloc);
+    case ValueType::INT32:   return reduceMinMaxAllT<int32_t >(x, cmp, ValueType::INT32,   alloc);
+    case ValueType::INT64:   return reduceMinMaxAllT<int64_t >(x, cmp, ValueType::INT64,   alloc);
+    case ValueType::UINT8:   return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::UINT8,   alloc);
+    case ValueType::UINT16:  return reduceMinMaxAllT<uint16_t>(x, cmp, ValueType::UINT16,  alloc);
+    case ValueType::UINT32:  return reduceMinMaxAllT<uint32_t>(x, cmp, ValueType::UINT32,  alloc);
+    case ValueType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, ValueType::UINT64,  alloc);
+    case ValueType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::LOGICAL, alloc);
+    case ValueType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, ValueType::CHAR,    alloc);
+    case ValueType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
     default:
-        throw MError(std::string(fn) + ": unsupported input type",
+        throw Error(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
 }
 
 template <bool IsMax, typename Cmp>
-std::tuple<MValue, MValue>
-dispatchMinMaxAlongDim(const MValue &x, int dim, Cmp cmp, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, Allocator *alloc, const char *fn)
 {
     switch (x.type()) {
-    case MType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, MType::DOUBLE,  alloc);
-    case MType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, MType::SINGLE,  alloc);
-    case MType::INT8:    return reduceMinMaxAlongDimT<int8_t  >(x, dim, cmp, MType::INT8,    alloc);
-    case MType::INT16:   return reduceMinMaxAlongDimT<int16_t >(x, dim, cmp, MType::INT16,   alloc);
-    case MType::INT32:   return reduceMinMaxAlongDimT<int32_t >(x, dim, cmp, MType::INT32,   alloc);
-    case MType::INT64:   return reduceMinMaxAlongDimT<int64_t >(x, dim, cmp, MType::INT64,   alloc);
-    case MType::UINT8:   return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, MType::UINT8,   alloc);
-    case MType::UINT16:  return reduceMinMaxAlongDimT<uint16_t>(x, dim, cmp, MType::UINT16,  alloc);
-    case MType::UINT32:  return reduceMinMaxAlongDimT<uint32_t>(x, dim, cmp, MType::UINT32,  alloc);
-    case MType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, MType::UINT64,  alloc);
-    case MType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, MType::LOGICAL, alloc);
-    case MType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, MType::CHAR,    alloc);
-    case MType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, ValueType::DOUBLE,  alloc);
+    case ValueType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, ValueType::SINGLE,  alloc);
+    case ValueType::INT8:    return reduceMinMaxAlongDimT<int8_t  >(x, dim, cmp, ValueType::INT8,    alloc);
+    case ValueType::INT16:   return reduceMinMaxAlongDimT<int16_t >(x, dim, cmp, ValueType::INT16,   alloc);
+    case ValueType::INT32:   return reduceMinMaxAlongDimT<int32_t >(x, dim, cmp, ValueType::INT32,   alloc);
+    case ValueType::INT64:   return reduceMinMaxAlongDimT<int64_t >(x, dim, cmp, ValueType::INT64,   alloc);
+    case ValueType::UINT8:   return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::UINT8,   alloc);
+    case ValueType::UINT16:  return reduceMinMaxAlongDimT<uint16_t>(x, dim, cmp, ValueType::UINT16,  alloc);
+    case ValueType::UINT32:  return reduceMinMaxAlongDimT<uint32_t>(x, dim, cmp, ValueType::UINT32,  alloc);
+    case ValueType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, ValueType::UINT64,  alloc);
+    case ValueType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::LOGICAL, alloc);
+    case ValueType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, ValueType::CHAR,    alloc);
+    case ValueType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
     default:
-        throw MError(std::string(fn) + ": unsupported input type",
+        throw Error(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
 }
 
 } // anonymous namespace
 
-std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x)
+std::tuple<Value, Value> max(Allocator &alloc, const Value &x)
 {
     return dispatchMinMaxAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
-std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x)
+std::tuple<Value, Value> min(Allocator &alloc, const Value &x)
 {
     return dispatchMinMaxAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
-std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim)
+std::tuple<Value, Value> max(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0) return max(alloc, x);
     const int d = detail::resolveDim(x, dim, "max");
     return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
-std::tuple<MValue, MValue> maxOmitNan(Allocator &alloc, const MValue &x, int dim)
+std::tuple<Value, Value> maxOmitNan(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
@@ -861,7 +861,7 @@ std::tuple<MValue, MValue> maxOmitNan(Allocator &alloc, const MValue &x, int dim
     return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
 }
 
-std::tuple<MValue, MValue> minOmitNan(Allocator &alloc, const MValue &x, int dim)
+std::tuple<Value, Value> minOmitNan(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0)
         return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
@@ -869,14 +869,14 @@ std::tuple<MValue, MValue> minOmitNan(Allocator &alloc, const MValue &x, int dim
     return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
-std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim)
+std::tuple<Value, Value> min(Allocator &alloc, const Value &x, int dim)
 {
     if (dim <= 0) return min(alloc, x);
     const int d = detail::resolveDim(x, dim, "min");
     return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
-MValue max(Allocator &alloc, const MValue &a, const MValue &b)
+Value max(Allocator &alloc, const Value &a, const Value &b)
 {
     Allocator *p = &alloc;
     // Integer / single binary form: result follows MATLAB type promotion
@@ -890,7 +890,7 @@ MValue max(Allocator &alloc, const MValue &a, const MValue &b)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, p);
 }
 
-MValue min(Allocator &alloc, const MValue &a, const MValue &b)
+Value min(Allocator &alloc, const Value &a, const Value &b)
 {
     Allocator *p = &alloc;
     {
@@ -905,7 +905,7 @@ MValue min(Allocator &alloc, const MValue &a, const MValue &b)
 // "missing": when one arg is NaN, take the other; both NaN → NaN.
 // For integer types, NaN can't occur so omitnan is a no-op (same as
 // the regular max/min).
-MValue maxOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
+Value maxOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
 {
     Allocator *p = &alloc;
     {
@@ -927,7 +927,7 @@ MValue maxOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
     }, p);
 }
 
-MValue minOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
+Value minOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
 {
     Allocator *p = &alloc;
     {
@@ -950,9 +950,9 @@ MValue minOmitNanBinary(Allocator &alloc, const MValue &a, const MValue &b)
 }
 
 // ── Generators ───────────────────────────────────────────────────────
-MValue linspace(Allocator &alloc, double a, double b, size_t n)
+Value linspace(Allocator &alloc, double a, double b, size_t n)
 {
-    auto r = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
     if (n == 0)
         return r;
     if (n == 1) {
@@ -964,9 +964,9 @@ MValue linspace(Allocator &alloc, double a, double b, size_t n)
     return r;
 }
 
-MValue logspace(Allocator &alloc, double a, double b, size_t n)
+Value logspace(Allocator &alloc, double a, double b, size_t n)
 {
-    auto r = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
     if (n == 0)
         return r;
     if (n == 1) {
@@ -990,11 +990,11 @@ namespace detail {
 
 // Helper to reduce boilerplate — unary adapter that calls Fn(alloc, args[0]).
 #define NK_UNARY_ADAPTER(name, fn)                                              \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
+                    Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         if (args.empty())                                                        \
-            throw MError(#name ": requires 1 argument",                          \
+            throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
         outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
     }
@@ -1007,11 +1007,11 @@ namespace detail {
 // when none of the args alias the destination — so `z = sin(x)`
 // in a loop reuses z's buffer iteration after iteration.
 #define NK_UNARY_ADAPTER_HINT(name, fn)                                         \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
+                    Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         if (args.empty())                                                        \
-            throw MError(#name ": requires 1 argument",                          \
+            throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
         outs[0] = fn(ctx.engine->allocator(), args[0], &outs[0]);               \
     }
@@ -1048,12 +1048,12 @@ namespace {
 
 enum class OutTypeMode { Default, Double, Native };
 
-inline bool isStringArg(const MValue &v)
+inline bool isStringArg(const Value &v)
 {
-    return v.type() == MType::CHAR;
+    return v.type() == ValueType::CHAR;
 }
 
-OutTypeMode parseOutTypeMode(const MValue &arg, const char *fn)
+OutTypeMode parseOutTypeMode(const Value &arg, const char *fn)
 {
     std::string s = arg.toString();
     std::transform(s.begin(), s.end(), s.begin(),
@@ -1061,29 +1061,29 @@ OutTypeMode parseOutTypeMode(const MValue &arg, const char *fn)
     if (s == "default") return OutTypeMode::Default;
     if (s == "double")  return OutTypeMode::Double;
     if (s == "native")  return OutTypeMode::Native;
-    throw MError(std::string(fn) + ": unknown output type '" + s + "'",
+    throw Error(std::string(fn) + ": unknown output type '" + s + "'",
                  0, 0, fn, "", std::string("m:") + fn + ":outtype");
 }
 
-MType resolveNativeOutType(MType inType, const char *fn)
+ValueType resolveNativeOutType(ValueType inType, const char *fn)
 {
     switch (inType) {
-    case MType::DOUBLE: case MType::SINGLE:
-    case MType::INT8:   case MType::INT16:  case MType::INT32:  case MType::INT64:
-    case MType::UINT8:  case MType::UINT16: case MType::UINT32: case MType::UINT64:
+    case ValueType::DOUBLE: case ValueType::SINGLE:
+    case ValueType::INT8:   case ValueType::INT16:  case ValueType::INT32:  case ValueType::INT64:
+    case ValueType::UINT8:  case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
         return inType;
-    case MType::LOGICAL:
-    case MType::CHAR:
+    case ValueType::LOGICAL:
+    case ValueType::CHAR:
         // MATLAB: 'native' is only defined for numeric (non-logical) inputs.
-        throw MError(std::string(fn) + ": 'native' is not defined for logical/char inputs",
+        throw Error(std::string(fn) + ": 'native' is not defined for logical/char inputs",
                      0, 0, fn, "", std::string("m:") + fn + ":nativeType");
-    case MType::COMPLEX:
+    case ValueType::COMPLEX:
         // COMPLEX is handled before this call (dispatchReductionAdapter
         // routes it to the complex path), so reaching this branch is a
         // bug in the dispatcher.
-        return MType::COMPLEX;
+        return ValueType::COMPLEX;
     default:
-        throw MError(std::string(fn) + ": unsupported input type for 'native'",
+        throw Error(std::string(fn) + ": unsupported input type for 'native'",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
 }
@@ -1105,11 +1105,11 @@ inline T toOutT(double v)
 }
 
 template <typename T>
-inline MValue makeNativeScalar(T v, MType outType, Allocator *alloc)
+inline Value makeNativeScalar(T v, ValueType outType, Allocator *alloc)
 {
-    if (outType == MType::DOUBLE)
-        return MValue::scalar(static_cast<double>(v), alloc);
-    auto r = MValue::matrix(1, 1, outType, alloc);
+    if (outType == ValueType::DOUBLE)
+        return Value::scalar(static_cast<double>(v), alloc);
+    auto r = Value::matrix(1, 1, outType, alloc);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -1118,7 +1118,7 @@ inline MValue makeNativeScalar(T v, MType outType, Allocator *alloc)
 // stride math (mirrors round-3 minMaxAlongDim). `accumOp` accumulates a
 // double over the slice; `finalize` converts (sum, sliceLen) to T.
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-void typedReduceAlongDim(const MValue &x, int redDim, T *dst,
+void typedReduceAlongDim(const Value &x, int redDim, T *dst,
                          Init init, AccumOp accumOp, Finalize finalize)
 {
     const auto &d = x.dims();
@@ -1149,18 +1149,18 @@ void typedReduceAlongDim(const MValue &x, int redDim, T *dst,
     }
 }
 
-inline MValue allocReduceOutput(const MValue &x, int redDim, MType outType, Allocator *alloc)
+inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc);
+        return Value::matrixND(shape.data(), (int) shape.size(), outType, alloc);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
     return createMatrix(outShape, outType, alloc);
 }
 
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-MValue reduceTypedAll(const MValue &x, MType outType, Allocator *alloc,
+Value reduceTypedAll(const Value &x, ValueType outType, Allocator *alloc,
                       Init init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty()) {
@@ -1175,24 +1175,24 @@ MValue reduceTypedAll(const MValue &x, MType outType, Allocator *alloc,
         return makeNativeScalar<T>(finalize(acc, x.numel()), outType, alloc);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    MValue out = allocReduceOutput(x, redDim, outType, alloc);
+    Value out = allocReduceOutput(x, redDim, outType, alloc);
     typedReduceAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
     return out;
 }
 
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-MValue reduceTypedAlongDim(const MValue &x, int dim, MType outType, Allocator *alloc,
+Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, Allocator *alloc,
                            Init init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return MValue::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, alloc);
     }
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity: copy x cast to T.
             const size_t n = x.numel();
-            MValue out;
+            Value out;
             if (x.dims().isVector())
                 out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
             else
@@ -1204,7 +1204,7 @@ MValue reduceTypedAlongDim(const MValue &x, int dim, MType outType, Allocator *a
         }
         return reduceTypedAll<T>(x, outType, alloc, init, accumOp, finalize);
     }
-    MValue out = allocReduceOutput(x, dim, outType, alloc);
+    Value out = allocReduceOutput(x, dim, outType, alloc);
     typedReduceAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
     return out;
@@ -1251,7 +1251,7 @@ struct MeanOp {
 // the 'all' dim placeholder; differs from reduceTypedAll (which does
 // "along first non-singleton dim", returning a vector for matrices).
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-MValue reduceAllElementsScalar(const MValue &x, MType outType, Allocator *alloc,
+Value reduceAllElementsScalar(const Value &x, ValueType outType, Allocator *alloc,
                                Init init, AccumOp accumOp, Finalize finalize)
 {
     double acc = init;
@@ -1268,27 +1268,27 @@ MValue reduceAllElementsScalar(const MValue &x, MType outType, Allocator *alloc,
 // double — the round-4 default path used `elemAsDouble` which silently
 // dropped imaginary parts and gave wrong results for sum(complex)).
 
-inline Complex readElemAsComplex(const MValue &x, size_t i, bool typeMatches)
+inline Complex readElemAsComplex(const Value &x, size_t i, bool typeMatches)
 {
     if (typeMatches) return x.complexData()[i];
     return Complex(x.elemAsDouble(i), 0.0);
 }
 
-inline MValue allocComplexReduceOutput(const MValue &x, int redDim, Allocator *alloc)
+inline Value allocComplexReduceOutput(const Value &x, int redDim, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return MValue::matrixND(shape.data(), (int) shape.size(), MType::COMPLEX, alloc);
+        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, alloc);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return createMatrix(outShape, MType::COMPLEX, alloc);
+    return createMatrix(outShape, ValueType::COMPLEX, alloc);
 }
 
 template <typename AccumOp, typename Finalize>
-void complexReduceAlongDim(const MValue &x, int redDim, Complex *dst,
+void complexReduceAlongDim(const Value &x, int redDim, Complex *dst,
                            Complex init, AccumOp accumOp, Finalize finalize)
 {
-    const bool typeMatches = (x.type() == MType::COMPLEX);
+    const bool typeMatches = (x.type() == ValueType::COMPLEX);
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
     const size_t sliceLen = d.dim(redAxis);
@@ -1318,39 +1318,39 @@ void complexReduceAlongDim(const MValue &x, int redDim, Complex *dst,
 }
 
 template <typename AccumOp, typename Finalize>
-MValue reduceComplexAll(const MValue &x, Allocator *alloc,
+Value reduceComplexAll(const Value &x, Allocator *alloc,
                         Complex init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return MValue::matrix(0, 0, MType::COMPLEX, alloc);
-    const bool typeMatches = (x.type() == MType::COMPLEX);
+        return Value::matrix(0, 0, ValueType::COMPLEX, alloc);
+    const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
         Complex acc = init;
         for (size_t i = 0; i < x.numel(); ++i)
             acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
-        return MValue::complexScalar(finalize(acc, x.numel()), alloc);
+        return Value::complexScalar(finalize(acc, x.numel()), alloc);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    MValue out = allocComplexReduceOutput(x, redDim, alloc);
+    Value out = allocComplexReduceOutput(x, redDim, alloc);
     complexReduceAlongDim(x, redDim, out.complexDataMut(), init, accumOp, finalize);
     return out;
 }
 
 template <typename AccumOp, typename Finalize>
-MValue reduceComplexAlongDim(const MValue &x, int dim, Allocator *alloc,
+Value reduceComplexAlongDim(const Value &x, int dim, Allocator *alloc,
                              Complex init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return MValue::matrix(0, 0, MType::COMPLEX, alloc);
-    const bool typeMatches = (x.type() == MType::COMPLEX);
+        return Value::matrix(0, 0, ValueType::COMPLEX, alloc);
+    const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity reduction.
             const size_t n = x.numel();
             if (!x.dims().isVector())
-                return MValue::complexScalar(readElemAsComplex(x, 0, typeMatches), alloc);
-            MValue out = createMatrix({x.dims().rows(), x.dims().cols(), 0},
-                                      MType::COMPLEX, alloc);
+                return Value::complexScalar(readElemAsComplex(x, 0, typeMatches), alloc);
+            Value out = createMatrix({x.dims().rows(), x.dims().cols(), 0},
+                                      ValueType::COMPLEX, alloc);
             Complex *dst = out.complexDataMut();
             for (size_t i = 0; i < n; ++i)
                 dst[i] = readElemAsComplex(x, i, typeMatches);
@@ -1358,25 +1358,25 @@ MValue reduceComplexAlongDim(const MValue &x, int dim, Allocator *alloc,
         }
         return reduceComplexAll(x, alloc, init, accumOp, finalize);
     }
-    MValue out = allocComplexReduceOutput(x, dim, alloc);
+    Value out = allocComplexReduceOutput(x, dim, alloc);
     complexReduceAlongDim(x, dim, out.complexDataMut(), init, accumOp, finalize);
     return out;
 }
 
 template <typename AccumOp, typename Finalize>
-MValue reduceComplexAllElementsScalar(const MValue &x, Allocator *alloc,
+Value reduceComplexAllElementsScalar(const Value &x, Allocator *alloc,
                                       Complex init, AccumOp accumOp, Finalize finalize)
 {
-    const bool typeMatches = (x.type() == MType::COMPLEX);
+    const bool typeMatches = (x.type() == ValueType::COMPLEX);
     Complex acc = init;
     const size_t n = x.numel();
     for (size_t i = 0; i < n; ++i)
         acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
-    return MValue::complexScalar(finalize(acc, n), alloc);
+    return Value::complexScalar(finalize(acc, n), alloc);
 }
 
 template <typename Op>
-MValue runComplexReduction(const MValue &x, int dim, Allocator *alloc, bool isAll = false)
+Value runComplexReduction(const Value &x, int dim, Allocator *alloc, bool isAll = false)
 {
     if (isAll)
         return reduceComplexAllElementsScalar(x, alloc, Op::cInit(), Op::cAccum, Op::cFinalize);
@@ -1386,7 +1386,7 @@ MValue runComplexReduction(const MValue &x, int dim, Allocator *alloc, bool isAl
 }
 
 template <typename Op>
-MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *alloc,
+Value runNativeReduction(const Value &x, int dim, ValueType outType, Allocator *alloc,
                           bool isAll = false)
 {
     auto run = [&](auto tag) {
@@ -1401,23 +1401,23 @@ MValue runNativeReduction(const MValue &x, int dim, MType outType, Allocator *al
                                 Op::init, Op::accum, Op::template finalize<T>);
     };
     switch (outType) {
-    case MType::DOUBLE: return run(double  {});
-    case MType::SINGLE: return run(float   {});
-    case MType::INT8:   return run(int8_t  {});
-    case MType::INT16:  return run(int16_t {});
-    case MType::INT32:  return run(int32_t {});
-    case MType::INT64:  return run(int64_t {});
-    case MType::UINT8:  return run(uint8_t {});
-    case MType::UINT16: return run(uint16_t{});
-    case MType::UINT32: return run(uint32_t{});
-    case MType::UINT64: return run(uint64_t{});
+    case ValueType::DOUBLE: return run(double  {});
+    case ValueType::SINGLE: return run(float   {});
+    case ValueType::INT8:   return run(int8_t  {});
+    case ValueType::INT16:  return run(int16_t {});
+    case ValueType::INT32:  return run(int32_t {});
+    case ValueType::INT64:  return run(int64_t {});
+    case ValueType::UINT8:  return run(uint8_t {});
+    case ValueType::UINT16: return run(uint16_t{});
+    case ValueType::UINT32: return run(uint32_t{});
+    case ValueType::UINT64: return run(uint64_t{});
     default:
-        throw MError("internal: unsupported native output type",
+        throw Error("internal: unsupported native output type",
                      0, 0, "", "", "m:nativeReduce:type");
     }
 }
 
-inline std::string lowercaseStr(const MValue &v)
+inline std::string lowercaseStr(const Value &v)
 {
     std::string s = v.toString();
     std::transform(s.begin(), s.end(), s.begin(),
@@ -1425,14 +1425,14 @@ inline std::string lowercaseStr(const MValue &v)
     return s;
 }
 
-inline bool isAllString(const MValue &v)
+inline bool isAllString(const Value &v)
 {
     return isStringArg(v) && lowercaseStr(v) == "all";
 }
 
 enum class StringFlag { Unknown, All, OutType, NanFlag };
 
-inline StringFlag classifyStringFlag(const MValue &v)
+inline StringFlag classifyStringFlag(const Value &v)
 {
     if (!isStringArg(v)) return StringFlag::Unknown;
     const std::string s = lowercaseStr(v);
@@ -1473,7 +1473,7 @@ inline T nanFinalize(double acc, size_t nonNanCount)
 }
 
 template <typename T, typename Op>
-void nanReduceAlongDim(const MValue &x, int redDim, T *dst)
+void nanReduceAlongDim(const Value &x, int redDim, T *dst)
 {
     const auto &d = x.dims();
     const int redAxis = redDim - 1;
@@ -1500,10 +1500,10 @@ void nanReduceAlongDim(const MValue &x, int redDim, T *dst)
 }
 
 template <typename T, typename Op>
-MValue nanReduceAll(const MValue &x, MType outType, Allocator *alloc)
+Value nanReduceAll(const Value &x, ValueType outType, Allocator *alloc)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return MValue::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, alloc);
     if (x.isScalar() || x.dims().isVector()) {
         double acc = Op::init;
         size_t count = 0;
@@ -1512,36 +1512,36 @@ MValue nanReduceAll(const MValue &x, MType outType, Allocator *alloc)
         return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, alloc);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    MValue out = allocReduceOutput(x, redDim, outType, alloc);
+    Value out = allocReduceOutput(x, redDim, outType, alloc);
     nanReduceAlongDim<T, Op>(x, redDim, static_cast<T *>(out.rawDataMut()));
     return out;
 }
 
 template <typename T, typename Op>
-MValue nanReduceAlongDimImpl(const MValue &x, int dim, MType outType, Allocator *alloc)
+Value nanReduceAlongDimImpl(const Value &x, int dim, ValueType outType, Allocator *alloc)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return MValue::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, alloc);
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity: copy x as outType (cast where needed).
             const size_t n = x.numel();
             if (!x.dims().isVector())
                 return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, alloc);
-            MValue out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+            Value out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
             T *dst = static_cast<T *>(out.rawDataMut());
             for (size_t i = 0; i < n; ++i) dst[i] = toOutT<T>(x.elemAsDouble(i));
             return out;
         }
         return nanReduceAll<T, Op>(x, outType, alloc);
     }
-    MValue out = allocReduceOutput(x, dim, outType, alloc);
+    Value out = allocReduceOutput(x, dim, outType, alloc);
     nanReduceAlongDim<T, Op>(x, dim, static_cast<T *>(out.rawDataMut()));
     return out;
 }
 
 template <typename T, typename Op>
-MValue nanReduceAllElementsScalar(const MValue &x, MType outType, Allocator *alloc)
+Value nanReduceAllElementsScalar(const Value &x, ValueType outType, Allocator *alloc)
 {
     double acc = Op::init;
     size_t count = 0;
@@ -1551,7 +1551,7 @@ MValue nanReduceAllElementsScalar(const MValue &x, MType outType, Allocator *all
 }
 
 template <typename Op>
-MValue runNanReduction(const MValue &x, int dim, MType outType, Allocator *alloc,
+Value runNanReduction(const Value &x, int dim, ValueType outType, Allocator *alloc,
                        bool isAll = false)
 {
     auto run = [&](auto tag) {
@@ -1563,18 +1563,18 @@ MValue runNanReduction(const MValue &x, int dim, MType outType, Allocator *alloc
             : nanReduceAll<T, Op>(x, outType, alloc);
     };
     switch (outType) {
-    case MType::DOUBLE: return run(double  {});
-    case MType::SINGLE: return run(float   {});
-    case MType::INT8:   return run(int8_t  {});
-    case MType::INT16:  return run(int16_t {});
-    case MType::INT32:  return run(int32_t {});
-    case MType::INT64:  return run(int64_t {});
-    case MType::UINT8:  return run(uint8_t {});
-    case MType::UINT16: return run(uint16_t{});
-    case MType::UINT32: return run(uint32_t{});
-    case MType::UINT64: return run(uint64_t{});
+    case ValueType::DOUBLE: return run(double  {});
+    case ValueType::SINGLE: return run(float   {});
+    case ValueType::INT8:   return run(int8_t  {});
+    case ValueType::INT16:  return run(int16_t {});
+    case ValueType::INT32:  return run(int32_t {});
+    case ValueType::INT64:  return run(int64_t {});
+    case ValueType::UINT8:  return run(uint8_t {});
+    case ValueType::UINT16: return run(uint16_t{});
+    case ValueType::UINT32: return run(uint32_t{});
+    case ValueType::UINT64: return run(uint64_t{});
     default:
-        throw MError("internal: unsupported nan-aware output type",
+        throw Error("internal: unsupported nan-aware output type",
                      0, 0, "", "", "m:nanReduce:type");
     }
 }
@@ -1587,10 +1587,10 @@ inline bool isComplexNaN(Complex c)
 }
 
 template <typename Op>
-MValue runComplexNanReduction(const MValue &x, int dim, Allocator *alloc,
+Value runComplexNanReduction(const Value &x, int dim, Allocator *alloc,
                               bool isAll = false)
 {
-    const bool typeMatches = (x.type() == MType::COMPLEX);
+    const bool typeMatches = (x.type() == ValueType::COMPLEX);
     auto readC = [&](size_t i) { return readElemAsComplex(x, i, typeMatches); };
 
     auto finalizeOne = [](Complex acc, size_t count) -> Complex {
@@ -1613,10 +1613,10 @@ MValue runComplexNanReduction(const MValue &x, int dim, Allocator *alloc,
     };
 
     if (isAll || x.isScalar() || x.dims().isVector()) {
-        return MValue::complexScalar(reduceRange(0, 1, x.numel()), alloc);
+        return Value::complexScalar(reduceRange(0, 1, x.numel()), alloc);
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
-    MValue out = allocComplexReduceOutput(x, d, alloc);
+    Value out = allocComplexReduceOutput(x, d, alloc);
     Complex *dst = out.complexDataMut();
 
     const auto &dd = x.dims();
@@ -1648,40 +1648,40 @@ struct ReductionFlags {
 // Parse args[1..] and populate the reduction-flag struct. Each kind of
 // flag (dim/all, outtype, nanflag) appears at most once. Strings are
 // classified by their content, so order is flexible.
-ReductionFlags parseReductionFlags(Span<const MValue> args, const char *fn)
+ReductionFlags parseReductionFlags(Span<const Value> args, const char *fn)
 {
     ReductionFlags r;
     bool haveDim = false;     // either explicit dim or 'all'
     bool haveOutType = false;
     bool haveNanFlag = false;
     for (size_t i = 1; i < args.size(); ++i) {
-        const MValue &a = args[i];
+        const Value &a = args[i];
         if (a.isEmpty()) continue;
         if (isStringArg(a)) {
             switch (classifyStringFlag(a)) {
             case StringFlag::All:
                 if (haveDim)
-                    throw MError(std::string(fn) + ": dim specified twice",
+                    throw Error(std::string(fn) + ": dim specified twice",
                                  0, 0, fn, "", std::string("m:") + fn + ":dupDim");
                 r.isAll = true; haveDim = true; break;
             case StringFlag::OutType:
                 if (haveOutType)
-                    throw MError(std::string(fn) + ": output type specified twice",
+                    throw Error(std::string(fn) + ": output type specified twice",
                                  0, 0, fn, "", std::string("m:") + fn + ":outtypeDup");
                 r.outMode = parseOutTypeMode(a, fn); haveOutType = true; break;
             case StringFlag::NanFlag:
                 if (haveNanFlag)
-                    throw MError(std::string(fn) + ": nan flag specified twice",
+                    throw Error(std::string(fn) + ": nan flag specified twice",
                                  0, 0, fn, "", std::string("m:") + fn + ":nanFlagDup");
                 r.omitNan = (lowercaseStr(a) == "omitnan");
                 haveNanFlag = true; break;
             default:
-                throw MError(std::string(fn) + ": unknown flag '" + lowercaseStr(a) + "'",
+                throw Error(std::string(fn) + ": unknown flag '" + lowercaseStr(a) + "'",
                              0, 0, fn, "", std::string("m:") + fn + ":badFlag");
             }
         } else {
             if (haveDim)
-                throw MError(std::string(fn) + ": dim specified twice",
+                throw Error(std::string(fn) + ": dim specified twice",
                              0, 0, fn, "", std::string("m:") + fn + ":dupDim");
             r.dim = static_cast<int>(a.toScalar());
             haveDim = true;
@@ -1710,70 +1710,70 @@ ReductionFlags parseReductionFlags(Span<const MValue> args, const char *fn)
 //   Native:  preserve class; LOGICAL/CHAR rejected.
 template <typename DefaultFn, typename NativeFn, typename ComplexFn,
           typename NanFn, typename NanComplexFn>
-MValue dispatchReductionAdapter(Span<const MValue> args, const char *fn,
+Value dispatchReductionAdapter(Span<const Value> args, const char *fn,
                                 DefaultFn defaultFn, NativeFn nativeFn,
                                 ComplexFn complexFn, NanFn nanFn,
                                 NanComplexFn nanCFn)
 {
     const ReductionFlags f = parseReductionFlags(args, fn);
-    const MType inT = args[0].type();
+    const ValueType inT = args[0].type();
 
     // COMPLEX input always preserves complex type. Branch on omitnan.
-    if (inT == MType::COMPLEX)
+    if (inT == ValueType::COMPLEX)
         return f.omitNan ? nanCFn(args[0], f.dim, f.isAll)
                          : complexFn(args[0], f.dim, f.isAll);
 
     // Resolve the output type for typed/nan pipelines.
-    auto resolveOut = [&]() -> MType {
+    auto resolveOut = [&]() -> ValueType {
         if (f.outMode == OutTypeMode::Native) return resolveNativeOutType(inT, fn);
-        if (f.outMode == OutTypeMode::Default && inT == MType::SINGLE) return MType::SINGLE;
-        return MType::DOUBLE;
+        if (f.outMode == OutTypeMode::Default && inT == ValueType::SINGLE) return ValueType::SINGLE;
+        return ValueType::DOUBLE;
     };
 
     if (f.omitNan) {
-        const MType outT = resolveOut();
+        const ValueType outT = resolveOut();
         return nanFn(args[0], f.dim, outT, f.isAll);
     }
 
     if (f.outMode == OutTypeMode::Native) {
-        const MType outT = resolveNativeOutType(inT, fn);
+        const ValueType outT = resolveNativeOutType(inT, fn);
         return nativeFn(args[0], f.dim, outT, f.isAll);
     }
-    if (f.outMode == OutTypeMode::Default && inT == MType::SINGLE)
-        return nativeFn(args[0], f.dim, MType::SINGLE, f.isAll);
+    if (f.outMode == OutTypeMode::Default && inT == ValueType::SINGLE)
+        return nativeFn(args[0], f.dim, ValueType::SINGLE, f.isAll);
     return defaultFn(args[0], f.dim, f.isAll);
 }
 
 } // namespace
 
 #define NK_REDUCTION_ADAPTER(name, fn, op)                                       \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                 \
-                    Span<MValue> outs, CallContext &ctx)                         \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                 \
+                    Span<Value> outs, CallContext &ctx)                         \
     {                                                                             \
         if (args.empty())                                                         \
-            throw MError(#name ": requires at least 1 argument",                  \
+            throw Error(#name ": requires at least 1 argument",                  \
                          0, 0, #name, "", "m:" #name ":nargin");                  \
         outs[0] = dispatchReductionAdapter(args, #name,                           \
-            [&](const MValue &x, int dim, bool isAll) {                           \
+            [&](const Value &x, int dim, bool isAll) {                           \
                 if (isAll)                                                        \
-                    return runNativeReduction<op>(x, 0, MType::DOUBLE,            \
+                    return runNativeReduction<op>(x, 0, ValueType::DOUBLE,            \
                                                   &ctx.engine->allocator(), true);\
                 return (dim > 0) ? fn(ctx.engine->allocator(), x, dim)            \
                                  : fn(ctx.engine->allocator(), x);                \
             },                                                                    \
-            [&](const MValue &x, int dim, MType outT, bool isAll) {               \
+            [&](const Value &x, int dim, ValueType outT, bool isAll) {               \
                 return runNativeReduction<op>(x, dim, outT,                       \
                                               &ctx.engine->allocator(), isAll);   \
             },                                                                    \
-            [&](const MValue &x, int dim, bool isAll) {                           \
+            [&](const Value &x, int dim, bool isAll) {                           \
                 return runComplexReduction<op>(x, dim,                            \
                                                &ctx.engine->allocator(), isAll);  \
             },                                                                    \
-            [&](const MValue &x, int dim, MType outT, bool isAll) {               \
+            [&](const Value &x, int dim, ValueType outT, bool isAll) {               \
                 return runNanReduction<op>(x, dim, outT,                          \
                                            &ctx.engine->allocator(), isAll);      \
             },                                                                    \
-            [&](const MValue &x, int dim, bool isAll) {                           \
+            [&](const Value &x, int dim, bool isAll) {                           \
                 return runComplexNanReduction<op>(x, dim,                         \
                                                   &ctx.engine->allocator(), isAll);\
             });                                                                   \
@@ -1803,13 +1803,13 @@ namespace {
 // Detect optional trailing 'omitnan'/'includenan' string in the reduction
 // form, returning the effective arg count (excluding the flag if present)
 // and the omit flag.
-size_t stripTrailingNanFlag(Span<const MValue> args, bool &omitNan)
+size_t stripTrailingNanFlag(Span<const Value> args, bool &omitNan)
 {
     omitNan = false;
     size_t n = args.size();
     if (n == 0) return 0;
-    const MValue &last = args[n - 1];
-    if (last.type() != MType::CHAR) return n;
+    const Value &last = args[n - 1];
+    if (last.type() != ValueType::CHAR) return n;
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -1820,10 +1820,10 @@ size_t stripTrailingNanFlag(Span<const MValue> args, bool &omitNan)
 
 } // namespace
 
-void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("max: requires at least 1 argument",
+        throw Error("max: requires at least 1 argument",
                      0, 0, "max", "", "m:max:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
@@ -1847,10 +1847,10 @@ void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
         outs[1] = std::move(idx);
 }
 
-void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("min: requires at least 1 argument",
+        throw Error("min: requires at least 1 argument",
                      0, 0, "min", "", "m:min:nargin");
     bool omitNan = false;
     const size_t n = stripTrailingNanFlag(args, omitNan);
@@ -1872,10 +1872,10 @@ void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
 }
 
 // Generators
-void linspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void linspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("linspace: requires at least 2 arguments",
+        throw Error("linspace: requires at least 2 arguments",
                      0, 0, "linspace", "", "m:linspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
@@ -1883,10 +1883,10 @@ void linspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = linspace(ctx.engine->allocator(), a, b, n);
 }
 
-void logspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("logspace: requires at least 2 arguments",
+        throw Error("logspace: requires at least 2 arguments",
                      0, 0, "logspace", "", "m:logspace:nargin");
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
@@ -1901,4 +1901,4 @@ void logspace_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

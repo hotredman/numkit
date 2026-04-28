@@ -1,17 +1,17 @@
 // libs/dsp/src/MDspSgolay.cpp
 
-#include <numkit/m/signal/smoothing/sgolay.hpp>
+#include <numkit/signal/smoothing/sgolay.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <cstring>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -28,7 +28,7 @@ void gaussJordan(double *A, double *B, int N, int M)
             if (v > maxAbs) { maxAbs = v; piv = r; }
         }
         if (maxAbs < 1e-300)
-            throw MError("sgolay: singular normal equations "
+            throw Error("sgolay: singular normal equations "
                          "(framelen too small for order)",
                          0, 0, "sgolay", "", "m:sgolay:singular");
         if (piv != k) {
@@ -109,24 +109,24 @@ std::vector<double> buildProjection(int order, int framelen)
 
 } // namespace
 
-MValue sgolay(Allocator &alloc, int order, int framelen)
+Value sgolay(Allocator &alloc, int order, int framelen)
 {
     if (framelen <= 0)
-        throw MError("sgolay: framelen must be positive",
+        throw Error("sgolay: framelen must be positive",
                      0, 0, "sgolay", "", "m:sgolay:badArg");
     if ((framelen & 1) == 0)
-        throw MError("sgolay: framelen must be odd",
+        throw Error("sgolay: framelen must be odd",
                      0, 0, "sgolay", "", "m:sgolay:evenFramelen");
     if (order < 0)
-        throw MError("sgolay: order must be non-negative",
+        throw Error("sgolay: order must be non-negative",
                      0, 0, "sgolay", "", "m:sgolay:badArg");
     if (order >= framelen)
-        throw MError("sgolay: order must be less than framelen",
+        throw Error("sgolay: order must be less than framelen",
                      0, 0, "sgolay", "", "m:sgolay:orderTooHigh");
 
     auto B = buildProjection(order, framelen);
-    // Convert row-major B to column-major MValue (R = framelen, C = framelen).
-    auto out = MValue::matrix(framelen, framelen, MType::DOUBLE, &alloc);
+    // Convert row-major B to column-major Value (R = framelen, C = framelen).
+    auto out = Value::matrix(framelen, framelen, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     for (int i = 0; i < framelen; ++i)
         for (int j = 0; j < framelen; ++j)
@@ -134,18 +134,18 @@ MValue sgolay(Allocator &alloc, int order, int framelen)
     return out;
 }
 
-MValue sgolayfilt(Allocator &alloc, const MValue &x, int order, int framelen)
+Value sgolayfilt(Allocator &alloc, const Value &x, int order, int framelen)
 {
-    if (x.type() == MType::COMPLEX)
-        throw MError("sgolayfilt: complex inputs are not supported",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error("sgolayfilt: complex inputs are not supported",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:complex");
     if (!x.dims().isVector() && !x.isScalar())
-        throw MError("sgolayfilt: input must be a vector",
+        throw Error("sgolayfilt: input must be a vector",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:notVector");
 
     const int n = static_cast<int>(x.numel());
     if (n < framelen)
-        throw MError("sgolayfilt: signal length must be >= framelen",
+        throw Error("sgolayfilt: signal length must be >= framelen",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:tooShort");
 
     auto B = buildProjection(order, framelen);  // throws if shape invalid
@@ -155,7 +155,7 @@ MValue sgolayfilt(Allocator &alloc, const MValue &x, int order, int framelen)
     std::vector<double> src(n);
     for (int i = 0; i < n; ++i) src[i] = x.elemAsDouble(i);
 
-    auto out = createLike(x, MType::DOUBLE, &alloc);
+    auto out = createLike(x, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
 
     // Interior: convolution with the central row of B.
@@ -191,20 +191,20 @@ MValue sgolayfilt(Allocator &alloc, const MValue &x, int order, int framelen)
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
-void sgolay_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void sgolay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("sgolay: requires 2 arguments (order, framelen)",
+        throw Error("sgolay: requires 2 arguments (order, framelen)",
                      0, 0, "sgolay", "", "m:sgolay:nargin");
     outs[0] = sgolay(ctx.engine->allocator(),
                      static_cast<int>(args[0].toScalar()),
                      static_cast<int>(args[1].toScalar()));
 }
 
-void sgolayfilt_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("sgolayfilt: requires 3 arguments (x, order, framelen)",
+        throw Error("sgolayfilt: requires 3 arguments (x, order, framelen)",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:nargin");
     outs[0] = sgolayfilt(ctx.engine->allocator(), args[0],
                          static_cast<int>(args[1].toScalar()),
@@ -213,4 +213,4 @@ void sgolayfilt_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> ou
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

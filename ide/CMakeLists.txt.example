@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.14)
 
 add_executable(numkit_mide src/repl_bindings.cpp)
-target_link_libraries(numkit_mide PRIVATE numkit::m)
+target_link_libraries(numkit_mide PRIVATE numkit::numkit)
 
 if(EMSCRIPTEN)
     set_target_properties(numkit_mide PROPERTIES
@@ -30,8 +30,8 @@ if(EMSCRIPTEN)
     set(DIST_DIR "${CMAKE_CURRENT_BINARY_DIR}/dist")
 
     # ── Copy WASM output into Vite public/ directory ──
-    # Set NUMKIT_M_VITE_DIR to point to your repl-vite project root
-    set(NUMKIT_M_VITE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/repl-vite" CACHE PATH
+    # Set NUMKIT_VITE_DIR to point to your repl-vite project root
+    set(NUMKIT_VITE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/repl-vite" CACHE PATH
         "Path to the Vite REPL project (for auto-copying WASM files)")
 
     add_custom_command(TARGET numkit_mide POST_BUILD
@@ -42,13 +42,13 @@ if(EMSCRIPTEN)
     )
 
     # Auto-copy to Vite public/ if the directory exists
-    if(EXISTS "${NUMKIT_M_VITE_DIR}/public")
+    if(EXISTS "${NUMKIT_VITE_DIR}/public")
         add_custom_command(TARGET numkit_mide POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "${DIST_DIR}/numkit_mide.js"
                 "${DIST_DIR}/numkit_mide.wasm"
-                "${NUMKIT_M_VITE_DIR}/public/"
-            COMMENT "Copying WASM files to Vite project: ${NUMKIT_M_VITE_DIR}/public/"
+                "${NUMKIT_VITE_DIR}/public/"
+            COMMENT "Copying WASM files to Vite project: ${NUMKIT_VITE_DIR}/public/"
         )
     endif()
 
@@ -75,5 +75,5 @@ if(EMSCRIPTEN)
     )
 
 else()
-    message(WARNING "repl/ is designed for Emscripten. Use: emcmake cmake .. -DNUMKIT_M_BUILD_REPL=ON")
+    message(WARNING "repl/ is designed for Emscripten. Use: emcmake cmake .. -DNUMKIT_BUILD_REPL=ON")
 endif()

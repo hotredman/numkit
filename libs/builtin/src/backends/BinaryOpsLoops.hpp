@@ -5,13 +5,13 @@
 // depending on NUMKIT_WITH_SIMD. Callers (MStdBinaryOps.cpp) use these
 // only for the 2D same-shape DOUBLE fast path — every other shape
 // (broadcasting, 3D, type mismatch) goes through the general
-// elementwiseDouble() helper in MStdHelpers.hpp unchanged.
+// elementwiseDouble() helper in helpers.hpp unchanged.
 
 #pragma once
 
 #include <cstddef>
 
-namespace numkit::m::builtin::detail {
+namespace numkit::builtin::detail {
 
 void plusLoop   (const double *a, const double *b, double *out, std::size_t n);
 void minusLoop  (const double *a, const double *b, double *out, std::size_t n);
@@ -28,4 +28,4 @@ void rdivideLoop(const double *a, const double *b, double *out, std::size_t n);
 void matmulDoubleLoop(const double *a, const double *b, double *c,
                       std::size_t M, std::size_t N, std::size_t K);
 
-} // namespace numkit::m::builtin::detail
+} // namespace numkit::builtin::detail

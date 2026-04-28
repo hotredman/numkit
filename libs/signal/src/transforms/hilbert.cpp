@@ -3,26 +3,26 @@
 // FFT-based Hilbert transform + envelope. unwrap moved to
 // filter_analysis/unwrap.cpp.
 
-#include <numkit/m/signal/transforms/hilbert.hpp>
+#include <numkit/signal/transforms/hilbert.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"
-#include "MStdHelpers.hpp"
+#include "../dsp_helpers.hpp"  // Complex, FFT helpers
+#include "helpers.hpp"         // createLike
 
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
 // Shared FFT-based Hilbert transform kernel used by both hilbert() and
 // envelope(). Returns a buffer of length fftLen holding the analytic signal
 // (possibly zero-padded beyond N). Caller slices to the first N samples.
-std::vector<Complex> hilbertBuf(const MValue &x)
+std::vector<Complex> hilbertBuf(const Value &x)
 {
     const size_t N = x.numel();
     const size_t fftLen = nextPow2(N);
@@ -49,19 +49,19 @@ std::vector<Complex> hilbertBuf(const MValue &x)
 
 } // anonymous namespace
 
-MValue hilbert(Allocator &alloc, const MValue &x)
+Value hilbert(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
     auto buf = hilbertBuf(x);
     return packComplexResult(buf, N, &alloc);
 }
 
-MValue envelope(Allocator &alloc, const MValue &x)
+Value envelope(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
     auto buf = hilbertBuf(x);
 
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < N; ++i)
         r.doubleDataMut()[i] = std::abs(buf[i]);
     return r;
@@ -70,22 +70,22 @@ MValue envelope(Allocator &alloc, const MValue &x)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void hilbert_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void hilbert_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("hilbert: requires 1 argument",
+        throw Error("hilbert: requires 1 argument",
                      0, 0, "hilbert", "", "m:hilbert:nargin");
     outs[0] = hilbert(ctx.engine->allocator(), args[0]);
 }
 
-void envelope_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void envelope_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("envelope: requires 1 argument",
+        throw Error("envelope: requires 1 argument",
                      0, 0, "envelope", "", "m:envelope:nargin");
     outs[0] = envelope(ctx.engine->allocator(), args[0]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

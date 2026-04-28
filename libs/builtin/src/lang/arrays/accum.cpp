@@ -12,12 +12,12 @@
 //     replaced — never touch fillVal.
 //   * For `mean`, we keep a parallel count array and divide at the end.
 
-#include <numkit/m/builtin/lang/arrays/accum.hpp>
+#include <numkit/builtin/lang/arrays/accum.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 namespace {
 
@@ -35,15 +35,15 @@ namespace {
 size_t toSubIndex(double v, size_t maxAllowed, const char *fn)
 {
     if (!std::isfinite(v) || v < 1.0)
-        throw MError(std::string(fn) + ": subscripts must be positive integers",
+        throw Error(std::string(fn) + ": subscripts must be positive integers",
                      0, 0, fn, "", std::string("m:") + fn + ":subRange");
     const double rounded = std::round(v);
     if (std::abs(v - rounded) > 1e-9)
-        throw MError(std::string(fn) + ": subscripts must be integer-valued",
+        throw Error(std::string(fn) + ": subscripts must be integer-valued",
                      0, 0, fn, "", std::string("m:") + fn + ":subInt");
     const size_t idx = static_cast<size_t>(rounded);
     if (maxAllowed > 0 && idx > maxAllowed)
-        throw MError(std::string(fn) + ": subscript exceeds output dimension",
+        throw Error(std::string(fn) + ": subscript exceeds output dimension",
                      0, 0, fn, "", std::string("m:") + fn + ":subOOB");
     return idx;
 }
@@ -78,7 +78,7 @@ inline double applyReducer(AccumReducer op, double acc, double v)
 
 // Build the output shape. `userShape` (passed-in) wins if non-empty,
 // else derive from per-column max(subs). subs is N×D.
-std::vector<size_t> resolveOutShape(const MValue &subs,
+std::vector<size_t> resolveOutShape(const Value &subs,
                                     const std::vector<size_t> &userShape,
                                     const char *fn)
 {
@@ -87,7 +87,7 @@ std::vector<size_t> resolveOutShape(const MValue &subs,
     const size_t D = (d.ndim() <= 1) ? 1 : d.cols();
     if (!userShape.empty()) {
         if (userShape.size() < D)
-            throw MError(std::string(fn) + ": sz length must be at least size(subs, 2)",
+            throw Error(std::string(fn) + ": sz length must be at least size(subs, 2)",
                          0, 0, fn, "", std::string("m:") + fn + ":sizeRank");
         return userShape;
     }
@@ -110,7 +110,7 @@ std::vector<size_t> resolveOutShape(const MValue &subs,
 }
 
 // Column-major linear index from the row-of-subs `r` of the N×D matrix.
-size_t linearIndexFromSubs(const MValue &subs, size_t r, size_t N, size_t D,
+size_t linearIndexFromSubs(const Value &subs, size_t r, size_t N, size_t D,
                            const std::vector<size_t> &shape, const char *fn)
 {
     const double *p = subs.doubleData();
@@ -124,43 +124,43 @@ size_t linearIndexFromSubs(const MValue &subs, size_t r, size_t N, size_t D,
     return idx;
 }
 
-// Allocate the output MValue for the given shape.
-MValue allocOutput(Allocator &alloc, const std::vector<size_t> &shape)
+// Allocate the output Value for the given shape.
+Value allocOutput(Allocator &alloc, const std::vector<size_t> &shape)
 {
     if (shape.size() == 1)
-        return MValue::matrix(shape[0], 1, MType::DOUBLE, &alloc);
+        return Value::matrix(shape[0], 1, ValueType::DOUBLE, &alloc);
     if (shape.size() == 2)
-        return MValue::matrix(shape[0], shape[1], MType::DOUBLE, &alloc);
-    return MValue::matrixND(shape.data(), static_cast<int>(shape.size()),
-                            MType::DOUBLE, &alloc);
+        return Value::matrix(shape[0], shape[1], ValueType::DOUBLE, &alloc);
+    return Value::matrixND(shape.data(), static_cast<int>(shape.size()),
+                            ValueType::DOUBLE, &alloc);
 }
 
-inline double readVal(const MValue &vals, size_t i, bool valIsScalar)
+inline double readVal(const Value &vals, size_t i, bool valIsScalar)
 {
     return valIsScalar ? vals.toScalar() : vals.doubleData()[i];
 }
 
 } // namespace
 
-MValue accumarray(Allocator &alloc,
-                  const MValue &subs,
-                  const MValue &vals,
+Value accumarray(Allocator &alloc,
+                  const Value &subs,
+                  const Value &vals,
                   const std::vector<size_t> &outShape,
                   AccumReducer op,
                   double fillVal)
 {
     const char *fn = "accumarray";
 
-    if (subs.type() != MType::DOUBLE)
-        throw MError("accumarray: subs must be DOUBLE",
+    if (subs.type() != ValueType::DOUBLE)
+        throw Error("accumarray: subs must be DOUBLE",
                      0, 0, fn, "", "m:accumarray:subType");
-    if (vals.type() != MType::DOUBLE)
-        throw MError("accumarray: vals must be DOUBLE",
+    if (vals.type() != ValueType::DOUBLE)
+        throw Error("accumarray: vals must be DOUBLE",
                      0, 0, fn, "", "m:accumarray:valType");
 
     const auto &sd = subs.dims();
     if (sd.ndim() > 2)
-        throw MError("accumarray: subs must be a 2D matrix",
+        throw Error("accumarray: subs must be a 2D matrix",
                      0, 0, fn, "", "m:accumarray:subND");
 
     const size_t N = sd.rows();
@@ -168,13 +168,13 @@ MValue accumarray(Allocator &alloc,
 
     const bool valIsScalar = vals.isScalar();
     if (!valIsScalar && vals.numel() != N)
-        throw MError("accumarray: vals must be a scalar or a length-N vector",
+        throw Error("accumarray: vals must be a scalar or a length-N vector",
                      0, 0, fn, "", "m:accumarray:valSize");
 
     auto shape = resolveOutShape(subs, outShape, fn);
     if (shape.size() < D) shape.resize(D, 1);
 
-    MValue out = allocOutput(alloc, shape);
+    Value out = allocOutput(alloc, shape);
     const size_t total = out.numel();
     double *dst = out.doubleDataMut();
 
@@ -229,10 +229,10 @@ namespace detail {
 
 namespace {
 
-AccumReducer parseReducerFromHandle(const MValue &h)
+AccumReducer parseReducerFromHandle(const Value &h)
 {
     if (!h.isFuncHandle())
-        throw MError("accumarray: fn argument must be a function handle",
+        throw Error("accumarray: fn argument must be a function handle",
                      0, 0, "accumarray", "", "m:accumarray:fnType");
     std::string s = h.funcHandleName();
     std::transform(s.begin(), s.end(), s.begin(),
@@ -244,16 +244,16 @@ AccumReducer parseReducerFromHandle(const MValue &h)
     if (s == "mean") return AccumReducer::Mean;
     if (s == "any")  return AccumReducer::Any;
     if (s == "all")  return AccumReducer::All;
-    throw MError("accumarray: unsupported function handle '@" + s
+    throw Error("accumarray: unsupported function handle '@" + s
                  + "' (built-in reducers: @sum/@max/@min/@prod/@mean/@any/@all)",
                  0, 0, "accumarray", "", "m:accumarray:fnUnsupported");
 }
 
-std::vector<size_t> parseSizeArg(const MValue &sz)
+std::vector<size_t> parseSizeArg(const Value &sz)
 {
     if (sz.isEmpty()) return {};
-    if (sz.type() != MType::DOUBLE || !sz.dims().isVector())
-        throw MError("accumarray: sz must be a numeric row vector",
+    if (sz.type() != ValueType::DOUBLE || !sz.dims().isVector())
+        throw Error("accumarray: sz must be a numeric row vector",
                      0, 0, "accumarray", "", "m:accumarray:sizeType");
     const size_t k = sz.numel();
     std::vector<size_t> shape(k);
@@ -261,7 +261,7 @@ std::vector<size_t> parseSizeArg(const MValue &sz)
     for (size_t i = 0; i < k; ++i) {
         const double v = p[i];
         if (!std::isfinite(v) || v < 0)
-            throw MError("accumarray: sz entries must be non-negative integers",
+            throw Error("accumarray: sz entries must be non-negative integers",
                          0, 0, "accumarray", "", "m:accumarray:sizeRange");
         shape[i] = static_cast<size_t>(std::round(v));
     }
@@ -270,14 +270,14 @@ std::vector<size_t> parseSizeArg(const MValue &sz)
 
 } // namespace
 
-void accumarray_reg(Span<const MValue> args, size_t /*nargout*/,
-                    Span<MValue> outs, CallContext &ctx)
+void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("accumarray: requires at least 2 arguments (subs, vals)",
+        throw Error("accumarray: requires at least 2 arguments (subs, vals)",
                      0, 0, "accumarray", "", "m:accumarray:nargin");
     if (args.size() > 6)
-        throw MError("accumarray: too many arguments",
+        throw Error("accumarray: too many arguments",
                      0, 0, "accumarray", "", "m:accumarray:nargin");
 
     std::vector<size_t> shape;
@@ -291,7 +291,7 @@ void accumarray_reg(Span<const MValue> args, size_t /*nargout*/,
     double fillVal = 0.0;
     if (args.size() >= 5 && !args[4].isEmpty()) {
         if (!args[4].isScalar())
-            throw MError("accumarray: fillval must be a scalar",
+            throw Error("accumarray: fillval must be a scalar",
                          0, 0, "accumarray", "", "m:accumarray:fillType");
         fillVal = args[4].toScalar();
     }
@@ -300,7 +300,7 @@ void accumarray_reg(Span<const MValue> args, size_t /*nargout*/,
         // user explicitly asks for it, fail loudly rather than silently
         // returning a dense result.
         if (args[5].toScalar() != 0.0)
-            throw MError("accumarray: sparse output (issparse=1) is not supported",
+            throw Error("accumarray: sparse output (issparse=1) is not supported",
                          0, 0, "accumarray", "", "m:accumarray:sparse");
     }
 
@@ -310,4 +310,4 @@ void accumarray_reg(Span<const MValue> args, size_t /*nargout*/,
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

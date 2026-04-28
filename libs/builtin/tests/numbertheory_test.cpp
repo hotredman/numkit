@@ -64,7 +64,7 @@ TEST_P(NumberTheoryTest, IsprimeBasic)
 {
     eval("v = isprime([1 2 3 4 5 6 7 8 9 10]);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::LOGICAL);
+    EXPECT_EQ(v->type(), ValueType::LOGICAL);
     EXPECT_EQ(v->numel(), 10u);
     EXPECT_EQ(v->logicalData()[0], 0);  // 1
     EXPECT_NE(v->logicalData()[1], 0);  // 2

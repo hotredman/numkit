@@ -1,4 +1,4 @@
-target_sources(m_tests PRIVATE
+target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/variables_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/controlflow_test.cpp

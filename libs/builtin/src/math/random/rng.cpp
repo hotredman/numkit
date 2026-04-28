@@ -5,12 +5,12 @@
 // static std::mt19937 so MATLAB-style rng(seed) gives reproducible
 // sequences across the whole RNG-using API surface.
 
-#include <numkit/m/builtin/math/random/rng.hpp>
+#include <numkit/builtin/math/random/rng.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cstdint>
@@ -20,7 +20,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ────────────────────────────────────────────────────────────────────
 // Process-static RNG state
@@ -58,7 +58,7 @@ void deserializeEngine(const std::string &blob)
     std::istringstream is(blob);
     is >> sharedEngine();
     if (!is)
-        throw MError("rng: malformed state blob",
+        throw Error("rng: malformed state blob",
                      0, 0, "rng", "", "m:rng:badState");
 }
 
@@ -81,27 +81,27 @@ void rngShuffle()
     sharedEngine().seed(rd());
 }
 
-MValue rngState(Allocator &alloc)
+Value rngState(Allocator &alloc)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
     auto blob = serializeEngine();
-    auto s = MValue::structure();
-    s.field("Type")  = MValue::fromString("twister", &alloc);
-    s.field("State") = MValue::fromString(blob, &alloc);
+    auto s = Value::structure();
+    s.field("Type")  = Value::fromString("twister", &alloc);
+    s.field("State") = Value::fromString(blob, &alloc);
     return s;
 }
 
-void rngRestore(const MValue &state)
+void rngRestore(const Value &state)
 {
     if (!state.isStruct())
-        throw MError("rng: state must be a struct from rng()",
+        throw Error("rng: state must be a struct from rng()",
                      0, 0, "rng", "", "m:rng:notStruct");
     if (!state.hasField("State"))
-        throw MError("rng: state struct missing .State field",
+        throw Error("rng: state struct missing .State field",
                      0, 0, "rng", "", "m:rng:noStateField");
     const auto &blob = state.field("State");
     if (!blob.isChar() && !blob.isString())
-        throw MError("rng: .State must be a char array",
+        throw Error("rng: .State must be a char array",
                      0, 0, "rng", "", "m:rng:badState");
     std::lock_guard<std::mutex> lock(rngMutex());
     deserializeEngine(blob.toString());
@@ -113,38 +113,38 @@ void rngRestore(const MValue &state)
 // state with randi/randperm.
 // ────────────────────────────────────────────────────────────────────
 
-MValue rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
 {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
-                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-MValue randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
 {
     std::normal_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
-                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-MValue randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
 {
-    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, &alloc);
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-MValue randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
 {
-    auto m = MValue::matrixND(dims, ndims, MType::DOUBLE, &alloc);
+    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, &alloc);
     std::normal_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
@@ -160,7 +160,7 @@ namespace {
 void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
 {
     if (lo > hi)
-        throw MError("randi: low bound must be <= high bound",
+        throw Error("randi: low bound must be <= high bound",
                      0, 0, "randi", "", "m:randi:badRange");
     std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(lo, hi);
@@ -168,31 +168,31 @@ void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
         dst[i] = static_cast<double>(dist(sharedEngine()));
 }
 
-MValue makeIntMatrix(Allocator &alloc, int64_t lo, int64_t hi,
+Value makeIntMatrix(Allocator &alloc, int64_t lo, int64_t hi,
                      size_t rows, size_t cols, size_t pages)
 {
-    auto m = (pages > 0) ? MValue::matrix3d(rows, cols, pages, MType::DOUBLE, &alloc)
-                         : MValue::matrix(rows, cols, MType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
     fillUniformInt(m.doubleDataMut(), m.numel(), lo, hi);
     return m;
 }
 
 } // namespace
 
-MValue randi(Allocator &alloc, int64_t imax)
+Value randi(Allocator &alloc, int64_t imax)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(1, imax);
-    return MValue::scalar(static_cast<double>(dist(sharedEngine())), &alloc);
+    return Value::scalar(static_cast<double>(dist(sharedEngine())), &alloc);
 }
 
-MValue randi(Allocator &alloc, int64_t imax,
+Value randi(Allocator &alloc, int64_t imax,
              size_t rows, size_t cols, size_t pages)
 {
     return makeIntMatrix(alloc, 1, imax, rows, cols, pages);
 }
 
-MValue randi(Allocator &alloc, int64_t imin, int64_t imax,
+Value randi(Allocator &alloc, int64_t imin, int64_t imax,
              size_t rows, size_t cols, size_t pages)
 {
     return makeIntMatrix(alloc, imin, imax, rows, cols, pages);
@@ -206,17 +206,17 @@ MValue randi(Allocator &alloc, int64_t imin, int64_t imax,
 // randperm(n, k) : partial Fisher-Yates — k iterations are enough to
 // produce k unique values without fully shuffling the rest.
 
-MValue randperm(Allocator &alloc, size_t n)
+Value randperm(Allocator &alloc, size_t n)
 {
     return randperm(alloc, n, n);
 }
 
-MValue randperm(Allocator &alloc, size_t n, size_t k)
+Value randperm(Allocator &alloc, size_t n, size_t k)
 {
     if (k > n)
-        throw MError("randperm: k must not exceed n",
+        throw Error("randperm: k must not exceed n",
                      0, 0, "randperm", "", "m:randperm:badK");
-    auto r = MValue::matrix(1, k, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, k, ValueType::DOUBLE, &alloc);
     if (k == 0) return r;
 
     // Fisher-Yates partial shuffle. We allocate a 1..n scratch buffer.
@@ -246,7 +246,7 @@ namespace detail {
 // rand / randn supersede the previous static-RNG versions in
 // MStdMath.cpp. Same shape API (parseDimsArgs); the only change is
 // they now share the engine that rng() controls.
-void rand_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     auto dims = parseDimsArgsND(args);
@@ -264,7 +264,7 @@ void rand_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     }
 }
 
-void randn_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
     auto dims = parseDimsArgsND(args);
@@ -288,15 +288,15 @@ void randn_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 //   randi(imax, m, n[, p])         shape
 //   randi(imax, [m n p])           shape via vector
 //   randi([imin imax], …)          range form (first arg is 2-vector)
-void randi_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
     if (args.empty())
-        throw MError("randi: requires at least 1 argument",
+        throw Error("randi: requires at least 1 argument",
                      0, 0, "randi", "", "m:randi:nargin");
 
     int64_t imin = 1, imax = 0;
-    const MValue &first = args[0];
+    const Value &first = args[0];
     if (!first.isScalar() && first.numel() == 2) {
         imin = static_cast<int64_t>(first.doubleData()[0]);
         imax = static_cast<int64_t>(first.doubleData()[1]);
@@ -304,7 +304,7 @@ void randi_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         imax = static_cast<int64_t>(first.toScalar());
     }
 
-    Span<const MValue> dimArgs = (args.size() > 1) ? args.subspan(1) : Span<const MValue>{};
+    Span<const Value> dimArgs = (args.size() > 1) ? args.subspan(1) : Span<const Value>{};
     auto &alloc = ctx.engine->allocator();
 
     if (dimArgs.empty()) {
@@ -321,8 +321,8 @@ void randi_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         outs[0] = randi(alloc, imin, imax, r, c, p);
     } else {
         // ND form: allocate matrixND and fill via the same uniform-int pass.
-        auto m = MValue::matrixND(dims.data(), static_cast<int>(dims.size()),
-                                  MType::DOUBLE, &alloc);
+        auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
+                                  ValueType::DOUBLE, &alloc);
         std::lock_guard<std::mutex> lock(rngMutex());
         std::uniform_int_distribution<int64_t> dist(imin, imax);
         for (size_t i = 0; i < m.numel(); ++i)
@@ -331,11 +331,11 @@ void randi_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     }
 }
 
-void randperm_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
-        throw MError("randperm: requires at least 1 argument",
+        throw Error("randperm: requires at least 1 argument",
                      0, 0, "randperm", "", "m:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
@@ -355,13 +355,13 @@ void randperm_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 //
 // nargout > 0 : return the current state BEFORE seeding/restoring.
 // (Matches MATLAB: `prev = rng(123)` snapshots the old state and seeds.)
-void rng_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
+void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
              CallContext &ctx)
 {
     auto &alloc = ctx.engine->allocator();
 
     // Always snapshot current state first if caller asked for it.
-    MValue prev;
+    Value prev;
     if (nargout > 0)
         prev = rngState(alloc);
 
@@ -372,7 +372,7 @@ void rng_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         return;
     }
 
-    const MValue &a = args[0];
+    const Value &a = args[0];
     if (a.isStruct()) {
         rngRestore(a);
     } else if (a.isChar() || a.isString()) {
@@ -380,16 +380,16 @@ void rng_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         if (s == "default") rngSeed(0);
         else if (s == "shuffle") rngShuffle();
         else
-            throw MError("rng: string argument must be 'default' or 'shuffle'",
+            throw Error("rng: string argument must be 'default' or 'shuffle'",
                          0, 0, "rng", "", "m:rng:badStringArg");
     } else if (a.isScalar() || a.numel() == 1) {
         const double sd = a.toScalar();
         if (sd < 0.0)
-            throw MError("rng: seed must be a non-negative integer",
+            throw Error("rng: seed must be a non-negative integer",
                          0, 0, "rng", "", "m:rng:badSeed");
         rngSeed(static_cast<uint64_t>(sd));
     } else {
-        throw MError("rng: argument must be a non-negative integer, "
+        throw Error("rng: argument must be a non-negative integer, "
                      "a struct from rng(), 'default', or 'shuffle'",
                      0, 0, "rng", "", "m:rng:badArg");
     }
@@ -399,4 +399,4 @@ void rng_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

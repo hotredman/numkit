@@ -2,20 +2,20 @@
 //
 // findpeaks — strict local maxima. Split from MDspGaps.
 
-#include <numkit/m/signal/measurements/findpeaks.hpp>
+#include <numkit/signal/measurements/findpeaks.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cmath>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 // Strict local maximum: x[i-1] < x[i] > x[i+1]. NaN is never a peak.
 // First and last samples are skipped (no left/right neighbour).
-std::tuple<MValue, MValue>
-findpeaks(Allocator &alloc, const MValue &x)
+std::tuple<Value, Value>
+findpeaks(Allocator &alloc, const Value &x)
 {
     std::vector<double> peakVals;
     std::vector<size_t> peakIdx;
@@ -32,8 +32,8 @@ findpeaks(Allocator &alloc, const MValue &x)
             }
         }
     }
-    auto vals = MValue::matrix(1, peakVals.size(), MType::DOUBLE, &alloc);
-    auto idxs = MValue::matrix(1, peakIdx.size(), MType::DOUBLE, &alloc);
+    auto vals = Value::matrix(1, peakVals.size(), ValueType::DOUBLE, &alloc);
+    auto idxs = Value::matrix(1, peakIdx.size(), ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < peakVals.size(); ++i) {
         vals.doubleDataMut()[i] = peakVals[i];
         idxs.doubleDataMut()[i] = static_cast<double>(peakIdx[i] + 1);  // 1-based
@@ -43,11 +43,11 @@ findpeaks(Allocator &alloc, const MValue &x)
 
 namespace detail {
 
-void findpeaks_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
+void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                    CallContext &ctx)
 {
     if (args.empty())
-        throw MError("findpeaks: requires 1 argument",
+        throw Error("findpeaks: requires 1 argument",
                      0, 0, "findpeaks", "", "m:findpeaks:nargin");
     auto [vals, idxs] = findpeaks(ctx.engine->allocator(), args[0]);
     outs[0] = std::move(vals);
@@ -56,4 +56,4 @@ void findpeaks_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

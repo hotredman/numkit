@@ -4,12 +4,12 @@
 // section headers: set operations (was MStdSetOps), number theory (was
 // MStdNumberTheory), combinatorics (was MStdCombinatorics).
 
-#include <numkit/m/builtin/math/elementary/discrete.hpp>
+#include <numkit/builtin/math/elementary/discrete.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Set operations
@@ -61,14 +61,14 @@ struct IndexedVal {
     size_t origIdx;
 };
 
-inline MValue emptyRow(Allocator &alloc)
+inline Value emptyRow(Allocator &alloc)
 {
-    return MValue::matrix(1, 0, MType::DOUBLE, &alloc);
+    return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
 }
 
-inline MValue rowFromVec(Allocator &alloc, const std::vector<double> &v)
+inline Value rowFromVec(Allocator &alloc, const std::vector<double> &v)
 {
-    auto r = MValue::matrix(1, v.size(), MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, v.size(), ValueType::DOUBLE, &alloc);
     if (!v.empty())
         std::copy(v.begin(), v.end(), r.doubleDataMut());
     return r;
@@ -132,18 +132,18 @@ inline int rowLexCmp(const double *p, size_t cols, size_t rows, size_t a, size_t
     return 0;
 }
 
-inline MValue emptyRowsResult(Allocator &alloc, size_t cols)
+inline Value emptyRowsResult(Allocator &alloc, size_t cols)
 {
-    return MValue::matrix(0, cols, MType::DOUBLE, &alloc);
+    return Value::matrix(0, cols, ValueType::DOUBLE, &alloc);
 }
 
-inline MValue collectRowsByIndex(Allocator &alloc, const MValue &x,
+inline Value collectRowsByIndex(Allocator &alloc, const Value &x,
                                  const std::vector<size_t> &origRows)
 {
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
     const size_t outRows = origRows.size();
-    auto r = MValue::matrix(outRows, cols, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(outRows, cols, ValueType::DOUBLE, &alloc);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
     for (size_t newRow = 0; newRow < outRows; ++newRow) {
@@ -154,17 +154,17 @@ inline MValue collectRowsByIndex(Allocator &alloc, const MValue &x,
     return r;
 }
 
-void validateUniqueRowsInput(const MValue &x, const char *fn)
+void validateUniqueRowsInput(const Value &x, const char *fn)
 {
-    if (x.type() != MType::DOUBLE)
-        throw MError(std::string(fn) + ": 'rows' flag requires a DOUBLE matrix",
+    if (x.type() != ValueType::DOUBLE)
+        throw Error(std::string(fn) + ": 'rows' flag requires a DOUBLE matrix",
                      0, 0, fn, "", std::string("m:") + fn + ":rowsType");
     if (x.dims().ndim() > 2)
-        throw MError(std::string(fn) + ": 'rows' flag requires a 2D matrix",
+        throw Error(std::string(fn) + ": 'rows' flag requires a 2D matrix",
                      0, 0, fn, "", std::string("m:") + fn + ":rowsND");
 }
 
-std::unordered_set<double, DoubleHashEq0> hashSetNoNaN(const MValue &x)
+std::unordered_set<double, DoubleHashEq0> hashSetNoNaN(const Value &x)
 {
     std::unordered_set<double, DoubleHashEq0> s;
     s.reserve(x.numel() / 2 + 1);
@@ -175,15 +175,15 @@ std::unordered_set<double, DoubleHashEq0> hashSetNoNaN(const MValue &x)
     return s;
 }
 
-void validateEdges(const MValue &edges, const char *fn)
+void validateEdges(const Value &edges, const char *fn)
 {
     if (edges.numel() < 2)
-        throw MError(std::string(fn) + ": edges must have length >= 2",
+        throw Error(std::string(fn) + ": edges must have length >= 2",
                      0, 0, fn, "", std::string("m:") + fn + ":shortEdges");
     const double *e = edges.doubleData();
     for (size_t i = 1; i < edges.numel(); ++i)
         if (!(e[i] >= e[i - 1]))
-            throw MError(std::string(fn) + ": edges must be ascending",
+            throw Error(std::string(fn) + ": edges must be ascending",
                          0, 0, fn, "", std::string("m:") + fn + ":badEdges");
 }
 
@@ -205,7 +205,7 @@ bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
 
 // ── unique ─────────────────────────────────────────────────────────
 
-MValue unique(Allocator &alloc, const MValue &x)
+Value unique(Allocator &alloc, const Value &x)
 {
     const size_t n = x.numel();
     if (n == 0) return emptyRow(alloc);
@@ -228,8 +228,8 @@ MValue unique(Allocator &alloc, const MValue &x)
     return rowFromVec(alloc, out);
 }
 
-std::tuple<MValue, MValue, MValue>
-uniqueWithIndices(Allocator &alloc, const MValue &x)
+std::tuple<Value, Value, Value>
+uniqueWithIndices(Allocator &alloc, const Value &x)
 {
     const size_t n = x.numel();
     if (n == 0) {
@@ -277,13 +277,13 @@ uniqueWithIndices(Allocator &alloc, const MValue &x)
         }
     }
 
-    auto cOut = MValue::matrix(1, sorted.size(), MType::DOUBLE, &alloc);
-    auto iaRow = MValue::matrix(1, sorted.size(), MType::DOUBLE, &alloc);
+    auto cOut = Value::matrix(1, sorted.size(), ValueType::DOUBLE, &alloc);
+    auto iaRow = Value::matrix(1, sorted.size(), ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < sorted.size(); ++i) {
         cOut.doubleDataMut()[i]  = sorted[i].v;
         iaRow.doubleDataMut()[i] = static_cast<double>(sorted[i].origIdx + 1);
     }
-    auto icRow = MValue::matrix(1, n, MType::DOUBLE, &alloc);
+    auto icRow = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
     std::copy(ic.begin(), ic.end(), icRow.doubleDataMut());
 
     return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
@@ -291,7 +291,7 @@ uniqueWithIndices(Allocator &alloc, const MValue &x)
 
 // ── unique with 'rows' flag ────────────────────────────────────────
 
-MValue uniqueRows(Allocator &alloc, const MValue &x)
+Value uniqueRows(Allocator &alloc, const Value &x)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
@@ -322,8 +322,8 @@ MValue uniqueRows(Allocator &alloc, const MValue &x)
     return collectRowsByIndex(alloc, x, uniqRows);
 }
 
-std::tuple<MValue, MValue, MValue>
-uniqueRowsWithIndices(Allocator &alloc, const MValue &x)
+std::tuple<Value, Value, Value>
+uniqueRowsWithIndices(Allocator &alloc, const Value &x)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
@@ -360,7 +360,7 @@ uniqueRowsWithIndices(Allocator &alloc, const MValue &x)
     for (size_t r = 0; r < nanRankBase; ++r)
         rankByKey[extractRow(src, cols, rows, uniqRows[r])] = r;
 
-    auto icRow = MValue::matrix(rows, 1, MType::DOUBLE, &alloc);
+    auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, &alloc);
     double *ic = icRow.doubleDataMut();
     size_t nanSeen = 0;
     for (size_t r = 0; r < rows; ++r) {
@@ -372,7 +372,7 @@ uniqueRowsWithIndices(Allocator &alloc, const MValue &x)
         }
     }
 
-    auto iaCol = MValue::matrix(uniqRows.size(), 1, MType::DOUBLE, &alloc);
+    auto iaCol = Value::matrix(uniqRows.size(), 1, ValueType::DOUBLE, &alloc);
     double *ia = iaCol.doubleDataMut();
     for (size_t i = 0; i < uniqRows.size(); ++i)
         ia[i] = static_cast<double>(uniqRows[i] + 1);
@@ -383,12 +383,12 @@ uniqueRowsWithIndices(Allocator &alloc, const MValue &x)
 
 // ── ismember ───────────────────────────────────────────────────────
 
-MValue ismember(Allocator &alloc, const MValue &a, const MValue &b)
+Value ismember(Allocator &alloc, const Value &a, const Value &b)
 {
     const size_t na = a.numel();
     const size_t nb = b.numel();
 
-    auto r = createLike(a, MType::LOGICAL, &alloc);
+    auto r = createLike(a, ValueType::LOGICAL, &alloc);
     if (na == 0) return r;
     if (nb == 0) {
         std::fill(r.logicalDataMut(), r.logicalDataMut() + na, 0);
@@ -412,7 +412,7 @@ MValue ismember(Allocator &alloc, const MValue &a, const MValue &b)
 
 // ── union / intersect / setdiff ────────────────────────────────────
 
-MValue setUnion(Allocator &alloc, const MValue &a, const MValue &b)
+Value setUnion(Allocator &alloc, const Value &a, const Value &b)
 {
     auto s = hashSetNoNaN(a);
     const double *pb = b.doubleData();
@@ -423,11 +423,11 @@ MValue setUnion(Allocator &alloc, const MValue &a, const MValue &b)
     return rowFromVec(alloc, out);
 }
 
-MValue setIntersect(Allocator &alloc, const MValue &a, const MValue &b)
+Value setIntersect(Allocator &alloc, const Value &a, const Value &b)
 {
     const bool aSmaller = a.numel() <= b.numel();
-    const MValue &small = aSmaller ? a : b;
-    const MValue &large = aSmaller ? b : a;
+    const Value &small = aSmaller ? a : b;
+    const Value &large = aSmaller ? b : a;
 
     auto smallSet = hashSetNoNaN(small);
     std::unordered_set<double, DoubleHashEq0> seenInLarge;
@@ -446,7 +446,7 @@ MValue setIntersect(Allocator &alloc, const MValue &a, const MValue &b)
     return rowFromVec(alloc, out);
 }
 
-MValue setDiff(Allocator &alloc, const MValue &a, const MValue &b)
+Value setDiff(Allocator &alloc, const Value &a, const Value &b)
 {
     auto setB = hashSetNoNaN(b);
     std::unordered_set<double, DoubleHashEq0> seen;
@@ -466,11 +466,11 @@ MValue setDiff(Allocator &alloc, const MValue &a, const MValue &b)
 
 // ── histcounts / discretize ────────────────────────────────────────
 
-MValue histcounts(Allocator &alloc, const MValue &x, const MValue &edges)
+Value histcounts(Allocator &alloc, const Value &x, const Value &edges)
 {
     validateEdges(edges, "histcounts");
     const size_t nBins = edges.numel() - 1;
-    auto r = MValue::matrix(1, nBins, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, nBins, ValueType::DOUBLE, &alloc);
     double *dst = r.doubleDataMut();
     std::fill(dst, dst + nBins, 0.0);
 
@@ -529,10 +529,10 @@ MValue histcounts(Allocator &alloc, const MValue &x, const MValue &edges)
     return r;
 }
 
-MValue discretize(Allocator &alloc, const MValue &x, const MValue &edges)
+Value discretize(Allocator &alloc, const Value &x, const Value &edges)
 {
     validateEdges(edges, "discretize");
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     const double *e = edges.doubleData();
     const double *p = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -630,10 +630,10 @@ bool isPrimeDouble(double v)
 
 } // namespace (number-theory helpers)
 
-MValue primes(Allocator &alloc, double n)
+Value primes(Allocator &alloc, double n)
 {
     if (!std::isfinite(n) || n < 2)
-        return MValue::matrix(1, 0, MType::DOUBLE, &alloc);
+        return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
     const std::uint64_t N = static_cast<std::uint64_t>(std::floor(n));
     std::vector<bool> composite(N + 1, false);
     for (std::uint64_t i = 2; i * i <= N; ++i)
@@ -647,19 +647,19 @@ MValue primes(Allocator &alloc, double n)
         if (!composite[i])
             primesVec.push_back(static_cast<double>(i));
 
-    auto out = MValue::matrix(1, primesVec.size(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, primesVec.size(), ValueType::DOUBLE, &alloc);
     if (!primesVec.empty())
         std::memcpy(out.doubleDataMut(), primesVec.data(),
                     primesVec.size() * sizeof(double));
     return out;
 }
 
-MValue isprime(Allocator &alloc, const MValue &x)
+Value isprime(Allocator &alloc, const Value &x)
 {
-    if (x.type() == MType::COMPLEX)
-        throw MError("isprime: complex inputs are not supported",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error("isprime: complex inputs are not supported",
                      0, 0, "isprime", "", "m:isprime:complex");
-    auto out = createLike(x, MType::LOGICAL, &alloc);
+    auto out = createLike(x, ValueType::LOGICAL, &alloc);
     uint8_t *dst = out.logicalDataMut();
     const size_t N = x.numel();
     for (size_t i = 0; i < N; ++i) {
@@ -669,14 +669,14 @@ MValue isprime(Allocator &alloc, const MValue &x)
     return out;
 }
 
-MValue factor(Allocator &alloc, double n)
+Value factor(Allocator &alloc, double n)
 {
     std::uint64_t u;
     if (!isExactNonnegInt(n, u))
-        throw MError("factor: argument must be a non-negative integer scalar",
+        throw Error("factor: argument must be a non-negative integer scalar",
                      0, 0, "factor", "", "m:factor:badArg");
     if (u == 0 || u == 1) {
-        auto r = MValue::matrix(1, 1, MType::DOUBLE, &alloc);
+        auto r = Value::matrix(1, 1, ValueType::DOUBLE, &alloc);
         r.doubleDataMut()[0] = static_cast<double>(u);
         return r;
     }
@@ -692,7 +692,7 @@ MValue factor(Allocator &alloc, double n)
     if (m > 1)
         factors.push_back(static_cast<double>(m));
 
-    auto out = MValue::matrix(1, factors.size(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, factors.size(), ValueType::DOUBLE, &alloc);
     if (!factors.empty())
         std::memcpy(out.doubleDataMut(), factors.data(),
                     factors.size() * sizeof(double));
@@ -719,7 +719,7 @@ std::uint64_t permFactorial(int n)
 double factorialDouble(double v, const char *fn)
 {
     if (!std::isfinite(v) || v < 0 || v != std::floor(v))
-        throw MError(std::string(fn)
+        throw Error(std::string(fn)
                      + ": entries must be non-negative integers",
                      0, 0, fn, "", std::string("m:") + fn + ":badArg");
     if (v > 170.0)
@@ -732,21 +732,21 @@ double factorialDouble(double v, const char *fn)
 
 } // namespace (combinatorics helpers)
 
-MValue perms(Allocator &alloc, const MValue &v)
+Value perms(Allocator &alloc, const Value &v)
 {
-    if (v.type() == MType::COMPLEX)
-        throw MError("perms: complex inputs are not supported",
+    if (v.type() == ValueType::COMPLEX)
+        throw Error("perms: complex inputs are not supported",
                      0, 0, "perms", "", "m:perms:complex");
     if (v.isEmpty()) {
-        return MValue::matrix(1, 0, MType::DOUBLE, &alloc);
+        return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
     }
     if (!v.dims().isVector())
-        throw MError("perms: argument must be a vector",
+        throw Error("perms: argument must be a vector",
                      0, 0, "perms", "", "m:perms:notVector");
 
     const size_t n = v.numel();
     if (n > static_cast<size_t>(kPermMaxN))
-        throw MError("perms: numel(v) > 11 is not supported (n! is too large)",
+        throw Error("perms: numel(v) > 11 is not supported (n! is too large)",
                      0, 0, "perms", "", "m:perms:tooLarge");
 
     std::vector<double> vals(n);
@@ -757,7 +757,7 @@ MValue perms(Allocator &alloc, const MValue &v)
     std::sort(cur.begin(), cur.end(), std::greater<double>());
 
     const size_t totalRows = static_cast<size_t>(permFactorial(static_cast<int>(n)));
-    auto out = MValue::matrix(totalRows, n, MType::DOUBLE, &alloc);
+    auto out = Value::matrix(totalRows, n, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
 
     size_t row = 0;
@@ -770,12 +770,12 @@ MValue perms(Allocator &alloc, const MValue &v)
     return out;
 }
 
-MValue factorial(Allocator &alloc, const MValue &n)
+Value factorial(Allocator &alloc, const Value &n)
 {
-    if (n.type() == MType::COMPLEX)
-        throw MError("factorial: complex inputs are not supported",
+    if (n.type() == ValueType::COMPLEX)
+        throw Error("factorial: complex inputs are not supported",
                      0, 0, "factorial", "", "m:factorial:complex");
-    auto out = createLike(n, MType::DOUBLE, &alloc);
+    auto out = createLike(n, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     const size_t N = n.numel();
     for (size_t i = 0; i < N; ++i)
@@ -783,28 +783,28 @@ MValue factorial(Allocator &alloc, const MValue &n)
     return out;
 }
 
-MValue nchoosek(Allocator &alloc, double n, double k)
+Value nchoosek(Allocator &alloc, double n, double k)
 {
     if (!std::isfinite(n) || !std::isfinite(k))
-        throw MError("nchoosek: arguments must be finite",
+        throw Error("nchoosek: arguments must be finite",
                      0, 0, "nchoosek", "", "m:nchoosek:badArg");
     if (n < 0 || k < 0 || n != std::floor(n) || k != std::floor(k))
-        throw MError("nchoosek: arguments must be non-negative integers",
+        throw Error("nchoosek: arguments must be non-negative integers",
                      0, 0, "nchoosek", "", "m:nchoosek:badArg");
     if (k > n)
-        throw MError("nchoosek: k must satisfy 0 ≤ k ≤ n",
+        throw Error("nchoosek: k must satisfy 0 ≤ k ≤ n",
                      0, 0, "nchoosek", "", "m:nchoosek:kTooLarge");
 
     double kk = (k > n - k) ? n - k : k;
     if (kk == 0.0)
-        return MValue::scalar(1.0, &alloc);
+        return Value::scalar(1.0, &alloc);
 
     double r = 1.0;
     const int kInt = static_cast<int>(kk);
     for (int i = 0; i < kInt; ++i) {
         r = r * (n - static_cast<double>(i)) / static_cast<double>(i + 1);
     }
-    return MValue::scalar(std::round(r), &alloc);
+    return Value::scalar(std::round(r), &alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -812,19 +812,19 @@ MValue nchoosek(Allocator &alloc, double n, double k)
 // ════════════════════════════════════════════════════════════════════════
 namespace detail {
 
-void unique_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
+void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
-        throw MError("unique: requires 1 argument",
+        throw Error("unique: requires 1 argument",
                      0, 0, "unique", "", "m:unique:nargin");
     auto &alloc = ctx.engine->allocator();
 
     bool useRows = false;
     for (size_t i = 1; i < args.size(); ++i) {
-        const MValue &a = args[i];
-        if (a.type() != MType::CHAR)
-            throw MError("unique: extra arguments must be string flags",
+        const Value &a = args[i];
+        if (a.type() != ValueType::CHAR)
+            throw Error("unique: extra arguments must be string flags",
                          0, 0, "unique", "", "m:unique:badArg");
         std::string s = a.toString();
         std::transform(s.begin(), s.end(), s.begin(),
@@ -833,7 +833,7 @@ void unique_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         else if (s == "first" || s == "last" || s == "sorted" || s == "stable") {
             // accepted but no-op for now
         } else {
-            throw MError("unique: unknown flag '" + s + "'",
+            throw Error("unique: unknown flag '" + s + "'",
                          0, 0, "unique", "", "m:unique:badFlag");
         }
     }
@@ -858,11 +858,11 @@ void unique_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 }
 
 #define NK_BIN_SETOP_REG(name, fn)                                             \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
-                    Span<MValue> outs, CallContext &ctx)                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
+                    Span<Value> outs, CallContext &ctx)                       \
     {                                                                          \
         if (args.size() < 2)                                                   \
-            throw MError(#name ": requires 2 arguments",                       \
+            throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
         outs[0] = fn(ctx.engine->allocator(), args[0], args[1]);               \
     }
@@ -876,56 +876,56 @@ NK_BIN_SETOP_REG(discretize, discretize)
 
 #undef NK_BIN_SETOP_REG
 
-void primes_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void primes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("primes: requires 1 argument",
+        throw Error("primes: requires 1 argument",
                      0, 0, "primes", "", "m:primes:nargin");
     outs[0] = primes(ctx.engine->allocator(), args[0].toScalar());
 }
 
-void isprime_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("isprime: requires 1 argument",
+        throw Error("isprime: requires 1 argument",
                      0, 0, "isprime", "", "m:isprime:nargin");
     outs[0] = isprime(ctx.engine->allocator(), args[0]);
 }
 
-void factor_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("factor: requires 1 argument",
+        throw Error("factor: requires 1 argument",
                      0, 0, "factor", "", "m:factor:nargin");
     if (!args[0].isScalar())
-        throw MError("factor: argument must be a scalar",
+        throw Error("factor: argument must be a scalar",
                      0, 0, "factor", "", "m:factor:notScalar");
     outs[0] = factor(ctx.engine->allocator(), args[0].toScalar());
 }
 
-void perms_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("perms: requires 1 argument",
+        throw Error("perms: requires 1 argument",
                      0, 0, "perms", "", "m:perms:nargin");
     outs[0] = perms(ctx.engine->allocator(), args[0]);
 }
 
-void factorial_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("factorial: requires 1 argument",
+        throw Error("factorial: requires 1 argument",
                      0, 0, "factorial", "", "m:factorial:nargin");
     outs[0] = factorial(ctx.engine->allocator(), args[0]);
 }
 
-void nchoosek_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("nchoosek: requires 2 arguments (n, k)",
+        throw Error("nchoosek: requires 2 arguments (n, k)",
                      0, 0, "nchoosek", "", "m:nchoosek:nargin");
     if (!args[0].isScalar() || !args[1].isScalar())
-        throw MError("nchoosek: vector input form is not yet supported "
+        throw Error("nchoosek: vector input form is not yet supported "
                      "(nchoosek(v, k) for k-combinations of v)",
                      0, 0, "nchoosek", "", "m:nchoosek:vectorForm");
     outs[0] = nchoosek(ctx.engine->allocator(),
@@ -934,4 +934,4 @@ void nchoosek_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

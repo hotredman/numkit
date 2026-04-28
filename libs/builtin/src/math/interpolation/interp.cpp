@@ -3,13 +3,13 @@
 // 1-D / 2-D / 3-D interpolation. polyfit / polyval moved to
 // math/elementary/polynomials.cpp; trapz to math/integration/integration.cpp.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/math/interpolation/interp.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/interpolation/interp.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -18,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ── Internal algorithm helpers ────────────────────────────────────────
 
@@ -179,14 +179,14 @@ interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t
     return yq;
 }
 
-// Helper for interp1 / spline / pchip — pack yq vector into an MValue
+// Helper for interp1 / spline / pchip — pack yq vector into an Value
 // preserving xq's row/column orientation.
-MValue packInterpResult(const std::vector<double> &yq, const MValue &xq, Allocator &alloc)
+Value packInterpResult(const std::vector<double> &yq, const Value &xq, Allocator &alloc)
 {
     const size_t nq = yq.size();
     const bool isRow = xq.dims().rows() == 1;
-    auto r = isRow ? MValue::matrix(1, nq, MType::DOUBLE, &alloc)
-                   : MValue::matrix(nq, 1, MType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, nq, ValueType::DOUBLE, &alloc)
+                   : Value::matrix(nq, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nq; ++i)
         r.doubleDataMut()[i] = yq[i];
     return r;
@@ -195,20 +195,20 @@ MValue packInterpResult(const std::vector<double> &yq, const MValue &xq, Allocat
 } // anonymous namespace
 
 // ── interp1 ───────────────────────────────────────────────────────────
-MValue interp1(Allocator &alloc,
-               const MValue &x,
-               const MValue &y,
-               const MValue &xq,
+Value interp1(Allocator &alloc,
+               const Value &x,
+               const Value &y,
+               const Value &xq,
                const std::string &method)
 {
     const size_t n = x.numel();
     const size_t nq = xq.numel();
 
     if (n != y.numel())
-        throw MError("interp1: x and y must have same length",
+        throw Error("interp1: x and y must have same length",
                      0, 0, "interp1", "", "m:interp1:lengthMismatch");
     if (n < 2)
-        throw MError("interp1: need at least 2 data points",
+        throw Error("interp1: need at least 2 data points",
                      0, 0, "interp1", "", "m:interp1:tooFewPoints");
 
     const double *xd = x.doubleData();
@@ -225,7 +225,7 @@ MValue interp1(Allocator &alloc,
     else if (method == "pchip")
         yq = interpPchip(xd, yd, n, xqd, nq);
     else
-        throw MError("interp1: unknown method '" + method + "'",
+        throw Error("interp1: unknown method '" + method + "'",
                      0, 0, "interp1", "", "m:interp1:badMethod");
 
     return packInterpResult(yq, xq, alloc);
@@ -243,10 +243,10 @@ Interp2Method parseInterp2Method(const std::string &m)
     if (s.empty() || s == "linear") return Interp2Method::Linear;
     if (s == "nearest")             return Interp2Method::Nearest;
     if (s == "spline" || s == "cubic" || s == "pchip")
-        throw MError("interp2: '" + m + "' method not yet supported "
+        throw Error("interp2: '" + m + "' method not yet supported "
                      "(only 'linear' and 'nearest' for now)",
                      0, 0, "interp2", "", "m:interp2:unsupportedMethod");
-    throw MError("interp2: unknown method '" + m + "'",
+    throw Error("interp2: unknown method '" + m + "'",
                  0, 0, "interp2", "", "m:interp2:badMethod");
 }
 
@@ -269,7 +269,7 @@ void validateMonotonicAscending(const double *g, std::size_t n, const char *axis
 {
     for (std::size_t i = 1; i < n; ++i)
         if (g[i] <= g[i - 1])
-            throw MError(std::string("interp2: ") + axis
+            throw Error(std::string("interp2: ") + axis
                          + " must be strictly increasing",
                          0, 0, "interp2", "", "m:interp2:notMonotonic");
 }
@@ -305,39 +305,39 @@ double interp2Sample(const double *V, std::size_t R, std::size_t C,
          + tx         * ty         * v11;
 }
 
-void readGridAxis(const MValue &g, std::vector<double> &out, const char *axis)
+void readGridAxis(const Value &g, std::vector<double> &out, const char *axis)
 {
     if (!g.dims().isVector() && !g.isScalar())
-        throw MError(std::string("interp2: ") + axis
+        throw Error(std::string("interp2: ") + axis
                      + " must be a vector",
                      0, 0, "interp2", "", "m:interp2:notVector");
     out.resize(g.numel());
     for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
 }
 
-MValue interp2Impl(Allocator &alloc, const MValue &V,
+Value interp2Impl(Allocator &alloc, const Value &V,
                    const std::vector<double> &xGrid,
                    const std::vector<double> &yGrid,
-                   const MValue &Xq, const MValue &Yq,
+                   const Value &Xq, const Value &Yq,
                    const std::string &method)
 {
-    if (V.type() == MType::COMPLEX)
-        throw MError("interp2: complex inputs are not supported",
+    if (V.type() == ValueType::COMPLEX)
+        throw Error("interp2: complex inputs are not supported",
                      0, 0, "interp2", "", "m:interp2:complex");
     if (V.dims().is3D() || V.dims().ndim() > 2)
-        throw MError("interp2: V must be a 2D matrix",
+        throw Error("interp2: V must be a 2D matrix",
                      0, 0, "interp2", "", "m:interp2:rank");
     if (Xq.numel() != Yq.numel())
-        throw MError("interp2: Xq and Yq must have the same numel",
+        throw Error("interp2: Xq and Yq must have the same numel",
                      0, 0, "interp2", "", "m:interp2:queryShape");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     if (xGrid.size() != C)
-        throw MError("interp2: length(X) must equal cols(V)",
+        throw Error("interp2: length(X) must equal cols(V)",
                      0, 0, "interp2", "", "m:interp2:gridSize");
     if (yGrid.size() != R)
-        throw MError("interp2: length(Y) must equal rows(V)",
+        throw Error("interp2: length(Y) must equal rows(V)",
                      0, 0, "interp2", "", "m:interp2:gridSize");
     validateMonotonicAscending(xGrid.data(), C, "X");
     validateMonotonicAscending(yGrid.data(), R, "Y");
@@ -345,7 +345,7 @@ MValue interp2Impl(Allocator &alloc, const MValue &V,
     const Interp2Method m = parseInterp2Method(method);
     // V as DOUBLE (promote if needed).
     std::vector<double> Vd(R * C);
-    if (V.type() == MType::DOUBLE)
+    if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * sizeof(double));
     else
         for (std::size_t i = 0; i < R * C; ++i) Vd[i] = V.elemAsDouble(i);
@@ -353,7 +353,7 @@ MValue interp2Impl(Allocator &alloc, const MValue &V,
     // Output shape: take Xq's shape (or rather build same-shape result).
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = MValue::matrix(qd.rows(), qd.cols(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -366,11 +366,11 @@ MValue interp2Impl(Allocator &alloc, const MValue &V,
 
 } // namespace
 
-MValue interp2(Allocator &alloc, const MValue &V,
-               const MValue &Xq, const MValue &Yq, const std::string &method)
+Value interp2(Allocator &alloc, const Value &V,
+               const Value &Xq, const Value &Yq, const std::string &method)
 {
     if (V.dims().is3D() || V.dims().ndim() > 2)
-        throw MError("interp2: V must be a 2D matrix",
+        throw Error("interp2: V must be a 2D matrix",
                      0, 0, "interp2", "", "m:interp2:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
@@ -380,8 +380,8 @@ MValue interp2(Allocator &alloc, const MValue &V,
     return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
 }
 
-MValue interp2(Allocator &alloc, const MValue &X, const MValue &Y,
-               const MValue &V, const MValue &Xq, const MValue &Yq,
+Value interp2(Allocator &alloc, const Value &X, const Value &Y,
+               const Value &V, const Value &Xq, const Value &Yq,
                const std::string &method)
 {
     std::vector<double> xGrid, yGrid;
@@ -437,28 +437,28 @@ double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t 
     return (1 - tz) * c0 + tz * c1;
 }
 
-MValue interp3Impl(Allocator &alloc, const MValue &V,
+Value interp3Impl(Allocator &alloc, const Value &V,
                    const std::vector<double> &xGrid,
                    const std::vector<double> &yGrid,
                    const std::vector<double> &zGrid,
-                   const MValue &Xq, const MValue &Yq, const MValue &Zq,
+                   const Value &Xq, const Value &Yq, const Value &Zq,
                    const std::string &method)
 {
-    if (V.type() == MType::COMPLEX)
-        throw MError("interp3: complex inputs are not supported",
+    if (V.type() == ValueType::COMPLEX)
+        throw Error("interp3: complex inputs are not supported",
                      0, 0, "interp3", "", "m:interp3:complex");
     if (!V.dims().is3D())
-        throw MError("interp3: V must be a 3D array",
+        throw Error("interp3: V must be a 3D array",
                      0, 0, "interp3", "", "m:interp3:rank");
     if (Xq.numel() != Yq.numel() || Xq.numel() != Zq.numel())
-        throw MError("interp3: Xq, Yq, Zq must have the same numel",
+        throw Error("interp3: Xq, Yq, Zq must have the same numel",
                      0, 0, "interp3", "", "m:interp3:queryShape");
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
     if (xGrid.size() != C || yGrid.size() != R || zGrid.size() != P)
-        throw MError("interp3: grid lengths must equal V's dim sizes",
+        throw Error("interp3: grid lengths must equal V's dim sizes",
                      0, 0, "interp3", "", "m:interp3:gridSize");
     validateMonotonicAscending(xGrid.data(), C, "X");
     validateMonotonicAscending(yGrid.data(), R, "Y");
@@ -466,14 +466,14 @@ MValue interp3Impl(Allocator &alloc, const MValue &V,
 
     const Interp2Method m = parseInterp2Method(method);
     std::vector<double> Vd(R * C * P);
-    if (V.type() == MType::DOUBLE)
+    if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * P * sizeof(double));
     else
         for (std::size_t i = 0; i < R * C * P; ++i) Vd[i] = V.elemAsDouble(i);
 
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = MValue::matrix(qd.rows(), qd.cols(), MType::DOUBLE, &alloc);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -488,12 +488,12 @@ MValue interp3Impl(Allocator &alloc, const MValue &V,
 
 } // namespace
 
-MValue interp3(Allocator &alloc, const MValue &V,
-               const MValue &Xq, const MValue &Yq, const MValue &Zq,
+Value interp3(Allocator &alloc, const Value &V,
+               const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method)
 {
     if (!V.dims().is3D())
-        throw MError("interp3: V must be a 3D array",
+        throw Error("interp3: V must be a 3D array",
                      0, 0, "interp3", "", "m:interp3:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
@@ -505,8 +505,8 @@ MValue interp3(Allocator &alloc, const MValue &V,
     return interp3Impl(alloc, V, xGrid, yGrid, zGrid, Xq, Yq, Zq, method);
 }
 
-MValue interp3(Allocator &alloc, const MValue &X, const MValue &Y, const MValue &Z,
-               const MValue &V, const MValue &Xq, const MValue &Yq, const MValue &Zq,
+Value interp3(Allocator &alloc, const Value &X, const Value &Y, const Value &Z,
+               const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method)
 {
     std::vector<double> xGrid, yGrid, zGrid;
@@ -517,14 +517,14 @@ MValue interp3(Allocator &alloc, const MValue &X, const MValue &Y, const MValue 
 }
 
 // ── spline ────────────────────────────────────────────────────────────
-MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq)
+Value spline(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
 {
     const size_t n = x.numel();
     if (n != y.numel())
-        throw MError("spline: x and y must have same length",
+        throw Error("spline: x and y must have same length",
                      0, 0, "spline", "", "m:spline:lengthMismatch");
     if (n < 2)
-        throw MError("spline: need at least 2 data points",
+        throw Error("spline: need at least 2 data points",
                      0, 0, "spline", "", "m:spline:tooFewPoints");
 
     auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
@@ -532,14 +532,14 @@ MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &
 }
 
 // ── pchip ─────────────────────────────────────────────────────────────
-MValue pchip(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq)
+Value pchip(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
 {
     const size_t n = x.numel();
     if (n != y.numel())
-        throw MError("pchip: x and y must have same length",
+        throw Error("pchip: x and y must have same length",
                      0, 0, "pchip", "", "m:pchip:lengthMismatch");
     if (n < 2)
-        throw MError("pchip: need at least 2 data points",
+        throw Error("pchip: need at least 2 data points",
                      0, 0, "pchip", "", "m:pchip:tooFewPoints");
 
     auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
@@ -552,10 +552,10 @@ MValue pchip(Allocator &alloc, const MValue &x, const MValue &y, const MValue &x
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void interp1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("interp1: requires at least 3 arguments",
+        throw Error("interp1: requires at least 3 arguments",
                      0, 0, "interp1", "", "m:interp1:nargin");
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
@@ -563,21 +563,21 @@ void interp1_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = interp1(ctx.engine->allocator(), args[0], args[1], args[2], method);
 }
 
-void spline_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("spline: requires 3 arguments",
+        throw Error("spline: requires 3 arguments",
                      0, 0, "spline", "", "m:spline:nargin");
     outs[0] = spline(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
-void interp2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("interp2: requires at least 3 arguments",
+        throw Error("interp2: requires at least 3 arguments",
                      0, 0, "interp2", "", "m:interp2:nargin");
     Allocator &alloc = ctx.engine->allocator();
-    auto isMethodArg = [](const MValue &v) {
+    auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
     };
     // Form A: interp2(V, Xq, Yq[, method]) — first arg is the matrix.
@@ -594,17 +594,17 @@ void interp2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         outs[0] = interp2(alloc, args[0], args[1], args[2], args[3], args[4], method);
         return;
     }
-    throw MError("interp2: invalid argument count or types",
+    throw Error("interp2: invalid argument count or types",
                  0, 0, "interp2", "", "m:interp2:nargin");
 }
 
-void interp3_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 4)
-        throw MError("interp3: requires at least 4 arguments",
+        throw Error("interp3: requires at least 4 arguments",
                      0, 0, "interp3", "", "m:interp3:nargin");
     Allocator &alloc = ctx.engine->allocator();
-    auto isMethodArg = [](const MValue &v) {
+    auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
     };
     // Form A: interp3(V, Xq, Yq, Zq[, method]).
@@ -622,14 +622,14 @@ void interp3_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                           args[4], args[5], args[6], method);
         return;
     }
-    throw MError("interp3: invalid argument count or types",
+    throw Error("interp3: invalid argument count or types",
                  0, 0, "interp3", "", "m:interp3:nargin");
 }
 
-void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("pchip: requires 3 arguments",
+        throw Error("pchip: requires 3 arguments",
                      0, 0, "pchip", "", "m:pchip:nargin");
     outs[0] = pchip(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
@@ -639,10 +639,10 @@ void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
 // (X1..XN, V, Xq1..XqN[, method]) follows the same dispatch pattern
 // because V always lives at args[0] in Form A and the implementation
 // distinguishes them inside interp2_reg / interp3_reg.
-void interpn_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("interpn: requires at least 2 arguments",
+        throw Error("interpn: requires at least 2 arguments",
                      0, 0, "interpn", "", "m:interpn:nargin");
     const auto &V0 = args[0];
     const int ndV = V0.dims().is3D() ? 3
@@ -655,7 +655,7 @@ void interpn_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Cal
         interp3_reg(args, nargout, outs, ctx);
         return;
     }
-    throw MError("interpn: 4+-D inputs are not yet supported",
+    throw Error("interpn: 4+-D inputs are not yet supported",
                  0, 0, "interpn", "", "m:interpn:rank");
 }
 
@@ -664,4 +664,4 @@ void interpn_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Cal
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

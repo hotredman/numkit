@@ -3,11 +3,11 @@
 // CSV text I/O (csvread / csvwrite), routed through Engine's Vfs.
 // Split off from MStdIO.cpp in Phase 6c.8.6.
 
-#include <numkit/m/builtin/data_io/csv.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/data_io/csv.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cstdio>
@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Private CSV helpers
@@ -87,11 +87,11 @@ std::vector<double> parseCsvLine(const std::string &raw)
 // Missing cells are read as 0. Filenames with no extension get ".csv".
 // ════════════════════════════════════════════════════════════════════════
 
-MValue csvread(Engine &engine, Span<const MValue> args)
+Value csvread(Engine &engine, Span<const Value> args)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isChar())
-        throw MError("csvread requires a filename as the first argument");
+        throw Error("csvread requires a filename as the first argument");
 
     std::string filename = resolveCsvPath(args[0].toString());
 
@@ -104,12 +104,12 @@ MValue csvread(Engine &engine, Span<const MValue> args)
         c1 = static_cast<size_t>(args[2].toScalar());
     if (args.size() >= 4) {
         if (args[3].numel() != 4)
-            throw MError("csvread: range argument must be [R1 C1 R2 C2]");
+            throw Error("csvread: range argument must be [R1 C1 R2 C2]");
         haveRange = true;
         r2 = static_cast<size_t>(args[3](2));
         c2 = static_cast<size_t>(args[3](3));
         if (r2 < r1 || c2 < c1)
-            throw MError("csvread: invalid range [R1 C1 R2 C2]");
+            throw Error("csvread: invalid range [R1 C1 R2 C2]");
     }
 
     auto resolved = engine.resolvePath(filename);
@@ -117,7 +117,7 @@ MValue csvread(Engine &engine, Span<const MValue> args)
     try {
         content = resolved.fs->readFile(resolved.path);
     } catch (const std::exception &e) {
-        throw MError(std::string("csvread: ") + e.what());
+        throw Error(std::string("csvread: ") + e.what());
     }
 
     std::vector<std::vector<double>> rows;
@@ -164,9 +164,9 @@ MValue csvread(Engine &engine, Span<const MValue> args)
     }
 
     if (R == 0 || C == 0)
-        return MValue::matrix(0, 0, MType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
 
-    auto M = MValue::matrix(R, C, MType::DOUBLE, alloc);
+    auto M = Value::matrix(R, C, ValueType::DOUBLE, alloc);
     double *data = M.doubleDataMut();
     for (size_t r = 0; r < R; ++r) {
         const auto &row = rows[r];
@@ -177,15 +177,15 @@ MValue csvread(Engine &engine, Span<const MValue> args)
     return M;
 }
 
-void csvwrite(Engine &engine, Span<const MValue> args)
+void csvwrite(Engine &engine, Span<const Value> args)
 {
     if (args.size() < 2)
-        throw MError("csvwrite requires filename and matrix arguments");
+        throw Error("csvwrite requires filename and matrix arguments");
     if (!args[0].isChar())
-        throw MError("csvwrite: first argument must be a filename");
+        throw Error("csvwrite: first argument must be a filename");
 
     std::string filename = resolveCsvPath(args[0].toString());
-    const MValue &M = args[1];
+    const Value &M = args[1];
 
     size_t offR = 0, offC = 0;
     if (args.size() >= 3)
@@ -214,7 +214,7 @@ void csvwrite(Engine &engine, Span<const MValue> args)
             if (c > 0)
                 os << ',';
             double v = 0.0;
-            if (M.type() == MType::DOUBLE) {
+            if (M.type() == ValueType::DOUBLE) {
                 v = M.isScalar() ? M.toScalar() : M(r, c);
             } else if (M.isLogical()) {
                 if (M.isScalar())
@@ -233,7 +233,7 @@ void csvwrite(Engine &engine, Span<const MValue> args)
     try {
         resolved.fs->writeFile(resolved.path, os.str());
     } catch (const std::exception &e) {
-        throw MError(std::string("csvwrite: ") + e.what());
+        throw Error(std::string("csvwrite: ") + e.what());
     }
 }
 
@@ -243,13 +243,13 @@ void csvwrite(Engine &engine, Span<const MValue> args)
 
 namespace detail {
 
-void csvread_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void csvread_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     outs[0] = csvread(*ctx.engine, args);
 }
 
-void csvwrite_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void csvwrite_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     (void)outs;
@@ -258,4 +258,4 @@ void csvwrite_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

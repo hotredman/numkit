@@ -4,8 +4,8 @@
 // Each test verifies correctness of an optimized code path
 // by comparing results against known values.
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -14,7 +14,7 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using namespace numkit::m;
+using namespace numkit;
 
 class OptimizationRegressionTest : public ::testing::Test
 {
@@ -24,12 +24,12 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
     }
 
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
 

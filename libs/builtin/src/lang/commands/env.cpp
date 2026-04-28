@@ -3,17 +3,17 @@
 // Process-environment builtins (setenv / getenv). Split off from
 // MStdIO.cpp in Phase 6c.8.6.
 
-#include <numkit/m/builtin/lang/commands/env.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/lang/commands/env.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MBranding.hpp>     // for envGet
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/branding.hpp>     // for envGet
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cstdlib>
 #include <string>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // setenv / getenv — MATLAB-compatible process-environment access.
@@ -24,19 +24,19 @@ namespace numkit::m::builtin {
 //   v = getenv(name)       → value, or '' if not set
 // ════════════════════════════════════════════════════════════════════════
 
-void setenv(Span<const MValue> args)
+void setenv(Span<const Value> args)
 {
     if (args.empty() || !args[0].isChar())
-        throw MError("setenv: first argument must be a variable name");
+        throw Error("setenv: first argument must be a variable name");
     std::string name = args[0].toString();
     if (name.empty())
-        throw MError("setenv: variable name cannot be empty");
+        throw Error("setenv: variable name cannot be empty");
     if (name.find('=') != std::string::npos)
-        throw MError("setenv: variable name cannot contain '='");
+        throw Error("setenv: variable name cannot contain '='");
     std::string value;
     if (args.size() >= 2) {
         if (!args[1].isChar())
-            throw MError("setenv: value must be a char array");
+            throw Error("setenv: value must be a char array");
         value = args[1].toString();
     }
 #ifdef _WIN32
@@ -46,11 +46,11 @@ void setenv(Span<const MValue> args)
 #endif
 }
 
-MValue getenv(Allocator &alloc, Span<const MValue> args)
+Value getenv(Allocator &alloc, Span<const Value> args)
 {
     if (args.empty() || !args[0].isChar())
-        throw MError("getenv: argument must be a variable name");
-    return MValue::fromString(numkit::m::envGet(args[0].toString().c_str()), &alloc);
+        throw Error("getenv: argument must be a variable name");
+    return Value::fromString(numkit::envGet(args[0].toString().c_str()), &alloc);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ MValue getenv(Allocator &alloc, Span<const MValue> args)
 
 namespace detail {
 
-void setenv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void setenv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     (void)outs;
@@ -67,7 +67,7 @@ void setenv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
     setenv(args);
 }
 
-void getenv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void getenv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     outs[0] = getenv(ctx.engine->allocator(), args);
@@ -75,4 +75,4 @@ void getenv_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

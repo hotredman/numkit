@@ -3,19 +3,19 @@
 // periodogram + pwelch. Split from MDspSpectral. spectrogram lives in
 // time_frequency/spectrogram.cpp.
 
-#include <numkit/m/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"
+#include "../dsp_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -34,8 +34,8 @@ std::vector<double> hammingWindow(size_t N)
 
 } // anonymous namespace
 
-std::tuple<MValue, MValue>
-periodogram(Allocator &alloc, const MValue &x, const MValue &window, size_t nfft)
+std::tuple<Value, Value>
+periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft)
 {
     const size_t N = x.numel();
     const double *xd = x.doubleData();
@@ -60,8 +60,8 @@ periodogram(Allocator &alloc, const MValue &x, const MValue &window, size_t nfft
     fftRadix2(buf, 1);
 
     const size_t nOut = nfft / 2 + 1;
-    auto Pxx = MValue::matrix(nOut, 1, MType::DOUBLE, &alloc);
-    auto F = MValue::matrix(nOut, 1, MType::DOUBLE, &alloc);
+    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
+    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
     const double scale = 1.0 / (winPower * nfft);
 
     for (size_t i = 0; i < nOut; ++i) {
@@ -75,10 +75,10 @@ periodogram(Allocator &alloc, const MValue &x, const MValue &window, size_t nfft
     return std::make_tuple(std::move(Pxx), std::move(F));
 }
 
-std::tuple<MValue, MValue>
+std::tuple<Value, Value>
 pwelch(Allocator &alloc,
-       const MValue &x,
-       const MValue &window,
+       const Value &x,
+       const Value &window,
        size_t noverlap,
        size_t nfft)
 {
@@ -129,8 +129,8 @@ pwelch(Allocator &alloc,
     }
 
     const double scale = 1.0 / (winPower * nfft * nSegments);
-    auto Pxx = MValue::matrix(nOut, 1, MType::DOUBLE, &alloc);
-    auto F = MValue::matrix(nOut, 1, MType::DOUBLE, &alloc);
+    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
+    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nOut; ++i) {
         Pxx.doubleDataMut()[i] = psd[i] * scale;
         F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
@@ -141,13 +141,13 @@ pwelch(Allocator &alloc,
 
 namespace detail {
 
-void periodogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("periodogram: requires at least 1 argument",
+        throw Error("periodogram: requires at least 1 argument",
                      0, 0, "periodogram", "", "m:periodogram:nargin");
 
-    MValue window = MValue::empty();
+    Value window = Value::empty();
     if (args.size() >= 2 && !args[1].isChar())
         window = args[1];
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -158,13 +158,13 @@ void periodogram_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
         outs[1] = std::move(F);
 }
 
-void pwelch_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("pwelch: requires at least 1 argument",
+        throw Error("pwelch: requires at least 1 argument",
                      0, 0, "pwelch", "", "m:pwelch:nargin");
 
-    MValue window = MValue::empty();
+    Value window = Value::empty();
     if (args.size() >= 2 && !args[1].isChar())
         window = args[1];
     const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
@@ -178,4 +178,4 @@ void pwelch_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

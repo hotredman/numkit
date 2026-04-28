@@ -1,16 +1,16 @@
 # CMakeLists.txt
 cmake_minimum_required(VERSION 3.21)
-project(m VERSION 1.0.0 LANGUAGES CXX)
+project(numkit VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-option(NUMKIT_M_BUILD_EXAMPLE    "Build example executable"              ON)
-option(NUMKIT_M_BUILD_TESTS      "Build tests"                           ON)
-option(NUMKIT_M_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
-option(NUMKIT_M_BUILD_SHARED     "Build shared library"                  OFF)
-option(NUMKIT_M_INSTALL          "Generate install target"               ON)
+option(NUMKIT_BUILD_EXAMPLE    "Build example executable"              ON)
+option(NUMKIT_BUILD_TESTS      "Build tests"                           ON)
+option(NUMKIT_BUILD_BENCHMARKS "Build Google Benchmark micro-benches"  OFF)
+option(NUMKIT_BUILD_SHARED     "Build shared library"                  OFF)
+option(NUMKIT_INSTALL          "Generate install target"               ON)
 
 # Feature flags (NUMKIT_WITH_SIMD)
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
@@ -45,42 +45,42 @@ if(NUMKIT_WITH_SIMD)
 endif()
 
 if(NOT EMSCRIPTEN)
-    set(NUMKIT_M_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
+    set(NUMKIT_BUILD_REPL OFF CACHE BOOL "Build WebAssembly REPL" FORCE)
 else()
-    option(NUMKIT_M_BUILD_REPL "Build WebAssembly module" ON)
+    option(NUMKIT_BUILD_REPL "Build WebAssembly module" ON)
 endif()
 
 # ──────────────────────────────────────────────
 # Основная библиотека
 # ──────────────────────────────────────────────
 
-set(NUMKIT_M_CORE_SOURCES
+set(NUMKIT_CORE_SOURCES
     # value / environment / allocator
-    core/src/MAllocator.cpp
-    core/src/MType.cpp
-    core/src/MDims.cpp
-    core/src/MDataBuffer.cpp
-    core/src/MHeapObject.cpp
-    core/src/MValue.cpp
-    core/src/MEnvironment.cpp
-    core/src/MEngine.cpp
-    core/src/MVfs.cpp
+    core/src/allocator.cpp
+    core/src/value_type.cpp
+    core/src/dims.cpp
+    core/src/data_buffer.cpp
+    core/src/heap_object.cpp
+    core/src/value.cpp
+    core/src/environment.cpp
+    core/src/engine.cpp
+    core/src/vfs.cpp
     # lexer / parser / AST / compiler
-    core/src/MLexer.cpp
-    core/src/MParser.cpp
-    core/src/MAst.cpp
-    core/src/MCompiler.cpp
+    core/src/lexer.cpp
+    core/src/parser.cpp
+    core/src/ast.cpp
+    core/src/compiler.cpp
     # execution backends
-    core/src/MTreeWalker.cpp
-    core/src/MVM.cpp
+    core/src/tree_walker.cpp
+    core/src/vm.cpp
     # debugger
-    core/src/MDebugger.cpp
-    core/src/MDebugSession.cpp
-    core/src/MDebugWorkspace.cpp
+    core/src/debugger.cpp
+    core/src/debug_session.cpp
+    core/src/debug_workspace.cpp
 )
 
 if(NUMKIT_WITH_THREADS)
-    list(APPEND NUMKIT_M_CORE_SOURCES core/src/MThreadPool.cpp)
+    list(APPEND NUMKIT_CORE_SOURCES core/src/thread_pool.cpp)
 endif()
 
 # Each library defines its own source list (STDLIB_SOURCES, SIGNALLIB_SOURCES, ...)
@@ -89,113 +89,116 @@ add_subdirectory(libs/signal/src)
 add_subdirectory(libs/stats/src)
 add_subdirectory(libs/graphics/src)
 
-set(NUMKIT_M_SOURCES
-    ${NUMKIT_M_CORE_SOURCES}
+set(NUMKIT_SOURCES
+    ${NUMKIT_CORE_SOURCES}
     ${STDLIB_SOURCES}
     ${SIGNALLIB_SOURCES}
     ${STATSLIB_SOURCES}
     ${GRAPHICSLIB_SOURCES}
 )
 
-set(NUMKIT_M_HEADERS
+set(NUMKIT_HEADERS
     # core (runtime + frontend + backend + debug all live here)
-    core/include/numkit/m/core/MAllocator.hpp
-    core/include/numkit/m/core/MAst.hpp
-    core/include/numkit/m/core/MBranding.hpp
-    core/include/numkit/m/core/MBytecode.hpp
-    core/include/numkit/m/core/MCompiler.hpp
-    core/include/numkit/m/core/MDataBuffer.hpp
-    core/include/numkit/m/core/MDebugger.hpp
-    core/include/numkit/m/core/MDebugSession.hpp
-    core/include/numkit/m/core/MDebugWorkspace.hpp
-    core/include/numkit/m/core/MDims.hpp
-    core/include/numkit/m/core/MEngine.hpp
-    core/include/numkit/m/core/MEnvironment.hpp
-    core/include/numkit/m/core/MFigureManager.hpp
-    core/include/numkit/m/core/MHeapObject.hpp
-    core/include/numkit/m/core/MLexer.hpp
-    core/include/numkit/m/core/MParser.hpp
-    core/include/numkit/m/core/MParallelFor.hpp
-    core/include/numkit/m/core/MSpan.hpp
-    core/include/numkit/m/core/MThreadPool.hpp
-    core/include/numkit/m/core/MTreeWalker.hpp
-    core/include/numkit/m/core/MType.hpp
-    core/include/numkit/m/core/MTypes.hpp
-    core/include/numkit/m/core/MVM.hpp
-    core/include/numkit/m/core/MValue.hpp
-    core/include/numkit/m/core/MVfs.hpp
+    core/include/numkit/core/allocator.hpp
+    core/include/numkit/core/ast.hpp
+    core/include/numkit/core/branding.hpp
+    core/include/numkit/core/bytecode.hpp
+    core/include/numkit/core/compiler.hpp
+    core/include/numkit/core/data_buffer.hpp
+    core/include/numkit/core/debugger.hpp
+    core/include/numkit/core/debug_session.hpp
+    core/include/numkit/core/debug_workspace.hpp
+    core/include/numkit/core/dims.hpp
+    core/include/numkit/core/engine.hpp
+    core/include/numkit/core/environment.hpp
+    core/include/numkit/core/figure_manager.hpp
+    core/include/numkit/core/heap_object.hpp
+    core/include/numkit/core/lexer.hpp
+    core/include/numkit/core/parser.hpp
+    core/include/numkit/core/parallel_for.hpp
+    core/include/numkit/core/shape_ops.hpp
+    core/include/numkit/core/span.hpp
+    core/include/numkit/core/thread_pool.hpp
+    core/include/numkit/core/tree_walker.hpp
+    core/include/numkit/core/value_type.hpp
+    core/include/numkit/core/types.hpp
+    core/include/numkit/core/vm.hpp
+    core/include/numkit/core/value.hpp
+    core/include/numkit/core/vfs.hpp
     # libs
-    libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/trigonometry.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/exponents.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/rounding.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/misc.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/special.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/reductions.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/discrete.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/cell/cell.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/struct/struct.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/strings/strings.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/strings/regex.hpp
-    libs/builtin/include/numkit/m/builtin/math/integration/integration.hpp
-    libs/builtin/include/numkit/m/builtin/math/optim/fzero.hpp
-    libs/builtin/include/numkit/m/builtin/lang/commands/env.hpp
-    libs/builtin/include/numkit/m/builtin/lang/operators/binary_ops.hpp
-    libs/builtin/include/numkit/m/builtin/lang/operators/unary_ops.hpp
-    libs/builtin/include/numkit/m/builtin/lang/arrays/matrix.hpp
-    libs/builtin/include/numkit/m/builtin/lang/arrays/manip.hpp
-    libs/builtin/include/numkit/m/builtin/lang/arrays/nd_manip.hpp
-    libs/builtin/include/numkit/m/builtin/lang/arrays/accum.hpp
-    libs/builtin/include/numkit/m/builtin/math/random/rng.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/complex.hpp
-    libs/builtin/include/numkit/m/builtin/math/elementary/polynomials.hpp
-    libs/builtin/include/numkit/m/builtin/data_io/csv.hpp
-    libs/builtin/include/numkit/m/builtin/data_io/fileio.hpp
-    libs/builtin/include/numkit/m/builtin/data_io/saveload.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/numeric/types.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/numeric/int_math.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/strings/format.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/strings/print.hpp
-    libs/builtin/include/numkit/m/builtin/datatypes/strings/scan.hpp
-    libs/builtin/include/numkit/m/builtin/programming/errors/diagnostics.hpp
-    libs/builtin/include/numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp
-    libs/signal/include/numkit/m/signal/MSignalLibrary.hpp
-    libs/signal/include/numkit/m/signal/waveform_generation/waveform_generation.hpp
-    libs/signal/include/numkit/m/signal/filter_design/filter_design.hpp
-    libs/signal/include/numkit/m/signal/filter_analysis/frequency_response.hpp
-    libs/signal/include/numkit/m/signal/filter_analysis/unwrap.hpp
-    libs/signal/include/numkit/m/signal/digital_filtering/filter.hpp
-    libs/signal/include/numkit/m/signal/digital_filtering/sosfilt.hpp
-    libs/signal/include/numkit/m/signal/filter_implementation/conversions.hpp
-    libs/signal/include/numkit/m/signal/multirate/multirate.hpp
-    libs/signal/include/numkit/m/signal/convolution/convolution.hpp
-    libs/signal/include/numkit/m/signal/transforms/fft.hpp
-    libs/signal/include/numkit/m/signal/transforms/hilbert.hpp
-    libs/signal/include/numkit/m/signal/transforms/dct.hpp
-    libs/signal/include/numkit/m/signal/transforms/goertzel.hpp
-    libs/signal/include/numkit/m/signal/transforms/transform_helpers.hpp
-    libs/signal/include/numkit/m/signal/smoothing/sgolay.hpp
-    libs/signal/include/numkit/m/signal/smoothing/medfilt.hpp
-    libs/signal/include/numkit/m/signal/measurements/findpeaks.hpp
-    libs/signal/include/numkit/m/signal/spectral_analysis/periodogram_pwelch.hpp
-    libs/signal/include/numkit/m/signal/time_frequency/spectrogram.hpp
-    libs/signal/include/numkit/m/signal/windows/windows.hpp
-    libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
-    libs/stats/include/numkit/m/stats/MStatsLibrary.hpp
-    libs/stats/include/numkit/m/stats/moments/moments.hpp
-    libs/stats/include/numkit/m/stats/nan_aware/nan_aware.hpp
-    libs/graphics/include/numkit/m/graphics/MGraphicsLibrary.hpp
+    libs/builtin/include/numkit/builtin/library.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/trigonometry.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/exponents.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/rounding.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/misc.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/special.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/reductions.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/discrete.hpp
+    libs/builtin/include/numkit/builtin/datatypes/cell/cell.hpp
+    libs/builtin/include/numkit/builtin/datatypes/struct/struct.hpp
+    libs/builtin/include/numkit/builtin/datatypes/strings/strings.hpp
+    libs/builtin/include/numkit/builtin/datatypes/strings/regex.hpp
+    libs/builtin/include/numkit/builtin/math/integration/integration.hpp
+    libs/builtin/include/numkit/builtin/math/optim/fzero.hpp
+    libs/builtin/include/numkit/builtin/lang/commands/env.hpp
+    libs/builtin/include/numkit/builtin/lang/operators/binary_ops.hpp
+    libs/builtin/include/numkit/builtin/lang/operators/unary_ops.hpp
+    libs/builtin/include/numkit/builtin/lang/arrays/matrix.hpp
+    libs/builtin/include/numkit/builtin/lang/arrays/manip.hpp
+    libs/builtin/include/numkit/builtin/lang/arrays/nd_manip.hpp
+    libs/builtin/include/numkit/builtin/lang/arrays/accum.hpp
+    libs/builtin/include/numkit/builtin/math/random/rng.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/complex.hpp
+    libs/builtin/include/numkit/builtin/math/elementary/polynomials.hpp
+    libs/builtin/include/numkit/builtin/data_io/csv.hpp
+    libs/builtin/include/numkit/builtin/data_io/fileio.hpp
+    libs/builtin/include/numkit/builtin/data_io/saveload.hpp
+    libs/builtin/include/numkit/builtin/datatypes/numeric/types.hpp
+    libs/builtin/include/numkit/builtin/datatypes/numeric/int_math.hpp
+    libs/builtin/include/numkit/builtin/datatypes/strings/format.hpp
+    libs/builtin/include/numkit/builtin/datatypes/strings/print.hpp
+    libs/builtin/include/numkit/builtin/datatypes/strings/scan.hpp
+    libs/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
+    libs/builtin/include/numkit/builtin/data_analysis/descriptive_statistics/stats.hpp
+    libs/signal/include/numkit/signal/library.hpp
+    libs/signal/include/numkit/signal/waveform_generation/waveform_generation.hpp
+    libs/signal/include/numkit/signal/filter_design/filter_design.hpp
+    libs/signal/include/numkit/signal/filter_analysis/frequency_response.hpp
+    libs/signal/include/numkit/signal/filter_analysis/unwrap.hpp
+    libs/signal/include/numkit/signal/digital_filtering/filter.hpp
+    libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
+    libs/signal/include/numkit/signal/filter_implementation/conversions.hpp
+    libs/signal/include/numkit/signal/multirate/multirate.hpp
+    libs/signal/include/numkit/signal/convolution/convolution.hpp
+    libs/signal/include/numkit/signal/transforms/fft.hpp
+    libs/signal/include/numkit/signal/transforms/hilbert.hpp
+    libs/signal/include/numkit/signal/transforms/dct.hpp
+    libs/signal/include/numkit/signal/transforms/goertzel.hpp
+    libs/signal/include/numkit/signal/transforms/transform_helpers.hpp
+    libs/signal/include/numkit/signal/smoothing/sgolay.hpp
+    libs/signal/include/numkit/signal/smoothing/medfilt.hpp
+    libs/signal/include/numkit/signal/measurements/findpeaks.hpp
+    libs/signal/include/numkit/signal/spectral_analysis/periodogram_pwelch.hpp
+    libs/signal/include/numkit/signal/time_frequency/spectrogram.hpp
+    libs/signal/include/numkit/signal/windows/windows.hpp
+    libs/builtin/include/numkit/builtin/math/interpolation/interp.hpp
+    libs/stats/include/numkit/stats/library.hpp
+    libs/stats/include/numkit/stats/moments/moments.hpp
+    libs/stats/include/numkit/stats/nan_aware/nan_aware.hpp
+    libs/graphics/include/numkit/graphics/library.hpp
 )
 
-if(NUMKIT_M_BUILD_SHARED)
-    add_library(m SHARED ${NUMKIT_M_SOURCES} ${NUMKIT_M_HEADERS})
+if(NUMKIT_BUILD_SHARED)
+    add_library(numkit SHARED ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
 else()
-    add_library(m STATIC ${NUMKIT_M_SOURCES} ${NUMKIT_M_HEADERS})
+    add_library(numkit STATIC ${NUMKIT_SOURCES} ${NUMKIT_HEADERS})
 endif()
 
-add_library(numkit::m ALIAS m)
+# Match install-tree NAMESPACE so add_subdirectory consumers can use the
+# same `numkit::numkit` target as find_package() consumers do.
+add_library(numkit::numkit ALIAS numkit)
 
-target_include_directories(m
+target_include_directories(numkit
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
@@ -204,17 +207,17 @@ target_include_directories(m
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
-        # Shared library-internal helpers (MStdHelpers.hpp, MDspHelpers.hpp)
+        # Shared library-internal helpers (helpers.hpp under libs/*/src/)
         # TODO: formalize as public "detail/" headers or common utility lib
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
 )
 
-target_compile_features(m PUBLIC cxx_std_17)
+target_compile_features(numkit PUBLIC cxx_std_17)
 
 if(EMSCRIPTEN)
-    target_compile_options(m PRIVATE -fexceptions)
-    target_link_options(m PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
+    target_compile_options(numkit PRIVATE -fexceptions)
+    target_link_options(numkit PUBLIC "SHELL:-s DISABLE_EXCEPTION_CATCHING=0")
 endif()
 
 if(NUMKIT_WITH_SIMD)
@@ -223,42 +226,42 @@ if(NUMKIT_WITH_SIMD)
     # BUILD_INTERFACE genex keeps the link dep out of the exported target
     # set (install(EXPORT) would otherwise complain that hwy / hwy_contrib
     # aren't themselves exported).
-    target_link_libraries(m PRIVATE
+    target_link_libraries(numkit PRIVATE
         $<BUILD_INTERFACE:hwy>
         $<BUILD_INTERFACE:hwy_contrib>)
     # PUBLIC — backends/FftKernels.hpp declares SoA / Stockham dispatchers
     # whose definitions are only built when SIMD is on. Direct callers
     # (benchmarks, kernel-parity tests) need to gate themselves on this
     # macro to avoid link errors against missing symbols on portable.
-    target_compile_definitions(m PUBLIC NUMKIT_WITH_SIMD=1)
+    target_compile_definitions(numkit PUBLIC NUMKIT_WITH_SIMD=1)
 endif()
 
 if(NUMKIT_WITH_THREADS)
-    # std::thread support. The pool itself lives in core/src/MThreadPool.cpp
+    # std::thread support. The pool itself lives in core/src/thread_pool.cpp
     # and is only compiled when this option is ON. Without the option, the
     # parallel_for helper falls through to a sequential `fn(0, n)` call
     # (header-only inline) and pthread/Threads is not linked.
     find_package(Threads REQUIRED)
-    target_link_libraries(m PUBLIC Threads::Threads)
-    target_compile_definitions(m PUBLIC NUMKIT_WITH_THREADS=1)
+    target_link_libraries(numkit PUBLIC Threads::Threads)
+    target_compile_definitions(numkit PUBLIC NUMKIT_WITH_THREADS=1)
 endif()
 
 # ──────────────────────────────────────────────
 # Example
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_EXAMPLE)
-    add_executable(m_example example/main.cpp)
-    target_link_libraries(m_example PRIVATE numkit::m)
+if(NUMKIT_BUILD_EXAMPLE)
+    add_executable(numkit_example example/main.cpp)
+    target_link_libraries(numkit_example PRIVATE numkit)
 
     if(EMSCRIPTEN)
         # Emscripten produces a Node-runnable .js loader + .wasm sidecar
         # when the output ends in .js. NODERAWFS lets argv paths resolve
         # against the real host filesystem:
-        #   node build-browser/example/m_example.js path/to/script.m
-        set_target_properties(m_example PROPERTIES SUFFIX ".js")
-        target_compile_options(m_example PRIVATE -fexceptions)
-        target_link_options(m_example PRIVATE
+        #   node build-browser/example/numkit_example.js path/to/script.m
+        set_target_properties(numkit_example PROPERTIES SUFFIX ".js")
+        target_compile_options(numkit_example PRIVATE -fexceptions)
+        target_link_options(numkit_example PRIVATE
             -fexceptions
             "SHELL:-s ALLOW_MEMORY_GROWTH=1"
             "SHELL:-s INITIAL_MEMORY=67108864"
@@ -274,7 +277,7 @@ endif()
 # Тесты (Google Test)
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
+if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -290,8 +293,8 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
 
     enable_testing()
 
-    # tests/ creates the m_tests target; per-component tests/ dirs
-    # contribute their sources via target_sources(m_tests PRIVATE ...)
+    # tests/ creates the numkit_tests target; per-component tests/ dirs
+    # contribute their sources via target_sources(numkit_tests PRIVATE ...)
     add_subdirectory(tests)
     add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
@@ -303,7 +306,7 @@ endif()
 # Benchmarks (Google Benchmark)
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_BENCHMARKS)
+if(NUMKIT_BUILD_BENCHMARKS)
     include(FetchContent)
 
     FetchContent_Declare(
@@ -342,7 +345,7 @@ endif()
 # REPL subdirectory
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_BUILD_REPL)
+if(NUMKIT_BUILD_REPL)
     add_subdirectory(wasm)
 endif()
 
@@ -350,45 +353,45 @@ endif()
 # Install
 # ──────────────────────────────────────────────
 
-if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
+if(NUMKIT_INSTALL AND NOT EMSCRIPTEN)
     include(GNUInstallDirs)
     include(CMakePackageConfigHelpers)
 
-    install(TARGETS m
-        EXPORT mTargets
+    install(TARGETS numkit
+        EXPORT numkitTargets
         LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
         RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
     )
 
-    # Public headers — every component ships its own numkit/m/<name>/ subtree
+    # Public headers — every component ships its own numkit/<name>/ subtree
     install(DIRECTORY core/include/numkit          DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/builtin/include/numkit  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/signal/include/numkit   DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/stats/include/numkit    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/graphics/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
-    install(EXPORT mTargets
-        FILE        mTargets.cmake
+    install(EXPORT numkitTargets
+        FILE        numkitTargets.cmake
         NAMESPACE   numkit::
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/m
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 
     configure_package_config_file(
-        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/mConfig.cmake.in"
-        "${CMAKE_CURRENT_BINARY_DIR}/mConfig.cmake"
-        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/m
+        "${CMAKE_CURRENT_SOURCE_DIR}/cmake/numkitConfig.cmake.in"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfig.cmake"
+        INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 
     write_basic_package_version_file(
-        "${CMAKE_CURRENT_BINARY_DIR}/mConfigVersion.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfigVersion.cmake"
         VERSION ${PROJECT_VERSION}
         COMPATIBILITY SameMajorVersion
     )
 
     install(FILES
-        "${CMAKE_CURRENT_BINARY_DIR}/mConfig.cmake"
-        "${CMAKE_CURRENT_BINARY_DIR}/mConfigVersion.cmake"
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/m
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfig.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/numkitConfigVersion.cmake"
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/numkit
     )
 endif()

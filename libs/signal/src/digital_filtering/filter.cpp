@@ -1,16 +1,16 @@
 // libs/dsp/src/MDspFilter.cpp
 
-#include <numkit/m/signal/digital_filtering/filter.hpp>
+#include <numkit/signal/digital_filtering/filter.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <vector>
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 namespace {
 
@@ -37,7 +37,7 @@ std::vector<double> applyFilterDf2t(const double *bn, size_t nb,
 } // namespace
 
 // ── filter ────────────────────────────────────────────────────────────
-MValue filter(Allocator &alloc, const MValue &b, const MValue &a, const MValue &x)
+Value filter(Allocator &alloc, const Value &b, const Value &a, const Value &x)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -46,7 +46,7 @@ MValue filter(Allocator &alloc, const MValue &b, const MValue &a, const MValue &
 
     const double a0 = ad[0];
     if (a0 == 0.0)
-        throw MError("filter: a(1) must be nonzero",
+        throw Error("filter: a(1) must be nonzero",
                      0, 0, "filter", "", "m:filter:zeroLead");
 
     std::vector<double> bn(nb), an(na);
@@ -57,7 +57,7 @@ MValue filter(Allocator &alloc, const MValue &b, const MValue &a, const MValue &
 
     auto out = applyFilterDf2t(bn.data(), nb, an.data(), na, xd, nx);
 
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     double *y = r.doubleDataMut();
     for (size_t n = 0; n < nx; ++n)
         y[n] = out[n];
@@ -65,7 +65,7 @@ MValue filter(Allocator &alloc, const MValue &b, const MValue &a, const MValue &
 }
 
 // ── filtfilt ──────────────────────────────────────────────────────────
-MValue filtfilt(Allocator &alloc, const MValue &b, const MValue &a, const MValue &x)
+Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -74,7 +74,7 @@ MValue filtfilt(Allocator &alloc, const MValue &b, const MValue &a, const MValue
 
     const double a0 = ad[0];
     if (a0 == 0.0)
-        throw MError("filtfilt: a(1) must be nonzero",
+        throw Error("filtfilt: a(1) must be nonzero",
                      0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
 
     std::vector<double> bn(nb), an(na);
@@ -104,7 +104,7 @@ MValue filtfilt(Allocator &alloc, const MValue &b, const MValue &a, const MValue
     auto bwd = applyFilterDf2t(bn.data(), nb, an.data(), na, fwd.data(), fwd.size());
     std::reverse(bwd.begin(), bwd.end());
 
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     double *y = r.doubleDataMut();
     for (size_t i = 0; i < nx; ++i)
         y[i] = bwd[nEdge + i];
@@ -114,22 +114,22 @@ MValue filtfilt(Allocator &alloc, const MValue &b, const MValue &a, const MValue
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void filter_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void filter_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("filter: requires 3 arguments",
+        throw Error("filter: requires 3 arguments",
                      0, 0, "filter", "", "m:filter:nargin");
     outs[0] = filter(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
-void filtfilt_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("filtfilt: requires 3 arguments",
+        throw Error("filtfilt: requires 3 arguments",
                      0, 0, "filtfilt", "", "m:filtfilt:nargin");
     outs[0] = filtfilt(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

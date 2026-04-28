@@ -4,7 +4,7 @@
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit::m;
+using namespace numkit;
 
 class ErrorDiagnosticsTest : public DualEngineTest
 {};

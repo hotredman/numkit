@@ -4,52 +4,52 @@
 // + cellfun. Shares the function-handle dispatch helpers with
 // struct.cpp via the inline header below.
 
-#include <numkit/m/builtin/datatypes/cell/cell.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/datatypes/cell/cell.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
 
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-namespace hf = ::numkit::m::builtin::detail::handlefn;
+namespace hf = ::numkit::builtin::detail::handlefn;
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-MValue cell(Allocator &, size_t n)
+Value cell(Allocator &, size_t n)
 {
-    return MValue::cell(n, n);
+    return Value::cell(n, n);
 }
 
-MValue cell(Allocator &, size_t rows, size_t cols)
+Value cell(Allocator &, size_t rows, size_t cols)
 {
-    return MValue::cell(rows, cols);
+    return Value::cell(rows, cols);
 }
 
-MValue cell(Allocator &, size_t rows, size_t cols, size_t pages)
+Value cell(Allocator &, size_t rows, size_t cols, size_t pages)
 {
     if (pages > 0)
-        return MValue::cell3D(rows, cols, pages);
-    return MValue::cell(rows, cols);
+        return Value::cell3D(rows, cols, pages);
+    return Value::cell(rows, cols);
 }
 
-MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
+Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
                bool uniformOutput, Engine *engine)
 {
     if (!c.isCell())
-        throw MError("cellfun: second argument must be a cell array",
+        throw Error("cellfun: second argument must be a cell array",
                      0, 0, "cellfun", "", "m:cellfun:notCell");
     hf::BuiltinFn f = hf::BuiltinFn::Numel;  // placeholder
     const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
 
     const size_t n = c.numel();
-    std::vector<MValue> results;
+    std::vector<Value> results;
     results.reserve(n);
     for (size_t i = 0; i < n; ++i)
         results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,
@@ -59,20 +59,20 @@ MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
         if (isBuiltin)
             return hf::packUniform(alloc, f, results, c.dims(), "cellfun");
         // Anonymous: pack as DOUBLE / LOGICAL based on first result's type.
-        const MType outT = (n > 0 && results[0].isLogical())
-                           ? MType::LOGICAL : MType::DOUBLE;
+        const ValueType outT = (n > 0 && results[0].isLogical())
+                           ? ValueType::LOGICAL : ValueType::DOUBLE;
         const auto &d = c.dims();
         const size_t r = d.rows();
         const size_t cc = d.cols();
         const size_t p = d.is3D() ? d.pages() : 0;
-        auto out = (p > 0) ? MValue::matrix3d(r, cc, p, outT, &alloc)
-                           : MValue::matrix(r, cc, outT, &alloc);
+        auto out = (p > 0) ? Value::matrix3d(r, cc, p, outT, &alloc)
+                           : Value::matrix(r, cc, outT, &alloc);
         for (size_t i = 0; i < n; ++i) {
-            const MValue &v = results[i];
+            const Value &v = results[i];
             if (!v.isScalar())
-                throw MError("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
+                throw Error("cellfun: fn returned a non-scalar; pass 'UniformOutput', false",
                              0, 0, "cellfun", "", "m:cellfun:notScalar");
-            if (outT == MType::LOGICAL)
+            if (outT == ValueType::LOGICAL)
                 out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
             else
                 out.doubleDataMut()[i]  = v.toScalar();
@@ -85,7 +85,7 @@ MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
     const size_t r = d.rows();
     const size_t cc = d.cols();
     const size_t p = d.is3D() ? d.pages() : 0;
-    MValue out = (p > 0) ? MValue::cell3D(r, cc, p) : MValue::cell(r, cc);
+    Value out = (p > 0) ? Value::cell3D(r, cc, p) : Value::cell(r, cc);
     for (size_t i = 0; i < n; ++i)
         out.cellAt(i) = std::move(results[i]);
     return out;
@@ -97,67 +97,67 @@ MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
 
 namespace detail {
 
-void cellfun_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("cellfun: requires at least 2 arguments (fn, C)",
+        throw Error("cellfun: requires at least 2 arguments (fn, C)",
                      0, 0, "cellfun", "", "m:cellfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
     outs[0] = cellfun(ctx.engine->allocator(), args[0], args[1], uniform, ctx.engine);
 }
 
-void cell_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     Allocator &alloc = ctx.engine->allocator();
     (void)alloc;
     if (args.empty())
-        throw MError("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
+        throw Error("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
         const size_t n = args[0].numel();
         std::vector<size_t> dims(n);
         for (size_t i = 0; i < n; ++i)
             dims[i] = static_cast<size_t>(args[0].elemAsDouble(i));
-        outs[0] = MValue::cellND(dims.data(), static_cast<int>(n));
+        outs[0] = Value::cellND(dims.data(), static_cast<int>(n));
         return;
     }
     size_t r = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
-        outs[0] = MValue::cell(r, r);
+        outs[0] = Value::cell(r, r);
         return;
     }
     if (args.size() == 2) {
         size_t c = static_cast<size_t>(args[1].toScalar());
-        outs[0] = MValue::cell(r, c);
+        outs[0] = Value::cell(r, c);
         return;
     }
     if (args.size() == 3) {
         size_t c = static_cast<size_t>(args[1].toScalar());
         size_t p = static_cast<size_t>(args[2].toScalar());
-        outs[0] = (p > 0) ? MValue::cell3D(r, c, p) : MValue::cell(r, c);
+        outs[0] = (p > 0) ? Value::cell3D(r, c, p) : Value::cell(r, c);
         return;
     }
     // 4+ scalar args: cell(m, n, p, q, ...).
     std::vector<size_t> dims(args.size());
     for (size_t i = 0; i < args.size(); ++i)
         dims[i] = static_cast<size_t>(args[i].toScalar());
-    outs[0] = MValue::cellND(dims.data(), static_cast<int>(args.size()));
+    outs[0] = Value::cellND(dims.data(), static_cast<int>(args.size()));
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
 // Registration — keep the registerCellStructFunctions hook empty; actual
-// wiring happens in MStdLibrary.cpp via Phase-6c function pointers.
+// wiring happens in library.cpp via Phase-6c function pointers.
 // ════════════════════════════════════════════════════════════════════════
 
-namespace numkit::m {
+namespace numkit {
 
-void StdLibrary::registerCellStructFunctions(Engine &)
+void BuiltinLibrary::registerCellStructFunctions(Engine &)
 {
-    // Intentionally empty — see StdLibrary::install() in MStdLibrary.cpp.
+    // Intentionally empty — see BuiltinLibrary::install() in library.cpp.
 }
 
-} // namespace numkit::m
+} // namespace numkit

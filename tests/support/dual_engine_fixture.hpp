@@ -12,8 +12,8 @@
 
 #pragma once
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 #include <string>
@@ -24,7 +24,7 @@
 
 namespace m_test {
 
-using namespace numkit::m;
+using namespace numkit;
 
 // ── Backend parameter ────────────────────────────────────────
 enum class BackendParam { TreeWalker, VM };
@@ -43,7 +43,7 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
 
@@ -56,7 +56,7 @@ public:
 
     // ── Convenience helpers ──────────────────────────────────
 
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    Value eval(const std::string &code) { return engine.eval(code); }
 
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 
@@ -72,9 +72,9 @@ public:
         return v->toScalar();
     }
 
-    MValue *getVarPtr(const std::string &name) { return engine.getVariable(name); }
+    Value *getVarPtr(const std::string &name) { return engine.getVariable(name); }
 
-    void expectElem(const MValue &val, size_t i, double expected)
+    void expectElem(const Value &val, size_t i, double expected)
     {
         if (val.isLogical())
             EXPECT_DOUBLE_EQ(static_cast<double>(val.logicalData()[i]), expected) << "at index " << i;
@@ -82,7 +82,7 @@ public:
             EXPECT_DOUBLE_EQ(val(i), expected) << "at index " << i;
     }
 
-    void expectElem2D(const MValue &val, size_t r, size_t c, double expected)
+    void expectElem2D(const Value &val, size_t r, size_t c, double expected)
     {
         if (val.isLogical())
             EXPECT_DOUBLE_EQ(
@@ -92,8 +92,8 @@ public:
             EXPECT_DOUBLE_EQ(val(r, c), expected) << "at (" << r << "," << c << ")";
     }
 
-    size_t rows(const MValue &v) { return v.dims().rows(); }
-    size_t cols(const MValue &v) { return v.dims().cols(); }
+    size_t rows(const Value &v) { return v.dims().rows(); }
+    size_t cols(const Value &v) { return v.dims().cols(); }
 
     FigureManager &fm() { return engine.figureManager(); }
     AxesState &ax() { return fm().currentAxes(); }

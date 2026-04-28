@@ -5,17 +5,17 @@
 // non-singleton"). Implementations route through applyAlongDim from
 // MStdReductionHelpers, which handles vector/2D/3D layouts uniformly.
 
-#include <numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp>
+#include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
 
-#include <numkit/m/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
+#include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
-#include "MStdReductionHelpers.hpp"
-#include "backends/MStdNanReductions.hpp"
-#include "backends/MStdVarReduction.hpp"
+#include "helpers.hpp"
+#include "reduction_helpers.hpp"
+#include "backends/nan_reductions.hpp"
+#include "backends/var_reduction.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -27,7 +27,7 @@
 #include <utility>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 using detail::applyAlongDim;
 using detail::resolveDim;
@@ -45,7 +45,7 @@ namespace {
 void validateNormFlag(int w, const char *fn)
 {
     if (w != 0 && w != 1)
-        throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
+        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
 }
 
@@ -53,10 +53,10 @@ void validateNormFlag(int w, const char *fn)
 // input type without writing parallel single-precision kernels —
 // arithmetic happens at double precision (more precise than MATLAB)
 // then narrows at the end.
-MValue narrowToSingle(MValue d, Allocator *alloc)
+Value narrowToSingle(Value d, Allocator *alloc)
 {
-    if (d.type() != MType::DOUBLE) return d;
-    MValue r = createForDims(d.dims(), MType::SINGLE, alloc);
+    if (d.type() != ValueType::DOUBLE) return d;
+    Value r = createForDims(d.dims(), ValueType::SINGLE, alloc);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (size_t i = 0; i < d.numel(); ++i)
@@ -96,20 +96,20 @@ double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
     return acc / divisor;
 }
 
-inline MValue allocVarianceOutput(const MValue &x, int redDim, Allocator *alloc)
+inline Value allocVarianceOutput(const Value &x, int redDim, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc);
+        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return createMatrix(outShape, MType::DOUBLE, alloc);
+    return createMatrix(outShape, ValueType::DOUBLE, alloc);
 }
 
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
-void complexVarianceAlongDim(const MValue &x, int redDim, double *dst, int normFlag,
+void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFlag,
                              bool omitNan = false)
 {
     const auto &d = x.dims();
@@ -136,19 +136,19 @@ void complexVarianceAlongDim(const MValue &x, int redDim, double *dst, int normF
             reduceSlice(o * B + b, o * sliceLen * B + b, B);
 }
 
-MValue varianceComplex(const MValue &x, int normFlag, int dim,
+Value varianceComplex(const Value &x, int normFlag, int dim,
                        Allocator *alloc, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
     const Complex *src = x.complexData();
     if (x.isScalar() || x.dims().isVector()) {
         double v = complexVarianceFromSlice(src, x.numel(), normFlag, omitNan);
         if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
-        return MValue::scalar(v, alloc);
+        return Value::scalar(v, alloc);
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
-    MValue out = allocVarianceOutput(x, d, alloc);
+    Value out = allocVarianceOutput(x, d, alloc);
     complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan);
     if (sqrtIt) {
         double *p = out.doubleDataMut();
@@ -161,42 +161,42 @@ MValue varianceComplex(const MValue &x, int normFlag, int dim,
 
 } // namespace
 
-MValue var(Allocator &alloc, const MValue &x, int normFlag, int dim)
+Value var(Allocator &alloc, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "var");
-    if (x.type() == MType::COMPLEX)
+    if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/false);
     if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
+        return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
 
     const int d = resolveDim(x, dim, "var");
-    MValue r = applyAlongDim(x, d,
+    Value r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return varianceTwoPass(slice, n, normFlag);
         }, &alloc);
-    if (x.type() == MType::SINGLE)
+    if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), &alloc);
     return r;
 }
 
-MValue stdev(Allocator &alloc, const MValue &x, int normFlag, int dim)
+Value stdev(Allocator &alloc, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "std");
-    if (x.type() == MType::COMPLEX)
+    if (x.type() == ValueType::COMPLEX)
         return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/true);
     if (x.isEmpty())
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
-    if ((x.dims().isVector() || x.isScalar()) && x.type() == MType::DOUBLE)
-        return MValue::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+    if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
+        return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
 
     const int d = resolveDim(x, dim, "std");
-    MValue r = applyAlongDim(x, d,
+    Value r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
         }, &alloc);
-    if (x.type() == MType::SINGLE)
+    if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), &alloc);
     return r;
 }
@@ -228,17 +228,17 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
-MValue median(Allocator &alloc, const MValue &x, int dim)
+Value median(Allocator &alloc, const Value &x, int dim)
 {
-    if (x.type() == MType::COMPLEX)
-        throw MError("median: complex inputs are not supported (no defined ordering)",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error("median: complex inputs are not supported (no defined ordering)",
                      0, 0, "median", "", "m:median:complex");
     const int d = resolveDim(x, dim, "median");
-    MValue r = applyAlongDim(x, d,
+    Value r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return medianFromSlice(slice, n);
         }, &alloc);
-    if (x.type() == MType::SINGLE)
+    if (x.type() == ValueType::SINGLE)
         r = narrowToSingle(std::move(r), &alloc);
     return r;
 }
@@ -275,11 +275,11 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p)
 // quantile/prctile share the bulk of the logic. `pScale` converts the
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile).
-MValue quantileImpl(Allocator &alloc, const MValue &x, const MValue &p,
+Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
                     int dim, double pScale, const char *fn)
 {
     if (p.numel() == 0)
-        throw MError(std::string(fn) + ": p must be non-empty",
+        throw Error(std::string(fn) + ": p must be non-empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyP");
 
     // Normalize probabilities into a flat vector (so prctile sees /100)
@@ -288,7 +288,7 @@ MValue quantileImpl(Allocator &alloc, const MValue &x, const MValue &p,
     for (size_t i = 0; i < p.numel(); ++i) {
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
-            throw MError(std::string(fn) + ": probabilities out of range",
+            throw Error(std::string(fn) + ": probabilities out of range",
                          0, 0, fn, "", std::string("m:") + fn + ":badProb");
     }
 
@@ -309,14 +309,14 @@ MValue quantileImpl(Allocator &alloc, const MValue &x, const MValue &p,
     // We need to allocate the output explicitly because applyAlongDim
     // assumes 1 output per slice.
     if (x.isEmpty()) {
-        return MValue::matrix(0, 0, MType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
     }
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1×k row vector.
         std::vector<double> sorted(x.numel());
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
-        auto out = MValue::matrix(1, k, MType::DOUBLE, &alloc);
+        auto out = Value::matrix(1, k, ValueType::DOUBLE, &alloc);
         for (size_t i = 0; i < k; ++i)
             out.doubleDataMut()[i] = quantileFromSortedSlice(sorted.data(),
                                                               sorted.size(),
@@ -334,7 +334,7 @@ MValue quantileImpl(Allocator &alloc, const MValue &x, const MValue &p,
         case 3: outShape.pages = k; break;
         default: break;
     }
-    auto out = createMatrix(outShape, MType::DOUBLE, &alloc);
+    auto out = createMatrix(outShape, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
 
     const size_t R = dd.rows(), C = dd.cols();
@@ -385,12 +385,12 @@ MValue quantileImpl(Allocator &alloc, const MValue &x, const MValue &p,
 
 } // namespace
 
-MValue quantile(Allocator &alloc, const MValue &x, const MValue &p, int dim)
+Value quantile(Allocator &alloc, const Value &x, const Value &p, int dim)
 {
     return quantileImpl(alloc, x, p, dim, 1.0, "quantile");
 }
 
-MValue prctile(Allocator &alloc, const MValue &x, const MValue &p, int dim)
+Value prctile(Allocator &alloc, const Value &x, const Value &p, int dim)
 {
     return quantileImpl(alloc, x, p, dim, 0.01, "prctile");
 }
@@ -409,7 +409,7 @@ MValue prctile(Allocator &alloc, const MValue &x, const MValue &p, int dim)
 namespace {
 
 template <typename T>
-inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
+inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
 {
     if (typeMatch)
         return static_cast<const T *>(x.rawData())[i];
@@ -424,13 +424,13 @@ inline T readSrcAsT(const MValue &x, size_t i, bool typeMatch)
 }
 
 template <typename T>
-inline MValue makeScalarT(T v, MType outType, Allocator *alloc)
+inline Value makeScalarT(T v, ValueType outType, Allocator *alloc)
 {
-    if (outType == MType::DOUBLE)
-        return MValue::scalar(static_cast<double>(v), alloc);
-    if (outType == MType::LOGICAL)
-        return MValue::logicalScalar(v != 0, alloc);
-    auto r = MValue::matrix(1, 1, outType, alloc);
+    if (outType == ValueType::DOUBLE)
+        return Value::scalar(static_cast<double>(v), alloc);
+    if (outType == ValueType::LOGICAL)
+        return Value::logicalScalar(v != 0, alloc);
+    auto r = Value::matrix(1, 1, outType, alloc);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -495,7 +495,7 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
 // integer T) — matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
-void modeAlongDim(const MValue &x, int redDim, T *dst, double *dstC,
+void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC,
                   bool typeMatch)
 {
     const auto &d = x.dims();
@@ -536,27 +536,27 @@ void modeAlongDim(const MValue &x, int redDim, T *dst, double *dstC,
     }
 }
 
-inline std::pair<MValue, MValue>
-allocModeOutputs(const MValue &x, int redDim, MType outType, Allocator *alloc)
+inline std::pair<Value, Value>
+allocModeOutputs(const Value &x, int redDim, ValueType outType, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         auto shape = detail::outShapeForDimND(x, redDim);
-        return {MValue::matrixND(shape.data(), (int) shape.size(), outType, alloc),
-                MValue::matrixND(shape.data(), (int) shape.size(), MType::DOUBLE, alloc)};
+        return {Value::matrixND(shape.data(), (int) shape.size(), outType, alloc),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
     return {createMatrix(outShape, outType, alloc),
-            createMatrix(outShape, MType::DOUBLE, alloc)};
+            createMatrix(outShape, ValueType::DOUBLE, alloc)};
 }
 
 template <typename T>
-std::tuple<MValue, MValue>
-modeAllT(const MValue &x, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+modeAllT(const Value &x, ValueType outType, Allocator *alloc)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(MValue::matrix(0, 0, outType, alloc),
-                               MValue::matrix(0, 0, MType::DOUBLE, alloc));
+        return std::make_tuple(Value::matrix(0, 0, outType, alloc),
+                               Value::matrix(0, 0, ValueType::DOUBLE, alloc));
     }
     if (x.isScalar() || x.dims().isVector()) {
         std::vector<T> scratch(x.numel());
@@ -565,7 +565,7 @@ modeAllT(const MValue &x, MType outType, Allocator *alloc)
         T v; double c;
         modeFromSliceT<T>(scratch.data(), x.numel(), v, c);
         return std::make_tuple(makeScalarT<T>(v, outType, alloc),
-                               MValue::scalar(c, alloc));
+                               Value::scalar(c, alloc));
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, alloc);
@@ -577,25 +577,25 @@ modeAllT(const MValue &x, MType outType, Allocator *alloc)
 }
 
 template <typename T>
-std::tuple<MValue, MValue>
-modeAlongDimT(const MValue &x, int dim, MType outType, Allocator *alloc)
+std::tuple<Value, Value>
+modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(MValue::matrix(0, 0, outType, alloc),
-                               MValue::matrix(0, 0, MType::DOUBLE, alloc));
+        return std::make_tuple(Value::matrix(0, 0, outType, alloc),
+                               Value::matrix(0, 0, ValueType::DOUBLE, alloc));
     }
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity reduction: copy x as outType, frequencies = ones.
             const size_t n = x.numel();
-            MValue out, outC;
+            Value out, outC;
             if (x.dims().isVector()) {
                 out  = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
-                outC = createMatrix({x.dims().rows(), x.dims().cols(), 0}, MType::DOUBLE, alloc);
+                outC = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, alloc);
             } else {
                 out  = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
-                outC = MValue::scalar(1.0, alloc);
+                outC = Value::scalar(1.0, alloc);
                 return std::make_tuple(std::move(out), std::move(outC));
             }
             T *dst = static_cast<T *>(out.rawDataMut());
@@ -619,42 +619,42 @@ modeAlongDimT(const MValue &x, int dim, MType outType, Allocator *alloc)
 // Dispatch on x.type(). LOGICAL maps to T=uint8_t (storage type) and
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order → throw.
-std::tuple<MValue, MValue>
-dispatchMode(const MValue &x, int dim, Allocator *alloc, const char *fn)
+std::tuple<Value, Value>
+dispatchMode(const Value &x, int dim, Allocator *alloc, const char *fn)
 {
     const bool useDimReducer = (dim > 0);
-    auto run = [&](auto tag, MType outT) {
+    auto run = [&](auto tag, ValueType outT) {
         using T = decltype(tag);
         return useDimReducer
             ? modeAlongDimT<T>(x, dim, outT, alloc)
             : modeAllT<T>(x, outT, alloc);
     };
     switch (x.type()) {
-    case MType::DOUBLE:  return run(double  {}, MType::DOUBLE);
-    case MType::SINGLE:  return run(float   {}, MType::SINGLE);
-    case MType::INT8:    return run(int8_t  {}, MType::INT8);
-    case MType::INT16:   return run(int16_t {}, MType::INT16);
-    case MType::INT32:   return run(int32_t {}, MType::INT32);
-    case MType::INT64:   return run(int64_t {}, MType::INT64);
-    case MType::UINT8:   return run(uint8_t {}, MType::UINT8);
-    case MType::UINT16:  return run(uint16_t{}, MType::UINT16);
-    case MType::UINT32:  return run(uint32_t{}, MType::UINT32);
-    case MType::UINT64:  return run(uint64_t{}, MType::UINT64);
-    case MType::LOGICAL: return run(uint8_t {}, MType::LOGICAL);
-    case MType::CHAR:    return run(char    {}, MType::CHAR);
-    case MType::COMPLEX:
-        throw MError(std::string(fn) + ": not defined for complex inputs",
+    case ValueType::DOUBLE:  return run(double  {}, ValueType::DOUBLE);
+    case ValueType::SINGLE:  return run(float   {}, ValueType::SINGLE);
+    case ValueType::INT8:    return run(int8_t  {}, ValueType::INT8);
+    case ValueType::INT16:   return run(int16_t {}, ValueType::INT16);
+    case ValueType::INT32:   return run(int32_t {}, ValueType::INT32);
+    case ValueType::INT64:   return run(int64_t {}, ValueType::INT64);
+    case ValueType::UINT8:   return run(uint8_t {}, ValueType::UINT8);
+    case ValueType::UINT16:  return run(uint16_t{}, ValueType::UINT16);
+    case ValueType::UINT32:  return run(uint32_t{}, ValueType::UINT32);
+    case ValueType::UINT64:  return run(uint64_t{}, ValueType::UINT64);
+    case ValueType::LOGICAL: return run(uint8_t {}, ValueType::LOGICAL);
+    case ValueType::CHAR:    return run(char    {}, ValueType::CHAR);
+    case ValueType::COMPLEX:
+        throw Error(std::string(fn) + ": not defined for complex inputs",
                      0, 0, fn, "", std::string("m:") + fn + ":complex");
     default:
-        throw MError(std::string(fn) + ": unsupported input type",
+        throw Error(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
     }
 }
 
 } // namespace
 
-std::tuple<MValue, MValue>
-mode(Allocator &alloc, const MValue &x, int dim)
+std::tuple<Value, Value>
+mode(Allocator &alloc, const Value &x, int dim)
 {
     const int d = resolveDim(x, dim, "mode");
     return dispatchMode(x, d, &alloc, "mode");
@@ -667,26 +667,26 @@ mode(Allocator &alloc, const MValue &x, int dim)
 // ────────────────────────────────────────────────────────────────────
 namespace {
 
-void validateCovInputs(const MValue &x, const char *fn)
+void validateCovInputs(const Value &x, const char *fn)
 {
-    if (x.type() == MType::COMPLEX)
-        throw MError(std::string(fn) + ": complex inputs are not supported",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error(std::string(fn) + ": complex inputs are not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":complex");
     if (x.dims().is3D() || x.dims().ndim() > 2)
-        throw MError(std::string(fn) + ": only vector and 2D matrix inputs are supported",
+        throw Error(std::string(fn) + ": only vector and 2D matrix inputs are supported",
                      0, 0, fn, "", std::string("m:") + fn + ":rank");
 }
 
 void validateNormFlagCov(int w, const char *fn)
 {
     if (w != 0 && w != 1)
-        throw MError(std::string(fn) + ": normalization flag must be 0 or 1",
+        throw Error(std::string(fn) + ": normalization flag must be 0 or 1",
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
 }
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
 // treated as a single column. Returns the raw data, n, and p.
-void readMatrix(const MValue &x, std::vector<double> &out,
+void readMatrix(const Value &x, std::vector<double> &out,
                 std::size_t &n, std::size_t &p)
 {
     if (x.dims().isVector() || x.isScalar()) {
@@ -697,7 +697,7 @@ void readMatrix(const MValue &x, std::vector<double> &out,
         p = x.dims().cols();
     }
     out.assign(n * p, 0.0);
-    if (x.type() == MType::DOUBLE && (x.dims().isVector() || x.isScalar()
+    if (x.type() == ValueType::DOUBLE && (x.dims().isVector() || x.isScalar()
                                        || (!x.dims().is3D() && x.dims().ndim() == 2))) {
         // Column-major source; for a single-column vector either
         // orientation already lays the elements contiguously.
@@ -723,10 +723,10 @@ void centerColumns(double *data, std::size_t n, std::size_t p)
 }
 
 // covImpl: take a centered n×p buffer, compute X' * X / divisor → p×p.
-MValue covMatrixFromCentered(Allocator &alloc, const double *X,
+Value covMatrixFromCentered(Allocator &alloc, const double *X,
                              std::size_t n, std::size_t p, double divisor)
 {
-    auto out = MValue::matrix(p, p, MType::DOUBLE, &alloc);
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < p; ++i)
         for (std::size_t j = 0; j < p; ++j) {
@@ -740,7 +740,7 @@ MValue covMatrixFromCentered(Allocator &alloc, const double *X,
 
 } // namespace
 
-MValue cov(Allocator &alloc, const MValue &x, int normFlag)
+Value cov(Allocator &alloc, const Value &x, int normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -750,8 +750,8 @@ MValue cov(Allocator &alloc, const MValue &x, int normFlag)
     readMatrix(x, data, n, p);
     if (n == 0) {
         // MATLAB: cov of empty → NaN (or empty p×p depending on shape).
-        if (p == 1) return MValue::scalar(std::nan(""), &alloc);
-        return MValue::matrix(p, p, MType::DOUBLE, &alloc);
+        if (p == 1) return Value::scalar(std::nan(""), &alloc);
+        return Value::matrix(p, p, ValueType::DOUBLE, &alloc);
     }
     centerColumns(data.data(), n, p);
 
@@ -763,25 +763,25 @@ MValue cov(Allocator &alloc, const MValue &x, int normFlag)
         // Vector input → return scalar variance.
         double s = 0.0;
         for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
-        return MValue::scalar(s / divisor, &alloc);
+        return Value::scalar(s / divisor, &alloc);
     }
     return covMatrixFromCentered(alloc, data.data(), n, p, divisor);
 }
 
-MValue cov(Allocator &alloc, const MValue &x, const MValue &y, int normFlag)
+Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
     validateCovInputs(y, "cov");
     if (!x.dims().isVector() || !y.dims().isVector())
-        throw MError("cov: two-input form requires vector arguments",
+        throw Error("cov: two-input form requires vector arguments",
                      0, 0, "cov", "", "m:cov:notVector");
     if (x.numel() != y.numel())
-        throw MError("cov: x and y must have the same length",
+        throw Error("cov: x and y must have the same length",
                      0, 0, "cov", "", "m:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
-        return MValue::matrix(2, 2, MType::DOUBLE, &alloc);
+        return Value::matrix(2, 2, ValueType::DOUBLE, &alloc);
     std::vector<double> data(n * 2);
     for (std::size_t i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
@@ -796,13 +796,13 @@ MValue cov(Allocator &alloc, const MValue &x, const MValue &y, int normFlag)
 
 namespace {
 
-MValue corrcoefFromCov(Allocator &alloc, const MValue &C)
+Value corrcoefFromCov(Allocator &alloc, const Value &C)
 {
     if (C.dims().rows() != C.dims().cols())
-        throw MError("corrcoef: covariance matrix must be square",
+        throw Error("corrcoef: covariance matrix must be square",
                      0, 0, "corrcoef", "", "m:corrcoef:internal");
     const std::size_t p = C.dims().rows();
-    auto R = MValue::matrix(p, p, MType::DOUBLE, &alloc);
+    auto R = Value::matrix(p, p, ValueType::DOUBLE, &alloc);
     if (p == 0) return R;
     const double *cd = C.doubleData();
     double *rd = R.doubleDataMut();
@@ -819,12 +819,12 @@ MValue corrcoefFromCov(Allocator &alloc, const MValue &C)
 
 } // namespace
 
-MValue corrcoef(Allocator &alloc, const MValue &x)
+Value corrcoef(Allocator &alloc, const Value &x)
 {
     // Special case: vector input → 1×1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
     if (x.dims().isVector() || x.isScalar()) {
-        auto R = MValue::matrix(1, 1, MType::DOUBLE, &alloc);
+        auto R = Value::matrix(1, 1, ValueType::DOUBLE, &alloc);
         R.doubleDataMut()[0] = 1.0;
         return R;
     }
@@ -832,7 +832,7 @@ MValue corrcoef(Allocator &alloc, const MValue &x)
     return corrcoefFromCov(alloc, C);
 }
 
-MValue corrcoef(Allocator &alloc, const MValue &x, const MValue &y)
+Value corrcoef(Allocator &alloc, const Value &x, const Value &y)
 {
     auto C = cov(alloc, x, y);
     return corrcoefFromCov(alloc, C);
@@ -869,12 +869,12 @@ namespace {
 // If the last positional arg is a 'omitnan'/'includenan' string,
 // strip it from the count and return the omit flag. Throws on unknown
 // trailing strings so user errors don't get silently ignored.
-size_t stripNanFlag(Span<const MValue> args, bool &omitNan, const char *fn)
+size_t stripNanFlag(Span<const Value> args, bool &omitNan, const char *fn)
 {
     omitNan = false;
     if (args.empty()) return 0;
-    const MValue &last = args[args.size() - 1];
-    if (last.type() != MType::CHAR) return args.size();
+    const Value &last = args[args.size() - 1];
+    if (last.type() != ValueType::CHAR) return args.size();
     std::string s = last.toString();
     std::transform(s.begin(), s.end(), s.begin(),
                    [](unsigned char c) { return std::tolower(c); });
@@ -884,10 +884,10 @@ size_t stripNanFlag(Span<const MValue> args, bool &omitNan, const char *fn)
     return args.size();
 }
 
-inline void rejectComplexOmitNan(const MValue &x, const char *fn)
+inline void rejectComplexOmitNan(const Value &x, const char *fn)
 {
-    if (x.type() == MType::COMPLEX)
-        throw MError(std::string(fn) + ": 'omitnan' for complex input is not supported",
+    if (x.type() == ValueType::COMPLEX)
+        throw Error(std::string(fn) + ": 'omitnan' for complex input is not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":complexOmitNan");
 }
 
@@ -895,11 +895,11 @@ inline void rejectComplexOmitNan(const MValue &x, const char *fn)
 
 namespace detail {
 
-void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
-        throw MError("var: requires at least 1 argument",
+        throw Error("var: requires at least 1 argument",
                      0, 0, "var", "", "m:var:nargin");
     bool omitNan = false;
     const size_t n = stripNanFlag(args, omitNan, "var");
@@ -907,14 +907,14 @@ void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
     if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
     if (omitNan) {
-        if (args[0].type() == MType::COMPLEX) {
+        if (args[0].type() == ValueType::COMPLEX) {
             outs[0] = varianceComplex(args[0], w, dim,
                                       &ctx.engine->allocator(),
                                       /*sqrtIt=*/false, /*omitNan=*/true);
             return;
         }
-        MValue r = stats::nanvar(ctx.engine->allocator(), args[0], w, dim);
-        if (args[0].type() == MType::SINGLE)
+        Value r = stats::nanvar(ctx.engine->allocator(), args[0], w, dim);
+        if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
@@ -922,11 +922,11 @@ void var_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = var(ctx.engine->allocator(), args[0], w, dim);
 }
 
-void std_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
-        throw MError("std: requires at least 1 argument",
+        throw Error("std: requires at least 1 argument",
                      0, 0, "std", "", "m:std:nargin");
     bool omitNan = false;
     const size_t n = stripNanFlag(args, omitNan, "std");
@@ -934,14 +934,14 @@ void std_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     if (n >= 2 && !args[1].isEmpty()) w = static_cast<int>(args[1].toScalar());
     if (n >= 3 && !args[2].isEmpty()) dim = static_cast<int>(args[2].toScalar());
     if (omitNan) {
-        if (args[0].type() == MType::COMPLEX) {
+        if (args[0].type() == ValueType::COMPLEX) {
             outs[0] = varianceComplex(args[0], w, dim,
                                       &ctx.engine->allocator(),
                                       /*sqrtIt=*/true, /*omitNan=*/true);
             return;
         }
-        MValue r = stats::nanstdev(ctx.engine->allocator(), args[0], w, dim);
-        if (args[0].type() == MType::SINGLE)
+        Value r = stats::nanstdev(ctx.engine->allocator(), args[0], w, dim);
+        if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
@@ -949,24 +949,24 @@ void std_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = stdev(ctx.engine->allocator(), args[0], w, dim);
 }
 
-void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
-        throw MError("median: requires at least 1 argument",
+        throw Error("median: requires at least 1 argument",
                      0, 0, "median", "", "m:median:nargin");
     bool omitNan = false;
     size_t n = stripNanFlag(args, omitNan, "median");
     int dim = 0;
     bool isAll = false;
     if (n >= 2 && !args[1].isEmpty()) {
-        const MValue &a = args[1];
-        if (a.type() == MType::CHAR) {
+        const Value &a = args[1];
+        if (a.type() == ValueType::CHAR) {
             std::string s = a.toString();
             std::transform(s.begin(), s.end(), s.begin(),
                            [](unsigned char c) { return std::tolower(c); });
             if (s == "all") isAll = true;
-            else throw MError("median: unknown flag '" + s + "'",
+            else throw Error("median: unknown flag '" + s + "'",
                               0, 0, "median", "", "m:median:badFlag");
         } else {
             dim = static_cast<int>(a.toScalar());
@@ -974,12 +974,12 @@ void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     }
     if (isAll) {
         // 'all' → flatten + median over all elements (skipping NaN if omitnan).
-        if (args[0].type() == MType::COMPLEX)
-            throw MError("median: complex inputs are not supported",
+        if (args[0].type() == ValueType::COMPLEX)
+            throw Error("median: complex inputs are not supported",
                          0, 0, "median", "", "m:median:complex");
         const size_t total = args[0].numel();
         std::vector<double> scratch(total);
-        const bool fastDouble = (args[0].type() == MType::DOUBLE);
+        const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
             std::copy(args[0].doubleData(), args[0].doubleData() + total, scratch.data());
         else
@@ -987,16 +987,16 @@ void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
         size_t k = total;
         if (omitNan) k = compactNonNan(scratch.data(), total);
         double v = medianFromSlice(scratch.data(), k);
-        MValue r = MValue::scalar(v, &ctx.engine->allocator());
-        if (args[0].type() == MType::SINGLE)
+        Value r = Value::scalar(v, &ctx.engine->allocator());
+        if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        MValue r = stats::nanmedian(ctx.engine->allocator(), args[0], dim);
-        if (args[0].type() == MType::SINGLE)
+        Value r = stats::nanmedian(ctx.engine->allocator(), args[0], dim);
+        if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), &ctx.engine->allocator());
         outs[0] = std::move(r);
         return;
@@ -1004,11 +1004,11 @@ void median_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = median(ctx.engine->allocator(), args[0], dim);
 }
 
-void quantile_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("quantile: requires (X, p[, dim])",
+        throw Error("quantile: requires (X, p[, dim])",
                      0, 0, "quantile", "", "m:quantile:nargin");
     int dim = 0;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -1016,11 +1016,11 @@ void quantile_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = quantile(ctx.engine->allocator(), args[0], args[1], dim);
 }
 
-void prctile_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("prctile: requires (X, p[, dim])",
+        throw Error("prctile: requires (X, p[, dim])",
                      0, 0, "prctile", "", "m:prctile:nargin");
     int dim = 0;
     if (args.size() >= 3 && !args[2].isEmpty())
@@ -1028,11 +1028,11 @@ void prctile_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = prctile(ctx.engine->allocator(), args[0], args[1], dim);
 }
 
-void mode_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
+void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.empty())
-        throw MError("mode: requires at least 1 argument",
+        throw Error("mode: requires at least 1 argument",
                      0, 0, "mode", "", "m:mode:nargin");
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
@@ -1045,11 +1045,11 @@ void mode_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs,
 
 // skewness_reg / kurtosis_reg moved to libs/stats/src/moments/moments.cpp
 
-void cov_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
-        throw MError("cov: requires at least 1 argument",
+        throw Error("cov: requires at least 1 argument",
                      0, 0, "cov", "", "m:cov:nargin");
     Allocator &alloc = ctx.engine->allocator();
     if (args.size() == 1) {
@@ -1075,11 +1075,11 @@ void cov_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     outs[0] = cov(alloc, args[0], args[1], w);
 }
 
-void corrcoef_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.empty())
-        throw MError("corrcoef: requires at least 1 argument",
+        throw Error("corrcoef: requires at least 1 argument",
                      0, 0, "corrcoef", "", "m:corrcoef:nargin");
     Allocator &alloc = ctx.engine->allocator();
     if (args.size() == 1) {
@@ -1093,4 +1093,4 @@ void corrcoef_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

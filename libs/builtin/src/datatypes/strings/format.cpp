@@ -1,23 +1,23 @@
 // libs/builtin/src/MStdFormat.cpp
 
-#include <numkit/m/builtin/datatypes/strings/format.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/builtin/datatypes/strings/format.hpp>
+#include <numkit/builtin/library.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cctype>
 #include <cstdio>
 #include <sstream>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-std::string formatOnce(const std::string &fmt, Span<const MValue> args, size_t argStart)
+std::string formatOnce(const std::string &fmt, Span<const Value> args, size_t argStart)
 {
     std::ostringstream out;
     size_t ai = argStart;
@@ -159,13 +159,13 @@ size_t countFormatSpecs(const std::string &fmt)
 }
 
 std::string formatCyclic(Allocator &alloc, const std::string &fmt,
-                         Span<const MValue> args, size_t argStart)
+                         Span<const Value> args, size_t argStart)
 {
     Allocator *p = &alloc;
-    std::vector<MValue> stream;
+    std::vector<Value> stream;
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
-        const MValue &a = args[i];
+        const Value &a = args[i];
         if (a.isChar() || a.isScalar()) {
             stream.push_back(a);
             continue;
@@ -173,34 +173,34 @@ std::string formatCyclic(Allocator &alloc, const std::string &fmt,
         size_t n = a.numel();
         for (size_t j = 0; j < n; ++j) {
             double v;
-            if (a.type() == MType::DOUBLE) v = a.doubleData()[j];
+            if (a.type() == ValueType::DOUBLE) v = a.doubleData()[j];
             else if (a.isLogical())        v = a.logicalData()[j] ? 1.0 : 0.0;
             else                           v = a(j);
-            stream.push_back(MValue::scalar(v, p));
+            stream.push_back(Value::scalar(v, p));
         }
     }
 
     size_t nSpecs = countFormatSpecs(fmt);
     if (nSpecs == 0 || stream.size() <= nSpecs)
-        return formatOnce(fmt, Span<const MValue>{stream.data(), stream.size()}, 0);
+        return formatOnce(fmt, Span<const Value>{stream.data(), stream.size()}, 0);
 
     std::string out;
     size_t pos = 0;
     while (pos < stream.size()) {
         size_t end = std::min(pos + nSpecs, stream.size());
-        out += formatOnce(fmt, Span<const MValue>{stream.data() + pos, end - pos}, 0);
+        out += formatOnce(fmt, Span<const Value>{stream.data() + pos, end - pos}, 0);
         pos = end;
     }
     return out;
 }
 
-MValue sprintf(Allocator &alloc, const MValue &fmt, Span<const MValue> args)
+Value sprintf(Allocator &alloc, const Value &fmt, Span<const Value> args)
 {
     Allocator *p = &alloc;
     if (!fmt.isChar())
-        return MValue::fromString("", p);
+        return Value::fromString("", p);
     std::string result = formatCyclic(alloc, fmt.toString(), args, 0);
-    return MValue::fromString(result, p);
+    return Value::fromString(result, p);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -209,17 +209,17 @@ MValue sprintf(Allocator &alloc, const MValue &fmt, Span<const MValue> args)
 
 namespace detail {
 
-void sprintf_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void sprintf_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     Allocator &alloc = ctx.engine->allocator();
     if (args.empty()) {
-        outs[0] = MValue::fromString("", &alloc);
+        outs[0] = Value::fromString("", &alloc);
         return;
     }
-    Span<const MValue> rest{args.data() + 1, args.size() - 1};
+    Span<const Value> rest{args.data() + 1, args.size() - 1};
     outs[0] = sprintf(alloc, args[0], rest);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

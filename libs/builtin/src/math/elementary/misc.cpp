@@ -3,31 +3,31 @@
 // Miscellaneous elementary-math builtins: deg2rad, rad2deg, mod, rem,
 // hypot, nthroot.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/math/elementary/misc.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/elementary/misc.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-MValue deg2rad(Allocator &alloc, const MValue &x)
+Value deg2rad(Allocator &alloc, const Value &x)
 {
     constexpr double k = 3.14159265358979323846 / 180.0;
     return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
 }
 
-MValue rad2deg(Allocator &alloc, const MValue &x)
+Value rad2deg(Allocator &alloc, const Value &x)
 {
     constexpr double k = 180.0 / 3.14159265358979323846;
     return unaryDouble(x, [k](double v) { return v * k; }, &alloc);
 }
 
-MValue mod(Allocator &alloc, const MValue &a, const MValue &b)
+Value mod(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b,
                              [](double aa, double bb) {
@@ -36,12 +36,12 @@ MValue mod(Allocator &alloc, const MValue &a, const MValue &b)
                              &alloc);
 }
 
-MValue rem(Allocator &alloc, const MValue &a, const MValue &b)
+Value rem(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, &alloc);
 }
 
-MValue hypot(Allocator &alloc, const MValue &x, const MValue &y)
+Value hypot(Allocator &alloc, const Value &x, const Value &y)
 {
     return elementwiseDouble(x, y,
         [](double a, double b) { return std::hypot(a, b); }, &alloc);
@@ -50,7 +50,7 @@ MValue hypot(Allocator &alloc, const MValue &x, const MValue &y)
 // nthroot(x, n): real n-th root. For negative x with odd integer n,
 // returns the negative real root (sign(x) * |x|^(1/n)). For negative x
 // with non-odd n, returns NaN.
-MValue nthroot(Allocator &alloc, const MValue &x, const MValue &n)
+Value nthroot(Allocator &alloc, const Value &x, const Value &n)
 {
     return elementwiseDouble(x, n, [](double xv, double nv) {
         if (nv == 0.0) return std::nan("");
@@ -67,11 +67,11 @@ MValue nthroot(Allocator &alloc, const MValue &x, const MValue &n)
 namespace detail {
 
 #define NK_UNARY_ADAPTER(name, fn)                                              \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
+                    Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         if (args.empty())                                                        \
-            throw MError(#name ": requires 1 argument",                          \
+            throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
     }
@@ -81,38 +81,38 @@ NK_UNARY_ADAPTER(rad2deg, rad2deg)
 
 #undef NK_UNARY_ADAPTER
 
-void mod_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void mod_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("mod: requires 2 arguments",
+        throw Error("mod: requires 2 arguments",
                      0, 0, "mod", "", "m:mod:nargin");
     outs[0] = mod(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void rem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("rem: requires 2 arguments",
+        throw Error("rem: requires 2 arguments",
                      0, 0, "rem", "", "m:rem:nargin");
     outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void hypot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void hypot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("hypot: requires 2 arguments",
+        throw Error("hypot: requires 2 arguments",
                      0, 0, "hypot", "", "m:hypot:nargin");
     outs[0] = hypot(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void nthroot_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void nthroot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("nthroot: requires 2 arguments",
+        throw Error("nthroot: requires 2 arguments",
                      0, 0, "nthroot", "", "m:nthroot:nargin");
     outs[0] = nthroot(ctx.engine->allocator(), args[0], args[1]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

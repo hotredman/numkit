@@ -1,4 +1,4 @@
 set(GRAPHICSLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/MGraphicsLibrary.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     PARENT_SCOPE
 )

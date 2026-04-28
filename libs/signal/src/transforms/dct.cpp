@@ -4,12 +4,12 @@
 // Split from MDspGaps. Direct O(N²); FFT-based path can be added
 // later if benches show dct hot.
 
-#include <numkit/m/signal/transforms/dct.hpp>
+#include <numkit/signal/transforms/dct.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 
@@ -17,15 +17,15 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
 // dct:  X[k] = w[k] * sum_n x[n] * cos(pi (2n+1) k / (2N))
 // idct: x[n] = sum_k w[k] * X[k] * cos(pi (2n+1) k / (2N))
 //   where w[0] = sqrt(1/N), w[k>0] = sqrt(2/N).
-MValue dct(Allocator &alloc, const MValue &x)
+Value dct(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     if (N == 0) return r;
     const double *xd = x.doubleData();
     double *X  = r.doubleDataMut();
@@ -44,10 +44,10 @@ MValue dct(Allocator &alloc, const MValue &x)
     return r;
 }
 
-MValue idct(Allocator &alloc, const MValue &x)
+Value idct(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
-    auto r = createLike(x, MType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, &alloc);
     if (N == 0) return r;
     const double *Xd = x.doubleData();
     double *xt = r.doubleDataMut();
@@ -68,24 +68,24 @@ MValue idct(Allocator &alloc, const MValue &x)
 
 namespace detail {
 
-void dct_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.empty())
-        throw MError("dct: requires 1 argument",
+        throw Error("dct: requires 1 argument",
                      0, 0, "dct", "", "m:dct:nargin");
     outs[0] = dct(ctx.engine->allocator(), args[0]);
 }
 
-void idct_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
     if (args.empty())
-        throw MError("idct: requires 1 argument",
+        throw Error("idct: requires 1 argument",
                      0, 0, "idct", "", "m:idct:nargin");
     outs[0] = idct(ctx.engine->allocator(), args[0]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

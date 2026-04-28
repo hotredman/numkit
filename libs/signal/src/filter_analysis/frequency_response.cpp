@@ -4,12 +4,12 @@
 // grpdelay. Filter design (butter / fir1) lives in
 // filter_design/filter_design.cpp.
 
-#include <numkit/m/signal/filter_analysis/frequency_response.hpp>
+#include <numkit/signal/filter_analysis/frequency_response.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "../MDspHelpers.hpp"   // Complex typedef
+#include "../dsp_helpers.hpp"   // Complex typedef
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -20,17 +20,17 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
-std::tuple<MValue, MValue>
-freqz(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
+std::tuple<Value, Value>
+freqz(Allocator &alloc, const Value &b, const Value &a, size_t npts)
 {
     const double *bd = b.doubleData();
     const double *ad = a.doubleData();
     const size_t nb = b.numel(), na = a.numel();
 
-    auto W = MValue::matrix(npts, 1, MType::DOUBLE, &alloc);
-    auto H = MValue::complexMatrix(npts, 1, &alloc);
+    auto W = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
+    auto H = Value::complexMatrix(npts, 1, &alloc);
 
     for (size_t k = 0; k < npts; ++k) {
         const double w = M_PI * k / (npts - 1);
@@ -57,7 +57,7 @@ freqz(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
 namespace {
 
 // Local unwrap (default tolerance π) — keeps phasez free of inter-file
-// dependencies on filter_analysis/unwrap.cpp's MValue-typed unwrap().
+// dependencies on filter_analysis/unwrap.cpp's Value-typed unwrap().
 void unwrapInPlace(double *p, size_t n)
 {
     if (n < 2) return;
@@ -74,11 +74,11 @@ void unwrapInPlace(double *p, size_t n)
 
 } // namespace
 
-std::tuple<MValue, MValue>
-phasez(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
+std::tuple<Value, Value>
+phasez(Allocator &alloc, const Value &b, const Value &a, size_t npts)
 {
     auto [H, W] = freqz(alloc, b, a, npts);
-    auto phi = MValue::matrix(npts, 1, MType::DOUBLE, &alloc);
+    auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
     const Complex *hd = H.complexData();
     double *pd = phi.doubleDataMut();
     for (size_t k = 0; k < npts; ++k)
@@ -87,11 +87,11 @@ phasez(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
     return std::make_tuple(std::move(phi), std::move(W));
 }
 
-std::tuple<MValue, MValue>
-grpdelay(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
+std::tuple<Value, Value>
+grpdelay(Allocator &alloc, const Value &b, const Value &a, size_t npts)
 {
     auto [phi, W] = phasez(alloc, b, a, npts);
-    auto gd = MValue::matrix(npts, 1, MType::DOUBLE, &alloc);
+    auto gd = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
     const double *p = phi.doubleData();
     const double *w = W.doubleData();
     double *g = gd.doubleDataMut();
@@ -110,10 +110,10 @@ grpdelay(Allocator &alloc, const MValue &b, const MValue &a, size_t npts)
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
-void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("freqz: requires at least 2 arguments",
+        throw Error("freqz: requires at least 2 arguments",
                      0, 0, "freqz", "", "m:freqz:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
 
@@ -123,10 +123,10 @@ void freqz_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
         outs[1] = std::move(W);
 }
 
-void phasez_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("phasez: requires at least 2 arguments",
+        throw Error("phasez: requires at least 2 arguments",
                      0, 0, "phasez", "", "m:phasez:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
     auto [phi, W] = phasez(ctx.engine->allocator(), args[0], args[1], npts);
@@ -134,10 +134,10 @@ void phasez_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Call
     if (nargout > 1) outs[1] = std::move(W);
 }
 
-void grpdelay_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("grpdelay: requires at least 2 arguments",
+        throw Error("grpdelay: requires at least 2 arguments",
                      0, 0, "grpdelay", "", "m:grpdelay:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
     auto [gd, W] = grpdelay(ctx.engine->allocator(), args[0], args[1], npts);
@@ -147,4 +147,4 @@ void grpdelay_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

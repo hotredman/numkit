@@ -1,18 +1,18 @@
 // tests/filter_test.cpp
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit::m;
+using namespace numkit;
 
 class FilterTest : public ::testing::Test
 {
 public:
     Engine engine;
-    void SetUp() override { StdLibrary::install(engine); }
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    void SetUp() override { BuiltinLibrary::install(engine); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
 

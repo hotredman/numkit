@@ -129,7 +129,7 @@ TEST_P(CombinatoricsTest, PermsPromotesIntegerToDouble)
 {
     eval("P = perms(int32([10 20]));");
     auto *P = getVarPtr("P");
-    EXPECT_EQ(P->type(), MType::DOUBLE);
+    EXPECT_EQ(P->type(), ValueType::DOUBLE);
     EXPECT_DOUBLE_EQ((*P)(0, 0), 20.0);
     EXPECT_DOUBLE_EQ((*P)(0, 1), 10.0);
 }

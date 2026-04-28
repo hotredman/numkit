@@ -1,27 +1,27 @@
 // libs/builtin/src/MStdNDManip.cpp
 //
-// Phase 6: N-D array manipulation. numkit-m's MValue is capped at
+// Phase 6: N-D array manipulation. numkit-m's Value is capped at
 // 3D so the perm vector must have length 2 or 3. The general
 // approach: compute output dims from input dims via the permutation,
 // then iterate over output indices and compute the corresponding
 // input index. Pure scalar gather; no SIMD opportunity in the
 // general case (input strides differ per axis after permutation).
 
-#include <numkit/m/builtin/lang/arrays/nd_manip.hpp>
+#include <numkit/builtin/lang/arrays/nd_manip.hpp>
 
-#include <numkit/m/builtin/lang/arrays/matrix.hpp>  // reshape, horzcat, vertcat
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MShapeOps.hpp>      // computeStridesColMajor, incrementCoords
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/builtin/lang/arrays/matrix.hpp>  // reshape, horzcat, vertcat
+#include <numkit/core/engine.hpp>
+#include <numkit/core/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cstring>
 #include <numeric>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 namespace {
 
@@ -31,13 +31,13 @@ size_t validatePerm(const std::vector<int> &perm, const char *fn)
 {
     const size_t N = perm.size();
     if (N == 0)
-        throw MError(std::string(fn) + ": perm vector must not be empty",
+        throw Error(std::string(fn) + ": perm vector must not be empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyPerm");
     std::vector<int> sorted = perm;
     std::sort(sorted.begin(), sorted.end());
     for (size_t i = 0; i < N; ++i) {
         if (sorted[i] != static_cast<int>(i + 1))
-            throw MError(std::string(fn) + ": perm must be a permutation of 1..N",
+            throw Error(std::string(fn) + ": perm must be a permutation of 1..N",
                          0, 0, fn, "", std::string("m:") + fn + ":badPerm");
     }
     return N;
@@ -110,14 +110,14 @@ inline bool isTransposePerm(const std::vector<int> &p3)
 //   B(i_1, i_2, ..., i_N) = A(i_{p_1}, i_{p_2}, ..., i_{p_N})
 // i.e. output axis k corresponds to input axis perm[k]. So the size
 // of output along axis k equals the size of input along perm[k].
-MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
+Value permute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
 {
     validatePerm(perm, "permute");
 
     const auto &dd = x.dims();
     const int inNd = std::max<int>(dd.ndim(), static_cast<int>(perm.size()));
     if (inNd > Dims::kMaxRank)
-        throw MError("permute: rank exceeds 32",
+        throw Error("permute: rank exceeds 32",
                      0, 0, "permute", "", "m:permute:tooManyDims");
 
     // All shape arrays on the stack — no per-call heap traffic. Avoids
@@ -132,8 +132,8 @@ MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
     for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
 
     // 2D / 3D fast path uses createMatrix / createMatrix3d via matrixND;
-    // ≥ 4D goes through MValue::matrixND. Trailing 1s are kept.
-    auto r = MValue::matrixND(outDimsArr, inNd, MType::DOUBLE, &alloc);
+    // ≥ 4D goes through Value::matrixND. Trailing 1s are kept.
+    auto r = Value::matrixND(outDimsArr, inNd, ValueType::DOUBLE, &alloc);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -213,7 +213,7 @@ MValue permute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
     return r;
 }
 
-MValue ipermute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
+Value ipermute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
 {
     validatePerm(perm, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
@@ -239,7 +239,7 @@ MValue ipermute(Allocator &alloc, const MValue &x, const std::vector<int> &perm)
 // squeeze is essentially reshape-with-new-dims. For 1×3×4 this means
 // the data layout still matches: the singleton dim collapses cleanly
 // because a stride of 1 doesn't introduce gaps.
-MValue squeeze(Allocator &alloc, const MValue &x)
+Value squeeze(Allocator &alloc, const Value &x)
 {
     const auto &dd = x.dims();
     const int nd = dd.ndim();
@@ -271,9 +271,9 @@ MValue squeeze(Allocator &alloc, const MValue &x)
 // stack 2D pages or extend 3D page count. Other dims throw.
 namespace {
 
-MValue catDim3(Allocator &alloc, const MValue *values, size_t count)
+Value catDim3(Allocator &alloc, const Value *values, size_t count)
 {
-    if (count == 0) return MValue::empty();
+    if (count == 0) return Value::empty();
 
     // First non-empty input fixes (R, C); empties are tolerated and
     // skipped (matches MATLAB).
@@ -290,14 +290,14 @@ MValue catDim3(Allocator &alloc, const MValue *values, size_t count)
             anchored = true;
         } else {
             if (dd.rows() != R || dd.cols() != C)
-                throw MError("cat: dim 3 inputs must agree on rows and cols",
+                throw Error("cat: dim 3 inputs must agree on rows and cols",
                              0, 0, "cat", "", "m:cat:badDims");
         }
         totalPages += dd.is3D() ? dd.pages() : 1;
     }
-    if (!anchored) return MValue::empty();
+    if (!anchored) return Value::empty();
 
-    auto r = MValue::matrix3d(R, C, totalPages, MType::DOUBLE, &alloc);
+    auto r = Value::matrix3d(R, C, totalPages, ValueType::DOUBLE, &alloc);
     double *dst = r.doubleDataMut();
     size_t pageOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -317,9 +317,9 @@ MValue catDim3(Allocator &alloc, const MValue *values, size_t count)
 // max(dim, max input ndim). All numeric types supported via byte-copy
 // (elementSize-based). All inputs must share a type (no implicit
 // promotion). CELL / STRUCT / STRING / FUNC_HANDLE rejected.
-MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
+Value catND(Allocator &alloc, int dim, const Value *values, size_t count)
 {
-    if (count == 0) return MValue::empty();
+    if (count == 0) return Value::empty();
     const int k = dim - 1;
 
     // Determine output rank: at least `dim`, plus any input may force higher.
@@ -331,21 +331,21 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
     }
     constexpr int kMaxNd = Dims::kMaxRank;
     if (outNdim > kMaxNd)
-        throw MError("cat: rank exceeds 32",
+        throw Error("cat: rank exceeds 32",
                      0, 0, "cat", "", "m:cat:tooManyDims");
 
     size_t outDim[kMaxNd];
     for (int j = 0; j < outNdim; ++j) outDim[j] = 0;
     bool anchored = false;
-    MType outType = MType::DOUBLE;
+    ValueType outType = ValueType::DOUBLE;
 
     for (size_t i = 0; i < count; ++i) {
         const auto &v = values[i];
         if (v.isEmpty() || v.numel() == 0) continue;
-        const MType t = v.type();
-        if (t == MType::CELL || t == MType::STRUCT || t == MType::STRING
-            || t == MType::FUNC_HANDLE)
-            throw MError(std::string("cat: ND cat does not support type '")
+        const ValueType t = v.type();
+        if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
+            || t == ValueType::FUNC_HANDLE)
+            throw Error(std::string("cat: ND cat does not support type '")
                          + mtypeName(t) + "'",
                          0, 0, "cat", "", "m:cat:typeND");
         const auto &d = v.dims();
@@ -356,14 +356,14 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
             anchored = true;
         } else {
             if (t != outType)
-                throw MError("cat: ND cat requires all inputs to share a type",
+                throw Error("cat: ND cat requires all inputs to share a type",
                              0, 0, "cat", "", "m:cat:typeMismatchND");
             for (int j = 0; j < outNdim; ++j) {
                 const size_t vd = (j < d.ndim()) ? d.dim(j) : 1;
                 if (j == k) {
                     outDim[j] += vd;
                 } else if (vd != outDim[j]) {
-                    throw MError("cat: dim " + std::to_string(dim)
+                    throw Error("cat: dim " + std::to_string(dim)
                                  + " inputs must agree on all axes except dim "
                                  + std::to_string(dim),
                                  0, 0, "cat", "", "m:cat:badDims");
@@ -371,7 +371,7 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
             }
         }
     }
-    if (!anchored) return MValue::empty();
+    if (!anchored) return Value::empty();
 
     // Inner block size B = prod(outDim[0..k-1]); outer count O = prod(outDim[k+1..]).
     size_t B = 1;
@@ -379,7 +379,7 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
     size_t O = 1;
     for (int j = k + 1; j < outNdim; ++j) O *= outDim[j];
 
-    auto result = MValue::matrixND(outDim, outNdim, outType, &alloc);
+    auto result = Value::matrixND(outDim, outNdim, outType, &alloc);
     if (B == 0 || O == 0 || outDim[k] == 0) return result;
 
     const size_t es = elementSize(outType);
@@ -407,10 +407,10 @@ MValue catND(Allocator &alloc, int dim, const MValue *values, size_t count)
 
 } // namespace
 
-MValue cat(Allocator &alloc, int dim, const MValue *values, size_t count)
+Value cat(Allocator &alloc, int dim, const Value *values, size_t count)
 {
     if (dim < 1)
-        throw MError("cat: dim must be a positive integer",
+        throw Error("cat: dim must be a positive integer",
                      0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
         case 1: return vertcat(alloc, values, count);
@@ -426,19 +426,19 @@ MValue cat(Allocator &alloc, int dim, const MValue *values, size_t count)
 //
 // Block-diagonal matrix: diagonal blocks are the inputs (in order),
 // off-diagonal regions are zero. 2D inputs only.
-MValue blkdiag(Allocator &alloc, const MValue *values, size_t count)
+Value blkdiag(Allocator &alloc, const Value *values, size_t count)
 {
-    if (count == 0) return MValue::empty();
+    if (count == 0) return Value::empty();
 
     size_t totalRows = 0, totalCols = 0;
     for (size_t i = 0; i < count; ++i) {
         if (values[i].dims().is3D())
-            throw MError("blkdiag: 3D inputs are not supported",
+            throw Error("blkdiag: 3D inputs are not supported",
                          0, 0, "blkdiag", "", "m:blkdiag:3D");
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
     }
-    auto r = MValue::matrix(totalRows, totalCols, MType::DOUBLE, &alloc);
+    auto r = Value::matrix(totalRows, totalCols, ValueType::DOUBLE, &alloc);
     double *dst = r.doubleDataMut();
     // Zero-init: matrix() returns an uninitialised buffer in some
     // builds; explicit clear is safe and cheap (we'll write the block
@@ -467,7 +467,7 @@ namespace detail {
 
 namespace {
 
-std::vector<int> permFromMValue(const MValue &v)
+std::vector<int> permFromValue(const Value &v)
 {
     std::vector<int> p;
     p.reserve(v.numel());
@@ -478,40 +478,40 @@ std::vector<int> permFromMValue(const MValue &v)
 
 } // namespace
 
-void permute_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("permute: requires (A, perm)",
+        throw Error("permute: requires (A, perm)",
                      0, 0, "permute", "", "m:permute:nargin");
     outs[0] = permute(ctx.engine->allocator(), args[0],
-                      permFromMValue(args[1]));
+                      permFromValue(args[1]));
 }
 
-void ipermute_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                   CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("ipermute: requires (A, perm)",
+        throw Error("ipermute: requires (A, perm)",
                      0, 0, "ipermute", "", "m:ipermute:nargin");
     outs[0] = ipermute(ctx.engine->allocator(), args[0],
-                       permFromMValue(args[1]));
+                       permFromValue(args[1]));
 }
 
-void squeeze_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     if (args.empty())
-        throw MError("squeeze: requires 1 argument",
+        throw Error("squeeze: requires 1 argument",
                      0, 0, "squeeze", "", "m:squeeze:nargin");
     outs[0] = squeeze(ctx.engine->allocator(), args[0]);
 }
 
-void cat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
              CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("cat: requires (dim, A, ...)",
+        throw Error("cat: requires (dim, A, ...)",
                      0, 0, "cat", "", "m:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
@@ -519,7 +519,7 @@ void cat_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
                   &args[1], args.size() - 1);
 }
 
-void blkdiag_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void blkdiag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     outs[0] = blkdiag(ctx.engine->allocator(), args.data(), args.size());
@@ -527,4 +527,4 @@ void blkdiag_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

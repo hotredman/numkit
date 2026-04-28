@@ -315,7 +315,7 @@ export async function createWasmEngine(createModule) {
     },
 
     // Tell the engine which FS the current script came from — so
-    // csvread('foo.csv') with no explicit prefix and no NUMKIT_M_FS env var
+    // csvread('foo.csv') with no explicit prefix and no NUMKIT_FS env var
     // resolves relative to that FS.
     pushScriptOrigin(fsName) {
       if (typeof Module.repl_push_script_origin === 'function') {

@@ -40,7 +40,7 @@ TEST_P(PolyTest, RootsComplexConjugatePair)
     // x² + 1 → roots ±i.
     eval("r = roots([1 0 1]);");
     auto *r = getVarPtr("r");
-    EXPECT_EQ(r->type(), MType::COMPLEX);
+    EXPECT_EQ(r->type(), ValueType::COMPLEX);
     EXPECT_EQ(r->numel(), 2u);
     // Order isn't specified — sort by imaginary part for predictability.
     std::vector<double> imags{ r->complexData()[0].imag(), r->complexData()[1].imag() };
@@ -57,7 +57,7 @@ TEST_P(PolyTest, RootsCubicMixedRoots)
     // (x - 1)(x² + 4) = x³ - x² + 4x - 4 → roots 1, ±2i.
     eval("r = roots([1 -1 4 -4]);");
     auto *r = getVarPtr("r");
-    EXPECT_EQ(r->type(), MType::COMPLEX);
+    EXPECT_EQ(r->type(), ValueType::COMPLEX);
     EXPECT_EQ(r->numel(), 3u);
 
     int realCount = 0, complexCount = 0;

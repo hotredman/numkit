@@ -3,12 +3,12 @@
 // unwrap — split out from MDspTransform.cpp. The hilbert/envelope
 // pair lives in transforms/hilbert.cpp.
 
-#include <numkit/m/signal/filter_analysis/unwrap.hpp>
+#include <numkit/signal/filter_analysis/unwrap.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 
@@ -16,14 +16,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-namespace numkit::m::signal {
+namespace numkit::signal {
 
-MValue unwrap(Allocator &alloc, const MValue &phase)
+Value unwrap(Allocator &alloc, const Value &phase)
 {
     const size_t n = phase.numel();
     const double *p = phase.doubleData();
 
-    auto r = createLike(phase, MType::DOUBLE, &alloc);
+    auto r = createLike(phase, ValueType::DOUBLE, &alloc);
     double *out = r.doubleDataMut();
     if (n == 0)
         return r;
@@ -39,14 +39,14 @@ MValue unwrap(Allocator &alloc, const MValue &phase)
 // ── Engine adapter ────────────────────────────────────────────────────
 namespace detail {
 
-void unwrap_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void unwrap_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("unwrap: requires 1 argument",
+        throw Error("unwrap: requires 1 argument",
                      0, 0, "unwrap", "", "m:unwrap:nargin");
     outs[0] = unwrap(ctx.engine->allocator(), args[0]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::signal
+} // namespace numkit::signal

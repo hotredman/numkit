@@ -5,13 +5,13 @@
 // strlength / strrep / contains / startsWith / endsWith. The regex
 // builtins (regexp/regexpi/regexprep) live in regex.cpp.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/datatypes/strings/strings.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/datatypes/strings/strings.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -20,7 +20,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
@@ -28,45 +28,45 @@ namespace numkit::m::builtin {
 
 // ── Conversion ──────────────────────────────────────────────────────────
 
-MValue num2str(Allocator &alloc, const MValue &x)
+Value num2str(Allocator &alloc, const Value &x)
 {
     std::ostringstream os;
     os << x.toScalar();
-    return MValue::fromString(os.str(), &alloc);
+    return Value::fromString(os.str(), &alloc);
 }
 
-MValue str2num(Allocator &alloc, const MValue &s)
+Value str2num(Allocator &alloc, const Value &s)
 {
     try {
-        return MValue::scalar(std::stod(s.toString()), &alloc);
+        return Value::scalar(std::stod(s.toString()), &alloc);
     } catch (...) {
-        return MValue::empty();
+        return Value::empty();
     }
 }
 
-MValue str2double(Allocator &alloc, const MValue &s)
+Value str2double(Allocator &alloc, const Value &s)
 {
     try {
-        return MValue::scalar(std::stod(s.toString()), &alloc);
+        return Value::scalar(std::stod(s.toString()), &alloc);
     } catch (...) {
-        return MValue::scalar(std::numeric_limits<double>::quiet_NaN(), &alloc);
+        return Value::scalar(std::numeric_limits<double>::quiet_NaN(), &alloc);
     }
 }
 
-MValue toString(Allocator &alloc, const MValue &x)
+Value toString(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isString())
         return x;
     if (x.isChar())
-        return MValue::stringScalar(x.toString(), p);
+        return Value::stringScalar(x.toString(), p);
     if (x.isNumeric()) {
         if (x.isScalar()) {
             std::ostringstream os;
             os << x.toScalar();
-            return MValue::stringScalar(os.str(), p);
+            return Value::stringScalar(os.str(), p);
         }
-        auto result = MValue::stringArray(x.dims().rows(), x.dims().cols());
+        auto result = Value::stringArray(x.dims().rows(), x.dims().cols());
         for (size_t i = 0; i < x.numel(); ++i) {
             std::ostringstream os;
             os << x.doubleData()[i];
@@ -75,18 +75,18 @@ MValue toString(Allocator &alloc, const MValue &x)
         return result;
     }
     if (x.isLogical())
-        return MValue::stringScalar(x.toBool() ? "true" : "false", p);
-    throw MError("Cannot convert input to string", 0, 0, "string", "",
+        return Value::stringScalar(x.toBool() ? "true" : "false", p);
+    throw Error("Cannot convert input to string", 0, 0, "string", "",
                  "m:string:unsupportedType");
 }
 
-MValue toChar(Allocator &alloc, const MValue &x)
+Value toChar(Allocator &alloc, const Value &x)
 {
     Allocator *p = &alloc;
     if (x.isChar())
         return x;
     if (x.isString())
-        return MValue::fromString(x.toString(), p);
+        return Value::fromString(x.toString(), p);
     if (x.isNumeric()) {
         std::string s;
         if (x.isScalar()) {
@@ -96,57 +96,57 @@ MValue toChar(Allocator &alloc, const MValue &x)
             for (size_t i = 0; i < x.numel(); ++i)
                 s += static_cast<char>(static_cast<int>(d[i]));
         }
-        return MValue::fromString(s, p);
+        return Value::fromString(s, p);
     }
-    throw MError("Cannot convert to char", 0, 0, "char", "", "m:char:unsupportedType");
+    throw Error("Cannot convert to char", 0, 0, "char", "", "m:char:unsupportedType");
 }
 
 // ── Comparisons ─────────────────────────────────────────────────────────
 
-MValue strcmp(Allocator &alloc, const MValue &a, const MValue &b)
+Value strcmp(Allocator &alloc, const Value &a, const Value &b)
 {
-    return MValue::logicalScalar(a.toString() == b.toString(), &alloc);
+    return Value::logicalScalar(a.toString() == b.toString(), &alloc);
 }
 
-MValue strcmpi(Allocator &alloc, const MValue &a, const MValue &b)
+Value strcmpi(Allocator &alloc, const Value &a, const Value &b)
 {
     std::string sa = a.toString(), sb = b.toString();
     std::transform(sa.begin(), sa.end(), sa.begin(), ::tolower);
     std::transform(sb.begin(), sb.end(), sb.begin(), ::tolower);
-    return MValue::logicalScalar(sa == sb, &alloc);
+    return Value::logicalScalar(sa == sb, &alloc);
 }
 
 // ── Case transforms ─────────────────────────────────────────────────────
 
-MValue upper(Allocator &alloc, const MValue &s)
+Value upper(Allocator &alloc, const Value &s)
 {
     std::string r = s.toString();
     std::transform(r.begin(), r.end(), r.begin(), ::toupper);
-    return MValue::fromString(r, &alloc);
+    return Value::fromString(r, &alloc);
 }
 
-MValue lower(Allocator &alloc, const MValue &s)
+Value lower(Allocator &alloc, const Value &s)
 {
     std::string r = s.toString();
     std::transform(r.begin(), r.end(), r.begin(), ::tolower);
-    return MValue::fromString(r, &alloc);
+    return Value::fromString(r, &alloc);
 }
 
 // ── Trim / split / concat ───────────────────────────────────────────────
 
-MValue strtrim(Allocator &alloc, const MValue &s)
+Value strtrim(Allocator &alloc, const Value &s)
 {
     std::string r = s.toString();
     size_t start = r.find_first_not_of(" \t\r\n");
     size_t end = r.find_last_not_of(" \t\r\n");
     if (start == std::string::npos)
-        return MValue::fromString("", &alloc);
-    return MValue::fromString(r.substr(start, end - start + 1), &alloc);
+        return Value::fromString("", &alloc);
+    return Value::fromString(r.substr(start, end - start + 1), &alloc);
 }
 
 namespace {
 
-MValue strsplitImpl(Allocator &alloc, const std::string &s, char delim)
+Value strsplitImpl(Allocator &alloc, const std::string &s, char delim)
 {
     (void) alloc; // cell construction uses its own default allocation
     std::vector<std::string> parts;
@@ -155,56 +155,56 @@ MValue strsplitImpl(Allocator &alloc, const std::string &s, char delim)
     while (std::getline(iss, token, delim))
         if (!token.empty())
             parts.push_back(token);
-    auto c = MValue::cell(1, parts.size());
+    auto c = Value::cell(1, parts.size());
     for (size_t i = 0; i < parts.size(); ++i)
-        c.cellAt(i) = MValue::fromString(parts[i], &alloc);
+        c.cellAt(i) = Value::fromString(parts[i], &alloc);
     return c;
 }
 
 } // namespace
 
-MValue strsplit(Allocator &alloc, const MValue &s)
+Value strsplit(Allocator &alloc, const Value &s)
 {
     return strsplitImpl(alloc, s.toString(), ' ');
 }
 
-MValue strsplit(Allocator &alloc, const MValue &s, const MValue &delim)
+Value strsplit(Allocator &alloc, const Value &s, const Value &delim)
 {
     std::string d = delim.toString();
     char ch = d.empty() ? ' ' : d[0];
     return strsplitImpl(alloc, s.toString(), ch);
 }
 
-MValue strcat(Allocator &alloc, Span<const MValue> parts)
+Value strcat(Allocator &alloc, Span<const Value> parts)
 {
     std::string result;
     for (const auto &p : parts)
         result += p.toString();
-    return MValue::fromString(result, &alloc);
+    return Value::fromString(result, &alloc);
 }
 
 // ── Length ──────────────────────────────────────────────────────────────
 
-MValue strlength(Allocator &alloc, const MValue &s)
+Value strlength(Allocator &alloc, const Value &s)
 {
     Allocator *p = &alloc;
     if (s.isString()) {
         if (s.isScalar())
-            return MValue::scalar(static_cast<double>(s.toString().size()), p);
-        auto result = createLike(s, MType::DOUBLE, p);
+            return Value::scalar(static_cast<double>(s.toString().size()), p);
+        auto result = createLike(s, ValueType::DOUBLE, p);
         for (size_t i = 0; i < s.numel(); ++i)
             result.doubleDataMut()[i] = static_cast<double>(s.stringElem(i).size());
         return result;
     }
     if (s.isChar())
-        return MValue::scalar(static_cast<double>(s.numel()), p);
-    throw MError("Input must be a string or char array", 0, 0, "strlength", "",
+        return Value::scalar(static_cast<double>(s.numel()), p);
+    throw Error("Input must be a string or char array", 0, 0, "strlength", "",
                  "m:strlength:unsupportedType");
 }
 
 // ── Search / replace ────────────────────────────────────────────────────
 
-MValue strrep(Allocator &alloc, const MValue &s, const MValue &oldPat, const MValue &newPat)
+Value strrep(Allocator &alloc, const Value &s, const Value &oldPat, const Value &newPat)
 {
     Allocator *p = &alloc;
     std::string r = s.toString();
@@ -218,30 +218,30 @@ MValue strrep(Allocator &alloc, const MValue &s, const MValue &oldPat, const MVa
         }
     }
     if (s.isString())
-        return MValue::stringScalar(r, p);
-    return MValue::fromString(r, p);
+        return Value::stringScalar(r, p);
+    return Value::fromString(r, p);
 }
 
-MValue contains(Allocator &alloc, const MValue &s, const MValue &pat)
+Value contains(Allocator &alloc, const Value &s, const Value &pat)
 {
     std::string ss = s.toString();
     std::string pp = pat.toString();
-    return MValue::logicalScalar(ss.find(pp) != std::string::npos, &alloc);
+    return Value::logicalScalar(ss.find(pp) != std::string::npos, &alloc);
 }
 
-MValue startsWith(Allocator &alloc, const MValue &s, const MValue &prefix)
+Value startsWith(Allocator &alloc, const Value &s, const Value &prefix)
 {
     std::string ss = s.toString();
     std::string pp = prefix.toString();
-    return MValue::logicalScalar(
+    return Value::logicalScalar(
         ss.size() >= pp.size() && ss.compare(0, pp.size(), pp) == 0, &alloc);
 }
 
-MValue endsWith(Allocator &alloc, const MValue &s, const MValue &suffix)
+Value endsWith(Allocator &alloc, const Value &s, const Value &suffix)
 {
     std::string ss = s.toString();
     std::string pp = suffix.toString();
-    return MValue::logicalScalar(
+    return Value::logicalScalar(
         ss.size() >= pp.size()
             && ss.compare(ss.size() - pp.size(), pp.size(), pp) == 0,
         &alloc);
@@ -253,86 +253,86 @@ MValue endsWith(Allocator &alloc, const MValue &s, const MValue &suffix)
 
 namespace detail {
 
-void num2str_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
+        throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
     outs[0] = num2str(ctx.engine->allocator(), args[0]);
 }
 
-void str2num_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("str2num: requires 1 argument", 0, 0, "str2num", "", "m:str2num:nargin");
+        throw Error("str2num: requires 1 argument", 0, 0, "str2num", "", "m:str2num:nargin");
     outs[0] = str2num(ctx.engine->allocator(), args[0]);
 }
 
-void str2double_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void str2double_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("str2double: requires 1 argument", 0, 0, "str2double", "",
+        throw Error("str2double: requires 1 argument", 0, 0, "str2double", "",
                      "m:str2double:nargin");
     outs[0] = str2double(ctx.engine->allocator(), args[0]);
 }
 
-void string_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void string_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     Allocator &alloc = ctx.engine->allocator();
     if (args.empty()) {
-        outs[0] = MValue::stringScalar("", &alloc);
+        outs[0] = Value::stringScalar("", &alloc);
         return;
     }
     outs[0] = toString(alloc, args[0]);
 }
 
-void char_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void char_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("char requires an argument", 0, 0, "char", "", "m:char:nargin");
+        throw Error("char requires an argument", 0, 0, "char", "", "m:char:nargin");
     outs[0] = toChar(ctx.engine->allocator(), args[0]);
 }
 
-void strcmp_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strcmp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "m:strcmp:nargin");
+        throw Error("strcmp: requires 2 arguments", 0, 0, "strcmp", "", "m:strcmp:nargin");
     outs[0] = strcmp(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void strcmpi_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strcmpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
+        throw Error("strcmpi: requires 2 arguments", 0, 0, "strcmpi", "",
                      "m:strcmpi:nargin");
     outs[0] = strcmpi(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void upper_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void upper_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("upper: requires 1 argument", 0, 0, "upper", "", "m:upper:nargin");
+        throw Error("upper: requires 1 argument", 0, 0, "upper", "", "m:upper:nargin");
     outs[0] = upper(ctx.engine->allocator(), args[0]);
 }
 
-void lower_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void lower_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("lower: requires 1 argument", 0, 0, "lower", "", "m:lower:nargin");
+        throw Error("lower: requires 1 argument", 0, 0, "lower", "", "m:lower:nargin");
     outs[0] = lower(ctx.engine->allocator(), args[0]);
 }
 
-void strtrim_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strtrim_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("strtrim: requires 1 argument", 0, 0, "strtrim", "",
+        throw Error("strtrim: requires 1 argument", 0, 0, "strtrim", "",
                      "m:strtrim:nargin");
     outs[0] = strtrim(ctx.engine->allocator(), args[0]);
 }
 
-void strsplit_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strsplit_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("strsplit: requires 1 argument", 0, 0, "strsplit", "",
+        throw Error("strsplit: requires 1 argument", 0, 0, "strsplit", "",
                      "m:strsplit:nargin");
     if (args.size() == 1)
         outs[0] = strsplit(ctx.engine->allocator(), args[0]);
@@ -340,66 +340,66 @@ void strsplit_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContex
         outs[0] = strsplit(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void strcat_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strcat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     outs[0] = strcat(ctx.engine->allocator(), args);
 }
 
-void strlength_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strlength_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("strlength: requires 1 argument", 0, 0, "strlength", "",
+        throw Error("strlength: requires 1 argument", 0, 0, "strlength", "",
                      "m:strlength:nargin");
     outs[0] = strlength(ctx.engine->allocator(), args[0]);
 }
 
-void strrep_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void strrep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("strrep requires 3 arguments", 0, 0, "strrep", "", "m:strrep:nargin");
+        throw Error("strrep requires 3 arguments", 0, 0, "strrep", "", "m:strrep:nargin");
     outs[0] = strrep(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
-void contains_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void contains_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("contains requires 2 arguments", 0, 0, "contains", "",
+        throw Error("contains requires 2 arguments", 0, 0, "contains", "",
                      "m:contains:nargin");
     outs[0] = contains(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void startsWith_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void startsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("startsWith requires 2 arguments", 0, 0, "startsWith", "",
+        throw Error("startsWith requires 2 arguments", 0, 0, "startsWith", "",
                      "m:startsWith:nargin");
     outs[0] = startsWith(ctx.engine->allocator(), args[0], args[1]);
 }
 
-void endsWith_reg(Span<const MValue> args, size_t, Span<MValue> outs, CallContext &ctx)
+void endsWith_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("endsWith requires 2 arguments", 0, 0, "endsWith", "",
+        throw Error("endsWith requires 2 arguments", 0, 0, "endsWith", "",
                      "m:endsWith:nargin");
     outs[0] = endsWith(ctx.engine->allocator(), args[0], args[1]);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
-// Registration — keeps the existing StdLibrary::registerStringFunctions
-// hook alive (now empty); actual wiring happens in MStdLibrary.cpp via
+// Registration — keeps the existing BuiltinLibrary::registerStringFunctions
+// hook alive (now empty); actual wiring happens in library.cpp via
 // function-pointer adapters, matching Phase-6c pattern.
 // ════════════════════════════════════════════════════════════════════════
 
-namespace numkit::m {
+namespace numkit {
 
-void StdLibrary::registerStringFunctions(Engine &)
+void BuiltinLibrary::registerStringFunctions(Engine &)
 {
     // Intentionally empty — all string builtins now register via the
-    // Phase-6c function-pointer path in StdLibrary::install().
+    // Phase-6c function-pointer path in BuiltinLibrary::install().
 }
 
-} // namespace numkit::m
+} // namespace numkit

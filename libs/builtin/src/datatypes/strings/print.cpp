@@ -1,25 +1,25 @@
 // libs/builtin/src/MStdPrint.cpp
 
-#include <numkit/m/builtin/datatypes/strings/format.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/datatypes/strings/print.hpp>
+#include <numkit/builtin/datatypes/strings/format.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/datatypes/strings/print.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MShapeOps.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/shape_ops.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cmath>
 #include <cstring>
 #include <cstdint>
 #include <sstream>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-std::string dispFormat(const MValue &a)
+std::string dispFormat(const Value &a)
 {
     std::ostringstream os;
     if (a.isChar()) {
@@ -35,7 +35,7 @@ std::string dispFormat(const MValue &a)
         }
     } else if (a.isEmpty()) {
         os << "[]";
-    } else if (a.type() == MType::DOUBLE) {
+    } else if (a.type() == ValueType::DOUBLE) {
         if (a.isScalar()) {
             os << a.toScalar();
         } else {
@@ -125,13 +125,13 @@ std::string dispFormat(const MValue &a)
     return os.str();
 }
 
-void disp(Engine &engine, Span<const MValue> args)
+void disp(Engine &engine, Span<const Value> args)
 {
     for (const auto &a : args)
         engine.outputText(dispFormat(a));
 }
 
-void fprintf(Engine &engine, Span<const MValue> args)
+void fprintf(Engine &engine, Span<const Value> args)
 {
     if (args.empty())
         return;
@@ -156,7 +156,7 @@ void fprintf(Engine &engine, Span<const MValue> args)
     } else if (fid >= 3) {
         auto *f = engine.findFile(fid);
         if (!f || !f->forWrite)
-            throw MError("fprintf: invalid file identifier");
+            throw Error("fprintf: invalid file identifier");
         // For 'a'/'a+' (appendOnly) snap to end first — MATLAB's
         // contract regardless of prior seek.
         size_t writePos = f->appendOnly ? f->buffer.size() : f->cursor;
@@ -165,7 +165,7 @@ void fprintf(Engine &engine, Span<const MValue> args)
         std::memcpy(f->buffer.data() + writePos, result.data(), result.size());
         f->cursor = writePos + result.size();
     } else {
-        throw MError("fprintf: invalid file identifier");
+        throw Error("fprintf: invalid file identifier");
     }
 }
 
@@ -175,16 +175,16 @@ void fprintf(Engine &engine, Span<const MValue> args)
 
 namespace detail {
 
-void disp_reg(Span<const MValue> args, size_t, Span<MValue>, CallContext &ctx)
+void disp_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
 {
     disp(*ctx.engine, args);
 }
 
-void fprintf_reg(Span<const MValue> args, size_t, Span<MValue>, CallContext &ctx)
+void fprintf_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
 {
     fprintf(*ctx.engine, args);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

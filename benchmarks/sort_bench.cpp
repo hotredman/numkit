@@ -4,10 +4,10 @@
 // random, already sorted, reverse sorted — since real sort
 // implementations behave very differently on each.
 
-#include <numkit/m/builtin/lang/arrays/matrix.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/lang/arrays/matrix.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -19,10 +19,10 @@ namespace {
 
 enum class Pattern { Random, Sorted, Reverse };
 
-numkit::m::MValue makeVector(size_t n, Pattern p)
+numkit::Value makeVector(size_t n, Pattern p)
 {
-    using namespace numkit::m;
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    using namespace numkit;
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *data = v.doubleDataMut();
 
     std::mt19937 rng(1337);
@@ -39,9 +39,9 @@ numkit::m::MValue makeVector(size_t n, Pattern p)
 
 void runSortBench(benchmark::State &state, Pattern p)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue x = makeVector(n, p);
+    Value x = makeVector(n, p);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {

@@ -10,11 +10,11 @@
 
 #pragma once
 
-#include <numkit/m/builtin/math/elementary/reductions.hpp>   // sum / prod / mean
-#include <numkit/m/builtin/lang/arrays/matrix.hpp>  // length / ndims
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/math/elementary/reductions.hpp>   // sum / prod / mean
+#include <numkit/builtin/lang/arrays/matrix.hpp>  // length / ndims
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <algorithm>
 #include <cctype>
@@ -22,9 +22,9 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin::detail::handlefn {
+namespace numkit::builtin::detail::handlefn {
 
-using ::numkit::m::Engine;
+using ::numkit::Engine;
 
 enum class BuiltinFn {
     // shape
@@ -69,13 +69,13 @@ inline std::string lowerName(const std::string &s)
 // Returns false otherwise (caller routes through engine callback).
 // Accepts both raw funcHandle and the {handle, captures...} closure
 // cell that VM produces for anonymous functions.
-inline bool tryParseBuiltinHandle(const MValue &h, BuiltinFn &out, const char *fn)
+inline bool tryParseBuiltinHandle(const Value &h, BuiltinFn &out, const char *fn)
 {
-    const MValue *bare = &h;
+    const Value *bare = &h;
     if (h.isCell() && h.numel() >= 1 && h.cellAt(0).isFuncHandle())
         bare = &h.cellAt(0);
     if (!bare->isFuncHandle())
-        throw MError(std::string(fn) + ": fn argument must be a function handle",
+        throw Error(std::string(fn) + ": fn argument must be a function handle",
                      0, 0, fn, "", std::string("m:") + fn + ":fnType");
     const std::string s = lowerName(bare->funcHandleName());
     if (s == "numel")     { out = BuiltinFn::Numel;     return true; }
@@ -98,128 +98,128 @@ inline bool tryParseBuiltinHandle(const MValue &h, BuiltinFn &out, const char *f
     return false;
 }
 
-inline const char *classNameOf(const MValue &v)
+inline const char *classNameOf(const Value &v)
 {
     switch (v.type()) {
-    case MType::DOUBLE:      return "double";
-    case MType::SINGLE:      return "single";
-    case MType::COMPLEX:     return "double";  // MATLAB: complex numbers are class 'double'
-    case MType::LOGICAL:     return "logical";
-    case MType::CHAR:        return "char";
-    case MType::CELL:        return "cell";
-    case MType::STRUCT:      return "struct";
-    case MType::FUNC_HANDLE: return "function_handle";
-    case MType::STRING:      return "string";
-    case MType::INT8:        return "int8";
-    case MType::INT16:       return "int16";
-    case MType::INT32:       return "int32";
-    case MType::INT64:       return "int64";
-    case MType::UINT8:       return "uint8";
-    case MType::UINT16:      return "uint16";
-    case MType::UINT32:      return "uint32";
-    case MType::UINT64:      return "uint64";
-    case MType::EMPTY:       return "double";  // empty default class
+    case ValueType::DOUBLE:      return "double";
+    case ValueType::SINGLE:      return "single";
+    case ValueType::COMPLEX:     return "double";  // MATLAB: complex numbers are class 'double'
+    case ValueType::LOGICAL:     return "logical";
+    case ValueType::CHAR:        return "char";
+    case ValueType::CELL:        return "cell";
+    case ValueType::STRUCT:      return "struct";
+    case ValueType::FUNC_HANDLE: return "function_handle";
+    case ValueType::STRING:      return "string";
+    case ValueType::INT8:        return "int8";
+    case ValueType::INT16:       return "int16";
+    case ValueType::INT32:       return "int32";
+    case ValueType::INT64:       return "int64";
+    case ValueType::UINT8:       return "uint8";
+    case ValueType::UINT16:      return "uint16";
+    case ValueType::UINT32:      return "uint32";
+    case ValueType::UINT64:      return "uint64";
+    case ValueType::EMPTY:       return "double";  // empty default class
     }
     return "unknown";
 }
 
-inline MValue applyBuiltin(Allocator &alloc, BuiltinFn f, const MValue &v,
+inline Value applyBuiltin(Allocator &alloc, BuiltinFn f, const Value &v,
                            const char *fn)
 {
     switch (f) {
     case BuiltinFn::Numel:
-        return MValue::scalar(static_cast<double>(v.numel()), &alloc);
+        return Value::scalar(static_cast<double>(v.numel()), &alloc);
     case BuiltinFn::Length:
-        return ::numkit::m::builtin::length(alloc, v);
+        return ::numkit::builtin::length(alloc, v);
     case BuiltinFn::Ndims:
-        return ::numkit::m::builtin::ndims(alloc, v);
+        return ::numkit::builtin::ndims(alloc, v);
     case BuiltinFn::IsEmpty:
-        return MValue::logicalScalar(v.isEmpty() || v.numel() == 0, &alloc);
+        return Value::logicalScalar(v.isEmpty() || v.numel() == 0, &alloc);
     case BuiltinFn::IsNumeric: {
         const auto t = v.type();
-        const bool num = (t == MType::DOUBLE || t == MType::SINGLE
-                       || t == MType::COMPLEX || t == MType::INT8
-                       || t == MType::INT16 || t == MType::INT32
-                       || t == MType::INT64 || t == MType::UINT8
-                       || t == MType::UINT16 || t == MType::UINT32
-                       || t == MType::UINT64);
-        return MValue::logicalScalar(num, &alloc);
+        const bool num = (t == ValueType::DOUBLE || t == ValueType::SINGLE
+                       || t == ValueType::COMPLEX || t == ValueType::INT8
+                       || t == ValueType::INT16 || t == ValueType::INT32
+                       || t == ValueType::INT64 || t == ValueType::UINT8
+                       || t == ValueType::UINT16 || t == ValueType::UINT32
+                       || t == ValueType::UINT64);
+        return Value::logicalScalar(num, &alloc);
     }
     case BuiltinFn::IsChar:
-        return MValue::logicalScalar(v.isChar(), &alloc);
+        return Value::logicalScalar(v.isChar(), &alloc);
     case BuiltinFn::IsLogical:
-        return MValue::logicalScalar(v.isLogical(), &alloc);
+        return Value::logicalScalar(v.isLogical(), &alloc);
     case BuiltinFn::IsCell:
-        return MValue::logicalScalar(v.isCell(), &alloc);
+        return Value::logicalScalar(v.isCell(), &alloc);
     case BuiltinFn::IsStruct:
-        return MValue::logicalScalar(v.isStruct(), &alloc);
+        return Value::logicalScalar(v.isStruct(), &alloc);
     case BuiltinFn::IsReal:
-        return MValue::logicalScalar(!v.isComplex(), &alloc);
+        return Value::logicalScalar(!v.isComplex(), &alloc);
     case BuiltinFn::IsNan: {
         if (!v.isScalar())
-            throw MError(std::string(fn) + ": @isnan requires each cell to be scalar in uniform mode",
+            throw Error(std::string(fn) + ": @isnan requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return MValue::logicalScalar(std::isnan(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isnan(v.toScalar()), &alloc);
     }
     case BuiltinFn::IsInf: {
         if (!v.isScalar())
-            throw MError(std::string(fn) + ": @isinf requires each cell to be scalar in uniform mode",
+            throw Error(std::string(fn) + ": @isinf requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return MValue::logicalScalar(std::isinf(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isinf(v.toScalar()), &alloc);
     }
     case BuiltinFn::IsFinite: {
         if (!v.isScalar())
-            throw MError(std::string(fn) + ": @isfinite requires each cell to be scalar in uniform mode",
+            throw Error(std::string(fn) + ": @isfinite requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return MValue::logicalScalar(std::isfinite(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isfinite(v.toScalar()), &alloc);
     }
-    case BuiltinFn::Sum:  return ::numkit::m::builtin::sum (alloc, v);
-    case BuiltinFn::Prod: return ::numkit::m::builtin::prod(alloc, v);
-    case BuiltinFn::Mean: return ::numkit::m::builtin::mean(alloc, v);
+    case BuiltinFn::Sum:  return ::numkit::builtin::sum (alloc, v);
+    case BuiltinFn::Prod: return ::numkit::builtin::prod(alloc, v);
+    case BuiltinFn::Mean: return ::numkit::builtin::mean(alloc, v);
     case BuiltinFn::ClassName: {
         const char *name = classNameOf(v);
-        return MValue::fromString(std::string(name), &alloc);
+        return Value::fromString(std::string(name), &alloc);
     }
     }
-    throw MError(std::string(fn) + ": internal: unhandled builtin",
+    throw Error(std::string(fn) + ": internal: unhandled builtin",
                  0, 0, fn, "", std::string("m:") + fn + ":internal");
 }
 
-inline MValue applyHandle(Allocator &alloc, const MValue &handle,
+inline Value applyHandle(Allocator &alloc, const Value &handle,
                           BuiltinFn builtinTag, bool isBuiltin,
-                          const MValue &v, Engine *engine, const char *fn)
+                          const Value &v, Engine *engine, const char *fn)
 {
     if (isBuiltin)
         return applyBuiltin(alloc, builtinTag, v, fn);
     if (engine == nullptr)
-        throw MError(std::string(fn) + ": custom function handles need an "
+        throw Error(std::string(fn) + ": custom function handles need an "
                      "Engine — use the engine-aware adapter (callback API).",
                      0, 0, fn, "", std::string("m:") + fn + ":fnUnsupported");
-    MValue arg = v;
-    Span<const MValue> args(&arg, 1);
+    Value arg = v;
+    Span<const Value> args(&arg, 1);
     return engine->callFunctionHandle(handle, args);
 }
 
-inline MValue packUniform(Allocator &alloc, BuiltinFn f,
-                          const std::vector<MValue> &results,
+inline Value packUniform(Allocator &alloc, BuiltinFn f,
+                          const std::vector<Value> &results,
                           const Dims &outDims, const char *fn)
 {
     const bool wantLogical = builtinReturnsLogical(f);
     if (builtinReturnsString(f))
-        throw MError(std::string(fn) + ": @class output must use UniformOutput=false",
+        throw Error(std::string(fn) + ": @class output must use UniformOutput=false",
                      0, 0, fn, "", std::string("m:") + fn + ":nonUniform");
 
-    const MType outT = wantLogical ? MType::LOGICAL : MType::DOUBLE;
+    const ValueType outT = wantLogical ? ValueType::LOGICAL : ValueType::DOUBLE;
     const size_t r = outDims.rows();
     const size_t c = outDims.cols();
     const size_t p = outDims.is3D() ? outDims.pages() : 0;
-    auto out = (p > 0) ? MValue::matrix3d(r, c, p, outT, &alloc)
-                       : MValue::matrix(r, c, outT, &alloc);
+    auto out = (p > 0) ? Value::matrix3d(r, c, p, outT, &alloc)
+                       : Value::matrix(r, c, outT, &alloc);
 
     for (size_t i = 0; i < results.size(); ++i) {
-        const MValue &v = results[i];
+        const Value &v = results[i];
         if (!v.isScalar())
-            throw MError(std::string(fn) + ": fn returned a non-scalar; pass 'UniformOutput', false",
+            throw Error(std::string(fn) + ": fn returned a non-scalar; pass 'UniformOutput', false",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
         if (wantLogical)
             out.logicalDataMut()[i] = v.toBool() ? 1 : 0;
@@ -229,26 +229,26 @@ inline MValue packUniform(Allocator &alloc, BuiltinFn f,
     return out;
 }
 
-inline bool parseUniformOutputFlag(Span<const MValue> args, size_t dataArgCount,
+inline bool parseUniformOutputFlag(Span<const Value> args, size_t dataArgCount,
                                    const char *fn)
 {
     bool uniform = true;
     for (size_t i = dataArgCount; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
-            throw MError(std::string(fn) + ": expected option name (string)",
+            throw Error(std::string(fn) + ": expected option name (string)",
                          0, 0, fn, "", std::string("m:") + fn + ":badFlag");
         const std::string key = lowerName(args[i].toString());
         if (key == "uniformoutput") {
             uniform = args[i + 1].toBool();
         } else {
-            throw MError(std::string(fn) + ": unsupported option '" + key + "'",
+            throw Error(std::string(fn) + ": unsupported option '" + key + "'",
                          0, 0, fn, "", std::string("m:") + fn + ":badFlag");
         }
     }
     if ((args.size() - dataArgCount) % 2 != 0)
-        throw MError(std::string(fn) + ": option name without value",
+        throw Error(std::string(fn) + ": option name without value",
                      0, 0, fn, "", std::string("m:") + fn + ":badFlag");
     return uniform;
 }
 
-} // namespace numkit::m::builtin::detail::handlefn
+} // namespace numkit::builtin::detail::handlefn

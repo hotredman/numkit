@@ -4,39 +4,39 @@
 // MStdAbs_*.cpp (SIMD-backed) and only its declaration is in
 // math/elementary/rounding.hpp.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/math/elementary/rounding.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/elementary/rounding.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-MValue floor(Allocator &alloc, const MValue &x)
+Value floor(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::floor(v); }, &alloc);
 }
 
-MValue ceil(Allocator &alloc, const MValue &x)
+Value ceil(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::ceil(v); }, &alloc);
 }
 
-MValue round(Allocator &alloc, const MValue &x)
+Value round(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::round(v); }, &alloc);
 }
 
-MValue fix(Allocator &alloc, const MValue &x)
+Value fix(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x, [](double v) { return std::trunc(v); }, &alloc);
 }
 
-MValue sign(Allocator &alloc, const MValue &x)
+Value sign(Allocator &alloc, const Value &x)
 {
     return unaryDouble(x,
                        [](double v) {
@@ -49,11 +49,11 @@ MValue sign(Allocator &alloc, const MValue &x)
 namespace detail {
 
 #define NK_UNARY_ADAPTER(name, fn)                                              \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,                \
-                    Span<MValue> outs, CallContext &ctx)                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
+                    Span<Value> outs, CallContext &ctx)                        \
     {                                                                            \
         if (args.empty())                                                        \
-            throw MError(#name ": requires 1 argument",                          \
+            throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
         outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
     }
@@ -68,4 +68,4 @@ NK_UNARY_ADAPTER(sign,  sign)
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

@@ -1,19 +1,19 @@
 // tests/vm_benchmark.cpp
 //
 // Direct timing comparison: TreeWalker vs Bytecode VM
-// Run with: ./m_tests --gtest_filter="VMBenchmark.*"
+// Run with: ./numkit_tests --gtest_filter="VMBenchmark.*"
 
-#include <numkit/m/core/MCompiler.hpp>
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MLexer.hpp>
-#include <numkit/m/core/MParser.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/core/MVM.hpp>
+#include <numkit/core/compiler.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/core/vm.hpp>
 #include <chrono>
 #include <gtest/gtest.h>
 #include <iostream>
 
-using namespace numkit::m;
+using namespace numkit;
 
 class VMBenchmark : public ::testing::Test
 {
@@ -24,7 +24,7 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         engine.setOutputFunc([](const std::string &) {}); // suppress output
     }
 

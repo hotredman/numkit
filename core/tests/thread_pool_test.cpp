@@ -11,8 +11,8 @@
 
 #if defined(NUMKIT_WITH_THREADS)
 
-#include <numkit/m/core/MParallelFor.hpp>
-#include <numkit/m/core/MThreadPool.hpp>
+#include <numkit/core/parallel_for.hpp>
+#include <numkit/core/thread_pool.hpp>
 
 #include <atomic>
 #include <cstddef>
@@ -20,8 +20,8 @@
 #include <thread>
 #include <vector>
 
-using numkit::m::detail::parallel_for;
-using numkit::m::detail::ThreadPool;
+using numkit::detail::parallel_for;
+using numkit::detail::ThreadPool;
 
 namespace {
 

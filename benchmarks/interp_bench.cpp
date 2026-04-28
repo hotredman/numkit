@@ -3,12 +3,12 @@
 // Phase-10 sweep covering libs/fit (interp1, polyval, trapz). These
 // existed before the parity expansion but have never been benched.
 
-#include <numkit/m/builtin/math/elementary/polynomials.hpp>
-#include <numkit/m/builtin/math/integration/integration.hpp>
-#include <numkit/m/builtin/math/interpolation/interp.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/math/elementary/polynomials.hpp>
+#include <numkit/builtin/math/integration/integration.hpp>
+#include <numkit/builtin/math/interpolation/interp.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -17,34 +17,34 @@
 
 namespace {
 
-using namespace numkit::m;
+using namespace numkit;
 
-MValue makeSorted(size_t n)
+Value makeSorted(size_t n)
 {
     // Strictly increasing x — required by interp1.
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i)
         p[i] = static_cast<double>(i);
     return v;
 }
 
-MValue makeY(size_t n, uint32_t seed = 7)
+Value makeY(size_t n, uint32_t seed = 7)
 {
     std::mt19937 rng(seed);
     std::normal_distribution<double> d(0.0, 1.0);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = d(rng);
     return v;
 }
 
-MValue makeQuery(size_t nx, size_t nq, uint32_t seed = 11)
+Value makeQuery(size_t nx, size_t nq, uint32_t seed = 11)
 {
     // Query points uniformly in [0, nx-1].
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(0.0, static_cast<double>(nx - 1));
-    MValue v = MValue::matrix(nq, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(nq, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < nq; ++i) p[i] = d(rng);
     return v;

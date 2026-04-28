@@ -1,11 +1,11 @@
 // tests/test_debugger_diagnostic.cpp — Diagnostic: what actually works?
 #include "dual_engine_fixture.hpp"
-#include <numkit/m/core/MCompiler.hpp>
-#include <numkit/m/core/MLexer.hpp>
-#include <numkit/m/core/MParser.hpp>
+#include <numkit/core/compiler.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
 
 using namespace m_test;
-using namespace numkit::m;
+using namespace numkit;
 
 class DebugDiagnostic : public DualEngineTest
 {};
@@ -76,7 +76,7 @@ TEST_P(DebugDiagnostic, B1_SourceCodeInChunk)
 }
 
 // ============================================================
-// C. Does VM throw MError with location?
+// C. Does VM throw Error with location?
 // ============================================================
 
 TEST_P(DebugDiagnostic, C1_VMThrowsMError)
@@ -89,16 +89,16 @@ TEST_P(DebugDiagnostic, C1_VMThrowsMError)
     try {
         eval("x = 1;\nv = [1 2 3];\nv(100);\n");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
-        std::cerr << "DIAGNOSTIC C1: caught MError, line=" << e.line()
+    } catch (const Error &e) {
+        std::cerr << "DIAGNOSTIC C1: caught Error, line=" << e.line()
                   << " col=" << e.col()
                   << " func='" << e.funcName() << "'"
                   << " what='" << e.what() << "'\n";
         EXPECT_GT(e.line(), 0);
     } catch (const std::runtime_error &e) {
-        std::cerr << "DIAGNOSTIC C1: caught std::runtime_error (NOT MError): '"
+        std::cerr << "DIAGNOSTIC C1: caught std::runtime_error (NOT Error): '"
                   << e.what() << "'\n";
-        FAIL() << "VM should throw MError, not plain runtime_error";
+        FAIL() << "VM should throw Error, not plain runtime_error";
     }
 }
 
@@ -112,15 +112,15 @@ TEST_P(DebugDiagnostic, C2_TWThrowsMError)
     try {
         eval("x = 1;\nv = [1 2 3];\nv(100);\n");
         FAIL() << "Should have thrown";
-    } catch (const MError &e) {
-        std::cerr << "DIAGNOSTIC C2: caught MError, line=" << e.line()
+    } catch (const Error &e) {
+        std::cerr << "DIAGNOSTIC C2: caught Error, line=" << e.line()
                   << " col=" << e.col()
                   << " what='" << e.what() << "'\n";
         EXPECT_GT(e.line(), 0);
     } catch (const std::runtime_error &e) {
-        std::cerr << "DIAGNOSTIC C2: caught std::runtime_error (NOT MError): '"
+        std::cerr << "DIAGNOSTIC C2: caught std::runtime_error (NOT Error): '"
                   << e.what() << "'\n";
-        FAIL() << "TW should throw MError, not plain runtime_error";
+        FAIL() << "TW should throw Error, not plain runtime_error";
     }
 }
 
@@ -130,7 +130,7 @@ TEST_P(DebugDiagnostic, C2_TWThrowsMError)
 
 TEST_P(DebugDiagnostic, D1_FormattedWhat)
 {
-    MError err("bad stuff", 15, 3, "my_func");
+    Error err("bad stuff", 15, 3, "my_func");
     std::cerr << "DIAGNOSTIC D1: what()='" << err.what() << "'\n";
     std::cerr << "DIAGNOSTIC D1: formattedWhat()='" << err.formattedWhat() << "'\n";
 

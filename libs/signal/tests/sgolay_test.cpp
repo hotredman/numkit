@@ -3,21 +3,21 @@
 // Savitzky-Golay smoothing filter — sgolay() projection matrix and
 // sgolayfilt() applied to vectors.
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/builtin/library.hpp>
 
 #include <gtest/gtest.h>
 
 #include <cmath>
 
-using namespace numkit::m;
+using namespace numkit;
 
 class SgolayTest : public ::testing::Test
 {
 public:
     Engine engine;
-    void SetUp() override { StdLibrary::install(engine); }
-    MValue eval(const std::string &code) { return engine.eval(code); }
+    void SetUp() override { BuiltinLibrary::install(engine); }
+    Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
 

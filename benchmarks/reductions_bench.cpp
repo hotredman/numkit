@@ -11,13 +11,13 @@
 // path). Sizes span L1 (1K) through DRAM (4M). The kernels are all
 // O(N) or O(N log N) for the median family.
 
-#include <numkit/m/builtin/lang/arrays/matrix.hpp>
-#include <numkit/m/builtin/math/elementary/reductions.hpp>
-#include <numkit/m/builtin/data_analysis/descriptive_statistics/stats.hpp>
-#include <numkit/m/stats/nan_aware/nan_aware.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/lang/arrays/matrix.hpp>
+#include <numkit/builtin/math/elementary/reductions.hpp>
+#include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
+#include <numkit/stats/nan_aware/nan_aware.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -25,34 +25,34 @@
 
 namespace {
 
-using namespace numkit::m;
+using namespace numkit;
 
-MValue makeVec(size_t n, uint32_t seed = 7)
+Value makeVec(size_t n, uint32_t seed = 7)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(-1.0, 1.0);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = d(rng);
     return v;
 }
 
-MValue makeMat(size_t r, size_t c, uint32_t seed = 11)
+Value makeMat(size_t r, size_t c, uint32_t seed = 11)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(-1.0, 1.0);
-    MValue m = MValue::matrix(r, c, MType::DOUBLE, nullptr);
+    Value m = Value::matrix(r, c, ValueType::DOUBLE, nullptr);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < r * c; ++i) p[i] = d(rng);
     return m;
 }
 
-MValue makeVecWithNaN(size_t n, double nanFraction, uint32_t seed = 13)
+Value makeVecWithNaN(size_t n, double nanFraction, uint32_t seed = 13)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(-1.0, 1.0);
     std::bernoulli_distribution nanFlip(nanFraction);
-    MValue v = MValue::matrix(n, 1, MType::DOUBLE, nullptr);
+    Value v = Value::matrix(n, 1, ValueType::DOUBLE, nullptr);
     double *p = v.doubleDataMut();
     for (size_t i = 0; i < n; ++i) p[i] = nanFlip(rng) ? std::nan("") : d(rng);
     return v;

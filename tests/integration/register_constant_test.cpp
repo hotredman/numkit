@@ -6,11 +6,11 @@
 // debug Workspace panel, shadowable, un-shadowable via `clear name`,
 // and surviving `clear all`.
 
-#include <numkit/m/core/MDebugSession.hpp>
+#include <numkit/core/debug_session.hpp>
 #include "dual_engine_fixture.hpp"
 
 using namespace m_test;
-using namespace numkit::m;
+using namespace numkit;
 
 class RegisterConstantTest : public DualEngineTest
 {
@@ -18,7 +18,7 @@ protected:
     void SetUp() override
     {
         DualEngineTest::SetUp();
-        engine.registerConstant("G", MValue::scalar(6.674e-11, &engine.allocator()));
+        engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
     }
 
     bool workspaceHas(const std::string &name)
@@ -155,8 +155,8 @@ INSTANTIATE_DUAL(RegisterConstantTest);
 TEST(RegisterConstantDebugTest, HiddenFromDebugSnapshot)
 {
     Engine engine;
-    StdLibrary::install(engine);
-    engine.registerConstant("G", MValue::scalar(6.674e-11, &engine.allocator()));
+    BuiltinLibrary::install(engine);
+    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -177,8 +177,8 @@ TEST(RegisterConstantDebugTest, HiddenFromDebugSnapshot)
 TEST(RegisterConstantDebugTest, ShadowingRegisteredConstantInScriptShowsInSnapshot)
 {
     Engine engine;
-    StdLibrary::install(engine);
-    engine.registerConstant("G", MValue::scalar(6.674e-11, &engine.allocator()));
+    BuiltinLibrary::install(engine);
+    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -204,8 +204,8 @@ TEST(RegisterConstantDebugTest, ShadowingRegisteredConstantInScriptShowsInSnapsh
 TEST(RegisterConstantDebugTest, ShadowingFromConsoleShowsInSnapshot)
 {
     Engine engine;
-    StdLibrary::install(engine);
-    engine.registerConstant("G", MValue::scalar(6.674e-11, &engine.allocator()));
+    BuiltinLibrary::install(engine);
+    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);

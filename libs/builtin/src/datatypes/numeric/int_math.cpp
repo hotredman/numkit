@@ -7,17 +7,17 @@
 // outside the [-2^53, 2^53] safe integer range degrade like MATLAB:
 // the round-trip through double rounds.
 
-#include <numkit/m/builtin/datatypes/numeric/int_math.hpp>
+#include <numkit/builtin/datatypes/numeric/int_math.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
-#include "MStdHelpers.hpp"
+#include "helpers.hpp"
 
 #include <cmath>
 #include <cstdint>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 namespace {
 
@@ -45,14 +45,14 @@ inline int64_t gcdInt(int64_t a, int64_t b)
 // gcd / lcm
 // ────────────────────────────────────────────────────────────────────
 
-MValue gcd(Allocator &alloc, const MValue &a, const MValue &b)
+Value gcd(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(gcdInt(toInt64(xv), toInt64(yv)));
     }, &alloc);
 }
 
-MValue lcm(Allocator &alloc, const MValue &a, const MValue &b)
+Value lcm(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         const int64_t x = toInt64(xv);
@@ -70,28 +70,28 @@ MValue lcm(Allocator &alloc, const MValue &a, const MValue &b)
 // bitwise
 // ────────────────────────────────────────────────────────────────────
 
-MValue bitand_(Allocator &alloc, const MValue &a, const MValue &b)
+Value bitand_(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) & toInt64(yv));
     }, &alloc);
 }
 
-MValue bitor_(Allocator &alloc, const MValue &a, const MValue &b)
+Value bitor_(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) | toInt64(yv));
     }, &alloc);
 }
 
-MValue bitxor_(Allocator &alloc, const MValue &a, const MValue &b)
+Value bitxor_(Allocator &alloc, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) ^ toInt64(yv));
     }, &alloc);
 }
 
-MValue bitshift(Allocator &alloc, const MValue &a, const MValue &k)
+Value bitshift(Allocator &alloc, const Value &a, const Value &k)
 {
     return elementwiseDouble(a, k, [](double xv, double kv) {
         const int64_t x = toInt64(xv);
@@ -119,10 +119,10 @@ MValue bitshift(Allocator &alloc, const MValue &a, const MValue &k)
     }, &alloc);
 }
 
-MValue bitcmp(Allocator &alloc, const MValue &a, int width)
+Value bitcmp(Allocator &alloc, const Value &a, int width)
 {
     if (width != 8 && width != 16 && width != 32 && width != 64)
-        throw MError("bitcmp: width must be 8, 16, 32, or 64",
+        throw Error("bitcmp: width must be 8, 16, 32, or 64",
                      0, 0, "bitcmp", "", "m:bitcmp:badWidth");
     const uint64_t mask = (width == 64) ? ~uint64_t{0}
                                         : ((uint64_t{1} << width) - 1);
@@ -138,11 +138,11 @@ MValue bitcmp(Allocator &alloc, const MValue &a, int width)
 namespace detail {
 
 #define NK_BIN_REG(name, fn)                                                   \
-    void name##_reg(Span<const MValue> args, size_t /*nargout*/,               \
-                    Span<MValue> outs, CallContext &ctx)                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
+                    Span<Value> outs, CallContext &ctx)                       \
     {                                                                          \
         if (args.size() < 2)                                                   \
-            throw MError(#name ": requires 2 arguments",                       \
+            throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
         outs[0] = fn(ctx.engine->allocator(), args[0], args[1]);               \
     }
@@ -156,11 +156,11 @@ NK_BIN_REG(bitshift, bitshift)
 
 #undef NK_BIN_REG
 
-void bitcmp_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
+void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 CallContext &ctx)
 {
     if (args.empty())
-        throw MError("bitcmp: requires at least 1 argument",
+        throw Error("bitcmp: requires at least 1 argument",
                      0, 0, "bitcmp", "", "m:bitcmp:nargin");
     int width = 64;
     if (args.size() >= 2 && !args[1].isEmpty()) {
@@ -171,7 +171,7 @@ void bitcmp_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
             else if (t == "uint32" || t == "int32") width = 32;
             else if (t == "uint64" || t == "int64") width = 64;
             else
-                throw MError("bitcmp: unknown type name",
+                throw Error("bitcmp: unknown type name",
                              0, 0, "bitcmp", "", "m:bitcmp:badType");
         } else {
             width = static_cast<int>(args[1].toScalar());
@@ -182,4 +182,4 @@ void bitcmp_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

@@ -8,12 +8,12 @@
 // range that hits L1, L2/L3, and DRAM. Pure data-movement kernels;
 // expect strong sensitivity to memory bandwidth.
 
-#include <numkit/m/builtin/lang/arrays/manip.hpp>
-#include <numkit/m/builtin/lang/arrays/matrix.hpp>
-#include <numkit/m/builtin/lang/arrays/nd_manip.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/lang/arrays/manip.hpp>
+#include <numkit/builtin/lang/arrays/matrix.hpp>
+#include <numkit/builtin/lang/arrays/nd_manip.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -22,23 +22,23 @@
 
 namespace {
 
-using namespace numkit::m;
+using namespace numkit;
 
-MValue makeMat(size_t r, size_t c, uint32_t seed = 11)
+Value makeMat(size_t r, size_t c, uint32_t seed = 11)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(-1.0, 1.0);
-    MValue m = MValue::matrix(r, c, MType::DOUBLE, nullptr);
+    Value m = Value::matrix(r, c, ValueType::DOUBLE, nullptr);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < r * c; ++i) p[i] = d(rng);
     return m;
 }
 
-MValue make3D(size_t r, size_t c, size_t pages, uint32_t seed = 17)
+Value make3D(size_t r, size_t c, size_t pages, uint32_t seed = 17)
 {
     std::mt19937 rng(seed);
     std::uniform_real_distribution<double> d(-1.0, 1.0);
-    MValue m = MValue::matrix3d(r, c, pages, MType::DOUBLE, nullptr);
+    Value m = Value::matrix3d(r, c, pages, ValueType::DOUBLE, nullptr);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < r * c * pages; ++i) p[i] = d(rng);
     return m;
@@ -129,7 +129,7 @@ static void BM_CatDim3(benchmark::State &s)
 {
     // Stack n 2D matrices into a 3D array.
     const size_t n = static_cast<size_t>(s.range(0));
-    std::vector<MValue> mats;
+    std::vector<Value> mats;
     mats.reserve(n);
     for (size_t i = 0; i < n; ++i)
         mats.push_back(makeMat(256, 256, 100 + static_cast<uint32_t>(i)));
@@ -146,7 +146,7 @@ static void BM_Blkdiag(benchmark::State &s)
 {
     // n square blocks on the diagonal; output is sum-side × sum-side.
     const size_t blocks = static_cast<size_t>(s.range(0));
-    std::vector<MValue> mats;
+    std::vector<Value> mats;
     mats.reserve(blocks);
     for (size_t i = 0; i < blocks; ++i)
         mats.push_back(makeMat(64, 64, 200 + static_cast<uint32_t>(i)));

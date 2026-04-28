@@ -223,7 +223,7 @@ TEST_P(ReshapeTest, ReshapePreservesType)
     eval("A = reshape(int32(1:12), 2, 3, 2);");
     auto *A = getVarPtr("A");
     ASSERT_NE(A, nullptr);
-    EXPECT_EQ(A->type(), MType::INT32);
+    EXPECT_EQ(A->type(), ValueType::INT32);
     EXPECT_TRUE(A->dims().is3D());
     EXPECT_EQ(A->int32Data()[11], 12);
 }
@@ -304,7 +304,7 @@ TEST_P(ReshapeTest, ReshapeInferPreservesValuesAndType)
     eval("A = reshape(int32(1:12), 2, [], 2);");
     auto *A = getVarPtr("A");
     ASSERT_NE(A, nullptr);
-    EXPECT_EQ(A->type(), MType::INT32);
+    EXPECT_EQ(A->type(), ValueType::INT32);
     EXPECT_TRUE(A->dims().is3D());
     EXPECT_EQ(A->dims().cols(), 3u);
     EXPECT_EQ(A->int32Data()[0], 1);
@@ -336,7 +336,7 @@ TEST_P(ReshapeTest, ReshapeStringArrayTo3DPreservesValues)
     eval("S = reshape([\"aa\" \"bbb\" \"c\" \"dddd\" \"ee\" \"f\" \"ggg\" \"hh\"], 2, 2, 2);");
     auto *S = getVarPtr("S");
     ASSERT_NE(S, nullptr);
-    EXPECT_EQ(S->type(), MType::STRING);
+    EXPECT_EQ(S->type(), ValueType::STRING);
     EXPECT_TRUE(S->dims().is3D());
     EXPECT_EQ(S->numel(), 8u);
     EXPECT_EQ(S->stringElem(0), "aa");
@@ -349,7 +349,7 @@ TEST_P(ReshapeTest, ReshapeCellTo3DPreservesValues)
     eval("C = reshape({1, 'ab', [3 4 5], 7, 8, 9, 10, 11}, 2, 2, 2);");
     auto *C = getVarPtr("C");
     ASSERT_NE(C, nullptr);
-    EXPECT_EQ(C->type(), MType::CELL);
+    EXPECT_EQ(C->type(), ValueType::CELL);
     EXPECT_TRUE(C->dims().is3D());
     EXPECT_EQ(C->numel(), 8u);
     EXPECT_DOUBLE_EQ(C->cellAt(0).toScalar(), 1.0);
@@ -751,7 +751,7 @@ TEST_P(SortFindTest, SortrowsPromotesIntegerToDouble)
 {
     eval("S = sortrows(int32([3 1; 1 5; 2 6]));");
     auto *S = getVarPtr("S");
-    EXPECT_EQ(S->type(), MType::DOUBLE);
+    EXPECT_EQ(S->type(), ValueType::DOUBLE);
     EXPECT_DOUBLE_EQ((*S)(0, 0), 1.0);
     EXPECT_DOUBLE_EQ((*S)(1, 0), 2.0);
     EXPECT_DOUBLE_EQ((*S)(2, 0), 3.0);
@@ -878,7 +878,7 @@ TEST_P(SortFindTest, NonzerosPreservesIntegerType)
 {
     eval("v = nonzeros(int32([0 -1 0 5 0 7]));");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::INT32);
+    EXPECT_EQ(v->type(), ValueType::INT32);
     EXPECT_EQ(v->numel(), 3u);
     EXPECT_EQ(v->int32Data()[0], -1);
     EXPECT_EQ(v->int32Data()[1], 5);
@@ -889,7 +889,7 @@ TEST_P(SortFindTest, NonzerosPreservesSingleType)
 {
     eval("v = nonzeros(single([0 1.5 0 -2.5]));");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::SINGLE);
+    EXPECT_EQ(v->type(), ValueType::SINGLE);
     EXPECT_EQ(v->numel(), 2u);
     EXPECT_FLOAT_EQ(v->singleData()[0], 1.5f);
     EXPECT_FLOAT_EQ(v->singleData()[1], -2.5f);
@@ -899,7 +899,7 @@ TEST_P(SortFindTest, NonzerosPreservesLogicalType)
 {
     eval("v = nonzeros([true false true true false]);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::LOGICAL);
+    EXPECT_EQ(v->type(), ValueType::LOGICAL);
     EXPECT_EQ(v->numel(), 3u);
     EXPECT_NE(v->logicalData()[0], 0);
     EXPECT_NE(v->logicalData()[1], 0);
@@ -911,7 +911,7 @@ TEST_P(SortFindTest, NonzerosComplex)
     // 0+0i excluded; 1+0i, 0+2i, 3+4i included.
     eval("v = nonzeros([0+0i, 1+0i, 0+2i, 3+4i]);");
     auto *v = getVarPtr("v");
-    EXPECT_EQ(v->type(), MType::COMPLEX);
+    EXPECT_EQ(v->type(), ValueType::COMPLEX);
     EXPECT_EQ(v->numel(), 3u);
     EXPECT_DOUBLE_EQ(v->complexData()[0].real(), 1.0);
     EXPECT_DOUBLE_EQ(v->complexData()[0].imag(), 0.0);

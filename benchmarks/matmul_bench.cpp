@@ -4,10 +4,10 @@
 // input matrices are built once per benchmark-size and re-used across
 // iterations.
 
-#include <numkit/m/builtin/lang/operators/binary_ops.hpp>
-#include <numkit/m/core/MAllocator.hpp>
-#include <numkit/m/core/MTypes.hpp>
-#include <numkit/m/core/MValue.hpp>
+#include <numkit/builtin/lang/operators/binary_ops.hpp>
+#include <numkit/core/allocator.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/core/value.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -15,13 +15,13 @@
 
 namespace {
 
-numkit::m::MValue makeSquare(size_t n)
+numkit::Value makeSquare(size_t n)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     std::mt19937 rng(17);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    MValue M = MValue::matrix(n, n, MType::DOUBLE, nullptr);
+    Value M = Value::matrix(n, n, ValueType::DOUBLE, nullptr);
     double *data = M.doubleDataMut();
     for (size_t i = 0; i < n * n; ++i)
         data[i] = dist(rng);
@@ -32,14 +32,14 @@ numkit::m::MValue makeSquare(size_t n)
 
 static void BM_Mtimes_Square(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue A = makeSquare(n);
-    MValue B = makeSquare(n);
+    Value A = makeSquare(n);
+    Value B = makeSquare(n);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue C = builtin::mtimes(alloc, A, B);
+        Value C = builtin::mtimes(alloc, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -66,14 +66,14 @@ BENCHMARK(BM_Mtimes_Square)
 //   --benchmark_filter=BM_Mtimes_Large --benchmark_min_time=0.5s
 static void BM_Mtimes_Large(benchmark::State &state)
 {
-    using namespace numkit::m;
+    using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    MValue A = makeSquare(n);
-    MValue B = makeSquare(n);
+    Value A = makeSquare(n);
+    Value B = makeSquare(n);
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue C = builtin::mtimes(alloc, A, B);
+        Value C = builtin::mtimes(alloc, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

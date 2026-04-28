@@ -465,7 +465,7 @@ TEST_P(ClearExportTest, FunctionReturnUninitialized)
         function r = test_uninit()
         end
     )");
-    MValue r = eval("test_uninit();");
+    Value r = eval("test_uninit();");
     EXPECT_TRUE(r.isEmpty());
 }
 

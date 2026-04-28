@@ -3,16 +3,16 @@
 // Tests for Bytecode Compiler + VM
 // Phase 1: scalar arithmetic, variables, display
 
-#include <numkit/m/core/MCompiler.hpp>
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MLexer.hpp>
-#include <numkit/m/core/MParser.hpp>
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/core/MVM.hpp>
+#include <numkit/core/compiler.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/lexer.hpp>
+#include <numkit/core/parser.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/core/vm.hpp>
 #include <cmath>
 #include <gtest/gtest.h>
 
-using namespace numkit::m;
+using namespace numkit;
 
 class VMTest : public ::testing::Test
 {
@@ -24,13 +24,13 @@ public:
 
     void SetUp() override
     {
-        StdLibrary::install(engine);
+        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
     }
 
     // Parse + compile + execute
-    MValue run(const std::string &code)
+    Value run(const std::string &code)
     {
         Lexer lexer(code);
         auto tokens = lexer.tokenize();
@@ -605,7 +605,7 @@ TEST_F(VMTest, CounterWithClosureMultiEval)
         end
     )");
     engine.eval("[inc, get] = make_counter();");
-    MValue r = engine.eval("get();");
+    Value r = engine.eval("get();");
     EXPECT_DOUBLE_EQ(r.toScalar(), 0.0);
 }
 
@@ -626,7 +626,7 @@ TEST_F(VMTest, FilterNyquistGain)
     }
 
     engine.eval("for k = 1:3; s = s + b(k); end;");
-    MValue r = engine.eval("s;");
+    Value r = engine.eval("s;");
     std::cerr << "s = " << r.debugString() << "\n";
     EXPECT_DOUBLE_EQ(r.toScalar(), 60.0);
 }

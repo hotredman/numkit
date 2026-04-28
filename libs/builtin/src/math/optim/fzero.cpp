@@ -4,10 +4,10 @@
 // expansion for the x0-only form). Shares the engine-callback helper
 // with integral.cpp via the inline header below.
 
-#include <numkit/m/builtin/math/optim/fzero.hpp>
+#include <numkit/builtin/math/optim/fzero.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
 
 #include "../_callback_helpers.hpp"
 
@@ -15,9 +15,9 @@
 #include <cmath>
 #include <utility>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
-namespace cb = ::numkit::m::builtin::detail::callback;
+namespace cb = ::numkit::builtin::detail::callback;
 
 namespace {
 
@@ -25,7 +25,7 @@ namespace {
 // factor until a sign change is detected. Throws if not found within
 // kMaxExpansions iterations.
 std::pair<double, double>
-findBracket(Engine *engine, const MValue &fn, double x0)
+findBracket(Engine *engine, const Value &fn, double x0)
 {
     constexpr int kMaxExpansions = 60;
     double step = (x0 == 0.0) ? 0.02 : std::abs(x0) * 0.02;
@@ -46,14 +46,14 @@ findBracket(Engine *engine, const MValue &fn, double x0)
         if ((fa < 0) != (fb < 0)) return {a, b};
         if ((fAprev < 0) != (fa < 0)) return {a, aPrev};
     }
-    throw MError("fzero: failed to find a bracket containing a sign change "
+    throw Error("fzero: failed to find a bracket containing a sign change "
                  "near x0",
                  0, 0, "fzero", "", "m:fzero:noBracket");
 }
 
 // Brent's method on [a, b] with f(a)*f(b) < 0 (or one of them == 0).
 // Returns the root.
-double brent(Engine *engine, const MValue &fn, double a, double b)
+double brent(Engine *engine, const Value &fn, double a, double b)
 {
     constexpr int    kMaxIter = 200;
     constexpr double kEps     = 1e-15;
@@ -63,7 +63,7 @@ double brent(Engine *engine, const MValue &fn, double a, double b)
     if (fa == 0.0) return a;
     if (fb == 0.0) return b;
     if ((fa < 0) == (fb < 0))
-        throw MError("fzero: f(a) and f(b) must have opposite signs "
+        throw Error("fzero: f(a) and f(b) must have opposite signs "
                      "(no sign change in the supplied interval)",
                      0, 0, "fzero", "", "m:fzero:noSignChange");
 
@@ -112,57 +112,57 @@ double brent(Engine *engine, const MValue &fn, double a, double b)
             b += (xm > 0 ? std::abs(tol1) : -std::abs(tol1));
         fb = cb::evalCallback(engine, fn, b);
     }
-    throw MError("fzero: failed to converge within iteration limit",
+    throw Error("fzero: failed to converge within iteration limit",
                  0, 0, "fzero", "", "m:fzero:noConverge");
 }
 
 } // namespace
 
-MValue fzero(Allocator &alloc, const MValue &fn, const MValue &x0OrInterval,
+Value fzero(Allocator &alloc, const Value &fn, const Value &x0OrInterval,
              Engine *engine)
 {
     if (engine == nullptr)
-        throw MError("fzero: requires an Engine pointer (callback API)",
+        throw Error("fzero: requires an Engine pointer (callback API)",
                      0, 0, "fzero", "", "m:fzero:noEngine");
     if (!fn.isFuncHandle()
         && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
-        throw MError("fzero: 1st argument must be a function handle",
+        throw Error("fzero: 1st argument must be a function handle",
                      0, 0, "fzero", "", "m:fzero:fnType");
 
     if (x0OrInterval.numel() == 2) {
         const double a = x0OrInterval.elemAsDouble(0);
         const double b = x0OrInterval.elemAsDouble(1);
         if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
-            throw MError("fzero: interval [a, b] must satisfy a < b and be finite",
+            throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
                          0, 0, "fzero", "", "m:fzero:badInterval");
-        return MValue::scalar(brent(engine, fn, a, b), &alloc);
+        return Value::scalar(brent(engine, fn, a, b), &alloc);
     }
 
     if (!x0OrInterval.isScalar())
-        throw MError("fzero: 2nd argument must be a scalar x0 or a 2-element "
+        throw Error("fzero: 2nd argument must be a scalar x0 or a 2-element "
                      "interval",
                      0, 0, "fzero", "", "m:fzero:badX0");
     const double x0 = x0OrInterval.toScalar();
     if (!std::isfinite(x0))
-        throw MError("fzero: x0 must be finite",
+        throw Error("fzero: x0 must be finite",
                      0, 0, "fzero", "", "m:fzero:badX0");
     auto [a, b] = findBracket(engine, fn, x0);
-    if (a == b) return MValue::scalar(a, &alloc);
+    if (a == b) return Value::scalar(a, &alloc);
     if (a > b) std::swap(a, b);
-    return MValue::scalar(brent(engine, fn, a, b), &alloc);
+    return Value::scalar(brent(engine, fn, a, b), &alloc);
 }
 
 // ── Engine adapter ───────────────────────────────────────────────────
 namespace detail {
 
-void fzero_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     if (args.size() < 2)
-        throw MError("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
+        throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
     outs[0] = fzero(ctx.engine->allocator(), args[0], args[1], ctx.engine);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin

@@ -2,14 +2,14 @@
 //
 // Workspace-persistence builtins (save / load). Last of MStdIO's
 // functions; after this migration MStdIO.cpp and
-// StdLibrary::registerIOFunctions are gone.
+// BuiltinLibrary::registerIOFunctions are gone.
 
-#include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/builtin/data_io/saveload.hpp>
+#include <numkit/builtin/library.hpp>
+#include <numkit/builtin/data_io/saveload.hpp>
 
-#include <numkit/m/core/MEngine.hpp>
-#include <numkit/m/core/MEnvironment.hpp>
-#include <numkit/m/core/MTypes.hpp>
+#include <numkit/core/engine.hpp>
+#include <numkit/core/environment.hpp>
+#include <numkit/core/types.hpp>
 
 #include <cctype>
 #include <cmath>
@@ -19,7 +19,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::builtin {
+namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
 // save / load (ascii)
@@ -38,10 +38,10 @@ namespace numkit::m::builtin {
 // concatenated with a blank line.
 // ════════════════════════════════════════════════════════════════════════
 
-void save(Engine &engine, Environment &env, Span<const MValue> args)
+void save(Engine &engine, Environment &env, Span<const Value> args)
 {
     if (args.empty() || !args[0].isChar())
-        throw MError("save: filename required");
+        throw Error("save: filename required");
     std::string filename = args[0].toString();
 
     bool asciiFlag = false;
@@ -52,23 +52,23 @@ void save(Engine &engine, Environment &env, Span<const MValue> args)
         std::string s = args[i].toString();
         if (s == "-ascii") { asciiFlag = true; continue; }
         if (s == "-mat" || s == "-v7" || s == "-v7.3")
-            throw MError("save: binary .mat formats are not supported");
+            throw Error("save: binary .mat formats are not supported");
         if (!s.empty() && s.front() == '-')
-            throw MError("save: unsupported flag '" + s + "'");
+            throw Error("save: unsupported flag '" + s + "'");
         varnames.push_back(s);
     }
     (void)asciiFlag; // currently the only supported format
 
     if (varnames.empty())
-        throw MError("save: at least one variable name is required");
+        throw Error("save: at least one variable name is required");
 
     std::ostringstream out;
     for (size_t vi = 0; vi < varnames.size(); ++vi) {
-        MValue *v = env.get(varnames[vi]);
+        Value *v = env.get(varnames[vi]);
         if (!v)
-            throw MError("save: variable '" + varnames[vi] + "' not found");
-        if (v->type() != MType::DOUBLE)
-            throw MError("save: only numeric (double) variables supported in ascii mode");
+            throw Error("save: variable '" + varnames[vi] + "' not found");
+        if (v->type() != ValueType::DOUBLE)
+            throw Error("save: only numeric (double) variables supported in ascii mode");
         auto d = v->dims();
         size_t rows = d.rows();
         size_t cols = d.cols();
@@ -89,16 +89,16 @@ void save(Engine &engine, Environment &env, Span<const MValue> args)
     try {
         resolved.fs->writeFile(resolved.path, out.str());
     } catch (const std::exception &e) {
-        throw MError(std::string("save: ") + e.what());
+        throw Error(std::string("save: ") + e.what());
     }
 }
 
-void load(Engine &engine, Environment &env, Span<const MValue> args,
-          size_t nargout, Span<MValue> outs)
+void load(Engine &engine, Environment &env, Span<const Value> args,
+          size_t nargout, Span<Value> outs)
 {
     Allocator *alloc = &engine.allocator();
     if (args.empty() || !args[0].isChar())
-        throw MError("load: filename required");
+        throw Error("load: filename required");
     std::string filename = args[0].toString();
 
     // Ignore -ascii flag; we only support ascii anyway.
@@ -106,10 +106,10 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
         if (!args[i].isChar()) continue;
         std::string s = args[i].toString();
         if (s == "-mat" || s == "-v7" || s == "-v7.3")
-            throw MError("load: binary .mat formats are not supported");
+            throw Error("load: binary .mat formats are not supported");
         if (s == "-ascii") continue;
         if (!s.empty() && s.front() == '-')
-            throw MError("load: unsupported flag '" + s + "'");
+            throw Error("load: unsupported flag '" + s + "'");
     }
 
     auto resolved = engine.resolvePath(filename);
@@ -117,7 +117,7 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
     try {
         content = resolved.fs->readFile(resolved.path);
     } catch (const std::exception &e) {
-        throw MError(std::string("load: ") + e.what());
+        throw Error(std::string("load: ") + e.what());
     }
 
     // Parse each non-empty, non-comment line as whitespace-separated
@@ -145,7 +145,7 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
             char *endp = nullptr;
             double v = std::strtod(start, &endp);
             if (endp == start)
-                throw MError("load: parse error near '" + line.substr(q) + "'");
+                throw Error("load: parse error near '" + line.substr(q) + "'");
             row.push_back(v);
             q = static_cast<size_t>(endp - line.c_str());
         }
@@ -153,19 +153,19 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
     }
 
     if (rows.empty())
-        throw MError("load: no numeric data found");
+        throw Error("load: no numeric data found");
     size_t cols = rows[0].size();
     for (auto &r : rows) {
         if (r.size() != cols)
-            throw MError("load: inconsistent column count across rows");
+            throw Error("load: inconsistent column count across rows");
     }
     size_t nrows = rows.size();
 
-    MValue M;
+    Value M;
     if (nrows == 1 && cols == 1) {
-        M = MValue::scalar(rows[0][0], alloc);
+        M = Value::scalar(rows[0][0], alloc);
     } else {
-        M = MValue::matrix(nrows, cols, MType::DOUBLE, alloc);
+        M = Value::matrix(nrows, cols, ValueType::DOUBLE, alloc);
         double *data = M.doubleDataMut();
         for (size_t r = 0; r < nrows; ++r)
             for (size_t c = 0; c < cols; ++c)
@@ -185,7 +185,7 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
     size_t dot = stem.find_last_of('.');
     if (dot != std::string::npos && dot > 0) stem = stem.substr(0, dot);
     if (stem.empty() || !(std::isalpha(static_cast<unsigned char>(stem[0])) || stem[0] == '_'))
-        throw MError("load: cannot derive a valid variable name from filename");
+        throw Error("load: cannot derive a valid variable name from filename");
     env.set(stem, std::move(M));
 }
 
@@ -195,18 +195,18 @@ void load(Engine &engine, Environment &env, Span<const MValue> args,
 
 namespace detail {
 
-void save_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void save_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     (void)nargout;
     (void)outs;
     save(*ctx.engine, *ctx.env, args);
 }
 
-void load_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
+void load_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
     load(*ctx.engine, *ctx.env, args, nargout, outs);
 }
 
 } // namespace detail
 
-} // namespace numkit::m::builtin
+} // namespace numkit::builtin
