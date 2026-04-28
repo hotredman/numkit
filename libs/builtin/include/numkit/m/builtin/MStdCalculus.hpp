@@ -9,7 +9,11 @@
 
 #include <tuple>
 
+namespace numkit::m { class Engine; }
+
 namespace numkit::m::builtin {
+
+using ::numkit::m::Engine;
 
 /// gradient(F[, h]) — central differences in the interior, one-sided
 /// at the endpoints. Default spacing h = 1.
@@ -28,5 +32,15 @@ gradient2(Allocator &alloc, const MValue &f, double hx = 1.0, double hy = 1.0);
 /// 1-D vector input only for now (matrix support deferred).
 MValue cumtrapz(Allocator &alloc, const MValue &y);
 MValue cumtrapz(Allocator &alloc, const MValue &x, const MValue &y);
+
+/// fzero(fn, x0)   — scalar root near x0. Expands an initial bracket
+///                    around x0 until sign change is found, then runs
+///                    Brent's method.
+/// fzero(fn, [a, b]) — root inside the interval [a, b]. Throws if
+///                    sign(fn(a)) == sign(fn(b)) (no obvious root).
+/// `fn` must be a function handle. Engine pointer is required to invoke
+/// the callback — it's expected to come from the CallContext.
+MValue fzero(Allocator &alloc, const MValue &fn, const MValue &x0OrInterval,
+             Engine *engine);
 
 } // namespace numkit::m::builtin

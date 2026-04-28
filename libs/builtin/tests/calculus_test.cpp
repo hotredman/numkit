@@ -196,4 +196,73 @@ TEST_P(CalculusTest, CumtrapzComplexThrows)
     EXPECT_THROW(eval("c = cumtrapz([1+2i, 3, 5]);"), std::exception);
 }
 
+// ── fzero ──────────────────────────────────────────────────────
+
+// fzero relies on the engine callback API which needs the TW backend
+// for anonymous handles (see Engine::callFunctionHandleMulti).
+#define FZERO_REQUIRE_TW()                                                  \
+    do {                                                                     \
+        if (GetParam() == BackendParam::VM)                                  \
+            GTEST_SKIP() << "fzero: VM-side anonymous handle callback not "  \
+                            "yet supported (round 11 item 27 limitation)";   \
+    } while (0)
+
+TEST_P(CalculusTest, FzeroQuadraticBracket)
+{
+    FZERO_REQUIRE_TW();
+    // Find root of x^2 - 4 in [0, 10] → 2.
+    eval("r = fzero(@(x) x.^2 - 4, [0, 10]);");
+    EXPECT_NEAR(evalScalar("r;"), 2.0, 1e-10);
+}
+
+TEST_P(CalculusTest, FzeroStartFromX0)
+{
+    FZERO_REQUIRE_TW();
+    // Same root but only an x0 hint.
+    eval("r = fzero(@(x) x - sqrt(2), 1);");
+    EXPECT_NEAR(evalScalar("r;"), std::sqrt(2.0), 1e-12);
+}
+
+TEST_P(CalculusTest, FzeroSineRootNearPi)
+{
+    FZERO_REQUIRE_TW();
+    eval("r = fzero(@(x) sin(x), [3, 4]);");
+    EXPECT_NEAR(evalScalar("r;"), M_PI, 1e-10);
+}
+
+TEST_P(CalculusTest, FzeroLinearWithClosure)
+{
+    FZERO_REQUIRE_TW();
+    // f(x) = x - k where k is captured.
+    eval("k = 7.5;"
+         "r = fzero(@(x) x - k, 0);");
+    EXPECT_NEAR(evalScalar("r;"), 7.5, 1e-12);
+}
+
+TEST_P(CalculusTest, FzeroBuiltinHandle)
+{
+    // @cos has a root near pi/2. Built-in handle (no anonymous closure)
+    // works on both backends.
+    eval("r = fzero(@cos, [1, 2]);");
+    EXPECT_NEAR(evalScalar("r;"), M_PI / 2.0, 1e-10);
+}
+
+TEST_P(CalculusTest, FzeroNoSignChangeThrows)
+{
+    FZERO_REQUIRE_TW();
+    EXPECT_THROW(eval("r = fzero(@(x) x.^2 + 1, [-1, 1]);"), std::exception);
+}
+
+TEST_P(CalculusTest, FzeroBadIntervalThrows)
+{
+    FZERO_REQUIRE_TW();
+    // a >= b is invalid.
+    EXPECT_THROW(eval("r = fzero(@(x) x, [5, 1]);"), std::exception);
+}
+
+TEST_P(CalculusTest, FzeroNonHandleThrows)
+{
+    EXPECT_THROW(eval("r = fzero('not a handle', 1);"), std::exception);
+}
+
 INSTANTIATE_DUAL(CalculusTest);
