@@ -11,7 +11,7 @@
 // kernel based on the size predicate (pow-of-4, pow-of-8, …) and
 // hands off through the per-kernel dispatcher exported from each TU.
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 

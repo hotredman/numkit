@@ -5,7 +5,7 @@
 // r4 butterfly and its base-4 digit-reversal away from the r2 / r8
 // kernels lets MSVC inline within each file's budget.
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 #include <utility>

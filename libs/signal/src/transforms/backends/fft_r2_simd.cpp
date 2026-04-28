@@ -7,7 +7,7 @@
 // touch (see feedback_fft_msvc_limits memory). With the split each
 // kernel inlines cleanly inside its own file.
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 #include <utility>

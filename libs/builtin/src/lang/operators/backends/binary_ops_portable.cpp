@@ -4,7 +4,7 @@
 // real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The
 // Highway-dispatched variant lives in binary_ops_simd.cpp.
 
-#include "BinaryOpsLoops.hpp"
+#include "binary_ops_loops.hpp"
 
 #include <cstddef>
 

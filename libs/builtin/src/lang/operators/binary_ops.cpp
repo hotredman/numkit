@@ -7,7 +7,7 @@
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
-#include "backends/BinaryOpsLoops.hpp"
+#include "backends/binary_ops_loops.hpp"
 #include "backends/compare.hpp"
 
 #include <cmath>

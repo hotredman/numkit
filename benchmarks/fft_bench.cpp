@@ -14,7 +14,7 @@
 // benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time
 // just the inner radix-2 dispatch loop.
 #include "dsp_helpers.hpp"
-#include "transforms/backends/FftKernels.hpp"
+#include "transforms/backends/fft_kernels.hpp"
 
 #include <benchmark/benchmark.h>
 

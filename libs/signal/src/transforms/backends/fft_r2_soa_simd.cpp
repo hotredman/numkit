@@ -25,7 +25,7 @@
 // Lives in its own TU for the same MSVC inliner-budget reason as the
 // r2 / r4 / Stockham split (see feedback_fft_msvc_limits memory).
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 #include <utility>

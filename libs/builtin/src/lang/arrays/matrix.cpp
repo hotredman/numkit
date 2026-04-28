@@ -8,7 +8,7 @@
 #include "helpers.hpp"
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
-#include "lang/operators/backends/BinaryOpsLoops.hpp"
+#include "lang/operators/backends/binary_ops_loops.hpp"
 #include "math/elementary/backends/cumsum.hpp"
 
 #include <algorithm>

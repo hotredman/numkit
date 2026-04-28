@@ -27,7 +27,7 @@
 //     bandwidth might cost. Empirical crossover is at the dispatcher
 //     in fft_simd.cpp.
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 #include <cstring>

@@ -13,7 +13,7 @@
 // Same per-TU isolation rationale as the other FFT kernels (MSVC
 // inliner-budget cliff documented in feedback_fft_msvc_limits memory).
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 
 #include <cstddef>
 #include <utility>

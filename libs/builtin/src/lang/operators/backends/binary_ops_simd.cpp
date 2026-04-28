@@ -7,7 +7,7 @@
 // / times() / rdivide() in binary_ops.cpp are unchanged; they
 // call these loops only for the 2D same-shape DOUBLE fast path.
 
-#include "BinaryOpsLoops.hpp"
+#include "binary_ops_loops.hpp"
 
 #include <numkit/core/parallel_for.hpp>
 

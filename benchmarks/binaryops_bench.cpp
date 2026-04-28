@@ -69,7 +69,7 @@ BENCHMARK(BM_Times)->RangeMultiplier(4)->Range(1 << 10, 1 << 22)->Complexity(ben
 // the rest goes.
 
 namespace numkit::builtin::detail {
-// Forward-declare from libs/builtin/src/backends/BinaryOpsLoops.hpp.
+// Forward-declare from libs/builtin/src/backends/binary_ops_loops.hpp.
 // Linked from the same numkit library; bypasses the public
 // plus()/elementwiseDouble() wrapping so we measure only the kernel.
 void plusLoop(const double *a, const double *b, double *out, std::size_t n);

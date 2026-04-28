@@ -1,4 +1,4 @@
-// libs/signal/src/transforms/backends/FftKernels.hpp
+// libs/signal/src/transforms/backends/fft_kernels.hpp
 //
 // Private kernel-dispatch header for FFT backends. Compiled by
 // exactly one of backends/MDspFft_{portable,simd}.cpp based on

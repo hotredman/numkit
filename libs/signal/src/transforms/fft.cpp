@@ -13,7 +13,7 @@
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
-#include "backends/FftKernels.hpp"
+#include "backends/fft_kernels.hpp"
 
 // Highway intrinsics for the SIMD twist loop in the rfft path. Only
 // the unit-stride dst case uses SIMD; non-unit stride and the scalar

@@ -16,7 +16,7 @@
 // Used by the DspFftStockham parity tests below to call the radix-2
 // + Stockham kernels directly (without going through the public
 // dsp::fft wrapper).
-#include "src/transforms/backends/FftKernels.hpp"
+#include "src/transforms/backends/fft_kernels.hpp"
 #include "src/dsp_helpers.hpp"
 
 #include <gtest/gtest.h>
@@ -322,7 +322,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
 // match within FP noise.
 //
 // Direct kernel calls — fftStockhamDispatch and fftRadix2Impl are
-// declared in libs/dsp/src/backends/FftKernels.hpp; we link against
+// declared in libs/dsp/src/backends/fft_kernels.hpp; we link against
 // the dsp library which exports them.
 //
 // Stockham + SoA dispatchers are SIMD-only (no portable backend), so

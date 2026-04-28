@@ -3,7 +3,7 @@
 // Portable FFT kernel — a thin forwarder to the inline scalar
 // fftRadix2 in helpers.hpp. Compiled when NUMKIT_WITH_SIMD=OFF.
 
-#include "FftKernels.hpp"
+#include "fft_kernels.hpp"
 #include "dsp_helpers.hpp"
 
 namespace numkit::signal::detail {

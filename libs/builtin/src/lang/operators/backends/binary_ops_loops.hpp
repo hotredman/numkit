@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/BinaryOpsLoops.hpp
+// libs/builtin/src/lang/operators/backends/binary_ops_loops.hpp
 //
 // Private declarations for the backend-split binary-op inner loops.
 // Implemented by exactly one of backends/MStdBinaryOps_{portable,simd}.cpp
