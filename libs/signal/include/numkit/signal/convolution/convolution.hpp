@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/convolution/convolution.hpp
+// libs/signal/include/numkit/signal/convolution/convolution.hpp
 #pragma once
 
 #include <numkit/core/allocator.hpp>

@@ -1,10 +1,10 @@
-// libs/dsp/tests/fft_public_api_test.cpp
+// libs/signal/tests/fft_public_api_test.cpp
 //
 // Direct-call tests for the public C++ API of numkit::signal::fft / ifft.
 // These exercise the algorithm without going through Engine, Parser, VM, or
 // the registration adapter — so any breakage here is in the math, not the
 // MATLAB calling glue. The Engine-routed tests live alongside in
-// libs/dsp/tests/signal_core_test.cpp and remain in place.
+// libs/signal/tests/signal_core_test.cpp and remain in place.
 
 #include <numkit/core/allocator.hpp>
 #include <numkit/core/types.hpp>  // Error
@@ -12,7 +12,7 @@
 #include <numkit/signal/transforms/fft.hpp>
 
 // Private kernel-dispatch headers, exposed to this test target via
-// libs/dsp/tests/CMakeLists adding libs/dsp as a private include path.
+// libs/signal/tests/CMakeLists adding libs/dsp as a private include path.
 // Used by the DspFftStockham parity tests below to call the radix-2
 // + Stockham kernels directly (without going through the public
 // dsp::fft wrapper).

@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/windows/windows.hpp
+// libs/signal/include/numkit/signal/windows/windows.hpp
 #pragma once
 
 #include <numkit/core/allocator.hpp>

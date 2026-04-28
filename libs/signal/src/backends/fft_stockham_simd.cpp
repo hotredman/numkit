@@ -1,4 +1,4 @@
-// libs/dsp/src/backends/fft_stockham_simd.cpp
+// libs/signal/src/backends/fft_stockham_simd.cpp
 //
 // Stockham auto-sort radix-2 FFT. Out-of-place (ping-pong between two
 // buffers) — eliminates the bit-reversal pass that radix-2 in-place

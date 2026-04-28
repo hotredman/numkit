@@ -1,4 +1,4 @@
-// libs/dsp/src/MDspFilter.cpp
+// libs/signal/src/MDspFilter.cpp
 
 #include <numkit/signal/digital_filtering/filter.hpp>
 

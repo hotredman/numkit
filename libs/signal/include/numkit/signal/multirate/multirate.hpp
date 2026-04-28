@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/multirate/multirate.hpp
+// libs/signal/include/numkit/signal/multirate/multirate.hpp
 #pragma once
 
 #include <numkit/core/allocator.hpp>

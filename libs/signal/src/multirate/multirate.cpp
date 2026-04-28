@@ -1,4 +1,4 @@
-// libs/dsp/src/MDspResample.cpp
+// libs/signal/src/MDspResample.cpp
 
 #include <numkit/signal/multirate/multirate.hpp>
 

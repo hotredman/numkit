@@ -1,4 +1,4 @@
-// libs/dsp/src/backends/fft_r2_soa_simd.cpp
+// libs/signal/src/backends/fft_r2_soa_simd.cpp
 //
 // Radix-2 FFT with Structure-of-Arrays (split real/imag) layout
 // internally. The public API still takes interleaved-complex (AoS)

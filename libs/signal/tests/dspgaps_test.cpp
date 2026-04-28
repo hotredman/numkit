@@ -1,4 +1,4 @@
-// libs/dsp/tests/dspgaps_test.cpp
+// libs/signal/tests/dspgaps_test.cpp
 // Phase 9: medfilt1 / findpeaks / goertzel / dct / idct
 
 #include "dual_engine_fixture.hpp"

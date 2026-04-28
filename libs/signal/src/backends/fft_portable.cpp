@@ -1,4 +1,4 @@
-// libs/dsp/src/backends/fft_portable.cpp
+// libs/signal/src/backends/fft_portable.cpp
 //
 // Portable FFT kernel — a thin forwarder to the inline scalar
 // fftRadix2 in helpers.hpp. Compiled when NUMKIT_WITH_SIMD=OFF.

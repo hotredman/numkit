@@ -1,4 +1,4 @@
-// libs/dsp/tests/sos_test.cpp
+// libs/signal/tests/sos_test.cpp
 //
 // SOS family — sosfilt, zp2sos, tf2sos. Tests cover:
 //   * sosfilt cascade equivalence to filter() on direct-form (b, a)

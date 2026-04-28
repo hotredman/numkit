@@ -48,6 +48,9 @@ ide/desktop/release.zip
 
 # ── Tool / editor / OS state ──────────────────────────
 .claude/
+# Local emsdk env helper (machine-specific paths) + repl/test scratch output
+.claude_*.sh
+data.csv
 .DS_Store
 Thumbs.db
 desktop.ini

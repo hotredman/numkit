@@ -1,4 +1,4 @@
-// libs/dsp/src/MDspFft.cpp
+// libs/signal/src/MDspFft.cpp
 //
 // Public C++ API for 1D FFT / IFFT plus the adapters that bridge the
 // Engine's MATLAB-style calling convention onto it. Algorithm is the same

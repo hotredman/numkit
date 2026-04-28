@@ -1,4 +1,4 @@
-// libs/dsp/src/MDspConv.cpp
+// libs/signal/src/MDspConv.cpp
 //
 // Public C++ API for convolution and friends. See MDspConv.hpp for
 // contracts. Algorithms unchanged from the previous lambda form — only

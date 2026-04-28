@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/transforms/fft.hpp
+// libs/signal/include/numkit/signal/transforms/fft.hpp
 #pragma once
 
 #include <numkit/core/allocator.hpp>

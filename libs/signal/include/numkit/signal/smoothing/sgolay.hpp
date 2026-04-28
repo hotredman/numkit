@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/smoothing/sgolay.hpp
+// libs/signal/include/numkit/signal/smoothing/sgolay.hpp
 //
 // Savitzky-Golay smoothing filter family.
 

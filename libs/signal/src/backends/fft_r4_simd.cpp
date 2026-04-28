@@ -1,4 +1,4 @@
-// libs/dsp/src/backends/fft_r4_simd.cpp
+// libs/signal/src/backends/fft_r4_simd.cpp
 //
 // Radix-4 FFT kernel for sizes that are clean powers of 4. Same
 // per-TU isolation rationale as fft_r2_simd.cpp — keeping the

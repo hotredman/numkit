@@ -1,4 +1,4 @@
-// libs/dsp/include/numkit/signal/digital_filtering/filter.hpp
+// libs/signal/include/numkit/signal/digital_filtering/filter.hpp
 #pragma once
 
 #include <numkit/core/allocator.hpp>

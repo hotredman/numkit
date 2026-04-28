@@ -1,4 +1,4 @@
-// libs/dsp/tests/sgolay_test.cpp
+// libs/signal/tests/sgolay_test.cpp
 //
 // Savitzky-Golay smoothing filter — sgolay() projection matrix and
 // sgolayfilt() applied to vectors.
