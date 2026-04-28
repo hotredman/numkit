@@ -157,15 +157,26 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/datatypes/strings/scan.hpp
     libs/builtin/include/numkit/m/builtin/programming/errors/diagnostics.hpp
     libs/signal/include/numkit/m/signal/MSignalLibrary.hpp
-    libs/signal/include/numkit/m/signal/MDspFft.hpp
-    libs/signal/include/numkit/m/signal/MDspConv.hpp
-    libs/signal/include/numkit/m/signal/MDspFilter.hpp
-    libs/signal/include/numkit/m/signal/MDspFilterDesign.hpp
-    libs/signal/include/numkit/m/signal/MDspResample.hpp
-    libs/signal/include/numkit/m/signal/MDspSpectral.hpp
-    libs/signal/include/numkit/m/signal/MDspWindows.hpp
-    libs/signal/include/numkit/m/signal/MDspTransform.hpp
-    libs/signal/include/numkit/m/signal/MDspSignalCore.hpp
+    libs/signal/include/numkit/m/signal/waveform_generation/waveform_generation.hpp
+    libs/signal/include/numkit/m/signal/filter_design/filter_design.hpp
+    libs/signal/include/numkit/m/signal/filter_analysis/frequency_response.hpp
+    libs/signal/include/numkit/m/signal/filter_analysis/unwrap.hpp
+    libs/signal/include/numkit/m/signal/digital_filtering/filter.hpp
+    libs/signal/include/numkit/m/signal/digital_filtering/sosfilt.hpp
+    libs/signal/include/numkit/m/signal/filter_implementation/conversions.hpp
+    libs/signal/include/numkit/m/signal/multirate/multirate.hpp
+    libs/signal/include/numkit/m/signal/convolution/convolution.hpp
+    libs/signal/include/numkit/m/signal/transforms/fft.hpp
+    libs/signal/include/numkit/m/signal/transforms/hilbert.hpp
+    libs/signal/include/numkit/m/signal/transforms/dct.hpp
+    libs/signal/include/numkit/m/signal/transforms/goertzel.hpp
+    libs/signal/include/numkit/m/signal/transforms/transform_helpers.hpp
+    libs/signal/include/numkit/m/signal/smoothing/sgolay.hpp
+    libs/signal/include/numkit/m/signal/smoothing/medfilt.hpp
+    libs/signal/include/numkit/m/signal/measurements/findpeaks.hpp
+    libs/signal/include/numkit/m/signal/spectral_analysis/periodogram_pwelch.hpp
+    libs/signal/include/numkit/m/signal/time_frequency/spectrogram.hpp
+    libs/signal/include/numkit/m/signal/windows/windows.hpp
     libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
     libs/graphics/include/numkit/m/graphics/MGraphicsLibrary.hpp
 )

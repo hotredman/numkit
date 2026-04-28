@@ -8,7 +8,7 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/signal/MDspFft.hpp>
+#include <numkit/m/signal/transforms/fft.hpp>
 
 // Private headers — exposed via libs/dsp/src include path in the
 // benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time

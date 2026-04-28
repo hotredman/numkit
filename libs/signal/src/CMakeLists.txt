@@ -1,17 +1,38 @@
 set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MSignalLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspSignalCore.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspWindows.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspFilter.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspFilterDesign.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspSpectral.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspResample.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspTransform.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspFft.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspConv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspGaps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspSos.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MDspSgolay.cpp
+    # waveform_generation/
+    ${CMAKE_CURRENT_SOURCE_DIR}/waveform_generation/waveform_generation.cpp
+    # filter_design/
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/filter_design.cpp
+    # filter_analysis/
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap.cpp
+    # digital_filtering/
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
+    # filter_implementation/
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp
+    # multirate/
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
+    # convolution/
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp
+    # transforms/
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers.cpp
+    # smoothing/
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp
+    # measurements/
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks.cpp
+    # spectral_analysis/
+    ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
+    # time_frequency/
+    ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp
+    # windows/
+    ${CMAKE_CURRENT_SOURCE_DIR}/windows/windows.cpp
 )
 
 # Backend-split FFT kernel — the SIMD path itself splits across

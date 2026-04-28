@@ -7,7 +7,7 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/signal/MDspConv.hpp>
+#include <numkit/m/signal/convolution/convolution.hpp>
 
 #include <benchmark/benchmark.h>
 

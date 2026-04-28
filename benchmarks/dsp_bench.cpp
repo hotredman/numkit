@@ -9,12 +9,14 @@
 // fast feedback) to 64k (where the FFT-backed kernels start to show
 // their cost).
 
-#include <numkit/m/signal/MDspConv.hpp>
-#include <numkit/m/signal/MDspFilter.hpp>
-#include <numkit/m/signal/MDspFilterDesign.hpp>
-#include <numkit/m/signal/MDspGaps.hpp>
-#include <numkit/m/signal/MDspSpectral.hpp>
-#include <numkit/m/signal/MDspTransform.hpp>
+#include <numkit/m/signal/convolution/convolution.hpp>
+#include <numkit/m/signal/digital_filtering/filter.hpp>
+#include <numkit/m/signal/filter_design/filter_design.hpp>
+#include <numkit/m/signal/measurements/findpeaks.hpp>
+#include <numkit/m/signal/smoothing/medfilt.hpp>
+#include <numkit/m/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/m/signal/transforms/dct.hpp>
+#include <numkit/m/signal/transforms/hilbert.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

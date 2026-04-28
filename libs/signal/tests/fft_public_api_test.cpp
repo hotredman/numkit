@@ -9,7 +9,7 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>  // MError
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/signal/MDspFft.hpp>
+#include <numkit/m/signal/transforms/fft.hpp>
 
 // Private kernel-dispatch headers, exposed to this test target via
 // libs/dsp/tests/CMakeLists adding libs/dsp as a private include path.
