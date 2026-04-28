@@ -6,7 +6,7 @@
 #include <numkit/m/core/MParser.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
 #include <numkit/m/signal/MSignalLibrary.hpp>
-#include <numkit/m/plt/MPltLibrary.hpp>
+#include <numkit/m/graphics/MGraphicsLibrary.hpp>
 #include <numkit/m/core/MTreeWalker.hpp>
 #include <numkit/m/core/MVM.hpp>
 #include <algorithm>
@@ -58,7 +58,7 @@ Engine::Engine()
     registerVirtualFS(std::make_unique<NativeFS>());
     StdLibrary::install(*this);
     SignalLibrary::install(*this);
-    PltLibrary::install(*this);
+    GraphicsLibrary::install(*this);
 }
 
 Engine::~Engine()

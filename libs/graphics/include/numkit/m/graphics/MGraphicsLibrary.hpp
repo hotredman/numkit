@@ -4,7 +4,7 @@
 
 namespace numkit::m {
 
-class PltLibrary
+class GraphicsLibrary
 {
 public:
     static void install(Engine &engine);

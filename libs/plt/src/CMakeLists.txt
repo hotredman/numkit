@@ -1,4 +1,0 @@
-set(PLTLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/MPltLibrary.cpp
-    PARENT_SCOPE
-)

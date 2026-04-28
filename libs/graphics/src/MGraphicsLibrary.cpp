@@ -1,4 +1,4 @@
-#include <numkit/m/plt/MPltLibrary.hpp>
+#include <numkit/m/graphics/MGraphicsLibrary.hpp>
 
 #include <algorithm>
 #include <cmath>
@@ -7,7 +7,7 @@
 
 namespace numkit::m {
 
-void PltLibrary::install(Engine &engine)
+void GraphicsLibrary::install(Engine &engine)
 {
     auto &fm = engine.figureManager();
 

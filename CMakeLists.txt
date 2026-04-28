@@ -86,13 +86,13 @@ endif()
 # Each library defines its own source list (STDLIB_SOURCES, SIGNALLIB_SOURCES, ...)
 add_subdirectory(libs/builtin/src)
 add_subdirectory(libs/signal/src)
-add_subdirectory(libs/plt/src)
+add_subdirectory(libs/graphics/src)
 
 set(NUMKIT_M_SOURCES
     ${NUMKIT_M_CORE_SOURCES}
     ${STDLIB_SOURCES}
     ${SIGNALLIB_SOURCES}
-    ${PLTLIB_SOURCES}
+    ${GRAPHICSLIB_SOURCES}
 )
 
 set(NUMKIT_M_HEADERS
@@ -167,7 +167,7 @@ set(NUMKIT_M_HEADERS
     libs/signal/include/numkit/m/signal/MDspTransform.hpp
     libs/signal/include/numkit/m/signal/MDspSignalCore.hpp
     libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
-    libs/plt/include/numkit/m/plt/MPltLibrary.hpp
+    libs/graphics/include/numkit/m/graphics/MGraphicsLibrary.hpp
 )
 
 if(NUMKIT_M_BUILD_SHARED)
@@ -183,7 +183,7 @@ target_include_directories(m
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/plt/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (MStdHelpers.hpp, MDspHelpers.hpp)
@@ -278,7 +278,7 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
     add_subdirectory(libs/signal/tests)
-    add_subdirectory(libs/plt/tests)
+    add_subdirectory(libs/graphics/tests)
 endif()
 
 # ──────────────────────────────────────────────
@@ -347,7 +347,7 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
     install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/signal/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/plt/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/graphics/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT mTargets
         FILE        mTargets.cmake
