@@ -386,6 +386,132 @@ MValue interp2(Allocator &alloc, const MValue &X, const MValue &Y,
     return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
 }
 
+// ── interp3 ───────────────────────────────────────────────────────────
+namespace {
+
+// Trilinear / nearest sample at (xq, yq, zq) given a 3D V (rows R,
+// cols C, pages P) in column-major page-major layout: V[k*R*C + j*R + i]
+// for (row=i, col=j, page=k).
+double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t P,
+                     const double *xGrid, const double *yGrid, const double *zGrid,
+                     double xq, double yq, double zq, Interp2Method method)
+{
+    const std::size_t ix = findCell(xGrid, C, xq);
+    const std::size_t iy = findCell(yGrid, R, yq);
+    const std::size_t iz = findCell(zGrid, P, zq);
+    if (ix == std::size_t(-1) || iy == std::size_t(-1) || iz == std::size_t(-1))
+        return std::nan("");
+
+    auto val = [&](std::size_t i, std::size_t j, std::size_t k) {
+        return V[k * R * C + j * R + i];
+    };
+
+    if (method == Interp2Method::Nearest) {
+        const std::size_t cx = (xq - xGrid[ix] <= xGrid[ix + 1] - xq) ? ix : ix + 1;
+        const std::size_t cy = (yq - yGrid[iy] <= yGrid[iy + 1] - yq) ? iy : iy + 1;
+        const std::size_t cz = (zq - zGrid[iz] <= zGrid[iz + 1] - zq) ? iz : iz + 1;
+        return val(cy, cx, cz);
+    }
+    const double tx = (xq - xGrid[ix]) / (xGrid[ix + 1] - xGrid[ix]);
+    const double ty = (yq - yGrid[iy]) / (yGrid[iy + 1] - yGrid[iy]);
+    const double tz = (zq - zGrid[iz]) / (zGrid[iz + 1] - zGrid[iz]);
+    // Eight corners. (i, j, k) = (row, col, page) in V's index space.
+    const double v000 = val(iy,     ix,     iz    );
+    const double v100 = val(iy,     ix + 1, iz    );
+    const double v010 = val(iy + 1, ix,     iz    );
+    const double v110 = val(iy + 1, ix + 1, iz    );
+    const double v001 = val(iy,     ix,     iz + 1);
+    const double v101 = val(iy,     ix + 1, iz + 1);
+    const double v011 = val(iy + 1, ix,     iz + 1);
+    const double v111 = val(iy + 1, ix + 1, iz + 1);
+    const double c00 = (1 - tx) * v000 + tx * v100;
+    const double c10 = (1 - tx) * v010 + tx * v110;
+    const double c01 = (1 - tx) * v001 + tx * v101;
+    const double c11 = (1 - tx) * v011 + tx * v111;
+    const double c0  = (1 - ty) * c00 + ty * c10;
+    const double c1  = (1 - ty) * c01 + ty * c11;
+    return (1 - tz) * c0 + tz * c1;
+}
+
+MValue interp3Impl(Allocator &alloc, const MValue &V,
+                   const std::vector<double> &xGrid,
+                   const std::vector<double> &yGrid,
+                   const std::vector<double> &zGrid,
+                   const MValue &Xq, const MValue &Yq, const MValue &Zq,
+                   const std::string &method)
+{
+    if (V.type() == MType::COMPLEX)
+        throw MError("interp3: complex inputs are not supported",
+                     0, 0, "interp3", "", "m:interp3:complex");
+    if (!V.dims().is3D())
+        throw MError("interp3: V must be a 3D array",
+                     0, 0, "interp3", "", "m:interp3:rank");
+    if (Xq.numel() != Yq.numel() || Xq.numel() != Zq.numel())
+        throw MError("interp3: Xq, Yq, Zq must have the same numel",
+                     0, 0, "interp3", "", "m:interp3:queryShape");
+
+    const std::size_t R = V.dims().rows();
+    const std::size_t C = V.dims().cols();
+    const std::size_t P = V.dims().pages();
+    if (xGrid.size() != C || yGrid.size() != R || zGrid.size() != P)
+        throw MError("interp3: grid lengths must equal V's dim sizes",
+                     0, 0, "interp3", "", "m:interp3:gridSize");
+    validateMonotonicAscending(xGrid.data(), C, "X");
+    validateMonotonicAscending(yGrid.data(), R, "Y");
+    validateMonotonicAscending(zGrid.data(), P, "Z");
+
+    const Interp2Method m = parseInterp2Method(method);
+    std::vector<double> Vd(R * C * P);
+    if (V.type() == MType::DOUBLE)
+        std::memcpy(Vd.data(), V.doubleData(), R * C * P * sizeof(double));
+    else
+        for (std::size_t i = 0; i < R * C * P; ++i) Vd[i] = V.elemAsDouble(i);
+
+    const auto &qd = Xq.dims();
+    const std::size_t nq = Xq.numel();
+    auto out = MValue::matrix(qd.rows(), qd.cols(), MType::DOUBLE, &alloc);
+    double *dst = out.doubleDataMut();
+    for (std::size_t i = 0; i < nq; ++i) {
+        const double xq = Xq.elemAsDouble(i);
+        const double yq = Yq.elemAsDouble(i);
+        const double zq = Zq.elemAsDouble(i);
+        dst[i] = interp3Sample(Vd.data(), R, C, P,
+                               xGrid.data(), yGrid.data(), zGrid.data(),
+                               xq, yq, zq, m);
+    }
+    return out;
+}
+
+} // namespace
+
+MValue interp3(Allocator &alloc, const MValue &V,
+               const MValue &Xq, const MValue &Yq, const MValue &Zq,
+               const std::string &method)
+{
+    if (!V.dims().is3D())
+        throw MError("interp3: V must be a 3D array",
+                     0, 0, "interp3", "", "m:interp3:rank");
+    const std::size_t R = V.dims().rows();
+    const std::size_t C = V.dims().cols();
+    const std::size_t P = V.dims().pages();
+    std::vector<double> xGrid(C), yGrid(R), zGrid(P);
+    for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
+    for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
+    for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);
+    return interp3Impl(alloc, V, xGrid, yGrid, zGrid, Xq, Yq, Zq, method);
+}
+
+MValue interp3(Allocator &alloc, const MValue &X, const MValue &Y, const MValue &Z,
+               const MValue &V, const MValue &Xq, const MValue &Yq, const MValue &Zq,
+               const std::string &method)
+{
+    std::vector<double> xGrid, yGrid, zGrid;
+    readGridAxis(X, xGrid, "X");
+    readGridAxis(Y, yGrid, "Y");
+    readGridAxis(Z, zGrid, "Z");
+    return interp3Impl(alloc, V, xGrid, yGrid, zGrid, Xq, Yq, Zq, method);
+}
+
 // ── spline ────────────────────────────────────────────────────────────
 MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq)
 {
@@ -583,6 +709,34 @@ void interp2_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs,
     }
     throw MError("interp2: invalid argument count or types",
                  0, 0, "interp2", "", "m:interp2:nargin");
+}
+
+void interp3_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw MError("interp3: requires at least 4 arguments",
+                     0, 0, "interp3", "", "m:interp3:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    auto isMethodArg = [](const MValue &v) {
+        return v.isChar() || v.isString();
+    };
+    // Form A: interp3(V, Xq, Yq, Zq[, method]).
+    if (args.size() == 4 || (args.size() == 5 && isMethodArg(args[4]))) {
+        std::string method = "linear";
+        if (args.size() == 5) method = args[4].toString();
+        outs[0] = interp3(alloc, args[0], args[1], args[2], args[3], method);
+        return;
+    }
+    // Form B: interp3(X, Y, Z, V, Xq, Yq, Zq[, method]) — 7 or 8 args.
+    if (args.size() == 7 || (args.size() == 8 && isMethodArg(args[7]))) {
+        std::string method = "linear";
+        if (args.size() == 8) method = args[7].toString();
+        outs[0] = interp3(alloc, args[0], args[1], args[2], args[3],
+                          args[4], args[5], args[6], method);
+        return;
+    }
+    throw MError("interp3: invalid argument count or types",
+                 0, 0, "interp3", "", "m:interp3:nargin");
 }
 
 void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

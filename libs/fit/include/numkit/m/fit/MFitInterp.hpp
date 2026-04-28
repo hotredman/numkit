@@ -36,6 +36,20 @@ MValue interp2(Allocator &alloc,
                const MValue &Xq, const MValue &Yq,
                const std::string &method = "linear");
 
+/// interp3(V, Xq, Yq, Zq[, method]) — implicit 1:N grids.
+/// interp3(X, Y, Z, V, Xq, Yq, Zq[, method]) — explicit grids.
+///
+/// Trilinear by default; method = "linear" or "nearest". X/Y/Z are
+/// vectors giving column / row / page coordinates (strictly monotonic
+/// ascending). Grid sizes must equal cols(V), rows(V), pages(V)
+/// respectively. Out-of-grid query points return NaN.
+MValue interp3(Allocator &alloc, const MValue &V,
+               const MValue &Xq, const MValue &Yq, const MValue &Zq,
+               const std::string &method = "linear");
+MValue interp3(Allocator &alloc, const MValue &X, const MValue &Y, const MValue &Z,
+               const MValue &V, const MValue &Xq, const MValue &Yq, const MValue &Zq,
+               const std::string &method = "linear");
+
 /// Natural cubic-spline interpolation — equivalent to interp1(..., "spline").
 MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq);
 

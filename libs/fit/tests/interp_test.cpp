@@ -358,3 +358,65 @@ TEST_F(InterpTest, Interp2QueryShapeMismatchThrows)
     eval("V = [1 2; 3 4];");
     EXPECT_THROW(eval("y = interp2(V, [1 1.5], [1 1.5 2]);"), std::exception);
 }
+
+// ============================================================
+// interp3 / interpn
+// ============================================================
+
+TEST_F(InterpTest, Interp3VertexMatch)
+{
+    // Build V = ones(2, 2, 2) * (page) — easy to verify.
+    eval("V = zeros(2, 2, 2);"
+         "V(:,:,1) = [1 2; 3 4];"
+         "V(:,:,2) = [5 6; 7 8];");
+    EXPECT_NEAR(evalScalar("interp3(V, 1, 1, 1);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp3(V, 2, 1, 1);"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp3(V, 1, 2, 2);"), 7.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp3(V, 2, 2, 2);"), 8.0, 1e-12);
+}
+
+TEST_F(InterpTest, Interp3LinearKnownPlane)
+{
+    // f(x, y, z) = x + 2y + 3z → trilinear is exact on a regular grid.
+    // Build V(r, c, p) = c + 2r + 3p (1-based to match implicit grid).
+    eval("V = zeros(3, 3, 3);"
+         "for r = 1:3, for c = 1:3, for p = 1:3,"
+         "  V(r, c, p) = c + 2 * r + 3 * p; "
+         "end, end, end");
+    EXPECT_NEAR(evalScalar("interp3(V, 1.5, 1.0, 1.0);"),
+                1.5 + 2.0 + 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("interp3(V, 2.7, 1.3, 2.4);"),
+                2.7 + 2.0 * 1.3 + 3.0 * 2.4, 1e-10);
+}
+
+TEST_F(InterpTest, Interp3Nearest)
+{
+    eval("V = zeros(2, 2, 2);"
+         "V(:,:,1) = [10 20; 30 40];"
+         "V(:,:,2) = [50 60; 70 80];");
+    // (1.7, 1.2, 1.4) → nearest (2, 1, 1) → V(1, 2, 1) = 20.
+    EXPECT_DOUBLE_EQ(evalScalar("interp3(V, 1.7, 1.2, 1.4, 'nearest');"), 20.0);
+}
+
+TEST_F(InterpTest, Interp3OutOfGridIsNaN)
+{
+    eval("V = ones(2, 2, 2);"
+         "y = interp3(V, 0.5, 1, 1);");
+    EXPECT_TRUE(std::isnan(evalScalar("y;")));
+}
+
+TEST_F(InterpTest, InterpnDispatchesToInterp2For2D)
+{
+    eval("V = [10 20; 30 40];"
+         "y = interpn(V, 1, 1);");
+    EXPECT_DOUBLE_EQ(evalScalar("y;"), 10.0);
+}
+
+TEST_F(InterpTest, InterpnDispatchesToInterp3For3D)
+{
+    eval("V = zeros(2, 2, 2);"
+         "V(:,:,1) = [10 20; 30 40];"
+         "V(:,:,2) = [50 60; 70 80];"
+         "y = interpn(V, 2, 2, 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("y;"), 80.0);
+}
