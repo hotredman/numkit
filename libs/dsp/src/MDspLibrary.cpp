@@ -42,6 +42,11 @@ void findpeaks_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, C
 void goertzel_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void dct_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 void idct_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+
+// SOS family (libs/dsp/src/MDspSos.cpp)
+void sosfilt_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void zp2sos_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
+void tf2sos_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx);
 } // namespace numkit::m::dsp::detail
 
 namespace numkit::m {
@@ -86,6 +91,11 @@ void DspLibrary::install(Engine &engine)
     engine.registerFunction("goertzel",  &dsp::detail::goertzel_reg);
     engine.registerFunction("dct",       &dsp::detail::dct_reg);
     engine.registerFunction("idct",      &dsp::detail::idct_reg);
+
+    // ── SOS filter family ─────────────────────────────────────────
+    engine.registerFunction("sosfilt",   &dsp::detail::sosfilt_reg);
+    engine.registerFunction("zp2sos",    &dsp::detail::zp2sos_reg);
+    engine.registerFunction("tf2sos",    &dsp::detail::tf2sos_reg);
 }
 
 } // namespace numkit::m
