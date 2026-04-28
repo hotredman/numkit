@@ -47,6 +47,9 @@ void prctile_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void mode_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void skewness_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void kurtosis_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void primes_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void isprime_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void factor_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nansum_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmean_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nanmax_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -306,6 +309,9 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("mode",     &builtin::detail::mode_reg);
     engine.registerFunction("skewness", &builtin::detail::skewness_reg);
     engine.registerFunction("kurtosis", &builtin::detail::kurtosis_reg);
+    engine.registerFunction("primes",   &builtin::detail::primes_reg);
+    engine.registerFunction("isprime",  &builtin::detail::isprime_reg);
+    engine.registerFunction("factor",   &builtin::detail::factor_reg);
 
     // ── Phase 2 NaN-aware reductions ───────────────────────────────
     engine.registerFunction("nansum",    &builtin::detail::nansum_reg);

@@ -11,6 +11,7 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdIntMath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdSetOps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdAccum.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/MStdNumberTheory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
