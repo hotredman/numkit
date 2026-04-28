@@ -6,7 +6,11 @@
 
 #include <string>
 
+namespace numkit::m { class Engine; }
+
 namespace numkit::m::dsp {
+
+using ::numkit::m::Engine;
 
 /// Smallest integer p such that 2^p >= n. Returns 0 for n <= 0.
 /// MATLAB's nextpow2.
@@ -35,13 +39,19 @@ MValue tripuls(Allocator &alloc, const MValue &t, double w = 1.0);
 MValue gauspuls(Allocator &alloc, const MValue &t, double fc, double bw = 0.5);
 
 /// pulstran(t, d, fnName[, args...]) — pulse train: ∑_i fn(t - d_i, args).
-/// fnName is one of "rectpuls" / "tripuls" / "gauspuls" — custom
-/// (anonymous) function handles throw m:pulstran:fnUnsupported until
-/// the engine callback API lands. The trailing args are forwarded to
-/// the named generator (e.g. pulstran(t, d, "gauspuls", fc)).
+/// fnName is one of "rectpuls" / "tripuls" / "gauspuls". Custom function
+/// handles are invoked via Engine::callFunctionHandle when an Engine is
+/// available; without one they throw m:pulstran:fnUnsupported.
 MValue pulstran(Allocator &alloc, const MValue &t, const MValue &d,
                 const std::string &fnName, double fcOrW = 1.0,
                 double bw = 0.5);
+
+/// pulstran with a function-handle pulse generator. The handle is
+/// invoked once per delay as `fn(t - d_i)` (extra trailing args from
+/// the adapter aren't forwarded — keep the handle a 1-input function).
+/// Engine pointer must be valid.
+MValue pulstranHandle(Allocator &alloc, const MValue &t, const MValue &d,
+                      const MValue &fnHandle, Engine *engine);
 
 /// chirp(t, f0, t1, f1[, method]) — frequency-modulated cosine.
 /// Output has the same shape as `t` and is always DOUBLE.

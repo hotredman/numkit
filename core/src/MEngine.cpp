@@ -187,6 +187,69 @@ bool Engine::hasExternalFunction(const std::string &name) const
     return externalFuncs_.count(name) > 0;
 }
 
+MValue Engine::callFunctionHandle(const MValue &handle,
+                                  Span<const MValue> args,
+                                  Environment *env)
+{
+    auto results = callFunctionHandleMulti(handle, args, 1, env);
+    return results.empty() ? MValue::empty() : results[0];
+}
+
+std::vector<MValue> Engine::callFunctionHandleMulti(const MValue &handle,
+                                                    Span<const MValue> args,
+                                                    size_t nout,
+                                                    Environment *env)
+{
+    // Closure form: VM packages `@(x) x + capture` as a cell whose
+    // first element is the bare funcHandle and the rest are captured
+    // values to append to the user-supplied args.
+    const MValue *bareHandle = &handle;
+    std::vector<MValue> withCaptures;
+    if (handle.isCell() && handle.numel() >= 1
+        && handle.cellAt(0).isFuncHandle()) {
+        bareHandle = &handle.cellAt(0);
+        withCaptures.reserve(args.size() + handle.numel() - 1);
+        for (const auto &a : args) withCaptures.push_back(a);
+        for (std::size_t i = 1; i < handle.numel(); ++i)
+            withCaptures.push_back(handle.cellAt(i));
+        args = Span<const MValue>(withCaptures.data(), withCaptures.size());
+    }
+    if (!bareHandle->isFuncHandle())
+        throw std::runtime_error("callFunctionHandleMulti: argument is not a function handle");
+    Environment *e = env ? env : workspaceEnv_.get();
+    const std::string name = bareHandle->funcHandleName();
+
+    // 1) Built-in (registered external) — works regardless of backend.
+    {
+        auto it = externalFuncs_.find(name);
+        if (it != externalFuncs_.end()) {
+            std::vector<MValue> out(nout);
+            CallContext ctx{this, e};
+            it->second(args, nout, Span<MValue>(out), ctx);
+            return out;
+        }
+    }
+
+    // 2) TW user-function path. Works for any named user function and
+    // for anonymous handles created under the TW backend (which stores
+    // them in engine.userFuncs_).
+    //
+    // KNOWN LIMITATION: anonymous handles created under the VM backend
+    // are stored only in the compiler's compiledFuncs_ table (not in
+    // userFuncs_) and the VM is non-reentrant — so calling them from a
+    // builtin during a VM run currently throws "Undefined function in
+    // handle: @__anon_*". Workaround for now: switch to the TW backend
+    // when you need to pass anonymous handles to cellfun / structfun /
+    // pulstran. Lifting this limitation would require either making
+    // VM::execute reentrant or mirror-registering VM anon-funcs into
+    // engine.userFuncs_ at compile time.
+    if (treeWalker_)
+        return treeWalker_->callHandleMultiPublic(handle, args, e, nout);
+
+    throw std::runtime_error("callFunctionHandle: undefined function in handle '@"
+                             + name + "'");
+}
+
 bool Engine::isInsideFunctionCall() const
 {
     if (vm_ && backend_ == Backend::VM)

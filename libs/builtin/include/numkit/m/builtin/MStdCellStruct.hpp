@@ -5,7 +5,11 @@
 #include <numkit/m/core/MSpan.hpp>
 #include <numkit/m/core/MValue.hpp>
 
+namespace numkit::m { class Engine; }
+
 namespace numkit::m::builtin {
+
+using ::numkit::m::Engine;
 
 // ── Struct ───────────────────────────────────────────────────────────
 /// Empty struct scalar. Named `structure` in C++ because `struct` is a
@@ -50,16 +54,17 @@ MValue cell(Allocator &alloc, size_t rows, size_t cols, size_t pages);
 //   reduce:   sum, prod, mean
 //   text:     class           (always non-uniform — string output)
 //
-// Custom (anonymous) handles throw `m:cellfun:fnUnsupported` with a hint
-// to wait for the engine callback API (round 11 item 27).
+// Custom (anonymous) handles route through `Engine::callFunctionHandle`
+// when an Engine pointer is supplied. Without an Engine, custom handles
+// throw `m:cellfun:fnUnsupported`.
 //
 // Default uniformOutput=true packs scalars into a numeric/logical array
 // of the same shape as `C` (or a column vector of length numFields for
 // structfun). uniformOutput=false packs into a cell array of the same
 // shape (or a 1×N cell row for structfun).
 MValue cellfun(Allocator &alloc, const MValue &fn, const MValue &c,
-               bool uniformOutput);
+               bool uniformOutput, Engine *engine = nullptr);
 MValue structfun(Allocator &alloc, const MValue &fn, const MValue &s,
-                 bool uniformOutput);
+                 bool uniformOutput, Engine *engine = nullptr);
 
 } // namespace numkit::m::builtin

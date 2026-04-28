@@ -195,10 +195,64 @@ TEST_P(CellFunTest, CellfunNonCellSecondArgThrows)
     EXPECT_THROW(eval("n = cellfun(@numel, [1 2 3]);"), std::exception);
 }
 
-TEST_P(CellFunTest, CellfunUnsupportedHandleThrows)
+// VM-skip helper: anonymous handles compiled by VM aren't yet visible to
+// the engine callback API (re-entrant VM::execute would need to be safe;
+// see comment in Engine::callFunctionHandleMulti). The TW backend works.
+#define SKIP_IF_VM_FOR_ANON_CALLBACK()                                           \
+    do {                                                                          \
+        if (GetParam() == BackendParam::VM)                                       \
+            GTEST_SKIP() << "VM-side anonymous handle callback "                  \
+                            "not yet supported (round 11 item 27 limitation)";   \
+    } while (0)
+
+TEST_P(CellFunTest, CellfunCustomHandleViaEngineCallback)
 {
+    SKIP_IF_VM_FOR_ANON_CALLBACK();
+    // After round-11 item 27 the engine callback API allows anonymous
+    // handles in cellfun under TW: this should now WORK (previously
+    // threw m:cellfun:fnUnsupported).
+    eval("c = {1, 2, 3, 4};"
+         "n = cellfun(@(x) x * x, c);");
+    auto *n = getVarPtr("n");
+    EXPECT_EQ(n->numel(), 4u);
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 9.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[3], 16.0);
+}
+
+TEST_P(CellFunTest, CellfunCustomHandleClosureCapture)
+{
+    SKIP_IF_VM_FOR_ANON_CALLBACK();
+    eval("k = 10;"
+         "c = {1, 2, 3};"
+         "n = cellfun(@(x) x + k, c);");
+    auto *n = getVarPtr("n");
+    EXPECT_DOUBLE_EQ(n->doubleData()[0], 11.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[1], 12.0);
+    EXPECT_DOUBLE_EQ(n->doubleData()[2], 13.0);
+}
+
+TEST_P(CellFunTest, CellfunCustomHandleNonScalarThrows)
+{
+    SKIP_IF_VM_FOR_ANON_CALLBACK();
+    // Anonymous handle returning a non-scalar must hit the uniform-mode
+    // contract violation.
     eval("c = {1, 2};");
-    EXPECT_THROW(eval("n = cellfun(@(x) x+1, c);"), std::exception);
+    EXPECT_THROW(eval("n = cellfun(@(x) [x, x+1], c);"), std::exception);
+}
+
+TEST_P(CellFunTest, CellfunCustomHandleUniformFalse)
+{
+    SKIP_IF_VM_FOR_ANON_CALLBACK();
+    eval("c = {1, 2, 3};"
+         "out = cellfun(@(x) [x; x*2], c, 'UniformOutput', false);");
+    auto *out = getVarPtr("out");
+    EXPECT_TRUE(out->isCell());
+    EXPECT_EQ(out->numel(), 3u);
+    EXPECT_EQ(out->cellAt(2).numel(), 2u);
+    EXPECT_DOUBLE_EQ(out->cellAt(2).elemAsDouble(0), 3.0);
+    EXPECT_DOUBLE_EQ(out->cellAt(2).elemAsDouble(1), 6.0);
 }
 
 TEST_P(CellFunTest, CellfunUnknownFlagThrows)
@@ -286,6 +340,20 @@ TEST_P(CellFunTest, StructfunEmptyStruct)
     EXPECT_EQ(v->numel(), 0u);
     EXPECT_EQ(rows(*v), 0u);
     EXPECT_EQ(cols(*v), 1u);
+}
+
+TEST_P(CellFunTest, StructfunCustomHandleViaCallback)
+{
+    SKIP_IF_VM_FOR_ANON_CALLBACK();
+    eval("s.a = 2;"
+         "s.b = 5;"
+         "s.c = 7;"
+         "v = structfun(@(x) x * x, s);");
+    auto *v = getVarPtr("v");
+    EXPECT_EQ(rows(*v), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0],  4.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 25.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 49.0);
 }
 
 INSTANTIATE_DUAL(CellFunTest);

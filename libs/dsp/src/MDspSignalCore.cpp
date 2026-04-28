@@ -142,6 +142,43 @@ MValue gauspuls(Allocator &alloc, const MValue &t, double fc, double bw)
     return out;
 }
 
+MValue pulstranHandle(Allocator &alloc, const MValue &t, const MValue &d,
+                      const MValue &fnHandle, Engine *engine)
+{
+    if (engine == nullptr)
+        throw MError("pulstran: custom function handles need an Engine "
+                     "(callback API not available in this context)",
+                     0, 0, "pulstran", "", "m:pulstran:fnUnsupported");
+    if (!fnHandle.isFuncHandle())
+        throw MError("pulstran: 3rd argument must be a function handle or pulse name",
+                     0, 0, "pulstran", "", "m:pulstran:fnType");
+
+    auto out = createLike(t, MType::DOUBLE, &alloc);
+    const size_t n = t.numel();
+    std::memset(out.doubleDataMut(), 0, n * sizeof(double));
+    double *dst = out.doubleDataMut();
+    const size_t nd = d.numel();
+
+    // Build a shifted-t vector once per delay and call fn(t - d_k).
+    auto shifted = MValue::matrix(t.dims().rows(), t.dims().cols(),
+                                  MType::DOUBLE, &alloc);
+    double *sh = shifted.doubleDataMut();
+    for (size_t k = 0; k < nd; ++k) {
+        const double dk = d.elemAsDouble(k);
+        for (size_t i = 0; i < n; ++i)
+            sh[i] = t.elemAsDouble(i) - dk;
+        Span<const MValue> args(&shifted, 1);
+        MValue r = engine->callFunctionHandle(fnHandle, args);
+        if (r.numel() != n)
+            throw MError("pulstran: handle must return a vector of the same "
+                         "length as t",
+                         0, 0, "pulstran", "", "m:pulstran:badHandleOutput");
+        for (size_t i = 0; i < n; ++i)
+            dst[i] += r.elemAsDouble(i);
+    }
+    return out;
+}
+
 MValue pulstran(Allocator &alloc, const MValue &t, const MValue &d,
                 const std::string &fnName, double fcOrW, double bw)
 {
@@ -315,16 +352,20 @@ void gauspuls_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
 void pulstran_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
 {
     if (args.size() < 3)
-        throw MError("pulstran: requires at least 3 arguments (t, d, fnName)",
+        throw MError("pulstran: requires at least 3 arguments (t, d, fn)",
                      0, 0, "pulstran", "", "m:pulstran:nargin");
+    Allocator &alloc = ctx.engine->allocator();
+    if (args[2].isFuncHandle()) {
+        outs[0] = pulstranHandle(alloc, args[0], args[1], args[2], ctx.engine);
+        return;
+    }
     if (!args[2].isChar() && !args[2].isString())
-        throw MError("pulstran: 3rd argument must be a string naming a pulse generator "
-                     "(custom function handles need the engine callback API)",
-                     0, 0, "pulstran", "", "m:pulstran:fnHandleUnsupported");
+        throw MError("pulstran: 3rd argument must be a string name or a function handle",
+                     0, 0, "pulstran", "", "m:pulstran:fnType");
     const std::string fnName = args[2].toString();
     const double fcOrW = (args.size() >= 4) ? args[3].toScalar() : 1.0;
     const double bw    = (args.size() >= 5) ? args[4].toScalar() : 0.5;
-    outs[0] = pulstran(ctx.engine->allocator(), args[0], args[1], fnName, fcOrW, bw);
+    outs[0] = pulstran(alloc, args[0], args[1], fnName, fcOrW, bw);
 }
 
 void chirp_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)

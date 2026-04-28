@@ -406,8 +406,21 @@ TEST_F(SignalCoreTest, PulstranUnknownFnThrows)
     EXPECT_THROW(eval("y = pulstran([0 1 2], [0 1], 'noSuchPulse');"), std::exception);
 }
 
-TEST_F(SignalCoreTest, PulstranAnonHandleThrows)
+TEST_F(SignalCoreTest, PulstranCustomHandleViaCallback)
 {
-    // Custom function handles aren't supported until the engine callback API.
-    EXPECT_THROW(eval("y = pulstran([0 1 2], [0 1], @(t) cos(t));"), std::exception);
+    // After round-11 item 27 the engine callback API allows function-
+    // handle pulse generators — under TW. (VM-side anonymous handle
+    // callback is a known gap; see Engine::callFunctionHandleMulti.)
+    engine.setBackend(Engine::Backend::TreeWalker);
+    eval("t = -1:0.5:2;"
+         "y = pulstran(t, [0, 1], @(x) abs(x) <= 0.25);");
+    // pulse @ 0 covers [-0.25, 0.25] → t=0 only.
+    // pulse @ 1 covers [0.75, 1.25] → t=1 only.
+    EXPECT_DOUBLE_EQ(evalScalar("y(3);"), 1.0);  // t = 0
+    EXPECT_DOUBLE_EQ(evalScalar("y(5);"), 1.0);  // t = 1
+}
+
+TEST_F(SignalCoreTest, PulstranNonHandleStringThrows)
+{
+    EXPECT_THROW(eval("y = pulstran([0 1 2], [0 1], 42);"), std::exception);
 }

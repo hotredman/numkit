@@ -1509,6 +1509,22 @@ MValue TreeWalker::callFuncHandle(const MValue &handle, Span<const MValue> args,
     return results.empty() ? MValue::empty() : results[0];
 }
 
+MValue TreeWalker::callHandlePublic(const MValue &handle,
+                                    Span<const MValue> args,
+                                    Environment *env)
+{
+    return callFuncHandle(handle, args, env);
+}
+
+std::vector<MValue>
+TreeWalker::callHandleMultiPublic(const MValue &handle,
+                                  Span<const MValue> args,
+                                  Environment *env,
+                                  size_t nout)
+{
+    return callFuncHandleMulti(handle, args, env, nout);
+}
+
 std::vector<MValue> TreeWalker::callFuncHandleMulti(const MValue &handle,
                                                     Span<const MValue> args,
                                                     Environment *env,

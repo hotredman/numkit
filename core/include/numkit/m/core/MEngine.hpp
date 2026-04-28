@@ -82,6 +82,24 @@ public:
     bool hasUserFunction(const std::string &name) const;
     bool hasExternalFunction(const std::string &name) const;
 
+    // ── Public callback API for builtins ──────────────────────
+    // Invoke a function-handle MValue from C++. Routes through TW so
+    // both built-in (externalFuncs_) and user/anonymous handles work
+    // regardless of the active backend. `env` defaults to
+    // workspaceEnv() when nullptr; pass the CallContext env if you
+    // want the callee to see the caller's local scope.
+    //
+    // Single-output and multi-output forms; the multi-output form
+    // returns whatever the handle produces (truncated/extended to
+    // `nout` slots).
+    MValue callFunctionHandle(const MValue &handle,
+                              Span<const MValue> args,
+                              Environment *env = nullptr);
+    std::vector<MValue> callFunctionHandleMulti(const MValue &handle,
+                                                Span<const MValue> args,
+                                                size_t nout,
+                                                Environment *env = nullptr);
+
     // Unified lookup — script-scope first, then workspace-scope.
     // Returns nullptr when the name isn't a user function.
     const UserFunction *lookupUserFunction(const std::string &name) const;

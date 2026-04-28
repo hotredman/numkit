@@ -22,6 +22,20 @@ public:
     // True when executing inside a user function (not top-level script)
     int callDepth() const { return currentRecursionDepth_; }
 
+    // ── Public callback API ───────────────────────────────────
+    // Used by Engine::callFunctionHandle so that builtins (e.g.
+    // cellfun, fzero, integral) can invoke a function handle from C++
+    // regardless of the active backend (TW or VM). Both forms also
+    // accept anonymous handles — they're stored as synthetic user
+    // functions and looked up via lookupUserFunction.
+    MValue callHandlePublic(const MValue &handle,
+                            Span<const MValue> args,
+                            Environment *env);
+    std::vector<MValue> callHandleMultiPublic(const MValue &handle,
+                                              Span<const MValue> args,
+                                              Environment *env,
+                                              size_t nout);
+
 private:
     Engine &engine_;
 
