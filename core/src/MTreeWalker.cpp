@@ -1822,9 +1822,13 @@ MValue TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
 
     // ── Fast path: [A, x] or [A, x, y, ...] row vector append ──
     // When appending scalars/vectors to a row vector, use amortized growth.
+    // CAUTION: this mutates the variable named by rowChildren[0]. Skip if
+    // that name is a reserved constant (NaN/Inf/pi/eps/true/false/i/j/...)
+    // — otherwise [NaN, 1, 2] would mutate the global NaN constant.
     if (node->children.size() == 1) {
         auto &rowChildren = node->children[0]->children;
-        if (rowChildren.size() >= 2 && rowChildren[0]->type == NodeType::IDENTIFIER) {
+        if (rowChildren.size() >= 2 && rowChildren[0]->type == NodeType::IDENTIFIER
+            && !engine_.isReservedName(rowChildren[0]->strValue)) {
             MValue *varPtr = env->get(rowChildren[0]->strValue);
             if (varPtr && varPtr->type() == MType::DOUBLE && varPtr->dims().rows() == 1
                 && varPtr->dims().cols() > 0) {

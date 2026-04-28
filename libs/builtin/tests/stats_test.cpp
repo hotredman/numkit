@@ -1891,17 +1891,73 @@ TEST_P(ReductionDimTest, MaxOmitnanAlongDim)
     EXPECT_DOUBLE_EQ(evalScalar("i(2);"), 3.0);
 }
 
+// ── Round 9: TW bracket-NaN literal regression ─────────────────
+//
+// BUG (pre-round-9): TW execMatrixLiteral fast-path "[A, x, y]" row
+// vector append fired on `[NaN, 1, NaN]` because `NaN` parses as an
+// IDENTIFIER and resolves to the global NaN constant. The fast-path
+// then mutated the constant in place, polluting the env across
+// statements. Symptom: re-assigning `a = [NaN, 1, NaN]` would grow
+// `a` further each call, and downstream `max(a, b)` would fail with
+// "Matrix dimensions must agree" because broadcast shapes diverged.
+// Fix: gate the fast-path on `!engine_.isReservedName(name)` so
+// reserved constants (NaN/Inf/pi/eps/true/false/i/j) are never the
+// in-place append target. Same for VM (already correct — no fast-path).
+
+TEST_P(ReductionDimTest, BracketNanLiteralRowVector)
+{
+    eval("a = [NaN, 1, NaN];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
+    EXPECT_TRUE(std::isnan(evalScalar("a(1);")));
+    EXPECT_DOUBLE_EQ(evalScalar("a(2);"), 1.0);
+    EXPECT_TRUE(std::isnan(evalScalar("a(3);")));
+}
+
+TEST_P(ReductionDimTest, BracketNanReassignDoesNotMutateConstant)
+{
+    // Pre-fix: the 2nd assignment grew `a` to length 5 because the
+    // global NaN constant had been clobbered to `[NaN, 1, NaN]`.
+    eval("a = [NaN, 1, NaN];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
+    eval("a = [NaN, 1, NaN];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
+}
+
+TEST_P(ReductionDimTest, BracketNanGlobalConstantStaysScalar)
+{
+    // Verify the NaN constant itself remains a scalar after a bracket
+    // literal that mentions NaN.
+    eval("a = [NaN, 1];");
+    EXPECT_DOUBLE_EQ(evalScalar("numel(NaN);"), 1.0);
+    EXPECT_TRUE(std::isnan(evalScalar("NaN;")));
+}
+
+TEST_P(ReductionDimTest, BracketInfReassignDoesNotMutateConstant)
+{
+    // Same fix protects all reserved constants — verify with Inf.
+    eval("a = [Inf, 1, Inf];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
+    eval("a = [Inf, 1, Inf];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(a, 2);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numel(Inf);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, BracketAppendFastPathStillWorks)
+{
+    // Regression guard: the fast-path should still fire for normal
+    // user variables (the `a = [a, x]` idiom).
+    eval("v = [1, 2, 3]; v = [v, 4, 5];");
+    EXPECT_DOUBLE_EQ(evalScalar("size(v, 2);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("v(5);"), 5.0);
+}
+
 // ── Round 8 Item 1: binary max(A,B,'omitnan') / min(A,B,'omitnan') ─
 
 
 TEST_P(ReductionDimTest, BinaryMaxOmitnanDouble)
 {
     // max(NaN, 2, 'omitnan') = 2; max(1, NaN, 'omitnan') = 1; max(NaN, NaN) = NaN.
-    // Build vectors via assignment to side-step a TW-specific parser
-    // quirk with NaN literals inside [] (unrelated to this feature).
-    eval("a = [1.0, 1.0, 1.0]; a(1) = NaN; a(3) = NaN;"
-         "b = [2.0, 2.0, 2.0]; b(2) = NaN; b(3) = NaN;"
-         "m = max(a, b, 'omitnan');");
+    eval("a = [NaN, 1, NaN]; b = [2, NaN, NaN]; m = max(a, b, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 2.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.0);
     EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
@@ -1909,9 +1965,7 @@ TEST_P(ReductionDimTest, BinaryMaxOmitnanDouble)
 
 TEST_P(ReductionDimTest, BinaryMinOmitnanDouble)
 {
-    eval("a = [5.0, 5.0, 5.0]; a(1) = NaN; a(3) = NaN;"
-         "b = [3.0, 3.0, 3.0]; b(2) = NaN; b(3) = NaN;"
-         "m = min(a, b, 'omitnan');");
+    eval("a = [NaN, 5, NaN]; b = [3, NaN, NaN]; m = min(a, b, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 5.0);
     EXPECT_TRUE(std::isnan(evalScalar("m(3);")));
@@ -1919,9 +1973,7 @@ TEST_P(ReductionDimTest, BinaryMinOmitnanDouble)
 
 TEST_P(ReductionDimTest, BinaryMaxOmitnanSinglePreserves)
 {
-    eval("a = single([1.5, 1.5, 3.0]); a(1) = NaN;"
-         "b = single([2.5, 2.5, 1.0]); b(2) = NaN;"
-         "m = max(a, b, 'omitnan');");
+    eval("a = single([NaN, 1.5, 3.0]); b = single([2.5, NaN, 1.0]); m = max(a, b, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 2.5);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 1.5);
@@ -1940,7 +1992,7 @@ TEST_P(ReductionDimTest, BinaryMaxOmitnanIntIsNoop)
 
 TEST_P(ReductionDimTest, BinaryMaxOmitnanBroadcastsScalar)
 {
-    eval("a = [1.0, 1.0, 5.0]; a(1) = NaN; m = max(a, 3, 'omitnan');");
+    eval("a = [NaN, 1, 5]; m = max(a, 3, 'omitnan');");
     EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 3.0);
     EXPECT_DOUBLE_EQ(evalScalar("m(3);"), 5.0);
