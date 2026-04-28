@@ -1810,12 +1810,114 @@ TEST_P(ReductionDimTest, MedianOmitnanSinglePreservesSingle)
     EXPECT_NEAR(evalScalar("m;"), 2.5, 1e-6);
 }
 
-TEST_P(ReductionDimTest, VarOmitnanComplexThrows)
+// ── Round 7 Item 2: COMPLEX + omitnan for var/std ───────────────
+
+TEST_P(ReductionDimTest, VarComplexOmitnan)
 {
-    // COMPLEX + omitnan not supported (would need a complex+nan-aware
-    // variance kernel; deferred).
-    eval("v = [1+2i, complex(NaN, 0), 3+4i];");
-    EXPECT_THROW(eval("r = var(v, 'omitnan');"), std::exception);
+    // Filter NaN-complex element. Remaining: [1+0i, 1+2i].
+    // var of [1+0i, 1+2i] (n=2, normFlag=0) = 2.0 (see VarComplexReturnsRealVariance).
+    eval("v = [1+0i, complex(NaN, 0), 1+2i]; r = var(v, 'omitnan');");
+    EXPECT_NEAR(evalScalar("r;"), 2.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(r);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, StdComplexOmitnan)
+{
+    eval("v = [1+0i, complex(0, NaN), 1+2i]; r = std(v, 'omitnan');");
+    EXPECT_NEAR(evalScalar("r;"), std::sqrt(2.0), 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("isreal(r);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, VarComplexOmitnanAllNaN)
+{
+    eval("v = [complex(NaN, 0), complex(0, NaN)]; r = var(v, 'omitnan');");
+    EXPECT_TRUE(std::isnan(evalScalar("r;")));
+}
+
+// ── Round 7 Item 1: min/max with 'omitnan' (type-preserving) ────
+
+TEST_P(ReductionDimTest, MaxOmitnanSkipsNaN)
+{
+    eval("v = [1 NaN 5 NaN 3]; [m, i] = max(v, [], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i;"), 3.0);
+}
+
+TEST_P(ReductionDimTest, MinOmitnanSkipsNaN)
+{
+    eval("v = [5 NaN 1 NaN 3]; [m, i] = min(v, [], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i;"), 3.0);
+}
+
+TEST_P(ReductionDimTest, MaxOmitnanAllNaN)
+{
+    // All-NaN → NaN value, idx=1.
+    eval("v = [NaN NaN NaN]; [m, i] = max(v, [], 'omitnan');");
+    EXPECT_TRUE(std::isnan(evalScalar("m;")));
+    EXPECT_DOUBLE_EQ(evalScalar("i;"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MaxOmitnanSinglePreservesType)
+{
+    eval("v = single([1 NaN 5 3]); m = max(v, [], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MaxOmitnanInt32IsNoop)
+{
+    // Integer types have no NaN; omitnan should be a no-op.
+    eval("v = int32([1 5 3]); m = max(v, [], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("isinteger(m);"), 1.0);
+}
+
+TEST_P(ReductionDimTest, MaxOmitnanComplex)
+{
+    // |1+2i|=√5, |NaN+0i|=NaN (skipped), |3+4i|=5 → max = 3+4i.
+    eval("v = [1+2i, complex(NaN, 0), 3+4i]; m = max(v, [], 'omitnan');");
+    EXPECT_DOUBLE_EQ(evalScalar("real(m);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("imag(m);"), 4.0);
+}
+
+TEST_P(ReductionDimTest, MaxOmitnanAlongDim)
+{
+    eval("M = [1 NaN; 5 3; NaN 4]; [m, i] = max(M, [], 1, 'omitnan');");
+    // col 1: max of [1, 5] = 5 at row 2; col 2: max of [3, 4] = 4 at row 3
+    EXPECT_DOUBLE_EQ(evalScalar("m(1);"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("m(2);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(1);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("i(2);"), 3.0);
+}
+
+TEST_P(ReductionDimTest, MinMaxOmitnanWithBinaryFormThrows)
+{
+    eval("a = [1 2]; b = [3 4];");
+    EXPECT_THROW(eval("m = max(a, b, 'omitnan');"), std::exception);
+}
+
+// ── Round 7 Item 3: median 'all' flag ─────────────────────────────
+
+TEST_P(ReductionDimTest, MedianAllOnMatrix)
+{
+    eval("M = [1 2 3; 4 5 6]; m = median(M, 'all');");
+    // median of all 6 elements = (3+4)/2 = 3.5
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 3.5);
+}
+
+TEST_P(ReductionDimTest, MedianAllWithOmitnan)
+{
+    eval("M = [1 NaN 2; 3 NaN 4]; m = median(M, 'all', 'omitnan');");
+    // sorted non-NaN = [1, 2, 3, 4]; median = 2.5
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.5);
+}
+
+TEST_P(ReductionDimTest, MedianAllSinglePreservesType)
+{
+    eval("M = single([1 2; 3 4]); m = median(M, 'all');");
+    EXPECT_DOUBLE_EQ(evalScalar("m;"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("issingle(m);"), 1.0);
 }
 
 INSTANTIATE_DUAL(ReductionDimTest);

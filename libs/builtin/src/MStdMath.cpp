@@ -641,6 +641,281 @@ reduceMinMaxComplexAlongDim(const MValue &x, int dim, Allocator *alloc, const ch
     return std::make_tuple(std::move(out), std::move(outIdx));
 }
 
+// ── NaN-aware min/max (omitnan flag) ─────────────────────────────────
+//
+// Per-MType dispatch identical to round-3 minMaxAlongDim, but skips
+// NaN values during comparison. For floating types (DOUBLE/SINGLE) and
+// COMPLEX (NaN if real or imag is NaN), filter out NaNs. For integer
+// types, NaN can't occur so the regular kernel is used.
+//
+// All-NaN slice handling: the value array is set to NaN (for float/
+// complex) and the index array to 1 (matching MATLAB convention).
+
+template <typename T>
+inline bool isElemNan(T v)
+{
+    if constexpr (std::is_floating_point_v<T>) return std::isnan(v);
+    else                                       return false;
+}
+
+template <typename T, typename Cmp>
+void minMaxNanAlongDim(const MValue &x, int redDim, T *dst, double *dstI,
+                       Cmp cmp, bool typeMatch)
+{
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    if (sliceLen == 0) return;
+
+    auto runSlice = [&](size_t outIdx, size_t baseOff, size_t stride) {
+        size_t firstValid = SIZE_MAX;
+        T best{};
+        for (size_t k = 0; k < sliceLen; ++k) {
+            const T v = readSrcAsT<T>(x, baseOff + k * stride, typeMatch);
+            if (isElemNan(v)) continue;
+            if (firstValid == SIZE_MAX) {
+                best = v; firstValid = k;
+            } else if (cmp(v, best)) {
+                best = v; firstValid = k;
+            }
+        }
+        if (firstValid == SIZE_MAX) {
+            // All-NaN slice: NaN value, idx = 1 (MATLAB convention).
+            if constexpr (std::is_floating_point_v<T>)
+                dst[outIdx] = std::numeric_limits<T>::quiet_NaN();
+            else
+                dst[outIdx] = T{};
+            dstI[outIdx] = 1.0;
+        } else {
+            dst[outIdx] = best;
+            dstI[outIdx] = static_cast<double>(firstValid + 1);
+        }
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+        return;
+    }
+    for (size_t o = 0; o < O; ++o)
+        for (size_t b = 0; b < B; ++b)
+            runSlice(o * B + b, o * sliceLen * B + b, B);
+}
+
+template <typename T, typename Cmp>
+std::tuple<MValue, MValue>
+reduceMinMaxNanAllT(const MValue &x, Cmp cmp, MType outType, Allocator *alloc)
+{
+    if (x.numel() == 0)
+        throw std::runtime_error("min/max of empty array is not supported");
+    const bool typeMatch = (x.type() == outType);
+    if (x.isScalar() || x.dims().isVector()) {
+        size_t firstValid = SIZE_MAX;
+        T best{};
+        for (size_t i = 0; i < x.numel(); ++i) {
+            const T v = readSrcAsT<T>(x, i, typeMatch);
+            if (isElemNan(v)) continue;
+            if (firstValid == SIZE_MAX) { best = v; firstValid = i; }
+            else if (cmp(v, best))      { best = v; firstValid = i; }
+        }
+        if (firstValid == SIZE_MAX) {
+            if constexpr (std::is_floating_point_v<T>)
+                return std::make_tuple(makeScalarT<T>(std::numeric_limits<T>::quiet_NaN(), outType, alloc),
+                                       MValue::scalar(1.0, alloc));
+            else
+                return std::make_tuple(makeScalarT<T>(T{}, outType, alloc),
+                                       MValue::scalar(1.0, alloc));
+        }
+        return std::make_tuple(makeScalarT<T>(best, outType, alloc),
+                               MValue::scalar(static_cast<double>(firstValid + 1), alloc));
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, alloc);
+    minMaxNanAlongDim<T>(x, redDim,
+                         static_cast<T *>(out.rawDataMut()),
+                         outIdx.doubleDataMut(),
+                         cmp, typeMatch);
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+template <typename T, typename Cmp>
+std::tuple<MValue, MValue>
+reduceMinMaxNanAlongDimT(const MValue &x, int dim, Cmp cmp, MType outType, Allocator *alloc)
+{
+    const bool typeMatch = (x.type() == outType);
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x))
+            return reduceMinMaxAlongDimT<T>(x, dim, cmp, outType, alloc);
+        return reduceMinMaxNanAllT<T>(x, cmp, outType, alloc);
+    }
+    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, alloc);
+    minMaxNanAlongDim<T>(x, dim,
+                         static_cast<T *>(out.rawDataMut()),
+                         outIdx.doubleDataMut(),
+                         cmp, typeMatch);
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+// COMPLEX nan-aware min/max — same |z|+angle comparator, but skips
+// elements where either real or imag part is NaN.
+template <bool IsMax>
+std::tuple<MValue, MValue>
+reduceMinMaxComplexNanAll(const MValue &x, Allocator *alloc, const char *fn)
+{
+    if (x.numel() == 0)
+        throw MError(std::string(fn) + " of empty array is not supported",
+                     0, 0, fn, "", std::string("m:") + fn + ":empty");
+    const Complex *data = x.complexData();
+    auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
+    // For all-real check, only consider non-NaN elements.
+    bool allReal = true;
+    for (size_t i = 0; i < x.numel(); ++i) {
+        if (isNan(data[i])) continue;
+        if (data[i].imag() != 0.0) { allReal = false; break; }
+    }
+    auto findBest = [&](size_t baseOff, size_t stride, size_t n,
+                        Complex &best, size_t &bi) {
+        size_t firstValid = SIZE_MAX;
+        for (size_t k = 0; k < n; ++k) {
+            const Complex v = data[baseOff + k * stride];
+            if (isNan(v)) continue;
+            if (firstValid == SIZE_MAX) {
+                best = v; bi = k; firstValid = k;
+            } else if (complexBetter<IsMax>(v, best, allReal)) {
+                best = v; bi = k; firstValid = k;
+            }
+        }
+        return firstValid != SIZE_MAX;
+    };
+
+    if (x.isScalar() || x.dims().isVector()) {
+        Complex best;
+        size_t bi = 0;
+        if (!findBest(0, 1, x.numel(), best, bi))
+            return std::make_tuple(MValue::complexScalar(Complex(std::nan(""), 0.0), alloc),
+                                   MValue::scalar(1.0, alloc));
+        return std::make_tuple(MValue::complexScalar(best, alloc),
+                               MValue::scalar(static_cast<double>(bi + 1), alloc));
+    }
+    const int redDim = detail::firstNonSingletonDim(x);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
+    Complex *dst = out.complexDataMut();
+    double *dstI = outIdx.doubleDataMut();
+
+    const auto &d = x.dims();
+    const int redAxis = redDim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto runSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        Complex best;
+        size_t bi = 0;
+        if (!findBest(baseOff, stride, sliceLen, best, bi)) {
+            dst[outOff] = Complex(std::nan(""), 0.0);
+            dstI[outOff] = 1.0;
+        } else {
+            dst[outOff] = best;
+            dstI[outOff] = static_cast<double>(bi + 1);
+        }
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+    } else {
+        for (size_t o = 0; o < O; ++o)
+            for (size_t b = 0; b < B; ++b)
+                runSlice(o * B + b, o * sliceLen * B + b, B);
+    }
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+template <bool IsMax>
+std::tuple<MValue, MValue>
+reduceMinMaxComplexNanAlongDim(const MValue &x, int dim, Allocator *alloc, const char *fn)
+{
+    if (x.isScalar() || x.dims().isVector()) {
+        if (dim != detail::firstNonSingletonDim(x))
+            return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
+        return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
+    }
+    const Complex *data = x.complexData();
+    auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
+    bool allReal = true;
+    for (size_t i = 0; i < x.numel(); ++i) {
+        if (isNan(data[i])) continue;
+        if (data[i].imag() != 0.0) { allReal = false; break; }
+    }
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, alloc);
+    Complex *dst = out.complexDataMut();
+    double *dstI = outIdx.doubleDataMut();
+
+    const auto &d = x.dims();
+    const int redAxis = dim - 1;
+    const size_t sliceLen = d.dim(redAxis);
+    size_t B = 1;
+    for (int i = 0; i < redAxis; ++i) B *= d.dim(i);
+    size_t O = 1;
+    for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
+
+    auto runSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
+        size_t firstValid = SIZE_MAX;
+        Complex best;
+        size_t bi = 0;
+        for (size_t k = 0; k < sliceLen; ++k) {
+            const Complex v = data[baseOff + k * stride];
+            if (isNan(v)) continue;
+            if (firstValid == SIZE_MAX) { best = v; bi = k; firstValid = k; }
+            else if (complexBetter<IsMax>(v, best, allReal)) { best = v; bi = k; firstValid = k; }
+        }
+        if (firstValid == SIZE_MAX) {
+            dst[outOff] = Complex(std::nan(""), 0.0);
+            dstI[outOff] = 1.0;
+        } else {
+            dst[outOff] = best;
+            dstI[outOff] = static_cast<double>(bi + 1);
+        }
+    };
+    if (B == 1) {
+        for (size_t o = 0; o < O; ++o) runSlice(o, o * sliceLen, 1);
+    } else {
+        for (size_t o = 0; o < O; ++o)
+            for (size_t b = 0; b < B; ++b)
+                runSlice(o * B + b, o * sliceLen * B + b, B);
+    }
+    return std::make_tuple(std::move(out), std::move(outIdx));
+}
+
+template <bool IsMax, typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxNanAll(const MValue &x, Cmp cmp, Allocator *alloc, const char *fn)
+{
+    switch (x.type()) {
+    case MType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, MType::DOUBLE, alloc);
+    case MType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, MType::SINGLE, alloc);
+    case MType::COMPLEX: return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
+    // Integer/logical/char have no NaN — fall through to the regular path.
+    default: return dispatchMinMaxAll<IsMax>(x, cmp, alloc, fn);
+    }
+}
+
+template <bool IsMax, typename Cmp>
+std::tuple<MValue, MValue>
+dispatchMinMaxNanAlongDim(const MValue &x, int dim, Cmp cmp,
+                          Allocator *alloc, const char *fn)
+{
+    switch (x.type()) {
+    case MType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, MType::DOUBLE, alloc);
+    case MType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, MType::SINGLE, alloc);
+    case MType::COMPLEX: return reduceMinMaxComplexNanAlongDim<IsMax>(x, dim, alloc, fn);
+    default: return dispatchMinMaxAlongDim<IsMax>(x, dim, cmp, alloc, fn);
+    }
+}
+
 // Dispatch on x.type(), instantiate reducer with right T/outType pair.
 // LOGICAL maps to T=uint8_t (storage type). CHAR maps to T=char.
 // COMPLEX uses the |z|-then-angle comparator (MATLAB rule).
@@ -709,6 +984,22 @@ std::tuple<MValue, MValue> max(Allocator &alloc, const MValue &x, int dim)
     if (dim <= 0) return max(alloc, x);
     const int d = detail::resolveDim(x, dim, "max");
     return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
+}
+
+std::tuple<MValue, MValue> maxOmitNan(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0)
+        return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    const int d = detail::resolveDim(x, dim, "max");
+    return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
+}
+
+std::tuple<MValue, MValue> minOmitNan(Allocator &alloc, const MValue &x, int dim)
+{
+    if (dim <= 0)
+        return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    const int d = detail::resolveDim(x, dim, "min");
+    return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
 }
 
 std::tuple<MValue, MValue> min(Allocator &alloc, const MValue &x, int dim)
@@ -1683,27 +1974,58 @@ void rem_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, Cal
     outs[0] = rem(ctx.engine->allocator(), args[0], args[1]);
 }
 
-// max/min: three MATLAB forms:
-//   max(X)         — reduction along first non-singleton dim, (value, idx)
-//   max(A, B)      — elementwise (with broadcasting), single return
-//   max(X, [], dim) — reduction along explicit dim, (value, idx)
-// Distinguishing the two-arg forms: max(X, []) hits the dim path with
-// auto-detect (idx returned); max(X, B) with non-empty B is elementwise.
+// max/min: MATLAB forms:
+//   max(X)                       — reduction along first non-singleton dim, (value, idx)
+//   max(A, B)                    — elementwise (with broadcasting), single return
+//   max(X, [], dim)              — reduction along explicit dim, (value, idx)
+//   max(X, [], dim, 'omitnan')   — same as above, ignoring NaN
+//   max(X, [], 'omitnan')        — reduction with default dim, ignoring NaN
+// Trailing 'omitnan' / 'includenan' string is recognised in the reduction
+// form. Binary form max(A, B) currently doesn't accept omitnan (deferred).
+namespace {
+
+// Detect optional trailing 'omitnan'/'includenan' string in the reduction
+// form, returning the effective arg count (excluding the flag if present)
+// and the omit flag.
+size_t stripTrailingNanFlag(Span<const MValue> args, bool &omitNan)
+{
+    omitNan = false;
+    size_t n = args.size();
+    if (n == 0) return 0;
+    const MValue &last = args[n - 1];
+    if (last.type() != MType::CHAR) return n;
+    std::string s = last.toString();
+    std::transform(s.begin(), s.end(), s.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    if (s == "omitnan") { omitNan = true; return n - 1; }
+    if (s == "includenan")               return n - 1;
+    return n;
+}
+
+} // namespace
+
 void max_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
         throw MError("max: requires at least 1 argument",
                      0, 0, "max", "", "m:max:nargin");
-    if (args.size() >= 2 && !args[1].isEmpty()) {
+    bool omitNan = false;
+    const size_t n = stripTrailingNanFlag(args, omitNan);
+    if (n >= 2 && !args[1].isEmpty()) {
+        if (omitNan)
+            throw MError("max: 'omitnan' with binary max(A, B) is not supported",
+                         0, 0, "max", "", "m:max:omitnanBinary");
         // Elementwise max(A, B) — single-return form.
         outs[0] = max(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
     // Reduction: optional dim as args[2].
     int dim = 0;
-    if (args.size() >= 3 && !args[2].isEmpty())
+    if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    auto [val, idx] = max(ctx.engine->allocator(), args[0], dim);
+    auto [val, idx] = omitNan
+        ? maxOmitNan(ctx.engine->allocator(), args[0], dim)
+        : max(ctx.engine->allocator(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1714,14 +2036,21 @@ void min_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallCon
     if (args.empty())
         throw MError("min: requires at least 1 argument",
                      0, 0, "min", "", "m:min:nargin");
-    if (args.size() >= 2 && !args[1].isEmpty()) {
+    bool omitNan = false;
+    const size_t n = stripTrailingNanFlag(args, omitNan);
+    if (n >= 2 && !args[1].isEmpty()) {
+        if (omitNan)
+            throw MError("min: 'omitnan' with binary min(A, B) is not supported",
+                         0, 0, "min", "", "m:min:omitnanBinary");
         outs[0] = min(ctx.engine->allocator(), args[0], args[1]);
         return;
     }
     int dim = 0;
-    if (args.size() >= 3 && !args[2].isEmpty())
+    if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    auto [val, idx] = min(ctx.engine->allocator(), args[0], dim);
+    auto [val, idx] = omitNan
+        ? minOmitNan(ctx.engine->allocator(), args[0], dim)
+        : min(ctx.engine->allocator(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
