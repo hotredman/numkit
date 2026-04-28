@@ -1,11 +1,18 @@
-// libs/builtin/src/MStdCalculus.cpp
+// libs/builtin/src/math/integration/integration.cpp
+//
+// Numerical-calculus builtins:
+//   - gradient / gradient2 — central differences (vector + 2D matrix)
+//   - cumtrapz             — cumulative trapezoidal integration (1-D)
+//   - integral             — adaptive Gauss-Kronrod definite integral
+// fzero lives in math/optim/fzero.cpp (uses the same callback helper).
 
-#include <numkit/m/builtin/MStdCalculus.hpp>
+#include <numkit/m/builtin/math/integration/integration.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
 
 #include "MStdHelpers.hpp"
+#include "../_callback_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -14,6 +21,8 @@
 #include <vector>
 
 namespace numkit::m::builtin {
+
+namespace cb = ::numkit::m::builtin::detail::callback;
 
 namespace {
 
@@ -34,7 +43,6 @@ void gradient1D(const double *src, double *dst, size_t n, double h)
 }
 
 // 2D gradient along dim-2 (columns) for a matrix in column-major layout.
-// Operates per row using stride-R access.
 void gradientAlongCols(const double *src, double *dst, size_t R, size_t C, double h)
 {
     if (C == 0) return;
@@ -45,18 +53,14 @@ void gradientAlongCols(const double *src, double *dst, size_t R, size_t C, doubl
         return;
     }
     for (size_t r = 0; r < R; ++r) {
-        // Endpoints.
         dst[r]               = (src[r + R]              - src[r])           * invH;
         dst[r + (C - 1) * R] = (src[r + (C - 1) * R]    - src[r + (C - 2) * R]) * invH;
-        // Interior.
         for (size_t c = 1; c + 1 < C; ++c)
             dst[r + c * R] = (src[r + (c + 1) * R] - src[r + (c - 1) * R]) * inv2h;
     }
 }
 
 // 2D gradient along dim-1 (rows) for a matrix in column-major layout.
-// Per column, contiguous along the source rows — falls through to
-// the same pattern as gradient1D applied per column slab.
 void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, double h)
 {
     if (R == 0) return;
@@ -106,7 +110,6 @@ MValue gradient(Allocator &alloc, const MValue &f, double h)
     if (d.is3D() || d.ndim() > 2)
         throw MError("gradient: only 1D vector and 2D matrix inputs are supported",
                      0, 0, "gradient", "", "m:gradient:rank");
-    // 2D matrix: ∂F/∂x along dim-2 (columns).
     gradientAlongCols(src.doubleData(), out.doubleDataMut(),
                       d.rows(), d.cols(), h);
     return out;
@@ -130,11 +133,7 @@ gradient2(Allocator &alloc, const MValue &f, double hx, double hy)
     auto fx = createLike(f, MType::DOUBLE, &alloc);
     auto fy = createLike(f, MType::DOUBLE, &alloc);
 
-    // For a 1-D row/column vector, both directional gradients are the
-    // 1-D gradient itself (hx in row-vector case, hy in column-vector).
     if (f.dims().isVector() || f.isScalar()) {
-        // Use hx for x-direction and hy for y-direction; for a row
-        // vector y-direction is degenerate (length 1) → all zeros.
         gradient1D(src.doubleData(), fx.doubleDataMut(), f.numel(), hx);
         gradient1D(src.doubleData(), fy.doubleDataMut(), f.numel(), hy);
         return std::make_tuple(std::move(fx), std::move(fy));
@@ -198,162 +197,11 @@ MValue cumtrapz(Allocator &alloc, const MValue &x, const MValue &y)
                           y.numel(), y.dims(), /*unitSpacing=*/false);
 }
 
-// ── fzero (Brent's method) ───────────────────────────────────────────
-namespace {
-
-double evalCallback(Engine *engine, const MValue &fn, double x)
-{
-    Allocator alloc = Allocator::defaultAllocator();
-    MValue arg = MValue::scalar(x, &alloc);
-    Span<const MValue> args(&arg, 1);
-    MValue r = engine->callFunctionHandle(fn, args);
-    if (!r.isScalar() && r.numel() != 1)
-        throw MError("fzero: handle must return a scalar value",
-                     0, 0, "fzero", "", "m:fzero:nonScalar");
-    return r.elemAsDouble(0);
-}
-
-// Expand a bracket around x0 by stepping outward by an increasing
-// factor until a sign change is detected. Throws if not found within
-// kMaxExpansions iterations.
-std::pair<double, double>
-findBracket(Engine *engine, const MValue &fn, double x0)
-{
-    constexpr int kMaxExpansions = 60;
-    double step = (x0 == 0.0) ? 0.02 : std::abs(x0) * 0.02;
-    if (step == 0.0) step = 0.02;
-    double a = x0, b = x0;
-    double fa = evalCallback(engine, fn, a);
-    if (fa == 0.0) return {a, a};
-    double fb = fa;
-    for (int i = 0; i < kMaxExpansions; ++i) {
-        const double s = step * std::pow(2.0, i);
-        const double aPrev = a, fAprev = fa;
-        a = x0 - s;
-        b = x0 + s;
-        fa = evalCallback(engine, fn, a);
-        if (fa == 0.0) return {a, a};
-        fb = evalCallback(engine, fn, b);
-        if (fb == 0.0) return {b, b};
-        if ((fa < 0) != (fb < 0)) return {a, b};
-        // Also check the half-step for tighter brackets (a, x0).
-        if ((fAprev < 0) != (fa < 0)) return {a, aPrev};
-    }
-    throw MError("fzero: failed to find a bracket containing a sign change "
-                 "near x0",
-                 0, 0, "fzero", "", "m:fzero:noBracket");
-}
-
-// Brent's method on [a, b] with f(a)*f(b) < 0 (or one of them == 0).
-// Returns the root.
-double brent(Engine *engine, const MValue &fn, double a, double b)
-{
-    constexpr int    kMaxIter = 200;
-    constexpr double kEps     = 1e-15;
-
-    double fa = evalCallback(engine, fn, a);
-    double fb = evalCallback(engine, fn, b);
-    if (fa == 0.0) return a;
-    if (fb == 0.0) return b;
-    if ((fa < 0) == (fb < 0))
-        throw MError("fzero: f(a) and f(b) must have opposite signs "
-                     "(no sign change in the supplied interval)",
-                     0, 0, "fzero", "", "m:fzero:noSignChange");
-
-    double c = a, fc = fa, d = b - a, e = d;
-    for (int it = 0; it < kMaxIter; ++it) {
-        if ((fb < 0) == (fc < 0)) {
-            c = a; fc = fa; d = b - a; e = d;
-        }
-        if (std::abs(fc) < std::abs(fb)) {
-            a = b;  b = c;  c = a;
-            fa = fb; fb = fc; fc = fa;
-        }
-        const double tol1 = 2.0 * kEps * std::abs(b) + 0.5 * 1e-15;
-        const double xm   = 0.5 * (c - b);
-        if (std::abs(xm) <= tol1 || fb == 0.0) return b;
-
-        if (std::abs(e) >= tol1 && std::abs(fa) > std::abs(fb)) {
-            const double s = fb / fa;
-            double p, q;
-            if (a == c) {
-                p = 2.0 * xm * s;
-                q = 1.0 - s;
-            } else {
-                const double r = fb / fc;
-                const double sa = fa / fc;
-                p = s * (2.0 * xm * sa * (sa - r) - (b - a) * (r - 1.0));
-                q = (sa - 1.0) * (r - 1.0) * (s - 1.0);
-            }
-            if (p > 0) q = -q;
-            p = std::abs(p);
-            const double min1 = 3.0 * xm * q - std::abs(tol1 * q);
-            const double min2 = std::abs(e * q);
-            if (2.0 * p < std::min(min1, min2)) {
-                e = d;
-                d = p / q;
-            } else {
-                d = xm; e = d;
-            }
-        } else {
-            d = xm; e = d;
-        }
-        a = b; fa = fb;
-        if (std::abs(d) > tol1)
-            b += d;
-        else
-            b += (xm > 0 ? std::abs(tol1) : -std::abs(tol1));
-        fb = evalCallback(engine, fn, b);
-    }
-    throw MError("fzero: failed to converge within iteration limit",
-                 0, 0, "fzero", "", "m:fzero:noConverge");
-}
-
-} // namespace
-
-MValue fzero(Allocator &alloc, const MValue &fn, const MValue &x0OrInterval,
-             Engine *engine)
-{
-    if (engine == nullptr)
-        throw MError("fzero: requires an Engine pointer (callback API)",
-                     0, 0, "fzero", "", "m:fzero:noEngine");
-    if (!fn.isFuncHandle()
-        && !(fn.isCell() && fn.numel() >= 1 && fn.cellAt(0).isFuncHandle()))
-        throw MError("fzero: 1st argument must be a function handle",
-                     0, 0, "fzero", "", "m:fzero:fnType");
-
-    // Bracket form: [a, b].
-    if (x0OrInterval.numel() == 2) {
-        const double a = x0OrInterval.elemAsDouble(0);
-        const double b = x0OrInterval.elemAsDouble(1);
-        if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
-            throw MError("fzero: interval [a, b] must satisfy a < b and be finite",
-                         0, 0, "fzero", "", "m:fzero:badInterval");
-        return MValue::scalar(brent(engine, fn, a, b), &alloc);
-    }
-
-    // Scalar x0 form: search outward for a bracket, then Brent.
-    if (!x0OrInterval.isScalar())
-        throw MError("fzero: 2nd argument must be a scalar x0 or a 2-element "
-                     "interval",
-                     0, 0, "fzero", "", "m:fzero:badX0");
-    const double x0 = x0OrInterval.toScalar();
-    if (!std::isfinite(x0))
-        throw MError("fzero: x0 must be finite",
-                     0, 0, "fzero", "", "m:fzero:badX0");
-    auto [a, b] = findBracket(engine, fn, x0);
-    if (a == b) return MValue::scalar(a, &alloc);
-    if (a > b) std::swap(a, b);
-    return MValue::scalar(brent(engine, fn, a, b), &alloc);
-}
-
 // ── integral (adaptive Gauss-Kronrod) ────────────────────────────────
 namespace {
 
 // 15-point Gauss-Kronrod nodes (symmetric about 0) and weights.
 // Source: Davis & Rabinowitz, "Methods of Numerical Integration".
-// xk[15], wk[15] for Kronrod; wg[7] for embedded Gauss on positive
-// half (mirror for negative side automatically).
 constexpr double kKronrodX[15] = {
     -0.991455371120813,
     -0.949107912342759,
@@ -388,8 +236,6 @@ constexpr double kKronrodW[15] = {
     0.063092092629979,
     0.022935322010529,
 };
-// Gauss weights at the 7 Kronrod nodes that coincide with Gauss nodes
-// (indices 1, 3, 5, 7, 9, 11, 13 in the Kronrod array).
 constexpr double kGaussW[7] = {
     0.129484966168870,
     0.279705391489277,
@@ -400,7 +246,6 @@ constexpr double kGaussW[7] = {
     0.129484966168870,
 };
 
-// One Gauss-Kronrod step on [a, b]; returns (kronrod, gauss).
 std::pair<double, double>
 gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
 {
@@ -409,7 +254,7 @@ gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
     double K = 0.0, G = 0.0;
     for (int i = 0; i < 15; ++i) {
         const double x  = mid + half * kKronrodX[i];
-        const double fv = evalCallback(engine, fn, x);
+        const double fv = cb::evalCallback(engine, fn, x);
         K += kKronrodW[i] * fv;
         if (i % 2 == 1)
             G += kGaussW[i / 2] * fv;
@@ -417,8 +262,6 @@ gaussKronrod15(Engine *engine, const MValue &fn, double a, double b)
     return {half * K, half * G};
 }
 
-// Recursive subdivision; depth-bounded to avoid pathological infinite
-// recursion on a discontinuity inside [a, b].
 double adaptiveIntegral(Engine *engine, const MValue &fn, double a, double b,
                         double absTol, int depth, int maxDepth)
 {
@@ -466,7 +309,6 @@ void gradient_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, Ca
                      0, 0, "gradient", "", "m:gradient:nargin");
     Allocator &alloc = ctx.engine->allocator();
 
-    // Spacing arg(s).
     double hx = 1.0, hy = 1.0;
     if (args.size() >= 2) hx = args[1].toScalar();
     if (args.size() >= 3) hy = args[2].toScalar();
@@ -494,14 +336,6 @@ void cumtrapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = cumtrapz(alloc, args[0], args[1]);
 }
 
-void fzero_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
-                     0, 0, "fzero", "", "m:fzero:nargin");
-    outs[0] = fzero(ctx.engine->allocator(), args[0], args[1], ctx.engine);
-}
-
 void integral_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
 {
     if (args.size() < 3)
@@ -510,7 +344,6 @@ void integral_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     const double a = args[1].toScalar();
     const double b = args[2].toScalar();
     double absTol = 1e-10;
-    // Optional name-value 'AbsTol', tol.
     for (size_t i = 3; i + 1 < args.size(); i += 2) {
         if (!args[i].isChar() && !args[i].isString())
             throw MError("integral: expected option name (string)",

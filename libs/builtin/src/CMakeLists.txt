@@ -5,9 +5,6 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdSetOps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdNumberTheory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCombinatorics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCalculus.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
     # lang/
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/commands/env.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/binary_ops.cpp
@@ -20,6 +17,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/complex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/polynomials.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/optim/fzero.cpp
     # data_io/
     ${CMAKE_CURRENT_SOURCE_DIR}/data_io/csv.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/data_io/fileio.cpp
@@ -27,9 +26,13 @@ set(STDLIB_SOURCES
     # datatypes/
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/numeric/types.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/numeric/int_math.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/strings.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/regex.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/format.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/print.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/scan.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/cell/cell.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/struct/struct.cpp
     # programming/
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
 )

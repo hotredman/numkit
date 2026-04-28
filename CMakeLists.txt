@@ -127,8 +127,12 @@ set(NUMKIT_M_HEADERS
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
     libs/builtin/include/numkit/m/builtin/MStdMath.hpp
-    libs/builtin/include/numkit/m/builtin/MStdStrings.hpp
-    libs/builtin/include/numkit/m/builtin/MStdCellStruct.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/cell/cell.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/struct/struct.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/strings/strings.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/strings/regex.hpp
+    libs/builtin/include/numkit/m/builtin/math/integration/integration.hpp
+    libs/builtin/include/numkit/m/builtin/math/optim/fzero.hpp
     libs/builtin/include/numkit/m/builtin/lang/commands/env.hpp
     libs/builtin/include/numkit/m/builtin/lang/operators/binary_ops.hpp
     libs/builtin/include/numkit/m/builtin/lang/operators/unary_ops.hpp

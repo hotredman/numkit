@@ -2,7 +2,8 @@
 //
 // Direct-call tests for numkit::m::builtin cell/struct functions.
 
-#include <numkit/m/builtin/MStdCellStruct.hpp>
+#include <numkit/m/builtin/datatypes/cell/cell.hpp>
+#include <numkit/m/builtin/datatypes/struct/struct.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
