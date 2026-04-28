@@ -87,14 +87,12 @@ endif()
 add_subdirectory(libs/builtin/src)
 add_subdirectory(libs/dsp/src)
 add_subdirectory(libs/plt/src)
-add_subdirectory(libs/fit/src)
 
 set(NUMKIT_M_SOURCES
     ${NUMKIT_M_CORE_SOURCES}
     ${STDLIB_SOURCES}
     ${DSPLIB_SOURCES}
     ${PLTLIB_SOURCES}
-    ${FITLIB_SOURCES}
 )
 
 set(NUMKIT_M_HEADERS
@@ -168,8 +166,7 @@ set(NUMKIT_M_HEADERS
     libs/dsp/include/numkit/m/dsp/MDspWindows.hpp
     libs/dsp/include/numkit/m/dsp/MDspTransform.hpp
     libs/dsp/include/numkit/m/dsp/MDspSignalCore.hpp
-    libs/fit/include/numkit/m/fit/MFitLibrary.hpp
-    libs/fit/include/numkit/m/fit/MFitInterp.hpp
+    libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
     libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )
 
@@ -186,7 +183,6 @@ target_include_directories(m
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/fit/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/plt/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
@@ -282,7 +278,6 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
     add_subdirectory(libs/dsp/tests)
-    add_subdirectory(libs/fit/tests)
     add_subdirectory(libs/plt/tests)
 endif()
 
@@ -352,7 +347,6 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
     install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/dsp/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/fit/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/plt/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT mTargets

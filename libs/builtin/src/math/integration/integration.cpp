@@ -360,6 +360,46 @@ void integral_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs
     outs[0] = integral(ctx.engine->allocator(), args[0], a, b, absTol, ctx.engine);
 }
 
+void trapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw MError("trapz: requires at least 1 argument",
+                     0, 0, "trapz", "", "m:trapz:nargin");
+    if (args.size() == 1)
+        outs[0] = trapz(ctx.engine->allocator(), args[0]);
+    else
+        outs[0] = trapz(ctx.engine->allocator(), args[0], args[1]);
+}
+
 } // namespace detail
+
+// ════════════════════════════════════════════════════════════════════════
+// trapz (moved from libs/fit) — uniform-spacing trapezoidal integration.
+// ════════════════════════════════════════════════════════════════════════
+
+MValue trapz(Allocator &alloc, const MValue &y)
+{
+    const double *yd = y.doubleData();
+    const size_t n = y.numel();
+    double s = 0.0;
+    for (size_t i = 1; i < n; ++i)
+        s += 0.5 * (yd[i - 1] + yd[i]);
+    return MValue::scalar(s, &alloc);
+}
+
+MValue trapz(Allocator &alloc, const MValue &x, const MValue &y)
+{
+    const size_t n = x.numel();
+    if (y.numel() != n)
+        throw MError("trapz: x and y must have same length",
+                     0, 0, "trapz", "", "m:trapz:lengthMismatch");
+
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+    double s = 0.0;
+    for (size_t i = 1; i < n; ++i)
+        s += 0.5 * (yd[i - 1] + yd[i]) * (xd[i] - xd[i - 1]);
+    return MValue::scalar(s, &alloc);
+}
 
 } // namespace numkit::m::builtin

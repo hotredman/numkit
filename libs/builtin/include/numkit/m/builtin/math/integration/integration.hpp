@@ -44,4 +44,11 @@ MValue cumtrapz(Allocator &alloc, const MValue &x, const MValue &y);
 MValue integral(Allocator &alloc, const MValue &fn, double a, double b,
                 double absTol, Engine *engine);
 
+/// trapz(y) — trapezoidal numerical integration over uniform spacing (dx = 1).
+MValue trapz(Allocator &alloc, const MValue &y);
+
+/// trapz(x, y) — trapezoidal numerical integration with explicit x values.
+/// @throws MError if numel(x) != numel(y).
+MValue trapz(Allocator &alloc, const MValue &x, const MValue &y);
+
 } // namespace numkit::m::builtin

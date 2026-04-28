@@ -301,6 +301,120 @@ void zp2tf_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallC
     if (nargout > 1) outs[1] = std::move(av);
 }
 
+void polyfit_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw MError("polyfit: requires 3 arguments",
+                     0, 0, "polyfit", "", "m:polyfit:nargin");
+    outs[0] = polyfit(ctx.engine->allocator(),
+                      args[0], args[1],
+                      static_cast<int>(args[2].toScalar()));
+}
+
+void polyval_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw MError("polyval: requires 2 arguments",
+                     0, 0, "polyval", "", "m:polyval:nargin");
+    outs[0] = polyval(ctx.engine->allocator(), args[0], args[1]);
+}
+
 } // namespace detail
+
+// ════════════════════════════════════════════════════════════════════════
+// Curve fitting / evaluation (moved from libs/fit)
+// ════════════════════════════════════════════════════════════════════════
+
+MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int deg)
+{
+    const size_t m = x.numel();
+    const int np = deg + 1;
+
+    if (static_cast<size_t>(np) > m)
+        throw MError("polyfit: not enough data points",
+                     0, 0, "polyfit", "", "m:polyfit:tooFewPoints");
+
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+
+    // Vandermonde matrix A[j, i] = x[i]^(deg - j), stored column-major.
+    std::vector<double> A(m * np);
+    for (size_t i = 0; i < m; ++i)
+        for (int j = 0; j < np; ++j)
+            A[j * m + i] = std::pow(xd[i], deg - j);
+
+    // Normal equations: ATA * p = AT * y.
+    std::vector<double> ATA(np * np, 0.0);
+    for (int r = 0; r < np; ++r)
+        for (int c = 0; c < np; ++c)
+            for (size_t i = 0; i < m; ++i)
+                ATA[c * np + r] += A[r * m + i] * A[c * m + i];
+
+    std::vector<double> ATy(np, 0.0);
+    for (int r = 0; r < np; ++r)
+        for (size_t i = 0; i < m; ++i)
+            ATy[r] += A[r * m + i] * yd[i];
+
+    // Gaussian elimination with partial pivoting on [ATA | ATy].
+    std::vector<double> aug(np * (np + 1));
+    for (int r = 0; r < np; ++r) {
+        for (int c = 0; c < np; ++c)
+            aug[r * (np + 1) + c] = ATA[c * np + r];
+        aug[r * (np + 1) + np] = ATy[r];
+    }
+
+    for (int k = 0; k < np; ++k) {
+        int maxRow = k;
+        double maxVal = std::abs(aug[k * (np + 1) + k]);
+        for (int r = k + 1; r < np; ++r) {
+            const double v = std::abs(aug[r * (np + 1) + k]);
+            if (v > maxVal) {
+                maxVal = v;
+                maxRow = r;
+            }
+        }
+        if (maxRow != k) {
+            for (int c = 0; c <= np; ++c)
+                std::swap(aug[k * (np + 1) + c], aug[maxRow * (np + 1) + c]);
+        }
+
+        const double pivot = aug[k * (np + 1) + k];
+        if (std::abs(pivot) < 1e-15)
+            throw MError("polyfit: singular matrix",
+                         0, 0, "polyfit", "", "m:polyfit:singular");
+
+        for (int c = k; c <= np; ++c)
+            aug[k * (np + 1) + c] /= pivot;
+        for (int r = 0; r < np; ++r) {
+            if (r == k)
+                continue;
+            const double f = aug[r * (np + 1) + k];
+            for (int c = k; c <= np; ++c)
+                aug[r * (np + 1) + c] -= f * aug[k * (np + 1) + c];
+        }
+    }
+
+    auto p = MValue::matrix(1, np, MType::DOUBLE, &alloc);
+    for (int j = 0; j < np; ++j)
+        p.doubleDataMut()[j] = aug[j * (np + 1) + np];
+    return p;
+}
+
+MValue polyval(Allocator &alloc, const MValue &p, const MValue &x)
+{
+    const double *pd = p.doubleData();
+    const size_t np = p.numel();
+    const size_t nx = x.numel();
+    const double *xd = x.doubleData();
+
+    auto r = createLike(x, MType::DOUBLE, &alloc);
+    for (size_t i = 0; i < nx; ++i) {
+        double val = pd[0];
+        for (size_t j = 1; j < np; ++j)
+            val = val * xd[i] + pd[j];
+        r.doubleDataMut()[i] = val;
+    }
+    return r;
+}
 
 } // namespace numkit::m::builtin

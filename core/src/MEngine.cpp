@@ -7,7 +7,6 @@
 #include <numkit/m/builtin/MStdLibrary.hpp>
 #include <numkit/m/dsp/MDspLibrary.hpp>
 #include <numkit/m/plt/MPltLibrary.hpp>
-#include <numkit/m/fit/MFitLibrary.hpp>
 #include <numkit/m/core/MTreeWalker.hpp>
 #include <numkit/m/core/MVM.hpp>
 #include <algorithm>
@@ -60,7 +59,6 @@ Engine::Engine()
     StdLibrary::install(*this);
     DspLibrary::install(*this);
     PltLibrary::install(*this);
-    FitLibrary::install(*this);
 }
 
 Engine::~Engine()

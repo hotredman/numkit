@@ -1,6 +1,10 @@
-// libs/fit/src/MFitInterp.cpp
+// libs/builtin/src/math/interpolation/interp.cpp
+//
+// 1-D / 2-D / 3-D interpolation. polyfit / polyval moved to
+// math/elementary/polynomials.cpp; trapz to math/integration/integration.cpp.
 
-#include <numkit/m/fit/MFitInterp.hpp>
+#include <numkit/m/builtin/MStdLibrary.hpp>
+#include <numkit/m/builtin/math/interpolation/interp.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>
@@ -14,7 +18,7 @@
 #include <string>
 #include <vector>
 
-namespace numkit::m::fit {
+namespace numkit::m::builtin {
 
 // ── Internal algorithm helpers ────────────────────────────────────────
 
@@ -542,125 +546,8 @@ MValue pchip(Allocator &alloc, const MValue &x, const MValue &y, const MValue &x
     return packInterpResult(yq, xq, alloc);
 }
 
-// ── polyfit ───────────────────────────────────────────────────────────
-MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int deg)
-{
-    const size_t m = x.numel();
-    const int np = deg + 1;
-
-    if (static_cast<size_t>(np) > m)
-        throw MError("polyfit: not enough data points",
-                     0, 0, "polyfit", "", "m:polyfit:tooFewPoints");
-
-    const double *xd = x.doubleData();
-    const double *yd = y.doubleData();
-
-    // Vandermonde matrix A[j, i] = x[i]^(deg - j), stored column-major
-    std::vector<double> A(m * np);
-    for (size_t i = 0; i < m; ++i)
-        for (int j = 0; j < np; ++j)
-            A[j * m + i] = std::pow(xd[i], deg - j);
-
-    // Normal equations: ATA * p = AT * y
-    std::vector<double> ATA(np * np, 0.0);
-    for (int r = 0; r < np; ++r)
-        for (int c = 0; c < np; ++c)
-            for (size_t i = 0; i < m; ++i)
-                ATA[c * np + r] += A[r * m + i] * A[c * m + i];
-
-    std::vector<double> ATy(np, 0.0);
-    for (int r = 0; r < np; ++r)
-        for (size_t i = 0; i < m; ++i)
-            ATy[r] += A[r * m + i] * yd[i];
-
-    // Gaussian elimination with partial pivoting, augmented [ATA | ATy]
-    std::vector<double> aug(np * (np + 1));
-    for (int r = 0; r < np; ++r) {
-        for (int c = 0; c < np; ++c)
-            aug[r * (np + 1) + c] = ATA[c * np + r];
-        aug[r * (np + 1) + np] = ATy[r];
-    }
-
-    for (int k = 0; k < np; ++k) {
-        int maxRow = k;
-        double maxVal = std::abs(aug[k * (np + 1) + k]);
-        for (int r = k + 1; r < np; ++r) {
-            const double v = std::abs(aug[r * (np + 1) + k]);
-            if (v > maxVal) {
-                maxVal = v;
-                maxRow = r;
-            }
-        }
-        if (maxRow != k) {
-            for (int c = 0; c <= np; ++c)
-                std::swap(aug[k * (np + 1) + c], aug[maxRow * (np + 1) + c]);
-        }
-
-        const double pivot = aug[k * (np + 1) + k];
-        if (std::abs(pivot) < 1e-15)
-            throw MError("polyfit: singular matrix",
-                         0, 0, "polyfit", "", "m:polyfit:singular");
-
-        for (int c = k; c <= np; ++c)
-            aug[k * (np + 1) + c] /= pivot;
-        for (int r = 0; r < np; ++r) {
-            if (r == k)
-                continue;
-            const double f = aug[r * (np + 1) + k];
-            for (int c = k; c <= np; ++c)
-                aug[r * (np + 1) + c] -= f * aug[k * (np + 1) + c];
-        }
-    }
-
-    auto p = MValue::matrix(1, np, MType::DOUBLE, &alloc);
-    for (int j = 0; j < np; ++j)
-        p.doubleDataMut()[j] = aug[j * (np + 1) + np];
-    return p;
-}
-
-// ── polyval ───────────────────────────────────────────────────────────
-MValue polyval(Allocator &alloc, const MValue &p, const MValue &x)
-{
-    const double *pd = p.doubleData();
-    const size_t np = p.numel();
-    const size_t nx = x.numel();
-    const double *xd = x.doubleData();
-
-    auto r = createLike(x, MType::DOUBLE, &alloc);
-    for (size_t i = 0; i < nx; ++i) {
-        double val = pd[0];
-        for (size_t j = 1; j < np; ++j)
-            val = val * xd[i] + pd[j];
-        r.doubleDataMut()[i] = val;
-    }
-    return r;
-}
-
-// ── trapz ─────────────────────────────────────────────────────────────
-MValue trapz(Allocator &alloc, const MValue &y)
-{
-    const double *yd = y.doubleData();
-    const size_t n = y.numel();
-    double s = 0.0;
-    for (size_t i = 1; i < n; ++i)
-        s += 0.5 * (yd[i - 1] + yd[i]);
-    return MValue::scalar(s, &alloc);
-}
-
-MValue trapz(Allocator &alloc, const MValue &x, const MValue &y)
-{
-    const size_t n = x.numel();
-    if (y.numel() != n)
-        throw MError("trapz: x and y must have same length",
-                     0, 0, "trapz", "", "m:trapz:lengthMismatch");
-
-    const double *xd = x.doubleData();
-    const double *yd = y.doubleData();
-    double s = 0.0;
-    for (size_t i = 1; i < n; ++i)
-        s += 0.5 * (yd[i - 1] + yd[i]) * (xd[i] - xd[i - 1]);
-    return MValue::scalar(s, &alloc);
-}
+// polyfit / polyval moved to math/elementary/polynomials.cpp
+// trapz moved to math/integration/integration.cpp
 
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
@@ -747,35 +634,34 @@ void pchip_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, C
     outs[0] = pchip(ctx.engine->allocator(), args[0], args[1], args[2]);
 }
 
-void polyfit_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 3)
-        throw MError("polyfit: requires 3 arguments",
-                     0, 0, "polyfit", "", "m:polyfit:nargin");
-    outs[0] = polyfit(ctx.engine->allocator(),
-                      args[0], args[1],
-                      static_cast<int>(args[2].toScalar()));
-}
-
-void polyval_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
-{
-    if (args.size() < 2)
-        throw MError("polyval: requires 2 arguments",
-                     0, 0, "polyval", "", "m:polyval:nargin");
-    outs[0] = polyval(ctx.engine->allocator(), args[0], args[1]);
-}
-
-void trapz_reg(Span<const MValue> args, size_t /*nargout*/, Span<MValue> outs, CallContext &ctx)
+// interpn — dispatch to interp2 / interp3 based on V's ndim. Form A
+// (V, Xq1..XqN[, method]) inspects args[0]; Form B
+// (X1..XN, V, Xq1..XqN[, method]) follows the same dispatch pattern
+// because V always lives at args[0] in Form A and the implementation
+// distinguishes them inside interp2_reg / interp3_reg.
+void interpn_reg(Span<const MValue> args, size_t nargout, Span<MValue> outs, CallContext &ctx)
 {
     if (args.empty())
-        throw MError("trapz: requires at least 1 argument",
-                     0, 0, "trapz", "", "m:trapz:nargin");
-    if (args.size() == 1)
-        outs[0] = trapz(ctx.engine->allocator(), args[0]);
-    else
-        outs[0] = trapz(ctx.engine->allocator(), args[0], args[1]);
+        throw MError("interpn: requires at least 2 arguments",
+                     0, 0, "interpn", "", "m:interpn:nargin");
+    const auto &V0 = args[0];
+    const int ndV = V0.dims().is3D() ? 3
+                  : (V0.dims().ndim() <= 2 ? 2 : V0.dims().ndim());
+    if (ndV == 2) {
+        interp2_reg(args, nargout, outs, ctx);
+        return;
+    }
+    if (ndV == 3) {
+        interp3_reg(args, nargout, outs, ctx);
+        return;
+    }
+    throw MError("interpn: 4+-D inputs are not yet supported",
+                 0, 0, "interpn", "", "m:interpn:rank");
 }
+
+// polyfit_reg / polyval_reg → math/elementary/polynomials.cpp
+// trapz_reg                 → math/integration/integration.cpp
 
 } // namespace detail
 
-} // namespace numkit::m::fit
+} // namespace numkit::m::builtin

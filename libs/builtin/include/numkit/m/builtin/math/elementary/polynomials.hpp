@@ -50,4 +50,16 @@ tf2zp(Allocator &alloc, const MValue &b, const MValue &a);
 std::tuple<MValue, MValue>
 zp2tf(Allocator &alloc, const MValue &z, const MValue &p, double k);
 
+// ── Curve fitting / evaluation ───────────────────────────────────────
+
+/// Least-squares polynomial fit of degree n. Returns coefficient row vector
+/// in descending power order (p[0] * x^n + p[1] * x^(n-1) + ...).
+///
+/// @throws MError on singular normal-matrix (ill-conditioned) or not enough
+///         data points (need at least n+1).
+MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int n);
+
+/// Horner evaluation of polynomial p at x. Returns array same shape as x.
+MValue polyval(Allocator &alloc, const MValue &p, const MValue &x);
+
 } // namespace numkit::m::builtin

@@ -20,6 +20,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/misc.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/special.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/reductions.cpp
+    # math/interpolation/ — merged from libs/fit
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/interpolation/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/optim/fzero.cpp
     # data_io/

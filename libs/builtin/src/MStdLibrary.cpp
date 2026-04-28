@@ -57,6 +57,17 @@ void factorial_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void nchoosek_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void gradient_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void cumtrapz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+// interpolation/interp.cpp + math/elementary/polynomials.cpp
+//   + math/integration/integration.cpp (trapz)
+void interp1_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void interp2_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void interp3_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void interpn_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void spline_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void pchip_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void polyfit_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void polyval_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void trapz_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void fzero_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void integral_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void roots_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -343,6 +354,15 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("nchoosek",  &builtin::detail::nchoosek_reg);
     engine.registerFunction("gradient",  &builtin::detail::gradient_reg);
     engine.registerFunction("cumtrapz",  &builtin::detail::cumtrapz_reg);
+    engine.registerFunction("interp1",   &builtin::detail::interp1_reg);
+    engine.registerFunction("interp2",   &builtin::detail::interp2_reg);
+    engine.registerFunction("interp3",   &builtin::detail::interp3_reg);
+    engine.registerFunction("interpn",   &builtin::detail::interpn_reg);
+    engine.registerFunction("spline",    &builtin::detail::spline_reg);
+    engine.registerFunction("pchip",     &builtin::detail::pchip_reg);
+    engine.registerFunction("polyfit",   &builtin::detail::polyfit_reg);
+    engine.registerFunction("polyval",   &builtin::detail::polyval_reg);
+    engine.registerFunction("trapz",     &builtin::detail::trapz_reg);
     engine.registerFunction("fzero",     &builtin::detail::fzero_reg);
     engine.registerFunction("integral",  &builtin::detail::integral_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);

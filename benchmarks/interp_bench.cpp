@@ -3,7 +3,9 @@
 // Phase-10 sweep covering libs/fit (interp1, polyval, trapz). These
 // existed before the parity expansion but have never been benched.
 
-#include <numkit/m/fit/MFitInterp.hpp>
+#include <numkit/m/builtin/math/elementary/polynomials.hpp>
+#include <numkit/m/builtin/math/integration/integration.hpp>
+#include <numkit/m/builtin/math/interpolation/interp.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
@@ -59,7 +61,7 @@ static void BM_Interp1Linear(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto out = fit::interp1(alloc, x, y, xq, "linear");
+        auto out = builtin::interp1(alloc, x, y, xq, "linear");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -75,7 +77,7 @@ static void BM_Interp1Spline(benchmark::State &s)
     auto xq = makeQuery(nx, nq);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto out = fit::interp1(alloc, x, y, xq, "spline");
+        auto out = builtin::interp1(alloc, x, y, xq, "spline");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -90,7 +92,7 @@ static void BM_Polyval(benchmark::State &s)
     auto xq = makeY(n, 5);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = fit::polyval(alloc, p, xq);
+        auto y = builtin::polyval(alloc, p, xq);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -103,7 +105,7 @@ static void BM_TrapzUniform(benchmark::State &s)
     auto y = makeY(n);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto out = fit::trapz(alloc, y);
+        auto out = builtin::trapz(alloc, y);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

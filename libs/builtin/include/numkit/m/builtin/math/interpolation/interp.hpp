@@ -1,4 +1,9 @@
-// libs/fit/include/numkit/m/fit/MFitInterp.hpp
+// libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
+//
+// 1-D / 2-D / 3-D interpolation. polyfit / polyval moved to
+// math/elementary/polynomials.hpp; trapz moved to
+// math/integration/integration.hpp.
+
 #pragma once
 
 #include <numkit/m/core/MAllocator.hpp>
@@ -6,7 +11,7 @@
 
 #include <string>
 
-namespace numkit::m::fit {
+namespace numkit::m::builtin {
 
 /// 1D interpolation at query points xq.
 ///
@@ -56,21 +61,4 @@ MValue spline(Allocator &alloc, const MValue &x, const MValue &y, const MValue &
 /// Piecewise cubic Hermite — equivalent to interp1(..., "pchip").
 MValue pchip(Allocator &alloc, const MValue &x, const MValue &y, const MValue &xq);
 
-/// Least-squares polynomial fit of degree n. Returns coefficient row vector
-/// in descending power order (p[0] * x^n + p[1] * x^(n-1) + ...).
-///
-/// @throws MError on singular normal-matrix (ill-conditioned) or not enough
-///         data points (need at least n+1).
-MValue polyfit(Allocator &alloc, const MValue &x, const MValue &y, int n);
-
-/// Horner evaluation of polynomial p at x. Returns array same shape as x.
-MValue polyval(Allocator &alloc, const MValue &p, const MValue &x);
-
-/// Trapezoidal numerical integration over uniform spacing (dx = 1).
-MValue trapz(Allocator &alloc, const MValue &y);
-
-/// Trapezoidal numerical integration with explicit x values.
-/// @throws MError if numel(x) != numel(y).
-MValue trapz(Allocator &alloc, const MValue &x, const MValue &y);
-
-} // namespace numkit::m::fit
+} // namespace numkit::m::builtin

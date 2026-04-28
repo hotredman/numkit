@@ -1,5 +1,0 @@
-set(FITLIB_SOURCES
-    ${CMAKE_CURRENT_SOURCE_DIR}/MFitLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MFitInterp.cpp
-    PARENT_SCOPE
-)
