@@ -155,6 +155,9 @@ void strrep_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void contains_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void startsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 void endsWith_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void regexp_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void regexpi_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
+void regexprep_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
 
 // MStdTypes.cpp
 void double_reg(Span<const MValue>, size_t, Span<MValue>, CallContext&);
@@ -469,6 +472,9 @@ void StdLibrary::install(Engine &engine)
     engine.registerFunction("contains",   &builtin::detail::contains_reg);
     engine.registerFunction("startsWith", &builtin::detail::startsWith_reg);
     engine.registerFunction("endsWith",   &builtin::detail::endsWith_reg);
+    engine.registerFunction("regexp",     &builtin::detail::regexp_reg);
+    engine.registerFunction("regexpi",    &builtin::detail::regexpi_reg);
+    engine.registerFunction("regexprep",  &builtin::detail::regexprep_reg);
 
     // ── Phase 6c: MStdTypes public-API-backed built-ins ────────────
     engine.registerFunction("double",    &builtin::detail::double_reg);

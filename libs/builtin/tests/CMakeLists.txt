@@ -19,6 +19,7 @@ target_sources(m_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/special_funcs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/calculus_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/poly_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/regex_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/advanced_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/programs_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/matrix_test.cpp
