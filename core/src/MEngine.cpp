@@ -5,7 +5,7 @@
 #include <numkit/m/core/MLexer.hpp>
 #include <numkit/m/core/MParser.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
-#include <numkit/m/dsp/MDspLibrary.hpp>
+#include <numkit/m/signal/MSignalLibrary.hpp>
 #include <numkit/m/plt/MPltLibrary.hpp>
 #include <numkit/m/core/MTreeWalker.hpp>
 #include <numkit/m/core/MVM.hpp>
@@ -57,7 +57,7 @@ Engine::Engine()
     reinstallConstants();
     registerVirtualFS(std::make_unique<NativeFS>());
     StdLibrary::install(*this);
-    DspLibrary::install(*this);
+    SignalLibrary::install(*this);
     PltLibrary::install(*this);
 }
 

@@ -9,12 +9,12 @@
 // fast feedback) to 64k (where the FFT-backed kernels start to show
 // their cost).
 
-#include <numkit/m/dsp/MDspConv.hpp>
-#include <numkit/m/dsp/MDspFilter.hpp>
-#include <numkit/m/dsp/MDspFilterDesign.hpp>
-#include <numkit/m/dsp/MDspGaps.hpp>
-#include <numkit/m/dsp/MDspSpectral.hpp>
-#include <numkit/m/dsp/MDspTransform.hpp>
+#include <numkit/m/signal/MDspConv.hpp>
+#include <numkit/m/signal/MDspFilter.hpp>
+#include <numkit/m/signal/MDspFilterDesign.hpp>
+#include <numkit/m/signal/MDspGaps.hpp>
+#include <numkit/m/signal/MDspSpectral.hpp>
+#include <numkit/m/signal/MDspTransform.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
@@ -46,7 +46,7 @@ struct FilterCoeffs {
 FilterCoeffs makeLowpass32()
 {
     Allocator alloc = Allocator::defaultAllocator();
-    auto b = dsp::fir1(alloc, 32, 0.25, "low");  // 33-tap FIR
+    auto b = signal::fir1(alloc, 32, 0.25, "low");  // 33-tap FIR
     // a = [1] for FIR
     MValue a = MValue::matrix(1, 1, MType::DOUBLE, nullptr);
     a.doubleDataMut()[0] = 1.0;
@@ -64,7 +64,7 @@ static void BM_FilterFIR33(benchmark::State &s)
     auto coeffs = makeLowpass32();
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = dsp::filter(alloc, coeffs.b, coeffs.a, x);
+        auto y = signal::filter(alloc, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -78,7 +78,7 @@ static void BM_FiltfiltFIR33(benchmark::State &s)
     auto coeffs = makeLowpass32();
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = dsp::filtfilt(alloc, coeffs.b, coeffs.a, x);
+        auto y = signal::filtfilt(alloc, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -94,7 +94,7 @@ static void BM_Xcorr(benchmark::State &s)
     auto y = makeSignal(n, 2);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto [c, lags] = dsp::xcorr(alloc, x, y);
+        auto [c, lags] = signal::xcorr(alloc, x, y);
         benchmark::DoNotOptimize(c);
         benchmark::DoNotOptimize(lags);
     }
@@ -111,7 +111,7 @@ static void BM_Pwelch(benchmark::State &s)
     MValue emptyWin = MValue::matrix(0, 0, MType::DOUBLE, nullptr);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto [pxx, f] = dsp::pwelch(alloc, x, emptyWin, 0, 0);
+        auto [pxx, f] = signal::pwelch(alloc, x, emptyWin, 0, 0);
         benchmark::DoNotOptimize(pxx);
         benchmark::DoNotOptimize(f);
     }
@@ -127,7 +127,7 @@ static void BM_Hilbert(benchmark::State &s)
     auto x = makeSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = dsp::hilbert(alloc, x);
+        auto y = signal::hilbert(alloc, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -142,7 +142,7 @@ static void BM_Medfilt1_K7(benchmark::State &s)
     auto x = makeSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = dsp::medfilt1(alloc, x, 7);
+        auto y = signal::medfilt1(alloc, x, 7);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -155,7 +155,7 @@ static void BM_Findpeaks(benchmark::State &s)
     auto x = makeSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto [v, idx] = dsp::findpeaks(alloc, x);
+        auto [v, idx] = signal::findpeaks(alloc, x);
         benchmark::DoNotOptimize(v);
         benchmark::DoNotOptimize(idx);
     }
@@ -170,7 +170,7 @@ static void BM_DCT(benchmark::State &s)
     auto x = makeSignal(n);
     Allocator alloc = Allocator::defaultAllocator();
     for (auto _ : s) {
-        auto y = dsp::dct(alloc, x);
+        auto y = signal::dct(alloc, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetComplexityN(static_cast<int64_t>(n));

@@ -7,7 +7,7 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/dsp/MDspConv.hpp>
+#include <numkit/m/signal/MDspConv.hpp>
 
 #include <benchmark/benchmark.h>
 
@@ -42,7 +42,7 @@ static void BM_Conv_FixedKernel64(benchmark::State &state)
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = dsp::conv(alloc, sig, kernel, "full");
+        MValue y = signal::conv(alloc, sig, kernel, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -65,7 +65,7 @@ static void BM_Conv_SquareLen(benchmark::State &state)
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = dsp::conv(alloc, a, b, "full");
+        MValue y = signal::conv(alloc, a, b, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

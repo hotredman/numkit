@@ -83,15 +83,15 @@ if(NUMKIT_WITH_THREADS)
     list(APPEND NUMKIT_M_CORE_SOURCES core/src/MThreadPool.cpp)
 endif()
 
-# Each library defines its own source list (STDLIB_SOURCES, DSPLIB_SOURCES, ...)
+# Each library defines its own source list (STDLIB_SOURCES, SIGNALLIB_SOURCES, ...)
 add_subdirectory(libs/builtin/src)
-add_subdirectory(libs/dsp/src)
+add_subdirectory(libs/signal/src)
 add_subdirectory(libs/plt/src)
 
 set(NUMKIT_M_SOURCES
     ${NUMKIT_M_CORE_SOURCES}
     ${STDLIB_SOURCES}
-    ${DSPLIB_SOURCES}
+    ${SIGNALLIB_SOURCES}
     ${PLTLIB_SOURCES}
 )
 
@@ -156,16 +156,16 @@ set(NUMKIT_M_HEADERS
     libs/builtin/include/numkit/m/builtin/datatypes/strings/print.hpp
     libs/builtin/include/numkit/m/builtin/datatypes/strings/scan.hpp
     libs/builtin/include/numkit/m/builtin/programming/errors/diagnostics.hpp
-    libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
-    libs/dsp/include/numkit/m/dsp/MDspFft.hpp
-    libs/dsp/include/numkit/m/dsp/MDspConv.hpp
-    libs/dsp/include/numkit/m/dsp/MDspFilter.hpp
-    libs/dsp/include/numkit/m/dsp/MDspFilterDesign.hpp
-    libs/dsp/include/numkit/m/dsp/MDspResample.hpp
-    libs/dsp/include/numkit/m/dsp/MDspSpectral.hpp
-    libs/dsp/include/numkit/m/dsp/MDspWindows.hpp
-    libs/dsp/include/numkit/m/dsp/MDspTransform.hpp
-    libs/dsp/include/numkit/m/dsp/MDspSignalCore.hpp
+    libs/signal/include/numkit/m/signal/MSignalLibrary.hpp
+    libs/signal/include/numkit/m/signal/MDspFft.hpp
+    libs/signal/include/numkit/m/signal/MDspConv.hpp
+    libs/signal/include/numkit/m/signal/MDspFilter.hpp
+    libs/signal/include/numkit/m/signal/MDspFilterDesign.hpp
+    libs/signal/include/numkit/m/signal/MDspResample.hpp
+    libs/signal/include/numkit/m/signal/MDspSpectral.hpp
+    libs/signal/include/numkit/m/signal/MDspWindows.hpp
+    libs/signal/include/numkit/m/signal/MDspTransform.hpp
+    libs/signal/include/numkit/m/signal/MDspSignalCore.hpp
     libs/builtin/include/numkit/m/builtin/math/interpolation/interp.hpp
     libs/plt/include/numkit/m/plt/MPltLibrary.hpp
 )
@@ -182,14 +182,14 @@ target_include_directories(m
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/core/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/include>
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/plt/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (MStdHelpers.hpp, MDspHelpers.hpp)
         # TODO: formalize as public "detail/" headers or common utility lib
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/libs/dsp/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
 )
 
 target_compile_features(m PUBLIC cxx_std_17)
@@ -277,7 +277,7 @@ if(NUMKIT_M_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(tests)
     add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
-    add_subdirectory(libs/dsp/tests)
+    add_subdirectory(libs/signal/tests)
     add_subdirectory(libs/plt/tests)
 endif()
 
@@ -346,7 +346,7 @@ if(NUMKIT_M_INSTALL AND NOT EMSCRIPTEN)
     # Public headers — every component ships its own numkit/m/<name>/ subtree
     install(DIRECTORY core/include/numkit         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/builtin/include/numkit DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-    install(DIRECTORY libs/dsp/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(DIRECTORY libs/signal/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
     install(DIRECTORY libs/plt/include/numkit     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
     install(EXPORT mTargets

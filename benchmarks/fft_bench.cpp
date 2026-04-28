@@ -1,6 +1,6 @@
 // benchmarks/fft_bench.cpp
 //
-// Timed region covers only numkit::m::dsp::fft(). Input allocation
+// Timed region covers only numkit::m::signal::fft(). Input allocation
 // and RNG fill happen in SetUp / per-iteration prologue and are NOT
 // counted. Sizes are powers of two (the common case) across a range
 // that spans the cache hierarchy on a typical workstation.
@@ -8,7 +8,7 @@
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>
-#include <numkit/m/dsp/MDspFft.hpp>
+#include <numkit/m/signal/MDspFft.hpp>
 
 // Private headers — exposed via libs/dsp/src include path in the
 // benchmarks CMakeLists. Used by BM_Fft_KernelOnly_Complex to time
@@ -40,7 +40,7 @@ numkit::m::MValue makeRealSignal(size_t n)
 }
 
 // Same length, complex input — bypasses the rfft real-input fast path
-// inside dsp::fft so the underlying complex r2/r4 kernel sees the full
+// inside signal::fft so the underlying complex r2/r4 kernel sees the full
 // size N (not the rfft-halved N/2). Used to isolate where the cliff at
 // N=32k actually lives: in the kernel or in the rfft wrapper.
 numkit::m::MValue makeComplexSignal(size_t n)
@@ -66,7 +66,7 @@ static void BM_Fft_PowerOfTwo(benchmark::State &state)
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = dsp::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        MValue y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -83,7 +83,7 @@ BENCHMARK(BM_Fft_PowerOfTwo)
     ->Range(1 << 10, 1 << 18)
     ->Complexity(benchmark::oNLogN);
 
-// Complex-input variant. dsp::fft() takes the standard complex r2/r4
+// Complex-input variant. signal::fft() takes the standard complex r2/r4
 // path here (no rfft halving), so timings reflect the kernel directly.
 // Compare against BM_Fft_PowerOfTwo at half the size to attribute time
 // to {rfft pack+twist} vs {complex kernel} — the standalone complex
@@ -96,7 +96,7 @@ static void BM_Fft_PowerOfTwo_Complex(benchmark::State &state)
     Allocator alloc = Allocator::defaultAllocator();
 
     for (auto _ : state) {
-        MValue y = dsp::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        MValue y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -133,7 +133,7 @@ static void BM_Fft_KernelOnly_Complex(benchmark::State &state)
 
     for (auto _ : state) {
         std::memcpy(work.data(), input.data(), n * sizeof(Complex));
-        dsp::detail::fftRadix2Impl(work.data(), n, twid.data());
+        signal::detail::fftRadix2Impl(work.data(), n, twid.data());
         benchmark::DoNotOptimize(work.data());
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
@@ -165,7 +165,7 @@ static void BM_Fft_KernelOnly_Stockham(benchmark::State &state)
 
     for (auto _ : state) {
         std::memcpy(work.data(), input.data(), n * sizeof(Complex));
-        dsp::detail::fftStockhamDispatch(work.data(), n, twid.data());
+        signal::detail::fftStockhamDispatch(work.data(), n, twid.data());
         benchmark::DoNotOptimize(work.data());
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
@@ -196,7 +196,7 @@ static void BM_Fft_KernelOnly_R2SoA(benchmark::State &state)
 
     for (auto _ : state) {
         std::memcpy(work.data(), input.data(), n * sizeof(Complex));
-        dsp::detail::fftRadix2SoaDispatch(work.data(), n, twid.data());
+        signal::detail::fftRadix2SoaDispatch(work.data(), n, twid.data());
         benchmark::DoNotOptimize(work.data());
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));
@@ -225,7 +225,7 @@ static void BM_Fft_KernelOnly_R4SoA(benchmark::State &state)
 
     for (auto _ : state) {
         std::memcpy(work.data(), input.data(), n * sizeof(Complex));
-        dsp::detail::fftRadix4Pow4SoaDispatch(work.data(), n, twid.data());
+        signal::detail::fftRadix4Pow4SoaDispatch(work.data(), n, twid.data());
         benchmark::DoNotOptimize(work.data());
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));

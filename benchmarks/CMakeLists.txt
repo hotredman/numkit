@@ -35,9 +35,9 @@ target_link_libraries(m_bench
 # Some bench TUs (fft_bench) probe internal kernels — fftRadix2Impl,
 # fillFftTwiddles — to attribute time between the public wrapper and
 # the inner FFT loop without going through the pmr allocator. The
-# headers live in libs/dsp/src, so expose that path to the bench.
+# headers live in libs/signal/src, so expose that path to the bench.
 target_include_directories(m_bench PRIVATE
-    "${CMAKE_SOURCE_DIR}/libs/dsp/src"
+    "${CMAKE_SOURCE_DIR}/libs/signal/src"
 )
 
 if(EMSCRIPTEN)
