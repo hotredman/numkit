@@ -4,7 +4,7 @@
 // random, already sorted, reverse sorted — since real sort
 // implementations behave very differently on each.
 
-#include <numkit/m/builtin/MStdMatrix.hpp>
+#include <numkit/m/builtin/lang/arrays/matrix.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

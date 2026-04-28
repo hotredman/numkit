@@ -8,9 +8,9 @@
 // range that hits L1, L2/L3, and DRAM. Pure data-movement kernels;
 // expect strong sensitivity to memory bandwidth.
 
-#include <numkit/m/builtin/MStdManip.hpp>
-#include <numkit/m/builtin/MStdMatrix.hpp>
-#include <numkit/m/builtin/MStdNDManip.hpp>
+#include <numkit/m/builtin/lang/arrays/manip.hpp>
+#include <numkit/m/builtin/lang/arrays/matrix.hpp>
+#include <numkit/m/builtin/lang/arrays/nd_manip.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

@@ -7,7 +7,7 @@
 // inner unit-stride scan loops differ (no Highway types here so the
 // portable build doesn't need the Highway include path).
 
-#include <numkit/m/builtin/MStdMatrix.hpp>
+#include <numkit/m/builtin/lang/arrays/matrix.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>

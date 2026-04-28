@@ -3,7 +3,7 @@
 #include <numkit/m/builtin/MStdCellStruct.hpp>
 #include <numkit/m/builtin/MStdLibrary.hpp>
 #include <numkit/m/builtin/MStdMath.hpp>
-#include <numkit/m/builtin/MStdMatrix.hpp>
+#include <numkit/m/builtin/lang/arrays/matrix.hpp>
 
 #include <numkit/m/core/MEngine.hpp>
 #include <numkit/m/core/MTypes.hpp>

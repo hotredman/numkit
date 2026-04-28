@@ -4,7 +4,7 @@
 // Exercises the algorithm without going through Engine, Parser, VM, or the
 // registration adapter.
 
-#include <numkit/m/builtin/MStdComplex.hpp>
+#include <numkit/m/builtin/math/elementary/complex.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>

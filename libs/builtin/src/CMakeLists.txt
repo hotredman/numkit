@@ -1,32 +1,37 @@
 set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdLibrary.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdBinaryOps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdUnaryOps.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdMath.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdMatrix.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStats.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdRng.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdManip.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdNDManip.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdIntMath.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdSetOps.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdAccum.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdNumberTheory.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCombinatorics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCalculus.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdPoly.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdTypes.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdCellStruct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/MStdStrings.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdComplex.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdFormat.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdDiagnostics.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdPrint.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdFileIO.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdScan.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdCsv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdEnv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/MStdSaveLoad.cpp
+    # lang/
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/commands/env.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/binary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/operators/unary_ops.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/arrays/matrix.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/arrays/manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/arrays/nd_manip.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/lang/arrays/accum.cpp
+    # math/
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/random/rng.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/complex.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/math/elementary/polynomials.cpp
+    # data_io/
+    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/csv.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/fileio.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/saveload.cpp
+    # datatypes/
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/numeric/types.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/numeric/int_math.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/format.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/print.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/datatypes/strings/scan.cpp
+    # programming/
+    ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

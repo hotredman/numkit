@@ -2,7 +2,7 @@
 //
 // Direct-call tests for numkit::m::builtin type functions.
 
-#include <numkit/m/builtin/MStdTypes.hpp>
+#include <numkit/m/builtin/datatypes/numeric/types.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>

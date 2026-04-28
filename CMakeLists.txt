@@ -127,21 +127,27 @@ set(NUMKIT_M_HEADERS
     # libs
     libs/builtin/include/numkit/m/builtin/MStdLibrary.hpp
     libs/builtin/include/numkit/m/builtin/MStdMath.hpp
-    libs/builtin/include/numkit/m/builtin/MStdMatrix.hpp
-    libs/builtin/include/numkit/m/builtin/MStdBinaryOps.hpp
-    libs/builtin/include/numkit/m/builtin/MStdUnaryOps.hpp
-    libs/builtin/include/numkit/m/builtin/MStdComplex.hpp
     libs/builtin/include/numkit/m/builtin/MStdStrings.hpp
-    libs/builtin/include/numkit/m/builtin/MStdTypes.hpp
     libs/builtin/include/numkit/m/builtin/MStdCellStruct.hpp
-    libs/builtin/include/numkit/m/builtin/MStdFormat.hpp
-    libs/builtin/include/numkit/m/builtin/MStdDiagnostics.hpp
-    libs/builtin/include/numkit/m/builtin/MStdPrint.hpp
-    libs/builtin/include/numkit/m/builtin/MStdFileIO.hpp
-    libs/builtin/include/numkit/m/builtin/MStdScan.hpp
-    libs/builtin/include/numkit/m/builtin/MStdCsv.hpp
-    libs/builtin/include/numkit/m/builtin/MStdEnv.hpp
-    libs/builtin/include/numkit/m/builtin/MStdSaveLoad.hpp
+    libs/builtin/include/numkit/m/builtin/lang/commands/env.hpp
+    libs/builtin/include/numkit/m/builtin/lang/operators/binary_ops.hpp
+    libs/builtin/include/numkit/m/builtin/lang/operators/unary_ops.hpp
+    libs/builtin/include/numkit/m/builtin/lang/arrays/matrix.hpp
+    libs/builtin/include/numkit/m/builtin/lang/arrays/manip.hpp
+    libs/builtin/include/numkit/m/builtin/lang/arrays/nd_manip.hpp
+    libs/builtin/include/numkit/m/builtin/lang/arrays/accum.hpp
+    libs/builtin/include/numkit/m/builtin/math/random/rng.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/complex.hpp
+    libs/builtin/include/numkit/m/builtin/math/elementary/polynomials.hpp
+    libs/builtin/include/numkit/m/builtin/data_io/csv.hpp
+    libs/builtin/include/numkit/m/builtin/data_io/fileio.hpp
+    libs/builtin/include/numkit/m/builtin/data_io/saveload.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/numeric/types.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/numeric/int_math.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/strings/format.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/strings/print.hpp
+    libs/builtin/include/numkit/m/builtin/datatypes/strings/scan.hpp
+    libs/builtin/include/numkit/m/builtin/programming/errors/diagnostics.hpp
     libs/dsp/include/numkit/m/dsp/MDspLibrary.hpp
     libs/dsp/include/numkit/m/dsp/MDspFft.hpp
     libs/dsp/include/numkit/m/dsp/MDspConv.hpp

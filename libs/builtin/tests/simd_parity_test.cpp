@@ -12,7 +12,7 @@
 // identically). Transcendentals added in later phases will use an
 // ULP budget instead.
 
-#include <numkit/m/builtin/MStdBinaryOps.hpp>
+#include <numkit/m/builtin/lang/operators/binary_ops.hpp>
 #include <numkit/m/builtin/MStdMath.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>

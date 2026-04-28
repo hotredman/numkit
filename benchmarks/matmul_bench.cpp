@@ -4,7 +4,7 @@
 // input matrices are built once per benchmark-size and re-used across
 // iterations.
 
-#include <numkit/m/builtin/MStdBinaryOps.hpp>
+#include <numkit/m/builtin/lang/operators/binary_ops.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
 #include <numkit/m/core/MValue.hpp>

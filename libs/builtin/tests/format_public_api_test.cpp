@@ -2,7 +2,7 @@
 //
 // Direct-call tests for numkit::m::builtin formatting primitives.
 
-#include <numkit/m/builtin/MStdFormat.hpp>
+#include <numkit/m/builtin/datatypes/strings/format.hpp>
 
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MSpan.hpp>

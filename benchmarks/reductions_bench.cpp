@@ -12,7 +12,7 @@
 // O(N) or O(N log N) for the median family.
 
 #include <numkit/m/builtin/MStdMath.hpp>
-#include <numkit/m/builtin/MStdMatrix.hpp>
+#include <numkit/m/builtin/lang/arrays/matrix.hpp>
 #include <numkit/m/builtin/MStdStats.hpp>
 #include <numkit/m/core/MAllocator.hpp>
 #include <numkit/m/core/MTypes.hpp>
