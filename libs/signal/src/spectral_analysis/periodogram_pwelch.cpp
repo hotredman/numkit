@@ -6,6 +6,7 @@
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -13,23 +14,23 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::signal {
 
 namespace {
 
-// Hamming window coefficients, same formula MATLAB uses.
-std::vector<double> hammingWindow(size_t N)
+// Fill caller-provided buffer with Hamming window coefficients, same
+// formula MATLAB uses. Buffer must have N elements; works with both
+// std::vector and std::pmr::vector data().
+void fillHammingWindow(double *w, size_t N)
 {
-    std::vector<double> w(N);
     if (N == 1) {
         w[0] = 1.0;
-        return w;
+        return;
     }
     for (size_t i = 0; i < N; ++i)
         w[i] = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / (N - 1));
-    return w;
 }
 
 } // anonymous namespace
@@ -40,24 +41,27 @@ periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft)
     const size_t N = x.numel();
     const double *xd = x.doubleData();
 
-    std::vector<double> win(N, 1.0);
+    ScratchArena scratch(alloc);
+    auto win = scratch.vec<double>(N);
     if (window.numel() == N) {
         const double *w = window.doubleData();
         for (size_t i = 0; i < N; ++i)
             win[i] = w[i];
+    } else {
+        std::fill(win.begin(), win.end(), 1.0);
     }
 
     if (nfft == 0)
         nfft = nextPow2(N);
 
-    std::vector<Complex> buf(nfft, Complex(0, 0));
+    auto buf = scratch.vec<Complex>(nfft);
     double winPower = 0.0;
     for (size_t i = 0; i < N; ++i) {
         buf[i] = Complex(xd[i] * win[i], 0.0);
         winPower += win[i] * win[i];
     }
 
-    fftRadix2(buf, 1);
+    fftRadix2(scratch.resource(), buf, 1);
 
     const size_t nOut = nfft / 2 + 1;
     auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
@@ -85,8 +89,10 @@ pwelch(Allocator &alloc,
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
+    ScratchArena scratch(alloc);
+
     size_t winLen;
-    std::vector<double> win;
+    ScratchVec<double> win(scratch.resource());
     if (window.numel() > 0) {
         winLen = window.numel();
         win.resize(winLen);
@@ -95,7 +101,8 @@ pwelch(Allocator &alloc,
             win[i] = w[i];
     } else {
         winLen = std::min(nx, static_cast<size_t>(256));
-        win = hammingWindow(winLen);
+        win.resize(winLen);
+        fillHammingWindow(win.data(), winLen);
     }
 
     if (noverlap == 0)
@@ -108,16 +115,23 @@ pwelch(Allocator &alloc,
         winPower += win[i] * win[i];
 
     const size_t nOut = nfft / 2 + 1;
-    std::vector<double> psd(nOut, 0.0);
+    auto psd = scratch.vec<double>(nOut);
     size_t nSegments = 0;
     const size_t step = winLen - noverlap;
 
+    // Per-segment FFT buffer hoisted out of the loop: under arena
+    // semantics a fresh `vec<Complex>(nfft)` per iteration would bump-
+    // allocate without reuse, growing the arena footprint to
+    // O(nSegments × nfft). Reusing one buffer keeps it at O(nfft).
+    auto buf = scratch.vec<Complex>(nfft);
+
     for (size_t start = 0; start + winLen <= nx; start += step) {
-        std::vector<Complex> buf(nfft, Complex(0, 0));
         for (size_t i = 0; i < winLen; ++i)
             buf[i] = Complex(xd[start + i] * win[i], 0.0);
+        for (size_t i = winLen; i < nfft; ++i)
+            buf[i] = Complex(0.0, 0.0);
 
-        fftRadix2(buf, 1);
+        fftRadix2(scratch.resource(), buf, 1);
 
         for (size_t i = 0; i < nOut; ++i) {
             double mag2 = std::norm(buf[i]);

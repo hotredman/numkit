@@ -3,12 +3,13 @@
 #include <numkit/signal/multirate/multirate.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
-#include <vector>
+#include <memory_resource>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -20,12 +21,13 @@ namespace {
 
 // Windowed-sinc lowpass FIR, Hamming window, cutoff wc (radians).
 // Normalized so DC gain is 1. Order is filtLen - 1; filtLen must be >= 2.
-std::vector<double> designLowpassFir(size_t filtLen, double wc)
+ScratchVec<double> designLowpassFir(std::pmr::memory_resource *mr,
+                                    size_t filtLen, double wc)
 {
     const size_t filtOrder = filtLen - 1;
     const double half = filtOrder / 2.0;
 
-    std::vector<double> h(filtLen);
+    ScratchVec<double> h(filtLen, mr);
     double hSum = 0.0;
     for (size_t i = 0; i < filtLen; ++i) {
         const double n = i - half;
@@ -43,11 +45,12 @@ std::vector<double> designLowpassFir(size_t filtLen, double wc)
 
 // Direct Form II transposed FIR apply — matches filter.cpp's core for
 // the a = [1] denominator case. Used by decimate and resample.
-std::vector<double> applyFirDf2t(const std::vector<double> &h, const double *x, size_t nx)
+ScratchVec<double> applyFirDf2t(std::pmr::memory_resource *mr,
+                                const double *h, size_t filtLen,
+                                const double *x, size_t nx)
 {
-    const size_t filtLen = h.size();
-    std::vector<double> out(nx);
-    std::vector<double> z(filtLen, 0.0);
+    ScratchVec<double> out(nx, mr);
+    ScratchVec<double> z(filtLen, mr);
     for (size_t n = 0; n < nx; ++n) {
         out[n] = h[0] * x[n] + z[0];
         for (size_t i = 1; i < filtLen; ++i)
@@ -100,8 +103,9 @@ Value decimate(Allocator &alloc, const Value &x, size_t factor)
     const size_t filtLen = filtOrder + 1;
     const double wc = M_PI / factor;
 
-    auto h = designLowpassFir(filtLen, wc);
-    auto filtered = applyFirDf2t(h, xd, nx);
+    ScratchArena scratch(alloc);
+    auto h = designLowpassFir(scratch.resource(), filtLen, wc);
+    auto filtered = applyFirDf2t(scratch.resource(), h.data(), h.size(), xd, nx);
 
     const size_t outLen = (nx + factor - 1) / factor;
     const bool isRow = x.dims().rows() == 1;
@@ -118,9 +122,11 @@ Value resample(Allocator &alloc, const Value &x, size_t p, size_t q)
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
+    ScratchArena scratch(alloc);
+
     // Upsample by p (zero-stuff, multiply by p for gain)
     const size_t upLen = nx * p;
-    std::vector<double> up(upLen, 0.0);
+    auto up = scratch.vec<double>(upLen);
     for (size_t i = 0; i < nx; ++i)
         up[i * p] = static_cast<double>(p) * xd[i];
 
@@ -131,8 +137,8 @@ Value resample(Allocator &alloc, const Value &x, size_t p, size_t q)
     const size_t filtLen = filtOrder + 1;
     const double wc = M_PI / std::max(p, q);
 
-    auto h = designLowpassFir(filtLen, wc);
-    auto filtered = applyFirDf2t(h, up.data(), upLen);
+    auto h = designLowpassFir(scratch.resource(), filtLen, wc);
+    auto filtered = applyFirDf2t(scratch.resource(), h.data(), h.size(), up.data(), upLen);
 
     // Downsample by q
     const size_t outLen = (upLen + q - 1) / q;

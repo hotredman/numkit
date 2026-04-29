@@ -5,12 +5,12 @@
 #include <numkit/signal/smoothing/medfilt.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
 
 #include <algorithm>
-#include <vector>
 
 namespace numkit::signal {
 
@@ -34,7 +34,8 @@ Value medfilt1(Allocator &alloc, const Value &x, size_t k)
     const size_t leftHalf  = (k - 1) / 2;
     const size_t rightHalf = k / 2;
 
-    std::vector<double> win;
+    ScratchArena scratch(alloc);
+    auto win = scratch.vec<double>();
     win.reserve(k);
 
     const double *src = x.doubleData();

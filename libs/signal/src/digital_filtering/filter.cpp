@@ -3,12 +3,14 @@
 #include <numkit/signal/digital_filtering/filter.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
 
 #include <algorithm>
-#include <vector>
+#include <cstring>
+#include <memory_resource>
 
 namespace numkit::signal {
 
@@ -16,13 +18,14 @@ namespace {
 
 // Direct Form II transposed core, applied to a flat input buffer.
 // Used by both filter() and filtfilt()'s forward/backward passes.
-std::vector<double> applyFilterDf2t(const double *bn, size_t nb,
-                                    const double *an, size_t na,
-                                    const double *input, size_t len)
+ScratchVec<double> applyFilterDf2t(std::pmr::memory_resource *mr,
+                                   const double *bn, size_t nb,
+                                   const double *an, size_t na,
+                                   const double *input, size_t len)
 {
     const size_t nfilt = std::max(nb, na);
-    std::vector<double> out(len);
-    std::vector<double> z(nfilt, 0.0);
+    ScratchVec<double> out(len, mr);
+    ScratchVec<double> z(nfilt, mr);
     for (size_t n = 0; n < len; ++n) {
         out[n] = (nb > 0 ? bn[0] : 0.0) * input[n] + z[0];
         for (size_t i = 1; i < nfilt; ++i) {
@@ -49,18 +52,20 @@ Value filter(Allocator &alloc, const Value &b, const Value &a, const Value &x)
         throw Error("filter: a(1) must be nonzero",
                      0, 0, "filter", "", "m:filter:zeroLead");
 
-    std::vector<double> bn(nb), an(na);
+    ScratchArena scratch(alloc);
+    auto bn = scratch.vec<double>(nb);
+    auto an = scratch.vec<double>(na);
     for (size_t i = 0; i < nb; ++i)
         bn[i] = bd[i] / a0;
     for (size_t i = 0; i < na; ++i)
         an[i] = ad[i] / a0;
 
-    auto out = applyFilterDf2t(bn.data(), nb, an.data(), na, xd, nx);
+    auto out = applyFilterDf2t(scratch.resource(),
+                               bn.data(), nb, an.data(), na, xd, nx);
 
     auto r = createLike(x, ValueType::DOUBLE, &alloc);
     double *y = r.doubleDataMut();
-    for (size_t n = 0; n < nx; ++n)
-        y[n] = out[n];
+    std::memcpy(y, out.data(), nx * sizeof(double));
     return r;
 }
 
@@ -77,7 +82,9 @@ Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
         throw Error("filtfilt: a(1) must be nonzero",
                      0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
 
-    std::vector<double> bn(nb), an(na);
+    ScratchArena scratch(alloc);
+    auto bn = scratch.vec<double>(nb);
+    auto an = scratch.vec<double>(na);
     for (size_t i = 0; i < nb; ++i)
         bn[i] = bd[i] / a0;
     for (size_t i = 0; i < na; ++i)
@@ -91,7 +98,7 @@ Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
         nEdge = nx - 1;
 
     const size_t extLen = nx + 2 * nEdge;
-    std::vector<double> ext(extLen);
+    auto ext = scratch.vec<double>(extLen);
     for (size_t i = 0; i < nEdge; ++i)
         ext[i] = 2.0 * xd[0] - xd[nEdge - i];
     for (size_t i = 0; i < nx; ++i)
@@ -99,15 +106,16 @@ Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
     for (size_t i = 0; i < nEdge; ++i)
         ext[nEdge + nx + i] = 2.0 * xd[nx - 1] - xd[nx - 2 - i];
 
-    auto fwd = applyFilterDf2t(bn.data(), nb, an.data(), na, ext.data(), extLen);
+    auto fwd = applyFilterDf2t(scratch.resource(),
+                               bn.data(), nb, an.data(), na, ext.data(), extLen);
     std::reverse(fwd.begin(), fwd.end());
-    auto bwd = applyFilterDf2t(bn.data(), nb, an.data(), na, fwd.data(), fwd.size());
+    auto bwd = applyFilterDf2t(scratch.resource(),
+                               bn.data(), nb, an.data(), na, fwd.data(), fwd.size());
     std::reverse(bwd.begin(), bwd.end());
 
     auto r = createLike(x, ValueType::DOUBLE, &alloc);
     double *y = r.doubleDataMut();
-    for (size_t i = 0; i < nx; ++i)
-        y[i] = bwd[nEdge + i];
+    std::memcpy(y, bwd.data() + nEdge, nx * sizeof(double));
     return r;
 }
 

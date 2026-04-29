@@ -3,13 +3,14 @@
 #include <numkit/signal/smoothing/sgolay.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
 
 #include <cmath>
 #include <cstring>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::signal {
 
@@ -52,11 +53,12 @@ void gaussJordan(double *A, double *B, int N, int M)
 
 // Build the (framelen × (order+1)) Vandermonde matrix V where
 // V[i, k] = (i - center)^k for i = 0..framelen-1 and k = 0..order.
-std::vector<double> buildVandermonde(int order, int framelen)
+ScratchVec<double> buildVandermonde(std::pmr::memory_resource *mr,
+                                    int order, int framelen)
 {
     const int n = framelen;
     const int p = order + 1;
-    std::vector<double> V(n * p, 0.0);
+    ScratchVec<double> V(static_cast<std::size_t>(n * p), mr);
     const double half = static_cast<double>(framelen / 2);
     for (int i = 0; i < n; ++i) {
         double v = 1.0;
@@ -72,15 +74,16 @@ std::vector<double> buildVandermonde(int order, int framelen)
 // Compute B = V · (V' · V)^-1 · V'   (the framelen × framelen
 // projection matrix). Each row r of B gives the filter coefficients
 // for sample r in the window: y_r = B[r, :] · x_window.
-std::vector<double> buildProjection(int order, int framelen)
+ScratchVec<double> buildProjection(std::pmr::memory_resource *mr,
+                                   int order, int framelen)
 {
     const int n = framelen;
     const int p = order + 1;
-    auto V = buildVandermonde(order, framelen);          // n × p
+    auto V = buildVandermonde(mr, order, framelen);      // n × p
 
     // Form V' · V  (p × p) and V'  (p × n) on the side.
-    std::vector<double> VtV(p * p, 0.0);
-    std::vector<double> Vt (p * n, 0.0);
+    ScratchVec<double> VtV(static_cast<std::size_t>(p * p), mr);
+    ScratchVec<double> Vt (static_cast<std::size_t>(p * n), mr);
     for (int k = 0; k < p; ++k)
         for (int i = 0; i < n; ++i)
             Vt[k * n + i] = V[i * p + k];
@@ -93,10 +96,10 @@ std::vector<double> buildProjection(int order, int framelen)
         }
 
     // Solve VtV · X = Vt → X is p × n; then B = V · X (n × n).
-    std::vector<double> X = Vt;
+    auto X = scratchCopyOf(mr, Vt);
     gaussJordan(VtV.data(), X.data(), p, n);
 
-    std::vector<double> B(n * n, 0.0);
+    ScratchVec<double> B(static_cast<std::size_t>(n * n), mr);
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j) {
             double s = 0.0;
@@ -124,7 +127,8 @@ Value sgolay(Allocator &alloc, int order, int framelen)
         throw Error("sgolay: order must be less than framelen",
                      0, 0, "sgolay", "", "m:sgolay:orderTooHigh");
 
-    auto B = buildProjection(order, framelen);
+    ScratchArena scratch(alloc);
+    auto B = buildProjection(scratch.resource(), order, framelen);
     // Convert row-major B to column-major Value (R = framelen, C = framelen).
     auto out = Value::matrix(framelen, framelen, ValueType::DOUBLE, &alloc);
     double *dst = out.doubleDataMut();
@@ -148,11 +152,12 @@ Value sgolayfilt(Allocator &alloc, const Value &x, int order, int framelen)
         throw Error("sgolayfilt: signal length must be >= framelen",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:tooShort");
 
-    auto B = buildProjection(order, framelen);  // throws if shape invalid
+    ScratchArena scratch(alloc);
+    auto B = buildProjection(scratch.resource(), order, framelen);  // throws if shape invalid
     const int half = framelen / 2;
 
     // Source as DOUBLE.
-    std::vector<double> src(n);
+    auto src = scratch.vec<double>(static_cast<std::size_t>(n));
     for (int i = 0; i < n; ++i) src[i] = x.elemAsDouble(i);
 
     auto out = createLike(x, ValueType::DOUBLE, &alloc);

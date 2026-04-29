@@ -6,6 +6,7 @@
 #include <numkit/signal/transforms/hilbert.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex, FFT helpers
@@ -13,22 +14,23 @@
 
 #include <cmath>
 #include <complex>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::signal {
 
 namespace {
 
 // Shared FFT-based Hilbert transform kernel used by both hilbert() and
-// envelope(). Returns a buffer of length fftLen holding the analytic signal
-// (possibly zero-padded beyond N). Caller slices to the first N samples.
-std::vector<Complex> hilbertBuf(const Value &x)
+// envelope(). Returns a buffer of length fftLen holding the analytic
+// signal (possibly zero-padded beyond N). Caller slices to the first N
+// samples. Backed by the caller's scratch arena.
+ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t N = x.numel();
     const size_t fftLen = nextPow2(N);
 
-    auto buf = prepareFFTBuffer(x, N, fftLen);
-    fftRadix2(buf, 1);
+    auto buf = prepareFFTBuffer(mr, x, N, fftLen);
+    fftRadix2(mr, buf, 1);
 
     // Zero negative frequencies, double positive (excluding DC and Nyquist).
     for (size_t i = 1; i < fftLen / 2; ++i)
@@ -39,7 +41,7 @@ std::vector<Complex> hilbertBuf(const Value &x)
     // IFFT via conjugate trick
     for (auto &v : buf)
         v = std::conj(v);
-    fftRadix2(buf, 1);
+    fftRadix2(mr, buf, 1);
     const double invN = 1.0 / static_cast<double>(fftLen);
     for (auto &v : buf)
         v = std::conj(v) * invN;
@@ -52,14 +54,16 @@ std::vector<Complex> hilbertBuf(const Value &x)
 Value hilbert(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
-    auto buf = hilbertBuf(x);
-    return packComplexResult(buf, N, &alloc);
+    ScratchArena scratch(alloc);
+    auto buf = hilbertBuf(scratch.resource(), x);
+    return packComplexResult(buf.data(), N, &alloc);
 }
 
 Value envelope(Allocator &alloc, const Value &x)
 {
     const size_t N = x.numel();
-    auto buf = hilbertBuf(x);
+    ScratchArena scratch(alloc);
+    auto buf = hilbertBuf(scratch.resource(), x);
 
     auto r = createLike(x, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < N; ++i)

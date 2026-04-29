@@ -11,4 +11,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/thread_pool_test.cpp
     # ND shape ops — broadcasting, strides, coord-walking
     ${CMAKE_CURRENT_SOURCE_DIR}/shape_ops_test.cpp
+    # ScratchArena — inline-buffer / upstream-spill / value-init
+    ${CMAKE_CURRENT_SOURCE_DIR}/scratch_arena_test.cpp
 )

@@ -6,6 +6,7 @@
 #include <numkit/signal/filter_implementation/conversions.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -16,8 +17,8 @@
 #include <complex>
 #include <cstddef>
 #include <limits>
+#include <memory_resource>
 #include <utility>
-#include <vector>
 
 namespace numkit::signal {
 
@@ -25,12 +26,7 @@ using numkit::Complex;
 
 namespace {
 
-// Polynomial root finder lifted into shared poly_helpers.hpp.
 using numkit::builtin::detail::polyRootsDurandKerner;
-inline std::vector<Complex> rootsDurandKerner(const std::vector<double> &c)
-{
-    return polyRootsDurandKerner(c);
-}
 
 constexpr double kImagThresh = 1e-10;  // |Im(r)| below this → treat as real
 
@@ -41,7 +37,7 @@ inline bool isReal(Complex r)
 
 struct RootPair { Complex a, b; bool isPair; };
 
-bool popPair(std::vector<Complex> &pool, RootPair &out)
+bool popPair(ScratchVec<Complex> &pool, RootPair &out)
 {
     if (pool.empty()) return false;
     size_t pickIdx = 0;
@@ -112,7 +108,7 @@ inline Complex pairCentroid(const RootPair &p)
     return (p.a + p.b) * 0.5;
 }
 
-bool popClosestZeroPair(std::vector<Complex> &zeros, Complex target,
+bool popClosestZeroPair(ScratchVec<Complex> &zeros, Complex target,
                         RootPair &out)
 {
     if (zeros.empty()) return false;
@@ -164,10 +160,11 @@ bool popClosestZeroPair(std::vector<Complex> &zeros, Complex target,
     return true;
 }
 
-std::vector<Complex> readComplexVec(const Value &v, const char *fn)
+ScratchVec<Complex> readComplexVec(std::pmr::memory_resource *mr,
+                                   const Value &v, const char *fn)
 {
-    if (v.isEmpty()) return {};
-    std::vector<Complex> out;
+    if (v.isEmpty()) return ScratchVec<Complex>(mr);
+    ScratchVec<Complex> out(mr);
     out.reserve(v.numel());
     if (v.type() == ValueType::COMPLEX) {
         const Complex *p = v.complexData();
@@ -183,13 +180,11 @@ std::vector<Complex> readComplexVec(const Value &v, const char *fn)
 }
 
 Value buildSosMatrix(Allocator &alloc,
-                      const std::vector<double> &b1s,
-                      const std::vector<double> &b2s,
-                      const std::vector<double> &a1s,
-                      const std::vector<double> &a2s,
-                      double leadingGain)
+                     const double *b1s, const double *b2s,
+                     const double *a1s, const double *a2s,
+                     std::size_t L,
+                     double leadingGain)
 {
-    const size_t L = a1s.size();
     auto sos = Value::matrix(L, 6, ValueType::DOUBLE, &alloc);
     double *p = sos.doubleDataMut();
     for (size_t r = 0; r < L; ++r) {
@@ -204,13 +199,14 @@ Value buildSosMatrix(Allocator &alloc,
     return sos;
 }
 
-inline std::vector<double> coeffsAsVector(const Value &v)
+inline ScratchVec<double> coeffsAsVector(std::pmr::memory_resource *mr,
+                                         const Value &v)
 {
     if (v.type() != ValueType::DOUBLE || !v.dims().isVector())
         throw Error("tf2sos: b/a must be DOUBLE row/column vectors",
                      0, 0, "tf2sos", "", "m:tf2sos:type");
     const size_t n = v.numel();
-    std::vector<double> out(n);
+    ScratchVec<double> out(n, mr);
     const double *p = v.doubleData();
     for (size_t i = 0; i < n; ++i) out[i] = p[i];
     return out;
@@ -225,12 +221,16 @@ zp2sosWithGain(Allocator &alloc, const Value &zerosV, const Value &polesV, doubl
         throw Error("zp2sos: at least one pole is required",
                      0, 0, "zp2sos", "", "m:zp2sos:noPoles");
 
-    auto zeros = readComplexVec(zerosV, "zp2sos");
-    auto poles = readComplexVec(polesV, "zp2sos");
+    ScratchArena scratch(alloc);
+    auto zeros = readComplexVec(scratch.resource(), zerosV, "zp2sos");
+    auto poles = readComplexVec(scratch.resource(), polesV, "zp2sos");
 
     const size_t L = (poles.size() + 1) / 2;
 
-    std::vector<double> b1s(L), b2s(L), a1s(L), a2s(L);
+    auto b1s = scratch.vec<double>(L);
+    auto b2s = scratch.vec<double>(L);
+    auto a1s = scratch.vec<double>(L);
+    auto a2s = scratch.vec<double>(L);
     for (size_t s = 0; s < L; ++s) {
         RootPair polePair;
         if (!popPair(poles, polePair))
@@ -255,7 +255,9 @@ zp2sosWithGain(Allocator &alloc, const Value &zerosV, const Value &polesV, doubl
         throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "m:zp2sos:moreZeros");
 
-    return std::make_tuple(buildSosMatrix(alloc, b1s, b2s, a1s, a2s, /*leadingGain=*/1.0),
+    return std::make_tuple(buildSosMatrix(alloc, b1s.data(), b2s.data(),
+                                          a1s.data(), a2s.data(), L,
+                                          /*leadingGain=*/1.0),
                            gain);
 }
 
@@ -273,8 +275,9 @@ Value zp2sos(Allocator &alloc, const Value &zerosV, const Value &polesV, double 
 std::tuple<Value, double>
 tf2sosWithGain(Allocator &alloc, const Value &b, const Value &a)
 {
-    auto bv = coeffsAsVector(b);
-    auto av = coeffsAsVector(a);
+    ScratchArena scratch(alloc);
+    auto bv = coeffsAsVector(scratch.resource(), b);
+    auto av = coeffsAsVector(scratch.resource(), a);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2sos: a(1) must be nonzero",
                      0, 0, "tf2sos", "", "m:tf2sos:zeroLead");
@@ -283,10 +286,10 @@ tf2sosWithGain(Allocator &alloc, const Value &b, const Value &a)
                      0, 0, "tf2sos", "", "m:tf2sos:emptyB");
 
     const double gain = bv[0] / av[0];
-    auto zeros = rootsDurandKerner(bv);
-    auto poles = rootsDurandKerner(av);
+    auto zeros = polyRootsDurandKerner(scratch.resource(), bv.data(), bv.size());
+    auto poles = polyRootsDurandKerner(scratch.resource(), av.data(), av.size());
 
-    auto toCplxVec = [&](const std::vector<Complex> &v) -> Value {
+    auto toCplxVec = [&](const ScratchVec<Complex> &v) -> Value {
         if (v.empty())
             return Value::matrix(0, 0, ValueType::COMPLEX, &alloc);
         auto r = Value::matrix(v.size(), 1, ValueType::COMPLEX, &alloc);

@@ -6,13 +6,13 @@
 #include <numkit/signal/digital_filtering/sosfilt.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
 
 #include <algorithm>
 #include <array>
-#include <vector>
 
 namespace numkit::signal {
 
@@ -49,7 +49,7 @@ size_t validateSosMatrix(const Value &sos)
 }
 
 void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
-                  std::vector<double> &scratch)
+                  ScratchVec<double> &scratch)
 {
     const size_t L = sos.dims().rows();
     const double *p = sos.doubleData();
@@ -93,15 +93,16 @@ Value sosfilt(Allocator &alloc, const Value &sos, const Value &x)
     (void) L;
 
     auto out = createLike(x, ValueType::DOUBLE, &alloc);
+    ScratchArena scratch_arena(alloc);
     if (x.dims().isVector() || x.isScalar()) {
         const size_t n = x.numel();
-        std::vector<double> scratch(n);
+        auto scratch = scratch_arena.vec<double>(n);
         applyCascade(sos, x.doubleData(), out.doubleDataMut(), n, scratch);
         return out;
     }
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
-    std::vector<double> scratch(rows);
+    auto scratch = scratch_arena.vec<double>(rows);
     const double *src = x.doubleData();
     double *dst = out.doubleDataMut();
     for (size_t c = 0; c < cols; ++c)

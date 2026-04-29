@@ -7,6 +7,7 @@
 #include <numkit/signal/time_frequency/spectrogram.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -14,23 +15,22 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::signal {
 
 namespace {
 
-// Hamming window coefficients, same formula MATLAB uses.
-std::vector<double> hammingWindow(size_t N)
+// Fill caller-provided buffer with Hamming window coefficients, same
+// formula MATLAB uses.
+void fillHammingWindow(double *w, size_t N)
 {
-    std::vector<double> w(N);
     if (N == 1) {
         w[0] = 1.0;
-        return w;
+        return;
     }
     for (size_t i = 0; i < N; ++i)
         w[i] = 0.54 - 0.46 * std::cos(2.0 * M_PI * i / (N - 1));
-    return w;
 }
 
 } // anonymous namespace
@@ -45,8 +45,10 @@ spectrogram(Allocator &alloc,
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
+    ScratchArena scratch(alloc);
+
     size_t winLen;
-    std::vector<double> win;
+    ScratchVec<double> win(scratch.resource());
     if (window.numel() > 0) {
         winLen = window.numel();
         win.resize(winLen);
@@ -55,7 +57,8 @@ spectrogram(Allocator &alloc,
             win[i] = w[i];
     } else {
         winLen = std::min(nx, static_cast<size_t>(256));
-        win = hammingWindow(winLen);
+        win.resize(winLen);
+        fillHammingWindow(win.data(), winLen);
     }
 
     if (winLen > nx)
@@ -77,13 +80,19 @@ spectrogram(Allocator &alloc,
     auto F = Value::matrix(nFreqs, 1, ValueType::DOUBLE, &alloc);
     auto T = Value::matrix(1, nSegments, ValueType::DOUBLE, &alloc);
 
+    // Per-segment FFT buffer hoisted: see pwelch for the rationale —
+    // a fresh allocation per loop iteration would grow the arena to
+    // O(nSegments × nfft) instead of O(nfft).
+    auto buf = scratch.vec<Complex>(nfft);
+
     size_t seg = 0;
     for (size_t start = 0; start + winLen <= nx; start += step) {
-        std::vector<Complex> buf(nfft, Complex(0, 0));
         for (size_t i = 0; i < winLen; ++i)
             buf[i] = Complex(xd[start + i] * win[i], 0.0);
+        for (size_t i = winLen; i < nfft; ++i)
+            buf[i] = Complex(0.0, 0.0);
 
-        fftRadix2(buf, 1);
+        fftRadix2(scratch.resource(), buf, 1);
 
         for (size_t i = 0; i < nFreqs; ++i)
             S.complexDataMut()[i + seg * nFreqs] = buf[i];

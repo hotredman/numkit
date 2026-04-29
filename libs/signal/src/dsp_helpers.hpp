@@ -1,12 +1,14 @@
 #pragma once
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 
 #define _USE_MATH_DEFINES
 #include <algorithm>
 #include <cmath>
 #include <complex>
-#include <vector>
+#include <cstddef>
+#include <memory_resource>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -77,15 +79,17 @@ inline void fftRadix2(Complex *buf, size_t N, const Complex *W)
     }
 }
 
-// Legacy convenience overload: generates a one-shot twiddle table
-// on each call. Still used by callers that haven't hoisted the table
-// outside their own loops (spectral_analysis/, transforms/). For hot paths
-// (fftAlongDim in fft.cpp, convFFT below), prefer the primary
-// overload + fillFftTwiddles so the table cost amortises.
-inline void fftRadix2(Complex *buf, size_t N, int dir)
+// Convenience overload: builds a one-shot twiddle table from the
+// caller-provided arena (`mr`) on each call. Still used by callers that
+// haven't hoisted the table outside their own loops (spectral_analysis/,
+// time_frequency/, transforms/hilbert.cpp). For hot paths
+// (fftAlongDim in fft.cpp), prefer the primary overload + fillFftTwiddles
+// so the table cost amortises.
+inline void fftRadix2(std::pmr::memory_resource *mr,
+                      Complex *buf, size_t N, int dir)
 {
     if (N <= 1) return;
-    std::vector<Complex> W(N / 2);
+    ScratchVec<Complex> W(N / 2, mr);
     fillFftTwiddles(W.data(), N, dir);
     fftRadix2(buf, N, W.data());
 }
@@ -93,10 +97,10 @@ inline void fftRadix2(Complex *buf, size_t N, int dir)
 // Container overload — buf.data() + buf.size() + dir. Handles both
 // std::vector<Complex> and std::pmr::vector<Complex>.
 template <typename Container>
-inline auto fftRadix2(Container &buf, int dir)
+inline auto fftRadix2(std::pmr::memory_resource *mr, Container &buf, int dir)
     -> decltype(buf.data(), buf.size(), void())
 {
-    fftRadix2(buf.data(), buf.size(), dir);
+    fftRadix2(mr, buf.data(), buf.size(), dir);
 }
 
 // ============================================================
@@ -114,11 +118,13 @@ inline size_t nextPow2(size_t n)
 
 // ============================================================
 // Prepare complex buffer from Value (real or complex)
-// with zero-padding to fftLen
+// with zero-padding to fftLen.
 // ============================================================
-inline std::vector<Complex> prepareFFTBuffer(const Value &x, size_t inputLen, size_t fftLen)
+inline ScratchVec<Complex> prepareFFTBuffer(std::pmr::memory_resource *mr,
+                                            const Value &x,
+                                            size_t inputLen, size_t fftLen)
 {
-    std::vector<Complex> buf(fftLen, Complex(0.0, 0.0));
+    ScratchVec<Complex> buf(fftLen, mr);
     if (x.isComplex()) {
         const Complex *src = x.complexData();
         for (size_t i = 0; i < inputLen; ++i)
@@ -132,9 +138,11 @@ inline std::vector<Complex> prepareFFTBuffer(const Value &x, size_t inputLen, si
 }
 
 // ============================================================
-// Pack complex buffer into Value (1 x outLen)
+// Pack complex buffer into Value (1 x outLen).
+// Pointer + size, not a container reference, so the same helper
+// composes with std::vector, std::pmr::vector, raw arrays, etc.
 // ============================================================
-inline Value packComplexResult(const std::vector<Complex> &buf, size_t outLen, Allocator *alloc)
+inline Value packComplexResult(const Complex *buf, size_t outLen, Allocator *alloc)
 {
     auto r = Value::complexMatrix(1, outLen, alloc);
     Complex *dst = r.complexDataMut();
@@ -146,11 +154,12 @@ inline Value packComplexResult(const std::vector<Complex> &buf, size_t outLen, A
 // ============================================================
 // Direct convolution O(n*m)
 // ============================================================
-inline std::vector<double> convDirect(const double *a, size_t na,
-                                      const double *b, size_t nb)
+inline ScratchVec<double> convDirect(std::pmr::memory_resource *mr,
+                                     const double *a, size_t na,
+                                     const double *b, size_t nb)
 {
     size_t nc = na + nb - 1;
-    std::vector<double> c(nc, 0.0);
+    ScratchVec<double> c(nc, mr);
     for (size_t i = 0; i < na; ++i)
         for (size_t j = 0; j < nb; ++j)
             c[i + j] += a[i] * b[j];
@@ -160,22 +169,23 @@ inline std::vector<double> convDirect(const double *a, size_t na,
 // ============================================================
 // FFT-based convolution O(N log N)
 // ============================================================
-inline std::vector<double> convFFT(const double *a, size_t na,
-                                   const double *b, size_t nb)
+inline ScratchVec<double> convFFT(std::pmr::memory_resource *mr,
+                                  const double *a, size_t na,
+                                  const double *b, size_t nb)
 {
     size_t nc = na + nb - 1;
     size_t fftLen = nextPow2(nc);
 
-    std::vector<Complex> fa(fftLen, Complex(0.0, 0.0));
-    std::vector<Complex> fb(fftLen, Complex(0.0, 0.0));
+    ScratchVec<Complex> fa(fftLen, mr);
+    ScratchVec<Complex> fb(fftLen, mr);
     for (size_t i = 0; i < na; ++i) fa[i] = Complex(a[i], 0.0);
     for (size_t i = 0; i < nb; ++i) fb[i] = Complex(b[i], 0.0);
 
     // Forward twiddles used for both fa and fb; inverse twiddles used
-    // once for fa. One-shot overload allocates a fresh table on every
-    // call, so hoisting them here saves two tables' worth of work.
-    std::vector<Complex> W_fwd(fftLen / 2);
-    std::vector<Complex> W_inv(fftLen / 2);
+    // once for fa. Hoisting them here saves two tables' worth of work
+    // vs the convenience overload.
+    ScratchVec<Complex> W_fwd(fftLen / 2, mr);
+    ScratchVec<Complex> W_inv(fftLen / 2, mr);
     fillFftTwiddles(W_fwd.data(), fftLen, +1);
     fillFftTwiddles(W_inv.data(), fftLen, -1);
 
@@ -188,7 +198,7 @@ inline std::vector<double> convFFT(const double *a, size_t na,
     fftRadix2(fa.data(), fftLen, W_inv.data());
 
     double invN = 1.0 / static_cast<double>(fftLen);
-    std::vector<double> c(nc);
+    ScratchVec<double> c(nc, mr);
     for (size_t i = 0; i < nc; ++i)
         c[i] = fa[i].real() * invN;
     return c;

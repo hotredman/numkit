@@ -7,13 +7,14 @@
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
 
 #include <algorithm>
 #include <cmath>
-#include <vector>
+#include <memory_resource>
 
 namespace numkit::signal {
 
@@ -22,11 +23,10 @@ Value conv(Allocator &alloc, const Value &a, const Value &b, const std::string &
 {
     const size_t na = a.numel(), nb = b.numel();
 
-    std::vector<double> c;
-    if (na * nb > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
-        c = convFFT(a.doubleData(), na, b.doubleData(), nb);
-    else
-        c = convDirect(a.doubleData(), na, b.doubleData(), nb);
+    ScratchArena scratch(alloc);
+    auto c = (na * nb > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
+        ? convFFT  (scratch.resource(), a.doubleData(), na, b.doubleData(), nb)
+        : convDirect(scratch.resource(), a.doubleData(), na, b.doubleData(), nb);
 
     const size_t nc = c.size();
     size_t outStart = 0, outLen = nc;
@@ -56,11 +56,12 @@ deconv(Allocator &alloc, const Value &b, const Value &a)
         throw Error("deconv: denominator longer than numerator",
                      0, 0, "deconv", "", "m:deconv:denomTooLong");
 
-    std::vector<double> rem(b.doubleData(), b.doubleData() + nb);
+    ScratchArena scratch(alloc);
+    ScratchVec<double> rem(b.doubleData(), b.doubleData() + nb, scratch.resource());
     const double *ad = a.doubleData();
 
     const size_t nq = nb - na + 1;
-    std::vector<double> q(nq);
+    auto q = scratch.vec<double>(nq);
 
     const double a0 = ad[0];
     if (a0 == 0.0)
@@ -96,15 +97,14 @@ xcorr(Allocator &alloc, const Value &x, const Value &y)
     const size_t maxLen = std::max(nx, ny);
     const size_t nc = nx + ny - 1;
 
-    std::vector<double> yRev(ny);
+    ScratchArena scratch(alloc);
+    auto yRev = scratch.vec<double>(ny);
     for (size_t i = 0; i < ny; ++i)
         yRev[i] = yd[ny - 1 - i];
 
-    std::vector<double> c;
-    if (nx * ny > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
-        c = convFFT(xd, nx, yRev.data(), ny);
-    else
-        c = convDirect(xd, nx, yRev.data(), ny);
+    auto c = (nx * ny > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
+        ? convFFT  (scratch.resource(), xd, nx, yRev.data(), ny)
+        : convDirect(scratch.resource(), xd, nx, yRev.data(), ny);
 
     auto r = Value::matrix(1, nc, ValueType::DOUBLE, &alloc);
     for (size_t i = 0; i < nc; ++i)

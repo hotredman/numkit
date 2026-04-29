@@ -5,10 +5,10 @@
 #include <numkit/signal/measurements/findpeaks.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cmath>
-#include <vector>
 
 namespace numkit::signal {
 
@@ -17,8 +17,9 @@ namespace numkit::signal {
 std::tuple<Value, Value>
 findpeaks(Allocator &alloc, const Value &x)
 {
-    std::vector<double> peakVals;
-    std::vector<size_t> peakIdx;
+    ScratchArena scratch(alloc);
+    auto peakVals = scratch.vec<double>();
+    auto peakIdx  = scratch.vec<std::size_t>();
     const size_t n = x.numel();
     if (n >= 3) {
         const double *p = x.doubleData();
