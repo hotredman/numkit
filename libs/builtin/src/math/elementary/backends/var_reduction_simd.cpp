@@ -13,7 +13,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "backends/var_reduction_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/elementary/backends/var_reduction_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

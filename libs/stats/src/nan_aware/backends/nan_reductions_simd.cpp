@@ -18,7 +18,7 @@
 #include <limits>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "backends/nan_reductions_simd.cpp"
+#define HWY_TARGET_INCLUDE "nan_aware/backends/nan_reductions_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

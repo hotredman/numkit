@@ -209,9 +209,13 @@ target_include_directories(numkit
         $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (helpers.hpp under libs/*/src/)
-        # TODO: formalize as public "detail/" headers or common utility lib
+        # AND the resolution root for every Highway HWY_TARGET_INCLUDE string
+        # (e.g. "transforms/backends/fft_r2_simd.cpp", relative to libs/<lib>/src/).
+        # TODO: formalize the helpers.hpp leak as public "detail/" headers
+        #       or a common utility lib.
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/src
 )
 
 target_compile_features(numkit PUBLIC cxx_std_17)

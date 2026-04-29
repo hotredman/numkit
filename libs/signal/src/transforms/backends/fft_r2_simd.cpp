@@ -14,7 +14,7 @@
 #include <vector>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "backends/fft_r2_simd.cpp"
+#define HWY_TARGET_INCLUDE "transforms/backends/fft_r2_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

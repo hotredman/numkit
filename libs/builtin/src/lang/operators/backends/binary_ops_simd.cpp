@@ -18,7 +18,7 @@
 #include <hwy/cache_control.h>  // hwy::FlushStream() — sfence on x86
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "backends/binary_ops_simd.cpp"
+#define HWY_TARGET_INCLUDE "lang/operators/backends/binary_ops_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

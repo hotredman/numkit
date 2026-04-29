@@ -25,7 +25,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "backends/transcendental_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/elementary/backends/transcendental_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>
