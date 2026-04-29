@@ -7,6 +7,7 @@
 #include <numkit/builtin/math/interpolation/interp.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -15,8 +16,8 @@
 #include <cctype>
 #include <cmath>
 #include <cstring>
+#include <memory_resource>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -37,10 +38,12 @@ size_t findInterval(const double *xData, size_t n, double xq)
     return idx - 1;
 }
 
-std::vector<double>
-interpLinear(const double *x, const double *y, size_t n, const double *xq, size_t nq)
+ScratchVec<double>
+interpLinear(std::pmr::memory_resource *mr,
+             const double *x, const double *y, size_t n,
+             const double *xq, size_t nq)
 {
-    std::vector<double> yq(nq);
+    ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
         const size_t i = findInterval(x, n, xq[k]);
         const double dx = x[i + 1] - x[i];
@@ -54,10 +57,12 @@ interpLinear(const double *x, const double *y, size_t n, const double *xq, size_
     return yq;
 }
 
-std::vector<double>
-interpNearest(const double *x, const double *y, size_t n, const double *xq, size_t nq)
+ScratchVec<double>
+interpNearest(std::pmr::memory_resource *mr,
+              const double *x, const double *y, size_t n,
+              const double *xq, size_t nq)
 {
-    std::vector<double> yq(nq);
+    ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
         const size_t i = findInterval(x, n, xq[k]);
         if (std::abs(xq[k] - x[i]) <= std::abs(xq[k] - x[i + 1]))
@@ -68,23 +73,25 @@ interpNearest(const double *x, const double *y, size_t n, const double *xq, size
     return yq;
 }
 
-std::vector<double>
-interpSpline(const double *x, const double *y, size_t n, const double *xq, size_t nq)
+ScratchVec<double>
+interpSpline(std::pmr::memory_resource *mr,
+             const double *x, const double *y, size_t n,
+             const double *xq, size_t nq)
 {
     if (n < 3)
-        return interpLinear(x, y, n, xq, nq);
+        return interpLinear(mr, x, y, n, xq, nq);
 
     const size_t nm1 = n - 1;
 
-    std::vector<double> h(nm1);
+    ScratchVec<double> h(nm1, mr);
     for (size_t i = 0; i < nm1; ++i)
         h[i] = x[i + 1] - x[i];
 
     const size_t m = n - 2;
-    std::vector<double> sigma(n, 0.0);
+    ScratchVec<double> sigma(n, 0.0, mr);
 
     if (m > 0) {
-        std::vector<double> diag(m), upper(m), lower(m), rhs(m);
+        ScratchVec<double> diag(m, mr), upper(m, mr), lower(m, mr), rhs(m, mr);
 
         for (size_t i = 0; i < m; ++i) {
             const size_t j = i + 1;
@@ -107,7 +114,7 @@ interpSpline(const double *x, const double *y, size_t n, const double *xq, size_
             sigma[i + 1] = (rhs[i] - upper[i] * sigma[i + 2]) / diag[i];
     }
 
-    std::vector<double> yq(nq);
+    ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
         const size_t i = findInterval(x, n, xq[k]);
         const double dx = xq[k] - x[i];
@@ -122,21 +129,23 @@ interpSpline(const double *x, const double *y, size_t n, const double *xq, size_
     return yq;
 }
 
-std::vector<double>
-interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t nq)
+ScratchVec<double>
+interpPchip(std::pmr::memory_resource *mr,
+            const double *x, const double *y, size_t n,
+            const double *xq, size_t nq)
 {
     if (n < 3)
-        return interpLinear(x, y, n, xq, nq);
+        return interpLinear(mr, x, y, n, xq, nq);
 
     const size_t nm1 = n - 1;
 
-    std::vector<double> h(nm1), delta(nm1);
+    ScratchVec<double> h(nm1, mr), delta(nm1, mr);
     for (size_t i = 0; i < nm1; ++i) {
         h[i] = x[i + 1] - x[i];
         delta[i] = (y[i + 1] - y[i]) / h[i];
     }
 
-    std::vector<double> d(n, 0.0);
+    ScratchVec<double> d(n, 0.0, mr);
 
     for (size_t i = 1; i < nm1; ++i) {
         if (delta[i - 1] * delta[i] <= 0.0) {
@@ -162,7 +171,7 @@ interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t
              && std::abs(d[nm1]) > std::abs(3.0 * delta[nm1 - 1]))
         d[nm1] = 3.0 * delta[nm1 - 1];
 
-    std::vector<double> yq(nq);
+    ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
         const size_t i = findInterval(x, n, xq[k]);
         const double t = (xq[k] - x[i]) / h[i];
@@ -179,11 +188,11 @@ interpPchip(const double *x, const double *y, size_t n, const double *xq, size_t
     return yq;
 }
 
-// Helper for interp1 / spline / pchip — pack yq vector into an Value
+// Helper for interp1 / spline / pchip — pack a yq buffer into a Value
 // preserving xq's row/column orientation.
-Value packInterpResult(const std::vector<double> &yq, const Value &xq, Allocator &alloc)
+Value packInterpResult(const double *yq, std::size_t nq,
+                       const Value &xq, Allocator &alloc)
 {
-    const size_t nq = yq.size();
     const bool isRow = xq.dims().rows() == 1;
     auto r = isRow ? Value::matrix(1, nq, ValueType::DOUBLE, &alloc)
                    : Value::matrix(nq, 1, ValueType::DOUBLE, &alloc);
@@ -215,20 +224,27 @@ Value interp1(Allocator &alloc,
     const double *yd = y.doubleData();
     const double *xqd = xq.doubleData();
 
-    std::vector<double> yq;
-    if (method == "linear")
-        yq = interpLinear(xd, yd, n, xqd, nq);
-    else if (method == "nearest")
-        yq = interpNearest(xd, yd, n, xqd, nq);
-    else if (method == "spline")
-        yq = interpSpline(xd, yd, n, xqd, nq);
-    else if (method == "pchip")
-        yq = interpPchip(xd, yd, n, xqd, nq);
-    else
-        throw Error("interp1: unknown method '" + method + "'",
-                     0, 0, "interp1", "", "m:interp1:badMethod");
+    ScratchArena scratch(alloc);
+    auto *mr = scratch.resource();
 
-    return packInterpResult(yq, xq, alloc);
+    if (method == "linear") {
+        auto yq = interpLinear(mr, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    }
+    if (method == "nearest") {
+        auto yq = interpNearest(mr, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    }
+    if (method == "spline") {
+        auto yq = interpSpline(mr, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    }
+    if (method == "pchip") {
+        auto yq = interpPchip(mr, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    }
+    throw Error("interp1: unknown method '" + method + "'",
+                 0, 0, "interp1", "", "m:interp1:badMethod");
 }
 
 // ── interp2 ───────────────────────────────────────────────────────────
@@ -305,7 +321,7 @@ double interp2Sample(const double *V, std::size_t R, std::size_t C,
          + tx         * ty         * v11;
 }
 
-void readGridAxis(const Value &g, std::vector<double> &out, const char *axis)
+void readGridAxis(const Value &g, ScratchVec<double> &out, const char *axis)
 {
     if (!g.dims().isVector() && !g.isScalar())
         throw Error(std::string("interp2: ") + axis
@@ -315,9 +331,10 @@ void readGridAxis(const Value &g, std::vector<double> &out, const char *axis)
     for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
 }
 
-Value interp2Impl(Allocator &alloc, const Value &V,
-                   const std::vector<double> &xGrid,
-                   const std::vector<double> &yGrid,
+Value interp2Impl(Allocator &alloc, std::pmr::memory_resource *mr,
+                   const Value &V,
+                   const double *xGrid, std::size_t xN,
+                   const double *yGrid, std::size_t yN,
                    const Value &Xq, const Value &Yq,
                    const std::string &method)
 {
@@ -333,18 +350,18 @@ Value interp2Impl(Allocator &alloc, const Value &V,
 
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
-    if (xGrid.size() != C)
+    if (xN != C)
         throw Error("interp2: length(X) must equal cols(V)",
                      0, 0, "interp2", "", "m:interp2:gridSize");
-    if (yGrid.size() != R)
+    if (yN != R)
         throw Error("interp2: length(Y) must equal rows(V)",
                      0, 0, "interp2", "", "m:interp2:gridSize");
-    validateMonotonicAscending(xGrid.data(), C, "X");
-    validateMonotonicAscending(yGrid.data(), R, "Y");
+    validateMonotonicAscending(xGrid, C, "X");
+    validateMonotonicAscending(yGrid, R, "Y");
 
     const Interp2Method m = parseInterp2Method(method);
     // V as DOUBLE (promote if needed).
-    std::vector<double> Vd(R * C);
+    ScratchVec<double> Vd(R * C, mr);
     if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * sizeof(double));
     else
@@ -358,8 +375,7 @@ Value interp2Impl(Allocator &alloc, const Value &V,
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
         const double yq = Yq.elemAsDouble(i);
-        dst[i] = interp2Sample(Vd.data(), R, C, xGrid.data(), yGrid.data(),
-                               xq, yq, m);
+        dst[i] = interp2Sample(Vd.data(), R, C, xGrid, yGrid, xq, yq, m);
     }
     return out;
 }
@@ -374,20 +390,27 @@ Value interp2(Allocator &alloc, const Value &V,
                      0, 0, "interp2", "", "m:interp2:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
-    std::vector<double> xGrid(C), yGrid(R);
+    ScratchArena scratch(alloc);
+    auto xGrid = scratch.vec<double>(C);
+    auto yGrid = scratch.vec<double>(R);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
-    return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
+    return interp2Impl(alloc, scratch.resource(), V,
+                       xGrid.data(), xGrid.size(),
+                       yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
 
 Value interp2(Allocator &alloc, const Value &X, const Value &Y,
                const Value &V, const Value &Xq, const Value &Yq,
                const std::string &method)
 {
-    std::vector<double> xGrid, yGrid;
+    ScratchArena scratch(alloc);
+    ScratchVec<double> xGrid(scratch.resource()), yGrid(scratch.resource());
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
-    return interp2Impl(alloc, V, xGrid, yGrid, Xq, Yq, method);
+    return interp2Impl(alloc, scratch.resource(), V,
+                       xGrid.data(), xGrid.size(),
+                       yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
 
 // ── interp3 ───────────────────────────────────────────────────────────
@@ -437,10 +460,11 @@ double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t 
     return (1 - tz) * c0 + tz * c1;
 }
 
-Value interp3Impl(Allocator &alloc, const Value &V,
-                   const std::vector<double> &xGrid,
-                   const std::vector<double> &yGrid,
-                   const std::vector<double> &zGrid,
+Value interp3Impl(Allocator &alloc, std::pmr::memory_resource *mr,
+                   const Value &V,
+                   const double *xGrid, std::size_t xN,
+                   const double *yGrid, std::size_t yN,
+                   const double *zGrid, std::size_t zN,
                    const Value &Xq, const Value &Yq, const Value &Zq,
                    const std::string &method)
 {
@@ -457,15 +481,15 @@ Value interp3Impl(Allocator &alloc, const Value &V,
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
-    if (xGrid.size() != C || yGrid.size() != R || zGrid.size() != P)
+    if (xN != C || yN != R || zN != P)
         throw Error("interp3: grid lengths must equal V's dim sizes",
                      0, 0, "interp3", "", "m:interp3:gridSize");
-    validateMonotonicAscending(xGrid.data(), C, "X");
-    validateMonotonicAscending(yGrid.data(), R, "Y");
-    validateMonotonicAscending(zGrid.data(), P, "Z");
+    validateMonotonicAscending(xGrid, C, "X");
+    validateMonotonicAscending(yGrid, R, "Y");
+    validateMonotonicAscending(zGrid, P, "Z");
 
     const Interp2Method m = parseInterp2Method(method);
-    std::vector<double> Vd(R * C * P);
+    ScratchVec<double> Vd(R * C * P, mr);
     if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * P * sizeof(double));
     else
@@ -480,7 +504,7 @@ Value interp3Impl(Allocator &alloc, const Value &V,
         const double yq = Yq.elemAsDouble(i);
         const double zq = Zq.elemAsDouble(i);
         dst[i] = interp3Sample(Vd.data(), R, C, P,
-                               xGrid.data(), yGrid.data(), zGrid.data(),
+                               xGrid, yGrid, zGrid,
                                xq, yq, zq, m);
     }
     return out;
@@ -498,22 +522,33 @@ Value interp3(Allocator &alloc, const Value &V,
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
-    std::vector<double> xGrid(C), yGrid(R), zGrid(P);
+    ScratchArena scratch(alloc);
+    auto xGrid = scratch.vec<double>(C);
+    auto yGrid = scratch.vec<double>(R);
+    auto zGrid = scratch.vec<double>(P);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);
-    return interp3Impl(alloc, V, xGrid, yGrid, zGrid, Xq, Yq, Zq, method);
+    return interp3Impl(alloc, scratch.resource(), V,
+                       xGrid.data(), xGrid.size(),
+                       yGrid.data(), yGrid.size(),
+                       zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }
 
 Value interp3(Allocator &alloc, const Value &X, const Value &Y, const Value &Z,
                const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method)
 {
-    std::vector<double> xGrid, yGrid, zGrid;
+    ScratchArena scratch(alloc);
+    ScratchVec<double> xGrid(scratch.resource()), yGrid(scratch.resource()),
+                        zGrid(scratch.resource());
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
     readGridAxis(Z, zGrid, "Z");
-    return interp3Impl(alloc, V, xGrid, yGrid, zGrid, Xq, Yq, Zq, method);
+    return interp3Impl(alloc, scratch.resource(), V,
+                       xGrid.data(), xGrid.size(),
+                       yGrid.data(), yGrid.size(),
+                       zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }
 
 // ── spline ────────────────────────────────────────────────────────────
@@ -527,8 +562,11 @@ Value spline(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
         throw Error("spline: need at least 2 data points",
                      0, 0, "spline", "", "m:spline:tooFewPoints");
 
-    auto yq = interpSpline(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
-    return packInterpResult(yq, xq, alloc);
+    ScratchArena scratch(alloc);
+    auto yq = interpSpline(scratch.resource(),
+                           x.doubleData(), y.doubleData(), n,
+                           xq.doubleData(), xq.numel());
+    return packInterpResult(yq.data(), yq.size(), xq, alloc);
 }
 
 // ── pchip ─────────────────────────────────────────────────────────────
@@ -542,8 +580,11 @@ Value pchip(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
         throw Error("pchip: need at least 2 data points",
                      0, 0, "pchip", "", "m:pchip:tooFewPoints");
 
-    auto yq = interpPchip(x.doubleData(), y.doubleData(), n, xq.doubleData(), xq.numel());
-    return packInterpResult(yq, xq, alloc);
+    ScratchArena scratch(alloc);
+    auto yq = interpPchip(scratch.resource(),
+                          x.doubleData(), y.doubleData(), n,
+                          xq.doubleData(), xq.numel());
+    return packInterpResult(yq.data(), yq.size(), xq, alloc);
 }
 
 // polyfit / polyval moved to math/elementary/polynomials.cpp
