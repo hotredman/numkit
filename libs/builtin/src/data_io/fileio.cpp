@@ -323,7 +323,7 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
         values[i] = v;
     }
     f->cursor += n * bsize;
-    outs[0] = detail::shapeFreadOutput(std::move(values), sz, alloc);
+    outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, alloc);
     if (nargout > 1)
         outs[1] = Value::scalar(static_cast<double>(n), alloc);
 }

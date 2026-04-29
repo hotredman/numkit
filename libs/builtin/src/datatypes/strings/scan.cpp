@@ -7,6 +7,7 @@
 #include <numkit/builtin/datatypes/strings/scan.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "io_helpers.hpp"
@@ -18,9 +19,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <limits>
+#include <memory_resource>
 #include <string>
 #include <utility>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -30,9 +31,11 @@ namespace numkit::builtin {
 
 namespace {
 
+// scanfCycle's run summary. The matched values flow back via an
+// in/out ScratchVec<double>& parameter (kept on the caller's arena),
+// so this struct is just the bookkeeping pair.
 struct ScanfOut
 {
-    std::vector<double> values;
     size_t count;
     size_t bytesConsumed;
 };
@@ -57,9 +60,9 @@ bool formatHasNumeric(const std::string &fmt)
     return false;
 }
 
-ScanfOut scanfCycle(const std::string &input, const std::string &fmt, size_t limit)
+ScanfOut scanfCycle(const std::string &input, const std::string &fmt, size_t limit,
+                     ScratchVec<double> &out)
 {
-    std::vector<double> out;
     size_t inPos = 0;
     size_t count = 0;
 
@@ -251,33 +254,32 @@ ScanfOut scanfCycle(const std::string &input, const std::string &fmt, size_t lim
             break;
         }
     }
-    return ScanfOut{std::move(out), count, inPos};
+    return ScanfOut{count, inPos};
 }
 
-Value makeColumn(std::vector<double> &&vals, Allocator *alloc)
+Value makeColumn(const double *vals, size_t n, Allocator *alloc)
 {
-    if (vals.empty())
+    if (n == 0)
         return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
-    auto M = Value::matrix(vals.size(), 1, ValueType::DOUBLE, alloc);
-    double *data = M.doubleDataMut();
-    std::memcpy(data, vals.data(), vals.size() * sizeof(double));
+    auto M = Value::matrix(n, 1, ValueType::DOUBLE, alloc);
+    std::memcpy(M.doubleDataMut(), vals, n * sizeof(double));
     return M;
 }
 
-Value makeCharRow(const std::vector<double> &vals, Allocator *alloc)
+Value makeCharRow(const double *vals, size_t n, Allocator *alloc)
 {
     std::string s;
-    s.reserve(vals.size());
-    for (double v : vals)
-        s.push_back(static_cast<char>(static_cast<int>(v)));
+    s.reserve(n);
+    for (size_t i = 0; i < n; ++i)
+        s.push_back(static_cast<char>(static_cast<int>(vals[i])));
     return Value::fromString(s, alloc);
 }
 
-// Column-major char matrix from the flat `vals` vector. Unfilled
+// Column-major char matrix from the flat `vals` buffer. Unfilled
 // cells stay zero (MATLAB's documented fill for partial char reads).
-Value makeCharMatrix(const std::vector<double> &vals, detail::SizeSpec sz, Allocator *alloc)
+Value makeCharMatrix(const double *vals, size_t n,
+                     detail::SizeSpec sz, Allocator *alloc)
 {
-    size_t n = vals.size();
     size_t cols_out = (sz.cols == SIZE_MAX)
                          ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
                          : sz.cols;
@@ -294,30 +296,33 @@ Value makeCharMatrix(const std::vector<double> &vals, detail::SizeSpec sz, Alloc
 // the format has only %s/%c conversions, column-of-doubles otherwise.
 // Takes a pre-computed `hasNumericConv` flag so the caller doesn't
 // need to re-walk the format string.
-Value shapeScanfOutput(std::vector<double> &&vals, bool hasNumericConv, Allocator *alloc)
+Value shapeScanfOutput(const double *vals, size_t n,
+                       bool hasNumericConv, Allocator *alloc)
 {
     if (hasNumericConv)
-        return makeColumn(std::move(vals), alloc);
-    return makeCharRow(vals, alloc);
+        return makeColumn(vals, n, alloc);
+    return makeCharRow(vals, n, alloc);
 }
 
 // Common fscanf/sscanf body once the input buffer has been materialised.
 // Fills outs[0] with the shaped result and, if requested, outs[1] with
 // the count. The caller handles optional outputs beyond that.
 void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpec sz,
-               size_t nargout, Span<Value> outs, Allocator *alloc, ScanfOut &r)
+               size_t nargout, Span<Value> outs, Allocator *alloc, ScanfOut &r,
+               std::pmr::memory_resource *mr)
 {
-    r = scanfCycle(input, fmt, sz.limit);
+    ScratchVec<double> values(mr);
+    r = scanfCycle(input, fmt, sz.limit, values);
     const bool hasNum = formatHasNumeric(fmt);
     // Matrix-shape dispatch: numeric format → double matrix,
     // pure-text format → char matrix. Flat size keeps the
     // per-format column-or-row shape from shapeScanfOutput.
     if (sz.matrix() && hasNum)
-        outs[0] = detail::shapeFreadOutput(std::move(r.values), sz, alloc);
+        outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, alloc);
     else if (sz.matrix())
-        outs[0] = makeCharMatrix(r.values, sz, alloc);
+        outs[0] = makeCharMatrix(values.data(), values.size(), sz, alloc);
     else
-        outs[0] = shapeScanfOutput(std::move(r.values), hasNum, alloc);
+        outs[0] = shapeScanfOutput(values.data(), values.size(), hasNum, alloc);
     if (nargout > 1)
         outs[1] = Value::scalar(static_cast<double>(r.count), alloc);
 }
@@ -365,8 +370,9 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();
 
-    ScanfOut r;
-    scanfEmit(input, fmt, sz, nargout, outs, alloc, r);
+    ScratchArena scratch_arena(*alloc);
+    ScanfOut r{0, 0};
+    scanfEmit(input, fmt, sz, nargout, outs, alloc, r, scratch_arena.resource());
     f->cursor += r.bytesConsumed;
 
     // Populate ferror on a partial match so scripts can distinguish
@@ -387,8 +393,10 @@ void sscanf(Allocator &alloc, Span<const Value> args, size_t nargout, Span<Value
         sz = detail::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
-    ScanfOut r;
-    scanfEmit(args[0].toString(), fmt, sz, nargout, outs, &alloc, r);
+    ScratchArena scratch_arena(alloc);
+    ScanfOut r{0, 0};
+    scanfEmit(args[0].toString(), fmt, sz, nargout, outs, &alloc, r,
+              scratch_arena.resource());
 
     if (nargout > 2)
         outs[2] = Value::fromString("", &alloc); // errmsg — always empty for now
@@ -428,6 +436,8 @@ namespace {
 
 struct TextscanOptions
 {
+    explicit TextscanOptions(std::pmr::memory_resource *mr) : treatAsEmpty(mr) {}
+
     // Empty → whitespace-default mode (runs of space/tab/\f/\v + EOL
     // count as a single field boundary). Non-empty → explicit-delim
     // mode: ONE char in this set is one field boundary, and EOL
@@ -440,8 +450,10 @@ struct TextscanOptions
     // occurrence up to the next EndOfLine char is ignored.
     std::string commentStyle;
     // Tokens whose text equals any entry in this set are coerced to
-    // "empty" (numeric → EmptyValue, %s → '').
-    std::vector<std::string> treatAsEmpty;
+    // "empty" (numeric → EmptyValue, %s → ''). Vector body lives on
+    // the per-call arena; the std::string elements stay on the
+    // default heap (typically short enough for SSO anyway).
+    ScratchVec<std::string> treatAsEmpty;
     // In explicit-delim mode only: when true, runs of delim chars
     // collapse to one boundary (no empty fields emitted). Default
     // false, matching MATLAB; whitespace-default mode always
@@ -455,9 +467,10 @@ struct TextscanConv { char spec; bool suppress; int width; };
 
 // Parse formatSpec into an ordered conversion list. Unrecognised
 // % codes throw before any scanning happens.
-std::vector<TextscanConv> parseTextscanFormat(const std::string &fmt)
+ScratchVec<TextscanConv> parseTextscanFormat(std::pmr::memory_resource *mr,
+                                              const std::string &fmt)
 {
-    std::vector<TextscanConv> out;
+    ScratchVec<TextscanConv> out(mr);
     for (size_t i = 0; i < fmt.size(); ++i) {
         if (fmt[i] != '%')
             continue;                     // literal chars between specs are ignored
@@ -516,7 +529,9 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
 
     std::string fmt = args[1].toString();
-    auto convs = parseTextscanFormat(fmt);
+    ScratchArena scratch_arena(*alloc);
+    auto *mr = scratch_arena.resource();
+    auto convs = parseTextscanFormat(mr, fmt);
 
     // Optional positional N, then name-value pairs.
     size_t argIdx = 2;
@@ -532,7 +547,7 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
 
     // Parse name/value options into a TextscanOptions struct.
-    TextscanOptions opts;
+    TextscanOptions opts{mr};
     auto lower = [](std::string s) {
         for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         return s;
@@ -719,8 +734,18 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
         return input.substr(start, end - start);
     };
 
-    std::vector<std::vector<double>> numCols(convs.size());
-    std::vector<std::vector<std::string>> strCols(convs.size());
+    // Per-column accumulators. Outer is on the arena; inner pmr-vectors
+    // pick up the same `mr` via uses-allocator construction, so every
+    // push_back below allocates from the arena.
+    ScratchVec<ScratchVec<double>> numCols(convs.size(), mr);
+    ScratchVec<ScratchVec<std::string>> strCols(convs.size(), mr);
+    // Staging buffers are HOISTED out of the cycle loop and clear()-ed
+    // each iteration: re-creating them inside the loop would bump-leak
+    // under the monotonic resource (footgun #c in scratch_arena.hpp).
+    // After a few iterations the capacity stabilises and clear() reuses
+    // it — total arena footprint stays bounded.
+    ScratchVec<std::pair<size_t, double>>      stageNum(mr);
+    ScratchVec<std::pair<size_t, std::string>> stageStr(mr);
     size_t cycles = 0;
 
     skipLeading();                         // past leading ws/EOL/comments once
@@ -731,8 +756,8 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
 
         size_t savedPos = pos;
         bool savedFirst = atFirstField;
-        std::vector<std::pair<size_t, double>> stageNum;
-        std::vector<std::pair<size_t, std::string>> stageStr;
+        stageNum.clear();
+        stageStr.clear();
         bool fullCycle = true;
 
         for (size_t i = 0; i < convs.size(); ++i) {

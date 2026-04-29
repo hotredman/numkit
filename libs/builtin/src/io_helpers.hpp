@@ -65,14 +65,14 @@ inline SizeSpec parseReadSize(const Value &sz, const char *fn)
     throw Error(std::string(fn) + ": size must be scalar, Inf, or a 2-element vector");
 }
 
-inline Value shapeFreadOutput(std::vector<double> &&values, SizeSpec sz, Allocator *alloc)
+inline Value shapeFreadOutput(const double *values, size_t n,
+                              SizeSpec sz, Allocator *alloc)
 {
-    size_t n = values.size();
     if (!sz.matrix()) {
         if (n == 0)
             return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
         Value M = Value::matrix(n, 1, ValueType::DOUBLE, alloc);
-        std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
+        std::memcpy(M.doubleDataMut(), values, n * sizeof(double));
         return M;
     }
     size_t cols_out = (sz.cols == SIZE_MAX)
@@ -81,7 +81,7 @@ inline Value shapeFreadOutput(std::vector<double> &&values, SizeSpec sz, Allocat
     if (sz.rows == 0 || cols_out == 0)
         return Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, alloc);
     Value M = Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, alloc);
-    std::memcpy(M.doubleDataMut(), values.data(), n * sizeof(double));
+    std::memcpy(M.doubleDataMut(), values, n * sizeof(double));
     return M;
 }
 
