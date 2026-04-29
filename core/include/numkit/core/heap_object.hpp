@@ -31,9 +31,14 @@ struct HeapObject
     // Array data (DOUBLE, INT*, UINT*, LOGICAL, CHAR, COMPLEX)
     DataBuffer *buffer = nullptr;
 
-    // Extended data — allocated only for CELL, STRUCT, FUNC_HANDLE
-    std::vector<Value> *cellData = nullptr;
-    std::map<std::string, Value> *structData = nullptr;
+    // Extended data — allocated only for CELL, STRUCT, FUNC_HANDLE.
+    // The wrapper objects themselves (vector / map headers) are
+    // bookkeeping (~24-48 bytes) on the global heap; their internal
+    // buffers (which hold the actual user data — Value slots and map
+    // nodes) flow through `mr`. funcName is always a short identifier
+    // that fits in std::string's SBO; not user data, kept simple.
+    std::pmr::vector<Value> *cellData = nullptr;
+    std::pmr::map<std::string, Value> *structData = nullptr;
     std::string *funcName = nullptr;
 
     // Capacity for appendScalar amortization

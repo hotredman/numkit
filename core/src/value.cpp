@@ -186,72 +186,83 @@ Value Value::fromString(const std::string &s, std::pmr::memory_resource *mr)
     m.heap_ = h;
     return m;
 }
-Value Value::cell(size_t rows, size_t cols)
+Value Value::cell(size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::CELL;
     h->dims = {rows, cols};
-    h->cellData = new std::vector<Value>(rows * cols);
+    h->mr = mr;
+    h->cellData = new std::pmr::vector<Value>(rows * cols, mr);
     m.heap_ = h;
     return m;
 }
-Value Value::cell3D(size_t rows, size_t cols, size_t pages)
+Value Value::cell3D(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::CELL;
     h->dims = {rows, cols, pages};
-    h->cellData = new std::vector<Value>(rows * cols * pages);
+    h->mr = mr;
+    h->cellData = new std::pmr::vector<Value>(rows * cols * pages, mr);
     m.heap_ = h;
     return m;
 }
-Value Value::cellND(const size_t *dims, int nd)
+Value Value::cellND(const size_t *dims, int nd, std::pmr::memory_resource *mr)
 {
-    if (nd <= 0) return cell(0, 0);
-    if (nd == 1) return cell(dims[0], 1);
-    if (nd == 2) return cell(dims[0], dims[1]);
-    if (nd == 3) return cell3D(dims[0], dims[1], dims[2]);
+    if (!mr) mr = std::pmr::get_default_resource();
+    if (nd <= 0) return cell(0, 0, mr);
+    if (nd == 1) return cell(dims[0], 1, mr);
+    if (nd == 2) return cell(dims[0], dims[1], mr);
+    if (nd == 3) return cell3D(dims[0], dims[1], dims[2], mr);
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::CELL;
     h->dims = Dims(dims, nd);
+    h->mr = mr;
     size_t total = 1;
     for (int i = 0; i < nd; ++i) total *= dims[i];
-    h->cellData = new std::vector<Value>(total);
+    h->cellData = new std::pmr::vector<Value>(total, mr);
     m.heap_ = h;
     return m;
 }
 Value Value::stringScalar(const std::string &s, std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::STRING;
     h->dims = {1, 1};
     h->mr = mr;
-    h->cellData = new std::vector<Value>(1, Value::fromString(s, mr));
+    h->cellData = new std::pmr::vector<Value>(1, Value::fromString(s, mr), mr);
     m.heap_ = h;
     return m;
 }
-Value Value::stringArray(size_t rows, size_t cols)
+Value Value::stringArray(size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::STRING;
     h->dims = {rows, cols};
+    h->mr = mr;
     // Initialize with empty strings
-    h->cellData = new std::vector<Value>(rows * cols, Value::fromString("", nullptr));
+    h->cellData = new std::pmr::vector<Value>(rows * cols, Value::fromString("", mr), mr);
     m.heap_ = h;
     return m;
 }
-Value Value::stringArray3D(size_t rows, size_t cols, size_t pages)
+Value Value::stringArray3D(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::STRING;
     h->dims = {rows, cols, pages};
-    h->cellData = new std::vector<Value>(rows * cols * pages,
-                                          Value::fromString("", nullptr));
+    h->mr = mr;
+    h->cellData = new std::pmr::vector<Value>(rows * cols * pages,
+                                               Value::fromString("", mr), mr);
     m.heap_ = h;
     return m;
 }
@@ -273,16 +284,18 @@ void Value::stringElemSet(size_t i, const std::string &s)
 {
     detach();
     if (i >= heap_->cellData->size())
-        heap_->cellData->resize(i + 1, Value::fromString("", nullptr));
+        heap_->cellData->resize(i + 1, Value::fromString("", heap_->mr));
     (*heap_->cellData)[i] = Value::fromString(s, heap_->mr);
 }
-Value Value::structure()
+Value Value::structure(std::pmr::memory_resource *mr)
 {
+    if (!mr) mr = std::pmr::get_default_resource();
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::STRUCT;
     h->dims = {1, 1};
-    h->structData = new std::map<std::string, Value>();
+    h->mr = mr;
+    h->structData = new std::pmr::map<std::string, Value>(mr);
     m.heap_ = h;
     return m;
 }
@@ -2515,14 +2528,14 @@ const Value &Value::cellAt(size_t i) const
         throw std::runtime_error("Cell index out of bounds");
     return (*heap_->cellData)[i];
 }
-std::vector<Value> &Value::cellDataVec()
+std::pmr::vector<Value> &Value::cellDataVec()
 {
     if (!isHeap() || !heap_->cellData)
         throw std::runtime_error("Not a cell");
     detach(); // COW
     return *heap_->cellData;
 }
-const std::vector<Value> &Value::cellDataVec() const
+const std::pmr::vector<Value> &Value::cellDataVec() const
 {
     if (!isHeap() || !heap_->cellData)
         throw std::runtime_error("Not a cell");
@@ -2549,13 +2562,13 @@ bool Value::hasField(const std::string &n) const
 {
     return isHeap() && heap_->structData && heap_->structData->count(n) > 0;
 }
-std::map<std::string, Value> &Value::structFields()
+std::pmr::map<std::string, Value> &Value::structFields()
 {
     if (!isHeap() || !heap_->structData)
         throw std::runtime_error("Not a struct");
     return *heap_->structData;
 }
-const std::map<std::string, Value> &Value::structFields() const
+const std::pmr::map<std::string, Value> &Value::structFields() const
 {
     if (!isHeap() || !heap_->structData)
         throw std::runtime_error("Not a struct");

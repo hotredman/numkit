@@ -66,11 +66,11 @@ public:
                            ValueType t = ValueType::DOUBLE,
                            std::pmr::memory_resource *mr = nullptr);
     static Value fromString(const std::string &s, std::pmr::memory_resource *mr = nullptr);
-    static Value cell(size_t rows, size_t cols);
-    static Value cell3D(size_t rows, size_t cols, size_t pages);
+    static Value cell(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
+    static Value cell3D(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
     // ND CELL constructor — picks 2D / 3D / true-ND backing as needed.
-    static Value cellND(const size_t *dims, int nd);
-    static Value structure();
+    static Value cellND(const size_t *dims, int nd, std::pmr::memory_resource *mr = nullptr);
+    static Value structure(std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
     static Value empty();
     static Value deleted();
@@ -162,8 +162,8 @@ public:
 
     // ── Factories — string (MATLAB "..." double-quoted) ─────
     static Value stringScalar(const std::string &s, std::pmr::memory_resource *mr = nullptr);
-    static Value stringArray(size_t rows, size_t cols);
-    static Value stringArray3D(size_t rows, size_t cols, size_t pages);
+    static Value stringArray(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
+    static Value stringArray3D(size_t rows, size_t cols, size_t pages, std::pmr::memory_resource *mr = nullptr);
 
     // ���─ String accessors ────────────────────────────────────
     const std::string &stringElem(size_t i) const;
@@ -270,15 +270,15 @@ public:
     // ── Cell ─────────────────────────────────────────────────
     Value &cellAt(size_t i);
     const Value &cellAt(size_t i) const;
-    std::vector<Value> &cellDataVec();
-    const std::vector<Value> &cellDataVec() const;
+    std::pmr::vector<Value> &cellDataVec();
+    const std::pmr::vector<Value> &cellDataVec() const;
 
     // ── Struct ───────────────────────────────────────────────
     Value &field(const std::string &name);
     const Value &field(const std::string &name) const;
     bool hasField(const std::string &name) const;
-    std::map<std::string, Value> &structFields();
-    const std::map<std::string, Value> &structFields() const;
+    std::pmr::map<std::string, Value> &structFields();
+    const std::pmr::map<std::string, Value> &structFields() const;
 
     // ── Func handle ──────────────────────────────────────────
     std::string funcHandleName() const;
