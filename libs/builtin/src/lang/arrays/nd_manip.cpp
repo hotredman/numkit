@@ -11,6 +11,7 @@
 
 #include <numkit/builtin/lang/arrays/matrix.hpp>  // reshape, horzcat, vertcat
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
 #include <numkit/core/types.hpp>
 
@@ -252,7 +253,8 @@ Value squeeze(Allocator &alloc, const Value &x)
     // Pad to at least 2 dims with trailing 1s so a fully-singleton input
     // (1×1×1, 1×1×1×1, etc.) collapses to scalar shape (1×1) rather than
     // an invalid 0D shape.
-    std::vector<size_t> kept;
+    ScratchArena scratch(alloc);
+    auto kept = scratch.vec<size_t>();
     kept.reserve(nd);
     for (int i = 0; i < nd; ++i) {
         const size_t d = dd.dim(i);
@@ -260,7 +262,7 @@ Value squeeze(Allocator &alloc, const Value &x)
     }
     while (kept.size() < 2) kept.push_back(1);
 
-    return reshapeND(alloc, x, kept);
+    return reshapeND(alloc, x, kept.data(), kept.size());
 }
 
 // ────────────────────────────────────────────────────────────────────

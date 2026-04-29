@@ -1,16 +1,17 @@
 #pragma once
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/shape_ops.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <complex>
 #include <limits>
+#include <memory_resource>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 namespace numkit {
 
@@ -459,11 +460,15 @@ inline DimsArg parseDimsArgs(Span<const Value> args)
 //   * f([m n])          → {m, n}
 //   * f([m n p q ...])  → {m, n, p, q, ...}
 // Caller can decide whether to use the 2D / 3D fast paths or matrixND.
-inline std::vector<size_t> parseDimsArgsND(Span<const Value> args)
+//
+// The returned vector is backed by `mr` — typical use is a per-call
+// ScratchArena for the array-creation builtin (zeros/ones/rand/...).
+inline ScratchVec<size_t> parseDimsArgsND(std::pmr::memory_resource *mr,
+                                          Span<const Value> args)
 {
-    std::vector<size_t> out;
+    ScratchVec<size_t> out(mr);
     if (args.empty()) {
-        out = {1, 1};
+        out.assign({1, 1});
         return out;
     }
     // Vector form: f([m n p ...])
@@ -478,7 +483,7 @@ inline std::vector<size_t> parseDimsArgsND(Span<const Value> args)
     // Single scalar: f(n) → n×n
     if (args.size() == 1) {
         const size_t n = static_cast<size_t>(args[0].toScalar());
-        out = {n, n};
+        out.assign({n, n});
         return out;
     }
     // Multiple scalars: f(m, n, p, ...)
@@ -491,22 +496,24 @@ inline std::vector<size_t> parseDimsArgsND(Span<const Value> args)
 // Strip trailing 1s past the 2nd dim (MATLAB convention: ones(3,4,1)
 // returns a 2D matrix, not 3D). Keeps at least 2 dims so a vector stays
 // {1, n} rather than collapsing to scalar shape.
-inline void stripTrailingOnes(std::vector<size_t> &dims)
+inline void stripTrailingOnes(ScratchVec<size_t> &dims)
 {
     while (dims.size() > 2 && dims.back() == 1)
         dims.pop_back();
 }
 
-// Create a zeros matrix from an ND dim vector, picking the matrix /
-// matrix3d / matrixND constructor that matches the rank.
-inline Value createMatrixND(const std::vector<size_t> &dims, ValueType type,
-                             Allocator *alloc)
+// Create a zero matrix from a flat ND dim list, picking the matrix /
+// matrix3d / matrixND constructor that matches the rank. Pointer + size
+// so the same helper composes with std::vector, std::pmr::vector, raw
+// arrays, etc.
+inline Value createMatrixND(const size_t *dims, std::size_t nDims,
+                             ValueType type, Allocator *alloc)
 {
-    const int nd = static_cast<int>(dims.size());
+    const int nd = static_cast<int>(nDims);
     if (nd <= 1) return Value::matrix(nd == 1 ? dims[0] : 0, 1, type, alloc);
     if (nd == 2) return Value::matrix(dims[0], dims[1], type, alloc);
     if (nd == 3) return Value::matrix3d(dims[0], dims[1], dims[2], type, alloc);
-    return Value::matrixND(dims.data(), nd, type, alloc);
+    return Value::matrixND(dims, nd, type, alloc);
 }
 
 // ============================================================

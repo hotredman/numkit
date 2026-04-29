@@ -3,6 +3,7 @@
 #include <numkit/builtin/lang/arrays/matrix.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -39,17 +40,17 @@ Value ones(Allocator &alloc, size_t rows, size_t cols, size_t pages)
     return m;
 }
 
-// ND overloads: caller passes a full dim vector. For nd <= 3 these just
+// ND overloads: caller passes a flat dim list. For nd <= 3 these just
 // route to the legacy 2D/3D ctors via createMatrixND; nd > 3 hits the
 // Value::matrixND ctor and the SBO Dims storage.
-Value zerosND(Allocator &alloc, const std::vector<size_t> &dims)
+Value zerosND(Allocator &alloc, const size_t *dims, std::size_t nDims)
 {
-    return createMatrixND(dims, ValueType::DOUBLE, &alloc);
+    return createMatrixND(dims, nDims, ValueType::DOUBLE, &alloc);
 }
 
-Value onesND(Allocator &alloc, const std::vector<size_t> &dims)
+Value onesND(Allocator &alloc, const size_t *dims, std::size_t nDims)
 {
-    auto m = createMatrixND(dims, ValueType::DOUBLE, &alloc);
+    auto m = createMatrixND(dims, nDims, ValueType::DOUBLE, &alloc);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < m.numel(); ++i)
         p[i] = 1.0;
@@ -147,26 +148,26 @@ Value reshape(Allocator &alloc, const Value &x, size_t rows, size_t cols, size_t
 // CELL/STRING ND not supported yet (matches the 2D/3D behaviour: only
 // CELL/STRING currently handles 2D and 3D shapes via cell3D/stringArray3D).
 Value reshapeND(Allocator &alloc, const Value &x,
-                 const std::vector<size_t> &dims)
+                 const size_t *dims, std::size_t nDims)
 {
     size_t newNumel = 1;
-    for (size_t d : dims) newNumel *= d;
+    for (std::size_t i = 0; i < nDims; ++i) newNumel *= dims[i];
     if (newNumel != x.numel())
         throw Error("Number of elements must not change in reshape",
                      0, 0, "reshape", "", "m:reshape:elementCountMismatch");
 
     if (x.type() == ValueType::CELL || x.type() == ValueType::STRING) {
-        if (dims.size() > 3)
+        if (nDims > 3)
             throw Error("reshape: ND CELL/STRING (>3) not yet supported",
                          0, 0, "reshape", "", "m:reshape:cellND");
         // Fall through to legacy path for 2D / 3D cell.
-        const size_t r = dims.size() > 0 ? dims[0] : 1;
-        const size_t c = dims.size() > 1 ? dims[1] : 1;
-        const size_t p = dims.size() > 2 ? dims[2] : 0;
+        const size_t r = nDims > 0 ? dims[0] : 1;
+        const size_t c = nDims > 1 ? dims[1] : 1;
+        const size_t p = nDims > 2 ? dims[2] : 0;
         return reshape(alloc, x, r, c, p);
     }
 
-    auto r = createMatrixND(dims, x.type(), &alloc);
+    auto r = createMatrixND(dims, nDims, x.type(), &alloc);
     if (x.rawBytes() > 0)
         std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
     return r;
@@ -1418,16 +1419,20 @@ namespace detail {
 
 void zeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgsND(args);
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto d = parseDimsArgsND(scratch.resource(), args);
     stripTrailingOnes(d);
-    outs[0] = zerosND(ctx.engine->allocator(), d);
+    outs[0] = zerosND(alloc, d.data(), d.size());
 }
 
 void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto d = parseDimsArgsND(args);
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto d = parseDimsArgsND(scratch.resource(), args);
     stripTrailingOnes(d);
-    outs[0] = onesND(ctx.engine->allocator(), d);
+    outs[0] = onesND(alloc, d.data(), d.size());
 }
 
 void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1505,11 +1510,13 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "reshape", "", "m:reshape:nargin");
 
     const auto &x = args[0];
-    std::vector<size_t> dims;
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    ScratchVec<size_t> dims(scratch.resource());
 
     // Dims-vector form: reshape(A, [m n p ...]). No [] inference here.
     if (args.size() == 2 && !args[1].isScalar() && !args[1].isEmpty()) {
-        dims = parseDimsArgsND(args.subspan(1));
+        dims = parseDimsArgsND(scratch.resource(), args.subspan(1));
     } else {
         // Scalar-args form: reshape(A, m, n, ...). One [] allowed for
         // dimension inference from x.numel().
@@ -1538,7 +1545,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
     // Strip trailing 1s past the 2nd dim (MATLAB convention).
     stripTrailingOnes(dims);
-    outs[0] = reshapeND(ctx.engine->allocator(), x, dims);
+    outs[0] = reshapeND(alloc, x, dims.data(), dims.size());
 }
 
 void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

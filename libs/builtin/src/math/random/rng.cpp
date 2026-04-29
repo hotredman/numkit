@@ -8,6 +8,7 @@
 #include <numkit/builtin/math/random/rng.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -223,7 +224,8 @@ Value randperm(Allocator &alloc, size_t n, size_t k)
     // For tiny k vs huge n this is wasteful; an alternative is the
     // "selection sampling" algorithm (Knuth Vol 2, 3.4.2). Phase-4
     // scope is correctness; optimisation can come if benches care.
-    std::vector<int64_t> pool(n);
+    ScratchArena scratch(alloc);
+    auto pool = scratch.vec<int64_t>(n);
     std::iota(pool.begin(), pool.end(), int64_t{1});
 
     std::lock_guard<std::mutex> lock(rngMutex());
@@ -249,10 +251,11 @@ namespace detail {
 void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
-    auto dims = parseDimsArgsND(args);
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto dims = parseDimsArgsND(scratch.resource(), args);
     stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
-    auto &alloc = ctx.engine->allocator();
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;
         const size_t c = dims.size() >= 2 ? dims[1] : 1;
@@ -267,10 +270,11 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
-    auto dims = parseDimsArgsND(args);
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto dims = parseDimsArgsND(scratch.resource(), args);
     stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
-    auto &alloc = ctx.engine->allocator();
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;
         const size_t c = dims.size() >= 2 ? dims[1] : 1;
@@ -312,7 +316,8 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         outs[0] = randi(alloc, imin, imax, 1, 1, 0);
         return;
     }
-    auto dims = parseDimsArgsND(dimArgs);
+    ScratchArena scratch(alloc);
+    auto dims = parseDimsArgsND(scratch.resource(), dimArgs);
     stripTrailingOnes(dims);
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;

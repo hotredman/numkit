@@ -22,12 +22,14 @@
 #include "helpers.hpp"
 
 #include <numkit/core/allocator.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <memory_resource>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -99,11 +101,16 @@ inline size_t sliceCountForDim(const Value &x, int dim)
 // via `outBuf[outIdx] = …`. Non-DOUBLE inputs are read via
 // elemAsDouble (DOUBLE keeps the contiguous-memcpy fast path).
 //
+// `mr` backs the per-call scratch buffer reused across slices. Pass
+// the same memory_resource you used for any sibling scratches in the
+// caller (typically `arena.resource()` from a per-call ScratchArena).
+//
 // NOTE: F is called once per output element. For multi-output ops
 // (like mode returning value+count) the caller must allocate two
 // MValues and capture both buffers in F's closure.
 template <typename F>
-void forEachSlice(const Value &x, int dim, F &&f)
+void forEachSlice(std::pmr::memory_resource *mr,
+                  const Value &x, int dim, F &&f)
 {
     const auto &d = x.dims();
     const size_t R = d.rows(), C = d.cols(), P = d.is3D() ? d.pages() : 1;
@@ -111,7 +118,7 @@ void forEachSlice(const Value &x, int dim, F &&f)
     const bool fastDouble = (x.type() == ValueType::DOUBLE);
     const double *src = fastDouble ? x.doubleData() : nullptr;
 
-    std::vector<double> scratch(N);
+    ScratchVec<double> scratch(N, mr);
 
     if (dim == 1) {
         // Slice = a column (or column within a page). Stride = 1.
@@ -181,8 +188,11 @@ inline std::vector<size_t> outShapeForDimND(const Value &x, int dim)
 // reduced-dim shape. Output is always DOUBLE (matches MATLAB convention
 // for sum/mean/etc.); non-DOUBLE input is read via elemAsDouble so
 // integer / single / logical inputs reduce correctly.
+//
+// `mr` backs the per-call scratch buffer (see forEachSlice).
 template <typename F>
-void forEachSliceND(const Value &x, int dim, double *dst, F &&f)
+void forEachSliceND(std::pmr::memory_resource *mr,
+                    const Value &x, int dim, double *dst, F &&f)
 {
     const auto &d = x.dims();
     const int redAxis = dim - 1;
@@ -194,7 +204,7 @@ void forEachSliceND(const Value &x, int dim, double *dst, F &&f)
 
     const bool fastDouble = (x.type() == ValueType::DOUBLE);
     const double *src = fastDouble ? x.doubleData() : nullptr;
-    std::vector<double> scratch(sliceLen);
+    ScratchVec<double> scratch(sliceLen, mr);
     if (B == 1) {
         // Reducing axis 0 → contiguous gather.
         if (fastDouble) {
@@ -242,8 +252,9 @@ Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
     if (x.isEmpty() && x.dims().ndim() < 4) {
         return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
     }
+    ScratchArena scratch_arena(*alloc);
     if (x.dims().isVector() || x.isScalar()) {
-        std::vector<double> scratch(x.numel());
+        auto scratch = scratch_arena.vec<double>(x.numel());
         if (x.type() == ValueType::DOUBLE)
             std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
         else
@@ -259,13 +270,13 @@ Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
                                       static_cast<int>(shape.size()),
                                       ValueType::DOUBLE, alloc);
         double *dst = out.doubleDataMut();
-        forEachSliceND(x, dim, dst, std::forward<F>(f));
+        forEachSliceND(scratch_arena.resource(), x, dim, dst, std::forward<F>(f));
         return out;
     }
     auto outShape = outShapeForDim(x, dim);
     Value out = createMatrix(outShape, ValueType::DOUBLE, alloc);
     double *dst = out.doubleDataMut();
-    forEachSlice(x, dim, [&](size_t outIdx, double *slice, size_t n) {
+    forEachSlice(scratch_arena.resource(), x, dim, [&](size_t outIdx, double *slice, size_t n) {
         dst[outIdx] = f(outIdx, slice, n);
     });
     return out;
@@ -281,8 +292,9 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
         return {Value::matrix(0, 0, ValueType::DOUBLE, alloc),
                 Value::matrix(0, 0, ValueType::DOUBLE, alloc)};
     }
+    ScratchArena scratch_arena(*alloc);
     if (x.dims().isVector() || x.isScalar()) {
-        std::vector<double> scratch(x.numel());
+        auto scratch = scratch_arena.vec<double>(x.numel());
         if (x.type() == ValueType::DOUBLE)
             std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
         else
@@ -305,7 +317,7 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
                                          ValueType::DOUBLE, alloc);
         double *dst  = out.doubleDataMut();
         double *dstI = outIdx.doubleDataMut();
-        forEachSliceND(x, dim, dst,
+        forEachSliceND(scratch_arena.resource(), x, dim, dst,
             [&](size_t outOff, double *slice, size_t n) {
                 double v = 0; size_t idx = 0;
                 f(slice, n, v, idx);
@@ -319,7 +331,7 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
     Value outIdx = createMatrix(outShape, ValueType::DOUBLE, alloc);
     double *dst = out.doubleDataMut();
     double *dstI = outIdx.doubleDataMut();
-    forEachSlice(x, dim, [&](size_t outOff, double *slice, size_t n) {
+    forEachSlice(scratch_arena.resource(), x, dim, [&](size_t outOff, double *slice, size_t n) {
         double v = 0;
         size_t idx = 0;
         f(slice, n, v, idx);

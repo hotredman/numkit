@@ -45,10 +45,12 @@ Value ndims(Allocator &alloc, const Value &x);
 /// before invoking — this function requires concrete dims.
 Value reshape(Allocator &alloc, const Value &x, size_t rows, size_t cols, size_t pages = 0);
 
-/// ND reshape — accepts a dim vector of arbitrary rank (≥ 1). Same
+/// ND reshape — accepts a flat dim list of arbitrary rank (≥ 1). Same
 /// elem-count check as the 2D/3D form. CELL/STRING reshape past 3D is
-/// not yet supported (throws m:reshape:cellND).
-Value reshapeND(Allocator &alloc, const Value &x, const std::vector<size_t> &dims);
+/// not yet supported (throws m:reshape:cellND). Pointer + size so the
+/// same overload composes with std::vector / std::pmr::vector / arrays.
+Value reshapeND(Allocator &alloc, const Value &x,
+                const size_t *dims, std::size_t nDims);
 
 /// 2D matrix transpose (no complex conjugation). Throws Error on 3D input.
 Value transpose(Allocator &alloc, const Value &x);
