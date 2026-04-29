@@ -3,7 +3,7 @@
 #include <numkit/signal/multirate/multirate.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #define _USE_MATH_DEFINES
@@ -126,7 +126,7 @@ Value resample(std::pmr::memory_resource *mr, const Value &x, size_t p, size_t q
 
     // Upsample by p (zero-stuff, multiply by p for gain)
     const size_t upLen = nx * p;
-    auto up = scratch.vec<double>(upLen);
+    auto up = ScratchVec<double>(upLen, &scratch);
     for (size_t i = 0; i < nx; ++i)
         up[i * p] = static_cast<double>(p) * xd[i];
 

@@ -19,7 +19,7 @@ namespace numkit::builtin {
 // dynamic argument layout.
 //
 // fscanf / textscan need the owning Engine because the fid table lives
-// there; sscanf is pure and takes just Allocator.
+// there; sscanf is pure and takes just a memory_resource.
 // ════════════════════════════════════════════════════════════════════════
 
 void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);

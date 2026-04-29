@@ -6,7 +6,7 @@
 #include <numkit/signal/transforms/hilbert.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"  // Complex, FFT helpers

@@ -6,7 +6,7 @@
 #include <numkit/signal/digital_filtering/sosfilt.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -93,20 +93,20 @@ Value sosfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x)
     (void) L;
 
     auto out = createLike(x, ValueType::DOUBLE, mr);
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     if (x.dims().isVector() || x.isScalar()) {
         const size_t n = x.numel();
-        auto scratch = scratch_arena.vec<double>(n);
-        applyCascade(sos, x.doubleData(), out.doubleDataMut(), n, scratch);
+        auto buf = ScratchVec<double>(n, &scratch);
+        applyCascade(sos, x.doubleData(), out.doubleDataMut(), n, buf);
         return out;
     }
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
-    auto scratch = scratch_arena.vec<double>(rows);
+    auto buf = ScratchVec<double>(rows, &scratch);
     const double *src = x.doubleData();
     double *dst = out.doubleDataMut();
     for (size_t c = 0; c < cols; ++c)
-        applyCascade(sos, src + c * rows, dst + c * rows, rows, scratch);
+        applyCascade(sos, src + c * rows, dst + c * rows, rows, buf);
     return out;
 }
 

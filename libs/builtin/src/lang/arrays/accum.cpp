@@ -15,7 +15,7 @@
 #include <numkit/builtin/lang/arrays/accum.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -191,9 +191,9 @@ Value accumarray(std::pmr::memory_resource *mr,
 
     // Track which cells have received contributions; uninitialized cells
     // get fillVal at the end. For `mean`, also accumulate counts.
-    auto touched = scratch.vec<uint8_t>(total);
+    auto touched = ScratchVec<uint8_t>(total, &scratch);
     const bool needCount = (op == AccumReducer::Mean);
-    auto count = scratch.vec<size_t>();
+    auto count = ScratchVec<size_t>(&scratch);
     if (needCount) count.assign(total, 0);
 
     const double init = identityFor(op);
@@ -288,7 +288,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
 
     auto *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto shape = scratch.vec<size_t>();
+    auto shape = ScratchVec<size_t>(&scratch);
     if (args.size() >= 3 && !args[2].isEmpty())
         shape = parseSizeArg(&scratch, args[2]);
 

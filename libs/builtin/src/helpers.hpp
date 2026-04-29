@@ -1,7 +1,7 @@
 #pragma once
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/shape_ops.hpp>
 
 #include <algorithm>

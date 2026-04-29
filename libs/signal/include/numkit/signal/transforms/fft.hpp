@@ -14,7 +14,7 @@ namespace numkit::signal {
 ///   fft(x, [], k)  — along dimension k (1 = rows, 2 = cols, 3 = pages)
 ///   fft(x, n,  k)
 ///
-/// @param mr  Allocator for the output Value and any intermediate buffers.
+/// @param mr  memory_resource for the output Value and any intermediate buffers.
 /// @param x      Input — real or complex, 1-D / 2-D / 3-D. Empty → returns empty.
 /// @param n      Output length per transform. -1 (default) keeps input length.
 ///               n > input length → zero-pad; n < input → truncate.

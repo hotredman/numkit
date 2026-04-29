@@ -265,8 +265,8 @@ inline std::pair<Value, Value>
 allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
@@ -295,8 +295,8 @@ reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_re
     // Multi-dim: reduce along first non-singleton dim (MATLAB rule).
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
-    ScratchArena scratch_arena(mr);
-    minMaxAlongDim<T>(&scratch_arena, x, redDim,
+    ScratchArena scratch(mr);
+    minMaxAlongDim<T>(&scratch, x, redDim,
                      static_cast<T *>(out.rawDataMut()),
                      outIdx.doubleDataMut(),
                      cmp, typeMatch);
@@ -337,8 +337,8 @@ reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, std::
         return reduceMinMaxAllT<T>(x, cmp, outType, mr);
     }
     auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, mr);
-    ScratchArena scratch_arena(mr);
-    minMaxAlongDim<T>(&scratch_arena, x, dim,
+    ScratchArena scratch(mr);
+    minMaxAlongDim<T>(&scratch, x, dim,
                      static_cast<T *>(out.rawDataMut()),
                      outIdx.doubleDataMut(),
                      cmp, typeMatch);
@@ -382,8 +382,8 @@ inline std::pair<Value, Value>
 allocComplexMinMaxOutputs(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE,  mr)};
     }
@@ -1157,8 +1157,8 @@ void typedReduceAlongDim(const Value &x, int redDim, T *dst,
 inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), outType, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
@@ -1283,8 +1283,8 @@ inline Complex readElemAsComplex(const Value &x, size_t i, bool typeMatches)
 inline Value allocComplexReduceOutput(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);

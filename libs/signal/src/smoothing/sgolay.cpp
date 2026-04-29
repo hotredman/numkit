@@ -3,7 +3,7 @@
 #include <numkit/signal/smoothing/sgolay.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -96,7 +96,7 @@ ScratchVec<double> buildProjection(std::pmr::memory_resource *mr,
         }
 
     // Solve VtV · X = Vt → X is p × n; then B = V · X (n × n).
-    auto X = scratchCopyOf(mr, Vt);
+    ScratchVec<double> X(Vt, mr);
     gaussJordan(VtV.data(), X.data(), p, n);
 
     ScratchVec<double> B(static_cast<std::size_t>(n * n), mr);
@@ -157,7 +157,7 @@ Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int f
     const int half = framelen / 2;
 
     // Source as DOUBLE.
-    auto src = scratch.vec<double>(static_cast<std::size_t>(n));
+    auto src = ScratchVec<double>(static_cast<std::size_t>(n), &scratch);
     for (int i = 0; i < n; ++i) src[i] = x.elemAsDouble(i);
 
     auto out = createLike(x, ValueType::DOUBLE, mr);

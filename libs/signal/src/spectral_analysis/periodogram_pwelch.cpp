@@ -6,7 +6,7 @@
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -42,7 +42,7 @@ periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, 
     const double *xd = x.doubleData();
 
     ScratchArena scratch(mr);
-    auto win = scratch.vec<double>(N);
+    auto win = ScratchVec<double>(N, &scratch);
     if (window.numel() == N) {
         const double *w = window.doubleData();
         for (size_t i = 0; i < N; ++i)
@@ -54,7 +54,7 @@ periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, 
     if (nfft == 0)
         nfft = nextPow2(N);
 
-    auto buf = scratch.vec<Complex>(nfft);
+    auto buf = ScratchVec<Complex>(nfft, &scratch);
     double winPower = 0.0;
     for (size_t i = 0; i < N; ++i) {
         buf[i] = Complex(xd[i] * win[i], 0.0);
@@ -115,7 +115,7 @@ pwelch(std::pmr::memory_resource *mr,
         winPower += win[i] * win[i];
 
     const size_t nOut = nfft / 2 + 1;
-    auto psd = scratch.vec<double>(nOut);
+    auto psd = ScratchVec<double>(nOut, &scratch);
     size_t nSegments = 0;
     const size_t step = winLen - noverlap;
 
@@ -123,7 +123,7 @@ pwelch(std::pmr::memory_resource *mr,
     // semantics a fresh `vec<Complex>(nfft)` per iteration would bump-
     // allocate without reuse, growing the arena footprint to
     // O(nSegments × nfft). Reusing one buffer keeps it at O(nfft).
-    auto buf = scratch.vec<Complex>(nfft);
+    auto buf = ScratchVec<Complex>(nfft, &scratch);
 
     for (size_t start = 0; start + winLen <= nx; start += step) {
         for (size_t i = 0; i < winLen; ++i)

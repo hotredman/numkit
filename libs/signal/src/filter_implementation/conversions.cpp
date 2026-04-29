@@ -6,7 +6,7 @@
 #include <numkit/signal/filter_implementation/conversions.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -227,10 +227,10 @@ zp2sosWithGain(std::pmr::memory_resource *mr, const Value &zerosV, const Value &
 
     const size_t L = (poles.size() + 1) / 2;
 
-    auto b1s = scratch.vec<double>(L);
-    auto b2s = scratch.vec<double>(L);
-    auto a1s = scratch.vec<double>(L);
-    auto a2s = scratch.vec<double>(L);
+    auto b1s = ScratchVec<double>(L, &scratch);
+    auto b2s = ScratchVec<double>(L, &scratch);
+    auto a1s = ScratchVec<double>(L, &scratch);
+    auto a2s = ScratchVec<double>(L, &scratch);
     for (size_t s = 0; s < L; ++s) {
         RootPair polePair;
         if (!popPair(poles, polePair))

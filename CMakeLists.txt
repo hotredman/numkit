@@ -114,7 +114,7 @@ set(NUMKIT_HEADERS
     core/include/numkit/core/lexer.hpp
     core/include/numkit/core/parser.hpp
     core/include/numkit/core/parallel_for.hpp
-    core/include/numkit/core/scratch_arena.hpp
+    core/include/numkit/core/scratch.hpp
     core/include/numkit/core/shape_ops.hpp
     core/include/numkit/core/span.hpp
     core/include/numkit/core/thread_pool.hpp

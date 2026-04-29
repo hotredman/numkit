@@ -9,7 +9,7 @@
 #include <numkit/builtin/datatypes/strings/strings.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -148,8 +148,8 @@ namespace {
 
 Value strsplitImpl(std::pmr::memory_resource *mr, const std::string &s, char delim)
 {
-    ScratchArena scratch_arena(mr);
-    ScratchVec<std::string> parts(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> parts(&scratch);
     std::istringstream iss(s);
     std::string token;
     while (std::getline(iss, token, delim))

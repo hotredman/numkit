@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>  // Complex
 
 #include <algorithm>

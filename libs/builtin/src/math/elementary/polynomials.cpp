@@ -3,7 +3,7 @@
 #include <numkit/builtin/math/elementary/polynomials.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -29,7 +29,7 @@ Value roots(std::pmr::memory_resource *mr, const Value &p)
 
     // Read coefficients as DOUBLE (promote integer/single/logical).
     const std::size_t n = p.numel();
-    auto coeffs = scratch.vec<double>(n);
+    auto coeffs = ScratchVec<double>(n, &scratch);
     for (std::size_t i = 0; i < n; ++i)
         coeffs[i] = p.elemAsDouble(i);
 
@@ -215,7 +215,7 @@ Value polyint(std::pmr::memory_resource *mr, const Value &p, double k)
         return out;
     }
     const std::size_t n = pv.size();
-    auto r = scratch.vec<double>(n + 1);
+    auto r = ScratchVec<double>(n + 1, &scratch);
     for (std::size_t i = 0; i < n; ++i) {
         const double exponent = static_cast<double>(n - i);
         r[i] = pv[i] / exponent;
@@ -361,25 +361,25 @@ Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int
     ScratchArena scratch(mr);
 
     // Vandermonde matrix A[j, i] = x[i]^(deg - j), stored column-major.
-    auto A = scratch.vec<double>(m * np);
+    auto A = ScratchVec<double>(m * np, &scratch);
     for (size_t i = 0; i < m; ++i)
         for (int j = 0; j < np; ++j)
             A[j * m + i] = std::pow(xd[i], deg - j);
 
     // Normal equations: ATA * p = AT * y.
-    auto ATA = scratch.vec<double>(static_cast<std::size_t>(np * np));
+    auto ATA = ScratchVec<double>(static_cast<std::size_t>(np * np), &scratch);
     for (int r = 0; r < np; ++r)
         for (int c = 0; c < np; ++c)
             for (size_t i = 0; i < m; ++i)
                 ATA[c * np + r] += A[r * m + i] * A[c * m + i];
 
-    auto ATy = scratch.vec<double>(static_cast<std::size_t>(np));
+    auto ATy = ScratchVec<double>(static_cast<std::size_t>(np), &scratch);
     for (int r = 0; r < np; ++r)
         for (size_t i = 0; i < m; ++i)
             ATy[r] += A[r * m + i] * yd[i];
 
     // Gaussian elimination with partial pivoting on [ATA | ATy].
-    auto aug = scratch.vec<double>(static_cast<std::size_t>(np * (np + 1)));
+    auto aug = ScratchVec<double>(static_cast<std::size_t>(np * (np + 1)), &scratch);
     for (int r = 0; r < np; ++r) {
         for (int c = 0; c < np; ++c)
             aug[r * (np + 1) + c] = ATA[c * np + r];

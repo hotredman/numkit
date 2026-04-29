@@ -8,7 +8,7 @@
 #include <numkit/builtin/math/random/rng.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -225,7 +225,7 @@ Value randperm(std::pmr::memory_resource *mr, size_t n, size_t k)
     // "selection sampling" algorithm (Knuth Vol 2, 3.4.2). Phase-4
     // scope is correctness; optimisation can come if benches care.
     ScratchArena scratch(mr);
-    auto pool = scratch.vec<int64_t>(n);
+    auto pool = ScratchVec<int64_t>(n, &scratch);
     std::iota(pool.begin(), pool.end(), int64_t{1});
 
     std::lock_guard<std::mutex> lock(rngMutex());

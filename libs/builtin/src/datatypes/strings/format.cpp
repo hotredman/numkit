@@ -4,7 +4,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cctype>
@@ -162,8 +162,8 @@ std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
                          Span<const Value> args, size_t argStart)
 {
     std::pmr::memory_resource *p = mr;
-    ScratchArena scratch_arena(mr);
-    ScratchVec<Value> stream(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<Value> stream(&scratch);
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
         const Value &a = args[i];

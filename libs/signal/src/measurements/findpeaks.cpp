@@ -5,7 +5,7 @@
 #include <numkit/signal/measurements/findpeaks.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cmath>
@@ -18,8 +18,8 @@ std::tuple<Value, Value>
 findpeaks(std::pmr::memory_resource *mr, const Value &x)
 {
     ScratchArena scratch(mr);
-    auto peakVals = scratch.vec<double>();
-    auto peakIdx  = scratch.vec<std::size_t>();
+    auto peakVals = ScratchVec<double>(&scratch);
+    auto peakIdx  = ScratchVec<std::size_t>(&scratch);
     const size_t n = x.numel();
     if (n >= 3) {
         const double *p = x.doubleData();

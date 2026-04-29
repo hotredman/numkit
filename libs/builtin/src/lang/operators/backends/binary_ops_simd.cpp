@@ -41,7 +41,7 @@ namespace hn = hwy::HWY_NAMESPACE;
 //     x and y if the caller reuses them on the next iteration.
 //
 // Caveat: `hn::Stream` requires the destination pointer to be
-// aligned to N*sizeof(double). The default Allocator/HeapAlloc
+// aligned to N*sizeof(double). The default memory_resource (HeapAlloc on Win)
 // only guarantees max_align_t (16 B on MSVC), and parallel_for
 // hands each worker an arbitrary [start, end) slice — so
 // `out + start` may not be SIMD-aligned. The kernels below

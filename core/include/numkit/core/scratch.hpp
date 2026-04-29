@@ -1,4 +1,4 @@
-// core/include/numkit/core/scratch_arena.hpp
+// core/include/numkit/core/scratch.hpp
 //
 // numkit memory layer — two thin classes over std::pmr.
 //
@@ -93,26 +93,9 @@ public:
     ScratchArena(ScratchArena &&)                 = delete;
     ScratchArena &operator=(ScratchArena &&)      = delete;
 
-    // Sugar for ScratchVec<T>(n, this) — saves typing & matches the rollout
-    // call sites. The canonical constructor remains ScratchVec<T>(n, mr).
-    template <class T>
-    ScratchVec<T> vec(std::size_t n = 0) { return ScratchVec<T>(n, this); }
-
 private:
     static constexpr std::size_t kInlineBytes = 65536;
     alignas(std::max_align_t) std::array<std::byte, kInlineBytes> storage_;
 };
-
-// Returns a copy of `other` backed by `mr`. Convenience for the rare
-// case where an explicit duplicate of an existing pmr::vector onto a
-// chosen resource is genuinely needed. Equivalent to
-// `ScratchVec<T>(other, mr)` (inherited alloc-aware copy ctor) — kept
-// as a free function for self-documenting call sites.
-template <class T>
-inline ScratchVec<T>
-scratchCopyOf(std::pmr::memory_resource *mr, const std::pmr::vector<T> &other)
-{
-    return ScratchVec<T>(other, mr);
-}
 
 }  // namespace numkit

@@ -235,8 +235,8 @@ Value logicalReduceImpl(std::pmr::memory_resource *mr, const Value &x, int dim)
 
     // ND fallback: rank ≥ 4 — use stride arithmetic.
     if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, d);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, d);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::LOGICAL, mr);

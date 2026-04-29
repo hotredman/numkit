@@ -1,6 +1,6 @@
 #include <numkit/builtin/library.hpp>
 
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -698,8 +698,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                ScratchArena scratch_arena(ctx.engine->resource());
-                                ScratchVec<std::string> names(&scratch_arena);
+                                ScratchArena scratch(ctx.engine->resource());
+                                ScratchVec<std::string> names(&scratch);
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
@@ -743,8 +743,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                ScratchArena scratch_arena(ctx.engine->resource());
-                                ScratchVec<std::string> names(&scratch_arena);
+                                ScratchArena scratch(ctx.engine->resource());
+                                ScratchVec<std::string> names(&scratch);
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if

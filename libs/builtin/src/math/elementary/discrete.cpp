@@ -6,7 +6,7 @@
 #include <numkit/builtin/math/elementary/discrete.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -213,7 +213,7 @@ Value unique(std::pmr::memory_resource *mr, const Value &x)
         else seen.insert(p[i]);
     }
 
-    auto out = scratch.vec<double>();
+    auto out = ScratchVec<double>(&scratch);
     out.reserve(seen.size() + nanCount);
     out.assign(seen.begin(), seen.end());
     std::sort(out.begin(), out.end());
@@ -234,7 +234,7 @@ uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
     ScratchArena scratch(mr);
     std::pmr::unordered_map<double, size_t, DoubleHashEq0> firstIdx(&scratch);
     firstIdx.reserve(n / 2 + 1);
-    auto nanIdxOrder = scratch.vec<size_t>();
+    auto nanIdxOrder = ScratchVec<size_t>(&scratch);
     const double *p = x.doubleData();
     for (size_t i = 0; i < n; ++i) {
         if (std::isnan(p[i])) {
@@ -244,7 +244,7 @@ uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
         }
     }
 
-    auto sorted = scratch.vec<IndexedVal>();
+    auto sorted = ScratchVec<IndexedVal>(&scratch);
     sorted.reserve(firstIdx.size() + nanIdxOrder.size());
     for (const auto &kv : firstIdx)
         sorted.push_back({kv.first, kv.second});
@@ -261,7 +261,7 @@ uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
     for (size_t r = 0; r < nanRankBase; ++r)
         rankByValue[sorted[r].v] = r;
 
-    auto ic = scratch.vec<double>(n);
+    auto ic = ScratchVec<double>(n, &scratch);
     size_t nanSeen = 0;
     for (size_t i = 0; i < n; ++i) {
         if (std::isnan(p[i])) {
@@ -297,7 +297,7 @@ Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
     ScratchArena scratch(mr);
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
-    auto nanRows = scratch.vec<size_t>();
+    auto nanRows = ScratchVec<size_t>(&scratch);
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRows.push_back(r);
@@ -306,7 +306,7 @@ Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
         }
     }
 
-    auto uniqRows = scratch.vec<size_t>();
+    auto uniqRows = ScratchVec<size_t>(&scratch);
     uniqRows.reserve(firstIdx.size() + nanRows.size());
     for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
     std::sort(uniqRows.begin(), uniqRows.end(),
@@ -333,7 +333,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
     ScratchArena scratch(mr);
     std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
-    auto nanRowOrder = scratch.vec<size_t>();
+    auto nanRowOrder = ScratchVec<size_t>(&scratch);
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
@@ -342,7 +342,7 @@ uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
         }
     }
 
-    auto uniqRows = scratch.vec<size_t>();
+    auto uniqRows = ScratchVec<size_t>(&scratch);
     uniqRows.reserve(firstIdx.size() + nanRowOrder.size());
     for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
     std::sort(uniqRows.begin(), uniqRows.end(),
@@ -432,7 +432,7 @@ Value setIntersect(std::pmr::memory_resource *mr, const Value &a, const Value &b
     auto smallSet = hashSetNoNaN(&scratch, small);
     std::pmr::unordered_set<double, DoubleHashEq0> seenInLarge(&scratch);
     seenInLarge.reserve(smallSet.size());
-    auto out = scratch.vec<double>();
+    auto out = ScratchVec<double>(&scratch);
     out.reserve(smallSet.size());
 
     const double *pl = large.doubleData();
@@ -452,7 +452,7 @@ Value setDiff(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     auto setB = hashSetNoNaN(&scratch, b);
     std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
     seen.reserve(a.numel() / 2 + 1);
-    auto out = scratch.vec<double>();
+    auto out = ScratchVec<double>(&scratch);
     out.reserve(a.numel());
     const double *pa = a.doubleData();
     for (size_t i = 0; i < a.numel(); ++i) {
@@ -641,13 +641,13 @@ Value primes(std::pmr::memory_resource *mr, double n)
     // bit-packed proxy reference (MSVC's specialisation has caused subtle
     // initialisation bugs here in the past). One byte per slot is also
     // friendlier on the cache for the inner mark loop.
-    auto composite = scratch.vec<std::uint8_t>(N + 1);
+    auto composite = ScratchVec<std::uint8_t>(N + 1, &scratch);
     for (std::uint64_t i = 2; i * i <= N; ++i)
         if (!composite[i])
             for (std::uint64_t j = i * i; j <= N; j += i)
                 composite[j] = 1;
 
-    auto primesVec = scratch.vec<double>();
+    auto primesVec = ScratchVec<double>(&scratch);
     primesVec.reserve(static_cast<size_t>(N / std::log(static_cast<double>(N) + 1.0)) + 1);
     for (std::uint64_t i = 2; i <= N; ++i)
         if (!composite[i])
@@ -687,7 +687,7 @@ Value factor(std::pmr::memory_resource *mr, double n)
         return r;
     }
     ScratchArena scratch(mr);
-    auto factors = scratch.vec<double>();
+    auto factors = ScratchVec<double>(&scratch);
     std::uint64_t m = u;
     while (m % 2 == 0) { factors.push_back(2.0); m /= 2; }
     for (std::uint64_t p = 3; p * p <= m; p += 2) {
@@ -757,11 +757,11 @@ Value perms(std::pmr::memory_resource *mr, const Value &v)
                      0, 0, "perms", "", "m:perms:tooLarge");
 
     ScratchArena scratch(mr);
-    auto vals = scratch.vec<double>(n);
+    auto vals = ScratchVec<double>(n, &scratch);
     for (size_t i = 0; i < n; ++i)
         vals[i] = v.elemAsDouble(i);
 
-    auto cur = scratchCopyOf(&scratch, vals);
+    ScratchVec<double> cur(vals, &scratch);
     std::sort(cur.begin(), cur.end(), std::greater<double>());
 
     const size_t totalRows = static_cast<size_t>(permFactorial(static_cast<int>(n)));

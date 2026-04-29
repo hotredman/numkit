@@ -10,7 +10,7 @@
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -99,8 +99,8 @@ double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
 inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
@@ -151,8 +151,8 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, mr);
-    ScratchArena scratch_arena(mr);
-    complexVarianceAlongDim(&scratch_arena, x, d,
+    ScratchArena scratch(mr);
+    complexVarianceAlongDim(&scratch, x, d,
                             out.doubleDataMut(), normFlag, omitNan);
     if (sqrtIt) {
         double *p = out.doubleDataMut();
@@ -286,11 +286,11 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
         throw Error(std::string(fn) + ": p must be non-empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyP");
 
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
 
     // Normalize probabilities into a flat vector (so prctile sees /100)
     // then validate the post-scaling value lies in [0,1].
-    auto probs = scratch_arena.vec<double>(p.numel());
+    auto probs = ScratchVec<double>(p.numel(), &scratch);
     for (size_t i = 0; i < p.numel(); ++i) {
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
@@ -319,7 +319,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
     }
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1×k row vector.
-        auto sorted = scratch_arena.vec<double>(x.numel());
+        auto sorted = ScratchVec<double>(x.numel(), &scratch);
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
         auto out = Value::matrix(1, k, ValueType::DOUBLE, mr);
@@ -348,7 +348,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
     const size_t outR = outShape.rows, outC = outShape.cols;
     const size_t outP = outShape.pages == 0 ? 1 : outShape.pages;
     const size_t N = detail::sliceLenForDim(x, d);
-    auto sorted = scratch_arena.vec<double>(N);
+    auto sorted = ScratchVec<double>(N, &scratch);
     const double *src = x.doubleData();
 
     auto writeOut = [&](size_t rr, size_t cc, size_t pp, double v) {
@@ -547,8 +547,8 @@ inline std::pair<Value, Value>
 allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(mr);
-        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        ScratchArena scratch(mr);
+        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
@@ -566,19 +566,19 @@ modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
         return std::make_tuple(Value::matrix(0, 0, outType, mr),
                                Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     if (x.isScalar() || x.dims().isVector()) {
-        ScratchVec<T> scratch(x.numel(), &scratch_arena);
+        ScratchVec<T> buf(x.numel(), &scratch);
         for (size_t i = 0; i < x.numel(); ++i)
-            scratch[i] = readSrcAsT<T>(x, i, typeMatch);
+            buf[i] = readSrcAsT<T>(x, i, typeMatch);
         T v; double c;
-        modeFromSliceT<T>(scratch.data(), x.numel(), v, c);
+        modeFromSliceT<T>(buf.data(), x.numel(), v, c);
         return std::make_tuple(makeScalarT<T>(v, outType, mr),
                                Value::scalar(c, mr));
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
-    modeAlongDim<T>(&scratch_arena, x, redDim,
+    modeAlongDim<T>(&scratch, x, redDim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -618,8 +618,8 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
         return modeAllT<T>(x, outType, mr);
     }
     auto [out, outC] = allocModeOutputs(x, dim, outType, mr);
-    ScratchArena scratch_arena(mr);
-    modeAlongDim<T>(&scratch_arena, x, dim,
+    ScratchArena scratch(mr);
+    modeAlongDim<T>(&scratch, x, dim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -755,8 +755,8 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag)
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
 
-    ScratchArena scratch_arena(mr);
-    ScratchVec<double> data(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<double> data(&scratch);
     std::size_t n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
@@ -793,8 +793,8 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int nor
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, mr);
-    ScratchArena scratch_arena(mr);
-    auto data = scratch_arena.vec<double>(n * 2);
+    ScratchArena scratch(mr);
+    auto data = ScratchVec<double>(n * 2, &scratch);
     for (std::size_t i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
         data[n + i] = y.elemAsDouble(i);      // column 1 (= y)
@@ -818,8 +818,8 @@ Value corrcoefFromCov(std::pmr::memory_resource *mr, const Value &C)
     if (p == 0) return R;
     const double *cd = C.doubleData();
     double *rd = R.doubleDataMut();
-    ScratchArena scratch_arena(mr);
-    auto diag = scratch_arena.vec<double>(p);
+    ScratchArena scratch(mr);
+    auto diag = ScratchVec<double>(p, &scratch);
     for (std::size_t i = 0; i < p; ++i)
         diag[i] = std::sqrt(cd[i * p + i]);
     for (std::size_t i = 0; i < p; ++i)
@@ -991,16 +991,16 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error("median: complex inputs are not supported",
                          0, 0, "median", "", "m:median:complex");
         const size_t total = args[0].numel();
-        ScratchArena scratch_arena(ctx.engine->resource());
-        auto scratch = scratch_arena.vec<double>(total);
+        ScratchArena scratch(ctx.engine->resource());
+        auto buf = ScratchVec<double>(total, &scratch);
         const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
-            std::copy(args[0].doubleData(), args[0].doubleData() + total, scratch.data());
+            std::copy(args[0].doubleData(), args[0].doubleData() + total, buf.data());
         else
-            for (size_t i = 0; i < total; ++i) scratch[i] = args[0].elemAsDouble(i);
+            for (size_t i = 0; i < total; ++i) buf[i] = args[0].elemAsDouble(i);
         size_t k = total;
-        if (omitNan) k = compactNonNan(scratch.data(), total);
-        double v = medianFromSlice(scratch.data(), k);
+        if (omitNan) k = compactNonNan(buf.data(), total);
+        double v = medianFromSlice(buf.data(), k);
         Value r = Value::scalar(v, ctx.engine->resource());
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());

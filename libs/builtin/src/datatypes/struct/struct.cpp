@@ -8,7 +8,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
@@ -79,8 +79,8 @@ Value structfun(std::pmr::memory_resource *mr, const Value &fn, const Value &s,
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
-    ScratchArena scratch_arena(mr);
-    ScratchVec<Value> results(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<Value> results(&scratch);
     results.reserve(n);
     for (const auto &kv : fields)
         results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,

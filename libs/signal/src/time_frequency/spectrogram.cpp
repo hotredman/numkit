@@ -7,7 +7,7 @@
 #include <numkit/signal/time_frequency/spectrogram.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -83,7 +83,7 @@ spectrogram(std::pmr::memory_resource *mr,
     // Per-segment FFT buffer hoisted: see pwelch for the rationale —
     // a fresh allocation per loop iteration would grow the arena to
     // O(nSegments × nfft) instead of O(nfft).
-    auto buf = scratch.vec<Complex>(nfft);
+    auto buf = ScratchVec<Complex>(nfft, &scratch);
 
     size_t seg = 0;
     for (size_t start = 0; start + winLen <= nx; start += step) {

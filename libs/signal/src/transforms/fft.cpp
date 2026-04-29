@@ -4,7 +4,7 @@
 // Engine's MATLAB-style calling convention onto it. Algorithm is the same
 // Cooley-Tukey radix-2 as before (via the fftRadix2 helper in dsp_helpers.hpp)
 // — this file only restructures WHERE the logic lives (public free
-// functions with an explicit Allocator parameter vs an engine-registered
+// functions with an explicit memory_resource parameter vs an engine-registered
 // lambda that reached into CallContext).
 
 #include <numkit/signal/transforms/fft.hpp>
@@ -56,9 +56,9 @@ namespace {
 //     enough.
 //
 // Trade-off: scratch memory is no longer routed through the user's
-// Allocator (so it doesn't show up in Engine accounting). Output
-// MValues still go through the user's Allocator — only the internal
-// scratch is process-cached. Cache memory is bounded: one entry per
+// memory_resource (so it doesn't show up in Engine accounting). Output
+// Values still go through the user's memory_resource — only the
+// internal scratch is process-cached. Cache memory is bounded: one entry per
 // distinct power-of-two FFT size used in the program, and one per
 // thread for the working buffer (sized to the largest fftLen seen).
 

@@ -7,7 +7,7 @@
 #include <numkit/builtin/datatypes/strings/scan.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "io_helpers.hpp"
@@ -370,9 +370,9 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();
 
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     ScanfOut r{0, 0};
-    scanfEmit(input, fmt, sz, nargout, outs, mr, r, &scratch_arena);
+    scanfEmit(input, fmt, sz, nargout, outs, mr, r, &scratch);
     f->cursor += r.bytesConsumed;
 
     // Populate ferror on a partial match so scripts can distinguish
@@ -393,10 +393,10 @@ void sscanf(std::pmr::memory_resource *mr, Span<const Value> args, size_t nargou
         sz = detail::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     ScanfOut r{0, 0};
     scanfEmit(args[0].toString(), fmt, sz, nargout, outs, mr, r,
-              &scratch_arena);
+              &scratch);
 
     if (nargout > 2)
         outs[2] = Value::fromString("", mr); // errmsg — always empty for now
@@ -508,7 +508,7 @@ ScratchVec<TextscanConv> parseTextscanFormat(std::pmr::memory_resource *mr,
 void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     (void)nargout;
-    std::pmr::memory_resource *mr = engine.resource();
+    std::pmr::memory_resource *userMr = engine.resource();
     if (args.size() < 2 || !args[1].isChar())
         throw Error("textscan: requires (source, format [, N] [, opt, value …])");
 
@@ -529,7 +529,8 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
 
     std::string fmt = args[1].toString();
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(userMr);
+    auto *mr = &scratch;  // body uses this for SCRATCH allocations
     auto convs = parseTextscanFormat(mr, fmt);
 
     // Optional positional N, then name-value pairs.
@@ -740,7 +741,7 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     ScratchVec<ScratchVec<std::string>> strCols(convs.size(), mr);
     // Staging buffers are HOISTED out of the cycle loop and clear()-ed
     // each iteration: re-creating them inside the loop would bump-leak
-    // under the monotonic resource (footgun #c in scratch_arena.hpp).
+    // under the monotonic resource (footgun #c in scratch.hpp).
     // After a few iterations the capacity stabilises and clear() reuses
     // it — total arena footprint stays bounded.
     ScratchVec<std::pair<size_t, double>>      stageNum(mr);
@@ -868,13 +869,13 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
             size_t k = strCols[i].size();
             Value inner = Value::cell(k, 1);
             for (size_t j = 0; j < k; ++j)
-                inner.cellAt(j) = Value::fromString(strCols[i][j], mr);
+                inner.cellAt(j) = Value::fromString(strCols[i][j], userMr);
             result.cellAt(slot++) = std::move(inner);
         } else {
             size_t k = numCols[i].size();
             Value col = (k == 0)
-                             ? Value::matrix(0, 0, ValueType::DOUBLE, mr)
-                             : Value::matrix(k, 1, ValueType::DOUBLE, mr);
+                             ? Value::matrix(0, 0, ValueType::DOUBLE, userMr)
+                             : Value::matrix(k, 1, ValueType::DOUBLE, userMr);
             if (k > 0)
                 std::memcpy(col.doubleDataMut(), numCols[i].data(),
                             k * sizeof(double));

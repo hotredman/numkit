@@ -22,7 +22,7 @@
 #include "helpers.hpp"
 
 #include <memory_resource>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -256,31 +256,31 @@ Value applyAlongDim(const Value &x, int dim, F &&f, std::pmr::memory_resource *m
     if (x.isEmpty() && x.dims().ndim() < 4) {
         return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     }
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     if (x.dims().isVector() || x.isScalar()) {
-        auto scratch = scratch_arena.vec<double>(x.numel());
+        auto buf = ScratchVec<double>(x.numel(), &scratch);
         if (x.type() == ValueType::DOUBLE)
-            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+            std::copy(x.doubleData(), x.doubleData() + x.numel(), buf.data());
         else
             for (size_t i = 0; i < x.numel(); ++i)
-                scratch[i] = x.elemAsDouble(i);
-        return Value::scalar(f(0, scratch.data(), x.numel()), mr);
+                buf[i] = x.elemAsDouble(i);
+        return Value::scalar(f(0, buf.data(), x.numel()), mr);
     }
     // ND fallback for rank ≥ 4. dim out-of-range was already mapped by
     // validateDim → ndim+1 sentinel, but we may receive dim ∈ [1, ndim].
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(&scratch_arena, x, dim);
+        auto shape = outShapeForDimND(&scratch, x, dim);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::DOUBLE, mr);
         double *dst = out.doubleDataMut();
-        forEachSliceND(&scratch_arena, x, dim, dst, std::forward<F>(f));
+        forEachSliceND(&scratch, x, dim, dst, std::forward<F>(f));
         return out;
     }
     auto outShape = outShapeForDim(x, dim);
     Value out = createMatrix(outShape, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
-    forEachSlice(&scratch_arena, x, dim, [&](size_t outIdx, double *slice, size_t n) {
+    forEachSlice(&scratch, x, dim, [&](size_t outIdx, double *slice, size_t n) {
         dst[outIdx] = f(outIdx, slice, n);
     });
     return out;
@@ -296,23 +296,23 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, std::pmr::memory_resource
         return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
                 Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     if (x.dims().isVector() || x.isScalar()) {
-        auto scratch = scratch_arena.vec<double>(x.numel());
+        auto buf = ScratchVec<double>(x.numel(), &scratch);
         if (x.type() == ValueType::DOUBLE)
-            std::copy(x.doubleData(), x.doubleData() + x.numel(), scratch.data());
+            std::copy(x.doubleData(), x.doubleData() + x.numel(), buf.data());
         else
             for (size_t i = 0; i < x.numel(); ++i)
-                scratch[i] = x.elemAsDouble(i);
+                buf[i] = x.elemAsDouble(i);
         double v = 0;
         size_t idx = 0;
-        f(scratch.data(), x.numel(), v, idx);
+        f(buf.data(), x.numel(), v, idx);
         return {Value::scalar(v, mr),
                 Value::scalar(static_cast<double>(idx + 1), mr)};
     }
     // ND fallback (rank ≥ 4)
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(&scratch_arena, x, dim);
+        auto shape = outShapeForDimND(&scratch, x, dim);
         Value out    = Value::matrixND(shape.data(),
                                          static_cast<int>(shape.size()),
                                          ValueType::DOUBLE, mr);
@@ -321,7 +321,7 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, std::pmr::memory_resource
                                          ValueType::DOUBLE, mr);
         double *dst  = out.doubleDataMut();
         double *dstI = outIdx.doubleDataMut();
-        forEachSliceND(&scratch_arena, x, dim, dst,
+        forEachSliceND(&scratch, x, dim, dst,
             [&](size_t outOff, double *slice, size_t n) {
                 double v = 0; size_t idx = 0;
                 f(slice, n, v, idx);
@@ -335,7 +335,7 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, std::pmr::memory_resource
     Value outIdx = createMatrix(outShape, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     double *dstI = outIdx.doubleDataMut();
-    forEachSlice(&scratch_arena, x, dim, [&](size_t outOff, double *slice, size_t n) {
+    forEachSlice(&scratch, x, dim, [&](size_t outOff, double *slice, size_t n) {
         double v = 0;
         size_t idx = 0;
         f(slice, n, v, idx);

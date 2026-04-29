@@ -3,7 +3,7 @@
 #include <numkit/signal/digital_filtering/filter.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -53,8 +53,8 @@ Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, cons
                      0, 0, "filter", "", "m:filter:zeroLead");
 
     ScratchArena scratch(mr);
-    auto bn = scratch.vec<double>(nb);
-    auto an = scratch.vec<double>(na);
+    auto bn = ScratchVec<double>(nb, &scratch);
+    auto an = ScratchVec<double>(na, &scratch);
     for (size_t i = 0; i < nb; ++i)
         bn[i] = bd[i] / a0;
     for (size_t i = 0; i < na; ++i)
@@ -83,8 +83,8 @@ Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, co
                      0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
 
     ScratchArena scratch(mr);
-    auto bn = scratch.vec<double>(nb);
-    auto an = scratch.vec<double>(na);
+    auto bn = ScratchVec<double>(nb, &scratch);
+    auto an = ScratchVec<double>(na, &scratch);
     for (size_t i = 0; i < nb; ++i)
         bn[i] = bd[i] / a0;
     for (size_t i = 0; i < na; ++i)
@@ -98,7 +98,7 @@ Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, co
         nEdge = nx - 1;
 
     const size_t extLen = nx + 2 * nEdge;
-    auto ext = scratch.vec<double>(extLen);
+    auto ext = ScratchVec<double>(extLen, &scratch);
     for (size_t i = 0; i < nEdge; ++i)
         ext[i] = 2.0 * xd[0] - xd[nEdge - i];
     for (size_t i = 0; i < nx; ++i)

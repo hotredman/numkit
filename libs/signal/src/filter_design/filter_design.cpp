@@ -7,7 +7,7 @@
 #include <numkit/signal/filter_design/filter_design.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"           // Complex typedef
@@ -136,7 +136,7 @@ Value fir1(std::pmr::memory_resource *mr, int N, double Wn, const std::string &t
     const double half = N / 2.0;
 
     ScratchArena scratch(mr);
-    auto h = scratch.vec<double>(filtLen);
+    auto h = ScratchVec<double>(filtLen, &scratch);
     double hSum = 0.0;
 
     for (size_t i = 0; i < filtLen; ++i) {

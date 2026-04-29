@@ -7,7 +7,7 @@
 #include <numkit/builtin/math/interpolation/interp.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -390,8 +390,8 @@ Value interp2(std::pmr::memory_resource *mr, const Value &V,
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     ScratchArena scratch(mr);
-    auto xGrid = scratch.vec<double>(C);
-    auto yGrid = scratch.vec<double>(R);
+    auto xGrid = ScratchVec<double>(C, &scratch);
+    auto yGrid = ScratchVec<double>(R, &scratch);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     return interp2Impl(mr, &scratch, V,
@@ -522,9 +522,9 @@ Value interp3(std::pmr::memory_resource *mr, const Value &V,
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
     ScratchArena scratch(mr);
-    auto xGrid = scratch.vec<double>(C);
-    auto yGrid = scratch.vec<double>(R);
-    auto zGrid = scratch.vec<double>(P);
+    auto xGrid = ScratchVec<double>(C, &scratch);
+    auto yGrid = ScratchVec<double>(R, &scratch);
+    auto zGrid = ScratchVec<double>(P, &scratch);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);

@@ -8,7 +8,7 @@
 #include <numkit/builtin/lang/arrays/manip.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/shape_ops.hpp>
 #include <numkit/core/types.hpp>
 
@@ -713,7 +713,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     //   repmat(A, m, n)         → two scalars
     //   repmat(A, m, n, p, ...) → ≥ 2 scalars
     ScratchArena scratch(mr);
-    auto tiles = scratch.vec<size_t>();
+    auto tiles = ScratchVec<size_t>(&scratch);
     if (args.size() == 2) {
         const Value &v = args[1];
         const size_t k = v.numel();
@@ -802,7 +802,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
     ScratchArena scratch(mr);
-    auto shifts = scratch.vec<int64_t>(nk);
+    auto shifts = ScratchVec<int64_t>(nk, &scratch);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
     outs[0] = circshiftND(mr, args[0], shifts.data(), static_cast<int>(nk));

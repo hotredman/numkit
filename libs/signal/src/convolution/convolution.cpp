@@ -7,7 +7,7 @@
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../dsp_helpers.hpp"
@@ -61,7 +61,7 @@ deconv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     const double *ad = a.doubleData();
 
     const size_t nq = nb - na + 1;
-    auto q = scratch.vec<double>(nq);
+    auto q = ScratchVec<double>(nq, &scratch);
 
     const double a0 = ad[0];
     if (a0 == 0.0)
@@ -98,7 +98,7 @@ xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     const size_t nc = nx + ny - 1;
 
     ScratchArena scratch(mr);
-    auto yRev = scratch.vec<double>(ny);
+    auto yRev = ScratchVec<double>(ny, &scratch);
     for (size_t i = 0; i < ny; ++i)
         yRev[i] = yd[ny - 1 - i];
 

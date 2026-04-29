@@ -8,7 +8,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
@@ -48,8 +48,8 @@ Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
     const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
 
     const size_t n = c.numel();
-    ScratchArena scratch_arena(mr);
-    ScratchVec<Value> results(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<Value> results(&scratch);
     results.reserve(n);
     for (size_t i = 0; i < n; ++i)
         results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
@@ -112,11 +112,11 @@ void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
     std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty())
         throw Error("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
         const size_t n = args[0].numel();
-        auto dims = scratch_arena.vec<size_t>(n);
+        auto dims = ScratchVec<size_t>(n, &scratch);
         for (size_t i = 0; i < n; ++i)
             dims[i] = static_cast<size_t>(args[0].elemAsDouble(i));
         outs[0] = Value::cellND(dims.data(), static_cast<int>(n));
@@ -139,7 +139,7 @@ void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
         return;
     }
     // 4+ scalar args: cell(m, n, p, q, ...).
-    auto dims = scratch_arena.vec<size_t>(args.size());
+    auto dims = ScratchVec<size_t>(args.size(), &scratch);
     for (size_t i = 0; i < args.size(); ++i)
         dims[i] = static_cast<size_t>(args[i].toScalar());
     outs[0] = Value::cellND(dims.data(), static_cast<int>(args.size()));

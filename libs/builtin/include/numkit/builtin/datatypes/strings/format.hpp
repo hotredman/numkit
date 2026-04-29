@@ -27,7 +27,7 @@ size_t countFormatSpecs(const std::string &fmt);
 /// countFormatSpecs(fmt) values. Char args pass through as single tokens
 /// (MATLAB %s consumes the whole string).
 ///
-/// Takes an Allocator because intermediate scalar MValues are allocated.
+/// Takes a memory_resource because intermediate scalar MValues are allocated.
 std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
                          Span<const Value> args, size_t argStart);
 

@@ -4,7 +4,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -569,10 +569,10 @@ Value logicalBinary(const char *opName, Op op,
 {
     if (a.isScalar() && b.isScalar())
         return Value::logicalScalar(op(a.toBool(), b.toBool()), mr);
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     if (a.isScalar()) {
         bool av = a.toBool();
-        auto bb = toBoolArray(&scratch_arena, b);
+        auto bb = toBoolArray(&scratch, b);
         auto r = createLike(b, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < bb.size(); ++i)
@@ -581,7 +581,7 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (b.isScalar()) {
         bool bv = b.toBool();
-        auto aa = toBoolArray(&scratch_arena, a);
+        auto aa = toBoolArray(&scratch, a);
         auto r = createLike(a, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
@@ -591,8 +591,8 @@ Value logicalBinary(const char *opName, Op op,
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName,
                      0, 0, opName, "", "m:dimagree");
-    auto aa = toBoolArray(&scratch_arena, a);
-    auto bb = toBoolArray(&scratch_arena, b);
+    auto aa = toBoolArray(&scratch, a);
+    auto bb = toBoolArray(&scratch, b);
     auto r = createLike(a, ValueType::LOGICAL, mr);
     uint8_t *dst = r.logicalDataMut();
     for (size_t i = 0; i < aa.size(); ++i)

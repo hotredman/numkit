@@ -3,7 +3,7 @@
 #include <numkit/builtin/lang/arrays/matrix.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -375,8 +375,8 @@ Value pagemtimesImpl(std::pmr::memory_resource *mr,
     // reused across all batch pages).
     const bool xDirect = (x.type() == pagemtimesElemMType<T>()) && (tx == TranspOp::None);
     const bool yDirect = (y.type() == pagemtimesElemMType<T>()) && (ty == TranspOp::None);
-    ScratchArena scratch_arena(mr);
-    ScratchVec<T> scratchX(&scratch_arena), scratchY(&scratch_arena);
+    ScratchArena scratch(mr);
+    ScratchVec<T> scratchX(&scratch), scratchY(&scratch);
     if (!xDirect) scratchX.resize(xPageStride);
     if (!yDirect) scratchY.resize(yPageStride);
 
@@ -492,7 +492,7 @@ std::tuple<Value, Value> sort(std::pmr::memory_resource *mr, const Value &x)
     const size_t slice1 = (sortDim == 1) ? 1 : C;
     const size_t slice2 = (sortDim == 2) ? 1 : P;
     ScratchArena scratch(mr);
-    auto buf = scratch.vec<std::pair<double, size_t>>(N);
+    ScratchVec<std::pair<double, size_t>> buf(N, &scratch);
 
     for (size_t pp = 0; pp < slice2; ++pp)
         for (size_t c = 0; c < slice1; ++c)
@@ -578,7 +578,7 @@ sortRowsImpl(std::pmr::memory_resource *mr, const Value &x,
         }
     }
 
-    auto perm = scratch.vec<size_t>(R);
+    auto perm = ScratchVec<size_t>(R, &scratch);
     for (size_t i = 0; i < R; ++i) perm[i] = i;
 
     const double *src = m.doubleData();
@@ -612,7 +612,7 @@ std::tuple<Value, Value> sortrows(std::pmr::memory_resource *mr, const Value &x,
 Value find(std::pmr::memory_resource *mr, const Value &x)
 {
     ScratchArena scratch(mr);
-    auto indices = scratch.vec<double>();
+    auto indices = ScratchVec<double>(&scratch);
     if (x.isLogical()) {
         const uint8_t *ld = x.logicalData();
         for (size_t i = 0; i < x.numel(); ++i)
@@ -1619,7 +1619,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
                      0, 0, "sortrows", "", "m:sortrows:nargin");
     std::pmr::memory_resource *mr = ctx.engine->resource();
     ScratchArena scratch(mr);
-    auto cols = scratch.vec<int>();
+    auto cols = ScratchVec<int>(&scratch);
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const auto &c = args[1];
         if (c.type() == ValueType::CHAR || c.type() == ValueType::STRING)

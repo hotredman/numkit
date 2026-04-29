@@ -5,7 +5,7 @@
 #include <numkit/signal/smoothing/medfilt.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -35,7 +35,7 @@ Value medfilt1(std::pmr::memory_resource *mr, const Value &x, size_t k)
     const size_t rightHalf = k / 2;
 
     ScratchArena scratch(mr);
-    auto win = scratch.vec<double>();
+    auto win = ScratchVec<double>(&scratch);
     win.reserve(k);
 
     const double *src = x.doubleData();

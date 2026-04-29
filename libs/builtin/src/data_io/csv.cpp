@@ -6,7 +6,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -120,11 +120,11 @@ Value csvread(Engine &engine, Span<const Value> args)
         throw Error(std::string("csvread: ") + e.what());
     }
 
-    ScratchArena scratch_arena(mr);
+    ScratchArena scratch(mr);
     // Outer + inner ScratchVec — uses-allocator construction propagates
-    // `mr` into each inner row that we move-construct from `parseCsvLine`'s
-    // sliced result below.
-    ScratchVec<ScratchVec<double>> rows(mr);
+    // the arena into each inner row that we move-construct from
+    // `parseCsvLine`'s sliced result below.
+    ScratchVec<ScratchVec<double>> rows(&scratch);
     size_t lineNo = 0;
     size_t pos = 0;
     while (pos <= content.size()) {
@@ -145,8 +145,8 @@ Value csvread(Engine &engine, Span<const Value> args)
             break;
         ++lineNo;
 
-        ScratchVec<double> cells = parseCsvLine(mr, line);
-        ScratchVec<double> row(mr);
+        ScratchVec<double> cells = parseCsvLine(&scratch, line);
+        ScratchVec<double> row(&scratch);
         size_t endCol = haveRange ? std::min(c2 + 1, cells.size()) : cells.size();
         if (c1 < endCol)
             row.assign(cells.begin() + c1, cells.begin() + endCol);

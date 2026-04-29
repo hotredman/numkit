@@ -11,7 +11,7 @@
 
 #include <numkit/builtin/lang/arrays/matrix.hpp>  // reshape, horzcat, vertcat
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/shape_ops.hpp>      // computeStridesColMajor, incrementCoords
 #include <numkit/core/types.hpp>
 
@@ -239,7 +239,7 @@ Value squeeze(std::pmr::memory_resource *mr, const Value &x)
     // (1×1×1, 1×1×1×1, etc.) collapses to scalar shape (1×1) rather than
     // an invalid 0D shape.
     ScratchArena scratch(mr);
-    auto kept = scratch.vec<size_t>();
+    auto kept = ScratchVec<size_t>(&scratch);
     kept.reserve(nd);
     for (int i = 0; i < nd; ++i) {
         const size_t d = dd.dim(i);

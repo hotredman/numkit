@@ -9,7 +9,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "io_helpers.hpp"
@@ -294,8 +294,8 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
     if (sz.limit != SIZE_MAX && n < sz.limit)
         f->lastError = "End of file reached.";
 
-    ScratchArena scratch_arena(mr);
-    auto values = scratch_arena.vec<double>(n);
+    ScratchArena scratch(mr);
+    auto values = ScratchVec<double>(n, &scratch);
     for (size_t i = 0; i < n; ++i) {
         // Local copy lets us byte-swap safely without mutating f->buffer.
         char tmp[8];

@@ -6,7 +6,7 @@
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/scratch_arena.hpp>
+#include <numkit/core/scratch.hpp>
 
 #include <cstddef>
 #include <memory_resource>
@@ -131,22 +131,22 @@ TEST(ScratchArenaTest, VecDefaultIsEmptyAndGrowable)
     EXPECT_DOUBLE_EQ(v[7], 3.5);
 }
 
-// ─── scratchCopyOf attaches the target arena, not default ───────────
+// ─── alloc-aware copy ctor attaches the target arena, not default ───
 //
-// Regression guard: pmr::vector's copy ctor uses
-// select_on_container_copy_construction → default_resource. Without
-// the explicit-allocator copy, X would silently allocate off-arena.
-// (ScratchVec's deleted copy ctor catches the most common form at
-// compile time; this checks the fallback explicit-copy path still
-// routes through the arena.)
+// Regression guard: pmr::vector's IMPLICIT copy ctor uses
+// select_on_container_copy_construction → default_resource. ScratchVec
+// deletes that implicit copy at compile time. The remaining explicit
+// alloc-aware copy ctor (inherited via `using base_type::base_type`)
+// stays — and this test verifies it actually attaches the supplied
+// resource rather than silently falling through to default.
 //
 // To make this test *actually* catch a regression, src is sized to
-// overflow the inline buffer. A correct helper spills into the
-// counted upstream (alloc_calls > 0). A broken helper that uses
-// default_resource would allocate on the default heap and leave
-// upstream untouched (alloc_calls == 0) — caught by EXPECT_GT below.
+// overflow the inline buffer. A correct ctor spills into the counted
+// upstream (alloc_calls > 0). A broken ctor that used default_resource
+// would allocate on the default heap and leave upstream untouched
+// (alloc_calls == 0) — caught by EXPECT_GT below.
 
-TEST(ScratchArenaTest, ScratchCopyOfRoutesThroughArena)
+TEST(ScratchArenaTest, AllocAwareCopyRoutesThroughArena)
 {
     UpstreamCounter c;
 
@@ -155,13 +155,13 @@ TEST(ScratchArenaTest, ScratchCopyOfRoutesThroughArena)
 
     {
         ScratchArena scratch(&c);
-        auto dst = numkit::scratchCopyOf(&scratch, src);
+        ScratchVec<int> dst(src, &scratch);
         EXPECT_EQ(dst.size(), 32768u);
         for (int v : dst)
             EXPECT_EQ(v, 42);
         EXPECT_GT(c.alloc_calls, 0u)
-            << "scratchCopyOf must route through the arena (which "
-               "spills to counted upstream when overflowing inline buffer)";
+            << "ScratchVec(other, mr) must route through the arena "
+               "(which spills to counted upstream when overflowing inline buffer)";
     }
     EXPECT_EQ(c.alloc_calls, c.dealloc_calls);
     EXPECT_EQ(c.bytes_alive, 0u);
