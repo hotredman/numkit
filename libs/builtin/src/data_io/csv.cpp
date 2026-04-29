@@ -6,14 +6,15 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <memory_resource>
 #include <sstream>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -38,9 +39,9 @@ std::string resolveCsvPath(std::string path)
 // cells map to 0.0 (matching MATLAB's csvread contract). Trailing \r
 // is stripped so CRLF files don't leak a carriage return into the last
 // cell's parse range.
-std::vector<double> parseCsvLine(const std::string &raw)
+ScratchVec<double> parseCsvLine(std::pmr::memory_resource *mr, const std::string &raw)
 {
-    std::vector<double> out;
+    ScratchVec<double> out(mr);
     size_t len = raw.size();
     if (len && raw[len - 1] == '\r')
         --len;
@@ -119,7 +120,12 @@ Value csvread(Engine &engine, Span<const Value> args)
         throw Error(std::string("csvread: ") + e.what());
     }
 
-    std::vector<std::vector<double>> rows;
+    ScratchArena scratch_arena(*alloc);
+    auto *mr = scratch_arena.resource();
+    // Outer + inner ScratchVec — uses-allocator construction propagates
+    // `mr` into each inner row that we move-construct from `parseCsvLine`'s
+    // sliced result below.
+    ScratchVec<ScratchVec<double>> rows(mr);
     size_t lineNo = 0;
     size_t pos = 0;
     while (pos <= content.size()) {
@@ -140,8 +146,8 @@ Value csvread(Engine &engine, Span<const Value> args)
             break;
         ++lineNo;
 
-        std::vector<double> cells = parseCsvLine(line);
-        std::vector<double> row;
+        ScratchVec<double> cells = parseCsvLine(mr, line);
+        ScratchVec<double> row(mr);
         size_t endCol = haveRange ? std::min(c2 + 1, cells.size()) : cells.size();
         if (c1 < endCol)
             row.assign(cells.begin() + c1, cells.begin() + endCol);
@@ -153,7 +159,7 @@ Value csvread(Engine &engine, Span<const Value> args)
         R = r2 - r1 + 1;
         C = c2 - c1 + 1;
         while (rows.size() < R)
-            rows.push_back({});
+            rows.emplace_back();   // alloc propagates via uses-allocator ctor
     } else {
         R = rows.size();
         C = 0;
