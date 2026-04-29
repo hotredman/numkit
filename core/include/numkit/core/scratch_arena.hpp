@@ -48,9 +48,11 @@ namespace numkit {
 // Copy. pmr containers do NOT propagate the allocator on copy
 // construction (uses select_on_container_copy_construction →
 // default_resource). `auto X = other;` or `pmr::vector<T> X(other);`
-// silently allocate X off-arena. Use scratchCopyOf (free function below)
-// instead — it's the only blessed way to copy a pmr::vector onto a
-// chosen resource.
+// silently allocate X off-arena. ScratchVec (defined below) closes this
+// structurally by deleting its implicit copy ctor — `auto X = other;`
+// no longer compiles. Use scratchCopyOf (free function below) for the
+// rare case where you genuinely need to duplicate a pmr::vector onto a
+// chosen resource. (Slicing-to-base bypasses the deletion; don't.)
 //
 // Move. Cross-resource moves degrade silently to element-wise moves.
 // `pmr::vector<T> dst(mr1); dst = std::move(src_with_mr2);` does NOT
@@ -59,6 +61,11 @@ namespace numkit {
 // expected. Practical rule: only move pmr::vector between containers
 // you've explicitly constructed with the same resource. When in doubt,
 // use scratchCopyOf or stick to the (size, resource) ctor pattern.
+
+// Forward declaration — defined below ScratchArena.
+template <class T>
+class ScratchVec;
+
 class ScratchArena
 {
 public:
@@ -73,7 +80,7 @@ public:
 
     std::pmr::memory_resource *resource() noexcept { return &arena_; }
 
-    // Creates a pmr::vector<T> backed by this arena, sized to `n` and
+    // Creates a ScratchVec<T> backed by this arena, sized to `n` and
     // value-initialised (zero for arithmetic types). `n == 0` returns an
     // empty vector that callers can grow via reserve()/push_back().
     //
@@ -82,12 +89,12 @@ public:
     // bit us on the primes() sieve. Use ScratchVec<std::uint8_t> for boolean
     // masks (footgun #b in this header's doc block).
     template <class T>
-    std::pmr::vector<T> vec(std::size_t n = 0)
+    ScratchVec<T> vec(std::size_t n = 0)
     {
         static_assert(!std::is_same_v<T, bool>,
                       "ScratchVec<bool> miscompiles on MSVC (bit-packed proxy "
                       "init bug); use ScratchVec<std::uint8_t> for masks.");
-        return std::pmr::vector<T>(n, &arena_);
+        return ScratchVec<T>(n, &arena_);
     }
 
 private:
@@ -106,20 +113,43 @@ private:
     std::pmr::monotonic_buffer_resource arena_;
 };
 
-// Type alias for scratch containers — every library scratch buffer
-// should use this rather than std::vector<T>.
+// Scratch container — std::pmr::vector<T> with the implicit copy
+// constructor and copy-assignment deleted. Closes footgun #a above
+// structurally: `auto X = other_scratchvec;` no longer compiles, where
+// it would previously have silently allocated X off-arena via pmr's
+// select_on_container_copy_construction. Move stays defaulted (same
+// resource → O(1) buffer transfer; cross-resource → element-wise, see
+// footgun #d).
+//
+// All other pmr::vector ctors are inherited unchanged (size, range,
+// initializer-list, plus the alloc-aware copy ctor that explicit copies
+// like scratchCopyOf use). Slicing to the base type bypasses the
+// deletion — don't do it; the docs above are the only guard against
+// that mistake.
 template <class T>
-using ScratchVec = std::pmr::vector<T>;
+class ScratchVec : public std::pmr::vector<T>
+{
+public:
+    using base_type = std::pmr::vector<T>;
+    using base_type::base_type;
+    using base_type::operator=;
+
+    ScratchVec(const ScratchVec &)            = delete;
+    ScratchVec &operator=(const ScratchVec &) = delete;
+
+    ScratchVec(ScratchVec &&) noexcept            = default;
+    ScratchVec &operator=(ScratchVec &&) noexcept = default;
+};
 
 // Returns a copy of `other` backed by `mr`. The only blessed way to
 // copy a pmr::vector onto a chosen resource — see ScratchArena's
 // "pmr::vector copy / move gotchas" doc above for why. Use this in any
 // helper that takes a memory_resource* and needs to copy a pmr::vector.
 template <class T>
-inline std::pmr::vector<T>
+inline ScratchVec<T>
 scratchCopyOf(std::pmr::memory_resource *mr, const std::pmr::vector<T> &other)
 {
-    return std::pmr::vector<T>(other, mr);
+    return ScratchVec<T>(other, mr);
 }
 
 } // namespace numkit
