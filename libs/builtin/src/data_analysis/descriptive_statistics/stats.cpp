@@ -10,6 +10,7 @@
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -21,10 +22,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <string>
 #include <type_traits>
 #include <utility>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -108,7 +109,8 @@ inline Value allocVarianceOutput(const Value &x, int redDim, Allocator *alloc)
 // Complex variance along dim: walks slices via stride math, gathers
 // each slice into a Complex scratch buffer, computes per-slice complex
 // variance, writes DOUBLE output.
-void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFlag,
+void complexVarianceAlongDim(std::pmr::memory_resource *mr,
+                             const Value &x, int redDim, double *dst, int normFlag,
                              bool omitNan = false)
 {
     const auto &d = x.dims();
@@ -120,7 +122,7 @@ void complexVarianceAlongDim(const Value &x, int redDim, double *dst, int normFl
     for (int i = redAxis + 1; i < d.ndim(); ++i) O *= d.dim(i);
 
     const Complex *src = x.complexData();
-    std::vector<Complex> scratch(sliceLen);
+    ScratchVec<Complex> scratch(sliceLen, mr);
     auto reduceSlice = [&](size_t outOff, size_t baseOff, size_t stride) {
         for (size_t k = 0; k < sliceLen; ++k)
             scratch[k] = src[baseOff + k * stride];
@@ -148,7 +150,9 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, alloc);
-    complexVarianceAlongDim(x, d, out.doubleDataMut(), normFlag, omitNan);
+    ScratchArena scratch_arena(*alloc);
+    complexVarianceAlongDim(scratch_arena.resource(), x, d,
+                            out.doubleDataMut(), normFlag, omitNan);
     if (sqrtIt) {
         double *p = out.doubleDataMut();
         const size_t n = out.numel();
@@ -281,9 +285,11 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
         throw Error(std::string(fn) + ": p must be non-empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyP");
 
+    ScratchArena scratch_arena(alloc);
+
     // Normalize probabilities into a flat vector (so prctile sees /100)
     // then validate the post-scaling value lies in [0,1].
-    std::vector<double> probs(p.numel());
+    auto probs = scratch_arena.vec<double>(p.numel());
     for (size_t i = 0; i < p.numel(); ++i) {
         probs[i] = p.doubleData()[i] * pScale;
         if (!(probs[i] >= 0.0 && probs[i] <= 1.0))
@@ -312,7 +318,7 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
     }
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1×k row vector.
-        std::vector<double> sorted(x.numel());
+        auto sorted = scratch_arena.vec<double>(x.numel());
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
         auto out = Value::matrix(1, k, ValueType::DOUBLE, &alloc);
@@ -341,7 +347,7 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
     const size_t outR = outShape.rows, outC = outShape.cols;
     const size_t outP = outShape.pages == 0 ? 1 : outShape.pages;
     const size_t N = detail::sliceLenForDim(x, d);
-    std::vector<double> sorted(N);
+    auto sorted = scratch_arena.vec<double>(N);
     const double *src = x.doubleData();
 
     auto writeOut = [&](size_t rr, size_t cc, size_t pp, double v) {
@@ -494,7 +500,8 @@ inline void modeFromSliceT(T *data, size_t n, T &outVal, double &outCount)
 // On empty slices (sliceLen == 0) fills outputs with NaN/0 (or 0/0 for
 // integer T) — matches MATLAB's mode-of-empty-slice convention.
 template <typename T>
-void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC,
+void modeAlongDim(std::pmr::memory_resource *mr,
+                  const Value &x, int redDim, T *dst, double *dstC,
                   bool typeMatch)
 {
     const auto &d = x.dims();
@@ -512,7 +519,7 @@ void modeAlongDim(const Value &x, int redDim, T *dst, double *dstC,
         return;
     }
 
-    std::vector<T> scratch(sliceLen);
+    ScratchVec<T> scratch(sliceLen, mr);
     auto runSlice = [&](size_t outIdx, size_t baseOff, size_t stride) {
         for (size_t k = 0; k < sliceLen; ++k)
             scratch[k] = readSrcAsT<T>(x, baseOff + k * stride, typeMatch);
@@ -557,8 +564,9 @@ modeAllT(const Value &x, ValueType outType, Allocator *alloc)
         return std::make_tuple(Value::matrix(0, 0, outType, alloc),
                                Value::matrix(0, 0, ValueType::DOUBLE, alloc));
     }
+    ScratchArena scratch_arena(*alloc);
     if (x.isScalar() || x.dims().isVector()) {
-        std::vector<T> scratch(x.numel());
+        ScratchVec<T> scratch(x.numel(), scratch_arena.resource());
         for (size_t i = 0; i < x.numel(); ++i)
             scratch[i] = readSrcAsT<T>(x, i, typeMatch);
         T v; double c;
@@ -568,7 +576,7 @@ modeAllT(const Value &x, ValueType outType, Allocator *alloc)
     }
     const int redDim = detail::firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, alloc);
-    modeAlongDim<T>(x, redDim,
+    modeAlongDim<T>(scratch_arena.resource(), x, redDim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -608,7 +616,8 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
         return modeAllT<T>(x, outType, alloc);
     }
     auto [out, outC] = allocModeOutputs(x, dim, outType, alloc);
-    modeAlongDim<T>(x, dim,
+    ScratchArena scratch_arena(*alloc);
+    modeAlongDim<T>(scratch_arena.resource(), x, dim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -685,7 +694,7 @@ void validateNormFlagCov(int w, const char *fn)
 
 // Build an n×p column-major DOUBLE buffer from x. Vector input is
 // treated as a single column. Returns the raw data, n, and p.
-void readMatrix(const Value &x, std::vector<double> &out,
+void readMatrix(const Value &x, ScratchVec<double> &out,
                 std::size_t &n, std::size_t &p)
 {
     if (x.dims().isVector() || x.isScalar()) {
@@ -744,7 +753,8 @@ Value cov(Allocator &alloc, const Value &x, int normFlag)
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
 
-    std::vector<double> data;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<double> data(scratch_arena.resource());
     std::size_t n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
@@ -781,7 +791,8 @@ Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag)
     const std::size_t n = x.numel();
     if (n == 0)
         return Value::matrix(2, 2, ValueType::DOUBLE, &alloc);
-    std::vector<double> data(n * 2);
+    ScratchArena scratch_arena(alloc);
+    auto data = scratch_arena.vec<double>(n * 2);
     for (std::size_t i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
         data[n + i] = y.elemAsDouble(i);      // column 1 (= y)
@@ -805,7 +816,8 @@ Value corrcoefFromCov(Allocator &alloc, const Value &C)
     if (p == 0) return R;
     const double *cd = C.doubleData();
     double *rd = R.doubleDataMut();
-    std::vector<double> diag(p);
+    ScratchArena scratch_arena(alloc);
+    auto diag = scratch_arena.vec<double>(p);
     for (std::size_t i = 0; i < p; ++i)
         diag[i] = std::sqrt(cd[i * p + i]);
     for (std::size_t i = 0; i < p; ++i)
@@ -977,7 +989,8 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error("median: complex inputs are not supported",
                          0, 0, "median", "", "m:median:complex");
         const size_t total = args[0].numel();
-        std::vector<double> scratch(total);
+        ScratchArena scratch_arena(ctx.engine->allocator());
+        auto scratch = scratch_arena.vec<double>(total);
         const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
             std::copy(args[0].doubleData(), args[0].doubleData() + total, scratch.data());
