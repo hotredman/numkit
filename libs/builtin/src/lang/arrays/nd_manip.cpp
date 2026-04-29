@@ -26,35 +26,25 @@ namespace numkit::builtin {
 
 namespace {
 
-// Check the perm vector is a valid 1-based permutation of [1..N].
-// Throws on bad input. Returns N for caller convenience.
-size_t validatePerm(const std::vector<int> &perm, const char *fn)
+// Check the perm list is a valid 1-based permutation of [1..N].
+// Throws on bad input. Stack-mounted scratch (perm length is bounded
+// by Dims::kMaxRank); no heap traffic.
+void validatePerm(const int *perm, std::size_t N, const char *fn)
 {
-    const size_t N = perm.size();
     if (N == 0)
         throw Error(std::string(fn) + ": perm vector must not be empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyPerm");
-    std::vector<int> sorted = perm;
-    std::sort(sorted.begin(), sorted.end());
-    for (size_t i = 0; i < N; ++i) {
+    if (N > Dims::kMaxRank)
+        throw Error(std::string(fn) + ": perm length exceeds 32",
+                     0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
+    int sorted[Dims::kMaxRank];
+    for (std::size_t i = 0; i < N; ++i) sorted[i] = perm[i];
+    std::sort(sorted, sorted + N);
+    for (std::size_t i = 0; i < N; ++i) {
         if (sorted[i] != static_cast<int>(i + 1))
             throw Error(std::string(fn) + ": perm must be a permutation of 1..N",
                          0, 0, fn, "", std::string("m:") + fn + ":badPerm");
     }
-    return N;
-}
-
-// Pad perm to at least nd dims with identity for any missing axis. So
-// perm=[2 1] applied to a 2D matrix becomes [2 1]; for a 4D input it
-// becomes [2 1 3 4]. The 2D/3D fast paths still pad to 3 specifically
-// (since they rely on inDims[3] arrays); the ND general path pads to
-// max(perm.size(), input ndim).
-std::vector<int> padPerm(const std::vector<int> &perm, int target)
-{
-    std::vector<int> p = perm;
-    while (static_cast<int>(p.size()) < target)
-        p.push_back(static_cast<int>(p.size() + 1));
-    return p;
 }
 
 } // namespace
@@ -95,12 +85,6 @@ void transposePage(const double *src, double *dst, size_t inR, size_t inC)
     }
 }
 
-// True if the perm is a transpose-on-each-page: [2, 1] or [2, 1, 3].
-inline bool isTransposePerm(const std::vector<int> &p3)
-{
-    return p3.size() >= 3 && p3[0] == 2 && p3[1] == 1 && p3[2] == 3;
-}
-
 } // namespace
 
 // ────────────────────────────────────────────────────────────────────
@@ -111,12 +95,12 @@ inline bool isTransposePerm(const std::vector<int> &p3)
 //   B(i_1, i_2, ..., i_N) = A(i_{p_1}, i_{p_2}, ..., i_{p_N})
 // i.e. output axis k corresponds to input axis perm[k]. So the size
 // of output along axis k equals the size of input along perm[k].
-Value permute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
+Value permute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
 {
-    validatePerm(perm, "permute");
+    validatePerm(perm, n, "permute");
 
     const auto &dd = x.dims();
-    const int inNd = std::max<int>(dd.ndim(), static_cast<int>(perm.size()));
+    const int inNd = std::max<int>(dd.ndim(), static_cast<int>(n));
     if (inNd > Dims::kMaxRank)
         throw Error("permute: rank exceeds 32",
                      0, 0, "permute", "", "m:permute:tooManyDims");
@@ -128,7 +112,7 @@ Value permute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
     size_t inDims[Dims::kMaxRank];
     size_t outDimsArr[Dims::kMaxRank];
     for (int i = 0; i < inNd; ++i)
-        p[i] = (i < static_cast<int>(perm.size())) ? perm[i] : (i + 1);
+        p[i] = (i < static_cast<int>(n)) ? perm[i] : (i + 1);
     for (int i = 0; i < inNd; ++i) inDims[i] = dd.dim(i);
     for (int k = 0; k < inNd; ++k) outDimsArr[k] = inDims[p[k] - 1];
 
@@ -214,14 +198,15 @@ Value permute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
     return r;
 }
 
-Value ipermute(Allocator &alloc, const Value &x, const std::vector<int> &perm)
+Value ipermute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
 {
-    validatePerm(perm, "ipermute");
+    validatePerm(perm, n, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
-    std::vector<int> inv(perm.size());
-    for (size_t i = 0; i < perm.size(); ++i)
+    // Stack-mounted: perm length is bounded by Dims::kMaxRank.
+    int inv[Dims::kMaxRank];
+    for (std::size_t i = 0; i < n; ++i)
         inv[perm[i] - 1] = static_cast<int>(i + 1);
-    return permute(alloc, x, inv);
+    return permute(alloc, x, inv, n);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -469,9 +454,9 @@ namespace detail {
 
 namespace {
 
-std::vector<int> permFromValue(const Value &v)
+ScratchVec<int> permFromValue(std::pmr::memory_resource *mr, const Value &v)
 {
-    std::vector<int> p;
+    ScratchVec<int> p(mr);
     p.reserve(v.numel());
     for (size_t i = 0; i < v.numel(); ++i)
         p.push_back(static_cast<int>(v.doubleData()[i]));
@@ -486,8 +471,10 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("permute: requires (A, perm)",
                      0, 0, "permute", "", "m:permute:nargin");
-    outs[0] = permute(ctx.engine->allocator(), args[0],
-                      permFromValue(args[1]));
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto perm = permFromValue(scratch.resource(), args[1]);
+    outs[0] = permute(alloc, args[0], perm.data(), perm.size());
 }
 
 void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -496,8 +483,10 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("ipermute: requires (A, perm)",
                      0, 0, "ipermute", "", "m:ipermute:nargin");
-    outs[0] = ipermute(ctx.engine->allocator(), args[0],
-                       permFromValue(args[1]));
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto perm = permFromValue(scratch.resource(), args[1]);
+    outs[0] = ipermute(alloc, args[0], perm.data(), perm.size());
 }
 
 void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

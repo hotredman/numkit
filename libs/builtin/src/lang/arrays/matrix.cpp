@@ -375,7 +375,8 @@ Value pagemtimesImpl(Allocator &alloc,
     // reused across all batch pages).
     const bool xDirect = (x.type() == pagemtimesElemMType<T>()) && (tx == TranspOp::None);
     const bool yDirect = (y.type() == pagemtimesElemMType<T>()) && (ty == TranspOp::None);
-    std::vector<T> scratchX, scratchY;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<T> scratchX(scratch_arena.resource()), scratchY(scratch_arena.resource());
     if (!xDirect) scratchX.resize(xPageStride);
     if (!yDirect) scratchY.resize(yPageStride);
 
@@ -490,7 +491,8 @@ std::tuple<Value, Value> sort(Allocator &alloc, const Value &x)
     const size_t slice0 = (sortDim == 0) ? 1 : R;
     const size_t slice1 = (sortDim == 1) ? 1 : C;
     const size_t slice2 = (sortDim == 2) ? 1 : P;
-    std::vector<std::pair<double, size_t>> buf(N);
+    ScratchArena scratch(alloc);
+    auto buf = scratch.vec<std::pair<double, size_t>>(N);
 
     for (size_t pp = 0; pp < slice2; ++pp)
         for (size_t c = 0; c < slice1; ++c)
@@ -609,7 +611,8 @@ std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x,
 
 Value find(Allocator &alloc, const Value &x)
 {
-    std::vector<double> indices;
+    ScratchArena scratch(alloc);
+    auto indices = scratch.vec<double>();
     if (x.isLogical()) {
         const uint8_t *ld = x.logicalData();
         for (size_t i = 0; i < x.numel(); ++i)
@@ -737,7 +740,8 @@ template <typename T, typename Reader>
 Value collectTypedNonzeros(Allocator &alloc, const Value &x,
                             ValueType outType, Reader read)
 {
-    std::vector<T> vals;
+    ScratchArena scratch(alloc);
+    ScratchVec<T> vals(scratch.resource());
     forEachNonzero(x, [&](size_t i) { vals.push_back(read(i)); });
     auto r = Value::matrix(vals.size(), 1, outType, &alloc);
     if (!vals.empty()) {

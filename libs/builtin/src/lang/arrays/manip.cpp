@@ -8,6 +8,7 @@
 #include <numkit/builtin/lang/arrays/manip.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/shape_ops.hpp>
 #include <numkit/core/types.hpp>
 
@@ -16,7 +17,6 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -712,7 +712,8 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     //   repmat(A, [m n p ...])  → vector (any length ≥ 1)
     //   repmat(A, m, n)         → two scalars
     //   repmat(A, m, n, p, ...) → ≥ 2 scalars
-    std::vector<size_t> tiles;
+    ScratchArena scratch(alloc);
+    auto tiles = scratch.vec<size_t>();
     if (args.size() == 2) {
         const Value &v = args[1];
         const size_t k = v.numel();
@@ -722,7 +723,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         }
         if (k == 1) {
             const size_t s = static_cast<size_t>(v.toScalar());
-            tiles = {s, s};
+            tiles.assign({s, s});
         } else {
             tiles.reserve(k);
             for (size_t i = 0; i < k; ++i)
@@ -800,7 +801,8 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         return;
     }
     // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
-    std::vector<int64_t> shifts(nk);
+    ScratchArena scratch(alloc);
+    auto shifts = scratch.vec<int64_t>(nk);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
     outs[0] = circshiftND(alloc, args[0], shifts.data(), static_cast<int>(nk));

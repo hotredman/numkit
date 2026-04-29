@@ -18,7 +18,6 @@
 #include <numkit/core/value.hpp>
 
 #include <cstddef>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -27,13 +26,13 @@ namespace numkit::builtin {
 // layer with a clear error — this surface is the 99% MATLAB use case.
 enum class AccumReducer { Sum, Max, Min, Prod, Mean, Any, All };
 
-// `outShape` is empty (size 0) → derive from max(subs) per column.
+// nOutShape == 0 → derive shape from max(subs) per column.
 // `vals` may be a scalar (broadcast to every subscript row) or a
 // length-N vector (one value per subscript row).
 Value accumarray(Allocator &alloc,
                   const Value &subs,
                   const Value &vals,
-                  const std::vector<size_t> &outShape,
+                  const size_t *outShape, std::size_t nOutShape,
                   AccumReducer op,
                   double fillVal);
 

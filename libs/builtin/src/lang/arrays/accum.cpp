@@ -15,6 +15,7 @@
 #include <numkit/builtin/lang/arrays/accum.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -24,8 +25,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <memory_resource>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -76,26 +77,29 @@ inline double applyReducer(AccumReducer op, double acc, double v)
     return acc;
 }
 
-// Build the output shape. `userShape` (passed-in) wins if non-empty,
-// else derive from per-column max(subs). subs is N×D.
-std::vector<size_t> resolveOutShape(const Value &subs,
-                                    const std::vector<size_t> &userShape,
-                                    const char *fn)
+// Build the output shape. `userShape` (passed-in) wins if non-zero
+// length, else derive from per-column max(subs). subs is N×D. Result
+// vector backed by `mr`.
+ScratchVec<size_t> resolveOutShape(std::pmr::memory_resource *mr,
+                                   const Value &subs,
+                                   const size_t *userShape, std::size_t nUserShape,
+                                   const char *fn)
 {
     const auto &d = subs.dims();
     const size_t N = d.rows();
     const size_t D = (d.ndim() <= 1) ? 1 : d.cols();
-    if (!userShape.empty()) {
-        if (userShape.size() < D)
+    if (nUserShape > 0) {
+        if (nUserShape < D)
             throw Error(std::string(fn) + ": sz length must be at least size(subs, 2)",
                          0, 0, fn, "", std::string("m:") + fn + ":sizeRank");
-        return userShape;
+        ScratchVec<size_t> out(userShape, userShape + nUserShape, mr);
+        return out;
     }
     // Auto-derive from max per column. For 1D subs, 1D output.
-    std::vector<size_t> shape(D, 0);
+    ScratchVec<size_t> shape(D, mr);
     if (N == 0) {
         // Empty subs + no sz → 0×0 (matches MATLAB).
-        return std::vector<size_t>(std::max<size_t>(D, 1), 0);
+        return ScratchVec<size_t>(std::max<size_t>(D, 1), 0, mr);
     }
     const double *p = subs.doubleData();
     for (size_t c = 0; c < D; ++c) {
@@ -111,7 +115,7 @@ std::vector<size_t> resolveOutShape(const Value &subs,
 
 // Column-major linear index from the row-of-subs `r` of the N×D matrix.
 size_t linearIndexFromSubs(const Value &subs, size_t r, size_t N, size_t D,
-                           const std::vector<size_t> &shape, const char *fn)
+                           const size_t *shape, const char *fn)
 {
     const double *p = subs.doubleData();
     size_t idx = 0;
@@ -125,13 +129,13 @@ size_t linearIndexFromSubs(const Value &subs, size_t r, size_t N, size_t D,
 }
 
 // Allocate the output Value for the given shape.
-Value allocOutput(Allocator &alloc, const std::vector<size_t> &shape)
+Value allocOutput(Allocator &alloc, const size_t *shape, std::size_t nShape)
 {
-    if (shape.size() == 1)
+    if (nShape == 1)
         return Value::matrix(shape[0], 1, ValueType::DOUBLE, &alloc);
-    if (shape.size() == 2)
+    if (nShape == 2)
         return Value::matrix(shape[0], shape[1], ValueType::DOUBLE, &alloc);
-    return Value::matrixND(shape.data(), static_cast<int>(shape.size()),
+    return Value::matrixND(shape, static_cast<int>(nShape),
                             ValueType::DOUBLE, &alloc);
 }
 
@@ -145,7 +149,7 @@ inline double readVal(const Value &vals, size_t i, bool valIsScalar)
 Value accumarray(Allocator &alloc,
                   const Value &subs,
                   const Value &vals,
-                  const std::vector<size_t> &outShape,
+                  const size_t *outShape, std::size_t nOutShape,
                   AccumReducer op,
                   double fillVal)
 {
@@ -171,10 +175,11 @@ Value accumarray(Allocator &alloc,
         throw Error("accumarray: vals must be a scalar or a length-N vector",
                      0, 0, fn, "", "m:accumarray:valSize");
 
-    auto shape = resolveOutShape(subs, outShape, fn);
+    ScratchArena scratch(alloc);
+    auto shape = resolveOutShape(scratch.resource(), subs, outShape, nOutShape, fn);
     if (shape.size() < D) shape.resize(D, 1);
 
-    Value out = allocOutput(alloc, shape);
+    Value out = allocOutput(alloc, shape.data(), shape.size());
     const size_t total = out.numel();
     double *dst = out.doubleDataMut();
 
@@ -186,15 +191,15 @@ Value accumarray(Allocator &alloc,
 
     // Track which cells have received contributions; uninitialized cells
     // get fillVal at the end. For `mean`, also accumulate counts.
-    std::vector<uint8_t> touched(total, 0);
+    auto touched = scratch.vec<uint8_t>(total);
     const bool needCount = (op == AccumReducer::Mean);
-    std::vector<size_t> count;
+    auto count = scratch.vec<size_t>();
     if (needCount) count.assign(total, 0);
 
     const double init = identityFor(op);
 
     for (size_t r = 0; r < N; ++r) {
-        const size_t lin = linearIndexFromSubs(subs, r, N, D, shape, fn);
+        const size_t lin = linearIndexFromSubs(subs, r, N, D, shape.data(), fn);
         const double v = readVal(vals, r, valIsScalar);
         if (!touched[lin]) {
             dst[lin] = applyReducer(op, init, v);
@@ -249,14 +254,15 @@ AccumReducer parseReducerFromHandle(const Value &h)
                  0, 0, "accumarray", "", "m:accumarray:fnUnsupported");
 }
 
-std::vector<size_t> parseSizeArg(const Value &sz)
+ScratchVec<size_t> parseSizeArg(std::pmr::memory_resource *mr, const Value &sz)
 {
-    if (sz.isEmpty()) return {};
+    ScratchVec<size_t> shape(mr);
+    if (sz.isEmpty()) return shape;
     if (sz.type() != ValueType::DOUBLE || !sz.dims().isVector())
         throw Error("accumarray: sz must be a numeric row vector",
                      0, 0, "accumarray", "", "m:accumarray:sizeType");
     const size_t k = sz.numel();
-    std::vector<size_t> shape(k);
+    shape.resize(k);
     const double *p = sz.doubleData();
     for (size_t i = 0; i < k; ++i) {
         const double v = p[i];
@@ -280,9 +286,11 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("accumarray: too many arguments",
                      0, 0, "accumarray", "", "m:accumarray:nargin");
 
-    std::vector<size_t> shape;
+    auto &alloc = ctx.engine->allocator();
+    ScratchArena scratch(alloc);
+    auto shape = scratch.vec<size_t>();
     if (args.size() >= 3 && !args[2].isEmpty())
-        shape = parseSizeArg(args[2]);
+        shape = parseSizeArg(scratch.resource(), args[2]);
 
     AccumReducer op = AccumReducer::Sum;
     if (args.size() >= 4 && !args[3].isEmpty())
@@ -304,8 +312,8 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "m:accumarray:sparse");
     }
 
-    outs[0] = accumarray(ctx.engine->allocator(),
-                         args[0], args[1], shape, op, fillVal);
+    outs[0] = accumarray(alloc,
+                         args[0], args[1], shape.data(), shape.size(), op, fillVal);
 }
 
 } // namespace detail

@@ -10,17 +10,18 @@
 #include <numkit/core/allocator.hpp>
 #include <numkit/core/value.hpp>
 
-#include <vector>
+#include <cstddef>
 
 namespace numkit::builtin {
 
 /// permute(A, perm) — perm is a 1-based permutation of [1..ndims(A)].
-/// `B = permute(A, [2 1])` for a matrix is the transpose.
-Value permute(Allocator &alloc, const Value &x, const std::vector<int> &perm);
+/// `B = permute(A, [2 1])` for a matrix is the transpose. Pointer + size
+/// so the same overload composes with std::vector / pmr::vector / arrays.
+Value permute(Allocator &alloc, const Value &x, const int *perm, std::size_t n);
 
 /// ipermute — inverse of permute.
 /// `ipermute(permute(A, p), p) == A` for any valid p.
-Value ipermute(Allocator &alloc, const Value &x, const std::vector<int> &perm);
+Value ipermute(Allocator &alloc, const Value &x, const int *perm, std::size_t n);
 
 /// squeeze — drop singleton dimensions. Vectors and 2D matrices are
 /// returned unchanged (MATLAB doesn't squeeze 2D below 2D); 3D arrays
