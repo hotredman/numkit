@@ -103,8 +103,9 @@ static void BM_PermuteTranspose(benchmark::State &s)
     const size_t side = static_cast<size_t>(s.range(0));
     auto m = makeMat(side, side);
     Allocator alloc = Allocator::defaultAllocator();
+    const int perm[] = {2, 1};
     for (auto _ : s) {
-        auto y = builtin::permute(alloc, m, {2, 1});
+        auto y = builtin::permute(alloc, m, perm, 2);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side));
@@ -117,8 +118,9 @@ static void BM_Permute3D(benchmark::State &s)
     const size_t side = static_cast<size_t>(s.range(0));
     auto m = make3D(side, side, side);
     Allocator alloc = Allocator::defaultAllocator();
+    const int perm[] = {3, 1, 2};
     for (auto _ : s) {
-        auto y = builtin::permute(alloc, m, {3, 1, 2});
+        auto y = builtin::permute(alloc, m, perm, 3);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side * side));
