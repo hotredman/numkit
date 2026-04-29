@@ -173,11 +173,15 @@ void forEachSlice(std::pmr::memory_resource *mr,
 
 // ND output-shape helper (any rank): copies all input dims, sets the
 // reduced dim to 1. dim is 1-based; dim > ndim means trailing
-// singleton (identity reduction) — caller handles separately.
-inline std::vector<size_t> outShapeForDimND(const Value &x, int dim)
+// singleton (identity reduction) — caller handles separately. The
+// caller threads in `mr` (typically the same arena that backs the
+// reduction's per-slice scratch) so the shape buffer never hits the
+// global heap.
+inline ScratchVec<size_t> outShapeForDimND(std::pmr::memory_resource *mr,
+                                            const Value &x, int dim)
 {
     const auto &d = x.dims();
-    std::vector<size_t> shape(d.ndim());
+    ScratchVec<size_t> shape(d.ndim(), mr);
     for (int i = 0; i < d.ndim(); ++i)
         shape[i] = (i + 1 == dim) ? 1 : d.dim(i);
     return shape;
@@ -265,7 +269,7 @@ Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
     // ND fallback for rank ≥ 4. dim out-of-range was already mapped by
     // validateDim → ndim+1 sentinel, but we may receive dim ∈ [1, ndim].
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(x, dim);
+        auto shape = outShapeForDimND(scratch_arena.resource(), x, dim);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::DOUBLE, alloc);
@@ -308,7 +312,7 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
     }
     // ND fallback (rank ≥ 4)
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(x, dim);
+        auto shape = outShapeForDimND(scratch_arena.resource(), x, dim);
         Value out    = Value::matrixND(shape.data(),
                                          static_cast<int>(shape.size()),
                                          ValueType::DOUBLE, alloc);

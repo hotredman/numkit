@@ -9,6 +9,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "io_helpers.hpp"
@@ -17,7 +18,6 @@
 #include <cstdint>
 #include <cstring>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -294,7 +294,8 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
     if (sz.limit != SIZE_MAX && n < sz.limit)
         f->lastError = "End of file reached.";
 
-    std::vector<double> values(n);
+    ScratchArena scratch_arena(*alloc);
+    auto values = scratch_arena.vec<double>(n);
     for (size_t i = 0; i < n; ++i) {
         // Local copy lets us byte-swap safely without mutating f->buffer.
         char tmp[8];

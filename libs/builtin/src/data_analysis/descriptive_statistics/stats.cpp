@@ -99,7 +99,8 @@ double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
 inline Value allocVarianceOutput(const Value &x, int redDim, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        auto shape = detail::outShapeForDimND(x, redDim);
+        ScratchArena scratch_arena(*alloc);
+        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
@@ -546,7 +547,8 @@ inline std::pair<Value, Value>
 allocModeOutputs(const Value &x, int redDim, ValueType outType, Allocator *alloc)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        auto shape = detail::outShapeForDimND(x, redDim);
+        ScratchArena scratch_arena(*alloc);
+        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, alloc),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc)};
     }

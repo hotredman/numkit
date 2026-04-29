@@ -8,11 +8,10 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
-
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -80,7 +79,8 @@ Value structfun(Allocator &alloc, const Value &fn, const Value &s,
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
-    std::vector<Value> results;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<Value> results(scratch_arena.resource());
     results.reserve(n);
     for (const auto &kv : fields)
         results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,

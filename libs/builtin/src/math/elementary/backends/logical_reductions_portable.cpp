@@ -90,7 +90,8 @@ Value logicalReduceImpl(Allocator &alloc, const Value &x, int dim)
 
     // ND fallback: rank ≥ 4 — stride arithmetic via scanSlice.
     if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
-        auto shape = detail::outShapeForDimND(x, d);
+        ScratchArena scratch_arena(alloc);
+        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, d);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
                                       ValueType::LOGICAL, &alloc);

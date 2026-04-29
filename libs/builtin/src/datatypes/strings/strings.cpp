@@ -9,6 +9,7 @@
 #include <numkit/builtin/datatypes/strings/strings.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -18,7 +19,6 @@
 #include <limits>
 #include <sstream>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -148,8 +148,8 @@ namespace {
 
 Value strsplitImpl(Allocator &alloc, const std::string &s, char delim)
 {
-    (void) alloc; // cell construction uses its own default allocation
-    std::vector<std::string> parts;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<std::string> parts(scratch_arena.resource());
     std::istringstream iss(s);
     std::string token;
     while (std::getline(iss, token, delim))

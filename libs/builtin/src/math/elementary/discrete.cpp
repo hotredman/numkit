@@ -77,7 +77,10 @@ inline Value rowFromVec(Allocator &alloc, const double *data, std::size_t n)
 
 // ── 'rows' helpers ─────────────────────────────────────────────
 
-using RowKey = std::vector<double>;
+// Hash-key type for unique('rows') / setops('rows'). pmr-backed so the
+// keys themselves bump into the per-call ScratchArena along with the
+// std::pmr::unordered_map's hash buckets — no per-row heap alloc.
+using RowKey = ScratchVec<double>;
 
 struct RowKeyHash {
     size_t operator()(const RowKey &k) const noexcept {
@@ -112,9 +115,10 @@ inline bool rowHasNan(const double *p, size_t cols, size_t rows, size_t r)
     return false;
 }
 
-inline RowKey extractRow(const double *p, size_t cols, size_t rows, size_t r)
+inline RowKey extractRow(std::pmr::memory_resource *mr,
+                          const double *p, size_t cols, size_t rows, size_t r)
 {
-    RowKey k(cols);
+    RowKey k(cols, mr);
     for (size_t c = 0; c < cols; ++c) {
         const double v = p[c * rows + r];
         k[c] = (v == 0.0) ? 0.0 : v;
@@ -289,15 +293,16 @@ Value uniqueRows(Allocator &alloc, const Value &x)
     if (rows == 0) return emptyRowsResult(alloc, cols);
 
     const double *src = x.doubleData();
-    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
-    firstIdx.reserve(rows);
     ScratchArena scratch(alloc);
+    auto *mr = scratch.resource();
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(mr);
+    firstIdx.reserve(rows);
     auto nanRows = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRows.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(mr, src, cols, rows, r), r);
         }
     }
 
@@ -325,15 +330,16 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
     }
 
     const double *src = x.doubleData();
-    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
-    firstIdx.reserve(rows);
     ScratchArena scratch(alloc);
+    auto *mr = scratch.resource();
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(mr);
+    firstIdx.reserve(rows);
     auto nanRowOrder = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(mr, src, cols, rows, r), r);
         }
     }
 
@@ -347,10 +353,10 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
     const size_t nanRankBase = uniqRows.size();
     uniqRows.insert(uniqRows.end(), nanRowOrder.begin(), nanRowOrder.end());
 
-    std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey;
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey(mr);
     rankByKey.reserve(nanRankBase);
     for (size_t r = 0; r < nanRankBase; ++r)
-        rankByKey[extractRow(src, cols, rows, uniqRows[r])] = r;
+        rankByKey[extractRow(mr, src, cols, rows, uniqRows[r])] = r;
 
     auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, &alloc);
     double *ic = icRow.doubleDataMut();
@@ -360,7 +366,7 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
             ic[r] = static_cast<double>(nanRankBase + nanSeen + 1);
             ++nanSeen;
         } else {
-            ic[r] = static_cast<double>(rankByKey[extractRow(src, cols, rows, r)] + 1);
+            ic[r] = static_cast<double>(rankByKey[extractRow(mr, src, cols, rows, r)] + 1);
         }
     }
 

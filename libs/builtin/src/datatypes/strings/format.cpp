@@ -4,12 +4,12 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cctype>
 #include <cstdio>
 #include <sstream>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -162,7 +162,8 @@ std::string formatCyclic(Allocator &alloc, const std::string &fmt,
                          Span<const Value> args, size_t argStart)
 {
     Allocator *p = &alloc;
-    std::vector<Value> stream;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<Value> stream(scratch_arena.resource());
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
         const Value &a = args[i];
