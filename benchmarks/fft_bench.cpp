@@ -147,6 +147,11 @@ BENCHMARK(BM_Fft_KernelOnly_Complex)
 // strategy as BM_Fft_KernelOnly_Complex, just calling the Stockham
 // dispatcher directly. Compare side-by-side to see where Stockham's
 // no-bit-reversal advantage wins vs the in-place r2 path.
+//
+// Stockham + SoA dispatchers exist only when NUMKIT_WITH_SIMD is on
+// (no portable fallback — they are SIMD-only optimisations of the
+// generic r2 path). Skip the bench entirely on portable builds.
+#ifdef NUMKIT_WITH_SIMD
 static void BM_Fft_KernelOnly_Stockham(benchmark::State &state)
 {
     using namespace numkit;
@@ -174,10 +179,12 @@ static void BM_Fft_KernelOnly_Stockham(benchmark::State &state)
 BENCHMARK(BM_Fft_KernelOnly_Stockham)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18);
+#endif // NUMKIT_WITH_SIMD
 
 // SoA r2 kernel — same in-place semantics as the AoS r2, but the
 // kernel internally splits to real/imag arrays to eliminate the
 // LoadInterleaved2 permute cost on AVX2.
+#ifdef NUMKIT_WITH_SIMD
 static void BM_Fft_KernelOnly_R2SoA(benchmark::State &state)
 {
     using namespace numkit;
@@ -205,8 +212,10 @@ static void BM_Fft_KernelOnly_R2SoA(benchmark::State &state)
 BENCHMARK(BM_Fft_KernelOnly_R2SoA)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 18);
+#endif // NUMKIT_WITH_SIMD
 
 // SoA r4 kernel — only valid at powers of 4.
+#ifdef NUMKIT_WITH_SIMD
 static void BM_Fft_KernelOnly_R4SoA(benchmark::State &state)
 {
     using namespace numkit;
@@ -237,6 +246,7 @@ BENCHMARK(BM_Fft_KernelOnly_R4SoA)
     ->Arg(1 << 14)   // 16384 = 4^7  ← the user benchmark hits this internally
     ->Arg(1 << 16)   // 65536 = 4^8
     ->Arg(1 << 18);  // 262144= 4^9
+#endif // NUMKIT_WITH_SIMD
 
 // Rfft pack-only: deinterleave fftLen reals into half re + half im.
 // Measures the cost of the "pack" phase the wrapper does at the start
