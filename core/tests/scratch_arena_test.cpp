@@ -29,18 +29,18 @@ struct UpstreamCounter
 
     Allocator make()
     {
-        Allocator a;
-        a.allocate = [this](std::size_t n) -> void * {
-            ++alloc_calls;
-            bytes_alive += n;
-            return ::operator new(n);
+        return Allocator{
+            [this](std::size_t n) -> void * {
+                ++alloc_calls;
+                bytes_alive += n;
+                return ::operator new(n);
+            },
+            [this](void *p, std::size_t n) {
+                ++dealloc_calls;
+                bytes_alive -= n;
+                ::operator delete(p);
+            }
         };
-        a.deallocate = [this](void *p, std::size_t n) {
-            ++dealloc_calls;
-            bytes_alive -= n;
-            ::operator delete(p);
-        };
-        return a;
     }
 };
 

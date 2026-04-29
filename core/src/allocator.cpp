@@ -2,18 +2,9 @@
 #include <numkit/core/allocator.hpp>
 
 #include <new>
+#include <utility>
 
 namespace numkit {
-
-Allocator Allocator::defaultAllocator()
-{
-    // Explicit field-by-field init rather than braced — Allocator is no longer
-    // an aggregate (mr_ is private) since the pmr bridge was added.
-    Allocator a;
-    a.allocate = [](size_t n) -> void * { return ::operator new(n); };
-    a.deallocate = [](void *p, size_t) { ::operator delete(p); };
-    return a;
-}
 
 // ── pmr::memory_resource bridge ─────────────────────────────────────────
 //
@@ -55,12 +46,18 @@ private:
 
 } // anonymous namespace
 
-std::pmr::memory_resource *Allocator::memoryResource()
+Allocator::Allocator(AllocFn alloc, DeallocFn dealloc)
+    : allocate(std::move(alloc))
+    , deallocate(std::move(dealloc))
+    , mr_(std::make_shared<AllocatorBridge>(allocate, deallocate))
+{}
+
+Allocator Allocator::defaultAllocator()
 {
-    if (!mr_) {
-        mr_ = std::make_shared<AllocatorBridge>(allocate, deallocate);
-    }
-    return mr_.get();
+    return Allocator{
+        [](std::size_t n) -> void * { return ::operator new(n); },
+        [](void *p, std::size_t)     { ::operator delete(p); }
+    };
 }
 
 } // namespace numkit

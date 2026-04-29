@@ -46,8 +46,8 @@ const std::unordered_set<std::string> kBuiltinNames = makeBuiltinNamesUnion();
 // Construction
 // ============================================================
 Engine::Engine()
+    : allocator_(Allocator::defaultAllocator())
 {
-    allocator_ = Allocator::defaultAllocator();
     globalsEnv_ = std::make_unique<Environment>();
     constantsEnv_ = std::make_unique<Environment>(nullptr, globalsEnv_.get());
     workspaceEnv_ = std::make_unique<Environment>(constantsEnv_.get(), globalsEnv_.get());
@@ -104,7 +104,20 @@ bool Engine::isReservedName(const std::string &name) const
 // ============================================================
 void Engine::setAllocator(Allocator alloc)
 {
-    allocator_ = std::move(alloc);
+    // Allocator is non-assignable (const allocate/deallocate fields enforce
+    // "swap whole Allocator, not individual fns" — see allocator.hpp). Rebind
+    // the slot in-place. If the copy-ctor throws (std::function copy can in
+    // theory hit bad_alloc during OOM), fall back to defaultAllocator —
+    // whose lambdas are stateless and SBO-fit, so its copy is effectively
+    // noexcept on any real STL. Either way the slot is always live, so
+    // Engine's destructor stays valid.
+    allocator_.~Allocator();
+    try {
+        new (&allocator_) Allocator(alloc);
+    } catch (...) {
+        new (&allocator_) Allocator(Allocator::defaultAllocator());
+        throw;
+    }
 }
 Allocator &Engine::allocator()
 {
