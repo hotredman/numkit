@@ -86,7 +86,7 @@ std::tuple<Value, Value> sort(Allocator &alloc, const Value &x);
 /// Promotes integer/logical input to DOUBLE.
 std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x);
 std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x,
-                                    const std::vector<int> &cols);
+                                    const int *cols, std::size_t nCols);
 
 /// Linear indices of non-zero (or true) entries. Result is a row vector
 /// when x is a row, column vector otherwise.

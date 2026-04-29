@@ -545,7 +545,8 @@ Value toDoubleMatrix2D(Allocator &alloc, const Value &x, const char *fn)
 }
 
 std::tuple<Value, Value>
-sortRowsImpl(Allocator &alloc, const Value &x, const std::vector<int> &cols)
+sortRowsImpl(Allocator &alloc, const Value &x,
+             const int *cols, std::size_t nCols)
 {
     auto m = toDoubleMatrix2D(alloc, x, "sortrows");
     const size_t R = m.dims().rows();
@@ -557,14 +558,16 @@ sortRowsImpl(Allocator &alloc, const Value &x, const std::vector<int> &cols)
         return std::make_tuple(std::move(m), std::move(idx));
     }
 
-    // Validate cols list. Empty list ⇒ all columns ascending in order.
-    std::vector<int> sortKeys;
-    if (cols.empty()) {
+    ScratchArena scratch(alloc);
+
+    // Validate cols list. nCols==0 ⇒ all columns ascending in order.
+    ScratchVec<int> sortKeys(scratch.resource());
+    if (nCols == 0) {
         sortKeys.reserve(C);
         for (size_t c = 1; c <= C; ++c)
             sortKeys.push_back(static_cast<int>(c));
     } else {
-        sortKeys = cols;
+        sortKeys.assign(cols, cols + nCols);
         for (int rawCol : sortKeys) {
             const int absC = (rawCol < 0) ? -rawCol : rawCol;
             if (rawCol == 0 || static_cast<size_t>(absC) > C)
@@ -573,16 +576,17 @@ sortRowsImpl(Allocator &alloc, const Value &x, const std::vector<int> &cols)
         }
     }
 
-    std::vector<size_t> perm(R);
+    auto perm = scratch.vec<size_t>(R);
     for (size_t i = 0; i < R; ++i) perm[i] = i;
 
     const double *src = m.doubleData();
     std::stable_sort(perm.begin(), perm.end(),
         [&](size_t a, size_t b) {
-            return detail::rowLexCmpByCols(src, C, R, a, b, sortKeys) < 0;
+            return detail::rowLexCmpByCols(src, C, R, a, b,
+                                            sortKeys.data(), sortKeys.size()) < 0;
         });
 
-    auto sorted = detail::collectRowsByIndex(alloc, m, perm);
+    auto sorted = detail::collectRowsByIndex(alloc, m, perm.data(), perm.size());
     auto idx = Value::matrix(R, 1, ValueType::DOUBLE, &alloc);
     double *idxP = idx.doubleDataMut();
     for (size_t i = 0; i < R; ++i)
@@ -594,13 +598,13 @@ sortRowsImpl(Allocator &alloc, const Value &x, const std::vector<int> &cols)
 
 std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x)
 {
-    return sortRowsImpl(alloc, x, {});
+    return sortRowsImpl(alloc, x, nullptr, 0);
 }
 
 std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x,
-                                    const std::vector<int> &cols)
+                                    const int *cols, std::size_t nCols)
 {
-    return sortRowsImpl(alloc, x, cols);
+    return sortRowsImpl(alloc, x, cols, nCols);
 }
 
 Value find(Allocator &alloc, const Value &x)
@@ -1610,7 +1614,8 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         throw Error("sortrows: requires at least 1 argument",
                      0, 0, "sortrows", "", "m:sortrows:nargin");
     Allocator &alloc = ctx.engine->allocator();
-    std::vector<int> cols;
+    ScratchArena scratch(alloc);
+    auto cols = scratch.vec<int>();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const auto &c = args[1];
         if (c.type() == ValueType::CHAR || c.type() == ValueType::STRING)
@@ -1625,7 +1630,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             cols.push_back(static_cast<int>(v));
         }
     }
-    auto [sorted, idx] = sortrows(alloc, args[0], cols);
+    auto [sorted, idx] = sortrows(alloc, args[0], cols.data(), cols.size());
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);

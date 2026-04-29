@@ -6,9 +6,11 @@
 #include <numkit/builtin/math/elementary/discrete.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
+#include "rows_helpers.hpp"  // detail::collectRowsByIndex
 
 #include <algorithm>
 #include <cmath>
@@ -136,22 +138,9 @@ inline Value emptyRowsResult(Allocator &alloc, size_t cols)
     return Value::matrix(0, cols, ValueType::DOUBLE, &alloc);
 }
 
-inline Value collectRowsByIndex(Allocator &alloc, const Value &x,
-                                 const std::vector<size_t> &origRows)
-{
-    const size_t rows = x.dims().rows();
-    const size_t cols = x.dims().cols();
-    const size_t outRows = origRows.size();
-    auto r = Value::matrix(outRows, cols, ValueType::DOUBLE, &alloc);
-    const double *src = x.doubleData();
-    double *dst = r.doubleDataMut();
-    for (size_t newRow = 0; newRow < outRows; ++newRow) {
-        const size_t srcRow = origRows[newRow];
-        for (size_t c = 0; c < cols; ++c)
-            dst[c * outRows + newRow] = src[c * rows + srcRow];
-    }
-    return r;
-}
+// Note: collectRowsByIndex moved to rows_helpers.hpp (shared with
+// matrix.cpp's sortRowsImpl). The duplicate definition that used to
+// live here has been removed in favour of detail::collectRowsByIndex.
 
 void validateUniqueRowsInput(const Value &x, const char *fn)
 {
@@ -300,7 +289,8 @@ Value uniqueRows(Allocator &alloc, const Value &x)
     const double *src = x.doubleData();
     std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
     firstIdx.reserve(rows);
-    std::vector<size_t> nanRows;
+    ScratchArena scratch(alloc);
+    auto nanRows = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRows.push_back(r);
@@ -309,7 +299,7 @@ Value uniqueRows(Allocator &alloc, const Value &x)
         }
     }
 
-    std::vector<size_t> uniqRows;
+    auto uniqRows = scratch.vec<size_t>();
     uniqRows.reserve(firstIdx.size() + nanRows.size());
     for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
     std::sort(uniqRows.begin(), uniqRows.end(),
@@ -318,7 +308,7 @@ Value uniqueRows(Allocator &alloc, const Value &x)
               });
     uniqRows.insert(uniqRows.end(), nanRows.begin(), nanRows.end());
 
-    return collectRowsByIndex(alloc, x, uniqRows);
+    return detail::collectRowsByIndex(alloc, x, uniqRows.data(), uniqRows.size());
 }
 
 std::tuple<Value, Value, Value>
@@ -335,7 +325,8 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
     const double *src = x.doubleData();
     std::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx;
     firstIdx.reserve(rows);
-    std::vector<size_t> nanRowOrder;
+    ScratchArena scratch(alloc);
+    auto nanRowOrder = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
@@ -344,7 +335,7 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
         }
     }
 
-    std::vector<size_t> uniqRows;
+    auto uniqRows = scratch.vec<size_t>();
     uniqRows.reserve(firstIdx.size() + nanRowOrder.size());
     for (const auto &kv : firstIdx) uniqRows.push_back(kv.second);
     std::sort(uniqRows.begin(), uniqRows.end(),
@@ -376,7 +367,7 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
     for (size_t i = 0; i < uniqRows.size(); ++i)
         ia[i] = static_cast<double>(uniqRows[i] + 1);
 
-    return std::make_tuple(collectRowsByIndex(alloc, x, uniqRows),
+    return std::make_tuple(detail::collectRowsByIndex(alloc, x, uniqRows.data(), uniqRows.size()),
                            std::move(iaCol), std::move(icRow));
 }
 

@@ -9,8 +9,8 @@
 #include <numkit/core/allocator.hpp>
 #include <numkit/core/value.hpp>
 
+#include <cmath>
 #include <cstddef>
-#include <vector>
 
 namespace numkit::builtin::detail {
 
@@ -39,12 +39,14 @@ inline int rowLexCmp(const double *p, std::size_t cols, std::size_t rows,
 // `cols1based` is the 1-based column index to compare on; a negative
 // entry flips the direction for that key (descending). Out-of-range
 // entries throw via the caller's pre-validation (this function trusts
-// the caller).
+// the caller). Pointer + size so the same helper composes with
+// std::vector / std::pmr::vector / arrays.
 inline int rowLexCmpByCols(const double *p, std::size_t totalCols,
                            std::size_t rows, std::size_t a, std::size_t b,
-                           const std::vector<int> &cols1based)
+                           const int *cols1based, std::size_t nCols)
 {
-    for (int rawCol : cols1based) {
+    for (std::size_t k = 0; k < nCols; ++k) {
+        const int rawCol = cols1based[k];
         const bool desc = rawCol < 0;
         const std::size_t cIdx = static_cast<std::size_t>(desc ? -rawCol : rawCol) - 1;
         (void) totalCols;  // caller validated rawCol in range
@@ -63,21 +65,21 @@ inline int rowLexCmpByCols(const double *p, std::size_t totalCols,
 }
 
 // Gather the rows of `x` indicated by `origRows` into a new DOUBLE matrix
-// of shape (origRows.size(), x.dims().cols()), preserving column-major
-// layout. `x` must be a 2D DOUBLE matrix.
+// of shape (nRows, x.dims().cols()), preserving column-major layout.
+// `x` must be a 2D DOUBLE matrix. Pointer + size so any contiguous
+// row-index container (std::vector / pmr::vector / array) works.
 inline Value collectRowsByIndex(Allocator &alloc, const Value &x,
-                                 const std::vector<std::size_t> &origRows)
+                                 const std::size_t *origRows, std::size_t nRows)
 {
     const std::size_t rows = x.dims().rows();
     const std::size_t cols = x.dims().cols();
-    const std::size_t outRows = origRows.size();
-    auto r = Value::matrix(outRows, cols, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(nRows, cols, ValueType::DOUBLE, &alloc);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
-    for (std::size_t newRow = 0; newRow < outRows; ++newRow) {
+    for (std::size_t newRow = 0; newRow < nRows; ++newRow) {
         const std::size_t srcRow = origRows[newRow];
         for (std::size_t c = 0; c < cols; ++c)
-            dst[c * outRows + newRow] = src[c * rows + srcRow];
+            dst[c * nRows + newRow] = src[c * rows + srcRow];
     }
     return r;
 }
