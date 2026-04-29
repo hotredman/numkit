@@ -330,7 +330,7 @@ void readGridAxis(const Value &g, ScratchVec<double> &out, const char *axis)
     for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
 }
 
-Value interp2Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *mr,
+Value interp2Impl(std::pmr::memory_resource *mr,
                    const Value &V,
                    const double *xGrid, std::size_t xN,
                    const double *yGrid, std::size_t yN,
@@ -359,8 +359,9 @@ Value interp2Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *m
     validateMonotonicAscending(yGrid, R, "Y");
 
     const Interp2Method m = parseInterp2Method(method);
+    ScratchArena scratch(mr);
     // V as DOUBLE (promote if needed).
-    ScratchVec<double> Vd(R * C, mr);
+    ScratchVec<double> Vd(R * C, &scratch);
     if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * sizeof(double));
     else
@@ -369,7 +370,7 @@ Value interp2Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *m
     // Output shape: take Xq's shape (or rather build same-shape result).
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, outMr);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -394,8 +395,7 @@ Value interp2(std::pmr::memory_resource *mr, const Value &V,
     auto yGrid = ScratchVec<double>(R, &scratch);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
-    return interp2Impl(mr, &scratch, V,
-                       xGrid.data(), xGrid.size(),
+    return interp2Impl(mr, V, xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
 
@@ -407,8 +407,7 @@ Value interp2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
     ScratchVec<double> xGrid(&scratch), yGrid(&scratch);
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
-    return interp2Impl(mr, &scratch, V,
-                       xGrid.data(), xGrid.size(),
+    return interp2Impl(mr, V, xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
 
@@ -459,7 +458,7 @@ double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t 
     return (1 - tz) * c0 + tz * c1;
 }
 
-Value interp3Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *mr,
+Value interp3Impl(std::pmr::memory_resource *mr,
                    const Value &V,
                    const double *xGrid, std::size_t xN,
                    const double *yGrid, std::size_t yN,
@@ -488,7 +487,8 @@ Value interp3Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *m
     validateMonotonicAscending(zGrid, P, "Z");
 
     const Interp2Method m = parseInterp2Method(method);
-    ScratchVec<double> Vd(R * C * P, mr);
+    ScratchArena scratch(mr);
+    ScratchVec<double> Vd(R * C * P, &scratch);
     if (V.type() == ValueType::DOUBLE)
         std::memcpy(Vd.data(), V.doubleData(), R * C * P * sizeof(double));
     else
@@ -496,7 +496,7 @@ Value interp3Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *m
 
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, outMr);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -528,8 +528,7 @@ Value interp3(std::pmr::memory_resource *mr, const Value &V,
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);
-    return interp3Impl(mr, &scratch, V,
-                       xGrid.data(), xGrid.size(),
+    return interp3Impl(mr, V, xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(),
                        zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }
@@ -544,8 +543,7 @@ Value interp3(std::pmr::memory_resource *mr, const Value &X, const Value &Y, con
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
     readGridAxis(Z, zGrid, "Z");
-    return interp3Impl(mr, &scratch, V,
-                       xGrid.data(), xGrid.size(),
+    return interp3Impl(mr, V, xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(),
                        zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }

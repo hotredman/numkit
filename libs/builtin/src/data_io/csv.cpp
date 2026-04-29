@@ -158,7 +158,7 @@ Value csvread(Engine &engine, Span<const Value> args)
         R = r2 - r1 + 1;
         C = c2 - c1 + 1;
         while (rows.size() < R)
-            rows.emplace_back();   // mr propagates via uses-allocator ctor
+            rows.emplace_back();   // arena propagates via uses-allocator ctor
     } else {
         R = rows.size();
         C = 0;

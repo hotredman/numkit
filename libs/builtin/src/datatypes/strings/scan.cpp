@@ -308,23 +308,23 @@ Value shapeScanfOutput(const double *vals, size_t n,
 // Fills outs[0] with the shaped result and, if requested, outs[1] with
 // the count. The caller handles optional outputs beyond that.
 void scanfEmit(const std::string &input, const std::string &fmt, detail::SizeSpec sz,
-               size_t nargout, Span<Value> outs, std::pmr::memory_resource *outMr, ScanfOut &r,
-               std::pmr::memory_resource *mr)
+               size_t nargout, Span<Value> outs, std::pmr::memory_resource *mr, ScanfOut &r)
 {
-    ScratchVec<double> values(mr);
+    ScratchArena scratch(mr);
+    ScratchVec<double> values(&scratch);
     r = scanfCycle(input, fmt, sz.limit, values);
     const bool hasNum = formatHasNumeric(fmt);
     // Matrix-shape dispatch: numeric format → double matrix,
     // pure-text format → char matrix. Flat size keeps the
     // per-format column-or-row shape from shapeScanfOutput.
     if (sz.matrix() && hasNum)
-        outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, outMr);
+        outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
     else if (sz.matrix())
-        outs[0] = makeCharMatrix(values.data(), values.size(), sz, outMr);
+        outs[0] = makeCharMatrix(values.data(), values.size(), sz, mr);
     else
-        outs[0] = shapeScanfOutput(values.data(), values.size(), hasNum, outMr);
+        outs[0] = shapeScanfOutput(values.data(), values.size(), hasNum, mr);
     if (nargout > 1)
-        outs[1] = Value::scalar(static_cast<double>(r.count), outMr);
+        outs[1] = Value::scalar(static_cast<double>(r.count), mr);
 }
 
 } // namespace
@@ -370,9 +370,8 @@ void fscanf(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> 
     std::string input(f->buffer.begin() + f->cursor, f->buffer.end());
     std::string fmt = args[1].toString();
 
-    ScratchArena scratch(mr);
     ScanfOut r{0, 0};
-    scanfEmit(input, fmt, sz, nargout, outs, mr, r, &scratch);
+    scanfEmit(input, fmt, sz, nargout, outs, mr, r);
     f->cursor += r.bytesConsumed;
 
     // Populate ferror on a partial match so scripts can distinguish
@@ -393,10 +392,8 @@ void sscanf(std::pmr::memory_resource *mr, Span<const Value> args, size_t nargou
         sz = detail::parseReadSize(args[2], "sscanf");
 
     std::string fmt = args[1].toString();
-    ScratchArena scratch(mr);
     ScanfOut r{0, 0};
-    scanfEmit(args[0].toString(), fmt, sz, nargout, outs, mr, r,
-              &scratch);
+    scanfEmit(args[0].toString(), fmt, sz, nargout, outs, mr, r);
 
     if (nargout > 2)
         outs[2] = Value::fromString("", mr); // errmsg — always empty for now
@@ -508,7 +505,7 @@ ScratchVec<TextscanConv> parseTextscanFormat(std::pmr::memory_resource *mr,
 void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs)
 {
     (void)nargout;
-    std::pmr::memory_resource *userMr = engine.resource();
+    std::pmr::memory_resource *mr = engine.resource();
     if (args.size() < 2 || !args[1].isChar())
         throw Error("textscan: requires (source, format [, N] [, opt, value …])");
 
@@ -529,9 +526,8 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
 
     std::string fmt = args[1].toString();
-    ScratchArena scratch(userMr);
-    auto *mr = &scratch;  // body uses this for SCRATCH allocations
-    auto convs = parseTextscanFormat(mr, fmt);
+    ScratchArena scratch(mr);
+    auto convs = parseTextscanFormat(&scratch, fmt);
 
     // Optional positional N, then name-value pairs.
     size_t argIdx = 2;
@@ -547,7 +543,7 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     }
 
     // Parse name/value options into a TextscanOptions struct.
-    TextscanOptions opts{mr};
+    TextscanOptions opts{&scratch};
     auto lower = [](std::string s) {
         for (char &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
         return s;
@@ -735,17 +731,17 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
     };
 
     // Per-column accumulators. Outer is on the arena; inner pmr-vectors
-    // pick up the same `mr` via uses-allocator construction, so every
+    // pick up the arena via uses-allocator construction, so every
     // push_back below allocates from the arena.
-    ScratchVec<ScratchVec<double>> numCols(convs.size(), mr);
-    ScratchVec<ScratchVec<std::string>> strCols(convs.size(), mr);
+    ScratchVec<ScratchVec<double>> numCols(convs.size(), &scratch);
+    ScratchVec<ScratchVec<std::string>> strCols(convs.size(), &scratch);
     // Staging buffers are HOISTED out of the cycle loop and clear()-ed
     // each iteration: re-creating them inside the loop would bump-leak
     // under the monotonic resource (footgun #c in scratch.hpp).
     // After a few iterations the capacity stabilises and clear() reuses
     // it — total arena footprint stays bounded.
-    ScratchVec<std::pair<size_t, double>>      stageNum(mr);
-    ScratchVec<std::pair<size_t, std::string>> stageStr(mr);
+    ScratchVec<std::pair<size_t, double>>      stageNum(&scratch);
+    ScratchVec<std::pair<size_t, std::string>> stageStr(&scratch);
     size_t cycles = 0;
 
     skipLeading();                         // past leading ws/EOL/comments once
@@ -869,13 +865,13 @@ void textscan(Engine &engine, Span<const Value> args, size_t nargout, Span<Value
             size_t k = strCols[i].size();
             Value inner = Value::cell(k, 1);
             for (size_t j = 0; j < k; ++j)
-                inner.cellAt(j) = Value::fromString(strCols[i][j], userMr);
+                inner.cellAt(j) = Value::fromString(strCols[i][j], mr);
             result.cellAt(slot++) = std::move(inner);
         } else {
             size_t k = numCols[i].size();
             Value col = (k == 0)
-                             ? Value::matrix(0, 0, ValueType::DOUBLE, userMr)
-                             : Value::matrix(k, 1, ValueType::DOUBLE, userMr);
+                             ? Value::matrix(0, 0, ValueType::DOUBLE, mr)
+                             : Value::matrix(k, 1, ValueType::DOUBLE, mr);
             if (k > 0)
                 std::memcpy(col.doubleDataMut(), numCols[i].data(),
                             k * sizeof(double));
