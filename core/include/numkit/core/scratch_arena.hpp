@@ -91,11 +91,16 @@ public:
     }
 
 private:
-    // 4 KiB covers the vast majority of small/medium scratch uses (filter
-    // coefficients, index arrays, NaN masks for inputs up to ~32 K bits,
-    // FFT scratch up to ~250 doubles). Larger inputs spill cleanly to the
-    // upstream Allocator without touching call sites.
-    static constexpr std::size_t kInlineBytes = 4096;
+    // 64 KiB inline absorbs the typical scratch footprint of every public
+    // libs/builtin and libs/signal function — including hash maps for
+    // set-ops at small N (where alloc overhead used to dominate) and the
+    // multi-array tridiagonal scratches in interp1Spline. Smaller buffers
+    // (4 KiB, 16 KiB) measurably regress set-op geomean; larger doesn't
+    // help further. Stack burden is fine on every supported target
+    // (Windows 1 MB main, emcc 5 MB main / 1 MB worker) since arenas are
+    // never nested or recursed. Spillover paths still work for ND-large
+    // inputs that exceed even this.
+    static constexpr std::size_t kInlineBytes = 65536;
 
     alignas(std::max_align_t) std::array<std::byte, kInlineBytes> storage_;
     std::pmr::monotonic_buffer_resource arena_;

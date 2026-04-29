@@ -58,7 +58,7 @@ TEST(ScratchArenaTest, SmallScratchDoesNotTouchUpstream)
         auto v1 = scratch.vec<double>(64);   //  512 B
         auto v2 = scratch.vec<int>(128);     //  512 B
         auto v3 = scratch.vec<std::size_t>(64); //  512 B
-        // total ≈ 1.5 KiB ≪ 4 KiB inline buffer
+        // total ≈ 1.5 KiB ≪ inline buffer
 
         EXPECT_EQ(v1.size(), 64u);
         EXPECT_EQ(v2.size(), 128u);
@@ -79,7 +79,7 @@ TEST(ScratchArenaTest, LargeScratchSpillsToUpstreamAndReleases)
 
     {
         ScratchArena scratch(a);
-        // 10 000 doubles = 80 000 B — far beyond the 4 KiB inline buffer
+        // 10 000 doubles = 80 000 B — far beyond the inline buffer
         auto v = scratch.vec<double>(10'000);
         EXPECT_EQ(v.size(), 10'000u);
         v[0]    = 1.0;
@@ -139,7 +139,7 @@ TEST(ScratchArenaTest, VecDefaultIsEmptyAndGrowable)
 // the explicit-allocator copy, X would silently allocate off-arena.
 //
 // To make this test *actually* catch a regression, src is sized to
-// overflow the 4 KiB inline buffer. A correct helper spills into the
+// overflow the inline buffer. A correct helper spills into the
 // counted upstream (alloc_calls > 0). A broken helper that uses
 // default_resource would allocate on the default heap and leave
 // upstream untouched (alloc_calls == 0) — caught by EXPECT_GT below.
@@ -149,13 +149,13 @@ TEST(ScratchArenaTest, ScratchCopyOfRoutesThroughArena)
     UpstreamCounter c;
     Allocator a = c.make();
 
-    // 2048 ints = 8 KB — overflows the 4 KiB inline buffer.
-    std::pmr::vector<int> src(2048, 42);
+    // 32768 ints = 128 KB — far beyond the inline buffer.
+    std::pmr::vector<int> src(32768, 42);
 
     {
         ScratchArena scratch(a);
         auto dst = numkit::scratchCopyOf(scratch.resource(), src);
-        EXPECT_EQ(dst.size(), 2048u);
+        EXPECT_EQ(dst.size(), 32768u);
         for (int v : dst)
             EXPECT_EQ(v, 42);
         EXPECT_GT(c.alloc_calls, 0u)
