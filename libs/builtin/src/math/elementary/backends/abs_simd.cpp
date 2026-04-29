@@ -82,33 +82,33 @@ namespace numkit::builtin {
 
 HWY_EXPORT(AbsLoop);
 
-Value abs(Allocator &alloc, const Value &x, Value *hint)
+Value abs(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     // Complex goes through scalar std::abs(Complex) — SIMD double-lane
     // implementations don't help here (sqrt of sum-of-squares with
     // cancellation pitfalls). Keep the reference path for correctness.
     if (x.isComplex()) {
         if (x.isScalar())
-            return Value::scalar(std::abs(x.toComplex()), &alloc);
-        auto r = createLike(x, ValueType::DOUBLE, &alloc);
+            return Value::scalar(std::abs(x.toComplex()), mr);
+        auto r = createLike(x, ValueType::DOUBLE, mr);
         for (std::size_t i = 0; i < x.numel(); ++i)
             r.doubleDataMut()[i] = std::abs(x.complexData()[i]);
         return r;
     }
 
     if (x.isScalar())
-        return Value::scalar(std::fabs(x.toScalar()), &alloc);
+        return Value::scalar(std::fabs(x.toScalar()), mr);
 
     // Output-reuse fast path: caller-provided hint is a heap double of
     // matching shape with unique ownership — steal its buffer instead
-    // of allocating fresh. Skips the per-call N-element alloc that
+    // of allocating fresh. Skips the per-call N-element mr that
     // dominates at large N (1.8 ms at N=1M vs 0.5 ms for the kernel).
     Value r;
     if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
         && hint->dims() == x.dims()) {
         r = std::move(*hint);
     } else {
-        r = createLike(x, ValueType::DOUBLE, &alloc);
+        r = createLike(x, ValueType::DOUBLE, mr);
     }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();

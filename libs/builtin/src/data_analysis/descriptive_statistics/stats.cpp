@@ -53,10 +53,10 @@ void validateNormFlag(int w, const char *fn)
 // input type without writing parallel single-precision kernels —
 // arithmetic happens at double precision (more precise than MATLAB)
 // then narrows at the end.
-Value narrowToSingle(Value d, Allocator *alloc)
+Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
-    Value r = createForDims(d.dims(), ValueType::SINGLE, alloc);
+    Value r = createForDims(d.dims(), ValueType::SINGLE, mr);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (size_t i = 0; i < d.numel(); ++i)
@@ -96,15 +96,15 @@ double complexVarianceFromSlice(const Complex *data, size_t n, int normFlag,
     return acc / divisor;
 }
 
-inline Value allocVarianceOutput(const Value &x, int redDim, Allocator *alloc)
+inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc);
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return createMatrix(outShape, ValueType::DOUBLE, alloc);
+    return createMatrix(outShape, ValueType::DOUBLE, mr);
 }
 
 // Complex variance along dim: walks slices via stride math, gathers
@@ -139,20 +139,20 @@ void complexVarianceAlongDim(std::pmr::memory_resource *mr,
 }
 
 Value varianceComplex(const Value &x, int normFlag, int dim,
-                       Allocator *alloc, bool sqrtIt, bool omitNan = false)
+                       std::pmr::memory_resource *mr, bool sqrtIt, bool omitNan = false)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const Complex *src = x.complexData();
     if (x.isScalar() || x.dims().isVector()) {
         double v = complexVarianceFromSlice(src, x.numel(), normFlag, omitNan);
         if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
-        return Value::scalar(v, alloc);
+        return Value::scalar(v, mr);
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
-    Value out = allocVarianceOutput(x, d, alloc);
-    ScratchArena scratch_arena(*alloc);
-    complexVarianceAlongDim(scratch_arena.resource(), x, d,
+    Value out = allocVarianceOutput(x, d, mr);
+    ScratchArena scratch_arena(mr);
+    complexVarianceAlongDim(&scratch_arena, x, d,
                             out.doubleDataMut(), normFlag, omitNan);
     if (sqrtIt) {
         double *p = out.doubleDataMut();
@@ -165,43 +165,43 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
 
 } // namespace
 
-Value var(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value var(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "var");
     if (x.type() == ValueType::COMPLEX)
-        return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/false);
+        return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/false);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
+        return Value::scalar(varianceTwoPass(x.doubleData(), x.numel(), normFlag), mr);
 
     const int d = resolveDim(x, dim, "var");
     Value r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return varianceTwoPass(slice, n, normFlag);
-        }, &alloc);
+        }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), &alloc);
+        r = narrowToSingle(std::move(r), mr);
     return r;
 }
 
-Value stdev(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value stdev(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "std");
     if (x.type() == ValueType::COMPLEX)
-        return varianceComplex(x, normFlag, dim, &alloc, /*sqrtIt=*/true);
+        return varianceComplex(x, normFlag, dim, mr, /*sqrtIt=*/true);
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
+        return Value::scalar(std::sqrt(varianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
     const int d = resolveDim(x, dim, "std");
     Value r = applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return std::sqrt(varianceTwoPass(slice, n, normFlag));
-        }, &alloc);
+        }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), &alloc);
+        r = narrowToSingle(std::move(r), mr);
     return r;
 }
 
@@ -232,7 +232,7 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
-Value median(Allocator &alloc, const Value &x, int dim)
+Value median(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("median: complex inputs are not supported (no defined ordering)",
@@ -241,9 +241,9 @@ Value median(Allocator &alloc, const Value &x, int dim)
     Value r = applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return medianFromSlice(slice, n);
-        }, &alloc);
+        }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), &alloc);
+        r = narrowToSingle(std::move(r), mr);
     return r;
 }
 
@@ -279,14 +279,14 @@ double quantileFromSortedSlice(const double *sorted, size_t n, double p)
 // quantile/prctile share the bulk of the logic. `pScale` converts the
 // raw user input to a [0,1] probability (1.0 for quantile, 1/100 for
 // prctile).
-Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
+Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p,
                     int dim, double pScale, const char *fn)
 {
     if (p.numel() == 0)
         throw Error(std::string(fn) + ": p must be non-empty",
                      0, 0, fn, "", std::string("m:") + fn + ":emptyP");
 
-    ScratchArena scratch_arena(alloc);
+    ScratchArena scratch_arena(mr);
 
     // Normalize probabilities into a flat vector (so prctile sees /100)
     // then validate the post-scaling value lies in [0,1].
@@ -308,21 +308,21 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
             [pp](size_t, double *slice, size_t n) {
                 std::sort(slice, slice + n);
                 return quantileFromSortedSlice(slice, n, pp);
-            }, &alloc);
+            }, mr);
     }
 
     // Vector p: each slice produces k outputs along the reduced dim.
     // We need to allocate the output explicitly because applyAlongDim
     // assumes 1 output per slice.
     if (x.isEmpty()) {
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     }
     if (x.dims().isVector() || x.isScalar()) {
         // Output is 1×k row vector.
         auto sorted = scratch_arena.vec<double>(x.numel());
         std::copy(x.doubleData(), x.doubleData() + x.numel(), sorted.data());
         std::sort(sorted.begin(), sorted.end());
-        auto out = Value::matrix(1, k, ValueType::DOUBLE, &alloc);
+        auto out = Value::matrix(1, k, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < k; ++i)
             out.doubleDataMut()[i] = quantileFromSortedSlice(sorted.data(),
                                                               sorted.size(),
@@ -340,7 +340,7 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
         case 3: outShape.pages = k; break;
         default: break;
     }
-    auto out = createMatrix(outShape, ValueType::DOUBLE, &alloc);
+    auto out = createMatrix(outShape, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
     const size_t R = dd.rows(), C = dd.cols();
@@ -391,14 +391,14 @@ Value quantileImpl(Allocator &alloc, const Value &x, const Value &p,
 
 } // namespace
 
-Value quantile(Allocator &alloc, const Value &x, const Value &p, int dim)
+Value quantile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
 {
-    return quantileImpl(alloc, x, p, dim, 1.0, "quantile");
+    return quantileImpl(mr, x, p, dim, 1.0, "quantile");
 }
 
-Value prctile(Allocator &alloc, const Value &x, const Value &p, int dim)
+Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim)
 {
-    return quantileImpl(alloc, x, p, dim, 0.01, "prctile");
+    return quantileImpl(mr, x, p, dim, 0.01, "prctile");
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -430,13 +430,13 @@ inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
 }
 
 template <typename T>
-inline Value makeScalarT(T v, ValueType outType, Allocator *alloc)
+inline Value makeScalarT(T v, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (outType == ValueType::DOUBLE)
-        return Value::scalar(static_cast<double>(v), alloc);
+        return Value::scalar(static_cast<double>(v), mr);
     if (outType == ValueType::LOGICAL)
-        return Value::logicalScalar(v != 0, alloc);
-    auto r = Value::matrix(1, 1, outType, alloc);
+        return Value::logicalScalar(v != 0, mr);
+    auto r = Value::matrix(1, 1, outType, mr);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -544,41 +544,41 @@ void modeAlongDim(std::pmr::memory_resource *mr,
 }
 
 inline std::pair<Value, Value>
-allocModeOutputs(const Value &x, int redDim, ValueType outType, Allocator *alloc)
+allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return {Value::matrixND(shape.data(), (int) shape.size(), outType, alloc),
-                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc)};
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return {createMatrix(outShape, outType, alloc),
-            createMatrix(outShape, ValueType::DOUBLE, alloc)};
+    return {createMatrix(outShape, outType, mr),
+            createMatrix(outShape, ValueType::DOUBLE, mr)};
 }
 
 template <typename T>
 std::tuple<Value, Value>
-modeAllT(const Value &x, ValueType outType, Allocator *alloc)
+modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(Value::matrix(0, 0, outType, alloc),
-                               Value::matrix(0, 0, ValueType::DOUBLE, alloc));
+        return std::make_tuple(Value::matrix(0, 0, outType, mr),
+                               Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
-    ScratchArena scratch_arena(*alloc);
+    ScratchArena scratch_arena(mr);
     if (x.isScalar() || x.dims().isVector()) {
-        ScratchVec<T> scratch(x.numel(), scratch_arena.resource());
+        ScratchVec<T> scratch(x.numel(), &scratch_arena);
         for (size_t i = 0; i < x.numel(); ++i)
             scratch[i] = readSrcAsT<T>(x, i, typeMatch);
         T v; double c;
         modeFromSliceT<T>(scratch.data(), x.numel(), v, c);
-        return std::make_tuple(makeScalarT<T>(v, outType, alloc),
-                               Value::scalar(c, alloc));
+        return std::make_tuple(makeScalarT<T>(v, outType, mr),
+                               Value::scalar(c, mr));
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    auto [out, outC] = allocModeOutputs(x, redDim, outType, alloc);
-    modeAlongDim<T>(scratch_arena.resource(), x, redDim,
+    auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
+    modeAlongDim<T>(&scratch_arena, x, redDim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -587,12 +587,12 @@ modeAllT(const Value &x, ValueType outType, Allocator *alloc)
 
 template <typename T>
 std::tuple<Value, Value>
-modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
+modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return std::make_tuple(Value::matrix(0, 0, outType, alloc),
-                               Value::matrix(0, 0, ValueType::DOUBLE, alloc));
+        return std::make_tuple(Value::matrix(0, 0, outType, mr),
+                               Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
@@ -600,11 +600,11 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
             const size_t n = x.numel();
             Value out, outC;
             if (x.dims().isVector()) {
-                out  = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
-                outC = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, alloc);
+                out  = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, mr);
+                outC = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, mr);
             } else {
-                out  = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
-                outC = Value::scalar(1.0, alloc);
+                out  = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, mr);
+                outC = Value::scalar(1.0, mr);
                 return std::make_tuple(std::move(out), std::move(outC));
             }
             T *dst = static_cast<T *>(out.rawDataMut());
@@ -615,11 +615,11 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
             }
             return std::make_tuple(std::move(out), std::move(outC));
         }
-        return modeAllT<T>(x, outType, alloc);
+        return modeAllT<T>(x, outType, mr);
     }
-    auto [out, outC] = allocModeOutputs(x, dim, outType, alloc);
-    ScratchArena scratch_arena(*alloc);
-    modeAlongDim<T>(scratch_arena.resource(), x, dim,
+    auto [out, outC] = allocModeOutputs(x, dim, outType, mr);
+    ScratchArena scratch_arena(mr);
+    modeAlongDim<T>(&scratch_arena, x, dim,
                     static_cast<T *>(out.rawDataMut()),
                     outC.doubleDataMut(),
                     typeMatch);
@@ -630,14 +630,14 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, Allocator *alloc)
 // outType=LOGICAL so the result preserves logical class. CHAR uses
 // T=char. COMPLEX has no defined order → throw.
 std::tuple<Value, Value>
-dispatchMode(const Value &x, int dim, Allocator *alloc, const char *fn)
+dispatchMode(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
     const bool useDimReducer = (dim > 0);
     auto run = [&](auto tag, ValueType outT) {
         using T = decltype(tag);
         return useDimReducer
-            ? modeAlongDimT<T>(x, dim, outT, alloc)
-            : modeAllT<T>(x, outT, alloc);
+            ? modeAlongDimT<T>(x, dim, outT, mr)
+            : modeAllT<T>(x, outT, mr);
     };
     switch (x.type()) {
     case ValueType::DOUBLE:  return run(double  {}, ValueType::DOUBLE);
@@ -664,10 +664,10 @@ dispatchMode(const Value &x, int dim, Allocator *alloc, const char *fn)
 } // namespace
 
 std::tuple<Value, Value>
-mode(Allocator &alloc, const Value &x, int dim)
+mode(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     const int d = resolveDim(x, dim, "mode");
-    return dispatchMode(x, d, &alloc, "mode");
+    return dispatchMode(x, d, mr, "mode");
 }
 
 // skewness / kurtosis moved to libs/stats/src/moments/moments.cpp.
@@ -733,10 +733,10 @@ void centerColumns(double *data, std::size_t n, std::size_t p)
 }
 
 // covImpl: take a centered n×p buffer, compute X' * X / divisor → p×p.
-Value covMatrixFromCentered(Allocator &alloc, const double *X,
+Value covMatrixFromCentered(std::pmr::memory_resource *mr, const double *X,
                              std::size_t n, std::size_t p, double divisor)
 {
-    auto out = Value::matrix(p, p, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(p, p, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < p; ++i)
         for (std::size_t j = 0; j < p; ++j) {
@@ -750,19 +750,19 @@ Value covMatrixFromCentered(Allocator &alloc, const double *X,
 
 } // namespace
 
-Value cov(Allocator &alloc, const Value &x, int normFlag)
+Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
 
-    ScratchArena scratch_arena(alloc);
-    ScratchVec<double> data(scratch_arena.resource());
+    ScratchArena scratch_arena(mr);
+    ScratchVec<double> data(&scratch_arena);
     std::size_t n, p;
     readMatrix(x, data, n, p);
     if (n == 0) {
         // MATLAB: cov of empty → NaN (or empty p×p depending on shape).
-        if (p == 1) return Value::scalar(std::nan(""), &alloc);
-        return Value::matrix(p, p, ValueType::DOUBLE, &alloc);
+        if (p == 1) return Value::scalar(std::nan(""), mr);
+        return Value::matrix(p, p, ValueType::DOUBLE, mr);
     }
     centerColumns(data.data(), n, p);
 
@@ -774,12 +774,12 @@ Value cov(Allocator &alloc, const Value &x, int normFlag)
         // Vector input → return scalar variance.
         double s = 0.0;
         for (std::size_t i = 0; i < n; ++i) s += data[i] * data[i];
-        return Value::scalar(s / divisor, &alloc);
+        return Value::scalar(s / divisor, mr);
     }
-    return covMatrixFromCentered(alloc, data.data(), n, p, divisor);
+    return covMatrixFromCentered(mr, data.data(), n, p, divisor);
 }
 
-Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag)
+Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int normFlag)
 {
     validateNormFlagCov(normFlag, "cov");
     validateCovInputs(x, "cov");
@@ -792,8 +792,8 @@ Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag)
                      0, 0, "cov", "", "m:cov:lengthMismatch");
     const std::size_t n = x.numel();
     if (n == 0)
-        return Value::matrix(2, 2, ValueType::DOUBLE, &alloc);
-    ScratchArena scratch_arena(alloc);
+        return Value::matrix(2, 2, ValueType::DOUBLE, mr);
+    ScratchArena scratch_arena(mr);
     auto data = scratch_arena.vec<double>(n * 2);
     for (std::size_t i = 0; i < n; ++i) {
         data[i] = x.elemAsDouble(i);          // column 0 (= x)
@@ -803,22 +803,22 @@ Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag)
     const double divisor = (normFlag == 0)
         ? std::max(1.0, static_cast<double>(n) - 1.0)
         : static_cast<double>(n);
-    return covMatrixFromCentered(alloc, data.data(), n, 2, divisor);
+    return covMatrixFromCentered(mr, data.data(), n, 2, divisor);
 }
 
 namespace {
 
-Value corrcoefFromCov(Allocator &alloc, const Value &C)
+Value corrcoefFromCov(std::pmr::memory_resource *mr, const Value &C)
 {
     if (C.dims().rows() != C.dims().cols())
         throw Error("corrcoef: covariance matrix must be square",
                      0, 0, "corrcoef", "", "m:corrcoef:internal");
     const std::size_t p = C.dims().rows();
-    auto R = Value::matrix(p, p, ValueType::DOUBLE, &alloc);
+    auto R = Value::matrix(p, p, ValueType::DOUBLE, mr);
     if (p == 0) return R;
     const double *cd = C.doubleData();
     double *rd = R.doubleDataMut();
-    ScratchArena scratch_arena(alloc);
+    ScratchArena scratch_arena(mr);
     auto diag = scratch_arena.vec<double>(p);
     for (std::size_t i = 0; i < p; ++i)
         diag[i] = std::sqrt(cd[i * p + i]);
@@ -832,23 +832,23 @@ Value corrcoefFromCov(Allocator &alloc, const Value &C)
 
 } // namespace
 
-Value corrcoef(Allocator &alloc, const Value &x)
+Value corrcoef(std::pmr::memory_resource *mr, const Value &x)
 {
     // Special case: vector input → 1×1 matrix [1] (variable correlated
     // with itself). Matches MATLAB's `corrcoef(rand(5,1))` behaviour.
     if (x.dims().isVector() || x.isScalar()) {
-        auto R = Value::matrix(1, 1, ValueType::DOUBLE, &alloc);
+        auto R = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         R.doubleDataMut()[0] = 1.0;
         return R;
     }
-    auto C = cov(alloc, x);
-    return corrcoefFromCov(alloc, C);
+    auto C = cov(mr, x);
+    return corrcoefFromCov(mr, C);
 }
 
-Value corrcoef(Allocator &alloc, const Value &x, const Value &y)
+Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
-    auto C = cov(alloc, x, y);
-    return corrcoefFromCov(alloc, C);
+    auto C = cov(mr, x, y);
+    return corrcoefFromCov(mr, C);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -868,7 +868,7 @@ using detail::compactNonNan;
 // in backends/MStdNanReductions_{simd,portable}.cpp. These read the input
 // once with an IsNaN mask and skip the compactNonNan scratch copy that
 // the older scalar lambda needed. Vector input bypasses applyAlongDim
-// entirely (no per-call scratch alloc); matrix dim slices still go
+// entirely (no per-call scratch mr); matrix dim slices still go
 // through applyAlongDim but the lambda no longer mutates the slice.
 
 // nansum / nanmean / nanmax / nanmin / nanvar / nanstdev / nanmedian
@@ -922,17 +922,17 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (omitNan) {
         if (args[0].type() == ValueType::COMPLEX) {
             outs[0] = varianceComplex(args[0], w, dim,
-                                      &ctx.engine->allocator(),
+                                      ctx.engine->resource(),
                                       /*sqrtIt=*/false, /*omitNan=*/true);
             return;
         }
-        Value r = stats::nanvar(ctx.engine->allocator(), args[0], w, dim);
+        Value r = stats::nanvar(ctx.engine->resource(), args[0], w, dim);
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+            r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = var(ctx.engine->allocator(), args[0], w, dim);
+    outs[0] = var(ctx.engine->resource(), args[0], w, dim);
 }
 
 void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -949,17 +949,17 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (omitNan) {
         if (args[0].type() == ValueType::COMPLEX) {
             outs[0] = varianceComplex(args[0], w, dim,
-                                      &ctx.engine->allocator(),
+                                      ctx.engine->resource(),
                                       /*sqrtIt=*/true, /*omitNan=*/true);
             return;
         }
-        Value r = stats::nanstdev(ctx.engine->allocator(), args[0], w, dim);
+        Value r = stats::nanstdev(ctx.engine->resource(), args[0], w, dim);
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+            r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = stdev(ctx.engine->allocator(), args[0], w, dim);
+    outs[0] = stdev(ctx.engine->resource(), args[0], w, dim);
 }
 
 void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -991,7 +991,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             throw Error("median: complex inputs are not supported",
                          0, 0, "median", "", "m:median:complex");
         const size_t total = args[0].numel();
-        ScratchArena scratch_arena(ctx.engine->allocator());
+        ScratchArena scratch_arena(ctx.engine->resource());
         auto scratch = scratch_arena.vec<double>(total);
         const bool fastDouble = (args[0].type() == ValueType::DOUBLE);
         if (fastDouble)
@@ -1001,21 +1001,21 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         size_t k = total;
         if (omitNan) k = compactNonNan(scratch.data(), total);
         double v = medianFromSlice(scratch.data(), k);
-        Value r = Value::scalar(v, &ctx.engine->allocator());
+        Value r = Value::scalar(v, ctx.engine->resource());
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+            r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
         return;
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = stats::nanmedian(ctx.engine->allocator(), args[0], dim);
+        Value r = stats::nanmedian(ctx.engine->resource(), args[0], dim);
         if (args[0].type() == ValueType::SINGLE)
-            r = narrowToSingle(std::move(r), &ctx.engine->allocator());
+            r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = median(ctx.engine->allocator(), args[0], dim);
+    outs[0] = median(ctx.engine->resource(), args[0], dim);
 }
 
 void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1027,7 +1027,7 @@ void quantile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int dim = 0;
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = quantile(ctx.engine->allocator(), args[0], args[1], dim);
+    outs[0] = quantile(ctx.engine->resource(), args[0], args[1], dim);
 }
 
 void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1039,7 +1039,7 @@ void prctile_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int dim = 0;
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = prctile(ctx.engine->allocator(), args[0], args[1], dim);
+    outs[0] = prctile(ctx.engine->resource(), args[0], args[1], dim);
 }
 
 void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
@@ -1051,7 +1051,7 @@ void mode_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
-    auto [v, c] = mode(ctx.engine->allocator(), args[0], dim);
+    auto [v, c] = mode(ctx.engine->resource(), args[0], dim);
     outs[0] = std::move(v);
     if (nargout > 1)
         outs[1] = std::move(c);
@@ -1065,9 +1065,9 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("cov: requires at least 1 argument",
                      0, 0, "cov", "", "m:cov:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = cov(alloc, args[0]);
+        outs[0] = cov(mr, args[0]);
         return;
     }
     // 2-arg form is ambiguous: cov(x, normFlag) vs cov(x, y).
@@ -1077,16 +1077,16 @@ void cov_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args[1].isScalar()) {
             const double v = args[1].toScalar();
             if (v == 0.0 || v == 1.0) {
-                outs[0] = cov(alloc, args[0], static_cast<int>(v));
+                outs[0] = cov(mr, args[0], static_cast<int>(v));
                 return;
             }
         }
-        outs[0] = cov(alloc, args[0], args[1]);
+        outs[0] = cov(mr, args[0], args[1]);
         return;
     }
     // 3-arg form: cov(x, y, normFlag).
     const int w = static_cast<int>(args[2].toScalar());
-    outs[0] = cov(alloc, args[0], args[1], w);
+    outs[0] = cov(mr, args[0], args[1], w);
 }
 
 void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -1095,12 +1095,12 @@ void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("corrcoef: requires at least 1 argument",
                      0, 0, "corrcoef", "", "m:corrcoef:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = corrcoef(alloc, args[0]);
+        outs[0] = corrcoef(mr, args[0]);
         return;
     }
-    outs[0] = corrcoef(alloc, args[0], args[1]);
+    outs[0] = corrcoef(mr, args[0], args[1]);
 }
 
 // nan*_reg adapters all moved to libs/stats/src/nan_aware/nan_aware.cpp.

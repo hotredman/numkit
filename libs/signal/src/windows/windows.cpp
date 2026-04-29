@@ -33,9 +33,9 @@ double besseli0(double x)
 } // anonymous namespace
 
 // ── hamming ───────────────────────────────────────────────────────────
-Value hamming(Allocator &alloc, size_t N)
+Value hamming(std::pmr::memory_resource *mr, size_t N)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -46,9 +46,9 @@ Value hamming(Allocator &alloc, size_t N)
 }
 
 // ── hann ──────────────────────────────────────────────────────────────
-Value hann(Allocator &alloc, size_t N)
+Value hann(std::pmr::memory_resource *mr, size_t N)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -59,9 +59,9 @@ Value hann(Allocator &alloc, size_t N)
 }
 
 // ── blackman ──────────────────────────────────────────────────────────
-Value blackman(Allocator &alloc, size_t N)
+Value blackman(std::pmr::memory_resource *mr, size_t N)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -74,9 +74,9 @@ Value blackman(Allocator &alloc, size_t N)
 }
 
 // ── kaiser ────────────────────────────────────────────────────────────
-Value kaiser(Allocator &alloc, size_t N, double beta)
+Value kaiser(std::pmr::memory_resource *mr, size_t N, double beta)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -90,18 +90,18 @@ Value kaiser(Allocator &alloc, size_t N, double beta)
 }
 
 // ── rectwin ───────────────────────────────────────────────────────────
-Value rectwin(Allocator &alloc, size_t N)
+Value rectwin(std::pmr::memory_resource *mr, size_t N)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < N; ++i)
         r.doubleDataMut()[i] = 1.0;
     return r;
 }
 
 // ── bartlett ──────────────────────────────────────────────────────────
-Value bartlett(Allocator &alloc, size_t N)
+Value bartlett(std::pmr::memory_resource *mr, size_t N)
 {
-    auto r = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     if (N == 1) {
         r.doubleDataMut()[0] = 1.0;
         return r;
@@ -120,7 +120,7 @@ void hamming_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("hamming: requires 1 argument",
                      0, 0, "hamming", "", "m:hamming:nargin");
-    outs[0] = hamming(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = hamming(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
 void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -128,7 +128,7 @@ void hann_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("hann: requires 1 argument",
                      0, 0, "hann", "", "m:hann:nargin");
-    outs[0] = hann(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = hann(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
 void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -136,7 +136,7 @@ void blackman_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("blackman: requires 1 argument",
                      0, 0, "blackman", "", "m:blackman:nargin");
-    outs[0] = blackman(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = blackman(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
 void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -146,7 +146,7 @@ void kaiser_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
                      0, 0, "kaiser", "", "m:kaiser:nargin");
     const size_t N = static_cast<size_t>(args[0].toScalar());
     const double beta = (args.size() >= 2) ? args[1].toScalar() : 0.5;
-    outs[0] = kaiser(ctx.engine->allocator(), N, beta);
+    outs[0] = kaiser(ctx.engine->resource(), N, beta);
 }
 
 void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -154,7 +154,7 @@ void rectwin_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("rectwin: requires 1 argument",
                      0, 0, "rectwin", "", "m:rectwin:nargin");
-    outs[0] = rectwin(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = rectwin(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
 void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -162,7 +162,7 @@ void bartlett_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("bartlett: requires 1 argument",
                      0, 0, "bartlett", "", "m:bartlett:nargin");
-    outs[0] = bartlett(ctx.engine->allocator(), static_cast<size_t>(args[0].toScalar()));
+    outs[0] = bartlett(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
 }
 
 } // namespace detail

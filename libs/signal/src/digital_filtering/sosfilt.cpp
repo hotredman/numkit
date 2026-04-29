@@ -82,18 +82,18 @@ void applyCascade(const Value &sos, const double *xs, double *out, size_t n,
 
 } // namespace
 
-Value sosfilt(Allocator &alloc, const Value &sos, const Value &x)
+Value sosfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x)
 {
     const size_t L = validateSosMatrix(sos);
     if (x.type() != ValueType::DOUBLE)
         throw Error("sosfilt: signal x must be DOUBLE",
                      0, 0, "sosfilt", "", "m:sosfilt:xType");
     if (x.isEmpty())
-        return createLike(x, ValueType::DOUBLE, &alloc);
+        return createLike(x, ValueType::DOUBLE, mr);
     (void) L;
 
-    auto out = createLike(x, ValueType::DOUBLE, &alloc);
-    ScratchArena scratch_arena(alloc);
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    ScratchArena scratch_arena(mr);
     if (x.dims().isVector() || x.isScalar()) {
         const size_t n = x.numel();
         auto scratch = scratch_arena.vec<double>(n);
@@ -118,7 +118,7 @@ void sosfilt_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() < 2)
         throw Error("sosfilt: requires (sos, x)",
                      0, 0, "sosfilt", "", "m:sosfilt:nargin");
-    outs[0] = sosfilt(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = sosfilt(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

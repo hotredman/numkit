@@ -9,6 +9,7 @@
 
 #include <atomic>
 #include <memory>
+#include <memory_resource>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,7 +24,12 @@ class Compiler;
 class Engine
 {
 public:
+    // Default ctor: uses std::pmr::get_default_resource() for all allocations.
     Engine();
+    // Custom heap: caller-supplied memory_resource. Must outlive the Engine
+    // and every Value/DataBuffer it produces. Pass a subclass of
+    // std::pmr::memory_resource (or one of std::pmr's built-in resources).
+    explicit Engine(std::pmr::memory_resource *mr);
     ~Engine();
 
     Engine(const Engine &) = delete;
@@ -31,9 +37,9 @@ public:
     Engine(Engine &&) = delete;
     Engine &operator=(Engine &&) = delete;
 
-    // --- Public API ---
-    void setAllocator(Allocator alloc);
-    Allocator &allocator();
+    // The memory_resource used for persistent (output-Value) allocations.
+    // Internal helpers and ScratchArena upstream-spill flow through here.
+    std::pmr::memory_resource *resource() const noexcept { return mr_; }
 
     void registerBinaryOp(const std::string &op, BinaryOpFunc func);
     void registerUnaryOp(const std::string &op, UnaryOpFunc func);
@@ -245,7 +251,7 @@ public:
     const std::string &lastFopenError() const { return lastFopenError_; }
 
 private:
-    Allocator allocator_;
+    std::pmr::memory_resource *mr_;  // not owned; caller-supplied or get_default_resource()
     std::unique_ptr<Environment> globalsEnv_;     // MATLAB 'global' variables — shared across functions
     std::unique_ptr<Environment> constantsEnv_;  // pi, eps, inf, etc. — parent for all scopes
     std::unique_ptr<Environment> workspaceEnv_;  // top-level workspace (base workspace)

@@ -29,25 +29,25 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
     }
 }
 
-Value rowFromIndices(Allocator &alloc, const double *v, std::size_t n)
+Value rowFromIndices(std::pmr::memory_resource *mr, const double *v, std::size_t n)
 {
-    auto out = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     for (std::size_t i = 0; i < n; ++i)
         out.doubleDataMut()[i] = v[i];
     return out;
 }
 
-Value rowCellOfStrings(Allocator &alloc, const std::string *v, std::size_t n)
+Value rowCellOfStrings(std::pmr::memory_resource *mr, const std::string *v, std::size_t n)
 {
     auto out = Value::cell(1, n);
     for (std::size_t i = 0; i < n; ++i)
-        out.cellAt(i) = Value::fromString(v[i], &alloc);
+        out.cellAt(i) = Value::fromString(v[i], mr);
     return out;
 }
 
 } // namespace
 
-Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
+Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
                   const std::string &option, bool ignoreCase)
 {
     if ((!s.isChar() && !s.isString()) || (!pat.isChar() && !pat.isString()))
@@ -60,11 +60,10 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
     for (auto &c : opt)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
-    ScratchArena scratch_arena(alloc);
-    auto *mr = scratch_arena.resource();
+    ScratchArena scratch_arena(mr);
 
     if (opt == "split") {
-        ScratchVec<std::string> parts(mr);
+        ScratchVec<std::string> parts(&scratch_arena);
         auto begin = std::sregex_iterator(text.begin(), text.end(), re);
         auto end   = std::sregex_iterator();
         std::size_t prev = 0;
@@ -74,32 +73,32 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
             prev = m.position() + m.length();
         }
         parts.emplace_back(text.substr(prev));
-        return rowCellOfStrings(alloc, parts.data(), parts.size());
+        return rowCellOfStrings(mr, parts.data(), parts.size());
     }
 
     if (opt == "match") {
-        ScratchVec<std::string> matches(mr);
+        ScratchVec<std::string> matches(&scratch_arena);
         for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
                   end = std::sregex_iterator(); it != end; ++it)
             matches.emplace_back(it->str());
-        return rowCellOfStrings(alloc, matches.data(), matches.size());
+        return rowCellOfStrings(mr, matches.data(), matches.size());
     }
 
     if (opt == "tokens") {
         // 1×N cell, each entry is a 1×k cell of capture group strings.
         // Outer + inner both ScratchVec — uses-allocator construction
-        // propagates `mr` to the inner pmr-vectors automatically.
-        ScratchVec<ScratchVec<std::string>> all(mr);
+        // propagates the arena to the inner pmr-vectors automatically.
+        ScratchVec<ScratchVec<std::string>> all(&scratch_arena);
         for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
                   end = std::sregex_iterator(); it != end; ++it) {
-            ScratchVec<std::string> grp(mr);
+            ScratchVec<std::string> grp(&scratch_arena);
             for (std::size_t g = 1; g < it->size(); ++g)
                 grp.emplace_back(it->str(g));
             all.push_back(std::move(grp));
         }
         auto out = Value::cell(1, all.size());
         for (std::size_t i = 0; i < all.size(); ++i)
-            out.cellAt(i) = rowCellOfStrings(alloc, all[i].data(), all[i].size());
+            out.cellAt(i) = rowCellOfStrings(mr, all[i].data(), all[i].size());
         return out;
     }
 
@@ -109,14 +108,14 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
                      0, 0, "regexp", "", "m:regexp:badOption");
 
     // Default: 1-based start indices.
-    ScratchVec<double> idx(mr);
+    ScratchVec<double> idx(&scratch_arena);
     for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
               end = std::sregex_iterator(); it != end; ++it)
         idx.push_back(static_cast<double>(it->position() + 1));
-    return rowFromIndices(alloc, idx.data(), idx.size());
+    return rowFromIndices(mr, idx.data(), idx.size());
 }
 
-Value regexprep(Allocator &alloc, const Value &s, const Value &pat,
+Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
                  const Value &rep, bool ignoreCase)
 {
     if ((!s.isChar() && !s.isString())
@@ -128,7 +127,7 @@ Value regexprep(Allocator &alloc, const Value &s, const Value &pat,
     const std::regex  re      = compileRegex(pat.toString(), ignoreCase);
     const std::string repText = rep.toString();
     const std::string out     = std::regex_replace(text, re, repText);
-    return Value::fromString(out, &alloc);
+    return Value::fromString(out, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -149,7 +148,7 @@ void regexp_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &c
                          0, 0, "regexp", "", "m:regexp:badOption");
         opt = args[2].toString();
     }
-    outs[0] = regexpFind(ctx.engine->allocator(), args[0], args[1], opt, false);
+    outs[0] = regexpFind(ctx.engine->resource(), args[0], args[1], opt, false);
 }
 
 void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -164,7 +163,7 @@ void regexpi_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                          0, 0, "regexpi", "", "m:regexpi:badOption");
         opt = args[2].toString();
     }
-    outs[0] = regexpFind(ctx.engine->allocator(), args[0], args[1], opt, true);
+    outs[0] = regexpFind(ctx.engine->resource(), args[0], args[1], opt, true);
 }
 
 void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -172,7 +171,7 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
     if (args.size() < 3)
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "m:regexprep:nargin");
-    outs[0] = regexprep(ctx.engine->allocator(), args[0], args[1], args[2], false);
+    outs[0] = regexprep(ctx.engine->resource(), args[0], args[1], args[2], false);
 }
 
 } // namespace detail

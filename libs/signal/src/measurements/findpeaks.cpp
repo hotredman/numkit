@@ -15,9 +15,9 @@ namespace numkit::signal {
 // Strict local maximum: x[i-1] < x[i] > x[i+1]. NaN is never a peak.
 // First and last samples are skipped (no left/right neighbour).
 std::tuple<Value, Value>
-findpeaks(Allocator &alloc, const Value &x)
+findpeaks(std::pmr::memory_resource *mr, const Value &x)
 {
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto peakVals = scratch.vec<double>();
     auto peakIdx  = scratch.vec<std::size_t>();
     const size_t n = x.numel();
@@ -33,8 +33,8 @@ findpeaks(Allocator &alloc, const Value &x)
             }
         }
     }
-    auto vals = Value::matrix(1, peakVals.size(), ValueType::DOUBLE, &alloc);
-    auto idxs = Value::matrix(1, peakIdx.size(), ValueType::DOUBLE, &alloc);
+    auto vals = Value::matrix(1, peakVals.size(), ValueType::DOUBLE, mr);
+    auto idxs = Value::matrix(1, peakIdx.size(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < peakVals.size(); ++i) {
         vals.doubleDataMut()[i] = peakVals[i];
         idxs.doubleDataMut()[i] = static_cast<double>(peakIdx[i] + 1);  // 1-based
@@ -50,7 +50,7 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("findpeaks: requires 1 argument",
                      0, 0, "findpeaks", "", "m:findpeaks:nargin");
-    auto [vals, idxs] = findpeaks(ctx.engine->allocator(), args[0]);
+    auto [vals, idxs] = findpeaks(ctx.engine->resource(), args[0]);
     outs[0] = std::move(vals);
     if (nargout > 1) outs[1] = std::move(idxs);
 }

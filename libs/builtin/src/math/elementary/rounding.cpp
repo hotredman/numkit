@@ -16,33 +16,33 @@
 
 namespace numkit::builtin {
 
-Value floor(Allocator &alloc, const Value &x)
+Value floor(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::floor(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::floor(v); }, mr);
 }
 
-Value ceil(Allocator &alloc, const Value &x)
+Value ceil(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::ceil(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::ceil(v); }, mr);
 }
 
-Value round(Allocator &alloc, const Value &x)
+Value round(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::round(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::round(v); }, mr);
 }
 
-Value fix(Allocator &alloc, const Value &x)
+Value fix(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::trunc(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::trunc(v); }, mr);
 }
 
-Value sign(Allocator &alloc, const Value &x)
+Value sign(std::pmr::memory_resource *mr, const Value &x)
 {
     return unaryDouble(x,
                        [](double v) {
                            return std::isnan(v) ? v : (v > 0) ? 1.0 : (v < 0 ? -1.0 : 0.0);
                        },
-                       &alloc);
+                       mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -55,7 +55,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
+        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
     }
 
 NK_UNARY_ADAPTER(floor, floor)

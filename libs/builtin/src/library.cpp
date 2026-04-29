@@ -698,8 +698,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                ScratchArena scratch_arena(ctx.engine->allocator());
-                                ScratchVec<std::string> names(scratch_arena.resource());
+                                ScratchArena scratch_arena(ctx.engine->resource());
+                                ScratchVec<std::string> names(&scratch_arena);
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
@@ -743,8 +743,8 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                ScratchArena scratch_arena(ctx.engine->allocator());
-                                ScratchVec<std::string> names(scratch_arena.resource());
+                                ScratchArena scratch_arena(ctx.engine->resource());
+                                ScratchVec<std::string> names(&scratch_arena);
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
@@ -841,12 +841,12 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 // Unsupported type filters
                                 if (typeFilter == "file" || typeFilter == "dir") {
                                     warnNotSupported(ctx, "exist(name, '" + typeFilter + "')");
-                                    outs[0] = Value::scalar(0.0, &ctx.engine->allocator());
+                                    outs[0] = Value::scalar(0.0, ctx.engine->resource());
                                     return;
                                 }
                                 if (typeFilter == "class") {
                                     warnNotSupported(ctx, "exist(name, 'class')");
-                                    outs[0] = Value::scalar(0.0, &ctx.engine->allocator());
+                                    outs[0] = Value::scalar(0.0, ctx.engine->resource());
                                     return;
                                 }
 
@@ -874,7 +874,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         code = 5;
                                 }
 
-                                outs[0] = Value::scalar(code, &ctx.engine->allocator());
+                                outs[0] = Value::scalar(code, ctx.engine->resource());
                             });
 
     // ── class ──────────────────────────────────────────────────
@@ -883,7 +883,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.empty())
                                     throw std::runtime_error("class requires an argument");
                                 outs[0] = Value::fromString(mtypeName(args[0].type()),
-                                                             &ctx.engine->allocator());
+                                                             ctx.engine->resource());
                             });
 
     // ── tic ────────────────────────────────────────────────────
@@ -899,7 +899,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         std::chrono::duration_cast<std::chrono::microseconds>(
                                             now.time_since_epoch())
                                             .count());
-                                    outs[0] = Value::scalar(id, &ctx.engine->allocator());
+                                    outs[0] = Value::scalar(id, ctx.engine->resource());
                                 } else {
                                     outs[0] = Value::empty();
                                 }
@@ -924,7 +924,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 }
                                 double elapsed = std::chrono::duration<double>(now - start).count();
                                 if (nargout > 0) {
-                                    outs[0] = Value::scalar(elapsed, &ctx.engine->allocator());
+                                    outs[0] = Value::scalar(elapsed, ctx.engine->resource());
                                 } else {
                                     std::ostringstream os;
                                     os << "Elapsed time is " << elapsed << " seconds.\n";

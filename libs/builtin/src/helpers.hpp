@@ -18,13 +18,13 @@ namespace numkit {
 // ============================================================
 // Helper: promote pair to complex if needed
 // ============================================================
-inline std::pair<Value, Value> promoteToComplex(const Value &a, const Value &b, Allocator *alloc)
+inline std::pair<Value, Value> promoteToComplex(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
     Value ca = a, cb = b;
     if (a.isComplex() && !b.isComplex())
-        cb.promoteToComplex(alloc);
+        cb.promoteToComplex(mr);
     else if (!a.isComplex() && b.isComplex())
-        ca.promoteToComplex(alloc);
+        ca.promoteToComplex(mr);
     return {ca, cb};
 }
 
@@ -81,36 +81,36 @@ inline size_t broadcastOffset3D(size_t r, size_t c, size_t p,
 struct DimsArg { size_t rows = 1, cols = 1, pages = 0; };
 
 // Create a zero matrix/3D array with given dimensions
-inline Value createMatrix(DimsArg d, ValueType type, Allocator *alloc)
+inline Value createMatrix(DimsArg d, ValueType type, std::pmr::memory_resource *mr)
 {
     if (d.pages > 0)
-        return Value::matrix3d(d.rows, d.cols, d.pages, type, alloc);
-    return Value::matrix(d.rows, d.cols, type, alloc);
+        return Value::matrix3d(d.rows, d.cols, d.pages, type, mr);
+    return Value::matrix(d.rows, d.cols, type, mr);
 }
 
 // Allocate an Value with the given Dims, picking the rank-appropriate
 // Value ctor (matrix / matrix3d / matrixND).
-inline Value createForDims(const Dims &d, ValueType type, Allocator *alloc)
+inline Value createForDims(const Dims &d, ValueType type, std::pmr::memory_resource *mr)
 {
     const int nd = d.ndim();
     if (nd >= 4) {
         constexpr int kMaxNd = Dims::kMaxRank;
         size_t dims[kMaxNd];
         for (int i = 0; i < nd; ++i) dims[i] = d.dim(i);
-        return Value::matrixND(dims, nd, type, alloc);
+        return Value::matrixND(dims, nd, type, mr);
     }
     return createMatrix({d.rows(), d.cols(),
                          d.is3D() ? d.pages() : 0},
-                        type, alloc);
+                        type, mr);
 }
 
 // Allocate an Value with the same shape as `src`, optionally of a
 // different type. Required for any "elementwise" output: callers that
 // write numel() elements into a 2D-only allocation silently corrupt
 // the heap when src is 3D+.
-inline Value createLike(const Value &src, ValueType type, Allocator *alloc)
+inline Value createLike(const Value &src, ValueType type, std::pmr::memory_resource *mr)
 {
-    return createForDims(src.dims(), type, alloc);
+    return createForDims(src.dims(), type, mr);
 }
 
 // Shape-preserving empty result for a binary op where at least one
@@ -118,14 +118,14 @@ inline Value createLike(const Value &src, ValueType type, Allocator *alloc)
 // shape; if both are non-scalar the dims must match, otherwise throw.
 // `outType` is chosen by the caller based on its promotion rules.
 inline Value emptyResultForBinary(const Value &a, const Value &b,
-                                   ValueType outType, Allocator *alloc)
+                                   ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool aShaper = !a.isScalar();
     const bool bShaper = !b.isScalar();
     if (aShaper && bShaper && a.dims() != b.dims())
         throw std::runtime_error("Matrix dimensions must agree");
     const Value &shape = aShaper ? a : (bShaper ? b : a);
-    return createLike(shape, outType, alloc);
+    return createLike(shape, outType, mr);
 }
 
 // Pick the arithmetic output type for a pair of operands using
@@ -142,28 +142,28 @@ inline ValueType arithOutType(const Value &a, const Value &b)
 
 // Convenience wrapper: shape-preserving empty arithmetic result with
 // type chosen by arithOutType().
-inline Value emptyArithResult(const Value &a, const Value &b, Allocator *alloc)
+inline Value emptyArithResult(const Value &a, const Value &b, std::pmr::memory_resource *mr)
 {
-    return emptyResultForBinary(a, b, arithOutType(a, b), alloc);
+    return emptyResultForBinary(a, b, arithOutType(a, b), mr);
 }
 
 // ============================================================
 // Elementwise binary op on double arrays (with implicit expansion)
 // ============================================================
 template<typename Op>
-Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
+Value elementwiseDouble(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || b.isEmpty())
-        return emptyResultForBinary(a, b, ValueType::DOUBLE, alloc);
+        return emptyResultForBinary(a, b, ValueType::DOUBLE, mr);
     if (a.isScalar() && b.isScalar())
-        return Value::scalar(op(a.toScalar(), b.toScalar()), alloc);
+        return Value::scalar(op(a.toScalar(), b.toScalar()), mr);
 
     // ND fallback — at least one operand has rank ≥ 4, or NumPy-style
     // broadcasting needed past 3D. Handles same-shape (fast path) and
     // arbitrary-rank broadcast via per-operand offset arithmetic.
     if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
         if (a.isScalar()) {
-            auto r = createLike(b, ValueType::DOUBLE, alloc);
+            auto r = createLike(b, ValueType::DOUBLE, mr);
             const double s = a.toScalar();
             const double *db = b.doubleData();
             double *dst = r.doubleDataMut();
@@ -171,7 +171,7 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
             return r;
         }
         if (b.isScalar()) {
-            auto r = createLike(a, ValueType::DOUBLE, alloc);
+            auto r = createLike(a, ValueType::DOUBLE, mr);
             const double s = b.toScalar();
             const double *da = a.doubleData();
             double *dst = r.doubleDataMut();
@@ -182,7 +182,7 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        auto r = createForDims(outD, ValueType::DOUBLE, alloc);
+        auto r = createForDims(outD, ValueType::DOUBLE, mr);
         const double *da = a.doubleData(), *db = b.doubleData();
         double *dst = r.doubleDataMut();
         forEachNDPair(a.dims(), b.dims(), outD,
@@ -196,14 +196,14 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
     // axis must equal or be 1; 2D operands implicitly have pages = 1).
     if (a.dims().is3D() || b.dims().is3D()) {
         if (a.isScalar()) {
-            auto r = createLike(b, ValueType::DOUBLE, alloc);
+            auto r = createLike(b, ValueType::DOUBLE, mr);
             double s = a.toScalar();
             for (size_t i = 0; i < b.numel(); ++i)
                 r.doubleDataMut()[i] = op(s, b.doubleData()[i]);
             return r;
         }
         if (b.isScalar()) {
-            auto r = createLike(a, ValueType::DOUBLE, alloc);
+            auto r = createLike(a, ValueType::DOUBLE, mr);
             double s = b.toScalar();
             for (size_t i = 0; i < a.numel(); ++i)
                 r.doubleDataMut()[i] = op(a.doubleData()[i], s);
@@ -220,14 +220,14 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
 
         // Same-shape fast path skips the per-axis broadcast index math.
         if (aR == bR && aC == bC && aP == bP) {
-            auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc)
-                                : Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
+            auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                                : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
             for (size_t i = 0; i < a.numel(); ++i)
                 r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
             return r;
         }
-        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc)
-                            : Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                            : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
         double *dst = r.doubleDataMut();
         const double *da = a.doubleData(), *db = b.doubleData();
         for (size_t pp = 0; pp < outP; ++pp)
@@ -248,14 +248,14 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
 
     // Fast path: same dimensions, no broadcasting needed
     if (ar == br && ac == bc) {
-        auto r = Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
+        auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < a.numel(); ++i)
             r.doubleDataMut()[i] = op(a.doubleData()[i], b.doubleData()[i]);
         return r;
     }
 
     // General broadcasting: column-major indexing
-    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
+    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
     const double *da = a.doubleData(), *db = b.doubleData();
     for (size_t c = 0; c < outC; ++c) {
@@ -274,18 +274,18 @@ Value elementwiseDouble(const Value &a, const Value &b, Op op, Allocator *alloc)
 // Elementwise binary op on complex arrays
 // ============================================================
 template<typename Op>
-Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc)
+Value elementwiseComplex(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || b.isEmpty())
-        return emptyResultForBinary(a, b, ValueType::COMPLEX, alloc);
-    auto [ca, cb] = promoteToComplex(a, b, alloc);
+        return emptyResultForBinary(a, b, ValueType::COMPLEX, mr);
+    auto [ca, cb] = promoteToComplex(a, b, mr);
     if (ca.isScalar() && cb.isScalar())
-        return Value::complexScalar(op(ca.toComplex(), cb.toComplex()), alloc);
+        return Value::complexScalar(op(ca.toComplex(), cb.toComplex()), mr);
 
     // ND fallback (rank ≥ 4 or NumPy-style broadcast past 3D)
     if (ca.dims().ndim() >= 4 || cb.dims().ndim() >= 4) {
         if (ca.isScalar()) {
-            auto r = createLike(cb, ValueType::COMPLEX, alloc);
+            auto r = createLike(cb, ValueType::COMPLEX, mr);
             Complex s = ca.toComplex();
             const Complex *db = cb.complexData();
             Complex *dst = r.complexDataMut();
@@ -293,7 +293,7 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
             return r;
         }
         if (cb.isScalar()) {
-            auto r = createLike(ca, ValueType::COMPLEX, alloc);
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
             Complex s = cb.toComplex();
             const Complex *da = ca.complexData();
             Complex *dst = r.complexDataMut();
@@ -303,7 +303,7 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
         Dims outD;
         if (!broadcastDimsND(ca.dims(), cb.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        auto r = createForDims(outD, ValueType::COMPLEX, alloc);
+        auto r = createForDims(outD, ValueType::COMPLEX, mr);
         const Complex *da = ca.complexData(), *db = cb.complexData();
         Complex *dst = r.complexDataMut();
         forEachNDPair(ca.dims(), cb.dims(), outD,
@@ -315,14 +315,14 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
 
     if (ca.dims().is3D() || cb.dims().is3D()) {
         if (ca.isScalar()) {
-            auto r = createLike(cb, ValueType::COMPLEX, alloc);
+            auto r = createLike(cb, ValueType::COMPLEX, mr);
             Complex s = ca.toComplex();
             for (size_t i = 0; i < cb.numel(); ++i)
                 r.complexDataMut()[i] = op(s, cb.complexData()[i]);
             return r;
         }
         if (cb.isScalar()) {
-            auto r = createLike(ca, ValueType::COMPLEX, alloc);
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
             Complex s = cb.toComplex();
             for (size_t i = 0; i < ca.numel(); ++i)
                 r.complexDataMut()[i] = op(ca.complexData()[i], s);
@@ -338,13 +338,13 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
                 "3D dimensions must broadcast: each axis must match or be 1");
 
         if (aR == bR && aC == bC && aP == bP) {
-            auto r = createLike(ca, ValueType::COMPLEX, alloc);
+            auto r = createLike(ca, ValueType::COMPLEX, mr);
             for (size_t i = 0; i < ca.numel(); ++i)
                 r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
             return r;
         }
-        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, alloc)
-                            : Value::matrix(outR, outC, ValueType::COMPLEX, alloc);
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, mr)
+                            : Value::matrix(outR, outC, ValueType::COMPLEX, mr);
         Complex *dst = r.complexDataMut();
         const Complex *da = ca.complexData(), *db = cb.complexData();
         for (size_t pp = 0; pp < outP; ++pp)
@@ -364,13 +364,13 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
         throw std::runtime_error("Matrix dimensions must agree");
 
     if (ar == br && ac == bc) {
-        auto r = Value::complexMatrix(outR, outC, alloc);
+        auto r = Value::complexMatrix(outR, outC, mr);
         for (size_t i = 0; i < ca.numel(); ++i)
             r.complexDataMut()[i] = op(ca.complexData()[i], cb.complexData()[i]);
         return r;
     }
 
-    auto r = Value::complexMatrix(outR, outC, alloc);
+    auto r = Value::complexMatrix(outR, outC, mr);
     Complex *dst = r.complexDataMut();
     const Complex *da = ca.complexData(), *db = cb.complexData();
     for (size_t c = 0; c < outC; ++c) {
@@ -389,11 +389,11 @@ Value elementwiseComplex(const Value &a, const Value &b, Op op, Allocator *alloc
 // Elementwise unary on double
 // ============================================================
 template<typename Op>
-Value unaryDouble(const Value &a, Op op, Allocator *alloc)
+Value unaryDouble(const Value &a, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isScalar())
-        return Value::scalar(op(a.toScalar()), alloc);
-    auto r = createLike(a, ValueType::DOUBLE, alloc);
+        return Value::scalar(op(a.toScalar()), mr);
+    auto r = createLike(a, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < a.numel(); ++i)
         r.doubleDataMut()[i] = op(a.doubleData()[i]);
     return r;
@@ -403,11 +403,11 @@ Value unaryDouble(const Value &a, Op op, Allocator *alloc)
 // Elementwise unary on complex
 // ============================================================
 template<typename Op>
-Value unaryComplex(const Value &a, Op op, Allocator *alloc)
+Value unaryComplex(const Value &a, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isScalar())
-        return Value::complexScalar(op(a.toComplex()), alloc);
-    auto r = createLike(a, ValueType::COMPLEX, alloc);
+        return Value::complexScalar(op(a.toComplex()), mr);
+    auto r = createLike(a, ValueType::COMPLEX, mr);
     for (size_t i = 0; i < a.numel(); ++i)
         r.complexDataMut()[i] = op(a.complexData()[i]);
     return r;
@@ -507,13 +507,13 @@ inline void stripTrailingOnes(ScratchVec<size_t> &dims)
 // so the same helper composes with std::vector, std::pmr::vector, raw
 // arrays, etc.
 inline Value createMatrixND(const size_t *dims, std::size_t nDims,
-                             ValueType type, Allocator *alloc)
+                             ValueType type, std::pmr::memory_resource *mr)
 {
     const int nd = static_cast<int>(nDims);
-    if (nd <= 1) return Value::matrix(nd == 1 ? dims[0] : 0, 1, type, alloc);
-    if (nd == 2) return Value::matrix(dims[0], dims[1], type, alloc);
-    if (nd == 3) return Value::matrix3d(dims[0], dims[1], dims[2], type, alloc);
-    return Value::matrixND(dims, nd, type, alloc);
+    if (nd <= 1) return Value::matrix(nd == 1 ? dims[0] : 0, 1, type, mr);
+    if (nd == 2) return Value::matrix(dims[0], dims[1], type, mr);
+    if (nd == 3) return Value::matrix3d(dims[0], dims[1], dims[2], type, mr);
+    return Value::matrixND(dims, nd, type, mr);
 }
 
 // ============================================================
@@ -617,10 +617,10 @@ inline T saturateNeg(T a)
 // ============================================================
 
 template <typename T, typename Op>
-Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op op, Allocator *alloc)
+Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op op, std::pmr::memory_resource *mr)
 {
     if (a.isEmpty() || b.isEmpty())
-        return emptyResultForBinary(a, b, targetType, alloc);
+        return emptyResultForBinary(a, b, targetType, mr);
 
     // Read element from source, converting to target type
     auto readAt = [](const Value &v, ValueType tgt, size_t r, size_t c) -> T {
@@ -648,7 +648,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
     // ND fallback (rank ≥ 4) — uses ND broadcast helpers.
     if (a.dims().ndim() >= 4 || b.dims().ndim() >= 4) {
         if (a.isScalar()) {
-            auto r = createLike(b, targetType, alloc);
+            auto r = createLike(b, targetType, mr);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sa = readLinearTyped(a, targetType, 0);
             for (size_t i = 0; i < b.numel(); ++i)
@@ -656,7 +656,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
             return r;
         }
         if (b.isScalar()) {
-            auto r = createLike(a, targetType, alloc);
+            auto r = createLike(a, targetType, mr);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sb = readLinearTyped(b, targetType, 0);
             for (size_t i = 0; i < a.numel(); ++i)
@@ -666,7 +666,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
         Dims outD;
         if (!broadcastDimsND(a.dims(), b.dims(), outD))
             throw std::runtime_error("ND dimensions must broadcast: each axis must match or be 1");
-        auto r = createForDims(outD, targetType, alloc);
+        auto r = createForDims(outD, targetType, mr);
         T *dst = static_cast<T *>(r.rawDataMut());
         forEachNDPair(a.dims(), b.dims(), outD,
             [&](size_t outIdx, size_t aOff, size_t bOff) {
@@ -681,7 +681,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
     // silently drop the page dim.
     if (a.dims().is3D() || b.dims().is3D()) {
         if (a.isScalar()) {
-            auto r = createLike(b, targetType, alloc);
+            auto r = createLike(b, targetType, mr);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sa = readLinearTyped(a, targetType, 0);
             for (size_t i = 0; i < b.numel(); ++i)
@@ -689,7 +689,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
             return r;
         }
         if (b.isScalar()) {
-            auto r = createLike(a, targetType, alloc);
+            auto r = createLike(a, targetType, mr);
             T *dst = static_cast<T *>(r.rawDataMut());
             T sb = readLinearTyped(b, targetType, 0);
             for (size_t i = 0; i < a.numel(); ++i)
@@ -706,15 +706,15 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
                 "3D dimensions must broadcast: each axis must match or be 1");
 
         if (aR == bR && aC == bC && aP == bP) {
-            auto r = createLike(a, targetType, alloc);
+            auto r = createLike(a, targetType, mr);
             T *dst = static_cast<T *>(r.rawDataMut());
             for (size_t i = 0; i < a.numel(); ++i)
                 dst[i] = op(readLinearTyped(a, targetType, i),
                             readLinearTyped(b, targetType, i));
             return r;
         }
-        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, targetType, alloc)
-                            : Value::matrix(outR, outC, targetType, alloc);
+        auto r = (outP > 1) ? Value::matrix3d(outR, outC, outP, targetType, mr)
+                            : Value::matrix(outR, outC, targetType, mr);
         T *dst = static_cast<T *>(r.rawDataMut());
         for (size_t pp = 0; pp < outP; ++pp)
             for (size_t cc = 0; cc < outC; ++cc)
@@ -734,7 +734,7 @@ Value elementwiseTyped(const Value &a, const Value &b, ValueType targetType, Op 
     if (!broadcastDims(ar, ac, br, bc, outR, outC))
         throw std::runtime_error("Matrix dimensions must agree");
 
-    auto r = Value::matrix(outR, outC, targetType, alloc);
+    auto r = Value::matrix(outR, outC, targetType, mr);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t c = 0; c < outC; ++c) {
         size_t ca = (ac == 1) ? 0 : c;
@@ -774,21 +774,21 @@ inline ValueType resolveIntegerPairType(const Value &a, const Value &b)
 }
 
 template <typename Op>
-Value dispatchIntegerBinaryOp(const Value &a, const Value &b, Op op, Allocator *alloc)
+Value dispatchIntegerBinaryOp(const Value &a, const Value &b, Op op, std::pmr::memory_resource *mr)
 {
     ValueType target = resolveIntegerPairType(a, b);
     if (target == ValueType::EMPTY) return Value(); // signal: not handled
 
     switch (target) {
-    case ValueType::INT8:   return elementwiseTyped<int8_t>(a, b, target, [&](int8_t x, int8_t y) { return op(x, y); }, alloc);
-    case ValueType::INT16:  return elementwiseTyped<int16_t>(a, b, target, [&](int16_t x, int16_t y) { return op(x, y); }, alloc);
-    case ValueType::INT32:  return elementwiseTyped<int32_t>(a, b, target, [&](int32_t x, int32_t y) { return op(x, y); }, alloc);
-    case ValueType::INT64:  return elementwiseTyped<int64_t>(a, b, target, [&](int64_t x, int64_t y) { return op(x, y); }, alloc);
-    case ValueType::UINT8:  return elementwiseTyped<uint8_t>(a, b, target, [&](uint8_t x, uint8_t y) { return op(x, y); }, alloc);
-    case ValueType::UINT16: return elementwiseTyped<uint16_t>(a, b, target, [&](uint16_t x, uint16_t y) { return op(x, y); }, alloc);
-    case ValueType::UINT32: return elementwiseTyped<uint32_t>(a, b, target, [&](uint32_t x, uint32_t y) { return op(x, y); }, alloc);
-    case ValueType::UINT64: return elementwiseTyped<uint64_t>(a, b, target, [&](uint64_t x, uint64_t y) { return op(x, y); }, alloc);
-    case ValueType::SINGLE: return elementwiseTyped<float>(a, b, target, [&](float x, float y) { return op(x, y); }, alloc);
+    case ValueType::INT8:   return elementwiseTyped<int8_t>(a, b, target, [&](int8_t x, int8_t y) { return op(x, y); }, mr);
+    case ValueType::INT16:  return elementwiseTyped<int16_t>(a, b, target, [&](int16_t x, int16_t y) { return op(x, y); }, mr);
+    case ValueType::INT32:  return elementwiseTyped<int32_t>(a, b, target, [&](int32_t x, int32_t y) { return op(x, y); }, mr);
+    case ValueType::INT64:  return elementwiseTyped<int64_t>(a, b, target, [&](int64_t x, int64_t y) { return op(x, y); }, mr);
+    case ValueType::UINT8:  return elementwiseTyped<uint8_t>(a, b, target, [&](uint8_t x, uint8_t y) { return op(x, y); }, mr);
+    case ValueType::UINT16: return elementwiseTyped<uint16_t>(a, b, target, [&](uint16_t x, uint16_t y) { return op(x, y); }, mr);
+    case ValueType::UINT32: return elementwiseTyped<uint32_t>(a, b, target, [&](uint32_t x, uint32_t y) { return op(x, y); }, mr);
+    case ValueType::UINT64: return elementwiseTyped<uint64_t>(a, b, target, [&](uint64_t x, uint64_t y) { return op(x, y); }, mr);
+    case ValueType::SINGLE: return elementwiseTyped<float>(a, b, target, [&](float x, float y) { return op(x, y); }, mr);
     default: return Value();
     }
 }
@@ -798,9 +798,9 @@ Value dispatchIntegerBinaryOp(const Value &a, const Value &b, Op op, Allocator *
 // ============================================================
 
 template <typename T, typename Op>
-Value unaryTyped(const Value &a, ValueType targetType, Op op, Allocator *alloc)
+Value unaryTyped(const Value &a, ValueType targetType, Op op, std::pmr::memory_resource *mr)
 {
-    auto r = createLike(a, targetType, alloc);
+    auto r = createLike(a, targetType, mr);
     const T *src = static_cast<const T *>(a.rawData());
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < a.numel(); ++i)

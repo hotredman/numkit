@@ -142,9 +142,9 @@ inline ScratchVec<Complex> prepareFFTBuffer(std::pmr::memory_resource *mr,
 // Pointer + size, not a container reference, so the same helper
 // composes with std::vector, std::pmr::vector, raw arrays, etc.
 // ============================================================
-inline Value packComplexResult(const Complex *buf, size_t outLen, Allocator *alloc)
+inline Value packComplexResult(const Complex *buf, size_t outLen, std::pmr::memory_resource *mr)
 {
-    auto r = Value::complexMatrix(1, outLen, alloc);
+    auto r = Value::complexMatrix(1, outLen, mr);
     Complex *dst = r.complexDataMut();
     for (size_t i = 0; i < outLen; ++i)
         dst[i] = buf[i];

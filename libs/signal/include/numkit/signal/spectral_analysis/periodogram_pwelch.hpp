@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <tuple>
@@ -20,7 +20,7 @@ namespace numkit::signal {
 ///                Value to use a rectangular window (all ones).
 /// @param nfft    FFT size. Pass 0 to auto-pick nextPow2(numel(x)).
 std::tuple<Value, Value>
-periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft);
+periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, size_t nfft);
 
 /// Welch's method: averaged, modified periodogram. Returns (Pxx, F).
 ///
@@ -28,7 +28,7 @@ periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft);
 /// @param noverlap  Samples of overlap between segments. 0 → winLen / 2.
 /// @param nfft      FFT size. 0 → auto-pick nextPow2(winLen).
 std::tuple<Value, Value>
-pwelch(Allocator &alloc,
+pwelch(std::pmr::memory_resource *mr,
        const Value &x,
        const Value &window,
        size_t noverlap,

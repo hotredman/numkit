@@ -129,14 +129,14 @@ size_t linearIndexFromSubs(const Value &subs, size_t r, size_t N, size_t D,
 }
 
 // Allocate the output Value for the given shape.
-Value allocOutput(Allocator &alloc, const size_t *shape, std::size_t nShape)
+Value allocOutput(std::pmr::memory_resource *mr, const size_t *shape, std::size_t nShape)
 {
     if (nShape == 1)
-        return Value::matrix(shape[0], 1, ValueType::DOUBLE, &alloc);
+        return Value::matrix(shape[0], 1, ValueType::DOUBLE, mr);
     if (nShape == 2)
-        return Value::matrix(shape[0], shape[1], ValueType::DOUBLE, &alloc);
+        return Value::matrix(shape[0], shape[1], ValueType::DOUBLE, mr);
     return Value::matrixND(shape, static_cast<int>(nShape),
-                            ValueType::DOUBLE, &alloc);
+                            ValueType::DOUBLE, mr);
 }
 
 inline double readVal(const Value &vals, size_t i, bool valIsScalar)
@@ -146,7 +146,7 @@ inline double readVal(const Value &vals, size_t i, bool valIsScalar)
 
 } // namespace
 
-Value accumarray(Allocator &alloc,
+Value accumarray(std::pmr::memory_resource *mr,
                   const Value &subs,
                   const Value &vals,
                   const size_t *outShape, std::size_t nOutShape,
@@ -175,11 +175,11 @@ Value accumarray(Allocator &alloc,
         throw Error("accumarray: vals must be a scalar or a length-N vector",
                      0, 0, fn, "", "m:accumarray:valSize");
 
-    ScratchArena scratch(alloc);
-    auto shape = resolveOutShape(scratch.resource(), subs, outShape, nOutShape, fn);
+    ScratchArena scratch(mr);
+    auto shape = resolveOutShape(&scratch, subs, outShape, nOutShape, fn);
     if (shape.size() < D) shape.resize(D, 1);
 
-    Value out = allocOutput(alloc, shape.data(), shape.size());
+    Value out = allocOutput(mr, shape.data(), shape.size());
     const size_t total = out.numel();
     double *dst = out.doubleDataMut();
 
@@ -286,11 +286,11 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("accumarray: too many arguments",
                      0, 0, "accumarray", "", "m:accumarray:nargin");
 
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
     auto shape = scratch.vec<size_t>();
     if (args.size() >= 3 && !args[2].isEmpty())
-        shape = parseSizeArg(scratch.resource(), args[2]);
+        shape = parseSizeArg(&scratch, args[2]);
 
     AccumReducer op = AccumReducer::Sum;
     if (args.size() >= 4 && !args[3].isEmpty())
@@ -312,7 +312,7 @@ void accumarray_reg(Span<const Value> args, size_t /*nargout*/,
                          0, 0, "accumarray", "", "m:accumarray:sparse");
     }
 
-    outs[0] = accumarray(alloc,
+    outs[0] = accumarray(mr,
                          args[0], args[1], shape.data(), shape.size(), op, fillVal);
 }
 

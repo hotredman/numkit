@@ -135,7 +135,7 @@ void fprintf(Engine &engine, Span<const Value> args)
 {
     if (args.empty())
         return;
-    Allocator &alloc = engine.allocator();
+    std::pmr::memory_resource *mr = engine.resource();
 
     // First-arg-is-fid disambiguation: MATLAB allows both
     //   fprintf(format, …)  and  fprintf(fid, format, …)
@@ -149,7 +149,7 @@ void fprintf(Engine &engine, Span<const Value> args)
     if (!args[fmtIdx].isChar())
         return;
 
-    std::string result = formatCyclic(alloc, args[fmtIdx].toString(), args, fmtIdx + 1);
+    std::string result = formatCyclic(mr, args[fmtIdx].toString(), args, fmtIdx + 1);
 
     if (fid == 1 || fid == 2) {
         engine.outputText(result);

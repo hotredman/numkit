@@ -8,7 +8,7 @@
 // up sooner.
 
 #include <numkit/builtin/lang/operators/binary_ops.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -38,10 +38,10 @@ void runBinaryBench(benchmark::State &state, Fn fn)
     const size_t n = static_cast<size_t>(state.range(0));
     Value a = makeReal(n, 1);
     Value b = makeReal(n, 2);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value c = fn(alloc, a, b);
+        Value c = fn(mr, a, b);
         benchmark::DoNotOptimize(c);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -75,15 +75,15 @@ namespace numkit::builtin::detail {
 void plusLoop(const double *a, const double *b, double *out, std::size_t n);
 } // namespace numkit::builtin::detail
 
-// Pure alloc: how long does it take to ask the engine allocator
+// Pure mr: how long does it take to ask the engine allocator
 // for a fresh N-element heap double? No data writes.
 static void BM_PlusAlloc(benchmark::State &state)
 {
     using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : state) {
-        Value c = Value::matrix(n, 1, ValueType::DOUBLE, &alloc);
+        Value c = Value::matrix(n, 1, ValueType::DOUBLE, mr);
         benchmark::DoNotOptimize(c);
     }
     state.SetItemsProcessed(state.iterations() * static_cast<int64_t>(n));

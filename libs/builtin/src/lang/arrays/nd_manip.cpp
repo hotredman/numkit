@@ -95,7 +95,7 @@ void transposePage(const double *src, double *dst, size_t inR, size_t inC)
 //   B(i_1, i_2, ..., i_N) = A(i_{p_1}, i_{p_2}, ..., i_{p_N})
 // i.e. output axis k corresponds to input axis perm[k]. So the size
 // of output along axis k equals the size of input along perm[k].
-Value permute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
+Value permute(std::pmr::memory_resource *mr, const Value &x, const int *perm, std::size_t n)
 {
     validatePerm(perm, n, "permute");
 
@@ -118,7 +118,7 @@ Value permute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
 
     // 2D / 3D fast path uses createMatrix / createMatrix3d via matrixND;
     // ≥ 4D goes through Value::matrixND. Trailing 1s are kept.
-    auto r = Value::matrixND(outDimsArr, inNd, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrixND(outDimsArr, inNd, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -198,7 +198,7 @@ Value permute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
     return r;
 }
 
-Value ipermute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
+Value ipermute(std::pmr::memory_resource *mr, const Value &x, const int *perm, std::size_t n)
 {
     validatePerm(perm, n, "ipermute");
     // Compute inverse permutation: invPerm[perm[i] - 1] = i + 1.
@@ -206,7 +206,7 @@ Value ipermute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
     int inv[Dims::kMaxRank];
     for (std::size_t i = 0; i < n; ++i)
         inv[perm[i] - 1] = static_cast<int>(i + 1);
-    return permute(alloc, x, inv, n);
+    return permute(mr, x, inv, n);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -225,20 +225,20 @@ Value ipermute(Allocator &alloc, const Value &x, const int *perm, std::size_t n)
 // squeeze is essentially reshape-with-new-dims. For 1×3×4 this means
 // the data layout still matches: the singleton dim collapses cleanly
 // because a stride of 1 doesn't introduce gaps.
-Value squeeze(Allocator &alloc, const Value &x)
+Value squeeze(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dd = x.dims();
     const int nd = dd.ndim();
 
     // 2D and below: shape preserved (MATLAB never collapses below 2D).
     if (nd <= 2)
-        return reshape(alloc, x, dd.rows(), dd.cols(), 0);
+        return reshape(mr, x, dd.rows(), dd.cols(), 0);
 
     // ND (≥ 3): drop every singleton dim, preserve the rest in order.
     // Pad to at least 2 dims with trailing 1s so a fully-singleton input
     // (1×1×1, 1×1×1×1, etc.) collapses to scalar shape (1×1) rather than
     // an invalid 0D shape.
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto kept = scratch.vec<size_t>();
     kept.reserve(nd);
     for (int i = 0; i < nd; ++i) {
@@ -247,7 +247,7 @@ Value squeeze(Allocator &alloc, const Value &x)
     }
     while (kept.size() < 2) kept.push_back(1);
 
-    return reshapeND(alloc, x, kept.data(), kept.size());
+    return reshapeND(mr, x, kept.data(), kept.size());
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ Value squeeze(Allocator &alloc, const Value &x)
 // stack 2D pages or extend 3D page count. Other dims throw.
 namespace {
 
-Value catDim3(Allocator &alloc, const Value *values, size_t count)
+Value catDim3(std::pmr::memory_resource *mr, const Value *values, size_t count)
 {
     if (count == 0) return Value::empty();
 
@@ -284,7 +284,7 @@ Value catDim3(Allocator &alloc, const Value *values, size_t count)
     }
     if (!anchored) return Value::empty();
 
-    auto r = Value::matrix3d(R, C, totalPages, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix3d(R, C, totalPages, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
     size_t pageOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -304,7 +304,7 @@ Value catDim3(Allocator &alloc, const Value *values, size_t count)
 // max(dim, max input ndim). All numeric types supported via byte-copy
 // (elementSize-based). All inputs must share a type (no implicit
 // promotion). CELL / STRUCT / STRING / FUNC_HANDLE rejected.
-Value catND(Allocator &alloc, int dim, const Value *values, size_t count)
+Value catND(std::pmr::memory_resource *mr, int dim, const Value *values, size_t count)
 {
     if (count == 0) return Value::empty();
     const int k = dim - 1;
@@ -366,7 +366,7 @@ Value catND(Allocator &alloc, int dim, const Value *values, size_t count)
     size_t O = 1;
     for (int j = k + 1; j < outNdim; ++j) O *= outDim[j];
 
-    auto result = Value::matrixND(outDim, outNdim, outType, &alloc);
+    auto result = Value::matrixND(outDim, outNdim, outType, mr);
     if (B == 0 || O == 0 || outDim[k] == 0) return result;
 
     const size_t es = elementSize(outType);
@@ -394,16 +394,16 @@ Value catND(Allocator &alloc, int dim, const Value *values, size_t count)
 
 } // namespace
 
-Value cat(Allocator &alloc, int dim, const Value *values, size_t count)
+Value cat(std::pmr::memory_resource *mr, int dim, const Value *values, size_t count)
 {
     if (dim < 1)
         throw Error("cat: dim must be a positive integer",
                      0, 0, "cat", "", "m:cat:badDim");
     switch (dim) {
-        case 1: return vertcat(alloc, values, count);
-        case 2: return horzcat(alloc, values, count);
-        case 3: return catDim3(alloc, values, count);
-        default: return catND(alloc, dim, values, count);
+        case 1: return vertcat(mr, values, count);
+        case 2: return horzcat(mr, values, count);
+        case 3: return catDim3(mr, values, count);
+        default: return catND(mr, dim, values, count);
     }
 }
 
@@ -413,7 +413,7 @@ Value cat(Allocator &alloc, int dim, const Value *values, size_t count)
 //
 // Block-diagonal matrix: diagonal blocks are the inputs (in order),
 // off-diagonal regions are zero. 2D inputs only.
-Value blkdiag(Allocator &alloc, const Value *values, size_t count)
+Value blkdiag(std::pmr::memory_resource *mr, const Value *values, size_t count)
 {
     if (count == 0) return Value::empty();
 
@@ -425,7 +425,7 @@ Value blkdiag(Allocator &alloc, const Value *values, size_t count)
         totalRows += values[i].dims().rows();
         totalCols += values[i].dims().cols();
     }
-    auto r = Value::matrix(totalRows, totalCols, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(totalRows, totalCols, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
     // Zero-init: matrix() returns an uninitialised buffer in some
     // builds; explicit clear is safe and cheap (we'll write the block
@@ -471,10 +471,10 @@ void permute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("permute: requires (A, perm)",
                      0, 0, "permute", "", "m:permute:nargin");
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto perm = permFromValue(scratch.resource(), args[1]);
-    outs[0] = permute(alloc, args[0], perm.data(), perm.size());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto perm = permFromValue(&scratch, args[1]);
+    outs[0] = permute(mr, args[0], perm.data(), perm.size());
 }
 
 void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -483,10 +483,10 @@ void ipermute_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.size() < 2)
         throw Error("ipermute: requires (A, perm)",
                      0, 0, "ipermute", "", "m:ipermute:nargin");
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto perm = permFromValue(scratch.resource(), args[1]);
-    outs[0] = ipermute(alloc, args[0], perm.data(), perm.size());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto perm = permFromValue(&scratch, args[1]);
+    outs[0] = ipermute(mr, args[0], perm.data(), perm.size());
 }
 
 void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -495,7 +495,7 @@ void squeeze_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("squeeze: requires 1 argument",
                      0, 0, "squeeze", "", "m:squeeze:nargin");
-    outs[0] = squeeze(ctx.engine->allocator(), args[0]);
+    outs[0] = squeeze(ctx.engine->resource(), args[0]);
 }
 
 void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -506,14 +506,14 @@ void cat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "cat", "", "m:cat:nargin");
     const int dim = static_cast<int>(args[0].toScalar());
     // Pass &args[1] as the start of the values array.
-    outs[0] = cat(ctx.engine->allocator(), dim,
+    outs[0] = cat(ctx.engine->resource(), dim,
                   &args[1], args.size() - 1);
 }
 
 void blkdiag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
-    outs[0] = blkdiag(ctx.engine->allocator(), args.data(), args.size());
+    outs[0] = blkdiag(ctx.engine->resource(), args.data(), args.size());
 }
 
 } // namespace detail

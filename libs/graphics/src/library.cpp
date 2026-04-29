@@ -110,7 +110,7 @@ void GraphicsLibrary::install(Engine &engine)
                                size_t nargout,
                                Span<Value> outs,
                                CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
+                                auto *mr = ctx.engine->resource();
                                 auto &fm = ctx.engine->figureManager();
                                 int id;
                                 if (args.empty()) {
@@ -123,7 +123,7 @@ void GraphicsLibrary::install(Engine &engine)
                                 fm.current().modified = true;
                                 fm.emitModified();
                                 if (nargout > 0)
-                                    outs[0] = Value::scalar(static_cast<double>(id), alloc);
+                                    outs[0] = Value::scalar(static_cast<double>(id), mr);
                             });
 
     engine.registerFunction("close",
@@ -285,7 +285,7 @@ void GraphicsLibrary::install(Engine &engine)
                                         size_t nargout,
                                         Span<Value> outs,
                                         CallContext &ctx) {
-                                auto *alloc = &ctx.engine->allocator();
+                                auto *mr = ctx.engine->resource();
                                 if (args.empty()) {
                                     outs[0] = Value::empty();
                                     return;
@@ -301,8 +301,8 @@ void GraphicsLibrary::install(Engine &engine)
                                 double bw = (mx - mn) / bins;
                                 if (bw == 0)
                                     bw = 1;
-                                auto centers = Value::matrix(1, bins, ValueType::DOUBLE, alloc);
-                                auto counts = Value::matrix(1, bins, ValueType::DOUBLE, alloc);
+                                auto centers = Value::matrix(1, bins, ValueType::DOUBLE, mr);
+                                auto counts = Value::matrix(1, bins, ValueType::DOUBLE, mr);
                                 for (int b = 0; b < bins; ++b)
                                     centers.doubleDataMut()[b] = mn + bw * (b + 0.5);
                                 for (size_t i = 0; i < data.numel(); ++i) {
@@ -834,7 +834,7 @@ void GraphicsLibrary::install(Engine &engine)
     auto noop_ret1 =
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             {
-                outs[0] = Value::scalar(1.0, &ctx.engine->allocator());
+                outs[0] = Value::scalar(1.0, ctx.engine->resource());
                 return;
             }
         };

@@ -18,18 +18,18 @@
 
 namespace numkit::builtin {
 
-Value abs(Allocator &alloc, const Value &x, Value *hint)
+Value abs(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     if (x.isComplex()) {
         if (x.isScalar())
-            return Value::scalar(std::abs(x.toComplex()), &alloc);
-        auto r = createLike(x, ValueType::DOUBLE, &alloc);
+            return Value::scalar(std::abs(x.toComplex()), mr);
+        auto r = createLike(x, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < x.numel(); ++i)
             r.doubleDataMut()[i] = std::abs(x.complexData()[i]);
         return r;
     }
     if (x.isScalar())
-        return Value::scalar(std::fabs(x.toScalar()), &alloc);
+        return Value::scalar(std::fabs(x.toScalar()), mr);
     // Output-reuse fast path: caller-provided hint is a heap double
     // of matching shape with unique ownership — write straight into
     // its buffer instead of allocating a fresh one.
@@ -42,7 +42,7 @@ Value abs(Allocator &alloc, const Value &x, Value *hint)
             out[i] = std::fabs(in[i]);
         return r;
     }
-    return unaryDouble(x, [](double v) { return std::abs(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::abs(v); }, mr);
 }
 
 } // namespace numkit::builtin

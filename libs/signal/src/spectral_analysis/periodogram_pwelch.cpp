@@ -36,12 +36,12 @@ void fillHammingWindow(double *w, size_t N)
 } // anonymous namespace
 
 std::tuple<Value, Value>
-periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft)
+periodogram(std::pmr::memory_resource *mr, const Value &x, const Value &window, size_t nfft)
 {
     const size_t N = x.numel();
     const double *xd = x.doubleData();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto win = scratch.vec<double>(N);
     if (window.numel() == N) {
         const double *w = window.doubleData();
@@ -61,11 +61,11 @@ periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft)
         winPower += win[i] * win[i];
     }
 
-    fftRadix2(scratch.resource(), buf, 1);
+    fftRadix2(&scratch, buf, 1);
 
     const size_t nOut = nfft / 2 + 1;
-    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
-    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
+    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     const double scale = 1.0 / (winPower * nfft);
 
     for (size_t i = 0; i < nOut; ++i) {
@@ -80,7 +80,7 @@ periodogram(Allocator &alloc, const Value &x, const Value &window, size_t nfft)
 }
 
 std::tuple<Value, Value>
-pwelch(Allocator &alloc,
+pwelch(std::pmr::memory_resource *mr,
        const Value &x,
        const Value &window,
        size_t noverlap,
@@ -89,10 +89,10 @@ pwelch(Allocator &alloc,
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     size_t winLen;
-    ScratchVec<double> win(scratch.resource());
+    ScratchVec<double> win(&scratch);
     if (window.numel() > 0) {
         winLen = window.numel();
         win.resize(winLen);
@@ -131,7 +131,7 @@ pwelch(Allocator &alloc,
         for (size_t i = winLen; i < nfft; ++i)
             buf[i] = Complex(0.0, 0.0);
 
-        fftRadix2(scratch.resource(), buf, 1);
+        fftRadix2(&scratch, buf, 1);
 
         for (size_t i = 0; i < nOut; ++i) {
             double mag2 = std::norm(buf[i]);
@@ -143,8 +143,8 @@ pwelch(Allocator &alloc,
     }
 
     const double scale = 1.0 / (winPower * nfft * nSegments);
-    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
-    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, &alloc);
+    auto Pxx = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    auto F = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nOut; ++i) {
         Pxx.doubleDataMut()[i] = psd[i] * scale;
         F.doubleDataMut()[i] = M_PI * i / (nOut - 1);
@@ -166,7 +166,7 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
         window = args[1];
     const size_t nfft = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
 
-    auto [Pxx, F] = periodogram(ctx.engine->allocator(), args[0], window, nfft);
+    auto [Pxx, F] = periodogram(ctx.engine->resource(), args[0], window, nfft);
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
@@ -184,7 +184,7 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
 
-    auto [Pxx, F] = pwelch(ctx.engine->allocator(), args[0], window, noverlap, nfft);
+    auto [Pxx, F] = pwelch(ctx.engine->resource(), args[0], window, noverlap, nfft);
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);

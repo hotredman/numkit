@@ -158,12 +158,12 @@ size_t countFormatSpecs(const std::string &fmt)
     return n;
 }
 
-std::string formatCyclic(Allocator &alloc, const std::string &fmt,
+std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
                          Span<const Value> args, size_t argStart)
 {
-    Allocator *p = &alloc;
-    ScratchArena scratch_arena(alloc);
-    ScratchVec<Value> stream(scratch_arena.resource());
+    std::pmr::memory_resource *p = mr;
+    ScratchArena scratch_arena(mr);
+    ScratchVec<Value> stream(&scratch_arena);
     stream.reserve(args.size() > argStart ? args.size() - argStart : 0);
     for (size_t i = argStart; i < args.size(); ++i) {
         const Value &a = args[i];
@@ -195,12 +195,12 @@ std::string formatCyclic(Allocator &alloc, const std::string &fmt,
     return out;
 }
 
-Value sprintf(Allocator &alloc, const Value &fmt, Span<const Value> args)
+Value sprintf(std::pmr::memory_resource *mr, const Value &fmt, Span<const Value> args)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (!fmt.isChar())
         return Value::fromString("", p);
-    std::string result = formatCyclic(alloc, fmt.toString(), args, 0);
+    std::string result = formatCyclic(mr, fmt.toString(), args, 0);
     return Value::fromString(result, p);
 }
 
@@ -212,13 +212,13 @@ namespace detail {
 
 void sprintf_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty()) {
-        outs[0] = Value::fromString("", &alloc);
+        outs[0] = Value::fromString("", mr);
         return;
     }
     Span<const Value> rest{args.data() + 1, args.size() - 1};
-    outs[0] = sprintf(alloc, args[0], rest);
+    outs[0] = sprintf(mr, args[0], rest);
 }
 
 } // namespace detail

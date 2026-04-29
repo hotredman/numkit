@@ -1,6 +1,5 @@
 #pragma once
 
-#include <numkit/core/allocator.hpp>
 #include <numkit/core/heap_object.hpp>
 
 #include <atomic>
@@ -9,6 +8,7 @@
 #include <cstdint>
 #include <cstring>
 #include <map>
+#include <memory_resource>
 #include <string>
 #include <vector>
 
@@ -45,17 +45,17 @@ public:
     void swap(Value &other) noexcept;
 
     // ── Factories — real ─────────────────────────────────────
-    static Value scalar(double v, Allocator *alloc = nullptr);
-    static Value logicalScalar(bool v, Allocator *alloc = nullptr);
+    static Value scalar(double v, std::pmr::memory_resource *mr = nullptr);
+    static Value logicalScalar(bool v, std::pmr::memory_resource *mr = nullptr);
     static Value matrix(size_t rows,
                          size_t cols,
                          ValueType t = ValueType::DOUBLE,
-                         Allocator *alloc = nullptr);
+                         std::pmr::memory_resource *mr = nullptr);
     static Value matrix3d(size_t rows,
                            size_t cols,
                            size_t pages,
                            ValueType t = ValueType::DOUBLE,
-                           Allocator *alloc = nullptr);
+                           std::pmr::memory_resource *mr = nullptr);
     // ND factory. dims[0..nd) is the shape, column-major. For nd <= 3 the
     // result is observably equivalent to matrix() / matrix3d(); for nd > 3
     // the heap object's Dims uses SBO storage (inline up to 4D, heap for
@@ -64,42 +64,42 @@ public:
     static Value matrixND(const size_t *dims,
                            int nd,
                            ValueType t = ValueType::DOUBLE,
-                           Allocator *alloc = nullptr);
-    static Value fromString(const std::string &s, Allocator *alloc = nullptr);
+                           std::pmr::memory_resource *mr = nullptr);
+    static Value fromString(const std::string &s, std::pmr::memory_resource *mr = nullptr);
     static Value cell(size_t rows, size_t cols);
     static Value cell3D(size_t rows, size_t cols, size_t pages);
     // ND CELL constructor — picks 2D / 3D / true-ND backing as needed.
     static Value cellND(const size_t *dims, int nd);
     static Value structure();
-    static Value funcHandle(const std::string &name, Allocator *alloc = nullptr);
+    static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
     static Value empty();
     static Value deleted();
 
     // ── Factories — compound operations ────────────────────────
     // Colon range: start:stop (step=1) or start:step:stop
-    static Value colonRange(double start, double stop, Allocator *alloc = nullptr);
-    static Value colonRange(double start, double step, double stop, Allocator *alloc = nullptr);
+    static Value colonRange(double start, double stop, std::pmr::memory_resource *mr = nullptr);
+    static Value colonRange(double start, double step, double stop, std::pmr::memory_resource *mr = nullptr);
     // Number of elements in the colon range (no allocation). Used by the
     // VM's lazy `for v = a:b` loop to size the iteration without
     // materialising the row vector. Throws on infinite/zero step.
     static size_t colonCount(double start, double step, double stop);
 
     // Concatenation: [a, b, c] and [a; b; c]
-    static Value horzcat(const Value *elems, size_t count, Allocator *alloc = nullptr);
-    static Value vertcat(const Value *elems, size_t count, Allocator *alloc = nullptr);
+    static Value horzcat(const Value *elems, size_t count, std::pmr::memory_resource *mr = nullptr);
+    static Value vertcat(const Value *elems, size_t count, std::pmr::memory_resource *mr = nullptr);
 
     // ── Type-preserving indexing ─────────────────────────────
     // All methods preserve the element type (DOUBLE, COMPLEX, LOGICAL, CHAR).
-    Value elemAt(size_t linearIdx, Allocator *alloc = nullptr) const;
+    Value elemAt(size_t linearIdx, std::pmr::memory_resource *mr = nullptr) const;
     // Read element idx as double — covers DOUBLE / SINGLE / LOGICAL /
     // CHAR / COMPLEX (real part) / INT8..INT64 / UINT8..UINT64.
     double elemAsDouble(size_t idx) const;
-    Value indexGet(const size_t *indices, size_t count, Allocator *alloc = nullptr) const;
+    Value indexGet(const size_t *indices, size_t count, std::pmr::memory_resource *mr = nullptr) const;
     Value indexGet2D(const size_t *rowIdx, size_t nrows,
-                      const size_t *colIdx, size_t ncols, Allocator *alloc = nullptr) const;
+                      const size_t *colIdx, size_t ncols, std::pmr::memory_resource *mr = nullptr) const;
     Value indexGet3D(const size_t *rowIdx, size_t nrows,
                       const size_t *colIdx, size_t ncols,
-                      const size_t *pageIdx, size_t npages, Allocator *alloc = nullptr) const;
+                      const size_t *pageIdx, size_t npages, std::pmr::memory_resource *mr = nullptr) const;
     /// ND subscript read for arbitrary rank. perDimIdx[i] points at a
     /// 0-based index list of length perDimCount[i] for dim i. nd ≤ 3
     /// delegates to the 1D/2D/3D fast paths. CELL is not yet supported
@@ -107,8 +107,8 @@ public:
     Value indexGetND(const size_t *const *perDimIdx,
                       const size_t *perDimCount,
                       int nd,
-                      Allocator *alloc = nullptr) const;
-    Value logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc = nullptr) const;
+                      std::pmr::memory_resource *mr = nullptr) const;
+    Value logicalIndex(const uint8_t *mask, size_t maskLen, std::pmr::memory_resource *mr = nullptr) const;
 
     // ── Index resolution ────────────────────────────────────
     // Convert an index Value (scalar, vector, logical mask, colon ':')
@@ -139,29 +139,29 @@ public:
                     const Value &val);
 
     // ── Type-preserving deletion (v(idx) = []) ─────────────
-    void indexDelete(const size_t *indices, size_t count, Allocator *alloc = nullptr);
+    void indexDelete(const size_t *indices, size_t count, std::pmr::memory_resource *mr = nullptr);
     void indexDelete2D(const size_t *rowIdx, size_t nrows,
                        const size_t *colIdx, size_t ncols,
-                       Allocator *alloc = nullptr);
+                       std::pmr::memory_resource *mr = nullptr);
     void indexDelete3D(const size_t *rowIdx, size_t nrows,
                        const size_t *colIdx, size_t ncols,
                        const size_t *pageIdx, size_t npages,
-                       Allocator *alloc = nullptr);
+                       std::pmr::memory_resource *mr = nullptr);
     // ND delete: A(i_1, ..., i_n) = []. Exactly one axis must be a
     // strict subset; all others must be the full range. Result has
     // that axis shrunk by the count of deleted indices.
     void indexDeleteND(const size_t *const *perDimIdx,
                        const size_t *perDimCount,
                        int nd,
-                       Allocator *alloc = nullptr);
+                       std::pmr::memory_resource *mr = nullptr);
 
     // ── Factories — complex ──────────────────────────────────
-    static Value complexScalar(Complex v, Allocator *alloc = nullptr);
-    static Value complexScalar(double re, double im, Allocator *alloc = nullptr);
-    static Value complexMatrix(size_t rows, size_t cols, Allocator *alloc = nullptr);
+    static Value complexScalar(Complex v, std::pmr::memory_resource *mr = nullptr);
+    static Value complexScalar(double re, double im, std::pmr::memory_resource *mr = nullptr);
+    static Value complexMatrix(size_t rows, size_t cols, std::pmr::memory_resource *mr = nullptr);
 
     // ── Factories — string (MATLAB "..." double-quoted) ─────
-    static Value stringScalar(const std::string &s, Allocator *alloc = nullptr);
+    static Value stringScalar(const std::string &s, std::pmr::memory_resource *mr = nullptr);
     static Value stringArray(size_t rows, size_t cols);
     static Value stringArray3D(size_t rows, size_t cols, size_t pages);
 
@@ -255,17 +255,17 @@ public:
     std::string charRow(size_t r) const;
 
     // ── Resize ───────────────────────────────────────────────
-    void resize(size_t newRows, size_t newCols, Allocator *alloc = nullptr);
-    void resize3d(size_t newRows, size_t newCols, size_t newPages, Allocator *alloc = nullptr);
+    void resize(size_t newRows, size_t newCols, std::pmr::memory_resource *mr = nullptr);
+    void resize3d(size_t newRows, size_t newCols, size_t newPages, std::pmr::memory_resource *mr = nullptr);
     // ND resize: re-shape to `newDims` (length `nd`), preserving the
     // intersection of old and new shapes (per-axis min). Pads with 0
     // (or ' ' for CHAR). Delegates to resize/resize3d for nd ≤ 3.
-    void resizeND(const size_t *newDims, int nd, Allocator *alloc = nullptr);
-    void ensureSize(size_t linearIdx, Allocator *alloc = nullptr);
-    void appendScalar(double v, Allocator *alloc = nullptr);
+    void resizeND(const size_t *newDims, int nd, std::pmr::memory_resource *mr = nullptr);
+    void ensureSize(size_t linearIdx, std::pmr::memory_resource *mr = nullptr);
+    void appendScalar(double v, std::pmr::memory_resource *mr = nullptr);
 
     // ── Promote double → complex ─────────────────────────────
-    void promoteToComplex(Allocator *alloc = nullptr);
+    void promoteToComplex(std::pmr::memory_resource *mr = nullptr);
 
     // ── Cell ─────────────────────────────────────────────────
     Value &cellAt(size_t i);

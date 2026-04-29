@@ -62,28 +62,28 @@ ScratchVec<double> applyFirDf2t(std::pmr::memory_resource *mr,
 } // anonymous namespace
 
 // ── downsample ────────────────────────────────────────────────────────
-Value downsample(Allocator &alloc, const Value &x, size_t n)
+Value downsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
 {
     const size_t nx = x.numel();
     const size_t outLen = (nx + n - 1) / n;
     const bool isRow = x.dims().rows() == 1;
 
-    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = x.doubleData()[i * n];
     return r;
 }
 
 // ── upsample ──────────────────────────────────────────────────────────
-Value upsample(Allocator &alloc, const Value &x, size_t n)
+Value upsample(std::pmr::memory_resource *mr, const Value &x, size_t n)
 {
     const size_t nx = x.numel();
     const size_t outLen = nx * n;
     const bool isRow = x.dims().rows() == 1;
 
-    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = 0.0;
     for (size_t i = 0; i < nx; ++i)
@@ -92,7 +92,7 @@ Value upsample(Allocator &alloc, const Value &x, size_t n)
 }
 
 // ── decimate ──────────────────────────────────────────────────────────
-Value decimate(Allocator &alloc, const Value &x, size_t factor)
+Value decimate(std::pmr::memory_resource *mr, const Value &x, size_t factor)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
@@ -103,26 +103,26 @@ Value decimate(Allocator &alloc, const Value &x, size_t factor)
     const size_t filtLen = filtOrder + 1;
     const double wc = M_PI / factor;
 
-    ScratchArena scratch(alloc);
-    auto h = designLowpassFir(scratch.resource(), filtLen, wc);
-    auto filtered = applyFirDf2t(scratch.resource(), h.data(), h.size(), xd, nx);
+    ScratchArena scratch(mr);
+    auto h = designLowpassFir(&scratch, filtLen, wc);
+    auto filtered = applyFirDf2t(&scratch, h.data(), h.size(), xd, nx);
 
     const size_t outLen = (nx + factor - 1) / factor;
     const bool isRow = x.dims().rows() == 1;
-    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = filtered[i * factor];
     return r;
 }
 
 // ── resample ──────────────────────────────────────────────────────────
-Value resample(Allocator &alloc, const Value &x, size_t p, size_t q)
+Value resample(std::pmr::memory_resource *mr, const Value &x, size_t p, size_t q)
 {
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     // Upsample by p (zero-stuff, multiply by p for gain)
     const size_t upLen = nx * p;
@@ -137,14 +137,14 @@ Value resample(Allocator &alloc, const Value &x, size_t p, size_t q)
     const size_t filtLen = filtOrder + 1;
     const double wc = M_PI / std::max(p, q);
 
-    auto h = designLowpassFir(scratch.resource(), filtLen, wc);
-    auto filtered = applyFirDf2t(scratch.resource(), h.data(), h.size(), up.data(), upLen);
+    auto h = designLowpassFir(&scratch, filtLen, wc);
+    auto filtered = applyFirDf2t(&scratch, h.data(), h.size(), up.data(), upLen);
 
     // Downsample by q
     const size_t outLen = (upLen + q - 1) / q;
     const bool isRow = x.dims().rows() == 1;
-    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(outLen, 1, ValueType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, outLen, ValueType::DOUBLE, mr)
+                   : Value::matrix(outLen, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i) {
         const size_t idx = i * q;
         r.doubleDataMut()[i] = (idx < upLen) ? filtered[idx] : 0.0;
@@ -160,7 +160,7 @@ void downsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.size() < 2)
         throw Error("downsample: requires 2 arguments",
                      0, 0, "downsample", "", "m:downsample:nargin");
-    outs[0] = downsample(ctx.engine->allocator(),
+    outs[0] = downsample(ctx.engine->resource(),
                          args[0],
                          static_cast<size_t>(args[1].toScalar()));
 }
@@ -170,7 +170,7 @@ void upsample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("upsample: requires 2 arguments",
                      0, 0, "upsample", "", "m:upsample:nargin");
-    outs[0] = upsample(ctx.engine->allocator(),
+    outs[0] = upsample(ctx.engine->resource(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
 }
@@ -180,7 +180,7 @@ void decimate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 2)
         throw Error("decimate: requires 2 arguments",
                      0, 0, "decimate", "", "m:decimate:nargin");
-    outs[0] = decimate(ctx.engine->allocator(),
+    outs[0] = decimate(ctx.engine->resource(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()));
 }
@@ -190,7 +190,7 @@ void resample_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("resample: requires 3 arguments",
                      0, 0, "resample", "", "m:resample:nargin");
-    outs[0] = resample(ctx.engine->allocator(),
+    outs[0] = resample(ctx.engine->resource(),
                        args[0],
                        static_cast<size_t>(args[1].toScalar()),
                        static_cast<size_t>(args[2].toScalar()));

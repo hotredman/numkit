@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/datatypes/strings/regex.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -20,10 +20,10 @@ namespace numkit::builtin {
 //
 // regexprep(str, pat, rep) — substitute every non-overlapping match.
 // `rep` may use `$1`/`$2`/... back-references (ECMAScript syntax).
-Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
+Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
                   const std::string &option = "", bool ignoreCase = false);
 
-Value regexprep(Allocator &alloc, const Value &s, const Value &pat,
+Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
                  const Value &rep, bool ignoreCase = false);
 
 } // namespace numkit::builtin

@@ -39,7 +39,7 @@ namespace {
 // acc with init. For 2D: reduces across rows → row vector of cols. For 3D:
 // reduces along first non-singleton dimension. For vectors/scalars: scalar.
 template<typename Op>
-Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode = false)
+Value reduce(const Value &x, Op op, double init, std::pmr::memory_resource *mr, bool meanMode = false)
 {
     // Reads each element as double — supports DOUBLE / SINGLE / integer
     // / LOGICAL transparently. DOUBLE keeps the contiguous fast path.
@@ -54,7 +54,7 @@ Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode
             acc = op(acc, readD(i));
         if (meanMode)
             acc /= static_cast<double>(x.numel());
-        return Value::scalar(acc, alloc);
+        return Value::scalar(acc, mr);
     }
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
@@ -66,7 +66,7 @@ Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode
         const size_t outC = (redDim == 1) ? 1 : C;
         const size_t outP = (redDim == 2) ? 1 : P;
         const size_t N = (redDim == 0) ? R : (redDim == 1) ? C : P;
-        auto r = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc);
+        auto r = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr);
         for (size_t pp = 0; pp < outP; ++pp)
             for (size_t c = 0; c < outC; ++c)
                 for (size_t rr = 0; rr < outR; ++rr) {
@@ -84,7 +84,7 @@ Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode
         return r;
     }
 
-    auto r = Value::matrix(1, C, ValueType::DOUBLE, alloc);
+    auto r = Value::matrix(1, C, ValueType::DOUBLE, mr);
     for (size_t c = 0; c < C; ++c) {
         double acc = init;
         for (size_t rr = 0; rr < R; ++rr)
@@ -98,14 +98,14 @@ Value reduce(const Value &x, Op op, double init, Allocator *alloc, bool meanMode
 
 } // anonymous namespace
 
-Value sum(Allocator &alloc, const Value &x)
+Value sum(std::pmr::memory_resource *mr, const Value &x)
 {
-    return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc);
+    return reduce(x, [](double a, double b) { return a + b; }, 0.0, mr);
 }
 
-Value sum(Allocator &alloc, const Value &x, int dim)
+Value sum(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return sum(alloc, x);
+    if (dim <= 0) return sum(mr, x);
     const int d = detail::resolveDim(x, dim, "sum");
 
     // Phase P6 followup: 2D dim=2 column-pass row reduction. The
@@ -119,7 +119,7 @@ Value sum(Allocator &alloc, const Value &x, int dim)
     if (d == 2 && x.type() == ValueType::DOUBLE && x.dims().ndim() == 2
         && !x.isScalar() && !x.dims().isVector()) {
         const size_t R = x.dims().rows(), C = x.dims().cols();
-        auto r = Value::matrix(R, 1, ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(R, 1, ValueType::DOUBLE, mr);
         double *totals = r.doubleDataMut();
         std::fill(totals, totals + R, 0.0);
         const double *src = x.doubleData();
@@ -134,41 +134,41 @@ Value sum(Allocator &alloc, const Value &x, int dim)
             double acc = 0.0;
             for (size_t i = 0; i < n; ++i) acc += slice[i];
             return acc;
-        }, &alloc);
+        }, mr);
 }
 
-Value prod(Allocator &alloc, const Value &x)
+Value prod(std::pmr::memory_resource *mr, const Value &x)
 {
-    return reduce(x, [](double a, double b) { return a * b; }, 1.0, &alloc);
+    return reduce(x, [](double a, double b) { return a * b; }, 1.0, mr);
 }
 
-Value prod(Allocator &alloc, const Value &x, int dim)
+Value prod(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return prod(alloc, x);
+    if (dim <= 0) return prod(mr, x);
     const int d = detail::resolveDim(x, dim, "prod");
     return detail::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 1.0;
             for (size_t i = 0; i < n; ++i) acc *= slice[i];
             return acc;
-        }, &alloc);
+        }, mr);
 }
 
-Value mean(Allocator &alloc, const Value &x)
+Value mean(std::pmr::memory_resource *mr, const Value &x)
 {
-    return reduce(x, [](double a, double b) { return a + b; }, 0.0, &alloc, /*meanMode=*/true);
+    return reduce(x, [](double a, double b) { return a + b; }, 0.0, mr, /*meanMode=*/true);
 }
 
-Value mean(Allocator &alloc, const Value &x, int dim)
+Value mean(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return mean(alloc, x);
+    if (dim <= 0) return mean(mr, x);
     const int d = detail::resolveDim(x, dim, "mean");
     return detail::applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             double acc = 0.0;
             for (size_t i = 0; i < n; ++i) acc += slice[i];
             return acc / static_cast<double>(n);
-        }, &alloc);
+        }, mr);
 }
 
 // ── max/min with index ───────────────────────────────────────────────
@@ -202,13 +202,13 @@ inline T readSrcAsT(const Value &x, size_t i, bool typeMatch)
 }
 
 template <typename T>
-inline Value makeScalarT(T v, ValueType outType, Allocator *alloc)
+inline Value makeScalarT(T v, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (outType == ValueType::DOUBLE)
-        return Value::scalar(static_cast<double>(v), alloc);
+        return Value::scalar(static_cast<double>(v), mr);
     if (outType == ValueType::LOGICAL)
-        return Value::logicalScalar(v != 0, alloc);
-    auto r = Value::matrix(1, 1, outType, alloc);
+        return Value::logicalScalar(v != 0, mr);
+    auto r = Value::matrix(1, 1, outType, mr);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -262,22 +262,22 @@ void minMaxAlongDim(std::pmr::memory_resource *mr,
 // Construct the right-shaped (value, idx) output pair for reduction
 // along `redDim` of x: value array has `outType`, idx array has DOUBLE.
 inline std::pair<Value, Value>
-allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, Allocator *alloc)
+allocMinMaxOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return {Value::matrixND(shape.data(), (int) shape.size(), outType, alloc),
-                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, alloc)};
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return {createMatrix(outShape, outType, alloc),
-            createMatrix(outShape, ValueType::DOUBLE, alloc)};
+    return {createMatrix(outShape, outType, mr),
+            createMatrix(outShape, ValueType::DOUBLE, mr)};
 }
 
 template <typename T, typename Cmp>
 std::tuple<Value, Value>
-reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
+reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.numel() == 0)
@@ -289,14 +289,14 @@ reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
             const T v = readSrcAsT<T>(x, i, typeMatch);
             if (cmp(v, best)) { best = v; bi = i; }
         }
-        return std::make_tuple(makeScalarT<T>(best, outType, alloc),
-                               Value::scalar(static_cast<double>(bi + 1), alloc));
+        return std::make_tuple(makeScalarT<T>(best, outType, mr),
+                               Value::scalar(static_cast<double>(bi + 1), mr));
     }
     // Multi-dim: reduce along first non-singleton dim (MATLAB rule).
     const int redDim = detail::firstNonSingletonDim(x);
-    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, alloc);
-    ScratchArena scratch_arena(*alloc);
-    minMaxAlongDim<T>(scratch_arena.resource(), x, redDim,
+    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
+    ScratchArena scratch_arena(mr);
+    minMaxAlongDim<T>(&scratch_arena, x, redDim,
                      static_cast<T *>(out.rawDataMut()),
                      outIdx.doubleDataMut(),
                      cmp, typeMatch);
@@ -305,7 +305,7 @@ reduceMinMaxAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
 
 template <typename T, typename Cmp>
 std::tuple<Value, Value>
-reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Allocator *alloc)
+reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isScalar() || x.dims().isVector()) {
@@ -318,11 +318,11 @@ reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Alloc
             const size_t n = x.numel();
             Value out, outIdx;
             if (x.dims().isVector()) {
-                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
-                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, alloc);
+                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, mr);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE, mr);
             } else {
-                out    = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, alloc);
-                outIdx = Value::scalar(1.0, alloc);
+                out    = makeScalarT<T>(readSrcAsT<T>(x, 0, typeMatch), outType, mr);
+                outIdx = Value::scalar(1.0, mr);
                 return std::make_tuple(std::move(out), std::move(outIdx));
             }
             T *dst = static_cast<T *>(out.rawDataMut());
@@ -334,11 +334,11 @@ reduceMinMaxAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Alloc
             return std::make_tuple(std::move(out), std::move(outIdx));
         }
         // Reduce-all on a vector → scalar (matches the no-dim form).
-        return reduceMinMaxAllT<T>(x, cmp, outType, alloc);
+        return reduceMinMaxAllT<T>(x, cmp, outType, mr);
     }
-    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, alloc);
-    ScratchArena scratch_arena(*alloc);
-    minMaxAlongDim<T>(scratch_arena.resource(), x, dim,
+    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, mr);
+    ScratchArena scratch_arena(mr);
+    minMaxAlongDim<T>(&scratch_arena, x, dim,
                      static_cast<T *>(out.rawDataMut()),
                      outIdx.doubleDataMut(),
                      cmp, typeMatch);
@@ -379,22 +379,22 @@ inline bool complexBetter(Complex v, Complex best, bool allReal)
 }
 
 inline std::pair<Value, Value>
-allocComplexMinMaxOutputs(const Value &x, int redDim, Allocator *alloc)
+allocComplexMinMaxOutputs(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return {Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, alloc),
-                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE,  alloc)};
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return {Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr),
+                Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE,  mr)};
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return {createMatrix(outShape, ValueType::COMPLEX, alloc),
-            createMatrix(outShape, ValueType::DOUBLE,  alloc)};
+    return {createMatrix(outShape, ValueType::COMPLEX, mr),
+            createMatrix(outShape, ValueType::DOUBLE,  mr)};
 }
 
 template <bool IsMax>
 std::tuple<Value, Value>
-reduceMinMaxComplexAll(const Value &x, Allocator *alloc, const char *fn)
+reduceMinMaxComplexAll(const Value &x, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
@@ -406,11 +406,11 @@ reduceMinMaxComplexAll(const Value &x, Allocator *alloc, const char *fn)
         size_t bi = 0;
         for (size_t i = 1; i < x.numel(); ++i)
             if (complexBetter<IsMax>(data[i], best, allReal)) { best = data[i]; bi = i; }
-        return std::make_tuple(Value::complexScalar(best, alloc),
-                               Value::scalar(static_cast<double>(bi + 1), alloc));
+        return std::make_tuple(Value::complexScalar(best, mr),
+                               Value::scalar(static_cast<double>(bi + 1), mr));
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, mr);
     Complex *dst  = out.complexDataMut();
     double  *dstI = outIdx.doubleDataMut();
 
@@ -444,7 +444,7 @@ reduceMinMaxComplexAll(const Value &x, Allocator *alloc, const char *fn)
 
 template <bool IsMax>
 std::tuple<Value, Value>
-reduceMinMaxComplexAlongDim(const Value &x, int dim, Allocator *alloc, const char *fn)
+reduceMinMaxComplexAlongDim(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
@@ -452,11 +452,11 @@ reduceMinMaxComplexAlongDim(const Value &x, int dim, Allocator *alloc, const cha
             const size_t n = x.numel();
             Value out, outIdx;
             if (x.dims().isVector()) {
-                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::COMPLEX, alloc);
-                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE,  alloc);
+                out    = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::COMPLEX, mr);
+                outIdx = createMatrix({x.dims().rows(), x.dims().cols(), 0}, ValueType::DOUBLE,  mr);
             } else {
-                out    = Value::complexScalar(x.complexData()[0], alloc);
-                outIdx = Value::scalar(1.0, alloc);
+                out    = Value::complexScalar(x.complexData()[0], mr);
+                outIdx = Value::scalar(1.0, mr);
                 return std::make_tuple(std::move(out), std::move(outIdx));
             }
             Complex *dst = out.complexDataMut();
@@ -465,11 +465,11 @@ reduceMinMaxComplexAlongDim(const Value &x, int dim, Allocator *alloc, const cha
             for (size_t i = 0; i < n; ++i) { dst[i] = src[i]; dstI[i] = 1.0; }
             return std::make_tuple(std::move(out), std::move(outIdx));
         }
-        return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
+        return reduceMinMaxComplexAll<IsMax>(x, mr, fn);
     }
     const Complex *data = x.complexData();
     const bool allReal = allImagZero(data, x.numel());
-    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, alloc);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, mr);
     Complex *dst  = out.complexDataMut();
     double  *dstI = outIdx.doubleDataMut();
 
@@ -507,11 +507,11 @@ reduceMinMaxComplexAlongDim(const Value &x, int dim, Allocator *alloc, const cha
 // the declaration to be visible at the point of (template) reference.
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
-dispatchMinMaxAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn);
+dispatchMinMaxAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const char *fn);
 
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
-dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, Allocator *alloc, const char *fn);
+dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resource *mr, const char *fn);
 
 // ── NaN-aware min/max (omitnan flag) ─────────────────────────────────
 //
@@ -579,7 +579,7 @@ void minMaxNanAlongDim(const Value &x, int redDim, T *dst, double *dstI,
 
 template <typename T, typename Cmp>
 std::tuple<Value, Value>
-reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc)
+reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.numel() == 0)
         throw std::runtime_error("min/max of empty array is not supported");
@@ -595,17 +595,17 @@ reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc
         }
         if (firstValid == SIZE_MAX) {
             if constexpr (std::is_floating_point_v<T>)
-                return std::make_tuple(makeScalarT<T>(std::numeric_limits<T>::quiet_NaN(), outType, alloc),
-                                       Value::scalar(1.0, alloc));
+                return std::make_tuple(makeScalarT<T>(std::numeric_limits<T>::quiet_NaN(), outType, mr),
+                                       Value::scalar(1.0, mr));
             else
-                return std::make_tuple(makeScalarT<T>(T{}, outType, alloc),
-                                       Value::scalar(1.0, alloc));
+                return std::make_tuple(makeScalarT<T>(T{}, outType, mr),
+                                       Value::scalar(1.0, mr));
         }
-        return std::make_tuple(makeScalarT<T>(best, outType, alloc),
-                               Value::scalar(static_cast<double>(firstValid + 1), alloc));
+        return std::make_tuple(makeScalarT<T>(best, outType, mr),
+                               Value::scalar(static_cast<double>(firstValid + 1), mr));
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, alloc);
+    auto [out, outIdx] = allocMinMaxOutputs(x, redDim, outType, mr);
     minMaxNanAlongDim<T>(x, redDim,
                          static_cast<T *>(out.rawDataMut()),
                          outIdx.doubleDataMut(),
@@ -615,15 +615,15 @@ reduceMinMaxNanAllT(const Value &x, Cmp cmp, ValueType outType, Allocator *alloc
 
 template <typename T, typename Cmp>
 std::tuple<Value, Value>
-reduceMinMaxNanAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Allocator *alloc)
+reduceMinMaxNanAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, std::pmr::memory_resource *mr)
 {
     const bool typeMatch = (x.type() == outType);
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x))
-            return reduceMinMaxAlongDimT<T>(x, dim, cmp, outType, alloc);
-        return reduceMinMaxNanAllT<T>(x, cmp, outType, alloc);
+            return reduceMinMaxAlongDimT<T>(x, dim, cmp, outType, mr);
+        return reduceMinMaxNanAllT<T>(x, cmp, outType, mr);
     }
-    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, alloc);
+    auto [out, outIdx] = allocMinMaxOutputs(x, dim, outType, mr);
     minMaxNanAlongDim<T>(x, dim,
                          static_cast<T *>(out.rawDataMut()),
                          outIdx.doubleDataMut(),
@@ -635,7 +635,7 @@ reduceMinMaxNanAlongDimT(const Value &x, int dim, Cmp cmp, ValueType outType, Al
 // elements where either real or imag part is NaN.
 template <bool IsMax>
 std::tuple<Value, Value>
-reduceMinMaxComplexNanAll(const Value &x, Allocator *alloc, const char *fn)
+reduceMinMaxComplexNanAll(const Value &x, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.numel() == 0)
         throw Error(std::string(fn) + " of empty array is not supported",
@@ -667,13 +667,13 @@ reduceMinMaxComplexNanAll(const Value &x, Allocator *alloc, const char *fn)
         Complex best;
         size_t bi = 0;
         if (!findBest(0, 1, x.numel(), best, bi))
-            return std::make_tuple(Value::complexScalar(Complex(std::nan(""), 0.0), alloc),
-                                   Value::scalar(1.0, alloc));
-        return std::make_tuple(Value::complexScalar(best, alloc),
-                               Value::scalar(static_cast<double>(bi + 1), alloc));
+            return std::make_tuple(Value::complexScalar(Complex(std::nan(""), 0.0), mr),
+                                   Value::scalar(1.0, mr));
+        return std::make_tuple(Value::complexScalar(best, mr),
+                               Value::scalar(static_cast<double>(bi + 1), mr));
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, alloc);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, redDim, mr);
     Complex *dst = out.complexDataMut();
     double *dstI = outIdx.doubleDataMut();
 
@@ -708,12 +708,12 @@ reduceMinMaxComplexNanAll(const Value &x, Allocator *alloc, const char *fn)
 
 template <bool IsMax>
 std::tuple<Value, Value>
-reduceMinMaxComplexNanAlongDim(const Value &x, int dim, Allocator *alloc, const char *fn)
+reduceMinMaxComplexNanAlongDim(const Value &x, int dim, std::pmr::memory_resource *mr, const char *fn)
 {
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x))
-            return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
-        return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
+            return reduceMinMaxComplexAlongDim<IsMax>(x, dim, mr, fn);
+        return reduceMinMaxComplexNanAll<IsMax>(x, mr, fn);
     }
     const Complex *data = x.complexData();
     auto isNan = [](Complex c) { return std::isnan(c.real()) || std::isnan(c.imag()); };
@@ -722,7 +722,7 @@ reduceMinMaxComplexNanAlongDim(const Value &x, int dim, Allocator *alloc, const 
         if (isNan(data[i])) continue;
         if (data[i].imag() != 0.0) { allReal = false; break; }
     }
-    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, alloc);
+    auto [out, outIdx] = allocComplexMinMaxOutputs(x, dim, mr);
     Complex *dst = out.complexDataMut();
     double *dstI = outIdx.doubleDataMut();
 
@@ -764,27 +764,27 @@ reduceMinMaxComplexNanAlongDim(const Value &x, int dim, Allocator *alloc, const 
 
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
-dispatchMinMaxNanAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn)
+dispatchMinMaxNanAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
     switch (x.type()) {
-    case ValueType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, ValueType::DOUBLE, alloc);
-    case ValueType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, ValueType::SINGLE, alloc);
-    case ValueType::COMPLEX: return reduceMinMaxComplexNanAll<IsMax>(x, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxNanAllT<double>(x, cmp, ValueType::DOUBLE, mr);
+    case ValueType::SINGLE:  return reduceMinMaxNanAllT<float >(x, cmp, ValueType::SINGLE, mr);
+    case ValueType::COMPLEX: return reduceMinMaxComplexNanAll<IsMax>(x, mr, fn);
     // Integer/logical/char have no NaN — fall through to the regular path.
-    default: return dispatchMinMaxAll<IsMax>(x, cmp, alloc, fn);
+    default: return dispatchMinMaxAll<IsMax>(x, cmp, mr, fn);
     }
 }
 
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
 dispatchMinMaxNanAlongDim(const Value &x, int dim, Cmp cmp,
-                          Allocator *alloc, const char *fn)
+                          std::pmr::memory_resource *mr, const char *fn)
 {
     switch (x.type()) {
-    case ValueType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, ValueType::DOUBLE, alloc);
-    case ValueType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, ValueType::SINGLE, alloc);
-    case ValueType::COMPLEX: return reduceMinMaxComplexNanAlongDim<IsMax>(x, dim, alloc, fn);
-    default: return dispatchMinMaxAlongDim<IsMax>(x, dim, cmp, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxNanAlongDimT<double>(x, dim, cmp, ValueType::DOUBLE, mr);
+    case ValueType::SINGLE:  return reduceMinMaxNanAlongDimT<float >(x, dim, cmp, ValueType::SINGLE, mr);
+    case ValueType::COMPLEX: return reduceMinMaxComplexNanAlongDim<IsMax>(x, dim, mr, fn);
+    default: return dispatchMinMaxAlongDim<IsMax>(x, dim, cmp, mr, fn);
     }
 }
 
@@ -793,22 +793,22 @@ dispatchMinMaxNanAlongDim(const Value &x, int dim, Cmp cmp,
 // COMPLEX uses the |z|-then-angle comparator (MATLAB rule).
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
-dispatchMinMaxAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn)
+dispatchMinMaxAll(const Value &x, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
     switch (x.type()) {
-    case ValueType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, ValueType::DOUBLE,  alloc);
-    case ValueType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, ValueType::SINGLE,  alloc);
-    case ValueType::INT8:    return reduceMinMaxAllT<int8_t  >(x, cmp, ValueType::INT8,    alloc);
-    case ValueType::INT16:   return reduceMinMaxAllT<int16_t >(x, cmp, ValueType::INT16,   alloc);
-    case ValueType::INT32:   return reduceMinMaxAllT<int32_t >(x, cmp, ValueType::INT32,   alloc);
-    case ValueType::INT64:   return reduceMinMaxAllT<int64_t >(x, cmp, ValueType::INT64,   alloc);
-    case ValueType::UINT8:   return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::UINT8,   alloc);
-    case ValueType::UINT16:  return reduceMinMaxAllT<uint16_t>(x, cmp, ValueType::UINT16,  alloc);
-    case ValueType::UINT32:  return reduceMinMaxAllT<uint32_t>(x, cmp, ValueType::UINT32,  alloc);
-    case ValueType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, ValueType::UINT64,  alloc);
-    case ValueType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::LOGICAL, alloc);
-    case ValueType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, ValueType::CHAR,    alloc);
-    case ValueType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxAllT<double  >(x, cmp, ValueType::DOUBLE,  mr);
+    case ValueType::SINGLE:  return reduceMinMaxAllT<float   >(x, cmp, ValueType::SINGLE,  mr);
+    case ValueType::INT8:    return reduceMinMaxAllT<int8_t  >(x, cmp, ValueType::INT8,    mr);
+    case ValueType::INT16:   return reduceMinMaxAllT<int16_t >(x, cmp, ValueType::INT16,   mr);
+    case ValueType::INT32:   return reduceMinMaxAllT<int32_t >(x, cmp, ValueType::INT32,   mr);
+    case ValueType::INT64:   return reduceMinMaxAllT<int64_t >(x, cmp, ValueType::INT64,   mr);
+    case ValueType::UINT8:   return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::UINT8,   mr);
+    case ValueType::UINT16:  return reduceMinMaxAllT<uint16_t>(x, cmp, ValueType::UINT16,  mr);
+    case ValueType::UINT32:  return reduceMinMaxAllT<uint32_t>(x, cmp, ValueType::UINT32,  mr);
+    case ValueType::UINT64:  return reduceMinMaxAllT<uint64_t>(x, cmp, ValueType::UINT64,  mr);
+    case ValueType::LOGICAL: return reduceMinMaxAllT<uint8_t >(x, cmp, ValueType::LOGICAL, mr);
+    case ValueType::CHAR:    return reduceMinMaxAllT<char    >(x, cmp, ValueType::CHAR,    mr);
+    case ValueType::COMPLEX: return reduceMinMaxComplexAll<IsMax>(x, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
@@ -817,22 +817,22 @@ dispatchMinMaxAll(const Value &x, Cmp cmp, Allocator *alloc, const char *fn)
 
 template <bool IsMax, typename Cmp>
 std::tuple<Value, Value>
-dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, Allocator *alloc, const char *fn)
+dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, std::pmr::memory_resource *mr, const char *fn)
 {
     switch (x.type()) {
-    case ValueType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, ValueType::DOUBLE,  alloc);
-    case ValueType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, ValueType::SINGLE,  alloc);
-    case ValueType::INT8:    return reduceMinMaxAlongDimT<int8_t  >(x, dim, cmp, ValueType::INT8,    alloc);
-    case ValueType::INT16:   return reduceMinMaxAlongDimT<int16_t >(x, dim, cmp, ValueType::INT16,   alloc);
-    case ValueType::INT32:   return reduceMinMaxAlongDimT<int32_t >(x, dim, cmp, ValueType::INT32,   alloc);
-    case ValueType::INT64:   return reduceMinMaxAlongDimT<int64_t >(x, dim, cmp, ValueType::INT64,   alloc);
-    case ValueType::UINT8:   return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::UINT8,   alloc);
-    case ValueType::UINT16:  return reduceMinMaxAlongDimT<uint16_t>(x, dim, cmp, ValueType::UINT16,  alloc);
-    case ValueType::UINT32:  return reduceMinMaxAlongDimT<uint32_t>(x, dim, cmp, ValueType::UINT32,  alloc);
-    case ValueType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, ValueType::UINT64,  alloc);
-    case ValueType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::LOGICAL, alloc);
-    case ValueType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, ValueType::CHAR,    alloc);
-    case ValueType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, alloc, fn);
+    case ValueType::DOUBLE:  return reduceMinMaxAlongDimT<double  >(x, dim, cmp, ValueType::DOUBLE,  mr);
+    case ValueType::SINGLE:  return reduceMinMaxAlongDimT<float   >(x, dim, cmp, ValueType::SINGLE,  mr);
+    case ValueType::INT8:    return reduceMinMaxAlongDimT<int8_t  >(x, dim, cmp, ValueType::INT8,    mr);
+    case ValueType::INT16:   return reduceMinMaxAlongDimT<int16_t >(x, dim, cmp, ValueType::INT16,   mr);
+    case ValueType::INT32:   return reduceMinMaxAlongDimT<int32_t >(x, dim, cmp, ValueType::INT32,   mr);
+    case ValueType::INT64:   return reduceMinMaxAlongDimT<int64_t >(x, dim, cmp, ValueType::INT64,   mr);
+    case ValueType::UINT8:   return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::UINT8,   mr);
+    case ValueType::UINT16:  return reduceMinMaxAlongDimT<uint16_t>(x, dim, cmp, ValueType::UINT16,  mr);
+    case ValueType::UINT32:  return reduceMinMaxAlongDimT<uint32_t>(x, dim, cmp, ValueType::UINT32,  mr);
+    case ValueType::UINT64:  return reduceMinMaxAlongDimT<uint64_t>(x, dim, cmp, ValueType::UINT64,  mr);
+    case ValueType::LOGICAL: return reduceMinMaxAlongDimT<uint8_t >(x, dim, cmp, ValueType::LOGICAL, mr);
+    case ValueType::CHAR:    return reduceMinMaxAlongDimT<char    >(x, dim, cmp, ValueType::CHAR,    mr);
+    case ValueType::COMPLEX: return reduceMinMaxComplexAlongDim<IsMax>(x, dim, mr, fn);
     default:
         throw Error(std::string(fn) + ": unsupported input type",
                      0, 0, fn, "", std::string("m:") + fn + ":type");
@@ -841,49 +841,49 @@ dispatchMinMaxAlongDim(const Value &x, int dim, Cmp cmp, Allocator *alloc, const
 
 } // anonymous namespace
 
-std::tuple<Value, Value> max(Allocator &alloc, const Value &x)
+std::tuple<Value, Value> max(std::pmr::memory_resource *mr, const Value &x)
 {
-    return dispatchMinMaxAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    return dispatchMinMaxAll<true>(x, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> min(Allocator &alloc, const Value &x)
+std::tuple<Value, Value> min(std::pmr::memory_resource *mr, const Value &x)
 {
-    return dispatchMinMaxAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    return dispatchMinMaxAll<false>(x, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-std::tuple<Value, Value> max(Allocator &alloc, const Value &x, int dim)
+std::tuple<Value, Value> max(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return max(alloc, x);
+    if (dim <= 0) return max(mr, x);
     const int d = detail::resolveDim(x, dim, "max");
-    return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    return dispatchMinMaxAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> maxOmitNan(Allocator &alloc, const Value &x, int dim)
+std::tuple<Value, Value> maxOmitNan(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (dim <= 0)
-        return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, &alloc, "max");
+        return dispatchMinMaxNanAll<true>(x, [](auto v, auto best) { return v > best; }, mr, "max");
     const int d = detail::resolveDim(x, dim, "max");
-    return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, &alloc, "max");
+    return dispatchMinMaxNanAlongDim<true>(x, d, [](auto v, auto best) { return v > best; }, mr, "max");
 }
 
-std::tuple<Value, Value> minOmitNan(Allocator &alloc, const Value &x, int dim)
+std::tuple<Value, Value> minOmitNan(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (dim <= 0)
-        return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, &alloc, "min");
+        return dispatchMinMaxNanAll<false>(x, [](auto v, auto best) { return v < best; }, mr, "min");
     const int d = detail::resolveDim(x, dim, "min");
-    return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    return dispatchMinMaxNanAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-std::tuple<Value, Value> min(Allocator &alloc, const Value &x, int dim)
+std::tuple<Value, Value> min(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return min(alloc, x);
+    if (dim <= 0) return min(mr, x);
     const int d = detail::resolveDim(x, dim, "min");
-    return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, &alloc, "min");
+    return dispatchMinMaxAlongDim<false>(x, d, [](auto v, auto best) { return v < best; }, mr, "min");
 }
 
-Value max(Allocator &alloc, const Value &a, const Value &b)
+Value max(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     // Integer / single binary form: result follows MATLAB type promotion
     // (integer wins over double; single wins over double; same-class
     // integers stay; mixed-class integers throw).
@@ -895,9 +895,9 @@ Value max(Allocator &alloc, const Value &a, const Value &b)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::max(aa, bb); }, p);
 }
 
-Value min(Allocator &alloc, const Value &a, const Value &b)
+Value min(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) { return x < y ? x : y; }, p);
@@ -910,9 +910,9 @@ Value min(Allocator &alloc, const Value &a, const Value &b)
 // "missing": when one arg is NaN, take the other; both NaN → NaN.
 // For integer types, NaN can't occur so omitnan is a no-op (same as
 // the regular max/min).
-Value maxOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
+Value maxOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {
@@ -932,9 +932,9 @@ Value maxOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
     }, p);
 }
 
-Value minOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
+Value minOmitNanBinary(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     {
         auto r = dispatchIntegerBinaryOp(a, b,
             [](auto x, auto y) {
@@ -955,9 +955,9 @@ Value minOmitNanBinary(Allocator &alloc, const Value &a, const Value &b)
 }
 
 // ── Generators ───────────────────────────────────────────────────────
-Value linspace(Allocator &alloc, double a, double b, size_t n)
+Value linspace(std::pmr::memory_resource *mr, double a, double b, size_t n)
 {
-    auto r = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n == 0)
         return r;
     if (n == 1) {
@@ -969,9 +969,9 @@ Value linspace(Allocator &alloc, double a, double b, size_t n)
     return r;
 }
 
-Value logspace(Allocator &alloc, double a, double b, size_t n)
+Value logspace(std::pmr::memory_resource *mr, double a, double b, size_t n)
 {
-    auto r = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n == 0)
         return r;
     if (n == 1) {
@@ -993,7 +993,7 @@ Value logspace(Allocator &alloc, double a, double b, size_t n)
 
 namespace detail {
 
-// Helper to reduce boilerplate — unary adapter that calls Fn(alloc, args[0]).
+// Helper to reduce boilerplate — unary adapter that calls Fn(mr, args[0]).
 #define NK_UNARY_ADAPTER(name, fn)                                              \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,                \
                     Span<Value> outs, CallContext &ctx)                        \
@@ -1001,7 +1001,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                         \
+        outs[0] = fn(ctx.engine->resource(), args[0]);                         \
     }
 
 // Same as NK_UNARY_ADAPTER but passes &outs[0] through as an
@@ -1018,7 +1018,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");           \
-        outs[0] = fn(ctx.engine->allocator(), args[0], &outs[0]);               \
+        outs[0] = fn(ctx.engine->resource(), args[0], &outs[0]);               \
     }
 
 // SIMD-backed unaries — abs lives in backends/MStdAbs_*.cpp,
@@ -1110,11 +1110,11 @@ inline T toOutT(double v)
 }
 
 template <typename T>
-inline Value makeNativeScalar(T v, ValueType outType, Allocator *alloc)
+inline Value makeNativeScalar(T v, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (outType == ValueType::DOUBLE)
-        return Value::scalar(static_cast<double>(v), alloc);
-    auto r = Value::matrix(1, 1, outType, alloc);
+        return Value::scalar(static_cast<double>(v), mr);
+    auto r = Value::matrix(1, 1, outType, mr);
     static_cast<T *>(r.rawDataMut())[0] = v;
     return r;
 }
@@ -1154,45 +1154,45 @@ void typedReduceAlongDim(const Value &x, int redDim, T *dst,
     }
 }
 
-inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, Allocator *alloc)
+inline Value allocReduceOutput(const Value &x, int redDim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return Value::matrixND(shape.data(), (int) shape.size(), outType, alloc);
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return Value::matrixND(shape.data(), (int) shape.size(), outType, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return createMatrix(outShape, outType, alloc);
+    return createMatrix(outShape, outType, mr);
 }
 
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-Value reduceTypedAll(const Value &x, ValueType outType, Allocator *alloc,
+Value reduceTypedAll(const Value &x, ValueType outType, std::pmr::memory_resource *mr,
                       Init init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty()) {
         // Empty input: scalar reduce → identity (sum=0, prod=1, mean=NaN).
         const T v = finalize(static_cast<double>(init), 0);
-        return makeNativeScalar<T>(v, outType, alloc);
+        return makeNativeScalar<T>(v, outType, mr);
     }
     if (x.isScalar() || x.dims().isVector()) {
         double acc = init;
         for (size_t i = 0; i < x.numel(); ++i)
             acc = accumOp(acc, x.elemAsDouble(i));
-        return makeNativeScalar<T>(finalize(acc, x.numel()), outType, alloc);
+        return makeNativeScalar<T>(finalize(acc, x.numel()), outType, mr);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    Value out = allocReduceOutput(x, redDim, outType, alloc);
+    Value out = allocReduceOutput(x, redDim, outType, mr);
     typedReduceAlongDim<T>(x, redDim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
     return out;
 }
 
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, Allocator *alloc,
+Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr,
                            Init init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return Value::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, mr);
     }
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
@@ -1200,17 +1200,17 @@ Value reduceTypedAlongDim(const Value &x, int dim, ValueType outType, Allocator 
             const size_t n = x.numel();
             Value out;
             if (x.dims().isVector())
-                out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+                out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, mr);
             else
-                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, alloc);
+                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, mr);
             T *dst = static_cast<T *>(out.rawDataMut());
             for (size_t i = 0; i < n; ++i)
                 dst[i] = toOutT<T>(x.elemAsDouble(i));
             return out;
         }
-        return reduceTypedAll<T>(x, outType, alloc, init, accumOp, finalize);
+        return reduceTypedAll<T>(x, outType, mr, init, accumOp, finalize);
     }
-    Value out = allocReduceOutput(x, dim, outType, alloc);
+    Value out = allocReduceOutput(x, dim, outType, mr);
     typedReduceAlongDim<T>(x, dim, static_cast<T *>(out.rawDataMut()),
                            init, accumOp, finalize);
     return out;
@@ -1257,14 +1257,14 @@ struct MeanOp {
 // the 'all' dim placeholder; differs from reduceTypedAll (which does
 // "along first non-singleton dim", returning a vector for matrices).
 template <typename T, typename Init, typename AccumOp, typename Finalize>
-Value reduceAllElementsScalar(const Value &x, ValueType outType, Allocator *alloc,
+Value reduceAllElementsScalar(const Value &x, ValueType outType, std::pmr::memory_resource *mr,
                                Init init, AccumOp accumOp, Finalize finalize)
 {
     double acc = init;
     const size_t n = x.numel();
     for (size_t i = 0; i < n; ++i)
         acc = accumOp(acc, x.elemAsDouble(i));
-    return makeNativeScalar<T>(finalize(acc, n), outType, alloc);
+    return makeNativeScalar<T>(finalize(acc, n), outType, mr);
 }
 
 // ── Complex reductions ──────────────────────────────────────────────
@@ -1280,15 +1280,15 @@ inline Complex readElemAsComplex(const Value &x, size_t i, bool typeMatches)
     return Complex(x.elemAsDouble(i), 0.0);
 }
 
-inline Value allocComplexReduceOutput(const Value &x, int redDim, Allocator *alloc)
+inline Value allocComplexReduceOutput(const Value &x, int redDim, std::pmr::memory_resource *mr)
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
-        ScratchArena scratch_arena(*alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, redDim);
-        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, alloc);
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, redDim);
+        return Value::matrixND(shape.data(), (int) shape.size(), ValueType::COMPLEX, mr);
     }
     auto outShape = detail::outShapeForDim(x, redDim);
-    return createMatrix(outShape, ValueType::COMPLEX, alloc);
+    return createMatrix(outShape, ValueType::COMPLEX, mr);
 }
 
 template <typename AccumOp, typename Finalize>
@@ -1325,53 +1325,53 @@ void complexReduceAlongDim(const Value &x, int redDim, Complex *dst,
 }
 
 template <typename AccumOp, typename Finalize>
-Value reduceComplexAll(const Value &x, Allocator *alloc,
+Value reduceComplexAll(const Value &x, std::pmr::memory_resource *mr,
                         Complex init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return Value::matrix(0, 0, ValueType::COMPLEX, alloc);
+        return Value::matrix(0, 0, ValueType::COMPLEX, mr);
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
         Complex acc = init;
         for (size_t i = 0; i < x.numel(); ++i)
             acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
-        return Value::complexScalar(finalize(acc, x.numel()), alloc);
+        return Value::complexScalar(finalize(acc, x.numel()), mr);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    Value out = allocComplexReduceOutput(x, redDim, alloc);
+    Value out = allocComplexReduceOutput(x, redDim, mr);
     complexReduceAlongDim(x, redDim, out.complexDataMut(), init, accumOp, finalize);
     return out;
 }
 
 template <typename AccumOp, typename Finalize>
-Value reduceComplexAlongDim(const Value &x, int dim, Allocator *alloc,
+Value reduceComplexAlongDim(const Value &x, int dim, std::pmr::memory_resource *mr,
                              Complex init, AccumOp accumOp, Finalize finalize)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return Value::matrix(0, 0, ValueType::COMPLEX, alloc);
+        return Value::matrix(0, 0, ValueType::COMPLEX, mr);
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity reduction.
             const size_t n = x.numel();
             if (!x.dims().isVector())
-                return Value::complexScalar(readElemAsComplex(x, 0, typeMatches), alloc);
+                return Value::complexScalar(readElemAsComplex(x, 0, typeMatches), mr);
             Value out = createMatrix({x.dims().rows(), x.dims().cols(), 0},
-                                      ValueType::COMPLEX, alloc);
+                                      ValueType::COMPLEX, mr);
             Complex *dst = out.complexDataMut();
             for (size_t i = 0; i < n; ++i)
                 dst[i] = readElemAsComplex(x, i, typeMatches);
             return out;
         }
-        return reduceComplexAll(x, alloc, init, accumOp, finalize);
+        return reduceComplexAll(x, mr, init, accumOp, finalize);
     }
-    Value out = allocComplexReduceOutput(x, dim, alloc);
+    Value out = allocComplexReduceOutput(x, dim, mr);
     complexReduceAlongDim(x, dim, out.complexDataMut(), init, accumOp, finalize);
     return out;
 }
 
 template <typename AccumOp, typename Finalize>
-Value reduceComplexAllElementsScalar(const Value &x, Allocator *alloc,
+Value reduceComplexAllElementsScalar(const Value &x, std::pmr::memory_resource *mr,
                                       Complex init, AccumOp accumOp, Finalize finalize)
 {
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
@@ -1379,32 +1379,32 @@ Value reduceComplexAllElementsScalar(const Value &x, Allocator *alloc,
     const size_t n = x.numel();
     for (size_t i = 0; i < n; ++i)
         acc = accumOp(acc, readElemAsComplex(x, i, typeMatches));
-    return Value::complexScalar(finalize(acc, n), alloc);
+    return Value::complexScalar(finalize(acc, n), mr);
 }
 
 template <typename Op>
-Value runComplexReduction(const Value &x, int dim, Allocator *alloc, bool isAll = false)
+Value runComplexReduction(const Value &x, int dim, std::pmr::memory_resource *mr, bool isAll = false)
 {
     if (isAll)
-        return reduceComplexAllElementsScalar(x, alloc, Op::cInit(), Op::cAccum, Op::cFinalize);
+        return reduceComplexAllElementsScalar(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
     return (dim > 0)
-        ? reduceComplexAlongDim(x, dim, alloc, Op::cInit(), Op::cAccum, Op::cFinalize)
-        : reduceComplexAll(x, alloc, Op::cInit(), Op::cAccum, Op::cFinalize);
+        ? reduceComplexAlongDim(x, dim, mr, Op::cInit(), Op::cAccum, Op::cFinalize)
+        : reduceComplexAll(x, mr, Op::cInit(), Op::cAccum, Op::cFinalize);
 }
 
 template <typename Op>
-Value runNativeReduction(const Value &x, int dim, ValueType outType, Allocator *alloc,
+Value runNativeReduction(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr,
                           bool isAll = false)
 {
     auto run = [&](auto tag) {
         using T = decltype(tag);
         if (isAll)
-            return reduceAllElementsScalar<T>(x, outType, alloc,
+            return reduceAllElementsScalar<T>(x, outType, mr,
                                               Op::init, Op::accum, Op::template finalize<T>);
         return (dim > 0)
-            ? reduceTypedAlongDim<T>(x, dim, outType, alloc,
+            ? reduceTypedAlongDim<T>(x, dim, outType, mr,
                                      Op::init, Op::accum, Op::template finalize<T>)
-            : reduceTypedAll<T>(x, outType, alloc,
+            : reduceTypedAll<T>(x, outType, mr,
                                 Op::init, Op::accum, Op::template finalize<T>);
     };
     switch (outType) {
@@ -1507,67 +1507,67 @@ void nanReduceAlongDim(const Value &x, int redDim, T *dst)
 }
 
 template <typename T, typename Op>
-Value nanReduceAll(const Value &x, ValueType outType, Allocator *alloc)
+Value nanReduceAll(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return Value::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, mr);
     if (x.isScalar() || x.dims().isVector()) {
         double acc = Op::init;
         size_t count = 0;
         for (size_t i = 0; i < x.numel(); ++i)
             nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
-        return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, alloc);
+        return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, mr);
     }
     const int redDim = detail::firstNonSingletonDim(x);
-    Value out = allocReduceOutput(x, redDim, outType, alloc);
+    Value out = allocReduceOutput(x, redDim, outType, mr);
     nanReduceAlongDim<T, Op>(x, redDim, static_cast<T *>(out.rawDataMut()));
     return out;
 }
 
 template <typename T, typename Op>
-Value nanReduceAlongDimImpl(const Value &x, int dim, ValueType outType, Allocator *alloc)
+Value nanReduceAlongDimImpl(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty() && x.dims().ndim() < 4)
-        return Value::matrix(0, 0, outType, alloc);
+        return Value::matrix(0, 0, outType, mr);
     if (x.isScalar() || x.dims().isVector()) {
         if (dim != detail::firstNonSingletonDim(x)) {
             // Identity: copy x as outType (cast where needed).
             const size_t n = x.numel();
             if (!x.dims().isVector())
-                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, alloc);
-            Value out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, alloc);
+                return makeNativeScalar<T>(toOutT<T>(x.elemAsDouble(0)), outType, mr);
+            Value out = createMatrix({x.dims().rows(), x.dims().cols(), 0}, outType, mr);
             T *dst = static_cast<T *>(out.rawDataMut());
             for (size_t i = 0; i < n; ++i) dst[i] = toOutT<T>(x.elemAsDouble(i));
             return out;
         }
-        return nanReduceAll<T, Op>(x, outType, alloc);
+        return nanReduceAll<T, Op>(x, outType, mr);
     }
-    Value out = allocReduceOutput(x, dim, outType, alloc);
+    Value out = allocReduceOutput(x, dim, outType, mr);
     nanReduceAlongDim<T, Op>(x, dim, static_cast<T *>(out.rawDataMut()));
     return out;
 }
 
 template <typename T, typename Op>
-Value nanReduceAllElementsScalar(const Value &x, ValueType outType, Allocator *alloc)
+Value nanReduceAllElementsScalar(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
 {
     double acc = Op::init;
     size_t count = 0;
     for (size_t i = 0; i < x.numel(); ++i)
         nanAccumDouble<Op>(acc, count, x.elemAsDouble(i));
-    return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, alloc);
+    return makeNativeScalar<T>(nanFinalize<T, Op>(acc, count), outType, mr);
 }
 
 template <typename Op>
-Value runNanReduction(const Value &x, int dim, ValueType outType, Allocator *alloc,
+Value runNanReduction(const Value &x, int dim, ValueType outType, std::pmr::memory_resource *mr,
                        bool isAll = false)
 {
     auto run = [&](auto tag) {
         using T = decltype(tag);
         if (isAll)
-            return nanReduceAllElementsScalar<T, Op>(x, outType, alloc);
+            return nanReduceAllElementsScalar<T, Op>(x, outType, mr);
         return (dim > 0)
-            ? nanReduceAlongDimImpl<T, Op>(x, dim, outType, alloc)
-            : nanReduceAll<T, Op>(x, outType, alloc);
+            ? nanReduceAlongDimImpl<T, Op>(x, dim, outType, mr)
+            : nanReduceAll<T, Op>(x, outType, mr);
     };
     switch (outType) {
     case ValueType::DOUBLE: return run(double  {});
@@ -1594,7 +1594,7 @@ inline bool isComplexNaN(Complex c)
 }
 
 template <typename Op>
-Value runComplexNanReduction(const Value &x, int dim, Allocator *alloc,
+Value runComplexNanReduction(const Value &x, int dim, std::pmr::memory_resource *mr,
                               bool isAll = false)
 {
     const bool typeMatches = (x.type() == ValueType::COMPLEX);
@@ -1620,10 +1620,10 @@ Value runComplexNanReduction(const Value &x, int dim, Allocator *alloc,
     };
 
     if (isAll || x.isScalar() || x.dims().isVector()) {
-        return Value::complexScalar(reduceRange(0, 1, x.numel()), alloc);
+        return Value::complexScalar(reduceRange(0, 1, x.numel()), mr);
     }
     const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
-    Value out = allocComplexReduceOutput(x, d, alloc);
+    Value out = allocComplexReduceOutput(x, d, mr);
     Complex *dst = out.complexDataMut();
 
     const auto &dd = x.dims();
@@ -1764,25 +1764,25 @@ Value dispatchReductionAdapter(Span<const Value> args, const char *fn,
             [&](const Value &x, int dim, bool isAll) {                           \
                 if (isAll)                                                        \
                     return runNativeReduction<op>(x, 0, ValueType::DOUBLE,            \
-                                                  &ctx.engine->allocator(), true);\
-                return (dim > 0) ? fn(ctx.engine->allocator(), x, dim)            \
-                                 : fn(ctx.engine->allocator(), x);                \
+                                                  ctx.engine->resource(), true);\
+                return (dim > 0) ? fn(ctx.engine->resource(), x, dim)            \
+                                 : fn(ctx.engine->resource(), x);                \
             },                                                                    \
             [&](const Value &x, int dim, ValueType outT, bool isAll) {               \
                 return runNativeReduction<op>(x, dim, outT,                       \
-                                              &ctx.engine->allocator(), isAll);   \
+                                              ctx.engine->resource(), isAll);   \
             },                                                                    \
             [&](const Value &x, int dim, bool isAll) {                           \
                 return runComplexReduction<op>(x, dim,                            \
-                                               &ctx.engine->allocator(), isAll);  \
+                                               ctx.engine->resource(), isAll);  \
             },                                                                    \
             [&](const Value &x, int dim, ValueType outT, bool isAll) {               \
                 return runNanReduction<op>(x, dim, outT,                          \
-                                           &ctx.engine->allocator(), isAll);      \
+                                           ctx.engine->resource(), isAll);      \
             },                                                                    \
             [&](const Value &x, int dim, bool isAll) {                           \
                 return runComplexNanReduction<op>(x, dim,                         \
-                                                  &ctx.engine->allocator(), isAll);\
+                                                  ctx.engine->resource(), isAll);\
             });                                                                   \
     }
 
@@ -1838,8 +1838,8 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
         // Elementwise max(A, B) — single-return form. NaN-aware variant
         // when 'omitnan' was passed.
         outs[0] = omitNan
-            ? maxOmitNanBinary(ctx.engine->allocator(), args[0], args[1])
-            : max(ctx.engine->allocator(), args[0], args[1]);
+            ? maxOmitNanBinary(ctx.engine->resource(), args[0], args[1])
+            : max(ctx.engine->resource(), args[0], args[1]);
         return;
     }
     // Reduction: optional dim as args[2].
@@ -1847,8 +1847,8 @@ void max_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
     auto [val, idx] = omitNan
-        ? maxOmitNan(ctx.engine->allocator(), args[0], dim)
-        : max(ctx.engine->allocator(), args[0], dim);
+        ? maxOmitNan(ctx.engine->resource(), args[0], dim)
+        : max(ctx.engine->resource(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1863,16 +1863,16 @@ void min_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
     const size_t n = stripTrailingNanFlag(args, omitNan);
     if (n >= 2 && !args[1].isEmpty()) {
         outs[0] = omitNan
-            ? minOmitNanBinary(ctx.engine->allocator(), args[0], args[1])
-            : min(ctx.engine->allocator(), args[0], args[1]);
+            ? minOmitNanBinary(ctx.engine->resource(), args[0], args[1])
+            : min(ctx.engine->resource(), args[0], args[1]);
         return;
     }
     int dim = 0;
     if (n >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
     auto [val, idx] = omitNan
-        ? minOmitNan(ctx.engine->allocator(), args[0], dim)
-        : min(ctx.engine->allocator(), args[0], dim);
+        ? minOmitNan(ctx.engine->resource(), args[0], dim)
+        : min(ctx.engine->resource(), args[0], dim);
     outs[0] = std::move(val);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1887,7 +1887,7 @@ void linspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 100u;
-    outs[0] = linspace(ctx.engine->allocator(), a, b, n);
+    outs[0] = linspace(ctx.engine->resource(), a, b, n);
 }
 
 void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1898,13 +1898,13 @@ void logspace_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double a = args[0].toScalar();
     const double b = args[1].toScalar();
     const size_t n = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 50u;
-    outs[0] = logspace(ctx.engine->allocator(), a, b, n);
+    outs[0] = logspace(ctx.engine->resource(), a, b, n);
 }
 
 // rand_reg / randn_reg moved to rng.cpp — they share a single
 // process-static engine with randi / randperm so MATLAB-style
-// rng(seed) controls all of them. The C++ public APIs rand(alloc,
-// rng, …) / randn(alloc, rng, …) above stay here unchanged.
+// rng(seed) controls all of them. The C++ public APIs rand(mr,
+// rng, …) / randn(mr, rng, …) above stay here unchanged.
 
 } // namespace detail
 

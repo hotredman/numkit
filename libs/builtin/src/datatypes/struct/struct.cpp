@@ -21,12 +21,12 @@ namespace hf = ::numkit::builtin::detail::handlefn;
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-Value structure(Allocator &)
+Value structure(std::pmr::memory_resource *)
 {
     return Value::structure();
 }
 
-Value structure(Allocator &, Span<const Value> nameValuePairs)
+Value structure(std::pmr::memory_resource *, Span<const Value> nameValuePairs)
 {
     auto s = Value::structure();
     for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2) {
@@ -38,7 +38,7 @@ Value structure(Allocator &, Span<const Value> nameValuePairs)
     return s;
 }
 
-Value fieldnames(Allocator &alloc, const Value &s)
+Value fieldnames(std::pmr::memory_resource *mr, const Value &s)
 {
     if (!s.isStruct())
         throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
@@ -47,18 +47,18 @@ Value fieldnames(Allocator &alloc, const Value &s)
     auto c = Value::cell(fields.size(), 1);
     size_t i = 0;
     for (const auto &[k, v] : fields)
-        c.cellAt(i++) = Value::fromString(k, &alloc);
+        c.cellAt(i++) = Value::fromString(k, mr);
     return c;
 }
 
-Value isfield(Allocator &alloc, const Value &s, const Value &name)
+Value isfield(std::pmr::memory_resource *mr, const Value &s, const Value &name)
 {
     if (!s.isStruct())
-        return Value::logicalScalar(false, &alloc);
-    return Value::logicalScalar(s.hasField(name.toString()), &alloc);
+        return Value::logicalScalar(false, mr);
+    return Value::logicalScalar(s.hasField(name.toString()), mr);
 }
 
-Value rmfield(Allocator &, const Value &s, const Value &name)
+Value rmfield(std::pmr::memory_resource *, const Value &s, const Value &name)
 {
     if (!s.isStruct())
         throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
@@ -68,7 +68,7 @@ Value rmfield(Allocator &, const Value &s, const Value &name)
     return out;
 }
 
-Value structfun(Allocator &alloc, const Value &fn, const Value &s,
+Value structfun(std::pmr::memory_resource *mr, const Value &fn, const Value &s,
                  bool uniformOutput, Engine *engine)
 {
     if (!s.isStruct())
@@ -79,11 +79,11 @@ Value structfun(Allocator &alloc, const Value &fn, const Value &s,
 
     const auto &fields = s.structFields();
     const size_t n = fields.size();
-    ScratchArena scratch_arena(alloc);
-    ScratchVec<Value> results(scratch_arena.resource());
+    ScratchArena scratch_arena(mr);
+    ScratchVec<Value> results(&scratch_arena);
     results.reserve(n);
     for (const auto &kv : fields)
-        results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,
+        results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
                                           kv.second, engine, "structfun"));
 
     if (uniformOutput) {
@@ -98,7 +98,7 @@ Value structfun(Allocator &alloc, const Value &fn, const Value &s,
             outT = ValueType::LOGICAL;
         else if (!isBuiltin && n > 0 && results[0].isLogical())
             outT = ValueType::LOGICAL;
-        auto out = Value::matrix(n, 1, outT, &alloc);
+        auto out = Value::matrix(n, 1, outT, mr);
         for (size_t i = 0; i < n; ++i) {
             const Value &v = results[i];
             if (!v.isScalar())
@@ -127,7 +127,7 @@ namespace detail {
 
 void struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = structure(ctx.engine->allocator(), args);
+    outs[0] = structure(ctx.engine->resource(), args);
 }
 
 void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -135,7 +135,7 @@ void fieldnames_reg(Span<const Value> args, size_t, Span<Value> outs, CallContex
     if (args.empty())
         throw Error("fieldnames: requires 1 argument", 0, 0, "fieldnames", "",
                      "m:fieldnames:nargin");
-    outs[0] = fieldnames(ctx.engine->allocator(), args[0]);
+    outs[0] = fieldnames(ctx.engine->resource(), args[0]);
 }
 
 void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -143,7 +143,7 @@ void isfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("isfield requires 2 arguments", 0, 0, "isfield", "",
                      "m:isfield:nargin");
-    outs[0] = isfield(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = isfield(ctx.engine->resource(), args[0], args[1]);
 }
 
 void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -151,7 +151,7 @@ void rmfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.size() < 2)
         throw Error("rmfield requires 2 arguments", 0, 0, "rmfield", "",
                      "m:rmfield:nargin");
-    outs[0] = rmfield(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = rmfield(ctx.engine->resource(), args[0], args[1]);
 }
 
 void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -160,7 +160,7 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
         throw Error("structfun: requires at least 2 arguments (fn, S)",
                      0, 0, "structfun", "", "m:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
-    outs[0] = structfun(ctx.engine->allocator(), args[0], args[1], uniform, ctx.engine);
+    outs[0] = structfun(ctx.engine->resource(), args[0], args[1], uniform, ctx.engine);
 }
 
 } // namespace detail

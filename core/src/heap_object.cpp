@@ -22,9 +22,9 @@ HeapObject *HeapObject::clone() const
     auto *h = new HeapObject();
     h->type = type;
     h->dims = dims;
-    h->allocator = allocator;
+    h->mr = mr;
     if (buffer) {
-        h->buffer = new DataBuffer(buffer->bytes(), allocator);
+        h->buffer = new DataBuffer(buffer->bytes(), mr);
         std::memcpy(h->buffer->data(), buffer->data(), buffer->bytes());
     }
     if (cellData)

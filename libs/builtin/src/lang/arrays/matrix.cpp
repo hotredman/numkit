@@ -26,14 +26,14 @@ namespace numkit::builtin {
 // ════════════════════════════════════════════════════════════════════════
 
 // ── Constructors ──────────────────────────────────────────────────────
-Value zeros(Allocator &alloc, size_t rows, size_t cols, size_t pages)
+Value zeros(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages)
 {
-    return createMatrix({rows, cols, pages}, ValueType::DOUBLE, &alloc);
+    return createMatrix({rows, cols, pages}, ValueType::DOUBLE, mr);
 }
 
-Value ones(Allocator &alloc, size_t rows, size_t cols, size_t pages)
+Value ones(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages)
 {
-    auto m = createMatrix({rows, cols, pages}, ValueType::DOUBLE, &alloc);
+    auto m = createMatrix({rows, cols, pages}, ValueType::DOUBLE, mr);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < m.numel(); ++i)
         p[i] = 1.0;
@@ -43,77 +43,77 @@ Value ones(Allocator &alloc, size_t rows, size_t cols, size_t pages)
 // ND overloads: caller passes a flat dim list. For nd <= 3 these just
 // route to the legacy 2D/3D ctors via createMatrixND; nd > 3 hits the
 // Value::matrixND ctor and the SBO Dims storage.
-Value zerosND(Allocator &alloc, const size_t *dims, std::size_t nDims)
+Value zerosND(std::pmr::memory_resource *mr, const size_t *dims, std::size_t nDims)
 {
-    return createMatrixND(dims, nDims, ValueType::DOUBLE, &alloc);
+    return createMatrixND(dims, nDims, ValueType::DOUBLE, mr);
 }
 
-Value onesND(Allocator &alloc, const size_t *dims, std::size_t nDims)
+Value onesND(std::pmr::memory_resource *mr, const size_t *dims, std::size_t nDims)
 {
-    auto m = createMatrixND(dims, nDims, ValueType::DOUBLE, &alloc);
+    auto m = createMatrixND(dims, nDims, ValueType::DOUBLE, mr);
     double *p = m.doubleDataMut();
     for (size_t i = 0; i < m.numel(); ++i)
         p[i] = 1.0;
     return m;
 }
 
-Value eye(Allocator &alloc, size_t rows, size_t cols)
+Value eye(std::pmr::memory_resource *mr, size_t rows, size_t cols)
 {
-    auto m = Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
+    auto m = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < std::min(rows, cols); ++i)
         m.elem(i, i) = 1.0;
     return m;
 }
 
 // ── Shape queries ────────────────────────────────────────────────────
-Value size(Allocator &alloc, const Value &x)
+Value size(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dims = x.dims();
     // Output ndim: at least 2 (MATLAB convention — a row vector reports
     // [1, n], not [n]). Otherwise the actual rank, including any extra
     // dims past 3.
     const int n = std::max(2, dims.ndim());
-    auto sv = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto sv = Value::matrix(1, n, ValueType::DOUBLE, mr);
     double *out = sv.doubleDataMut();
     for (int i = 0; i < n; ++i)
         out[i] = static_cast<double>(dims.dim(i));
     return sv;
 }
 
-Value size(Allocator &alloc, const Value &x, int dim)
+Value size(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    return Value::scalar(static_cast<double>(x.dims().dimSize(dim - 1)), &alloc);
+    return Value::scalar(static_cast<double>(x.dims().dimSize(dim - 1)), mr);
 }
 
-std::tuple<Value, Value> sizePair(Allocator &alloc, const Value &x)
+std::tuple<Value, Value> sizePair(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dims = x.dims();
     return std::make_tuple(
-        Value::scalar(static_cast<double>(dims.rows()), &alloc),
-        Value::scalar(static_cast<double>(dims.cols()), &alloc));
+        Value::scalar(static_cast<double>(dims.rows()), mr),
+        Value::scalar(static_cast<double>(dims.cols()), mr));
 }
 
-Value length(Allocator &alloc, const Value &x)
+Value length(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isEmpty() || x.numel() == 0)
-        return Value::scalar(0.0, &alloc);
+        return Value::scalar(0.0, mr);
     const auto &dims = x.dims();
     const double len = static_cast<double>(std::max({dims.rows(), dims.cols(), dims.pages()}));
-    return Value::scalar(len, &alloc);
+    return Value::scalar(len, mr);
 }
 
-Value numel(Allocator &alloc, const Value &x)
+Value numel(std::pmr::memory_resource *mr, const Value &x)
 {
-    return Value::scalar(static_cast<double>(x.numel()), &alloc);
+    return Value::scalar(static_cast<double>(x.numel()), mr);
 }
 
-Value ndims(Allocator &alloc, const Value &x)
+Value ndims(std::pmr::memory_resource *mr, const Value &x)
 {
-    return Value::scalar(static_cast<double>(x.dims().ndims()), &alloc);
+    return Value::scalar(static_cast<double>(x.dims().ndims()), mr);
 }
 
 // ── Shape transformations ────────────────────────────────────────────
-Value reshape(Allocator &alloc, const Value &x, size_t rows, size_t cols, size_t pages)
+Value reshape(std::pmr::memory_resource *mr, const Value &x, size_t rows, size_t cols, size_t pages)
 {
     const size_t newNumel = rows * cols * (pages == 0 ? 1 : pages);
     if (newNumel != x.numel())
@@ -138,7 +138,7 @@ Value reshape(Allocator &alloc, const Value &x, size_t rows, size_t cols, size_t
         return r;
     }
 
-    auto r = createMatrix(d, x.type(), &alloc);
+    auto r = createMatrix(d, x.type(), mr);
     if (x.rawBytes() > 0)
         std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
     return r;
@@ -147,7 +147,7 @@ Value reshape(Allocator &alloc, const Value &x, size_t rows, size_t cols, size_t
 // ND reshape. Same elem-count check, then route to matrixND for nd > 3.
 // CELL/STRING ND not supported yet (matches the 2D/3D behaviour: only
 // CELL/STRING currently handles 2D and 3D shapes via cell3D/stringArray3D).
-Value reshapeND(Allocator &alloc, const Value &x,
+Value reshapeND(std::pmr::memory_resource *mr, const Value &x,
                  const size_t *dims, std::size_t nDims)
 {
     size_t newNumel = 1;
@@ -164,22 +164,22 @@ Value reshapeND(Allocator &alloc, const Value &x,
         const size_t r = nDims > 0 ? dims[0] : 1;
         const size_t c = nDims > 1 ? dims[1] : 1;
         const size_t p = nDims > 2 ? dims[2] : 0;
-        return reshape(alloc, x, r, c, p);
+        return reshape(mr, x, r, c, p);
     }
 
-    auto r = createMatrixND(dims, nDims, x.type(), &alloc);
+    auto r = createMatrixND(dims, nDims, x.type(), mr);
     if (x.rawBytes() > 0)
         std::memcpy(r.rawDataMut(), x.rawData(), x.rawBytes());
     return r;
 }
 
-Value transpose(Allocator &alloc, const Value &x)
+Value transpose(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
                      0, 0, "transpose", "", "m:transpose:3DInput");
     const size_t rows = x.dims().rows(), cols = x.dims().cols();
-    auto r = Value::matrix(cols, rows, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(cols, rows, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < rows; ++i)
         for (size_t j = 0; j < cols; ++j)
             r.elem(j, i) = x(i, j);
@@ -314,7 +314,7 @@ void materialisePage(T *dst, const Value &src, size_t pageOff,
 }
 
 template <typename T>
-Value pagemtimesImpl(Allocator &alloc,
+Value pagemtimesImpl(std::pmr::memory_resource *mr,
                       const Value &x, TranspOp tx,
                       const Value &y, TranspOp ty)
 {
@@ -361,7 +361,7 @@ Value pagemtimesImpl(Allocator &alloc,
     outDimArr[0] = M;
     outDimArr[1] = N;
     for (int i = 0; i < outBatchNd; ++i) outDimArr[2 + i] = outBatch[i];
-    auto z = createForDims(Dims(outDimArr, outNd), pagemtimesElemMType<T>(), &alloc);
+    auto z = createForDims(Dims(outDimArr, outNd), pagemtimesElemMType<T>(), mr);
     if (M == 0 || N == 0 || batchN == 0)
         return z;
 
@@ -375,8 +375,8 @@ Value pagemtimesImpl(Allocator &alloc,
     // reused across all batch pages).
     const bool xDirect = (x.type() == pagemtimesElemMType<T>()) && (tx == TranspOp::None);
     const bool yDirect = (y.type() == pagemtimesElemMType<T>()) && (ty == TranspOp::None);
-    ScratchArena scratch_arena(alloc);
-    ScratchVec<T> scratchX(scratch_arena.resource()), scratchY(scratch_arena.resource());
+    ScratchArena scratch_arena(mr);
+    ScratchVec<T> scratchX(&scratch_arena), scratchY(&scratch_arena);
     if (!xDirect) scratchX.resize(xPageStride);
     if (!yDirect) scratchY.resize(yPageStride);
 
@@ -431,12 +431,12 @@ Value pagemtimesImpl(Allocator &alloc,
 
 } // namespace
 
-Value pagemtimes(Allocator &alloc, const Value &x, const Value &y)
+Value pagemtimes(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
-    return pagemtimes(alloc, x, TranspOp::None, y, TranspOp::None);
+    return pagemtimes(mr, x, TranspOp::None, y, TranspOp::None);
 }
 
-Value pagemtimes(Allocator &alloc,
+Value pagemtimes(std::pmr::memory_resource *mr,
                   const Value &x, TranspOp tx,
                   const Value &y, TranspOp ty)
 {
@@ -450,48 +450,48 @@ Value pagemtimes(Allocator &alloc,
         throw Error("pagemtimes: inputs must be 'single', 'double', or complex",
                      0, 0, "pagemtimes", "", "m:pagemtimes:type");
     if (x.isComplex() || y.isComplex())
-        return pagemtimesImpl<Complex>(alloc, x, tx, y, ty);
+        return pagemtimesImpl<Complex>(mr, x, tx, y, ty);
     if (x.type() == ValueType::SINGLE || y.type() == ValueType::SINGLE)
-        return pagemtimesImpl<float  >(alloc, x, tx, y, ty);
-    return     pagemtimesImpl<double >(alloc, x, tx, y, ty);
+        return pagemtimesImpl<float  >(mr, x, tx, y, ty);
+    return     pagemtimesImpl<double >(mr, x, tx, y, ty);
 }
 
-Value diag(Allocator &alloc, const Value &x)
+Value diag(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.dims().isVector()) {
         const size_t n = x.numel();
-        auto r = Value::matrix(n, n, ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(n, n, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < n; ++i)
             r.elem(i, i) = x.doubleData()[i];
         return r;
     }
     const size_t n = std::min(x.dims().rows(), x.dims().cols());
-    auto r = Value::matrix(n, 1, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(n, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < n; ++i)
         r.doubleDataMut()[i] = x(i, i);
     return r;
 }
 
 // ── Sort / find ──────────────────────────────────────────────────────
-std::tuple<Value, Value> sort(Allocator &alloc, const Value &x)
+std::tuple<Value, Value> sort(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isScalar())
-        return std::make_tuple(x, Value::scalar(1.0, &alloc));
+        return std::make_tuple(x, Value::scalar(1.0, mr));
 
     const size_t R = x.dims().rows(), C = x.dims().cols();
     const size_t P = x.dims().is3D() ? x.dims().pages() : 1;
     const int sortDim = (R > 1) ? 0 : (C > 1) ? 1 : 2;
     const size_t N = (sortDim == 0) ? R : (sortDim == 1) ? C : P;
 
-    auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                             : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
-    auto idx = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                               : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                             : Value::matrix(R, C, ValueType::DOUBLE, mr);
+    auto idx = x.dims().is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                               : Value::matrix(R, C, ValueType::DOUBLE, mr);
 
     const size_t slice0 = (sortDim == 0) ? 1 : R;
     const size_t slice1 = (sortDim == 1) ? 1 : C;
     const size_t slice2 = (sortDim == 2) ? 1 : P;
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto buf = scratch.vec<std::pair<double, size_t>>(N);
 
     for (size_t pp = 0; pp < slice2; ++pp)
@@ -523,7 +523,7 @@ namespace {
 // Promote to a 2D DOUBLE matrix for row-tuple ops. Returns a copy if the
 // type or shape differs; for already-2D-DOUBLE input returns by value
 // (cheap COW in the engine).
-Value toDoubleMatrix2D(Allocator &alloc, const Value &x, const char *fn)
+Value toDoubleMatrix2D(std::pmr::memory_resource *mr, const Value &x, const char *fn)
 {
     if (x.dims().is3D() || x.dims().ndim() > 2)
         throw Error(std::string(fn) + ": input must be 2D",
@@ -533,13 +533,13 @@ Value toDoubleMatrix2D(Allocator &alloc, const Value &x, const char *fn)
     if (x.type() == ValueType::DOUBLE) {
         // Return a fresh DOUBLE matrix identical to x — cheap, avoids
         // touching the input through a shared buffer later.
-        auto r = Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
         if (x.numel() > 0)
             std::memcpy(r.doubleDataMut(), x.doubleData(),
                         x.numel() * sizeof(double));
         return r;
     }
-    auto r = Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
     for (size_t i = 0; i < x.numel(); ++i)
         dst[i] = x.elemAsDouble(i);
@@ -547,23 +547,23 @@ Value toDoubleMatrix2D(Allocator &alloc, const Value &x, const char *fn)
 }
 
 std::tuple<Value, Value>
-sortRowsImpl(Allocator &alloc, const Value &x,
+sortRowsImpl(std::pmr::memory_resource *mr, const Value &x,
              const int *cols, std::size_t nCols)
 {
-    auto m = toDoubleMatrix2D(alloc, x, "sortrows");
+    auto m = toDoubleMatrix2D(mr, x, "sortrows");
     const size_t R = m.dims().rows();
     const size_t C = m.dims().cols();
 
     if (R == 0) {
         // Empty rows — return as-is and an empty 0×1 idx column.
-        auto idx = Value::matrix(0, 1, ValueType::DOUBLE, &alloc);
+        auto idx = Value::matrix(0, 1, ValueType::DOUBLE, mr);
         return std::make_tuple(std::move(m), std::move(idx));
     }
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     // Validate cols list. nCols==0 ⇒ all columns ascending in order.
-    ScratchVec<int> sortKeys(scratch.resource());
+    ScratchVec<int> sortKeys(&scratch);
     if (nCols == 0) {
         sortKeys.reserve(C);
         for (size_t c = 1; c <= C; ++c)
@@ -588,8 +588,8 @@ sortRowsImpl(Allocator &alloc, const Value &x,
                                             sortKeys.data(), sortKeys.size()) < 0;
         });
 
-    auto sorted = detail::collectRowsByIndex(alloc, m, perm.data(), perm.size());
-    auto idx = Value::matrix(R, 1, ValueType::DOUBLE, &alloc);
+    auto sorted = detail::collectRowsByIndex(mr, m, perm.data(), perm.size());
+    auto idx = Value::matrix(R, 1, ValueType::DOUBLE, mr);
     double *idxP = idx.doubleDataMut();
     for (size_t i = 0; i < R; ++i)
         idxP[i] = static_cast<double>(perm[i] + 1);
@@ -598,20 +598,20 @@ sortRowsImpl(Allocator &alloc, const Value &x,
 
 } // namespace
 
-std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x)
+std::tuple<Value, Value> sortrows(std::pmr::memory_resource *mr, const Value &x)
 {
-    return sortRowsImpl(alloc, x, nullptr, 0);
+    return sortRowsImpl(mr, x, nullptr, 0);
 }
 
-std::tuple<Value, Value> sortrows(Allocator &alloc, const Value &x,
+std::tuple<Value, Value> sortrows(std::pmr::memory_resource *mr, const Value &x,
                                     const int *cols, std::size_t nCols)
 {
-    return sortRowsImpl(alloc, x, cols, nCols);
+    return sortRowsImpl(mr, x, cols, nCols);
 }
 
-Value find(Allocator &alloc, const Value &x)
+Value find(std::pmr::memory_resource *mr, const Value &x)
 {
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto indices = scratch.vec<double>();
     if (x.isLogical()) {
         const uint8_t *ld = x.logicalData();
@@ -625,8 +625,8 @@ Value find(Allocator &alloc, const Value &x)
                 indices.push_back(static_cast<double>(i + 1));
     }
     const bool rowResult = !x.dims().is3D() && x.dims().rows() == 1;
-    auto r = rowResult ? Value::matrix(1, indices.size(), ValueType::DOUBLE, &alloc)
-                       : Value::matrix(indices.size(), 1, ValueType::DOUBLE, &alloc);
+    auto r = rowResult ? Value::matrix(1, indices.size(), ValueType::DOUBLE, mr)
+                       : Value::matrix(indices.size(), 1, ValueType::DOUBLE, mr);
     if (!indices.empty())
         std::memcpy(r.doubleDataMut(), indices.data(), indices.size() * sizeof(double));
     return r;
@@ -737,13 +737,13 @@ T *typedDstFor(Value &r, ValueType outType)
 }
 
 template <typename T, typename Reader>
-Value collectTypedNonzeros(Allocator &alloc, const Value &x,
+Value collectTypedNonzeros(std::pmr::memory_resource *mr, const Value &x,
                             ValueType outType, Reader read)
 {
-    ScratchArena scratch(alloc);
-    ScratchVec<T> vals(scratch.resource());
+    ScratchArena scratch(mr);
+    ScratchVec<T> vals(&scratch);
     forEachNonzero(x, [&](size_t i) { vals.push_back(read(i)); });
-    auto r = Value::matrix(vals.size(), 1, outType, &alloc);
+    auto r = Value::matrix(vals.size(), 1, outType, mr);
     if (!vals.empty()) {
         T *dst = typedDstFor<T>(r, outType);
         std::memcpy(dst, vals.data(), vals.size() * sizeof(T));
@@ -753,81 +753,81 @@ Value collectTypedNonzeros(Allocator &alloc, const Value &x,
 
 } // namespace
 
-Value nnz(Allocator &alloc, const Value &x)
+Value nnz(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.numel() == 0)
-        return Value::scalar(0.0, &alloc);
+        return Value::scalar(0.0, mr);
     size_t count = 0;
     forEachNonzero(x, [&](size_t) { ++count; });
-    return Value::scalar(static_cast<double>(count), &alloc);
+    return Value::scalar(static_cast<double>(count), mr);
 }
 
-Value nonzeros(Allocator &alloc, const Value &x)
+Value nonzeros(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.numel() == 0) {
         // Empty input → 0×1 column of the source type (DOUBLE if unknown).
         const ValueType outT = (x.type() == ValueType::EMPTY) ? ValueType::DOUBLE : x.type();
-        return Value::matrix(0, 1, outT, &alloc);
+        return Value::matrix(0, 1, outT, mr);
     }
     switch (x.type()) {
     case ValueType::LOGICAL: {
         const uint8_t *p = x.logicalData();
-        return collectTypedNonzeros<uint8_t>(alloc, x, ValueType::LOGICAL,
+        return collectTypedNonzeros<uint8_t>(mr, x, ValueType::LOGICAL,
             [&](size_t i) -> uint8_t { return p[i]; });
     }
     case ValueType::DOUBLE: {
         const double *p = x.doubleData();
-        return collectTypedNonzeros<double>(alloc, x, ValueType::DOUBLE,
+        return collectTypedNonzeros<double>(mr, x, ValueType::DOUBLE,
             [&](size_t i) -> double { return p[i]; });
     }
     case ValueType::SINGLE: {
         const float *p = x.singleData();
-        return collectTypedNonzeros<float>(alloc, x, ValueType::SINGLE,
+        return collectTypedNonzeros<float>(mr, x, ValueType::SINGLE,
             [&](size_t i) -> float { return p[i]; });
     }
     case ValueType::COMPLEX: {
         const Complex *p = x.complexData();
-        return collectTypedNonzeros<Complex>(alloc, x, ValueType::COMPLEX,
+        return collectTypedNonzeros<Complex>(mr, x, ValueType::COMPLEX,
             [&](size_t i) -> Complex { return p[i]; });
     }
     case ValueType::INT8: {
         const int8_t *p = x.int8Data();
-        return collectTypedNonzeros<int8_t>(alloc, x, ValueType::INT8,
+        return collectTypedNonzeros<int8_t>(mr, x, ValueType::INT8,
             [&](size_t i) -> int8_t { return p[i]; });
     }
     case ValueType::INT16: {
         const int16_t *p = x.int16Data();
-        return collectTypedNonzeros<int16_t>(alloc, x, ValueType::INT16,
+        return collectTypedNonzeros<int16_t>(mr, x, ValueType::INT16,
             [&](size_t i) -> int16_t { return p[i]; });
     }
     case ValueType::INT32: {
         const int32_t *p = x.int32Data();
-        return collectTypedNonzeros<int32_t>(alloc, x, ValueType::INT32,
+        return collectTypedNonzeros<int32_t>(mr, x, ValueType::INT32,
             [&](size_t i) -> int32_t { return p[i]; });
     }
     case ValueType::INT64: {
         const int64_t *p = x.int64Data();
-        return collectTypedNonzeros<int64_t>(alloc, x, ValueType::INT64,
+        return collectTypedNonzeros<int64_t>(mr, x, ValueType::INT64,
             [&](size_t i) -> int64_t { return p[i]; });
     }
     case ValueType::UINT8: {
         const uint8_t *p = x.uint8Data();
-        return collectTypedNonzeros<uint8_t>(alloc, x, ValueType::UINT8,
+        return collectTypedNonzeros<uint8_t>(mr, x, ValueType::UINT8,
             [&](size_t i) -> uint8_t { return p[i]; });
     }
     case ValueType::UINT16: {
         const uint16_t *p = x.uint16Data();
-        return collectTypedNonzeros<uint16_t>(alloc, x, ValueType::UINT16,
+        return collectTypedNonzeros<uint16_t>(mr, x, ValueType::UINT16,
             [&](size_t i) -> uint16_t { return p[i]; });
     }
     case ValueType::UINT32: {
         const uint32_t *p = x.uint32Data();
-        return collectTypedNonzeros<uint32_t>(alloc, x, ValueType::UINT32,
+        return collectTypedNonzeros<uint32_t>(mr, x, ValueType::UINT32,
             [&](size_t i) -> uint32_t { return p[i]; });
     }
     case ValueType::UINT64: {
         const uint64_t *p = x.uint64Data();
-        return collectTypedNonzeros<uint64_t>(alloc, x, ValueType::UINT64,
+        return collectTypedNonzeros<uint64_t>(mr, x, ValueType::UINT64,
             [&](size_t i) -> uint64_t { return p[i]; });
     }
     default:
@@ -837,26 +837,26 @@ Value nonzeros(Allocator &alloc, const Value &x)
 }
 
 // ── Concatenation ────────────────────────────────────────────────────
-Value horzcat(Allocator &alloc, const Value *values, size_t count)
+Value horzcat(std::pmr::memory_resource *mr, const Value *values, size_t count)
 {
     if (count == 0)
         return Value::empty();
-    return Value::horzcat(values, count, &alloc);
+    return Value::horzcat(values, count, mr);
 }
 
-Value vertcat(Allocator &alloc, const Value *values, size_t count)
+Value vertcat(std::pmr::memory_resource *mr, const Value *values, size_t count)
 {
     if (count == 0)
         return Value::empty();
-    return Value::vertcat(values, count, &alloc);
+    return Value::vertcat(values, count, mr);
 }
 
 // ── Grids ────────────────────────────────────────────────────────────
-std::tuple<Value, Value> meshgrid(Allocator &alloc, const Value &x, const Value &y)
+std::tuple<Value, Value> meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
     const size_t nx = x.numel(), ny = y.numel();
-    auto X = Value::matrix(ny, nx, ValueType::DOUBLE, &alloc);
-    auto Y = Value::matrix(ny, nx, ValueType::DOUBLE, &alloc);
+    auto X = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix(ny, nx, ValueType::DOUBLE, mr);
     for (size_t r = 0; r < ny; ++r)
         for (size_t c = 0; c < nx; ++c) {
             X.elem(r, c) = x.doubleData()[c];
@@ -867,12 +867,12 @@ std::tuple<Value, Value> meshgrid(Allocator &alloc, const Value &x, const Value 
 
 // ── ndgrid ──────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-ndgrid(Allocator &alloc, const Value &x, const Value &y)
+ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
     const size_t nx = x.numel(), ny = y.numel();
     // Output shape: [nx, ny] — first arg is row dim (axes-major).
-    auto X = Value::matrix(nx, ny, ValueType::DOUBLE, &alloc);
-    auto Y = Value::matrix(nx, ny, ValueType::DOUBLE, &alloc);
+    auto X = Value::matrix(nx, ny, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix(nx, ny, ValueType::DOUBLE, mr);
     for (size_t r = 0; r < nx; ++r)
         for (size_t c = 0; c < ny; ++c) {
             X.elem(r, c) = x.elemAsDouble(r);
@@ -882,12 +882,12 @@ ndgrid(Allocator &alloc, const Value &x, const Value &y)
 }
 
 std::tuple<Value, Value, Value>
-ndgrid(Allocator &alloc, const Value &x, const Value &y, const Value &z)
+ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &z)
 {
     const size_t nx = x.numel(), ny = y.numel(), nz = z.numel();
-    auto X = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, &alloc);
-    auto Y = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, &alloc);
-    auto Z = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, &alloc);
+    auto X = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, mr);
+    auto Z = Value::matrix3d(nx, ny, nz, ValueType::DOUBLE, mr);
     for (size_t p = 0; p < nz; ++p)
         for (size_t c = 0; c < ny; ++c)
             for (size_t r = 0; r < nx; ++r) {
@@ -899,7 +899,7 @@ ndgrid(Allocator &alloc, const Value &x, const Value &y, const Value &z)
 }
 
 // ── kron ────────────────────────────────────────────────────────────
-Value kron(Allocator &alloc, const Value &a, const Value &b)
+Value kron(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     if (a.type() == ValueType::COMPLEX || b.type() == ValueType::COMPLEX)
         throw Error("kron: complex inputs are not supported",
@@ -913,7 +913,7 @@ Value kron(Allocator &alloc, const Value &a, const Value &b)
     const size_t rB = b.dims().rows(), cB = b.dims().cols();
     const size_t rOut = rA * rB, cOut = cA * cB;
 
-    auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
     if (rOut == 0 || cOut == 0) return out;
 
     double *dst = out.doubleDataMut();
@@ -933,20 +933,20 @@ Value kron(Allocator &alloc, const Value &a, const Value &b)
 }
 
 // ── Reductions and products ──────────────────────────────────────────
-Value cumsum(Allocator &alloc, const Value &x)
+Value cumsum(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isScalar()) {
-        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
         return r;
     }
     if (x.dims().isVector()) {
-        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         cumsumScan(x.doubleData(), r.doubleDataMut(), x.numel());
         return r;
     }
     const size_t R = x.dims().rows(), C = x.dims().cols();
-    auto r = Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
     // Per-column inclusive scan — column data is contiguous.
@@ -957,10 +957,10 @@ Value cumsum(Allocator &alloc, const Value &x)
 
 // cumsum along an explicit dim. Output shape equals input shape (this is
 // not a reduction). Vector / scalar input ignores dim and walks linearly.
-Value cumsum(Allocator &alloc, const Value &x, int dim)
+Value cumsum(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    if (dim <= 0) return cumsum(alloc, x);
-    if (x.dims().isVector() || x.isScalar()) return cumsum(alloc, x);
+    if (dim <= 0) return cumsum(mr, x);
+    if (x.dims().isVector() || x.isScalar()) return cumsum(mr, x);
 
     const int d = detail::resolveDim(x, dim, "cumsum");
     const auto &dd = x.dims();
@@ -974,7 +974,7 @@ Value cumsum(Allocator &alloc, const Value &x, int dim)
                          0, 0, "cumsum", "", "m:cumsum:tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
-        auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
         const size_t sliceLen = dd.dim(d - 1);
         size_t B = 1;
         for (int i = 0; i < d - 1; ++i) B *= dd.dim(i);
@@ -1005,8 +1005,8 @@ Value cumsum(Allocator &alloc, const Value &x, int dim)
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
 
@@ -1100,15 +1100,15 @@ void cumKernel(const Value &x, int d, Op op, double *dst)
 }
 
 template <typename Op>
-Value cumImpl(Allocator &alloc, const Value &x, int dim,
+Value cumImpl(std::pmr::memory_resource *mr, const Value &x, int dim,
                Op op, const char *fn)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
     if (x.dims().isVector() || x.isScalar()) {
         auto r = Value::matrix(x.dims().rows(), x.dims().cols(),
-                                ValueType::DOUBLE, &alloc);
+                                ValueType::DOUBLE, mr);
         if (x.numel() == 0) return r;
         double acc = x.doubleData()[0];
         r.doubleDataMut()[0] = acc;
@@ -1122,9 +1122,9 @@ Value cumImpl(Allocator &alloc, const Value &x, int dim,
     const int d = detail::resolveDim(x, dim, fn);
     const auto &dd = x.dims();
     auto r = dd.is3D() ? Value::matrix3d(dd.rows(), dd.cols(), dd.pages(),
-                                          ValueType::DOUBLE, &alloc)
+                                          ValueType::DOUBLE, mr)
                        : Value::matrix(dd.rows(), dd.cols(),
-                                        ValueType::DOUBLE, &alloc);
+                                        ValueType::DOUBLE, mr);
     cumKernel(x, d, op, r.doubleDataMut());
     return r;
 }
@@ -1141,18 +1141,18 @@ namespace {
 using ScanFn = void (*)(const double *, double *, std::size_t);
 
 template <typename Op>
-Value cumScanDispatch(Allocator &alloc, const Value &x, int dim,
+Value cumScanDispatch(std::pmr::memory_resource *mr, const Value &x, int dim,
                        ScanFn scan, Op scalarOp, const char *fn)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if (x.isScalar()) {
-        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = x.toScalar();
         return r;
     }
     if (x.dims().isVector()) {
-        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(x.dims().rows(), x.dims().cols(), ValueType::DOUBLE, mr);
         scan(x.doubleData(), r.doubleDataMut(), x.numel());
         return r;
     }
@@ -1168,7 +1168,7 @@ Value cumScanDispatch(Allocator &alloc, const Value &x, int dim,
                          0, 0, fn, "", std::string("m:") + fn + ":tooManyDims");
         size_t outDims[kMaxNd];
         for (int i = 0; i < dd.ndim(); ++i) outDims[i] = dd.dim(i);
-        auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrixND(outDims, dd.ndim(), ValueType::DOUBLE, mr);
         const size_t sliceLen = dd.dim(d - 1);
         size_t B = 1;
         for (int i = 0; i < d - 1; ++i) B *= dd.dim(i);
@@ -1199,8 +1199,8 @@ Value cumScanDispatch(Allocator &alloc, const Value &x, int dim,
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
 
@@ -1220,18 +1220,18 @@ Value cumScanDispatch(Allocator &alloc, const Value &x, int dim,
 
 } // namespace
 
-Value cumprod(Allocator &alloc, const Value &x, int dim)
+Value cumprod(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    return cumScanDispatch(alloc, x, dim, cumprodScan,
+    return cumScanDispatch(mr, x, dim, cumprodScan,
                            [](double a, double b) { return a * b; }, "cumprod");
 }
 
-Value cummax(Allocator &alloc, const Value &x, int dim)
+Value cummax(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     // NaN propagation: MATLAB cummax skips NaN if 'omitnan' is passed
     // and propagates otherwise. Default = 'omitnan' since R2018a; we
     // skip NaN here, treating them as identity.
-    return cumScanDispatch(alloc, x, dim, cummaxScan,
+    return cumScanDispatch(mr, x, dim, cummaxScan,
                            [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
@@ -1239,9 +1239,9 @@ Value cummax(Allocator &alloc, const Value &x, int dim)
                            }, "cummax");
 }
 
-Value cummin(Allocator &alloc, const Value &x, int dim)
+Value cummin(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    return cumScanDispatch(alloc, x, dim, cumminScan,
+    return cumScanDispatch(mr, x, dim, cumminScan,
                            [](double a, double b) {
                                if (std::isnan(b)) return a;
                                if (std::isnan(a)) return b;
@@ -1289,7 +1289,7 @@ void diffOnceDouble(const double *src, double *dst,
     }
 }
 
-Value makeDiffOutput(Allocator &alloc, const Dims &srcDims, int d, size_t step)
+Value makeDiffOutput(std::pmr::memory_resource *mr, const Dims &srcDims, int d, size_t step)
 {
     const int nd = srcDims.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
@@ -1299,17 +1299,17 @@ Value makeDiffOutput(Allocator &alloc, const Dims &srcDims, int d, size_t step)
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = srcDims.dim(i);
     outDims[d - 1] = (outDims[d - 1] >= step) ? outDims[d - 1] - step : 0;
-    return Value::matrixND(outDims, nd, ValueType::DOUBLE, &alloc);
+    return Value::matrixND(outDims, nd, ValueType::DOUBLE, mr);
 }
 
-Value copyToDouble(Allocator &alloc, const Value &x)
+Value copyToDouble(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dd = x.dims();
     const int nd = dd.ndim();
     constexpr int kMaxNd = Dims::kMaxRank;
     size_t dims[kMaxNd];
     for (int i = 0; i < nd; ++i) dims[i] = dd.dim(i);
-    auto r = Value::matrixND(dims, nd, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrixND(dims, nd, ValueType::DOUBLE, mr);
     if (x.type() == ValueType::DOUBLE) {
         std::memcpy(r.doubleDataMut(), x.doubleData(),
                     x.numel() * sizeof(double));
@@ -1323,7 +1323,7 @@ Value copyToDouble(Allocator &alloc, const Value &x)
 
 } // namespace
 
-Value diff(Allocator &alloc, const Value &x, int n, int dim)
+Value diff(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 {
     if (n < 0)
         throw Error("diff: order n must be non-negative",
@@ -1331,12 +1331,12 @@ Value diff(Allocator &alloc, const Value &x, int n, int dim)
 
     if (n == 0) {
         // Identity copy preserving DOUBLE shape.
-        return copyToDouble(alloc, x);
+        return copyToDouble(mr, x);
     }
 
     // Scalar: MATLAB returns 1×0 empty.
     if (x.isScalar())
-        return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
 
     const int d = detail::resolveDim(x, dim, "diff");
     const auto &dd = x.dims();
@@ -1344,14 +1344,14 @@ Value diff(Allocator &alloc, const Value &x, int n, int dim)
 
     // If n collapses or exceeds the dim, return correctly-shaped empty.
     if (sliceLen <= static_cast<size_t>(n))
-        return makeDiffOutput(alloc, dd, d, sliceLen);
+        return makeDiffOutput(mr, dd, d, sliceLen);
 
     // Promote integer/logical to DOUBLE first (consistent with cumsum).
-    Value cur = copyToDouble(alloc, x);
+    Value cur = copyToDouble(mr, x);
 
     for (int pass = 0; pass < n; ++pass) {
         const auto &curDims = cur.dims();
-        auto out = makeDiffOutput(alloc, curDims, d, 1);
+        auto out = makeDiffOutput(mr, curDims, d, 1);
         diffOnceDouble(cur.doubleData(), out.doubleDataMut(), curDims, d);
         cur = std::move(out);
     }
@@ -1369,10 +1369,10 @@ Value diff(Allocator &alloc, const Value &x, int n, int dim)
 namespace {
 
 // Used by xor below — small inputs, no need for a SIMD path.
-Value promoteToDouble(const Value &x, Allocator &alloc)
+Value promoteToDouble(const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == ValueType::DOUBLE) return x;
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i)
         r.doubleDataMut()[i] = x.elemAsDouble(i);
     return r;
@@ -1381,34 +1381,34 @@ Value promoteToDouble(const Value &x, Allocator &alloc)
 } // namespace
 
 // ── xor (elementwise logical) ────────────────────────────────────────
-Value xorOf(Allocator &alloc, const Value &a, const Value &b)
+Value xorOf(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    auto ad = promoteToDouble(a, alloc);
-    auto bd = promoteToDouble(b, alloc);
+    auto ad = promoteToDouble(a, mr);
+    auto bd = promoteToDouble(b, mr);
     auto d = elementwiseDouble(ad, bd,
         [](double aa, double bb) {
             return ((aa != 0.0) != (bb != 0.0)) ? 1.0 : 0.0;
-        }, &alloc);
-    if (d.isScalar()) return Value::logicalScalar(d.toScalar() != 0.0, &alloc);
-    auto r = createLike(d, ValueType::LOGICAL, &alloc);
+        }, mr);
+    if (d.isScalar()) return Value::logicalScalar(d.toScalar() != 0.0, mr);
+    auto r = createLike(d, ValueType::LOGICAL, mr);
     for (size_t i = 0; i < d.numel(); ++i)
         r.logicalDataMut()[i] = (d.doubleData()[i] != 0.0) ? 1 : 0;
     return r;
 }
 
-Value cross(Allocator &alloc, const Value &a, const Value &b)
+Value cross(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     if (a.numel() != 3 || b.numel() != 3)
         throw Error("cross requires 3-element vectors",
                      0, 0, "cross", "", "m:cross:badSize");
-    auto r = Value::matrix(1, 3, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     r.doubleDataMut()[0] = a.doubleData()[1] * b.doubleData()[2] - a.doubleData()[2] * b.doubleData()[1];
     r.doubleDataMut()[1] = a.doubleData()[2] * b.doubleData()[0] - a.doubleData()[0] * b.doubleData()[2];
     r.doubleDataMut()[2] = a.doubleData()[0] * b.doubleData()[1] - a.doubleData()[1] * b.doubleData()[0];
     return r;
 }
 
-Value dot(Allocator &alloc, const Value &a, const Value &b)
+Value dot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     if (a.numel() != b.numel())
         throw Error("dot: vectors must have same length",
@@ -1416,7 +1416,7 @@ Value dot(Allocator &alloc, const Value &a, const Value &b)
     double s = 0;
     for (size_t i = 0; i < a.numel(); ++i)
         s += a.doubleData()[i] * b.doubleData()[i];
-    return Value::scalar(s, &alloc);
+    return Value::scalar(s, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -1427,26 +1427,26 @@ namespace detail {
 
 void zeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto d = parseDimsArgsND(scratch.resource(), args);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, args);
     stripTrailingOnes(d);
-    outs[0] = zerosND(alloc, d.data(), d.size());
+    outs[0] = zerosND(mr, d.data(), d.size());
 }
 
 void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto d = parseDimsArgsND(scratch.resource(), args);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, args);
     stripTrailingOnes(d);
-    outs[0] = onesND(alloc, d.data(), d.size());
+    outs[0] = onesND(mr, d.data(), d.size());
 }
 
 void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto d = parseDimsArgs(args);
-    outs[0] = eye(ctx.engine->allocator(), d.rows, d.cols);
+    outs[0] = eye(ctx.engine->resource(), d.rows, d.cols);
 }
 
 void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1454,10 +1454,10 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (args.empty())
         throw Error("Not enough input arguments",
                      0, 0, "size", "", "m:size:nargin");
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
 
     if (args.size() >= 2) {
-        outs[0] = size(alloc, args[0], static_cast<int>(args[1].toScalar()));
+        outs[0] = size(mr, args[0], static_cast<int>(args[1].toScalar()));
         return;
     }
 
@@ -1479,12 +1479,12 @@ void size_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
                 if (dims.ndim() <= static_cast<int>(i)) prod = 1;
                 v = static_cast<double>(prod);
             }
-            outs[i] = Value::scalar(v, &alloc);
+            outs[i] = Value::scalar(v, mr);
         }
         return;
     }
 
-    outs[0] = size(alloc, args[0]);
+    outs[0] = size(mr, args[0]);
 }
 
 void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1492,7 +1492,7 @@ void length_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("length: requires 1 argument",
                      0, 0, "length", "", "m:length:nargin");
-    outs[0] = length(ctx.engine->allocator(), args[0]);
+    outs[0] = length(ctx.engine->resource(), args[0]);
 }
 
 void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1500,7 +1500,7 @@ void numel_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("numel: requires 1 argument",
                      0, 0, "numel", "", "m:numel:nargin");
-    outs[0] = numel(ctx.engine->allocator(), args[0]);
+    outs[0] = numel(ctx.engine->resource(), args[0]);
 }
 
 void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1508,7 +1508,7 @@ void ndims_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("ndims: requires 1 argument",
                      0, 0, "ndims", "", "m:ndims:nargin");
-    outs[0] = ndims(ctx.engine->allocator(), args[0]);
+    outs[0] = ndims(ctx.engine->resource(), args[0]);
 }
 
 void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1518,13 +1518,13 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
                      0, 0, "reshape", "", "m:reshape:nargin");
 
     const auto &x = args[0];
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    ScratchVec<size_t> dims(scratch.resource());
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    ScratchVec<size_t> dims(&scratch);
 
     // Dims-vector form: reshape(A, [m n p ...]). No [] inference here.
     if (args.size() == 2 && !args[1].isScalar() && !args[1].isEmpty()) {
-        dims = parseDimsArgsND(scratch.resource(), args.subspan(1));
+        dims = parseDimsArgsND(&scratch, args.subspan(1));
     } else {
         // Scalar-args form: reshape(A, m, n, ...). One [] allowed for
         // dimension inference from x.numel().
@@ -1553,7 +1553,7 @@ void reshape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
     // Strip trailing 1s past the 2nd dim (MATLAB convention).
     stripTrailingOnes(dims);
-    outs[0] = reshapeND(alloc, x, dims.data(), dims.size());
+    outs[0] = reshapeND(mr, x, dims.data(), dims.size());
 }
 
 void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1561,7 +1561,7 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("transpose: requires 1 argument",
                      0, 0, "transpose", "", "m:transpose:nargin");
-    outs[0] = transpose(ctx.engine->allocator(), args[0]);
+    outs[0] = transpose(ctx.engine->resource(), args[0]);
 }
 
 void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1578,13 +1578,13 @@ void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
                      + "' (expected 'none', 'transpose', or 'ctranspose')",
                      0, 0, "pagemtimes", "", "m:pagemtimes:invalidFlag");
     };
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        outs[0] = pagemtimes(alloc, args[0], args[1]);
+        outs[0] = pagemtimes(mr, args[0], args[1]);
         return;
     }
     if (args.size() == 4) {
-        outs[0] = pagemtimes(alloc,
+        outs[0] = pagemtimes(mr,
                              args[0], parseFlag(args[1]),
                              args[2], parseFlag(args[3]));
         return;
@@ -1598,7 +1598,7 @@ void diag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("diag: requires 1 argument",
                      0, 0, "diag", "", "m:diag:nargin");
-    outs[0] = diag(ctx.engine->allocator(), args[0]);
+    outs[0] = diag(ctx.engine->resource(), args[0]);
 }
 
 void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1606,7 +1606,7 @@ void sort_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
     if (args.empty())
         throw Error("sort: requires 1 argument",
                      0, 0, "sort", "", "m:sort:nargin");
-    auto [sorted, idx] = sort(ctx.engine->allocator(), args[0]);
+    auto [sorted, idx] = sort(ctx.engine->resource(), args[0]);
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1617,8 +1617,8 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.empty())
         throw Error("sortrows: requires at least 1 argument",
                      0, 0, "sortrows", "", "m:sortrows:nargin");
-    Allocator &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
+    std::pmr::memory_resource *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
     auto cols = scratch.vec<int>();
     if (args.size() >= 2 && !args[1].isEmpty()) {
         const auto &c = args[1];
@@ -1634,7 +1634,7 @@ void sortrows_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
             cols.push_back(static_cast<int>(v));
         }
     }
-    auto [sorted, idx] = sortrows(alloc, args[0], cols.data(), cols.size());
+    auto [sorted, idx] = sortrows(mr, args[0], cols.data(), cols.size());
     outs[0] = std::move(sorted);
     if (nargout > 1)
         outs[1] = std::move(idx);
@@ -1645,7 +1645,7 @@ void find_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.empty())
         throw Error("find: requires 1 argument",
                      0, 0, "find", "", "m:find:nargin");
-    outs[0] = find(ctx.engine->allocator(), args[0]);
+    outs[0] = find(ctx.engine->resource(), args[0]);
 }
 
 void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1653,7 +1653,7 @@ void nnz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.empty())
         throw Error("nnz: requires 1 argument",
                      0, 0, "nnz", "", "m:nnz:nargin");
-    outs[0] = nnz(ctx.engine->allocator(), args[0]);
+    outs[0] = nnz(ctx.engine->resource(), args[0]);
 }
 
 void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1661,17 +1661,17 @@ void nonzeros_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("nonzeros: requires 1 argument",
                      0, 0, "nonzeros", "", "m:nonzeros:nargin");
-    outs[0] = nonzeros(ctx.engine->allocator(), args[0]);
+    outs[0] = nonzeros(ctx.engine->resource(), args[0]);
 }
 
 void horzcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = horzcat(ctx.engine->allocator(), args.data(), args.size());
+    outs[0] = horzcat(ctx.engine->resource(), args.data(), args.size());
 }
 
 void vertcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = vertcat(ctx.engine->allocator(), args.data(), args.size());
+    outs[0] = vertcat(ctx.engine->resource(), args.data(), args.size());
 }
 
 void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -1679,7 +1679,7 @@ void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("meshgrid: requires 2 arguments",
                      0, 0, "meshgrid", "", "m:meshgrid:nargin");
-    auto [X, Y] = meshgrid(ctx.engine->allocator(), args[0], args[1]);
+    auto [X, Y] = meshgrid(ctx.engine->resource(), args[0], args[1]);
     outs[0] = std::move(X);
     if (nargout > 1)
         outs[1] = std::move(Y);
@@ -1690,15 +1690,15 @@ void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.size() < 2)
         throw Error("ndgrid: requires at least 2 arguments",
                      0, 0, "ndgrid", "", "m:ndgrid:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 2) {
-        auto [X, Y] = ndgrid(alloc, args[0], args[1]);
+        auto [X, Y] = ndgrid(mr, args[0], args[1]);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         return;
     }
     if (args.size() == 3) {
-        auto [X, Y, Z] = ndgrid(alloc, args[0], args[1], args[2]);
+        auto [X, Y, Z] = ndgrid(mr, args[0], args[1], args[2]);
         outs[0] = std::move(X);
         if (nargout > 1) outs[1] = std::move(Y);
         if (nargout > 2) outs[2] = std::move(Z);
@@ -1713,7 +1713,7 @@ void kron_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() < 2)
         throw Error("kron: requires 2 arguments",
                      0, 0, "kron", "", "m:kron:nargin");
-    outs[0] = kron(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = kron(ctx.engine->resource(), args[0], args[1]);
 }
 
 void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1724,8 +1724,8 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     int dim = 0;
     if (args.size() >= 2 && !args[1].isEmpty())
         dim = static_cast<int>(args[1].toScalar());
-    outs[0] = (dim > 0) ? cumsum(ctx.engine->allocator(), args[0], dim)
-                        : cumsum(ctx.engine->allocator(), args[0]);
+    outs[0] = (dim > 0) ? cumsum(ctx.engine->resource(), args[0], dim)
+                        : cumsum(ctx.engine->resource(), args[0]);
 }
 
 #define NK_CUM_REG(name)                                                       \
@@ -1738,7 +1738,7 @@ void cumsum_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = name(ctx.engine->allocator(), args[0], dim);                 \
+        outs[0] = name(ctx.engine->resource(), args[0], dim);                 \
     }
 
 NK_CUM_REG(cumprod)
@@ -1761,7 +1761,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     }
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = diff(ctx.engine->allocator(), args[0], n, dim);
+    outs[0] = diff(ctx.engine->resource(), args[0], n, dim);
 }
 
 #undef NK_CUM_REG
@@ -1776,7 +1776,7 @@ void diff_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         int dim = 0;                                                           \
         if (args.size() >= 2 && !args[1].isEmpty())                            \
             dim = static_cast<int>(args[1].toScalar());                        \
-        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                   \
+        outs[0] = fn(ctx.engine->resource(), args[0], dim);                   \
     }
 
 NK_LOGICAL_RED_REG(any, anyOf)
@@ -1789,7 +1789,7 @@ void xor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("xor: requires 2 arguments",
                      0, 0, "xor", "", "m:xor:nargin");
-    outs[0] = xorOf(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = xorOf(ctx.engine->resource(), args[0], args[1]);
 }
 
 void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1797,7 +1797,7 @@ void cross_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("cross: requires 2 arguments",
                      0, 0, "cross", "", "m:cross:nargin");
-    outs[0] = cross(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = cross(ctx.engine->resource(), args[0], args[1]);
 }
 
 void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -1805,7 +1805,7 @@ void dot_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() < 2)
         throw Error("dot: requires 2 arguments",
                      0, 0, "dot", "", "m:dot:nargin");
-    outs[0] = dot(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = dot(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

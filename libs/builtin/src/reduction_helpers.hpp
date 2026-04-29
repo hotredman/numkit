@@ -21,7 +21,7 @@
 
 #include "helpers.hpp"
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -247,16 +247,16 @@ void forEachSliceND(std::pmr::memory_resource *mr,
 // Returns an Value with the dim collapsed to 1. dim==-1 means "reduce
 // all elements to a single scalar" (vector/scalar case).
 template <typename F>
-Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
+Value applyAlongDim(const Value &x, int dim, F &&f, std::pmr::memory_resource *mr)
 {
     // 2D/3D empty: collapse to 0×0 (legacy behaviour; MATLAB's
     // shape-preservation for empty 2D inputs was never wired up here).
     // ND empty (rank ≥ 4): fall through to the ND path, which produces
     // a correctly-shaped output (e.g. sum(zeros([2,0,3,2]), 2) → 2×1×3×2).
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     }
-    ScratchArena scratch_arena(*alloc);
+    ScratchArena scratch_arena(mr);
     if (x.dims().isVector() || x.isScalar()) {
         auto scratch = scratch_arena.vec<double>(x.numel());
         if (x.type() == ValueType::DOUBLE)
@@ -264,23 +264,23 @@ Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
         else
             for (size_t i = 0; i < x.numel(); ++i)
                 scratch[i] = x.elemAsDouble(i);
-        return Value::scalar(f(0, scratch.data(), x.numel()), alloc);
+        return Value::scalar(f(0, scratch.data(), x.numel()), mr);
     }
     // ND fallback for rank ≥ 4. dim out-of-range was already mapped by
     // validateDim → ndim+1 sentinel, but we may receive dim ∈ [1, ndim].
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(scratch_arena.resource(), x, dim);
+        auto shape = outShapeForDimND(&scratch_arena, x, dim);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
-                                      ValueType::DOUBLE, alloc);
+                                      ValueType::DOUBLE, mr);
         double *dst = out.doubleDataMut();
-        forEachSliceND(scratch_arena.resource(), x, dim, dst, std::forward<F>(f));
+        forEachSliceND(&scratch_arena, x, dim, dst, std::forward<F>(f));
         return out;
     }
     auto outShape = outShapeForDim(x, dim);
-    Value out = createMatrix(outShape, ValueType::DOUBLE, alloc);
+    Value out = createMatrix(outShape, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
-    forEachSlice(scratch_arena.resource(), x, dim, [&](size_t outIdx, double *slice, size_t n) {
+    forEachSlice(&scratch_arena, x, dim, [&](size_t outIdx, double *slice, size_t n) {
         dst[outIdx] = f(outIdx, slice, n);
     });
     return out;
@@ -290,13 +290,13 @@ Value applyAlongDim(const Value &x, int dim, F &&f, Allocator *alloc)
 // per slice. Used by min/max with dim. Returns (values, indices).
 template <typename F>
 std::pair<Value, Value>
-applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
+applyAlongDimWithIndex(const Value &x, int dim, F &&f, std::pmr::memory_resource *mr)
 {
     if (x.isEmpty() && x.dims().ndim() < 4) {
-        return {Value::matrix(0, 0, ValueType::DOUBLE, alloc),
-                Value::matrix(0, 0, ValueType::DOUBLE, alloc)};
+        return {Value::matrix(0, 0, ValueType::DOUBLE, mr),
+                Value::matrix(0, 0, ValueType::DOUBLE, mr)};
     }
-    ScratchArena scratch_arena(*alloc);
+    ScratchArena scratch_arena(mr);
     if (x.dims().isVector() || x.isScalar()) {
         auto scratch = scratch_arena.vec<double>(x.numel());
         if (x.type() == ValueType::DOUBLE)
@@ -307,21 +307,21 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
         double v = 0;
         size_t idx = 0;
         f(scratch.data(), x.numel(), v, idx);
-        return {Value::scalar(v, alloc),
-                Value::scalar(static_cast<double>(idx + 1), alloc)};
+        return {Value::scalar(v, mr),
+                Value::scalar(static_cast<double>(idx + 1), mr)};
     }
     // ND fallback (rank ≥ 4)
     if (x.dims().ndim() >= 4 && dim >= 1 && dim <= x.dims().ndim()) {
-        auto shape = outShapeForDimND(scratch_arena.resource(), x, dim);
+        auto shape = outShapeForDimND(&scratch_arena, x, dim);
         Value out    = Value::matrixND(shape.data(),
                                          static_cast<int>(shape.size()),
-                                         ValueType::DOUBLE, alloc);
+                                         ValueType::DOUBLE, mr);
         Value outIdx = Value::matrixND(shape.data(),
                                          static_cast<int>(shape.size()),
-                                         ValueType::DOUBLE, alloc);
+                                         ValueType::DOUBLE, mr);
         double *dst  = out.doubleDataMut();
         double *dstI = outIdx.doubleDataMut();
-        forEachSliceND(scratch_arena.resource(), x, dim, dst,
+        forEachSliceND(&scratch_arena, x, dim, dst,
             [&](size_t outOff, double *slice, size_t n) {
                 double v = 0; size_t idx = 0;
                 f(slice, n, v, idx);
@@ -331,11 +331,11 @@ applyAlongDimWithIndex(const Value &x, int dim, F &&f, Allocator *alloc)
         return {std::move(out), std::move(outIdx)};
     }
     auto outShape = outShapeForDim(x, dim);
-    Value out = createMatrix(outShape, ValueType::DOUBLE, alloc);
-    Value outIdx = createMatrix(outShape, ValueType::DOUBLE, alloc);
+    Value out = createMatrix(outShape, ValueType::DOUBLE, mr);
+    Value outIdx = createMatrix(outShape, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     double *dstI = outIdx.doubleDataMut();
-    forEachSlice(scratch_arena.resource(), x, dim, [&](size_t outOff, double *slice, size_t n) {
+    forEachSlice(&scratch_arena, x, dim, [&](size_t outOff, double *slice, size_t n) {
         double v = 0;
         size_t idx = 0;
         f(slice, n, v, idx);

@@ -6,7 +6,7 @@
 #include <numkit/builtin/datatypes/strings/strings.hpp>
 #include <numkit/builtin/datatypes/strings/regex.hpp>
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -14,70 +14,69 @@
 
 #include <cmath>
 
-using numkit::Allocator;
 using numkit::Error;
 using numkit::ValueType;
 using numkit::Value;
 
 namespace {
 
-Value mkStr(Allocator &alloc, const char *s) { return Value::fromString(s, &alloc); }
+Value mkStr(std::pmr::memory_resource *mr, const char *s) { return Value::fromString(s, mr); }
 
 } // namespace
 
 // ── num2str / str2num / str2double ───────────────────────────────────────
 TEST(BuiltinStringsPublicApi, Num2StrScalar)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::num2str(alloc, Value::scalar(3.14, &alloc));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::num2str(mr, Value::scalar(3.14, mr));
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "3.14");
 }
 
 TEST(BuiltinStringsPublicApi, Str2NumSuccess)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::str2num(alloc, mkStr(alloc, "42.5"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::str2num(mr, mkStr(mr, "42.5"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 42.5);
 }
 
 TEST(BuiltinStringsPublicApi, Str2NumFailureReturnsEmpty)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::str2num(alloc, mkStr(alloc, "not a number"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::str2num(mr, mkStr(mr, "not a number"));
     EXPECT_TRUE(r.isEmpty());
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleSuccess)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::str2double(alloc, mkStr(alloc, "3.14e2"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::str2double(mr, mkStr(mr, "3.14e2"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 314.0);
 }
 
 TEST(BuiltinStringsPublicApi, Str2DoubleFailureReturnsNaN)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::str2double(alloc, mkStr(alloc, "xyz"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::str2double(mr, mkStr(mr, "xyz"));
     EXPECT_TRUE(std::isnan(r.toScalar()));
 }
 
 // ── toString / toChar ────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, ToStringFromScalar)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::toString(alloc, Value::scalar(7.5, &alloc));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::toString(mr, Value::scalar(7.5, mr));
     ASSERT_TRUE(r.isString());
     EXPECT_EQ(r.toString(), "7.5");
 }
 
 TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto v = Value::matrix(1, 3, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto v = Value::matrix(1, 3, ValueType::DOUBLE, mr);
     double *d = v.doubleDataMut();
     d[0] = 72; d[1] = 105; d[2] = 33; // "Hi!"
-    Value r = numkit::builtin::toChar(alloc, v);
+    Value r = numkit::builtin::toChar(mr, v);
     ASSERT_TRUE(r.isChar());
     EXPECT_EQ(r.toString(), "Hi!");
 }
@@ -85,58 +84,58 @@ TEST(BuiltinStringsPublicApi, ToCharFromAsciiCodes)
 // ── strcmp / strcmpi ─────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrcmpExact)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::builtin::strcmp(alloc, mkStr(alloc, "abc"),
-                                           mkStr(alloc, "abc"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::strcmp(mr, mkStr(mr, "abc"),
+                                           mkStr(mr, "abc"))
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::strcmp(alloc, mkStr(alloc, "abc"),
-                                            mkStr(alloc, "ABC"))
+    EXPECT_FALSE(numkit::builtin::strcmp(mr, mkStr(mr, "abc"),
+                                            mkStr(mr, "ABC"))
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, StrcmpiCaseInsensitive)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::builtin::strcmpi(alloc, mkStr(alloc, "Hello"),
-                                            mkStr(alloc, "hELLO"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::strcmpi(mr, mkStr(mr, "Hello"),
+                                            mkStr(mr, "hELLO"))
                     .toBool());
 }
 
 // ── upper / lower ────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, UpperAscii)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::upper(alloc, mkStr(alloc, "Mixed Case"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::upper(mr, mkStr(mr, "Mixed Case"));
     EXPECT_EQ(r.toString(), "MIXED CASE");
 }
 
 TEST(BuiltinStringsPublicApi, LowerAscii)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::lower(alloc, mkStr(alloc, "Mixed Case"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::lower(mr, mkStr(mr, "Mixed Case"));
     EXPECT_EQ(r.toString(), "mixed case");
 }
 
 // ── strtrim ──────────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrtrimStripsWhitespace)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strtrim(alloc, mkStr(alloc, "  \t hello\n "));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strtrim(mr, mkStr(mr, "  \t hello\n "));
     EXPECT_EQ(r.toString(), "hello");
 }
 
 TEST(BuiltinStringsPublicApi, StrtrimAllWhitespaceReturnsEmpty)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strtrim(alloc, mkStr(alloc, "   \n\t"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strtrim(mr, mkStr(mr, "   \n\t"));
     EXPECT_EQ(r.toString(), "");
 }
 
 // ── strsplit ─────────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strsplit(alloc, mkStr(alloc, "one two three"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strsplit(mr, mkStr(mr, "one two three"));
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "one");
     EXPECT_EQ(r.cellAt(1).toString(), "two");
@@ -145,9 +144,9 @@ TEST(BuiltinStringsPublicApi, StrsplitDefaultDelimIsSpace)
 
 TEST(BuiltinStringsPublicApi, StrsplitCustomDelim)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strsplit(alloc, mkStr(alloc, "a,b,c"),
-                                            mkStr(alloc, ","));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strsplit(mr, mkStr(mr, "a,b,c"),
+                                            mkStr(mr, ","));
     ASSERT_EQ(r.numel(), 3u);
     EXPECT_EQ(r.cellAt(0).toString(), "a");
     EXPECT_EQ(r.cellAt(2).toString(), "c");
@@ -156,79 +155,79 @@ TEST(BuiltinStringsPublicApi, StrsplitCustomDelim)
 // ── strcat ───────────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrcatConcatenatesAll)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value a = mkStr(alloc, "foo");
-    Value b = mkStr(alloc, "bar");
-    Value c = mkStr(alloc, "baz");
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value a = mkStr(mr, "foo");
+    Value b = mkStr(mr, "bar");
+    Value c = mkStr(mr, "baz");
     Value parts[] = {a, b, c};
     numkit::Span<const Value> span(parts, 3);
-    Value r = numkit::builtin::strcat(alloc, span);
+    Value r = numkit::builtin::strcat(mr, span);
     EXPECT_EQ(r.toString(), "foobarbaz");
 }
 
 // ── strlength ────────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrlengthOfCharArray)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strlength(alloc, mkStr(alloc, "hello"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strlength(mr, mkStr(mr, "hello"));
     EXPECT_DOUBLE_EQ(r.toScalar(), 5.0);
 }
 
 // ── strrep ───────────────────────────────────────────────────────────────
 TEST(BuiltinStringsPublicApi, StrrepReplacesAllOccurrences)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strrep(alloc,
-                                          mkStr(alloc, "foo bar foo baz foo"),
-                                          mkStr(alloc, "foo"),
-                                          mkStr(alloc, "XYZ"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strrep(mr,
+                                          mkStr(mr, "foo bar foo baz foo"),
+                                          mkStr(mr, "foo"),
+                                          mkStr(mr, "XYZ"));
     EXPECT_EQ(r.toString(), "XYZ bar XYZ baz XYZ");
 }
 
 TEST(BuiltinStringsPublicApi, StrrepEmptyOldPatIsPassThrough)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value r = numkit::builtin::strrep(alloc, mkStr(alloc, "abc"),
-                                          mkStr(alloc, ""),
-                                          mkStr(alloc, "X"));
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::strrep(mr, mkStr(mr, "abc"),
+                                          mkStr(mr, ""),
+                                          mkStr(mr, "X"));
     EXPECT_EQ(r.toString(), "abc");
 }
 
 // ── contains / startsWith / endsWith ─────────────────────────────────────
 TEST(BuiltinStringsPublicApi, ContainsPositive)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::builtin::contains(alloc, mkStr(alloc, "hello world"),
-                                             mkStr(alloc, "lo wo"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::contains(mr, mkStr(mr, "hello world"),
+                                             mkStr(mr, "lo wo"))
                     .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, ContainsNegative)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_FALSE(numkit::builtin::contains(alloc, mkStr(alloc, "hello"),
-                                              mkStr(alloc, "xyz"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_FALSE(numkit::builtin::contains(mr, mkStr(mr, "hello"),
+                                              mkStr(mr, "xyz"))
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, StartsWithTrueFalse)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::builtin::startsWith(alloc, mkStr(alloc, "hello"),
-                                               mkStr(alloc, "hel"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::startsWith(mr, mkStr(mr, "hello"),
+                                               mkStr(mr, "hel"))
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::startsWith(alloc, mkStr(alloc, "hello"),
-                                                mkStr(alloc, "world"))
+    EXPECT_FALSE(numkit::builtin::startsWith(mr, mkStr(mr, "hello"),
+                                                mkStr(mr, "world"))
                      .toBool());
 }
 
 TEST(BuiltinStringsPublicApi, EndsWithTrueFalse)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    EXPECT_TRUE(numkit::builtin::endsWith(alloc, mkStr(alloc, "hello.txt"),
-                                             mkStr(alloc, ".txt"))
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    EXPECT_TRUE(numkit::builtin::endsWith(mr, mkStr(mr, "hello.txt"),
+                                             mkStr(mr, ".txt"))
                     .toBool());
-    EXPECT_FALSE(numkit::builtin::endsWith(alloc, mkStr(alloc, "hello"),
-                                              mkStr(alloc, ".txt"))
+    EXPECT_FALSE(numkit::builtin::endsWith(mr, mkStr(mr, "hello"),
+                                              mkStr(mr, ".txt"))
                      .toBool());
 }

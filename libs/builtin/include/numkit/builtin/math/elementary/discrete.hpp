@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <tuple>
@@ -25,35 +25,35 @@ namespace numkit::builtin {
 // as distinct in unique() and is never matched in ismember.
 
 /// unique(X) — sorted unique values as a row vector.
-Value unique(Allocator &alloc, const Value &x);
+Value unique(std::pmr::memory_resource *mr, const Value &x);
 
 /// [C, ia, ic] = unique(X)
 ///   C = unique values, sorted ascending.
 ///   ia : indices into X such that C = X(ia).
 ///   ic : indices into C such that X = C(ic) (in original order).
 std::tuple<Value, Value, Value>
-uniqueWithIndices(Allocator &alloc, const Value &x);
+uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x);
 
 /// unique(X, 'rows') — unique rows of a matrix, sorted lexicographically.
-Value uniqueRows(Allocator &alloc, const Value &x);
+Value uniqueRows(std::pmr::memory_resource *mr, const Value &x);
 
 /// [C, ia, ic] = unique(X, 'rows')
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(Allocator &alloc, const Value &x);
+uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x);
 
 /// ismember(A, B) — for each element of A, true if found in B.
-Value ismember(Allocator &alloc, const Value &a, const Value &b);
+Value ismember(std::pmr::memory_resource *mr, const Value &a, const Value &b);
 
 /// union/intersect/setdiff — sorted ascending, no duplicates.
-Value setUnion    (Allocator &alloc, const Value &a, const Value &b);
-Value setIntersect(Allocator &alloc, const Value &a, const Value &b);
-Value setDiff     (Allocator &alloc, const Value &a, const Value &b);
+Value setUnion    (std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value setIntersect(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value setDiff     (std::pmr::memory_resource *mr, const Value &a, const Value &b);
 
 /// histcounts(X, edges) — counts of X per bin defined by `edges`.
-Value histcounts(Allocator &alloc, const Value &x, const Value &edges);
+Value histcounts(std::pmr::memory_resource *mr, const Value &x, const Value &edges);
 
 /// discretize(X, edges) — bin index (1-based); NaN for out-of-range elements.
-Value discretize(Allocator &alloc, const Value &x, const Value &edges);
+Value discretize(std::pmr::memory_resource *mr, const Value &x, const Value &edges);
 
 // ════════════════════════════════════════════════════════════════════════
 // Number theory
@@ -61,16 +61,16 @@ Value discretize(Allocator &alloc, const Value &x, const Value &edges);
 
 /// primes(n) — row vector of all primes ≤ n. n < 2 → empty 1×0 row.
 /// Sieve of Eratosthenes; output type DOUBLE (matches MATLAB).
-Value primes(Allocator &alloc, double n);
+Value primes(std::pmr::memory_resource *mr, double n);
 
 /// isprime(x) — element-wise primality. LOGICAL output, same shape
 /// as x. Non-integer / negative / NaN entries → false.
-Value isprime(Allocator &alloc, const Value &x);
+Value isprime(std::pmr::memory_resource *mr, const Value &x);
 
 /// factor(n) — prime-factor decomposition. Returns a row vector of
 /// primes whose product is n (with multiplicity). MATLAB conventions:
 ///   factor(0) → [0], factor(1) → [1].
-Value factor(Allocator &alloc, double n);
+Value factor(std::pmr::memory_resource *mr, double n);
 
 // ════════════════════════════════════════════════════════════════════════
 // Combinatorics
@@ -78,15 +78,15 @@ Value factor(Allocator &alloc, double n);
 
 /// perms(v) — every permutation of v as a (n!)×n matrix in reverse-lex
 /// order. Caps at numel(v) ≤ 11 (12! is too large to materialize).
-Value perms(Allocator &alloc, const Value &v);
+Value perms(std::pmr::memory_resource *mr, const Value &v);
 
 /// factorial(n) — element-wise factorial. n entries must be non-negative
 /// integers; n > 170 returns Inf. Output is DOUBLE, same shape as n.
-Value factorial(Allocator &alloc, const Value &n);
+Value factorial(std::pmr::memory_resource *mr, const Value &n);
 
 /// nchoosek(n, k) — binomial coefficient C(n, k). Both arguments are
 /// non-negative integer scalars with k ≤ n. Vector-input form (k-
 /// combinations) is not yet supported.
-Value nchoosek(Allocator &alloc, double n, double k);
+Value nchoosek(std::pmr::memory_resource *mr, double n, double k);
 
 } // namespace numkit::builtin

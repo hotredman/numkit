@@ -552,7 +552,7 @@ int16_t Compiler::addConstant(double value)
         }
     }
     int16_t idx = static_cast<int16_t>(chunk_.constants.size());
-    chunk_.constants.push_back(Value::scalar(value, &engine_.allocator_));
+    chunk_.constants.push_back(Value::scalar(value, engine_.mr_));
     return idx;
 }
 
@@ -2556,7 +2556,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     // Case 1: @funcname — handle to existing function
     if (!node->strValue.empty() && node->children.empty()) {
         uint8_t dst = tempReg();
-        Value fh = Value::funcHandle(node->strValue, &engine_.allocator_);
+        Value fh = Value::funcHandle(node->strValue, engine_.mr_);
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
         emitAD(OpCode::LOAD_CONST, dst, constIdx);
@@ -2623,7 +2623,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     if (capturedOuterRegs.empty()) {
         // No captures — simple func handle
         uint8_t dst = tempReg();
-        Value fh = Value::funcHandle(anonName, &engine_.allocator_);
+        Value fh = Value::funcHandle(anonName, engine_.mr_);
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
         emitAD(OpCode::LOAD_CONST, dst, constIdx);
@@ -2637,7 +2637,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     std::vector<uint8_t> elemRegs;
     // funcHandle constant
     uint8_t fhReg = tempReg();
-    Value fh = Value::funcHandle(anonName, &engine_.allocator_);
+    Value fh = Value::funcHandle(anonName, engine_.mr_);
     int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
     chunk_.constants.push_back(std::move(fh));
     emitAD(OpCode::LOAD_CONST, fhReg, constIdx);

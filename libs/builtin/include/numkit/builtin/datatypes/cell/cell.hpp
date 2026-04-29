@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/datatypes/cell/cell.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit { class Engine; }
@@ -12,13 +12,13 @@ using ::numkit::Engine;
 
 // ── Cell construction ─────────────────────────────────────────────────
 /// cell(n) — n×n cell array. MATLAB behavior.
-Value cell(Allocator &alloc, size_t n);
+Value cell(std::pmr::memory_resource *mr, size_t n);
 
 /// cell(r, c) — r×c cell array.
-Value cell(Allocator &alloc, size_t rows, size_t cols);
+Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols);
 
 /// cell(r, c, p) — 3D cell array when p > 0; else 2D r×c.
-Value cell(Allocator &alloc, size_t rows, size_t cols, size_t pages);
+Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages);
 
 // ── cellfun ───────────────────────────────────────────────────────────
 //
@@ -38,7 +38,7 @@ Value cell(Allocator &alloc, size_t rows, size_t cols, size_t pages);
 // Default uniformOutput=true packs scalars into a numeric/logical array
 // of the same shape as `C`. uniformOutput=false packs into a cell array
 // of the same shape.
-Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
+Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
                bool uniformOutput, Engine *engine = nullptr);
 
 } // namespace numkit::builtin

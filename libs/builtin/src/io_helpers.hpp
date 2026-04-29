@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -66,12 +66,12 @@ inline SizeSpec parseReadSize(const Value &sz, const char *fn)
 }
 
 inline Value shapeFreadOutput(const double *values, size_t n,
-                              SizeSpec sz, Allocator *alloc)
+                              SizeSpec sz, std::pmr::memory_resource *mr)
 {
     if (!sz.matrix()) {
         if (n == 0)
-            return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
-        Value M = Value::matrix(n, 1, ValueType::DOUBLE, alloc);
+            return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        Value M = Value::matrix(n, 1, ValueType::DOUBLE, mr);
         std::memcpy(M.doubleDataMut(), values, n * sizeof(double));
         return M;
     }
@@ -79,8 +79,8 @@ inline Value shapeFreadOutput(const double *values, size_t n,
                           ? (sz.rows == 0 ? 0 : (n + sz.rows - 1) / sz.rows)
                           : sz.cols;
     if (sz.rows == 0 || cols_out == 0)
-        return Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, alloc);
-    Value M = Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, alloc);
+        return Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, mr);
+    Value M = Value::matrix(sz.rows, cols_out, ValueType::DOUBLE, mr);
     std::memcpy(M.doubleDataMut(), values, n * sizeof(double));
     return M;
 }

@@ -45,14 +45,14 @@ inline int64_t gcdInt(int64_t a, int64_t b)
 // gcd / lcm
 // ────────────────────────────────────────────────────────────────────
 
-Value gcd(Allocator &alloc, const Value &a, const Value &b)
+Value gcd(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(gcdInt(toInt64(xv), toInt64(yv)));
-    }, &alloc);
+    }, mr);
 }
 
-Value lcm(Allocator &alloc, const Value &a, const Value &b)
+Value lcm(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         const int64_t x = toInt64(xv);
@@ -63,35 +63,35 @@ Value lcm(Allocator &alloc, const Value &a, const Value &b)
         const int64_t ax = (x < 0) ? -x : x;
         const int64_t ay = (y < 0) ? -y : y;
         return static_cast<double>((ax / g) * ay);
-    }, &alloc);
+    }, mr);
 }
 
 // ────────────────────────────────────────────────────────────────────
 // bitwise
 // ────────────────────────────────────────────────────────────────────
 
-Value bitand_(Allocator &alloc, const Value &a, const Value &b)
+Value bitand_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) & toInt64(yv));
-    }, &alloc);
+    }, mr);
 }
 
-Value bitor_(Allocator &alloc, const Value &a, const Value &b)
+Value bitor_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) | toInt64(yv));
-    }, &alloc);
+    }, mr);
 }
 
-Value bitxor_(Allocator &alloc, const Value &a, const Value &b)
+Value bitxor_(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     return elementwiseDouble(a, b, [](double xv, double yv) {
         return static_cast<double>(toInt64(xv) ^ toInt64(yv));
-    }, &alloc);
+    }, mr);
 }
 
-Value bitshift(Allocator &alloc, const Value &a, const Value &k)
+Value bitshift(std::pmr::memory_resource *mr, const Value &a, const Value &k)
 {
     return elementwiseDouble(a, k, [](double xv, double kv) {
         const int64_t x = toInt64(xv);
@@ -116,10 +116,10 @@ Value bitshift(Allocator &alloc, const Value &a, const Value &k)
             return static_cast<double>(static_cast<int64_t>((ux >> s) | mask));
         }
         return static_cast<double>(x);
-    }, &alloc);
+    }, mr);
 }
 
-Value bitcmp(Allocator &alloc, const Value &a, int width)
+Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width)
 {
     if (width != 8 && width != 16 && width != 32 && width != 64)
         throw Error("bitcmp: width must be 8, 16, 32, or 64",
@@ -129,7 +129,7 @@ Value bitcmp(Allocator &alloc, const Value &a, int width)
     return unaryDouble(a, [mask](double xv) {
         const uint64_t ux = static_cast<uint64_t>(toInt64(xv));
         return static_cast<double>((~ux) & mask);
-    }, &alloc);
+    }, mr);
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -144,7 +144,7 @@ namespace detail {
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = fn(ctx.engine->allocator(), args[0], args[1]);               \
+        outs[0] = fn(ctx.engine->resource(), args[0], args[1]);               \
     }
 
 NK_BIN_REG(gcd,      gcd)
@@ -177,7 +177,7 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
             width = static_cast<int>(args[1].toScalar());
         }
     }
-    outs[0] = bitcmp(ctx.engine->allocator(), args[0], width);
+    outs[0] = bitcmp(ctx.engine->resource(), args[0], width);
 }
 
 } // namespace detail

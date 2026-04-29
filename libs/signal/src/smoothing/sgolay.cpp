@@ -112,7 +112,7 @@ ScratchVec<double> buildProjection(std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value sgolay(Allocator &alloc, int order, int framelen)
+Value sgolay(std::pmr::memory_resource *mr, int order, int framelen)
 {
     if (framelen <= 0)
         throw Error("sgolay: framelen must be positive",
@@ -127,10 +127,10 @@ Value sgolay(Allocator &alloc, int order, int framelen)
         throw Error("sgolay: order must be less than framelen",
                      0, 0, "sgolay", "", "m:sgolay:orderTooHigh");
 
-    ScratchArena scratch(alloc);
-    auto B = buildProjection(scratch.resource(), order, framelen);
+    ScratchArena scratch(mr);
+    auto B = buildProjection(&scratch, order, framelen);
     // Convert row-major B to column-major Value (R = framelen, C = framelen).
-    auto out = Value::matrix(framelen, framelen, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(framelen, framelen, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     for (int i = 0; i < framelen; ++i)
         for (int j = 0; j < framelen; ++j)
@@ -138,7 +138,7 @@ Value sgolay(Allocator &alloc, int order, int framelen)
     return out;
 }
 
-Value sgolayfilt(Allocator &alloc, const Value &x, int order, int framelen)
+Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int framelen)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("sgolayfilt: complex inputs are not supported",
@@ -152,15 +152,15 @@ Value sgolayfilt(Allocator &alloc, const Value &x, int order, int framelen)
         throw Error("sgolayfilt: signal length must be >= framelen",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:tooShort");
 
-    ScratchArena scratch(alloc);
-    auto B = buildProjection(scratch.resource(), order, framelen);  // throws if shape invalid
+    ScratchArena scratch(mr);
+    auto B = buildProjection(&scratch, order, framelen);  // throws if shape invalid
     const int half = framelen / 2;
 
     // Source as DOUBLE.
     auto src = scratch.vec<double>(static_cast<std::size_t>(n));
     for (int i = 0; i < n; ++i) src[i] = x.elemAsDouble(i);
 
-    auto out = createLike(x, ValueType::DOUBLE, &alloc);
+    auto out = createLike(x, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
     // Interior: convolution with the central row of B.
@@ -201,7 +201,7 @@ void sgolay_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 2)
         throw Error("sgolay: requires 2 arguments (order, framelen)",
                      0, 0, "sgolay", "", "m:sgolay:nargin");
-    outs[0] = sgolay(ctx.engine->allocator(),
+    outs[0] = sgolay(ctx.engine->resource(),
                      static_cast<int>(args[0].toScalar()),
                      static_cast<int>(args[1].toScalar()));
 }
@@ -211,7 +211,7 @@ void sgolayfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs
     if (args.size() < 3)
         throw Error("sgolayfilt: requires 3 arguments (x, order, framelen)",
                      0, 0, "sgolayfilt", "", "m:sgolayfilt:nargin");
-    outs[0] = sgolayfilt(ctx.engine->allocator(), args[0],
+    outs[0] = sgolayfilt(ctx.engine->resource(), args[0],
                          static_cast<int>(args[1].toScalar()),
                          static_cast<int>(args[2].toScalar()));
 }

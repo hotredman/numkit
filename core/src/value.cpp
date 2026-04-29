@@ -96,14 +96,14 @@ HeapObject *Value::mutableHeap()
     return heap_;
 }
 
-Value Value::scalar(double v, Allocator *)
+Value Value::scalar(double v, std::pmr::memory_resource *)
 {
     Value m;
     m.scalar_ = v;
     m.heap_ = nullptr;
     return m;
 }
-Value Value::logicalScalar(bool v, Allocator *)
+Value Value::logicalScalar(bool v, std::pmr::memory_resource *)
 {
     Value m;
     m.heap_ = v ? logicalTrueTag() : logicalFalseTag();
@@ -114,73 +114,73 @@ Value Value::empty()
     return Value();
 }
 
-Value Value::matrix(size_t rows, size_t cols, ValueType t, Allocator *alloc)
+Value Value::matrix(size_t rows, size_t cols, ValueType t, std::pmr::memory_resource *mr)
 {
     if (rows == 1 && cols == 1 && t == ValueType::DOUBLE)
-        return scalar(0.0, alloc);
+        return scalar(0.0, mr);
     Value m;
     auto *h = new HeapObject();
     h->type = t;
     h->dims = {rows, cols};
-    h->allocator = alloc;
+    h->mr = mr;
     size_t bytes = rows * cols * elementSize(t);
     if (bytes > 0) {
-        h->buffer = new DataBuffer(bytes, alloc);
+        h->buffer = new DataBuffer(bytes, mr);
         std::memset(h->buffer->data(), 0, bytes);
     }
     m.heap_ = h;
     return m;
 }
-Value Value::matrix3d(size_t rows, size_t cols, size_t pages, ValueType t, Allocator *alloc)
+Value Value::matrix3d(size_t rows, size_t cols, size_t pages, ValueType t, std::pmr::memory_resource *mr)
 {
     Value m;
     auto *h = new HeapObject();
     h->type = t;
     h->dims = {rows, cols, pages};
-    h->allocator = alloc;
+    h->mr = mr;
     size_t bytes = rows * cols * pages * elementSize(t);
     if (bytes > 0) {
-        h->buffer = new DataBuffer(bytes, alloc);
+        h->buffer = new DataBuffer(bytes, mr);
         std::memset(h->buffer->data(), 0, bytes);
     }
     m.heap_ = h;
     return m;
 }
-Value Value::matrixND(const size_t *dims, int nd, ValueType t, Allocator *alloc)
+Value Value::matrixND(const size_t *dims, int nd, ValueType t, std::pmr::memory_resource *mr)
 {
     if (nd <= 0) return empty();
     if (nd == 1)
-        return matrix(dims[0], 1, t, alloc);
+        return matrix(dims[0], 1, t, mr);
     if (nd == 2)
-        return matrix(dims[0], dims[1], t, alloc);
+        return matrix(dims[0], dims[1], t, mr);
     if (nd == 3)
-        return matrix3d(dims[0], dims[1], dims[2], t, alloc);
+        return matrix3d(dims[0], dims[1], dims[2], t, mr);
     // nd >= 4 — go through the ND Dims ctor. Heap allocation in Dims only
     // kicks in for nd > kInlineCap (4); 4D stays fully inline.
     Value m;
     auto *h = new HeapObject();
     h->type = t;
     h->dims = Dims(dims, nd);
-    h->allocator = alloc;
+    h->mr = mr;
     size_t bytes = elementSize(t);
     for (int i = 0; i < nd; ++i)
         bytes *= dims[i];
     if (bytes > 0) {
-        h->buffer = new DataBuffer(bytes, alloc);
+        h->buffer = new DataBuffer(bytes, mr);
         std::memset(h->buffer->data(), 0, bytes);
     }
     m.heap_ = h;
     return m;
 }
-Value Value::fromString(const std::string &s, Allocator *alloc)
+Value Value::fromString(const std::string &s, std::pmr::memory_resource *mr)
 {
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::CHAR;
     h->dims = {1, s.size()};
-    h->allocator = alloc;
+    h->mr = mr;
     if (!s.empty()) {
-        h->buffer = new DataBuffer(s.size(), alloc);
+        h->buffer = new DataBuffer(s.size(), mr);
         std::memcpy(h->buffer->data(), s.data(), s.size());
     }
     m.heap_ = h;
@@ -222,14 +222,14 @@ Value Value::cellND(const size_t *dims, int nd)
     m.heap_ = h;
     return m;
 }
-Value Value::stringScalar(const std::string &s, Allocator *alloc)
+Value Value::stringScalar(const std::string &s, std::pmr::memory_resource *mr)
 {
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::STRING;
     h->dims = {1, 1};
-    h->allocator = alloc;
-    h->cellData = new std::vector<Value>(1, Value::fromString(s, alloc));
+    h->mr = mr;
+    h->cellData = new std::vector<Value>(1, Value::fromString(s, mr));
     m.heap_ = h;
     return m;
 }
@@ -274,7 +274,7 @@ void Value::stringElemSet(size_t i, const std::string &s)
     detach();
     if (i >= heap_->cellData->size())
         heap_->cellData->resize(i + 1, Value::fromString("", nullptr));
-    (*heap_->cellData)[i] = Value::fromString(s, heap_->allocator);
+    (*heap_->cellData)[i] = Value::fromString(s, heap_->mr);
 }
 Value Value::structure()
 {
@@ -286,13 +286,13 @@ Value Value::structure()
     m.heap_ = h;
     return m;
 }
-Value Value::funcHandle(const std::string &name, Allocator *alloc)
+Value Value::funcHandle(const std::string &name, std::pmr::memory_resource *mr)
 {
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::FUNC_HANDLE;
     h->dims = {1, 1};
-    h->allocator = alloc;
+    h->mr = mr;
     h->funcName = new std::string(name);
     m.heap_ = h;
     return m;
@@ -325,15 +325,15 @@ size_t Value::colonCount(double start, double step, double stop)
     return static_cast<size_t>(n);
 }
 
-Value Value::colonRange(double start, double stop, Allocator *alloc)
+Value Value::colonRange(double start, double stop, std::pmr::memory_resource *mr)
 {
-    return colonRange(start, 1.0, stop, alloc);
+    return colonRange(start, 1.0, stop, mr);
 }
 
-Value Value::colonRange(double start, double step, double stop, Allocator *alloc)
+Value Value::colonRange(double start, double step, double stop, std::pmr::memory_resource *mr)
 {
     size_t count = Value::colonCount(start, step, stop);
-    auto result = Value::matrix(1, count, ValueType::DOUBLE, alloc);
+    auto result = Value::matrix(1, count, ValueType::DOUBLE, mr);
     if (count > 0) {
         double *d = result.doubleDataMut();
         for (size_t i = 0; i < count; ++i)
@@ -505,7 +505,7 @@ static void copyBlock(T *dst, size_t dstRows, size_t dstCols,
 // Concatenates along dimension 2 (columns).
 // Rows and pages must match across all elements.
 // ============================================================
-Value Value::horzcat(const Value *elems, size_t count, Allocator *alloc)
+Value Value::horzcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
     // String array horzcat: ["a", "b", "c"] → 1×3 string
     bool hasString = false;
@@ -563,7 +563,7 @@ Value Value::horzcat(const Value *elems, size_t count, Allocator *alloc)
                     result += static_cast<char>(static_cast<int>(std::round(d[k])));
             }
         }
-        return Value::fromString(result, alloc);
+        return Value::fromString(result, mr);
     }
 
     // Collect dimensions
@@ -586,8 +586,8 @@ Value Value::horzcat(const Value *elems, size_t count, Allocator *alloc)
 
     ValueType outType = promoteNumericType(elems, count);
 
-    auto result = (pages > 1) ? Value::matrix3d(rows, totalCols, pages, outType, alloc)
-                              : Value::matrix(rows, totalCols, outType, alloc);
+    auto result = (pages > 1) ? Value::matrix3d(rows, totalCols, pages, outType, mr)
+                              : Value::matrix(rows, totalCols, outType, mr);
 
     size_t colOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -615,7 +615,7 @@ Value Value::horzcat(const Value *elems, size_t count, Allocator *alloc)
 // Concatenates along dimension 1 (rows).
 // Columns and pages must match across all elements.
 // ============================================================
-Value Value::vertcat(const Value *elems, size_t count, Allocator *alloc)
+Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource *mr)
 {
     size_t totalRows = 0, cols = 0, pages = 1;
     bool colsSet = false, pagesSet = false;
@@ -643,7 +643,7 @@ Value Value::vertcat(const Value *elems, size_t count, Allocator *alloc)
             break;
         }
     if (hasChar) {
-        auto result = Value::matrix(totalRows, cols, ValueType::CHAR, alloc);
+        auto result = Value::matrix(totalRows, cols, ValueType::CHAR, mr);
         char *dst = result.charDataMut();
         size_t rowOff = 0;
         for (size_t i = 0; i < count; ++i) {
@@ -689,8 +689,8 @@ Value Value::vertcat(const Value *elems, size_t count, Allocator *alloc)
 
     ValueType outType = promoteNumericType(elems, count);
 
-    auto result = (pages > 1) ? Value::matrix3d(totalRows, cols, pages, outType, alloc)
-                              : Value::matrix(totalRows, cols, outType, alloc);
+    auto result = (pages > 1) ? Value::matrix3d(totalRows, cols, pages, outType, mr)
+                              : Value::matrix(totalRows, cols, outType, mr);
 
     size_t rowOff = 0;
     for (size_t i = 0; i < count; ++i) {
@@ -718,19 +718,19 @@ Value Value::vertcat(const Value *elems, size_t count, Allocator *alloc)
 // ============================================================
 
 // Helper: create a scalar Value of the same type as this array at linear index.
-Value Value::elemAt(size_t idx, Allocator *alloc) const
+Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
 {
     ValueType t = type();
     switch (t) {
     case ValueType::DOUBLE:
-        return Value::scalar(doubleData()[idx], alloc);
+        return Value::scalar(doubleData()[idx], mr);
     case ValueType::COMPLEX:
-        return Value::complexScalar(complexData()[idx], alloc);
+        return Value::complexScalar(complexData()[idx], mr);
     case ValueType::LOGICAL:
-        return Value::logicalScalar(logicalData()[idx] != 0, alloc);
+        return Value::logicalScalar(logicalData()[idx] != 0, mr);
     case ValueType::CHAR: {
         std::string s(1, charData()[idx]);
-        return Value::fromString(s, alloc);
+        return Value::fromString(s, mr);
     }
     case ValueType::CELL:
         return cellAt(idx);
@@ -741,7 +741,7 @@ Value Value::elemAt(size_t idx, Allocator *alloc) const
     case ValueType::UINT8: case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
     case ValueType::SINGLE: {
         size_t es = elementSize(t);
-        Value r = Value::matrix(1, 1, t, alloc);
+        Value r = Value::matrix(1, 1, t, mr);
         std::memcpy(r.rawDataMut(),
                     static_cast<const char *>(rawData()) + idx * es, es);
         return r;
@@ -755,11 +755,11 @@ Value Value::elemAt(size_t idx, Allocator *alloc) const
 // 1D slice: extract elements at given linear indices.
 // Shape rule: column vector source → column result; otherwise → row result.
 // CELL: always returns sub-cell (even for count==1), matching MATLAB c(i) semantics.
-Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) const
+Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_resource *mr) const
 {
     // For non-CELL scalar result, return a scalar value
     if (count == 1 && type() != ValueType::CELL)
-        return elemAt(indices[0], alloc);
+        return elemAt(indices[0], mr);
 
     // Shape: column vector source → column result
     bool colResult = (dims().cols() == 1 && dims().rows() > 1);
@@ -769,7 +769,7 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
     ValueType t = type();
     switch (t) {
     case ValueType::DOUBLE: {
-        auto result = Value::matrix(rr, cc, ValueType::DOUBLE, alloc);
+        auto result = Value::matrix(rr, cc, ValueType::DOUBLE, mr);
         double *dst = result.doubleDataMut();
         const double *src = doubleData();
         for (size_t i = 0; i < count; ++i)
@@ -777,7 +777,7 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
         return result;
     }
     case ValueType::COMPLEX: {
-        auto result = Value::complexMatrix(rr, cc, alloc);
+        auto result = Value::complexMatrix(rr, cc, mr);
         Complex *dst = result.complexDataMut();
         const Complex *src = complexData();
         for (size_t i = 0; i < count; ++i)
@@ -785,7 +785,7 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
         return result;
     }
     case ValueType::LOGICAL: {
-        auto result = Value::matrix(rr, cc, ValueType::LOGICAL, alloc);
+        auto result = Value::matrix(rr, cc, ValueType::LOGICAL, mr);
         uint8_t *dst = result.logicalDataMut();
         const uint8_t *src = logicalData();
         for (size_t i = 0; i < count; ++i)
@@ -798,7 +798,7 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
         const char *src = charData();
         for (size_t i = 0; i < count; ++i)
             s += src[indices[i]];
-        return Value::fromString(s, alloc);
+        return Value::fromString(s, mr);
     }
     case ValueType::CELL: {
         auto result = Value::cell(rr, cc);
@@ -811,7 +811,7 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
     case ValueType::UINT8: case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
     case ValueType::SINGLE: {
         size_t es = elementSize(t);
-        auto result = Value::matrix(rr, cc, t, alloc);
+        auto result = Value::matrix(rr, cc, t, mr);
         const char *src = static_cast<const char *>(rawData());
         char *dst = static_cast<char *>(result.rawDataMut());
         for (size_t i = 0; i < count; ++i)
@@ -827,12 +827,12 @@ Value Value::indexGet(const size_t *indices, size_t count, Allocator *alloc) con
 // 2D slice: extract sub-matrix at given row/col indices.
 Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
                           const size_t *colIdx, size_t ncols,
-                          Allocator *alloc) const
+                          std::pmr::memory_resource *mr) const
 {
     // Scalar shortcut for non-CELL types
     if (nrows == 1 && ncols == 1 && type() != ValueType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0]);
-        return elemAt(idx, alloc);
+        return elemAt(idx, mr);
     }
 
     ValueType t = type();
@@ -852,7 +852,7 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
             std::string("indexGet2D not supported for type '") + mtypeName(t) + "'");
 
     auto &d = dims();
-    auto result = Value::matrix(nrows, ncols, t, alloc);
+    auto result = Value::matrix(nrows, ncols, t, mr);
     const char *src = static_cast<const char *>(rawData());
     char *dst = static_cast<char *>(result.rawDataMut());
     for (size_t c = 0; c < ncols; ++c)
@@ -866,12 +866,12 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
 Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
                           const size_t *colIdx, size_t ncols,
                           const size_t *pageIdx, size_t npages,
-                          Allocator *alloc) const
+                          std::pmr::memory_resource *mr) const
 {
     // Scalar shortcut for non-CELL types
     if (nrows == 1 && ncols == 1 && npages == 1 && type() != ValueType::CELL) {
         size_t idx = dims().sub2ind(rowIdx[0], colIdx[0], pageIdx[0]);
-        return elemAt(idx, alloc);
+        return elemAt(idx, mr);
     }
 
     ValueType t = type();
@@ -894,7 +894,7 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
             std::string("indexGet3D not supported for type '") + mtypeName(t) + "'");
 
     auto &d = dims();
-    auto result = Value::matrix3d(nrows, ncols, npages, t, alloc);
+    auto result = Value::matrix3d(nrows, ncols, npages, t, mr);
     const char *src = static_cast<const char *>(rawData());
     char *dst = static_cast<char *>(result.rawDataMut());
     Dims rd(nrows, ncols, npages);
@@ -910,17 +910,17 @@ Value Value::indexGet3D(const size_t *rowIdx, size_t nrows,
 Value Value::indexGetND(const size_t *const *perDimIdx,
                           const size_t *perDimCount,
                           int nd,
-                          Allocator *alloc) const
+                          std::pmr::memory_resource *mr) const
 {
     if (nd <= 0) return empty();
-    if (nd == 1) return indexGet(perDimIdx[0], perDimCount[0], alloc);
+    if (nd == 1) return indexGet(perDimIdx[0], perDimCount[0], mr);
     if (nd == 2)
         return indexGet2D(perDimIdx[0], perDimCount[0],
-                          perDimIdx[1], perDimCount[1], alloc);
+                          perDimIdx[1], perDimCount[1], mr);
     if (nd == 3)
         return indexGet3D(perDimIdx[0], perDimCount[0],
                           perDimIdx[1], perDimCount[1],
-                          perDimIdx[2], perDimCount[2], alloc);
+                          perDimIdx[2], perDimCount[2], mr);
 
     ValueType t = type();
     const bool isCell = (t == ValueType::CELL);
@@ -934,7 +934,7 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
     size_t totalOut = 1;
     for (int i = 0; i < nd; ++i) totalOut *= perDimCount[i];
     auto result = isCell ? Value::cellND(perDimCount, nd)
-                         : Value::matrixND(perDimCount, nd, t, alloc);
+                         : Value::matrixND(perDimCount, nd, t, mr);
     if (totalOut == 0) return result;
 
     // Source strides (column-major) for the existing tensor's actual rank.
@@ -993,7 +993,7 @@ Value Value::indexGetND(const size_t *const *perDimIdx,
 }
 
 // Logical indexing: extract elements where mask is true → row vector of same type.
-Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc) const
+Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, std::pmr::memory_resource *mr) const
 {
     // Check for true values beyond array bounds
     for (size_t i = numel(); i < maskLen; ++i)
@@ -1014,7 +1014,7 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc)
     ValueType t = type();
     switch (t) {
     case ValueType::DOUBLE: {
-        auto result = Value::matrix(rr, cc, ValueType::DOUBLE, alloc);
+        auto result = Value::matrix(rr, cc, ValueType::DOUBLE, mr);
         double *dst = result.doubleDataMut();
         const double *src = doubleData();
         size_t k = 0;
@@ -1024,7 +1024,7 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc)
         return result;
     }
     case ValueType::COMPLEX: {
-        auto result = Value::complexMatrix(rr, cc, alloc);
+        auto result = Value::complexMatrix(rr, cc, mr);
         Complex *dst = result.complexDataMut();
         const Complex *src = complexData();
         size_t k = 0;
@@ -1034,7 +1034,7 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc)
         return result;
     }
     case ValueType::LOGICAL: {
-        auto result = Value::matrix(rr, cc, ValueType::LOGICAL, alloc);
+        auto result = Value::matrix(rr, cc, ValueType::LOGICAL, mr);
         uint8_t *dst = result.logicalDataMut();
         const uint8_t *src = logicalData();
         size_t k = 0;
@@ -1044,7 +1044,7 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc)
         return result;
     }
     case ValueType::CHAR: {
-        auto result = Value::matrix(rr, cc, ValueType::CHAR, alloc);
+        auto result = Value::matrix(rr, cc, ValueType::CHAR, mr);
         char *dst = result.charDataMut();
         const char *src = charData();
         size_t k = 0;
@@ -1066,7 +1066,7 @@ Value Value::logicalIndex(const uint8_t *mask, size_t maskLen, Allocator *alloc)
     case ValueType::UINT8: case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
     case ValueType::SINGLE: {
         size_t es = elementSize(t);
-        auto result = Value::matrix(rr, cc, t, alloc);
+        auto result = Value::matrix(rr, cc, t, mr);
         const char *src = static_cast<const char *>(rawData());
         char *dst = static_cast<char *>(result.rawDataMut());
         size_t k = 0;
@@ -1401,7 +1401,7 @@ void Value::indexSetND(const size_t *const *perDimIdx,
 // Type-preserving index deletion
 // ============================================================
 
-void Value::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
+void Value::indexDelete(const size_t *indices, size_t count, std::pmr::memory_resource *mr)
 {
     ValueType t = type();
     // STRING elements are std::string, not fixed-width bytes, so the
@@ -1436,8 +1436,8 @@ void Value::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
     }
 
     size_t es = elementSize(t);
-    auto result = isRow ? Value::matrix(1, remaining, t, alloc)
-                        : Value::matrix(remaining, 1, t, alloc);
+    auto result = isRow ? Value::matrix(1, remaining, t, mr)
+                        : Value::matrix(remaining, 1, t, mr);
     if (remaining > 0 && es > 0) {
         const char *src = static_cast<const char *>(rawData());
         char *dst = static_cast<char *>(result.rawDataMut());
@@ -1451,7 +1451,7 @@ void Value::indexDelete(const size_t *indices, size_t count, Allocator *alloc)
 
 void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
                            const size_t *colIdx, size_t ncols,
-                           Allocator *alloc)
+                           std::pmr::memory_resource *mr)
 {
     ValueType t = type();
     // STRING elements are std::string, not fixed-width bytes, so the
@@ -1487,7 +1487,7 @@ void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         } else {
             size_t es = elementSize(t);
-            auto result = Value::matrix(newR, C, t, alloc);
+            auto result = Value::matrix(newR, C, t, mr);
             if (newR > 0 && es > 0) {
                 const char *src = static_cast<const char *>(rawData());
                 char *dst = static_cast<char *>(result.rawDataMut());
@@ -1524,7 +1524,7 @@ void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         } else {
             size_t es = elementSize(t);
-            auto result = Value::matrix(R, newC, t, alloc);
+            auto result = Value::matrix(R, newC, t, mr);
             if (newC > 0 && es > 0) {
                 const char *src = static_cast<const char *>(rawData());
                 char *dst = static_cast<char *>(result.rawDataMut());
@@ -1546,7 +1546,7 @@ void Value::indexDelete2D(const size_t *rowIdx, size_t nrows,
 void Value::indexDelete3D(const size_t *rowIdx, size_t nrows,
                            const size_t *colIdx, size_t ncols,
                            const size_t *pageIdx, size_t npages,
-                           Allocator *alloc)
+                           std::pmr::memory_resource *mr)
 {
     ValueType t = type();
     // STRING elements are std::string, not fixed-width bytes, so the
@@ -1589,7 +1589,7 @@ void Value::indexDelete3D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         } else {
             size_t es = elementSize(t);
-            auto result = Value::matrix3d(R, C, newP, t, alloc);
+            auto result = Value::matrix3d(R, C, newP, t, mr);
             size_t sliceBytes = R * C * es;
             const char *src = static_cast<const char *>(rawData());
             char *dst = static_cast<char *>(result.rawDataMut());
@@ -1622,7 +1622,7 @@ void Value::indexDelete3D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         } else {
             size_t es = elementSize(t);
-            auto result = Value::matrix3d(newR, C, P, t, alloc);
+            auto result = Value::matrix3d(newR, C, P, t, mr);
             const char *src = static_cast<const char *>(rawData());
             char *dst = static_cast<char *>(result.rawDataMut());
             for (size_t p = 0; p < P; ++p) {
@@ -1661,7 +1661,7 @@ void Value::indexDelete3D(const size_t *rowIdx, size_t nrows,
             *this = std::move(result);
         } else {
             size_t es = elementSize(t);
-            auto result = Value::matrix3d(R, newC, P, t, alloc);
+            auto result = Value::matrix3d(R, newC, P, t, mr);
             const char *src = static_cast<const char *>(rawData());
             char *dst = static_cast<char *>(result.rawDataMut());
             for (size_t p = 0; p < P; ++p) {
@@ -1682,19 +1682,19 @@ void Value::indexDelete3D(const size_t *rowIdx, size_t nrows,
 void Value::indexDeleteND(const size_t *const *perDimIdx,
                            const size_t *perDimCount,
                            int nd,
-                           Allocator *alloc)
+                           std::pmr::memory_resource *mr)
 {
     if (nd <= 0) return;
-    if (nd == 1) { indexDelete(perDimIdx[0], perDimCount[0], alloc); return; }
+    if (nd == 1) { indexDelete(perDimIdx[0], perDimCount[0], mr); return; }
     if (nd == 2) {
         indexDelete2D(perDimIdx[0], perDimCount[0],
-                      perDimIdx[1], perDimCount[1], alloc);
+                      perDimIdx[1], perDimCount[1], mr);
         return;
     }
     if (nd == 3) {
         indexDelete3D(perDimIdx[0], perDimCount[0],
                       perDimIdx[1], perDimCount[1],
-                      perDimIdx[2], perDimCount[2], alloc);
+                      perDimIdx[2], perDimCount[2], mr);
         return;
     }
 
@@ -1746,7 +1746,7 @@ void Value::indexDeleteND(const size_t *const *perDimIdx,
             std::string("indexDeleteND not supported for type '") + mtypeName(t) + "'");
 
     Value result = isCell ? Value::cellND(newShape, srcNd)
-                           : Value::matrixND(newShape, srcNd, t, alloc);
+                           : Value::matrixND(newShape, srcNd, t, mr);
     if (newLen == 0) {
         *this = std::move(result);
         return;
@@ -1787,25 +1787,25 @@ void Value::indexDeleteND(const size_t *const *perDimIdx,
     *this = std::move(result);
 }
 
-Value Value::complexScalar(Complex v, Allocator *alloc)
+Value Value::complexScalar(Complex v, std::pmr::memory_resource *mr)
 {
     Value m;
     auto *h = new HeapObject();
     h->type = ValueType::COMPLEX;
     h->dims = {1, 1};
-    h->allocator = alloc;
-    h->buffer = new DataBuffer(sizeof(Complex), alloc);
+    h->mr = mr;
+    h->buffer = new DataBuffer(sizeof(Complex), mr);
     *static_cast<Complex *>(h->buffer->data()) = v;
     m.heap_ = h;
     return m;
 }
-Value Value::complexScalar(double re, double im, Allocator *alloc)
+Value Value::complexScalar(double re, double im, std::pmr::memory_resource *mr)
 {
-    return complexScalar(Complex(re, im), alloc);
+    return complexScalar(Complex(re, im), mr);
 }
-Value Value::complexMatrix(size_t rows, size_t cols, Allocator *alloc)
+Value Value::complexMatrix(size_t rows, size_t cols, std::pmr::memory_resource *mr)
 {
-    return matrix(rows, cols, ValueType::COMPLEX, alloc);
+    return matrix(rows, cols, ValueType::COMPLEX, mr);
 }
 
 ValueType Value::type() const
@@ -2136,7 +2136,7 @@ uint32_t *Value::uint32DataMut() { return static_cast<uint32_t*>(rawDataMut()); 
 const uint64_t *Value::uint64Data() const { return static_cast<const uint64_t*>(rawData()); }
 uint64_t *Value::uint64DataMut() { return static_cast<uint64_t*>(rawDataMut()); }
 
-void Value::promoteToComplex(Allocator *alloc)
+void Value::promoteToComplex(std::pmr::memory_resource *mr)
 {
     ValueType t = type();
     if (t == ValueType::COMPLEX)
@@ -2146,15 +2146,15 @@ void Value::promoteToComplex(Allocator *alloc)
     size_t n = numel();
     if (heap_ == nullptr) {
         double v = scalar_;
-        *this = complexScalar(Complex(v, 0.0), alloc);
+        *this = complexScalar(Complex(v, 0.0), mr);
         return;
     }
     if (!isHeap())
         throw std::runtime_error("Cannot promote to complex");
     detach(); // COW: ensure we have our own copy before mutating
-    if (!alloc)
-        alloc = heap_->allocator;
-    auto *newBuf = new DataBuffer(n * sizeof(Complex), alloc);
+    if (!mr)
+        mr = heap_->mr;
+    auto *newBuf = new DataBuffer(n * sizeof(Complex), mr);
     Complex *dst = static_cast<Complex *>(newBuf->data());
     if (n > 0 && heap_->buffer) {
         const double *src = static_cast<const double *>(heap_->buffer->data());
@@ -2225,30 +2225,30 @@ std::string Value::charRow(size_t r) const
     return s;
 }
 
-void Value::resize(size_t newRows, size_t newCols, Allocator *alloc)
+void Value::resize(size_t newRows, size_t newCols, std::pmr::memory_resource *mr)
 {
     if (heap_ == nullptr) {
         double v = scalar_;
         auto *h = new HeapObject();
         h->type = ValueType::DOUBLE;
         h->dims = {1, 1};
-        h->allocator = alloc;
-        h->buffer = new DataBuffer(sizeof(double), alloc);
+        h->mr = mr;
+        h->buffer = new DataBuffer(sizeof(double), mr);
         *static_cast<double *>(h->buffer->data()) = v;
         heap_ = h;
     }
     if (!isHeap())
         throw std::runtime_error("Cannot resize");
     if (heap_->dims.is3D()) {
-        resize3d(newRows, newCols, heap_->dims.pages(), alloc);
+        resize3d(newRows, newCols, heap_->dims.pages(), mr);
         return;
     }
     detach();
-    if (!alloc)
-        alloc = heap_->allocator;
+    if (!mr)
+        mr = heap_->mr;
     size_t oldR = heap_->dims.rows(), oldC = heap_->dims.cols(), es = elementSize(heap_->type),
            nb = newRows * newCols * es;
-    auto *nb2 = new DataBuffer(nb, alloc);
+    auto *nb2 = new DataBuffer(nb, mr);
     if (nb > 0) {
         // CHAR arrays fill with spaces; everything else with zeros
         int fill = (heap_->type == ValueType::CHAR) ? ' ' : 0;
@@ -2264,26 +2264,26 @@ void Value::resize(size_t newRows, size_t newCols, Allocator *alloc)
     if (heap_->buffer && heap_->buffer->release())
         delete heap_->buffer;
     heap_->buffer = nb2;
-    heap_->allocator = alloc;
+    heap_->mr = mr;
     heap_->dims = {newRows, newCols};
     heap_->appendCapacity = 0;
 }
 
-void Value::resize3d(size_t nr, size_t nc, size_t np, Allocator *alloc)
+void Value::resize3d(size_t nr, size_t nc, size_t np, std::pmr::memory_resource *mr)
 {
     if (np <= 1) {
-        resize(nr, nc, alloc);
+        resize(nr, nc, mr);
         return;
     }
     if (!isHeap())
         throw std::runtime_error("Cannot resize");
     detach();
-    if (!alloc)
-        alloc = heap_->allocator;
+    if (!mr)
+        mr = heap_->mr;
     size_t oR = heap_->dims.rows(), oC = heap_->dims.cols(), oP = heap_->dims.pages(),
            es = elementSize(heap_->type);
     size_t nb = nr * nc * np * es;
-    auto *nb2 = new DataBuffer(nb, alloc);
+    auto *nb2 = new DataBuffer(nb, mr);
     if (nb > 0) {
         int fill = (heap_->type == ValueType::CHAR) ? ' ' : 0;
         std::memset(nb2->data(), fill, nb);
@@ -2301,19 +2301,19 @@ void Value::resize3d(size_t nr, size_t nc, size_t np, Allocator *alloc)
     if (heap_->buffer && heap_->buffer->release())
         delete heap_->buffer;
     heap_->buffer = nb2;
-    heap_->allocator = alloc;
+    heap_->mr = mr;
     heap_->dims = {nr, nc, np};
     heap_->appendCapacity = 0;
 }
 
-void Value::resizeND(const size_t *newDims, int nd, Allocator *alloc)
+void Value::resizeND(const size_t *newDims, int nd, std::pmr::memory_resource *mr)
 {
     constexpr int kMaxNd = Dims::kMaxRank;
     if (nd <= 0 || nd > kMaxNd)
         throw std::runtime_error("resizeND: rank out of range");
-    if (nd == 1) { resize(newDims[0], 1, alloc); return; }
-    if (nd == 2) { resize(newDims[0], newDims[1], alloc); return; }
-    if (nd == 3) { resize3d(newDims[0], newDims[1], newDims[2], alloc); return; }
+    if (nd == 1) { resize(newDims[0], 1, mr); return; }
+    if (nd == 2) { resize(newDims[0], newDims[1], mr); return; }
+    if (nd == 3) { resize3d(newDims[0], newDims[1], newDims[2], mr); return; }
 
     // Promote scalar (no heap_) to a 1×1 DOUBLE array so the rest can
     // assume heap_ is set and detach() is meaningful.
@@ -2322,8 +2322,8 @@ void Value::resizeND(const size_t *newDims, int nd, Allocator *alloc)
         auto *h = new HeapObject();
         h->type = ValueType::DOUBLE;
         h->dims = {1, 1};
-        h->allocator = alloc;
-        h->buffer = new DataBuffer(sizeof(double), alloc);
+        h->mr = mr;
+        h->buffer = new DataBuffer(sizeof(double), mr);
         *static_cast<double *>(h->buffer->data()) = v;
         heap_ = h;
     }
@@ -2331,13 +2331,13 @@ void Value::resizeND(const size_t *newDims, int nd, Allocator *alloc)
     // existing data to preserve. Same path is used for the auto-grow
     // case `A(i,j,k,l) = v` when A doesn't exist yet.
     if (heap_ == emptyTag()) {
-        *this = matrixND(newDims, nd, ValueType::DOUBLE, alloc);
+        *this = matrixND(newDims, nd, ValueType::DOUBLE, mr);
         return;
     }
     if (!isHeap())
         throw std::runtime_error("Cannot resize");
     detach();
-    if (!alloc) alloc = heap_->allocator;
+    if (!mr) mr = heap_->mr;
 
     const ValueType t = heap_->type;
     const Dims oldDims = heap_->dims;
@@ -2383,7 +2383,7 @@ void Value::resizeND(const size_t *newDims, int nd, Allocator *alloc)
             std::string("resizeND not supported for type '") + mtypeName(t) + "'");
 
     const size_t nb = newTotal * es;
-    auto *nb2 = new DataBuffer(nb, alloc);
+    auto *nb2 = new DataBuffer(nb, mr);
     if (nb > 0) {
         const int fill = (t == ValueType::CHAR) ? ' ' : 0;
         std::memset(nb2->data(), fill, nb);
@@ -2405,16 +2405,16 @@ void Value::resizeND(const size_t *newDims, int nd, Allocator *alloc)
     if (heap_->buffer && heap_->buffer->release())
         delete heap_->buffer;
     heap_->buffer = nb2;
-    heap_->allocator = alloc;
+    heap_->mr = mr;
     heap_->dims = newD;
     heap_->appendCapacity = 0;
 }
 
-void Value::ensureSize(size_t idx, Allocator *alloc)
+void Value::ensureSize(size_t idx, std::pmr::memory_resource *mr)
 {
     if (heap_ == emptyTag() || (heap_ == nullptr && idx > 0)) {
         double old = (heap_ == nullptr) ? scalar_ : 0.0;
-        *this = matrix(1, idx + 1, ValueType::DOUBLE, alloc);
+        *this = matrix(1, idx + 1, ValueType::DOUBLE, mr);
         if (old != 0.0)
             static_cast<double *>(heap_->buffer->data())[0] = old;
         return;
@@ -2423,15 +2423,15 @@ void Value::ensureSize(size_t idx, Allocator *alloc)
     if (need > numel()) {
         bool isColVec = (dims().cols() == 1 && dims().rows() > 1);
         if (isColVec)
-            resize(need, 1, alloc); // preserve column vector shape
+            resize(need, 1, mr); // preserve column vector shape
         else if (dims().isVector() || dims().rows() <= 1)
-            resize(1, need, alloc);
+            resize(1, need, mr);
         else
             throw std::runtime_error("Index exceeds array dimensions");
     }
 }
 
-void Value::appendScalar(double v, Allocator *alloc)
+void Value::appendScalar(double v, std::pmr::memory_resource *mr)
 {
     size_t oldN = numel(), newN = oldN + 1;
 
@@ -2441,8 +2441,8 @@ void Value::appendScalar(double v, Allocator *alloc)
         auto *h = new HeapObject();
         h->type = ValueType::DOUBLE;
         h->dims = {1, 1};
-        h->allocator = alloc;
-        h->buffer = new DataBuffer(cap * sizeof(double), alloc);
+        h->mr = mr;
+        h->buffer = new DataBuffer(cap * sizeof(double), mr);
         h->appendCapacity = cap;
         double *d = static_cast<double *>(h->buffer->data());
         std::memset(d, 0, cap * sizeof(double));
@@ -2458,8 +2458,8 @@ void Value::appendScalar(double v, Allocator *alloc)
         auto *h = new HeapObject();
         h->type = ValueType::DOUBLE;
         h->dims = {1, newN};
-        h->allocator = alloc;
-        h->buffer = new DataBuffer(cap * sizeof(double), alloc);
+        h->mr = mr;
+        h->buffer = new DataBuffer(cap * sizeof(double), mr);
         h->appendCapacity = cap;
         double *d = static_cast<double *>(h->buffer->data());
         std::memset(d, 0, cap * sizeof(double));
@@ -2471,8 +2471,8 @@ void Value::appendScalar(double v, Allocator *alloc)
     if (!isHeap())
         throw std::runtime_error("Cannot append");
     detach();
-    if (!alloc)
-        alloc = heap_->allocator;
+    if (!mr)
+        mr = heap_->mr;
     size_t cap = heap_->appendCapacity;
     if (!cap && heap_->buffer)
         cap = heap_->buffer->bytes() / sizeof(double);
@@ -2484,7 +2484,7 @@ void Value::appendScalar(double v, Allocator *alloc)
     size_t nc = std::max(newN, cap * 2);
     if (nc < 8)
         nc = 8;
-    auto *nb = new DataBuffer(nc * sizeof(double), alloc);
+    auto *nb = new DataBuffer(nc * sizeof(double), mr);
     double *d = static_cast<double *>(nb->data());
     std::memset(d, 0, nc * sizeof(double));
     if (oldN > 0 && heap_->buffer)
@@ -2493,7 +2493,7 @@ void Value::appendScalar(double v, Allocator *alloc)
     if (heap_->buffer && heap_->buffer->release())
         delete heap_->buffer;
     heap_->buffer = nb;
-    heap_->allocator = alloc;
+    heap_->mr = mr;
     heap_->dims = {1, newN};
     heap_->appendCapacity = nc;
 }

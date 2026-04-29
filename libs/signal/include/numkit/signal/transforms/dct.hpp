@@ -1,15 +1,15 @@
 // libs/signal/include/numkit/signal/transforms/dct.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
 
 /// dct(x) — Type-II discrete cosine transform (MATLAB default).
-Value dct(Allocator &alloc, const Value &x);
+Value dct(std::pmr::memory_resource *mr, const Value &x);
 
 /// idct(x) — inverse Type-II DCT.
-Value idct(Allocator &alloc, const Value &x);
+Value idct(std::pmr::memory_resource *mr, const Value &x);
 
 } // namespace numkit::signal

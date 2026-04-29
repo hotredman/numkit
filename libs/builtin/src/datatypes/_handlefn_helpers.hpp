@@ -122,18 +122,18 @@ inline const char *classNameOf(const Value &v)
     return "unknown";
 }
 
-inline Value applyBuiltin(Allocator &alloc, BuiltinFn f, const Value &v,
+inline Value applyBuiltin(std::pmr::memory_resource *mr, BuiltinFn f, const Value &v,
                            const char *fn)
 {
     switch (f) {
     case BuiltinFn::Numel:
-        return Value::scalar(static_cast<double>(v.numel()), &alloc);
+        return Value::scalar(static_cast<double>(v.numel()), mr);
     case BuiltinFn::Length:
-        return ::numkit::builtin::length(alloc, v);
+        return ::numkit::builtin::length(mr, v);
     case BuiltinFn::Ndims:
-        return ::numkit::builtin::ndims(alloc, v);
+        return ::numkit::builtin::ndims(mr, v);
     case BuiltinFn::IsEmpty:
-        return Value::logicalScalar(v.isEmpty() || v.numel() == 0, &alloc);
+        return Value::logicalScalar(v.isEmpty() || v.numel() == 0, mr);
     case BuiltinFn::IsNumeric: {
         const auto t = v.type();
         const bool num = (t == ValueType::DOUBLE || t == ValueType::SINGLE
@@ -142,54 +142,54 @@ inline Value applyBuiltin(Allocator &alloc, BuiltinFn f, const Value &v,
                        || t == ValueType::INT64 || t == ValueType::UINT8
                        || t == ValueType::UINT16 || t == ValueType::UINT32
                        || t == ValueType::UINT64);
-        return Value::logicalScalar(num, &alloc);
+        return Value::logicalScalar(num, mr);
     }
     case BuiltinFn::IsChar:
-        return Value::logicalScalar(v.isChar(), &alloc);
+        return Value::logicalScalar(v.isChar(), mr);
     case BuiltinFn::IsLogical:
-        return Value::logicalScalar(v.isLogical(), &alloc);
+        return Value::logicalScalar(v.isLogical(), mr);
     case BuiltinFn::IsCell:
-        return Value::logicalScalar(v.isCell(), &alloc);
+        return Value::logicalScalar(v.isCell(), mr);
     case BuiltinFn::IsStruct:
-        return Value::logicalScalar(v.isStruct(), &alloc);
+        return Value::logicalScalar(v.isStruct(), mr);
     case BuiltinFn::IsReal:
-        return Value::logicalScalar(!v.isComplex(), &alloc);
+        return Value::logicalScalar(!v.isComplex(), mr);
     case BuiltinFn::IsNan: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isnan requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return Value::logicalScalar(std::isnan(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isnan(v.toScalar()), mr);
     }
     case BuiltinFn::IsInf: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isinf requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return Value::logicalScalar(std::isinf(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isinf(v.toScalar()), mr);
     }
     case BuiltinFn::IsFinite: {
         if (!v.isScalar())
             throw Error(std::string(fn) + ": @isfinite requires each cell to be scalar in uniform mode",
                          0, 0, fn, "", std::string("m:") + fn + ":notScalar");
-        return Value::logicalScalar(std::isfinite(v.toScalar()), &alloc);
+        return Value::logicalScalar(std::isfinite(v.toScalar()), mr);
     }
-    case BuiltinFn::Sum:  return ::numkit::builtin::sum (alloc, v);
-    case BuiltinFn::Prod: return ::numkit::builtin::prod(alloc, v);
-    case BuiltinFn::Mean: return ::numkit::builtin::mean(alloc, v);
+    case BuiltinFn::Sum:  return ::numkit::builtin::sum (mr, v);
+    case BuiltinFn::Prod: return ::numkit::builtin::prod(mr, v);
+    case BuiltinFn::Mean: return ::numkit::builtin::mean(mr, v);
     case BuiltinFn::ClassName: {
         const char *name = classNameOf(v);
-        return Value::fromString(std::string(name), &alloc);
+        return Value::fromString(std::string(name), mr);
     }
     }
     throw Error(std::string(fn) + ": internal: unhandled builtin",
                  0, 0, fn, "", std::string("m:") + fn + ":internal");
 }
 
-inline Value applyHandle(Allocator &alloc, const Value &handle,
+inline Value applyHandle(std::pmr::memory_resource *mr, const Value &handle,
                           BuiltinFn builtinTag, bool isBuiltin,
                           const Value &v, Engine *engine, const char *fn)
 {
     if (isBuiltin)
-        return applyBuiltin(alloc, builtinTag, v, fn);
+        return applyBuiltin(mr, builtinTag, v, fn);
     if (engine == nullptr)
         throw Error(std::string(fn) + ": custom function handles need an "
                      "Engine — use the engine-aware adapter (callback API).",
@@ -199,7 +199,7 @@ inline Value applyHandle(Allocator &alloc, const Value &handle,
     return engine->callFunctionHandle(handle, args);
 }
 
-inline Value packUniform(Allocator &alloc, BuiltinFn f,
+inline Value packUniform(std::pmr::memory_resource *mr, BuiltinFn f,
                           const Value *results, std::size_t n,
                           const Dims &outDims, const char *fn)
 {
@@ -212,8 +212,8 @@ inline Value packUniform(Allocator &alloc, BuiltinFn f,
     const size_t r = outDims.rows();
     const size_t c = outDims.cols();
     const size_t p = outDims.is3D() ? outDims.pages() : 0;
-    auto out = (p > 0) ? Value::matrix3d(r, c, p, outT, &alloc)
-                       : Value::matrix(r, c, outT, &alloc);
+    auto out = (p > 0) ? Value::matrix3d(r, c, p, outT, mr)
+                       : Value::matrix(r, c, outT, mr);
 
     for (size_t i = 0; i < n; ++i) {
         const Value &v = results[i];

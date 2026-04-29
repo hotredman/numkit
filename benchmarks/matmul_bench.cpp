@@ -5,7 +5,7 @@
 // iterations.
 
 #include <numkit/builtin/lang/operators/binary_ops.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -36,10 +36,10 @@ static void BM_Mtimes_Square(benchmark::State &state)
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeSquare(n);
     Value B = makeSquare(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = builtin::mtimes(alloc, A, B);
+        Value C = builtin::mtimes(mr, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -70,10 +70,10 @@ static void BM_Mtimes_Large(benchmark::State &state)
     const size_t n = static_cast<size_t>(state.range(0));
     Value A = makeSquare(n);
     Value B = makeSquare(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value C = builtin::mtimes(alloc, A, B);
+        Value C = builtin::mtimes(mr, A, B);
         benchmark::DoNotOptimize(C);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

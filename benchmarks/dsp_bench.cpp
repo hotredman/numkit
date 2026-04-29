@@ -17,7 +17,7 @@
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
 #include <numkit/signal/transforms/dct.hpp>
 #include <numkit/signal/transforms/hilbert.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -45,15 +45,15 @@ struct FilterCoeffs {
     Value a;
 };
 
-// alloc must outlive the returned coeffs — fir1 stores &alloc inside b's
+// mr must outlive the returned coeffs — fir1 stores mr inside b's
 // DataBuffer. Earlier this fn defaulted-constructed a local Allocator and
 // returned b pointing to it; on clang-cl the freed stack slot got
 // overwritten with 0xFF bytes that std::function read as a non-null target,
 // crashing inside ~DataBuffer (MSVC happened to retain a zero pattern that
 // passed the empty-check, masking the bug).
-FilterCoeffs makeLowpass32(Allocator &alloc)
+FilterCoeffs makeLowpass32(std::pmr::memory_resource *mr)
 {
-    auto b = signal::fir1(alloc, 32, 0.25, "low");  // 33-tap FIR
+    auto b = signal::fir1(mr, 32, 0.25, "low");  // 33-tap FIR
     // a = [1] for FIR
     Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
     a.doubleDataMut()[0] = 1.0;
@@ -68,10 +68,10 @@ static void BM_FilterFIR33(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
-    auto coeffs = makeLowpass32(alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filter(alloc, coeffs.b, coeffs.a, x);
+        auto y = signal::filter(mr, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -82,10 +82,10 @@ static void BM_FiltfiltFIR33(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
-    auto coeffs = makeLowpass32(alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto coeffs = makeLowpass32(mr);
     for (auto _ : s) {
-        auto y = signal::filtfilt(alloc, coeffs.b, coeffs.a, x);
+        auto y = signal::filtfilt(mr, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -99,9 +99,9 @@ static void BM_Xcorr(benchmark::State &s)
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n, 1);
     auto y = makeSignal(n, 2);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [c, lags] = signal::xcorr(alloc, x, y);
+        auto [c, lags] = signal::xcorr(mr, x, y);
         benchmark::DoNotOptimize(c);
         benchmark::DoNotOptimize(lags);
     }
@@ -116,9 +116,9 @@ static void BM_Pwelch(benchmark::State &s)
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
     Value emptyWin = Value::matrix(0, 0, ValueType::DOUBLE, nullptr);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [pxx, f] = signal::pwelch(alloc, x, emptyWin, 0, 0);
+        auto [pxx, f] = signal::pwelch(mr, x, emptyWin, 0, 0);
         benchmark::DoNotOptimize(pxx);
         benchmark::DoNotOptimize(f);
     }
@@ -132,9 +132,9 @@ static void BM_Hilbert(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::hilbert(alloc, x);
+        auto y = signal::hilbert(mr, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -147,9 +147,9 @@ static void BM_Medfilt1_K7(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::medfilt1(alloc, x, 7);
+        auto y = signal::medfilt1(mr, x, 7);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -160,9 +160,9 @@ static void BM_Findpeaks(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto [v, idx] = signal::findpeaks(alloc, x);
+        auto [v, idx] = signal::findpeaks(mr, x);
         benchmark::DoNotOptimize(v);
         benchmark::DoNotOptimize(idx);
     }
@@ -175,9 +175,9 @@ static void BM_DCT(benchmark::State &s)
     // DCT is direct O(N^2); cap range much lower than the FFT-backed kernels.
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = signal::dct(alloc, x);
+        auto y = signal::dct(mr, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetComplexityN(static_cast<int64_t>(n));

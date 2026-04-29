@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -18,23 +18,23 @@ using ::numkit::Engine;
 /// rectpuls(t[, w]) — unit-amplitude rectangular pulse on (-w/2, w/2).
 /// Default w = 1. y = 1 inside the support, 0 outside; the boundary
 /// |t| == w/2 returns 0 (matches MATLAB's open interval).
-Value rectpuls(Allocator &alloc, const Value &t, double w = 1.0);
+Value rectpuls(std::pmr::memory_resource *mr, const Value &t, double w = 1.0);
 
 /// tripuls(t[, w]) — unit-amplitude triangular pulse on |t| ≤ w/2.
 /// y = max(1 - 2·|t|/w, 0). Default w = 1.
-Value tripuls(Allocator &alloc, const Value &t, double w = 1.0);
+Value tripuls(std::pmr::memory_resource *mr, const Value &t, double w = 1.0);
 
 /// gauspuls(t, fc[, bw]) — Gaussian-modulated sinusoid.
 /// y = exp(-α·t²) · cos(2π·fc·t) where α is set by the fractional
 /// bandwidth bw at the -6dB envelope level (MATLAB convention,
 /// bwr = -6 dB hard-coded). Default bw = 0.5.
-Value gauspuls(Allocator &alloc, const Value &t, double fc, double bw = 0.5);
+Value gauspuls(std::pmr::memory_resource *mr, const Value &t, double fc, double bw = 0.5);
 
 /// pulstran(t, d, fnName[, args...]) — pulse train: ∑_i fn(t - d_i, args).
 /// fnName is one of "rectpuls" / "tripuls" / "gauspuls". Custom function
 /// handles are invoked via Engine::callFunctionHandle when an Engine is
 /// available; without one they throw m:pulstran:fnUnsupported.
-Value pulstran(Allocator &alloc, const Value &t, const Value &d,
+Value pulstran(std::pmr::memory_resource *mr, const Value &t, const Value &d,
                 const std::string &fnName, double fcOrW = 1.0,
                 double bw = 0.5);
 
@@ -42,7 +42,7 @@ Value pulstran(Allocator &alloc, const Value &t, const Value &d,
 /// invoked once per delay as `fn(t - d_i)` (extra trailing args from
 /// the adapter aren't forwarded — keep the handle a 1-input function).
 /// Engine pointer must be valid.
-Value pulstranHandle(Allocator &alloc, const Value &t, const Value &d,
+Value pulstranHandle(std::pmr::memory_resource *mr, const Value &t, const Value &d,
                       const Value &fnHandle, Engine *engine);
 
 /// chirp(t, f0, t1, f1[, method]) — frequency-modulated cosine.
@@ -52,7 +52,7 @@ Value pulstranHandle(Allocator &alloc, const Value &t, const Value &d,
 ///   method = "logarithmic": y = cos(2π·f0·((β^t - 1)/log(β))),
 ///                            β = (f1/f0)^(1/t1). Requires f0 > 0,
 ///                            f1 > 0, f1 != f0.
-Value chirp(Allocator &alloc, const Value &t,
+Value chirp(std::pmr::memory_resource *mr, const Value &t,
              double f0, double t1, double f1,
              const std::string &method = "linear");
 

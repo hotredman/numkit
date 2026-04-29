@@ -18,7 +18,7 @@ protected:
     void SetUp() override
     {
         DualEngineTest::SetUp();
-        engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
+        engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     }
 
     bool workspaceHas(const std::string &name)
@@ -156,7 +156,7 @@ TEST(RegisterConstantDebugTest, HiddenFromDebugSnapshot)
 {
     Engine engine;
     BuiltinLibrary::install(engine);
-    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
+    engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -178,7 +178,7 @@ TEST(RegisterConstantDebugTest, ShadowingRegisteredConstantInScriptShowsInSnapsh
 {
     Engine engine;
     BuiltinLibrary::install(engine);
-    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
+    engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);
@@ -205,7 +205,7 @@ TEST(RegisterConstantDebugTest, ShadowingFromConsoleShowsInSnapshot)
 {
     Engine engine;
     BuiltinLibrary::install(engine);
-    engine.registerConstant("G", Value::scalar(6.674e-11, &engine.allocator()));
+    engine.registerConstant("G", Value::scalar(6.674e-11, engine.resource()));
     engine.setOutputFunc([](const std::string &) {});
 
     DebugSession session(engine);

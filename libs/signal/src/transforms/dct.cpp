@@ -22,10 +22,10 @@ namespace numkit::signal {
 // dct:  X[k] = w[k] * sum_n x[n] * cos(pi (2n+1) k / (2N))
 // idct: x[n] = sum_k w[k] * X[k] * cos(pi (2n+1) k / (2N))
 //   where w[0] = sqrt(1/N), w[k>0] = sqrt(2/N).
-Value dct(Allocator &alloc, const Value &x)
+Value dct(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t N = x.numel();
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     if (N == 0) return r;
     const double *xd = x.doubleData();
     double *X  = r.doubleDataMut();
@@ -44,10 +44,10 @@ Value dct(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value idct(Allocator &alloc, const Value &x)
+Value idct(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t N = x.numel();
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     if (N == 0) return r;
     const double *Xd = x.doubleData();
     double *xt = r.doubleDataMut();
@@ -74,7 +74,7 @@ void dct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("dct: requires 1 argument",
                      0, 0, "dct", "", "m:dct:nargin");
-    outs[0] = dct(ctx.engine->allocator(), args[0]);
+    outs[0] = dct(ctx.engine->resource(), args[0]);
 }
 
 void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -83,7 +83,7 @@ void idct_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("idct: requires 1 argument",
                      0, 0, "idct", "", "m:idct:nargin");
-    outs[0] = idct(ctx.engine->allocator(), args[0]);
+    outs[0] = idct(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

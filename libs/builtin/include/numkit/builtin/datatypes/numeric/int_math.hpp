@@ -10,30 +10,30 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::builtin {
 
 /// gcd(a, b) — greatest common divisor (element-wise). gcd(0,0) = 0.
 /// gcd(a,0) = |a|. Result is always non-negative.
-Value gcd(Allocator &alloc, const Value &a, const Value &b);
+Value gcd(std::pmr::memory_resource *mr, const Value &a, const Value &b);
 
 /// lcm(a, b) — least common multiple (element-wise). lcm(0, x) = 0.
 /// Result is always non-negative.
-Value lcm(Allocator &alloc, const Value &a, const Value &b);
+Value lcm(std::pmr::memory_resource *mr, const Value &a, const Value &b);
 
 /// bitand(a, b) — bitwise AND over int64 reinterpretation.
-Value bitand_(Allocator &alloc, const Value &a, const Value &b);
-Value bitor_ (Allocator &alloc, const Value &a, const Value &b);
-Value bitxor_(Allocator &alloc, const Value &a, const Value &b);
+Value bitand_(std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value bitor_ (std::pmr::memory_resource *mr, const Value &a, const Value &b);
+Value bitxor_(std::pmr::memory_resource *mr, const Value &a, const Value &b);
 
 /// bitshift(a, k) — positive k = left shift, negative k = right shift
 /// (arithmetic shift — sign-preserving for negative values).
-Value bitshift(Allocator &alloc, const Value &a, const Value &k);
+Value bitshift(std::pmr::memory_resource *mr, const Value &a, const Value &k);
 
 /// bitcmp(a) — bitwise complement. Default width: 64 bits (uint64 mask).
 /// Pass `width` to restrict to fewer bits (8, 16, 32, 64).
-Value bitcmp(Allocator &alloc, const Value &a, int width = 64);
+Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width = 64);
 
 } // namespace numkit::builtin

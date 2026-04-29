@@ -1,7 +1,7 @@
 // libs/signal/include/numkit/signal/filter_design/filter_design.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -17,7 +17,7 @@ namespace numkit::signal {
 /// @param type  "low" (default) or "high".
 /// @throws      Error if Wn is out of (0, 1) or type is unrecognized.
 std::tuple<Value, Value>
-butter(Allocator &alloc, int N, double Wn, const std::string &type = "low");
+butter(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type = "low");
 
 /// FIR filter design via windowed-sinc (Hamming window).
 /// Returns the impulse response coefficients b (row vector of length N+1).
@@ -25,6 +25,6 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type = "low");
 /// @param N     Filter order (integer >= 1). Output length is N+1.
 /// @param Wn    Normalized cutoff frequency in (0, 1) — fraction of Nyquist.
 /// @param type  "low" (default) or "high".
-Value fir1(Allocator &alloc, int N, double Wn, const std::string &type = "low");
+Value fir1(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type = "low");
 
 } // namespace numkit::signal

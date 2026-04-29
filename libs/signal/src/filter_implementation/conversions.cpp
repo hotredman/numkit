@@ -179,13 +179,13 @@ ScratchVec<Complex> readComplexVec(std::pmr::memory_resource *mr,
     return out;
 }
 
-Value buildSosMatrix(Allocator &alloc,
+Value buildSosMatrix(std::pmr::memory_resource *mr,
                      const double *b1s, const double *b2s,
                      const double *a1s, const double *a2s,
                      std::size_t L,
                      double leadingGain)
 {
-    auto sos = Value::matrix(L, 6, ValueType::DOUBLE, &alloc);
+    auto sos = Value::matrix(L, 6, ValueType::DOUBLE, mr);
     double *p = sos.doubleDataMut();
     for (size_t r = 0; r < L; ++r) {
         const double scale = (r == 0) ? leadingGain : 1.0;
@@ -215,15 +215,15 @@ inline ScratchVec<double> coeffsAsVector(std::pmr::memory_resource *mr,
 } // namespace
 
 std::tuple<Value, double>
-zp2sosWithGain(Allocator &alloc, const Value &zerosV, const Value &polesV, double gain)
+zp2sosWithGain(std::pmr::memory_resource *mr, const Value &zerosV, const Value &polesV, double gain)
 {
     if (polesV.isEmpty())
         throw Error("zp2sos: at least one pole is required",
                      0, 0, "zp2sos", "", "m:zp2sos:noPoles");
 
-    ScratchArena scratch(alloc);
-    auto zeros = readComplexVec(scratch.resource(), zerosV, "zp2sos");
-    auto poles = readComplexVec(scratch.resource(), polesV, "zp2sos");
+    ScratchArena scratch(mr);
+    auto zeros = readComplexVec(&scratch, zerosV, "zp2sos");
+    auto poles = readComplexVec(&scratch, polesV, "zp2sos");
 
     const size_t L = (poles.size() + 1) / 2;
 
@@ -255,15 +255,15 @@ zp2sosWithGain(Allocator &alloc, const Value &zerosV, const Value &polesV, doubl
         throw Error("zp2sos: more zeros than poles is not supported",
                      0, 0, "zp2sos", "", "m:zp2sos:moreZeros");
 
-    return std::make_tuple(buildSosMatrix(alloc, b1s.data(), b2s.data(),
+    return std::make_tuple(buildSosMatrix(mr, b1s.data(), b2s.data(),
                                           a1s.data(), a2s.data(), L,
                                           /*leadingGain=*/1.0),
                            gain);
 }
 
-Value zp2sos(Allocator &alloc, const Value &zerosV, const Value &polesV, double gain)
+Value zp2sos(std::pmr::memory_resource *mr, const Value &zerosV, const Value &polesV, double gain)
 {
-    auto [sos, g] = zp2sosWithGain(alloc, zerosV, polesV, gain);
+    auto [sos, g] = zp2sosWithGain(mr, zerosV, polesV, gain);
     const size_t L = sos.dims().rows();
     double *p = sos.doubleDataMut();
     p[0 * L + 0] *= g;
@@ -273,11 +273,11 @@ Value zp2sos(Allocator &alloc, const Value &zerosV, const Value &polesV, double 
 }
 
 std::tuple<Value, double>
-tf2sosWithGain(Allocator &alloc, const Value &b, const Value &a)
+tf2sosWithGain(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
-    ScratchArena scratch(alloc);
-    auto bv = coeffsAsVector(scratch.resource(), b);
-    auto av = coeffsAsVector(scratch.resource(), a);
+    ScratchArena scratch(mr);
+    auto bv = coeffsAsVector(&scratch, b);
+    auto av = coeffsAsVector(&scratch, a);
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2sos: a(1) must be nonzero",
                      0, 0, "tf2sos", "", "m:tf2sos:zeroLead");
@@ -286,23 +286,23 @@ tf2sosWithGain(Allocator &alloc, const Value &b, const Value &a)
                      0, 0, "tf2sos", "", "m:tf2sos:emptyB");
 
     const double gain = bv[0] / av[0];
-    auto zeros = polyRootsDurandKerner(scratch.resource(), bv.data(), bv.size());
-    auto poles = polyRootsDurandKerner(scratch.resource(), av.data(), av.size());
+    auto zeros = polyRootsDurandKerner(&scratch, bv.data(), bv.size());
+    auto poles = polyRootsDurandKerner(&scratch, av.data(), av.size());
 
     auto toCplxVec = [&](const ScratchVec<Complex> &v) -> Value {
         if (v.empty())
-            return Value::matrix(0, 0, ValueType::COMPLEX, &alloc);
-        auto r = Value::matrix(v.size(), 1, ValueType::COMPLEX, &alloc);
+            return Value::matrix(0, 0, ValueType::COMPLEX, mr);
+        auto r = Value::matrix(v.size(), 1, ValueType::COMPLEX, mr);
         Complex *p = r.complexDataMut();
         for (size_t i = 0; i < v.size(); ++i) p[i] = v[i];
         return r;
     };
-    return zp2sosWithGain(alloc, toCplxVec(zeros), toCplxVec(poles), gain);
+    return zp2sosWithGain(mr, toCplxVec(zeros), toCplxVec(poles), gain);
 }
 
-Value tf2sos(Allocator &alloc, const Value &b, const Value &a)
+Value tf2sos(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
-    auto [sos, g] = tf2sosWithGain(alloc, b, a);
+    auto [sos, g] = tf2sosWithGain(mr, b, a);
     const size_t L = sos.dims().rows();
     double *p = sos.doubleDataMut();
     p[0 * L + 0] *= g;
@@ -322,13 +322,13 @@ void zp2sos_reg(Span<const Value> args, size_t nargout,
     const double gain = (args.size() >= 3 && !args[2].isEmpty())
                             ? args[2].toScalar()
                             : 1.0;
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [sos, g] = zp2sosWithGain(alloc, args[0], args[1], gain);
+        auto [sos, g] = zp2sosWithGain(mr, args[0], args[1], gain);
         outs[0] = std::move(sos);
-        outs[1] = Value::scalar(g, &alloc);
+        outs[1] = Value::scalar(g, mr);
     } else {
-        outs[0] = zp2sos(alloc, args[0], args[1], gain);
+        outs[0] = zp2sos(mr, args[0], args[1], gain);
     }
 }
 
@@ -338,13 +338,13 @@ void tf2sos_reg(Span<const Value> args, size_t nargout,
     if (args.size() != 2)
         throw Error("tf2sos: requires (b, a)",
                      0, 0, "tf2sos", "", "m:tf2sos:nargin");
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
     if (nargout >= 2) {
-        auto [sos, g] = tf2sosWithGain(alloc, args[0], args[1]);
+        auto [sos, g] = tf2sosWithGain(mr, args[0], args[1]);
         outs[0] = std::move(sos);
-        outs[1] = Value::scalar(g, &alloc);
+        outs[1] = Value::scalar(g, mr);
     } else {
-        outs[0] = tf2sos(alloc, args[0], args[1]);
+        outs[0] = tf2sos(mr, args[0], args[1]);
     }
 }
 

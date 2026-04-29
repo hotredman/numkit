@@ -15,7 +15,7 @@
 #include <numkit/builtin/math/elementary/reductions.hpp>
 #include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
 #include <numkit/stats/nan_aware/nan_aware.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -63,9 +63,9 @@ void runVecBench(benchmark::State &s, Fn fn)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeVec(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = fn(alloc, x);
+        auto y = fn(mr, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -78,9 +78,9 @@ void runMatDimBench(benchmark::State &s, Fn fn, int dim)
     // Square-ish 2D so dim=1 vs dim=2 both touch realistic strides.
     const size_t side = static_cast<size_t>(std::sqrt(static_cast<double>(n)));
     auto m = makeMat(side, side);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = fn(alloc, m, dim);
+        auto y = fn(mr, m, dim);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side));
@@ -133,9 +133,9 @@ static void runNanBench(benchmark::State &s, Fn fn)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeVecWithNaN(n, 0.10);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = fn(alloc, x);
+        auto y = fn(mr, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

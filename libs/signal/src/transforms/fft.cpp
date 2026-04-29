@@ -123,7 +123,7 @@ inline std::vector<Complex> &threadFftBuf()
 //     resolved to a concrete axis before this is called).
 //   - axisLen == 1 with requested outLen > 1 throws (extending
 //     dimensionality isn't supported yet).
-static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, Allocator *alloc)
+static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, std::pmr::memory_resource *mr)
 {
     const auto &d = x.dims();
     const size_t R = d.rows();
@@ -162,8 +162,8 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, Allocat
     const bool outIs3D = d.is3D();
 
     auto result = outIs3D
-        ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, alloc)
-        : Value::complexMatrix(outR, outC, alloc);
+        ? Value::matrix3d(outR, outC, outP, ValueType::COMPLEX, mr)
+        : Value::complexMatrix(outR, outC, mr);
     Complex *dst = result.complexDataMut();
 
     const bool srcIsComplex = x.isComplex();
@@ -479,8 +479,8 @@ static Value fftAlongDim(const Value &x, size_t N_req, int dim, int dir, Allocat
                 allReal = false;
         if (allReal) {
             auto realOut = outIs3D
-                ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, alloc)
-                : Value::matrix(outR, outC, ValueType::DOUBLE, alloc);
+                ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
             for (size_t i = 0; i < realOut.numel(); ++i)
                 realOut.doubleDataMut()[i] = result.complexData()[i].real();
             return realOut;
@@ -504,7 +504,7 @@ static int resolveDefaultDim(const Value &x)
     return 1;
 }
 
-Value fft(Allocator &alloc, const Value &x, int n, int dim)
+Value fft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
 {
     if (dim < 0 || dim > 3)
         throw Error("fft: dim must be 0 (auto), 1, 2, or 3",
@@ -512,10 +512,10 @@ Value fft(Allocator &alloc, const Value &x, int n, int dim)
     if (dim == 0) dim = resolveDefaultDim(x);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
-    return fftAlongDim(x, N, dim, /*dir=*/1, &alloc);
+    return fftAlongDim(x, N, dim, /*dir=*/1, mr);
 }
 
-Value ifft(Allocator &alloc, const Value &X, int n, int dim)
+Value ifft(std::pmr::memory_resource *mr, const Value &X, int n, int dim)
 {
     if (dim < 0 || dim > 3)
         throw Error("ifft: dim must be 0 (auto), 1, 2, or 3",
@@ -523,13 +523,13 @@ Value ifft(Allocator &alloc, const Value &X, int n, int dim)
     if (dim == 0) dim = resolveDefaultDim(X);
 
     const size_t N = (n < 0) ? 0u : static_cast<size_t>(n);
-    return fftAlongDim(X, N, dim, /*dir=*/-1, &alloc);
+    return fftAlongDim(X, N, dim, /*dir=*/-1, mr);
 }
 
 // ── Engine adapters ────────────────────────────────────────────────────
 //
 // Marshal MATLAB calling convention (variable nargin, Value args)
-// onto the explicit-alloc public API above. Throws from the public API
+// onto the explicit-mr public API above. Throws from the public API
 // propagate up — TreeWalker / VM catch blocks attach source location via
 // Error::attachIfMissing.
 
@@ -548,7 +548,7 @@ void fft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallC
     if (args.size() >= 3)
         dim = static_cast<int>(args[2].toScalar());
 
-    outs[0] = fft(ctx.engine->allocator(), args[0], n, dim);
+    outs[0] = fft(ctx.engine->resource(), args[0], n, dim);
 }
 
 void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -564,7 +564,7 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3)
         dim = static_cast<int>(args[2].toScalar());
 
-    outs[0] = ifft(ctx.engine->allocator(), args[0], n, dim);
+    outs[0] = ifft(ctx.engine->resource(), args[0], n, dim);
 }
 
 } // namespace detail

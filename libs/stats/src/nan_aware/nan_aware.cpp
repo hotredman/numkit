@@ -53,28 +53,28 @@ double medianFromSlice(double *data, size_t n)
 
 } // namespace
 
-Value nansum(Allocator &alloc, const Value &x, int dim)
+Value nansum(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(nanSumScan(x.doubleData(), x.numel()), &alloc);
+        return Value::scalar(nanSumScan(x.doubleData(), x.numel()), mr);
 
     const int d = resolveDim(x, dim, "nansum");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return nanSumScan(slice, n); // all-NaN → 0
-        }, &alloc);
+        }, mr);
 }
 
-Value nanmean(Allocator &alloc, const Value &x, int dim)
+Value nanmean(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE) {
         const auto r = nanSumCountScan(x.doubleData(), x.numel());
         return Value::scalar(r.count > 0 ? r.sum / static_cast<double>(r.count)
-                                          : std::nan(""), &alloc);
+                                          : std::nan(""), mr);
     }
 
     const int d = resolveDim(x, dim, "nanmean");
@@ -83,75 +83,75 @@ Value nanmean(Allocator &alloc, const Value &x, int dim)
             const auto r = nanSumCountScan(slice, n);
             return r.count > 0 ? r.sum / static_cast<double>(r.count)
                                : std::nan("");
-        }, &alloc);
+        }, mr);
 }
 
-Value nanmax(Allocator &alloc, const Value &x, int dim)
+Value nanmax(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(nanMaxScan(x.doubleData(), x.numel()), &alloc);
+        return Value::scalar(nanMaxScan(x.doubleData(), x.numel()), mr);
 
     const int d = resolveDim(x, dim, "nanmax");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return nanMaxScan(slice, n);
-        }, &alloc);
+        }, mr);
 }
 
-Value nanmin(Allocator &alloc, const Value &x, int dim)
+Value nanmin(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(nanMinScan(x.doubleData(), x.numel()), &alloc);
+        return Value::scalar(nanMinScan(x.doubleData(), x.numel()), mr);
 
     const int d = resolveDim(x, dim, "nanmin");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             return nanMinScan(slice, n);
-        }, &alloc);
+        }, mr);
 }
 
-Value nanvar(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value nanvar(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "nanvar");
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag), &alloc);
+        return Value::scalar(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag), mr);
 
     const int d = resolveDim(x, dim, "nanvar");
     return applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return nanVarianceTwoPass(slice, n, normFlag);
-        }, &alloc);
+        }, mr);
 }
 
-Value nanstdev(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value nanstdev(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
     validateNormFlag(normFlag, "nanstd");
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     if ((x.dims().isVector() || x.isScalar()) && x.type() == ValueType::DOUBLE)
-        return Value::scalar(std::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), &alloc);
+        return Value::scalar(std::sqrt(nanVarianceTwoPass(x.doubleData(), x.numel(), normFlag)), mr);
 
     const int d = resolveDim(x, dim, "nanstd");
     return applyAlongDim(x, d,
         [normFlag](size_t, double *slice, size_t n) {
             return std::sqrt(nanVarianceTwoPass(slice, n, normFlag));
-        }, &alloc);
+        }, mr);
 }
 
-Value nanmedian(Allocator &alloc, const Value &x, int dim)
+Value nanmedian(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     const int d = resolveDim(x, dim, "nanmedian");
     return applyAlongDim(x, d,
         [](size_t, double *slice, size_t n) {
             const size_t k = compactNonNan(slice, n);
             return medianFromSlice(slice, k); // returns NaN at k==0
-        }, &alloc);
+        }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -167,7 +167,7 @@ namespace detail {
         int dim = 0;                                                             \
         if (args.size() >= 2 && !args[1].isEmpty())                              \
             dim = static_cast<int>(args[1].toScalar());                          \
-        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                     \
+        outs[0] = fn(ctx.engine->resource(), args[0], dim);                     \
     }
 
 NK_NAN_REDUCTION_ADAPTER(nansum,    nansum)
@@ -192,7 +192,7 @@ NK_NAN_REDUCTION_ADAPTER(nanmedian, nanmedian)
             dim = static_cast<int>(args[1].toScalar());                           \
         else if (args.size() >= 3 && !args[2].isEmpty())                          \
             dim = static_cast<int>(args[2].toScalar());                           \
-        outs[0] = fn(ctx.engine->allocator(), args[0], dim);                      \
+        outs[0] = fn(ctx.engine->resource(), args[0], dim);                      \
     }
 
 NK_NAN_MAXMIN_ADAPTER(nanmax, nanmax)
@@ -211,7 +211,7 @@ void nanvar_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         w = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanvar(ctx.engine->allocator(), args[0], w, dim);
+    outs[0] = nanvar(ctx.engine->resource(), args[0], w, dim);
 }
 
 void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -225,7 +225,7 @@ void nanstd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         w = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = nanstdev(ctx.engine->allocator(), args[0], w, dim);
+    outs[0] = nanstdev(ctx.engine->resource(), args[0], w, dim);
 }
 
 } // namespace detail

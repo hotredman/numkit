@@ -89,7 +89,7 @@ ScratchVec<double> parseCsvLine(std::pmr::memory_resource *mr, const std::string
 
 Value csvread(Engine &engine, Span<const Value> args)
 {
-    Allocator *alloc = &engine.allocator();
+    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isChar())
         throw Error("csvread requires a filename as the first argument");
 
@@ -120,8 +120,7 @@ Value csvread(Engine &engine, Span<const Value> args)
         throw Error(std::string("csvread: ") + e.what());
     }
 
-    ScratchArena scratch_arena(*alloc);
-    auto *mr = scratch_arena.resource();
+    ScratchArena scratch_arena(mr);
     // Outer + inner ScratchVec — uses-allocator construction propagates
     // `mr` into each inner row that we move-construct from `parseCsvLine`'s
     // sliced result below.
@@ -159,7 +158,7 @@ Value csvread(Engine &engine, Span<const Value> args)
         R = r2 - r1 + 1;
         C = c2 - c1 + 1;
         while (rows.size() < R)
-            rows.emplace_back();   // alloc propagates via uses-allocator ctor
+            rows.emplace_back();   // mr propagates via uses-allocator ctor
     } else {
         R = rows.size();
         C = 0;
@@ -169,9 +168,9 @@ Value csvread(Engine &engine, Span<const Value> args)
     }
 
     if (R == 0 || C == 0)
-        return Value::matrix(0, 0, ValueType::DOUBLE, alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
 
-    auto M = Value::matrix(R, C, ValueType::DOUBLE, alloc);
+    auto M = Value::matrix(R, C, ValueType::DOUBLE, mr);
     double *data = M.doubleDataMut();
     for (size_t r = 0; r < R; ++r) {
         const auto &row = rows[r];

@@ -74,9 +74,9 @@ void gradientAlongRows(const double *src, double *dst, size_t R, size_t C, doubl
     (void)invH;
 }
 
-Value toDoubleCopy(Allocator &alloc, const Value &x)
+Value toDoubleCopy(std::pmr::memory_resource *mr, const Value &x)
 {
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     if (x.type() == ValueType::DOUBLE) {
         std::memcpy(r.doubleDataMut(), x.doubleData(),
                     x.numel() * sizeof(double));
@@ -90,7 +90,7 @@ Value toDoubleCopy(Allocator &alloc, const Value &x)
 
 } // namespace
 
-Value gradient(Allocator &alloc, const Value &f, double h)
+Value gradient(std::pmr::memory_resource *mr, const Value &f, double h)
 {
     if (h <= 0)
         throw Error("gradient: spacing h must be positive",
@@ -99,8 +99,8 @@ Value gradient(Allocator &alloc, const Value &f, double h)
         throw Error("gradient: complex inputs are not supported",
                      0, 0, "gradient", "", "m:gradient:complex");
 
-    auto src = toDoubleCopy(alloc, f);
-    auto out = createLike(f, ValueType::DOUBLE, &alloc);
+    auto src = toDoubleCopy(mr, f);
+    auto out = createLike(f, ValueType::DOUBLE, mr);
     const auto &d = f.dims();
 
     if (f.dims().isVector() || f.isScalar()) {
@@ -116,7 +116,7 @@ Value gradient(Allocator &alloc, const Value &f, double h)
 }
 
 std::tuple<Value, Value>
-gradient2(Allocator &alloc, const Value &f, double hx, double hy)
+gradient2(std::pmr::memory_resource *mr, const Value &f, double hx, double hy)
 {
     if (hx <= 0 || hy <= 0)
         throw Error("gradient: spacing arguments must be positive",
@@ -129,9 +129,9 @@ gradient2(Allocator &alloc, const Value &f, double hx, double hy)
         throw Error("gradient: 2-output form requires a 2D matrix input",
                      0, 0, "gradient", "", "m:gradient:rank");
 
-    auto src = toDoubleCopy(alloc, f);
-    auto fx = createLike(f, ValueType::DOUBLE, &alloc);
-    auto fy = createLike(f, ValueType::DOUBLE, &alloc);
+    auto src = toDoubleCopy(mr, f);
+    auto fx = createLike(f, ValueType::DOUBLE, mr);
+    auto fy = createLike(f, ValueType::DOUBLE, mr);
 
     if (f.dims().isVector() || f.isScalar()) {
         gradient1D(src.doubleData(), fx.doubleDataMut(), f.numel(), hx);
@@ -148,10 +148,10 @@ gradient2(Allocator &alloc, const Value &f, double hx, double hy)
 // ── cumtrapz ─────────────────────────────────────────────────────────
 namespace {
 
-Value cumtrapzVector(Allocator &alloc, const double *y, const double *x,
+Value cumtrapzVector(std::pmr::memory_resource *mr, const double *y, const double *x,
                       size_t n, const Dims &shape, bool unitSpacing)
 {
-    auto out = Value::matrix(shape.rows(), shape.cols(), ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(shape.rows(), shape.cols(), ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     if (n == 0) return out;
     dst[0] = 0.0;
@@ -164,7 +164,7 @@ Value cumtrapzVector(Allocator &alloc, const double *y, const double *x,
 
 } // namespace
 
-Value cumtrapz(Allocator &alloc, const Value &y)
+Value cumtrapz(std::pmr::memory_resource *mr, const Value &y)
 {
     if (y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
@@ -174,12 +174,12 @@ Value cumtrapz(Allocator &alloc, const Value &y)
                      "(use vector input for now)",
                      0, 0, "cumtrapz", "", "m:cumtrapz:matrixUnsupported");
 
-    auto ys = toDoubleCopy(alloc, y);
-    return cumtrapzVector(alloc, ys.doubleData(), nullptr, y.numel(),
+    auto ys = toDoubleCopy(mr, y);
+    return cumtrapzVector(mr, ys.doubleData(), nullptr, y.numel(),
                           y.dims(), /*unitSpacing=*/true);
 }
 
-Value cumtrapz(Allocator &alloc, const Value &x, const Value &y)
+Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
     if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
@@ -191,9 +191,9 @@ Value cumtrapz(Allocator &alloc, const Value &x, const Value &y)
         throw Error("cumtrapz: x and y must have the same length",
                      0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
 
-    auto xs = toDoubleCopy(alloc, x);
-    auto ys = toDoubleCopy(alloc, y);
-    return cumtrapzVector(alloc, ys.doubleData(), xs.doubleData(),
+    auto xs = toDoubleCopy(mr, x);
+    auto ys = toDoubleCopy(mr, y);
+    return cumtrapzVector(mr, ys.doubleData(), xs.doubleData(),
                           y.numel(), y.dims(), /*unitSpacing=*/false);
 }
 
@@ -275,7 +275,7 @@ double adaptiveIntegral(Engine *engine, const Value &fn, double a, double b,
 
 } // namespace
 
-Value integral(Allocator &alloc, const Value &fn, double a, double b,
+Value integral(std::pmr::memory_resource *mr, const Value &fn, double a, double b,
                 double absTol, Engine *engine)
 {
     if (engine == nullptr)
@@ -293,10 +293,10 @@ Value integral(Allocator &alloc, const Value &fn, double a, double b,
                      0, 0, "integral", "", "m:integral:badTol");
     const double sign = (b < a) ? -1.0 : 1.0;
     if (b < a) std::swap(a, b);
-    if (a == b) return Value::scalar(0.0, &alloc);
+    if (a == b) return Value::scalar(0.0, mr);
     constexpr int kMaxDepth = 20;
     const double r = adaptiveIntegral(engine, fn, a, b, absTol, 0, kMaxDepth);
-    return Value::scalar(sign * r, &alloc);
+    return Value::scalar(sign * r, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -307,7 +307,7 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     if (args.empty())
         throw Error("gradient: requires at least 1 argument",
                      0, 0, "gradient", "", "m:gradient:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
 
     double hx = 1.0, hy = 1.0;
     if (args.size() >= 2) hx = args[1].toScalar();
@@ -315,10 +315,10 @@ void gradient_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     else                  hy = hx;  // single spacing applies to both axes
 
     if (nargout <= 1) {
-        outs[0] = gradient(alloc, args[0], hx);
+        outs[0] = gradient(mr, args[0], hx);
         return;
     }
-    auto [fx, fy] = gradient2(alloc, args[0], hx, hy);
+    auto [fx, fy] = gradient2(mr, args[0], hx, hy);
     outs[0] = std::move(fx);
     outs[1] = std::move(fy);
 }
@@ -328,12 +328,12 @@ void cumtrapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("cumtrapz: requires at least 1 argument",
                      0, 0, "cumtrapz", "", "m:cumtrapz:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = cumtrapz(alloc, args[0]);
+        outs[0] = cumtrapz(mr, args[0]);
         return;
     }
-    outs[0] = cumtrapz(alloc, args[0], args[1]);
+    outs[0] = cumtrapz(mr, args[0], args[1]);
 }
 
 void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -357,7 +357,7 @@ void integral_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                          0, 0, "integral", "", "m:integral:badFlag");
         }
     }
-    outs[0] = integral(ctx.engine->allocator(), args[0], a, b, absTol, ctx.engine);
+    outs[0] = integral(ctx.engine->resource(), args[0], a, b, absTol, ctx.engine);
 }
 
 void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -366,9 +366,9 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("trapz: requires at least 1 argument",
                      0, 0, "trapz", "", "m:trapz:nargin");
     if (args.size() == 1)
-        outs[0] = trapz(ctx.engine->allocator(), args[0]);
+        outs[0] = trapz(ctx.engine->resource(), args[0]);
     else
-        outs[0] = trapz(ctx.engine->allocator(), args[0], args[1]);
+        outs[0] = trapz(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
@@ -377,17 +377,17 @@ void trapz_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
 // trapz (moved from libs/fit) — uniform-spacing trapezoidal integration.
 // ════════════════════════════════════════════════════════════════════════
 
-Value trapz(Allocator &alloc, const Value &y)
+Value trapz(std::pmr::memory_resource *mr, const Value &y)
 {
     const double *yd = y.doubleData();
     const size_t n = y.numel();
     double s = 0.0;
     for (size_t i = 1; i < n; ++i)
         s += 0.5 * (yd[i - 1] + yd[i]);
-    return Value::scalar(s, &alloc);
+    return Value::scalar(s, mr);
 }
 
-Value trapz(Allocator &alloc, const Value &x, const Value &y)
+Value trapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
     const size_t n = x.numel();
     if (y.numel() != n)
@@ -399,7 +399,7 @@ Value trapz(Allocator &alloc, const Value &x, const Value &y)
     double s = 0.0;
     for (size_t i = 1; i < n; ++i)
         s += 0.5 * (yd[i - 1] + yd[i]) * (xd[i] - xd[i - 1]);
-    return Value::scalar(s, &alloc);
+    return Value::scalar(s, mr);
 }
 
 } // namespace numkit::builtin

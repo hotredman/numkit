@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/datatypes/strings/format.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
@@ -28,11 +28,11 @@ size_t countFormatSpecs(const std::string &fmt);
 /// (MATLAB %s consumes the whole string).
 ///
 /// Takes an Allocator because intermediate scalar MValues are allocated.
-std::string formatCyclic(Allocator &alloc, const std::string &fmt,
+std::string formatCyclic(std::pmr::memory_resource *mr, const std::string &fmt,
                          Span<const Value> args, size_t argStart);
 
 /// MATLAB sprintf(fmt, args...) — char-array result. Empty fmt / non-char
 /// fmt both return an empty char array (MATLAB behavior).
-Value sprintf(Allocator &alloc, const Value &fmt, Span<const Value> args);
+Value sprintf(std::pmr::memory_resource *mr, const Value &fmt, Span<const Value> args);
 
 } // namespace numkit::builtin

@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
@@ -13,6 +13,6 @@ namespace numkit::signal {
 /// Apply an SOS cascade. `sos` is L×6, `x` is a vector or 2D matrix
 /// (columns are filtered independently). Returns y of the same shape
 /// as x.
-Value sosfilt(Allocator &alloc, const Value &sos, const Value &x);
+Value sosfilt(std::pmr::memory_resource *mr, const Value &sos, const Value &x);
 
 } // namespace numkit::signal

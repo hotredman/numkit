@@ -49,29 +49,29 @@ double erfinvScalar(double y)
 
 } // namespace
 
-Value gammaFn(Allocator &alloc, const Value &x)
+Value gammaFn(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::tgamma(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::tgamma(v); }, mr);
 }
 
-Value gammaln(Allocator &alloc, const Value &x)
+Value gammaln(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::lgamma(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::lgamma(v); }, mr);
 }
 
-Value erf(Allocator &alloc, const Value &x)
+Value erf(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::erf(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::erf(v); }, mr);
 }
 
-Value erfc(Allocator &alloc, const Value &x)
+Value erfc(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::erfc(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::erfc(v); }, mr);
 }
 
-Value erfinv(Allocator &alloc, const Value &x)
+Value erfinv(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return erfinvScalar(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return erfinvScalar(v); }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -84,7 +84,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
+        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
     }
 
 NK_UNARY_ADAPTER(gamma,   gammaFn)

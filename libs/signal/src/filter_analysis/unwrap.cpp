@@ -18,12 +18,12 @@
 
 namespace numkit::signal {
 
-Value unwrap(Allocator &alloc, const Value &phase)
+Value unwrap(std::pmr::memory_resource *mr, const Value &phase)
 {
     const size_t n = phase.numel();
     const double *p = phase.doubleData();
 
-    auto r = createLike(phase, ValueType::DOUBLE, &alloc);
+    auto r = createLike(phase, ValueType::DOUBLE, mr);
     double *out = r.doubleDataMut();
     if (n == 0)
         return r;
@@ -44,7 +44,7 @@ void unwrap_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("unwrap: requires 1 argument",
                      0, 0, "unwrap", "", "m:unwrap:nargin");
-    outs[0] = unwrap(ctx.engine->allocator(), args[0]);
+    outs[0] = unwrap(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

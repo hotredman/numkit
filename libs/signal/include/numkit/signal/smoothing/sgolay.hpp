@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
@@ -19,13 +19,13 @@ namespace numkit::signal {
 /// Constraints (MATLAB-compatible):
 ///   * framelen must be odd and ≥ order + 1.
 ///   * 0 ≤ order < framelen.
-Value sgolay(Allocator &alloc, int order, int framelen);
+Value sgolay(std::pmr::memory_resource *mr, int order, int framelen);
 
 /// sgolayfilt(x, order, framelen) — apply Savitzky-Golay smoothing to
 /// a 1-D signal. Interior samples use the central row of sgolay()'s
 /// projection matrix; edge samples (where a symmetric window can't
 /// fit) use the asymmetric rows. Output has the same length and shape
 /// as x.
-Value sgolayfilt(Allocator &alloc, const Value &x, int order, int framelen);
+Value sgolayfilt(std::pmr::memory_resource *mr, const Value &x, int order, int framelen);
 
 } // namespace numkit::signal

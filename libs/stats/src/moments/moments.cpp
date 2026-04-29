@@ -25,10 +25,10 @@ namespace {
 
 // Cast a DOUBLE result to SINGLE in place. Used to preserve SINGLE
 // input type — arithmetic happens at double precision then narrows.
-Value narrowToSingle(Value d, Allocator *alloc)
+Value narrowToSingle(Value d, std::pmr::memory_resource *mr)
 {
     if (d.type() != ValueType::DOUBLE) return d;
-    Value r = createForDims(d.dims(), ValueType::SINGLE, alloc);
+    Value r = createForDims(d.dims(), ValueType::SINGLE, mr);
     const double *src = d.doubleData();
     float *dst = r.singleDataMut();
     for (size_t i = 0; i < d.numel(); ++i)
@@ -92,7 +92,7 @@ double kurtosisFromSlice(const double *data, size_t n, int normFlag)
     return y;
 }
 
-Value dispatchMomentReduction(Allocator &alloc, const Value &x, int dim,
+Value dispatchMomentReduction(std::pmr::memory_resource *mr, const Value &x, int dim,
                                int normFlag, const char *fn,
                                double (*fromSlice)(const double *, size_t, int))
 {
@@ -103,28 +103,28 @@ Value dispatchMomentReduction(Allocator &alloc, const Value &x, int dim,
         throw Error(std::string(fn) + ": complex inputs are not supported",
                      0, 0, fn, "", std::string("m:") + fn + ":complex");
     if (x.isEmpty())
-        return Value::matrix(0, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
     const int d = resolveDim(x, dim, fn);
     Value r = applyAlongDim(x, d,
         [normFlag, fromSlice](size_t, double *slice, size_t n) {
             return fromSlice(slice, n, normFlag);
-        }, &alloc);
+        }, mr);
     if (x.type() == ValueType::SINGLE)
-        r = narrowToSingle(std::move(r), &alloc);
+        r = narrowToSingle(std::move(r), mr);
     return r;
 }
 
 } // namespace
 
-Value skewness(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value skewness(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
-    return dispatchMomentReduction(alloc, x, dim, normFlag, "skewness",
+    return dispatchMomentReduction(mr, x, dim, normFlag, "skewness",
                                    skewnessFromSlice);
 }
 
-Value kurtosis(Allocator &alloc, const Value &x, int normFlag, int dim)
+Value kurtosis(std::pmr::memory_resource *mr, const Value &x, int normFlag, int dim)
 {
-    return dispatchMomentReduction(alloc, x, dim, normFlag, "kurtosis",
+    return dispatchMomentReduction(mr, x, dim, normFlag, "kurtosis",
                                    kurtosisFromSlice);
 }
 
@@ -143,7 +143,7 @@ void skewness_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         normFlag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = skewness(ctx.engine->allocator(), args[0], normFlag, dim);
+    outs[0] = skewness(ctx.engine->resource(), args[0], normFlag, dim);
 }
 
 void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -158,7 +158,7 @@ void kurtosis_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         normFlag = static_cast<int>(args[1].toScalar());
     if (args.size() >= 3 && !args[2].isEmpty())
         dim = static_cast<int>(args[2].toScalar());
-    outs[0] = kurtosis(ctx.engine->allocator(), args[0], normFlag, dim);
+    outs[0] = kurtosis(ctx.engine->resource(), args[0], normFlag, dim);
 }
 
 } // namespace detail

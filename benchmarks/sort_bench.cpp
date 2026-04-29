@@ -5,7 +5,7 @@
 // implementations behave very differently on each.
 
 #include <numkit/builtin/lang/arrays/matrix.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -42,10 +42,10 @@ void runSortBench(benchmark::State &state, Pattern p)
     using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     Value x = makeVector(n, p);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        auto [sorted, idx] = builtin::sort(alloc, x);
+        auto [sorted, idx] = builtin::sort(mr, x);
         benchmark::DoNotOptimize(sorted);
         benchmark::DoNotOptimize(idx);
     }

@@ -11,17 +11,17 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::stats {
 
-Value nansum   (Allocator &alloc, const Value &x, int dim = 0);
-Value nanmean  (Allocator &alloc, const Value &x, int dim = 0);
-Value nanmax   (Allocator &alloc, const Value &x, int dim = 0);
-Value nanmin   (Allocator &alloc, const Value &x, int dim = 0);
-Value nanvar   (Allocator &alloc, const Value &x, int normFlag = 0, int dim = 0);
-Value nanstdev (Allocator &alloc, const Value &x, int normFlag = 0, int dim = 0);
-Value nanmedian(Allocator &alloc, const Value &x, int dim = 0);
+Value nansum   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value nanmean  (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value nanmax   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value nanmin   (std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+Value nanvar   (std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
+Value nanstdev (std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
+Value nanmedian(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
 
 } // namespace numkit::stats

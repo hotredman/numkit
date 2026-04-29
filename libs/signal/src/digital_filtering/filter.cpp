@@ -40,7 +40,7 @@ ScratchVec<double> applyFilterDf2t(std::pmr::memory_resource *mr,
 } // namespace
 
 // ── filter ────────────────────────────────────────────────────────────
-Value filter(Allocator &alloc, const Value &b, const Value &a, const Value &x)
+Value filter(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -52,7 +52,7 @@ Value filter(Allocator &alloc, const Value &b, const Value &a, const Value &x)
         throw Error("filter: a(1) must be nonzero",
                      0, 0, "filter", "", "m:filter:zeroLead");
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto bn = scratch.vec<double>(nb);
     auto an = scratch.vec<double>(na);
     for (size_t i = 0; i < nb; ++i)
@@ -60,17 +60,17 @@ Value filter(Allocator &alloc, const Value &b, const Value &a, const Value &x)
     for (size_t i = 0; i < na; ++i)
         an[i] = ad[i] / a0;
 
-    auto out = applyFilterDf2t(scratch.resource(),
+    auto out = applyFilterDf2t(&scratch,
                                bn.data(), nb, an.data(), na, xd, nx);
 
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     double *y = r.doubleDataMut();
     std::memcpy(y, out.data(), nx * sizeof(double));
     return r;
 }
 
 // ── filtfilt ──────────────────────────────────────────────────────────
-Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
+Value filtfilt(std::pmr::memory_resource *mr, const Value &b, const Value &a, const Value &x)
 {
     const size_t nb = b.numel(), na = a.numel(), nx = x.numel();
     const double *bd = b.doubleData();
@@ -82,7 +82,7 @@ Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
         throw Error("filtfilt: a(1) must be nonzero",
                      0, 0, "filtfilt", "", "m:filtfilt:zeroLead");
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto bn = scratch.vec<double>(nb);
     auto an = scratch.vec<double>(na);
     for (size_t i = 0; i < nb; ++i)
@@ -106,14 +106,14 @@ Value filtfilt(Allocator &alloc, const Value &b, const Value &a, const Value &x)
     for (size_t i = 0; i < nEdge; ++i)
         ext[nEdge + nx + i] = 2.0 * xd[nx - 1] - xd[nx - 2 - i];
 
-    auto fwd = applyFilterDf2t(scratch.resource(),
+    auto fwd = applyFilterDf2t(&scratch,
                                bn.data(), nb, an.data(), na, ext.data(), extLen);
     std::reverse(fwd.begin(), fwd.end());
-    auto bwd = applyFilterDf2t(scratch.resource(),
+    auto bwd = applyFilterDf2t(&scratch,
                                bn.data(), nb, an.data(), na, fwd.data(), fwd.size());
     std::reverse(bwd.begin(), bwd.end());
 
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     double *y = r.doubleDataMut();
     std::memcpy(y, bwd.data() + nEdge, nx * sizeof(double));
     return r;
@@ -127,7 +127,7 @@ void filter_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 3)
         throw Error("filter: requires 3 arguments",
                      0, 0, "filter", "", "m:filter:nargin");
-    outs[0] = filter(ctx.engine->allocator(), args[0], args[1], args[2]);
+    outs[0] = filter(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -135,7 +135,7 @@ void filtfilt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("filtfilt: requires 3 arguments",
                      0, 0, "filtfilt", "", "m:filtfilt:nargin");
-    outs[0] = filtfilt(ctx.engine->allocator(), args[0], args[1], args[2]);
+    outs[0] = filtfilt(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 } // namespace detail

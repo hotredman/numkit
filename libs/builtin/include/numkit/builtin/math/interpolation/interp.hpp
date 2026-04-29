@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -17,7 +17,7 @@ namespace numkit::builtin {
 ///
 /// @param method  "linear" (default), "nearest", "spline", "pchip".
 /// @throws Error on shape mismatch or unknown method.
-Value interp1(Allocator &alloc,
+Value interp1(std::pmr::memory_resource *mr,
                const Value &x,
                const Value &y,
                const Value &xq,
@@ -33,10 +33,10 @@ Value interp1(Allocator &alloc,
 /// Supported methods: "linear" (default, bilinear), "nearest". Output
 /// shape matches Xq (which must broadcast-shape-equal Yq). Out-of-grid
 /// queries return NaN. V must be a real 2D matrix.
-Value interp2(Allocator &alloc,
+Value interp2(std::pmr::memory_resource *mr,
                const Value &V, const Value &Xq, const Value &Yq,
                const std::string &method = "linear");
-Value interp2(Allocator &alloc,
+Value interp2(std::pmr::memory_resource *mr,
                const Value &X, const Value &Y, const Value &V,
                const Value &Xq, const Value &Yq,
                const std::string &method = "linear");
@@ -48,17 +48,17 @@ Value interp2(Allocator &alloc,
 /// vectors giving column / row / page coordinates (strictly monotonic
 /// ascending). Grid sizes must equal cols(V), rows(V), pages(V)
 /// respectively. Out-of-grid query points return NaN.
-Value interp3(Allocator &alloc, const Value &V,
+Value interp3(std::pmr::memory_resource *mr, const Value &V,
                const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method = "linear");
-Value interp3(Allocator &alloc, const Value &X, const Value &Y, const Value &Z,
+Value interp3(std::pmr::memory_resource *mr, const Value &X, const Value &Y, const Value &Z,
                const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method = "linear");
 
 /// Natural cubic-spline interpolation — equivalent to interp1(..., "spline").
-Value spline(Allocator &alloc, const Value &x, const Value &y, const Value &xq);
+Value spline(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq);
 
 /// Piecewise cubic Hermite — equivalent to interp1(..., "pchip").
-Value pchip(Allocator &alloc, const Value &x, const Value &y, const Value &xq);
+Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq);
 
 } // namespace numkit::builtin

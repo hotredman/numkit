@@ -17,7 +17,7 @@
 #include <numkit/builtin/math/elementary/rounding.hpp>
 #include <numkit/builtin/math/elementary/trigonometry.hpp>
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -33,15 +33,14 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using numkit::Allocator;
 using numkit::ValueType;
 using numkit::Value;
 
 namespace {
 
-Value makeDoubleVector(Allocator &alloc, const std::vector<double> &vals)
+Value makeDoubleVector(std::pmr::memory_resource *mr, const std::vector<double> &vals)
 {
-    Value v = Value::matrix(vals.size(), 1, ValueType::DOUBLE, &alloc);
+    Value v = Value::matrix(vals.size(), 1, ValueType::DOUBLE, mr);
     double *data = v.doubleDataMut();
     for (size_t i = 0; i < vals.size(); ++i)
         data[i] = vals[i];
@@ -67,7 +66,7 @@ bool bitEquals(double a, double b)
 
 TEST(SimdParity_Abs, MatchesScalarOnLargeRandomVector)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // Size chosen to span several SIMD lanes + scalar tail — 1021 is
     // prime, so every vector width leaves a different remainder.
@@ -78,8 +77,8 @@ TEST(SimdParity_Abs, MatchesScalarOnLargeRandomVector)
     std::vector<double> src(N);
     for (auto &v : src) v = dist(rng);
 
-    Value x = makeDoubleVector(alloc, src);
-    Value y = numkit::builtin::abs(alloc, x);
+    Value x = makeDoubleVector(mr, src);
+    Value y = numkit::builtin::abs(mr, x);
 
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i) {
@@ -91,7 +90,7 @@ TEST(SimdParity_Abs, MatchesScalarOnLargeRandomVector)
 
 TEST(SimdParity_Abs, HandlesIeeeEdgeCases)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // Every subnormal, zero, infinity, and NaN combo that commonly
     // goes wrong in hand-rolled SIMD (e.g. bit-clear vs subtract-zero
@@ -112,8 +111,8 @@ TEST(SimdParity_Abs, HandlesIeeeEdgeCases)
         qnan, -qnan,
     };
 
-    Value x = makeDoubleVector(alloc, src);
-    Value y = numkit::builtin::abs(alloc, x);
+    Value x = makeDoubleVector(mr, src);
+    Value y = numkit::builtin::abs(mr, x);
 
     ASSERT_EQ(y.numel(), src.size());
     for (size_t i = 0; i < src.size(); ++i) {
@@ -133,28 +132,28 @@ TEST(SimdParity_Abs, HandlesIeeeEdgeCases)
 
 TEST(SimdParity_Abs, ScalarInputStillWorks)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // Scalar / small paths bypass the SIMD loop entirely; included
     // to catch regressions in the public wrapper's dispatch logic.
-    Value x = Value::scalar(-3.5, &alloc);
-    Value y = numkit::builtin::abs(alloc, x);
+    Value x = Value::scalar(-3.5, mr);
+    Value y = numkit::builtin::abs(mr, x);
     EXPECT_TRUE(bitEquals(y.toScalar(), 3.5));
 }
 
 TEST(SimdParity_Abs, ComplexFallsBackToScalarImpl)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // The SIMD backend shouldn't touch the complex path — it delegates
     // to std::abs(Complex). A quick check that this path still works
     // under the SIMD build.
-    auto v = Value::complexMatrix(1, 3, &alloc);
+    auto v = Value::complexMatrix(1, 3, mr);
     v.complexDataMut()[0] = {3.0, 4.0};
     v.complexDataMut()[1] = {-5.0, 12.0};
     v.complexDataMut()[2] = {0.0, 0.0};
 
-    Value y = numkit::builtin::abs(alloc, v);
+    Value y = numkit::builtin::abs(mr, v);
     ASSERT_EQ(y.numel(), 3u);
     EXPECT_DOUBLE_EQ(y.doubleData()[0], 5.0);
     EXPECT_DOUBLE_EQ(y.doubleData()[1], 13.0);
@@ -197,7 +196,7 @@ void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
                                double lo, double hi, const char *name,
                                uint64_t ulpBudget = 8)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     constexpr size_t N = 1021;
     std::mt19937 rng(271828);
@@ -206,8 +205,8 @@ void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
     std::vector<double> src(N);
     for (auto &v : src) v = dist(rng);
 
-    Value x = makeDoubleVector(alloc, src);
-    Value y = simdFn(alloc, x);
+    Value x = makeDoubleVector(mr, src);
+    Value y = simdFn(mr, x);
 
     ASSERT_EQ(y.numel(), N) << name;
     uint64_t worst = 0;
@@ -229,7 +228,7 @@ void checkTranscendentalParity(SimdFn simdFn, ScalarFn scalarFn,
 TEST(SimdParity_Sin, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](Allocator &a, const Value &x) { return numkit::builtin::sin(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::sin(a, x); },
         [](double x) { return std::sin(x); },
         -10.0, 10.0, "sin");
 }
@@ -237,7 +236,7 @@ TEST(SimdParity_Sin, WithinUlpBudget)
 TEST(SimdParity_Cos, WithinUlpBudget)
 {
     checkTranscendentalParity(
-        [](Allocator &a, const Value &x) { return numkit::builtin::cos(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::cos(a, x); },
         [](double x) { return std::cos(x); },
         -10.0, 10.0, "cos");
 }
@@ -247,7 +246,7 @@ TEST(SimdParity_Exp, WithinUlpBudget)
     // Clamp to a range where exp() doesn't overflow — past ~709 it
     // becomes Inf and ULP distance is undefined / infinite.
     checkTranscendentalParity(
-        [](Allocator &a, const Value &x) { return numkit::builtin::exp(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::exp(a, x); },
         [](double x) { return std::exp(x); },
         -5.0, 5.0, "exp");
 }
@@ -257,16 +256,16 @@ TEST(SimdParity_Log, WithinUlpBudget)
     // Strictly positive inputs — negatives produce NaN, whose ULP
     // distance doesn't compare meaningfully.
     checkTranscendentalParity(
-        [](Allocator &a, const Value &x) { return numkit::builtin::log(a, x); },
+        [](std::pmr::memory_resource *a, const Value &x) { return numkit::builtin::log(a, x); },
         [](double x) { return std::log(x); },
         0.01, 100.0, "log");
 }
 
 TEST(SimdParity_Transcendental, NegativeLogScalarStillComplex)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // MATLAB contract (preserved in both backends): scalar log(-1) → i·π.
-    Value y = numkit::builtin::log(alloc, Value::scalar(-1.0, &alloc));
+    Value y = numkit::builtin::log(mr, Value::scalar(-1.0, mr));
     EXPECT_TRUE(y.isComplex());
     auto c = y.toComplex();
     EXPECT_NEAR(c.real(), 0.0, 1e-12);
@@ -286,7 +285,7 @@ namespace {
 template <typename SimdFn, typename ScalarOp>
 void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     constexpr size_t N = 1021;
     std::mt19937 rng(65537);
@@ -302,9 +301,9 @@ void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
         if (std::fabs(bv[i]) < 1.0) bv[i] += std::copysign(1.0, bv[i]);
     }
 
-    Value A = makeDoubleVector(alloc, av);
-    Value B = makeDoubleVector(alloc, bv);
-    Value Y = simdFn(alloc, A, B);
+    Value A = makeDoubleVector(mr, av);
+    Value B = makeDoubleVector(mr, bv);
+    Value Y = simdFn(mr, A, B);
 
     ASSERT_EQ(Y.numel(), N) << name;
     for (size_t i = 0; i < N; ++i) {
@@ -321,28 +320,28 @@ void checkBinaryParity(SimdFn simdFn, ScalarOp op, const char *name)
 TEST(SimdParity_Plus,    MatchesScalar)
 {
     checkBinaryParity(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Minus,   MatchesScalar)
 {
     checkBinaryParity(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Times,   MatchesScalar)
 {
     checkBinaryParity(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Rdivide, MatchesScalar)
 {
     checkBinaryParity(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
@@ -359,7 +358,7 @@ TEST(SimdParity_Rdivide, MatchesScalar)
 
 TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // 128 is large enough to accumulate FMA/non-FMA divergence but
     // small enough to compute a naive reference loop in the test.
@@ -367,14 +366,14 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
     std::mt19937 rng(97);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    Value A = Value::matrix(N, N, ValueType::DOUBLE, &alloc);
-    Value B = Value::matrix(N, N, ValueType::DOUBLE, &alloc);
+    Value A = Value::matrix(N, N, ValueType::DOUBLE, mr);
+    Value B = Value::matrix(N, N, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < N * N; ++i) {
         A.doubleDataMut()[i] = dist(rng);
         B.doubleDataMut()[i] = dist(rng);
     }
 
-    Value C = numkit::builtin::mtimes(alloc, A, B);
+    Value C = numkit::builtin::mtimes(mr, A, B);
     ASSERT_EQ(C.numel(), N * N);
 
     // Independent scalar reference with the same (j,k,i) order so the
@@ -411,7 +410,7 @@ TEST(SimdParity_Mtimes, MatchesScalarSquareMatrix)
 // partial kb=44 block; both initialization paths run.
 TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     constexpr size_t M = 16;
     constexpr size_t K = 300;
@@ -420,12 +419,12 @@ TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
     std::mt19937 rng(123);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    Value A = Value::matrix(M, K, ValueType::DOUBLE, &alloc);
-    Value B = Value::matrix(K, N, ValueType::DOUBLE, &alloc);
+    Value A = Value::matrix(M, K, ValueType::DOUBLE, mr);
+    Value B = Value::matrix(K, N, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(alloc, A, B);
+    Value C = numkit::builtin::mtimes(mr, A, B);
     ASSERT_EQ(C.numel(), M * N);
 
     // Reference matches the kernel's (j, k, i) reduction order — the
@@ -458,7 +457,7 @@ TEST(SimdParity_Mtimes, MatchesScalarMultiKBlock)
 // Catches off-by-one in the (k0 + KC < K) tail-handling branch.
 TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     constexpr size_t M = 16;
     constexpr size_t K = 768;   // = 3 * 256, exact multiple of KC
@@ -467,12 +466,12 @@ TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
     std::mt19937 rng(456);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    Value A = Value::matrix(M, K, ValueType::DOUBLE, &alloc);
-    Value B = Value::matrix(K, N, ValueType::DOUBLE, &alloc);
+    Value A = Value::matrix(M, K, ValueType::DOUBLE, mr);
+    Value B = Value::matrix(K, N, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(alloc, A, B);
+    Value C = numkit::builtin::mtimes(mr, A, B);
 
     std::vector<double> ref(M * N, 0.0);
     for (size_t j = 0; j < N; ++j)
@@ -504,10 +503,10 @@ TEST(SimdParity_Mtimes, MatchesScalarExactKBlockMultiple)
 
 TEST(SimdParity_Dim, AbsOn1DRow)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto x = Value::matrix(1, 256, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto x = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(alloc, x);
+    auto y = numkit::builtin::abs(mr, x);
     EXPECT_EQ(y.dims().rows(), 1u);
     EXPECT_EQ(y.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
@@ -516,10 +515,10 @@ TEST(SimdParity_Dim, AbsOn1DRow)
 
 TEST(SimdParity_Dim, AbsOn1DColumn)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto x = Value::matrix(256, 1, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto x = Value::matrix(256, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(alloc, x);
+    auto y = numkit::builtin::abs(mr, x);
     EXPECT_EQ(y.dims().rows(), 256u);
     EXPECT_EQ(y.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -528,10 +527,10 @@ TEST(SimdParity_Dim, AbsOn1DColumn)
 
 TEST(SimdParity_Dim, AbsOn3D)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto x = Value::matrix3d(3, 4, 5, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto x = Value::matrix3d(3, 4, 5, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = -double(i);
-    auto y = numkit::builtin::abs(alloc, x);
+    auto y = numkit::builtin::abs(mr, x);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.dims().rows(), 3u);
     EXPECT_EQ(y.dims().cols(), 4u);
@@ -543,10 +542,10 @@ TEST(SimdParity_Dim, AbsOn3D)
 
 TEST(SimdParity_Dim, SinOn3D)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto x = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto x = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < x.numel(); ++i) x.doubleDataMut()[i] = 0.1 * double(i);
-    auto y = numkit::builtin::sin(alloc, x);
+    auto y = numkit::builtin::sin(mr, x);
     ASSERT_TRUE(y.dims().is3D());
     EXPECT_EQ(y.numel(), 24u);
     for (size_t i = 0; i < y.numel(); ++i)
@@ -561,9 +560,9 @@ namespace {
 template <typename BinaryFn, typename ScalarOp>
 void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    auto a = Value::matrix3d(3, 5, 7, ValueType::DOUBLE, &alloc);  // 105 elems, all odd
-    auto b = Value::matrix3d(3, 5, 7, ValueType::DOUBLE, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    auto a = Value::matrix3d(3, 5, 7, ValueType::DOUBLE, mr);  // 105 elems, all odd
+    auto b = Value::matrix3d(3, 5, 7, ValueType::DOUBLE, mr);
 
     std::mt19937 rng(65537);
     std::uniform_real_distribution<double> dist(-100.0, 100.0);
@@ -574,7 +573,7 @@ void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
         b.doubleDataMut()[i] = bv;
     }
 
-    auto c = fn(alloc, a, b);
+    auto c = fn(mr, a, b);
     ASSERT_TRUE(c.dims().is3D()) << name;
     EXPECT_EQ(c.dims().rows(), 3u) << name;
     EXPECT_EQ(c.dims().cols(), 5u) << name;
@@ -590,56 +589,56 @@ void checkBinaryOn3D(BinaryFn fn, ScalarOp op, const char *name)
 TEST(SimdParity_Dim, PlusOn3D)
 {
     checkBinaryOn3D(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::plus(a, x, y); },
         [](double x, double y) { return x + y; }, "plus");
 }
 
 TEST(SimdParity_Dim, MinusOn3D)
 {
     checkBinaryOn3D(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::minus(a, x, y); },
         [](double x, double y) { return x - y; }, "minus");
 }
 
 TEST(SimdParity_Dim, TimesOn3D)
 {
     checkBinaryOn3D(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::times(a, x, y); },
         [](double x, double y) { return x * y; }, "times");
 }
 
 TEST(SimdParity_Dim, RdivideOn3D)
 {
     checkBinaryOn3D(
-        [](Allocator &a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
+        [](std::pmr::memory_resource *a, const Value &x, const Value &y) { return numkit::builtin::rdivide(a, x, y); },
         [](double x, double y) { return x / y; }, "rdivide");
 }
 
 TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     // Row vector: cols > 1, rows = 1 — NOT excluded by the fast path,
     // so goes through SIMD when NUMKIT_WITH_SIMD=ON.
-    auto aRow = Value::matrix(1, 256, ValueType::DOUBLE, &alloc);
-    auto bRow = Value::matrix(1, 256, ValueType::DOUBLE, &alloc);
+    auto aRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
+    auto bRow = Value::matrix(1, 256, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) {
         aRow.doubleDataMut()[i] = double(i);
         bRow.doubleDataMut()[i] = 3.0;
     }
-    auto cRow = numkit::builtin::plus(alloc, aRow, bRow);
+    auto cRow = numkit::builtin::plus(mr, aRow, bRow);
     EXPECT_EQ(cRow.dims().rows(), 1u);
     EXPECT_EQ(cRow.dims().cols(), 256u);
     for (size_t i = 0; i < 256; ++i)
         EXPECT_TRUE(bitEquals(cRow.doubleData()[i], double(i) + 3.0));
 
     // Column vector: rows > 1, cols = 1 — also SIMD-eligible.
-    auto aCol = Value::matrix(256, 1, ValueType::DOUBLE, &alloc);
-    auto bCol = Value::matrix(256, 1, ValueType::DOUBLE, &alloc);
+    auto aCol = Value::matrix(256, 1, ValueType::DOUBLE, mr);
+    auto bCol = Value::matrix(256, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < 256; ++i) {
         aCol.doubleDataMut()[i] = double(i);
         bCol.doubleDataMut()[i] = 3.0;
     }
-    auto cCol = numkit::builtin::plus(alloc, aCol, bCol);
+    auto cCol = numkit::builtin::plus(mr, aCol, bCol);
     EXPECT_EQ(cCol.dims().rows(), 256u);
     EXPECT_EQ(cCol.dims().cols(), 1u);
     for (size_t i = 0; i < 256; ++i)
@@ -648,43 +647,43 @@ TEST(SimdParity_Dim, PlusOn1DRowAndColumn)
 
 TEST(SimdParity_Mtimes, ThrowsOn3DInput)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // 3D * 3D — matrix multiply is undefined here; must throw, not
     // silently strip pages and produce garbage. Pre-Phase 8 this
     // quietly used (rows, cols) and ignored pages.
     {
-        auto A = Value::matrix3d(3, 4, 2, ValueType::DOUBLE, &alloc);
-        auto B = Value::matrix3d(4, 3, 2, ValueType::DOUBLE, &alloc);
+        auto A = Value::matrix3d(3, 4, 2, ValueType::DOUBLE, mr);
+        auto B = Value::matrix3d(4, 3, 2, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(alloc, A, B); },
+        EXPECT_THROW({ (void)numkit::builtin::mtimes(mr, A, B); },
                      numkit::Error);
     }
 
     // 3D * 2D — also undefined.
     {
-        auto A = Value::matrix3d(3, 4, 2, ValueType::DOUBLE, &alloc);
-        auto B = Value::matrix(4, 3, ValueType::DOUBLE, &alloc);
+        auto A = Value::matrix3d(3, 4, 2, ValueType::DOUBLE, mr);
+        auto B = Value::matrix(4, 3, ValueType::DOUBLE, mr);
         for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = 1.0;
         for (size_t i = 0; i < B.numel(); ++i) B.doubleDataMut()[i] = 1.0;
-        EXPECT_THROW({ (void)numkit::builtin::mtimes(alloc, A, B); },
+        EXPECT_THROW({ (void)numkit::builtin::mtimes(mr, A, B); },
                      numkit::Error);
     }
 }
 
 TEST(SimdParity_Mtimes, ScalarTimes3DArrayStillWorks)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // scalar * 3D — MATLAB degenerates this to elementwise scaling;
     // our code routes it through elementwiseDouble() and the result
     // preserves the 3D shape with every element scaled.
-    auto A = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, &alloc);
+    auto A = Value::matrix3d(2, 3, 4, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < A.numel(); ++i) A.doubleDataMut()[i] = double(i);
-    auto s = Value::scalar(2.5, &alloc);
+    auto s = Value::scalar(2.5, mr);
 
-    auto C = numkit::builtin::mtimes(alloc, s, A);
+    auto C = numkit::builtin::mtimes(mr, s, A);
     ASSERT_TRUE(C.dims().is3D());
     EXPECT_EQ(C.dims().pages(), 4u);
     EXPECT_EQ(C.numel(), 24u);
@@ -694,7 +693,7 @@ TEST(SimdParity_Mtimes, ScalarTimes3DArrayStillWorks)
 
 TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     // M=37, K=51, N=43 — all odd, none a multiple of typical SIMD
     // widths (2/4/8). Exercises the scalar tail on every loop.
@@ -702,12 +701,12 @@ TEST(SimdParity_Mtimes, HandlesNonSquareDimensions)
     std::mt19937 rng(11);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    Value A = Value::matrix(M, K, ValueType::DOUBLE, &alloc);
-    Value B = Value::matrix(K, N, ValueType::DOUBLE, &alloc);
+    Value A = Value::matrix(M, K, ValueType::DOUBLE, mr);
+    Value B = Value::matrix(K, N, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < M * K; ++i) A.doubleDataMut()[i] = dist(rng);
     for (size_t i = 0; i < K * N; ++i) B.doubleDataMut()[i] = dist(rng);
 
-    Value C = numkit::builtin::mtimes(alloc, A, B);
+    Value C = numkit::builtin::mtimes(mr, A, B);
     ASSERT_EQ(C.dims().rows(), M);
     ASSERT_EQ(C.dims().cols(), N);
 
@@ -749,12 +748,12 @@ std::vector<double> makeReals(size_t n, uint32_t seed, double lo, double hi)
 
 TEST(SimdParity_ParallelLarge, AbsBitIdenticalAcrossSplits)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;  // prime > kElementwiseThreshold
     auto src = makeReals(N, 7, -1e6, 1e6);
 
-    Value x = makeDoubleVector(alloc, src);
-    Value y = numkit::builtin::abs(alloc, x);
+    Value x = makeDoubleVector(mr, src);
+    Value y = numkit::builtin::abs(mr, x);
     ASSERT_EQ(y.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y.doubleData()[i], std::fabs(src[i]))) << "i=" << i;
@@ -762,14 +761,14 @@ TEST(SimdParity_ParallelLarge, AbsBitIdenticalAcrossSplits)
 
 TEST(SimdParity_ParallelLarge, PlusBitIdenticalAcrossSplits)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;
     auto a = makeReals(N, 11, -1e3, 1e3);
     auto b = makeReals(N, 13, -1e3, 1e3);
 
-    Value x = makeDoubleVector(alloc, a);
-    Value y = makeDoubleVector(alloc, b);
-    Value z = numkit::builtin::plus(alloc, x, y);
+    Value x = makeDoubleVector(mr, a);
+    Value y = makeDoubleVector(mr, b);
+    Value z = numkit::builtin::plus(mr, x, y);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i])) << "i=" << i;
@@ -777,14 +776,14 @@ TEST(SimdParity_ParallelLarge, PlusBitIdenticalAcrossSplits)
 
 TEST(SimdParity_ParallelLarge, MinusBitIdenticalAcrossSplits)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;
     auto a = makeReals(N, 17, -1e3, 1e3);
     auto b = makeReals(N, 19, -1e3, 1e3);
 
-    Value x = makeDoubleVector(alloc, a);
-    Value y = makeDoubleVector(alloc, b);
-    Value z = numkit::builtin::minus(alloc, x, y);
+    Value x = makeDoubleVector(mr, a);
+    Value y = makeDoubleVector(mr, b);
+    Value z = numkit::builtin::minus(mr, x, y);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] - b[i])) << "i=" << i;
@@ -792,14 +791,14 @@ TEST(SimdParity_ParallelLarge, MinusBitIdenticalAcrossSplits)
 
 TEST(SimdParity_ParallelLarge, TimesBitIdenticalAcrossSplits)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;
     auto a = makeReals(N, 23, -1e3, 1e3);
     auto b = makeReals(N, 29, -1e3, 1e3);
 
-    Value x = makeDoubleVector(alloc, a);
-    Value y = makeDoubleVector(alloc, b);
-    Value z = numkit::builtin::times(alloc, x, y);
+    Value x = makeDoubleVector(mr, a);
+    Value y = makeDoubleVector(mr, b);
+    Value z = numkit::builtin::times(mr, x, y);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] * b[i])) << "i=" << i;
@@ -807,14 +806,14 @@ TEST(SimdParity_ParallelLarge, TimesBitIdenticalAcrossSplits)
 
 TEST(SimdParity_ParallelLarge, RdivideBitIdenticalAcrossSplits)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;
     auto a = makeReals(N, 31, -1e3, 1e3);
     auto b = makeReals(N, 37, 0.5, 1e3);   // strictly positive denom
 
-    Value x = makeDoubleVector(alloc, a);
-    Value y = makeDoubleVector(alloc, b);
-    Value z = numkit::builtin::rdivide(alloc, x, y);
+    Value x = makeDoubleVector(mr, a);
+    Value y = makeDoubleVector(mr, b);
+    Value z = numkit::builtin::rdivide(mr, x, y);
     ASSERT_EQ(z.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] / b[i])) << "i=" << i;
@@ -828,14 +827,14 @@ TEST(SimdParity_ParallelLarge, RdivideBitIdenticalAcrossSplits)
 // as flaky bit changes between calls.)
 TEST(SimdParity_ParallelLarge, SinDeterministicAcrossCalls)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;     // also above kTranscendentalThreshold
     auto src = makeReals(N, 41, -10.0, 10.0);
 
-    Value x  = makeDoubleVector(alloc, src);
-    Value y1 = numkit::builtin::sin(alloc, x);
-    Value y2 = numkit::builtin::sin(alloc, x);
-    Value y3 = numkit::builtin::sin(alloc, x);
+    Value x  = makeDoubleVector(mr, src);
+    Value y1 = numkit::builtin::sin(mr, x);
+    Value y2 = numkit::builtin::sin(mr, x);
+    Value y3 = numkit::builtin::sin(mr, x);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i) {
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -845,13 +844,13 @@ TEST(SimdParity_ParallelLarge, SinDeterministicAcrossCalls)
 
 TEST(SimdParity_ParallelLarge, ExpDeterministicAcrossCalls)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 100'003;
     auto src = makeReals(N, 43, -5.0, 5.0);
 
-    Value x  = makeDoubleVector(alloc, src);
-    Value y1 = numkit::builtin::exp(alloc, x);
-    Value y2 = numkit::builtin::exp(alloc, x);
+    Value x  = makeDoubleVector(mr, src);
+    Value y1 = numkit::builtin::exp(mr, x);
+    Value y2 = numkit::builtin::exp(mr, x);
     ASSERT_EQ(y1.numel(), N);
     for (size_t i = 0; i < N; ++i)
         EXPECT_TRUE(bitEquals(y1.doubleData()[i], y2.doubleData()[i])) << "i=" << i;
@@ -860,13 +859,13 @@ TEST(SimdParity_ParallelLarge, ExpDeterministicAcrossCalls)
 // Just-at-the-threshold and just-above to exercise the boundary.
 TEST(SimdParity_ParallelLarge, ExactBoundaryCases)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (size_t N : {size_t(16383), size_t(16384), size_t(16385), size_t(65536)}) {
         auto a = makeReals(N, 53 + static_cast<uint32_t>(N), -1.0, 1.0);
         auto b = makeReals(N, 59 + static_cast<uint32_t>(N), -1.0, 1.0);
-        Value x = makeDoubleVector(alloc, a);
-        Value y = makeDoubleVector(alloc, b);
-        Value z = numkit::builtin::plus(alloc, x, y);
+        Value x = makeDoubleVector(mr, a);
+        Value y = makeDoubleVector(mr, b);
+        Value z = numkit::builtin::plus(mr, x, y);
         ASSERT_EQ(z.numel(), N) << "N=" << N;
         for (size_t i = 0; i < N; ++i)
             EXPECT_TRUE(bitEquals(z.doubleData()[i], a[i] + b[i]))

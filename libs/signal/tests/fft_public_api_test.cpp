@@ -6,7 +6,7 @@
 // MATLAB calling glue. The Engine-routed tests live alongside in
 // libs/signal/tests/signal_core_test.cpp and remain in place.
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>  // Error
 #include <numkit/core/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
@@ -29,16 +29,15 @@
 #define M_PI 3.14159265358979323846
 #endif
 
-using numkit::Allocator;
 using numkit::ValueType;
 using numkit::Value;
 using Complex = std::complex<double>;
 
 namespace {
 
-Value makeRealRow(Allocator &alloc, std::initializer_list<double> vals)
+Value makeRealRow(std::pmr::memory_resource *mr, std::initializer_list<double> vals)
 {
-    auto v = Value::matrix(1, vals.size(), ValueType::DOUBLE, &alloc);
+    auto v = Value::matrix(1, vals.size(), ValueType::DOUBLE, mr);
     double *data = v.doubleDataMut();
     size_t i = 0;
     for (double x : vals)
@@ -51,11 +50,11 @@ Value makeRealRow(Allocator &alloc, std::initializer_list<double> vals)
 // ── Basic round-trip: x -> fft -> ifft ≈ x ──────────────────────────────
 TEST(DspFftPublicApi, RoundTripRealVector)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(alloc, x);
-    Value y = numkit::signal::ifft(alloc, X);
+    Value X = numkit::signal::fft(mr, x);
+    Value y = numkit::signal::ifft(mr, X);
 
     ASSERT_EQ(y.numel(), x.numel());
     const double *xData = x.doubleData();
@@ -74,10 +73,10 @@ TEST(DspFftPublicApi, RoundTripRealVector)
 // ── DC of a constant vector is N, everything else is ~0 ────────────────
 TEST(DspFftPublicApi, DcBinOfConstant)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0});
 
-    Value X = numkit::signal::fft(alloc, x);
+    Value X = numkit::signal::fft(mr, x);
     ASSERT_TRUE(X.isComplex());
     const Complex *Xd = X.complexData();
     EXPECT_NEAR(Xd[0].real(), 8.0, 1e-10);  // DC = sum = N
@@ -90,15 +89,15 @@ TEST(DspFftPublicApi, DcBinOfConstant)
 // ── Single-frequency cosine: peak at known bin ─────────────────────────
 TEST(DspFftPublicApi, CosinePeakBin)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 16;
     constexpr int k = 3;  // frequency bin to test
-    auto x = Value::matrix(1, N, ValueType::DOUBLE, &alloc);
+    auto x = Value::matrix(1, N, ValueType::DOUBLE, mr);
     double *xd = x.doubleDataMut();
     for (size_t i = 0; i < N; ++i)
         xd[i] = std::cos(2.0 * M_PI * k * i / static_cast<double>(N));
 
-    Value X = numkit::signal::fft(alloc, x);
+    Value X = numkit::signal::fft(mr, x);
     const Complex *Xd = X.complexData();
     // Peak of a real cosine at bin k should be N/2 in magnitude at both k and N-k
     EXPECT_NEAR(std::abs(Xd[k]), N / 2.0, 1e-9);
@@ -108,20 +107,20 @@ TEST(DspFftPublicApi, CosinePeakBin)
 // ── n argument: zero-pad extends output length ─────────────────────────
 TEST(DspFftPublicApi, ZeroPadExtendsOutput)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 2.0, 3.0, 4.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    Value X = numkit::signal::fft(alloc, x, /*n=*/8);
+    Value X = numkit::signal::fft(mr, x, /*n=*/8);
     EXPECT_EQ(X.numel(), 8u);
 }
 
 // ── n argument: truncate shortens output ───────────────────────────────
 TEST(DspFftPublicApi, TruncateShortensOutput)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0});
 
-    Value X = numkit::signal::fft(alloc, x, /*n=*/4);
+    Value X = numkit::signal::fft(mr, x, /*n=*/4);
     EXPECT_EQ(X.numel(), 4u);
 }
 
@@ -129,25 +128,25 @@ TEST(DspFftPublicApi, TruncateShortensOutput)
 // 0 now means "first non-singleton" (valid); 4+ and negative are invalid.
 TEST(DspFftPublicApi, InvalidDimThrows)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 2.0, 3.0, 4.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
 
-    EXPECT_THROW(numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/4),
+    EXPECT_THROW(numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/4),
                  numkit::Error);
-    EXPECT_THROW(numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/-1),
+    EXPECT_THROW(numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/-1),
                  numkit::Error);
-    EXPECT_THROW(numkit::signal::ifft(alloc, x, /*n=*/-1, /*dim=*/99),
+    EXPECT_THROW(numkit::signal::ifft(mr, x, /*n=*/-1, /*dim=*/99),
                  numkit::Error);
 }
 
 // ── fft(x, [], dim) on a singleton axis is identity ────────────────────
 TEST(DspFftPublicApi, Dim3OnVectorIsIdentity)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 2.0, 3.0, 4.0});
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 2.0, 3.0, 4.0});
     // dim=3 on a 1x4 row vector: the page axis has length 1, so the
     // per-slice FFT is of length 1 (identity). Result shape matches input.
-    Value X = numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/3);
+    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/3);
     EXPECT_EQ(X.dims().rows(), 1u);
     EXPECT_EQ(X.dims().cols(), 4u);
     ASSERT_EQ(X.numel(), 4u);
@@ -163,9 +162,9 @@ TEST(DspFftPublicApi, Dim3OnVectorIsIdentity)
 // ── dim=0 explicitly picks first non-singleton (auto) ──────────────────
 TEST(DspFftPublicApi, Dim0AutoOnRowVector)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value x = makeRealRow(alloc, {1.0, 1.0, 1.0, 1.0});
-    Value X = numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/0);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value x = makeRealRow(mr, {1.0, 1.0, 1.0, 1.0});
+    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/0);
     // Row vector: non-singleton is cols — FFT along the row → DC = 4.
     ASSERT_TRUE(X.isComplex());
     EXPECT_NEAR(X.complexData()[0].real(), 4.0, 1e-10);
@@ -176,13 +175,13 @@ TEST(DspFftPublicApi, Dim0AutoOnRowVector)
 // ── 3-D input, dim=1: FFT along rows for every (col, page) slice ───────
 TEST(DspFftPublicApi, Fft3DDim1PreservesShape)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t R = 4, C = 3, P = 2;
-    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
+    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -207,13 +206,13 @@ TEST(DspFftPublicApi, Fft3DDim1PreservesShape)
 // ── 3-D input, dim=2: FFT along cols for every (row, page) slice ───────
 TEST(DspFftPublicApi, Fft3DDim2PreservesShape)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t R = 4, C = 4, P = 2;
-    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
+    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/2);
+    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/2);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -236,13 +235,13 @@ TEST(DspFftPublicApi, Fft3DDim2PreservesShape)
 // ── 3-D input, dim=3: FFT along pages for every (row, col) slice ───────
 TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t R = 3, C = 2, P = 4;
-    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
+    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = double(i + 1);
 
-    Value X = numkit::signal::fft(alloc, x, /*n=*/-1, /*dim=*/3);
+    Value X = numkit::signal::fft(mr, x, /*n=*/-1, /*dim=*/3);
     ASSERT_TRUE(X.dims().is3D());
     EXPECT_EQ(X.dims().rows(), R);
     EXPECT_EQ(X.dims().cols(), C);
@@ -273,10 +272,10 @@ TEST(DspFftPublicApi, Fft3DDim3PreservesShape)
 // algorithm-specific.
 TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t N = 65536;  // = 4^8, well above current r4 threshold
 
-    auto x = Value::matrix(N, 1, ValueType::DOUBLE, &alloc);
+    auto x = Value::matrix(N, 1, ValueType::DOUBLE, mr);
     double *xd = x.doubleDataMut();
     double sumX = 0.0, sumX2 = 0.0;
     for (size_t i = 0; i < N; ++i) {
@@ -285,7 +284,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
         sumX2 += xd[i] * xd[i];
     }
 
-    Value X = numkit::signal::fft(alloc, x);
+    Value X = numkit::signal::fft(mr, x);
     ASSERT_TRUE(X.isComplex());
     ASSERT_EQ(X.numel(), N);
     const Complex *Xd = X.complexData();
@@ -300,7 +299,7 @@ TEST(DspFftPublicApi, Radix4PathPowerOfFourSize)
     EXPECT_NEAR(sumPow, double(N) * sumX2, 1e-3);
 
     // Round-trip restores input.
-    Value y = numkit::signal::ifft(alloc, X);
+    Value y = numkit::signal::ifft(mr, X);
     ASSERT_EQ(y.numel(), N);
     const double *yd = y.isComplex() ? nullptr : y.doubleData();
     if (y.isComplex()) {
@@ -462,15 +461,15 @@ TEST(DspFftStockham, EdgeCase_N1)
 // ── Round-trip: x → fft → ifft ≈ x for 3-D input on each dim ──────────
 TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
 {
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     constexpr size_t R = 4, C = 2, P = 8;
-    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
+    Value x = Value::matrix3d(R, C, P, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < R * C * P; ++i)
         x.doubleDataMut()[i] = std::sin(0.37 * double(i));
 
     for (int dim = 1; dim <= 3; ++dim) {
-        Value X = numkit::signal::fft(alloc, x, /*n=*/-1, dim);
-        Value y = numkit::signal::ifft(alloc, X, /*n=*/-1, dim);
+        Value X = numkit::signal::fft(mr, x, /*n=*/-1, dim);
+        Value y = numkit::signal::ifft(mr, X, /*n=*/-1, dim);
         ASSERT_EQ(y.numel(), R * C * P) << "dim=" << dim;
         ASSERT_TRUE(y.dims().is3D()) << "dim=" << dim;
         // ifft should downgrade to real (imag < 1e-10 everywhere).

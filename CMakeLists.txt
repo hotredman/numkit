@@ -55,8 +55,7 @@ endif()
 # ──────────────────────────────────────────────
 
 set(NUMKIT_CORE_SOURCES
-    # value / environment / allocator
-    core/src/allocator.cpp
+    # value / environment
     core/src/value_type.cpp
     core/src/dims.cpp
     core/src/data_buffer.cpp
@@ -99,7 +98,6 @@ set(NUMKIT_SOURCES
 
 set(NUMKIT_HEADERS
     # core (runtime + frontend + backend + debug all live here)
-    core/include/numkit/core/allocator.hpp
     core/include/numkit/core/ast.hpp
     core/include/numkit/core/branding.hpp
     core/include/numkit/core/bytecode.hpp

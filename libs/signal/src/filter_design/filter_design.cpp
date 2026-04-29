@@ -92,7 +92,7 @@ void lpToHp(ScratchVec<double> &b, ScratchVec<double> &a)
 } // anonymous namespace
 
 std::tuple<Value, Value>
-butter(Allocator &alloc, int N, double Wn, const std::string &type)
+butter(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("butter: Wn must be between 0 and 1",
@@ -103,17 +103,17 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type)
 
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
 
-    ScratchArena scratch(alloc);
-    auto sPoles = butterworthPoles(scratch.resource(), N);
+    ScratchArena scratch(mr);
+    auto sPoles = butterworthPoles(&scratch, N);
 
-    ScratchVec<double> b(scratch.resource()), a(scratch.resource());
-    bilinearTransform(scratch.resource(), sPoles.data(), sPoles.size(), Wa, b, a);
+    ScratchVec<double> b(&scratch), a(&scratch);
+    bilinearTransform(&scratch, sPoles.data(), sPoles.size(), Wa, b, a);
 
     if (type == "high")
         lpToHp(b, a);
 
-    auto bv = Value::matrix(1, b.size(), ValueType::DOUBLE, &alloc);
-    auto av = Value::matrix(1, a.size(), ValueType::DOUBLE, &alloc);
+    auto bv = Value::matrix(1, b.size(), ValueType::DOUBLE, mr);
+    auto av = Value::matrix(1, a.size(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < b.size(); ++i)
         bv.doubleDataMut()[i] = b[i];
     for (size_t i = 0; i < a.size(); ++i)
@@ -122,7 +122,7 @@ butter(Allocator &alloc, int N, double Wn, const std::string &type)
     return std::make_tuple(std::move(bv), std::move(av));
 }
 
-Value fir1(Allocator &alloc, int N, double Wn, const std::string &type)
+Value fir1(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type)
 {
     if (Wn <= 0.0 || Wn >= 1.0)
         throw Error("fir1: Wn must be between 0 and 1",
@@ -135,7 +135,7 @@ Value fir1(Allocator &alloc, int N, double Wn, const std::string &type)
     const double wc = M_PI * Wn;
     const double half = N / 2.0;
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto h = scratch.vec<double>(filtLen);
     double hSum = 0.0;
 
@@ -159,7 +159,7 @@ Value fir1(Allocator &alloc, int N, double Wn, const std::string &type)
         h[static_cast<size_t>(half)] += 1.0;
     }
 
-    auto bv = Value::matrix(1, filtLen, ValueType::DOUBLE, &alloc);
+    auto bv = Value::matrix(1, filtLen, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < filtLen; ++i)
         bv.doubleDataMut()[i] = h[i];
     return bv;
@@ -179,7 +179,7 @@ void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (args.size() >= 3 && args[2].isChar())
         type = args[2].toString();
 
-    auto [bv, av] = butter(ctx.engine->allocator(), N, Wn, type);
+    auto [bv, av] = butter(ctx.engine->resource(), N, Wn, type);
     outs[0] = std::move(bv);
     if (nargout > 1)
         outs[1] = std::move(av);
@@ -196,7 +196,7 @@ void fir1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3 && args[2].isChar())
         type = args[2].toString();
 
-    outs[0] = fir1(ctx.engine->allocator(), N, Wn, type);
+    outs[0] = fir1(ctx.engine->resource(), N, Wn, type);
 }
 
 } // namespace detail

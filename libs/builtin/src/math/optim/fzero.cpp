@@ -118,7 +118,7 @@ double brent(Engine *engine, const Value &fn, double a, double b)
 
 } // namespace
 
-Value fzero(Allocator &alloc, const Value &fn, const Value &x0OrInterval,
+Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInterval,
              Engine *engine)
 {
     if (engine == nullptr)
@@ -135,7 +135,7 @@ Value fzero(Allocator &alloc, const Value &fn, const Value &x0OrInterval,
         if (!std::isfinite(a) || !std::isfinite(b) || a >= b)
             throw Error("fzero: interval [a, b] must satisfy a < b and be finite",
                          0, 0, "fzero", "", "m:fzero:badInterval");
-        return Value::scalar(brent(engine, fn, a, b), &alloc);
+        return Value::scalar(brent(engine, fn, a, b), mr);
     }
 
     if (!x0OrInterval.isScalar())
@@ -147,9 +147,9 @@ Value fzero(Allocator &alloc, const Value &fn, const Value &x0OrInterval,
         throw Error("fzero: x0 must be finite",
                      0, 0, "fzero", "", "m:fzero:badX0");
     auto [a, b] = findBracket(engine, fn, x0);
-    if (a == b) return Value::scalar(a, &alloc);
+    if (a == b) return Value::scalar(a, mr);
     if (a > b) std::swap(a, b);
-    return Value::scalar(brent(engine, fn, a, b), &alloc);
+    return Value::scalar(brent(engine, fn, a, b), mr);
 }
 
 // ── Engine adapter ───────────────────────────────────────────────────
@@ -160,7 +160,7 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
-    outs[0] = fzero(ctx.engine->allocator(), args[0], args[1], ctx.engine);
+    outs[0] = fzero(ctx.engine->resource(), args[0], args[1], ctx.engine);
 }
 
 } // namespace detail

@@ -7,7 +7,7 @@
 // duplicates.
 
 #include <numkit/builtin/math/elementary/discrete.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -54,9 +54,9 @@ static void BM_Unique(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeIntVec(n, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 1);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::unique(alloc, x);
+        auto y = builtin::unique(mr, x);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -68,9 +68,9 @@ static void BM_Ismember(benchmark::State &s)
     const size_t n = static_cast<size_t>(s.range(0));
     auto a = makeIntVec(n, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 2);
     auto b = makeIntVec(n / 4, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 3);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::ismember(alloc, a, b);
+        auto y = builtin::ismember(mr, a, b);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -83,9 +83,9 @@ static void runPairBench(benchmark::State &s, Fn fn)
     const size_t n = static_cast<size_t>(s.range(0));
     auto a = makeIntVec(n,     std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 4);
     auto b = makeIntVec(n / 2, std::max<int64_t>(8, static_cast<int64_t>(n / 4)), 5);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = fn(alloc, a, b);
+        auto y = fn(mr, a, b);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -104,9 +104,9 @@ static void BM_Histcounts(benchmark::State &s)
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeRealVec(n, 6);
     auto edges = makeEdges(64);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::histcounts(alloc, x, edges);
+        auto y = builtin::histcounts(mr, x, edges);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

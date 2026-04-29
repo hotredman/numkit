@@ -5,7 +5,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <tuple>
@@ -20,7 +20,7 @@ namespace numkit::signal {
 /// @param noverlap  Samples of overlap between segments. 0 → winLen / 2.
 /// @param nfft      FFT size. 0 → auto-pick nextPow2(winLen).
 std::tuple<Value, Value, Value>
-spectrogram(Allocator &alloc,
+spectrogram(std::pmr::memory_resource *mr,
             const Value &x,
             const Value &window,
             size_t noverlap,

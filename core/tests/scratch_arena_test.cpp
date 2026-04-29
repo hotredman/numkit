@@ -1,46 +1,49 @@
 // core/tests/scratch_arena_test.cpp
 //
 // Unit tests for ScratchArena — verify the inline-buffer / upstream-spill
-// boundary, value-initialisation guarantees of vec<T>(n), and that the
-// arena releases all upstream allocations on destruction.
+// boundary, value-initialisation guarantees, and that the arena releases
+// all upstream allocations on destruction.
 
 #include <gtest/gtest.h>
 
-#include <numkit/core/allocator.hpp>
 #include <numkit/core/scratch_arena.hpp>
 
 #include <cstddef>
+#include <memory_resource>
 #include <new>
 
-using numkit::Allocator;
 using numkit::ScratchArena;
 using numkit::ScratchVec;
 
 namespace {
 
-// Tracks every allocate/deallocate the upstream Allocator sees. Letting
-// us assert that the inline buffer absorbs small scratches (zero upstream
-// hits) and that overflows are eventually returned (matched dealloc count).
-struct UpstreamCounter
+// Tracks every allocate/deallocate the upstream memory_resource sees.
+// Lets us assert that the inline buffer absorbs small scratches (zero
+// upstream hits) and that overflows are eventually returned (matched
+// dealloc count). Subclassing std::pmr::memory_resource is the standard
+// pmr extension point for embedders who want a custom heap policy.
+struct UpstreamCounter : public std::pmr::memory_resource
 {
     std::size_t alloc_calls   = 0;
     std::size_t dealloc_calls = 0;
     std::size_t bytes_alive   = 0;
 
-    Allocator make()
+protected:
+    void *do_allocate(std::size_t n, std::size_t /*align*/) override
     {
-        return Allocator{
-            [this](std::size_t n) -> void * {
-                ++alloc_calls;
-                bytes_alive += n;
-                return ::operator new(n);
-            },
-            [this](void *p, std::size_t n) {
-                ++dealloc_calls;
-                bytes_alive -= n;
-                ::operator delete(p);
-            }
-        };
+        ++alloc_calls;
+        bytes_alive += n;
+        return ::operator new(n);
+    }
+    void do_deallocate(void *p, std::size_t n, std::size_t /*align*/) override
+    {
+        ++dealloc_calls;
+        bytes_alive -= n;
+        ::operator delete(p);
+    }
+    bool do_is_equal(const memory_resource &other) const noexcept override
+    {
+        return this == &other;
     }
 };
 
@@ -51,13 +54,12 @@ struct UpstreamCounter
 TEST(ScratchArenaTest, SmallScratchDoesNotTouchUpstream)
 {
     UpstreamCounter c;
-    Allocator a = c.make();
 
     {
-        ScratchArena scratch(a);
-        auto v1 = scratch.vec<double>(64);   //  512 B
-        auto v2 = scratch.vec<int>(128);     //  512 B
-        auto v3 = scratch.vec<std::size_t>(64); //  512 B
+        ScratchArena scratch(&c);
+        ScratchVec<double>      v1(64,  &scratch);   //  512 B
+        ScratchVec<int>         v2(128, &scratch);   //  512 B
+        ScratchVec<std::size_t> v3(64,  &scratch);   //  512 B
         // total ≈ 1.5 KiB ≪ inline buffer
 
         EXPECT_EQ(v1.size(), 64u);
@@ -75,12 +77,11 @@ TEST(ScratchArenaTest, SmallScratchDoesNotTouchUpstream)
 TEST(ScratchArenaTest, LargeScratchSpillsToUpstreamAndReleases)
 {
     UpstreamCounter c;
-    Allocator a = c.make();
 
     {
-        ScratchArena scratch(a);
+        ScratchArena scratch(&c);
         // 10 000 doubles = 80 000 B — far beyond the inline buffer
-        auto v = scratch.vec<double>(10'000);
+        ScratchVec<double> v(10'000, &scratch);
         EXPECT_EQ(v.size(), 10'000u);
         v[0]    = 1.0;
         v.back() = 2.0;
@@ -93,34 +94,32 @@ TEST(ScratchArenaTest, LargeScratchSpillsToUpstreamAndReleases)
     EXPECT_EQ(c.bytes_alive, 0u);
 }
 
-// ─── vec<T>(n) value-initialises arithmetic elements to zero ────────
+// ─── ScratchVec<T>(n, mr) value-initialises arithmetic elements to zero
 
 TEST(ScratchArenaTest, VecValueInitialisesArithmeticToZero)
 {
-    Allocator a = Allocator::defaultAllocator();
-    ScratchArena scratch(a);
+    ScratchArena scratch(std::pmr::get_default_resource());
 
-    auto vd = scratch.vec<double>(16);
+    ScratchVec<double> vd(16, &scratch);
     for (double x : vd)
         EXPECT_DOUBLE_EQ(x, 0.0);
 
-    auto vi = scratch.vec<int>(16);
+    ScratchVec<int> vi(16, &scratch);
     for (int x : vi)
         EXPECT_EQ(x, 0);
 
-    auto vs = scratch.vec<std::size_t>(16);
+    ScratchVec<std::size_t> vs(16, &scratch);
     for (std::size_t x : vs)
         EXPECT_EQ(x, 0u);
 }
 
-// ─── vec<T>() returns empty vector that can grow ────────────────────
+// ─── ScratchVec<T>(mr) (no size) returns empty vector that can grow ─
 
 TEST(ScratchArenaTest, VecDefaultIsEmptyAndGrowable)
 {
-    Allocator a = Allocator::defaultAllocator();
-    ScratchArena scratch(a);
+    ScratchArena scratch(std::pmr::get_default_resource());
 
-    auto v = scratch.vec<double>();
+    ScratchVec<double> v(&scratch);
     EXPECT_EQ(v.size(), 0u);
 
     v.reserve(8);
@@ -137,6 +136,9 @@ TEST(ScratchArenaTest, VecDefaultIsEmptyAndGrowable)
 // Regression guard: pmr::vector's copy ctor uses
 // select_on_container_copy_construction → default_resource. Without
 // the explicit-allocator copy, X would silently allocate off-arena.
+// (ScratchVec's deleted copy ctor catches the most common form at
+// compile time; this checks the fallback explicit-copy path still
+// routes through the arena.)
 //
 // To make this test *actually* catch a regression, src is sized to
 // overflow the inline buffer. A correct helper spills into the
@@ -147,14 +149,13 @@ TEST(ScratchArenaTest, VecDefaultIsEmptyAndGrowable)
 TEST(ScratchArenaTest, ScratchCopyOfRoutesThroughArena)
 {
     UpstreamCounter c;
-    Allocator a = c.make();
 
     // 32768 ints = 128 KB — far beyond the inline buffer.
     std::pmr::vector<int> src(32768, 42);
 
     {
-        ScratchArena scratch(a);
-        auto dst = numkit::scratchCopyOf(scratch.resource(), src);
+        ScratchArena scratch(&c);
+        auto dst = numkit::scratchCopyOf(&scratch, src);
         EXPECT_EQ(dst.size(), 32768u);
         for (int v : dst)
             EXPECT_EQ(v, 42);
@@ -171,14 +172,13 @@ TEST(ScratchArenaTest, ScratchCopyOfRoutesThroughArena)
 TEST(ScratchArenaTest, MultipleArenasAreIndependent)
 {
     UpstreamCounter c;
-    Allocator a = c.make();
 
     {
-        ScratchArena s1(a);
-        ScratchArena s2(a);
+        ScratchArena s1(&c);
+        ScratchArena s2(&c);
 
-        auto v1 = s1.vec<int>(32);
-        auto v2 = s2.vec<int>(32);
+        ScratchVec<int> v1(32, &s1);
+        ScratchVec<int> v2(32, &s2);
         v1[0] = 100;
         v2[0] = 200;
         EXPECT_EQ(v1[0], 100);

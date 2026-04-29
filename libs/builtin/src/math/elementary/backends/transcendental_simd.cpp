@@ -103,26 +103,26 @@ namespace {
 // reference path, route real vectors through the dispatcher. When
 // `hint` is a uniquely-owned heap double of matching shape, steal
 // its buffer instead of allocating a fresh result — saves the
-// per-call N-element alloc that dominates at large N. See the
+// per-call N-element mr that dominates at large N. See the
 // docblock on abs() in math/elementary/misc.hpp for the full hint contract.
 template <typename LoopDispatch, typename ScalarOp, typename ComplexOp>
-Value unaryRealDouble(Allocator &alloc, const Value &x, Value *hint,
+Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint,
                        LoopDispatch loop, ScalarOp scalarOp, ComplexOp complexOp)
 {
     if (x.isComplex()) {
         if (x.isScalar())
-            return Value::complexScalar(complexOp(x.toComplex()), &alloc);
-        return unaryComplex(x, complexOp, &alloc);
+            return Value::complexScalar(complexOp(x.toComplex()), mr);
+        return unaryComplex(x, complexOp, mr);
     }
     if (x.isScalar())
-        return Value::scalar(scalarOp(x.toScalar()), &alloc);
+        return Value::scalar(scalarOp(x.toScalar()), mr);
 
     Value r;
     if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
         && hint->dims() == x.dims()) {
         r = std::move(*hint);
     } else {
-        r = createLike(x, ValueType::DOUBLE, &alloc);
+        r = createLike(x, ValueType::DOUBLE, mr);
     }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
@@ -137,10 +137,10 @@ Value unaryRealDouble(Allocator &alloc, const Value &x, Value *hint,
 
 } // namespace
 
-Value sin(Allocator &alloc, const Value &x, Value *hint)
+Value sin(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     return unaryRealDouble(
-        alloc, x, hint,
+        mr, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(SinLoop)(in, out, n);
         },
@@ -148,10 +148,10 @@ Value sin(Allocator &alloc, const Value &x, Value *hint)
         [](const Complex &c) { return std::sin(c); });
 }
 
-Value cos(Allocator &alloc, const Value &x, Value *hint)
+Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     return unaryRealDouble(
-        alloc, x, hint,
+        mr, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(CosLoop)(in, out, n);
         },
@@ -159,10 +159,10 @@ Value cos(Allocator &alloc, const Value &x, Value *hint)
         [](const Complex &c) { return std::cos(c); });
 }
 
-Value exp(Allocator &alloc, const Value &x, Value *hint)
+Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     return unaryRealDouble(
-        alloc, x, hint,
+        mr, x, hint,
         [](const double *in, double *out, std::size_t n) {
             HWY_DYNAMIC_DISPATCH(ExpLoop)(in, out, n);
         },
@@ -174,21 +174,21 @@ Value exp(Allocator &alloc, const Value &x, Value *hint)
 // log(-1) → i·π), but the element-wise path on a real vector just
 // produces NaN for negatives — same as std::log. The SIMD Log()
 // mirrors that behaviour.
-Value log(Allocator &alloc, const Value &x, Value *hint)
+Value log(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::log(c); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::log(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0)
-        return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)), &alloc);
+        return Value::complexScalar(std::log(Complex(x.toScalar(), 0.0)), mr);
     if (x.isScalar())
-        return Value::scalar(std::log(x.toScalar()), &alloc);
+        return Value::scalar(std::log(x.toScalar()), mr);
 
     Value r;
     if (hint && hint->isHeapDouble() && hint->heapRefCount() == 1
         && hint->dims() == x.dims()) {
         r = std::move(*hint);
     } else {
-        r = createLike(x, ValueType::DOUBLE, &alloc);
+        r = createLike(x, ValueType::DOUBLE, mr);
     }
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();

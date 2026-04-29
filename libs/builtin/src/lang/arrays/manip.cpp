@@ -26,7 +26,7 @@ namespace numkit::builtin {
 //
 // Tile the input matrix m × n times (and optionally p times along
 // pages for the 3D form). Output dims: (R*m) × (C*n) × (P*p).
-Value repmat(Allocator &alloc, const Value &x, size_t m, size_t n, size_t p)
+Value repmat(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n, size_t p)
 {
     const auto &dd = x.dims();
     const size_t R = dd.rows(), C = dd.cols();
@@ -34,8 +34,8 @@ Value repmat(Allocator &alloc, const Value &x, size_t m, size_t n, size_t p)
     const size_t outR = R * m, outC = C * n, outP = P * p;
     const bool out3D = (outP > 1) || dd.is3D();
 
-    auto r = out3D ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(outR, outC, ValueType::DOUBLE, &alloc);
+    auto r = out3D ? Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr)
+                   : Value::matrix(outR, outC, ValueType::DOUBLE, mr);
     if (R == 0 || C == 0 || P == 0 || m == 0 || n == 0 || p == 0)
         return r;
 
@@ -73,7 +73,7 @@ Value repmat(Allocator &alloc, const Value &x, size_t m, size_t n, size_t p)
 // each output column-of-axis-0 back to its source column via per-axis
 // modulo, then memcpys axis-0-bytes tilesPadded[0] times to fill the
 // output column. Type-preserving via byte-copy (elementSize-based).
-Value repmatND(Allocator &alloc, const Value &x,
+Value repmatND(std::pmr::memory_resource *mr, const Value &x,
                 const size_t *tiles, int ntiles)
 {
     const ValueType t = x.type();
@@ -100,7 +100,7 @@ Value repmatND(Allocator &alloc, const Value &x,
         outDim[i] = inDimPadded[i] * tilesPadded[i];
     }
 
-    auto r = Value::matrixND(outDim, outNdim, t, &alloc);
+    auto r = Value::matrixND(outDim, outNdim, t, mr);
     if (r.numel() == 0 || x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -154,7 +154,7 @@ namespace {
 // The slab stride is B = prod(dims[0..axis-1]) elements; outer count
 // O = prod(dims[axis+1..N-1]). Used by the ND fallback for fliplr
 // (axis=1) and flipud (axis=0). Type-preserving via byte-copy.
-Value flipNDAlongAxis(Allocator &alloc, const Value &x, int axis,
+Value flipNDAlongAxis(std::pmr::memory_resource *mr, const Value &x, int axis,
                        const char *fn)
 {
     const ValueType t = x.type();
@@ -172,7 +172,7 @@ Value flipNDAlongAxis(Allocator &alloc, const Value &x, int axis,
 
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = d.dim(i);
-    auto r = Value::matrixND(outDimArr, nd, t, &alloc);
+    auto r = Value::matrixND(outDimArr, nd, t, mr);
     if (x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -204,15 +204,15 @@ Value flipNDAlongAxis(Allocator &alloc, const Value &x, int axis,
 
 } // namespace
 
-Value fliplr(Allocator &alloc, const Value &x)
+Value fliplr(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dd = x.dims();
-    if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 1, "fliplr");
+    if (dd.ndim() >= 4) return flipNDAlongAxis(mr, x, 1, "fliplr");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -226,15 +226,15 @@ Value fliplr(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value flipud(Allocator &alloc, const Value &x)
+Value flipud(std::pmr::memory_resource *mr, const Value &x)
 {
     const auto &dd = x.dims();
-    if (dd.ndim() >= 4) return flipNDAlongAxis(alloc, x, 0, "flipud");
+    if (dd.ndim() >= 4) return flipNDAlongAxis(mr, x, 0, "flipud");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
 
     const double *src = x.doubleData();
@@ -319,7 +319,7 @@ inline void rot270PageBytes(const char *src, char *dst,
 
 } // namespace
 
-Value rot90(Allocator &alloc, const Value &x, int k)
+Value rot90(std::pmr::memory_resource *mr, const Value &x, int k)
 {
     int kMod = k % 4;
     if (kMod < 0) kMod += 4;
@@ -346,7 +346,7 @@ Value rot90(Allocator &alloc, const Value &x, int k)
         outDims[0] = (kMod == 1 || kMod == 3) ? C : R;
         outDims[1] = (kMod == 1 || kMod == 3) ? R : C;
         for (int i = 2; i < nd; ++i) outDims[i] = dd.dim(i);
-        auto r = Value::matrixND(outDims, nd, t, &alloc);
+        auto r = Value::matrixND(outDims, nd, t, mr);
         if (x.numel() == 0) return r;
         const size_t es = elementSize(t);
         const char *src = static_cast<const char *>(x.rawData());
@@ -371,8 +371,8 @@ Value rot90(Allocator &alloc, const Value &x, int k)
 
     // k mod 4 == 0 → identity (just copy). Same shape as input.
     if (kMod == 0) {
-        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                      : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                      : Value::matrix(R, C, ValueType::DOUBLE, mr);
         if (x.numel() > 0)
             std::memcpy(r.doubleDataMut(), x.doubleData(),
                         x.numel() * sizeof(double));
@@ -381,8 +381,8 @@ Value rot90(Allocator &alloc, const Value &x, int k)
 
     // k mod 4 == 2 → same shape (R, C) but elements reflected.
     if (kMod == 2) {
-        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                      : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+        auto r = is3D ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                      : Value::matrix(R, C, ValueType::DOUBLE, mr);
         if (x.numel() == 0) return r;
         const double *src = x.doubleData();
         double *dst = r.doubleDataMut();
@@ -393,8 +393,8 @@ Value rot90(Allocator &alloc, const Value &x, int k)
 
     // k mod 4 == 1 (90° CCW) or == 3 (90° CW = 270°): output shape is
     // (C, R, P) — the per-page rows and cols swap.
-    auto r = is3D ? Value::matrix3d(C, R, P, ValueType::DOUBLE, &alloc)
-                  : Value::matrix(C, R, ValueType::DOUBLE, &alloc);
+    auto r = is3D ? Value::matrix3d(C, R, P, ValueType::DOUBLE, mr)
+                  : Value::matrix(C, R, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -444,13 +444,13 @@ void shift2D(const double *src, double *dst, size_t R, size_t C,
 
 } // namespace
 
-Value circshift(Allocator &alloc, const Value &x, int64_t k)
+Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t k)
 {
     const auto &dd = x.dims();
-    if (x.isScalar()) return Value::scalar(x.toScalar(), &alloc);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.isVector()) {
         const size_t n = x.numel();
-        auto r = Value::matrix(dd.rows(), dd.cols(), ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(dd.rows(), dd.cols(), ValueType::DOUBLE, mr);
         const size_t sh = wrap(k, n);
         for (size_t i = 0; i < n; ++i)
             r.doubleDataMut()[i] = x.doubleData()[(i + n - sh) % n];
@@ -459,10 +459,10 @@ Value circshift(Allocator &alloc, const Value &x, int64_t k)
     // 2D / 3D matrix: scalar k shifts along first non-singleton dim.
     // For 2D matrices that's dim=1 (rows). For 3D, dim 1 too (since
     // rows is typically > 1).
-    return circshift(alloc, x, k, 0);
+    return circshift(mr, x, k, 0);
 }
 
-Value circshiftND(Allocator &alloc, const Value &x,
+Value circshiftND(std::pmr::memory_resource *mr, const Value &x,
                    const int64_t *shifts, int nshifts)
 {
     const ValueType t = x.type();
@@ -480,7 +480,7 @@ Value circshiftND(Allocator &alloc, const Value &x,
 
     size_t outDims[kMaxNd];
     for (int i = 0; i < nd; ++i) outDims[i] = d.dim(i);
-    auto r = Value::matrixND(outDims, nd, t, &alloc);
+    auto r = Value::matrixND(outDims, nd, t, mr);
     if (x.numel() == 0) return r;
 
     size_t shiftMod[kMaxNd] = {0};
@@ -533,13 +533,13 @@ Value circshiftND(Allocator &alloc, const Value &x,
     return r;
 }
 
-Value circshift(Allocator &alloc, const Value &x, int64_t kRow, int64_t kCol)
+Value circshift(std::pmr::memory_resource *mr, const Value &x, int64_t kRow, int64_t kCol)
 {
     const auto &dd = x.dims();
-    if (x.isScalar()) return Value::scalar(x.toScalar(), &alloc);
+    if (x.isScalar()) return Value::scalar(x.toScalar(), mr);
     if (dd.is3D()) {
         const size_t R = dd.rows(), C = dd.cols(), P = dd.pages();
-        auto r = Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix3d(R, C, P, ValueType::DOUBLE, mr);
         for (size_t pp = 0; pp < P; ++pp)
             shift2D(x.doubleData() + pp * R * C,
                     r.doubleDataMut() + pp * R * C,
@@ -548,10 +548,10 @@ Value circshift(Allocator &alloc, const Value &x, int64_t kRow, int64_t kCol)
     }
     if (dd.ndim() >= 4) {
         const int64_t shifts[2] = {kRow, kCol};
-        return circshiftND(alloc, x, shifts, 2);
+        return circshiftND(mr, x, shifts, 2);
     }
     const size_t R = dd.rows(), C = dd.cols();
-    auto r = Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(R, C, ValueType::DOUBLE, mr);
     shift2D(x.doubleData(), r.doubleDataMut(), R, C, kRow, kCol);
     return r;
 }
@@ -623,7 +623,7 @@ inline void triuPageBytes(const char *src, char *dst, size_t R, size_t C,
 namespace {
 
 template <typename PageBytesFn>
-Value trilTriuND(Allocator &alloc, const Value &x, int k,
+Value trilTriuND(std::pmr::memory_resource *mr, const Value &x, int k,
                   PageBytesFn pageFn, const char *fn)
 {
     const auto &dd = x.dims();
@@ -642,7 +642,7 @@ Value trilTriuND(Allocator &alloc, const Value &x, int k,
     const size_t R = dd.rows(), C = dd.cols();
     size_t outDimArr[kMaxNd];
     for (int i = 0; i < nd; ++i) outDimArr[i] = dd.dim(i);
-    auto r = Value::matrixND(outDimArr, nd, t, &alloc);
+    auto r = Value::matrixND(outDimArr, nd, t, mr);
     if (x.numel() == 0) return r;
 
     const size_t es = elementSize(t);
@@ -657,16 +657,16 @@ Value trilTriuND(Allocator &alloc, const Value &x, int k,
 
 } // namespace
 
-Value tril(Allocator &alloc, const Value &x, int k)
+Value tril(std::pmr::memory_resource *mr, const Value &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(alloc, x, k, trilPageBytes, "tril");
+        return trilTriuND(mr, x, k, trilPageBytes, "tril");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -675,16 +675,16 @@ Value tril(Allocator &alloc, const Value &x, int k)
     return r;
 }
 
-Value triu(Allocator &alloc, const Value &x, int k)
+Value triu(std::pmr::memory_resource *mr, const Value &x, int k)
 {
     const auto &dd = x.dims();
     if (dd.ndim() >= 4)
-        return trilTriuND(alloc, x, k, triuPageBytes, "triu");
+        return trilTriuND(mr, x, k, triuPageBytes, "triu");
 
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
-    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, &alloc)
-                       : Value::matrix(R, C, ValueType::DOUBLE, &alloc);
+    auto r = dd.is3D() ? Value::matrix3d(R, C, P, ValueType::DOUBLE, mr)
+                       : Value::matrix(R, C, ValueType::DOUBLE, mr);
     if (x.numel() == 0) return r;
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -704,7 +704,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("repmat: requires at least 2 arguments",
                      0, 0, "repmat", "", "m:repmat:nargin");
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
 
     // Forms:
     //   repmat(A, n)            → m=n=arg
@@ -712,7 +712,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     //   repmat(A, [m n p ...])  → vector (any length ≥ 1)
     //   repmat(A, m, n)         → two scalars
     //   repmat(A, m, n, p, ...) → ≥ 2 scalars
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto tiles = scratch.vec<size_t>();
     if (args.size() == 2) {
         const Value &v = args[1];
@@ -744,9 +744,9 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         const size_t m = tiles[0];
         const size_t n = tiles.size() >= 2 ? tiles[1] : 1;
         const size_t p = tiles.size() >= 3 ? tiles[2] : 1;
-        outs[0] = repmat(alloc, args[0], m, n, p);
+        outs[0] = repmat(mr, args[0], m, n, p);
     } else {
-        outs[0] = repmatND(alloc, args[0], tiles.data(), static_cast<int>(tiles.size()));
+        outs[0] = repmatND(mr, args[0], tiles.data(), static_cast<int>(tiles.size()));
     }
 }
 
@@ -757,7 +757,7 @@ void repmat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         if (args.empty())                                                      \
             throw Error(#name ": requires 1 argument",                        \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = name(ctx.engine->allocator(), args[0]);                      \
+        outs[0] = name(ctx.engine->resource(), args[0]);                      \
     }
 
 NK_FLIP_REG(fliplr)
@@ -774,7 +774,7 @@ void rot90_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     int k = (args.size() >= 2 && !args[1].isEmpty())
                 ? static_cast<int>(args[1].toScalar())
                 : 1;
-    outs[0] = rot90(ctx.engine->allocator(), args[0], k);
+    outs[0] = rot90(ctx.engine->resource(), args[0], k);
 }
 
 void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -784,28 +784,28 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("circshift: requires (X, k) or (X, shiftVec)",
                      0, 0, "circshift", "", "m:circshift:nargin");
     const Value &k = args[1];
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
     const size_t nk = k.numel();
     if (nk == 0)
         throw Error("circshift: shift vector must not be empty",
                      0, 0, "circshift", "", "m:circshift:badShift");
 
     if (nk == 1) {
-        outs[0] = circshift(alloc, args[0], static_cast<int64_t>(k.toScalar()));
+        outs[0] = circshift(mr, args[0], static_cast<int64_t>(k.toScalar()));
         return;
     }
     if (nk == 2 && args[0].dims().ndim() <= 3) {
-        outs[0] = circshift(alloc, args[0],
+        outs[0] = circshift(mr, args[0],
                             static_cast<int64_t>(k.doubleData()[0]),
                             static_cast<int64_t>(k.doubleData()[1]));
         return;
     }
     // ND path: shift vector ≥ 3 entries OR input rank ≥ 4.
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto shifts = scratch.vec<int64_t>(nk);
     for (size_t i = 0; i < nk; ++i)
         shifts[i] = static_cast<int64_t>(k.doubleData()[i]);
-    outs[0] = circshiftND(alloc, args[0], shifts.data(), static_cast<int>(nk));
+    outs[0] = circshiftND(mr, args[0], shifts.data(), static_cast<int>(nk));
 }
 
 #define NK_TRI_REG(name)                                                       \
@@ -818,7 +818,7 @@ void circshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         int k = (args.size() >= 2 && !args[1].isEmpty())                       \
                     ? static_cast<int>(args[1].toScalar())                     \
                     : 0;                                                        \
-        outs[0] = name(ctx.engine->allocator(), args[0], k);                   \
+        outs[0] = name(ctx.engine->resource(), args[0], k);                   \
     }
 
 NK_TRI_REG(tril)

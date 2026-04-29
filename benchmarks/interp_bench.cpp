@@ -6,7 +6,7 @@
 #include <numkit/builtin/math/elementary/polynomials.hpp>
 #include <numkit/builtin/math/integration/integration.hpp>
 #include <numkit/builtin/math/interpolation/interp.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -59,9 +59,9 @@ static void BM_Interp1Linear(benchmark::State &s)
     auto x  = makeSorted(nx);
     auto y  = makeY(nx);
     auto xq = makeQuery(nx, nq);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::interp1(alloc, x, y, xq, "linear");
+        auto out = builtin::interp1(mr, x, y, xq, "linear");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -75,9 +75,9 @@ static void BM_Interp1Spline(benchmark::State &s)
     auto x  = makeSorted(nx);
     auto y  = makeY(nx);
     auto xq = makeQuery(nx, nq);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::interp1(alloc, x, y, xq, "spline");
+        auto out = builtin::interp1(mr, x, y, xq, "spline");
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(nq));
@@ -90,9 +90,9 @@ static void BM_Polyval(benchmark::State &s)
     const size_t n = static_cast<size_t>(s.range(0));
     auto p  = makeY(16);
     auto xq = makeY(n, 5);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::polyval(alloc, p, xq);
+        auto y = builtin::polyval(mr, p, xq);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));
@@ -103,9 +103,9 @@ static void BM_TrapzUniform(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto y = makeY(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto out = builtin::trapz(alloc, y);
+        auto out = builtin::trapz(mr, y);
         benchmark::DoNotOptimize(out);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(n));

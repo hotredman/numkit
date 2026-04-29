@@ -82,13 +82,13 @@ void rngShuffle()
     sharedEngine().seed(rd());
 }
 
-Value rngState(Allocator &alloc)
+Value rngState(std::pmr::memory_resource *mr)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
     auto blob = serializeEngine();
     auto s = Value::structure();
-    s.field("Type")  = Value::fromString("twister", &alloc);
-    s.field("State") = Value::fromString(blob, &alloc);
+    s.field("Type")  = Value::fromString("twister", mr);
+    s.field("State") = Value::fromString(blob, mr);
     return s;
 }
 
@@ -114,38 +114,38 @@ void rngRestore(const Value &state)
 // randi/randperm.
 // ────────────────────────────────────────────────────────────────────
 
-Value rand(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value rand(std::pmr::memory_resource *mr, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
 {
     std::uniform_real_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
-                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-Value randn(Allocator &alloc, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
+Value randn(std::pmr::memory_resource *mr, std::mt19937 &rng, size_t rows, size_t cols, size_t pages)
 {
     std::normal_distribution<double> dist(0.0, 1.0);
-    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
-                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-Value randND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randND(std::pmr::memory_resource *mr, std::mt19937 &rng, const size_t *dims, int ndims)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, &alloc);
+    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
     return m;
 }
 
-Value randnND(Allocator &alloc, std::mt19937 &rng, const size_t *dims, int ndims)
+Value randnND(std::pmr::memory_resource *mr, std::mt19937 &rng, const size_t *dims, int ndims)
 {
-    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, &alloc);
+    auto m = Value::matrixND(dims, ndims, ValueType::DOUBLE, mr);
     std::normal_distribution<double> dist(0.0, 1.0);
     for (size_t i = 0; i < m.numel(); ++i)
         m.doubleDataMut()[i] = dist(rng);
@@ -169,34 +169,34 @@ void fillUniformInt(double *dst, size_t n, int64_t lo, int64_t hi)
         dst[i] = static_cast<double>(dist(sharedEngine()));
 }
 
-Value makeIntMatrix(Allocator &alloc, int64_t lo, int64_t hi,
+Value makeIntMatrix(std::pmr::memory_resource *mr, int64_t lo, int64_t hi,
                      size_t rows, size_t cols, size_t pages)
 {
-    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, &alloc)
-                         : Value::matrix(rows, cols, ValueType::DOUBLE, &alloc);
+    auto m = (pages > 0) ? Value::matrix3d(rows, cols, pages, ValueType::DOUBLE, mr)
+                         : Value::matrix(rows, cols, ValueType::DOUBLE, mr);
     fillUniformInt(m.doubleDataMut(), m.numel(), lo, hi);
     return m;
 }
 
 } // namespace
 
-Value randi(Allocator &alloc, int64_t imax)
+Value randi(std::pmr::memory_resource *mr, int64_t imax)
 {
     std::lock_guard<std::mutex> lock(rngMutex());
     std::uniform_int_distribution<int64_t> dist(1, imax);
-    return Value::scalar(static_cast<double>(dist(sharedEngine())), &alloc);
+    return Value::scalar(static_cast<double>(dist(sharedEngine())), mr);
 }
 
-Value randi(Allocator &alloc, int64_t imax,
+Value randi(std::pmr::memory_resource *mr, int64_t imax,
              size_t rows, size_t cols, size_t pages)
 {
-    return makeIntMatrix(alloc, 1, imax, rows, cols, pages);
+    return makeIntMatrix(mr, 1, imax, rows, cols, pages);
 }
 
-Value randi(Allocator &alloc, int64_t imin, int64_t imax,
+Value randi(std::pmr::memory_resource *mr, int64_t imin, int64_t imax,
              size_t rows, size_t cols, size_t pages)
 {
-    return makeIntMatrix(alloc, imin, imax, rows, cols, pages);
+    return makeIntMatrix(mr, imin, imax, rows, cols, pages);
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -207,24 +207,24 @@ Value randi(Allocator &alloc, int64_t imin, int64_t imax,
 // randperm(n, k) : partial Fisher-Yates — k iterations are enough to
 // produce k unique values without fully shuffling the rest.
 
-Value randperm(Allocator &alloc, size_t n)
+Value randperm(std::pmr::memory_resource *mr, size_t n)
 {
-    return randperm(alloc, n, n);
+    return randperm(mr, n, n);
 }
 
-Value randperm(Allocator &alloc, size_t n, size_t k)
+Value randperm(std::pmr::memory_resource *mr, size_t n, size_t k)
 {
     if (k > n)
         throw Error("randperm: k must not exceed n",
                      0, 0, "randperm", "", "m:randperm:badK");
-    auto r = Value::matrix(1, k, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, k, ValueType::DOUBLE, mr);
     if (k == 0) return r;
 
     // Fisher-Yates partial shuffle. We allocate a 1..n scratch buffer.
     // For tiny k vs huge n this is wasteful; an alternative is the
     // "selection sampling" algorithm (Knuth Vol 2, 3.4.2). Phase-4
     // scope is correctness; optimisation can come if benches care.
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto pool = scratch.vec<int64_t>(n);
     std::iota(pool.begin(), pool.end(), int64_t{1});
 
@@ -251,18 +251,18 @@ namespace detail {
 void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
 {
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto dims = parseDimsArgsND(scratch.resource(), args);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto dims = parseDimsArgsND(&scratch, args);
     stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;
         const size_t c = dims.size() >= 2 ? dims[1] : 1;
         const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = rand(alloc, sharedEngine(), r, c, p);
+        outs[0] = rand(mr, sharedEngine(), r, c, p);
     } else {
-        outs[0] = randND(alloc, sharedEngine(),
+        outs[0] = randND(mr, sharedEngine(),
                          dims.data(), static_cast<int>(dims.size()));
     }
 }
@@ -270,18 +270,18 @@ void rand_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 void randn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                CallContext &ctx)
 {
-    auto &alloc = ctx.engine->allocator();
-    ScratchArena scratch(alloc);
-    auto dims = parseDimsArgsND(scratch.resource(), args);
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto dims = parseDimsArgsND(&scratch, args);
     stripTrailingOnes(dims);
     std::lock_guard<std::mutex> lock(rngMutex());
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;
         const size_t c = dims.size() >= 2 ? dims[1] : 1;
         const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = randn(alloc, sharedEngine(), r, c, p);
+        outs[0] = randn(mr, sharedEngine(), r, c, p);
     } else {
-        outs[0] = randnND(alloc, sharedEngine(),
+        outs[0] = randnND(mr, sharedEngine(),
                           dims.data(), static_cast<int>(dims.size()));
     }
 }
@@ -309,25 +309,25 @@ void randi_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
 
     Span<const Value> dimArgs = (args.size() > 1) ? args.subspan(1) : Span<const Value>{};
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
 
     if (dimArgs.empty()) {
         // Scalar form.
-        outs[0] = randi(alloc, imin, imax, 1, 1, 0);
+        outs[0] = randi(mr, imin, imax, 1, 1, 0);
         return;
     }
-    ScratchArena scratch(alloc);
-    auto dims = parseDimsArgsND(scratch.resource(), dimArgs);
+    ScratchArena scratch(mr);
+    auto dims = parseDimsArgsND(&scratch, dimArgs);
     stripTrailingOnes(dims);
     if (dims.size() <= 3) {
         const size_t r = dims.size() >= 1 ? dims[0] : 1;
         const size_t c = dims.size() >= 2 ? dims[1] : 1;
         const size_t p = dims.size() >= 3 ? dims[2] : 0;
-        outs[0] = randi(alloc, imin, imax, r, c, p);
+        outs[0] = randi(mr, imin, imax, r, c, p);
     } else {
         // ND form: allocate matrixND and fill via the same uniform-int pass.
         auto m = Value::matrixND(dims.data(), static_cast<int>(dims.size()),
-                                  ValueType::DOUBLE, &alloc);
+                                  ValueType::DOUBLE, mr);
         std::lock_guard<std::mutex> lock(rngMutex());
         std::uniform_int_distribution<int64_t> dist(imin, imax);
         for (size_t i = 0; i < m.numel(); ++i)
@@ -344,10 +344,10 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                      0, 0, "randperm", "", "m:randperm:nargin");
     const size_t n = static_cast<size_t>(args[0].toScalar());
     if (args.size() == 1) {
-        outs[0] = randperm(ctx.engine->allocator(), n);
+        outs[0] = randperm(ctx.engine->resource(), n);
     } else {
         const size_t k = static_cast<size_t>(args[1].toScalar());
-        outs[0] = randperm(ctx.engine->allocator(), n, k);
+        outs[0] = randperm(ctx.engine->resource(), n, k);
     }
 }
 
@@ -363,12 +363,12 @@ void randperm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 void rng_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
              CallContext &ctx)
 {
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
 
     // Always snapshot current state first if caller asked for it.
     Value prev;
     if (nargout > 0)
-        prev = rngState(alloc);
+        prev = rngState(mr);
 
     if (args.empty()) {
         // rng() with no return value is a no-op; with a return it

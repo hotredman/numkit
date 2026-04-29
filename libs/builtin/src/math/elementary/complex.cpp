@@ -17,9 +17,9 @@ namespace numkit::builtin {
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-Value real(Allocator &alloc, const Value &x)
+Value real(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
         return x;
     if (x.isScalar())
@@ -30,9 +30,9 @@ Value real(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value imag(Allocator &alloc, const Value &x)
+Value imag(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
         return Value::scalar(0.0, p);
     if (x.isScalar())
@@ -43,17 +43,17 @@ Value imag(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value conj(Allocator &alloc, const Value &x)
+Value conj(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (!x.isComplex())
         return x;
     return unaryComplex(x, [](const Complex &c) { return std::conj(c); }, p);
 }
 
-Value complex(Allocator &alloc, const Value &re)
+Value complex(std::pmr::memory_resource *mr, const Value &re)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (re.isScalar())
         return Value::complexScalar(re.toScalar(), 0.0, p);
     auto r = createLike(re, ValueType::COMPLEX, p);
@@ -63,9 +63,9 @@ Value complex(Allocator &alloc, const Value &re)
     return r;
 }
 
-Value complex(Allocator &alloc, const Value &re, const Value &im)
+Value complex(std::pmr::memory_resource *mr, const Value &re, const Value &im)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (re.isScalar() && im.isScalar())
         return Value::complexScalar(re.toScalar(), im.toScalar(), p);
     const Value &shape = re.isScalar() ? im : re;
@@ -85,9 +85,9 @@ Value complex(Allocator &alloc, const Value &re, const Value &im)
     return r;
 }
 
-Value angle(Allocator &alloc, const Value &x)
+Value angle(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isComplex()) {
         if (x.isScalar())
             return Value::scalar(std::arg(x.toComplex()), p);
@@ -109,21 +109,21 @@ void real_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
 {
     if (args.empty())
         throw Error("real: requires 1 argument", 0, 0, "real", "", "m:real:nargin");
-    outs[0] = real(ctx.engine->allocator(), args[0]);
+    outs[0] = real(ctx.engine->resource(), args[0]);
 }
 
 void imag_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("imag: requires 1 argument", 0, 0, "imag", "", "m:imag:nargin");
-    outs[0] = imag(ctx.engine->allocator(), args[0]);
+    outs[0] = imag(ctx.engine->resource(), args[0]);
 }
 
 void conj_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("conj: requires 1 argument", 0, 0, "conj", "", "m:conj:nargin");
-    outs[0] = conj(ctx.engine->allocator(), args[0]);
+    outs[0] = conj(ctx.engine->resource(), args[0]);
 }
 
 void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -132,16 +132,16 @@ void complex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("complex: requires 1 or 2 arguments", 0, 0, "complex", "",
                      "m:complex:nargin");
     if (args.size() == 1)
-        outs[0] = complex(ctx.engine->allocator(), args[0]);
+        outs[0] = complex(ctx.engine->resource(), args[0]);
     else
-        outs[0] = complex(ctx.engine->allocator(), args[0], args[1]);
+        outs[0] = complex(ctx.engine->resource(), args[0], args[1]);
 }
 
 void angle_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     if (args.empty())
         throw Error("angle: requires 1 argument", 0, 0, "angle", "", "m:angle:nargin");
-    outs[0] = angle(ctx.engine->allocator(), args[0]);
+    outs[0] = angle(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

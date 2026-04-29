@@ -44,8 +44,8 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
     std::string filename = args[0].toString();
 
     bool asciiFlag = false;
-    ScratchArena scratch_arena(engine.allocator());
-    ScratchVec<std::string> varnames(scratch_arena.resource());
+    ScratchArena scratch_arena(engine.resource());
+    ScratchVec<std::string> varnames(&scratch_arena);
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar())
             continue;
@@ -96,7 +96,7 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs)
 {
-    Allocator *alloc = &engine.allocator();
+    std::pmr::memory_resource *mr = engine.resource();
     if (args.empty() || !args[0].isChar())
         throw Error("load: filename required");
     std::string filename = args[0].toString();
@@ -122,8 +122,7 @@ void load(Engine &engine, Environment &env, Span<const Value> args,
 
     // Parse each non-empty, non-comment line as whitespace-separated
     // doubles. MATLAB ignores '%' and '#' line comments.
-    ScratchArena scratch_arena(*alloc);
-    auto *mr = scratch_arena.resource();
+    ScratchArena scratch_arena(mr);
     ScratchVec<ScratchVec<double>> rows(mr);
     size_t p = 0;
     while (p <= content.size()) {
@@ -165,9 +164,9 @@ void load(Engine &engine, Environment &env, Span<const Value> args,
 
     Value M;
     if (nrows == 1 && cols == 1) {
-        M = Value::scalar(rows[0][0], alloc);
+        M = Value::scalar(rows[0][0], mr);
     } else {
-        M = Value::matrix(nrows, cols, ValueType::DOUBLE, alloc);
+        M = Value::matrix(nrows, cols, ValueType::DOUBLE, mr);
         double *data = M.doubleDataMut();
         for (size_t r = 0; r < nrows; ++r)
             for (size_t c = 0; c < cols; ++c)

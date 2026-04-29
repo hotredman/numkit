@@ -1,7 +1,7 @@
 // libs/signal/include/numkit/signal/convolution/convolution.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <string>
@@ -15,7 +15,7 @@ namespace numkit::signal {
 ///               "same"  (length max(na, nb), centered on full result),
 ///               "valid" (length |na - nb| + 1, no zero-padding effects).
 /// @throws Error on bad shape keyword.
-Value conv(Allocator &alloc,
+Value conv(std::pmr::memory_resource *mr,
             const Value &a,
             const Value &b,
             const std::string &shape = "full");
@@ -25,20 +25,20 @@ Value conv(Allocator &alloc,
 /// Returns (q, r) as a tuple. Throws Error if `a` is longer than `b` or
 /// if a[0] == 0 (leading coefficient). MATLAB's `[q, r] = deconv(b, a)`.
 std::tuple<Value, Value>
-deconv(Allocator &alloc, const Value &b, const Value &a);
+deconv(std::pmr::memory_resource *mr, const Value &b, const Value &a);
 
 /// Cross-correlation of x and y. Returns (c, lags).
 ///
 /// c has length nx + ny - 1. lags is an integer vector spanning
 /// -(max(nx,ny)-1) ... +(max(nx,ny)-1). MATLAB's `[c, lags] = xcorr(x, y)`.
 std::tuple<Value, Value>
-xcorr(Allocator &alloc, const Value &x, const Value &y);
+xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 
-/// Auto-correlation — equivalent to xcorr(alloc, x, x).
+/// Auto-correlation — equivalent to xcorr(mr, x, x).
 inline std::tuple<Value, Value>
-xcorr(Allocator &alloc, const Value &x)
+xcorr(std::pmr::memory_resource *mr, const Value &x)
 {
-    return xcorr(alloc, x, x);
+    return xcorr(mr, x, x);
 }
 
 } // namespace numkit::signal

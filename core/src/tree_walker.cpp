@@ -127,8 +127,8 @@ bool TreeWalker::tryResolveScalarIndex(const ASTNode *indexExpr,
         }
 
         if (lOk && rOk) {
-            Value lm = Value::scalar(lv, &engine_.allocator_);
-            Value rm = Value::scalar(rv, &engine_.allocator_);
+            Value lm = Value::scalar(lv, engine_.mr_);
+            Value rm = Value::scalar(rv, engine_.mr_);
             Value result = (*static_cast<const BinaryOpFunc *>(indexExpr->cachedOp))(lm, rm);
             if (result.isScalar()) {
                 double v = result.toScalar();
@@ -202,15 +202,15 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
     case NodeType::BLOCK:
         return execBlock(node, env);
     case NodeType::NUMBER_LITERAL:
-        return Value::scalar(node->numValue, &engine_.allocator_);
+        return Value::scalar(node->numValue, engine_.mr_);
     case NodeType::STRING_LITERAL:
-        return Value::fromString(node->strValue, &engine_.allocator_);
+        return Value::fromString(node->strValue, engine_.mr_);
     case NodeType::DQSTRING_LITERAL:
-        return Value::stringScalar(node->strValue, &engine_.allocator_);
+        return Value::stringScalar(node->strValue, engine_.mr_);
     case NodeType::BOOL_LITERAL:
-        return Value::logicalScalar(node->boolValue, &engine_.allocator_);
+        return Value::logicalScalar(node->boolValue, engine_.mr_);
     case NodeType::IMAG_LITERAL:
-        return Value::complexScalar(0.0, node->numValue, &engine_.allocator_);
+        return Value::complexScalar(0.0, node->numValue, engine_.mr_);
     case NodeType::IDENTIFIER:
         return execIdentifier(node, env);
     case NodeType::ASSIGN:
@@ -279,7 +279,7 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
             auto &ctx = indexContextStack_.back();
             size_t sz = (ctx.ndims == 1) ? ctx.array->numel()
                                          : ctx.array->dims().dimSize(ctx.dimension);
-            return Value::scalar(static_cast<double>(sz), &engine_.allocator_);
+            return Value::scalar(static_cast<double>(sz), engine_.mr_);
         }
         throw std::runtime_error("'end' used outside of indexing context");
     }
@@ -495,8 +495,8 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
         // Unknown op — fall back to cached BinaryOpFunc
         if (!expr->cachedOp)
             return false;
-        Value lArg = Value::scalar(lv, &engine_.allocator_);
-        Value rArg = Value::scalar(rv, &engine_.allocator_);
+        Value lArg = Value::scalar(lv, engine_.mr_);
+        Value rArg = Value::scalar(rv, engine_.mr_);
         Value result = (*static_cast<const BinaryOpFunc *>(expr->cachedOp))(lArg, rArg);
         if (result.isScalar()) {
             ValueType t = result.type();
@@ -535,7 +535,7 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
 
         if (!expr->cachedOp)
             return false;
-        Value om = Value::scalar(operand, &engine_.allocator_);
+        Value om = Value::scalar(operand, engine_.mr_);
         Value result = (*static_cast<const UnaryOpFunc *>(expr->cachedOp))(om);
         if (result.isScalar()) {
             ValueType t = result.type();
@@ -791,7 +791,7 @@ bool TreeWalker::tryEvalFast(const ASTNode *expr, Environment *env, Value &out)
         // Reuse engine-owned buffer to avoid heap allocation per call
         callArgsBuf_.clear();
         for (size_t i = 0; i < nargs; ++i)
-            callArgsBuf_.push_back(Value::scalar(argVals[i], &engine_.allocator_));
+            callArgsBuf_.push_back(Value::scalar(argVals[i], engine_.mr_));
         Value outBuf[1];
         CallContext ctx{&engine_, env};
         (*static_cast<const ExternalFunc *>(
@@ -844,7 +844,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                             existing->setScalarVal(dv);
                             last = *existing;
                         } else {
-                            env->set(lhsName, Value::scalar(dv, &engine_.allocator_));
+                            env->set(lhsName, Value::scalar(dv, engine_.mr_));
                             last = *env->get(lhsName);
                         }
                     } else {
@@ -870,7 +870,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                                     if (existing && existing->isDoubleScalar()) {
                                         existing->setScalarVal(v);
                                     } else {
-                                        env->set(lhsName, Value::scalar(v, &engine_.allocator_));
+                                        env->set(lhsName, Value::scalar(v, engine_.mr_));
                                     }
                                     continue;
                                 }
@@ -901,7 +901,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                                 if (idx < arr->numel()) {
                                     arr->doubleDataMut()[idx] = rhsVal;
                                 } else {
-                                    arr->ensureSize(idx, &engine_.allocator_);
+                                    arr->ensureSize(idx, engine_.mr_);
                                     arr->doubleDataMut()[idx] = rhsVal;
                                 }
                                 continue;
@@ -942,7 +942,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                                 *fv.doubleDataMut() = dv;
                                 continue;
                             }
-                            fv = Value::scalar(dv, &engine_.allocator_);
+                            fv = Value::scalar(dv, engine_.mr_);
                             continue;
                         }
                     } else {
@@ -1066,9 +1066,9 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
             if (maxIdx > var->numel()) {
                 bool isColVec = (var->dims().cols() == 1 && var->dims().rows() > 1);
                 if (isColVec)
-                    var->resize(maxIdx, 1, &engine_.allocator_);
+                    var->resize(maxIdx, 1, engine_.mr_);
                 else
-                    var->resize(1, maxIdx, &engine_.allocator_);
+                    var->resize(1, maxIdx, engine_.mr_);
             }
             const std::string rs = rhs.toString();
             char *data = var->charDataMut();
@@ -1088,7 +1088,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
         if (rhs.isScalar()) {
             size_t scalarIdx;
             if (tryResolveScalarIndex(lhs->children[1].get(), *var, 0, 1, env, scalarIdx)) {
-                var->ensureSize(scalarIdx, &engine_.allocator_);
+                var->ensureSize(scalarIdx, engine_.mr_);
                 var->elemSet(scalarIdx, rhs);
                 return;
             }
@@ -1096,7 +1096,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
 
         auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
         for (auto idx : indices)
-            var->ensureSize(idx, &engine_.allocator_);
+            var->ensureSize(idx, engine_.mr_);
         var->indexSet(indices.data(), indices.size(), rhs);
     } else if (nargs == 2) {
         // ── scalar fast path: M(i,j) = scalar ──
@@ -1108,7 +1108,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
                 if (needR > var->dims().rows() || needC > var->dims().cols())
                     var->resize(std::max(var->dims().rows(), needR),
                                 std::max(var->dims().cols(), needC),
-                                &engine_.allocator_);
+                                engine_.mr_);
                 var->elemSet(var->dims().sub2ind(ri, ci), rhs);
                 return;
             }
@@ -1125,7 +1125,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
         if (maxR > var->dims().rows() || maxC > var->dims().cols())
             var->resize(std::max(var->dims().rows(), maxR),
                         std::max(var->dims().cols(), maxC),
-                        &engine_.allocator_);
+                        engine_.mr_);
 
         var->indexSet2D(rowIdx.data(), rowIdx.size(),
                         colIdx.data(), colIdx.size(), rhs);
@@ -1142,7 +1142,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
                     var->resize3d(std::max(var->dims().rows(), needR),
                                   std::max(var->dims().cols(), needC),
                                   std::max(var->dims().pages(), needP),
-                                  &engine_.allocator_);
+                                  engine_.mr_);
                 var->elemSet(var->dims().sub2ind(ri, ci, pi), rhs);
                 return;
             }
@@ -1163,7 +1163,7 @@ void TreeWalker::execIndexedAssign(const ASTNode *lhs, const Value &rhs, Environ
             var->resize3d(std::max(var->dims().rows(), maxR),
                           std::max(var->dims().cols(), maxC),
                           std::max(var->dims().pages(), maxP),
-                          &engine_.allocator_);
+                          engine_.mr_);
 
         var->indexSet3D(rowIdx.data(), rowIdx.size(),
                         colIdx.data(), colIdx.size(),
@@ -1299,7 +1299,7 @@ void TreeWalker::execCellAssign(const ASTNode *lhs, const Value &rhs, Environmen
             }
         }
         if (grow)
-            var->resizeND(need.data(), newNd, &engine_.allocator_);
+            var->resizeND(need.data(), newNd, engine_.mr_);
 
         const auto &d = var->dims();
         size_t idx = 0, stride = 1;
@@ -1415,13 +1415,13 @@ Value TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
 
     if (nargs == 1) {
         auto indices = resolveIndex(lhs->children[1].get(), *var, 0, 1, env);
-        var->indexDelete(indices.data(), indices.size(), &engine_.allocator_);
+        var->indexDelete(indices.data(), indices.size(), engine_.mr_);
     } else if (nargs == 2) {
         auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 2, env);
         auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 2, env);
         var->indexDelete2D(rowIdx.data(), rowIdx.size(),
                            colIdx.data(), colIdx.size(),
-                           &engine_.allocator_);
+                           engine_.mr_);
     } else if (nargs == 3) {
         auto rowIdx = resolveIndex(lhs->children[1].get(), *var, 0, 3, env);
         auto colIdx = resolveIndex(lhs->children[2].get(), *var, 1, 3, env);
@@ -1429,7 +1429,7 @@ Value TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
         var->indexDelete3D(rowIdx.data(), rowIdx.size(),
                            colIdx.data(), colIdx.size(),
                            pageIdx.data(), pageIdx.size(),
-                           &engine_.allocator_);
+                           engine_.mr_);
     } else {
         // ND delete: A(i_1, ..., i_n) = []. Resolve every dim's index
         // vector, then dispatch to the generic ND deleter (which checks
@@ -1444,7 +1444,7 @@ Value TreeWalker::execDeleteAssign(const ASTNode *node, Environment *env)
             perDimCount[i] = perDim[i].size();
         }
         var->indexDeleteND(perDimPtrs.data(), perDimCount.data(),
-                           static_cast<int>(nargs), &engine_.allocator_);
+                           static_cast<int>(nargs), engine_.mr_);
     }
     return Value::empty();
 }
@@ -1457,16 +1457,16 @@ Value TreeWalker::execBinaryOp(const ASTNode *node, Environment *env)
     if (op == "&&") {
         auto l = execNode(node->children[0].get(), env);
         if (!l.toBool())
-            return Value::logicalScalar(false, &engine_.allocator_);
+            return Value::logicalScalar(false, engine_.mr_);
         return Value::logicalScalar(execNode(node->children[1].get(), env).toBool(),
-                                     &engine_.allocator_);
+                                     engine_.mr_);
     }
     if (op == "||") {
         auto l = execNode(node->children[0].get(), env);
         if (l.toBool())
-            return Value::logicalScalar(true, &engine_.allocator_);
+            return Value::logicalScalar(true, engine_.mr_);
         return Value::logicalScalar(execNode(node->children[1].get(), env).toBool(),
-                                     &engine_.allocator_);
+                                     engine_.mr_);
     }
 
     auto left = execNode(node->children[0].get(), env);
@@ -1690,12 +1690,12 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
                 result.cellAt(0) = var.cellAt(scalarIdx);
                 return result;
             }
-            return var.elemAt(scalarIdx, &engine_.allocator_);
+            return var.elemAt(scalarIdx, engine_.mr_);
         }
 
         auto indices = resolveIndex(callNode->children[1].get(), var, 0, 1, env);
         checkBounds(indices, var.numel(), "linear index");
-        return var.indexGet(indices.data(), indices.size(), &engine_.allocator_);
+        return var.indexGet(indices.data(), indices.size(), engine_.mr_);
     }
     if (nargs == 2) {
         // ── scalar fast path: M(i, j) ──
@@ -1717,7 +1717,7 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
                     result.cellAt(0) = var.cellAt(var.dims().sub2ind(sri, sci));
                     return result;
                 }
-                return var.elemAt(var.dims().sub2ind(sri, sci), &engine_.allocator_);
+                return var.elemAt(var.dims().sub2ind(sri, sci), engine_.mr_);
             }
         }
 
@@ -1725,14 +1725,14 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 2, env);
         checkBounds(ri, var.dims().rows(), "row index");
         checkBounds(ci, var.dims().cols(), "column index");
-        return var.indexGet2D(ri.data(), ri.size(), ci.data(), ci.size(), &engine_.allocator_);
+        return var.indexGet2D(ri.data(), ri.size(), ci.data(), ci.size(), engine_.mr_);
     }
     if (nargs == 3) {
         auto ri = resolveIndex(callNode->children[1].get(), var, 0, 3, env);
         auto ci = resolveIndex(callNode->children[2].get(), var, 1, 3, env);
         auto pi = resolveIndex(callNode->children[3].get(), var, 2, 3, env);
         return var.indexGet3D(ri.data(), ri.size(), ci.data(), ci.size(),
-                             pi.data(), pi.size(), &engine_.allocator_);
+                             pi.data(), pi.size(), engine_.mr_);
     }
     // ND read: nargs >= 4
     {
@@ -1745,7 +1745,7 @@ Value TreeWalker::execIndexAccess(const Value &var, const ASTNode *callNode, Env
             idxPtrs[i] = idxLists[i].data();
             idxCounts[i] = idxLists[i].size();
         }
-        return var.indexGetND(idxPtrs.data(), idxCounts.data(), nd, &engine_.allocator_);
+        return var.indexGetND(idxPtrs.data(), idxCounts.data(), nd, engine_.mr_);
     }
 }
 
@@ -1866,7 +1866,7 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
                 }
                 if (allDoubles && !appended.empty()) {
                     for (double v : appended)
-                        varPtr->appendScalar(v, &engine_.allocator_);
+                        varPtr->appendScalar(v, engine_.mr_);
                     return *varPtr;
                 }
             }
@@ -1910,11 +1910,11 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
             strs.push_back(std::move(s));
         }
         if (strs.size() == 1)
-            return Value::fromString(strs[0], &engine_.allocator_);
+            return Value::fromString(strs[0], engine_.mr_);
 
         // Build char matrix with space-padding
         size_t totalRows = strs.size();
-        auto result = Value::matrix(totalRows, maxCols, ValueType::CHAR, &engine_.allocator_);
+        auto result = Value::matrix(totalRows, maxCols, ValueType::CHAR, engine_.mr_);
         char *dst = result.charDataMut();
         std::memset(dst, ' ', totalRows * maxCols);
         for (size_t row = 0; row < totalRows; ++row) {
@@ -1930,12 +1930,12 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
     rowValues.reserve(rows.size());
     for (auto &rowElems : rows)
         rowValues.push_back(
-            Value::horzcat(rowElems.data(), rowElems.size(), &engine_.allocator_));
+            Value::horzcat(rowElems.data(), rowElems.size(), engine_.mr_));
 
     if (rowValues.size() == 1)
         return std::move(rowValues[0]);
 
-    return Value::vertcat(rowValues.data(), rowValues.size(), &engine_.allocator_);
+    return Value::vertcat(rowValues.data(), rowValues.size(), engine_.mr_);
 }
 
 Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
@@ -1981,19 +1981,19 @@ Value TreeWalker::execCellLiteral(const ASTNode *node, Environment *env)
 Value TreeWalker::execColonExpr(const ASTNode *node, Environment *env)
 {
     if (node->children.empty())
-        return Value::fromString(":", &engine_.allocator_);
+        return Value::fromString(":", engine_.mr_);
 
     if (node->children.size() == 2) {
         double s = execNode(node->children[0].get(), env).toScalar();
         double e = execNode(node->children[1].get(), env).toScalar();
-        return Value::colonRange(s, e, &engine_.allocator_);
+        return Value::colonRange(s, e, engine_.mr_);
     }
 
     if (node->children.size() == 3) {
         double s = execNode(node->children[0].get(), env).toScalar();
         double step = execNode(node->children[1].get(), env).toScalar();
         double e = execNode(node->children[2].get(), env).toScalar();
-        return Value::colonRange(s, step, e, &engine_.allocator_);
+        return Value::colonRange(s, step, e, engine_.mr_);
     }
 
     return Value::empty();
@@ -2060,7 +2060,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
             // Set the variable once, then update its value in-place
             // to avoid env->set() hash lookup + Value creation each iteration.
             const double *src = rangeVal.doubleData();
-            env->set(varName, Value::scalar(0.0, &engine_.allocator_));
+            env->set(varName, Value::scalar(0.0, engine_.mr_));
             Value *varPtr = env->get(varName);
             double *slot = varPtr->doubleDataMut();
             for (size_t c = 0; c < dims.cols(); ++c) {
@@ -2081,7 +2081,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
                 if (!varPtr || !varPtr->isScalar() || varPtr->type() != ValueType::DOUBLE) {
                     // Variable was changed to non-scalar — fall back to slow path
                     for (size_t c2 = c + 1; c2 < dims.cols(); ++c2) {
-                        env->set(varName, Value::scalar(src[c2], &engine_.allocator_));
+                        env->set(varName, Value::scalar(src[c2], engine_.mr_));
                         execNode(node->children[1].get(), env);
                         if (flowSignal_ == FlowSignal::BREAK) {
                             flowSignal_ = FlowSignal::NONE;
@@ -2100,7 +2100,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
             }
         } else {
             for (size_t c = 0; c < dims.cols(); ++c) {
-                auto col = Value::matrix(dims.rows(), 1, ValueType::DOUBLE, &engine_.allocator_);
+                auto col = Value::matrix(dims.rows(), 1, ValueType::DOUBLE, engine_.mr_);
                 double *dst = col.doubleDataMut();
                 for (size_t r = 0; r < dims.rows(); ++r)
                     dst[r] = rangeVal(r, c);
@@ -2124,7 +2124,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
     if (rangeVal.isChar()) {
         const char *cd = rangeVal.charData();
         for (size_t i = 0; i < rangeVal.numel(); ++i) {
-            env->set(varName, Value::fromString(std::string(1, cd[i]), &engine_.allocator_));
+            env->set(varName, Value::fromString(std::string(1, cd[i]), engine_.mr_));
             execNode(node->children[1].get(), env);
             if (flowSignal_ == FlowSignal::BREAK) {
                 flowSignal_ = FlowSignal::NONE;
@@ -2143,7 +2143,7 @@ Value TreeWalker::execFor(const ASTNode *node, Environment *env)
     if (rangeVal.isLogical()) {
         const uint8_t *ld = rangeVal.logicalData();
         for (size_t i = 0; i < rangeVal.numel(); ++i) {
-            env->set(varName, Value::scalar(static_cast<double>(ld[i]), &engine_.allocator_));
+            env->set(varName, Value::scalar(static_cast<double>(ld[i]), engine_.mr_));
             execNode(node->children[1].get(), env);
             if (flowSignal_ == FlowSignal::BREAK) {
                 flowSignal_ = FlowSignal::NONE;
@@ -2308,7 +2308,7 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     std::vector<Value> args;
     args.reserve(node->children.size());
     for (auto &child : node->children)
-        args.push_back(Value::fromString(child->strValue, &engine_.allocator_));
+        args.push_back(Value::fromString(child->strValue, engine_.mr_));
 
     // 1. External registered functions (includes workspace builtins)
     Value result;
@@ -2341,7 +2341,7 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
 Value TreeWalker::execAnonFunc(const ASTNode *node, Environment *env)
 {
     if (!node->strValue.empty() && node->children.empty())
-        return Value::funcHandle(node->strValue, &engine_.allocator_);
+        return Value::funcHandle(node->strValue, engine_.mr_);
 
     int id = anonCounter_.fetch_add(1, std::memory_order_relaxed);
     std::string anonName = "__anon_" + std::to_string(id);
@@ -2368,7 +2368,7 @@ Value TreeWalker::execAnonFunc(const ASTNode *node, Environment *env)
                                   engine_.globalsEnv_.get());
 
     engine_.userFuncs_[anonName] = std::move(uf);
-    return Value::funcHandle(anonName, &engine_.allocator_);
+    return Value::funcHandle(anonName, engine_.mr_);
 }
 
 // ============================================================
@@ -2384,9 +2384,9 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
         if (node->children.size() > 1) {
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
-                err.field("message") = Value::fromString(mle.what(), &engine_.allocator_);
+                err.field("message") = Value::fromString(mle.what(), engine_.mr_);
                 std::string id = mle.identifier().empty() ? "m:error" : mle.identifier();
-                err.field("identifier") = Value::fromString(id, &engine_.allocator_);
+                err.field("identifier") = Value::fromString(id, engine_.mr_);
                 env->set(node->strValue, err);
             }
             return execNode(node->children[1].get(), env);
@@ -2396,8 +2396,8 @@ Value TreeWalker::execTryCatch(const ASTNode *node, Environment *env)
         if (node->children.size() > 1) {
             if (!node->strValue.empty()) {
                 auto err = Value::structure();
-                err.field("message") = Value::fromString(e.what(), &engine_.allocator_);
-                err.field("identifier") = Value::fromString("m:error", &engine_.allocator_);
+                err.field("message") = Value::fromString(e.what(), engine_.mr_);
+                err.field("identifier") = Value::fromString("m:error", engine_.mr_);
                 env->set(node->strValue, err);
             }
             return execNode(node->children[1].get(), env);
@@ -2461,8 +2461,8 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     if (func.usesNarginNargout) {
         size_t nout = std::max(func.returns.size(), size_t(1));
         localEnv.setLocal("nargin",
-                          Value::scalar(static_cast<double>(args.size()), &engine_.allocator_));
-        localEnv.setLocal("nargout", Value::scalar(static_cast<double>(nout), &engine_.allocator_));
+                          Value::scalar(static_cast<double>(args.size()), engine_.mr_));
+        localEnv.setLocal("nargout", Value::scalar(static_cast<double>(nout), engine_.mr_));
     }
 
     std::optional<DebugController::FrameGuard> dbgFrame;
@@ -2510,8 +2510,8 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
         func.usesNarginNargout = astUsesIdentifier(func.body.get(), "nargin", "nargout") ? 1 : 0;
     if (func.usesNarginNargout) {
         localEnv.setLocal("nargin",
-                          Value::scalar(static_cast<double>(args.size()), &engine_.allocator_));
-        localEnv.setLocal("nargout", Value::scalar(static_cast<double>(nout), &engine_.allocator_));
+                          Value::scalar(static_cast<double>(args.size()), engine_.mr_));
+        localEnv.setLocal("nargout", Value::scalar(static_cast<double>(nout), engine_.mr_));
     }
 
     for (auto &retName : func.returns)

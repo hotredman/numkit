@@ -21,20 +21,20 @@ namespace numkit::signal {
 //
 // At the boundaries the window is truncated rather than zero-padded,
 // so output length always equals input length.
-Value medfilt1(Allocator &alloc, const Value &x, size_t k)
+Value medfilt1(std::pmr::memory_resource *mr, const Value &x, size_t k)
 {
     if (k == 0)
         throw Error("medfilt1: window length must be >= 1",
                      0, 0, "medfilt1", "", "m:medfilt1:badK");
 
     const size_t n = x.numel();
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     if (n == 0) return r;
 
     const size_t leftHalf  = (k - 1) / 2;
     const size_t rightHalf = k / 2;
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto win = scratch.vec<double>();
     win.reserve(k);
 
@@ -68,7 +68,7 @@ void medfilt1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     size_t k = 3;
     if (args.size() >= 2 && !args[1].isEmpty())
         k = static_cast<size_t>(args[1].toScalar());
-    outs[0] = medfilt1(ctx.engine->allocator(), args[0], k);
+    outs[0] = medfilt1(ctx.engine->resource(), args[0], k);
 }
 
 } // namespace detail

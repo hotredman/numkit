@@ -62,14 +62,14 @@ struct IndexedVal {
     size_t origIdx;
 };
 
-inline Value emptyRow(Allocator &alloc)
+inline Value emptyRow(std::pmr::memory_resource *mr)
 {
-    return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
+    return Value::matrix(1, 0, ValueType::DOUBLE, mr);
 }
 
-inline Value rowFromVec(Allocator &alloc, const double *data, std::size_t n)
+inline Value rowFromVec(std::pmr::memory_resource *mr, const double *data, std::size_t n)
 {
-    auto r = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n > 0)
         std::copy(data, data + n, r.doubleDataMut());
     return r;
@@ -79,7 +79,7 @@ inline Value rowFromVec(Allocator &alloc, const double *data, std::size_t n)
 
 // Hash-key type for unique('rows') / setops('rows'). pmr-backed so the
 // keys themselves bump into the per-call ScratchArena along with the
-// std::pmr::unordered_map's hash buckets — no per-row heap alloc.
+// std::pmr::unordered_map's hash buckets — no per-row heap mr.
 using RowKey = ScratchVec<double>;
 
 struct RowKeyHash {
@@ -137,9 +137,9 @@ inline int rowLexCmp(const double *p, size_t cols, size_t rows, size_t a, size_t
     return 0;
 }
 
-inline Value emptyRowsResult(Allocator &alloc, size_t cols)
+inline Value emptyRowsResult(std::pmr::memory_resource *mr, size_t cols)
 {
-    return Value::matrix(0, cols, ValueType::DOUBLE, &alloc);
+    return Value::matrix(0, cols, ValueType::DOUBLE, mr);
 }
 
 // Note: collectRowsByIndex moved to rows_helpers.hpp (shared with
@@ -198,13 +198,13 @@ bool edgesAreUniform(const double *e, size_t nEdges, double &outStep)
 
 // ── unique ─────────────────────────────────────────────────────────
 
-Value unique(Allocator &alloc, const Value &x)
+Value unique(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t n = x.numel();
-    if (n == 0) return emptyRow(alloc);
+    if (n == 0) return emptyRow(mr);
 
-    ScratchArena scratch(alloc);
-    std::pmr::unordered_set<double, DoubleHashEq0> seen(scratch.resource());
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
     seen.reserve(n / 2 + 1);
     size_t nanCount = 0;
     const double *p = x.doubleData();
@@ -219,20 +219,20 @@ Value unique(Allocator &alloc, const Value &x)
     std::sort(out.begin(), out.end());
     for (size_t i = 0; i < nanCount; ++i)
         out.push_back(std::nan(""));
-    return rowFromVec(alloc, out.data(), out.size());
+    return rowFromVec(mr, out.data(), out.size());
 }
 
 std::tuple<Value, Value, Value>
-uniqueWithIndices(Allocator &alloc, const Value &x)
+uniqueWithIndices(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t n = x.numel();
     if (n == 0) {
-        return std::make_tuple(emptyRow(alloc), emptyRow(alloc),
-                               emptyRow(alloc));
+        return std::make_tuple(emptyRow(mr), emptyRow(mr),
+                               emptyRow(mr));
     }
 
-    ScratchArena scratch(alloc);
-    std::pmr::unordered_map<double, size_t, DoubleHashEq0> firstIdx(scratch.resource());
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<double, size_t, DoubleHashEq0> firstIdx(&scratch);
     firstIdx.reserve(n / 2 + 1);
     auto nanIdxOrder = scratch.vec<size_t>();
     const double *p = x.doubleData();
@@ -255,7 +255,7 @@ uniqueWithIndices(Allocator &alloc, const Value &x)
     for (size_t idx : nanIdxOrder)
         sorted.push_back({std::nan(""), idx});
 
-    std::pmr::unordered_map<double, size_t, DoubleHashEq0> rankByValue(scratch.resource());
+    std::pmr::unordered_map<double, size_t, DoubleHashEq0> rankByValue(&scratch);
     rankByValue.reserve(firstIdx.size());
     const size_t nanRankBase = sorted.size() - nanIdxOrder.size();
     for (size_t r = 0; r < nanRankBase; ++r)
@@ -272,13 +272,13 @@ uniqueWithIndices(Allocator &alloc, const Value &x)
         }
     }
 
-    auto cOut = Value::matrix(1, sorted.size(), ValueType::DOUBLE, &alloc);
-    auto iaRow = Value::matrix(1, sorted.size(), ValueType::DOUBLE, &alloc);
+    auto cOut = Value::matrix(1, sorted.size(), ValueType::DOUBLE, mr);
+    auto iaRow = Value::matrix(1, sorted.size(), ValueType::DOUBLE, mr);
     for (size_t i = 0; i < sorted.size(); ++i) {
         cOut.doubleDataMut()[i]  = sorted[i].v;
         iaRow.doubleDataMut()[i] = static_cast<double>(sorted[i].origIdx + 1);
     }
-    auto icRow = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto icRow = Value::matrix(1, n, ValueType::DOUBLE, mr);
     std::copy(ic.begin(), ic.end(), icRow.doubleDataMut());
 
     return std::make_tuple(std::move(cOut), std::move(iaRow), std::move(icRow));
@@ -286,24 +286,23 @@ uniqueWithIndices(Allocator &alloc, const Value &x)
 
 // ── unique with 'rows' flag ────────────────────────────────────────
 
-Value uniqueRows(Allocator &alloc, const Value &x)
+Value uniqueRows(std::pmr::memory_resource *mr, const Value &x)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
-    if (rows == 0) return emptyRowsResult(alloc, cols);
+    if (rows == 0) return emptyRowsResult(mr, cols);
 
     const double *src = x.doubleData();
-    ScratchArena scratch(alloc);
-    auto *mr = scratch.resource();
-    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(mr);
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
     auto nanRows = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRows.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(mr, src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(&scratch, src, cols, rows, r), r);
         }
     }
 
@@ -316,31 +315,30 @@ Value uniqueRows(Allocator &alloc, const Value &x)
               });
     uniqRows.insert(uniqRows.end(), nanRows.begin(), nanRows.end());
 
-    return detail::collectRowsByIndex(alloc, x, uniqRows.data(), uniqRows.size());
+    return detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size());
 }
 
 std::tuple<Value, Value, Value>
-uniqueRowsWithIndices(Allocator &alloc, const Value &x)
+uniqueRowsWithIndices(std::pmr::memory_resource *mr, const Value &x)
 {
     validateUniqueRowsInput(x, "unique");
     const size_t rows = x.dims().rows();
     const size_t cols = x.dims().cols();
     if (rows == 0) {
-        return std::make_tuple(emptyRowsResult(alloc, cols),
-                               emptyRow(alloc), emptyRow(alloc));
+        return std::make_tuple(emptyRowsResult(mr, cols),
+                               emptyRow(mr), emptyRow(mr));
     }
 
     const double *src = x.doubleData();
-    ScratchArena scratch(alloc);
-    auto *mr = scratch.resource();
-    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(mr);
+    ScratchArena scratch(mr);
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> firstIdx(&scratch);
     firstIdx.reserve(rows);
     auto nanRowOrder = scratch.vec<size_t>();
     for (size_t r = 0; r < rows; ++r) {
         if (rowHasNan(src, cols, rows, r)) {
             nanRowOrder.push_back(r);
         } else {
-            firstIdx.try_emplace(extractRow(mr, src, cols, rows, r), r);
+            firstIdx.try_emplace(extractRow(&scratch, src, cols, rows, r), r);
         }
     }
 
@@ -354,12 +352,12 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
     const size_t nanRankBase = uniqRows.size();
     uniqRows.insert(uniqRows.end(), nanRowOrder.begin(), nanRowOrder.end());
 
-    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey(mr);
+    std::pmr::unordered_map<RowKey, size_t, RowKeyHash, RowKeyEq> rankByKey(&scratch);
     rankByKey.reserve(nanRankBase);
     for (size_t r = 0; r < nanRankBase; ++r)
-        rankByKey[extractRow(mr, src, cols, rows, uniqRows[r])] = r;
+        rankByKey[extractRow(&scratch, src, cols, rows, uniqRows[r])] = r;
 
-    auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, &alloc);
+    auto icRow = Value::matrix(rows, 1, ValueType::DOUBLE, mr);
     double *ic = icRow.doubleDataMut();
     size_t nanSeen = 0;
     for (size_t r = 0; r < rows; ++r) {
@@ -367,35 +365,35 @@ uniqueRowsWithIndices(Allocator &alloc, const Value &x)
             ic[r] = static_cast<double>(nanRankBase + nanSeen + 1);
             ++nanSeen;
         } else {
-            ic[r] = static_cast<double>(rankByKey[extractRow(mr, src, cols, rows, r)] + 1);
+            ic[r] = static_cast<double>(rankByKey[extractRow(&scratch, src, cols, rows, r)] + 1);
         }
     }
 
-    auto iaCol = Value::matrix(uniqRows.size(), 1, ValueType::DOUBLE, &alloc);
+    auto iaCol = Value::matrix(uniqRows.size(), 1, ValueType::DOUBLE, mr);
     double *ia = iaCol.doubleDataMut();
     for (size_t i = 0; i < uniqRows.size(); ++i)
         ia[i] = static_cast<double>(uniqRows[i] + 1);
 
-    return std::make_tuple(detail::collectRowsByIndex(alloc, x, uniqRows.data(), uniqRows.size()),
+    return std::make_tuple(detail::collectRowsByIndex(mr, x, uniqRows.data(), uniqRows.size()),
                            std::move(iaCol), std::move(icRow));
 }
 
 // ── ismember ───────────────────────────────────────────────────────
 
-Value ismember(Allocator &alloc, const Value &a, const Value &b)
+Value ismember(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     const size_t na = a.numel();
     const size_t nb = b.numel();
 
-    auto r = createLike(a, ValueType::LOGICAL, &alloc);
+    auto r = createLike(a, ValueType::LOGICAL, mr);
     if (na == 0) return r;
     if (nb == 0) {
         std::fill(r.logicalDataMut(), r.logicalDataMut() + na, 0);
         return r;
     }
 
-    ScratchArena scratch(alloc);
-    std::pmr::unordered_set<double, DoubleHashEq0> setB(scratch.resource());
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<double, DoubleHashEq0> setB(&scratch);
     setB.reserve(nb);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < nb; ++i)
@@ -412,27 +410,27 @@ Value ismember(Allocator &alloc, const Value &a, const Value &b)
 
 // ── union / intersect / setdiff ────────────────────────────────────
 
-Value setUnion(Allocator &alloc, const Value &a, const Value &b)
+Value setUnion(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    ScratchArena scratch(alloc);
-    auto s = hashSetNoNaN(scratch.resource(), a);
+    ScratchArena scratch(mr);
+    auto s = hashSetNoNaN(&scratch, a);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < b.numel(); ++i)
         if (!std::isnan(pb[i])) s.insert(pb[i]);
-    ScratchVec<double> out(s.begin(), s.end(), scratch.resource());
+    ScratchVec<double> out(s.begin(), s.end(), &scratch);
     std::sort(out.begin(), out.end());
-    return rowFromVec(alloc, out.data(), out.size());
+    return rowFromVec(mr, out.data(), out.size());
 }
 
-Value setIntersect(Allocator &alloc, const Value &a, const Value &b)
+Value setIntersect(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     const bool aSmaller = a.numel() <= b.numel();
     const Value &small = aSmaller ? a : b;
     const Value &large = aSmaller ? b : a;
 
-    ScratchArena scratch(alloc);
-    auto smallSet = hashSetNoNaN(scratch.resource(), small);
-    std::pmr::unordered_set<double, DoubleHashEq0> seenInLarge(scratch.resource());
+    ScratchArena scratch(mr);
+    auto smallSet = hashSetNoNaN(&scratch, small);
+    std::pmr::unordered_set<double, DoubleHashEq0> seenInLarge(&scratch);
     seenInLarge.reserve(smallSet.size());
     auto out = scratch.vec<double>();
     out.reserve(smallSet.size());
@@ -445,14 +443,14 @@ Value setIntersect(Allocator &alloc, const Value &a, const Value &b)
             out.push_back(v);
     }
     std::sort(out.begin(), out.end());
-    return rowFromVec(alloc, out.data(), out.size());
+    return rowFromVec(mr, out.data(), out.size());
 }
 
-Value setDiff(Allocator &alloc, const Value &a, const Value &b)
+Value setDiff(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    ScratchArena scratch(alloc);
-    auto setB = hashSetNoNaN(scratch.resource(), b);
-    std::pmr::unordered_set<double, DoubleHashEq0> seen(scratch.resource());
+    ScratchArena scratch(mr);
+    auto setB = hashSetNoNaN(&scratch, b);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
     seen.reserve(a.numel() / 2 + 1);
     auto out = scratch.vec<double>();
     out.reserve(a.numel());
@@ -464,16 +462,16 @@ Value setDiff(Allocator &alloc, const Value &a, const Value &b)
             out.push_back(v);
     }
     std::sort(out.begin(), out.end());
-    return rowFromVec(alloc, out.data(), out.size());
+    return rowFromVec(mr, out.data(), out.size());
 }
 
 // ── histcounts / discretize ────────────────────────────────────────
 
-Value histcounts(Allocator &alloc, const Value &x, const Value &edges)
+Value histcounts(std::pmr::memory_resource *mr, const Value &x, const Value &edges)
 {
     validateEdges(edges, "histcounts");
     const size_t nBins = edges.numel() - 1;
-    auto r = Value::matrix(1, nBins, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, nBins, ValueType::DOUBLE, mr);
     double *dst = r.doubleDataMut();
     std::fill(dst, dst + nBins, 0.0);
 
@@ -532,10 +530,10 @@ Value histcounts(Allocator &alloc, const Value &x, const Value &edges)
     return r;
 }
 
-Value discretize(Allocator &alloc, const Value &x, const Value &edges)
+Value discretize(std::pmr::memory_resource *mr, const Value &x, const Value &edges)
 {
     validateEdges(edges, "discretize");
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     const double *e = edges.doubleData();
     const double *p = x.doubleData();
     double *dst = r.doubleDataMut();
@@ -633,12 +631,12 @@ bool isPrimeDouble(double v)
 
 } // namespace (number-theory helpers)
 
-Value primes(Allocator &alloc, double n)
+Value primes(std::pmr::memory_resource *mr, double n)
 {
     if (!std::isfinite(n) || n < 2)
-        return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
     const std::uint64_t N = static_cast<std::uint64_t>(std::floor(n));
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     // Sieve mask — uint8_t rather than bool to avoid std::pmr::vector<bool>'s
     // bit-packed proxy reference (MSVC's specialisation has caused subtle
     // initialisation bugs here in the past). One byte per slot is also
@@ -655,19 +653,19 @@ Value primes(Allocator &alloc, double n)
         if (!composite[i])
             primesVec.push_back(static_cast<double>(i));
 
-    auto out = Value::matrix(1, primesVec.size(), ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, primesVec.size(), ValueType::DOUBLE, mr);
     if (!primesVec.empty())
         std::memcpy(out.doubleDataMut(), primesVec.data(),
                     primesVec.size() * sizeof(double));
     return out;
 }
 
-Value isprime(Allocator &alloc, const Value &x)
+Value isprime(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.type() == ValueType::COMPLEX)
         throw Error("isprime: complex inputs are not supported",
                      0, 0, "isprime", "", "m:isprime:complex");
-    auto out = createLike(x, ValueType::LOGICAL, &alloc);
+    auto out = createLike(x, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
     const size_t N = x.numel();
     for (size_t i = 0; i < N; ++i) {
@@ -677,18 +675,18 @@ Value isprime(Allocator &alloc, const Value &x)
     return out;
 }
 
-Value factor(Allocator &alloc, double n)
+Value factor(std::pmr::memory_resource *mr, double n)
 {
     std::uint64_t u;
     if (!isExactNonnegInt(n, u))
         throw Error("factor: argument must be a non-negative integer scalar",
                      0, 0, "factor", "", "m:factor:badArg");
     if (u == 0 || u == 1) {
-        auto r = Value::matrix(1, 1, ValueType::DOUBLE, &alloc);
+        auto r = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         r.doubleDataMut()[0] = static_cast<double>(u);
         return r;
     }
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto factors = scratch.vec<double>();
     std::uint64_t m = u;
     while (m % 2 == 0) { factors.push_back(2.0); m /= 2; }
@@ -701,7 +699,7 @@ Value factor(Allocator &alloc, double n)
     if (m > 1)
         factors.push_back(static_cast<double>(m));
 
-    auto out = Value::matrix(1, factors.size(), ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, factors.size(), ValueType::DOUBLE, mr);
     if (!factors.empty())
         std::memcpy(out.doubleDataMut(), factors.data(),
                     factors.size() * sizeof(double));
@@ -741,13 +739,13 @@ double factorialDouble(double v, const char *fn)
 
 } // namespace (combinatorics helpers)
 
-Value perms(Allocator &alloc, const Value &v)
+Value perms(std::pmr::memory_resource *mr, const Value &v)
 {
     if (v.type() == ValueType::COMPLEX)
         throw Error("perms: complex inputs are not supported",
                      0, 0, "perms", "", "m:perms:complex");
     if (v.isEmpty()) {
-        return Value::matrix(1, 0, ValueType::DOUBLE, &alloc);
+        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
     }
     if (!v.dims().isVector())
         throw Error("perms: argument must be a vector",
@@ -758,16 +756,16 @@ Value perms(Allocator &alloc, const Value &v)
         throw Error("perms: numel(v) > 11 is not supported (n! is too large)",
                      0, 0, "perms", "", "m:perms:tooLarge");
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto vals = scratch.vec<double>(n);
     for (size_t i = 0; i < n; ++i)
         vals[i] = v.elemAsDouble(i);
 
-    auto cur = scratchCopyOf(scratch.resource(), vals);
+    auto cur = scratchCopyOf(&scratch, vals);
     std::sort(cur.begin(), cur.end(), std::greater<double>());
 
     const size_t totalRows = static_cast<size_t>(permFactorial(static_cast<int>(n)));
-    auto out = Value::matrix(totalRows, n, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(totalRows, n, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
 
     size_t row = 0;
@@ -780,12 +778,12 @@ Value perms(Allocator &alloc, const Value &v)
     return out;
 }
 
-Value factorial(Allocator &alloc, const Value &n)
+Value factorial(std::pmr::memory_resource *mr, const Value &n)
 {
     if (n.type() == ValueType::COMPLEX)
         throw Error("factorial: complex inputs are not supported",
                      0, 0, "factorial", "", "m:factorial:complex");
-    auto out = createLike(n, ValueType::DOUBLE, &alloc);
+    auto out = createLike(n, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t N = n.numel();
     for (size_t i = 0; i < N; ++i)
@@ -793,7 +791,7 @@ Value factorial(Allocator &alloc, const Value &n)
     return out;
 }
 
-Value nchoosek(Allocator &alloc, double n, double k)
+Value nchoosek(std::pmr::memory_resource *mr, double n, double k)
 {
     if (!std::isfinite(n) || !std::isfinite(k))
         throw Error("nchoosek: arguments must be finite",
@@ -807,14 +805,14 @@ Value nchoosek(Allocator &alloc, double n, double k)
 
     double kk = (k > n - k) ? n - k : k;
     if (kk == 0.0)
-        return Value::scalar(1.0, &alloc);
+        return Value::scalar(1.0, mr);
 
     double r = 1.0;
     const int kInt = static_cast<int>(kk);
     for (int i = 0; i < kInt; ++i) {
         r = r * (n - static_cast<double>(i)) / static_cast<double>(i + 1);
     }
-    return Value::scalar(std::round(r), &alloc);
+    return Value::scalar(std::round(r), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -828,7 +826,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     if (args.empty())
         throw Error("unique: requires 1 argument",
                      0, 0, "unique", "", "m:unique:nargin");
-    auto &alloc = ctx.engine->allocator();
+    auto *mr = ctx.engine->resource();
 
     bool useRows = false;
     for (size_t i = 1; i < args.size(); ++i) {
@@ -849,8 +847,8 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (useRows) {
-        if (nargout <= 1) { outs[0] = uniqueRows(alloc, args[0]); return; }
-        auto [c, ia, ic] = uniqueRowsWithIndices(alloc, args[0]);
+        if (nargout <= 1) { outs[0] = uniqueRows(mr, args[0]); return; }
+        auto [c, ia, ic] = uniqueRowsWithIndices(mr, args[0]);
         outs[0] = std::move(c);
         if (nargout > 1) outs[1] = std::move(ia);
         if (nargout > 2) outs[2] = std::move(ic);
@@ -858,10 +856,10 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
     }
 
     if (nargout <= 1) {
-        outs[0] = unique(alloc, args[0]);
+        outs[0] = unique(mr, args[0]);
         return;
     }
-    auto [c, ia, ic] = uniqueWithIndices(alloc, args[0]);
+    auto [c, ia, ic] = uniqueWithIndices(mr, args[0]);
     outs[0] = std::move(c);
     if (nargout > 1) outs[1] = std::move(ia);
     if (nargout > 2) outs[2] = std::move(ic);
@@ -874,7 +872,7 @@ void unique_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
         if (args.size() < 2)                                                   \
             throw Error(#name ": requires 2 arguments",                       \
                          0, 0, #name, "", "m:" #name ":nargin");               \
-        outs[0] = fn(ctx.engine->allocator(), args[0], args[1]);               \
+        outs[0] = fn(ctx.engine->resource(), args[0], args[1]);               \
     }
 
 NK_BIN_SETOP_REG(ismember,  ismember)
@@ -891,7 +889,7 @@ void primes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.empty())
         throw Error("primes: requires 1 argument",
                      0, 0, "primes", "", "m:primes:nargin");
-    outs[0] = primes(ctx.engine->allocator(), args[0].toScalar());
+    outs[0] = primes(ctx.engine->resource(), args[0].toScalar());
 }
 
 void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -899,7 +897,7 @@ void isprime_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("isprime: requires 1 argument",
                      0, 0, "isprime", "", "m:isprime:nargin");
-    outs[0] = isprime(ctx.engine->allocator(), args[0]);
+    outs[0] = isprime(ctx.engine->resource(), args[0]);
 }
 
 void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -910,7 +908,7 @@ void factor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (!args[0].isScalar())
         throw Error("factor: argument must be a scalar",
                      0, 0, "factor", "", "m:factor:notScalar");
-    outs[0] = factor(ctx.engine->allocator(), args[0].toScalar());
+    outs[0] = factor(ctx.engine->resource(), args[0].toScalar());
 }
 
 void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -918,7 +916,7 @@ void perms_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("perms: requires 1 argument",
                      0, 0, "perms", "", "m:perms:nargin");
-    outs[0] = perms(ctx.engine->allocator(), args[0]);
+    outs[0] = perms(ctx.engine->resource(), args[0]);
 }
 
 void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -926,7 +924,7 @@ void factorial_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("factorial: requires 1 argument",
                      0, 0, "factorial", "", "m:factorial:nargin");
-    outs[0] = factorial(ctx.engine->allocator(), args[0]);
+    outs[0] = factorial(ctx.engine->resource(), args[0]);
 }
 
 void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -938,7 +936,7 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("nchoosek: vector input form is not yet supported "
                      "(nchoosek(v, k) for k-combinations of v)",
                      0, 0, "nchoosek", "", "m:nchoosek:vectorForm");
-    outs[0] = nchoosek(ctx.engine->allocator(),
+    outs[0] = nchoosek(ctx.engine->resource(),
                        args[0].toScalar(), args[1].toScalar());
 }
 

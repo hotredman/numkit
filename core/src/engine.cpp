@@ -45,8 +45,10 @@ const std::unordered_set<std::string> kBuiltinNames = makeBuiltinNamesUnion();
 // ============================================================
 // Construction
 // ============================================================
-Engine::Engine()
-    : allocator_(Allocator::defaultAllocator())
+Engine::Engine() : Engine(std::pmr::get_default_resource()) {}
+
+Engine::Engine(std::pmr::memory_resource *mr)
+    : mr_(mr ? mr : std::pmr::get_default_resource())
 {
     globalsEnv_ = std::make_unique<Environment>();
     constantsEnv_ = std::make_unique<Environment>(nullptr, globalsEnv_.get());
@@ -72,16 +74,16 @@ Engine::~Engine()
 
 void Engine::reinstallConstants()
 {
-    constantsEnv_->set("pi", Value::scalar(3.14159265358979323846, &allocator_));
-    constantsEnv_->set("eps", Value::scalar(2.2204460492503131e-16, &allocator_));
-    constantsEnv_->set("inf", Value::scalar(std::numeric_limits<double>::infinity(), &allocator_));
-    constantsEnv_->set("Inf", Value::scalar(std::numeric_limits<double>::infinity(), &allocator_));
-    constantsEnv_->set("nan", Value::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
-    constantsEnv_->set("NaN", Value::scalar(std::numeric_limits<double>::quiet_NaN(), &allocator_));
-    constantsEnv_->set("true", Value::logicalScalar(true, &allocator_));
-    constantsEnv_->set("false", Value::logicalScalar(false, &allocator_));
-    constantsEnv_->set("i", Value::complexScalar(0.0, 1.0, &allocator_));
-    constantsEnv_->set("j", Value::complexScalar(0.0, 1.0, &allocator_));
+    constantsEnv_->set("pi", Value::scalar(3.14159265358979323846, mr_));
+    constantsEnv_->set("eps", Value::scalar(2.2204460492503131e-16, mr_));
+    constantsEnv_->set("inf", Value::scalar(std::numeric_limits<double>::infinity(), mr_));
+    constantsEnv_->set("Inf", Value::scalar(std::numeric_limits<double>::infinity(), mr_));
+    constantsEnv_->set("nan", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
+    constantsEnv_->set("NaN", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
+    constantsEnv_->set("true", Value::logicalScalar(true, mr_));
+    constantsEnv_->set("false", Value::logicalScalar(false, mr_));
+    constantsEnv_->set("i", Value::complexScalar(0.0, 1.0, mr_));
+    constantsEnv_->set("j", Value::complexScalar(0.0, 1.0, mr_));
 
     // Re-install host-registered constants so they survive `clear all`.
     for (auto &[name, val] : userConstants_)
@@ -102,28 +104,6 @@ bool Engine::isReservedName(const std::string &name) const
 // ============================================================
 // Registration & accessors
 // ============================================================
-void Engine::setAllocator(Allocator alloc)
-{
-    // Allocator is non-assignable (const allocate/deallocate fields enforce
-    // "swap whole Allocator, not individual fns" — see allocator.hpp). Rebind
-    // the slot in-place. If the copy-ctor throws (std::function copy can in
-    // theory hit bad_alloc during OOM), fall back to defaultAllocator —
-    // whose lambdas are stateless and SBO-fit, so its copy is effectively
-    // noexcept on any real STL. Either way the slot is always live, so
-    // Engine's destructor stays valid.
-    allocator_.~Allocator();
-    try {
-        new (&allocator_) Allocator(alloc);
-    } catch (...) {
-        new (&allocator_) Allocator(Allocator::defaultAllocator());
-        throw;
-    }
-}
-Allocator &Engine::allocator()
-{
-    return allocator_;
-}
-
 void Engine::registerBinaryOp(const std::string &op, BinaryOpFunc func)
 {
     binaryOps_[op] = std::move(func);

@@ -6,27 +6,27 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::builtin {
 
 /// gamma(x)   — Γ(x). Real-only; tgamma backed.
-Value gammaFn(Allocator &alloc, const Value &x);
+Value gammaFn(std::pmr::memory_resource *mr, const Value &x);
 
 /// gammaln(x) — log|Γ(x)|. Real-only; lgamma backed.
-Value gammaln(Allocator &alloc, const Value &x);
+Value gammaln(std::pmr::memory_resource *mr, const Value &x);
 
 /// erf(x)     — error function 2/√π ∫₀ˣ e^{-t²} dt.
-Value erf(Allocator &alloc, const Value &x);
+Value erf(std::pmr::memory_resource *mr, const Value &x);
 
 /// erfc(x)    — 1 - erf(x), accurate for large x.
-Value erfc(Allocator &alloc, const Value &x);
+Value erfc(std::pmr::memory_resource *mr, const Value &x);
 
 /// erfinv(y)  — inverse error function on (-1, 1).
 ///              y == ±1 → ±Inf, |y| > 1 (real input) → NaN.
 ///              Implementation: Winitzki's closed-form initial estimate
 ///              followed by 3 Newton steps for full double precision.
-Value erfinv(Allocator &alloc, const Value &x);
+Value erfinv(std::pmr::memory_resource *mr, const Value &x);
 
 } // namespace numkit::builtin

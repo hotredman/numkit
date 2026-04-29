@@ -201,7 +201,7 @@ All classes live in `namespace numkit`.
 | **DebugSession** | `MDebugSession` | Pausable execution, expression eval in context, VM state save/restore |
 | **Value** | `Value` | Copy-on-write value system (double, complex, logical, char, cell, struct, function_handle) |
 | **Environment** | `MEnvironment` | Scoped variable storage with global store |
-| **Allocator** | `Allocator` | Pluggable memory allocator |
+| **Memory** | `std::pmr::memory_resource*` | Pluggable heap (passed to Engine ctor; embedders subclass `std::pmr::memory_resource` for custom policy) |
 | **BuiltinLibrary** | `BuiltinLibrary` | Math, matrix, I/O, string, type built-ins (base MATLAB) |
 | **SignalLibrary** | `MSignalLibrary` | Signal Processing Toolbox: FFT, filtering, windows, spectral analysis |
 | **StatsLibrary** | `MStatsLibrary` | Statistics Toolbox: skewness/kurtosis, nan-aware reductions |
@@ -286,26 +286,35 @@ int main()
 }
 ```
 
-### Custom Allocator
+### Custom heap (memory_resource)
+
+Subclass `std::pmr::memory_resource` and pass it to the Engine. The
+resource must outlive the Engine (and every Value it produces).
 
 ```c++
-numkit::Engine engine;
+#include <memory_resource>
 
-size_t totalAllocated = 0;
-engine.setAllocator({
-    [&](size_t n) -> void* {
+struct CountingHeap : public std::pmr::memory_resource
+{
+    size_t totalAllocated = 0;
+protected:
+    void *do_allocate(size_t n, size_t /*align*/) override {
         totalAllocated += n;
         return ::operator new(n);
-    },
-    [&](void* p, size_t n) {
-        totalAllocated -= n;
+    }
+    void do_deallocate(void *p, size_t /*n*/, size_t /*align*/) override {
         ::operator delete(p);
     }
-});
+    bool do_is_equal(const memory_resource &o) const noexcept override {
+        return this == &o;
+    }
+};
 
+CountingHeap heap;
+numkit::Engine engine(&heap);
 numkit::BuiltinLibrary::install(engine);
 engine.eval("A = rand(100, 100);");
-std::cout << "Memory used: " << totalAllocated << " bytes\n";
+std::cout << "Memory used: " << heap.totalAllocated << " bytes\n";
 ```
 
 ### C++ <-> M Data Exchange
@@ -498,7 +507,6 @@ src/
     lexer.cpp                  # Lexer
     parser.cpp                 # Parser
     environment.cpp            # Environment
-    allocator.cpp              # Allocator
     ast.cpp                    # AST utilities
     vfs.cpp                    # Virtual filesystem
     stdlib/                     # Standard library (math, I/O, types, file I/O, CSV)

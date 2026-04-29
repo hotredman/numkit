@@ -18,33 +18,33 @@
 
 namespace numkit::builtin {
 
-Value sqrt(Allocator &alloc, const Value &x)
+Value sqrt(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::sqrt(c); }, mr);
     if (x.isScalar() && x.toScalar() < 0)
-        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), &alloc);
-    return unaryDouble(x, [](double v) { return std::sqrt(v); }, &alloc);
+        return Value::complexScalar(std::sqrt(Complex(x.toScalar(), 0.0)), mr);
+    return unaryDouble(x, [](double v) { return std::sqrt(v); }, mr);
 }
 
-Value log2(Allocator &alloc, const Value &x)
+Value log2(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::log2(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::log2(v); }, mr);
 }
 
-Value log10(Allocator &alloc, const Value &x)
+Value log10(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::log10(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::log10(v); }, mr);
 }
 
-Value expm1(Allocator &alloc, const Value &x)
+Value expm1(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::expm1(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::expm1(v); }, mr);
 }
 
-Value log1p(Allocator &alloc, const Value &x)
+Value log1p(std::pmr::memory_resource *mr, const Value &x)
 {
-    return unaryDouble(x, [](double v) { return std::log1p(v); }, &alloc);
+    return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -57,7 +57,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
+        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
     }
 
 NK_UNARY_ADAPTER(sqrt,  sqrt)

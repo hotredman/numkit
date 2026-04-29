@@ -51,21 +51,21 @@ ScratchVec<Complex> hilbertBuf(std::pmr::memory_resource *mr, const Value &x)
 
 } // anonymous namespace
 
-Value hilbert(Allocator &alloc, const Value &x)
+Value hilbert(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t N = x.numel();
-    ScratchArena scratch(alloc);
-    auto buf = hilbertBuf(scratch.resource(), x);
-    return packComplexResult(buf.data(), N, &alloc);
+    ScratchArena scratch(mr);
+    auto buf = hilbertBuf(&scratch, x);
+    return packComplexResult(buf.data(), N, mr);
 }
 
-Value envelope(Allocator &alloc, const Value &x)
+Value envelope(std::pmr::memory_resource *mr, const Value &x)
 {
     const size_t N = x.numel();
-    ScratchArena scratch(alloc);
-    auto buf = hilbertBuf(scratch.resource(), x);
+    ScratchArena scratch(mr);
+    auto buf = hilbertBuf(&scratch, x);
 
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < N; ++i)
         r.doubleDataMut()[i] = std::abs(buf[i]);
     return r;
@@ -79,7 +79,7 @@ void hilbert_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("hilbert: requires 1 argument",
                      0, 0, "hilbert", "", "m:hilbert:nargin");
-    outs[0] = hilbert(ctx.engine->allocator(), args[0]);
+    outs[0] = hilbert(ctx.engine->resource(), args[0]);
 }
 
 void envelope_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -87,7 +87,7 @@ void envelope_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("envelope: requires 1 argument",
                      0, 0, "envelope", "", "m:envelope:nargin");
-    outs[0] = envelope(ctx.engine->allocator(), args[0]);
+    outs[0] = envelope(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

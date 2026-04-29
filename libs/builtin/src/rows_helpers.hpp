@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <cmath>
@@ -68,12 +68,12 @@ inline int rowLexCmpByCols(const double *p, std::size_t totalCols,
 // of shape (nRows, x.dims().cols()), preserving column-major layout.
 // `x` must be a 2D DOUBLE matrix. Pointer + size so any contiguous
 // row-index container (std::vector / pmr::vector / array) works.
-inline Value collectRowsByIndex(Allocator &alloc, const Value &x,
+inline Value collectRowsByIndex(std::pmr::memory_resource *mr, const Value &x,
                                  const std::size_t *origRows, std::size_t nRows)
 {
     const std::size_t rows = x.dims().rows();
     const std::size_t cols = x.dims().cols();
-    auto r = Value::matrix(nRows, cols, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(nRows, cols, ValueType::DOUBLE, mr);
     const double *src = x.doubleData();
     double *dst = r.doubleDataMut();
     for (std::size_t newRow = 0; newRow < nRows; ++newRow) {

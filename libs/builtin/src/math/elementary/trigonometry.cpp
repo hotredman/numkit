@@ -16,37 +16,37 @@
 
 namespace numkit::builtin {
 
-Value tan(Allocator &alloc, const Value &x)
+Value tan(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::tan(v); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::tan(v); }, mr);
 }
 
-Value asin(Allocator &alloc, const Value &x)
+Value asin(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::asin(v); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::asin(v); }, mr);
 }
 
-Value acos(Allocator &alloc, const Value &x)
+Value acos(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::acos(v); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::acos(v); }, mr);
 }
 
-Value atan(Allocator &alloc, const Value &x)
+Value atan(std::pmr::memory_resource *mr, const Value &x)
 {
     if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, &alloc);
-    return unaryDouble(x, [](double v) { return std::atan(v); }, &alloc);
+        return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::atan(v); }, mr);
 }
 
-Value atan2(Allocator &alloc, const Value &y, const Value &x)
+Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
 {
-    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, &alloc);
+    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
 }
 
 // ── Engine adapters ──────────────────────────────────────────────────
@@ -59,7 +59,7 @@ namespace detail {
         if (args.empty())                                                        \
             throw Error(#name ": requires 1 argument",                          \
                          0, 0, #name, "", "m:" #name ":nargin");                 \
-        outs[0] = fn(ctx.engine->allocator(), args[0]);                          \
+        outs[0] = fn(ctx.engine->resource(), args[0]);                          \
     }
 
 NK_UNARY_ADAPTER(tan,  tan)
@@ -74,7 +74,7 @@ void atan2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 2)
         throw Error("atan2: requires 2 arguments",
                      0, 0, "atan2", "", "m:atan2:nargin");
-    outs[0] = atan2(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = atan2(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

@@ -23,14 +23,14 @@
 namespace numkit::signal {
 
 std::tuple<Value, Value>
-freqz(Allocator &alloc, const Value &b, const Value &a, size_t npts)
+freqz(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
 {
     const double *bd = b.doubleData();
     const double *ad = a.doubleData();
     const size_t nb = b.numel(), na = a.numel();
 
-    auto W = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
-    auto H = Value::complexMatrix(npts, 1, &alloc);
+    auto W = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
+    auto H = Value::complexMatrix(npts, 1, mr);
 
     for (size_t k = 0; k < npts; ++k) {
         const double w = M_PI * k / (npts - 1);
@@ -75,10 +75,10 @@ void unwrapInPlace(double *p, size_t n)
 } // namespace
 
 std::tuple<Value, Value>
-phasez(Allocator &alloc, const Value &b, const Value &a, size_t npts)
+phasez(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
 {
-    auto [H, W] = freqz(alloc, b, a, npts);
-    auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
+    auto [H, W] = freqz(mr, b, a, npts);
+    auto phi = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const Complex *hd = H.complexData();
     double *pd = phi.doubleDataMut();
     for (size_t k = 0; k < npts; ++k)
@@ -88,10 +88,10 @@ phasez(Allocator &alloc, const Value &b, const Value &a, size_t npts)
 }
 
 std::tuple<Value, Value>
-grpdelay(Allocator &alloc, const Value &b, const Value &a, size_t npts)
+grpdelay(std::pmr::memory_resource *mr, const Value &b, const Value &a, size_t npts)
 {
-    auto [phi, W] = phasez(alloc, b, a, npts);
-    auto gd = Value::matrix(npts, 1, ValueType::DOUBLE, &alloc);
+    auto [phi, W] = phasez(mr, b, a, npts);
+    auto gd = Value::matrix(npts, 1, ValueType::DOUBLE, mr);
     const double *p = phi.doubleData();
     const double *w = W.doubleData();
     double *g = gd.doubleDataMut();
@@ -117,7 +117,7 @@ void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
                      0, 0, "freqz", "", "m:freqz:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
 
-    auto [H, W] = freqz(ctx.engine->allocator(), args[0], args[1], npts);
+    auto [H, W] = freqz(ctx.engine->resource(), args[0], args[1], npts);
     outs[0] = std::move(H);
     if (nargout > 1)
         outs[1] = std::move(W);
@@ -129,7 +129,7 @@ void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("phasez: requires at least 2 arguments",
                      0, 0, "phasez", "", "m:phasez:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [phi, W] = phasez(ctx.engine->allocator(), args[0], args[1], npts);
+    auto [phi, W] = phasez(ctx.engine->resource(), args[0], args[1], npts);
     outs[0] = std::move(phi);
     if (nargout > 1) outs[1] = std::move(W);
 }
@@ -140,7 +140,7 @@ void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
         throw Error("grpdelay: requires at least 2 arguments",
                      0, 0, "grpdelay", "", "m:grpdelay:nargin");
     const size_t npts = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 512;
-    auto [gd, W] = grpdelay(ctx.engine->allocator(), args[0], args[1], npts);
+    auto [gd, W] = grpdelay(ctx.engine->resource(), args[0], args[1], npts);
     outs[0] = std::move(gd);
     if (nargout > 1) outs[1] = std::move(W);
 }

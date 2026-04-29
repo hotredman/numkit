@@ -1,27 +1,27 @@
 // libs/signal/include/numkit/signal/windows/windows.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
 
 /// Hamming window, column vector of length N.
-Value hamming(Allocator &alloc, size_t N);
+Value hamming(std::pmr::memory_resource *mr, size_t N);
 
 /// Hann (also known as Hanning) window, column vector of length N.
-Value hann(Allocator &alloc, size_t N);
+Value hann(std::pmr::memory_resource *mr, size_t N);
 
 /// Blackman window, column vector of length N.
-Value blackman(Allocator &alloc, size_t N);
+Value blackman(std::pmr::memory_resource *mr, size_t N);
 
 /// Kaiser window, column vector of length N with shape parameter beta.
-Value kaiser(Allocator &alloc, size_t N, double beta);
+Value kaiser(std::pmr::memory_resource *mr, size_t N, double beta);
 
 /// Rectangular window, column vector of length N — all ones.
-Value rectwin(Allocator &alloc, size_t N);
+Value rectwin(std::pmr::memory_resource *mr, size_t N);
 
 /// Bartlett (triangular) window, column vector of length N.
-Value bartlett(Allocator &alloc, size_t N);
+Value bartlett(std::pmr::memory_resource *mr, size_t N);
 
 } // namespace numkit::signal

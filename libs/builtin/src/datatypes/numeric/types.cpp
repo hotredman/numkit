@@ -36,12 +36,12 @@ T saturateCast(double v)
 }
 
 template <typename T>
-Value numericConstructor(ValueType targetType, const Value &x, Allocator *alloc)
+Value numericConstructor(ValueType targetType, const Value &x, std::pmr::memory_resource *mr)
 {
     if (x.type() == targetType)
         return x;
     const size_t n = x.numel();
-    Value r = createLike(x, targetType, alloc);
+    Value r = createLike(x, targetType, mr);
     T *dst = static_cast<T *>(r.rawDataMut());
     for (size_t i = 0; i < n; ++i) {
         double v = x.elemAsDouble(i);
@@ -128,28 +128,28 @@ bool valuesEqual(const Value &a, const Value &b, bool nanEqual)
 // Public API — numeric constructors
 // ════════════════════════════════════════════════════════════════════════
 
-Value toDouble(Allocator &alloc, const Value &x)
+Value toDouble(std::pmr::memory_resource *mr, const Value &x)
 {
-    return numericConstructor<double>(ValueType::DOUBLE, x, &alloc);
+    return numericConstructor<double>(ValueType::DOUBLE, x, mr);
 }
 
-Value single(Allocator &alloc, const Value &x)
+Value single(std::pmr::memory_resource *mr, const Value &x)
 {
-    return numericConstructor<float>(ValueType::SINGLE, x, &alloc);
+    return numericConstructor<float>(ValueType::SINGLE, x, mr);
 }
 
-Value int8(Allocator &alloc, const Value &x)   { return numericConstructor<int8_t>(ValueType::INT8, x, &alloc); }
-Value int16(Allocator &alloc, const Value &x)  { return numericConstructor<int16_t>(ValueType::INT16, x, &alloc); }
-Value int32(Allocator &alloc, const Value &x)  { return numericConstructor<int32_t>(ValueType::INT32, x, &alloc); }
-Value int64(Allocator &alloc, const Value &x)  { return numericConstructor<int64_t>(ValueType::INT64, x, &alloc); }
-Value uint8(Allocator &alloc, const Value &x)  { return numericConstructor<uint8_t>(ValueType::UINT8, x, &alloc); }
-Value uint16(Allocator &alloc, const Value &x) { return numericConstructor<uint16_t>(ValueType::UINT16, x, &alloc); }
-Value uint32(Allocator &alloc, const Value &x) { return numericConstructor<uint32_t>(ValueType::UINT32, x, &alloc); }
-Value uint64(Allocator &alloc, const Value &x) { return numericConstructor<uint64_t>(ValueType::UINT64, x, &alloc); }
+Value int8(std::pmr::memory_resource *mr, const Value &x)   { return numericConstructor<int8_t>(ValueType::INT8, x, mr); }
+Value int16(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int16_t>(ValueType::INT16, x, mr); }
+Value int32(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int32_t>(ValueType::INT32, x, mr); }
+Value int64(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<int64_t>(ValueType::INT64, x, mr); }
+Value uint8(std::pmr::memory_resource *mr, const Value &x)  { return numericConstructor<uint8_t>(ValueType::UINT8, x, mr); }
+Value uint16(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint16_t>(ValueType::UINT16, x, mr); }
+Value uint32(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint32_t>(ValueType::UINT32, x, mr); }
+Value uint64(std::pmr::memory_resource *mr, const Value &x) { return numericConstructor<uint64_t>(ValueType::UINT64, x, mr); }
 
-Value logical(Allocator &alloc, const Value &x)
+Value logical(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isLogical())
         return x;
     if (x.isScalar())
@@ -164,22 +164,22 @@ Value logical(Allocator &alloc, const Value &x)
 // Public API — type predicates
 // ════════════════════════════════════════════════════════════════════════
 
-Value isnumeric(Allocator &alloc, const Value &x) { return Value::logicalScalar(x.isNumeric(), &alloc); }
-Value islogical(Allocator &alloc, const Value &x) { return Value::logicalScalar(x.isLogical(), &alloc); }
-Value ischar(Allocator &alloc, const Value &x)    { return Value::logicalScalar(x.isChar(), &alloc); }
-Value isstring(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isString(), &alloc); }
-Value iscell(Allocator &alloc, const Value &x)    { return Value::logicalScalar(x.isCell(), &alloc); }
-Value isstruct(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isStruct(), &alloc); }
-Value isempty(Allocator &alloc, const Value &x)   { return Value::logicalScalar(x.isEmpty(), &alloc); }
-Value isscalar(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.isScalar(), &alloc); }
-Value isreal(Allocator &alloc, const Value &x)    { return Value::logicalScalar(!x.isComplex(), &alloc); }
-Value isinteger(Allocator &alloc, const Value &x) { return Value::logicalScalar(isIntegerType(x.type()), &alloc); }
-Value isfloat(Allocator &alloc, const Value &x)   { return Value::logicalScalar(isFloatType(x.type()), &alloc); }
-Value issingle(Allocator &alloc, const Value &x)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, &alloc); }
+Value isnumeric(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(x.isNumeric(), mr); }
+Value islogical(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(x.isLogical(), mr); }
+Value ischar(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(x.isChar(), mr); }
+Value isstring(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isString(), mr); }
+Value iscell(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(x.isCell(), mr); }
+Value isstruct(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isStruct(), mr); }
+Value isempty(std::pmr::memory_resource *mr, const Value &x)   { return Value::logicalScalar(x.isEmpty(), mr); }
+Value isscalar(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.isScalar(), mr); }
+Value isreal(std::pmr::memory_resource *mr, const Value &x)    { return Value::logicalScalar(!x.isComplex(), mr); }
+Value isinteger(std::pmr::memory_resource *mr, const Value &x) { return Value::logicalScalar(isIntegerType(x.type()), mr); }
+Value isfloat(std::pmr::memory_resource *mr, const Value &x)   { return Value::logicalScalar(isFloatType(x.type()), mr); }
+Value issingle(std::pmr::memory_resource *mr, const Value &x)  { return Value::logicalScalar(x.type() == ValueType::SINGLE, mr); }
 
-Value isnan(Allocator &alloc, const Value &x)
+Value isnan(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isScalar())
         return Value::logicalScalar(std::isnan(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
@@ -188,9 +188,9 @@ Value isnan(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value isinf(Allocator &alloc, const Value &x)
+Value isinf(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isScalar())
         return Value::logicalScalar(std::isinf(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
@@ -199,9 +199,9 @@ Value isinf(Allocator &alloc, const Value &x)
     return r;
 }
 
-Value isfinite(Allocator &alloc, const Value &x)
+Value isfinite(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isScalar())
         return Value::logicalScalar(std::isfinite(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
@@ -214,19 +214,19 @@ Value isfinite(Allocator &alloc, const Value &x)
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
 
-Value isequal(Allocator &alloc, const Value &a, const Value &b)
+Value isequal(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    return Value::logicalScalar(valuesEqual(a, b, false), &alloc);
+    return Value::logicalScalar(valuesEqual(a, b, false), mr);
 }
 
-Value isequaln(Allocator &alloc, const Value &a, const Value &b)
+Value isequaln(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    return Value::logicalScalar(valuesEqual(a, b, true), &alloc);
+    return Value::logicalScalar(valuesEqual(a, b, true), mr);
 }
 
-Value classOf(Allocator &alloc, const Value &x)
+Value classOf(std::pmr::memory_resource *mr, const Value &x)
 {
-    return Value::fromString(mtypeName(x.type()), &alloc);
+    return Value::fromString(mtypeName(x.type()), mr);
 }
 
 // ════════════════════════════════════════════════════════════════════════
@@ -241,14 +241,14 @@ template <typename T, ValueType targetType>
 void numericConstructor_reg(Span<const Value> args, size_t, Span<Value> outs,
                             CallContext &ctx)
 {
-    Allocator *alloc = &ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty()) {
-        auto r = Value::matrix(1, 1, targetType, alloc);
+        auto r = Value::matrix(1, 1, targetType, mr);
         *static_cast<T *>(r.rawDataMut()) = static_cast<T>(0);
         outs[0] = std::move(r);
         return;
     }
-    outs[0] = numericConstructor<T>(targetType, args[0], alloc);
+    outs[0] = numericConstructor<T>(targetType, args[0], mr);
 }
 
 void double_reg(Span<const Value> args, size_t n, Span<Value> outs, CallContext &ctx)
@@ -279,7 +279,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     if (args.empty())
         throw Error("logical: requires 1 argument", 0, 0, "logical", "",
                      "m:logical:nargin");
-    outs[0] = logical(ctx.engine->allocator(), args[0]);
+    outs[0] = logical(ctx.engine->resource(), args[0]);
 }
 
 // ── Simple predicate adapters ────────────────────────────────────────────
@@ -290,7 +290,7 @@ void logical_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         if (args.empty())                                                           \
             throw Error(#FN ": requires 1 argument", 0, 0, #FN, "",                \
                          "m:" #FN ":nargin");                                  \
-        outs[0] = FN(ctx.engine->allocator(), args[0]);                             \
+        outs[0] = FN(ctx.engine->resource(), args[0]);                             \
     }
 
 NK_PRED_REG(isnumeric)
@@ -319,7 +319,7 @@ void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], false);
-    outs[0] = Value::logicalScalar(eq, &ctx.engine->allocator());
+    outs[0] = Value::logicalScalar(eq, ctx.engine->resource());
 }
 
 void isequaln_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -330,7 +330,7 @@ void isequaln_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
     bool eq = true;
     for (size_t i = 1; i < args.size() && eq; ++i)
         eq = valuesEqual(args[0], args[i], true);
-    outs[0] = Value::logicalScalar(eq, &ctx.engine->allocator());
+    outs[0] = Value::logicalScalar(eq, ctx.engine->resource());
 }
 
 void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
@@ -338,7 +338,7 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
     if (args.empty())
         throw Error("class: requires 1 argument", 0, 0, "class", "",
                      "m:class:nargin");
-    outs[0] = classOf(ctx.engine->allocator(), args[0]);
+    outs[0] = classOf(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

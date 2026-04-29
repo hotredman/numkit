@@ -191,11 +191,11 @@ interpPchip(std::pmr::memory_resource *mr,
 // Helper for interp1 / spline / pchip — pack a yq buffer into a Value
 // preserving xq's row/column orientation.
 Value packInterpResult(const double *yq, std::size_t nq,
-                       const Value &xq, Allocator &alloc)
+                       const Value &xq, std::pmr::memory_resource *mr)
 {
     const bool isRow = xq.dims().rows() == 1;
-    auto r = isRow ? Value::matrix(1, nq, ValueType::DOUBLE, &alloc)
-                   : Value::matrix(nq, 1, ValueType::DOUBLE, &alloc);
+    auto r = isRow ? Value::matrix(1, nq, ValueType::DOUBLE, mr)
+                   : Value::matrix(nq, 1, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nq; ++i)
         r.doubleDataMut()[i] = yq[i];
     return r;
@@ -204,7 +204,7 @@ Value packInterpResult(const double *yq, std::size_t nq,
 } // anonymous namespace
 
 // ── interp1 ───────────────────────────────────────────────────────────
-Value interp1(Allocator &alloc,
+Value interp1(std::pmr::memory_resource *mr,
                const Value &x,
                const Value &y,
                const Value &xq,
@@ -224,24 +224,23 @@ Value interp1(Allocator &alloc,
     const double *yd = y.doubleData();
     const double *xqd = xq.doubleData();
 
-    ScratchArena scratch(alloc);
-    auto *mr = scratch.resource();
+    ScratchArena scratch(mr);
 
     if (method == "linear") {
-        auto yq = interpLinear(mr, xd, yd, n, xqd, nq);
-        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+        auto yq = interpLinear(&scratch, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "nearest") {
-        auto yq = interpNearest(mr, xd, yd, n, xqd, nq);
-        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+        auto yq = interpNearest(&scratch, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "spline") {
-        auto yq = interpSpline(mr, xd, yd, n, xqd, nq);
-        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+        auto yq = interpSpline(&scratch, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     if (method == "pchip") {
-        auto yq = interpPchip(mr, xd, yd, n, xqd, nq);
-        return packInterpResult(yq.data(), yq.size(), xq, alloc);
+        auto yq = interpPchip(&scratch, xd, yd, n, xqd, nq);
+        return packInterpResult(yq.data(), yq.size(), xq, mr);
     }
     throw Error("interp1: unknown method '" + method + "'",
                  0, 0, "interp1", "", "m:interp1:badMethod");
@@ -331,7 +330,7 @@ void readGridAxis(const Value &g, ScratchVec<double> &out, const char *axis)
     for (std::size_t i = 0; i < g.numel(); ++i) out[i] = g.elemAsDouble(i);
 }
 
-Value interp2Impl(Allocator &alloc, std::pmr::memory_resource *mr,
+Value interp2Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *mr,
                    const Value &V,
                    const double *xGrid, std::size_t xN,
                    const double *yGrid, std::size_t yN,
@@ -370,7 +369,7 @@ Value interp2Impl(Allocator &alloc, std::pmr::memory_resource *mr,
     // Output shape: take Xq's shape (or rather build same-shape result).
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, outMr);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -382,7 +381,7 @@ Value interp2Impl(Allocator &alloc, std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value interp2(Allocator &alloc, const Value &V,
+Value interp2(std::pmr::memory_resource *mr, const Value &V,
                const Value &Xq, const Value &Yq, const std::string &method)
 {
     if (V.dims().is3D() || V.dims().ndim() > 2)
@@ -390,25 +389,25 @@ Value interp2(Allocator &alloc, const Value &V,
                      0, 0, "interp2", "", "m:interp2:rank");
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto xGrid = scratch.vec<double>(C);
     auto yGrid = scratch.vec<double>(R);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
-    return interp2Impl(alloc, scratch.resource(), V,
+    return interp2Impl(mr, &scratch, V,
                        xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
 
-Value interp2(Allocator &alloc, const Value &X, const Value &Y,
+Value interp2(std::pmr::memory_resource *mr, const Value &X, const Value &Y,
                const Value &V, const Value &Xq, const Value &Yq,
                const std::string &method)
 {
-    ScratchArena scratch(alloc);
-    ScratchVec<double> xGrid(scratch.resource()), yGrid(scratch.resource());
+    ScratchArena scratch(mr);
+    ScratchVec<double> xGrid(&scratch), yGrid(&scratch);
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
-    return interp2Impl(alloc, scratch.resource(), V,
+    return interp2Impl(mr, &scratch, V,
                        xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(), Xq, Yq, method);
 }
@@ -460,7 +459,7 @@ double interp3Sample(const double *V, std::size_t R, std::size_t C, std::size_t 
     return (1 - tz) * c0 + tz * c1;
 }
 
-Value interp3Impl(Allocator &alloc, std::pmr::memory_resource *mr,
+Value interp3Impl(std::pmr::memory_resource *outMr, std::pmr::memory_resource *mr,
                    const Value &V,
                    const double *xGrid, std::size_t xN,
                    const double *yGrid, std::size_t yN,
@@ -497,7 +496,7 @@ Value interp3Impl(Allocator &alloc, std::pmr::memory_resource *mr,
 
     const auto &qd = Xq.dims();
     const std::size_t nq = Xq.numel();
-    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(qd.rows(), qd.cols(), ValueType::DOUBLE, outMr);
     double *dst = out.doubleDataMut();
     for (std::size_t i = 0; i < nq; ++i) {
         const double xq = Xq.elemAsDouble(i);
@@ -512,7 +511,7 @@ Value interp3Impl(Allocator &alloc, std::pmr::memory_resource *mr,
 
 } // namespace
 
-Value interp3(Allocator &alloc, const Value &V,
+Value interp3(std::pmr::memory_resource *mr, const Value &V,
                const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method)
 {
@@ -522,37 +521,37 @@ Value interp3(Allocator &alloc, const Value &V,
     const std::size_t R = V.dims().rows();
     const std::size_t C = V.dims().cols();
     const std::size_t P = V.dims().pages();
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto xGrid = scratch.vec<double>(C);
     auto yGrid = scratch.vec<double>(R);
     auto zGrid = scratch.vec<double>(P);
     for (std::size_t i = 0; i < C; ++i) xGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < R; ++i) yGrid[i] = static_cast<double>(i + 1);
     for (std::size_t i = 0; i < P; ++i) zGrid[i] = static_cast<double>(i + 1);
-    return interp3Impl(alloc, scratch.resource(), V,
+    return interp3Impl(mr, &scratch, V,
                        xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(),
                        zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }
 
-Value interp3(Allocator &alloc, const Value &X, const Value &Y, const Value &Z,
+Value interp3(std::pmr::memory_resource *mr, const Value &X, const Value &Y, const Value &Z,
                const Value &V, const Value &Xq, const Value &Yq, const Value &Zq,
                const std::string &method)
 {
-    ScratchArena scratch(alloc);
-    ScratchVec<double> xGrid(scratch.resource()), yGrid(scratch.resource()),
-                        zGrid(scratch.resource());
+    ScratchArena scratch(mr);
+    ScratchVec<double> xGrid(&scratch), yGrid(&scratch),
+                        zGrid(&scratch);
     readGridAxis(X, xGrid, "X");
     readGridAxis(Y, yGrid, "Y");
     readGridAxis(Z, zGrid, "Z");
-    return interp3Impl(alloc, scratch.resource(), V,
+    return interp3Impl(mr, &scratch, V,
                        xGrid.data(), xGrid.size(),
                        yGrid.data(), yGrid.size(),
                        zGrid.data(), zGrid.size(), Xq, Yq, Zq, method);
 }
 
 // ── spline ────────────────────────────────────────────────────────────
-Value spline(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
+Value spline(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq)
 {
     const size_t n = x.numel();
     if (n != y.numel())
@@ -562,15 +561,15 @@ Value spline(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
         throw Error("spline: need at least 2 data points",
                      0, 0, "spline", "", "m:spline:tooFewPoints");
 
-    ScratchArena scratch(alloc);
-    auto yq = interpSpline(scratch.resource(),
+    ScratchArena scratch(mr);
+    auto yq = interpSpline(&scratch,
                            x.doubleData(), y.doubleData(), n,
                            xq.doubleData(), xq.numel());
-    return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    return packInterpResult(yq.data(), yq.size(), xq, mr);
 }
 
 // ── pchip ─────────────────────────────────────────────────────────────
-Value pchip(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
+Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const Value &xq)
 {
     const size_t n = x.numel();
     if (n != y.numel())
@@ -580,11 +579,11 @@ Value pchip(Allocator &alloc, const Value &x, const Value &y, const Value &xq)
         throw Error("pchip: need at least 2 data points",
                      0, 0, "pchip", "", "m:pchip:tooFewPoints");
 
-    ScratchArena scratch(alloc);
-    auto yq = interpPchip(scratch.resource(),
+    ScratchArena scratch(mr);
+    auto yq = interpPchip(&scratch,
                           x.doubleData(), y.doubleData(), n,
                           xq.doubleData(), xq.numel());
-    return packInterpResult(yq.data(), yq.size(), xq, alloc);
+    return packInterpResult(yq.data(), yq.size(), xq, mr);
 }
 
 // polyfit / polyval moved to math/elementary/polynomials.cpp
@@ -601,7 +600,7 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     std::string method = "linear";
     if (args.size() >= 4 && args[3].isChar())
         method = args[3].toString();
-    outs[0] = interp1(ctx.engine->allocator(), args[0], args[1], args[2], method);
+    outs[0] = interp1(ctx.engine->resource(), args[0], args[1], args[2], method);
 }
 
 void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -609,7 +608,7 @@ void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
     if (args.size() < 3)
         throw Error("spline: requires 3 arguments",
                      0, 0, "spline", "", "m:spline:nargin");
-    outs[0] = spline(ctx.engine->allocator(), args[0], args[1], args[2]);
+    outs[0] = spline(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -617,7 +616,7 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 3)
         throw Error("interp2: requires at least 3 arguments",
                      0, 0, "interp2", "", "m:interp2:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
     };
@@ -626,13 +625,13 @@ void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() == 3 || (args.size() == 4 && isMethodArg(args[3]))) {
         std::string method = "linear";
         if (args.size() == 4) method = args[3].toString();
-        outs[0] = interp2(alloc, args[0], args[1], args[2], method);
+        outs[0] = interp2(mr, args[0], args[1], args[2], method);
         return;
     }
     if (args.size() == 5 || (args.size() == 6 && isMethodArg(args[5]))) {
         std::string method = "linear";
         if (args.size() == 6) method = args[5].toString();
-        outs[0] = interp2(alloc, args[0], args[1], args[2], args[3], args[4], method);
+        outs[0] = interp2(mr, args[0], args[1], args[2], args[3], args[4], method);
         return;
     }
     throw Error("interp2: invalid argument count or types",
@@ -644,7 +643,7 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 4)
         throw Error("interp3: requires at least 4 arguments",
                      0, 0, "interp3", "", "m:interp3:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     auto isMethodArg = [](const Value &v) {
         return v.isChar() || v.isString();
     };
@@ -652,14 +651,14 @@ void interp3_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() == 4 || (args.size() == 5 && isMethodArg(args[4]))) {
         std::string method = "linear";
         if (args.size() == 5) method = args[4].toString();
-        outs[0] = interp3(alloc, args[0], args[1], args[2], args[3], method);
+        outs[0] = interp3(mr, args[0], args[1], args[2], args[3], method);
         return;
     }
     // Form B: interp3(X, Y, Z, V, Xq, Yq, Zq[, method]) — 7 or 8 args.
     if (args.size() == 7 || (args.size() == 8 && isMethodArg(args[7]))) {
         std::string method = "linear";
         if (args.size() == 8) method = args[7].toString();
-        outs[0] = interp3(alloc, args[0], args[1], args[2], args[3],
+        outs[0] = interp3(mr, args[0], args[1], args[2], args[3],
                           args[4], args[5], args[6], method);
         return;
     }
@@ -672,7 +671,7 @@ void pchip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.size() < 3)
         throw Error("pchip: requires 3 arguments",
                      0, 0, "pchip", "", "m:pchip:nargin");
-    outs[0] = pchip(ctx.engine->allocator(), args[0], args[1], args[2]);
+    outs[0] = pchip(ctx.engine->resource(), args[0], args[1], args[2]);
 }
 
 // interpn — dispatch to interp2 / interp3 based on V's ndim. Form A

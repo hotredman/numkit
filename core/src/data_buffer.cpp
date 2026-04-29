@@ -1,4 +1,4 @@
-// src/data_buffer.cpp
+// core/src/data_buffer.cpp
 #include <numkit/core/data_buffer.hpp>
 
 #include <new>
@@ -6,16 +6,13 @@
 
 namespace numkit {
 
-DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
+DataBuffer::DataBuffer(size_t bytes, std::pmr::memory_resource *mr)
     : bytes_(bytes)
     , refCount_(1)
-    , allocator_(alloc)
+    , mr_(mr ? mr : std::pmr::get_default_resource())
 {
     if (bytes > 0) {
-        if (alloc && alloc->allocate)
-            data_ = alloc->allocate(bytes);
-        else
-            data_ = ::operator new(bytes);
+        data_ = mr_->allocate(bytes, alignof(std::max_align_t));
         if (!data_)
             throw std::runtime_error("DataBuffer: allocation failed");
     }
@@ -23,12 +20,8 @@ DataBuffer::DataBuffer(size_t bytes, Allocator *alloc)
 
 DataBuffer::~DataBuffer()
 {
-    if (data_) {
-        if (allocator_ && allocator_->deallocate)
-            allocator_->deallocate(data_, bytes_);
-        else
-            ::operator delete(data_);
-    }
+    if (data_)
+        mr_->deallocate(data_, bytes_, alignof(std::max_align_t));
 }
 
 void DataBuffer::addRef()

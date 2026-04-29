@@ -18,9 +18,9 @@ namespace numkit::builtin {
 // Public API — unary operators
 // ════════════════════════════════════════════════════════════════════════
 
-Value uminus(Allocator &alloc, const Value &x)
+Value uminus(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isEmpty()) {
         ValueType outType = x.isComplex()                   ? ValueType::COMPLEX
                         : (x.isChar() || x.isLogical()) ? ValueType::DOUBLE
@@ -49,14 +49,14 @@ Value uminus(Allocator &alloc, const Value &x)
     throw Error("Unsupported unary -", 0, 0, "uminus", "", "m:uminus:unsupportedTypes");
 }
 
-Value uplus(Allocator &, const Value &x)
+Value uplus(std::pmr::memory_resource *, const Value &x)
 {
     return x;
 }
 
-Value logicalNot(Allocator &alloc, const Value &x)
+Value logicalNot(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.isLogical()) {
         if (x.isScalar())
             return Value::logicalScalar(!x.toBool(), p);
@@ -80,9 +80,9 @@ Value logicalNot(Allocator &alloc, const Value &x)
     return Value::logicalScalar(!x.toBool(), p);
 }
 
-Value ctranspose(Allocator &alloc, const Value &x)
+Value ctranspose(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
                      0, 0, "ctranspose", "", "m:transpose:3DInput");
@@ -110,9 +110,9 @@ Value ctranspose(Allocator &alloc, const Value &x)
                  0, 0, "ctranspose", "", "m:transpose:unsupportedType");
 }
 
-Value transposeNC(Allocator &alloc, const Value &x)
+Value transposeNC(std::pmr::memory_resource *mr, const Value &x)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (x.dims().is3D())
         throw Error("transpose is not defined for N-D arrays",
                      0, 0, "transpose", "", "m:transpose:3DInput");
@@ -150,11 +150,11 @@ namespace numkit {
 
 void BuiltinLibrary::registerUnaryOps(Engine &engine)
 {
-    engine.registerUnaryOp("-",  [&engine](const Value &a) { return builtin::uminus(engine.allocator(), a); });
-    engine.registerUnaryOp("+",  [&engine](const Value &a) { return builtin::uplus(engine.allocator(), a); });
-    engine.registerUnaryOp("~",  [&engine](const Value &a) { return builtin::logicalNot(engine.allocator(), a); });
-    engine.registerUnaryOp("'",  [&engine](const Value &a) { return builtin::ctranspose(engine.allocator(), a); });
-    engine.registerUnaryOp(".'", [&engine](const Value &a) { return builtin::transposeNC(engine.allocator(), a); });
+    engine.registerUnaryOp("-",  [&engine](const Value &a) { return builtin::uminus(engine.resource(), a); });
+    engine.registerUnaryOp("+",  [&engine](const Value &a) { return builtin::uplus(engine.resource(), a); });
+    engine.registerUnaryOp("~",  [&engine](const Value &a) { return builtin::logicalNot(engine.resource(), a); });
+    engine.registerUnaryOp("'",  [&engine](const Value &a) { return builtin::ctranspose(engine.resource(), a); });
+    engine.registerUnaryOp(".'", [&engine](const Value &a) { return builtin::transposeNC(engine.resource(), a); });
 }
 
 } // namespace numkit

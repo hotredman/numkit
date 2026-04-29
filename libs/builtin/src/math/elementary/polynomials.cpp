@@ -16,7 +16,7 @@
 
 namespace numkit::builtin {
 
-Value roots(Allocator &alloc, const Value &p)
+Value roots(std::pmr::memory_resource *mr, const Value &p)
 {
     if (p.type() == ValueType::COMPLEX)
         throw Error("roots: complex coefficient input is not supported",
@@ -25,7 +25,7 @@ Value roots(Allocator &alloc, const Value &p)
         throw Error("roots: argument must be a vector",
                      0, 0, "roots", "", "m:roots:notVector");
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     // Read coefficients as DOUBLE (promote integer/single/logical).
     const std::size_t n = p.numel();
@@ -33,7 +33,7 @@ Value roots(Allocator &alloc, const Value &p)
     for (std::size_t i = 0; i < n; ++i)
         coeffs[i] = p.elemAsDouble(i);
 
-    auto rs = detail::polyRootsDurandKerner(scratch.resource(), coeffs.data(), coeffs.size());
+    auto rs = detail::polyRootsDurandKerner(&scratch, coeffs.data(), coeffs.size());
     const std::size_t k = rs.size();
 
     // If every root is real, return a real column. Otherwise return COMPLEX.
@@ -45,12 +45,12 @@ Value roots(Allocator &alloc, const Value &p)
         }
 
     if (!anyComplex) {
-        auto out = Value::matrix(k, 1, ValueType::DOUBLE, &alloc);
+        auto out = Value::matrix(k, 1, ValueType::DOUBLE, mr);
         for (std::size_t i = 0; i < k; ++i)
             out.doubleDataMut()[i] = rs[i].real();
         return out;
     }
-    auto out = Value::complexMatrix(k, 1, &alloc);
+    auto out = Value::complexMatrix(k, 1, mr);
     for (std::size_t i = 0; i < k; ++i)
         out.complexDataMut()[i] = rs[i];
     return out;
@@ -107,9 +107,9 @@ ScratchVec<double> polyderRaw(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value rowFromVec(Allocator &alloc, const double *v, std::size_t n)
+Value rowFromVec(std::pmr::memory_resource *mr, const double *v, std::size_t n)
 {
-    auto out = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     if (n > 0)
         std::memcpy(out.doubleDataMut(), v, n * sizeof(double));
     return out;
@@ -125,35 +125,35 @@ void trimLeadingZeros(ScratchVec<double> &v)
 
 } // namespace
 
-Value polyder(Allocator &alloc, const Value &p)
+Value polyder(std::pmr::memory_resource *mr, const Value &p)
 {
-    ScratchArena scratch(alloc);
-    auto pv = readPolyAsDouble(scratch.resource(), p, "polyder");
-    auto deriv = polyderRaw(scratch.resource(), pv.data(), pv.size());
-    return rowFromVec(alloc, deriv.data(), deriv.size());
+    ScratchArena scratch(mr);
+    auto pv = readPolyAsDouble(&scratch, p, "polyder");
+    auto deriv = polyderRaw(&scratch, pv.data(), pv.size());
+    return rowFromVec(mr, deriv.data(), deriv.size());
 }
 
 std::tuple<Value, Value>
-polyder(Allocator &alloc, const Value &b, const Value &a)
+polyder(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
-    ScratchArena scratch(alloc);
-    auto bv = readPolyAsDouble(scratch.resource(), b, "polyder");
-    auto av = readPolyAsDouble(scratch.resource(), a, "polyder");
-    auto bp = polyderRaw(scratch.resource(), bv.data(), bv.size());
-    auto ap = polyderRaw(scratch.resource(), av.data(), av.size());
+    ScratchArena scratch(mr);
+    auto bv = readPolyAsDouble(&scratch, b, "polyder");
+    auto av = readPolyAsDouble(&scratch, a, "polyder");
+    auto bp = polyderRaw(&scratch, bv.data(), bv.size());
+    auto ap = polyderRaw(&scratch, av.data(), av.size());
     // num = a * b' - b * a'
-    auto t1 = polyConv(scratch.resource(), av.data(), av.size(), bp.data(), bp.size());
-    auto t2 = polyConv(scratch.resource(), bv.data(), bv.size(), ap.data(), ap.size());
+    auto t1 = polyConv(&scratch, av.data(), av.size(), bp.data(), bp.size());
+    auto t2 = polyConv(&scratch, bv.data(), bv.size(), ap.data(), ap.size());
     // Align lengths (pad with leading zeros so subtraction is safe).
     if (t1.size() < t2.size()) t1.insert(t1.begin(), t2.size() - t1.size(), 0.0);
     if (t2.size() < t1.size()) t2.insert(t2.begin(), t1.size() - t2.size(), 0.0);
-    ScratchVec<double> num(t1.size(), scratch.resource());
+    ScratchVec<double> num(t1.size(), &scratch);
     for (std::size_t i = 0; i < t1.size(); ++i) num[i] = t1[i] - t2[i];
     trimLeadingZeros(num);
-    auto den = polyConv(scratch.resource(), av.data(), av.size(), av.data(), av.size());
+    auto den = polyConv(&scratch, av.data(), av.size(), av.data(), av.size());
     trimLeadingZeros(den);
-    return std::make_tuple(rowFromVec(alloc, num.data(), num.size()),
-                           rowFromVec(alloc, den.data(), den.size()));
+    return std::make_tuple(rowFromVec(mr, num.data(), num.size()),
+                           rowFromVec(mr, den.data(), den.size()));
 }
 
 // Read a vector input of (real or COMPLEX) numbers as a Complex vector.
@@ -177,15 +177,15 @@ ScratchVec<detail::Complex> readVecAsComplex(std::pmr::memory_resource *mr,
     return r;
 }
 
-Value complexColFromVec(Allocator &alloc, const detail::Complex *v, std::size_t n)
+Value complexColFromVec(std::pmr::memory_resource *mr, const detail::Complex *v, std::size_t n)
 {
-    auto out = Value::complexMatrix(n, 1, &alloc);
+    auto out = Value::complexMatrix(n, 1, mr);
     for (std::size_t i = 0; i < n; ++i)
         out.complexDataMut()[i] = v[i];
     return out;
 }
 
-Value realColIfFlat(Allocator &alloc, const detail::Complex *v, std::size_t n)
+Value realColIfFlat(std::pmr::memory_resource *mr, const detail::Complex *v, std::size_t n)
 {
     bool anyComplex = false;
     for (std::size_t i = 0; i < n; ++i)
@@ -194,23 +194,23 @@ Value realColIfFlat(Allocator &alloc, const detail::Complex *v, std::size_t n)
             break;
         }
     if (!anyComplex) {
-        auto out = Value::matrix(n, 1, ValueType::DOUBLE, &alloc);
+        auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
         for (std::size_t i = 0; i < n; ++i)
             out.doubleDataMut()[i] = v[i].real();
         return out;
     }
-    return complexColFromVec(alloc, v, n);
+    return complexColFromVec(mr, v, n);
 }
 
 } // namespace
 
-Value polyint(Allocator &alloc, const Value &p, double k)
+Value polyint(std::pmr::memory_resource *mr, const Value &p, double k)
 {
-    ScratchArena scratch(alloc);
-    auto pv = readPolyAsDouble(scratch.resource(), p, "polyint");
+    ScratchArena scratch(mr);
+    auto pv = readPolyAsDouble(&scratch, p, "polyint");
     if (pv.empty()) {
         // ∫ 0 dx = k.
-        auto out = Value::matrix(1, 1, ValueType::DOUBLE, &alloc);
+        auto out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
         out.doubleDataMut()[0] = k;
         return out;
     }
@@ -221,47 +221,47 @@ Value polyint(Allocator &alloc, const Value &p, double k)
         r[i] = pv[i] / exponent;
     }
     r[n] = k;
-    return rowFromVec(alloc, r.data(), r.size());
+    return rowFromVec(mr, r.data(), r.size());
 }
 
 // ── tf2zp / zp2tf ───────────────────────────────────────────────────
 std::tuple<Value, Value, Value>
-tf2zp(Allocator &alloc, const Value &b, const Value &a)
+tf2zp(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
-    ScratchArena scratch(alloc);
-    auto bv = readPolyAsDouble(scratch.resource(), b, "tf2zp");
-    auto av = readPolyAsDouble(scratch.resource(), a, "tf2zp");
+    ScratchArena scratch(mr);
+    auto bv = readPolyAsDouble(&scratch, b, "tf2zp");
+    auto av = readPolyAsDouble(&scratch, a, "tf2zp");
     if (av.empty() || av[0] == 0.0)
         throw Error("tf2zp: leading denominator coefficient must be non-zero",
                      0, 0, "tf2zp", "", "m:tf2zp:badDen");
     if (bv.empty()) {
         // Numerator = 0 → no zeros, gain 0.
-        auto z = Value::matrix(0, 1, ValueType::DOUBLE, &alloc);
-        auto pRoots = detail::polyRootsDurandKerner(scratch.resource(), av.data(), av.size());
-        auto p = realColIfFlat(alloc, pRoots.data(), pRoots.size());
-        auto k = Value::scalar(0.0, &alloc);
+        auto z = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+        auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
+        auto p = realColIfFlat(mr, pRoots.data(), pRoots.size());
+        auto k = Value::scalar(0.0, mr);
         return std::make_tuple(std::move(z), std::move(p), std::move(k));
     }
-    auto zRoots = detail::polyRootsDurandKerner(scratch.resource(), bv.data(), bv.size());
-    auto pRoots = detail::polyRootsDurandKerner(scratch.resource(), av.data(), av.size());
+    auto zRoots = detail::polyRootsDurandKerner(&scratch, bv.data(), bv.size());
+    auto pRoots = detail::polyRootsDurandKerner(&scratch, av.data(), av.size());
     const double k = bv[0] / av[0];
 
-    return std::make_tuple(realColIfFlat(alloc, zRoots.data(), zRoots.size()),
-                           realColIfFlat(alloc, pRoots.data(), pRoots.size()),
-                           Value::scalar(k, &alloc));
+    return std::make_tuple(realColIfFlat(mr, zRoots.data(), zRoots.size()),
+                           realColIfFlat(mr, pRoots.data(), pRoots.size()),
+                           Value::scalar(k, mr));
 }
 
 std::tuple<Value, Value>
-zp2tf(Allocator &alloc, const Value &z, const Value &p, double k)
+zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k)
 {
-    ScratchArena scratch(alloc);
-    auto zv = readVecAsComplex(scratch.resource(), z, "zp2tf");
-    auto pv = readVecAsComplex(scratch.resource(), p, "zp2tf");
-    auto bRaw = detail::polyExpandFromRoots(scratch.resource(), zv.data(), zv.size());
-    auto aRaw = detail::polyExpandFromRoots(scratch.resource(), pv.data(), pv.size());
+    ScratchArena scratch(mr);
+    auto zv = readVecAsComplex(&scratch, z, "zp2tf");
+    auto pv = readVecAsComplex(&scratch, p, "zp2tf");
+    auto bRaw = detail::polyExpandFromRoots(&scratch, zv.data(), zv.size());
+    auto aRaw = detail::polyExpandFromRoots(&scratch, pv.data(), pv.size());
     for (auto &v : bRaw) v *= k;
-    return std::make_tuple(rowFromVec(alloc, bRaw.data(), bRaw.size()),
-                           rowFromVec(alloc, aRaw.data(), aRaw.size()));
+    return std::make_tuple(rowFromVec(mr, bRaw.data(), bRaw.size()),
+                           rowFromVec(mr, aRaw.data(), aRaw.size()));
 }
 
 namespace detail {
@@ -271,7 +271,7 @@ void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
     if (args.empty())
         throw Error("roots: requires 1 argument",
                      0, 0, "roots", "", "m:roots:nargin");
-    outs[0] = roots(ctx.engine->allocator(), args[0]);
+    outs[0] = roots(ctx.engine->resource(), args[0]);
 }
 
 void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -279,12 +279,12 @@ void polyder_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     if (args.empty())
         throw Error("polyder: requires at least 1 argument",
                      0, 0, "polyder", "", "m:polyder:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.size() == 1) {
-        outs[0] = polyder(alloc, args[0]);
+        outs[0] = polyder(mr, args[0]);
         return;
     }
-    auto [num, den] = polyder(alloc, args[0], args[1]);
+    auto [num, den] = polyder(mr, args[0], args[1]);
     outs[0] = std::move(num);
     if (nargout > 1) outs[1] = std::move(den);
 }
@@ -294,10 +294,10 @@ void polyint_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.empty())
         throw Error("polyint: requires at least 1 argument",
                      0, 0, "polyint", "", "m:polyint:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     double k = 0.0;
     if (args.size() >= 2) k = args[1].toScalar();
-    outs[0] = polyint(alloc, args[0], k);
+    outs[0] = polyint(mr, args[0], k);
 }
 
 void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -305,7 +305,7 @@ void tf2zp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 2)
         throw Error("tf2zp: requires 2 arguments (b, a)",
                      0, 0, "tf2zp", "", "m:tf2zp:nargin");
-    auto [zr, pr, kr] = tf2zp(ctx.engine->allocator(), args[0], args[1]);
+    auto [zr, pr, kr] = tf2zp(ctx.engine->resource(), args[0], args[1]);
     outs[0] = std::move(zr);
     if (nargout > 1) outs[1] = std::move(pr);
     if (nargout > 2) outs[2] = std::move(kr);
@@ -316,7 +316,7 @@ void zp2tf_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     if (args.size() < 3)
         throw Error("zp2tf: requires 3 arguments (z, p, k)",
                      0, 0, "zp2tf", "", "m:zp2tf:nargin");
-    auto [bv, av] = zp2tf(ctx.engine->allocator(), args[0], args[1],
+    auto [bv, av] = zp2tf(ctx.engine->resource(), args[0], args[1],
                           args[2].toScalar());
     outs[0] = std::move(bv);
     if (nargout > 1) outs[1] = std::move(av);
@@ -327,7 +327,7 @@ void polyfit_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 3)
         throw Error("polyfit: requires 3 arguments",
                      0, 0, "polyfit", "", "m:polyfit:nargin");
-    outs[0] = polyfit(ctx.engine->allocator(),
+    outs[0] = polyfit(ctx.engine->resource(),
                       args[0], args[1],
                       static_cast<int>(args[2].toScalar()));
 }
@@ -337,7 +337,7 @@ void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     if (args.size() < 2)
         throw Error("polyval: requires 2 arguments",
                      0, 0, "polyval", "", "m:polyval:nargin");
-    outs[0] = polyval(ctx.engine->allocator(), args[0], args[1]);
+    outs[0] = polyval(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
@@ -346,7 +346,7 @@ void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 // Curve fitting / evaluation (moved from libs/fit)
 // ════════════════════════════════════════════════════════════════════════
 
-Value polyfit(Allocator &alloc, const Value &x, const Value &y, int deg)
+Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int deg)
 {
     const size_t m = x.numel();
     const int np = deg + 1;
@@ -358,7 +358,7 @@ Value polyfit(Allocator &alloc, const Value &x, const Value &y, int deg)
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     // Vandermonde matrix A[j, i] = x[i]^(deg - j), stored column-major.
     auto A = scratch.vec<double>(m * np);
@@ -417,20 +417,20 @@ Value polyfit(Allocator &alloc, const Value &x, const Value &y, int deg)
         }
     }
 
-    auto p = Value::matrix(1, np, ValueType::DOUBLE, &alloc);
+    auto p = Value::matrix(1, np, ValueType::DOUBLE, mr);
     for (int j = 0; j < np; ++j)
         p.doubleDataMut()[j] = aug[j * (np + 1) + np];
     return p;
 }
 
-Value polyval(Allocator &alloc, const Value &p, const Value &x)
+Value polyval(std::pmr::memory_resource *mr, const Value &p, const Value &x)
 {
     const double *pd = p.doubleData();
     const size_t np = p.numel();
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
-    auto r = createLike(x, ValueType::DOUBLE, &alloc);
+    auto r = createLike(x, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nx; ++i) {
         double val = pd[0];
         for (size_t j = 1; j < np; ++j)

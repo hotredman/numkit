@@ -9,7 +9,7 @@
 #include <numkit/builtin/math/elementary/exponents.hpp>
 #include <numkit/builtin/math/elementary/rounding.hpp>
 #include <numkit/builtin/math/elementary/trigonometry.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -41,13 +41,13 @@ void runElementwiseBench(benchmark::State &state, Fn fn, double lo, double hi)
     using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     Value x = makeReal(n, 7, lo, hi);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
         // Pass nullptr hint explicitly so the call signature matches both
         // the legacy 2-arg signature and the newer 3-arg one (with the
         // optional output-reuse hint added in Phase B+).
-        Value y = fn(alloc, x, nullptr);
+        Value y = fn(mr, x, nullptr);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

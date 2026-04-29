@@ -296,10 +296,10 @@ enter_frame:
                 break;
             }
             case OpCode::LOAD_EMPTY:
-                R[I.a] = Value::matrix(0, 0, ValueType::DOUBLE, &engine_.allocator_);
+                R[I.a] = Value::matrix(0, 0, ValueType::DOUBLE, engine_.mr_);
                 break;
             case OpCode::LOAD_STRING:
-                R[I.a] = Value::fromString(chunk.strings[I.d], &engine_.allocator_);
+                R[I.a] = Value::fromString(chunk.strings[I.d], engine_.mr_);
                 break;
             case OpCode::MOVE:
                 if (R[I.b].isDoubleScalar()) {
@@ -312,7 +312,7 @@ enter_frame:
                 }
                 break;
             case OpCode::COLON_ALL:
-                R[I.a] = Value::fromString(":", &engine_.allocator_);
+                R[I.a] = Value::fromString(":", engine_.mr_);
                 break;
             case OpCode::LOAD_END: {
                 // a=dst, b=arrReg, c=dim (0-based), d=ndims
@@ -326,7 +326,7 @@ enter_frame:
                     // Dimensional indexing: end = size along dimension c
                     sz = arr.dims().dimSize(I.c);
                 }
-                R[I.a] = Value::scalar(static_cast<double>(sz), &engine_.allocator_);
+                R[I.a] = Value::scalar(static_cast<double>(sz), engine_.mr_);
                 break;
             }
 
@@ -598,19 +598,19 @@ enter_frame:
             // ── Colon ────────────────────────────────────────────
             case OpCode::COLON: {
                 double start = R[I.b].toScalar(), stop = R[I.c].toScalar();
-                R[I.a] = Value::colonRange(start, stop, &engine_.allocator_);
+                R[I.a] = Value::colonRange(start, stop, engine_.mr_);
                 break;
             }
             case OpCode::COLON3: {
                 double start = R[I.b].toScalar(), step = R[I.c].toScalar(),
                        stop = R[I.e].toScalar();
-                R[I.a] = Value::colonRange(start, step, stop, &engine_.allocator_);
+                R[I.a] = Value::colonRange(start, step, stop, engine_.mr_);
                 break;
             }
 
             // ── Array construction ───────────────────────────────
             case OpCode::HORZCAT:
-                R[I.a] = Value::horzcat(&R[I.b], I.c, &engine_.allocator_);
+                R[I.a] = Value::horzcat(&R[I.b], I.c, engine_.mr_);
                 break;
             case OpCode::HORZCAT_APPEND: {
                 // Specialised `dst = [dst, val]` — emitted by the
@@ -627,15 +627,15 @@ enter_frame:
                     && dst.heapRefCount() == 1
                     && (dst.isEmpty()
                         || (dst.isHeapDouble() && dst.dims().rows() == 1))) {
-                    dst.appendScalar(val.toScalar(), &engine_.allocator_);
+                    dst.appendScalar(val.toScalar(), engine_.mr_);
                     break;
                 }
                 Value elems[2] = { dst, val };
-                R[I.a] = Value::horzcat(elems, 2, &engine_.allocator_);
+                R[I.a] = Value::horzcat(elems, 2, engine_.mr_);
                 break;
             }
             case OpCode::VERTCAT:
-                R[I.a] = Value::vertcat(&R[I.b], I.c, &engine_.allocator_);
+                R[I.a] = Value::vertcat(&R[I.b], I.c, engine_.mr_);
                 break;
 
             // ── Array indexing ───────────────────────────────────
@@ -646,19 +646,19 @@ enter_frame:
                     // Cell () indexing always returns sub-cell
                     auto indices = Value::resolveIndices(ix, mv.numel());
                     R[I.a] = mv.indexGet(indices.data(), indices.size(),
-                                         &engine_.allocator_);
+                                         engine_.mr_);
                 } else if (mv.isScalar() && ix.isDoubleScalar()) {
                     checkedIndex(ix.scalarVal(), 1); // validate bounds
                     R[I.a] = mv;
                 } else if (ix.isDoubleScalar()) {
                     size_t i = checkedIndex(ix.scalarVal(), mv.numel());
-                    R[I.a] = mv.elemAt(i, &engine_.allocator_);
+                    R[I.a] = mv.elemAt(i, engine_.mr_);
                 } else if (ix.isLogical()) {
                     R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(),
-                                             &engine_.allocator_);
+                                             engine_.mr_);
                 } else {
                     auto indices = Value::resolveIndices(ix, mv.numel());
-                    R[I.a] = mv.indexGet(indices.data(), indices.size(), &engine_.allocator_);
+                    R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
                 }
                 break;
             }
@@ -676,7 +676,7 @@ enter_frame:
                 auto colIds = Value::resolveIndices(R[I.e], mv.dims().cols());
                 R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
                                         colIds.data(), colIds.size(),
-                                        &engine_.allocator_);
+                                        engine_.mr_);
                 break;
             }
             case OpCode::INDEX_SET: {
@@ -700,12 +700,12 @@ enter_frame:
                         && dst.heapRefCount() == 1
                         && (dst.isEmpty()
                             || (dst.isHeapDouble() && dst.dims().rows() == 1))) {
-                        dst.appendScalar(rhs.toScalar(), &engine_.allocator_);
+                        dst.appendScalar(rhs.toScalar(), engine_.mr_);
                         break;
                     }
 
                     if (dst.isEmpty() || dst.isScalar() || i >= dst.numel())
-                        dst.ensureSize(i, &engine_.allocator_);
+                        dst.ensureSize(i, engine_.mr_);
                     dst.elemSet(i, rhs);
                 } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
                     // Colon linear-assign: z(:) = rhs writes across every
@@ -776,7 +776,7 @@ enter_frame:
                     size_t maxIdx = 0;
                     for (size_t idx : indices) maxIdx = std::max(maxIdx, idx);
                     if (R[I.a].isEmpty() || maxIdx >= R[I.a].numel())
-                        R[I.a].ensureSize(maxIdx, &engine_.allocator_);
+                        R[I.a].ensureSize(maxIdx, engine_.mr_);
                     R[I.a].indexSet(indices.data(), indices.size(), R[I.c]);
                 }
                 break;
@@ -800,7 +800,7 @@ enter_frame:
                     // Out-of-bounds: grow then write
                     size_t newR = std::max(d.rows(), r + 1);
                     size_t newC = std::max(d.cols(), c + 1);
-                    R[I.a].resize(newR, newC, &engine_.allocator_);
+                    R[I.a].resize(newR, newC, engine_.mr_);
                     R[I.a].doubleDataMutFast()[R[I.a].heapDims().sub2ind(r, c)] = val.scalarVal();
                     break;
                 }
@@ -818,7 +818,7 @@ enter_frame:
                 for (size_t r : rowIds) maxR = std::max(maxR, r + 1);
                 for (size_t c : colIds) maxC = std::max(maxC, c + 1);
                 if (maxR > R[I.a].dims().rows() || maxC > R[I.a].dims().cols())
-                    R[I.a].resize(maxR, maxC, &engine_.allocator_);
+                    R[I.a].resize(maxR, maxC, engine_.mr_);
 
                 // Resolve colon-all after resize (needs final dims)
                 if (riIsColon) rowIds = Value::resolveIndices(ri, R[I.a].dims().rows());
@@ -841,7 +841,7 @@ enter_frame:
                     R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
                                            colIds.data(), colIds.size(),
                                            pageIds.data(), pageIds.size(),
-                                           &engine_.allocator_);
+                                           engine_.mr_);
                 } else {
                     // ND read (≥4): CELL handled by indexGetND directly now.
                     const int nd = static_cast<int>(ndims);
@@ -855,7 +855,7 @@ enter_frame:
                         idxCounts[i] = idxLists[i].size();
                     }
                     R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd,
-                                           &engine_.allocator_);
+                                           engine_.mr_);
                 }
                 break;
             }
@@ -887,7 +887,7 @@ enter_frame:
                     for (size_t p : pageIds) maxP = std::max(maxP, p + 1);
                     if (maxR > R[I.a].dims().rows() || maxC > R[I.a].dims().cols()
                         || maxP > R[I.a].dims().pages())
-                        R[I.a].resize3d(maxR, maxC, maxP, &engine_.allocator_);
+                        R[I.a].resize3d(maxR, maxC, maxP, engine_.mr_);
 
                     // Resolve colon-all after resize (needs final dims)
                     if (riColon) rowIds = Value::resolveIndices(R[base], R[I.a].dims().rows());
@@ -928,7 +928,7 @@ enter_frame:
                     for (int i = 0; i < curNd && !grow; ++i)
                         if (need[i] > R[I.a].dims().dim(i)) grow = true;
                     if (grow)
-                        R[I.a].resizeND(need.data(), newNd, &engine_.allocator_);
+                        R[I.a].resizeND(need.data(), newNd, engine_.mr_);
 
                     std::vector<std::vector<size_t>> idxLists(nd);
                     std::vector<const size_t *> idxPtrs(nd);
@@ -948,7 +948,7 @@ enter_frame:
             case OpCode::INDEX_DELETE: {
                 // a=arr, b=idx
                 auto indices = Value::resolveIndicesUnchecked(R[I.b]);
-                R[I.a].indexDelete(indices.data(), indices.size(), &engine_.allocator_);
+                R[I.a].indexDelete(indices.data(), indices.size(), engine_.mr_);
                 break;
             }
             case OpCode::INDEX_DELETE_2D: {
@@ -958,7 +958,7 @@ enter_frame:
                 auto colIdx = Value::resolveIndices(R[I.c], Cols);
                 R[I.a].indexDelete2D(rowIdx.data(), rowIdx.size(),
                                      colIdx.data(), colIdx.size(),
-                                     &engine_.allocator_);
+                                     engine_.mr_);
                 break;
             }
 
@@ -977,7 +977,7 @@ enter_frame:
                     perDimCount[i] = perDim[i].size();
                 }
                 R[I.a].indexDeleteND(perDimPtrs.data(), perDimCount.data(),
-                                     ndims, &engine_.allocator_);
+                                     ndims, engine_.mr_);
                 break;
             }
 
@@ -1178,7 +1178,7 @@ enter_frame:
                         }
                     }
                     if (grow)
-                        R[I.a].resizeND(need.data(), newNd, &engine_.allocator_);
+                        R[I.a].resizeND(need.data(), newNd, engine_.mr_);
                     const auto &d = R[I.a].dims();
                     size_t idx = 0, stride = 1;
                     for (uint8_t i = 0; i < ndims; ++i) {
@@ -1399,7 +1399,7 @@ enter_frame:
                                             + "') is not yet supported.\n");
                 }
 
-                R[I.a] = Value::scalar(code, &engine_.allocator_);
+                R[I.a] = Value::scalar(code, engine_.mr_);
                 break;
             }
 
@@ -1554,8 +1554,8 @@ bool VM::dispatchTryCatch(const char *msg, const char *identifier)
     R_ = frame.R;
 
     Value err = Value::structure();
-    err.field("message") = Value::fromString(msg, &engine_.allocator_);
-    err.field("identifier") = Value::fromString(identifier, &engine_.allocator_);
+    err.field("message") = Value::fromString(msg, engine_.mr_);
+    err.field("identifier") = Value::fromString(identifier, engine_.mr_);
     frame.R[th.exReg] = std::move(err);
     frame.ip = th.catchIp;
     return true;
@@ -1896,9 +1896,9 @@ void VM::forSetVar(Value &varReg, const ForState &fs)
     if (fs.rangeType == ValueType::CHAR) {
         const char *src = static_cast<const char *>(fs.rawData);
         if (fs.rows == 1) {
-            varReg = Value::fromString(std::string(1, src[fs.index]), &engine_.allocator_);
+            varReg = Value::fromString(std::string(1, src[fs.index]), engine_.mr_);
         } else {
-            auto col = Value::matrix(fs.rows, 1, ValueType::CHAR, &engine_.allocator_);
+            auto col = Value::matrix(fs.rows, 1, ValueType::CHAR, engine_.mr_);
             char *dst = col.charDataMut();
             const char *colSrc = src + fs.index * fs.rows;
             for (size_t r = 0; r < fs.rows; ++r)
@@ -1912,7 +1912,7 @@ void VM::forSetVar(Value &varReg, const ForState &fs)
         if (fs.rows == 1) {
             varReg = Value::logicalScalar(src[fs.index] != 0);
         } else {
-            auto col = Value::matrix(fs.rows, 1, ValueType::LOGICAL, &engine_.allocator_);
+            auto col = Value::matrix(fs.rows, 1, ValueType::LOGICAL, engine_.mr_);
             uint8_t *dst = col.logicalDataMut();
             const uint8_t *colSrc = src + fs.index * fs.rows;
             for (size_t r = 0; r < fs.rows; ++r)
@@ -1943,7 +1943,7 @@ void VM::forSetVar(Value &varReg, const ForState &fs)
         return;
     }
     size_t rows = fs.rows;
-    auto col = Value::matrix(rows, 1, ValueType::DOUBLE, &engine_.allocator_);
+    auto col = Value::matrix(rows, 1, ValueType::DOUBLE, engine_.mr_);
     double *dst = col.doubleDataMut();
     const double *src = fs.data + fs.index * rows;
     for (size_t r = 0; r < rows; ++r)
@@ -2164,11 +2164,11 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
         const Value &ix = R[argBase];
         if (mv.isCell()) {
             auto indices = Value::resolveIndices(ix, mv.numel());
-            R[I.a] = mv.indexGet(indices.data(), indices.size(), &engine_.allocator_);
+            R[I.a] = mv.indexGet(indices.data(), indices.size(), engine_.mr_);
         } else if (ix.isChar() && ix.numel() == 1 && ix.charData()[0] == ':') {
             size_t n = mv.numel();
             ValueType t = mv.type();
-            auto res = Value::matrix(n, 1, t, &engine_.allocator_);
+            auto res = Value::matrix(n, 1, t, engine_.mr_);
             if (n > 0) {
                 size_t es = elementSize(t);
                 std::memcpy(res.rawDataMut(), mv.rawData(), n * es);
@@ -2179,16 +2179,16 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             R[I.a] = mv;
         } else if (ix.isDoubleScalar()) {
             size_t i = checkedIndex(ix.scalarVal(), mv.numel());
-            R[I.a] = mv.elemAt(i, &engine_.allocator_);
+            R[I.a] = mv.elemAt(i, engine_.mr_);
         } else if (ix.isLogical()) {
-            R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(), &engine_.allocator_);
+            R[I.a] = mv.logicalIndex(ix.logicalData(), ix.numel(), engine_.mr_);
         } else {
             size_t n = ix.numel();
             const double *id = ix.doubleData();
             std::vector<size_t> indices(n);
             for (size_t k = 0; k < n; ++k)
                 indices[k] = static_cast<size_t>(id[k]) - 1;
-            R[I.a] = mv.indexGet(indices.data(), n, &engine_.allocator_);
+            R[I.a] = mv.indexGet(indices.data(), n, engine_.mr_);
         }
     } else if (na == 2) {
         const Value &mv = R[fhReg];
@@ -2198,7 +2198,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
         auto colIds = Value::resolveIndices(ci, mv.dims().cols());
         R[I.a] = mv.indexGet2D(rowIds.data(), rowIds.size(),
                                colIds.data(), colIds.size(),
-                               &engine_.allocator_);
+                               engine_.mr_);
     } else if (na == 3) {
         const Value &mv = R[fhReg];
         if (mv.isCell()) {
@@ -2213,7 +2213,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             R[I.a] = mv.indexGet3D(rowIds.data(), rowIds.size(),
                                    colIds.data(), colIds.size(),
                                    pageIds.data(), pageIds.size(),
-                                   &engine_.allocator_);
+                                   engine_.mr_);
         }
     } else {
         // ND indexing fallback for na >= 4. CELL handled by indexGetND.
@@ -2228,7 +2228,7 @@ void VM::execIndirectIndex(const Instruction &I, Value *R)
             idxPtrs[i] = idxLists[i].data();
             idxCounts[i] = idxLists[i].size();
         }
-        R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd, &engine_.allocator_);
+        R[I.a] = mv.indexGetND(idxPtrs.data(), idxCounts.data(), nd, engine_.mr_);
     }
 }
 

@@ -1,7 +1,7 @@
 // libs/signal/include/numkit/signal/transforms/fft.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit::signal {
@@ -14,7 +14,7 @@ namespace numkit::signal {
 ///   fft(x, [], k)  — along dimension k (1 = rows, 2 = cols, 3 = pages)
 ///   fft(x, n,  k)
 ///
-/// @param alloc  Allocator for the output Value and any intermediate buffers.
+/// @param mr  Allocator for the output Value and any intermediate buffers.
 /// @param x      Input — real or complex, 1-D / 2-D / 3-D. Empty → returns empty.
 /// @param n      Output length per transform. -1 (default) keeps input length.
 ///               n > input length → zero-pad; n < input → truncate.
@@ -28,9 +28,9 @@ namespace numkit::signal {
 ///               is within 1e-10 everywhere.
 /// @throws       Error on dim outside {0, 1, 2, 3}, or when the requested
 ///               transform would extend dimensionality (axis length 1, n > 1).
-Value fft(Allocator &alloc, const Value &x, int n = -1, int dim = 0);
+Value fft(std::pmr::memory_resource *mr, const Value &x, int n = -1, int dim = 0);
 
 /// 1D inverse DFT along a given dimension. Same parameter semantics as `fft`.
-Value ifft(Allocator &alloc, const Value &X, int n = -1, int dim = 0);
+Value ifft(std::pmr::memory_resource *mr, const Value &X, int n = -1, int dim = 0);
 
 } // namespace numkit::signal

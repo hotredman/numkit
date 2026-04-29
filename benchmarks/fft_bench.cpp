@@ -5,7 +5,7 @@
 // counted. Sizes are powers of two (the common case) across a range
 // that spans the cache hierarchy on a typical workstation.
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 #include <numkit/signal/transforms/fft.hpp>
@@ -63,10 +63,10 @@ static void BM_Fft_PowerOfTwo(benchmark::State &state)
     using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     Value x = makeRealSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -93,10 +93,10 @@ static void BM_Fft_PowerOfTwo_Complex(benchmark::State &state)
     using namespace numkit;
     const size_t n = static_cast<size_t>(state.range(0));
     Value x = makeComplexSignal(n);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::fft(alloc, x, /*n=*/-1, /*dim=*/1);
+        Value y = signal::fft(mr, x, /*n=*/-1, /*dim=*/1);
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

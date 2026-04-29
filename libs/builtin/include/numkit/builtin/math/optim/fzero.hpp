@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/math/optim/fzero.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 namespace numkit { class Engine; }
@@ -17,7 +17,7 @@ using ::numkit::Engine;
 ///                    sign(fn(a)) == sign(fn(b)) (no obvious root).
 /// `fn` must be a function handle. Engine pointer is required to invoke
 /// the callback — it's expected to come from the CallContext.
-Value fzero(Allocator &alloc, const Value &fn, const Value &x0OrInterval,
+Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInterval,
              Engine *engine);
 
 } // namespace numkit::builtin

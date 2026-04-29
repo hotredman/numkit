@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <tuple>
@@ -28,8 +28,8 @@ namespace numkit::builtin {
 //
 // Pass dim == 0 to mean "auto" (first non-singleton). normFlag must be
 // 0 or 1 — anything else throws.
-Value var(Allocator &alloc, const Value &x, int normFlag = 0, int dim = 0);
-Value stdev(Allocator &alloc, const Value &x, int normFlag = 0, int dim = 0);
+Value var(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
+Value stdev(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0, int dim = 0);
 
 // ── median ─────────────────────────────────────────────────────────────
 // median(X)         → median along first non-singleton dim
@@ -38,7 +38,7 @@ Value stdev(Allocator &alloc, const Value &x, int normFlag = 0, int dim = 0);
 // MATLAB convention: for an even-length slice, returns the average of
 // the two middle elements. NaN in the slice currently propagates (the
 // nanmedian variant comes in Phase 2).
-Value median(Allocator &alloc, const Value &x, int dim = 0);
+Value median(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
 
 // ── quantile / prctile ─────────────────────────────────────────────────
 // quantile(X, p)        → p in [0,1], scalar or vector
@@ -49,8 +49,8 @@ Value median(Allocator &alloc, const Value &x, int dim = 0);
 // length k instead of 1 (matching MATLAB). The default interpolation
 // method is linear (between order statistics), MATLAB's default for
 // quantile/prctile.
-Value quantile(Allocator &alloc, const Value &x, const Value &p, int dim = 0);
-Value prctile(Allocator &alloc, const Value &x, const Value &p, int dim = 0);
+Value quantile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim = 0);
+Value prctile(std::pmr::memory_resource *mr, const Value &x, const Value &p, int dim = 0);
 
 // ── mode ───────────────────────────────────────────────────────────────
 // mode(X)               → most-frequent value along first non-singleton dim
@@ -59,7 +59,7 @@ Value prctile(Allocator &alloc, const Value &x, const Value &p, int dim = 0);
 // Returns (mode_value, frequency). If multiple values tie for most
 // frequent, returns the smallest (MATLAB convention).
 std::tuple<Value, Value>
-mode(Allocator &alloc, const Value &x, int dim = 0);
+mode(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
 
 // nan-aware reductions (nansum, nanmean, nanmax, nanmin, nanvar,
 // nanstdev, nanmedian) and the higher moments (skewness, kurtosis)
@@ -77,12 +77,12 @@ mode(Allocator &alloc, const Value &x, int dim = 0);
 // cov(X, normFlag)  — normFlag=0 → divide by n-1 (default, sample);
 //                     normFlag=1 → divide by n (population).
 // 2D matrix path only — 3D / N-D arrays throw.
-Value cov(Allocator &alloc, const Value &x, int normFlag = 0);
-Value cov(Allocator &alloc, const Value &x, const Value &y, int normFlag = 0);
+Value cov(std::pmr::memory_resource *mr, const Value &x, int normFlag = 0);
+Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int normFlag = 0);
 
 // corrcoef(X) / corrcoef(X, Y) — correlation coefficient matrix.
 // R(i,j) = C(i,j) / sqrt(C(i,i) * C(j,j)) where C = cov(...).
-Value corrcoef(Allocator &alloc, const Value &x);
-Value corrcoef(Allocator &alloc, const Value &x, const Value &y);
+Value corrcoef(std::pmr::memory_resource *mr, const Value &x);
+Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 
 } // namespace numkit::builtin

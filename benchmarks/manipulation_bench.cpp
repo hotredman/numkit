@@ -11,7 +11,7 @@
 #include <numkit/builtin/lang/arrays/manip.hpp>
 #include <numkit/builtin/lang/arrays/matrix.hpp>
 #include <numkit/builtin/lang/arrays/nd_manip.hpp>
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 
@@ -49,9 +49,9 @@ void runSquareBench(benchmark::State &s, Fn fn)
 {
     const size_t side = static_cast<size_t>(s.range(0));
     auto m = makeMat(side, side);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = fn(alloc, m);
+        auto y = fn(mr, m);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side));
@@ -82,9 +82,9 @@ static void BM_RepmatTile(benchmark::State &s)
 {
     const size_t tiles = static_cast<size_t>(s.range(0));
     auto m = makeMat(64, 64);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::repmat(alloc, m, tiles, tiles);
+        auto y = builtin::repmat(mr, m, tiles, tiles);
         benchmark::DoNotOptimize(y);
     }
     const size_t totalElems = 64 * 64 * tiles * tiles;
@@ -102,10 +102,10 @@ static void BM_PermuteTranspose(benchmark::State &s)
     // strided access pattern.
     const size_t side = static_cast<size_t>(s.range(0));
     auto m = makeMat(side, side);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     const int perm[] = {2, 1};
     for (auto _ : s) {
-        auto y = builtin::permute(alloc, m, perm, 2);
+        auto y = builtin::permute(mr, m, perm, 2);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side));
@@ -117,10 +117,10 @@ static void BM_Permute3D(benchmark::State &s)
     // permute(A, [3 1 2]) on a 3D R×C×P; output dims rotate.
     const size_t side = static_cast<size_t>(s.range(0));
     auto m = make3D(side, side, side);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     const int perm[] = {3, 1, 2};
     for (auto _ : s) {
-        auto y = builtin::permute(alloc, m, perm, 3);
+        auto y = builtin::permute(mr, m, perm, 3);
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(side * side * side));
@@ -135,9 +135,9 @@ static void BM_CatDim3(benchmark::State &s)
     mats.reserve(n);
     for (size_t i = 0; i < n; ++i)
         mats.push_back(makeMat(256, 256, 100 + static_cast<uint32_t>(i)));
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::cat(alloc, 3, mats.data(), mats.size());
+        auto y = builtin::cat(mr, 3, mats.data(), mats.size());
         benchmark::DoNotOptimize(y);
     }
     s.SetItemsProcessed(s.iterations() * static_cast<int64_t>(256 * 256 * n));
@@ -152,9 +152,9 @@ static void BM_Blkdiag(benchmark::State &s)
     mats.reserve(blocks);
     for (size_t i = 0; i < blocks; ++i)
         mats.push_back(makeMat(64, 64, 200 + static_cast<uint32_t>(i)));
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
     for (auto _ : s) {
-        auto y = builtin::blkdiag(alloc, mats.data(), mats.size());
+        auto y = builtin::blkdiag(mr, mats.data(), mats.size());
         benchmark::DoNotOptimize(y);
     }
     const size_t side = 64 * blocks;

@@ -7,6 +7,7 @@
 
 #include <atomic>
 #include <map>
+#include <memory_resource>
 #include <string>
 #include <vector>
 
@@ -25,7 +26,7 @@ struct HeapObject
     std::atomic<int> refCount{1};
     ValueType type = ValueType::EMPTY;
     Dims dims;
-    Allocator *allocator = nullptr;
+    std::pmr::memory_resource *mr = nullptr;  // not owned; outlives the heap
 
     // Array data (DOUBLE, INT*, UINT*, LOGICAL, CHAR, COMPLEX)
     DataBuffer *buffer = nullptr;

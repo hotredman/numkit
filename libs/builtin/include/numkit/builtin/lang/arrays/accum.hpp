@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/value.hpp>
 
 #include <cstddef>
@@ -29,7 +29,7 @@ enum class AccumReducer { Sum, Max, Min, Prod, Mean, Any, All };
 // nOutShape == 0 → derive shape from max(subs) per column.
 // `vals` may be a scalar (broadcast to every subscript row) or a
 // length-N vector (one value per subscript row).
-Value accumarray(Allocator &alloc,
+Value accumarray(std::pmr::memory_resource *mr,
                   const Value &subs,
                   const Value &vals,
                   const size_t *outShape, std::size_t nOutShape,

@@ -70,19 +70,19 @@ uint8_t scanSlice(const Value &x, std::size_t base, std::size_t n, std::size_t s
 }
 
 template <bool IsAny>
-Value logicalReduceImpl(Allocator &alloc, const Value &x, int dim)
+Value logicalReduceImpl(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
     if (x.isEmpty())
-        return Value::logicalScalar(IsAny ? false : true, &alloc);
+        return Value::logicalScalar(IsAny ? false : true, mr);
     if (x.isScalar()) {
         const bool nz = x.isComplex()
             ? (x.toComplex().real() != 0.0 || x.toComplex().imag() != 0.0)
             : (x.elemAsDouble(0) != 0.0);
-        return Value::logicalScalar(nz, &alloc);
+        return Value::logicalScalar(nz, mr);
     }
     if (x.dims().isVector()) {
         const uint8_t v = scanSlice<IsAny>(x, 0, x.numel(), 1);
-        return Value::logicalScalar(v != 0, &alloc);
+        return Value::logicalScalar(v != 0, mr);
     }
 
     const int d = detail::resolveDim(x, dim, IsAny ? "any" : "all");
@@ -90,11 +90,11 @@ Value logicalReduceImpl(Allocator &alloc, const Value &x, int dim)
 
     // ND fallback: rank ≥ 4 — stride arithmetic via scanSlice.
     if (dd.ndim() >= 4 && d >= 1 && d <= dd.ndim()) {
-        ScratchArena scratch_arena(alloc);
-        auto shape = detail::outShapeForDimND(scratch_arena.resource(), x, d);
+        ScratchArena scratch_arena(mr);
+        auto shape = detail::outShapeForDimND(&scratch_arena, x, d);
         Value out = Value::matrixND(shape.data(),
                                       static_cast<int>(shape.size()),
-                                      ValueType::LOGICAL, &alloc);
+                                      ValueType::LOGICAL, mr);
         uint8_t *dst = out.logicalDataMut();
         const std::size_t sliceLen = dd.dim(d - 1);
         std::size_t B = 1;
@@ -110,7 +110,7 @@ Value logicalReduceImpl(Allocator &alloc, const Value &x, int dim)
     }
 
     const auto outShape = detail::outShapeForDim(x, d);
-    Value out = createMatrix(outShape, ValueType::LOGICAL, &alloc);
+    Value out = createMatrix(outShape, ValueType::LOGICAL, mr);
     uint8_t *dst = out.logicalDataMut();
 
     const std::size_t R = dd.rows(), C = dd.cols(), P = dd.is3D() ? dd.pages() : 1;
@@ -142,14 +142,14 @@ Value logicalReduceImpl(Allocator &alloc, const Value &x, int dim)
 
 } // namespace
 
-Value anyOf(Allocator &alloc, const Value &x, int dim)
+Value anyOf(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    return logicalReduceImpl<true>(alloc, x, dim);
+    return logicalReduceImpl<true>(mr, x, dim);
 }
 
-Value allOf(Allocator &alloc, const Value &x, int dim)
+Value allOf(std::pmr::memory_resource *mr, const Value &x, int dim)
 {
-    return logicalReduceImpl<false>(alloc, x, dim);
+    return logicalReduceImpl<false>(mr, x, dim);
 }
 
 } // namespace numkit::builtin

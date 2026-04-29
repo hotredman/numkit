@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
@@ -29,7 +29,7 @@ void warning(Engine &engine, Span<const Value> args);
 // ── MATLAB MException() ──────────────────────────────────────────────
 /// Create an MException-like struct with "identifier" and "message"
 /// fields. Form: MException(id, msg, arg1, ...). Throws on <2 args.
-Value mexception(Allocator &alloc, Span<const Value> args);
+Value mexception(std::pmr::memory_resource *mr, Span<const Value> args);
 
 // ── rethrow(ME) / throw(ME) ──────────────────────────────────────────
 /// Extract "message" + "identifier" from the struct and throw Error.

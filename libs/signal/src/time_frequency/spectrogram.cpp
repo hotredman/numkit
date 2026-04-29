@@ -36,7 +36,7 @@ void fillHammingWindow(double *w, size_t N)
 } // anonymous namespace
 
 std::tuple<Value, Value, Value>
-spectrogram(Allocator &alloc,
+spectrogram(std::pmr::memory_resource *mr,
             const Value &x,
             const Value &window,
             size_t noverlap,
@@ -45,10 +45,10 @@ spectrogram(Allocator &alloc,
     const size_t nx = x.numel();
     const double *xd = x.doubleData();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
 
     size_t winLen;
-    ScratchVec<double> win(scratch.resource());
+    ScratchVec<double> win(&scratch);
     if (window.numel() > 0) {
         winLen = window.numel();
         win.resize(winLen);
@@ -76,9 +76,9 @@ spectrogram(Allocator &alloc,
     for (size_t start = 0; start + winLen <= nx; start += step)
         nSegments++;
 
-    auto S = Value::complexMatrix(nFreqs, nSegments, &alloc);
-    auto F = Value::matrix(nFreqs, 1, ValueType::DOUBLE, &alloc);
-    auto T = Value::matrix(1, nSegments, ValueType::DOUBLE, &alloc);
+    auto S = Value::complexMatrix(nFreqs, nSegments, mr);
+    auto F = Value::matrix(nFreqs, 1, ValueType::DOUBLE, mr);
+    auto T = Value::matrix(1, nSegments, ValueType::DOUBLE, mr);
 
     // Per-segment FFT buffer hoisted: see pwelch for the rationale —
     // a fresh allocation per loop iteration would grow the arena to
@@ -92,7 +92,7 @@ spectrogram(Allocator &alloc,
         for (size_t i = winLen; i < nfft; ++i)
             buf[i] = Complex(0.0, 0.0);
 
-        fftRadix2(scratch.resource(), buf, 1);
+        fftRadix2(&scratch, buf, 1);
 
         for (size_t i = 0; i < nFreqs; ++i)
             S.complexDataMut()[i + seg * nFreqs] = buf[i];
@@ -123,7 +123,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     if (args.size() >= 2 && !args[1].isChar()) {
         if (args[1].numel() == 1) {
             const size_t winLen = static_cast<size_t>(args[1].toScalar());
-            auto w = Value::matrix(1, winLen, ValueType::DOUBLE, &ctx.engine->allocator());
+            auto w = Value::matrix(1, winLen, ValueType::DOUBLE, ctx.engine->resource());
             if (winLen == 1) {
                 w.doubleDataMut()[0] = 1.0;
             } else {
@@ -138,7 +138,7 @@ void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
     const size_t noverlap = (args.size() >= 3) ? static_cast<size_t>(args[2].toScalar()) : 0;
     const size_t nfft = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
 
-    auto [S, F, T] = spectrogram(ctx.engine->allocator(), args[0], window, noverlap, nfft);
+    auto [S, F, T] = spectrogram(ctx.engine->resource(), args[0], window, noverlap, nfft);
     outs[0] = std::move(S);
     if (nargout > 1)
         outs[1] = std::move(F);

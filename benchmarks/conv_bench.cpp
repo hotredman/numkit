@@ -4,7 +4,7 @@
 // a fixed-size kernel (which matches the typical filtering use case),
 // plus a symmetric equal-length case at the low end.
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
@@ -39,10 +39,10 @@ static void BM_Conv_FixedKernel64(benchmark::State &state)
     const size_t n = static_cast<size_t>(state.range(0));
     Value sig    = makeRealVector(n, 11);
     Value kernel = makeRealVector(64, 22);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::conv(alloc, sig, kernel, "full");
+        Value y = signal::conv(mr, sig, kernel, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));
@@ -62,10 +62,10 @@ static void BM_Conv_SquareLen(benchmark::State &state)
     const size_t n = static_cast<size_t>(state.range(0));
     Value a = makeRealVector(n, 33);
     Value b = makeRealVector(n, 44);
-    Allocator alloc = Allocator::defaultAllocator();
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
 
     for (auto _ : state) {
-        Value y = signal::conv(alloc, a, b, "full");
+        Value y = signal::conv(mr, a, b, "full");
         benchmark::DoNotOptimize(y);
     }
     state.SetComplexityN(static_cast<int64_t>(n));

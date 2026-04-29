@@ -21,24 +21,24 @@ namespace hf = ::numkit::builtin::detail::handlefn;
 // Public API
 // ════════════════════════════════════════════════════════════════════════
 
-Value cell(Allocator &, size_t n)
+Value cell(std::pmr::memory_resource *, size_t n)
 {
     return Value::cell(n, n);
 }
 
-Value cell(Allocator &, size_t rows, size_t cols)
+Value cell(std::pmr::memory_resource *, size_t rows, size_t cols)
 {
     return Value::cell(rows, cols);
 }
 
-Value cell(Allocator &, size_t rows, size_t cols, size_t pages)
+Value cell(std::pmr::memory_resource *, size_t rows, size_t cols, size_t pages)
 {
     if (pages > 0)
         return Value::cell3D(rows, cols, pages);
     return Value::cell(rows, cols);
 }
 
-Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
+Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
                bool uniformOutput, Engine *engine)
 {
     if (!c.isCell())
@@ -48,16 +48,16 @@ Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
     const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
 
     const size_t n = c.numel();
-    ScratchArena scratch_arena(alloc);
-    ScratchVec<Value> results(scratch_arena.resource());
+    ScratchArena scratch_arena(mr);
+    ScratchVec<Value> results(&scratch_arena);
     results.reserve(n);
     for (size_t i = 0; i < n; ++i)
-        results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,
+        results.push_back(hf::applyHandle(mr, fn, f, isBuiltin,
                                           c.cellAt(i), engine, "cellfun"));
 
     if (uniformOutput) {
         if (isBuiltin)
-            return hf::packUniform(alloc, f, results.data(), results.size(),
+            return hf::packUniform(mr, f, results.data(), results.size(),
                                     c.dims(), "cellfun");
         // Anonymous: pack as DOUBLE / LOGICAL based on first result's type.
         const ValueType outT = (n > 0 && results[0].isLogical())
@@ -66,8 +66,8 @@ Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
         const size_t r = d.rows();
         const size_t cc = d.cols();
         const size_t p = d.is3D() ? d.pages() : 0;
-        auto out = (p > 0) ? Value::matrix3d(r, cc, p, outT, &alloc)
-                           : Value::matrix(r, cc, outT, &alloc);
+        auto out = (p > 0) ? Value::matrix3d(r, cc, p, outT, mr)
+                           : Value::matrix(r, cc, outT, mr);
         for (size_t i = 0; i < n; ++i) {
             const Value &v = results[i];
             if (!v.isScalar())
@@ -104,15 +104,15 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("cellfun: requires at least 2 arguments (fn, C)",
                      0, 0, "cellfun", "", "m:cellfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "cellfun");
-    outs[0] = cellfun(ctx.engine->allocator(), args[0], args[1], uniform, ctx.engine);
+    outs[0] = cellfun(ctx.engine->resource(), args[0], args[1], uniform, ctx.engine);
 }
 
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args.empty())
         throw Error("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
-    ScratchArena scratch_arena(alloc);
+    ScratchArena scratch_arena(mr);
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
         const size_t n = args[0].numel();

@@ -1,7 +1,7 @@
 // libs/builtin/include/numkit/builtin/lang/commands/env.hpp
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/span.hpp>
 #include <numkit/core/value.hpp>
 
@@ -14,6 +14,6 @@ namespace numkit::builtin {
 // ════════════════════════════════════════════════════════════════════════
 
 void setenv(Span<const Value> args);
-Value getenv(Allocator &alloc, Span<const Value> args);
+Value getenv(std::pmr::memory_resource *mr, Span<const Value> args);
 
 } // namespace numkit::builtin

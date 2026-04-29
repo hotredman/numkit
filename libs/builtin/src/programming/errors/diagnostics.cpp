@@ -65,7 +65,7 @@ void warning(Engine &engine, Span<const Value> args)
     engine.outputText("Warning: " + msg + "\n");
 }
 
-Value mexception(Allocator &alloc, Span<const Value> args)
+Value mexception(std::pmr::memory_resource *mr, Span<const Value> args)
 {
     if (args.size() < 2)
         throw Error("MException requires identifier and message", 0, 0,
@@ -74,8 +74,8 @@ Value mexception(Allocator &alloc, Span<const Value> args)
     std::string msg = (args.size() > 2) ? formatOnce(args[1].toString(), args, 2)
                                         : args[1].toString();
     auto me = Value::structure();
-    me.field("identifier") = Value::fromString(id, &alloc);
-    me.field("message") = Value::fromString(msg, &alloc);
+    me.field("identifier") = Value::fromString(id, mr);
+    me.field("message") = Value::fromString(msg, mr);
     return me;
 }
 
@@ -145,7 +145,7 @@ void warning_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
 
 void MException_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
-    outs[0] = mexception(ctx.engine->allocator(), args);
+    outs[0] = mexception(ctx.engine->resource(), args);
 }
 
 void rethrow_reg(Span<const Value> args, size_t, Span<Value>, CallContext &)

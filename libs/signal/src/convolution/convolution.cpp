@@ -2,7 +2,7 @@
 //
 // Public C++ API for convolution and friends. See convolution.hpp for
 // contracts. Algorithms unchanged from the previous lambda form — only
-// moved into named free functions that take Allocator& explicitly.
+// moved into named free functions that take std::pmr::memory_resource* explicitly.
 
 #include <numkit/signal/convolution/convolution.hpp>
 
@@ -19,14 +19,14 @@
 namespace numkit::signal {
 
 // ── conv ──────────────────────────────────────────────────────────────
-Value conv(Allocator &alloc, const Value &a, const Value &b, const std::string &shape)
+Value conv(std::pmr::memory_resource *mr, const Value &a, const Value &b, const std::string &shape)
 {
     const size_t na = a.numel(), nb = b.numel();
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto c = (na * nb > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
-        ? convFFT  (scratch.resource(), a.doubleData(), na, b.doubleData(), nb)
-        : convDirect(scratch.resource(), a.doubleData(), na, b.doubleData(), nb);
+        ? convFFT  (&scratch, a.doubleData(), na, b.doubleData(), nb)
+        : convDirect(&scratch, a.doubleData(), na, b.doubleData(), nb);
 
     const size_t nc = c.size();
     size_t outStart = 0, outLen = nc;
@@ -41,7 +41,7 @@ Value conv(Allocator &alloc, const Value &a, const Value &b, const std::string &
                      0, 0, "conv", "", "m:conv:badShape");
     }
 
-    auto r = Value::matrix(1, outLen, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, outLen, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < outLen; ++i)
         r.doubleDataMut()[i] = c[outStart + i];
     return r;
@@ -49,15 +49,15 @@ Value conv(Allocator &alloc, const Value &a, const Value &b, const std::string &
 
 // ── deconv ────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-deconv(Allocator &alloc, const Value &b, const Value &a)
+deconv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
 {
     const size_t nb = b.numel(), na = a.numel();
     if (na > nb)
         throw Error("deconv: denominator longer than numerator",
                      0, 0, "deconv", "", "m:deconv:denomTooLong");
 
-    ScratchArena scratch(alloc);
-    ScratchVec<double> rem(b.doubleData(), b.doubleData() + nb, scratch.resource());
+    ScratchArena scratch(mr);
+    ScratchVec<double> rem(b.doubleData(), b.doubleData() + nb, &scratch);
     const double *ad = a.doubleData();
 
     const size_t nq = nb - na + 1;
@@ -74,11 +74,11 @@ deconv(Allocator &alloc, const Value &b, const Value &a)
             rem[i + j] -= q[i] * ad[j];
     }
 
-    auto qv = Value::matrix(1, nq, ValueType::DOUBLE, &alloc);
+    auto qv = Value::matrix(1, nq, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nq; ++i)
         qv.doubleDataMut()[i] = q[i];
 
-    auto rv = Value::matrix(1, nb, ValueType::DOUBLE, &alloc);
+    auto rv = Value::matrix(1, nb, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nb; ++i)
         rv.doubleDataMut()[i] = rem[i];
 
@@ -87,7 +87,7 @@ deconv(Allocator &alloc, const Value &b, const Value &a)
 
 // ── xcorr ─────────────────────────────────────────────────────────────
 std::tuple<Value, Value>
-xcorr(Allocator &alloc, const Value &x, const Value &y)
+xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
     const double *xd = x.doubleData();
     const size_t nx = x.numel();
@@ -97,21 +97,21 @@ xcorr(Allocator &alloc, const Value &x, const Value &y)
     const size_t maxLen = std::max(nx, ny);
     const size_t nc = nx + ny - 1;
 
-    ScratchArena scratch(alloc);
+    ScratchArena scratch(mr);
     auto yRev = scratch.vec<double>(ny);
     for (size_t i = 0; i < ny; ++i)
         yRev[i] = yd[ny - 1 - i];
 
     auto c = (nx * ny > CONV_FFT_THRESHOLD * CONV_FFT_THRESHOLD)
-        ? convFFT  (scratch.resource(), xd, nx, yRev.data(), ny)
-        : convDirect(scratch.resource(), xd, nx, yRev.data(), ny);
+        ? convFFT  (&scratch, xd, nx, yRev.data(), ny)
+        : convDirect(&scratch, xd, nx, yRev.data(), ny);
 
-    auto r = Value::matrix(1, nc, ValueType::DOUBLE, &alloc);
+    auto r = Value::matrix(1, nc, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nc; ++i)
         r.doubleDataMut()[i] = c[i];
 
     const int maxLag = static_cast<int>(maxLen) - 1;
-    auto lags = Value::matrix(1, nc, ValueType::DOUBLE, &alloc);
+    auto lags = Value::matrix(1, nc, ValueType::DOUBLE, mr);
     for (size_t i = 0; i < nc; ++i)
         lags.doubleDataMut()[i] = static_cast<double>(static_cast<int>(i) - maxLag);
 
@@ -131,7 +131,7 @@ void conv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     if (args.size() >= 3 && args[2].isChar())
         shape = args[2].toString();
 
-    outs[0] = conv(ctx.engine->allocator(), args[0], args[1], shape);
+    outs[0] = conv(ctx.engine->resource(), args[0], args[1], shape);
 }
 
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -140,7 +140,7 @@ void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
         throw Error("deconv: requires 2 arguments",
                      0, 0, "deconv", "", "m:deconv:nargin");
 
-    auto [q, r] = deconv(ctx.engine->allocator(), args[0], args[1]);
+    auto [q, r] = deconv(ctx.engine->resource(), args[0], args[1]);
     outs[0] = std::move(q);
     if (nargout > 1)
         outs[1] = std::move(r);
@@ -158,8 +158,8 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     const bool autoCorr = (args.size() < 2 || args[1].isChar());
 
     std::tuple<Value, Value> result = autoCorr
-        ? xcorr(ctx.engine->allocator(), args[0])
-        : xcorr(ctx.engine->allocator(), args[0], args[1]);
+        ? xcorr(ctx.engine->resource(), args[0])
+        : xcorr(ctx.engine->resource(), args[0], args[1]);
 
     outs[0] = std::move(std::get<0>(result));
     if (nargout > 1)

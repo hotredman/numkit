@@ -54,12 +54,12 @@ double gauspulsScalar(double tv, double fc, double alpha)
 
 } // namespace
 
-Value rectpuls(Allocator &alloc, const Value &t, double w)
+Value rectpuls(std::pmr::memory_resource *mr, const Value &t, double w)
 {
     if (w <= 0)
         throw Error("rectpuls: width w must be positive",
                      0, 0, "rectpuls", "", "m:rectpuls:badWidth");
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = t.numel();
     for (size_t i = 0; i < n; ++i)
@@ -67,12 +67,12 @@ Value rectpuls(Allocator &alloc, const Value &t, double w)
     return out;
 }
 
-Value tripuls(Allocator &alloc, const Value &t, double w)
+Value tripuls(std::pmr::memory_resource *mr, const Value &t, double w)
 {
     if (w <= 0)
         throw Error("tripuls: width w must be positive",
                      0, 0, "tripuls", "", "m:tripuls:badWidth");
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = t.numel();
     for (size_t i = 0; i < n; ++i)
@@ -80,13 +80,13 @@ Value tripuls(Allocator &alloc, const Value &t, double w)
     return out;
 }
 
-Value gauspuls(Allocator &alloc, const Value &t, double fc, double bw)
+Value gauspuls(std::pmr::memory_resource *mr, const Value &t, double fc, double bw)
 {
     if (fc <= 0 || bw <= 0)
         throw Error("gauspuls: fc and bw must be positive",
                      0, 0, "gauspuls", "", "m:gauspuls:badArg");
     const double alpha = gauspulsAlpha(fc, bw);
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t n = t.numel();
     for (size_t i = 0; i < n; ++i)
@@ -94,7 +94,7 @@ Value gauspuls(Allocator &alloc, const Value &t, double fc, double bw)
     return out;
 }
 
-Value pulstranHandle(Allocator &alloc, const Value &t, const Value &d,
+Value pulstranHandle(std::pmr::memory_resource *mr, const Value &t, const Value &d,
                       const Value &fnHandle, Engine *engine)
 {
     if (engine == nullptr)
@@ -105,14 +105,14 @@ Value pulstranHandle(Allocator &alloc, const Value &t, const Value &d,
         throw Error("pulstran: 3rd argument must be a function handle or pulse name",
                      0, 0, "pulstran", "", "m:pulstran:fnType");
 
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     const size_t n = t.numel();
     std::memset(out.doubleDataMut(), 0, n * sizeof(double));
     double *dst = out.doubleDataMut();
     const size_t nd = d.numel();
 
     auto shifted = Value::matrix(t.dims().rows(), t.dims().cols(),
-                                  ValueType::DOUBLE, &alloc);
+                                  ValueType::DOUBLE, mr);
     double *sh = shifted.doubleDataMut();
     for (size_t k = 0; k < nd; ++k) {
         const double dk = d.elemAsDouble(k);
@@ -130,10 +130,10 @@ Value pulstranHandle(Allocator &alloc, const Value &t, const Value &d,
     return out;
 }
 
-Value pulstran(Allocator &alloc, const Value &t, const Value &d,
+Value pulstran(std::pmr::memory_resource *mr, const Value &t, const Value &d,
                 const std::string &fnName, double fcOrW, double bw)
 {
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     const size_t n = t.numel();
     std::memset(out.doubleDataMut(), 0, n * sizeof(double));
     double *dst = out.doubleDataMut();
@@ -172,7 +172,7 @@ Value pulstran(Allocator &alloc, const Value &t, const Value &d,
     return out;
 }
 
-Value chirp(Allocator &alloc, const Value &t,
+Value chirp(std::pmr::memory_resource *mr, const Value &t,
              double f0, double t1, double f1,
              const std::string &method)
 {
@@ -201,7 +201,7 @@ Value chirp(Allocator &alloc, const Value &t,
                          0, 0, "chirp", "", "m:chirp:badFreq");
     }
 
-    auto out = createLike(t, ValueType::DOUBLE, &alloc);
+    auto out = createLike(t, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     const size_t N = t.numel();
 
@@ -250,7 +250,7 @@ void rectpuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("rectpuls: requires at least 1 argument",
                      0, 0, "rectpuls", "", "m:rectpuls:nargin");
     const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    outs[0] = rectpuls(ctx.engine->allocator(), args[0], w);
+    outs[0] = rectpuls(ctx.engine->resource(), args[0], w);
 }
 
 void tripuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -259,7 +259,7 @@ void tripuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("tripuls: requires at least 1 argument",
                      0, 0, "tripuls", "", "m:tripuls:nargin");
     const double w = (args.size() >= 2) ? args[1].toScalar() : 1.0;
-    outs[0] = tripuls(ctx.engine->allocator(), args[0], w);
+    outs[0] = tripuls(ctx.engine->resource(), args[0], w);
 }
 
 void gauspuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -269,7 +269,7 @@ void gauspuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "gauspuls", "", "m:gauspuls:nargin");
     const double fc = args[1].toScalar();
     const double bw = (args.size() >= 3) ? args[2].toScalar() : 0.5;
-    outs[0] = gauspuls(ctx.engine->allocator(), args[0], fc, bw);
+    outs[0] = gauspuls(ctx.engine->resource(), args[0], fc, bw);
 }
 
 void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -277,9 +277,9 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.size() < 3)
         throw Error("pulstran: requires at least 3 arguments (t, d, fn)",
                      0, 0, "pulstran", "", "m:pulstran:nargin");
-    Allocator &alloc = ctx.engine->allocator();
+    std::pmr::memory_resource *mr = ctx.engine->resource();
     if (args[2].isFuncHandle()) {
-        outs[0] = pulstranHandle(alloc, args[0], args[1], args[2], ctx.engine);
+        outs[0] = pulstranHandle(mr, args[0], args[1], args[2], ctx.engine);
         return;
     }
     if (!args[2].isChar() && !args[2].isString())
@@ -288,7 +288,7 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const std::string fnName = args[2].toString();
     const double fcOrW = (args.size() >= 4) ? args[3].toScalar() : 1.0;
     const double bw    = (args.size() >= 5) ? args[4].toScalar() : 0.5;
-    outs[0] = pulstran(alloc, args[0], args[1], fnName, fcOrW, bw);
+    outs[0] = pulstran(mr, args[0], args[1], fnName, fcOrW, bw);
 }
 
 void chirp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -306,7 +306,7 @@ void chirp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
                          0, 0, "chirp", "", "m:chirp:badMethodType");
         method = args[4].toString();
     }
-    outs[0] = chirp(ctx.engine->allocator(), args[0], f0, t1, f1, method);
+    outs[0] = chirp(ctx.engine->resource(), args[0], f0, t1, f1, method);
 }
 
 } // namespace detail

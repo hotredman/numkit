@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include <numkit/core/allocator.hpp>
+#include <memory_resource>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>
@@ -18,8 +18,8 @@ using ::numkit::Engine;
 
 inline double evalCallback(Engine *engine, const Value &fn, double x)
 {
-    Allocator alloc = Allocator::defaultAllocator();
-    Value arg = Value::scalar(x, &alloc);
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value arg = Value::scalar(x, mr);
     Span<const Value> args(&arg, 1);
     Value r = engine->callFunctionHandle(fn, args);
     if (!r.isScalar() && r.numel() != 1)

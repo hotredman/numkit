@@ -40,9 +40,9 @@ namespace numkit::builtin {
 
 // ── Arithmetic ──────────────────────────────────────────────────────────
 
-Value plus(Allocator &alloc, const Value &a, const Value &b)
+Value plus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
@@ -90,9 +90,9 @@ Value plus(Allocator &alloc, const Value &a, const Value &b)
     throw Error("Unsupported types for +", 0, 0, "plus", "", "m:plus:unsupportedTypes");
 }
 
-Value minus(Allocator &alloc, const Value &a, const Value &b)
+Value minus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
@@ -112,9 +112,9 @@ Value minus(Allocator &alloc, const Value &a, const Value &b)
     throw Error("Unsupported types for -", 0, 0, "minus", "", "m:minus:unsupportedTypes");
 }
 
-Value times(Allocator &alloc, const Value &a, const Value &b)
+Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
@@ -134,9 +134,9 @@ Value times(Allocator &alloc, const Value &a, const Value &b)
     throw Error("Unsupported types for .*", 0, 0, "times", "", "m:times:unsupportedTypes");
 }
 
-Value mtimes(Allocator &alloc, const Value &a, const Value &b)
+Value mtimes(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
 
     // Matrix-multiply is undefined for N-D arrays (N > 2) except the
     // scalar * NDArray degenerate form, which is just an elementwise
@@ -185,9 +185,9 @@ Value mtimes(Allocator &alloc, const Value &a, const Value &b)
     throw Error("Unsupported types for *", 0, 0, "mtimes", "", "m:mtimes:unsupportedTypes");
 }
 
-Value rdivide(Allocator &alloc, const Value &a, const Value &b)
+Value rdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
@@ -208,9 +208,9 @@ Value rdivide(Allocator &alloc, const Value &a, const Value &b)
                  "m:rdivide:unsupportedTypes");
 }
 
-Value mrdivide(Allocator &alloc, const Value &a, const Value &b)
+Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex())
@@ -227,9 +227,9 @@ Value mrdivide(Allocator &alloc, const Value &a, const Value &b)
                  "m:mrdivide:notImplemented");
 }
 
-Value mldivide(Allocator &alloc, const Value &a, const Value &b)
+Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isScalar() && b.isScalar())
@@ -238,9 +238,9 @@ Value mldivide(Allocator &alloc, const Value &a, const Value &b)
                  "m:mldivide:notImplemented");
 }
 
-Value power(Allocator &alloc, const Value &a, const Value &b)
+Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex()) {
@@ -253,9 +253,9 @@ Value power(Allocator &alloc, const Value &a, const Value &b)
                  "m:power:notImplemented");
 }
 
-Value elementPower(Allocator &alloc, const Value &a, const Value &b)
+Value elementPower(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
+    std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
     if (a.isComplex() || b.isComplex()) {
@@ -535,12 +535,12 @@ Value compareImpl(Cmp c, const Value &a, const Value &b)
 
 } // namespace
 
-Value eq(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::EQ, a, b); }
-Value ne(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::NE, a, b); }
-Value lt(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::LT, a, b); }
-Value gt(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::GT, a, b); }
-Value le(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::LE, a, b); }
-Value ge(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::GE, a, b); }
+Value eq(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::EQ, a, b); }
+Value ne(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::NE, a, b); }
+Value lt(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::LT, a, b); }
+Value gt(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::GT, a, b); }
+Value le(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::LE, a, b); }
+Value ge(std::pmr::memory_resource *, const Value &a, const Value &b) { return compareImpl(Cmp::GE, a, b); }
 
 // ── Logical ──────────────────────────────────────────────────────────────
 
@@ -565,17 +565,15 @@ ScratchVec<uint8_t> toBoolArray(std::pmr::memory_resource *mr, const Value &v)
 
 template <typename Op>
 Value logicalBinary(const char *opName, Op op,
-                     Allocator &alloc, const Value &a, const Value &b)
+                     std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    Allocator *p = &alloc;
     if (a.isScalar() && b.isScalar())
-        return Value::logicalScalar(op(a.toBool(), b.toBool()), p);
-    ScratchArena scratch_arena(alloc);
-    auto *mr = scratch_arena.resource();
+        return Value::logicalScalar(op(a.toBool(), b.toBool()), mr);
+    ScratchArena scratch_arena(mr);
     if (a.isScalar()) {
         bool av = a.toBool();
-        auto bb = toBoolArray(mr, b);
-        auto r = createLike(b, ValueType::LOGICAL, p);
+        auto bb = toBoolArray(&scratch_arena, b);
+        auto r = createLike(b, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < bb.size(); ++i)
             dst[i] = op(av, static_cast<bool>(bb[i])) ? 1 : 0;
@@ -583,8 +581,8 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (b.isScalar()) {
         bool bv = b.toBool();
-        auto aa = toBoolArray(mr, a);
-        auto r = createLike(a, ValueType::LOGICAL, p);
+        auto aa = toBoolArray(&scratch_arena, a);
+        auto r = createLike(a, ValueType::LOGICAL, mr);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
             dst[i] = op(static_cast<bool>(aa[i]), bv) ? 1 : 0;
@@ -593,9 +591,9 @@ Value logicalBinary(const char *opName, Op op,
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName,
                      0, 0, opName, "", "m:dimagree");
-    auto aa = toBoolArray(mr, a);
-    auto bb = toBoolArray(mr, b);
-    auto r = createLike(a, ValueType::LOGICAL, p);
+    auto aa = toBoolArray(&scratch_arena, a);
+    auto bb = toBoolArray(&scratch_arena, b);
+    auto r = createLike(a, ValueType::LOGICAL, mr);
     uint8_t *dst = r.logicalDataMut();
     for (size_t i = 0; i < aa.size(); ++i)
         dst[i] = op(static_cast<bool>(aa[i]), static_cast<bool>(bb[i])) ? 1 : 0;
@@ -604,14 +602,14 @@ Value logicalBinary(const char *opName, Op op,
 
 } // namespace
 
-Value logicalAnd(Allocator &alloc, const Value &a, const Value &b)
+Value logicalAnd(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    return logicalBinary("&", [](bool x, bool y) { return x && y; }, alloc, a, b);
+    return logicalBinary("&", [](bool x, bool y) { return x && y; }, mr, a, b);
 }
 
-Value logicalOr(Allocator &alloc, const Value &a, const Value &b)
+Value logicalOr(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    return logicalBinary("|", [](bool x, bool y) { return x || y; }, alloc, a, b);
+    return logicalBinary("|", [](bool x, bool y) { return x || y; }, mr, a, b);
 }
 
 } // namespace numkit::builtin
@@ -624,25 +622,25 @@ namespace numkit {
 
 void BuiltinLibrary::registerBinaryOps(Engine &engine)
 {
-    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return builtin::plus(engine.allocator(), a, b); });
-    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return builtin::minus(engine.allocator(), a, b); });
-    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return builtin::times(engine.allocator(), a, b); });
-    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return builtin::mtimes(engine.allocator(), a, b); });
-    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return builtin::rdivide(engine.allocator(), a, b); });
-    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return builtin::mrdivide(engine.allocator(), a, b); });
-    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return builtin::mldivide(engine.allocator(), a, b); });
-    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return builtin::power(engine.allocator(), a, b); });
-    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return builtin::elementPower(engine.allocator(), a, b); });
+    engine.registerBinaryOp("+",  [&engine](const Value &a, const Value &b) { return builtin::plus(engine.resource(), a, b); });
+    engine.registerBinaryOp("-",  [&engine](const Value &a, const Value &b) { return builtin::minus(engine.resource(), a, b); });
+    engine.registerBinaryOp(".*", [&engine](const Value &a, const Value &b) { return builtin::times(engine.resource(), a, b); });
+    engine.registerBinaryOp("*",  [&engine](const Value &a, const Value &b) { return builtin::mtimes(engine.resource(), a, b); });
+    engine.registerBinaryOp("./", [&engine](const Value &a, const Value &b) { return builtin::rdivide(engine.resource(), a, b); });
+    engine.registerBinaryOp("/",  [&engine](const Value &a, const Value &b) { return builtin::mrdivide(engine.resource(), a, b); });
+    engine.registerBinaryOp("\\", [&engine](const Value &a, const Value &b) { return builtin::mldivide(engine.resource(), a, b); });
+    engine.registerBinaryOp("^",  [&engine](const Value &a, const Value &b) { return builtin::power(engine.resource(), a, b); });
+    engine.registerBinaryOp(".^", [&engine](const Value &a, const Value &b) { return builtin::elementPower(engine.resource(), a, b); });
 
-    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return builtin::eq(engine.allocator(), a, b); });
-    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return builtin::ne(engine.allocator(), a, b); });
-    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return builtin::lt(engine.allocator(), a, b); });
-    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return builtin::gt(engine.allocator(), a, b); });
-    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return builtin::le(engine.allocator(), a, b); });
-    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return builtin::ge(engine.allocator(), a, b); });
+    engine.registerBinaryOp("==", [&engine](const Value &a, const Value &b) { return builtin::eq(engine.resource(), a, b); });
+    engine.registerBinaryOp("~=", [&engine](const Value &a, const Value &b) { return builtin::ne(engine.resource(), a, b); });
+    engine.registerBinaryOp("<",  [&engine](const Value &a, const Value &b) { return builtin::lt(engine.resource(), a, b); });
+    engine.registerBinaryOp(">",  [&engine](const Value &a, const Value &b) { return builtin::gt(engine.resource(), a, b); });
+    engine.registerBinaryOp("<=", [&engine](const Value &a, const Value &b) { return builtin::le(engine.resource(), a, b); });
+    engine.registerBinaryOp(">=", [&engine](const Value &a, const Value &b) { return builtin::ge(engine.resource(), a, b); });
 
-    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return builtin::logicalAnd(engine.allocator(), a, b); });
-    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return builtin::logicalOr(engine.allocator(), a, b); });
+    engine.registerBinaryOp("&",  [&engine](const Value &a, const Value &b) { return builtin::logicalAnd(engine.resource(), a, b); });
+    engine.registerBinaryOp("|",  [&engine](const Value &a, const Value &b) { return builtin::logicalOr(engine.resource(), a, b); });
 }
 
 } // namespace numkit
