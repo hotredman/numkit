@@ -6,12 +6,12 @@
 #include <numkit/builtin/datatypes/strings/regex.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cctype>
 #include <regex>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -29,18 +29,18 @@ std::regex compileRegex(const std::string &pat, bool ignoreCase)
     }
 }
 
-Value rowFromIndices(Allocator &alloc, const std::vector<double> &v)
+Value rowFromIndices(Allocator &alloc, const double *v, std::size_t n)
 {
-    auto out = Value::matrix(1, v.size(), ValueType::DOUBLE, &alloc);
-    for (std::size_t i = 0; i < v.size(); ++i)
+    auto out = Value::matrix(1, n, ValueType::DOUBLE, &alloc);
+    for (std::size_t i = 0; i < n; ++i)
         out.doubleDataMut()[i] = v[i];
     return out;
 }
 
-Value rowCellOfStrings(Allocator &alloc, const std::vector<std::string> &v)
+Value rowCellOfStrings(Allocator &alloc, const std::string *v, std::size_t n)
 {
-    auto out = Value::cell(1, v.size());
-    for (std::size_t i = 0; i < v.size(); ++i)
+    auto out = Value::cell(1, n);
+    for (std::size_t i = 0; i < n; ++i)
         out.cellAt(i) = Value::fromString(v[i], &alloc);
     return out;
 }
@@ -60,8 +60,11 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
     for (auto &c : opt)
         c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
 
+    ScratchArena scratch_arena(alloc);
+    auto *mr = scratch_arena.resource();
+
     if (opt == "split") {
-        std::vector<std::string> parts;
+        ScratchVec<std::string> parts(mr);
         auto begin = std::sregex_iterator(text.begin(), text.end(), re);
         auto end   = std::sregex_iterator();
         std::size_t prev = 0;
@@ -71,30 +74,32 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
             prev = m.position() + m.length();
         }
         parts.emplace_back(text.substr(prev));
-        return rowCellOfStrings(alloc, parts);
+        return rowCellOfStrings(alloc, parts.data(), parts.size());
     }
 
     if (opt == "match") {
-        std::vector<std::string> matches;
+        ScratchVec<std::string> matches(mr);
         for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
                   end = std::sregex_iterator(); it != end; ++it)
             matches.emplace_back(it->str());
-        return rowCellOfStrings(alloc, matches);
+        return rowCellOfStrings(alloc, matches.data(), matches.size());
     }
 
     if (opt == "tokens") {
         // 1×N cell, each entry is a 1×k cell of capture group strings.
-        std::vector<std::vector<std::string>> all;
+        // Outer + inner both ScratchVec — uses-allocator construction
+        // propagates `mr` to the inner pmr-vectors automatically.
+        ScratchVec<ScratchVec<std::string>> all(mr);
         for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
                   end = std::sregex_iterator(); it != end; ++it) {
-            std::vector<std::string> grp;
+            ScratchVec<std::string> grp(mr);
             for (std::size_t g = 1; g < it->size(); ++g)
                 grp.emplace_back(it->str(g));
             all.push_back(std::move(grp));
         }
         auto out = Value::cell(1, all.size());
         for (std::size_t i = 0; i < all.size(); ++i)
-            out.cellAt(i) = rowCellOfStrings(alloc, all[i]);
+            out.cellAt(i) = rowCellOfStrings(alloc, all[i].data(), all[i].size());
         return out;
     }
 
@@ -104,11 +109,11 @@ Value regexpFind(Allocator &alloc, const Value &s, const Value &pat,
                      0, 0, "regexp", "", "m:regexp:badOption");
 
     // Default: 1-based start indices.
-    std::vector<double> idx;
+    ScratchVec<double> idx(mr);
     for (auto it = std::sregex_iterator(text.begin(), text.end(), re),
               end = std::sregex_iterator(); it != end; ++it)
         idx.push_back(static_cast<double>(it->position() + 1));
-    return rowFromIndices(alloc, idx);
+    return rowFromIndices(alloc, idx.data(), idx.size());
 }
 
 Value regexprep(Allocator &alloc, const Value &s, const Value &pat,
