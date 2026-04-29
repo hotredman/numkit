@@ -45,9 +45,14 @@ struct FilterCoeffs {
     Value a;
 };
 
-FilterCoeffs makeLowpass32()
+// alloc must outlive the returned coeffs — fir1 stores &alloc inside b's
+// DataBuffer. Earlier this fn defaulted-constructed a local Allocator and
+// returned b pointing to it; on clang-cl the freed stack slot got
+// overwritten with 0xFF bytes that std::function read as a non-null target,
+// crashing inside ~DataBuffer (MSVC happened to retain a zero pattern that
+// passed the empty-check, masking the bug).
+FilterCoeffs makeLowpass32(Allocator &alloc)
 {
-    Allocator alloc = Allocator::defaultAllocator();
     auto b = signal::fir1(alloc, 32, 0.25, "low");  // 33-tap FIR
     // a = [1] for FIR
     Value a = Value::matrix(1, 1, ValueType::DOUBLE, nullptr);
@@ -63,8 +68,8 @@ static void BM_FilterFIR33(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    auto coeffs = makeLowpass32();
     Allocator alloc = Allocator::defaultAllocator();
+    auto coeffs = makeLowpass32(alloc);
     for (auto _ : s) {
         auto y = signal::filter(alloc, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
@@ -77,8 +82,8 @@ static void BM_FiltfiltFIR33(benchmark::State &s)
 {
     const size_t n = static_cast<size_t>(s.range(0));
     auto x = makeSignal(n);
-    auto coeffs = makeLowpass32();
     Allocator alloc = Allocator::defaultAllocator();
+    auto coeffs = makeLowpass32(alloc);
     for (auto _ : s) {
         auto y = signal::filtfilt(alloc, coeffs.b, coeffs.a, x);
         benchmark::DoNotOptimize(y);
