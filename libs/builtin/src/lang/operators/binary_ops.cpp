@@ -4,6 +4,7 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "helpers.hpp"
@@ -14,8 +15,8 @@
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <memory_resource>
 #include <string>
-#include <vector>
 
 namespace {
 
@@ -545,9 +546,9 @@ Value ge(Allocator &, const Value &a, const Value &b) { return compareImpl(Cmp::
 
 namespace {
 
-std::vector<uint8_t> toBoolArray(const Value &v)
+ScratchVec<uint8_t> toBoolArray(std::pmr::memory_resource *mr, const Value &v)
 {
-    std::vector<uint8_t> r(v.numel());
+    ScratchVec<uint8_t> r(v.numel(), mr);
     if (v.isLogical()) {
         const uint8_t *d = v.logicalData();
         for (size_t i = 0; i < v.numel(); ++i)
@@ -569,9 +570,11 @@ Value logicalBinary(const char *opName, Op op,
     Allocator *p = &alloc;
     if (a.isScalar() && b.isScalar())
         return Value::logicalScalar(op(a.toBool(), b.toBool()), p);
+    ScratchArena scratch_arena(alloc);
+    auto *mr = scratch_arena.resource();
     if (a.isScalar()) {
         bool av = a.toBool();
-        auto bb = toBoolArray(b);
+        auto bb = toBoolArray(mr, b);
         auto r = createLike(b, ValueType::LOGICAL, p);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < bb.size(); ++i)
@@ -580,7 +583,7 @@ Value logicalBinary(const char *opName, Op op,
     }
     if (b.isScalar()) {
         bool bv = b.toBool();
-        auto aa = toBoolArray(a);
+        auto aa = toBoolArray(mr, a);
         auto r = createLike(a, ValueType::LOGICAL, p);
         uint8_t *dst = r.logicalDataMut();
         for (size_t i = 0; i < aa.size(); ++i)
@@ -590,8 +593,8 @@ Value logicalBinary(const char *opName, Op op,
     if (a.numel() != b.numel())
         throw Error(std::string("Matrix dimensions must agree for ") + opName,
                      0, 0, opName, "", "m:dimagree");
-    auto aa = toBoolArray(a);
-    auto bb = toBoolArray(b);
+    auto aa = toBoolArray(mr, a);
+    auto bb = toBoolArray(mr, b);
     auto r = createLike(a, ValueType::LOGICAL, p);
     uint8_t *dst = r.logicalDataMut();
     for (size_t i = 0; i < aa.size(); ++i)

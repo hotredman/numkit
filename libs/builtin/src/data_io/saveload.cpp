@@ -8,6 +8,7 @@
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/environment.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <cctype>
@@ -16,7 +17,6 @@
 #include <cstdlib>
 #include <sstream>
 #include <string>
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -44,7 +44,8 @@ void save(Engine &engine, Environment &env, Span<const Value> args)
     std::string filename = args[0].toString();
 
     bool asciiFlag = false;
-    std::vector<std::string> varnames;
+    ScratchArena scratch_arena(engine.allocator());
+    ScratchVec<std::string> varnames(scratch_arena.resource());
     for (size_t i = 1; i < args.size(); ++i) {
         if (!args[i].isChar())
             continue;
@@ -121,7 +122,9 @@ void load(Engine &engine, Environment &env, Span<const Value> args,
 
     // Parse each non-empty, non-comment line as whitespace-separated
     // doubles. MATLAB ignores '%' and '#' line comments.
-    std::vector<std::vector<double>> rows;
+    ScratchArena scratch_arena(*alloc);
+    auto *mr = scratch_arena.resource();
+    ScratchVec<ScratchVec<double>> rows(mr);
     size_t p = 0;
     while (p <= content.size()) {
         size_t nl = content.find('\n', p);
@@ -135,7 +138,7 @@ void load(Engine &engine, Environment &env, Span<const Value> args,
         if (ws == std::string::npos) continue;
         if (line[ws] == '%' || line[ws] == '#') continue;
 
-        std::vector<double> row;
+        ScratchVec<double> row(mr);
         size_t q = ws;
         while (q < line.size()) {
             while (q < line.size() && std::isspace(static_cast<unsigned char>(line[q]))) ++q;

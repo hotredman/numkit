@@ -1,5 +1,6 @@
 #include <numkit/builtin/library.hpp>
 
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
@@ -697,12 +698,14 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                std::vector<std::string> names;
+                                ScratchArena scratch_arena(ctx.engine->allocator());
+                                ScratchVec<std::string> names(scratch_arena.resource());
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
                                     // shadowed in the workspace, as in MATLAB.
-                                    names = env->localNames();
+                                    auto src = env->localNames();
+                                    names.assign(src.begin(), src.end());
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {
@@ -740,12 +743,14 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     }
                                 }
 
-                                std::vector<std::string> names;
+                                ScratchArena scratch_arena(ctx.engine->allocator());
+                                ScratchVec<std::string> names(scratch_arena.resource());
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
                                     // shadowed in the workspace, as in MATLAB.
-                                    names = env->localNames();
+                                    auto src = env->localNames();
+                                    names.assign(src.begin(), src.end());
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {

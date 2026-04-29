@@ -8,11 +8,10 @@
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch_arena.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_handlefn_helpers.hpp"
-
-#include <vector>
 
 namespace numkit::builtin {
 
@@ -49,7 +48,8 @@ Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
     const bool isBuiltin = hf::tryParseBuiltinHandle(fn, f, "cellfun");
 
     const size_t n = c.numel();
-    std::vector<Value> results;
+    ScratchArena scratch_arena(alloc);
+    ScratchVec<Value> results(scratch_arena.resource());
     results.reserve(n);
     for (size_t i = 0; i < n; ++i)
         results.push_back(hf::applyHandle(alloc, fn, f, isBuiltin,
@@ -57,7 +57,8 @@ Value cellfun(Allocator &alloc, const Value &fn, const Value &c,
 
     if (uniformOutput) {
         if (isBuiltin)
-            return hf::packUniform(alloc, f, results, c.dims(), "cellfun");
+            return hf::packUniform(alloc, f, results.data(), results.size(),
+                                    c.dims(), "cellfun");
         // Anonymous: pack as DOUBLE / LOGICAL based on first result's type.
         const ValueType outT = (n > 0 && results[0].isLogical())
                            ? ValueType::LOGICAL : ValueType::DOUBLE;
@@ -109,13 +110,13 @@ void cellfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {
     Allocator &alloc = ctx.engine->allocator();
-    (void)alloc;
     if (args.empty())
         throw Error("cell: requires 1 argument", 0, 0, "cell", "", "m:cell:nargin");
+    ScratchArena scratch_arena(alloc);
     // Single vector arg: cell([m n p ...]).
     if (args.size() == 1 && !args[0].isScalar() && args[0].numel() >= 2) {
         const size_t n = args[0].numel();
-        std::vector<size_t> dims(n);
+        auto dims = scratch_arena.vec<size_t>(n);
         for (size_t i = 0; i < n; ++i)
             dims[i] = static_cast<size_t>(args[0].elemAsDouble(i));
         outs[0] = Value::cellND(dims.data(), static_cast<int>(n));
@@ -138,7 +139,7 @@ void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
         return;
     }
     // 4+ scalar args: cell(m, n, p, q, ...).
-    std::vector<size_t> dims(args.size());
+    auto dims = scratch_arena.vec<size_t>(args.size());
     for (size_t i = 0; i < args.size(); ++i)
         dims[i] = static_cast<size_t>(args[i].toScalar());
     outs[0] = Value::cellND(dims.data(), static_cast<int>(args.size()));

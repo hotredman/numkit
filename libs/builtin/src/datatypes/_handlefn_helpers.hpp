@@ -200,7 +200,7 @@ inline Value applyHandle(Allocator &alloc, const Value &handle,
 }
 
 inline Value packUniform(Allocator &alloc, BuiltinFn f,
-                          const std::vector<Value> &results,
+                          const Value *results, std::size_t n,
                           const Dims &outDims, const char *fn)
 {
     const bool wantLogical = builtinReturnsLogical(f);
@@ -215,7 +215,7 @@ inline Value packUniform(Allocator &alloc, BuiltinFn f,
     auto out = (p > 0) ? Value::matrix3d(r, c, p, outT, &alloc)
                        : Value::matrix(r, c, outT, &alloc);
 
-    for (size_t i = 0; i < results.size(); ++i) {
+    for (size_t i = 0; i < n; ++i) {
         const Value &v = results[i];
         if (!v.isScalar())
             throw Error(std::string(fn) + ": fn returned a non-scalar; pass 'UniformOutput', false",
