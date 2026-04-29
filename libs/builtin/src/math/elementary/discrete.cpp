@@ -156,9 +156,10 @@ void validateUniqueRowsInput(const Value &x, const char *fn)
                      0, 0, fn, "", std::string("m:") + fn + ":rowsND");
 }
 
-std::unordered_set<double, DoubleHashEq0> hashSetNoNaN(const Value &x)
+std::pmr::unordered_set<double, DoubleHashEq0>
+hashSetNoNaN(std::pmr::memory_resource *mr, const Value &x)
 {
-    std::unordered_set<double, DoubleHashEq0> s;
+    std::pmr::unordered_set<double, DoubleHashEq0> s(mr);
     s.reserve(x.numel() / 2 + 1);
     const double *p = x.doubleData();
     const size_t n = x.numel();
@@ -202,7 +203,8 @@ Value unique(Allocator &alloc, const Value &x)
     const size_t n = x.numel();
     if (n == 0) return emptyRow(alloc);
 
-    std::unordered_set<double, DoubleHashEq0> seen;
+    ScratchArena scratch(alloc);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(scratch.resource());
     seen.reserve(n / 2 + 1);
     size_t nanCount = 0;
     const double *p = x.doubleData();
@@ -211,7 +213,6 @@ Value unique(Allocator &alloc, const Value &x)
         else seen.insert(p[i]);
     }
 
-    ScratchArena scratch(alloc);
     auto out = scratch.vec<double>();
     out.reserve(seen.size() + nanCount);
     out.assign(seen.begin(), seen.end());
@@ -230,9 +231,9 @@ uniqueWithIndices(Allocator &alloc, const Value &x)
                                emptyRow(alloc));
     }
 
-    std::unordered_map<double, size_t, DoubleHashEq0> firstIdx;
-    firstIdx.reserve(n / 2 + 1);
     ScratchArena scratch(alloc);
+    std::pmr::unordered_map<double, size_t, DoubleHashEq0> firstIdx(scratch.resource());
+    firstIdx.reserve(n / 2 + 1);
     auto nanIdxOrder = scratch.vec<size_t>();
     const double *p = x.doubleData();
     for (size_t i = 0; i < n; ++i) {
@@ -254,7 +255,7 @@ uniqueWithIndices(Allocator &alloc, const Value &x)
     for (size_t idx : nanIdxOrder)
         sorted.push_back({std::nan(""), idx});
 
-    std::unordered_map<double, size_t, DoubleHashEq0> rankByValue;
+    std::pmr::unordered_map<double, size_t, DoubleHashEq0> rankByValue(scratch.resource());
     rankByValue.reserve(firstIdx.size());
     const size_t nanRankBase = sorted.size() - nanIdxOrder.size();
     for (size_t r = 0; r < nanRankBase; ++r)
@@ -393,7 +394,8 @@ Value ismember(Allocator &alloc, const Value &a, const Value &b)
         return r;
     }
 
-    std::unordered_set<double, DoubleHashEq0> setB;
+    ScratchArena scratch(alloc);
+    std::pmr::unordered_set<double, DoubleHashEq0> setB(scratch.resource());
     setB.reserve(nb);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < nb; ++i)
@@ -412,11 +414,11 @@ Value ismember(Allocator &alloc, const Value &a, const Value &b)
 
 Value setUnion(Allocator &alloc, const Value &a, const Value &b)
 {
-    auto s = hashSetNoNaN(a);
+    ScratchArena scratch(alloc);
+    auto s = hashSetNoNaN(scratch.resource(), a);
     const double *pb = b.doubleData();
     for (size_t i = 0; i < b.numel(); ++i)
         if (!std::isnan(pb[i])) s.insert(pb[i]);
-    ScratchArena scratch(alloc);
     ScratchVec<double> out(s.begin(), s.end(), scratch.resource());
     std::sort(out.begin(), out.end());
     return rowFromVec(alloc, out.data(), out.size());
@@ -428,10 +430,10 @@ Value setIntersect(Allocator &alloc, const Value &a, const Value &b)
     const Value &small = aSmaller ? a : b;
     const Value &large = aSmaller ? b : a;
 
-    auto smallSet = hashSetNoNaN(small);
-    std::unordered_set<double, DoubleHashEq0> seenInLarge;
-    seenInLarge.reserve(smallSet.size());
     ScratchArena scratch(alloc);
+    auto smallSet = hashSetNoNaN(scratch.resource(), small);
+    std::pmr::unordered_set<double, DoubleHashEq0> seenInLarge(scratch.resource());
+    seenInLarge.reserve(smallSet.size());
     auto out = scratch.vec<double>();
     out.reserve(smallSet.size());
 
@@ -448,10 +450,10 @@ Value setIntersect(Allocator &alloc, const Value &a, const Value &b)
 
 Value setDiff(Allocator &alloc, const Value &a, const Value &b)
 {
-    auto setB = hashSetNoNaN(b);
-    std::unordered_set<double, DoubleHashEq0> seen;
-    seen.reserve(a.numel() / 2 + 1);
     ScratchArena scratch(alloc);
+    auto setB = hashSetNoNaN(scratch.resource(), b);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(scratch.resource());
+    seen.reserve(a.numel() / 2 + 1);
     auto out = scratch.vec<double>();
     out.reserve(a.numel());
     const double *pa = a.doubleData();

@@ -6,6 +6,7 @@
 #include <array>
 #include <cstddef>
 #include <memory_resource>
+#include <type_traits>
 #include <vector>
 
 namespace numkit {
@@ -75,9 +76,17 @@ public:
     // Creates a pmr::vector<T> backed by this arena, sized to `n` and
     // value-initialised (zero for arithmetic types). `n == 0` returns an
     // empty vector that callers can grow via reserve()/push_back().
+    //
+    // ScratchVec<bool> is rejected at compile time — MSVC's pmr::vector<bool>
+    // bit-packed proxy specialisation has an init-state miscompilation that
+    // bit us on the primes() sieve. Use ScratchVec<std::uint8_t> for boolean
+    // masks (footgun #b in this header's doc block).
     template <class T>
     std::pmr::vector<T> vec(std::size_t n = 0)
     {
+        static_assert(!std::is_same_v<T, bool>,
+                      "ScratchVec<bool> miscompiles on MSVC (bit-packed proxy "
+                      "init bug); use ScratchVec<std::uint8_t> for masks.");
         return std::pmr::vector<T>(n, &arena_);
     }
 
