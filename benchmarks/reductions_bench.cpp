@@ -118,8 +118,8 @@ BENCHMARK(BM_MeanDim2)->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 
 static void BM_Var   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::var(a, x); }); }
 static void BM_Std   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::stdev(a, x); }); }
-static void BM_Median(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return builtin::median(a, x); }); }
-static void BM_Mode  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(builtin::mode(a, x)); }); }
+static void BM_Median(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::median(a, x); }); }
+static void BM_Mode  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(stats::mode(a, x)); }); }
 
 BENCHMARK(BM_Var)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
 BENCHMARK(BM_Std)   ->RangeMultiplier(4)->Range(1 << 10, 1 << 20);
