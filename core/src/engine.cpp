@@ -366,18 +366,11 @@ void Engine::rehashMFiles()
     // Drop cache entries AND the user-function/compiled mirrors created
     // by resolveMFile_. Functions registered by execFunctionDef from
     // top-level scripts are kept — only m-file-loaded ones should go.
-    //
-    // For package-namespace files (`+pkg/foo.m`) resolveMFile_ caches
-    // under the qualified name "pkg.foo" but the compiler additionally
-    // mirrors the entry under the leaf name "foo" (Compiler::
-    // compileFunctionDef writes engine_.userFuncs_[node->strValue]).
-    // Both have to go; otherwise a stale `userFuncs_["foo"]` survives
-    // rehash and the next call hits the old body.
+    // The compiler stores chunks under the same key resolveMFile_ used
+    // (qualified for +pkg/foo.m, bare for plain foo.m), so erasing by
+    // mFileCache_ key alone is sufficient.
     for (const auto &[name, _] : mFileCache_) {
         userFuncs_.erase(name);
-        auto dot = name.find_last_of('.');
-        if (dot != std::string::npos)
-            userFuncs_.erase(name.substr(dot + 1));
         if (compiler_) {
             compiler_->clearCompiledFuncs();
         }
@@ -495,9 +488,15 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
 
         // Register for VM dispatch (mirrors what execFunctionDef +
         // beginScript pre-compile pass do for in-script function defs).
+        // Bind under the QUALIFIED name so two packages with the same
+        // leaf (`+a/foo.m` and `+b/foo.m`) don't collide in
+        // compiledFuncs_. registerFunctionAs also writes
+        // engine_.userFuncs_[qualified] — but we still set it
+        // explicitly below so non-VM-backed calls work even when the
+        // compiler is unavailable or rejects the chunk.
         if (compiler_) {
             try {
-                compiler_->registerFunction(funcDef);
+                compiler_->registerFunctionAs(name, funcDef);
             } catch (const std::exception &) {
                 // Compiler errors are non-fatal here — TW will still
                 // dispatch through userFuncs_; only VM-mode invocations

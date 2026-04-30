@@ -1290,17 +1290,16 @@ enter_frame:
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
-                    // M-file fallback (Phase 9a; Phase 10 adds package
-                    // qualified names — the compiler registers chunks
-                    // under the leaf name, so retry the leaf when the
-                    // qualified-name lookup misses.)
-                    if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
-                        const BytecodeChunk *found = findCompiledFunc(funcName);
-                        if (!found) {
-                            auto dot = funcName.find_last_of('.');
-                            if (dot != std::string::npos)
-                                found = findCompiledFunc(funcName.substr(dot + 1));
-                        }
+                    // M-file fallback (Phase 9a; Phase 10 adds packages).
+                    // The resolver returns the canonical UserFunction —
+                    // its `name` is qualified for +pkg/foo.m and bare
+                    // for plain foo.m. Use it as the compiled-chunk key.
+                    if (auto *uf =
+                            engine_.lookupUserFunction(funcName,
+                                                        &engine_.workspaceEnv())) {
+                        const BytecodeChunk *found = findCompiledFunc(uf->name);
+                        if (!found && uf->name != funcName)
+                            found = findCompiledFunc(funcName);
                         if (found) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
@@ -1342,17 +1341,15 @@ enter_frame:
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
                     }
-                    // M-file fallback (Phase 9a) — triggers parse + cache
-                    // + Compiler::registerFunction; retry findCompiledFunc.
-                    // Phase 10: qualified names register their compiled
-                    // chunk under the leaf name; retry leaf on miss.
-                    if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
-                        const BytecodeChunk *found = findCompiledFunc(funcName);
-                        if (!found) {
-                            auto dot = funcName.find_last_of('.');
-                            if (dot != std::string::npos)
-                                found = findCompiledFunc(funcName.substr(dot + 1));
-                        }
+                    // M-file fallback (Phase 9a / 10). The resolver
+                    // returns the canonical UserFunction whose `name`
+                    // is the qualified key the compiler used.
+                    if (auto *uf =
+                            engine_.lookupUserFunction(funcName,
+                                                        &engine_.workspaceEnv())) {
+                        const BytecodeChunk *found = findCompiledFunc(uf->name);
+                        if (!found && uf->name != funcName)
+                            found = findCompiledFunc(funcName);
                         if (found) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;

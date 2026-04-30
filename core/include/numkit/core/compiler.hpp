@@ -35,6 +35,14 @@ public:
     // split-mode driver so forward references resolve.
     void registerFunction(const ASTNode *funcDef);
 
+    // Same as above but binds the function under an explicit name
+    // instead of funcDef->strValue. resolveMFile_ uses this for
+    // package-qualified m-files (`+pkg/foo.m` is bound under
+    // "pkg.foo", not the leaf "foo", so two packages with the same
+    // leaf don't collide in compiledFuncs_).
+    void registerFunctionAs(const std::string &qualifiedName,
+                             const ASTNode *funcDef);
+
     // Workspace-scope compiled functions. Populated by `function` at
     // the REPL or by anonymous-function allocation. Cleared by
     // `clear all` / `clear functions` (see Engine::clearUserFunctions).
