@@ -32,7 +32,10 @@ gradient2(std::pmr::memory_resource *mr, const Value &f, double hx = 1.0, double
 
 /// cumtrapz(y) / cumtrapz(x, y) — cumulative trapezoidal integration.
 /// One-arg form uses unit spacing; two-arg form uses the spacing from x.
-/// 1-D vector input only for now (matrix support deferred).
+/// Vector inputs preserve their shape; matrix inputs integrate down each
+/// column (MATLAB's default along the first non-singleton dim). For
+/// matrix y, x may be a column-length vector (broadcast per column) or
+/// a matrix of the same shape as y (per-column spacing).
 Value cumtrapz(std::pmr::memory_resource *mr, const Value &y);
 Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 

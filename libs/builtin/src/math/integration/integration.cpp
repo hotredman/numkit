@@ -164,19 +164,46 @@ Value cumtrapzVector(std::pmr::memory_resource *mr, const double *y, const doubl
 
 } // namespace
 
+namespace {
+
+// Matrix form: integrate along columns (MATLAB default for matrix
+// inputs — first non-singleton dim is rows). xData==nullptr → unit
+// spacing. xData layout: same shape as src, used per-column.
+Value cumtrapzMatrixCols(std::pmr::memory_resource *mr,
+                          const double *src, const double *xData,
+                          size_t rows, size_t cols)
+{
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    if (rows == 0 || cols == 0) return out;
+    for (size_t c = 0; c < cols; ++c) {
+        const double *col = src + c * rows;
+        const double *xCol = xData ? xData + c * rows : nullptr;
+        double *dCol = dst + c * rows;
+        dCol[0] = 0.0;
+        for (size_t r = 1; r < rows; ++r) {
+            const double dx = xCol ? (xCol[r] - xCol[r - 1]) : 1.0;
+            dCol[r] = dCol[r - 1] + 0.5 * (col[r - 1] + col[r]) * dx;
+        }
+    }
+    return out;
+}
+
+} // namespace
+
 Value cumtrapz(std::pmr::memory_resource *mr, const Value &y)
 {
     if (y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
-    if (!y.dims().isVector() && !y.isScalar())
-        throw Error("cumtrapz: matrix inputs are not yet supported "
-                     "(use vector input for now)",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:matrixUnsupported");
 
     auto ys = toDoubleCopy(mr, y);
-    return cumtrapzVector(mr, ys.doubleData(), nullptr, y.numel(),
-                          y.dims(), /*unitSpacing=*/true);
+    if (y.dims().isVector() || y.isScalar()) {
+        return cumtrapzVector(mr, ys.doubleData(), nullptr, y.numel(),
+                              y.dims(), /*unitSpacing=*/true);
+    }
+    return cumtrapzMatrixCols(mr, ys.doubleData(), nullptr,
+                               y.dims().rows(), y.dims().cols());
 }
 
 Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
@@ -184,17 +211,39 @@ Value cumtrapz(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     if (x.type() == ValueType::COMPLEX || y.type() == ValueType::COMPLEX)
         throw Error("cumtrapz: complex inputs are not supported",
                      0, 0, "cumtrapz", "", "m:cumtrapz:complex");
-    if (!x.dims().isVector() || !y.dims().isVector())
-        throw Error("cumtrapz: matrix inputs are not yet supported",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:matrixUnsupported");
-    if (x.numel() != y.numel())
-        throw Error("cumtrapz: x and y must have the same length",
-                     0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
 
-    auto xs = toDoubleCopy(mr, x);
     auto ys = toDoubleCopy(mr, y);
-    return cumtrapzVector(mr, ys.doubleData(), xs.doubleData(),
-                          y.numel(), y.dims(), /*unitSpacing=*/false);
+    if (y.dims().isVector() || y.isScalar()) {
+        if (!x.dims().isVector() && !x.isScalar())
+            throw Error("cumtrapz: when y is a vector, x must also be a vector",
+                         0, 0, "cumtrapz", "", "m:cumtrapz:shapeMismatch");
+        if (x.numel() != y.numel())
+            throw Error("cumtrapz: x and y must have the same length",
+                         0, 0, "cumtrapz", "", "m:cumtrapz:lengthMismatch");
+        auto xs = toDoubleCopy(mr, x);
+        return cumtrapzVector(mr, ys.doubleData(), xs.doubleData(),
+                              y.numel(), y.dims(), /*unitSpacing=*/false);
+    }
+
+    // Matrix y. x may be a vector (broadcast across every column) or
+    // matrix of the same shape as y (per-column spacing).
+    const size_t rows = y.dims().rows();
+    const size_t cols = y.dims().cols();
+    auto xs = toDoubleCopy(mr, x);
+    if (x.dims().isVector() && x.numel() == rows) {
+        // Broadcast x to every column.
+        auto xMat = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+        double *dx = xMat.doubleDataMut();
+        const double *src = xs.doubleData();
+        for (size_t c = 0; c < cols; ++c)
+            std::memcpy(dx + c * rows, src, rows * sizeof(double));
+        return cumtrapzMatrixCols(mr, ys.doubleData(), dx, rows, cols);
+    }
+    if (x.dims().rows() != rows || x.dims().cols() != cols)
+        throw Error("cumtrapz: x size must match y or be a column-length vector",
+                     0, 0, "cumtrapz", "", "m:cumtrapz:shapeMismatch");
+    return cumtrapzMatrixCols(mr, ys.doubleData(), xs.doubleData(),
+                               rows, cols);
 }
 
 // ── integral (adaptive Gauss-Kronrod) ────────────────────────────────

@@ -73,6 +73,7 @@ public:
     // check this scope's imports first, then walk parent_ chain.
     void pushImport(Import imp) { activeImports_.push_back(std::move(imp)); }
     const std::vector<Import> &activeImports() const { return activeImports_; }
+    void clearImports() { activeImports_.clear(); }
     Environment *parentForImports() const { return parent_; }
 
 private:
