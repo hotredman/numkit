@@ -1213,6 +1213,43 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
             parent = Value::structure();
         return parent.field(fieldName);
     }
+    if (objNode->type == NodeType::CALL) {
+        // d(i).field = val — paren-indexed struct-array element write.
+        auto *target = objNode->children[0].get();
+        if (target->type != NodeType::IDENTIFIER)
+            throw std::runtime_error("Invalid field assignment target");
+        auto *var = env->get(target->strValue);
+        if (!var)
+            throw std::runtime_error("Undefined variable: " + target->strValue);
+        if (!var->isStruct())
+            throw std::runtime_error(
+                "Indexed field assignment on non-struct '" + target->strValue + "'");
+
+        const size_t nargs = objNode->children.size() - 1;
+        size_t linear = 0;
+        if (nargs == 1) {
+            IndexContextGuard guard(indexContextStack_, {var, 0, 1});
+            Value v = execNode(objNode->children[1].get(), env);
+            linear = static_cast<size_t>(v.toScalar()) - 1;
+        } else if (nargs == 2) {
+            IndexContextGuard g0(indexContextStack_, {var, 0, 2});
+            Value rv = execNode(objNode->children[1].get(), env);
+            IndexContextGuard g1(indexContextStack_, {var, 1, 2});
+            Value cv = execNode(objNode->children[2].get(), env);
+            size_t r = static_cast<size_t>(rv.toScalar()) - 1;
+            size_t c = static_cast<size_t>(cv.toScalar()) - 1;
+            linear = var->dims().sub2indChecked(r, c);
+        } else {
+            throw std::runtime_error(
+                "Indexed field assignment: only 1-D / 2-D index supported");
+        }
+
+        if (linear >= var->numel())
+            throw std::runtime_error("Struct-array index exceeds dimensions");
+
+        auto &fieldMap = var->structArrayElem(linear);
+        return fieldMap[fieldName];
+    }
     throw std::runtime_error("Invalid field assignment target");
 }
 
