@@ -684,7 +684,7 @@ std::unordered_map<std::string, CompiledScript> mFileCache_;
 локальной версией (как в MATLAB), но не позволяет случайному файлу из
 системного path-а перебить builtin.
 
-## 13. User packages — `+pkg/` directories через VFS
+## 13. User packages — `+pkg/` directories через VFS — **DONE (Phase 10)**
 
 MATLAB convention: каталог `+pkgname/` содержит функции пакета.
 
@@ -697,30 +697,58 @@ local:/scripts/
       deep.m              → myutil.sub.deep
 ```
 
-**Использование:**
+**Использование (что РЕАЛИЗОВАНО):**
 ```matlab
 addpath('local:/scripts')
 
-% Полный путь:
+% Полный путь — direct qualified call (TW + VM):
 y = myutil.helper(x);
 z = myutil.sub.deep(y);
 
-% Через import:
+% Через wildcard import:
 import myutil.*
 y = helper(x);
-z = sub.deep(y);
 
-% Через alias:
-import myutil as m
-y = m.helper(x);
-z = m.sub.deep(y);
+% Через single-symbol import:
+import myutil.helper
+y = helper(x);
+
+% Через nested wildcard:
+import myutil.sub.*
+z = deep(y);
 ```
 
-**Резолвер:** при встрече dotted имени `pkg.fn` (после неудачного поиска
-в builtin registry) — пробует `+pkg/<fn>.m` в script-origin и
-addpath-ах. При имени `pkg.sub.fn` — пробует `+pkg/+sub/<fn>.m`.
+**Что НЕ работает (известные gap'ы):**
+- `import myutil as m; m.helper(x)` — alias-форма для qualified call.
+  Resolver ходит по imports, но при `m.helper` не подменяет `m → myutil`.
+  Workaround: `import myutil.*; helper(x)`.
+- VM CSL `[s.field]` для смешанных рядов с не-CSL элементами проходит
+  через `HORZCAT_APPEND` per-element — квадратика на больших рядах.
 
-**Implementation:** часть Section 12.3.
+**Резолвер:** при встрече dotted имени `pkg.fn` пробует:
+1. `externalFuncs_["pkg.fn"]` (зарегистрированный namespace builtin).
+2. `userFuncs_["pkg.fn"]` (уже загруженный m-file).
+3. `+pkg/<fn>.m` в script-origin и addpath-ах. При имени `pkg.sub.fn`
+   — `+pkg/+sub/<fn>.m`.
+
+**Compiler invariant:** для `pkg.foo(x)` без import компилятор делает
+compile-time check `engine.workspaceEnv().getLocal("pkg")`. Workspace
+переменная с тем же именем затеняет namespace (MATLAB precedence).
+Зависит от per-statement split в `Engine::eval`.
+
+**Compiler chunk key:** `Compiler::registerFunctionAs(qualifiedName,
+funcDef)` биндит чанк под полным qualified-именем (`+a/foo.m` → `a.foo`,
+`+b/foo.m` → `b.foo`), чтобы пакеты с одинаковым leaf не конфликтовали.
+
+**Resolver invariant:** `Engine::lookupUserFunction(name, env)` проходит
+imports в обратном порядке (latest-pushed wins). MATLAB-семантика
+shadowing для `import a.*; import b.*;` с пересекающимися leaves.
+
+**Implementation:** см. реализацию в [`engine.cpp`](core/src/engine.cpp)
+(`resolveMFile_`, `lookupUserFunction`, `walkImportCandidates_`),
+[`compiler.cpp`](core/src/compiler.cpp) (`compileCall` qualified detect,
+`registerFunctionAs`), [`tree_walker.cpp`](core/src/tree_walker.cpp)
+(`execCall` qualified detect).
 
 ## 14. Engine API — финальный
 
@@ -821,23 +849,34 @@ public:
   валидны параллельно (разные full_names), пока кто-то один не пытается
   alias в compat. Пользователь использует полный путь для дисамбигуации.
 
-## 17. Migration plan
+## 17. Migration plan — **ALL PHASES DONE**
 
-См. todo в работе. Phases:
 - Phase 0: FS-audit + lint script — **DONE**
-- Phase 1: Этот документ — **IN PROGRESS**
-- Phase 2: TODO с namespace-аннотациями
-- Phase 3: Directory refactor (Variant B)
-- Phase 4: Engine API (registerFunction, indices, conflict detection)
-- Phase 5: AST IMPORT_DECL + parser
-- Phase 6: Resolver + activeImports
-- Phase 7: Миграция libs (signal, stats с переездом var/std, graphics, новый io)
-- Phase 8: Расширение VFS API (listDir, stat, mkdir, ...)
-- Phase 9: addpath/path + m-file resolver
-- Phase 10: +packagedir/ user namespaces
+- Phase 1: Этот документ — **DONE**
+- Phase 2: TODO с namespace-аннотациями — **DONE**
+- Phase 3: Directory refactor (Variant B) — **DONE** (libs/{builtin,signal,stats,graphics,io})
+- Phase 4: Engine API (registerFunction, indices, conflict detection) — **DONE**
+- Phase 5: AST IMPORT_DECL + parser — **DONE**
+- Phase 6: Resolver + activeImports — **DONE**
+- Phase 7: Миграция libs (signal, stats с переездом var/std, graphics, новый io) — **DONE**
+- Phase 8: Расширение VFS API (listDir, stat, mkdir, ...) — **DONE**
+- Phase 9: addpath/path + m-file resolver — **DONE**
+- Phase 10: +packagedir/ user namespaces — **DONE**
 
-Каждая фаза = 1-2 коммита, тесты зелёные между фазами. Test fixture
-получает `import compat.*;` в setup.
+Plus follow-up audit cleanup (5 batches, ~10 commits):
+- Cleanup: dedup auto-grow / import-walk / qualified-name AST helpers,
+  drop dead leaf-fallback in VM, decouple Compiler from Engine private
+  state, unify struct storage to AoS-only.
+- Tests: edge cases (multi-import shadow, recursive package call,
+  cross-package call, large struct array, in-function shadow).
+- Build: validated 7 of 12 presets (desktop-fast, threads, portable,
+  bench-simd-clang, bench-clang-asan, wasm, bench-wasm).
+- Semantics: `s.f = val` broadcast on multi-element struct arrays.
+- Struct array features: indexed write `d(i).field = val`, auto-grow
+  on out-of-range index, `struct('a', {1,2,3})` cell-input constructor,
+  CSL `[s.field]` expansion in matrix literals.
+
+Test fixture получает `import compat.*;` в setup.
 
 ## 18. Open questions
 
