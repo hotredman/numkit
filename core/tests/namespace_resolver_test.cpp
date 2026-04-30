@@ -91,6 +91,31 @@ TEST_P(NamespaceResolverTest, CompatNamespaceWorks)
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
+TEST_P(NamespaceResolverTest, WildcardImportFindsSubNamespaceFunction)
+{
+    // libs/signal registers functions under signal.<sub>.<name> (e.g.
+    // signal.transforms.fft). `import signal.*; fft(x)` must find them
+    // — wildcard imports look one level deeper than just "signal.<name>".
+    auto result = engine.eval("import signal.*; y = fft([1, 1, 1, 1]);");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->numel(), 4u);
+    // First bin is the sum; rest are zero for a constant input.
+    EXPECT_NEAR(y->complexElem(0).real(), 4.0, 1e-12);
+    EXPECT_NEAR(y->complexElem(1).real(), 0.0, 1e-12);
+}
+
+TEST_P(NamespaceResolverTest, WildcardImportNestedPackage)
+{
+    // Direct sub-namespace import still works alongside the new
+    // deep-wildcard semantics.
+    auto result = engine.eval(
+        "import signal.windows.*; w = hann(8);");
+    Value *w = engine.getVariable("w");
+    ASSERT_NE(w, nullptr);
+    EXPECT_EQ(w->numel(), 8u);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, NamespaceResolverTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),

@@ -161,16 +161,32 @@ void Engine::registerFunction(const std::string &ns,
 // candidate. Returns true the first time the callback returns true.
 //
 // Resolution rules (mirrors NAMESPACE_DESIGN.md §4):
-//   * `import a.b.*`     → tries "a.b.<name>"
+//   * `import a.b.*`     → tries "a.b.<name>" first, then "deep" candidates
+//                          via shortNameIndex_: any registered fullname that
+//                          starts with "a.b." and ends with ".<name>". This
+//                          lets `import signal.*` find `signal.transforms.fft`
+//                          when calling bare `fft()` — sub-namespaces are
+//                          transparent for wildcard imports.
 //   * `import a.b.<name>` → tries "a.b.<name>" (when last path segment matches)
 //   * `import a.b as x`   → skipped here (only relevant for `x.<name>` calls,
 //                           handled by the qualified-name path on the caller).
-template <class Fn>
+template <class ShortNameIndex, class Fn>
 static bool walkImportCandidates_(const std::string &name,
                                    const Environment *env,
                                    const Environment *workspaceEnv,
+                                   const ShortNameIndex &shortNameIndex,
                                    Fn &&tryQualified)
 {
+    auto buildPrefix = [](const std::vector<std::string> &path) {
+        std::string s;
+        s.reserve(64);
+        for (const auto &p : path) {
+            if (!s.empty()) s.push_back('.');
+            s.append(p);
+        }
+        return s;
+    };
+
     auto runOne = [&](const Environment *cur) -> bool {
         // Walk imports newest-first: in `import a.*; import b.*;` the
         // second import shadows the first when both contain the same
@@ -180,27 +196,35 @@ static bool walkImportCandidates_(const std::string &name,
         for (auto rit = imps.rbegin(); rit != imps.rend(); ++rit) {
             const auto &imp = *rit;
             if (imp.path.empty()) continue;
-            std::string qualified;
-            qualified.reserve(64);
             if (imp.wildcard) {
-                for (const auto &p : imp.path) {
-                    if (!qualified.empty()) qualified.push_back('.');
-                    qualified.append(p);
+                std::string prefix = buildPrefix(imp.path);
+                std::string direct = prefix + "." + name;
+                if (tryQualified(direct))
+                    return true;
+                // Deep scan: any registered "a.b.SUB.<name>" (or deeper)
+                // also matches `import a.b.*`.
+                std::string dottedPrefix = prefix + ".";
+                std::string dottedSuffix = "." + name;
+                auto range = shortNameIndex.equal_range(name);
+                for (auto it = range.first; it != range.second; ++it) {
+                    const std::string &full = it->second;
+                    if (full == direct) continue;            // already tried
+                    if (full.size() <= dottedPrefix.size())  continue;
+                    if (full.compare(0, dottedPrefix.size(),
+                                     dottedPrefix) != 0)     continue;
+                    if (full.size() < dottedSuffix.size()) continue;
+                    if (full.compare(full.size() - dottedSuffix.size(),
+                                     dottedSuffix.size(),
+                                     dottedSuffix) != 0) continue;
+                    if (tryQualified(full))
+                        return true;
                 }
-                qualified.push_back('.');
-                qualified.append(name);
             } else if (!imp.alias.empty()) {
                 continue;
             } else if (imp.path.back() == name) {
-                for (size_t i = 0; i < imp.path.size(); ++i) {
-                    if (i > 0) qualified.push_back('.');
-                    qualified.append(imp.path[i]);
-                }
-            } else {
-                continue;
+                if (tryQualified(buildPrefix(imp.path)))
+                    return true;
             }
-            if (tryQualified(qualified))
-                return true;
         }
         return false;
     };
@@ -230,7 +254,7 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
     //    those names inside nested function bodies too. MATLAB-strict
     //    mode would scope imports to the declaring function only.
     const ExternalFunc *hit = nullptr;
-    walkImportCandidates_(name, env, workspaceEnv_.get(),
+    walkImportCandidates_(name, env, workspaceEnv_.get(), shortNameIndex_,
         [&](const std::string &qualified) {
             auto qit = externalFuncs_.find(qualified);
             if (qit != externalFuncs_.end()) {
@@ -318,7 +342,7 @@ const UserFunction *Engine::lookupUserFunction(const std::string &name,
     // successful resolveMFile_ caches the entry under its full
     // qualified key, so subsequent calls hit userFuncs_ directly.
     const UserFunction *hit = nullptr;
-    walkImportCandidates_(name, env, workspaceEnv_.get(),
+    walkImportCandidates_(name, env, workspaceEnv_.get(), shortNameIndex_,
         [&](const std::string &qualified) {
             if (auto *f = lookupUserFunctionLocal(qualified)) {
                 hit = f;
