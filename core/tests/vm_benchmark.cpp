@@ -24,7 +24,6 @@ public:
 
     void SetUp() override
     {
-        BuiltinLibrary::install(engine);
         engine.setOutputFunc([](const std::string &) {}); // suppress output
     }
 

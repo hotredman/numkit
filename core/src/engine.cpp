@@ -112,9 +112,117 @@ void Engine::registerUnaryOp(const std::string &op, UnaryOpFunc func)
 {
     unaryOps_[op] = std::move(func);
 }
+// Internal helper — implements the actual registration logic shared
+// by both registerFunction overloads. Maintains the auxiliary indices
+// (shortNameIndex_, namespaceOrder_) and enforces uniqueness of the
+// full name in the primary externalFuncs_ map.
+void Engine::registerFunctionImpl_(const std::string &fullName,
+                                   const std::string &leafName,
+                                   ExternalFunc func)
+{
+    if (externalFuncs_.find(fullName) != externalFuncs_.end()) {
+        throw std::runtime_error("duplicate function registration: " + fullName);
+    }
+    externalFuncs_.emplace(fullName, std::move(func));
+    shortNameIndex_.emplace(leafName, fullName);
+
+    // Track top-level namespace (everything before the first '.').
+    // Core registrations (no '.') do not introduce a namespace.
+    auto dot = fullName.find('.');
+    if (dot != std::string::npos) {
+        std::string topNs = fullName.substr(0, dot);
+        if (namespaceSet_.insert(topNs).second) {
+            namespaceOrder_.push_back(topNs);
+        }
+    }
+}
+
 void Engine::registerFunction(const std::string &name, ExternalFunc func)
 {
-    externalFuncs_[name] = std::move(func);
+    // 1-arg form: equivalent to namespace = "" (core). full name == leaf name.
+    registerFunctionImpl_(name, name, std::move(func));
+}
+
+void Engine::registerFunction(const std::string &ns,
+                              const std::string &name,
+                              ExternalFunc func)
+{
+    if (ns.empty()) {
+        registerFunctionImpl_(name, name, std::move(func));
+    } else {
+        registerFunctionImpl_(ns + "." + name, name, std::move(func));
+    }
+}
+
+const ExternalFunc *Engine::findExternal(const std::string &name,
+                                         const Environment *env) const
+{
+    // 1. Direct hit — covers core, promotions, and already-qualified names.
+    auto it = externalFuncs_.find(name);
+    if (it != externalFuncs_.end()) {
+        return &it->second;
+    }
+
+    // 2. Walk env→parent chain looking for active imports. Imports added
+    //    to inner scopes shadow outer (we walk innermost first).
+    auto tryImports = [&](const Environment *cur) -> const ExternalFunc * {
+        for (const auto &imp : cur->activeImports()) {
+            if (imp.path.empty()) continue;
+
+            if (imp.wildcard) {
+                // import a.b.*  → try "a.b.<name>"
+                std::string full;
+                full.reserve(64);
+                for (const auto &p : imp.path) {
+                    if (!full.empty()) full.push_back('.');
+                    full.append(p);
+                }
+                full.push_back('.');
+                full.append(name);
+                auto wit = externalFuncs_.find(full);
+                if (wit != externalFuncs_.end()) {
+                    return &wit->second;
+                }
+                continue;
+            }
+
+            if (!imp.alias.empty()) {
+                // Alias form `import a.b as x` — only relevant for dotted
+                // calls `x.<name>`. Handled by the caller, not here.
+                continue;
+            }
+
+            // Single-symbol form `import a.b.c` — exposes 'c' as `name`.
+            if (imp.path.back() == name) {
+                std::string full;
+                full.reserve(64);
+                for (size_t i = 0; i < imp.path.size(); ++i) {
+                    if (i > 0) full.push_back('.');
+                    full.append(imp.path[i]);
+                }
+                auto sit = externalFuncs_.find(full);
+                if (sit != externalFuncs_.end()) {
+                    return &sit->second;
+                }
+            }
+        }
+        return nullptr;
+    };
+
+    for (const Environment *cur = env; cur != nullptr; cur = cur->parentForImports()) {
+        if (auto *p = tryImports(cur)) return p;
+    }
+
+    // 3. Engine-level fallback: workspace imports (e.g. `import compat.*`
+    //    pasted at REPL or in a test fixture). MATLAB-strict semantics
+    //    would NOT propagate these into nested function bodies — strict
+    //    mode requires per-function imports. We accept this pragmatic
+    //    relaxation so that REPL/test workflows can flatten compat-namespace
+    //    functions globally with a single declaration.
+    if (workspaceEnv_ && env != workspaceEnv_.get()) {
+        if (auto *p = tryImports(workspaceEnv_.get())) return p;
+    }
+    return nullptr;
 }
 
 void Engine::setVariable(const std::string &name, Value val)

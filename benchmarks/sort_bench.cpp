@@ -4,7 +4,7 @@
 // random, already sorted, reverse sorted — since real sort
 // implementations behave very differently on each.
 
-#include <numkit/builtin/lang/arrays/matrix.hpp>
+#include <numkit/builtin/language/arrays/matrix.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>

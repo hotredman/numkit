@@ -6,7 +6,7 @@
 // uniform integers in [1, N/4] to give a realistic distribution of
 // duplicates.
 
-#include <numkit/builtin/math/elementary/discrete.hpp>
+#include <numkit/builtin/math/discrete/discrete.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>

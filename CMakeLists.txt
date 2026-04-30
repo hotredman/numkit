@@ -126,37 +126,37 @@ set(NUMKIT_HEADERS
     core/include/numkit/core/vfs.hpp
     # libs
     libs/builtin/include/numkit/builtin/library.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/trigonometry.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/exponents.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/rounding.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/misc.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/special.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/reductions.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/discrete.hpp
-    libs/builtin/include/numkit/builtin/datatypes/cell/cell.hpp
-    libs/builtin/include/numkit/builtin/datatypes/struct/struct.hpp
-    libs/builtin/include/numkit/builtin/datatypes/strings/strings.hpp
-    libs/builtin/include/numkit/builtin/datatypes/strings/regex.hpp
+    libs/builtin/include/numkit/builtin/math/trig/trigonometry.hpp
+    libs/builtin/include/numkit/builtin/math/exp_log/exponents.hpp
+    libs/builtin/include/numkit/builtin/math/arithmetic/rounding.hpp
+    libs/builtin/include/numkit/builtin/math/arithmetic/misc.hpp
+    libs/builtin/include/numkit/builtin/math/special/special.hpp
+    libs/builtin/include/numkit/builtin/math/arithmetic/reductions.hpp
+    libs/builtin/include/numkit/builtin/math/discrete/discrete.hpp
+    libs/builtin/include/numkit/builtin/language/cells/cell.hpp
+    libs/builtin/include/numkit/builtin/language/structures/struct.hpp
+    libs/builtin/include/numkit/builtin/language/strings/strings.hpp
+    libs/builtin/include/numkit/builtin/language/strings/regex.hpp
     libs/builtin/include/numkit/builtin/math/integration/integration.hpp
     libs/builtin/include/numkit/builtin/math/optim/fzero.hpp
-    libs/builtin/include/numkit/builtin/lang/commands/env.hpp
-    libs/builtin/include/numkit/builtin/lang/operators/binary_ops.hpp
-    libs/builtin/include/numkit/builtin/lang/operators/unary_ops.hpp
-    libs/builtin/include/numkit/builtin/lang/arrays/matrix.hpp
-    libs/builtin/include/numkit/builtin/lang/arrays/manip.hpp
-    libs/builtin/include/numkit/builtin/lang/arrays/nd_manip.hpp
-    libs/builtin/include/numkit/builtin/lang/arrays/accum.hpp
+    libs/builtin/include/numkit/builtin/language/commands/env.hpp
+    libs/builtin/include/numkit/builtin/language/operators/binary_ops.hpp
+    libs/builtin/include/numkit/builtin/language/operators/unary_ops.hpp
+    libs/builtin/include/numkit/builtin/language/arrays/matrix.hpp
+    libs/builtin/include/numkit/builtin/language/arrays/manip.hpp
+    libs/builtin/include/numkit/builtin/language/arrays/nd_manip.hpp
+    libs/builtin/include/numkit/builtin/language/arrays/accum.hpp
     libs/builtin/include/numkit/builtin/math/random/rng.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/complex.hpp
-    libs/builtin/include/numkit/builtin/math/elementary/polynomials.hpp
+    libs/builtin/include/numkit/builtin/math/complex/complex.hpp
+    libs/builtin/include/numkit/builtin/math/poly/polynomials.hpp
     libs/builtin/include/numkit/builtin/data_io/csv.hpp
     libs/builtin/include/numkit/builtin/data_io/fileio.hpp
     libs/builtin/include/numkit/builtin/data_io/saveload.hpp
-    libs/builtin/include/numkit/builtin/datatypes/numeric/types.hpp
-    libs/builtin/include/numkit/builtin/datatypes/numeric/int_math.hpp
-    libs/builtin/include/numkit/builtin/datatypes/strings/format.hpp
-    libs/builtin/include/numkit/builtin/datatypes/strings/print.hpp
-    libs/builtin/include/numkit/builtin/datatypes/strings/scan.hpp
+    libs/builtin/include/numkit/builtin/language/types/types.hpp
+    libs/builtin/include/numkit/builtin/language/bitwise/int_math.hpp
+    libs/builtin/include/numkit/builtin/language/strings/format.hpp
+    libs/builtin/include/numkit/builtin/language/strings/print.hpp
+    libs/builtin/include/numkit/builtin/language/strings/scan.hpp
     libs/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
     libs/builtin/include/numkit/builtin/data_analysis/descriptive_statistics/stats.hpp
     libs/signal/include/numkit/signal/library.hpp
@@ -180,7 +180,7 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/spectral_analysis/periodogram_pwelch.hpp
     libs/signal/include/numkit/signal/time_frequency/spectrogram.hpp
     libs/signal/include/numkit/signal/windows/windows.hpp
-    libs/builtin/include/numkit/builtin/math/interpolation/interp.hpp
+    libs/builtin/include/numkit/builtin/math/interp/interp.hpp
     libs/stats/include/numkit/stats/library.hpp
     libs/stats/include/numkit/stats/moments/moments.hpp
     libs/stats/include/numkit/stats/nan_aware/nan_aware.hpp

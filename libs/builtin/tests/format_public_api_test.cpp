@@ -2,7 +2,7 @@
 //
 // Direct-call tests for numkit::builtin formatting primitives.
 
-#include <numkit/builtin/datatypes/strings/format.hpp>
+#include <numkit/builtin/language/strings/format.hpp>
 
 #include <memory_resource>
 #include <numkit/core/span.hpp>

@@ -195,7 +195,8 @@ void isinf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isfinite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void class_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// `class` is registered via lambda in registerWorkspaceBuiltins() —
+// no forward decl needed for a class_reg free function.
 
 // format.cpp
 void sprintf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -514,7 +515,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
-    engine.registerFunction("class",     &builtin::detail::class_reg);
+    // `class` registered in registerWorkspaceBuiltins() as a lambda
+    // (formats type via mtypeName, more elaborate than the bare reg).
 
     // ── Phase 6c: datatypes/strings/format.cpp public-API-backed built-ins ───────────
     engine.registerFunction("sprintf",    &builtin::detail::sprintf_reg);

@@ -43,7 +43,58 @@ public:
 
     void registerBinaryOp(const std::string &op, BinaryOpFunc func);
     void registerUnaryOp(const std::string &op, UnaryOpFunc func);
+
+    // Register a builtin function. Two forms:
+    //   1-arg: registers in core (flat namespace, no prefix). The full
+    //          name in the registry equals `name`.
+    //   3-arg: registers under a namespace. `ns` is dot-separated
+    //          (e.g. "signal.transforms"). The full name in the
+    //          registry equals "ns.name". `ns=""` is equivalent to the
+    //          1-arg form.
+    // Both forms throw std::runtime_error on duplicate full names.
+    // See NAMESPACE_DESIGN.md for the rules.
     void registerFunction(const std::string &name, ExternalFunc func);
+    void registerFunction(const std::string &ns,
+                          const std::string &name,
+                          ExternalFunc func);
+
+    // ── Namespace introspection (used by resolver — Phase 6) ──────
+
+    // Top-level namespaces in registration order. `compat` shows up
+    // here once the first MATLAB-mirror library calls
+    // registerFunction("compat", …).
+    const std::vector<std::string> &namespaces() const { return namespaceOrder_; }
+
+    // Multimap from leaf name (last segment) to full name
+    // (incl. all promotions, aliases). Used by the resolver to
+    // implement `import x.*` wildcard lookups in O(1).
+    const std::unordered_multimap<std::string, std::string> &shortNameIndex() const
+    {
+        return shortNameIndex_;
+    }
+
+    // Runtime resolver: given a name (possibly short), looks it up considering
+    // the active imports in `env` (and its parent chain). Returns nullptr
+    // if not resolvable. `env` may be nullptr — then only direct (core or
+    // fully-qualified) lookup is performed.
+    //
+    // Resolution order (per NAMESPACE_DESIGN.md Section 3):
+    //   1. Direct: externalFuncs_.find(name)  (core / already qualified)
+    //   2. Walk env→parent chain, for each scope's active imports:
+    //      - wildcard `import a.b.*`     → try "a.b.<name>"
+    //      - explicit `import a.b.c`     → if c == name, try "a.b.c"
+    //      - alias    `import a.b as x`  → only resolves x.<name> (handled
+    //                                       in dotted-name lookup, not here)
+    const ExternalFunc *findExternal(const std::string &name,
+                                      const Environment *env) const;
+
+    // Compile-time check: is `name` a leaf name registered anywhere in the
+    // namespace tree? Used by the compiler to decide whether an identifier
+    // is a callable. Does NOT consider imports — that's a runtime concept.
+    bool isKnownLeafName(const std::string &name) const
+    {
+        return externalFuncs_.count(name) > 0 || shortNameIndex_.count(name) > 0;
+    }
 
     void setVariable(const std::string &name, Value val);
     Value *getVariable(const std::string &name);
@@ -260,6 +311,19 @@ private:
     std::unordered_map<std::string, UnaryOpFunc> unaryOps_;
     std::unordered_map<std::string, ExternalFunc> externalFuncs_;
     std::unordered_map<std::string, UserFunction> userFuncs_;
+
+    // Auxiliary indices into externalFuncs_, populated by registerFunction.
+    // The full-name keys in externalFuncs_ are authoritative; these indices
+    // exist purely to accelerate namespace-aware lookups (Phase 6).
+    std::unordered_multimap<std::string, std::string> shortNameIndex_;
+    std::vector<std::string> namespaceOrder_;
+    std::unordered_set<std::string> namespaceSet_;
+
+    // Internal helper used by both registerFunction overloads.
+    // Throws std::runtime_error if `fullName` already registered.
+    void registerFunctionImpl_(const std::string &fullName,
+                               const std::string &leafName,
+                               ExternalFunc func);
 
     OutputFunc outputFunc_;
     FigureManager figureManager_;

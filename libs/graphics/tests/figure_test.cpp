@@ -174,9 +174,11 @@ public:
 
     void SetUp() override
     {
-        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
+        // MATLAB-compat: flatten mirror-library functions (graphics.*, signal.*, …)
+        // into the workspace so tests can call `plot`, `bar`, `figure`, … flat.
+        engine.eval("import compat.*;");
     }
 
     Value eval(const std::string &code) { return engine.eval(code); }

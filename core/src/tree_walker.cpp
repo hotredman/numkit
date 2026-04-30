@@ -272,6 +272,14 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
     case NodeType::GLOBAL_STMT:
     case NodeType::PERSISTENT_STMT:
         return execGlobalPersistent(node, env);
+    case NodeType::IMPORT_DECL: {
+        Import imp;
+        imp.path = node->paramNames;
+        imp.wildcard = node->boolValue;
+        imp.alias = node->strValue.empty() || imp.wildcard ? "" : node->strValue;
+        env->pushImport(std::move(imp));
+        return Value::empty();
+    }
     case NodeType::COMMAND_CALL:
         return execCommandCall(node, env);
     case NodeType::END_VAL: {
@@ -973,10 +981,10 @@ Value TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t n
     if (val)
         return *val;
 
-    if (engine_.externalFuncs_.count(name)) {
+    if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
         Value outBuf[1];
         CallContext ctx{&engine_, env};
-        engine_.externalFuncs_[name]({}, nargout, Span<Value>(outBuf, 1), ctx);
+        (*fn)({}, nargout, Span<Value>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? Value::empty() : outBuf[0];
     }
     if (auto *_uf = engine_.lookupUserFunction(name))
@@ -1382,12 +1390,11 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
         return outBuf;
     }
 
-    auto it = engine_.externalFuncs_.find(funcName);
-    if (it != engine_.externalFuncs_.end()) {
-        funcNode->cachedOp = &it->second;
+    if (const ExternalFunc *fn = engine_.findExternal(funcName, env)) {
+        funcNode->cachedOp = fn;
         std::vector<Value> outBuf(nout);
         CallContext ctx{&engine_, env};
-        it->second(args, nout, Span<Value>(outBuf), ctx);
+        (*fn)(args, nout, Span<Value>(outBuf), ctx);
         return outBuf;
     }
     if (auto *_uf = engine_.lookupUserFunction(funcName))
@@ -1634,13 +1641,12 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             return outBuf[0];
         }
 
-        // Slow path: look up and cache
-        auto it = engine_.externalFuncs_.find(name);
-        if (it != engine_.externalFuncs_.end()) {
-            funcNode->cachedOp = &it->second;
+        // Slow path: look up and cache (import-aware via findExternal)
+        if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
+            funcNode->cachedOp = fn;
             Value outBuf[1];
             CallContext ctx{&engine_, env};
-            it->second(args, nargout, Span<Value>(outBuf, 1), ctx);
+            (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
             return outBuf[0];
         }
         if (auto *uf = engine_.lookupUserFunction(name)) {
@@ -2310,12 +2316,12 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     for (auto &child : node->children)
         args.push_back(Value::fromString(child->strValue, engine_.mr_));
 
-    // 1. External registered functions (includes workspace builtins)
+    // 1. External registered functions (includes workspace builtins, import-aware)
     Value result;
-    if (engine_.externalFuncs_.count(name)) {
+    if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
         Value outBuf[1];
         CallContext ctx{&engine_, env};
-        engine_.externalFuncs_[name](args, 0, Span<Value>(outBuf, 1), ctx);
+        (*fn)(args, 0, Span<Value>(outBuf, 1), ctx);
         result = outBuf[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);

@@ -4,7 +4,7 @@
 // Exercises the algorithm without going through Engine, Parser, VM, or the
 // registration adapter.
 
-#include <numkit/builtin/math/elementary/complex.hpp>
+#include <numkit/builtin/math/complex/complex.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>

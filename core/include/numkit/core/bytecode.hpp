@@ -134,6 +134,9 @@ enum class OpCode : uint8_t {
     // ── Scope ────────────────────────────────────────────────
     GLOBAL_DECL,     // [reserved] compiler writes to chunk.globalNames instead
     PERSISTENT_DECL, // [reserved] compiler writes to chunk.globalNames instead
+    PUSH_IMPORT,     // d = index into chunk.imports
+                     //  Pushes the corresponding Import onto the current
+                     //  Environment's activeImports_ stack at runtime.
     CLOSURE_MAKE,    // [reserved] compiler uses cell-packing {funcHandle, captures} instead
     CLEAR_VAR,       // reg                    R[reg] = empty (clear variable)
     CLEAR_DYN,       // nameReg                lookup name in varMap, clear register
@@ -290,6 +293,17 @@ struct BytecodeChunk
 
     // Global variable names (declared with 'global' keyword)
     std::vector<std::string> globalNames;
+
+    // Compiled `import` declarations. Each entry holds a fully-joined path
+    // (e.g. "signal.transforms"), the wildcard flag, and an optional alias.
+    // Referenced by the PUSH_IMPORT opcode's `d` operand at runtime.
+    struct ImportSpec
+    {
+        std::string joinedPath;   // "signal.transforms" or "compat"
+        bool wildcard = false;    // true for `.*` form
+        std::string alias;        // for `import a.b as alias`; "" otherwise
+    };
+    std::vector<ImportSpec> imports;
 
     // Source mapping (parallel to code, same size — one entry per instruction)
     std::vector<SourceLoc> sourceMap;

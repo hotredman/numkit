@@ -24,7 +24,6 @@ public:
 
     void SetUp() override
     {
-        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
     }

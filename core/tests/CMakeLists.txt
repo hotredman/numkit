@@ -13,4 +13,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/shape_ops_test.cpp
     # ScratchArena — inline-buffer / upstream-spill / value-init
     ${CMAKE_CURRENT_SOURCE_DIR}/scratch_arena_test.cpp
+    # Namespace resolver (Phase 6) — `import` integration tests
+    ${CMAKE_CURRENT_SOURCE_DIR}/namespace_resolver_test.cpp
 )

@@ -40,6 +40,14 @@ enum class NodeType {
     TRY_STMT,
     GLOBAL_STMT,
     PERSISTENT_STMT,
+    // Encoding for IMPORT_DECL:
+    //   paramNames = path components (e.g. ["signal", "transforms"])
+    //   boolValue  = true for wildcard form `import a.b.*`
+    //   strValue   = either:
+    //                  - "" + boolValue=false  → import of last paramName as a single symbol
+    //                  - alias name + boolValue=false → `import a.b as alias`
+    //                  - "" + boolValue=true   → wildcard `import a.b.*`
+    IMPORT_DECL,
     DELETE_ASSIGN,
     COMMAND_CALL,
     DQSTRING_LITERAL,

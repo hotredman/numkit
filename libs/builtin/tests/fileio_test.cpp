@@ -1948,7 +1948,6 @@ TEST_P(FileIoTest, DestructorFlushesOpenFilesOnImplicitClose)
     std::map<std::string, std::string> persisted;
     {
         numkit::Engine local;
-        BuiltinLibrary::install(local);
         if (GetParam() == BackendParam::TreeWalker)
             local.setBackend(Engine::Backend::TreeWalker);
         else

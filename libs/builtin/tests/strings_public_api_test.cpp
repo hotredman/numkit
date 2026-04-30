@@ -3,8 +3,8 @@
 // Direct-call tests for numkit::builtin string functions.
 // Exercises algorithm without Engine/Parser/VM.
 
-#include <numkit/builtin/datatypes/strings/strings.hpp>
-#include <numkit/builtin/datatypes/strings/regex.hpp>
+#include <numkit/builtin/language/strings/strings.hpp>
+#include <numkit/builtin/language/strings/regex.hpp>
 
 #include <memory_resource>
 #include <numkit/core/types.hpp>

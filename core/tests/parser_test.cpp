@@ -2431,3 +2431,84 @@ TEST_F(ParserCommentTest, EmptyLinesAndCommentsInterleaved)
     EXPECT_EQ(stmt(*ast, 0).children[0]->strValue, "x");
     EXPECT_EQ(stmt(*ast, 1).children[0]->strValue, "y");
 }
+
+// ============================================================
+// import declaration (Phase 5 — namespace mechanism)
+// ============================================================
+class ParserImportTest : public ::testing::Test
+{};
+
+TEST_F(ParserImportTest, SingleSymbol)
+{
+    auto ast = parseSource("import a.b.c;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
+    ASSERT_EQ(s.paramNames.size(), 3u);
+    EXPECT_EQ(s.paramNames[0], "a");
+    EXPECT_EQ(s.paramNames[1], "b");
+    EXPECT_EQ(s.paramNames[2], "c");
+    EXPECT_FALSE(s.boolValue);
+    EXPECT_EQ(s.strValue, "");
+}
+
+TEST_F(ParserImportTest, Wildcard)
+{
+    auto ast = parseSource("import signal.*;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
+    ASSERT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.paramNames[0], "signal");
+    EXPECT_TRUE(s.boolValue);
+    EXPECT_EQ(s.strValue, "");
+}
+
+TEST_F(ParserImportTest, NestedWildcard)
+{
+    auto ast = parseSource("import signal.transforms.*;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
+    ASSERT_EQ(s.paramNames.size(), 2u);
+    EXPECT_EQ(s.paramNames[0], "signal");
+    EXPECT_EQ(s.paramNames[1], "transforms");
+    EXPECT_TRUE(s.boolValue);
+}
+
+TEST_F(ParserImportTest, AsAlias)
+{
+    auto ast = parseSource("import signal.transforms as tr;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
+    ASSERT_EQ(s.paramNames.size(), 2u);
+    EXPECT_EQ(s.paramNames[0], "signal");
+    EXPECT_EQ(s.paramNames[1], "transforms");
+    EXPECT_FALSE(s.boolValue);
+    EXPECT_EQ(s.strValue, "tr");
+}
+
+TEST_F(ParserImportTest, CompatWildcard)
+{
+    auto ast = parseSource("import compat.*;");
+    const auto &s = stmt(*ast, 0);
+    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
+    ASSERT_EQ(s.paramNames.size(), 1u);
+    EXPECT_EQ(s.paramNames[0], "compat");
+    EXPECT_TRUE(s.boolValue);
+}
+
+TEST_F(ParserImportTest, AsWithWildcardThrows)
+{
+    EXPECT_THROW(parseSource("import a.b.* as x;"), std::runtime_error);
+}
+
+TEST_F(ParserImportTest, MissingIdentifierThrows)
+{
+    EXPECT_THROW(parseSource("import ;"), std::runtime_error);
+}
+
+TEST_F(ParserImportTest, FollowedByOtherStatement)
+{
+    auto ast = parseSource("import compat.*; x = 42;");
+    ASSERT_EQ(ast->children.size(), 2u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::IMPORT_DECL);
+    EXPECT_EQ(stmt(*ast, 1).type, NodeType::ASSIGN);
+}
