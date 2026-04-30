@@ -156,6 +156,59 @@ void Engine::registerFunction(const std::string &ns,
     }
 }
 
+// Internal helper: walk active imports across env→parent chain plus the
+// engine's workspace fallback, calling `tryQualified(qualified)` for each
+// candidate. Returns true the first time the callback returns true.
+//
+// Resolution rules (mirrors NAMESPACE_DESIGN.md §4):
+//   * `import a.b.*`     → tries "a.b.<name>"
+//   * `import a.b.<name>` → tries "a.b.<name>" (when last path segment matches)
+//   * `import a.b as x`   → skipped here (only relevant for `x.<name>` calls,
+//                           handled by the qualified-name path on the caller).
+template <class Fn>
+static bool walkImportCandidates_(const std::string &name,
+                                   const Environment *env,
+                                   const Environment *workspaceEnv,
+                                   Fn &&tryQualified)
+{
+    auto runOne = [&](const Environment *cur) -> bool {
+        for (const auto &imp : cur->activeImports()) {
+            if (imp.path.empty()) continue;
+            std::string qualified;
+            qualified.reserve(64);
+            if (imp.wildcard) {
+                for (const auto &p : imp.path) {
+                    if (!qualified.empty()) qualified.push_back('.');
+                    qualified.append(p);
+                }
+                qualified.push_back('.');
+                qualified.append(name);
+            } else if (!imp.alias.empty()) {
+                continue;
+            } else if (imp.path.back() == name) {
+                for (size_t i = 0; i < imp.path.size(); ++i) {
+                    if (i > 0) qualified.push_back('.');
+                    qualified.append(imp.path[i]);
+                }
+            } else {
+                continue;
+            }
+            if (tryQualified(qualified))
+                return true;
+        }
+        return false;
+    };
+
+    for (const Environment *cur = env; cur != nullptr;
+         cur = cur->parentForImports()) {
+        if (runOne(cur)) return true;
+    }
+    if (workspaceEnv && env != workspaceEnv) {
+        if (runOne(workspaceEnv)) return true;
+    }
+    return false;
+}
+
 const ExternalFunc *Engine::findExternal(const std::string &name,
                                          const Environment *env) const
 {
@@ -165,66 +218,22 @@ const ExternalFunc *Engine::findExternal(const std::string &name,
         return &it->second;
     }
 
-    // 2. Walk env→parent chain looking for active imports. Imports added
-    //    to inner scopes shadow outer (we walk innermost first).
-    auto tryImports = [&](const Environment *cur) -> const ExternalFunc * {
-        for (const auto &imp : cur->activeImports()) {
-            if (imp.path.empty()) continue;
-
-            if (imp.wildcard) {
-                // import a.b.*  → try "a.b.<name>"
-                std::string full;
-                full.reserve(64);
-                for (const auto &p : imp.path) {
-                    if (!full.empty()) full.push_back('.');
-                    full.append(p);
-                }
-                full.push_back('.');
-                full.append(name);
-                auto wit = externalFuncs_.find(full);
-                if (wit != externalFuncs_.end()) {
-                    return &wit->second;
-                }
-                continue;
+    // 2. Walk active imports across env→parent → workspaceEnv fallback.
+    //    The workspace fallback is a pragmatic relaxation so that REPL /
+    //    test code that does `import compat.*` at the top can flatten
+    //    those names inside nested function bodies too. MATLAB-strict
+    //    mode would scope imports to the declaring function only.
+    const ExternalFunc *hit = nullptr;
+    walkImportCandidates_(name, env, workspaceEnv_.get(),
+        [&](const std::string &qualified) {
+            auto qit = externalFuncs_.find(qualified);
+            if (qit != externalFuncs_.end()) {
+                hit = &qit->second;
+                return true;
             }
-
-            if (!imp.alias.empty()) {
-                // Alias form `import a.b as x` — only relevant for dotted
-                // calls `x.<name>`. Handled by the caller, not here.
-                continue;
-            }
-
-            // Single-symbol form `import a.b.c` — exposes 'c' as `name`.
-            if (imp.path.back() == name) {
-                std::string full;
-                full.reserve(64);
-                for (size_t i = 0; i < imp.path.size(); ++i) {
-                    if (i > 0) full.push_back('.');
-                    full.append(imp.path[i]);
-                }
-                auto sit = externalFuncs_.find(full);
-                if (sit != externalFuncs_.end()) {
-                    return &sit->second;
-                }
-            }
-        }
-        return nullptr;
-    };
-
-    for (const Environment *cur = env; cur != nullptr; cur = cur->parentForImports()) {
-        if (auto *p = tryImports(cur)) return p;
-    }
-
-    // 3. Engine-level fallback: workspace imports (e.g. `import compat.*`
-    //    pasted at REPL or in a test fixture). MATLAB-strict semantics
-    //    would NOT propagate these into nested function bodies — strict
-    //    mode requires per-function imports. We accept this pragmatic
-    //    relaxation so that REPL/test workflows can flatten compat-namespace
-    //    functions globally with a single declaration.
-    if (workspaceEnv_ && env != workspaceEnv_.get()) {
-        if (auto *p = tryImports(workspaceEnv_.get())) return p;
-    }
-    return nullptr;
+            return false;
+        });
+    return hit;
 }
 
 void Engine::setVariable(const std::string &name, Value val)
@@ -299,51 +308,23 @@ const UserFunction *Engine::lookupUserFunction(const std::string &name,
     if (!env || name.find('.') != std::string::npos)
         return nullptr;
 
-    // Walk imports across env→parent chain and try qualified candidates.
-    // Mirrors findExternal's import precedence (innermost first, then
-    // workspace fallback). Each successful resolveMFile_ caches the
-    // entry under its full qualified key, so subsequent calls hit
-    // userFuncs_ directly via lookupUserFunctionLocal above.
-    auto tryImports = [&](const Environment *cur) -> const UserFunction * {
-        for (const auto &imp : cur->activeImports()) {
-            if (imp.path.empty()) continue;
-            std::string qualified;
-            qualified.reserve(64);
-            if (imp.wildcard) {
-                // import a.b.* → "a.b.<name>"
-                for (const auto &p : imp.path) {
-                    if (!qualified.empty()) qualified.push_back('.');
-                    qualified.append(p);
-                }
-                qualified.push_back('.');
-                qualified.append(name);
-            } else if (!imp.alias.empty()) {
-                // Alias `import a.b as x` is for x.<name> form, not bare.
-                continue;
-            } else if (imp.path.back() == name) {
-                // Single-symbol form `import a.b.c` — exposes `c`.
-                for (size_t i = 0; i < imp.path.size(); ++i) {
-                    if (i > 0) qualified.push_back('.');
-                    qualified.append(imp.path[i]);
-                }
-            } else {
-                continue;
+    // Walk imports across env→parent → workspaceEnv fallback. Each
+    // successful resolveMFile_ caches the entry under its full
+    // qualified key, so subsequent calls hit userFuncs_ directly.
+    const UserFunction *hit = nullptr;
+    walkImportCandidates_(name, env, workspaceEnv_.get(),
+        [&](const std::string &qualified) {
+            if (auto *f = lookupUserFunctionLocal(qualified)) {
+                hit = f;
+                return true;
             }
-            if (auto *f = lookupUserFunctionLocal(qualified))
-                return f;
-            if (auto *f = resolveMFile_(qualified))
-                return f;
-        }
-        return nullptr;
-    };
-
-    for (const Environment *cur = env; cur != nullptr; cur = cur->parentForImports()) {
-        if (auto *p = tryImports(cur)) return p;
-    }
-    if (workspaceEnv_ && env != workspaceEnv_.get()) {
-        if (auto *p = tryImports(workspaceEnv_.get())) return p;
-    }
-    return nullptr;
+            if (auto *f = resolveMFile_(qualified)) {
+                hit = f;
+                return true;
+            }
+            return false;
+        });
+    return hit;
 }
 
 void Engine::addPath(const std::string &dir)

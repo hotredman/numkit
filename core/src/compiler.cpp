@@ -2291,19 +2291,18 @@ uint8_t Compiler::compileCall(const ASTNode *node)
     // (workspace or local register). A local/workspace variable named
     // the same as the namespace shadows it — fall through to the
     // FIELD_ACCESS path so existing struct semantics are preserved.
+    //
+    // INVARIANT: this check uses workspaceEnv state at compile time. It
+    // works because Engine::eval splits multi-statement scripts into
+    // per-statement chunks and syncs workspace between them — so by the
+    // time we compile statement N, workspaceEnv reflects 1..N-1's
+    // assignments. If split-mode is ever removed, this check needs to
+    // be runtime-driven via a new opcode.
     if (funcNode->type == NodeType::FIELD_ACCESS) {
-        std::string qualified;
-        const ASTNode *cur = funcNode;
-        while (cur && cur->type == NodeType::FIELD_ACCESS
-               && cur->children.size() == 1) {
-            if (!qualified.empty()) qualified.insert(0, ".");
-            qualified.insert(0, cur->strValue);
-            cur = cur->children[0].get();
-        }
-        if (cur && cur->type == NodeType::IDENTIFIER) {
-            const std::string &root = cur->strValue;
-            qualified.insert(0, ".");
-            qualified.insert(0, root);
+        const ASTNode *rootIdent = nullptr;
+        std::string qualified = tryBuildQualifiedName(funcNode, &rootIdent);
+        if (!qualified.empty()) {
+            const std::string &root = rootIdent->strValue;
             const bool isLocalVar = varRegisters_.find(root) != varRegisters_.end();
             const bool isWorkspaceVar =
                 engine_.workspaceEnv().getLocal(root) != nullptr;

@@ -163,12 +163,13 @@ public:
     // isn't found anywhere. May parse-and-cache an m-file as a
     // side-effect.
     //
-    // When `env` is non-null and `name` is unqualified, the resolver also
-    // walks `env`'s active imports and tries qualified candidates
-    // (`pkg.<name>`, `pkg.sub.<name>`, …). These are looked up against
-    // `+pkg/.../<name>.m` package directories on the m-path.
+    // `env` drives the import-walk fallback for unqualified names. Pass
+    // the active scope (TW: caller's env; VM: workspaceEnv) so that
+    // `import pkg.*` in scope can resolve bare `foo()` to `pkg.foo`.
+    // Pass nullptr only for introspection paths that intentionally
+    // bypass imports (e.g. `which`, `exist`).
     const UserFunction *lookupUserFunction(const std::string &name,
-                                            const Environment *env = nullptr);
+                                            const Environment *env);
 
     // Const variant — never triggers the m-file resolver. Use for
     // pure introspection / "is this CURRENTLY known" checks.

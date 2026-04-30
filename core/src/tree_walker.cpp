@@ -1215,16 +1215,13 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
     }
     if (objNode->type == NodeType::CALL) {
         // d(i).field = val — paren-indexed struct-array element write.
-        // Supports auto-grow: `s(end+1).field = val` extends the array
-        // (1-D indexing only — 2-D auto-grow follows MATLAB rules and
-        // is handled separately when needed).
+        // 1-D index supports auto-grow (`s(end+1).field = val`); 2-D
+        // requires the array to already cover (r, c).
         auto *target = objNode->children[0].get();
         if (target->type != NodeType::IDENTIFIER)
             throw std::runtime_error("Invalid field assignment target");
         auto *var = env->get(target->strValue);
         if (!var || var->isUnset()) {
-            // s(i).f = v on an undefined name — create a struct array
-            // sized to fit the index (MATLAB semantics).
             env->set(target->strValue, Value::structArray(0, 0, engine_.mr_));
             var = env->get(target->strValue);
         }
@@ -1238,23 +1235,7 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
             IndexContextGuard guard(indexContextStack_, {var, 0, 1});
             Value v = execNode(objNode->children[1].get(), env);
             linear = static_cast<size_t>(v.toScalar()) - 1;
-            if (linear >= var->numel()) {
-                // Auto-grow: row vector if existing row vector or
-                // currently 1×1 / empty; column vector if column.
-                size_t newSize = linear + 1;
-                bool isCol = (var->dims().cols() == 1
-                              && var->dims().rows() > 1);
-                size_t newRows = isCol ? newSize : 1;
-                size_t newCols = isCol ? 1       : newSize;
-                Value grown = Value::structArray(newRows, newCols, engine_.mr_);
-                for (size_t k = 0; k < var->numel(); ++k) {
-                    auto &dst = grown.structArrayElem(k);
-                    const auto &src = var->structArrayElem(k);
-                    for (const auto &[kn, vv] : src)
-                        dst.emplace(kn, vv);
-                }
-                *var = std::move(grown);
-            }
+            var->growStructArrayTo(linear, engine_.mr_);
         } else if (nargs == 2) {
             IndexContextGuard g0(indexContextStack_, {var, 0, 2});
             Value rv = execNode(objNode->children[1].get(), env);
@@ -1620,37 +1601,23 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         // identifier is NOT a workspace variable, try resolving the
         // dotted name as a namespace member (registered builtin or
         // +pkg/.../<leaf>.m). A real struct variable shadows this —
-        // the existing FIELD_ACCESS path then handles `s.field(x)`
-        // exactly as before.
-        if (funcNode->type == NodeType::FIELD_ACCESS) {
-            std::string qualified;
-            const ASTNode *cur = funcNode;
-            while (cur && cur->type == NodeType::FIELD_ACCESS
-                   && cur->children.size() == 1) {
-                if (!qualified.empty()) qualified.insert(0, ".");
-                qualified.insert(0, cur->strValue);
-                cur = cur->children[0].get();
+        // the existing FIELD_ACCESS path then handles `s.field(x)`.
+        const ASTNode *rootIdent = nullptr;
+        std::string qualified = tryBuildQualifiedName(funcNode, &rootIdent);
+        if (!qualified.empty() && !env->get(rootIdent->strValue)) {
+            std::vector<Value> args;
+            args.reserve(node->children.size() - 1);
+            for (size_t i = 1; i < node->children.size(); ++i)
+                args.push_back(execNode(node->children[i].get(), env));
+            if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
+                Value outBuf[1];
+                CallContext ctx{&engine_, env};
+                (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
+                return outBuf[0];
             }
-            if (cur && cur->type == NodeType::IDENTIFIER) {
-                qualified.insert(0, ".");
-                qualified.insert(0, cur->strValue);
-                Value *rootVar = env->get(cur->strValue);
-                if (!rootVar) {
-                    std::vector<Value> args;
-                    args.reserve(node->children.size() - 1);
-                    for (size_t i = 1; i < node->children.size(); ++i)
-                        args.push_back(execNode(node->children[i].get(), env));
-                    if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
-                        Value outBuf[1];
-                        CallContext ctx{&engine_, env};
-                        (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
-                        return outBuf[0];
-                    }
-                    if (auto *uf = engine_.lookupUserFunction(qualified, env))
-                        return callUserFunction(*uf, args, env);
-                    throw std::runtime_error("Undefined function or variable: " + qualified);
-                }
-            }
+            if (auto *uf = engine_.lookupUserFunction(qualified, env))
+                return callUserFunction(*uf, args, env);
+            throw std::runtime_error("Undefined function or variable: " + qualified);
         }
 
         auto target = execNode(funcNode, env);
