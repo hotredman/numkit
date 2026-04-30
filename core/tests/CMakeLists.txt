@@ -15,4 +15,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/scratch_arena_test.cpp
     # Namespace resolver (Phase 6) — `import` integration tests
     ${CMAKE_CURRENT_SOURCE_DIR}/namespace_resolver_test.cpp
+    # VFS Phase-8 extension — listDir / stat / mkdir / rmdir / unlink / tempArea
+    ${CMAKE_CURRENT_SOURCE_DIR}/vfs_extension_test.cpp
 )
