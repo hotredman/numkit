@@ -8,7 +8,7 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // File I/O builtins — thin C++ API over Engine::openFile / findFile.
@@ -43,4 +43,4 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
 /// a packed binary stream into the fid's buffer.
 void fwrite(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> outs);
 
-} // namespace numkit::builtin
+} // namespace numkit::io

@@ -13,7 +13,7 @@
 
 #include <numkit/builtin/language/arrays/matrix.hpp>
 #include <numkit/builtin/math/arithmetic/reductions.hpp>
-#include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
+#include <numkit/stats/descriptive/descriptive.hpp>
 #include <numkit/stats/nan_aware/nan_aware.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
@@ -116,8 +116,8 @@ BENCHMARK(BM_MeanDim2)->RangeMultiplier(4)->Range(1 << 10, 1 << 22);
 
 // ── Phase 1 stats ───────────────────────────────────────────
 
-static void BM_Var   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return builtin::var(a, x); }); }
-static void BM_Std   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return builtin::stdev(a, x); }); }
+static void BM_Var   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::var(a, x); }); }
+static void BM_Std   (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return stats::stdev(a, x); }); }
 static void BM_Median(benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return builtin::median(a, x); }); }
 static void BM_Mode  (benchmark::State &s) { runVecBench(s, [](auto &a, auto &x){ return std::get<0>(builtin::mode(a, x)); }); }
 

@@ -2,8 +2,7 @@
 //
 // CSV text I/O (csvread / csvwrite), routed through Engine's Vfs.
 
-#include <numkit/builtin/data_io/csv.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/io/text/csv.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -16,7 +15,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // Private CSV helpers
@@ -262,4 +261,4 @@ void csvwrite_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::io

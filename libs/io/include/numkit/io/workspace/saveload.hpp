@@ -9,7 +9,7 @@ class Engine;
 class Environment;
 }
 
-namespace numkit::builtin {
+namespace numkit::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // Workspace persistence — MATLAB's save / load (-ascii only).
@@ -27,4 +27,4 @@ void save(Engine &engine, Environment &env, Span<const Value> args);
 void load(Engine &engine, Environment &env, Span<const Value> args,
           size_t nargout, Span<Value> outs);
 
-} // namespace numkit::builtin
+} // namespace numkit::io

@@ -5,8 +5,7 @@
 // (6c.8.4b / 6c.8.5) because they need the shared precision / size
 // helpers.
 
-#include <numkit/builtin/data_io/fileio.hpp>
-#include <numkit/builtin/library.hpp>
+#include <numkit/io/file_io/fileio.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -19,7 +18,8 @@
 #include <cstring>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::io {
+using namespace ::numkit::builtin::detail;
 
 // ════════════════════════════════════════════════════════════════════════
 // Shared small helper
@@ -265,9 +265,9 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
     if (!f || !f->forRead)
         throw Error("fread: invalid file identifier");
 
-    detail::SizeSpec sz{detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
+    ::numkit::builtin::detail::SizeSpec sz{::numkit::builtin::detail::SizeSpec::Kind::Flat, SIZE_MAX, 0, 0};
     if (args.size() >= 2)
-        sz = detail::parseReadSize(args[1], "fread");
+        sz = ::numkit::builtin::detail::parseReadSize(args[1], "fread");
 
     std::string precStr = "uint8";
     if (args.size() >= 3) {
@@ -275,7 +275,7 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
             throw Error("fread: precision must be a char array");
         precStr = args[2].toString();
     }
-    auto precOpt = detail::parsePrecision(precStr);
+    auto precOpt = ::numkit::builtin::detail::parsePrecision(precStr);
     if (!precOpt)
         throw Error("fread: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
@@ -285,7 +285,7 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
     if (args.size() >= 4) {
         if (!args[3].isChar())
             throw Error("fread: machine format must be a char array");
-        be = detail::parseEndian(args[3].toString(), "fread");
+        be = ::numkit::builtin::detail::parseEndian(args[3].toString(), "fread");
     }
 
     size_t available = f->buffer.size() - f->cursor;
@@ -300,7 +300,7 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
         // Local copy lets us byte-swap safely without mutating f->buffer.
         char tmp[8];
         std::memcpy(tmp, f->buffer.data() + f->cursor + i * bsize, bsize);
-        if (be && bsize > 1) detail::byteSwap(tmp, bsize);
+        if (be && bsize > 1) ::numkit::builtin::detail::byteSwap(tmp, bsize);
 
         double v = 0.0;
         if (kind == 0) {
@@ -324,7 +324,7 @@ void fread(Engine &engine, Span<const Value> args, size_t nargout, Span<Value> o
         values[i] = v;
     }
     f->cursor += n * bsize;
-    outs[0] = detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
+    outs[0] = ::numkit::builtin::detail::shapeFreadOutput(values.data(), values.size(), sz, mr);
     if (nargout > 1)
         outs[1] = Value::scalar(static_cast<double>(n), mr);
 }
@@ -345,7 +345,7 @@ void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
             throw Error("fwrite: precision must be a char array");
         precStr = args[2].toString();
     }
-    auto precOpt = detail::parsePrecision(precStr);
+    auto precOpt = ::numkit::builtin::detail::parsePrecision(precStr);
     if (!precOpt)
         throw Error("fwrite: unsupported precision '" + precStr + "'");
     int kind = precOpt->first;
@@ -355,7 +355,7 @@ void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
     if (args.size() >= 4) {
         if (!args[3].isChar())
             throw Error("fwrite: machine format must be a char array");
-        be = detail::parseEndian(args[3].toString(), "fwrite");
+        be = ::numkit::builtin::detail::parseEndian(args[3].toString(), "fwrite");
     }
 
     const Value &A = args[1];
@@ -390,7 +390,7 @@ void fwrite(Engine &engine, Span<const Value> args, size_t, Span<Value> outs)
             else            {                                  std::memcpy(dst, &v, 8); }
         }
         if (be && bsize > 1)
-            detail::byteSwap(dst, bsize);
+            ::numkit::builtin::detail::byteSwap(dst, bsize);
         dst += bsize;
     }
 
@@ -432,4 +432,4 @@ NK_FILEIO_REG(fwrite)
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::io
