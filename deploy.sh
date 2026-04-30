@@ -11,17 +11,27 @@ if ! command -v node &>/dev/null; then
     exit 1
 fi
 
-# Build WASM if emcc available
+# Source emsdk env if present so emcc is in PATH for sub-shells.
+if [ -f "${PROJECT_DIR}/.claude_emsdk_env.sh" ]; then
+    # shellcheck source=/dev/null
+    source "${PROJECT_DIR}/.claude_emsdk_env.sh"
+fi
+
+# Build WASM if emcc available; otherwise reuse a pre-built one if it exists.
 if command -v emcc &>/dev/null; then
     if [ ! -f "${WASM_DIST}/numkit_mide.wasm" ]; then
         echo "Building WASM..."
         bash "${PROJECT_DIR}/build.sh" --wasm
     fi
-    echo "Copying WASM files into ide/public/..."
+    echo "Copying freshly-built WASM into ide/public/..."
+    cp "${WASM_DIST}/numkit_mide.js"   "${IDE_DIR}/public/"
+    cp "${WASM_DIST}/numkit_mide.wasm" "${IDE_DIR}/public/"
+elif [ -f "${WASM_DIST}/numkit_mide.wasm" ]; then
+    echo "emcc not on PATH but ${WASM_DIST}/numkit_mide.wasm exists — copying it."
     cp "${WASM_DIST}/numkit_mide.js"   "${IDE_DIR}/public/"
     cp "${WASM_DIST}/numkit_mide.wasm" "${IDE_DIR}/public/"
 else
-    echo "emcc not found — building without WASM (fallback mode only)"
+    echo "emcc not found and no pre-built WASM in ${WASM_DIST} — falling back."
 fi
 
 # Generate examples manifest
