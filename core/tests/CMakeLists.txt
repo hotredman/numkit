@@ -19,4 +19,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vfs_extension_test.cpp
     # M-file resolver (Phase 9a) — addpath + .m loading via VFS
     ${CMAKE_CURRENT_SOURCE_DIR}/mfile_resolver_test.cpp
+    # Folder + path-utility builtins (Phase 9c)
+    ${CMAKE_CURRENT_SOURCE_DIR}/folder_builtins_test.cpp
 )

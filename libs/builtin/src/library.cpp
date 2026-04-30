@@ -4,6 +4,7 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
@@ -994,6 +995,327 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 std::string content = rp.fs->readFile(rp.path);
                                 ctx.engine->eval(content);
                                 outs[0] = Value::empty();
+                            });
+
+    // ── pwd / cd (Phase 9c) ────────────────────────────────────
+    engine.registerFunction("pwd",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+                                std::string c = ctx.engine->cwd();
+                                if (c.empty()) {
+                                    // Resolve "." against active backend to surface a usable path.
+                                    try {
+                                        auto rp = ctx.engine->resolvePath(".");
+                                        if (rp.fs) {
+                                            auto st = rp.fs->stat(rp.path);
+                                            if (st && st->kind == FileStat::Kind::Directory)
+                                                c = rp.path;
+                                        }
+                                    } catch (...) {}
+                                }
+                                outs[0] = Value::fromString(c, ctx.engine->resource());
+                            });
+
+    engine.registerFunction("cd",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                // No args: behave like pwd (return / print current dir).
+                                if (args.empty()) {
+                                    std::string c = ctx.engine->cwd();
+                                    if (nargout == 0) {
+                                        ctx.engine->outputText(c + "\n");
+                                        outs[0] = Value::empty();
+                                    } else {
+                                        outs[0] = Value::fromString(c, ctx.engine->resource());
+                                    }
+                                    return;
+                                }
+                                if (!args[0].isChar())
+                                    throw std::runtime_error("cd: directory must be a string");
+                                std::string target = args[0].toString();
+                                auto rp = ctx.engine->resolvePath(target);
+                                if (!rp.fs)
+                                    throw std::runtime_error("cd: cannot resolve '" + target + "'");
+                                auto st = rp.fs->stat(rp.path);
+                                if (!st || st->kind != FileStat::Kind::Directory)
+                                    throw std::runtime_error("cd: not a directory: " + target);
+                                std::string prev = ctx.engine->cwd();
+                                ctx.engine->setCwd(rp.path);
+                                // MATLAB: with output, return the PREVIOUS cwd.
+                                if (nargout > 0)
+                                    outs[0] = Value::fromString(prev, ctx.engine->resource());
+                                else
+                                    outs[0] = Value::empty();
+                            });
+
+    // ── mkdir / rmdir / delete ────────────────────────────────
+    engine.registerFunction("mkdir",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                if (args.empty() || !args[0].isChar())
+                                    throw std::runtime_error("mkdir requires a directory name");
+                                std::string p = args[0].toString();
+                                if (args.size() >= 2 && args[1].isChar()) {
+                                    // mkdir(parent, name) — concatenate.
+                                    std::string parent = p;
+                                    std::string name = args[1].toString();
+                                    if (!parent.empty() && parent.back() != '/' && parent.back() != '\\')
+                                        parent += '/';
+                                    p = parent + name;
+                                }
+                                auto rp = ctx.engine->resolvePath(p);
+                                if (!rp.fs)
+                                    throw std::runtime_error("mkdir: cannot resolve '" + p + "'");
+                                bool ok = true;
+                                std::string msg;
+                                try {
+                                    rp.fs->mkdir(rp.path);
+                                } catch (const std::exception &e) {
+                                    ok = false;
+                                    msg = e.what();
+                                }
+                                // MATLAB returns [status, msg]; default suppresses errors.
+                                if (nargout > 0)
+                                    outs[0] = Value::logicalScalar(ok, ctx.engine->resource());
+                                else if (!ok)
+                                    throw std::runtime_error("mkdir: " + msg);
+                                else
+                                    outs[0] = Value::empty();
+                                if (nargout > 1)
+                                    outs[1] = Value::fromString(msg, ctx.engine->resource());
+                            });
+
+    engine.registerFunction("rmdir",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                if (args.empty() || !args[0].isChar())
+                                    throw std::runtime_error("rmdir requires a directory name");
+                                std::string p = args[0].toString();
+                                auto rp = ctx.engine->resolvePath(p);
+                                if (!rp.fs)
+                                    throw std::runtime_error("rmdir: cannot resolve '" + p + "'");
+                                bool ok = true;
+                                std::string msg;
+                                try {
+                                    rp.fs->rmdir(rp.path);
+                                } catch (const std::exception &e) {
+                                    ok = false;
+                                    msg = e.what();
+                                }
+                                if (nargout > 0)
+                                    outs[0] = Value::logicalScalar(ok, ctx.engine->resource());
+                                else if (!ok)
+                                    throw std::runtime_error("rmdir: " + msg);
+                                else
+                                    outs[0] = Value::empty();
+                                if (nargout > 1)
+                                    outs[1] = Value::fromString(msg, ctx.engine->resource());
+                            });
+
+    engine.registerFunction("delete",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                for (const auto &a : args) {
+                                    if (!a.isChar())
+                                        throw std::runtime_error("delete: filename must be a string");
+                                    std::string p = a.toString();
+                                    auto rp = ctx.engine->resolvePath(p);
+                                    if (!rp.fs)
+                                        throw std::runtime_error("delete: cannot resolve '" + p + "'");
+                                    rp.fs->unlink(rp.path);
+                                }
+                                outs[0] = Value::empty();
+                            });
+
+    // ── dir / ls ──────────────────────────────────────────────
+    engine.registerFunction("dir",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                std::string target = args.empty() ? std::string(".")
+                                                                   : args[0].toString();
+                                auto rp = ctx.engine->resolvePath(target);
+                                if (!rp.fs)
+                                    throw std::runtime_error("dir: cannot resolve '" + target + "'");
+                                std::vector<DirEntry> entries;
+                                auto st = rp.fs->stat(rp.path);
+                                if (st && st->kind == FileStat::Kind::File) {
+                                    DirEntry e;
+                                    e.name = rp.path;
+                                    e.isDirectory = false;
+                                    entries.push_back(e);
+                                } else {
+                                    entries = rp.fs->listDir(rp.path);
+                                }
+
+                                if (nargout == 0) {
+                                    // Print tabular listing (MATLAB-ish).
+                                    std::ostringstream os;
+                                    for (const auto &e : entries) {
+                                        os << e.name;
+                                        if (e.isDirectory) os << "/";
+                                        os << "\n";
+                                    }
+                                    ctx.engine->outputText(os.str());
+                                    outs[0] = Value::empty();
+                                    return;
+                                }
+
+                                // Build a struct array — n×1, fields: name, folder, date,
+                                // bytes, isdir, datenum.
+                                auto *mr = ctx.engine->resource();
+                                if (entries.empty()) {
+                                    outs[0] = Value::structure(mr);
+                                    return;
+                                }
+                                // Use cell-of-structs layout: each entry is a separate struct,
+                                // packed into a cell that callers can index with parens. The
+                                // engine's struct doesn't yet have N-dim arrays of records,
+                                // so emit a cell array — common practice in our tests.
+                                Value cell = Value::cell(entries.size(), 1, mr);
+                                for (size_t i = 0; i < entries.size(); ++i) {
+                                    Value s = Value::structure(mr);
+                                    auto &fields = s.structFields();
+                                    fields["name"]  = Value::fromString(entries[i].name, mr);
+                                    fields["folder"] = Value::fromString(rp.path, mr);
+                                    fields["isdir"] = Value::logicalScalar(entries[i].isDirectory, mr);
+                                    // bytes / date — best-effort via stat
+                                    std::string full = rp.path;
+                                    if (!full.empty() && full.back() != '/' && full.back() != '\\')
+                                        full += '/';
+                                    full += entries[i].name;
+                                    auto est = rp.fs->stat(full);
+                                    fields["bytes"] = Value::scalar(est ? double(est->size) : 0.0, mr);
+                                    fields["datenum"] = Value::scalar(est ? double(est->mtime) : 0.0, mr);
+                                    fields["date"] = Value::fromString(std::string{}, mr);
+                                    cell.cellAt(i) = std::move(s);
+                                }
+                                outs[0] = std::move(cell);
+                            });
+
+    engine.registerFunction("ls",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                std::string target = args.empty() ? std::string(".")
+                                                                   : args[0].toString();
+                                auto rp = ctx.engine->resolvePath(target);
+                                if (!rp.fs)
+                                    throw std::runtime_error("ls: cannot resolve '" + target + "'");
+                                auto entries = rp.fs->listDir(rp.path);
+                                if (nargout == 0) {
+                                    std::ostringstream os;
+                                    for (const auto &e : entries)
+                                        os << e.name << "\n";
+                                    ctx.engine->outputText(os.str());
+                                    outs[0] = Value::empty();
+                                } else {
+                                    // Return as newline-joined char vector (MATLAB ls semantics).
+                                    std::ostringstream os;
+                                    for (size_t i = 0; i < entries.size(); ++i) {
+                                        if (i) os << "  ";
+                                        os << entries[i].name;
+                                    }
+                                    outs[0] = Value::fromString(os.str(), ctx.engine->resource());
+                                }
+                            });
+
+    // ── tempdir / tempname ────────────────────────────────────
+    engine.registerFunction("tempdir",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+                                // Prefer the active backend's tempArea; fall back to "native".
+                                std::string t;
+                                try {
+                                    auto rp = ctx.engine->resolvePath(".");
+                                    if (rp.fs) t = rp.fs->tempArea();
+                                } catch (...) {}
+                                if (t.empty()) {
+                                    if (auto *fs = ctx.engine->findVirtualFS("native"))
+                                        t = fs->tempArea();
+                                }
+                                outs[0] = Value::fromString(t, ctx.engine->resource());
+                            });
+
+    engine.registerFunction("tempname",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+                                std::string t;
+                                try {
+                                    auto rp = ctx.engine->resolvePath(".");
+                                    if (rp.fs) t = rp.fs->tempArea();
+                                } catch (...) {}
+                                if (t.empty()) {
+                                    if (auto *fs = ctx.engine->findVirtualFS("native"))
+                                        t = fs->tempArea();
+                                }
+                                if (!t.empty() && t.back() != '/' && t.back() != '\\')
+                                    t += '/';
+                                // Counter monotonic per Engine — not guaranteed unique across
+                                // engines but good enough for tests / sandbox use.
+                                static std::atomic<uint64_t> ctr{0};
+                                std::ostringstream os;
+                                os << t << "tp" << std::hex
+                                   << std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                          Clock::now().time_since_epoch()).count()
+                                   << "_" << ctr.fetch_add(1, std::memory_order_relaxed);
+                                outs[0] = Value::fromString(os.str(), ctx.engine->resource());
+                            });
+
+    // ── filesep / pathsep ─────────────────────────────────────
+    engine.registerFunction("filesep",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+#ifdef _WIN32
+                                outs[0] = Value::fromString("\\", ctx.engine->resource());
+#else
+                                outs[0] = Value::fromString("/", ctx.engine->resource());
+#endif
+                            });
+
+    engine.registerFunction("pathsep",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+#ifdef _WIN32
+                                outs[0] = Value::fromString(";", ctx.engine->resource());
+#else
+                                outs[0] = Value::fromString(":", ctx.engine->resource());
+#endif
+                            });
+
+    // ── fullfile / fileparts ──────────────────────────────────
+    engine.registerFunction("fullfile",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                std::string out;
+                                for (const auto &a : args) {
+                                    if (!a.isChar()) continue;
+                                    std::string s = a.toString();
+                                    if (s.empty()) continue;
+                                    if (out.empty())
+                                        out = s;
+                                    else {
+                                        if (out.back() != '/' && out.back() != '\\')
+                                            out += '/';
+                                        out += s;
+                                    }
+                                }
+                                outs[0] = Value::fromString(out, ctx.engine->resource());
+                            });
+
+    engine.registerFunction("fileparts",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                if (args.empty() || !args[0].isChar())
+                                    throw std::runtime_error("fileparts: filename must be a string");
+                                std::string p = args[0].toString();
+                                // Find last separator.
+                                auto sep = p.find_last_of("/\\");
+                                std::string dir, base;
+                                if (sep == std::string::npos) {
+                                    base = p;
+                                } else {
+                                    dir = p.substr(0, sep);
+                                    base = p.substr(sep + 1);
+                                }
+                                // Split base on last '.'.
+                                std::string name, ext;
+                                auto dot = base.find_last_of('.');
+                                if (dot == std::string::npos || dot == 0) {
+                                    name = base;
+                                } else {
+                                    name = base.substr(0, dot);
+                                    ext = base.substr(dot);
+                                }
+                                auto *mr = ctx.engine->resource();
+                                outs[0] = Value::fromString(dir, mr);
+                                if (nargout > 1) outs[1] = Value::fromString(name, mr);
+                                if (nargout > 2) outs[2] = Value::fromString(ext, mr);
                             });
 }
 

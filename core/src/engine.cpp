@@ -970,10 +970,12 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
     if (!fs)
         throw Error("filesystem '" + fsName + "' is not available");
 
-    // Normalize path: if relative, prepend NUMKIT_CWD.
+    // Normalize path: if relative, prepend Engine cwd_, then NUMKIT_CWD.
     std::string path = userPath;
     if (!isAbsolutePath(path)) {
-        std::string cwd = envGet(envVarName("CWD").c_str());
+        std::string cwd = cwd_;
+        if (cwd.empty())
+            cwd = envGet(envVarName("CWD").c_str());
         if (!cwd.empty())
             path = joinPath(cwd, path);
     }
