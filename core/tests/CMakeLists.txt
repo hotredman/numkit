@@ -17,4 +17,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/namespace_resolver_test.cpp
     # VFS Phase-8 extension — listDir / stat / mkdir / rmdir / unlink / tempArea
     ${CMAKE_CURRENT_SOURCE_DIR}/vfs_extension_test.cpp
+    # M-file resolver (Phase 9a) — addpath + .m loading via VFS
+    ${CMAKE_CURRENT_SOURCE_DIR}/mfile_resolver_test.cpp
 )

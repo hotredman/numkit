@@ -1257,6 +1257,16 @@ enter_frame:
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
+                    // M-file fallback (Phase 9a)
+                    if (engine_.lookupUserFunction(funcName)) {
+                        if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                            frame.ip = ip + 1;
+                            returnCount_ = 0;
+                            pushCallFrame(*found, &R[argBase], na,
+                                          0, 1, true, I.a, 1);
+                            goto enter_frame;
+                        }
+                    }
                     throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
             }
@@ -1289,6 +1299,17 @@ enter_frame:
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
+                    }
+                    // M-file fallback (Phase 9a) — triggers parse + cache
+                    // + Compiler::registerFunction; retry findCompiledFunc.
+                    if (engine_.lookupUserFunction(funcName)) {
+                        if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                            frame.ip = ip + 1;
+                            returnCount_ = 0;
+                            pushCallFrame(*found, &R[argBase], na,
+                                          0, nout, true, outBase, nout);
+                            goto enter_frame;
+                        }
                     }
                     throw std::runtime_error("VM: undefined function '" + funcName + "'");
                 }
