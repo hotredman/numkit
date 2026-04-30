@@ -31,14 +31,8 @@ set(STDLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/math/interp/interp.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/integration/integration.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/math/optim/fzero.cpp
-    # data_io/ — Phase 7 will move out to libs/io/
-    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/csv.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/fileio.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/data_io/saveload.cpp
     # programming/ — MATLAB Programming and Scripts
     ${CMAKE_CURRENT_SOURCE_DIR}/programming/errors/diagnostics.cpp
-    # data_analysis/ — Phase 7 will move out to libs/stats/
-    ${CMAKE_CURRENT_SOURCE_DIR}/data_analysis/descriptive_statistics/stats.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

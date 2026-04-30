@@ -1,11 +1,16 @@
-// libs/builtin/src/data_analysis/descriptive_statistics/stats.cpp
+// libs/stats/src/descriptive/descriptive.cpp
 //
-// Phase-1 stats: var, std, median, quantile, prctile, mode.
-// All take an explicit `dim` argument (1-based, or 0 for "first
-// non-singleton"). Implementations route through applyAlongDim from
-// reduction_helpers.hpp, which handles vector/2D/3D layouts uniformly.
+// Descriptive statistics: var, std, median, quantile, prctile, mode,
+// cov, corrcoef. All take an explicit `dim` argument (1-based, or 0
+// for "first non-singleton"). Implementations route through
+// applyAlongDim from libs/builtin/src/reduction_helpers.hpp.
+//
+// Moved from libs/builtin/src/data_analysis/descriptive_statistics/stats.cpp
+// in Phase 7b — these are Statistics Toolbox content per MATLAB
+// taxonomy, not core MATLAB. Registration as stats.descriptive.* +
+// compat.* lives in libs/stats/src/library.cpp.
 
-#include <numkit/builtin/data_analysis/descriptive_statistics/stats.hpp>
+#include <numkit/stats/descriptive/descriptive.hpp>
 
 #include <numkit/stats/nan_aware/nan_aware.hpp>  // var_reg / std_reg / median_reg dispatch into stats:: when 'omitnan' is given
 
@@ -27,10 +32,15 @@
 #include <type_traits>
 #include <utility>
 
-namespace numkit::builtin {
+namespace numkit::stats {
 
-using detail::applyAlongDim;
-using detail::resolveDim;
+// `using namespace` aliases for helpers physically rooted in libs/builtin
+// (Phase 7b moved this file out, but the helpers stay there). Reg/impl
+// bodies can call applyAlongDim, resolveDim, compactNonNan,
+// firstNonSingletonDim, outShapeForDim, outShapeForDimND, sliceLenForDim,
+// varianceTwoPass, … by short name as before the move.
+using namespace ::numkit::builtin::detail;
+using ::numkit::builtin::varianceTwoPass;
 
 // ────────────────────────────────────────────────────────────────────
 // var / std
@@ -100,10 +110,10 @@ inline Value allocVarianceOutput(const Value &x, int redDim, std::pmr::memory_re
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
+        auto shape = outShapeForDimND(&scratch, x, redDim);
         return Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr);
     }
-    auto outShape = detail::outShapeForDim(x, redDim);
+    auto outShape = outShapeForDim(x, redDim);
     return createMatrix(outShape, ValueType::DOUBLE, mr);
 }
 
@@ -149,7 +159,7 @@ Value varianceComplex(const Value &x, int normFlag, int dim,
         if (sqrtIt && !std::isnan(v)) v = std::sqrt(v);
         return Value::scalar(v, mr);
     }
-    const int d = (dim > 0) ? dim : detail::firstNonSingletonDim(x);
+    const int d = (dim > 0) ? dim : firstNonSingletonDim(x);
     Value out = allocVarianceOutput(x, d, mr);
     ScratchArena scratch(mr);
     complexVarianceAlongDim(&scratch, x, d,
@@ -347,7 +357,7 @@ Value quantileImpl(std::pmr::memory_resource *mr, const Value &x, const Value &p
     const size_t P = dd.is3D() ? dd.pages() : 1;
     const size_t outR = outShape.rows, outC = outShape.cols;
     const size_t outP = outShape.pages == 0 ? 1 : outShape.pages;
-    const size_t N = detail::sliceLenForDim(x, d);
+    const size_t N = sliceLenForDim(x, d);
     auto sorted = ScratchVec<double>(N, &scratch);
     const double *src = x.doubleData();
 
@@ -548,11 +558,11 @@ allocModeOutputs(const Value &x, int redDim, ValueType outType, std::pmr::memory
 {
     if (x.dims().ndim() >= 4 && redDim >= 1 && redDim <= x.dims().ndim()) {
         ScratchArena scratch(mr);
-        auto shape = detail::outShapeForDimND(&scratch, x, redDim);
+        auto shape = outShapeForDimND(&scratch, x, redDim);
         return {Value::matrixND(shape.data(), (int) shape.size(), outType, mr),
                 Value::matrixND(shape.data(), (int) shape.size(), ValueType::DOUBLE, mr)};
     }
-    auto outShape = detail::outShapeForDim(x, redDim);
+    auto outShape = outShapeForDim(x, redDim);
     return {createMatrix(outShape, outType, mr),
             createMatrix(outShape, ValueType::DOUBLE, mr)};
 }
@@ -576,7 +586,7 @@ modeAllT(const Value &x, ValueType outType, std::pmr::memory_resource *mr)
         return std::make_tuple(makeScalarT<T>(v, outType, mr),
                                Value::scalar(c, mr));
     }
-    const int redDim = detail::firstNonSingletonDim(x);
+    const int redDim = firstNonSingletonDim(x);
     auto [out, outC] = allocModeOutputs(x, redDim, outType, mr);
     modeAlongDim<T>(&scratch, x, redDim,
                     static_cast<T *>(out.rawDataMut()),
@@ -595,7 +605,7 @@ modeAlongDimT(const Value &x, int dim, ValueType outType, std::pmr::memory_resou
                                Value::matrix(0, 0, ValueType::DOUBLE, mr));
     }
     if (x.isScalar() || x.dims().isVector()) {
-        if (dim != detail::firstNonSingletonDim(x)) {
+        if (dim != firstNonSingletonDim(x)) {
             // Identity reduction: copy x as outType, frequencies = ones.
             const size_t n = x.numel();
             Value out, outC;
@@ -862,7 +872,6 @@ Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 //   3) otherwise call the underlying kernel on (slice, k)
 // Routing is via the same applyAlongDim path used by var/std/median etc.
 
-using detail::compactNonNan;
 
 // Phase P2: route nansum / nanmean through the single-pass scan kernels
 // in backends/MStdNanReductions_{simd,portable}.cpp. These read the input
@@ -926,7 +935,7 @@ void var_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                                       /*sqrtIt=*/false, /*omitNan=*/true);
             return;
         }
-        Value r = stats::nanvar(ctx.engine->resource(), args[0], w, dim);
+        Value r = ::numkit::stats::nanvar(ctx.engine->resource(), args[0], w, dim);
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
@@ -953,7 +962,7 @@ void std_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                                       /*sqrtIt=*/true, /*omitNan=*/true);
             return;
         }
-        Value r = stats::nanstdev(ctx.engine->resource(), args[0], w, dim);
+        Value r = ::numkit::stats::nanstdev(ctx.engine->resource(), args[0], w, dim);
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
@@ -1009,7 +1018,7 @@ void median_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     if (omitNan) {
         rejectComplexOmitNan(args[0], "median");
-        Value r = stats::nanmedian(ctx.engine->resource(), args[0], dim);
+        Value r = ::numkit::stats::nanmedian(ctx.engine->resource(), args[0], dim);
         if (args[0].type() == ValueType::SINGLE)
             r = narrowToSingle(std::move(r), ctx.engine->resource());
         outs[0] = std::move(r);
@@ -1107,4 +1116,4 @@ void corrcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::stats

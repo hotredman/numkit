@@ -3,8 +3,7 @@
 // Workspace-persistence builtins (save / load). The last of the legacy
 // I/O TU's functions to migrate to the data_io/ split.
 
-#include <numkit/builtin/library.hpp>
-#include <numkit/builtin/data_io/saveload.hpp>
+#include <numkit/io/workspace/saveload.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/environment.hpp>
@@ -18,7 +17,7 @@
 #include <sstream>
 #include <string>
 
-namespace numkit::builtin {
+namespace numkit::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // save / load (ascii)
@@ -210,4 +209,4 @@ void load_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 
 } // namespace detail
 
-} // namespace numkit::builtin
+} // namespace numkit::io

@@ -1,7 +1,9 @@
-// libs/builtin/include/numkit/builtin/data_analysis/descriptive_statistics/stats.hpp
+// libs/stats/include/numkit/stats/descriptive/descriptive.hpp
 //
 // Descriptive statistics — Phase 1 of the parity expansion plan.
 // MATLAB-compatible signatures with explicit `dim` argument support.
+// Physical home moved from libs/builtin to libs/stats in Phase 7b
+// (Statistics Toolbox content per MATLAB taxonomy).
 //
 // Conventions:
 //   * dim is 1-based (matches MATLAB).
@@ -19,7 +21,7 @@
 
 #include <tuple>
 
-namespace numkit::builtin {
+namespace numkit::stats {
 
 // ── var / std ─────────────────────────────────────────────────────────
 // var(X)            → variance with N-1 normalization, first non-singleton dim
@@ -85,4 +87,4 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int nor
 Value corrcoef(std::pmr::memory_resource *mr, const Value &x);
 Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 
-} // namespace numkit::builtin
+} // namespace numkit::stats

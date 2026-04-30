@@ -40,16 +40,9 @@ void sum_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void prod_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mean_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// stats.cpp
-void var_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void std_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void median_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void quantile_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void prctile_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void mode_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-// skewness / kurtosis moved to libs/stats (see StatsLibrary::install)
-void cov_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void corrcoef_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// var/std/median/quantile/prctile/mode/cov/corrcoef + skewness/kurtosis
+// all live in libs/stats now (Phase 7b — Statistics Toolbox content
+// per MATLAB taxonomy). Their registrations are in StatsLibrary::install.
 void primes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isprime_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void factor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -205,35 +198,19 @@ void sprintf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void disp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fprintf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// fileio.cpp
-void fopen_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fclose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fgetl_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fgets_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void feof_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void ferror_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void ftell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fseek_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void frewind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fread_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void fwrite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+// File I/O + workspace save/load + CSV moved to libs/io (Phase 7c) —
+// registrations live in IoLibrary::install. fopen/fclose/fread/fwrite/
+// fgetl/fgets/feof/ferror/ftell/fseek/frewind, csvread/csvwrite,
+// save/load are no longer registered from this TU.
 
-// scan.cpp
+// scan.cpp (still in libs/builtin under language/strings/)
 void fscanf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sscanf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void textscan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
-// csv.cpp
-void csvread_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void csvwrite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-
-// env.cpp
+// env.cpp (still in libs/builtin under language/commands/)
 void setenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void getenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-
-// saveload.cpp
-void save_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
-void load_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // diagnostics.cpp
 void error_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -332,16 +309,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("prod",     &builtin::detail::prod_reg);
     engine.registerFunction("mean",     &builtin::detail::mean_reg);
 
-    // ── Phase 1 stats: var/std/median/quantile/prctile/mode ────────
-    engine.registerFunction("var",      &builtin::detail::var_reg);
-    engine.registerFunction("std",      &builtin::detail::std_reg);
-    engine.registerFunction("median",   &builtin::detail::median_reg);
-    engine.registerFunction("quantile", &builtin::detail::quantile_reg);
-    engine.registerFunction("prctile",  &builtin::detail::prctile_reg);
-    engine.registerFunction("mode",     &builtin::detail::mode_reg);
-    // skewness / kurtosis registered by StatsLibrary::install()
-    engine.registerFunction("cov",      &builtin::detail::cov_reg);
-    engine.registerFunction("corrcoef", &builtin::detail::corrcoef_reg);
+    // var/std/median/quantile/prctile/mode/cov/corrcoef + skewness/kurtosis
+    // registered by StatsLibrary::install() (Phase 7b — Statistics Toolbox).
     engine.registerFunction("primes",   &builtin::detail::primes_reg);
     engine.registerFunction("isprime",  &builtin::detail::isprime_reg);
     engine.registerFunction("factor",   &builtin::detail::factor_reg);
@@ -525,37 +494,21 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("disp",       &builtin::detail::disp_reg);
     engine.registerFunction("fprintf",    &builtin::detail::fprintf_reg);
 
-    // ── Phase 6c: data_io/fileio.cpp public-API-backed built-ins ───────────
-    engine.registerFunction("fopen",      &builtin::detail::fopen_reg);
-    engine.registerFunction("fclose",     &builtin::detail::fclose_reg);
-    engine.registerFunction("fgetl",      &builtin::detail::fgetl_reg);
-    engine.registerFunction("fgets",      &builtin::detail::fgets_reg);
-    engine.registerFunction("feof",       &builtin::detail::feof_reg);
-    engine.registerFunction("ferror",     &builtin::detail::ferror_reg);
-    engine.registerFunction("ftell",      &builtin::detail::ftell_reg);
-    engine.registerFunction("fseek",      &builtin::detail::fseek_reg);
-    engine.registerFunction("frewind",    &builtin::detail::frewind_reg);
-    engine.registerFunction("fread",      &builtin::detail::fread_reg);
-    engine.registerFunction("fwrite",     &builtin::detail::fwrite_reg);
+    // fopen / fclose / fread / fwrite / fgetl / fgets / feof / ferror /
+    // ftell / fseek / frewind / csvread / csvwrite / save / load all
+    // moved to libs/io (Phase 7c). Their registrations live in
+    // IoLibrary::install (called from Engine::Engine ctor).
 
-    // ── Phase 6c: scan.cpp public-API-backed built-ins ─────────────
+    // ── scan.cpp public-API-backed built-ins ───────────────────────
     engine.registerFunction("fscanf",     &builtin::detail::fscanf_reg);
     engine.registerFunction("sscanf",     &builtin::detail::sscanf_reg);
     engine.registerFunction("textscan",   &builtin::detail::textscan_reg);
 
-    // ── Phase 6c: data_io/csv.cpp public-API-backed built-ins ──────────────
-    engine.registerFunction("csvread",    &builtin::detail::csvread_reg);
-    engine.registerFunction("csvwrite",   &builtin::detail::csvwrite_reg);
-
-    // ── Phase 6c: lang/commands/env.cpp public-API-backed built-ins ──────────────
+    // ── env.cpp public-API-backed built-ins ────────────────────────
     engine.registerFunction("setenv",     &builtin::detail::setenv_reg);
     engine.registerFunction("getenv",     &builtin::detail::getenv_reg);
 
-    // ── Phase 6c: saveload.cpp public-API-backed built-ins ─────────
-    engine.registerFunction("save",       &builtin::detail::save_reg);
-    engine.registerFunction("load",       &builtin::detail::load_reg);
-
-    // ── Phase 6c: programming/errors/diagnostics.cpp public-API-backed built-ins ──────
+    // ── programming/errors/diagnostics.cpp public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
     engine.registerFunction("warning",    &builtin::detail::warning_reg);
     engine.registerFunction("MException", &builtin::detail::MException_reg);

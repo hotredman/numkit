@@ -87,6 +87,7 @@ add_subdirectory(libs/builtin/src)
 add_subdirectory(libs/signal/src)
 add_subdirectory(libs/stats/src)
 add_subdirectory(libs/graphics/src)
+add_subdirectory(libs/io/src)
 
 set(NUMKIT_SOURCES
     ${NUMKIT_CORE_SOURCES}
@@ -94,6 +95,7 @@ set(NUMKIT_SOURCES
     ${SIGNALLIB_SOURCES}
     ${STATSLIB_SOURCES}
     ${GRAPHICSLIB_SOURCES}
+    ${IOLIB_SOURCES}
 )
 
 set(NUMKIT_HEADERS
@@ -149,16 +151,17 @@ set(NUMKIT_HEADERS
     libs/builtin/include/numkit/builtin/math/random/rng.hpp
     libs/builtin/include/numkit/builtin/math/complex/complex.hpp
     libs/builtin/include/numkit/builtin/math/poly/polynomials.hpp
-    libs/builtin/include/numkit/builtin/data_io/csv.hpp
-    libs/builtin/include/numkit/builtin/data_io/fileio.hpp
-    libs/builtin/include/numkit/builtin/data_io/saveload.hpp
+    libs/io/include/numkit/io/library.hpp
+    libs/io/include/numkit/io/text/csv.hpp
+    libs/io/include/numkit/io/file_io/fileio.hpp
+    libs/io/include/numkit/io/workspace/saveload.hpp
     libs/builtin/include/numkit/builtin/language/types/types.hpp
     libs/builtin/include/numkit/builtin/language/bitwise/int_math.hpp
     libs/builtin/include/numkit/builtin/language/strings/format.hpp
     libs/builtin/include/numkit/builtin/language/strings/print.hpp
     libs/builtin/include/numkit/builtin/language/strings/scan.hpp
     libs/builtin/include/numkit/builtin/programming/errors/diagnostics.hpp
-    libs/builtin/include/numkit/builtin/data_analysis/descriptive_statistics/stats.hpp
+    libs/stats/include/numkit/stats/descriptive/descriptive.hpp
     libs/signal/include/numkit/signal/library.hpp
     libs/signal/include/numkit/signal/waveform_generation/waveform_generation.hpp
     libs/signal/include/numkit/signal/filter_design/filter_design.hpp
@@ -204,6 +207,7 @@ target_include_directories(numkit
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/io/include>
         $<INSTALL_INTERFACE:include>
     PRIVATE
         # Shared library-internal helpers (helpers.hpp under libs/*/src/)
@@ -214,6 +218,7 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/builtin/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/libs/io/src
 )
 
 target_compile_features(numkit PUBLIC cxx_std_17)

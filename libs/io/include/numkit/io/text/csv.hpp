@@ -8,7 +8,7 @@ namespace numkit {
 class Engine;
 }
 
-namespace numkit::builtin {
+namespace numkit::io {
 
 // ════════════════════════════════════════════════════════════════════════
 // CSV text I/O — both routes go through the Engine's VirtualFS
@@ -20,4 +20,4 @@ namespace numkit::builtin {
 Value csvread(Engine &engine, Span<const Value> args);
 void csvwrite(Engine &engine, Span<const Value> args);
 
-} // namespace numkit::builtin
+} // namespace numkit::io
