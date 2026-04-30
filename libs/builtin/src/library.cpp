@@ -574,13 +574,13 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                     if (first == "-regexp") {
                                         // clear -regexp pat1 pat2 ... — drop every workspace
-                                        // variable whose name fully matches at least one
-                                        // pattern. We intentionally use std::regex here even
-                                        // though it's slow; the typical usage is interactive
-                                        // and the workspace is tiny.
+                                        // variable whose name matches at least one pattern.
+                                        // MATLAB uses regexp-style partial match (so `^foo`
+                                        // matches "foo1"), not whole-string regex_match.
+                                        // std::regex is slow but the workspace is tiny.
                                         std::vector<std::regex> pats;
                                         for (size_t i = 1; i < args.size(); ++i) {
-                                            if (!args[i].isChar()) continue;
+                                            if (!args[i].isChar() && !args[i].isString()) continue;
                                             try { pats.emplace_back(args[i].toString()); }
                                             catch (const std::regex_error &) {
                                                 throw std::runtime_error(
@@ -588,14 +588,25 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                                     + args[i].toString() + "'");
                                             }
                                         }
-                                        for (const auto &n : env->localNames()) {
-                                            for (const auto &re : pats) {
-                                                if (std::regex_match(n, re)) {
-                                                    env->remove(n);
-                                                    break;
+                                        // Inside a function `env` is the local frame; the
+                                        // user's intent for `clear -regexp` is the SAME
+                                        // workspace they'd see via plain `clear x`. Apply
+                                        // to both env and (when distinct) the engine's base
+                                        // workspace so VM-mode top-level evals work too.
+                                        auto applyTo = [&](Environment *e) {
+                                            if (!e) return;
+                                            for (const auto &n : e->localNames()) {
+                                                for (const auto &re : pats) {
+                                                    if (std::regex_search(n, re)) {
+                                                        e->remove(n);
+                                                        break;
+                                                    }
                                                 }
                                             }
-                                        }
+                                        };
+                                        applyTo(env);
+                                        if (env != &ctx.engine->workspaceEnv())
+                                            applyTo(&ctx.engine->workspaceEnv());
                                         outs[0] = Value::empty();
                                         return;
                                     }

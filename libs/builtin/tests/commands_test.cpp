@@ -3,6 +3,9 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <filesystem>
+#include <fstream>
+
 using namespace m_test;
 
 // ============================================================
@@ -138,6 +141,47 @@ TEST_P(ClearTest, ClearNoArgsSameAsClearAll)
     EXPECT_NEAR(evalScalar("pi;"), M_PI, 1e-12);
 }
 
+// ── clear -regexp ──────────────────────────────────────────
+TEST_P(ClearTest, ClearRegexpDropsMatchingNames)
+{
+    eval("foo1 = 1; foo2 = 2; bar = 3;");
+    eval("clear('-regexp', '^foo');");
+    EXPECT_EQ(getVarPtr("foo1"), nullptr);
+    EXPECT_EQ(getVarPtr("foo2"), nullptr);
+    ASSERT_NE(getVarPtr("bar"), nullptr);
+    EXPECT_NEAR(getVarPtr("bar")->toScalar(), 3.0, 1e-12);
+}
+
+TEST_P(ClearTest, ClearRegexpMultiplePatterns)
+{
+    eval("alpha = 1; beta = 2; gamma = 3;");
+    eval("clear('-regexp', '^al', '^ga');");
+    EXPECT_EQ(getVarPtr("alpha"), nullptr);
+    EXPECT_EQ(getVarPtr("gamma"), nullptr);
+    ASSERT_NE(getVarPtr("beta"), nullptr);
+}
+
+TEST_P(ClearTest, ClearRegexpInvalidPatternThrows)
+{
+    eval("a = 1;");
+    EXPECT_THROW(eval("clear('-regexp', '[unbalanced');"), std::exception);
+}
+
+// ── clear import ───────────────────────────────────────────
+TEST_P(ClearTest, ClearImportDropsActiveImports)
+{
+    // Register a custom function in a non-core namespace; import it,
+    // verify it resolves, then `clear import` and verify it stops.
+    engine.registerFunction("myns_for_clear", "v",
+        [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+            outs[0] = Value::scalar(99.0, ctx.engine->resource());
+        });
+    eval("import myns_for_clear.*; a = v();");
+    EXPECT_NEAR(evalScalar("a;"), 99.0, 1e-12);
+    eval("clear('import');");
+    EXPECT_THROW(eval("b = v();"), std::exception);
+}
+
 INSTANTIATE_DUAL(ClearTest);
 
 // ============================================================
@@ -252,6 +296,47 @@ TEST_P(WhoTest, WhosNoArgs)
     eval("whos");
     EXPECT_NE(capturedOutput.find("x"), std::string::npos);
     EXPECT_NE(capturedOutput.find("y"), std::string::npos);
+}
+
+// ── who -file / whos -file ─────────────────────────────────
+// Our save format is ASCII: a single matrix without field-name
+// metadata. `load <file>` assigns the matrix to a workspace variable
+// named after the file's stem; `who -file` therefore surfaces that
+// stem as the only "variable" in the file. Documented in the builtin
+// implementation; tested here so the contract is pinned.
+TEST_P(WhoTest, WhoFileReportsStem)
+{
+    auto p = std::filesystem::temp_directory_path() / "numkit_whotest_who.txt";
+    {
+        std::ofstream o(p);
+        o << "1 2 3\n4 5 6\n";
+    }
+    capturedOutput.clear();
+    eval("who('-file', '" + p.string() + "');");
+    EXPECT_NE(capturedOutput.find("numkit_whotest_who"), std::string::npos);
+    std::filesystem::remove(p);
+}
+
+TEST_P(WhoTest, WhosFileEmitsRowWithBytes)
+{
+    auto p = std::filesystem::temp_directory_path() / "numkit_whotest_whos.txt";
+    {
+        std::ofstream o(p);
+        o << "1 2\n";
+    }
+    capturedOutput.clear();
+    eval("whos('-file', '" + p.string() + "');");
+    // Header + one row containing the stem and "double" class.
+    EXPECT_NE(capturedOutput.find("numkit_whotest_whos"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("double"), std::string::npos);
+    std::filesystem::remove(p);
+}
+
+TEST_P(WhoTest, WhoFileMissingFileThrows)
+{
+    EXPECT_THROW(
+        eval("who('-file', '/this/path/definitely/does/not/exist.txt');"),
+        std::exception);
 }
 
 INSTANTIATE_DUAL(WhoTest);
