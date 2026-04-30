@@ -184,6 +184,18 @@ TEST_P(FolderBuiltinsTest, DirDottedAccessOnArrayThrows)
     EXPECT_THROW(engine.eval("nm = d.name;"), std::exception);
 }
 
+TEST_P(FolderBuiltinsTest, StructArrayFieldBroadcastWrite)
+{
+    // `s.f = val` on a multi-element struct array sets f on every
+    // element (MATLAB semantics). Tested on both backends.
+    engine.eval("s = struct('a', {1, 2, 3});");
+    engine.eval("s.a = 99;");
+    engine.eval("v1 = s(1).a; v2 = s(2).a; v3 = s(3).a;");
+    EXPECT_DOUBLE_EQ(engine.getVariable("v1")->toScalar(), 99.0);
+    EXPECT_DOUBLE_EQ(engine.getVariable("v2")->toScalar(), 99.0);
+    EXPECT_DOUBLE_EQ(engine.getVariable("v3")->toScalar(), 99.0);
+}
+
 TEST_P(FolderBuiltinsTest, StructConstructorWithCellInputs)
 {
     // struct('a', {1, 2, 3}) creates a 1×3 struct array.

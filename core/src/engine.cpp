@@ -1049,12 +1049,17 @@ Engine::ResolvedPath Engine::resolvePath(const std::string &userPath) const
     if (!fs)
         throw Error("filesystem '" + fsName + "' is not available");
 
-    // Normalize path: if relative, prepend Engine cwd_, then NUMKIT_CWD.
+    // Normalize path: if relative, prepend the engine's cwd. Precedence:
+    //   1. Engine::cwd_ when set (`cd`/`setCwd` write here — canonical).
+    //   2. NUMKIT_CWD env var (host-runtime override; only consulted
+    //      when the engine hasn't been told a cwd of its own).
+    // No "two sources diverge" risk: cwd_ wins whenever it's non-empty.
+    // The env fallback exists so hosts can `setenv NUMKIT_CWD` after
+    // engine construction without needing to call setCwd explicitly.
     std::string path = userPath;
     if (!isAbsolutePath(path)) {
-        std::string cwd = cwd_;
-        if (cwd.empty())
-            cwd = envGet(envVarName("CWD").c_str());
+        std::string cwd = !cwd_.empty() ? cwd_
+                                        : envGet(envVarName("CWD").c_str());
         if (!cwd.empty())
             path = joinPath(cwd, path);
     }
