@@ -936,7 +936,9 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                 }
             }
 
-            // p.x = <scalar> — struct field scalar assign
+            // p.x = <scalar> — struct field scalar assign. Single-
+            // struct only; multi-element arrays fall through to
+            // execFieldAssign so the broadcast path runs.
             if (lhsNode->type == NodeType::FIELD_ACCESS && lhsNode->children.size() == 1
                 && lhsNode->children[0]->type == NodeType::IDENTIFIER) {
                 Value fastVal;
@@ -944,7 +946,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                     if (fastVal.isDoubleScalar()) {
                         double dv = fastVal.scalarVal();
                         Value *obj = env->get(lhsNode->children[0]->strValue);
-                        if (obj && obj->isStruct()) {
+                        if (obj && obj->isStruct() && !obj->isStructArray()) {
                             Value &fv = obj->field(lhsNode->strValue);
                             if (fv.isScalar() && fv.type() == ValueType::DOUBLE) {
                                 *fv.doubleDataMut() = dv;
@@ -956,7 +958,7 @@ Value TreeWalker::execBlock(const ASTNode *node, Environment *env)
                     } else {
                         // Logical or other fast type — set directly
                         Value *obj = env->get(lhsNode->children[0]->strValue);
-                        if (obj && obj->isStruct()) {
+                        if (obj && obj->isStruct() && !obj->isStructArray()) {
                             obj->field(lhsNode->strValue) = std::move(fastVal);
                             continue;
                         }
@@ -1260,6 +1262,20 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
 
 void TreeWalker::execFieldAssign(const ASTNode *lhs, const Value &rhs, Environment *env)
 {
+    // Broadcast write: `s.f = val` where s is a multi-element struct
+    // array sets f on every element. MATLAB semantics. The single-
+    // struct path stays the same (resolveFieldLValue throws on multi-
+    // element by design — that contract is what we're side-stepping).
+    if (lhs->children.size() == 1
+        && lhs->children[0]->type == NodeType::IDENTIFIER) {
+        auto *var = env->get(lhs->children[0]->strValue);
+        if (var && var->isStructArray()) {
+            const std::string &fname = lhs->strValue;
+            for (size_t i = 0; i < var->numel(); ++i)
+                var->structArrayElem(i)[fname] = rhs;
+            return;
+        }
+    }
     resolveFieldLValue(lhs, env) = rhs;
 }
 

@@ -1063,13 +1063,19 @@ enter_frame:
             case OpCode::FIELD_SET: {
                 // a=obj, b=val, d=nameIdx
                 const std::string &fname = chunk.strings[I.d];
-                // Auto-create struct if empty
                 if (R[I.a].isEmpty()) {
                     R[I.a] = Value::structure();
                 }
                 if (!R[I.a].isStruct())
                     throw std::runtime_error("Dot indexing requires a struct");
-                R[I.a].field(fname) = R[I.b];
+                // Broadcast: `s.f = val` for a multi-element struct
+                // array sets f on every element (MATLAB semantics).
+                if (R[I.a].isStructArray()) {
+                    for (size_t i = 0; i < R[I.a].numel(); ++i)
+                        R[I.a].structArrayElem(i)[fname] = R[I.b];
+                } else {
+                    R[I.a].field(fname) = R[I.b];
+                }
                 break;
             }
             case OpCode::STRUCT_ELEM_FIELD_SET: {

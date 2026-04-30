@@ -288,7 +288,9 @@ public:
     //   2. env var NUMKIT_FS, if it names a registered backend
     //   3. the current script's origin (set by the IDE before eval)
     //   4. "native" if registered
-    // Relative paths are joined with NUMKIT_CWD when that env var is set.
+    // Relative paths are joined with `cwd_` when set; otherwise with
+    // NUMKIT_CWD as a host-runtime fallback. cwd_ takes precedence —
+    // once `cd` / setCwd writes to it, the env var is ignored.
     void registerVirtualFS(std::unique_ptr<VirtualFS> fs);
     VirtualFS *findVirtualFS(const std::string &name) const;
 
@@ -296,8 +298,13 @@ public:
     void popScriptOrigin();
     const std::string *currentScriptOrigin() const;
 
-    // Current working directory used to resolve relative paths. Empty
-    // means "use NUMKIT_CWD or process default". Set/read by cd/pwd.
+    // Engine-owned current working directory.
+    //   * `cd` / setCwd write here — canonical when non-empty.
+    //   * pwd reports this (with backend-cwd fallback when empty).
+    //   * resolvePath consults this first, then NUMKIT_CWD env var.
+    // The two-tier model lets hosts seed cwd via `setenv NUMKIT_CWD`
+    // without having to call setCwd, while still letting in-engine
+    // `cd` calls take precedence once they happen.
     const std::string &cwd() const { return cwd_; }
     void setCwd(const std::string &p) { cwd_ = p; }
 
