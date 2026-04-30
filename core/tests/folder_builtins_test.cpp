@@ -178,9 +178,33 @@ TEST_P(FolderBuiltinsTest, DirDottedAccessOnArrayThrows)
         std::ofstream(workDir / "y.txt") << "y";
     }
     engine.eval("d = dir('" + workDir.string() + "');");
-    // Direct .name on a non-scalar struct array should error with a
-    // helpful message — caller must use d(i).name.
+    // Bare `d.name` outside a list context still errors — comma-
+    // separated lists only expand inside [ ... ] / { ... } / function
+    // call argument lists.
     EXPECT_THROW(engine.eval("nm = d.name;"), std::exception);
+}
+
+TEST_P(FolderBuiltinsTest, DirCommaSeparatedListInBrackets)
+{
+    // VM-side CSL expansion in matrix literals needs a new opcode —
+    // tracked separately. TW path implements it directly.
+    if (GetParam() == Engine::Backend::VM)
+        GTEST_SKIP() << "[s.field] CSL on VM matrix literals not yet wired";
+
+    // Three files of distinct sizes so [d.bytes] is verifiable.
+    {
+        std::ofstream(workDir / "p.txt") << "x";
+        std::ofstream(workDir / "q.txt") << "yy";
+        std::ofstream(workDir / "r.txt") << "zzz";
+    }
+    engine.eval("d = dir('" + workDir.string() + "');");
+    engine.eval("v = sort([d.bytes]);");
+    auto *v = engine.getVariable("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ((*v)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*v)(0, 1), 2.0);
+    EXPECT_DOUBLE_EQ((*v)(0, 2), 3.0);
 }
 
 TEST_P(FolderBuiltinsTest, LsListsEntries)
