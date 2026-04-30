@@ -2207,6 +2207,58 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 {
     auto *funcNode = node->children[0].get();
 
+    // Qualified-name call: a chain of FIELD_ACCESS over a root IDENTIFIER
+    // (`pkg.foo(x)`, `pkg.sub.bar(x)`). Treat as a flat CALL on the
+    // dotted name when the root identifier is NOT a known variable
+    // (workspace or local register). A local/workspace variable named
+    // the same as the namespace shadows it — fall through to the
+    // FIELD_ACCESS path so existing struct semantics are preserved.
+    if (funcNode->type == NodeType::FIELD_ACCESS) {
+        std::string qualified;
+        const ASTNode *cur = funcNode;
+        while (cur && cur->type == NodeType::FIELD_ACCESS
+               && cur->children.size() == 1) {
+            if (!qualified.empty()) qualified.insert(0, ".");
+            qualified.insert(0, cur->strValue);
+            cur = cur->children[0].get();
+        }
+        if (cur && cur->type == NodeType::IDENTIFIER) {
+            const std::string &root = cur->strValue;
+            qualified.insert(0, ".");
+            qualified.insert(0, root);
+            const bool isLocalVar = varRegisters_.find(root) != varRegisters_.end();
+            const bool isWorkspaceVar =
+                engine_.workspaceEnv().getLocal(root) != nullptr;
+            if (!isLocalVar && !isWorkspaceVar) {
+                // Compile arguments and emit a regular CALL with the
+                // dotted name as the function reference. Resolution is
+                // delegated to the runtime CALL handler, which already
+                // walks externalFuncs_ (incl. registered namespaces) and
+                // the m-file resolver (incl. +pkg/.../<leaf>.m).
+                size_t nargs = node->children.size() - 1;
+                std::vector<uint8_t> argRegs;
+                argRegs.reserve(nargs);
+                for (size_t i = 1; i < node->children.size(); ++i)
+                    argRegs.push_back(compileNode(node->children[i].get()));
+                uint8_t argBase = nextReg_;
+                for (size_t i = 0; i < argRegs.size(); ++i) {
+                    uint8_t slot = tempReg();
+                    if (argRegs[i] != slot)
+                        emitAB(OpCode::MOVE, slot, argRegs[i]);
+                }
+                uint8_t dst = tempReg();
+                int16_t funcIdx = addStringConstant(qualified);
+                emit(Instruction::make_abcde(OpCode::CALL,
+                                             dst,
+                                             argBase,
+                                             static_cast<uint8_t>(nargs),
+                                             funcIdx,
+                                             0));
+                return dst;
+            }
+        }
+    }
+
     // Non-identifier call target (e.g. anonymous func expression called directly)
     if (funcNode->type != NodeType::IDENTIFIER) {
         uint8_t fhReg = compileNode(funcNode);
