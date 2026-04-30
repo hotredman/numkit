@@ -670,6 +670,31 @@ enter_frame:
             case OpCode::VERTCAT:
                 R[I.a] = Value::vertcat(&R[I.b], I.c, engine_.mr_);
                 break;
+            case OpCode::HORZCAT_APPEND_CSL: {
+                // a = dst (in/out), b = struct array source, d = nameIdx.
+                // Expand `[dst, src(0).f, ..., src(N-1).f]` in one
+                // horzcat to avoid quadratic growth.
+                const std::string &fname = chunk.strings[I.d];
+                Value &dst = R[I.a];
+                const Value &src = R[I.b];
+                if (!src.isStruct())
+                    throw std::runtime_error(
+                        "Comma-separated list expansion needs a struct");
+                size_t n = src.numel();
+                std::vector<Value> elems;
+                elems.reserve(n + 1);
+                elems.push_back(dst);
+                for (size_t i = 0; i < n; ++i) {
+                    const auto &m = src.structArrayElem(i);
+                    auto it = m.find(fname);
+                    if (it == m.end())
+                        throw std::runtime_error(
+                            "Reference to non-existent field '" + fname + "'");
+                    elems.push_back(it->second);
+                }
+                dst = Value::horzcat(elems.data(), elems.size(), engine_.mr_);
+                break;
+            }
 
             // ── Array indexing ───────────────────────────────────
             case OpCode::INDEX_GET: {

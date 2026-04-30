@@ -370,6 +370,11 @@ void Compiler::peepholeOptimize()
             readCount[ins.b]++;
             readCount[ins.c]++;
             break;
+        case OpCode::HORZCAT_APPEND_CSL:
+            readCount[ins.a]++;
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            break;
         case OpCode::CELL_GET:
             writeCount[ins.a]++;
             readCount[ins.b]++;
@@ -1764,6 +1769,20 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
         return dst;
     }
 
+    // Detect comma-separated-list elements: a FIELD_ACCESS or
+    // DYNAMIC_FIELD_ACCESS on a struct-array base. We can't tell at
+    // compile time whether the base is single or multi-element, so we
+    // conservatively treat any FIELD_ACCESS-on-IDENTIFIER as a CSL
+    // candidate when the row has more than one element. Single-struct
+    // bases still produce one element (HORZCAT_APPEND_CSL of a 1-element
+    // struct array yields a single-value horzcat — same as the regular
+    // path).
+    auto isCslCandidate = [](const ASTNode *elem) {
+        return elem->type == NodeType::FIELD_ACCESS
+            && !elem->children.empty()
+            && elem->children[0]->type == NodeType::IDENTIFIER;
+    };
+
     // Compile each row into a single register
     std::vector<uint8_t> rowRegs;
     for (auto &row : node->children) {
@@ -1774,8 +1793,37 @@ uint8_t Compiler::compileMatrixLiteral(const ASTNode *node)
             continue;
         }
 
-        if (row->children.size() == 1) {
+        // Single-element row: skip the HORZCAT path entirely UNLESS the
+        // sole element is a CSL candidate — `[d.bytes]` may expand to
+        // multiple values at runtime, so it has to go through the
+        // append-CSL builder even though the AST has only one child.
+        if (row->children.size() == 1 && !isCslCandidate(row->children[0].get())) {
             rowRegs.push_back(compileNode(row->children[0].get()));
+            continue;
+        }
+
+        bool hasCsl = false;
+        for (auto &elem : row->children) {
+            if (isCslCandidate(elem.get())) { hasCsl = true; break; }
+        }
+
+        if (hasCsl) {
+            // Build dst incrementally with HORZCAT_APPEND/_CSL. Seed dst
+            // as the first element (or empty if first is CSL).
+            uint8_t dst = tempReg();
+            emitA(OpCode::LOAD_EMPTY, dst);
+            for (auto &elem : row->children) {
+                if (isCslCandidate(elem.get())) {
+                    uint8_t baseReg = compileNode(elem->children[0].get());
+                    int16_t nameIdx = addStringConstant(elem->strValue);
+                    emit(Instruction::make_abcde(
+                        OpCode::HORZCAT_APPEND_CSL, dst, baseReg, 0, nameIdx, 0));
+                } else {
+                    uint8_t valReg = compileNode(elem.get());
+                    emitAB(OpCode::HORZCAT_APPEND, dst, valReg);
+                }
+            }
+            rowRegs.push_back(dst);
             continue;
         }
 
@@ -3279,6 +3327,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "FIELD_SET_DYN";
         case OpCode::STRUCT_ELEM_FIELD_SET:
             return "STRUCT_ELEM_FIELD_SET";
+        case OpCode::HORZCAT_APPEND_CSL:
+            return "HORZCAT_APPEND_CSL";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:
