@@ -52,6 +52,18 @@ TEST_P(FolderBuiltinsTest, PwdReflectsCwd)
     EXPECT_EQ(p->toString(), workDir.string());
 }
 
+TEST_P(FolderBuiltinsTest, PwdFallsBackToBackendCwd)
+{
+    // When the engine has no explicit cwd, pwd surfaces the active
+    // backend's notion of the current directory (NativeFS uses
+    // std::filesystem::current_path).
+    engine.setCwd("");
+    engine.eval("p = pwd;");
+    auto *p = engine.getVariable("p");
+    ASSERT_NE(p, nullptr);
+    EXPECT_FALSE(p->toString().empty());
+}
+
 TEST_P(FolderBuiltinsTest, CdChangesCwd)
 {
     engine.eval("cd('" + workDir.string() + "');");

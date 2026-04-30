@@ -120,4 +120,12 @@ std::string NativeFS::tempArea()
     return p.string();
 }
 
+std::string NativeFS::cwd()
+{
+    std::error_code ec;
+    auto p = std::filesystem::current_path(ec);
+    if (ec) return {};
+    return p.string();
+}
+
 } // namespace numkit
