@@ -38,16 +38,12 @@ struct HeapObject
     // nodes) flow through `mr`. funcName is always a short identifier
     // that fits in std::string's SBO; not user data, kept simple.
     //
-    // STRUCT layout invariants:
-    //   * single struct (dims == 1×1): `structData` set, `structArray` null.
-    //   * struct array (numel > 1):     `structArray` set (size == numel),
-    //                                   `structData` null.
-    // The two representations never coexist on the same HeapObject. The
-    // single-struct path predates struct arrays and is preserved verbatim
-    // so existing callers (CELL/STRUCT-heavy builtins, the VM struct path)
-    // keep working without modification.
+    // STRUCT layout: array of structs (AoS). `structArray` always
+    // holds `numel()` per-element field maps; a "single struct" is
+    // simply `structArray->size() == 1`. The accessors `field()` /
+    // `structFields()` forward to `(*structArray)[0]` in that case so
+    // the user-facing single-struct semantics are preserved.
     std::pmr::vector<Value> *cellData = nullptr;
-    std::pmr::map<std::string, Value> *structData = nullptr;
     std::pmr::vector<std::pmr::map<std::string, Value>> *structArray = nullptr;
     std::string *funcName = nullptr;
 
