@@ -1291,7 +1291,7 @@ enter_frame:
                         break;
                     }
                     // M-file fallback (Phase 9a)
-                    if (engine_.lookupUserFunction(funcName)) {
+                    if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
@@ -1335,7 +1335,7 @@ enter_frame:
                     }
                     // M-file fallback (Phase 9a) — triggers parse + cache
                     // + Compiler::registerFunction; retry findCompiledFunc.
-                    if (engine_.lookupUserFunction(funcName)) {
+                    if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;

@@ -21,4 +21,6 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/mfile_resolver_test.cpp
     # Folder + path-utility builtins (Phase 9c)
     ${CMAKE_CURRENT_SOURCE_DIR}/folder_builtins_test.cpp
+    # Package namespaces (Phase 10) — +pkg/ folder resolution
+    ${CMAKE_CURRENT_SOURCE_DIR}/package_namespace_test.cpp
 )

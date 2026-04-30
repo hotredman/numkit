@@ -285,12 +285,65 @@ const UserFunction *Engine::lookupUserFunctionLocal(const std::string &name) con
     return it2 != userFuncs_.end() ? &it2->second : nullptr;
 }
 
-const UserFunction *Engine::lookupUserFunction(const std::string &name)
+const UserFunction *Engine::lookupUserFunction(const std::string &name,
+                                                const Environment *env)
 {
     if (auto *f = lookupUserFunctionLocal(name))
         return f;
-    // Fallback: parse-and-load <name>.m from search path.
-    return resolveMFile_(name);
+    // Direct path: parse-and-load <name>.m (or +pkg/.../<leaf>.m for a
+    // dotted name) from the search path.
+    if (auto *f = resolveMFile_(name))
+        return f;
+
+    // Already-qualified name or no scope context — nothing more to try.
+    if (!env || name.find('.') != std::string::npos)
+        return nullptr;
+
+    // Walk imports across env→parent chain and try qualified candidates.
+    // Mirrors findExternal's import precedence (innermost first, then
+    // workspace fallback). Each successful resolveMFile_ caches the
+    // entry under its full qualified key, so subsequent calls hit
+    // userFuncs_ directly via lookupUserFunctionLocal above.
+    auto tryImports = [&](const Environment *cur) -> const UserFunction * {
+        for (const auto &imp : cur->activeImports()) {
+            if (imp.path.empty()) continue;
+            std::string qualified;
+            qualified.reserve(64);
+            if (imp.wildcard) {
+                // import a.b.* → "a.b.<name>"
+                for (const auto &p : imp.path) {
+                    if (!qualified.empty()) qualified.push_back('.');
+                    qualified.append(p);
+                }
+                qualified.push_back('.');
+                qualified.append(name);
+            } else if (!imp.alias.empty()) {
+                // Alias `import a.b as x` is for x.<name> form, not bare.
+                continue;
+            } else if (imp.path.back() == name) {
+                // Single-symbol form `import a.b.c` — exposes `c`.
+                for (size_t i = 0; i < imp.path.size(); ++i) {
+                    if (i > 0) qualified.push_back('.');
+                    qualified.append(imp.path[i]);
+                }
+            } else {
+                continue;
+            }
+            if (auto *f = lookupUserFunctionLocal(qualified))
+                return f;
+            if (auto *f = resolveMFile_(qualified))
+                return f;
+        }
+        return nullptr;
+    };
+
+    for (const Environment *cur = env; cur != nullptr; cur = cur->parentForImports()) {
+        if (auto *p = tryImports(cur)) return p;
+    }
+    if (workspaceEnv_ && env != workspaceEnv_.get()) {
+        if (auto *p = tryImports(workspaceEnv_.get())) return p;
+    }
+    return nullptr;
 }
 
 void Engine::addPath(const std::string &dir)
@@ -313,14 +366,19 @@ void Engine::rehashMFiles()
     // Drop cache entries AND the user-function/compiled mirrors created
     // by resolveMFile_. Functions registered by execFunctionDef from
     // top-level scripts are kept — only m-file-loaded ones should go.
+    //
+    // For package-namespace files (`+pkg/foo.m`) resolveMFile_ caches
+    // under the qualified name "pkg.foo" but the compiler additionally
+    // mirrors the entry under the leaf name "foo" (Compiler::
+    // compileFunctionDef writes engine_.userFuncs_[node->strValue]).
+    // Both have to go; otherwise a stale `userFuncs_["foo"]` survives
+    // rehash and the next call hits the old body.
     for (const auto &[name, _] : mFileCache_) {
         userFuncs_.erase(name);
+        auto dot = name.find_last_of('.');
+        if (dot != std::string::npos)
+            userFuncs_.erase(name.substr(dot + 1));
         if (compiler_) {
-            // Compiler's compiledFuncs_ has no per-name eraser exposed;
-            // a `clearCompiledFuncs()` exists but wipes the whole map,
-            // which is heavier than needed. For correctness we accept
-            // the over-clear: rehash is rare, and existing function
-            // chunks just re-compile on next call.
             compiler_->clearCompiledFuncs();
         }
     }
@@ -335,11 +393,32 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         searchDirs.push_back(*origin);
     searchDirs.insert(searchDirs.end(), mPath_.begin(), mPath_.end());
 
+    // Decompose dotted name. "pkg.sub.foo" → +pkg/+sub/foo.m. The leaf
+    // (last segment) is the function name and what we cache under; the
+    // earlier segments become +<seg>/ directory components per
+    // MATLAB's package-folder convention.
+    std::string leafName = name;
+    std::string nsPrefix;            // "+pkg/+sub/" form, empty for unqualified
+    {
+        size_t dot = name.find('.');
+        if (dot != std::string::npos) {
+            std::string tail = name;
+            while ((dot = tail.find('.')) != std::string::npos) {
+                nsPrefix += '+';
+                nsPrefix.append(tail, 0, dot);
+                nsPrefix += '/';
+                tail.erase(0, dot + 1);
+            }
+            leafName = std::move(tail);
+        }
+    }
+
     for (const auto &dir : searchDirs) {
         std::string userPath = dir;
         if (!userPath.empty() && userPath.back() != '/' && userPath.back() != '\\')
             userPath += '/';
-        userPath += name + ".m";
+        userPath += nsPrefix;
+        userPath += leafName + ".m";
 
         ResolvedPath rp;
         try {
@@ -388,21 +467,25 @@ const UserFunction *Engine::resolveMFile_(const std::string &name)
         }
         if (!ast) continue;
 
-        // First top-level FUNCTION_DEF whose name matches `name`.
+        // First top-level FUNCTION_DEF whose name matches the leaf. The
+        // function-def name inside a +pkg/foo.m file is "foo" — the
+        // package qualification lives in the path, not the source.
         const ASTNode *funcDef = nullptr;
         if (ast->type == NodeType::BLOCK) {
             for (const auto &c : ast->children) {
-                if (c && c->type == NodeType::FUNCTION_DEF && c->strValue == name) {
+                if (c && c->type == NodeType::FUNCTION_DEF && c->strValue == leafName) {
                     funcDef = c.get();
                     break;
                 }
             }
-        } else if (ast->type == NodeType::FUNCTION_DEF && ast->strValue == name) {
+        } else if (ast->type == NodeType::FUNCTION_DEF && ast->strValue == leafName) {
             funcDef = ast.get();
         }
         if (!funcDef) continue;
 
-        // Build UserFunction (mirrors TreeWalker::execFunctionDef).
+        // Build UserFunction (mirrors TreeWalker::execFunctionDef). We
+        // store under the QUALIFIED key (`name`) so multiple packages
+        // can host functions with the same leaf without colliding.
         UserFunction func;
         func.name = name;
         func.params = funcDef->paramNames;
