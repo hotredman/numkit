@@ -7,6 +7,8 @@
 #include <atomic>
 #include <chrono>
 #include <iomanip>
+#include <random>
+#include <regex>
 #include <sstream>
 
 namespace numkit::builtin::detail {
@@ -570,9 +572,30 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 } else {
                                     std::string first = args[0].isChar() ? args[0].toString() : "";
 
-                                    // Unsupported flags
                                     if (first == "-regexp") {
-                                        warnNotSupported(ctx, "clear -regexp");
+                                        // clear -regexp pat1 pat2 ... — drop every workspace
+                                        // variable whose name fully matches at least one
+                                        // pattern. We intentionally use std::regex here even
+                                        // though it's slow; the typical usage is interactive
+                                        // and the workspace is tiny.
+                                        std::vector<std::regex> pats;
+                                        for (size_t i = 1; i < args.size(); ++i) {
+                                            if (!args[i].isChar()) continue;
+                                            try { pats.emplace_back(args[i].toString()); }
+                                            catch (const std::regex_error &) {
+                                                throw std::runtime_error(
+                                                    "clear -regexp: invalid pattern '"
+                                                    + args[i].toString() + "'");
+                                            }
+                                        }
+                                        for (const auto &n : env->localNames()) {
+                                            for (const auto &re : pats) {
+                                                if (std::regex_match(n, re)) {
+                                                    env->remove(n);
+                                                    break;
+                                                }
+                                            }
+                                        }
                                         outs[0] = Value::empty();
                                         return;
                                     }
@@ -599,7 +622,10 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                         return;
                                     }
                                     if (first == "import") {
-                                        warnNotSupported(ctx, "clear import");
+                                        // Drop every active import in the current scope.
+                                        // Subsequent unqualified lookups fall back to core +
+                                        // parent-scope imports (if any).
+                                        env->clearImports();
                                         outs[0] = Value::empty();
                                         return;
                                     }
@@ -644,14 +670,27 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
                                 auto *env = ctx.env;
 
-                                // Check for unsupported flags
-                                if (!args.empty() && args[0].isChar()) {
-                                    std::string first = args[0].toString();
-                                    if (first == "-file") {
-                                        warnNotSupported(ctx, "who -file");
-                                        outs[0] = Value::empty();
-                                        return;
-                                    }
+                                // -file <fname>: in our ASCII save format the file
+                                // contains a single matrix; load() would assign it to
+                                // a workspace variable named after the file stem.
+                                // Mirror that contract here.
+                                if (!args.empty() && args[0].isChar() && args[0].toString() == "-file") {
+                                    if (args.size() < 2 || !args[1].isChar())
+                                        throw std::runtime_error("who -file requires a filename");
+                                    std::string fname = args[1].toString();
+                                    auto rp = ctx.engine->resolvePath(fname);
+                                    if (!rp.fs || !rp.fs->exists(rp.path))
+                                        throw std::runtime_error("who -file: file not found: " + fname);
+                                    std::string stem = fname;
+                                    size_t sep = stem.find_last_of("/\\:");
+                                    if (sep != std::string::npos) stem = stem.substr(sep + 1);
+                                    size_t dot = stem.find_last_of('.');
+                                    if (dot != std::string::npos && dot > 0) stem = stem.substr(0, dot);
+                                    std::ostringstream os;
+                                    os << "\nYour variables are:\n\n" << stem << "  \n\n";
+                                    ctx.engine->outputText(os.str());
+                                    outs[0] = Value::empty();
+                                    return;
                                 }
 
                                 ScratchArena scratch(ctx.engine->resource());
@@ -689,14 +728,30 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
                                 auto *env = ctx.env;
 
-                                // Check for unsupported flags
-                                if (!args.empty() && args[0].isChar()) {
-                                    std::string first = args[0].toString();
-                                    if (first == "-file") {
-                                        warnNotSupported(ctx, "whos -file");
-                                        outs[0] = Value::empty();
-                                        return;
-                                    }
+                                // -file <fname>: ASCII save format holds a single matrix
+                                // assigned to the file's stem. Surface that as a one-row
+                                // listing with a usable bytes/size estimate from stat().
+                                if (!args.empty() && args[0].isChar() && args[0].toString() == "-file") {
+                                    if (args.size() < 2 || !args[1].isChar())
+                                        throw std::runtime_error("whos -file requires a filename");
+                                    std::string fname = args[1].toString();
+                                    auto rp = ctx.engine->resolvePath(fname);
+                                    if (!rp.fs || !rp.fs->exists(rp.path))
+                                        throw std::runtime_error("whos -file: file not found: " + fname);
+                                    auto st = rp.fs->stat(rp.path);
+                                    int64_t bytes = st ? st->size : 0;
+                                    std::string stem = fname;
+                                    size_t sep = stem.find_last_of("/\\:");
+                                    if (sep != std::string::npos) stem = stem.substr(sep + 1);
+                                    size_t dot = stem.find_last_of('.');
+                                    if (dot != std::string::npos && dot > 0) stem = stem.substr(0, dot);
+                                    std::ostringstream os;
+                                    os << "  Name      Size    Bytes  Class\n";
+                                    os << "  " << std::left << std::setw(8) << stem
+                                       << "  ?       " << bytes << "  double\n";
+                                    ctx.engine->outputText(os.str());
+                                    outs[0] = Value::empty();
+                                    return;
                                 }
 
                                 ScratchArena scratch(ctx.engine->resource());
@@ -812,7 +867,11 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     typeFilter = args[1].toString();
 
                                 if (typeFilter == "class") {
-                                    warnNotSupported(ctx, "exist(name, 'class')");
+                                    // No user-defined classdef yet (no class system in
+                                    // numkit::Engine). Returning 0 matches MATLAB's
+                                    // behaviour for unknown class names — scripts that
+                                    // probe for a class get a benign "no" rather than
+                                    // a fatal "unsupported".
                                     outs[0] = Value::scalar(0.0, ctx.engine->resource());
                                     return;
                                 }
@@ -1240,14 +1299,20 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 }
                                 if (!t.empty() && t.back() != '/' && t.back() != '\\')
                                     t += '/';
-                                // Counter monotonic per Engine — not guaranteed unique across
-                                // engines but good enough for tests / sandbox use.
+                                // Combine three sources of entropy so collisions across
+                                // processes / engines / threads are statistically negligible:
+                                //   * 64-bit nanosecond timestamp (monotonic, broad)
+                                //   * thread-local random_device draw (per-process surprise)
+                                //   * atomic counter (within-process tie-breaker)
                                 static std::atomic<uint64_t> ctr{0};
+                                thread_local std::mt19937_64 rng{std::random_device{}()};
+                                uint64_t ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+                                                  Clock::now().time_since_epoch()).count();
+                                uint64_t r = rng();
+                                uint64_t c = ctr.fetch_add(1, std::memory_order_relaxed);
                                 std::ostringstream os;
                                 os << t << "tp" << std::hex
-                                   << std::chrono::duration_cast<std::chrono::nanoseconds>(
-                                          Clock::now().time_since_epoch()).count()
-                                   << "_" << ctr.fetch_add(1, std::memory_order_relaxed);
+                                   << ns << "_" << r << "_" << c;
                                 outs[0] = Value::fromString(os.str(), ctx.engine->resource());
                             });
 

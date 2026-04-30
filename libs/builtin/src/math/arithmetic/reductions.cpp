@@ -1803,8 +1803,9 @@ NK_REDUCTION_ADAPTER(mean, mean, MeanOp)
 //   max(X, [], dim)              — reduction along explicit dim, (value, idx)
 //   max(X, [], dim, 'omitnan')   — same as above, ignoring NaN
 //   max(X, [], 'omitnan')        — reduction with default dim, ignoring NaN
-// Trailing 'omitnan' / 'includenan' string is recognised in the reduction
-// form. Binary form max(A, B) currently doesn't accept omitnan (deferred).
+//   max(A, B, 'omitnan')         — elementwise NaN-skip (when one operand is NaN
+//                                  the result equals the other; both NaN → NaN)
+// Trailing 'omitnan' / 'includenan' string is recognised in both forms.
 namespace {
 
 // Detect optional trailing 'omitnan'/'includenan' string in the reduction

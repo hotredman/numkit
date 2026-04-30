@@ -429,54 +429,64 @@ void Compiler::peepholeOptimize()
         }
     }
 
-    // Strip NOPs (adjust jump offsets accordingly)
-    return; // TODO: NOP stripping has jump patching bugs, skip for now
-    std::vector<size_t> newIndex(n); // old pos → new pos
+    // Strip NOPs and adjust jump offsets accordingly.
+    // newIndex[i] = the new position of code[i] (or, for NOPs, the new
+    // position of the next non-NOP). newIndex has size n+1 so a jump
+    // targeting "one past the end" stays valid.
+    std::vector<size_t> newIndex(n + 1);
     size_t out = 0;
     for (size_t i = 0; i < n; ++i) {
         newIndex[i] = out;
         if (code[i].op != OpCode::NOP)
             ++out;
     }
-    // Don't strip if no NOPs were removed (avoid messing with source maps)
+    newIndex[n] = out;
+
+    // No NOPs to strip — bail before mutating the chunk.
     if (out == n)
         return;
 
-    // Patch jump offsets: JMP, JMP_TRUE, JMP_FALSE, FOR_INIT, FOR_NEXT
+    auto patchJump = [&](Instruction &ins, size_t i) {
+        int off = ins.d;
+        long long t = static_cast<long long>(i) + off;
+        if (t < 0 || t > static_cast<long long>(n))
+            return; // malformed offset — leave alone, will fail at runtime
+        size_t target = static_cast<size_t>(t);
+        long long delta = static_cast<long long>(newIndex[target])
+                          - static_cast<long long>(newIndex[i]);
+        // Bytecode offsets are int16 — refuse to compact when patching
+        // would silently overflow (extremely unlikely in practice given
+        // current chunk sizes, but cheap to guard).
+        if (delta < INT16_MIN || delta > INT16_MAX)
+            throw std::runtime_error("compiler: jump offset overflow during NOP stripping");
+        ins.d = static_cast<int16_t>(delta);
+    };
+
     for (size_t i = 0; i < n; ++i) {
         auto &ins = code[i];
         if (ins.op == OpCode::NOP)
             continue;
-        int16_t off = ins.d;
         switch (ins.op) {
         case OpCode::JMP:
         case OpCode::JMP_TRUE:
         case OpCode::JMP_FALSE:
         case OpCode::FOR_INIT:
         case OpCode::FOR_INIT_RANGE:
-        case OpCode::TRY_BEGIN: {
-            // d = relative offset from current instruction
-            size_t target = static_cast<size_t>(static_cast<int>(i) + off);
-            ins.d = static_cast<int16_t>(static_cast<int>(newIndex[target])
-                                         - static_cast<int>(newIndex[i]));
+        case OpCode::FOR_NEXT:
+        case OpCode::TRY_BEGIN:
+            patchJump(ins, i);
             break;
-        }
-        case OpCode::FOR_NEXT: {
-            size_t target = static_cast<size_t>(static_cast<int>(i) + off);
-            ins.d = static_cast<int16_t>(static_cast<int>(newIndex[target])
-                                         - static_cast<int>(newIndex[i]));
-            break;
-        }
         default:
             break;
         }
     }
 
-    // Compact code and source map
+    // Compact code, source map, and any other parallel arrays the chunk
+    // tracks per-instruction.
     std::vector<Instruction> newCode;
     std::vector<SourceLoc> newSourceMap;
     newCode.reserve(out);
-    newSourceMap.reserve(out);
+    newSourceMap.reserve(std::min(out, chunk_.sourceMap.size()));
     for (size_t i = 0; i < n; ++i) {
         if (code[i].op != OpCode::NOP) {
             newCode.push_back(code[i]);

@@ -162,13 +162,6 @@ TEST_P(MFileResolverTest, RehashBuiltinWorks)
 
 TEST_P(MFileResolverTest, RunBuiltinExecutesScript)
 {
-    // VM-mode reentrant eval inside CALL is currently unsupported (vector
-    // underflow in the VM frame stack); run() works on TW backend.
-    // Phase 9b ships TW-only support; VM-mode scripts can use addpath +
-    // direct call as a workaround. Defer full VM coverage to a follow-up.
-    if (GetParam() == Engine::Backend::VM)
-        GTEST_SKIP() << "run('script.m') on VM backend deferred";
-
     writeMFile("script.m", "g_result = 42;");
     auto p = (workDir / "script.m").string();
     engine.eval("run('" + p + "');");

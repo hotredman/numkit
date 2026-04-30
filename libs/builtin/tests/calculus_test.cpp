@@ -186,9 +186,18 @@ TEST_P(CalculusTest, CumtrapzLengthMismatchThrows)
     EXPECT_THROW(eval("c = cumtrapz([1 2 3], [1 2]);"), std::exception);
 }
 
-TEST_P(CalculusTest, CumtrapzMatrixThrows)
+TEST_P(CalculusTest, CumtrapzMatrixIntegratesColumns)
 {
-    EXPECT_THROW(eval("c = cumtrapz([1 2; 3 4]);"), std::exception);
+    // Matrix input: integrate down each column with unit spacing.
+    //   col 1 = [1; 3]  → [0; 0.5*(1+3)*1] = [0; 2]
+    //   col 2 = [2; 4]  → [0; 0.5*(2+4)*1] = [0; 3]
+    eval("c = cumtrapz([1 2; 3 4]);");
+    auto *c = engine.getVariable("c");
+    ASSERT_NE(c, nullptr);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 0), 2.0);
+    EXPECT_DOUBLE_EQ((*c)(0, 1), 0.0);
+    EXPECT_DOUBLE_EQ((*c)(1, 1), 3.0);
 }
 
 TEST_P(CalculusTest, CumtrapzComplexThrows)

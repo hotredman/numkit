@@ -97,16 +97,29 @@ static inline size_t checkedIndex(double idx, size_t numel)
 
 Value VM::execute(const BytecodeChunk &chunk, const Value *args, uint8_t nargs)
 {
-    // RAII: export variables and cleanup on ANY exit path (success, exception, debug stop).
-    // Guarantees MATLAB-like behavior: variables assigned before an error survive in workspace.
+    // Re-entrancy: a builtin invoked during dispatch (e.g. the `run`
+    // builtin or any future eval-from-handler) may call back into
+    // engine.eval(), which lands here while the outer chunk is mid-
+    // execution. Snapshot the running VM state, run the inner chunk
+    // through the normal startExecution / dispatch path, then restore
+    // so the outer dispatch loop resumes seamlessly.
+    const bool reentrant = !frames_.empty();
+    std::unique_ptr<PausedState> outerState;
+    if (reentrant)
+        outerState = savePausedState();
+
+    // RAII: export variables and cleanup on ANY exit path (success, exception,
+    // debug stop). Top-level only — re-entrant runs restore the outer frames
+    // explicitly below so the dispatch loop can resume.
     struct ExecuteGuard
     {
         VM &vm;
-        ExecuteGuard(VM &v)
-            : vm(v)
-        {}
+        bool reentrant;
+        ExecuteGuard(VM &v, bool r) : vm(v), reentrant(r) {}
         ~ExecuteGuard()
         {
+            if (reentrant)
+                return; // restoration happens on the success path below
             if (!vm.frames_.empty())
                 vm.exportTopLevelVariables();
             vm.frames_.clear();
@@ -117,16 +130,36 @@ Value VM::execute(const BytecodeChunk &chunk, const Value *args, uint8_t nargs)
         }
         ExecuteGuard(const ExecuteGuard &) = delete;
         ExecuteGuard &operator=(const ExecuteGuard &) = delete;
-    } guard(*this);
+    } guard(*this, reentrant);
 
-    ExecStatus status = startExecution(chunk, args, nargs);
+    ExecStatus status;
+    try {
+        status = startExecution(chunk, args, nargs);
+    } catch (...) {
+        // Inner threw before producing a result. Restore the outer so the
+        // outer's catch handler sees consistent VM state, then rethrow.
+        if (reentrant)
+            restorePausedState(std::move(outerState));
+        throw;
+    }
 
     if (status == ExecStatus::Paused) {
-        // Legacy API: convert pause to exception (guard will clean up)
+        // Legacy API: convert pause to exception. The non-reentrant guard
+        // wipes state; the reentrant path restores the outer first.
+        if (reentrant)
+            restorePausedState(std::move(outerState));
         throw DebugStopException();
     }
 
-    return std::move(lastResult_);
+    Value result = std::move(lastResult_);
+    if (reentrant) {
+        // Commit any workspace exports the inner script produced, then
+        // bring back the outer frame stack so dispatch can resume.
+        if (!frames_.empty())
+            exportTopLevelVariables();
+        restorePausedState(std::move(outerState));
+    }
+    return result;
 }
 
 // ── Paused state save/restore (for debug eval) ────────────
