@@ -361,6 +361,16 @@ void Engine::rmPath(const std::string &dir)
     if (it != mPath_.end()) mPath_.erase(it);
 }
 
+void Engine::adoptUserFunction(const std::string &name,
+                                UserFunction uf,
+                                bool scriptScope)
+{
+    if (scriptScope)
+        scriptLocalUserFuncs_[name] = std::move(uf);
+    else
+        userFuncs_[name] = std::move(uf);
+}
+
 void Engine::rehashMFiles()
 {
     // Drop cache entries AND the user-function/compiled mirrors created

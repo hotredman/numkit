@@ -180,6 +180,25 @@ public:
     // part of the script, not the workspace.
     void clearUserFunctions();
 
+    // Adopt a UserFunction parsed/compiled by another component (the
+    // compiler emitting FUNCTION_DEF chunks, the m-file resolver, the
+    // anonymous-function machinery). When `scriptScope` is true the
+    // entry lands in the script-local bucket cleared by endScript;
+    // otherwise it lives in the workspace bucket. Single funnel for
+    // the writes that previously went straight into the private maps
+    // via friendship.
+    void adoptUserFunction(const std::string &name,
+                            UserFunction uf,
+                            bool scriptScope = false);
+
+    // Names declared `global` at the base workspace level. Compiler reads
+    // these to seed each new top-level chunk's globalNames list — split-
+    // mode execution otherwise loses the declaration between statements.
+    const std::unordered_set<std::string> &topLevelGlobalNames() const
+    {
+        return topLevelGlobals_;
+    }
+
     // ── M-file path registry (Phase 9) ─────────────────────────────
     // Directories searched (in order) by lookupUserFunction's m-file
     // resolver pass. Paths are VFS-resolvable strings (e.g.
@@ -441,7 +460,6 @@ private:
 
     friend class TreeWalker;
     friend class VM;
-    friend class Compiler;
     friend class DebugSession;
 };
 
