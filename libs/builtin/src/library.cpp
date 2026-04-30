@@ -1072,15 +1072,15 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
                                 std::string c = ctx.engine->cwd();
                                 if (c.empty()) {
-                                    // Resolve "." against active backend to surface a usable path.
+                                    // No engine-level cwd set — ask the active backend.
                                     try {
                                         auto rp = ctx.engine->resolvePath(".");
-                                        if (rp.fs) {
-                                            auto st = rp.fs->stat(rp.path);
-                                            if (st && st->kind == FileStat::Kind::Directory)
-                                                c = rp.path;
-                                        }
+                                        if (rp.fs) c = rp.fs->cwd();
                                     } catch (...) {}
+                                    if (c.empty()) {
+                                        if (auto *fs = ctx.engine->findVirtualFS("native"))
+                                            c = fs->cwd();
+                                    }
                                 }
                                 outs[0] = Value::fromString(c, ctx.engine->resource());
                             });

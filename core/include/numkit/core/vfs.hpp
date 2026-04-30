@@ -105,6 +105,15 @@ public:
     {
         return {};
     }
+
+    // Backend's "current directory" — used by pwd/cd before the engine's
+    // own cwd is set. NativeFS returns std::filesystem::current_path().
+    // Hosted backends (CallbackFS) return whatever the host hooked in,
+    // or "" if none.
+    virtual std::string cwd()
+    {
+        return {};
+    }
 };
 
 // ── NativeFS — std::filesystem / std::ifstream / std::ofstream ──
@@ -123,6 +132,7 @@ public:
     void rmdir(const std::string &path) override;
     void unlink(const std::string &path) override;
     std::string tempArea() override;
+    std::string cwd() override;
 };
 
 // ── CallbackFS — delegates to std::function hooks (WASM bridge) ──
@@ -141,6 +151,7 @@ public:
     using RmdirFunc = std::function<void(const std::string &)>;
     using UnlinkFunc = std::function<void(const std::string &)>;
     using TempAreaFunc = std::function<std::string()>;
+    using CwdFunc = std::function<std::string()>;
 
     CallbackFS(std::string n, ReadFunc r, WriteFunc w, ExistsFunc e)
         : name_(std::move(n)), read_(std::move(r)), write_(std::move(w)), exists_(std::move(e))
@@ -168,6 +179,7 @@ public:
     void setRmdir(RmdirFunc f) { rmdir_ = std::move(f); }
     void setUnlink(UnlinkFunc f) { unlink_ = std::move(f); }
     void setTempArea(TempAreaFunc f) { tempArea_ = std::move(f); }
+    void setCwd(CwdFunc f) { cwd_ = std::move(f); }
 
     std::vector<DirEntry> listDir(const std::string &path) override
     {
@@ -198,6 +210,10 @@ public:
     {
         return tempArea_ ? tempArea_() : std::string{};
     }
+    std::string cwd() override
+    {
+        return cwd_ ? cwd_() : std::string{};
+    }
 
 private:
     std::string name_;
@@ -210,6 +226,7 @@ private:
     RmdirFunc rmdir_;
     UnlinkFunc unlink_;
     TempAreaFunc tempArea_;
+    CwdFunc cwd_;
 };
 
 } // namespace numkit
