@@ -1213,36 +1213,29 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     return;
                                 }
 
-                                // Build a struct array — n×1, fields: name, folder, date,
-                                // bytes, isdir, datenum.
+                                // n×1 struct array — same fields per element so MATLAB-style
+                                // d(i).name / [d.bytes] usage works.
                                 auto *mr = ctx.engine->resource();
                                 if (entries.empty()) {
                                     outs[0] = Value::structure(mr);
                                     return;
                                 }
-                                // Use cell-of-structs layout: each entry is a separate struct,
-                                // packed into a cell that callers can index with parens. The
-                                // engine's struct doesn't yet have N-dim arrays of records,
-                                // so emit a cell array — common practice in our tests.
-                                Value cell = Value::cell(entries.size(), 1, mr);
+                                Value arr = Value::structArray(entries.size(), 1, mr);
                                 for (size_t i = 0; i < entries.size(); ++i) {
-                                    Value s = Value::structure(mr);
-                                    auto &fields = s.structFields();
-                                    fields["name"]  = Value::fromString(entries[i].name, mr);
-                                    fields["folder"] = Value::fromString(rp.path, mr);
-                                    fields["isdir"] = Value::logicalScalar(entries[i].isDirectory, mr);
-                                    // bytes / date — best-effort via stat
+                                    auto &fields = arr.structArrayElem(i);
+                                    fields["name"]    = Value::fromString(entries[i].name, mr);
+                                    fields["folder"]  = Value::fromString(rp.path, mr);
+                                    fields["isdir"]   = Value::logicalScalar(entries[i].isDirectory, mr);
                                     std::string full = rp.path;
                                     if (!full.empty() && full.back() != '/' && full.back() != '\\')
                                         full += '/';
                                     full += entries[i].name;
                                     auto est = rp.fs->stat(full);
-                                    fields["bytes"] = Value::scalar(est ? double(est->size) : 0.0, mr);
+                                    fields["bytes"]   = Value::scalar(est ? double(est->size) : 0.0, mr);
                                     fields["datenum"] = Value::scalar(est ? double(est->mtime) : 0.0, mr);
-                                    fields["date"] = Value::fromString(std::string{}, mr);
-                                    cell.cellAt(i) = std::move(s);
+                                    fields["date"]    = Value::fromString(std::string{}, mr);
                                 }
-                                outs[0] = std::move(cell);
+                                outs[0] = std::move(arr);
                             });
 
     engine.registerFunction("ls",

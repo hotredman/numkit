@@ -109,7 +109,7 @@ TEST_P(FolderBuiltinsTest, DeleteRemovesFile)
     EXPECT_FALSE(std::filesystem::exists(file));
 }
 
-TEST_P(FolderBuiltinsTest, DirReturnsCellOfStructs)
+TEST_P(FolderBuiltinsTest, DirReturnsStructArray)
 {
     {
         std::ofstream(workDir / "alpha.txt") << "a";
@@ -118,9 +118,57 @@ TEST_P(FolderBuiltinsTest, DirReturnsCellOfStructs)
     engine.eval("d = dir('" + workDir.string() + "');");
     auto *d = engine.getVariable("d");
     ASSERT_NE(d, nullptr);
-    // Should be a non-empty cell (we know there are 2 entries).
-    // The cellAt(i) returns each struct.
-    EXPECT_GT(d->numel(), 0u);
+    EXPECT_TRUE(d->isStructArray());
+    EXPECT_EQ(d->numel(), 2u);
+
+    // d(1).name — paren-indexed struct-array element + field access.
+    engine.eval("nm1 = d(1).name; nm2 = d(2).name;");
+    auto *nm1 = engine.getVariable("nm1");
+    auto *nm2 = engine.getVariable("nm2");
+    ASSERT_NE(nm1, nullptr);
+    ASSERT_NE(nm2, nullptr);
+    std::string s1 = nm1->toString();
+    std::string s2 = nm2->toString();
+    // Order from listDir is platform-defined; just check both present.
+    EXPECT_TRUE((s1 == "alpha.txt" && s2 == "beta.txt")
+             || (s1 == "beta.txt"  && s2 == "alpha.txt"));
+
+    // numel(d) and fieldnames(d) work on the array.
+    engine.eval("nf = numel(fieldnames(d));");
+    auto *nf = engine.getVariable("nf");
+    ASSERT_NE(nf, nullptr);
+    EXPECT_GE(nf->toScalar(), 5.0);  // name/folder/isdir/bytes/datenum/date
+}
+
+TEST_P(FolderBuiltinsTest, DirEachElementHasFields)
+{
+    {
+        std::ofstream(workDir / "f1.txt") << "x";
+        std::ofstream(workDir / "f2.txt") << "yy";
+        std::ofstream(workDir / "f3.txt") << "zzz";
+    }
+    engine.eval("d = dir('" + workDir.string() + "');");
+    engine.eval("b1 = d(1).bytes; b2 = d(2).bytes; b3 = d(3).bytes;");
+    auto *b1 = engine.getVariable("b1");
+    auto *b2 = engine.getVariable("b2");
+    auto *b3 = engine.getVariable("b3");
+    ASSERT_NE(b1, nullptr);
+    ASSERT_NE(b2, nullptr);
+    ASSERT_NE(b3, nullptr);
+    // Sum of bytes across f1+f2+f3 = 1+2+3 = 6.
+    EXPECT_DOUBLE_EQ(b1->toScalar() + b2->toScalar() + b3->toScalar(), 6.0);
+}
+
+TEST_P(FolderBuiltinsTest, DirDottedAccessOnArrayThrows)
+{
+    {
+        std::ofstream(workDir / "x.txt") << "x";
+        std::ofstream(workDir / "y.txt") << "y";
+    }
+    engine.eval("d = dir('" + workDir.string() + "');");
+    // Direct .name on a non-scalar struct array should error with a
+    // helpful message — caller must use d(i).name.
+    EXPECT_THROW(engine.eval("nm = d.name;"), std::exception);
 }
 
 TEST_P(FolderBuiltinsTest, LsListsEntries)

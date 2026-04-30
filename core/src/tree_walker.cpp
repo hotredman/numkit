@@ -1625,7 +1625,8 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             auto args = buildArgs();
             return callFuncHandle(*var, args, env);
         }
-        if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell())
+        if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
+            || var->isStruct())
             return execIndexAccess(*var, node, env);
     }
 

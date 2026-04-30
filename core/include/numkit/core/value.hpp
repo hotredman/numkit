@@ -71,6 +71,13 @@ public:
     // ND CELL constructor — picks 2D / 3D / true-ND backing as needed.
     static Value cellND(const size_t *dims, int nd, std::pmr::memory_resource *mr = nullptr);
     static Value structure(std::pmr::memory_resource *mr = nullptr);
+    // N×M struct array — every element is an independent map<string, Value>.
+    // numel() == rows*cols == size of the underlying structArray vector.
+    // Field set is allowed to differ across elements; MATLAB-compatible
+    // builtins (struct, fieldnames, ...) maintain the uniform-field
+    // invariant on creation.
+    static Value structArray(size_t rows, size_t cols,
+                              std::pmr::memory_resource *mr = nullptr);
     static Value funcHandle(const std::string &name, std::pmr::memory_resource *mr = nullptr);
     static Value empty();
     static Value deleted();
@@ -279,6 +286,15 @@ public:
     bool hasField(const std::string &name) const;
     std::pmr::map<std::string, Value> &structFields();
     const std::pmr::map<std::string, Value> &structFields() const;
+
+    // True for struct arrays (numel > 1). isStruct() && !isStructArray()
+    // means a single struct (the legacy code path).
+    bool isStructArray() const;
+    // Mutable / const access to the i-th element's field map. Caller must
+    // ensure i < numel(). Throws when called on a single struct (use
+    // structFields() there instead).
+    std::pmr::map<std::string, Value> &structArrayElem(size_t i);
+    const std::pmr::map<std::string, Value> &structArrayElem(size_t i) const;
 
     // ── Func handle ──────────────────────────────────────────
     std::string funcHandleName() const;
