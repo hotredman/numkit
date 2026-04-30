@@ -289,15 +289,7 @@ void Value::stringElemSet(size_t i, const std::string &s)
 }
 Value Value::structure(std::pmr::memory_resource *mr)
 {
-    if (!mr) mr = std::pmr::get_default_resource();
-    Value m;
-    auto *h = new HeapObject();
-    h->type = ValueType::STRUCT;
-    h->dims = {1, 1};
-    h->mr = mr;
-    h->structData = new std::pmr::map<std::string, Value>(mr);
-    m.heap_ = h;
-    return m;
+    return structArray(1, 1, mr);
 }
 
 Value Value::structArray(size_t rows, size_t cols, std::pmr::memory_resource *mr)
@@ -767,18 +759,16 @@ Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
     case ValueType::CELL:
         return cellAt(idx);
     case ValueType::STRUCT: {
-        // s(i) on a struct array → a single struct (numel-1 view) holding
-        // the i-th element's fields. Single-struct case (no structArray)
-        // returns a copy of the whole struct — matches MATLAB's "scalar
-        // struct indexed by 1 yields itself" behaviour.
-        if (isStructArray()) {
-            Value out = Value::structure(mr);
-            out.heap_->structData->insert(
-                heap_->structArray->at(idx).begin(),
-                heap_->structArray->at(idx).end());
-            return out;
-        }
-        return *this;
+        // s(i) on a struct → a 1×1 struct holding the i-th element's
+        // fields. With AoS storage there's no fast-path: even for a
+        // size-1 array we copy element[0]'s fields into a new struct so
+        // mutation paths (`s(1).x = ...`) operate on a fresh map.
+        Value out = Value::structure(mr);
+        const auto &src = (*heap_->structArray)[idx];
+        auto &dst = (*out.heap_->structArray)[0];
+        for (const auto &[k, v] : src)
+            dst.emplace(k, v);
+        return out;
     }
     // Typed integer / single return a 1×1 array of the same type so the
     // user's type sticks through indexing. Raw memcpy from the source
@@ -2577,69 +2567,64 @@ const std::pmr::vector<Value> &Value::cellDataVec() const
 
 Value &Value::field(const std::string &n)
 {
-    if (isStructArray()) {
-        if (numel() != 1)
-            throw std::runtime_error(
-                "Cannot dot-index a non-scalar struct array directly; "
-                "use s(i)." + n + " or arrayfun.");
-        detach();
-        return (*heap_->structArray)[0][n];
-    }
-    if (!isHeap() || !heap_->structData)
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
         throw std::runtime_error("Not a struct");
-    detach(); // COW
-    return (*heap_->structData)[n];
+    if (heap_->structArray->size() != 1)
+        throw std::runtime_error(
+            "Cannot dot-index a non-scalar struct array directly; "
+            "use s(i)." + n + " or arrayfun.");
+    detach();
+    return (*heap_->structArray)[0][n];
 }
 const Value &Value::field(const std::string &n) const
 {
-    if (isStructArray()) {
-        if (numel() != 1)
-            throw std::runtime_error(
-                "Cannot dot-index a non-scalar struct array directly; "
-                "use s(i)." + n + " or arrayfun.");
-        const auto &m = (*heap_->structArray)[0];
-        auto it = m.find(n);
-        if (it == m.end())
-            throw std::runtime_error("Field not found: " + n);
-        return it->second;
-    }
-    if (!isHeap() || !heap_->structData)
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
         throw std::runtime_error("Not a struct");
-    auto it = heap_->structData->find(n);
-    if (it == heap_->structData->end())
+    if (heap_->structArray->size() != 1)
+        throw std::runtime_error(
+            "Cannot dot-index a non-scalar struct array directly; "
+            "use s(i)." + n + " or arrayfun.");
+    const auto &m = (*heap_->structArray)[0];
+    auto it = m.find(n);
+    if (it == m.end())
         throw std::runtime_error("Field not found: " + n);
     return it->second;
 }
 bool Value::hasField(const std::string &n) const
 {
-    if (isStructArray()) {
-        if (numel() == 0) return false;
-        const auto &m = (*heap_->structArray)[0];
-        return m.count(n) > 0;
-    }
-    return isHeap() && heap_->structData && heap_->structData->count(n) > 0;
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray
+        || heap_->structArray->empty())
+        return false;
+    return (*heap_->structArray)[0].count(n) > 0;
 }
 std::pmr::map<std::string, Value> &Value::structFields()
 {
-    if (!isHeap() || !heap_->structData)
-        throw std::runtime_error("Not a struct");
-    return *heap_->structData;
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray
+        || heap_->structArray->size() != 1)
+        throw std::runtime_error("structFields() is only valid for a 1×1 struct");
+    detach();
+    return (*heap_->structArray)[0];
 }
 const std::pmr::map<std::string, Value> &Value::structFields() const
 {
-    if (!isHeap() || !heap_->structData)
-        throw std::runtime_error("Not a struct");
-    return *heap_->structData;
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray
+        || heap_->structArray->size() != 1)
+        throw std::runtime_error("structFields() is only valid for a 1×1 struct");
+    return (*heap_->structArray)[0];
 }
 
 bool Value::isStructArray() const
 {
-    return isHeap() && heap_->type == ValueType::STRUCT && heap_->structArray;
+    // Multi-element struct array (numel > 1). Single struct (numel == 1)
+    // returns false to preserve existing call-site semantics that
+    // distinguish "scalar struct" from "array".
+    return isHeap() && heap_->type == ValueType::STRUCT && heap_->structArray
+           && heap_->structArray->size() > 1;
 }
 std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i)
 {
-    if (!isStructArray())
-        throw std::runtime_error("Not a struct array");
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
+        throw std::runtime_error("Not a struct");
     if (i >= heap_->structArray->size())
         throw std::runtime_error("struct array index out of range");
     detach();
@@ -2647,8 +2632,8 @@ std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i)
 }
 const std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i) const
 {
-    if (!isStructArray())
-        throw std::runtime_error("Not a struct array");
+    if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)
+        throw std::runtime_error("Not a struct");
     if (i >= heap_->structArray->size())
         throw std::runtime_error("struct array index out of range");
     return (*heap_->structArray)[i];
@@ -2973,14 +2958,16 @@ std::string Value::formatDisplay(const std::string &name) const
     case ValueType::STRUCT:
         if (isStructArray()) {
             const auto &d = dims();
-            os << "  " << d.rows() << "x" << d.cols() << " struct array with fields:\n\n";
+            os << "  " << d.rows() << "x" << d.cols()
+               << " struct array with fields:\n\n";
             if (numel() > 0) {
                 for (auto &[k, v] : structArrayElem(0))
                     os << "    " << k << "\n";
             }
         } else {
             os << "  struct with fields:\n\n";
-            for (auto &[k, v] : structFields())
+            // 1×1 struct array — element 0 holds the field map.
+            for (auto &[k, v] : structArrayElem(0))
                 os << "    " << k << ": " << v.debugString() << "\n";
         }
         break;
