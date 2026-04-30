@@ -11,7 +11,7 @@ class ResampleTest : public ::testing::Test
 {
 public:
     Engine engine;
-    void SetUp() override { BuiltinLibrary::install(engine); }
+    void SetUp() override { engine.eval("import compat.*;"); }
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };

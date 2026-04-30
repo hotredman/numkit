@@ -1,3 +1,16 @@
+// libs/signal/src/library.cpp
+//
+// Registration hub for the Signal Processing Toolbox builtins.
+// Namespace layout — sub-namespaces mirror libs/signal/src/<sub>/
+// directories (NAMESPACE_DESIGN.md §5, §9.2).
+//
+// Convention: every signal function gets a *dual* registration —
+//   1. signal.<sub>.<name>      (e.g. signal.transforms.fft)
+//   2. compat.<name>            (so `import compat.*` flattens it)
+// 6 functions additionally get a third registration in core (whitelist
+// of cross-domain general-purpose ops): fft, ifft, fftshift, ifftshift,
+// conv, xcorr.
+
 #include <numkit/signal/library.hpp>
 
 #include <numkit/core/types.hpp>  // ExternalFunc, CallContext, Span, Value
@@ -64,60 +77,98 @@ namespace numkit {
 
 void SignalLibrary::install(Engine &engine)
 {
-    // ── Public-API-backed built-ins (Phase 5 pilot and onwards) ─────
-    engine.registerFunction("fft",         &signal::detail::fft_reg);
-    engine.registerFunction("ifft",        &signal::detail::ifft_reg);
-    engine.registerFunction("conv",        &signal::detail::conv_reg);
-    engine.registerFunction("deconv",      &signal::detail::deconv_reg);
-    engine.registerFunction("xcorr",       &signal::detail::xcorr_reg);
-    engine.registerFunction("filter",      &signal::detail::filter_reg);
-    engine.registerFunction("filtfilt",    &signal::detail::filtfilt_reg);
-    engine.registerFunction("butter",      &signal::detail::butter_reg);
-    engine.registerFunction("fir1",        &signal::detail::fir1_reg);
-    engine.registerFunction("freqz",       &signal::detail::freqz_reg);
-    engine.registerFunction("phasez",      &signal::detail::phasez_reg);
-    engine.registerFunction("grpdelay",    &signal::detail::grpdelay_reg);
-    engine.registerFunction("downsample",  &signal::detail::downsample_reg);
-    engine.registerFunction("upsample",    &signal::detail::upsample_reg);
-    engine.registerFunction("decimate",    &signal::detail::decimate_reg);
-    engine.registerFunction("resample",    &signal::detail::resample_reg);
-    engine.registerFunction("periodogram", &signal::detail::periodogram_reg);
-    engine.registerFunction("pwelch",      &signal::detail::pwelch_reg);
-    engine.registerFunction("spectrogram", &signal::detail::spectrogram_reg);
-    engine.registerFunction("hamming",     &signal::detail::hamming_reg);
-    engine.registerFunction("hann",        &signal::detail::hann_reg);
-    engine.registerFunction("hanning",     &signal::detail::hann_reg);   // MATLAB alias
-    engine.registerFunction("blackman",    &signal::detail::blackman_reg);
-    engine.registerFunction("kaiser",      &signal::detail::kaiser_reg);
-    engine.registerFunction("rectwin",     &signal::detail::rectwin_reg);
-    engine.registerFunction("bartlett",    &signal::detail::bartlett_reg);
-    engine.registerFunction("unwrap",      &signal::detail::unwrap_reg);
-    engine.registerFunction("hilbert",     &signal::detail::hilbert_reg);
-    engine.registerFunction("envelope",    &signal::detail::envelope_reg);
-    engine.registerFunction("nextpow2",    &signal::detail::nextpow2_reg);
-    engine.registerFunction("fftshift",    &signal::detail::fftshift_reg);
-    engine.registerFunction("ifftshift",   &signal::detail::ifftshift_reg);
-    engine.registerFunction("chirp",       &signal::detail::chirp_reg);
-    engine.registerFunction("rectpuls",    &signal::detail::rectpuls_reg);
-    engine.registerFunction("tripuls",     &signal::detail::tripuls_reg);
-    engine.registerFunction("gauspuls",    &signal::detail::gauspuls_reg);
-    engine.registerFunction("pulstran",    &signal::detail::pulstran_reg);
+    // Local helper — signal is MATLAB-mirror, every fn registered in
+    // signal.<sub>.<name> AND aliased into compat.<name>.
+    auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
+        engine.registerFunction(std::string("signal.") + sub, name, fn);
+        engine.registerFunction("compat", name, fn);
+    };
 
-    // ── Phase 9 DSP gaps ──────────────────────────────────────────
-    engine.registerFunction("medfilt1",  &signal::detail::medfilt1_reg);
-    engine.registerFunction("findpeaks", &signal::detail::findpeaks_reg);
-    engine.registerFunction("goertzel",  &signal::detail::goertzel_reg);
-    engine.registerFunction("dct",       &signal::detail::dct_reg);
-    engine.registerFunction("idct",      &signal::detail::idct_reg);
+    // ── Transforms (FFT family, DCT, Hilbert, Goertzel, envelope, ...) ──
+    reg("transforms", "fft",       &signal::detail::fft_reg);
+    reg("transforms", "ifft",      &signal::detail::ifft_reg);
+    reg("transforms", "fftshift",  &signal::detail::fftshift_reg);
+    reg("transforms", "ifftshift", &signal::detail::ifftshift_reg);
+    reg("transforms", "dct",       &signal::detail::dct_reg);
+    reg("transforms", "idct",      &signal::detail::idct_reg);
+    reg("transforms", "hilbert",   &signal::detail::hilbert_reg);
+    reg("transforms", "envelope",  &signal::detail::envelope_reg);
+    reg("transforms", "goertzel",  &signal::detail::goertzel_reg);
+    reg("transforms", "nextpow2",  &signal::detail::nextpow2_reg);
+    reg("transforms", "unwrap",    &signal::detail::unwrap_reg);
 
-    // ── SOS filter family ─────────────────────────────────────────
-    engine.registerFunction("sosfilt",   &signal::detail::sosfilt_reg);
-    engine.registerFunction("zp2sos",    &signal::detail::zp2sos_reg);
-    engine.registerFunction("tf2sos",    &signal::detail::tf2sos_reg);
+    // ── Convolution / correlation ──────────────────────────────────────
+    reg("convolution", "conv",   &signal::detail::conv_reg);
+    reg("convolution", "deconv", &signal::detail::deconv_reg);
+    reg("convolution", "xcorr",  &signal::detail::xcorr_reg);
 
-    // ── Savitzky-Golay ─────────────────────────────────────────────
-    engine.registerFunction("sgolay",     &signal::detail::sgolay_reg);
-    engine.registerFunction("sgolayfilt", &signal::detail::sgolayfilt_reg);
+    // ── Digital filtering (filter / filtfilt / SOS family / median) ────
+    reg("digital_filtering", "filter",   &signal::detail::filter_reg);
+    reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
+    reg("digital_filtering", "sosfilt",  &signal::detail::sosfilt_reg);
+    reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
+
+    // ── Filter design (FIR/IIR coefficient generators) ─────────────────
+    reg("filter_design", "butter",     &signal::detail::butter_reg);
+    reg("filter_design", "fir1",       &signal::detail::fir1_reg);
+    reg("filter_design", "sgolay",     &signal::detail::sgolay_reg);
+    reg("filter_design", "sgolayfilt", &signal::detail::sgolayfilt_reg);
+
+    // ── Filter analysis (freqz / phasez / grpdelay) ────────────────────
+    reg("filter_analysis", "freqz",    &signal::detail::freqz_reg);
+    reg("filter_analysis", "phasez",   &signal::detail::phasez_reg);
+    reg("filter_analysis", "grpdelay", &signal::detail::grpdelay_reg);
+
+    // ── Filter implementation (form conversions: TF/SOS/ZPK) ───────────
+    reg("filter_implementation", "tf2sos", &signal::detail::tf2sos_reg);
+    reg("filter_implementation", "zp2sos", &signal::detail::zp2sos_reg);
+
+    // ── Multirate (decimate / interp / resample) ───────────────────────
+    reg("multirate", "downsample", &signal::detail::downsample_reg);
+    reg("multirate", "upsample",   &signal::detail::upsample_reg);
+    reg("multirate", "decimate",   &signal::detail::decimate_reg);
+    reg("multirate", "resample",   &signal::detail::resample_reg);
+
+    // ── Spectral analysis (pwelch / periodogram) ───────────────────────
+    reg("spectral_analysis", "periodogram", &signal::detail::periodogram_reg);
+    reg("spectral_analysis", "pwelch",      &signal::detail::pwelch_reg);
+
+    // ── Time-frequency (spectrogram / STFT family) ─────────────────────
+    reg("time_frequency", "spectrogram", &signal::detail::spectrogram_reg);
+
+    // ── Windows (hamming / hann / blackman / kaiser / rectwin / bartlett) ─
+    reg("windows", "hamming",  &signal::detail::hamming_reg);
+    reg("windows", "hann",     &signal::detail::hann_reg);
+    reg("windows", "blackman", &signal::detail::blackman_reg);
+    reg("windows", "kaiser",   &signal::detail::kaiser_reg);
+    reg("windows", "rectwin",  &signal::detail::rectwin_reg);
+    reg("windows", "bartlett", &signal::detail::bartlett_reg);
+    // MATLAB legacy alias `hanning` → also points at hann_reg. compat
+    // already has 'hann'; this aliases the same impl into compat as
+    // 'hanning' too (separate compat entry — different short-name).
+    reg("windows", "hanning",  &signal::detail::hann_reg);
+
+    // ── Waveform generation (chirp / pulses) ───────────────────────────
+    reg("waveform_generation", "chirp",    &signal::detail::chirp_reg);
+    reg("waveform_generation", "rectpuls", &signal::detail::rectpuls_reg);
+    reg("waveform_generation", "tripuls",  &signal::detail::tripuls_reg);
+    reg("waveform_generation", "gauspuls", &signal::detail::gauspuls_reg);
+    reg("waveform_generation", "pulstran", &signal::detail::pulstran_reg);
+
+    // ── Measurements (findpeaks, ...) ──────────────────────────────────
+    reg("measurements", "findpeaks", &signal::detail::findpeaks_reg);
+
+    // ── Core promotions (NAMESPACE_DESIGN.md §7, closed whitelist) ─────
+    // These 6 functions are general-purpose and reachable by short name
+    // even WITHOUT `import compat.*`. They get a third registration in
+    // core (namespace = ""). The same ExternalFunc pointer is shared
+    // across all three registrations.
+    engine.registerFunction("", "fft",       &signal::detail::fft_reg);
+    engine.registerFunction("", "ifft",      &signal::detail::ifft_reg);
+    engine.registerFunction("", "fftshift",  &signal::detail::fftshift_reg);
+    engine.registerFunction("", "ifftshift", &signal::detail::ifftshift_reg);
+    engine.registerFunction("", "conv",      &signal::detail::conv_reg);
+    engine.registerFunction("", "xcorr",     &signal::detail::xcorr_reg);
 }
 
 } // namespace numkit

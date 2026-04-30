@@ -211,7 +211,7 @@ uint8_t Compiler::varRegRead(const std::string &name)
 
     // Check if it's a known function — emit zero-arg CALL
     // In MATLAB, bare function name in expression context is a call: t1 = toc
-    if (engine_.hasFunction(name) || engine_.externalFuncs_.count(name)) {
+    if (engine_.hasFunction(name) || engine_.isKnownLeafName(name)) {
         uint8_t argBase = nextReg_;
         uint8_t dst = tempReg();
         int16_t funcIdx = addStringConstant(name);
@@ -627,6 +627,8 @@ uint8_t Compiler::compileNode(const ASTNode *node)
     case NodeType::GLOBAL_STMT:
     case NodeType::PERSISTENT_STMT:
         return compileGlobalPersistent(node);
+    case NodeType::IMPORT_DECL:
+        return compileImport(node);
     case NodeType::FIELD_ACCESS:
         return compileFieldAccess(node);
     case NodeType::DYNAMIC_FIELD_ACCESS: {
@@ -1176,7 +1178,7 @@ uint8_t Compiler::compileExprStmt(const ASTNode *node)
                 isKnownVar = true;
         }
 
-        if (!isKnownVar && (engine_.externalFuncs_.count(name) || engine_.hasFunction(name))) {
+        if (!isKnownVar && (engine_.isKnownLeafName(name) || engine_.hasFunction(name))) {
             // Workspace builtins inside functions → opcodes
             if (!isTopLevel_) {
                 if (name == "who") {
@@ -1429,6 +1431,29 @@ uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
         varRegWrite(name); // allocate register, mark as assigned
         chunk_.globalNames.push_back(name);
     }
+    return 0;
+}
+
+// ============================================================
+// Import declaration — emits PUSH_IMPORT bytecode that mutates
+// the current Environment's activeImports_ at runtime.
+// ============================================================
+uint8_t Compiler::compileImport(const ASTNode *node)
+{
+    BytecodeChunk::ImportSpec spec;
+    spec.wildcard = node->boolValue;
+    spec.alias = (spec.wildcard ? std::string{} : node->strValue);
+
+    // Join path components with '.' — convenient for runtime substring
+    // building when forming the lookup key in findExternal().
+    for (size_t i = 0; i < node->paramNames.size(); ++i) {
+        if (i > 0) spec.joinedPath.push_back('.');
+        spec.joinedPath.append(node->paramNames[i]);
+    }
+
+    int16_t idx = static_cast<int16_t>(chunk_.imports.size());
+    chunk_.imports.push_back(std::move(spec));
+    emitD(OpCode::PUSH_IMPORT, idx);
     return 0;
 }
 
@@ -2291,7 +2316,7 @@ uint8_t Compiler::compileCall(const ASTNode *node)
             bool isCallable = existing->isFuncHandle()
                               || (existing->isCell() && existing->numel() >= 1
                                   && existing->cellAt(0).isFuncHandle());
-            if (isCallable || (!engine_.externalFuncs_.count(name) && !engine_.hasFunction(name))) {
+            if (isCallable || (!engine_.isKnownLeafName(name) && !engine_.hasFunction(name))) {
                 isKnownVar = true;
             }
         }

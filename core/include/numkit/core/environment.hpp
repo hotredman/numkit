@@ -7,8 +7,20 @@
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 namespace numkit {
+
+// A single `import` declaration active in the current scope. See
+// NAMESPACE_DESIGN.md Sections 3-4 for resolution semantics.
+struct Import
+{
+    std::vector<std::string> path;  // ["signal", "transforms"] for `import signal.transforms.*`
+    bool wildcard = false;          // true for `.*` form
+    std::string alias;              // for `import x.y as alias`; "" otherwise
+    // For non-wildcard, non-alias single-symbol form (`import a.b.c`),
+    // path = [a, b, c] and the imported leaf name is path.back().
+};
 
 class Environment
 {
@@ -56,6 +68,13 @@ public:
 
     std::vector<std::string> localNames() const;
 
+    // ── Active imports (scope-local) ──────────────────────────
+    // Imports added via `import` statements at this scope. Lookups
+    // check this scope's imports first, then walk parent_ chain.
+    void pushImport(Import imp) { activeImports_.push_back(std::move(imp)); }
+    const std::vector<Import> &activeImports() const { return activeImports_; }
+    Environment *parentForImports() const { return parent_; }
+
 private:
     // Small buffer: inline storage for first N variables (avoids unordered_map for small scopes)
     static constexpr size_t SBO_SLOTS = 8;
@@ -71,6 +90,7 @@ private:
     std::unordered_map<std::string, Value> vars_;
 
     std::unordered_set<std::string> globals_;
+    std::vector<Import> activeImports_;
     Environment *parent_ = nullptr;             // non-owning, for lookup
     std::shared_ptr<Environment> owningParent_; // owning, for snapshots only
     Environment *globalsEnv_ = nullptr;

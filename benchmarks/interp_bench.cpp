@@ -3,9 +3,9 @@
 // Phase-10 sweep covering libs/fit (interp1, polyval, trapz). These
 // existed before the parity expansion but have never been benched.
 
-#include <numkit/builtin/math/elementary/polynomials.hpp>
+#include <numkit/builtin/math/poly/polynomials.hpp>
 #include <numkit/builtin/math/integration/integration.hpp>
-#include <numkit/builtin/math/interpolation/interp.hpp>
+#include <numkit/builtin/math/interp/interp.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>

@@ -43,7 +43,6 @@ public:
 
     void SetUp() override
     {
-        BuiltinLibrary::install(engine);
         capturedOutput.clear();
         engine.setOutputFunc([this](const std::string &s) { capturedOutput += s; });
 
@@ -52,6 +51,14 @@ public:
             engine.setBackend(Engine::Backend::TreeWalker);
         else
             engine.setBackend(Engine::Backend::VM);
+
+        // MATLAB-compat mode for tests: flatten all mirror-library
+        // functions into the workspace so existing tests can write
+        // `fft(x)`, `std(v)`, `plot(x,y)` etc. without explicit imports.
+        // Pre-Phase-7 this is a no-op (compat namespace empty); after
+        // migration it makes ~hundreds of namespaced functions reachable
+        // by short name.
+        engine.eval("import compat.*;");
     }
 
     // ── Convenience helpers ──────────────────────────────────

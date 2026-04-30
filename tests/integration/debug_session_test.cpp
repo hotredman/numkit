@@ -19,6 +19,7 @@ protected:
     void SetUp() override
     {
         engine.setOutputFunc([this](const std::string &s) { output += s; });
+        engine.eval("import compat.*;");
     }
 
     // Helper: start debug session, return status

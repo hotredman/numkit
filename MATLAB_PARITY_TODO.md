@@ -26,11 +26,32 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 - ⚠️ works as operator/partial form, but not callable under MATLAB-doc name
 - ❌ not implemented
 
+**Namespace placement** is annotated per-section below as `**NS: <namespace>**`.
+The namespace dictates the full call path (e.g. `signal.transforms.fft`).
+With `import compat.*` (MATLAB-mirror libs only) all these names become
+flat. See [NAMESPACE_DESIGN.md](NAMESPACE_DESIGN.md) for full rules.
+
+**Namespace map (top-level summary):**
+
+| MATLAB-doc top section | Namespace | Notes |
+|---|---|---|
+| Language Fundamentals | core | except Categorical / Tables (future) |
+| Mathematics | core | except Linear Algebra / ODE / Sparse (future) |
+| Fourier and Filtering (in Math) | mostly `signal.*` + 6 promotions | `fft, ifft, fftshift, ifftshift, conv, xcorr` in core |
+| Data Analysis → Descriptive Statistics | mixed | most → `stats.*`, signal-stats → `signal.*` |
+| Programming and Scripts | core | |
+| Graphics | `graphics.*` | with sub-namespaces by plot kind |
+| Data Import and Export | `io.*` | with sub-namespaces by I/O kind |
+| Signal Processing Toolbox | `signal.*` | with sub-namespaces matching this doc |
+
+Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
+`datetime.*`, `wavelet.*`. All MATLAB-mirror — `aliasIntoCompat` at install.
+
 ---
 
 ## 1. Language Fundamentals
 
-### Entering Commands — 2 ✅ + 0 ⚠️ / 9 = 22%
+### Entering Commands — 2 ✅ + 0 ⚠️ / 9 = 22% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -44,7 +65,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 33 ✅ + 3 ⚠️ / 55 = 65%
+### Matrices and Arrays — 33 ✅ + 3 ⚠️ / 55 = 65% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -104,7 +125,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `vertcat` | ✅ |  |
 | `zeros` | ✅ |  |
 
-### Control Flow — 9 ✅ + 0 ⚠️ / 11 = 81%
+### Control Flow — 9 ✅ + 0 ⚠️ / 11 = 81% — **NS: core (keywords)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -120,7 +141,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `try` | ✅ | keyword (`try/catch`) |
 | `while` | ✅ | keyword |
 
-### Numeric Types — 20 ✅ + 0 ⚠️ / 29 = 68%
+### Numeric Types — 20 ✅ + 0 ⚠️ / 29 = 68% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -154,7 +175,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 22 ✅ + 1 ⚠️ / 65 = 35%
+### Characters and Strings — 22 ✅ + 1 ⚠️ / 65 = 35% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -224,7 +245,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `strtrim` | ✅ |  |
 | `upper` | ✅ |  |
 
-### Structures — 7 ✅ + 0 ⚠️ / 14 = 50%
+### Structures — 7 ✅ + 0 ⚠️ / 14 = 50% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -243,7 +264,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `structfun` | ✅ |  |
 | `table2struct` | ❌ |  |
 
-### Cell Arrays — 4 ✅ + 0 ⚠️ / 17 = 23%
+### Cell Arrays — 4 ✅ + 0 ⚠️ / 17 = 23% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -265,7 +286,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `table2cell` | ❌ |  |
 | `timetable` | ❌ |  |
 
-### Function Handles — 0 ✅ + 0 ⚠️ / 6 = 0%
+### Function Handles — 0 ✅ + 0 ⚠️ / 6 = 0% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -276,7 +297,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `localfunctions` | ❌ |  |
 | `str2func` | ❌ | create handle |
 
-### Categorical Arrays — 1 ✅ + 0 ⚠️ / 17 = 5%
+### Categorical Arrays — 1 ✅ + 0 ⚠️ / 17 = 5% — **NS: `categorical.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -298,7 +319,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `setcats` | ❌ |  |
 | `summary` | ❌ |  |
 
-### Tables / Timetables — 6 ✅ + 0 ⚠️ / 66 = 9%
+### Tables / Timetables — 6 ✅ + 0 ⚠️ / 66 = 9% — **NS: `table.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -369,7 +390,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `width` | ❌ |  |
 | `writetable` | ❌ | needs table type |
 
-### Bit-wise Operations — 5 ✅ + 0 ⚠️ / 8 = 62%
+### Bit-wise Operations — 5 ✅ + 0 ⚠️ / 8 = 62% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -382,7 +403,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `bitxor` | ✅ |  |
 | `swapbytes` | ❌ |  |
 
-### Set Operations — 5 ✅ + 0 ⚠️ / 13 = 38%
+### Set Operations — 5 ✅ + 0 ⚠️ / 13 = 38% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -402,7 +423,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 2. Mathematics
 
-### Arithmetic — 12 ✅ + 14 ⚠️ / 34 = 76%
+### Arithmetic — 12 ✅ + 14 ⚠️ / 34 = 76% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -441,7 +462,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `uminus` | ⚠️ | works as unary `-` operator; not callable as named fn |
 | `uplus` | ⚠️ | works as unary `+` operator; not callable as named fn |
 
-### Trigonometry — 10 ✅ + 0 ⚠️ / 47 = 21%
+### Trigonometry — 10 ✅ + 0 ⚠️ / 47 = 21% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -493,7 +514,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `tand` | ❌ | degree |
 | `tanh` | ❌ | hyperbolic |
 
-### Exponents and Logarithms — 9 ✅ + 0 ⚠️ / 13 = 69%
+### Exponents and Logarithms — 9 ✅ + 0 ⚠️ / 13 = 69% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -511,7 +532,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `realsqrt` | ❌ |  |
 | `sqrt` | ✅ |  |
 
-### Special Functions — 5 ✅ + 0 ⚠️ / 24 = 20%
+### Special Functions — 5 ✅ + 0 ⚠️ / 24 = 20% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -540,7 +561,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `legendre` | ❌ |  |
 | `psi` | ❌ |  |
 
-### Discrete Math — 8 ✅ + 0 ⚠️ / 11 = 72%
+### Discrete Math — 8 ✅ + 0 ⚠️ / 11 = 72% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -556,7 +577,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `rat` | ❌ |  |
 | `rats` | ❌ |  |
 
-### Polynomials — 7 ✅ + 0 ⚠️ / 12 = 58%
+### Polynomials — 7 ✅ + 0 ⚠️ / 12 = 58% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -573,7 +594,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `residue` | ❌ | partial-fraction |
 | `roots` | ✅ |  |
 
-### Linear Algebra — 6 ✅ + 6 ⚠️ / 82 = 14%
+### Linear Algebra — 6 ✅ + 6 ⚠️ / 82 = 14% — **NS: `linalg.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -660,7 +681,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `triu` | ✅ |  |
 | `vecnorm` | ❌ | **deferred — libs/linalg** |
 
-### Random Number Generation — 5 ✅ + 0 ⚠️ / 6 = 83%
+### Random Number Generation — 5 ✅ + 0 ⚠️ / 6 = 83% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -671,7 +692,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `randstream` | ❌ |  |
 | `rng` | ✅ |  |
 
-### Interpolation — 8 ✅ + 0 ⚠️ / 18 = 44%
+### Interpolation — 8 ✅ + 0 ⚠️ / 18 = 44% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -694,7 +715,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `spline` | ✅ |  |
 | `unmkpp` | ❌ |  |
 
-### Optimization — 1 ✅ + 0 ⚠️ / 7 = 14%
+### Optimization — 1 ✅ + 0 ⚠️ / 7 = 14% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -706,7 +727,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `optimize` | ❌ |  |
 | `optimset` | ❌ |  |
 
-### Ordinary Differential Equations — 0 ✅ + 0 ⚠️ / 21 = 0%
+### Ordinary Differential Equations — 0 ✅ + 0 ⚠️ / 21 = 0% — **NS: `ode.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -732,7 +753,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `odextend` | ❌ | **deferred — libs/ode** |
 | `solveode` | ❌ |  |
 
-### Sparse Matrices — 4 ✅ + 0 ⚠️ / 53 = 7%
+### Sparse Matrices — 4 ✅ + 0 ⚠️ / 53 = 7% — **NS: `sparse.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -790,7 +811,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `treeplot` | ❌ | **deferred — libs/sparse** |
 | `unmesh` | ❌ | **deferred — libs/sparse** |
 
-### Fourier Analysis and Filtering — 8 ✅ + 0 ⚠️ / 21 = 38%
+### Fourier Analysis and Filtering — 8 ✅ + 0 ⚠️ / 21 = 38% — **NS: `signal.transforms.*` + 6 promotions in core (`fft, ifft, fftshift, ifftshift, conv, xcorr`)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -818,7 +839,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 3. Data Analysis
 
-### Descriptive Statistics — 14 ✅ + 0 ⚠️ / 33 = 42%
+### Descriptive Statistics — 14 ✅ + 0 ⚠️ / 33 = 42% — **NS: `stats.descriptive.*` / `stats.moving.*` / `stats.nan.*`. Exception: `xcorr/xcov/rms/rssq/peak2peak/peak2rms` → `signal.*` (signal-side stats)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -858,7 +879,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 4. Programming and Scripts
 
-### Workspace — 6 ✅ + 0 ⚠️ / 10 = 60%
+### Workspace — 6 ✅ + 0 ⚠️ / 10 = 60% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -873,7 +894,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `whos` | ✅ |  |
 | `workspacebrowser` | ❌ |  |
 
-### Error Handling (basic) — 4 ✅ + 0 ⚠️ / 6 = 66%
+### Error Handling (basic) — 4 ✅ + 0 ⚠️ / 6 = 66% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -884,7 +905,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `try` | ✅ | keyword (`try/catch`) |
 | `warning` | ✅ |  |
 
-### Exception Handling — 2 ✅ + 0 ⚠️ / 2 = 100%
+### Exception Handling — 2 ✅ + 0 ⚠️ / 2 = 100% — **NS: core (keyword + class)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -893,7 +914,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 5. Graphics
 
-### Line Plots — 2 ✅ + 0 ⚠️ / 12 = 16%
+### Line Plots — 2 ✅ + 0 ⚠️ / 12 = 16% — **NS: `graphics.line.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -910,7 +931,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `stackedplot` | ❌ |  |
 | `stairs` | ✅ |  |
 
-### Polar Plots — 3 ✅ + 0 ⚠️ / 19 = 15%
+### Polar Plots — 3 ✅ + 0 ⚠️ / 19 = 15% — **NS: `graphics.polar.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -934,7 +955,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `thetaticklabels` | ❌ |  |
 | `thetaticks` | ❌ |  |
 
-### Contour Plots — 2 ✅ + 0 ⚠️ / 7 = 28%
+### Contour Plots — 2 ✅ + 0 ⚠️ / 7 = 28% — **NS: `graphics.contour.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -946,7 +967,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `contourslice` | ❌ |  |
 | `fcontour` | ❌ |  |
 
-### Vector Fields — 0 ✅ + 0 ⚠️ / 6 = 0%
+### Vector Fields — 0 ✅ + 0 ⚠️ / 6 = 0% — **NS: `graphics.vector_fields.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -957,7 +978,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `streamline` | ❌ |  |
 | `streamslice` | ❌ |  |
 
-### Surface and Mesh Plots — 3 ✅ + 0 ⚠️ / 21 = 14%
+### Surface and Mesh Plots — 3 ✅ + 0 ⚠️ / 21 = 14% — **NS: `graphics.surface.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -983,7 +1004,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `surfnorm` | ❌ |  |
 | `waterfall` | ❌ |  |
 
-### Volume Visualization — 0 ✅ + 0 ⚠️ / 24 = 0%
+### Volume Visualization — 0 ✅ + 0 ⚠️ / 24 = 0% — **NS: `graphics.volume.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1012,7 +1033,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `subvolume` | ❌ |  |
 | `volumebounds` | ❌ |  |
 
-### Geographic Plots — 0 ✅ + 0 ⚠️ / 8 = 0%
+### Geographic Plots — 0 ✅ + 0 ⚠️ / 8 = 0% — **NS: `graphics.geographic.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1027,7 +1048,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 6. Data Import and Export (file I/O only)
 
-### Low-Level File I/O — 13 ✅ + 0 ⚠️ / 15 = 86%
+### Low-Level File I/O — 13 ✅ + 0 ⚠️ / 15 = 86% — **NS: `io.file_io.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1047,7 +1068,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `fwrite` | ✅ |  |
 | `openedfiles` | ❌ |  |
 
-### Text Files (CSV / dlm / readtable) — 1 ✅ + 0 ⚠️ / 16 = 6%
+### Text Files (CSV / dlm / readtable) — 1 ✅ + 0 ⚠️ / 16 = 6% — **NS: `io.text.*`. Exception: `readtable/writetable/readtimetable/writetimetable` → `table.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1068,7 +1089,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `writetable` | ❌ | needs table type |
 | `writetimetable` | ❌ |  |
 
-### Spreadsheets — 0 ✅ + 0 ⚠️ / 13 = 0%
+### Spreadsheets — 0 ✅ + 0 ⚠️ / 13 = 0% — **NS: `io.text.*`. Table-shaped readers (`readtable`/`writetable`) → `table.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1086,14 +1107,14 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `writetable` | ❌ | needs table type |
 | `writetimetable` | ❌ |  |
 
-### Workspace Save / Load — 0 ✅ + 0 ⚠️ / 2 = 0%
+### Workspace Save / Load — 0 ✅ + 0 ⚠️ / 2 = 0% — **NS: `io.workspace.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `loadobj` | ❌ |  |
 | `saveobj` | ❌ |  |
 
-### File Name Construction — 0 ✅ + 0 ⚠️ / 9 = 0%
+### File Name Construction — 0 ✅ + 0 ⚠️ / 9 = 0% — **NS: `io.paths.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1109,7 +1130,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 
 ## 7. Signal Processing Toolbox
 
-### Waveform Generation — 5 ✅ + 0 ⚠️ / 21 = 23%
+### Waveform Generation — 5 ✅ + 0 ⚠️ / 21 = 23% — **NS: `signal.waveform_generation.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1135,7 +1156,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `unshiftdata` | ❌ |  |
 | `vco` | ❌ | VCO |
 
-### Filter Design (FIR / IIR coefficient generators) — 6 ✅ + 0 ⚠️ / 37 = 16%
+### Filter Design (FIR / IIR coefficient generators) — 6 ✅ + 0 ⚠️ / 37 = 16% — **NS: `signal.filter_design.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1177,7 +1198,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `single` | ✅ |  |
 | `yulewalk` | ❌ | recursive YW |
 
-### Analog Filters (prototype + analog response) — 1 ✅ + 0 ⚠️ / 17 = 5%
+### Analog Filters (prototype + analog response) — 1 ✅ + 0 ⚠️ / 17 = 5% — **NS: `signal.filter_design.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1199,7 +1220,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `lp2hp` | ❌ |  |
 | `lp2lp` | ❌ |  |
 
-### Digital Filter Analysis (freqz / phasez / grpdelay / impz / ...) — 3 ✅ + 0 ⚠️ / 19 = 15%
+### Digital Filter Analysis (freqz / phasez / grpdelay / impz / ...) — 3 ✅ + 0 ⚠️ / 19 = 15% — **NS: `signal.filter_analysis.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1223,7 +1244,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `zerophase` | ❌ |  |
 | `zplane` | ❌ |  |
 
-### Digital Filtering (filter / filtfilt / sosfilt / lowpass / ...) — 8 ✅ + 0 ⚠️ / 41 = 19%
+### Digital Filtering (filter / filtfilt / sosfilt / lowpass / ...) — 8 ✅ + 0 ⚠️ / 41 = 19% — **NS: `signal.digital_filtering.*` + `signal.filter_implementation.*` (TF/SOS/SS/ZP conversions)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1269,7 +1290,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `zp2tf` | ✅ | inverse |
 | `zpk` | ❌ |  |
 
-### Multirate Signal Processing (decimate / interp / resample / ...) — 4 ✅ + 0 ⚠️ / 8 = 50%
+### Multirate Signal Processing (decimate / interp / resample / ...) — 4 ✅ + 0 ⚠️ / 8 = 50% — **NS: `signal.multirate.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1282,7 +1303,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `upfirdn` | ❌ |  |
 | `upsample` | ✅ |  |
 
-### Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony) — 0 ✅ + 0 ⚠️ / 25 = 0%
+### Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony) — 0 ✅ + 0 ⚠️ / 25 = 0% — **NS: `signal.parametric.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1312,7 +1333,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `schurrc` | ❌ | Schur recursion |
 | `stmcb` | ❌ | Steiglitz-McBride |
 
-### Correlation and Convolution (extras: alignsignals / finddelay / xcorr2 / cconv / convmtx) — 0 ✅ + 0 ⚠️ / 9 = 0%
+### Correlation and Convolution (extras: alignsignals / finddelay / xcorr2 / cconv / convmtx) — 0 ✅ + 0 ⚠️ / 9 = 0% — **NS: `signal.convolution.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1326,7 +1347,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `findsignal` | ❌ | pattern search |
 | `xcorr2` | ❌ | 2-D xcorr |
 
-### Transforms (FFT / DCT / DWT / Hilbert / CZT / Cepstrum) — 6 ✅ + 0 ⚠️ / 32 = 18%
+### Transforms (FFT / DCT / DWT / Hilbert / CZT / Cepstrum) — 6 ✅ + 0 ⚠️ / 32 = 18% — **NS: `signal.transforms.*`. Promotions in core: `fft, ifft, fftshift, ifftshift`. Future wavelet split: `cwt/dwt/modwt/...` → `wavelet.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1363,7 +1384,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `xspectrogram` | ❌ | cross-spectrogram |
 | `xwvd` | ❌ | cross WVD |
 
-### Windows (Hamming / Hann / Kaiser / Chebyshev / DPSS / ...) — 6 ✅ + 0 ⚠️ / 24 = 25%
+### Windows (Hamming / Hann / Kaiser / Chebyshev / DPSS / ...) — 6 ✅ + 0 ⚠️ / 24 = 25% — **NS: `signal.windows.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1392,7 +1413,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `tukeywin` | ❌ | tapered cosine |
 | `wvtool` | ❌ | GUI |
 
-### Parametric Spectral Estimation (pburg / pmtm / pmusic / ...) — 1 ✅ + 0 ⚠️ / 10 = 10%
+### Parametric Spectral Estimation (pburg / pmtm / pmusic / ...) — 1 ✅ + 0 ⚠️ / 10 = 10% — **NS: `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1407,7 +1428,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `pow2db` | ❌ |  |
 | `pyulear` | ❌ | Yule-Walker AR |
 
-### Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...) — 3 ✅ + 0 ⚠️ / 17 = 17%
+### Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...) — 3 ✅ + 0 ⚠️ / 17 = 17% — **NS: `signal.spectral_analysis.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1429,7 +1450,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `spectralentropy` | ❌ |  |
 | `tfestimate` | ❌ | TF estimate |
 
-### Spectral Measurements (bandpower / snr / sinad / thd / ...) — 0 ✅ + 0 ⚠️ / 18 = 0%
+### Spectral Measurements (bandpower / snr / sinad / thd / ...) — 0 ✅ + 0 ⚠️ / 18 = 0% — **NS: `signal.spectral_analysis.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1452,7 +1473,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `thd` | ❌ | total harmonic distortion |
 | `toi` | ❌ | third-order intercept |
 
-### Time-Frequency Analysis (spectrogram / stft / cwt / wvd / ...) — 1 ✅ + 0 ⚠️ / 27 = 3%
+### Time-Frequency Analysis (spectrogram / stft / cwt / wvd / ...) — 1 ✅ + 0 ⚠️ / 27 = 3% — **NS: `signal.time_frequency.*`. Wavelet/EMD subset (`cwt/wsst/vmd/hht/emd/fsst/ifsst`) → `wavelet.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1484,7 +1505,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `xspectrogram` | ❌ | cross-spectrogram |
 | `xwvd` | ❌ | cross WVD |
 
-### Pulse and Transition Metrics (risetime / dutycycle / overshoot / ...) — 0 ✅ + 0 ⚠️ / 12 = 0%
+### Pulse and Transition Metrics (risetime / dutycycle / overshoot / ...) — 0 ✅ + 0 ⚠️ / 12 = 0% — **NS: `signal.measurements.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1501,7 +1522,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `statelevels` | ❌ |  |
 | `undershoot` | ❌ |  |
 
-### Signal Descriptive Statistics (rms / peak2peak / envelope / sigROIs / ...) — 2 ✅ + 0 ⚠️ / 30 = 6%
+### Signal Descriptive Statistics (rms / peak2peak / envelope / sigROIs / ...) — 2 ✅ + 0 ⚠️ / 30 = 6% — **NS: `signal.measurements.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1536,7 +1557,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `splitlabels` | ❌ |  |
 | `zerocrossrate` | ❌ |  |
 
-### Smoothing and Denoising (smoothdata / hampel / sgolayfilt / ...) — 3 ✅ + 0 ⚠️ / 4 = 75%
+### Smoothing and Denoising (smoothdata / hampel / sgolayfilt / ...) — 3 ✅ + 0 ⚠️ / 4 = 75% — **NS: `signal.smoothing.*` + `signal.digital_filtering.*` (medfilt1, sgolayfilt). `smoothdata` itself → `stats.moving.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -1545,7 +1566,7 @@ like `signalMask` / `sigwin` / `labeledSignalSet` and `*-app` GUI launchers) are
 | `sgolay` | ✅ | Savitzky-Golay |
 | `sgolayfilt` | ✅ | Savitzky-Golay |
 
-### Vibration Analysis (envspectrum / order tracking / modal) — 0 ✅ + 0 ⚠️ / 13 = 0%
+### Vibration Analysis (envspectrum / order tracking / modal) — 0 ✅ + 0 ⚠️ / 13 = 0% — **NS: `signal.vibration.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|

@@ -1227,8 +1227,9 @@ enter_frame:
                 // External function — call directly (no frame push)
                 {
                     const std::string &funcName = chunk.strings[funcIdx];
-                    auto extIt = engine_.externalFuncs_.find(funcName);
-                    if (extIt != engine_.externalFuncs_.end()) {
+                    const ExternalFunc *fnPtr = engine_.findExternal(
+                        funcName, &engine_.workspaceEnv());
+                    if (fnPtr) {
                         Span<const Value> as(&R[argBase], na);
                         Value ob[1];
                         // Output-reuse hint: when no argument register
@@ -1252,7 +1253,7 @@ enter_frame:
                             ob[0] = std::move(R[I.a]);
                         Span<Value> os(ob, 1);
                         CallContext ctx{&engine_, &engine_.workspaceEnv()};
-                        extIt->second(as, nargout_val, os, ctx);
+                        (*fnPtr)(as, nargout_val, os, ctx);
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
@@ -1277,13 +1278,14 @@ enter_frame:
                 }
                 // External function with nout — call directly
                 {
-                    auto extIt = engine_.externalFuncs_.find(funcName);
-                    if (extIt != engine_.externalFuncs_.end()) {
+                    const ExternalFunc *fnPtr = engine_.findExternal(
+                        funcName, &engine_.workspaceEnv());
+                    if (fnPtr) {
                         std::vector<Value> outBuf(nout);
                         Span<const Value> as(&R[argBase], na);
                         Span<Value> os(outBuf.data(), nout);
                         CallContext ctx{&engine_, &engine_.workspaceEnv()};
-                        extIt->second(as, nout, os, ctx);
+                        (*fnPtr)(as, nout, os, ctx);
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
@@ -1326,6 +1328,23 @@ enter_frame:
                 if (I.a == 1 && !forStack_.empty())
                     forStack_.pop_back(); // break from for-loop
                 break;
+
+            case OpCode::PUSH_IMPORT: {
+                const auto &spec = chunk.imports[I.d];
+                Import imp;
+                // Split joinedPath ("a.b.c") back into path components.
+                size_t start = 0;
+                for (size_t i = 0; i <= spec.joinedPath.size(); ++i) {
+                    if (i == spec.joinedPath.size() || spec.joinedPath[i] == '.') {
+                        imp.path.emplace_back(spec.joinedPath.data() + start, i - start);
+                        start = i + 1;
+                    }
+                }
+                imp.wildcard = spec.wildcard;
+                imp.alias = spec.alias;
+                engine_.workspaceEnv().pushImport(std::move(imp));
+                break;
+            }
 
             case OpCode::ASSERT_DEF:
                 if (R[I.a].isUnset() || R[I.a].isDeleted()) {
@@ -2077,8 +2096,9 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
                                "pow",   "atan2"};
     const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
     if (fname) {
-        auto extIt = engine_.externalFuncs_.find(fname);
-        if (extIt != engine_.externalFuncs_.end()) {
+        const ExternalFunc *fnPtr = engine_.findExternal(
+            fname, &engine_.workspaceEnv());
+        if (fnPtr) {
             Span<const Value> as(&R[argBase], na);
             Value ob[1];
             // Output-reuse hint — same logic as the generic CALL path.
@@ -2094,7 +2114,7 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
                 ob[0] = std::move(R[I.a]);
             Span<Value> os(ob, 1);
             CallContext ctx{&engine_, &engine_.workspaceEnv()};
-            extIt->second(as, 1, os, ctx);
+            (*fnPtr)(as, 1, os, ctx);
             R[I.a] = std::move(ob[0]);
             return;
         }

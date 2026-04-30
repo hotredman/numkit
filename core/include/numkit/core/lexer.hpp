@@ -66,6 +66,8 @@ enum class TokenType {
     KW_CATCH,
     KW_GLOBAL,
     KW_PERSISTENT,
+    KW_IMPORT,
+    KW_AS,
     DQSTRING,
     END_OF_INPUT
 };

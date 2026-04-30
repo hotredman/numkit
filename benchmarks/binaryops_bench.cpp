@@ -7,7 +7,7 @@
 // intensity is lower (no transcendental), so the DRAM plateau shows
 // up sooner.
 
-#include <numkit/builtin/lang/operators/binary_ops.hpp>
+#include <numkit/builtin/language/operators/binary_ops.hpp>
 #include <memory_resource>
 #include <numkit/core/types.hpp>
 #include <numkit/core/value.hpp>

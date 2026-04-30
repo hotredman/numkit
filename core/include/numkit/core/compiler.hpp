@@ -178,6 +178,7 @@ private:
     uint8_t compileSwitch(const ASTNode *node);
     uint8_t compileTryCatch(const ASTNode *node);
     uint8_t compileGlobalPersistent(const ASTNode *node);
+    uint8_t compileImport(const ASTNode *node);
     uint8_t compileFieldAccess(const ASTNode *node);
     uint8_t compileFieldAssign(const ASTNode *node);
     uint8_t compileCellLiteral(const ASTNode *node);
