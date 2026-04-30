@@ -773,8 +773,25 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     os << qname << " is a user-defined function.\n";
                                 else if (ctx.engine->hasExternalFunction(qname))
                                     os << "built-in (" << qname << ")\n";
-                                else
-                                    os << "'" << qname << "' not found.\n";
+                                else {
+                                    // M-file lookup via Engine path registry.
+                                    bool found = false;
+                                    for (const auto &dir : ctx.engine->path()) {
+                                        std::string p = dir;
+                                        if (!p.empty() && p.back() != '/' && p.back() != '\\') p += '/';
+                                        p += qname + ".m";
+                                        try {
+                                            auto rp = ctx.engine->resolvePath(p);
+                                            if (rp.fs && rp.fs->exists(rp.path)) {
+                                                os << p << "\n";
+                                                found = true;
+                                                break;
+                                            }
+                                        } catch (...) {}
+                                    }
+                                    if (!found)
+                                        os << "'" << qname << "' not found.\n";
+                                }
 
                                 ctx.engine->outputText(os.str());
                                 outs[0] = Value::empty();
@@ -793,40 +810,62 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 if (args.size() >= 2 && args[1].isChar())
                                     typeFilter = args[1].toString();
 
-                                // Unsupported type filters
-                                if (typeFilter == "file" || typeFilter == "dir") {
-                                    warnNotSupported(ctx, "exist(name, '" + typeFilter + "')");
-                                    outs[0] = Value::scalar(0.0, ctx.engine->resource());
-                                    return;
-                                }
                                 if (typeFilter == "class") {
                                     warnNotSupported(ctx, "exist(name, 'class')");
                                     outs[0] = Value::scalar(0.0, ctx.engine->resource());
                                     return;
                                 }
 
+                                auto vfsExists = [&](const std::string &p) -> bool {
+                                    try {
+                                        auto rp = ctx.engine->resolvePath(p);
+                                        return rp.fs && rp.fs->exists(rp.path);
+                                    } catch (...) { return false; }
+                                };
+                                auto vfsIsDir = [&](const std::string &p) -> bool {
+                                    try {
+                                        auto rp = ctx.engine->resolvePath(p);
+                                        if (!rp.fs) return false;
+                                        auto st = rp.fs->stat(rp.path);
+                                        return st && st->kind == FileStat::Kind::Directory;
+                                    } catch (...) { return false; }
+                                };
+
                                 double code = 0;
                                 // Check local scope only for variables (don't leak to parent)
                                 bool isVar = (env->getLocal(varName) != nullptr);
-                                // Also check global declarations in current env
                                 if (!isVar && env->isGlobal(varName)) {
                                     auto *gs = env->globalsEnv();
                                     isVar = (gs && gs->get(varName) != nullptr);
                                 }
                                 bool isFunc = ctx.engine->hasFunction(varName);
 
+                                // Walk path list to check for `<name>.m` (m-file resolver)
+                                auto findMFile = [&]() -> bool {
+                                    for (const auto &dir : ctx.engine->path()) {
+                                        std::string p = dir;
+                                        if (!p.empty() && p.back() != '/' && p.back() != '\\') p += '/';
+                                        p += varName + ".m";
+                                        if (vfsExists(p)) return true;
+                                    }
+                                    return false;
+                                };
+
                                 if (typeFilter.empty()) {
-                                    // No filter: return first match
-                                    if (isVar)
-                                        code = 1;
-                                    else if (isFunc)
-                                        code = 5;
+                                    if (isVar)              code = 1;
+                                    else if (isFunc)        code = 5;
+                                    else if (vfsExists(varName)) code = 2;       // file
+                                    else if (findMFile())   code = 2;            // m-file in path
                                 } else if (typeFilter == "var") {
-                                    if (isVar)
-                                        code = 1;
+                                    if (isVar)              code = 1;
                                 } else if (typeFilter == "builtin") {
-                                    if (ctx.engine->hasExternalFunction(varName))
-                                        code = 5;
+                                    if (ctx.engine->hasExternalFunction(varName)) code = 5;
+                                } else if (typeFilter == "file") {
+                                    // Direct path — file or m-file in search path
+                                    if (vfsExists(varName))                       code = 2;
+                                    else if (findMFile())                          code = 2;
+                                } else if (typeFilter == "dir") {
+                                    if (vfsIsDir(varName))                        code = 7;
                                 }
 
                                 outs[0] = Value::scalar(code, ctx.engine->resource());
@@ -886,6 +925,75 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                     ctx.engine->outputText(os.str());
                                     outs[0] = Value::empty();
                                 }
+                            });
+
+    // ── addpath / rmpath / path / rehash / run (Phase 9b) ──────
+    engine.registerFunction("addpath",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                for (const auto &a : args) {
+                                    if (a.isChar()) ctx.engine->addPath(a.toString());
+                                }
+                                outs[0] = Value::empty();
+                            });
+
+    engine.registerFunction("rmpath",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                for (const auto &a : args) {
+                                    if (a.isChar()) ctx.engine->rmPath(a.toString());
+                                }
+                                outs[0] = Value::empty();
+                            });
+
+    engine.registerFunction("path",
+                            [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
+                                // path() with no args: print current path; with nargout, return as char string.
+                                // path('a:b:c') in MATLAB also sets the path — we treat single-arg as
+                                // a list of paths (string with pathsep) and replace.
+                                if (args.empty()) {
+                                    const auto &paths = ctx.engine->path();
+                                    if (nargout == 0) {
+                                        std::ostringstream os;
+                                        for (const auto &p : paths) os << p << "\n";
+                                        ctx.engine->outputText(os.str());
+                                        outs[0] = Value::empty();
+                                    } else {
+                                        // Return as a single newline-joined char vector
+                                        std::ostringstream os;
+                                        for (size_t i = 0; i < paths.size(); ++i) {
+                                            if (i) os << "\n";
+                                            os << paths[i];
+                                        }
+                                        outs[0] = Value::fromString(os.str(), ctx.engine->resource());
+                                    }
+                                    return;
+                                }
+                                // path(p1, p2, ...) — replace path with the given list.
+                                // Drop existing entries first.
+                                auto current = ctx.engine->path();
+                                for (const auto &p : current) ctx.engine->rmPath(p);
+                                for (const auto &a : args) {
+                                    if (a.isChar()) ctx.engine->addPath(a.toString());
+                                }
+                                outs[0] = Value::empty();
+                            });
+
+    engine.registerFunction("rehash",
+                            [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+                                ctx.engine->rehashMFiles();
+                                outs[0] = Value::empty();
+                            });
+
+    engine.registerFunction("run",
+                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                                if (args.empty() || !args[0].isChar())
+                                    throw std::runtime_error("run requires a string filename");
+                                std::string p = args[0].toString();
+                                auto rp = ctx.engine->resolvePath(p);
+                                if (!rp.fs || !rp.fs->exists(rp.path))
+                                    throw std::runtime_error("run: file not found: " + p);
+                                std::string content = rp.fs->readFile(rp.path);
+                                ctx.engine->eval(content);
+                                outs[0] = Value::empty();
                             });
 }
 

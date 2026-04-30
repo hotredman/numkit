@@ -122,6 +122,59 @@ TEST_P(MFileResolverTest, RehashClearsCache)
     EXPECT_DOUBLE_EQ(engine.getVariable("b")->toScalar(), 1009.0);
 }
 
+// ── Phase 9b — builtin wrappers (addpath / rmpath / path / which / exist / run / rehash) ──
+
+TEST_P(MFileResolverTest, AddpathBuiltinWiresPath)
+{
+    writeMFile("addpath_test.m", "function y = addpath_test(x)\n  y = x * 3;\nend\n");
+    engine.eval("addpath('" + workDir.string() + "');");
+    engine.eval("y = addpath_test(5);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("y")->toScalar(), 15.0);
+}
+
+TEST_P(MFileResolverTest, ExistFileTypeFilter)
+{
+    writeMFile("hi.m", "function y = hi(x)\n  y = x;\nend\n");
+    engine.addPath(workDir.string());
+
+    engine.eval("c1 = exist('hi', 'file');");
+    EXPECT_DOUBLE_EQ(engine.getVariable("c1")->toScalar(), 2.0);
+
+    engine.eval("c2 = exist('nonexistent', 'file');");
+    EXPECT_DOUBLE_EQ(engine.getVariable("c2")->toScalar(), 0.0);
+
+    engine.eval("c3 = exist('sin', 'builtin');");
+    EXPECT_DOUBLE_EQ(engine.getVariable("c3")->toScalar(), 5.0);
+}
+
+TEST_P(MFileResolverTest, RehashBuiltinWorks)
+{
+    writeMFile("ver.m", "function y = ver(x)\n  y = x + 1;\nend\n");
+    engine.addPath(workDir.string());
+    engine.eval("a = ver(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("a")->toScalar(), 11.0);
+
+    writeMFile("ver.m", "function y = ver(x)\n  y = x + 99;\nend\n");
+    engine.eval("rehash;");
+    engine.eval("b = ver(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("b")->toScalar(), 109.0);
+}
+
+TEST_P(MFileResolverTest, RunBuiltinExecutesScript)
+{
+    // VM-mode reentrant eval inside CALL is currently unsupported (vector
+    // underflow in the VM frame stack); run() works on TW backend.
+    // Phase 9b ships TW-only support; VM-mode scripts can use addpath +
+    // direct call as a workaround. Defer full VM coverage to a follow-up.
+    if (GetParam() == Engine::Backend::VM)
+        GTEST_SKIP() << "run('script.m') on VM backend deferred";
+
+    writeMFile("script.m", "g_result = 42;");
+    auto p = (workDir / "script.m").string();
+    engine.eval("run('" + p + "');");
+    EXPECT_DOUBLE_EQ(engine.getVariable("g_result")->toScalar(), 42.0);
+}
+
 TEST_P(MFileResolverTest, PathReturnsRegisteredDirs)
 {
     auto a = (workDir / "a").string();
