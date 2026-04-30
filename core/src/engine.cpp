@@ -276,13 +276,165 @@ bool Engine::hasUserFunction(const std::string &name) const
            || userFuncs_.count(name) > 0;
 }
 
-const UserFunction *Engine::lookupUserFunction(const std::string &name) const
+const UserFunction *Engine::lookupUserFunctionLocal(const std::string &name) const
 {
     auto it = scriptLocalUserFuncs_.find(name);
     if (it != scriptLocalUserFuncs_.end())
         return &it->second;
     auto it2 = userFuncs_.find(name);
     return it2 != userFuncs_.end() ? &it2->second : nullptr;
+}
+
+const UserFunction *Engine::lookupUserFunction(const std::string &name)
+{
+    if (auto *f = lookupUserFunctionLocal(name))
+        return f;
+    // Fallback: parse-and-load <name>.m from search path.
+    return resolveMFile_(name);
+}
+
+void Engine::addPath(const std::string &dir)
+{
+    // De-dup: ignore if already present.
+    for (const auto &p : mPath_) {
+        if (p == dir) return;
+    }
+    mPath_.push_back(dir);
+}
+
+void Engine::rmPath(const std::string &dir)
+{
+    auto it = std::find(mPath_.begin(), mPath_.end(), dir);
+    if (it != mPath_.end()) mPath_.erase(it);
+}
+
+void Engine::rehashMFiles()
+{
+    // Drop cache entries AND the user-function/compiled mirrors created
+    // by resolveMFile_. Functions registered by execFunctionDef from
+    // top-level scripts are kept — only m-file-loaded ones should go.
+    for (const auto &[name, _] : mFileCache_) {
+        userFuncs_.erase(name);
+        if (compiler_) {
+            // Compiler's compiledFuncs_ has no per-name eraser exposed;
+            // a `clearCompiledFuncs()` exists but wipes the whole map,
+            // which is heavier than needed. For correctness we accept
+            // the over-clear: rehash is rare, and existing function
+            // chunks just re-compile on next call.
+            compiler_->clearCompiledFuncs();
+        }
+    }
+    mFileCache_.clear();
+}
+
+const UserFunction *Engine::resolveMFile_(const std::string &name)
+{
+    // Build search-path list: script-origin first (if any), then mPath_.
+    std::vector<std::string> searchDirs;
+    if (auto *origin = currentScriptOrigin())
+        searchDirs.push_back(*origin);
+    searchDirs.insert(searchDirs.end(), mPath_.begin(), mPath_.end());
+
+    for (const auto &dir : searchDirs) {
+        std::string userPath = dir;
+        if (!userPath.empty() && userPath.back() != '/' && userPath.back() != '\\')
+            userPath += '/';
+        userPath += name + ".m";
+
+        ResolvedPath rp;
+        try {
+            rp = resolvePath(userPath);
+        } catch (const std::exception &) {
+            continue;
+        }
+        if (!rp.fs || !rp.fs->exists(rp.path))
+            continue;
+
+        // Cache hit? Validate via mtime; re-parse if stale.
+        auto cit = mFileCache_.find(name);
+        if (cit != mFileCache_.end() && cit->second.fullPath == userPath) {
+            auto st = rp.fs->stat(rp.path);
+            int64_t curMtime = st ? st->mtime : 0;
+            if (curMtime != 0 && curMtime == cit->second.mtime) {
+                if (auto *uf = lookupUserFunctionLocal(name))
+                    return uf;
+            }
+            // Stale or no mtime — drop and re-parse.
+            mFileCache_.erase(cit);
+            userFuncs_.erase(name);
+        }
+
+        // Read + parse + extract FUNCTION_DEF.
+        std::string content;
+        try {
+            content = rp.fs->readFile(rp.path);
+        } catch (const std::exception &) {
+            continue;
+        }
+
+        Lexer lexer(content);
+        std::vector<Token> tokens;
+        try {
+            tokens = lexer.tokenize();
+        } catch (const std::exception &) {
+            continue;
+        }
+        Parser parser(tokens);
+        ASTNodePtr ast;
+        try {
+            ast = parser.parse();
+        } catch (const std::exception &) {
+            continue;
+        }
+        if (!ast) continue;
+
+        // First top-level FUNCTION_DEF whose name matches `name`.
+        const ASTNode *funcDef = nullptr;
+        if (ast->type == NodeType::BLOCK) {
+            for (const auto &c : ast->children) {
+                if (c && c->type == NodeType::FUNCTION_DEF && c->strValue == name) {
+                    funcDef = c.get();
+                    break;
+                }
+            }
+        } else if (ast->type == NodeType::FUNCTION_DEF && ast->strValue == name) {
+            funcDef = ast.get();
+        }
+        if (!funcDef) continue;
+
+        // Build UserFunction (mirrors TreeWalker::execFunctionDef).
+        UserFunction func;
+        func.name = name;
+        func.params = funcDef->paramNames;
+        func.returns = funcDef->returnNames;
+        func.body = std::shared_ptr<const ASTNode>(cloneNode(funcDef->children[0].get()));
+        func.closureEnv = nullptr;
+
+        // Register for VM dispatch (mirrors what execFunctionDef +
+        // beginScript pre-compile pass do for in-script function defs).
+        if (compiler_) {
+            try {
+                compiler_->registerFunction(funcDef);
+            } catch (const std::exception &) {
+                // Compiler errors are non-fatal here — TW will still
+                // dispatch through userFuncs_; only VM-mode invocations
+                // will fall through to the generic CALL → external
+                // path, which fails cleanly.
+            }
+        }
+        userFuncs_[name] = std::move(func);
+
+        // Cache stat metadata for mtime-based invalidation.
+        MFileCacheEntry e;
+        e.fullPath = userPath;
+        if (auto st = rp.fs->stat(rp.path))
+            e.mtime = st->mtime;
+        e.sourceCode = std::make_shared<const std::string>(std::move(content));
+        mFileCache_[name] = std::move(e);
+
+        return &userFuncs_[name];
+    }
+    return nullptr;
 }
 
 bool Engine::hasExternalFunction(const std::string &name) const

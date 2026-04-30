@@ -157,15 +157,34 @@ public:
                                                 size_t nout,
                                                 Environment *env = nullptr);
 
-    // Unified lookup — script-scope first, then workspace-scope.
-    // Returns nullptr when the name isn't a user function.
-    const UserFunction *lookupUserFunction(const std::string &name) const;
+    // Unified lookup — script-scope first, then workspace-scope, then
+    // an m-file resolver pass over the configured search path
+    // (script-origin → addPath_-list). Returns nullptr when the name
+    // isn't found anywhere. May parse-and-cache an m-file as a
+    // side-effect.
+    const UserFunction *lookupUserFunction(const std::string &name);
+
+    // Const variant — never triggers the m-file resolver. Use for
+    // pure introspection / "is this CURRENTLY known" checks.
+    const UserFunction *lookupUserFunctionLocal(const std::string &name) const;
 
     // Clear workspace-scope user functions. Script-local functions
     // live in a separate bucket (see beginScript/endScript) and are
     // untouched — MATLAB treats file-scoped functions as lexically
     // part of the script, not the workspace.
     void clearUserFunctions();
+
+    // ── M-file path registry (Phase 9) ─────────────────────────────
+    // Directories searched (in order) by lookupUserFunction's m-file
+    // resolver pass. Paths are VFS-resolvable strings (e.g.
+    // "native:/scripts", "local:/work", or just a relative path).
+    void addPath(const std::string &dir);
+    void rmPath(const std::string &dir);
+    const std::vector<std::string> &path() const { return mPath_; }
+
+    // Drop all cached m-file entries — next lookup re-scans the disk.
+    // Powers MATLAB's `rehash` builtin.
+    void rehashMFiles();
 
     // Mark the entry/exit of a top-level script or function
     // evaluation. While a script is active, any FUNCTION_DEF it
@@ -355,6 +374,22 @@ private:
     // file-scoped functions survive a mid-script clear.
     std::unordered_map<std::string, UserFunction> scriptLocalUserFuncs_;
     std::vector<std::unordered_map<std::string, UserFunction>> savedScriptLocalUserFuncs_;
+
+    // ── M-file resolver state (Phase 9) ───────────────────────────
+    std::vector<std::string> mPath_;
+    struct MFileCacheEntry
+    {
+        std::string fullPath;       // VFS-prefixed, the resolved location
+        int64_t mtime = 0;          // 0 if backend can't supply mtime
+        std::string contentHash;    // fallback when mtime is unavailable
+        std::shared_ptr<const std::string> sourceCode;  // keeps AST live
+    };
+    std::unordered_map<std::string, MFileCacheEntry> mFileCache_;
+    // Helper — returns nullptr if `name`.m can't be located in any of
+    // (script-origin, mPath_-list) or fails to parse. On success caches
+    // the parsed UserFunction in userFuncs_ and the compiled chunk in
+    // the Compiler.
+    const UserFunction *resolveMFile_(const std::string &name);
 
     // Debugger
     std::shared_ptr<DebugObserver> debugObserver_;
