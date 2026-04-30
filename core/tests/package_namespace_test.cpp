@@ -221,6 +221,70 @@ TEST_P(PackageNamespaceTest, LocalFunctionVariableShadowsNamespace)
     EXPECT_DOUBLE_EQ(y->toScalar(), 99.0);
 }
 
+TEST_P(PackageNamespaceTest, MultiImportSameLeafInnermostWins)
+{
+    // Two packages both define `target.m`. With both imported as
+    // wildcards, MATLAB resolves "innermost-import wins" — the
+    // last-pushed import shadows the earlier one when looking up the
+    // bare name. Our env walks innermost-first, so behaviour matches.
+    writeFile(workDir / "+lib_x" / "target.m",
+              "function y = target(z)\n  y = z + 1;\nend\n");
+    writeFile(workDir / "+lib_y" / "target.m",
+              "function y = target(z)\n  y = z + 100;\nend\n");
+    engine.addPath(workDir.string());
+    engine.eval("import lib_x.*; import lib_y.*; r = target(0);");
+    auto *r = engine.getVariable("r");
+    ASSERT_NE(r, nullptr);
+    EXPECT_DOUBLE_EQ(r->toScalar(), 100.0);  // lib_y (last imported) wins
+}
+
+TEST_P(PackageNamespaceTest, AliasImportUnsupportedClearError)
+{
+    // `import a.b as alias` then `alias.foo(x)` is a known gap — the
+    // resolver doesn't yet substitute the alias when building the
+    // dotted name. Test pins the current behaviour: the bare-name
+    // fallback throws, and the alias-prefixed call also throws since
+    // `alias` isn't a workspace variable.
+    writeFile(workDir / "+aliaspkg" / "fn.m",
+              "function y = fn(x)\n  y = x;\nend\n");
+    engine.addPath(workDir.string());
+    EXPECT_THROW(engine.eval("import aliaspkg as ap; y = ap.fn(1);"),
+                 std::exception);
+}
+
+TEST_P(PackageNamespaceTest, LargeStructArrayAutoGrow)
+{
+    if (GetParam() == Engine::Backend::VM)
+        GTEST_SKIP() << "VM auto-grow tested elsewhere; this checks large size";
+
+    engine.eval("clear g;");
+    // 50 incremental writes. Each grows the array if needed.
+    for (int i = 1; i <= 50; ++i)
+        engine.eval("g(" + std::to_string(i) + ").x = "
+                    + std::to_string(i * 2) + ";");
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_EQ(g->numel(), 50u);
+    engine.eval("v = g(50).x;");
+    EXPECT_DOUBLE_EQ(engine.getVariable("v")->toScalar(), 100.0);
+}
+
+TEST_P(PackageNamespaceTest, QualifiedCallFromFunctionBody)
+{
+    // Direct qualified call originating from inside another function's
+    // body — root-identifier shadow check must consult the local
+    // scope, not just workspace.
+    writeFile(workDir / "+nspkg" / "double_it.m",
+              "function y = double_it(x)\n  y = 2*x;\nend\n");
+    writeFile(workDir / "caller.m",
+              "function y = caller(z)\n  y = nspkg.double_it(z) + 1;\nend\n");
+    engine.addPath(workDir.string());
+    engine.eval("y = caller(10);");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 21.0);
+}
+
 TEST_P(PackageNamespaceTest, SameLeafInTwoPackagesNoCollision)
 {
     // +pkg_a/foo.m returns input + 1.

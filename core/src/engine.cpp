@@ -172,7 +172,13 @@ static bool walkImportCandidates_(const std::string &name,
                                    Fn &&tryQualified)
 {
     auto runOne = [&](const Environment *cur) -> bool {
-        for (const auto &imp : cur->activeImports()) {
+        // Walk imports newest-first: in `import a.*; import b.*;` the
+        // second import shadows the first when both contain the same
+        // leaf. activeImports() pushes append-only, so iterate in
+        // reverse order.
+        const auto &imps = cur->activeImports();
+        for (auto rit = imps.rbegin(); rit != imps.rend(); ++rit) {
+            const auto &imp = *rit;
             if (imp.path.empty()) continue;
             std::string qualified;
             qualified.reserve(64);
