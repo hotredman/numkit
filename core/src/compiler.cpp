@@ -57,7 +57,7 @@ BytecodeChunk Compiler::compile(const ASTNode *ast, std::shared_ptr<const std::s
     // Inherit prior-chunk `global X` declarations so split-mode execution
     // keeps routing writes through globalsEnv_. Engine::runOneChunk keeps
     // this set in sync after every top-level chunk runs.
-    for (const auto &g : engine_.topLevelGlobals_)
+    for (const auto &g : engine_.topLevelGlobalNames())
         chunk_.globalNames.push_back(g);
 
     // Pre-import: scan AST for identifiers that exist in workspaceEnv,
@@ -562,7 +562,7 @@ int16_t Compiler::addConstant(double value)
         }
     }
     int16_t idx = static_cast<int16_t>(chunk_.constants.size());
-    chunk_.constants.push_back(Value::scalar(value, engine_.mr_));
+    chunk_.constants.push_back(Value::scalar(value, engine_.resource()));
     return idx;
 }
 
@@ -2650,7 +2650,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     // Case 1: @funcname — handle to existing function
     if (!node->strValue.empty() && node->children.empty()) {
         uint8_t dst = tempReg();
-        Value fh = Value::funcHandle(node->strValue, engine_.mr_);
+        Value fh = Value::funcHandle(node->strValue, engine_.resource());
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
         emitAD(OpCode::LOAD_CONST, dst, constIdx);
@@ -2711,13 +2711,13 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
         uf.returns = {"__result__"};
         uf.body = std::shared_ptr<const ASTNode>(cloneNode(funcNode->children[0].get()));
         uf.closureEnv = nullptr;
-        engine_.userFuncs_[anonName] = std::move(uf);
+        engine_.adoptUserFunction(anonName, std::move(uf));
     }
 
     if (capturedOuterRegs.empty()) {
         // No captures — simple func handle
         uint8_t dst = tempReg();
-        Value fh = Value::funcHandle(anonName, engine_.mr_);
+        Value fh = Value::funcHandle(anonName, engine_.resource());
         int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
         chunk_.constants.push_back(std::move(fh));
         emitAD(OpCode::LOAD_CONST, dst, constIdx);
@@ -2731,7 +2731,7 @@ uint8_t Compiler::compileAnonFunc(const ASTNode *node)
     std::vector<uint8_t> elemRegs;
     // funcHandle constant
     uint8_t fhReg = tempReg();
-    Value fh = Value::funcHandle(anonName, engine_.mr_);
+    Value fh = Value::funcHandle(anonName, engine_.resource());
     int16_t constIdx = static_cast<int16_t>(chunk_.constants.size());
     chunk_.constants.push_back(std::move(fh));
     emitAD(OpCode::LOAD_CONST, fhReg, constIdx);
@@ -2771,10 +2771,10 @@ uint8_t Compiler::compileFunctionDef(const ASTNode *node)
 
     if (scriptDepth_ > 0) {
         scriptLocalCompiledFuncs_[node->strValue] = std::move(funcChunk);
-        engine_.scriptLocalUserFuncs_[node->strValue] = std::move(uf);
+        engine_.adoptUserFunction(node->strValue, std::move(uf), /*scriptScope=*/true);
     } else {
         compiledFuncs_[node->strValue] = std::move(funcChunk);
-        engine_.userFuncs_[node->strValue] = std::move(uf);
+        engine_.adoptUserFunction(node->strValue, std::move(uf), /*scriptScope=*/false);
     }
     return 0;
 }
@@ -2804,10 +2804,10 @@ void Compiler::registerFunctionAs(const std::string &qualifiedName,
 
     if (scriptDepth_ > 0) {
         scriptLocalCompiledFuncs_[qualifiedName] = std::move(funcChunk);
-        engine_.scriptLocalUserFuncs_[qualifiedName] = std::move(uf);
+        engine_.adoptUserFunction(qualifiedName, std::move(uf), /*scriptScope=*/true);
     } else {
         compiledFuncs_[qualifiedName] = std::move(funcChunk);
-        engine_.userFuncs_[qualifiedName] = std::move(uf);
+        engine_.adoptUserFunction(qualifiedName, std::move(uf), /*scriptScope=*/false);
     }
 }
 
