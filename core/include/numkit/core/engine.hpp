@@ -270,6 +270,11 @@ public:
     void popScriptOrigin();
     const std::string *currentScriptOrigin() const;
 
+    // Current working directory used to resolve relative paths. Empty
+    // means "use NUMKIT_CWD or process default". Set/read by cd/pwd.
+    const std::string &cwd() const { return cwd_; }
+    void setCwd(const std::string &p) { cwd_ = p; }
+
     struct ResolvedPath
     {
         VirtualFS *fs;
@@ -399,6 +404,7 @@ private:
     // Virtual filesystem registry + script-origin stack
     std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
     std::vector<std::string> scriptOriginStack_;
+    std::string cwd_;
 
     // MATLAB-style open-file table
     std::unordered_map<int, OpenFile> openFiles_;
