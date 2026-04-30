@@ -47,4 +47,24 @@ ASTNodePtr cloneNode(const ASTNode *src)
     return dst;
 }
 
+std::string tryBuildQualifiedName(const ASTNode *node, const ASTNode **rootIdent)
+{
+    if (!node || node->type != NodeType::FIELD_ACCESS)
+        return {};
+    std::string out;
+    const ASTNode *cur = node;
+    while (cur && cur->type == NodeType::FIELD_ACCESS && cur->children.size() == 1) {
+        if (!out.empty()) out.insert(0, ".");
+        out.insert(0, cur->strValue);
+        cur = cur->children[0].get();
+    }
+    if (!cur || cur->type != NodeType::IDENTIFIER)
+        return {};
+    out.insert(0, ".");
+    out.insert(0, cur->strValue);
+    if (rootIdent)
+        *rootIdent = cur;
+    return out;
+}
+
 } // namespace numkit

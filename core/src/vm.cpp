@@ -1077,24 +1077,7 @@ enter_frame:
                 const std::string &fname = chunk.strings[I.d];
                 size_t idx = static_cast<size_t>(R[I.b].toScalar()) - 1;
                 Value &obj = R[I.a];
-                if (obj.isEmpty() || !obj.isStruct())
-                    obj = Value::structArray(0, 0, engine_.resource());
-                if (idx >= obj.numel()) {
-                    size_t newSize = idx + 1;
-                    bool isCol = (obj.dims().cols() == 1
-                                   && obj.dims().rows() > 1);
-                    size_t newRows = isCol ? newSize : 1;
-                    size_t newCols = isCol ? 1       : newSize;
-                    Value grown = Value::structArray(newRows, newCols,
-                                                     engine_.resource());
-                    for (size_t k = 0; k < obj.numel(); ++k) {
-                        auto &dst = grown.structArrayElem(k);
-                        const auto &src = obj.structArrayElem(k);
-                        for (const auto &[kn, vv] : src)
-                            dst.emplace(kn, vv);
-                    }
-                    obj = std::move(grown);
-                }
+                obj.growStructArrayTo(idx, engine_.resource());
                 obj.structArrayElem(idx)[fname] = R[I.c];
                 break;
             }
@@ -1342,16 +1325,13 @@ enter_frame:
                         break;
                     }
                     // M-file fallback (Phase 9a; Phase 10 adds packages).
-                    // The resolver returns the canonical UserFunction —
-                    // its `name` is qualified for +pkg/foo.m and bare
-                    // for plain foo.m. Use it as the compiled-chunk key.
+                    // Compiler::registerFunctionAs binds the chunk under
+                    // the canonical name returned by lookupUserFunction —
+                    // qualified for +pkg/foo.m, bare for plain foo.m.
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName,
                                                         &engine_.workspaceEnv())) {
-                        const BytecodeChunk *found = findCompiledFunc(uf->name);
-                        if (!found && uf->name != funcName)
-                            found = findCompiledFunc(funcName);
-                        if (found) {
+                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
                             pushCallFrame(*found, &R[argBase], na,
@@ -1392,16 +1372,12 @@ enter_frame:
                             R[outBase + i] = std::move(outBuf[i]);
                         break;
                     }
-                    // M-file fallback (Phase 9a / 10). The resolver
-                    // returns the canonical UserFunction whose `name`
-                    // is the qualified key the compiler used.
+                    // M-file fallback (Phase 9a / 10). Same canonical-name
+                    // dispatch as CALL above.
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName,
                                                         &engine_.workspaceEnv())) {
-                        const BytecodeChunk *found = findCompiledFunc(uf->name);
-                        if (!found && uf->name != funcName)
-                            found = findCompiledFunc(funcName);
-                        if (found) {
+                        if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
                             pushCallFrame(*found, &R[argBase], na,

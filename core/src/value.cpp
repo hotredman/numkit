@@ -2621,6 +2621,33 @@ bool Value::isStructArray() const
     return isHeap() && heap_->type == ValueType::STRUCT && heap_->structArray
            && heap_->structArray->size() > 1;
 }
+
+void Value::growStructArrayTo(size_t idx, std::pmr::memory_resource *mr)
+{
+    if (!mr) {
+        mr = (isHeap() && heap_->mr) ? heap_->mr
+                                      : std::pmr::get_default_resource();
+    }
+    if (isEmpty() || !isHeap() || heap_->type != ValueType::STRUCT
+        || !heap_->structArray) {
+        *this = Value::structArray(0, 0, mr);
+    }
+    if (idx < numel())
+        return;
+
+    const size_t newSize = idx + 1;
+    const bool isCol = (dims().cols() == 1 && dims().rows() > 1);
+    const size_t newRows = isCol ? newSize : 1;
+    const size_t newCols = isCol ? 1       : newSize;
+    Value grown = Value::structArray(newRows, newCols, mr);
+    for (size_t k = 0; k < numel(); ++k) {
+        auto &dst = grown.structArrayElem(k);
+        const auto &src = structArrayElem(k);
+        for (const auto &[kn, vv] : src)
+            dst.emplace(kn, vv);
+    }
+    *this = std::move(grown);
+}
 std::pmr::map<std::string, Value> &Value::structArrayElem(size_t i)
 {
     if (!isHeap() || heap_->type != ValueType::STRUCT || !heap_->structArray)

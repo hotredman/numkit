@@ -294,6 +294,13 @@ public:
     // ensure i < numel(). Throws when called on a single struct (use
     // structFields() there instead).
     std::pmr::map<std::string, Value> &structArrayElem(size_t i);
+
+    // Grow a struct array so that linear index `idx` is in bounds.
+    // No-op if already large enough. Coerces the receiver to a fresh
+    // struct array if it's empty/unset. Row-vector / column-vector
+    // shape preserved; default to row vector for empty / 1×1 starts.
+    // Does not insert any field into the new slots — they're empty.
+    void growStructArrayTo(size_t idx, std::pmr::memory_resource *mr = nullptr);
     const std::pmr::map<std::string, Value> &structArrayElem(size_t i) const;
 
     // ── Func handle ──────────────────────────────────────────

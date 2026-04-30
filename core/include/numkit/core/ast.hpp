@@ -94,4 +94,14 @@ ASTNodePtr makeNode(NodeType t);
 ASTNodePtr makeNode(NodeType t, int line, int col);
 ASTNodePtr cloneNode(const ASTNode *src);
 
+// Walk a chain of FIELD_ACCESS nodes rooted at an IDENTIFIER and produce
+// the dotted name (`pkg.sub.foo` for `pkg.sub.foo` or its enclosing CALL
+// node's funcNode). Returns the empty string when the chain doesn't fit
+// the qualified-name shape — caller falls through to other paths.
+//
+// On success, *rootIdent is set to the IDENTIFIER node at the chain root
+// (callers need it for variable-shadow checks).
+std::string tryBuildQualifiedName(const ASTNode *node,
+                                   const ASTNode **rootIdent = nullptr);
+
 } // namespace numkit
