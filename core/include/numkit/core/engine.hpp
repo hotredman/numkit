@@ -162,7 +162,13 @@ public:
     // (script-origin → addPath_-list). Returns nullptr when the name
     // isn't found anywhere. May parse-and-cache an m-file as a
     // side-effect.
-    const UserFunction *lookupUserFunction(const std::string &name);
+    //
+    // When `env` is non-null and `name` is unqualified, the resolver also
+    // walks `env`'s active imports and tries qualified candidates
+    // (`pkg.<name>`, `pkg.sub.<name>`, …). These are looked up against
+    // `+pkg/.../<name>.m` package directories on the m-path.
+    const UserFunction *lookupUserFunction(const std::string &name,
+                                            const Environment *env = nullptr);
 
     // Const variant — never triggers the m-file resolver. Use for
     // pure introspection / "is this CURRENTLY known" checks.

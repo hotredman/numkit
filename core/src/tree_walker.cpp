@@ -987,7 +987,7 @@ Value TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t n
         (*fn)({}, nargout, Span<Value>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? Value::empty() : outBuf[0];
     }
-    if (auto *_uf = engine_.lookupUserFunction(name))
+    if (auto *_uf = engine_.lookupUserFunction(name, env))
         return callUserFunction(*_uf, {}, env);
 
     // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
@@ -1397,7 +1397,7 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
         (*fn)(args, nout, Span<Value>(outBuf), ctx);
         return outBuf;
     }
-    if (auto *_uf = engine_.lookupUserFunction(funcName))
+    if (auto *_uf = engine_.lookupUserFunction(funcName, env))
         return callUserFunctionMulti(*_uf, args, env, nout);
 
     throw std::runtime_error("Undefined function: " + funcName);
@@ -1544,7 +1544,7 @@ std::vector<Value> TreeWalker::callFuncHandleMulti(const Value &handle,
         engine_.externalFuncs_[name](args, nout, Span<Value>(outBuf), ctx);
         return outBuf;
     }
-    if (auto *_uf = engine_.lookupUserFunction(name))
+    if (auto *_uf = engine_.lookupUserFunction(name, env))
         return callUserFunctionMulti(*_uf, args, env, nout);
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
@@ -1650,7 +1650,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
             return outBuf[0];
         }
-        if (auto *uf = engine_.lookupUserFunction(name)) {
+        if (auto *uf = engine_.lookupUserFunction(name, env)) {
             funcNode->cachedUserFunc = uf;
             return callUserFunction(*uf, args, env);
         }
@@ -2332,7 +2332,7 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     }
 
     // 3. User functions
-    if (auto *_uf = engine_.lookupUserFunction(name)) {
+    if (auto *_uf = engine_.lookupUserFunction(name, env)) {
         result = callUserFunction(*_uf, args, env);
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
