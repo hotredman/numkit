@@ -14,6 +14,7 @@ HeapObject::~HeapObject()
     }
     delete cellData;
     delete structData;
+    delete structArray;
     delete funcName;
 }
 
@@ -37,6 +38,14 @@ HeapObject *HeapObject::clone() const
         h->cellData = new std::pmr::vector<Value>(*cellData, cmr);
     if (structData)
         h->structData = new std::pmr::map<std::string, Value>(*structData, cmr);
+    if (structArray) {
+        h->structArray =
+            new std::pmr::vector<std::pmr::map<std::string, Value>>(cmr);
+        h->structArray->reserve(structArray->size());
+        using MapT = std::pmr::map<std::string, Value>;
+        for (const auto &m : *structArray)
+            h->structArray->emplace_back(MapT(m, cmr));
+    }
     if (funcName)
         h->funcName = new std::string(*funcName);
     return h;

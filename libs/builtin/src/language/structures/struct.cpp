@@ -43,8 +43,19 @@ Value fieldnames(std::pmr::memory_resource *mr, const Value &s)
     if (!s.isStruct())
         throw Error("fieldnames requires a struct", 0, 0, "fieldnames", "",
                      "m:fieldnames:notStruct");
+    // Struct array: read field names from element 0 (struct arrays carry
+    // a uniform field set in MATLAB; we mirror that convention).
+    if (s.isStructArray()) {
+        const auto &elem0 = s.numel() > 0 ? s.structArrayElem(0)
+                                          : std::pmr::map<std::string, Value>{mr};
+        auto c = Value::cell(elem0.size(), 1, mr);
+        size_t i = 0;
+        for (const auto &[k, _] : elem0)
+            c.cellAt(i++) = Value::fromString(k, mr);
+        return c;
+    }
     const auto &fields = s.structFields();
-    auto c = Value::cell(fields.size(), 1);
+    auto c = Value::cell(fields.size(), 1, mr);
     size_t i = 0;
     for (const auto &[k, v] : fields)
         c.cellAt(i++) = Value::fromString(k, mr);
@@ -55,6 +66,13 @@ Value isfield(std::pmr::memory_resource *mr, const Value &s, const Value &name)
 {
     if (!s.isStruct())
         return Value::logicalScalar(false, mr);
+    if (s.isStructArray()) {
+        const std::string n = name.toString();
+        if (s.numel() == 0)
+            return Value::logicalScalar(false, mr);
+        const auto &elem0 = s.structArrayElem(0);
+        return Value::logicalScalar(elem0.count(n) > 0, mr);
+    }
     return Value::logicalScalar(s.hasField(name.toString()), mr);
 }
 
@@ -64,7 +82,13 @@ Value rmfield(std::pmr::memory_resource *, const Value &s, const Value &name)
         throw Error("rmfield requires a struct", 0, 0, "rmfield", "",
                      "m:rmfield:notStruct");
     Value out = s;
-    out.structFields().erase(name.toString());
+    if (out.isStructArray()) {
+        const std::string n = name.toString();
+        for (size_t i = 0; i < out.numel(); ++i)
+            out.structArrayElem(i).erase(n);
+    } else {
+        out.structFields().erase(name.toString());
+    }
     return out;
 }
 
