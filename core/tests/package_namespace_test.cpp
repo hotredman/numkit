@@ -90,6 +90,46 @@ TEST_P(PackageNamespaceTest, NestedPackageResolves)
     EXPECT_DOUBLE_EQ(y->toScalar(), 20.0);
 }
 
+TEST_P(PackageNamespaceTest, DirectQualifiedCallResolves)
+{
+    writeFile(workDir / "+mathx" / "shift.m",
+              "function y = shift(x)\n  y = x + 100;\nend\n");
+    engine.addPath(workDir.string());
+
+    engine.eval("y = mathx.shift(7);");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 107.0);
+}
+
+TEST_P(PackageNamespaceTest, DirectNestedQualifiedCallResolves)
+{
+    writeFile(workDir / "+nx" / "+geom" / "tri.m",
+              "function y = tri(x)\n  y = 3 * x;\nend\n");
+    engine.addPath(workDir.string());
+
+    engine.eval("y = nx.geom.tri(8);");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 24.0);
+}
+
+TEST_P(PackageNamespaceTest, LocalVariableShadowsNamespace)
+{
+    // If a workspace variable named `mathx` exists, `mathx.field` must
+    // resolve as struct/dot access, not as a namespace.
+    writeFile(workDir / "+mathx" / "shift.m",
+              "function y = shift(x)\n  y = x + 100;\nend\n");
+    engine.addPath(workDir.string());
+
+    // Make `mathx` a struct in the workspace.
+    engine.eval("mathx = struct('shift', 999);");
+    engine.eval("v = mathx.shift;");
+    auto *v = engine.getVariable("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_DOUBLE_EQ(v->toScalar(), 999.0);
+}
+
 TEST_P(PackageNamespaceTest, BareCallWithoutImportFails)
 {
     writeFile(workDir / "+secrets" / "answer.m",

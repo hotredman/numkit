@@ -1290,9 +1290,18 @@ enter_frame:
                         R[I.a] = std::move(ob[0]);
                         break;
                     }
-                    // M-file fallback (Phase 9a)
+                    // M-file fallback (Phase 9a; Phase 10 adds package
+                    // qualified names — the compiler registers chunks
+                    // under the leaf name, so retry the leaf when the
+                    // qualified-name lookup misses.)
                     if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
-                        if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                        const BytecodeChunk *found = findCompiledFunc(funcName);
+                        if (!found) {
+                            auto dot = funcName.find_last_of('.');
+                            if (dot != std::string::npos)
+                                found = findCompiledFunc(funcName.substr(dot + 1));
+                        }
+                        if (found) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
                             pushCallFrame(*found, &R[argBase], na,
@@ -1335,8 +1344,16 @@ enter_frame:
                     }
                     // M-file fallback (Phase 9a) — triggers parse + cache
                     // + Compiler::registerFunction; retry findCompiledFunc.
+                    // Phase 10: qualified names register their compiled
+                    // chunk under the leaf name; retry leaf on miss.
                     if (engine_.lookupUserFunction(funcName, &engine_.workspaceEnv())) {
-                        if (const BytecodeChunk *found = findCompiledFunc(funcName)) {
+                        const BytecodeChunk *found = findCompiledFunc(funcName);
+                        if (!found) {
+                            auto dot = funcName.find_last_of('.');
+                            if (dot != std::string::npos)
+                                found = findCompiledFunc(funcName.substr(dot + 1));
+                        }
+                        if (found) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
                             pushCallFrame(*found, &R[argBase], na,

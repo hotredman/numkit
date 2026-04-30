@@ -1554,6 +1554,44 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
     auto *funcNode = node->children[0].get();
 
     if (funcNode->type != NodeType::IDENTIFIER) {
+        // Qualified-name call: a chain of FIELD_ACCESS over a root
+        // IDENTIFIER (`pkg.foo(x)`, `pkg.sub.bar(x)`). When the root
+        // identifier is NOT a workspace variable, try resolving the
+        // dotted name as a namespace member (registered builtin or
+        // +pkg/.../<leaf>.m). A real struct variable shadows this —
+        // the existing FIELD_ACCESS path then handles `s.field(x)`
+        // exactly as before.
+        if (funcNode->type == NodeType::FIELD_ACCESS) {
+            std::string qualified;
+            const ASTNode *cur = funcNode;
+            while (cur && cur->type == NodeType::FIELD_ACCESS
+                   && cur->children.size() == 1) {
+                if (!qualified.empty()) qualified.insert(0, ".");
+                qualified.insert(0, cur->strValue);
+                cur = cur->children[0].get();
+            }
+            if (cur && cur->type == NodeType::IDENTIFIER) {
+                qualified.insert(0, ".");
+                qualified.insert(0, cur->strValue);
+                Value *rootVar = env->get(cur->strValue);
+                if (!rootVar) {
+                    std::vector<Value> args;
+                    args.reserve(node->children.size() - 1);
+                    for (size_t i = 1; i < node->children.size(); ++i)
+                        args.push_back(execNode(node->children[i].get(), env));
+                    if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
+                        Value outBuf[1];
+                        CallContext ctx{&engine_, env};
+                        (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
+                        return outBuf[0];
+                    }
+                    if (auto *uf = engine_.lookupUserFunction(qualified, env))
+                        return callUserFunction(*uf, args, env);
+                    throw std::runtime_error("Undefined function or variable: " + qualified);
+                }
+            }
+        }
+
         auto target = execNode(funcNode, env);
 
         if (target.isFuncHandle()) {
