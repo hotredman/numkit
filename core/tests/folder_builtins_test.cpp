@@ -216,9 +216,6 @@ TEST_P(FolderBuiltinsTest, StructConstructorBroadcastsScalarValues)
 
 TEST_P(FolderBuiltinsTest, StructArrayAutoGrowOnAssignment)
 {
-    if (GetParam() == Engine::Backend::VM)
-        GTEST_SKIP() << "d(end+1).field = v on VM not yet wired";
-
     // Start from an empty/missing variable and grow.
     engine.eval("clear g;");
     engine.eval("g(1).x = 100;");
@@ -233,11 +230,6 @@ TEST_P(FolderBuiltinsTest, StructArrayAutoGrowOnAssignment)
 
 TEST_P(FolderBuiltinsTest, DirIndexedFieldWrite)
 {
-    // VM compiler doesn't yet route d(i).field = v through the struct-
-    // array LHS path; tracked separately. TW supports it directly.
-    if (GetParam() == Engine::Backend::VM)
-        GTEST_SKIP() << "d(i).field = v on VM not yet wired";
-
     {
         std::ofstream(workDir / "a.txt") << "1";
         std::ofstream(workDir / "b.txt") << "22";

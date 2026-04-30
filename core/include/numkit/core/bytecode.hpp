@@ -91,6 +91,10 @@ enum class OpCode : uint8_t {
     FIELD_SET,           // obj, nameIdx, val      R[obj].fields[nameIdx] = R[val]
     FIELD_GET_DYN,       // dst, obj, nameReg      R[dst] = R[obj].(R[nameReg])
     FIELD_SET_DYN,       // obj, nameReg, val      R[obj].(R[nameReg]) = R[val]
+    // Struct-array element field write: R[obj](R[idx]).field = R[val].
+    // Auto-grows when idx exceeds current numel; creates a 1×0 struct
+    // array if obj is unset / not a struct.
+    STRUCT_ELEM_FIELD_SET, // a=obj, b=idxReg, c=valReg, d=nameIdx
 
     // ── Cell array access ────────────────────────────────────
     CELL_GET,      // dst, cell, idx         R[dst] = R[cell]{R[idx]}        1D

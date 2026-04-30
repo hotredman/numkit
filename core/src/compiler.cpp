@@ -364,6 +364,12 @@ void Compiler::peepholeOptimize()
             readCount[ins.a]++;
             readCount[ins.c]++;
             break;
+        case OpCode::STRUCT_ELEM_FIELD_SET:
+            readCount[ins.a]++;
+            writeCount[ins.a]++;
+            readCount[ins.b]++;
+            readCount[ins.c]++;
+            break;
         case OpCode::CELL_GET:
             writeCount[ins.a]++;
             readCount[ins.b]++;
@@ -1976,6 +1982,30 @@ uint8_t Compiler::compileFieldAssign(const ASTNode *node)
         fieldChain.push_back(cur->strValue);
         cur = cur->children[0].get();
     }
+
+    // Struct-array element write: `d(i).field = v`. The root is a CALL
+    // node with a single index. Emit STRUCT_ELEM_FIELD_SET — handles
+    // auto-grow on out-of-range index. Nested chains (`d(i).a.b = v`)
+    // fall through to the existing IDENTIFIER-rooted path on TW only;
+    // VM rejects them here so callers get a clear error rather than
+    // silent breakage.
+    if (cur->type == NodeType::CALL && fieldChain.size() == 1
+        && cur->children.size() == 2
+        && cur->children[0]->type == NodeType::IDENTIFIER) {
+        const std::string &rootName = cur->children[0]->strValue;
+        uint8_t rootReg = varRegWrite(rootName);
+        uint8_t idxReg = compileNode(cur->children[1].get());
+        uint8_t valReg = compileNode(rhs);
+        int16_t nameIdx = addStringConstant(fieldChain[0]);
+        emit(Instruction::make_abcde(OpCode::STRUCT_ELEM_FIELD_SET,
+                                     rootReg, idxReg, valReg, nameIdx, 0));
+        if (!node->suppressOutput) {
+            int16_t dispIdx = addStringConstant(rootName);
+            emitAD(OpCode::DISPLAY, rootReg, dispIdx);
+        }
+        return rootReg;
+    }
+
     if (cur->type != NodeType::IDENTIFIER)
         throw std::runtime_error("Compiler: invalid nested field assign target");
 
@@ -3247,6 +3277,8 @@ std::string Compiler::disassemble(const BytecodeChunk &chunk)
             return "FIELD_GET_DYN";
         case OpCode::FIELD_SET_DYN:
             return "FIELD_SET_DYN";
+        case OpCode::STRUCT_ELEM_FIELD_SET:
+            return "STRUCT_ELEM_FIELD_SET";
         case OpCode::CELL_LITERAL:
             return "CELL_LITERAL";
         case OpCode::CELL_GET:

@@ -1047,6 +1047,32 @@ enter_frame:
                 R[I.a].field(fname) = R[I.b];
                 break;
             }
+            case OpCode::STRUCT_ELEM_FIELD_SET: {
+                // a=obj (struct array, in/out), b=idxReg, c=valReg, d=nameIdx
+                const std::string &fname = chunk.strings[I.d];
+                size_t idx = static_cast<size_t>(R[I.b].toScalar()) - 1;
+                Value &obj = R[I.a];
+                if (obj.isEmpty() || !obj.isStruct())
+                    obj = Value::structArray(0, 0, engine_.resource());
+                if (idx >= obj.numel()) {
+                    size_t newSize = idx + 1;
+                    bool isCol = (obj.dims().cols() == 1
+                                   && obj.dims().rows() > 1);
+                    size_t newRows = isCol ? newSize : 1;
+                    size_t newCols = isCol ? 1       : newSize;
+                    Value grown = Value::structArray(newRows, newCols,
+                                                     engine_.resource());
+                    for (size_t k = 0; k < obj.numel(); ++k) {
+                        auto &dst = grown.structArrayElem(k);
+                        const auto &src = obj.structArrayElem(k);
+                        for (const auto &[kn, vv] : src)
+                            dst.emplace(kn, vv);
+                    }
+                    obj = std::move(grown);
+                }
+                obj.structArrayElem(idx)[fname] = R[I.c];
+                break;
+            }
             case OpCode::FIELD_GET_DYN: {
                 // a=dst, b=obj, c=nameReg — s.(R[nameReg])
                 std::string fname = R[I.c].toString();
@@ -1700,6 +1726,12 @@ static std::string describeInstruction(const Instruction &instr,
     case OpCode::FIELD_GET_DYN:
     case OpCode::FIELD_SET_DYN:
         return "in dynamic field access";
+    case OpCode::STRUCT_ELEM_FIELD_SET: {
+        int16_t nameIdx = instr.d;
+        if (nameIdx >= 0 && nameIdx < (int16_t)chunk.strings.size())
+            return "in struct-array element write '." + chunk.strings[nameIdx] + "'";
+        return "in struct-array element write";
+    }
 
     // Binary operators
     case OpCode::ADD:  return "in operator '+'";
