@@ -184,6 +184,53 @@ TEST_P(FolderBuiltinsTest, DirDottedAccessOnArrayThrows)
     EXPECT_THROW(engine.eval("nm = d.name;"), std::exception);
 }
 
+TEST_P(FolderBuiltinsTest, StructConstructorWithCellInputs)
+{
+    // struct('a', {1, 2, 3}) creates a 1×3 struct array.
+    engine.eval("s = struct('a', {1, 2, 3});");
+    auto *s = engine.getVariable("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_TRUE(s->isStruct());
+    EXPECT_EQ(s->numel(), 3u);
+    if (GetParam() == Engine::Backend::TreeWalker) {
+        // Field reads on struct-array elements work on TW already.
+        engine.eval("v1 = s(1).a; v2 = s(2).a; v3 = s(3).a;");
+        EXPECT_DOUBLE_EQ(engine.getVariable("v1")->toScalar(), 1.0);
+        EXPECT_DOUBLE_EQ(engine.getVariable("v2")->toScalar(), 2.0);
+        EXPECT_DOUBLE_EQ(engine.getVariable("v3")->toScalar(), 3.0);
+    }
+}
+
+TEST_P(FolderBuiltinsTest, StructConstructorBroadcastsScalarValues)
+{
+    // 'a' takes a cell (3 elems), 'b' takes a scalar (broadcast to all).
+    engine.eval("s = struct('a', {10, 20, 30}, 'b', 99);");
+    auto *s = engine.getVariable("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->numel(), 3u);
+    if (GetParam() == Engine::Backend::TreeWalker) {
+        engine.eval("v = s(2).b;");
+        EXPECT_DOUBLE_EQ(engine.getVariable("v")->toScalar(), 99.0);
+    }
+}
+
+TEST_P(FolderBuiltinsTest, StructArrayAutoGrowOnAssignment)
+{
+    if (GetParam() == Engine::Backend::VM)
+        GTEST_SKIP() << "d(end+1).field = v on VM not yet wired";
+
+    // Start from an empty/missing variable and grow.
+    engine.eval("clear g;");
+    engine.eval("g(1).x = 100;");
+    engine.eval("g(3).x = 300;");
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_EQ(g->numel(), 3u);
+    engine.eval("a = g(1).x; c = g(3).x;");
+    EXPECT_DOUBLE_EQ(engine.getVariable("a")->toScalar(), 100.0);
+    EXPECT_DOUBLE_EQ(engine.getVariable("c")->toScalar(), 300.0);
+}
+
 TEST_P(FolderBuiltinsTest, DirIndexedFieldWrite)
 {
     // VM compiler doesn't yet route d(i).field = v through the struct-
