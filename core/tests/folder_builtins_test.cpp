@@ -184,6 +184,31 @@ TEST_P(FolderBuiltinsTest, DirDottedAccessOnArrayThrows)
     EXPECT_THROW(engine.eval("nm = d.name;"), std::exception);
 }
 
+TEST_P(FolderBuiltinsTest, DirIndexedFieldWrite)
+{
+    // VM compiler doesn't yet route d(i).field = v through the struct-
+    // array LHS path; tracked separately. TW supports it directly.
+    if (GetParam() == Engine::Backend::VM)
+        GTEST_SKIP() << "d(i).field = v on VM not yet wired";
+
+    {
+        std::ofstream(workDir / "a.txt") << "1";
+        std::ofstream(workDir / "b.txt") << "22";
+    }
+    engine.eval("d = dir('" + workDir.string() + "');");
+    engine.eval("d(1).bytes = 999;");
+    engine.eval("v = d(1).bytes;");
+    auto *v = engine.getVariable("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_DOUBLE_EQ(v->toScalar(), 999.0);
+
+    // Other elements untouched.
+    engine.eval("v2 = d(2).bytes;");
+    auto *v2 = engine.getVariable("v2");
+    ASSERT_NE(v2, nullptr);
+    EXPECT_DOUBLE_EQ(v2->toScalar(), 2.0);
+}
+
 TEST_P(FolderBuiltinsTest, DirCommaSeparatedListInBrackets)
 {
     // VM-side CSL expansion in matrix literals needs a new opcode —
