@@ -1918,22 +1918,50 @@ Value TreeWalker::execMatrixLiteral(const ASTNode *node, Environment *env)
         }
     }
 
-    // Evaluate all elements per row
+    // Evaluate all elements per row, with comma-separated-list expansion
+    // for struct-array dot access (`[d.field]` / `[s.fname]`).
     std::vector<std::vector<Value>> rows;
     bool anyChar = false, allChar = true;
+
+    auto pushElem = [&](Value &&val, std::vector<Value> &dst) {
+        if (val.isEmpty()) return;
+        if (val.isChar()) anyChar = true;
+        else              allChar = false;
+        dst.push_back(std::move(val));
+    };
 
     for (auto &rowNode : node->children) {
         std::vector<Value> rowElems;
         for (auto &elemNode : rowNode->children) {
+            // CSL: `s.f` / `s.(name)` over a multi-element struct
+            // array expands to one rowElem per element.
+            if ((elemNode->type == NodeType::FIELD_ACCESS
+                 || elemNode->type == NodeType::DYNAMIC_FIELD_ACCESS)
+                && elemNode->children.size() >= 1) {
+                auto base = execNode(elemNode->children[0].get(), env);
+                if (base.isStruct() && base.isStructArray()) {
+                    std::string fname;
+                    if (elemNode->type == NodeType::FIELD_ACCESS) {
+                        fname = elemNode->strValue;
+                    } else {
+                        // DYNAMIC_FIELD_ACCESS: child[1] is the name expr.
+                        fname = execNode(elemNode->children[1].get(), env).toString();
+                    }
+                    for (size_t i = 0; i < base.numel(); ++i) {
+                        const auto &m = base.structArrayElem(i);
+                        auto it = m.find(fname);
+                        if (it == m.end())
+                            throw std::runtime_error(
+                                "Reference to non-existent field '" + fname + "'");
+                        pushElem(Value(it->second), rowElems);
+                    }
+                    continue;
+                }
+                // Single struct or non-struct base — fall through to the
+                // generic execNode path so existing semantics apply.
+            }
             auto val = execNode(elemNode.get(), env);
-            if (val.isEmpty())
-                continue;
-            // Logical scalars are kept as-is — horzcat handles type promotion
-            if (val.isChar())
-                anyChar = true;
-            else
-                allChar = false;
-            rowElems.push_back(std::move(val));
+            pushElem(std::move(val), rowElems);
         }
         if (!rowElems.empty())
             rows.push_back(std::move(rowElems));
