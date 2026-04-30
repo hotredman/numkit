@@ -250,11 +250,6 @@ TEST_P(FolderBuiltinsTest, DirIndexedFieldWrite)
 
 TEST_P(FolderBuiltinsTest, DirCommaSeparatedListInBrackets)
 {
-    // VM-side CSL expansion in matrix literals needs a new opcode —
-    // tracked separately. TW path implements it directly.
-    if (GetParam() == Engine::Backend::VM)
-        GTEST_SKIP() << "[s.field] CSL on VM matrix literals not yet wired";
-
     // Three files of distinct sizes so [d.bytes] is verifiable.
     {
         std::ofstream(workDir / "p.txt") << "x";
