@@ -1215,12 +1215,19 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
     }
     if (objNode->type == NodeType::CALL) {
         // d(i).field = val — paren-indexed struct-array element write.
+        // Supports auto-grow: `s(end+1).field = val` extends the array
+        // (1-D indexing only — 2-D auto-grow follows MATLAB rules and
+        // is handled separately when needed).
         auto *target = objNode->children[0].get();
         if (target->type != NodeType::IDENTIFIER)
             throw std::runtime_error("Invalid field assignment target");
         auto *var = env->get(target->strValue);
-        if (!var)
-            throw std::runtime_error("Undefined variable: " + target->strValue);
+        if (!var || var->isUnset()) {
+            // s(i).f = v on an undefined name — create a struct array
+            // sized to fit the index (MATLAB semantics).
+            env->set(target->strValue, Value::structArray(0, 0, engine_.mr_));
+            var = env->get(target->strValue);
+        }
         if (!var->isStruct())
             throw std::runtime_error(
                 "Indexed field assignment on non-struct '" + target->strValue + "'");
@@ -1231,6 +1238,23 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
             IndexContextGuard guard(indexContextStack_, {var, 0, 1});
             Value v = execNode(objNode->children[1].get(), env);
             linear = static_cast<size_t>(v.toScalar()) - 1;
+            if (linear >= var->numel()) {
+                // Auto-grow: row vector if existing row vector or
+                // currently 1×1 / empty; column vector if column.
+                size_t newSize = linear + 1;
+                bool isCol = (var->dims().cols() == 1
+                              && var->dims().rows() > 1);
+                size_t newRows = isCol ? newSize : 1;
+                size_t newCols = isCol ? 1       : newSize;
+                Value grown = Value::structArray(newRows, newCols, engine_.mr_);
+                for (size_t k = 0; k < var->numel(); ++k) {
+                    auto &dst = grown.structArrayElem(k);
+                    const auto &src = var->structArrayElem(k);
+                    for (const auto &[kn, vv] : src)
+                        dst.emplace(kn, vv);
+                }
+                *var = std::move(grown);
+            }
         } else if (nargs == 2) {
             IndexContextGuard g0(indexContextStack_, {var, 0, 2});
             Value rv = execNode(objNode->children[1].get(), env);
@@ -1238,14 +1262,14 @@ Value &TreeWalker::resolveFieldLValue(const ASTNode *node, Environment *env)
             Value cv = execNode(objNode->children[2].get(), env);
             size_t r = static_cast<size_t>(rv.toScalar()) - 1;
             size_t c = static_cast<size_t>(cv.toScalar()) - 1;
+            if (r >= var->dims().rows() || c >= var->dims().cols())
+                throw std::runtime_error(
+                    "2-D struct-array auto-grow not supported yet");
             linear = var->dims().sub2indChecked(r, c);
         } else {
             throw std::runtime_error(
                 "Indexed field assignment: only 1-D / 2-D index supported");
         }
-
-        if (linear >= var->numel())
-            throw std::runtime_error("Struct-array index exceeds dimensions");
 
         auto &fieldMap = var->structArrayElem(linear);
         return fieldMap[fieldName];

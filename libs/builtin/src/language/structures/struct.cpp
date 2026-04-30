@@ -26,14 +26,54 @@ Value structure(std::pmr::memory_resource *)
     return Value::structure();
 }
 
-Value structure(std::pmr::memory_resource *, Span<const Value> nameValuePairs)
+Value structure(std::pmr::memory_resource *mr, Span<const Value> nameValuePairs)
 {
-    auto s = Value::structure();
+    // First pass: validate names and determine array shape. If any value
+    // is a CELL, struct() returns a struct array of that cell's shape;
+    // every other CELL value must have the same shape. Non-cell values
+    // are broadcast to every element.
+    size_t arrRows = 1;
+    size_t arrCols = 1;
+    bool isArray = false;
     for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2) {
-        if (!nameValuePairs[i].isChar() && !nameValuePairs[i].isString())
+        const Value &name = nameValuePairs[i];
+        if (!name.isChar() && !name.isString())
             throw Error("struct: field names must be char arrays", 0, 0, "struct", "",
                          "m:struct:invalidFieldName");
-        s.field(nameValuePairs[i].toString()) = nameValuePairs[i + 1];
+        const Value &v = nameValuePairs[i + 1];
+        if (v.isCell()) {
+            if (!isArray) {
+                arrRows = v.dims().rows();
+                arrCols = v.dims().cols();
+                isArray = true;
+            } else if (arrRows != v.dims().rows() || arrCols != v.dims().cols()) {
+                throw Error("struct: cell-array values must all have the same shape",
+                             0, 0, "struct", "", "m:struct:cellShape");
+            }
+        }
+    }
+
+    if (!isArray) {
+        // Scalar struct path — preserve original behaviour.
+        auto s = Value::structure(mr);
+        for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2)
+            s.field(nameValuePairs[i].toString()) = nameValuePairs[i + 1];
+        return s;
+    }
+
+    // Struct array.
+    auto s = Value::structArray(arrRows, arrCols, mr);
+    const size_t numel = arrRows * arrCols;
+    for (size_t i = 0; i + 1 < nameValuePairs.size(); i += 2) {
+        std::string fname = nameValuePairs[i].toString();
+        const Value &v = nameValuePairs[i + 1];
+        if (v.isCell()) {
+            for (size_t k = 0; k < numel; ++k)
+                s.structArrayElem(k)[fname] = v.cellAt(k);
+        } else {
+            for (size_t k = 0; k < numel; ++k)
+                s.structArrayElem(k)[fname] = v;
+        }
     }
     return s;
 }
