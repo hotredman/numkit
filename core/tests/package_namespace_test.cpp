@@ -171,6 +171,56 @@ TEST_P(PackageNamespaceTest, RehashPicksUpEditedPackageFile)
     EXPECT_DOUBLE_EQ(engine.getVariable("v2")->toScalar(), 2.0);
 }
 
+// ── Edge cases (Batch A audit) ─────────────────────────────
+
+TEST_P(PackageNamespaceTest, RecursivePackageCallSelf)
+{
+    writeFile(workDir / "+rec" / "fact.m",
+              "function y = fact(n)\n"
+              "  if n <= 1\n"
+              "    y = 1;\n"
+              "  else\n"
+              "    y = n * rec.fact(n - 1);\n"
+              "  end\n"
+              "end\n");
+    engine.addPath(workDir.string());
+    engine.eval("y = rec.fact(5);");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 120.0);
+}
+
+TEST_P(PackageNamespaceTest, CrossPackageCall)
+{
+    writeFile(workDir / "+lib_a" / "double_x.m",
+              "function y = double_x(x)\n  y = 2 * x;\nend\n");
+    writeFile(workDir / "+lib_b" / "via_a.m",
+              "function y = via_a(x)\n  y = lib_a.double_x(x) + 1;\nend\n");
+    engine.addPath(workDir.string());
+    engine.eval("y = lib_b.via_a(10);");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 21.0);
+}
+
+TEST_P(PackageNamespaceTest, LocalFunctionVariableShadowsNamespace)
+{
+    // Inside a function body, a local variable named like the namespace
+    // root must shadow the namespace just like at workspace scope.
+    writeFile(workDir / "+nsx" / "answer.m",
+              "function y = answer()\n  y = 7;\nend\n");
+    writeFile(workDir / "use_local.m",
+              "function y = use_local()\n"
+              "  nsx = struct('answer', 99);\n"
+              "  y = nsx.answer;\n"
+              "end\n");
+    engine.addPath(workDir.string());
+    engine.eval("y = use_local();");
+    auto *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 99.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, PackageNamespaceTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),

@@ -2319,15 +2319,22 @@ uint8_t Compiler::compileCall(const ASTNode *node)
                     emitA(OpCode::CLEAR_VAR, reg);
             }
         }
-        // On top-level, also call externalFunc for side effects
+        // On top-level, also call externalFunc for side effects.
+        // Compile every arg first, THEN allocate the contiguous arg-block
+        // and MOVE each result into place — interleaving slot allocation
+        // with arg compilation broke multi-arg cases like
+        // `clear('-regexp', '^foo')` because intermediate temps from
+        // compileNode displaced subsequent slots.
         if (isTopLevel_) {
+            std::vector<uint8_t> argRegs;
+            argRegs.reserve(nargs);
+            for (size_t i = 1; i <= nargs; ++i)
+                argRegs.push_back(compileNode(node->children[i].get()));
             uint8_t argBase = nextReg_;
-            for (size_t i = 1; i <= nargs; ++i) {
+            for (size_t i = 0; i < argRegs.size(); ++i) {
                 uint8_t slot = tempReg();
-                auto *argNode = node->children[i].get();
-                uint8_t argReg = compileNode(argNode);
-                if (argReg != slot)
-                    emitAB(OpCode::MOVE, slot, argReg);
+                if (argRegs[i] != slot)
+                    emitAB(OpCode::MOVE, slot, argRegs[i]);
             }
             uint8_t dst = tempReg();
             int16_t funcIdx = addStringConstant(name);
