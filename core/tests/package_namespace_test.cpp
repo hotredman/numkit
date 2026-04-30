@@ -221,6 +221,30 @@ TEST_P(PackageNamespaceTest, LocalFunctionVariableShadowsNamespace)
     EXPECT_DOUBLE_EQ(y->toScalar(), 99.0);
 }
 
+TEST_P(PackageNamespaceTest, SameLeafInTwoPackagesNoCollision)
+{
+    // +pkg_a/foo.m returns input + 1.
+    // +pkg_b/foo.m returns input + 100.
+    // Both leaves are "foo" — they MUST not collide in the compiler's
+    // chunk map (which historically keyed by leaf).
+    writeFile(workDir / "+pkg_a" / "foo.m",
+              "function y = foo(x)\n  y = x + 1;\nend\n");
+    writeFile(workDir / "+pkg_b" / "foo.m",
+              "function y = foo(x)\n  y = x + 100;\nend\n");
+    engine.addPath(workDir.string());
+
+    engine.eval("a = pkg_a.foo(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("a")->toScalar(), 11.0);
+
+    engine.eval("b = pkg_b.foo(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("b")->toScalar(), 110.0);
+
+    // Now call pkg_a.foo AGAIN — must still hit the +1 version, not
+    // get clobbered by the +100 chunk.
+    engine.eval("c = pkg_a.foo(10);");
+    EXPECT_DOUBLE_EQ(engine.getVariable("c")->toScalar(), 11.0);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, PackageNamespaceTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),

@@ -2787,6 +2787,30 @@ void Compiler::registerFunction(const ASTNode *funcDef)
     compileFunctionDef(funcDef);
 }
 
+void Compiler::registerFunctionAs(const std::string &qualifiedName,
+                                   const ASTNode *funcDef)
+{
+    // Compile the chunk normally, then bind it under the explicit name
+    // instead of funcDef->strValue. Keeps `+pkg/foo.m` and
+    // `+other/foo.m` separate in compiledFuncs_ / engine_.userFuncs_.
+    BytecodeChunk funcChunk = compileFunction(funcDef);
+
+    UserFunction uf;
+    uf.name = qualifiedName;
+    uf.params = funcDef->paramNames;
+    uf.returns = funcDef->returnNames;
+    uf.body = std::shared_ptr<const ASTNode>(cloneNode(funcDef->children[0].get()));
+    uf.closureEnv = nullptr;
+
+    if (scriptDepth_ > 0) {
+        scriptLocalCompiledFuncs_[qualifiedName] = std::move(funcChunk);
+        engine_.scriptLocalUserFuncs_[qualifiedName] = std::move(uf);
+    } else {
+        compiledFuncs_[qualifiedName] = std::move(funcChunk);
+        engine_.userFuncs_[qualifiedName] = std::move(uf);
+    }
+}
+
 const BytecodeChunk *Compiler::findCompiled(const std::string &name) const
 {
     auto it = scriptLocalCompiledFuncs_.find(name);
