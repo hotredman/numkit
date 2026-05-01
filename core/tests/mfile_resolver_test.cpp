@@ -16,11 +16,32 @@
 #include <filesystem>
 #include <fstream>
 #include <gtest/gtest.h>
+#include <map>
 #include <thread>
 
 using namespace numkit;
 
 namespace {
+
+// Minimal in-memory VFS — used only by SiblingResolvesThroughTemporaryFS
+// to verify sibling lookup routes through the script's origin VFS.
+class TestMemoryFS final : public VirtualFS
+{
+public:
+    explicit TestMemoryFS(std::string n) : name_(std::move(n)) {}
+    std::string readFile(const std::string &path) override
+    {
+        auto it = files_.find(path);
+        if (it == files_.end()) throw std::runtime_error(name_ + ": no such file");
+        return it->second;
+    }
+    void writeFile(const std::string &p, const std::string &c) override { files_[p] = c; }
+    bool exists(const std::string &p) override { return files_.count(p) > 0; }
+    std::string name() const override { return name_; }
+    std::map<std::string, std::string> files_;
+private:
+    std::string name_;
+};
 
 class MFileResolverTest : public ::testing::TestWithParam<Engine::Backend>
 {
@@ -206,6 +227,140 @@ TEST_P(MFileResolverTest, RunScriptCallsSiblingFunctionResolvesViaAddpath)
     auto *g = engine.getVariable("g");
     ASSERT_NE(g, nullptr);
     EXPECT_DOUBLE_EQ(g->toScalar(), 70.0);
+}
+
+// ── #1 — Transitive run(): nested run inherits its own script-dir ─────
+//
+// caller.m runs inner.m via run(). inner.m must see ITS OWN sibling
+// (inner_helper.m), not caller.m's. Stack push/pop semantics for
+// scriptOriginStack_ must isolate per-frame.
+TEST_P(MFileResolverTest, TransitiveRunResolvesSiblingsAtEachLevel)
+{
+    auto outer = workDir / "outer";
+    auto inner = workDir / "inner";
+    std::filesystem::create_directories(outer);
+    std::filesystem::create_directories(inner);
+
+    {
+        std::ofstream f(outer / "caller.m");
+        f << "outer_g = outer_helper(2);\n"
+          << "run('" << (inner / "inner.m").generic_string() << "');\n";
+    }
+    {
+        std::ofstream f(outer / "outer_helper.m");
+        f << "function y = outer_helper(x)\n  y = x * 100;\nend\n";
+    }
+    {
+        std::ofstream f(inner / "inner.m");
+        f << "inner_g = inner_helper(3);\n";
+    }
+    {
+        std::ofstream f(inner / "inner_helper.m");
+        f << "function y = inner_helper(x)\n  y = x * 1000;\nend\n";
+    }
+
+    auto p = (outer / "caller.m").generic_string();
+    EXPECT_NO_THROW(engine.eval("run('" + p + "');"));
+    EXPECT_DOUBLE_EQ(engine.getVariable("outer_g")->toScalar(), 200.0);
+    EXPECT_DOUBLE_EQ(engine.getVariable("inner_g")->toScalar(), 3000.0);
+}
+
+// ── #2 — Origin stack pops on exception thrown by the script ──
+//
+// run('throws.m') propagates the exception out, but must still leave
+// scriptOriginStack_ in its prior state. Catch the exception, then
+// verify a subsequent name lookup matches the prior scope (not the
+// throwing-script's dir).
+TEST_P(MFileResolverTest, ScriptOriginPoppedOnException)
+{
+    auto good = workDir / "good";
+    auto bad = workDir / "bad";
+    std::filesystem::create_directories(good);
+    std::filesystem::create_directories(bad);
+    {
+        std::ofstream f(bad / "throws.m");
+        f << "error('intentional failure');\n";
+    }
+    {
+        std::ofstream f(bad / "should_not_resolve.m");
+        f << "function y = should_not_resolve(x)\n  y = x;\nend\n";
+    }
+
+    auto p = (bad / "throws.m").generic_string();
+    EXPECT_THROW(engine.eval("run('" + p + "');"), std::exception);
+
+    // After the throw, the bad/ dir must NOT be on the implicit search
+    // path. should_not_resolve sits in bad/ — calling it from base
+    // workspace should fail.
+    EXPECT_THROW(engine.eval("z = should_not_resolve(5);"), std::exception);
+}
+
+// ── #3 — Cleanup after run: script-dir is not visible from base ─
+//
+// After a successful run('a.m') returns, the implicit script-dir is
+// gone. A bare top-level call to a name that only resolves via that
+// dir must fail.
+TEST_P(MFileResolverTest, SiblingNotVisibleAfterRunReturns)
+{
+    writeMFile("ran_caller.m", "g_x = 1;\n");
+    writeMFile("only_via_dir.m",
+               "function y = only_via_dir(x)\n  y = x + 7;\nend\n");
+
+    auto p = (workDir / "ran_caller.m").generic_string();
+    EXPECT_NO_THROW(engine.eval("run('" + p + "');"));
+    EXPECT_DOUBLE_EQ(engine.getVariable("g_x")->toScalar(), 1.0);
+
+    // Stack popped on return — the helper next to ran_caller.m is no
+    // longer reachable from the base workspace.
+    EXPECT_THROW(engine.eval("y = only_via_dir(3);"), std::exception);
+}
+
+// ── #4 — Sibling resolution routes through the script's VFS ───
+//
+// caller.m + helper.m live entirely in a non-native VFS ("temporary").
+// resolveMFile_ must use the script-origin's FS for the implicit
+// sibling lookup, not native disk.
+TEST_P(MFileResolverTest, SiblingResolvesThroughTemporaryFS)
+{
+    auto vfs = std::make_unique<TestMemoryFS>("temporary");
+    auto *vfsRaw = vfs.get();
+    engine.registerVirtualFS(std::move(vfs));
+
+    vfsRaw->files_["/scripts/caller.m"] = "g = vfs_helper(4);\n";
+    vfsRaw->files_["/scripts/vfs_helper.m"] =
+        "function y = vfs_helper(x)\n  y = x * 11;\nend\n";
+
+    EXPECT_NO_THROW(engine.eval("run('temporary:/scripts/caller.m');"));
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 44.0);
+}
+
+// ── #5 — scriptDir and addpath coexist; both lookups work ─────
+//
+// caller.m sits next to near_helper.m in workDir, but ALSO calls
+// far_helper which lives in a separate addpath'd dir. Both must
+// resolve from the same script.
+TEST_P(MFileResolverTest, ScriptDirAndAddpathCoexist)
+{
+    auto far = workDir / "far";
+    std::filesystem::create_directories(far);
+
+    writeMFile("coexist_caller.m",
+               "g_near = near_helper(2);\n"
+               "g_far  = far_helper(3);\n");
+    writeMFile("near_helper.m",
+               "function y = near_helper(x)\n  y = x + 100;\nend\n");
+    {
+        std::ofstream f(far / "far_helper.m");
+        f << "function y = far_helper(x)\n  y = x + 200;\nend\n";
+    }
+
+    engine.addPath(far.string());
+    auto p = (workDir / "coexist_caller.m").generic_string();
+    EXPECT_NO_THROW(engine.eval("run('" + p + "');"));
+    EXPECT_DOUBLE_EQ(engine.getVariable("g_near")->toScalar(), 102.0);
+    EXPECT_DOUBLE_EQ(engine.getVariable("g_far")->toScalar(), 203.0);
 }
 
 TEST_P(MFileResolverTest, PathReturnsRegisteredDirs)
