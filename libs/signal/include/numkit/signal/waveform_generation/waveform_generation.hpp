@@ -56,4 +56,29 @@ Value chirp(std::pmr::memory_resource *mr, const Value &t,
              double f0, double t1, double f1,
              const std::string &method = "linear");
 
+/// square(t[, duty]) — square wave with period 2π and duty cycle in
+/// percent (default 50). Output is +1 during the high portion and -1
+/// during the low portion of each cycle.
+Value square(std::pmr::memory_resource *mr, const Value &t, double duty = 50.0);
+
+/// sawtooth(t[, width]) — periodic sawtooth on period 2π. `width` in
+/// [0, 1] controls the rising-portion fraction; width=1 (default) gives
+/// the canonical sawtooth (linear ramp from -1 to 1). width=0.5 yields
+/// a triangle wave.
+Value sawtooth(std::pmr::memory_resource *mr, const Value &t, double width = 1.0);
+
+/// sinc(t) — normalised cardinal sine: sinc(0) = 1, otherwise sin(πt)/(πt).
+Value sinc(std::pmr::memory_resource *mr, const Value &t);
+
+/// gmonopuls(t, fc) — Gaussian monopulse at centre frequency fc.
+/// y = (2π·fc·t / sqrt(K)) · exp(-2·(π·fc·t)²) where K is set so the
+/// pulse peak equals 1 at t = 1/(2π·fc).
+Value gmonopuls(std::pmr::memory_resource *mr, const Value &t, double fc);
+
+/// diric(x, n) — Dirichlet (periodic-sinc) function of order n.
+///   y = sin(n·x/2) / (n·sin(x/2))           if x is not a multiple of 2π
+///   y = (-1)^(k·(n-1))                       if x = 2π·k
+/// `n` must be a positive integer.
+Value diric(std::pmr::memory_resource *mr, const Value &x, int n);
+
 } // namespace numkit::signal

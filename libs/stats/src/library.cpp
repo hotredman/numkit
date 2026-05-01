@@ -21,6 +21,12 @@ void prctile_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cov_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void corrcoef_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+// descriptive/descriptive_extras.cpp (B2)
+void bounds_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void iqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void maxk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // moments/moments.cpp
 void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -32,6 +38,18 @@ void nanmax_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// moving/moving.cpp
+void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movmin_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movmax_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movprod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movmedian_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movvar_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movstd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void movmad_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void smoothdata_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void hampel_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -55,6 +73,11 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "corrcoef",  &stats::detail::corrcoef_reg);
     reg("descriptive", "skewness",  &stats::detail::skewness_reg);
     reg("descriptive", "kurtosis",  &stats::detail::kurtosis_reg);
+    reg("descriptive", "bounds",    &stats::detail::bounds_reg);
+    reg("descriptive", "iqr",       &stats::detail::iqr_reg);
+    reg("descriptive", "maxk",      &stats::detail::maxk_reg);
+    reg("descriptive", "mink",      &stats::detail::mink_reg);
+    reg("descriptive", "rmse",      &stats::detail::rmse_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
@@ -63,6 +86,18 @@ void StatsLibrary::install(Engine &engine)
     reg("nan", "nanmin",    &stats::detail::nanmin_reg);
     reg("nan", "nanvar",    &stats::detail::nanvar_reg);
     reg("nan", "nanstd",    &stats::detail::nanstd_reg);
+
+    reg("moving", "movmean",    &stats::detail::movmean_reg);
+    reg("moving", "movsum",     &stats::detail::movsum_reg);
+    reg("moving", "movmin",     &stats::detail::movmin_reg);
+    reg("moving", "movmax",     &stats::detail::movmax_reg);
+    reg("moving", "movprod",    &stats::detail::movprod_reg);
+    reg("moving", "movmedian",  &stats::detail::movmedian_reg);
+    reg("moving", "movvar",     &stats::detail::movvar_reg);
+    reg("moving", "movstd",     &stats::detail::movstd_reg);
+    reg("moving", "movmad",     &stats::detail::movmad_reg);
+    reg("moving", "smoothdata", &stats::detail::smoothdata_reg);
+    reg("moving", "hampel",     &stats::detail::hampel_reg);
 }
 
 } // namespace numkit

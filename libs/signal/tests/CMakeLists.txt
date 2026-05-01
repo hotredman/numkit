@@ -5,6 +5,9 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/windows_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/windows_extras_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/waveform_extras_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/resample_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transform_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/fft_public_api_test.cpp
