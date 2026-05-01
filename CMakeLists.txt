@@ -173,6 +173,7 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/filter_analysis/predicates.hpp
     libs/signal/include/numkit/signal/digital_filtering/filter.hpp
     libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
+    libs/signal/include/numkit/signal/digital_filtering/spec_driven.hpp
     libs/signal/include/numkit/signal/filter_implementation/conversions.hpp
     libs/signal/include/numkit/signal/multirate/multirate.hpp
     libs/signal/include/numkit/signal/convolution/convolution.hpp
