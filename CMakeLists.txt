@@ -153,7 +153,9 @@ set(NUMKIT_HEADERS
     libs/builtin/include/numkit/builtin/math/poly/polynomials.hpp
     libs/io/include/numkit/io/library.hpp
     libs/io/include/numkit/io/text/csv.hpp
+    libs/io/include/numkit/io/text/extras.hpp
     libs/io/include/numkit/io/file_io/fileio.hpp
+    libs/io/include/numkit/io/paths/paths.hpp
     libs/io/include/numkit/io/workspace/saveload.hpp
     libs/builtin/include/numkit/builtin/language/types/types.hpp
     libs/builtin/include/numkit/builtin/language/bitwise/int_math.hpp
@@ -312,6 +314,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(libs/signal/tests)
     add_subdirectory(libs/stats/tests)
     add_subdirectory(libs/graphics/tests)
+    add_subdirectory(libs/io/tests)
 endif()
 
 # ──────────────────────────────────────────────

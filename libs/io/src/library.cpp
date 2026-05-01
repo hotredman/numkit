@@ -33,6 +33,21 @@ void fwrite_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // workspace/saveload.cpp
 void save_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void load_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// text/extras.cpp (C1 — modern text helpers)
+void fileread_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void readlines_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void writelines_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void readmatrix_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void writematrix_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void type_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// paths/paths.cpp (C2 — file-name construction)
+void filesep_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fullfile_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fileparts_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tempdir_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tempname_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::io::detail
 
 namespace numkit {
@@ -44,6 +59,15 @@ void IoLibrary::install(Engine &engine)
     auto reg = [&](const char *sub, const char *name, ExternalFunc fn) {
         engine.registerFunction(std::string("io.") + sub, name, fn);
         engine.registerFunction("compat", name, fn);
+    };
+    // Variant that skips the compat alias — used when a name already
+    // exists as a root-namespace builtin in libs/builtin (the older
+    // declaration wins on short-name lookup; the io.<sub>.<name>
+    // qualified path still reaches our improved implementation).
+    // Tracked: the duplication should be resolved by Session A moving
+    // the path utilities out of libs/builtin into here.
+    auto regNoCompat = [&](const char *sub, const char *name, ExternalFunc fn) {
+        engine.registerFunction(std::string("io.") + sub, name, fn);
     };
 
     reg("file_io", "fopen",   &io::detail::fopen_reg);
@@ -58,8 +82,23 @@ void IoLibrary::install(Engine &engine)
     reg("file_io", "fread",   &io::detail::fread_reg);
     reg("file_io", "fwrite",  &io::detail::fwrite_reg);
 
-    reg("text", "csvread",  &io::detail::csvread_reg);
-    reg("text", "csvwrite", &io::detail::csvwrite_reg);
+    reg("text", "csvread",     &io::detail::csvread_reg);
+    reg("text", "csvwrite",    &io::detail::csvwrite_reg);
+    reg("text", "fileread",    &io::detail::fileread_reg);
+    reg("text", "readlines",   &io::detail::readlines_reg);
+    reg("text", "writelines",  &io::detail::writelines_reg);
+    reg("text", "readmatrix",  &io::detail::readmatrix_reg);
+    reg("text", "writematrix", &io::detail::writematrix_reg);
+    reg("text", "type",        &io::detail::type_reg);
+
+    // Path utilities currently duplicate older root-namespace builtins
+    // in libs/builtin; skip compat alias so short-name resolution stays
+    // unchanged for now.
+    regNoCompat("paths", "filesep",   &io::detail::filesep_reg);
+    regNoCompat("paths", "fullfile",  &io::detail::fullfile_reg);
+    regNoCompat("paths", "fileparts", &io::detail::fileparts_reg);
+    regNoCompat("paths", "tempdir",   &io::detail::tempdir_reg);
+    regNoCompat("paths", "tempname",  &io::detail::tempname_reg);
 
     reg("workspace", "save", &io::detail::save_reg);
     reg("workspace", "load", &io::detail::load_reg);
