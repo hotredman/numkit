@@ -457,6 +457,87 @@ TEST_P(FrameIntrospectionEdgesTest, NarginInsideEvalReflectsEnclosingFunction)
 INSTANTIATE_DUAL(FrameIntrospectionEdgesTest);
 
 // ============================================================
+// Known-failing eval regressions surfaced by
+// ide/public/examples/Frame_Introspection/eval_dynamic_code.m.
+//
+// These are pinned as failing tests so that fixing the underlying
+// engine bugs flips them green. Until then they stay red — that's
+// intentional. See user_facing notes at the bottom of the example.
+// ============================================================
+
+class EvalRegressionTest : public DualEngineTest {};
+
+// Bug #1: `r = eval('expr')` must NOT auto-print the inner
+// expression's `ans`. MATLAB behaviour: when the eval'd code is a
+// single expression whose value is captured by an outer assignment,
+// the inner ans display is suppressed.
+TEST_P(EvalRegressionTest, AssignmentCaptureSuppressesInnerAns)
+{
+    eval("a = 12; b = 4;");
+    capturedOutput.clear();
+    eval("r = eval('a + b');");
+    EXPECT_DOUBLE_EQ(getVar("r"), 16.0);
+    EXPECT_EQ(capturedOutput.find("ans"), std::string::npos)
+        << "captured: [" << capturedOutput << "]";
+}
+
+// Bug #2 — narrowing: pure `[ident, 'lit']` concat at top level.
+// Does the parser/runtime build the concat'd char row correctly
+// when no enclosing call is involved? If this passes, the bug is
+// in eval's arg handling (Bug #2b); if it fails, it's the parser
+// itself.
+TEST_P(EvalRegressionTest, BracketConcatStringPlainAssignment)
+{
+    eval("fname = 'sin';");
+    EXPECT_NO_THROW(eval("s = [fname, '(x)'];"));
+    auto *s = getVarPtr("s");
+    ASSERT_NE(s, nullptr);
+    EXPECT_EQ(s->toString(), "sin(x)");
+}
+
+// Bug #2b: `eval([fname, '(x)'])` at top-level — single iteration.
+// Smoke check: passes on its own, included for completeness.
+TEST_P(EvalRegressionTest, BracketConcatInsideCallArgIsSingleArg)
+{
+    eval("x = 0.5; fname = 'sin';");
+    EXPECT_NO_THROW(eval("v = eval([fname, '(x)']);"));
+    EXPECT_NEAR(getVar("v"), std::sin(0.5), 1e-12);
+}
+
+// Bug #2c — the actual repro from eval_dynamic_code.m. Manifests
+// only in VM (TW passes). On MSVC native it's an SEH 0xC0000005
+// access violation; on WASM (clang-emscripten) it surfaces as
+// "Too many input arguments for function '' (in call to 'eval')".
+// Different symptoms, same cause: per-iteration eval reuse inside a
+// user function corrupts call-arg state. The bracket-concat is
+// unrelated — it's a loop / arg-cleanup issue between successive
+// eval calls in the same VM frame.
+TEST_P(EvalRegressionTest, BracketConcatInLoopInsideFunction)
+{
+    eval(R"(
+        function out = dispatch()
+            fns = {'sin', 'cos', 'tan', 'exp'};
+            x = 0.5;
+            out = zeros(1, length(fns));
+            for i = 1:length(fns)
+                fname = fns{i};
+                v = eval([fname, '(x)']);
+                out(i) = v;
+            end
+        end
+    )");
+    EXPECT_NO_THROW(eval("y = dispatch();"));
+    auto *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_NEAR(y->operator()(0), std::sin(0.5), 1e-12);
+    EXPECT_NEAR(y->operator()(1), std::cos(0.5), 1e-12);
+    EXPECT_NEAR(y->operator()(2), std::tan(0.5), 1e-12);
+    EXPECT_NEAR(y->operator()(3), std::exp(0.5), 1e-12);
+}
+
+INSTANTIATE_DUAL(EvalRegressionTest);
+
+// ============================================================
 // Sanity: core builtins available WITHOUT `import compat.*`
 //
 // The DualEngineTest fixture imports compat in SetUp for ergonomics,

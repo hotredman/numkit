@@ -17,6 +17,11 @@ clear all
 
 % --- Computed expressions ---
 % Build the source string at runtime and evaluate.
+%
+% Note on form: we use `eval('result = <expr>;')` rather than
+% `result = eval('<expr>')`. Both are valid; the assignment-inside
+% form keeps the eval'd string self-contained and ends with `;` so
+% no intermediate `ans` gets displayed during the loop.
 operations = {'+', '-', '*', '/'};
 a = 12;
 b = 4;
@@ -24,19 +29,22 @@ fprintf('Operations on a=%d, b=%d:\n', a, b);
 for i = 1:length(operations)
     op = operations{i};
     expr = sprintf('a %s b', op);
-    result = eval(expr);
+    stmt = sprintf('result = %s;', expr);
+    eval(stmt);
     fprintf('  %s  = %g\n', expr, result);
 end
 
 % --- Dispatch table by name ---
-% Each function name lives as a string; eval calls it.
+% Each function name lives as a string; eval builds and runs the call.
+% We compose the source via sprintf for clarity.
 function dispatch_demo()
     fns = {'sin', 'cos', 'tan', 'exp'};
     x = 0.5;
     fprintf('\nFunction values at x = %g:\n', x);
     for i = 1:length(fns)
         fname = fns{i};
-        v = eval([fname, '(x)']);
+        stmt = sprintf('v = %s(x);', fname);
+        eval(stmt);
         fprintf('  %s(x) = %.4f\n', fname, v);
     end
 end
