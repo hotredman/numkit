@@ -104,6 +104,34 @@ public:
 
     void setMaxRecursionDepth(int d) { maxRecursion_ = d; }
 
+    // ── Frame walking for assignin / evalin / inputname ──
+    //
+    // Walk frames_ from back, treating frames_.size()-1 as "n=0" (the
+    // caller of the running builtin). Skips the script-level frame
+    // (index 0 = top-level, returns workspaceEnv there). Lazy-allocates
+    // frame.env for any user-function frame visited.
+    Environment *callerEnvAtDepth(int n);
+
+    // Variable write-through to the n-th caller's frame register if
+    // the name is in that frame's chunk.varMap. No-op otherwise. The
+    // env-side write is the caller's responsibility (engine.cpp).
+    void assignInCallerFrame(int n, const std::string &name, const Value &val);
+
+    // Scope-eval support (used by Engine::eval(src, scope) and the
+    // evalin / eval / run builtins). When non-null, the inner exec's
+    // top-level frame uses this env for currentCallEnv() instead of
+    // workspaceEnv — so imports and ctx.env-based writes go to scope.
+    // Saved/restored across re-entrant execute() boundaries via
+    // PausedState.
+    Environment *inheritedScope_ = nullptr;
+
+    // Find a frame whose lazy env equals `env` (any depth) and write
+    // `val` into the register slot for `name` if name is in that
+    // frame's chunk.varMap. Used by Engine::syncVMToScope to push
+    // inner-eval results back into the outer caller's static slots.
+    void writeToFrameMatchingEnv(Environment *env, const std::string &name,
+                                 const Value &val);
+
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;

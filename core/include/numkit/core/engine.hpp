@@ -102,6 +102,13 @@ public:
     // Execute code — uses current backend (TreeWalker by default)
     Value eval(const std::string &code);
 
+    // Scoped variant: top-level imports and variable assignments inside
+    // `code` are routed to `scope` instead of workspaceEnv. Used by
+    // `eval`/`run` builtins called from inside a function, and by
+    // `evalin`. scope=nullptr or scope==&workspaceEnv() falls back to
+    // the no-scope overload (REPL-style persistence).
+    Value eval(const std::string &code, Environment *scope);
+
     // Safe execution — never throws, returns result + error diagnostics
     struct EvalResult {
         Value value;
@@ -275,6 +282,29 @@ public:
     // Returns true when executing inside a user function call (not top-level script).
     // Used by clear() to avoid modifying workspaceEnv from within function scope.
     bool isInsideFunctionCall() const;
+
+    // ── Frame stack introspection (for assignin / evalin / inputname) ──
+    //
+    // Walk the user-function call stack from a builtin currently being
+    // executed. n=0 = the immediate caller's scope (the function or
+    // top-level script that contains the call site). n=1 = its caller.
+    // Walking off the top of the stack returns &workspaceEnv().
+    //
+    // Backend-aware: VM walks frames_, lazy-allocating frame.env on the
+    // way; TW walks its own activeFrames_ stack maintained via RAII
+    // guards around callUserFunction.
+    Environment *callerEnv(int n = 0);
+
+    // Number of user-function frames between the running builtin and
+    // the top-level. 0 means the builtin was called directly from a
+    // top-level script (caller is workspaceEnv).
+    int callerDepth() const;
+
+    // Variable assignment in the n-th caller's scope. Writes the value
+    // such that the caller can subsequently read it back. In VM mode,
+    // also performs write-through to the caller's frame register if the
+    // name is statically allocated (chunk.varMap hit). Used by assignin.
+    void assignToCaller(int n, const std::string &name, Value val);
 
     // ── Virtual filesystem ────────────────────────────────────
     //
@@ -460,6 +490,13 @@ private:
 
     // Sync VM's exported variables to workspaceEnv (called after execute, even on error)
     void syncVMToWorkspace();
+
+    // Sync VM's exported variables to an arbitrary scope. Falls back
+    // to syncVMToWorkspace() when scope is null or equals workspaceEnv.
+    // VM mode also performs write-through to the scope-owning frame's
+    // register slots so subsequent register-based reads in the caller
+    // pick up the values.
+    void syncVMToScope(Environment *scope);
 
     // Compile one AST subtree as a VM chunk, run it, sync registers to
     // workspaceEnv. eval() calls this once per top-level statement when

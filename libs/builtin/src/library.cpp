@@ -733,6 +733,47 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // ── assignin ──────────────────────────────────────────────
+    // assignin(workspace, name, val) — write `name = val` in
+    // `workspace`, where `workspace` is 'base' (top-level) or 'caller'
+    // (the workspace of the function that called the function
+    // containing this assignin). VM mode also write-throughs to the
+    // target frame's register if `name` is statically allocated, so
+    // subsequent register-based reads in the target pick up the value.
+    engine.registerFunction(
+        "assignin", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() != 3)
+                throw std::runtime_error("assignin: requires 3 arguments (workspace, name, value)");
+            if (!args[0].isChar())
+                throw std::runtime_error("assignin: workspace must be 'base' or 'caller'");
+            if (!args[1].isChar())
+                throw std::runtime_error("assignin: name must be a string");
+            std::string where = args[0].toString();
+            std::string name = args[1].toString();
+            if (name.empty())
+                throw std::runtime_error("assignin: name must be non-empty");
+            if (where == "base") {
+                ctx.engine->workspaceEnv().set(name, args[2]);
+            } else if (where == "caller") {
+                // 'caller' is invalid when assignin is called directly
+                // from the base workspace — there's no enclosing
+                // function to take a caller of (matches MATLAB's
+                // "ASSIGNIN cannot have 'caller' as a workspace when
+                // used in the base workspace").
+                if (ctx.engine->callerDepth() < 1)
+                    throw std::runtime_error(
+                        "assignin: 'caller' is not valid in the base workspace");
+                // Depth 1 = the function that called the function
+                // containing this assignin call. Depth 0 would be the
+                // assignin-containing function itself.
+                ctx.engine->assignToCaller(1, name, args[2]);
+            } else {
+                throw std::runtime_error(
+                    "assignin: workspace must be 'base' or 'caller', got '" + where + "'");
+            }
+            outs[0] = Value::empty();
+        });
+
     // ── clc ────────────────────────────────────────────────────
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
@@ -1118,18 +1159,65 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::empty();
                             });
 
-    engine.registerFunction("run",
-                            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-                                if (args.empty() || !args[0].isChar())
-                                    throw std::runtime_error("run requires a string filename");
-                                std::string p = args[0].toString();
-                                auto rp = ctx.engine->resolvePath(p);
-                                if (!rp.fs || !rp.fs->exists(rp.path))
-                                    throw std::runtime_error("run: file not found: " + p);
-                                std::string content = rp.fs->readFile(rp.path);
-                                ctx.engine->eval(content);
-                                outs[0] = Value::empty();
-                            });
+    // ── run ──────────────────────────────────────────────────
+    // run('script.m') executes the script in the caller's workspace
+    // (matches MATLAB semantics: scripts share scope with the caller).
+    // ctx.env is the caller's frame.env in VM mode, workspaceEnv at
+    // top-level. eval(content, scope) routes the inner top-level's
+    // imports + variable assignments to that scope.
+    engine.registerFunction(
+        "run", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isChar())
+                throw std::runtime_error("run requires a string filename");
+            std::string p = args[0].toString();
+            auto rp = ctx.engine->resolvePath(p);
+            if (!rp.fs || !rp.fs->exists(rp.path))
+                throw std::runtime_error("run: file not found: " + p);
+            std::string content = rp.fs->readFile(rp.path);
+            ctx.engine->eval(content, ctx.env);
+            outs[0] = Value::empty();
+        });
+
+    // ── eval ─────────────────────────────────────────────────
+    // eval(str) executes `str` in the caller's workspace. Matches
+    // MATLAB: variables defined in the eval'd code are visible to the
+    // caller (when caller is at top-level), and imports are scoped to
+    // the caller's lifetime.
+    engine.registerFunction(
+        "eval", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isChar())
+                throw std::runtime_error("eval requires a string");
+            outs[0] = ctx.engine->eval(args[0].toString(), ctx.env);
+        });
+
+    // ── evalin ───────────────────────────────────────────────
+    // evalin(workspace, str) executes `str` in either the base
+    // workspace ('base') or the workspace of the caller of the function
+    // containing this evalin call ('caller'). The latter matches
+    // MATLAB's two-frames-up rule.
+    engine.registerFunction(
+        "evalin", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw std::runtime_error("evalin: requires (workspace, code)");
+            if (!args[0].isChar() || !args[1].isChar())
+                throw std::runtime_error("evalin: arguments must be strings");
+            std::string where = args[0].toString();
+            std::string code = args[1].toString();
+            Environment *target = nullptr;
+            if (where == "base") {
+                target = &ctx.engine->workspaceEnv();
+            } else if (where == "caller") {
+                if (ctx.engine->callerDepth() < 1)
+                    throw std::runtime_error(
+                        "evalin: 'caller' is not valid in the base workspace");
+                target = ctx.engine->callerEnv(1);
+                if (!target) target = &ctx.engine->workspaceEnv();
+            } else {
+                throw std::runtime_error(
+                    "evalin: workspace must be 'base' or 'caller', got '" + where + "'");
+            }
+            outs[0] = ctx.engine->eval(code, target);
+        });
 
     // ── pwd / cd (Phase 9c) ────────────────────────────────────
     engine.registerFunction("pwd",

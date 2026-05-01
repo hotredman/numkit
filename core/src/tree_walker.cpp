@@ -2572,6 +2572,7 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
                                              : &engine_.constantsEnv();
     Environment localEnv(parentEnv, engine_.globalsEnv_.get());
+    FrameGuard frameGuard(activeFrames_, &localEnv);
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
@@ -2623,6 +2624,7 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
                                              : &engine_.constantsEnv();
     Environment localEnv(parentEnv, engine_.globalsEnv_.get());
+    FrameGuard frameGuard(activeFrames_, &localEnv);
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
