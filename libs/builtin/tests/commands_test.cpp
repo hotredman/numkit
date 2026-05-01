@@ -182,6 +182,43 @@ TEST_P(ClearTest, ClearImportDropsActiveImports)
     EXPECT_THROW(eval("b = v();"), std::exception);
 }
 
+// Static `clear x` inside a function: compiler emits CLEAR_VAR opcode
+// for VM (and env->remove for TW). Works on both backends — kept here
+// as regression coverage.
+TEST_P(ClearTest, ClearLocalVariableInsideFunctionRemovesIt)
+{
+    eval(R"(
+        function r = does_clear()
+            x = 42;
+            clear x
+            r = exist('x', 'var');
+        end
+    )");
+    eval("y = does_clear();");
+    Value *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 0.0);
+}
+
+// Dynamic `clear(name)` inside a function: compiler emits CLEAR_DYN
+// opcode which looks the name up in varMap × R[reg] at runtime —
+// bypasses the builtin lambda, so this works on both backends too.
+TEST_P(ClearTest, ClearDynamicNameInsideFunctionRemovesIt)
+{
+    eval(R"(
+        function r = does_clear_dyn()
+            x = 42;
+            n = 'x';
+            clear(n);
+            r = exist('x', 'var');
+        end
+    )");
+    eval("y = does_clear_dyn();");
+    Value *y = getVarPtr("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 0.0);
+}
+
 INSTANTIATE_DUAL(ClearTest);
 
 // ============================================================
@@ -337,6 +374,25 @@ TEST_P(WhoTest, WhoFileMissingFileThrows)
     EXPECT_THROW(
         eval("who('-file', '/this/path/definitely/does/not/exist.txt');"),
         std::exception);
+}
+
+// `who` inside a function: handled by OpCode::WHO at compile time,
+// which iterates frame.chunk->varMap × frame.R[reg]. Works on both
+// backends — kept here as regression coverage.
+TEST_P(WhoTest, WhoInsideFunctionListsLocals)
+{
+    eval(R"(
+        function locals = list_locals()
+            a = 1;
+            b = 2;
+            who
+            locals = 'done';
+        end
+    )");
+    capturedOutput.clear();
+    eval("list_locals();");
+    EXPECT_NE(capturedOutput.find("a"), std::string::npos);
+    EXPECT_NE(capturedOutput.find("b"), std::string::npos);
 }
 
 INSTANTIATE_DUAL(WhoTest);

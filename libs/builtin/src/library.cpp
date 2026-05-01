@@ -669,6 +669,70 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::empty();
                             });
 
+    // ── import ────────────────────────────────────────────────
+    // Command-style: `import signal.*` → import('signal.*').
+    // Function-style: `import('signal', 'as', 's')` → alias form.
+    // Each string arg is one of:
+    //   'a.b.c'   — single-symbol import (path = [a, b, c])
+    //   'a.b.*'   — wildcard import      (path = [a, b], wildcard=true)
+    //   3-arg form 'a.b' / 'as' / 'name'  → alias
+    // Multiple args allowed: `import a.* b.*` pushes two imports.
+    engine.registerFunction(
+        "import", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto fail = [](const std::string &msg) {
+                throw std::runtime_error("import: " + msg);
+            };
+            auto asString = [&](const Value &v, size_t i) {
+                if (!v.isChar() && !v.isString())
+                    fail("argument " + std::to_string(i + 1) + " must be a string");
+                return v.toString();
+            };
+            auto parseSpec = [&](const std::string &spec, Import &imp) {
+                if (spec.empty()) fail("empty import specifier");
+                size_t pos = 0;
+                while (pos < spec.size()) {
+                    size_t dot = spec.find('.', pos);
+                    std::string seg = spec.substr(pos, dot == std::string::npos ? std::string::npos
+                                                                                : dot - pos);
+                    if (seg == "*") {
+                        if (dot != std::string::npos)
+                            fail("'*' must be the last component in '" + spec + "'");
+                        imp.wildcard = true;
+                        return;
+                    }
+                    if (seg.empty())
+                        fail("empty path component in '" + spec + "'");
+                    imp.path.push_back(std::move(seg));
+                    if (dot == std::string::npos) break;
+                    pos = dot + 1;
+                }
+                if (imp.path.empty()) fail("missing path in '" + spec + "'");
+            };
+
+            if (args.empty()) fail("requires at least one argument");
+
+            // Alias form: import('a.b', 'as', 'name') — exactly 3 args, args[1] == 'as'.
+            if (args.size() == 3 && (args[1].isChar() || args[1].isString())
+                && args[1].toString() == "as") {
+                Import imp;
+                parseSpec(asString(args[0], 0), imp);
+                if (imp.wildcard) fail("'as' alias is not allowed with wildcard import");
+                imp.alias = asString(args[2], 2);
+                if (imp.alias.empty()) fail("alias name must be non-empty");
+                ctx.env->pushImport(std::move(imp));
+                outs[0] = Value::empty();
+                return;
+            }
+
+            for (size_t i = 0; i < args.size(); ++i) {
+                std::string spec = asString(args[i], i);
+                Import imp;
+                parseSpec(spec, imp);
+                ctx.env->pushImport(std::move(imp));
+            }
+            outs[0] = Value::empty();
+        });
+
     // ── clc ────────────────────────────────────────────────────
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {

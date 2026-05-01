@@ -116,6 +116,193 @@ TEST_P(NamespaceResolverTest, WildcardImportNestedPackage)
     EXPECT_EQ(w->numel(), 8u);
 }
 
+TEST_P(NamespaceResolverTest, FunctionStyleImportCallWorks)
+{
+    // `import` is now a regular builtin; function-style and command-style
+    // are equivalent: `import('signal.*')` ≡ `import signal.*`.
+    auto result = engine.eval("import('test_ns.*'); y = answer();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
+}
+
+TEST_P(NamespaceResolverTest, ImportNoArgsThrows)
+{
+    // `import` with no args was a parse error in the old special-syntax
+    // form; it's now a runtime error from the builtin.
+    EXPECT_THROW(engine.eval("import();"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportWildcardWithAliasThrows)
+{
+    // Wildcard + alias is illegal — was a parse error before, runtime now.
+    EXPECT_THROW(engine.eval("import('test_ns.*', 'as', 't');"),
+                 std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, MultiArgCommandStyle)
+{
+    // `import a.* b.*` — multiple imports in one statement, command-style.
+    engine.registerFunction("other_ns", "second", &answer_reg);
+    auto result = engine.eval(
+        "import test_ns.* other_ns.*; y1 = answer(); y2 = second();");
+    Value *y1 = engine.getVariable("y1");
+    Value *y2 = engine.getVariable("y2");
+    ASSERT_NE(y1, nullptr);
+    ASSERT_NE(y2, nullptr);
+    EXPECT_DOUBLE_EQ(y1->toScalar(), 42.0);
+    EXPECT_DOUBLE_EQ(y2->toScalar(), 42.0);
+}
+
+TEST_P(NamespaceResolverTest, MultiArgFunctionStyle)
+{
+    // Same multi-arg form via function-style call.
+    engine.registerFunction("other_ns", "second", &answer_reg);
+    auto result = engine.eval(
+        "import('test_ns.*', 'other_ns.*'); y1 = answer(); y2 = second();");
+    Value *y1 = engine.getVariable("y1");
+    Value *y2 = engine.getVariable("y2");
+    ASSERT_NE(y1, nullptr);
+    ASSERT_NE(y2, nullptr);
+    EXPECT_DOUBLE_EQ(y1->toScalar(), 42.0);
+    EXPECT_DOUBLE_EQ(y2->toScalar(), 42.0);
+}
+
+TEST_P(NamespaceResolverTest, ClearImportRevokesResolution)
+{
+    // `clear import` empties the active-import list at the current scope.
+    // After clearing, the bare leaf name must no longer resolve.
+    engine.eval("import test_ns.*; y = answer();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
+
+    engine.eval("clear import;");
+    EXPECT_THROW(engine.eval("z = answer();"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, FunctionLocalImportDoesNotLeak)
+{
+    // `import` inside a user function pushes onto the function's local
+    // env (frame.env in VM, the function frame env in TW). It must NOT
+    // leak back into the caller's scope — both backends are required
+    // to honor this.
+    engine.eval(
+        "function y = uses_import(); import test_ns.*; y = answer(); end;"
+        "y1 = uses_import();");
+    Value *y1 = engine.getVariable("y1");
+    ASSERT_NE(y1, nullptr);
+    EXPECT_DOUBLE_EQ(y1->toScalar(), 42.0);
+
+    // After the function returned, the workspace import list must NOT
+    // contain test_ns — calling `answer()` bare should still fail.
+    EXPECT_THROW(engine.eval("y2 = answer();"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, FunctionStyleAndCommandStyleSameSemantics)
+{
+    // Both forms must produce identical Import entries / resolution.
+    engine.eval("import test_ns.*; a = answer();");
+    auto wsImports1 = engine.workspaceEnv().activeImports().size();
+
+    engine.eval("clear import; import('test_ns.*'); b = answer();");
+    auto wsImports2 = engine.workspaceEnv().activeImports().size();
+
+    EXPECT_EQ(wsImports1, wsImports2);
+    Value *a = engine.getVariable("a");
+    Value *b = engine.getVariable("b");
+    ASSERT_NE(a, nullptr);
+    ASSERT_NE(b, nullptr);
+    EXPECT_DOUBLE_EQ(a->toScalar(), b->toScalar());
+}
+
+TEST_P(NamespaceResolverTest, ImportEmptySpecThrows)
+{
+    EXPECT_THROW(engine.eval("import('');"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportWildcardNotAtEndThrows)
+{
+    // `*` is only valid as the last component of a dotted path.
+    EXPECT_THROW(engine.eval("import('a.*.b');"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportDoubleDotThrows)
+{
+    // Empty path component (`a..b`) — caught by the spec parser.
+    EXPECT_THROW(engine.eval("import('a..b');"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportNonStringArgThrows)
+{
+    // Numeric arg should error — import only accepts strings.
+    EXPECT_THROW(engine.eval("import(42);"), std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportEmptyAliasThrows)
+{
+    EXPECT_THROW(engine.eval("import('test_ns', 'as', '');"),
+                 std::runtime_error);
+}
+
+TEST_P(NamespaceResolverTest, ImportAliasPushesEntry)
+{
+    // 3-arg alias form parses + pushes an Import without throwing.
+    // (Alias-prefix resolution itself is not yet wired up in the engine,
+    // so we just verify the state change.)
+    auto before = engine.workspaceEnv().activeImports().size();
+    engine.eval("import('test_ns', 'as', 'tn');");
+    auto after = engine.workspaceEnv().activeImports().size();
+    EXPECT_EQ(after, before + 1);
+    const auto &imp = engine.workspaceEnv().activeImports().back();
+    EXPECT_EQ(imp.alias, "tn");
+    ASSERT_EQ(imp.path.size(), 1u);
+    EXPECT_EQ(imp.path[0], "test_ns");
+    EXPECT_FALSE(imp.wildcard);
+}
+
+TEST_P(NamespaceResolverTest, AsAsCommandStyleAlias)
+{
+    // Command-style: `import test_ns as tn` — `as` is now a regular
+    // identifier and the builtin's 3-arg detection picks up the alias form.
+    auto before = engine.workspaceEnv().activeImports().size();
+    engine.eval("import test_ns as tn;");
+    auto after = engine.workspaceEnv().activeImports().size();
+    EXPECT_EQ(after, before + 1);
+    EXPECT_EQ(engine.workspaceEnv().activeImports().back().alias, "tn");
+}
+
+// ── Known issue: alias prefix not consulted by the resolver ─────
+// `import test_ns as tn` pushes Import{path=[test_ns], alias="tn"}.
+// The resolver in engine.cpp explicitly skips alias entries
+// (`else if (!imp.alias.empty()) continue;`), so `tn.answer()` does
+// not resolve via prefix substitution.
+//
+// Fix sketch: when resolving a qualified call like `tn.foo`, treat
+// alias-imports as prefix-substitutions — rewrite `tn.foo` to
+// `test_ns.foo` and look up the registered name.
+//
+// DISABLED until alias resolution is implemented.
+TEST_P(NamespaceResolverTest, DISABLED_AliasPrefixCallResolves)
+{
+    auto result = engine.eval("import test_ns as tn; y = tn.answer();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
+}
+
+TEST_P(NamespaceResolverTest, DISABLED_AliasPrefixSurvivesNestedNamespace)
+{
+    // `import signal.transforms as tr; tr.fft(x)` should reach
+    // signal.transforms.fft via the alias-prefix substitution.
+    auto result = engine.eval(
+        "import signal.transforms as tr; y = tr.fft([1 1 1 1]);");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_EQ(y->numel(), 4u);
+    EXPECT_NEAR(y->complexElem(0).real(), 4.0, 1e-12);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, NamespaceResolverTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),

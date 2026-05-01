@@ -167,11 +167,14 @@ Value VM::execute(const BytecodeChunk &chunk, const Value *args, uint8_t nargs)
 std::unique_ptr<VM::PausedState> VM::savePausedState()
 {
     auto s = std::make_unique<PausedState>();
-    s->frames = frames_;
-    s->forStack = forStack_;
-    s->tryStack = tryStack_;
+    // Move (not copy) — CallFrame holds a unique_ptr<Environment>. The
+    // inner re-entrant execution will clear frames_ in startExecution()
+    // anyway, so move semantics drop nothing we need.
+    s->frames = std::move(frames_);
+    s->forStack = std::move(forStack_);
+    s->tryStack = std::move(tryStack_);
     s->regStackTop = regStackTop_;
-    s->lastResult = lastResult_;
+    s->lastResult = std::move(lastResult_);
     // Snapshot only the used portion of the register stack
     s->regSnapshot.assign(regStack_.begin(), regStack_.begin() + regStackTop_);
     return s;
@@ -244,7 +247,7 @@ ExecStatus VM::startExecution(const BytecodeChunk &chunk, const Value *args, uin
     cf.nregs = nregs;
     cf.forStackBase = 0;
     cf.tryStackBase = 0;
-    frames_.push_back(cf);
+    frames_.push_back(std::move(cf));
 
     // Debug: push top-level debug frame
     if (auto *ctl = debugCtl()) {
@@ -1301,7 +1304,7 @@ enter_frame:
                 {
                     const std::string &funcName = chunk.strings[funcIdx];
                     const ExternalFunc *fnPtr = engine_.findExternal(
-                        funcName, &engine_.workspaceEnv());
+                        funcName, currentCallEnv());
                     if (fnPtr) {
                         Span<const Value> as(&R[argBase], na);
                         Value ob[1];
@@ -1325,7 +1328,7 @@ enter_frame:
                         if (canHint)
                             ob[0] = std::move(R[I.a]);
                         Span<Value> os(ob, 1);
-                        CallContext ctx{&engine_, &engine_.workspaceEnv()};
+                        CallContext ctx{&engine_, currentCallEnv()};
                         (*fnPtr)(as, nargout_val, os, ctx);
                         R[I.a] = std::move(ob[0]);
                         break;
@@ -1336,7 +1339,7 @@ enter_frame:
                     // qualified for +pkg/foo.m, bare for plain foo.m.
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName,
-                                                        &engine_.workspaceEnv())) {
+                                                        currentCallEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
@@ -1367,12 +1370,12 @@ enter_frame:
                 // External function with nout — call directly
                 {
                     const ExternalFunc *fnPtr = engine_.findExternal(
-                        funcName, &engine_.workspaceEnv());
+                        funcName, currentCallEnv());
                     if (fnPtr) {
                         std::vector<Value> outBuf(nout);
                         Span<const Value> as(&R[argBase], na);
                         Span<Value> os(outBuf.data(), nout);
-                        CallContext ctx{&engine_, &engine_.workspaceEnv()};
+                        CallContext ctx{&engine_, currentCallEnv()};
                         (*fnPtr)(as, nout, os, ctx);
                         for (size_t i = 0; i < nout; ++i)
                             R[outBase + i] = std::move(outBuf[i]);
@@ -1382,7 +1385,7 @@ enter_frame:
                     // dispatch as CALL above.
                     if (auto *uf =
                             engine_.lookupUserFunction(funcName,
-                                                        &engine_.workspaceEnv())) {
+                                                        currentCallEnv())) {
                         if (const BytecodeChunk *found = findCompiledFunc(uf->name)) {
                             frame.ip = ip + 1;
                             returnCount_ = 0;
@@ -1429,23 +1432,6 @@ enter_frame:
                 if (I.a == 1 && !forStack_.empty())
                     forStack_.pop_back(); // break from for-loop
                 break;
-
-            case OpCode::PUSH_IMPORT: {
-                const auto &spec = chunk.imports[I.d];
-                Import imp;
-                // Split joinedPath ("a.b.c") back into path components.
-                size_t start = 0;
-                for (size_t i = 0; i <= spec.joinedPath.size(); ++i) {
-                    if (i == spec.joinedPath.size() || spec.joinedPath[i] == '.') {
-                        imp.path.emplace_back(spec.joinedPath.data() + start, i - start);
-                        start = i + 1;
-                    }
-                }
-                imp.wildcard = spec.wildcard;
-                imp.alias = spec.alias;
-                engine_.workspaceEnv().pushImport(std::move(imp));
-                break;
-            }
 
             case OpCode::ASSERT_DEF:
                 if (R[I.a].isUnset() || R[I.a].isDeleted()) {
@@ -1826,6 +1812,24 @@ DebugController *VM::debugCtl()
 // Frame management — non-recursive call/return
 // ============================================================
 
+Environment *VM::currentCallEnv()
+{
+    // Frame 0 == top-level script: builtins see workspaceEnv directly,
+    // matching script-level eval(). Frame >= 1 == user function call:
+    // give it a private env so e.g. `import a.*` inside the function
+    // doesn't leak after return. Lazy — only allocated on first builtin
+    // that asks (most frames never need it).
+    if (frames_.size() <= 1)
+        return &engine_.workspaceEnv();
+    auto &frame = frames_.back();
+    if (!frame.env) {
+        frame.env = std::make_unique<Environment>(
+            &engine_.workspaceEnv(),
+            engine_.globalsEnv_.get());
+    }
+    return frame.env.get();
+}
+
 void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,
                        uint8_t destReg, size_t nargout,
                        bool isMulti, uint8_t outBase, uint8_t nout)
@@ -1889,7 +1893,7 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
     cf.isMultiReturn = isMulti;
     cf.outBase = outBase;
     cf.nout = nout;
-    frames_.push_back(cf);
+    frames_.push_back(std::move(cf));
 
     regStackTop_ += nregs;
     R_ = newR;
@@ -2204,7 +2208,7 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
     const char *fname = (bid >= 0 && bid < 26) ? bn[bid] : nullptr;
     if (fname) {
         const ExternalFunc *fnPtr = engine_.findExternal(
-            fname, &engine_.workspaceEnv());
+            fname, currentCallEnv());
         if (fnPtr) {
             Span<const Value> as(&R[argBase], na);
             Value ob[1];
@@ -2220,7 +2224,7 @@ void VM::execCallBuiltin(const Instruction &I, Value *R)
             if (canHint)
                 ob[0] = std::move(R[I.a]);
             Span<Value> os(ob, 1);
-            CallContext ctx{&engine_, &engine_.workspaceEnv()};
+            CallContext ctx{&engine_, currentCallEnv()};
             (*fnPtr)(as, 1, os, ctx);
             R[I.a] = std::move(ob[0]);
             return;
@@ -2274,7 +2278,7 @@ bool VM::execCallIndirect(const Instruction &I, Value *R,
         Span<const Value> as(argsBuf.data(), na);
         Value ob[1];
         Span<Value> os(ob, 1);
-        CallContext ctx{&engine_, &engine_.workspaceEnv()};
+        CallContext ctx{&engine_, currentCallEnv()};
         extIt->second(as, 1, os, ctx);
         R[I.a] = std::move(ob[0]);
         return false;

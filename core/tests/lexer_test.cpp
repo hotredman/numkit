@@ -537,6 +537,20 @@ TEST(Lexer, KeywordPersistent)
     expectSingleToken("persistent", TokenType::KW_PERSISTENT);
 }
 
+TEST(Lexer, ImportIsIdentifier)
+{
+    // `import` is no longer a keyword — it's a regular builtin invoked
+    // command-style. Lexer must produce IDENTIFIER, not a KW_* token.
+    expectSingleToken("import", TokenType::IDENTIFIER, "import");
+}
+
+TEST(Lexer, AsIsIdentifier)
+{
+    // Same for `as` — used positionally inside the `import` builtin's
+    // 3-arg alias form, but at the lexer level it's a plain identifier.
+    expectSingleToken("as", TokenType::IDENTIFIER, "as");
+}
+
 TEST(Lexer, KeywordAsPrefix)
 {
     // "ifx" — не ключевое слово, а идентификатор

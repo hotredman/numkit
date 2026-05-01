@@ -3,8 +3,10 @@
 
 #include <numkit/core/bytecode.hpp>
 #include <numkit/core/debugger.hpp>
+#include <numkit/core/environment.hpp>
 #include <numkit/core/value.hpp>
 
+#include <memory>
 #include <unordered_map>
 #include <vector>
 
@@ -132,6 +134,11 @@ private:
         // Dynamic variables — fallback for variables not in static varMap.
         // Used by debug eval to inject variables created at breakpoints.
         std::unordered_map<std::string, Value> *dynVars = nullptr;
+
+        // Lazy per-frame env for scope-local imports / env-resident
+        // builtin state. parent = workspaceEnv. Allocated on first
+        // currentCallEnv() inside a user function; nullptr at top level.
+        std::unique_ptr<Environment> env;
     };
     std::vector<CallFrame> frames_;
     Value lastResult_;
@@ -200,6 +207,13 @@ private:
                        uint8_t destReg, size_t nargout,
                        bool isMulti = false, uint8_t outBase = 0, uint8_t nout = 0);
     void popCallFrame(Value retVal);
+
+    // Returns the Environment a builtin call should see for ctx.env.
+    // Top-level (frames_.size() <= 1): workspaceEnv directly.
+    // Inside a user function: lazily-allocated frame.env, parent =
+    // workspaceEnv. Function-local imports / state live in this env and
+    // are dropped when the frame is popped.
+    Environment *currentCallEnv();
 
     // Export top-level variables to lastVarMap_ and globalsEnv
     void exportTopLevelVariables();

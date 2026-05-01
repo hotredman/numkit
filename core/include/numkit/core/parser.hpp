@@ -56,7 +56,6 @@ private:
     ASTNodePtr parseFunctionDef();
     ASTNodePtr parseTryCatch();
     ASTNodePtr parseGlobalPersistent();
-    ASTNodePtr parseImport();
     ASTNodePtr parseBlock(std::initializer_list<TokenType> terminators);
 
     // — Expressions (MATLAB precedence, low to high) —
