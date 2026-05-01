@@ -153,7 +153,9 @@ set(NUMKIT_HEADERS
     libs/builtin/include/numkit/builtin/math/poly/polynomials.hpp
     libs/io/include/numkit/io/library.hpp
     libs/io/include/numkit/io/text/csv.hpp
+    libs/io/include/numkit/io/text/extras.hpp
     libs/io/include/numkit/io/file_io/fileio.hpp
+    libs/io/include/numkit/io/paths/paths.hpp
     libs/io/include/numkit/io/workspace/saveload.hpp
     libs/builtin/include/numkit/builtin/language/types/types.hpp
     libs/builtin/include/numkit/builtin/language/bitwise/int_math.hpp
@@ -167,16 +169,23 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/filter_design/filter_design.hpp
     libs/signal/include/numkit/signal/filter_analysis/frequency_response.hpp
     libs/signal/include/numkit/signal/filter_analysis/unwrap.hpp
+    libs/signal/include/numkit/signal/filter_analysis/responses.hpp
+    libs/signal/include/numkit/signal/filter_analysis/predicates.hpp
     libs/signal/include/numkit/signal/digital_filtering/filter.hpp
     libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
+    libs/signal/include/numkit/signal/digital_filtering/spec_driven.hpp
     libs/signal/include/numkit/signal/filter_implementation/conversions.hpp
+    libs/signal/include/numkit/signal/filter_implementation/conversions_extras.hpp
     libs/signal/include/numkit/signal/multirate/multirate.hpp
+    libs/signal/include/numkit/signal/multirate/extras.hpp
     libs/signal/include/numkit/signal/convolution/convolution.hpp
+    libs/signal/include/numkit/signal/convolution/extras.hpp
     libs/signal/include/numkit/signal/transforms/fft.hpp
     libs/signal/include/numkit/signal/transforms/hilbert.hpp
     libs/signal/include/numkit/signal/transforms/dct.hpp
     libs/signal/include/numkit/signal/transforms/goertzel.hpp
     libs/signal/include/numkit/signal/transforms/transform_helpers.hpp
+    libs/signal/include/numkit/signal/transforms/extras.hpp
     libs/signal/include/numkit/signal/smoothing/sgolay.hpp
     libs/signal/include/numkit/signal/smoothing/medfilt.hpp
     libs/signal/include/numkit/signal/measurements/findpeaks.hpp
@@ -312,6 +321,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(libs/signal/tests)
     add_subdirectory(libs/stats/tests)
     add_subdirectory(libs/graphics/tests)
+    add_subdirectory(libs/io/tests)
 endif()
 
 # ──────────────────────────────────────────────

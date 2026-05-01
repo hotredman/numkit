@@ -7,21 +7,28 @@ set(SIGNALLIB_SOURCES
     # filter_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp
     # digital_filtering/
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
     # filter_implementation/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras.cpp
     # multirate/
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/multirate/extras.cpp
     # convolution/
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras.cpp
     # transforms/
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras.cpp
     # smoothing/
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp

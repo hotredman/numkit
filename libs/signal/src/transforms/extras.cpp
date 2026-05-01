@@ -1,0 +1,269 @@
+// libs/signal/src/transforms/extras.cpp
+//
+// dftmtx / bitrevorder / dst / idst / rceps / cceps / icceps.
+
+#include <numkit/signal/transforms/extras.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
+#include <numkit/core/types.hpp>
+#include <numkit/signal/filter_analysis/unwrap.hpp>      // (used externally; not needed here)
+#include <numkit/signal/transforms/fft.hpp>
+
+#include "../dsp_helpers.hpp"   // fftRadix2, fillFftTwiddles, nextPow2, Complex
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+namespace numkit::signal {
+
+namespace {
+
+bool isPow2(size_t n) { return n > 0 && (n & (n - 1)) == 0; }
+
+size_t bitReverse(size_t v, size_t bits)
+{
+    size_t r = 0;
+    for (size_t i = 0; i < bits; ++i) {
+        r = (r << 1) | (v & 1);
+        v >>= 1;
+    }
+    return r;
+}
+
+// fft of a real vector → complex column. Convenience wrapper that
+// zero-pads x to nfft and runs the in-place radix-2 over a scratch
+// arena. nfft must be a power of two.
+ScratchVec<Complex> fftReal(std::pmr::memory_resource *mr, const Value &x, size_t nfft)
+{
+    ScratchArena scratch(mr);
+    auto buf = ScratchVec<Complex>(nfft, &scratch);
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n && i < nfft; ++i)
+        buf[i] = Complex(x.elemAsDouble(i), 0.0);
+    fftRadix2(mr, buf.data(), nfft, +1);
+    // Move out of scratch into a heap vector tied to caller's mr so
+    // the result outlives this function. (We can't return a ScratchVec
+    // backed by a stack-local arena.)
+    ScratchVec<Complex> out(nfft, mr);
+    for (size_t i = 0; i < nfft; ++i) out[i] = buf[i];
+    return out;
+}
+
+} // namespace
+
+// ── dftmtx ────────────────────────────────────────────────────────────
+Value dftmtx(std::pmr::memory_resource *mr, size_t N)
+{
+    if (N == 0)
+        throw Error("dftmtx: N must be positive",
+                     0, 0, "dftmtx", "", "m:dftmtx:badN");
+    auto out = Value::complexMatrix(N, N, mr);
+    Complex *dst = out.complexDataMut();
+    const double base = -2.0 * M_PI / static_cast<double>(N);
+    for (size_t k = 0; k < N; ++k)
+        for (size_t n = 0; n < N; ++n) {
+            const double a = base * static_cast<double>(k) * static_cast<double>(n);
+            dst[n * N + k] = Complex(std::cos(a), std::sin(a));   // column-major
+        }
+    return out;
+}
+
+// ── bitrevorder ───────────────────────────────────────────────────────
+Value bitrevorder(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t n = x.numel();
+    if (!isPow2(n))
+        throw Error("bitrevorder: input length must be a power of two",
+                     0, 0, "bitrevorder", "", "m:bitrevorder:badLength");
+    size_t bits = 0;
+    for (size_t v = n; v > 1; v >>= 1) ++bits;
+
+    const bool isRow = (x.dims().rows() == 1);
+    auto out = isRow
+                ? (x.isComplex()
+                    ? Value::complexMatrix(1, n, mr)
+                    : Value::matrix(1, n, ValueType::DOUBLE, mr))
+                : (x.isComplex()
+                    ? Value::complexMatrix(n, 1, mr)
+                    : Value::matrix(n, 1, ValueType::DOUBLE, mr));
+    if (x.isComplex()) {
+        const Complex *src = x.complexData();
+        Complex *dst = out.complexDataMut();
+        for (size_t i = 0; i < n; ++i)
+            dst[bitReverse(i, bits)] = src[i];
+    } else {
+        const double *src = x.doubleData();
+        double *dst = out.doubleDataMut();
+        for (size_t i = 0; i < n; ++i)
+            dst[bitReverse(i, bits)] = src[i];
+    }
+    return out;
+}
+
+// ── dst / idst (Type-II) ──────────────────────────────────────────────
+// Y[k] = sum x[n] sin(π (n+1) (k+1) / (N+1)),  k=0..N-1.
+// Direct O(N²) — acceptable for N up to a few thousand.
+Value dst(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t N = x.numel();
+    auto out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+    double *dst = out.doubleDataMut();
+    const double scale = M_PI / static_cast<double>(N + 1);
+    for (size_t k = 0; k < N; ++k) {
+        double s = 0.0;
+        for (size_t n = 0; n < N; ++n)
+            s += x.elemAsDouble(n) * std::sin(scale * (n + 1) * (k + 1));
+        dst[k] = s;
+    }
+    return out;
+}
+
+Value idst(std::pmr::memory_resource *mr, const Value &y)
+{
+    // Type-II DST is self-inverse up to a factor of 2/(N+1).
+    auto x = dst(mr, y);
+    const size_t N = x.numel();
+    if (N == 0) return x;
+    const double scale = 2.0 / static_cast<double>(N + 1);
+    double *p = x.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) p[i] *= scale;
+    return x;
+}
+
+// ── rceps ─────────────────────────────────────────────────────────────
+Value rceps(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t n = x.numel();
+    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    const size_t nfft = nextPow2(n);
+    auto X = fftReal(mr, x, nfft);
+    // log |X|, set imag part to 0 so the inverse transform produces a real cepstrum.
+    for (size_t i = 0; i < nfft; ++i) {
+        const double mag = std::abs(X[i]);
+        X[i] = Complex(std::log(std::max(mag, 1e-300)), 0.0);
+    }
+    fftRadix2(mr, X.data(), nfft, -1);    // inverse FFT (conjugate trick handled by sign)
+    const double invN = 1.0 / static_cast<double>(nfft);
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = X[i].real() * invN;
+    return out;
+}
+
+// ── cceps ─────────────────────────────────────────────────────────────
+// Complex cepstrum: ifft(log(fft(x))) with simple phase unwrapping along
+// the frequency axis. Only the real part of x is used (matches MATLAB
+// when input is real).
+Value cceps(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t n = x.numel();
+    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    const size_t nfft = nextPow2(n);
+    auto X = fftReal(mr, x, nfft);
+    // log + unwrap phase.
+    double prevPhase = 0.0;
+    for (size_t i = 0; i < nfft; ++i) {
+        const double mag = std::abs(X[i]);
+        double phase = std::arg(X[i]);
+        // Unwrap relative to previous bin.
+        while (phase - prevPhase > M_PI)  phase -= 2.0 * M_PI;
+        while (phase - prevPhase < -M_PI) phase += 2.0 * M_PI;
+        prevPhase = phase;
+        X[i] = Complex(std::log(std::max(mag, 1e-300)), phase);
+    }
+    fftRadix2(mr, X.data(), nfft, -1);
+    const double invN = 1.0 / static_cast<double>(nfft);
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = X[i].real() * invN;
+    return out;
+}
+
+// ── icceps ────────────────────────────────────────────────────────────
+Value icceps(std::pmr::memory_resource *mr, const Value &c)
+{
+    const size_t n = c.numel();
+    if (n == 0) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    const size_t nfft = nextPow2(n);
+    auto X = fftReal(mr, c, nfft);
+    for (size_t i = 0; i < nfft; ++i)
+        X[i] = std::exp(X[i]);
+    fftRadix2(mr, X.data(), nfft, -1);
+    const double invN = 1.0 / static_cast<double>(nfft);
+    auto out = Value::matrix(n, 1, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = X[i].real() * invN;
+    return out;
+}
+
+namespace detail {
+
+void dftmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dftmtx: requires N",
+                     0, 0, "dftmtx", "", "m:dftmtx:nargin");
+    outs[0] = dftmtx(ctx.engine->resource(), static_cast<size_t>(args[0].toScalar()));
+}
+
+void bitrevorder_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bitrevorder: requires x",
+                     0, 0, "bitrevorder", "", "m:bitrevorder:nargin");
+    outs[0] = bitrevorder(ctx.engine->resource(), args[0]);
+}
+
+void dst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dst: requires x",
+                     0, 0, "dst", "", "m:dst:nargin");
+    outs[0] = dst(ctx.engine->resource(), args[0]);
+}
+
+void idst_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("idst: requires y",
+                     0, 0, "idst", "", "m:idst:nargin");
+    outs[0] = idst(ctx.engine->resource(), args[0]);
+}
+
+void rceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rceps: requires x",
+                     0, 0, "rceps", "", "m:rceps:nargin");
+    outs[0] = rceps(ctx.engine->resource(), args[0]);
+}
+
+void cceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cceps: requires x",
+                     0, 0, "cceps", "", "m:cceps:nargin");
+    outs[0] = cceps(ctx.engine->resource(), args[0]);
+}
+
+void icceps_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("icceps: requires c",
+                     0, 0, "icceps", "", "m:icceps:nargin");
+    outs[0] = icceps(ctx.engine->resource(), args[0]);
+}
+
+} // namespace detail
+
+} // namespace numkit::signal

@@ -24,17 +24,46 @@ void ifft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void conv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// convolution/extras.cpp (E1)
+void cconv_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void convmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void xcorr2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void finddelay_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void alignsignals_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filtfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// digital_filtering/spec_driven.cpp (D2)
+void lowpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void highpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bandpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bandstop_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// filter_analysis/responses.cpp (D1)
+void impz_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void impzlength_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stepz_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void phasedelay_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zerophase_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// filter_analysis/predicates.cpp (D1)
+void isfir_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isstable_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isminphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ismaxphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void islinphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isallpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void downsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void upsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void decimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void resample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// multirate/extras.cpp (F1)
+void upfirdn_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void interp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void intfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fftfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -78,11 +107,29 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 void goertzel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void dct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void idct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// transforms/extras.cpp (E2)
+void dftmtx_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bitrevorder_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void dst_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void idst_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rceps_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cceps_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void icceps_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // SOS family (libs/signal/src/digital_filtering/sosfilt.cpp)
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// filter_implementation/conversions_extras.cpp (D3)
+void sos2tf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sos2zp_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tf2zpk_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tf2ss_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2tf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2zp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zp2ss_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sos2ss_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2sos_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Savitzky-Golay (libs/signal/src/smoothing/sgolay.cpp)
 void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -125,17 +172,33 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "goertzel",  &signal::detail::goertzel_reg);
     reg("transforms", "nextpow2",  &signal::detail::nextpow2_reg);
     reg("transforms", "unwrap",    &signal::detail::unwrap_reg);
+    reg("transforms", "dftmtx",      &signal::detail::dftmtx_reg);
+    reg("transforms", "bitrevorder", &signal::detail::bitrevorder_reg);
+    reg("transforms", "dst",         &signal::detail::dst_reg);
+    reg("transforms", "idst",        &signal::detail::idst_reg);
+    reg("transforms", "rceps",       &signal::detail::rceps_reg);
+    reg("transforms", "cceps",       &signal::detail::cceps_reg);
+    reg("transforms", "icceps",      &signal::detail::icceps_reg);
 
     // ── Convolution / correlation ──────────────────────────────────────
-    reg("convolution", "conv",   &signal::detail::conv_reg);
-    reg("convolution", "deconv", &signal::detail::deconv_reg);
-    reg("convolution", "xcorr",  &signal::detail::xcorr_reg);
+    reg("convolution", "conv",         &signal::detail::conv_reg);
+    reg("convolution", "deconv",       &signal::detail::deconv_reg);
+    reg("convolution", "xcorr",        &signal::detail::xcorr_reg);
+    reg("convolution", "cconv",        &signal::detail::cconv_reg);
+    reg("convolution", "convmtx",      &signal::detail::convmtx_reg);
+    reg("convolution", "xcorr2",       &signal::detail::xcorr2_reg);
+    reg("convolution", "finddelay",    &signal::detail::finddelay_reg);
+    reg("convolution", "alignsignals", &signal::detail::alignsignals_reg);
 
-    // ── Digital filtering (filter / filtfilt / SOS family / median) ────
+    // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
     reg("digital_filtering", "sosfilt",  &signal::detail::sosfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
+    reg("digital_filtering", "lowpass",  &signal::detail::lowpass_reg);
+    reg("digital_filtering", "highpass", &signal::detail::highpass_reg);
+    reg("digital_filtering", "bandpass", &signal::detail::bandpass_reg);
+    reg("digital_filtering", "bandstop", &signal::detail::bandstop_reg);
 
     // ── Filter design (FIR/IIR coefficient generators) ─────────────────
     reg("filter_design", "butter",     &signal::detail::butter_reg);
@@ -143,20 +206,44 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "sgolay",     &signal::detail::sgolay_reg);
     reg("filter_design", "sgolayfilt", &signal::detail::sgolayfilt_reg);
 
-    // ── Filter analysis (freqz / phasez / grpdelay) ────────────────────
-    reg("filter_analysis", "freqz",    &signal::detail::freqz_reg);
-    reg("filter_analysis", "phasez",   &signal::detail::phasez_reg);
-    reg("filter_analysis", "grpdelay", &signal::detail::grpdelay_reg);
+    // ── Filter analysis (freqz / phasez / grpdelay + responses + preds) ─
+    reg("filter_analysis", "freqz",      &signal::detail::freqz_reg);
+    reg("filter_analysis", "phasez",     &signal::detail::phasez_reg);
+    reg("filter_analysis", "grpdelay",   &signal::detail::grpdelay_reg);
+    reg("filter_analysis", "impz",       &signal::detail::impz_reg);
+    reg("filter_analysis", "impzlength", &signal::detail::impzlength_reg);
+    reg("filter_analysis", "stepz",      &signal::detail::stepz_reg);
+    reg("filter_analysis", "phasedelay", &signal::detail::phasedelay_reg);
+    reg("filter_analysis", "zerophase",  &signal::detail::zerophase_reg);
+    reg("filter_analysis", "isfir",      &signal::detail::isfir_reg);
+    reg("filter_analysis", "isstable",   &signal::detail::isstable_reg);
+    reg("filter_analysis", "isminphase", &signal::detail::isminphase_reg);
+    reg("filter_analysis", "ismaxphase", &signal::detail::ismaxphase_reg);
+    reg("filter_analysis", "islinphase", &signal::detail::islinphase_reg);
+    reg("filter_analysis", "isallpass",  &signal::detail::isallpass_reg);
 
-    // ── Filter implementation (form conversions: TF/SOS/ZPK) ───────────
+    // ── Filter implementation (form conversions: TF/SOS/ZPK/SS) ────────
     reg("filter_implementation", "tf2sos", &signal::detail::tf2sos_reg);
     reg("filter_implementation", "zp2sos", &signal::detail::zp2sos_reg);
+    reg("filter_implementation", "sos2tf", &signal::detail::sos2tf_reg);
+    reg("filter_implementation", "sos2zp", &signal::detail::sos2zp_reg);
+    reg("filter_implementation", "tf2zpk", &signal::detail::tf2zpk_reg);
+    reg("filter_implementation", "tf2ss",  &signal::detail::tf2ss_reg);
+    reg("filter_implementation", "ss2tf",  &signal::detail::ss2tf_reg);
+    reg("filter_implementation", "ss2zp",  &signal::detail::ss2zp_reg);
+    reg("filter_implementation", "zp2ss",  &signal::detail::zp2ss_reg);
+    reg("filter_implementation", "sos2ss", &signal::detail::sos2ss_reg);
+    reg("filter_implementation", "ss2sos", &signal::detail::ss2sos_reg);
 
-    // ── Multirate (decimate / interp / resample) ───────────────────────
+    // ── Multirate (decimate / interp / resample / + F1 extras) ─────────
     reg("multirate", "downsample", &signal::detail::downsample_reg);
     reg("multirate", "upsample",   &signal::detail::upsample_reg);
     reg("multirate", "decimate",   &signal::detail::decimate_reg);
     reg("multirate", "resample",   &signal::detail::resample_reg);
+    reg("multirate", "upfirdn",    &signal::detail::upfirdn_reg);
+    reg("multirate", "interp",     &signal::detail::interp_reg);
+    reg("multirate", "intfilt",    &signal::detail::intfilt_reg);
+    reg("multirate", "fftfilt",    &signal::detail::fftfilt_reg);
 
     // ── Spectral analysis (pwelch / periodogram) ───────────────────────
     reg("spectral_analysis", "periodogram", &signal::detail::periodogram_reg);
