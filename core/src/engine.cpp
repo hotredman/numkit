@@ -636,6 +636,42 @@ bool Engine::isInsideFunctionCall() const
     return false;
 }
 
+// ── Frame stack introspection ───────────────────────────────────
+
+int Engine::callerDepth() const
+{
+    if (vm_ && backend_ == Backend::VM)
+        return vm_->callDepth();
+    if (treeWalker_)
+        return static_cast<int>(treeWalker_->activeFrames().size());
+    return 0;
+}
+
+Environment *Engine::callerEnv(int n)
+{
+    if (n < 0) n = 0;
+    if (vm_ && backend_ == Backend::VM)
+        return vm_->callerEnvAtDepth(n);
+    if (treeWalker_) {
+        const auto &frames = treeWalker_->activeFrames();
+        if (n < static_cast<int>(frames.size()))
+            return frames[frames.size() - 1 - n];
+        return workspaceEnv_.get();
+    }
+    return workspaceEnv_.get();
+}
+
+void Engine::assignToCaller(int n, const std::string &name, Value val)
+{
+    Environment *env = callerEnv(n);
+    if (!env) env = workspaceEnv_.get();
+    // Write-through to register if VM caller frame has the name in its
+    // varMap (so static reads pick up the new value).
+    if (vm_ && backend_ == Backend::VM)
+        vm_->assignInCallerFrame(n, name, val);
+    env->set(name, std::move(val));
+}
+
 void Engine::clearUserFunctions()
 {
     // Only the workspace bucket — script-local functions live in
@@ -892,6 +928,76 @@ void Engine::syncVMToWorkspace()
             workspaceEnv_->set(name, gsVal ? *gsVal : val);
         }
     }
+}
+
+void Engine::syncVMToScope(Environment *scope)
+{
+    if (!scope || scope == workspaceEnv_.get()) {
+        syncVMToWorkspace();
+        return;
+    }
+    for (auto &[name, val] : vm_->lastVarMap()) {
+        if (val.isUnset() || val.isDeleted()) {
+            scope->remove(name);
+            continue;
+        }
+        scope->set(name, val);
+        // VM mode: write-through to the scope-owning frame's static
+        // register slot if any, so subsequent register-based reads in
+        // the caller pick up the value.
+        if (vm_ && backend_ == Backend::VM)
+            vm_->writeToFrameMatchingEnv(scope, name, val);
+    }
+}
+
+Value Engine::eval(const std::string &code, Environment *scope)
+{
+    if (!scope || scope == workspaceEnv_.get())
+        return eval(code);
+
+    // Scoped re-entrant eval: inner script's imports go to scope, and
+    // its top-level variable assignments are pushed back into scope on
+    // exit (with VM register write-through where applicable). Used by
+    // evalin, and by eval/run when called from inside a user function
+    // (so script-defined vars stay scoped to the caller's frame).
+    Lexer lexer(code);
+    auto tokens = lexer.tokenize();
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    auto src = std::make_shared<const std::string>(code);
+
+    if (backend_ != Backend::VM) {
+        // TW already executes statements against the env passed in;
+        // imports and assignments naturally land in `scope`.
+        return treeWalker_->execute(ast.get(), scope);
+    }
+
+    // VM path: route inner top-level's ctx.env via inheritedScope_,
+    // sync registers to scope after exec.
+    Environment *prevInherited = vm_->inheritedScope_;
+    vm_->inheritedScope_ = scope;
+    bool prevClearAll = clearAllCalled_;
+    clearAllCalled_ = false;
+    vm_->clearLastVarMap();
+
+    auto chunk = compiler_->compile(ast.get(), src);
+    vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
+                          &compiler_->scriptLocalCompiledFuncs());
+
+    Value result;
+    try {
+        result = vm_->execute(chunk);
+        syncVMToScope(scope);
+    } catch (...) {
+        syncVMToScope(scope);
+        vm_->inheritedScope_ = prevInherited;
+        clearAllCalled_ = prevClearAll;
+        throw;
+    }
+
+    vm_->inheritedScope_ = prevInherited;
+    clearAllCalled_ = prevClearAll;
+    return result;
 }
 
 // ============================================================

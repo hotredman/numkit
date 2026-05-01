@@ -328,29 +328,16 @@ TEST_P(NamespaceResolverTest, DISABLED_ClosureCapturesFunctionLocalImport)
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
-// DISABLED: real bug. A builtin invoked from inside a user function
-// calls back into engine.eval() (e.g. `run('script.m')`). The inner
-// eval starts at frames_.size()==1, so currentCallEnv() returns
-// workspaceEnv. Imports pushed by the inner script land in
-// workspaceEnv — and stay there after the inner returns AND after the
-// outer function returns. They leak into the next top-level eval.
-//
-// Fix sketch: in VM::execute's re-entrant branch, snapshot
-// workspaceEnv.activeImports() before startExecution, restore after.
-// Top-level (non-reentrant) evals keep current persistence semantics.
-TEST_P(NamespaceResolverTest, DISABLED_ImportInsideReentrantEvalDoesNotLeak)
+// Re-entrant eval / run scope: a builtin called from inside a user
+// function reaches back into engine.eval() (e.g. `run('script.m')`).
+// The inner script's imports must NOT leak into the workspace after
+// the outer function returns — they're scoped to the caller's frame.
+// Fixed via Engine::eval(src, scope) + ctx.env routing in eval/run
+// builtins.
+TEST_P(NamespaceResolverTest, ImportInsideReentrantEvalDoesNotLeak)
 {
-    engine.registerFunction(
-        "_run_string",
-        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
-            if (args.empty() || !args[0].isChar())
-                throw std::runtime_error("_run_string needs a string");
-            ctx.engine->eval(args[0].toString());
-            outs[0] = Value::empty();
-        });
-
     engine.eval(
-        "function inner_call(); _run_string('import test_ns.*;'); end;"
+        "function inner_call(); eval('import test_ns.*;'); end;"
         "inner_call();");
 
     // After inner_call returns, the workspace should NOT have a

@@ -22,6 +22,13 @@ public:
     // True when executing inside a user function (not top-level script)
     int callDepth() const { return currentRecursionDepth_; }
 
+    // Active call stack (parallel to C++ recursion of callUserFunction).
+    // Maintained via FrameGuard RAII so it stays in sync across exception
+    // unwind. Front = outermost; back = innermost. Used by Engine's
+    // callerEnv() so builtins can introspect the call stack regardless
+    // of which backend is active.
+    const std::vector<Environment *> &activeFrames() const { return activeFrames_; }
+
     // ── Public callback API ───────────────────────────────────
     // Used by Engine::callFunctionHandle so that builtins (e.g.
     // cellfun, fzero, integral) can invoke a function handle from C++
@@ -52,6 +59,27 @@ private:
     std::vector<IndexContext> indexContextStack_;
     std::vector<Value> callArgsBuf_;
     std::atomic<int> anonCounter_{0};
+
+    // Parallel call stack of localEnv pointers — pushed on entry to
+    // callUserFunction(), popped on exit (RAII). Lifetime safe because
+    // each localEnv lives on the C++ stack frame of the same call.
+    std::vector<Environment *> activeFrames_;
+
+    class FrameGuard
+    {
+    public:
+        FrameGuard(std::vector<Environment *> &stack, Environment *env)
+            : stack_(stack)
+        {
+            stack_.push_back(env);
+        }
+        ~FrameGuard() { stack_.pop_back(); }
+        FrameGuard(const FrameGuard &) = delete;
+        FrameGuard &operator=(const FrameGuard &) = delete;
+
+    private:
+        std::vector<Environment *> &stack_;
+    };
 
     class IndexContextGuard
     {

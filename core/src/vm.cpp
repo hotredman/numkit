@@ -1819,8 +1819,13 @@ Environment *VM::currentCallEnv()
     // give it a private env so e.g. `import a.*` inside the function
     // doesn't leak after return. Lazy — only allocated on first builtin
     // that asks (most frames never need it).
+    //
+    // If `inheritedScope_` is set (re-entrant eval invoked with an
+    // explicit scope by Engine::eval(src, scope)), the inner top-level
+    // routes ctx.env there instead of the global workspace. Function
+    // frames keep their own private env regardless.
     if (frames_.size() <= 1)
-        return &engine_.workspaceEnv();
+        return inheritedScope_ ? inheritedScope_ : &engine_.workspaceEnv();
     auto &frame = frames_.back();
     if (!frame.env) {
         frame.env = std::make_unique<Environment>(
@@ -1828,6 +1833,60 @@ Environment *VM::currentCallEnv()
             engine_.globalsEnv_.get());
     }
     return frame.env.get();
+}
+
+Environment *VM::callerEnvAtDepth(int n)
+{
+    // Frame index 0 is the top-level script frame; user-function frames
+    // start at 1. The "caller" of the running builtin (n=0) is the last
+    // user-function frame (frames_.back()) when we're inside one, or
+    // the top-level script frame otherwise.
+    //
+    // n=0 → frames_.back() if it's a user-function frame, else workspace.
+    // n=1 → one frame up. Etc. Walking off the top → workspaceEnv.
+    if (n < 0) n = 0;
+    int target = static_cast<int>(frames_.size()) - 1 - n;
+    if (target < 1)
+        return &engine_.workspaceEnv();
+    auto &frame = frames_[target];
+    if (!frame.env) {
+        frame.env = std::make_unique<Environment>(
+            &engine_.workspaceEnv(),
+            engine_.globalsEnv_.get());
+    }
+    return frame.env.get();
+}
+
+void VM::assignInCallerFrame(int n, const std::string &name, const Value &val)
+{
+    if (n < 0) n = 0;
+    int target = static_cast<int>(frames_.size()) - 1 - n;
+    if (target < 1)
+        return;  // top-level / out-of-range — env-side write done by Engine
+    auto &frame = frames_[target];
+    // varMap is vector<pair<name, regIdx>> (small), linear scan.
+    for (const auto &entry : frame.chunk->varMap) {
+        if (entry.first == name && entry.second < frame.nregs) {
+            frame.R[entry.second] = val;
+            return;
+        }
+    }
+}
+
+void VM::writeToFrameMatchingEnv(Environment *env, const std::string &name,
+                                 const Value &val)
+{
+    if (!env) return;
+    for (auto &f : frames_) {
+        if (f.env.get() != env) continue;
+        for (const auto &entry : f.chunk->varMap) {
+            if (entry.first == name && entry.second < f.nregs) {
+                f.R[entry.second] = val;
+                return;
+            }
+        }
+        return;  // matching frame found but no slot — no-op
+    }
 }
 
 void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,

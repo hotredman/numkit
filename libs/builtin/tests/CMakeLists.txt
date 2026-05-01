@@ -41,4 +41,5 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/format_public_api_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/simd_parity_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/interp_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/frame_introspection_test.cpp
 )
