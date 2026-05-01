@@ -99,6 +99,14 @@
       ]
     },
     {
+      "name": "Multi_File",
+      "files": [
+        "compute_stats.m",
+        "format_result.m",
+        "main.m"
+      ]
+    },
+    {
       "name": "Plotting",
       "files": [
         "axis_modes.m",
