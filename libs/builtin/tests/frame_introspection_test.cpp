@@ -539,6 +539,29 @@ TEST_P(CoreBuiltinsNoCompatTest, ImportItselfWorksWithoutCompat)
     EXPECT_NO_THROW(e.eval("import('signal.windows.*');"));
 }
 
+// Graphics promotions: figure / close / hold are workspace-style
+// session commands and live in core (triple-registered alongside
+// graphics.layout.<name> + compat.<name>). Pin that they work
+// without `import compat.*` or `import graphics.*`.
+TEST_P(CoreBuiltinsNoCompatTest, FigureClosePromotedToCore)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    EXPECT_NO_THROW(e.eval("figure(1);"));
+    EXPECT_NO_THROW(e.eval("figure(2);"));
+    EXPECT_NO_THROW(e.eval("close;"));
+    EXPECT_NO_THROW(e.eval("close all;"));
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, HoldPromotedToCore)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    EXPECT_NO_THROW(e.eval("figure(1);"));
+    EXPECT_NO_THROW(e.eval("hold on;"));
+    EXPECT_NO_THROW(e.eval("hold off;"));
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, CoreBuiltinsNoCompatTest,
     ::testing::Values(numkit::Engine::Backend::TreeWalker,
                       numkit::Engine::Backend::VM),

@@ -27,10 +27,11 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
 > отражая каталог-иерархию). Функция в `libs/builtin/` — в core
 > (плоское, без namespace).**
 
-Из этого правила одно (закрытое) исключение — **6 промоций** (Section
-8): `fft`, `ifft`, `fftshift`, `ifftshift`, `conv`, `xcorr`. Эти
-дополнительно регистрируются в core, потому что они general-purpose,
-не toolbox-ные.
+Из этого правила одно (закрытое) исключение — **9 промоций** (Section
+7): `fft`, `ifft`, `fftshift`, `ifftshift`, `conv`, `xcorr` (signal —
+general-purpose инструменты), плюс `close`, `figure`, `hold` (graphics
+— session/workspace команды наравне с `clear`). Эти дополнительно
+регистрируются в core.
 
 ## 2. Что никогда не в namespace
 
@@ -233,32 +234,65 @@ plot(Y);
 Одна строка в шапке. Концептуально match-ит MATLAB-стиль (там тоже
 есть `import`, у нас — обычный command-style builtin).
 
-## 7. Promotions — закрытый whitelist 6 функций
+## 7. Promotions — закрытый whitelist
+
+Каждая promotion — функция зарегистрированная **трижды**: под своим
+toolbox-namespace, в `compat`, и в core (namespace `""`). Доступна по
+короткому имени без `import`.
+
+### Signal (6 функций) — DSP general-purpose
 
 ```
 fft, ifft, fftshift, ifftshift, conv, xcorr
 ```
 
-**Почему:** все 6 — general-purpose инструменты, используются за
-пределами DSP (анализ, корреляции, полиномиальное умножение, image, ML,
-time-series). Эти функции **dual-citizenship** (signal toolbox + core
-math) отражают их реальную природу, не являются прагматическим
-костылём.
+**Почему:** general-purpose инструменты, используются за пределами DSP
+(анализ, корреляции, полиномиальное умножение, image, ML, time-series).
+**Dual-citizenship** (signal toolbox + core math) отражает их реальную
+природу.
 
-**Регистрация:** в `libs/signal/src/library.cpp` — отдельный блок
-после основной регистрации, явно регистрируя в core (namespace `""`):
-
+**Регистрация:** в `libs/signal/src/library.cpp`:
 ```cpp
 engine.registerFunction("", "fft", &fft_reg);
 // ... 5 других
 ```
 
-Каждая из 6 функций в итоге зарегистрирована **трижды**: под
-`signal.transforms.<name>`, `compat.<name>`, и `<name>` (core).
-Все три указывают на одну ExternalFunc.
+### Graphics (3 функции) — workspace/session commands
 
-**Whitelist closed.** Расширение этого списка требует обновления данного
-документа с обоснованием.
+```
+close, figure, hold
+```
+
+**Почему:** session-style команды на одном уровне с `clear` / `who` —
+не data-plotting (как `plot`/`bar`/`imagesc`), а workspace state
+manipulation. Пользователь ожидает их доступными без явного импорта,
+аналогично `clear`. Только эти три из libs/graphics удовлетворяют
+критерию "session command, not plotting".
+
+**Регистрация:** в `libs/graphics/src/library.cpp` через `regCore`
+helper (triple-register):
+```cpp
+auto regCore = [&](sub, name, fn) {
+    engine.registerFunction(string("graphics.") + sub, name, fn);
+    engine.registerFunction("compat", name, fn);
+    engine.registerFunction("", name, fn);  // core promotion
+};
+regCore("layout", "close", ...);
+regCore("layout", "figure", ...);
+regCore("layout", "hold", ...);
+```
+
+**Не promoted (требуют import):** `plot`, `bar`, `scatter`, `subplot`,
+`stem`, `xline`, `yline`, `polarplot`, `surf`, `mesh`, `contour`,
+`imagesc` — все data-plotting функции остаются в `graphics.<sub>.*` +
+`compat.*`.
+
+### Whitelist closed
+
+Все 9 promotions перечислены выше (6 signal + 3 graphics).
+Расширение требует обновления данного документа с обоснованием
+(критерий: general-purpose / session-command, не toolbox-specific
+data operation).
 
 ## 8. Что в core (libs/builtin)
 
