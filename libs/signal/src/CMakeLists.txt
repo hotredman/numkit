@@ -28,6 +28,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/dct.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/goertzel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/transform_helpers.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/transforms/extras.cpp
     # smoothing/
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/sgolay.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/smoothing/medfilt.cpp
