@@ -32,6 +32,19 @@ void GraphicsLibrary::install(Engine &engine)
         engine.registerFunction("compat", name, fn);
     };
 
+    // ── Triple-register: graphics.<sub>.<name> + compat.<name> + core ──
+    //
+    // For session/workspace-style commands that conceptually live on
+    // par with `clear` / `who` (not data-plotting). These are reachable
+    // by short name without any `import` (the third registration into
+    // core), in addition to the namespace and compat aliases. Use
+    // sparingly — see NAMESPACE_DESIGN.md §7 (promotions).
+    auto regCore = [&](const char *sub, const char *name, ExternalFunc fn) {
+        engine.registerFunction(std::string("graphics.") + sub, name, fn);
+        engine.registerFunction("compat", name, fn);
+        engine.registerFunction("", name, fn);  // core
+    };
+
     // ================================================================
     // Helper lambdas
     // ================================================================
@@ -126,7 +139,7 @@ void GraphicsLibrary::install(Engine &engine)
     // Figure management — graphics.layout
     // ================================================================
 
-    reg("layout", "figure",
+    regCore("layout", "figure",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto *mr = ctx.engine->resource();
             auto &fm = ctx.engine->figureManager();
@@ -143,7 +156,7 @@ void GraphicsLibrary::install(Engine &engine)
                 outs[0] = Value::scalar(static_cast<double>(id), mr);
         });
 
-    reg("layout", "close",
+    regCore("layout", "close",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto &fm = ctx.engine->figureManager();
             if (args.empty()) {
@@ -171,7 +184,7 @@ void GraphicsLibrary::install(Engine &engine)
             outs[0] = Value::empty();
         });
 
-    reg("layout", "hold",
+    regCore("layout", "hold",
         [](Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx) {
             auto &ax = ctx.engine->figureManager().currentAxes();
             if (args.empty())
