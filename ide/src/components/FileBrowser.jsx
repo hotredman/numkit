@@ -520,7 +520,7 @@ function LocalFolderBrowser({ onOpenFile, isTabUnsaved, onLocalMount, onRefreshK
   );
 }
 
-function ExamplesBrowser({ onOpenFile }) {
+function ExamplesBrowser({ onOpenFile, vfsAdapters }) {
   const C = useTheme();
   const [tree, setTree] = useState([]);
   const [expanded, setExpanded] = usePersistedState('numkit.mide.fb.expanded.examples', {});
@@ -553,8 +553,38 @@ function ExamplesBrowser({ onOpenFile }) {
 
   const handleFileDoubleClick = useCallback(async (node) => {
     if (node.type !== 'file' || !node._fetchPath) return;
-    try { const res = await fetch(node._fetchPath); if (!res.ok) throw new Error('fetch failed'); const content = await res.text(); onOpenFile(node.name, content, null, 'examples'); } catch (e) { console.error('[Examples]', e); }
-  }, [onOpenFile]);
+    try {
+      const res = await fetch(node._fetchPath);
+      if (!res.ok) throw new Error('fetch failed');
+      const content = await res.text();
+
+      // Mirror the example folder into tempFS at /Examples/<Folder>/<file>
+      // so multi-file examples (caller.m + helper.m in same folder) get a
+      // real vfsPath the engine can use for sibling .m lookup. The opened
+      // file is always overwritten with the canonical bundled content.
+      // Other siblings are pre-loaded only if not already present, so any
+      // user edits to those files (made via the Temporary tab) survive.
+      let vfsPath = null;
+      const m = node.path.match(/^\/examples\/([^/]+)\/(.+)$/);
+      if (m && vfsAdapters?.temp) {
+        const [, folder, fname] = m;
+        const folderNode = tree.find(n => n.path === `/examples/${folder}`);
+        const siblings = folderNode?.children?.filter(c => c.type === 'file') || [];
+        await Promise.all(siblings.map(async sib => {
+          const sibVfsPath = `/Examples/${folder}/${sib.name}`;
+          if (sib.name === fname) return;          // opened file written below
+          if (vfsAdapters.temp.exists(sibVfsPath)) return;
+          try {
+            const sr = await fetch(sib._fetchPath);
+            if (sr.ok) vfsAdapters.temp.writeFile(sibVfsPath, await sr.text());
+          } catch (_) { /* per-file fetch failure tolerated */ }
+        }));
+        vfsPath = `/Examples/${folder}/${fname}`;
+        vfsAdapters.temp.writeFile(vfsPath, content);
+      }
+      onOpenFile(node.name, content, vfsPath, 'examples');
+    } catch (e) { console.error('[Examples]', e); }
+  }, [onOpenFile, vfsAdapters, tree]);
 
   const renderTree = (nodes, depth = 0) => nodes.map(node => {
     const isDir = node.type === 'folder', isExp = expanded[node.path], isSel = selected === node.path;
@@ -712,7 +742,7 @@ function GitHubBrowser({ onOpenFile, defaultRepo }) {
 
 const VALID_SOURCES = new Set(['temporary', 'localFolder', 'examples', 'github']);
 
-export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved, onLocalMount }) {
+export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshKey, isTabUnsaved, onLocalMount, vfsAdapters }) {
   const C = useTheme();
   // File System Access API presence is fixed per-browser-session.
   // Firefox / Safari report false and the "Local Folder" option is
@@ -742,7 +772,7 @@ export default function FileBrowser({ onOpenFile, defaultGitHubRepo, vfsRefreshK
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
         {source === 'temporary' && <TemporaryBrowser onOpenFile={onOpenFile} onRefreshKey={vfsRefreshKey} isTabUnsaved={isTabUnsaved} />}
         {source === 'localFolder' && hasLocalFolder && <LocalFolderBrowser onOpenFile={onOpenFile} isTabUnsaved={isTabUnsaved} onLocalMount={onLocalMount} onRefreshKey={vfsRefreshKey} />}
-        {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} />}
+        {source === 'examples' && <ExamplesBrowser onOpenFile={onOpenFile} vfsAdapters={vfsAdapters} />}
         {source === 'github' && <GitHubBrowser onOpenFile={onOpenFile} defaultRepo={defaultGitHubRepo} />}
       </div>
     </div>
