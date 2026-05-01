@@ -17,6 +17,7 @@ target_sources(numkit_tests PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spec_driven_test.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/conversions_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution_extras_test.cpp
 )
 
 # fft_public_api_test reaches into libs/signal/src/transforms/backends/

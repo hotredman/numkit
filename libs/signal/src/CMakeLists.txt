@@ -20,6 +20,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
     # convolution/
     ${CMAKE_CURRENT_SOURCE_DIR}/convolution/convolution.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/convolution/extras.cpp
     # transforms/
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/fft.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/transforms/hilbert.cpp

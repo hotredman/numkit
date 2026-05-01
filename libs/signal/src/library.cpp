@@ -24,6 +24,12 @@ void ifft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void conv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// convolution/extras.cpp (E1)
+void cconv_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void convmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void xcorr2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void finddelay_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void alignsignals_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filtfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // digital_filtering/spec_driven.cpp (D2)
@@ -155,9 +161,14 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "unwrap",    &signal::detail::unwrap_reg);
 
     // ── Convolution / correlation ──────────────────────────────────────
-    reg("convolution", "conv",   &signal::detail::conv_reg);
-    reg("convolution", "deconv", &signal::detail::deconv_reg);
-    reg("convolution", "xcorr",  &signal::detail::xcorr_reg);
+    reg("convolution", "conv",         &signal::detail::conv_reg);
+    reg("convolution", "deconv",       &signal::detail::deconv_reg);
+    reg("convolution", "xcorr",        &signal::detail::xcorr_reg);
+    reg("convolution", "cconv",        &signal::detail::cconv_reg);
+    reg("convolution", "convmtx",      &signal::detail::convmtx_reg);
+    reg("convolution", "xcorr2",       &signal::detail::xcorr2_reg);
+    reg("convolution", "finddelay",    &signal::detail::finddelay_reg);
+    reg("convolution", "alignsignals", &signal::detail::alignsignals_reg);
 
     // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
