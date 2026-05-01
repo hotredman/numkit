@@ -175,6 +175,7 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
     libs/signal/include/numkit/signal/digital_filtering/spec_driven.hpp
     libs/signal/include/numkit/signal/filter_implementation/conversions.hpp
+    libs/signal/include/numkit/signal/filter_implementation/conversions_extras.hpp
     libs/signal/include/numkit/signal/multirate/multirate.hpp
     libs/signal/include/numkit/signal/convolution/convolution.hpp
     libs/signal/include/numkit/signal/transforms/fft.hpp
