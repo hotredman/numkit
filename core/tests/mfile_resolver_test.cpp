@@ -168,6 +168,46 @@ TEST_P(MFileResolverTest, RunBuiltinExecutesScript)
     EXPECT_DOUBLE_EQ(engine.getVariable("g_result")->toScalar(), 42.0);
 }
 
+// ── Sibling resolution: script calls helper in same dir ─────────
+//
+// MATLAB-standard behaviour: when `script.m` runs from a directory
+// that also contains `helper.m`, calling `helper(x)` from inside
+// `script.m` resolves automatically — no addpath needed. The
+// script's containing directory is implicitly part of the search
+// path for the duration of the run.
+//
+// This block pins what works today and what doesn't.
+
+TEST_P(MFileResolverTest, RunScriptCallsSiblingFunctionWithoutAddpath)
+{
+    writeMFile("helper.m", "function y = helper(x)\n  y = x * 10;\nend\n");
+    writeMFile("caller.m", "g = helper(7);\n");
+    auto p = (workDir / "caller.m").string();
+    // No engine.addPath — the script's own directory should be
+    // implicit. Currently fails because resolveMFile_ pushes the
+    // filesystem-origin NAME (e.g. "native") into searchDirs and
+    // never the script's directory.
+    EXPECT_NO_THROW(engine.eval("run('" + p + "');"));
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 70.0);
+}
+
+TEST_P(MFileResolverTest, RunScriptCallsSiblingFunctionResolvesViaAddpath)
+{
+    // Control: with explicit addpath, the same sibling call works.
+    // If this passes while the previous one fails, we've localized
+    // the bug to "script-dir not auto-added to search path".
+    writeMFile("helper.m", "function y = helper(x)\n  y = x * 10;\nend\n");
+    writeMFile("caller.m", "g = helper(7);\n");
+    engine.addPath(workDir.string());
+    auto p = (workDir / "caller.m").string();
+    EXPECT_NO_THROW(engine.eval("run('" + p + "');"));
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 70.0);
+}
+
 TEST_P(MFileResolverTest, PathReturnsRegisteredDirs)
 {
     auto a = (workDir / "a").string();
