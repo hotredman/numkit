@@ -60,15 +60,6 @@ void IoLibrary::install(Engine &engine)
         engine.registerFunction(std::string("io.") + sub, name, fn);
         engine.registerFunction("compat", name, fn);
     };
-    // Variant that skips the compat alias — used when a name already
-    // exists as a root-namespace builtin in libs/builtin (the older
-    // declaration wins on short-name lookup; the io.<sub>.<name>
-    // qualified path still reaches our improved implementation).
-    // Tracked: the duplication should be resolved by Session A moving
-    // the path utilities out of libs/builtin into here.
-    auto regNoCompat = [&](const char *sub, const char *name, ExternalFunc fn) {
-        engine.registerFunction(std::string("io.") + sub, name, fn);
-    };
 
     reg("file_io", "fopen",   &io::detail::fopen_reg);
     reg("file_io", "fclose",  &io::detail::fclose_reg);
@@ -91,14 +82,11 @@ void IoLibrary::install(Engine &engine)
     reg("text", "writematrix", &io::detail::writematrix_reg);
     reg("text", "type",        &io::detail::type_reg);
 
-    // Path utilities currently duplicate older root-namespace builtins
-    // in libs/builtin; skip compat alias so short-name resolution stays
-    // unchanged for now.
-    regNoCompat("paths", "filesep",   &io::detail::filesep_reg);
-    regNoCompat("paths", "fullfile",  &io::detail::fullfile_reg);
-    regNoCompat("paths", "fileparts", &io::detail::fileparts_reg);
-    regNoCompat("paths", "tempdir",   &io::detail::tempdir_reg);
-    regNoCompat("paths", "tempname",  &io::detail::tempname_reg);
+    reg("paths", "filesep",   &io::detail::filesep_reg);
+    reg("paths", "fullfile",  &io::detail::fullfile_reg);
+    reg("paths", "fileparts", &io::detail::fileparts_reg);
+    reg("paths", "tempdir",   &io::detail::tempdir_reg);
+    reg("paths", "tempname",  &io::detail::tempname_reg);
 
     reg("workspace", "save", &io::detail::save_reg);
     reg("workspace", "load", &io::detail::load_reg);

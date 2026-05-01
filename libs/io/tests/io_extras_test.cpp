@@ -147,12 +147,11 @@ TEST_F(IoExtrasTest, TypePrintsContent)
     EXPECT_NE(capturedOut.find("file content here"), std::string::npos);
 }
 
-// ── C2 — paths (fully-qualified io.paths.* — short names hit older
-//     duplicates in libs/builtin until Session A removes them) ──────
+// ── C2 — paths ───────────────────────────────────────────────────────
 
 TEST_F(IoExtrasTest, FilesepReturnsSingleChar)
 {
-    auto v = eval("io.paths.filesep();");
+    auto v = eval("filesep();");
     EXPECT_EQ(v.numel(), 1u);
     const char c = v.charElem(0);
     EXPECT_TRUE(c == '/' || c == '\\');
@@ -160,7 +159,7 @@ TEST_F(IoExtrasTest, FilesepReturnsSingleChar)
 
 TEST_F(IoExtrasTest, FullfileJoinsParts)
 {
-    auto v = eval("io.paths.fullfile('foo', 'bar', 'baz.txt');");
+    auto v = eval("fullfile('foo', 'bar', 'baz.txt');");
     auto s = v.toString();
     EXPECT_NE(s.find("foo"), std::string::npos);
     EXPECT_NE(s.find("bar"), std::string::npos);
@@ -169,7 +168,7 @@ TEST_F(IoExtrasTest, FullfileJoinsParts)
 
 TEST_F(IoExtrasTest, FullfileStripsRedundantSeparators)
 {
-    auto v = eval("io.paths.fullfile('foo/', '/bar/', 'baz');");
+    auto v = eval("fullfile('foo/', '/bar/', 'baz');");
     auto s = v.toString();
     EXPECT_EQ(s.find("//"), std::string::npos);
     EXPECT_EQ(s.find("\\\\"), std::string::npos);
@@ -177,7 +176,7 @@ TEST_F(IoExtrasTest, FullfileStripsRedundantSeparators)
 
 TEST_F(IoExtrasTest, FilepartsThreeOutputs)
 {
-    eval("[d, n, e] = io.paths.fileparts('/usr/local/bin/script.m');");
+    eval("[d, n, e] = fileparts('/usr/local/bin/script.m');");
     EXPECT_EQ(evalString("d"), "/usr/local/bin");
     EXPECT_EQ(evalString("n"), "script");
     EXPECT_EQ(evalString("e"), ".m");
@@ -185,7 +184,7 @@ TEST_F(IoExtrasTest, FilepartsThreeOutputs)
 
 TEST_F(IoExtrasTest, FilepartsNoExtension)
 {
-    eval("[d, n, e] = io.paths.fileparts('script');");
+    eval("[d, n, e] = fileparts('script');");
     EXPECT_EQ(evalString("d"), "");
     EXPECT_EQ(evalString("n"), "script");
     EXPECT_EQ(evalString("e"), "");
@@ -193,27 +192,27 @@ TEST_F(IoExtrasTest, FilepartsNoExtension)
 
 TEST_F(IoExtrasTest, FilepartsHiddenDotfile)
 {
-    eval("[d, n, e] = io.paths.fileparts('.bashrc');");
+    eval("[d, n, e] = fileparts('.bashrc');");
     EXPECT_EQ(evalString("n"), ".bashrc");
     EXPECT_EQ(evalString("e"), "");
 }
 
 TEST_F(IoExtrasTest, TempdirNonEmpty)
 {
-    auto v = eval("io.paths.tempdir();");
+    auto v = eval("tempdir();");
     EXPECT_GT(v.numel(), 0u);
 }
 
 TEST_F(IoExtrasTest, TempnameIsUnique)
 {
-    auto a = evalString("io.paths.tempname();");
-    auto b = evalString("io.paths.tempname();");
+    auto a = evalString("tempname();");
+    auto b = evalString("tempname();");
     EXPECT_NE(a, b);
 }
 
 TEST_F(IoExtrasTest, TempnameInTempdir)
 {
-    auto td = evalString("io.paths.tempdir();");
-    auto tn = evalString("io.paths.tempname();");
+    auto td = evalString("tempdir();");
+    auto tn = evalString("tempname();");
     EXPECT_EQ(tn.compare(0, td.size(), td), 0);
 }
