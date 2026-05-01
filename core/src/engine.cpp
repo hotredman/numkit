@@ -168,8 +168,8 @@ void Engine::registerFunction(const std::string &ns,
 //                          when calling bare `fft()` — sub-namespaces are
 //                          transparent for wildcard imports.
 //   * `import a.b.<name>` → tries "a.b.<name>" (when last path segment matches)
-//   * `import a.b as x`   → skipped here (only relevant for `x.<name>` calls,
-//                           handled by the qualified-name path on the caller).
+//   * `import a.b as x`   → when `name` starts with "x.", rewrites to
+//                           "a.b.<rest>" and tries that; otherwise skipped.
 template <class ShortNameIndex, class Fn>
 static bool walkImportCandidates_(const std::string &name,
                                    const Environment *env,
@@ -220,7 +220,21 @@ static bool walkImportCandidates_(const std::string &name,
                         return true;
                 }
             } else if (!imp.alias.empty()) {
-                continue;
+                // Alias import (`import a.b as alias`): rewrite a name
+                // that begins with "alias." to "a.b.<rest>" and try the
+                // registered qualified form. Bare names (no dot in
+                // `name`) and names whose prefix doesn't match the
+                // alias fall through.
+                const std::string aliasDot = imp.alias + ".";
+                if (name.size() > aliasDot.size()
+                    && name.compare(0, aliasDot.size(), aliasDot) == 0) {
+                    std::string candidate = buildPrefix(imp.path);
+                    candidate.push_back('.');
+                    candidate.append(name, aliasDot.size(),
+                                     std::string::npos);
+                    if (tryQualified(candidate))
+                        return true;
+                }
             } else if (imp.path.back() == name) {
                 if (tryQualified(buildPrefix(imp.path)))
                     return true;
@@ -233,6 +247,11 @@ static bool walkImportCandidates_(const std::string &name,
          cur = cur->parentForImports()) {
         if (runOne(cur)) return true;
     }
+    // Top-level imports always cascade into function calls. TW user
+    // functions parent localEnv at constantsEnv (not workspaceEnv), so
+    // the parent-walk above doesn't reach workspaceEnv — this fallback
+    // is load-bearing for TW. VM frame.env parents at workspaceEnv
+    // directly, so this re-visits an env we already walked (harmless).
     if (workspaceEnv && env != workspaceEnv) {
         if (runOne(workspaceEnv)) return true;
     }
@@ -334,9 +353,13 @@ const UserFunction *Engine::lookupUserFunction(const std::string &name,
     if (auto *f = resolveMFile_(name))
         return f;
 
-    // Already-qualified name or no scope context — nothing more to try.
-    if (!env || name.find('.') != std::string::npos)
+    // No scope to walk imports from — nothing more to try.
+    if (!env)
         return nullptr;
+    // Bare names walk wildcard / single-symbol / alias imports below.
+    // Dotted names only benefit from alias rewriting (`x.foo` → `a.b.foo`
+    // when `import a.b as x` is active); the wildcard / single-symbol
+    // branches in walkImportCandidates_ no-op for dotted names.
 
     // Walk imports across env→parent → workspaceEnv fallback. Each
     // successful resolveMFile_ caches the entry under its full

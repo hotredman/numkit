@@ -238,18 +238,17 @@ TEST_P(PackageNamespaceTest, MultiImportSameLeafInnermostWins)
     EXPECT_DOUBLE_EQ(r->toScalar(), 100.0);  // lib_y (last imported) wins
 }
 
-TEST_P(PackageNamespaceTest, AliasImportUnsupportedClearError)
+TEST_P(PackageNamespaceTest, AliasImportResolvesUserPackage)
 {
-    // `import a.b as alias` then `alias.foo(x)` is a known gap — the
-    // resolver doesn't yet substitute the alias when building the
-    // dotted name. Test pins the current behaviour: the bare-name
-    // fallback throws, and the alias-prefixed call also throws since
-    // `alias` isn't a workspace variable.
+    // `import a.b as alias` then `alias.foo(x)` rewrites the alias
+    // prefix and resolves the user-package m-file as `a.b.foo`.
     writeFile(workDir / "+aliaspkg" / "fn.m",
               "function y = fn(x)\n  y = x;\nend\n");
     engine.addPath(workDir.string());
-    EXPECT_THROW(engine.eval("import aliaspkg as ap; y = ap.fn(1);"),
-                 std::exception);
+    auto result = engine.eval("import aliaspkg as ap; y = ap.fn(7);");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 7.0);
 }
 
 TEST_P(PackageNamespaceTest, LargeStructArrayAutoGrow)

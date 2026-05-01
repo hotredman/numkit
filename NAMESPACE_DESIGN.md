@@ -38,7 +38,8 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
 
 - **Keywords:** `if`, `else`, `elseif`, `for`, `while`, `do`, `switch`,
   `case`, `otherwise`, `break`, `continue`, `return`, `function`, `end`,
-  `try`, `catch`, `global`, `persistent`, `import` (новый)
+  `try`, `catch`, `global`, `persistent`
+  (`import` — НЕ keyword: обычный command-style builtin)
 - **Operators:** `+`, `-`, `*`, `/`, `\`, `^`, `.+ .- .* ./ .\ .^`,
   `:` (range), `'`, `.'`, `<`, `>`, `<=`, `>=`, `==`, `~=`,
   `&&`, `||`, `&`, `|`, `~`
@@ -83,13 +84,21 @@ input: name = либо "fft" (short), либо "a.b.c" (dotted path)
 
 ## 4. Import грамматика
 
-```
-import_decl ::= 'import' import_path
+`import` — обычный builtin, не специальный синтаксис. Парсер видит
+любую из форм ниже как command-style либо function-style вызов
+`import(...)` со строковыми аргументами:
 
-import_path ::= IDENT ('.' IDENT)*               // import a.b.c (single symbol)
-              | IDENT ('.' IDENT)* '.' '*'        // import a.b.* (wildcard)
-              | IDENT ('.' IDENT)* 'as' IDENT     // import a.b as alias
 ```
+import a.b.c             ≡ import('a.b.c')
+import a.b.*             ≡ import('a.b.*')
+import a.b as alias      ≡ import('a.b', 'as', 'alias')
+import a.* b.*           ≡ import('a.*', 'b.*')
+```
+
+Builtin сам парсит каждый строковый arg (path-сегменты, wildcard,
+3-arg alias-форма). Реализация: [`libs/builtin/src/library.cpp`](libs/builtin/src/library.cpp).
+Command-style glue склеивает `.*` как терминатор-суффикс
+([`core/src/parser.cpp`](core/src/parser.cpp) parseCommandStyleCall).
 
 Четыре практических формы:
 
@@ -102,7 +111,9 @@ import compat.*                  % MATLAB-режим
 ```
 
 `import` действует от точки декларации до конца текущего scope
-(function body / script). Локально к функции — как в MATLAB.
+(function body / script). Локально к функции — как в MATLAB. В VM
+функ-локальные импорты живут в `CallFrame::env` (lazy) и уничтожаются
+при возврате из функции.
 
 ## 5. `compat` namespace
 
@@ -219,8 +230,8 @@ Y = fft(y);
 plot(Y);
 ```
 
-Одна строка в шапке. Концептуально match-ит MATLAB-стиль (там тоже есть
-`import` keyword).
+Одна строка в шапке. Концептуально match-ит MATLAB-стиль (там тоже
+есть `import`, у нас — обычный command-style builtin).
 
 ## 7. Promotions — закрытый whitelist 6 функций
 
@@ -856,7 +867,7 @@ public:
 - Phase 2: TODO с namespace-аннотациями — **DONE**
 - Phase 3: Directory refactor (Variant B) — **DONE** (libs/{builtin,signal,stats,graphics,io})
 - Phase 4: Engine API (registerFunction, indices, conflict detection) — **DONE**
-- Phase 5: AST IMPORT_DECL + parser — **DONE**
+- Phase 5: `import` builtin (command-style + function-style) — **DONE**
 - Phase 6: Resolver + activeImports — **DONE**
 - Phase 7: Миграция libs (signal, stats с переездом var/std, graphics, новый io) — **DONE**
 - Phase 8: Расширение VFS API (listDir, stat, mkdir, ...) — **DONE**
