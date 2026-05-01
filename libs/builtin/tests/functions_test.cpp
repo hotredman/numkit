@@ -125,4 +125,33 @@ TEST_P(FunctionTest, DuplicateFunctionNameError)
     )"), std::exception);
 }
 
+// MATLAB precedence: a user-defined function with the same short name as
+// a registered builtin must win. The DualEngineTest fixture imports
+// `compat.*` in SetUp, so any compat-aliased builtin (e.g. signal.square
+// → compat.square) is reachable by short name. Defining `square` locally
+// must shadow the builtin on both backends.
+//
+// Regression: introduced when libs/signal added square + aliased into
+// compat (commit a776474). VM resolved correctly via findCompiledFunc
+// being tried before findExternal; TW had the opposite order and
+// returned the builtin. Fixed by swapping order in the TW resolution
+// paths (execCall, execCommandCall, qualified-name path, slow path with
+// caching).
+TEST_P(FunctionTest, UserFunctionShadowsImportedBuiltin)
+{
+    // Register a custom builtin under the leaf name `__shadowtest__`
+    // both directly and via compat (mimics signal.square + compat alias).
+    auto handler = [](Span<const Value>, size_t,
+                      Span<Value> outs, CallContext &ctx) {
+        outs[0] = Value::scalar(-1.0, ctx.engine->resource());
+    };
+    engine.registerFunction("compat", "__shadowtest__", handler);
+
+    eval("function y = __shadowtest__(x)\n  y = x + 100;\nend");
+    eval("r = __shadowtest__(7);");
+    // User-defined function wins → returns 7+100 = 107, not the
+    // builtin's -1.
+    EXPECT_DOUBLE_EQ(getVar("r"), 107.0);
+}
+
 INSTANTIATE_DUAL(FunctionTest);
