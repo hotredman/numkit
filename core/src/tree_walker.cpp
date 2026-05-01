@@ -975,14 +975,18 @@ Value TreeWalker::execIdentifier(const ASTNode *node, Environment *env, size_t n
     if (val)
         return *val;
 
+    // MATLAB precedence: user-defined functions win over external
+    // (builtin) registrations that share a short name. e.g. user defines
+    // `function y = square(x)` while `compat.square` is imported — the
+    // user function must be called.
+    if (auto *_uf = engine_.lookupUserFunction(name, env))
+        return callUserFunction(*_uf, {}, env);
     if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
         Value outBuf[1];
         CallContext ctx{&engine_, env};
         (*fn)({}, nargout, Span<Value>(outBuf, 1), ctx);
         return outBuf[0].isEmpty() ? Value::empty() : outBuf[0];
     }
-    if (auto *_uf = engine_.lookupUserFunction(name, env))
-        return callUserFunction(*_uf, {}, env);
 
     // MATLAB-exact error for the nargin/nargout pseudo-vars when they're
     // referenced outside of any function scope. Inside a function they are
@@ -1440,6 +1444,12 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
         return outBuf;
     }
 
+    // User-defined functions take precedence over external builtins
+    // sharing the same short name (MATLAB semantics).
+    if (auto *_uf = engine_.lookupUserFunction(funcName, env)) {
+        funcNode->cachedUserFunc = _uf;
+        return callUserFunctionMulti(*_uf, args, env, nout);
+    }
     if (const ExternalFunc *fn = engine_.findExternal(funcName, env)) {
         funcNode->cachedOp = fn;
         std::vector<Value> outBuf(nout);
@@ -1447,8 +1457,6 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
         (*fn)(args, nout, Span<Value>(outBuf), ctx);
         return outBuf;
     }
-    if (auto *_uf = engine_.lookupUserFunction(funcName, env))
-        return callUserFunctionMulti(*_uf, args, env, nout);
 
     throw std::runtime_error("Undefined function: " + funcName);
 }
@@ -1617,14 +1625,15 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             args.reserve(node->children.size() - 1);
             for (size_t i = 1; i < node->children.size(); ++i)
                 args.push_back(execNode(node->children[i].get(), env));
+            // User-defined first (MATLAB precedence).
+            if (auto *uf = engine_.lookupUserFunction(qualified, env))
+                return callUserFunction(*uf, args, env);
             if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
                 Value outBuf[1];
                 CallContext ctx{&engine_, env};
                 (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
                 return outBuf[0];
             }
-            if (auto *uf = engine_.lookupUserFunction(qualified, env))
-                return callUserFunction(*uf, args, env);
             throw std::runtime_error("Undefined function or variable: " + qualified);
         }
 
@@ -1716,17 +1725,17 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             return outBuf[0];
         }
 
-        // Slow path: look up and cache (import-aware via findExternal)
+        // User-defined first (MATLAB precedence over imports/builtins).
+        if (auto *uf = engine_.lookupUserFunction(name, env)) {
+            funcNode->cachedUserFunc = uf;
+            return callUserFunction(*uf, args, env);
+        }
         if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
             funcNode->cachedOp = fn;
             Value outBuf[1];
             CallContext ctx{&engine_, env};
             (*fn)(args, nargout, Span<Value>(outBuf, 1), ctx);
             return outBuf[0];
-        }
-        if (auto *uf = engine_.lookupUserFunction(name, env)) {
-            funcNode->cachedUserFunc = uf;
-            return callUserFunction(*uf, args, env);
         }
     }
 
@@ -2419,13 +2428,12 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
     for (auto &child : node->children)
         args.push_back(Value::fromString(child->strValue, engine_.mr_));
 
-    // 1. External registered functions (includes workspace builtins, import-aware)
+    // 1. User functions take precedence over external builtins
+    //    (MATLAB semantics: a user-defined `function y = clear(x)` shadows
+    //    the `clear` builtin even in command-style call form).
     Value result;
-    if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
-        Value outBuf[1];
-        CallContext ctx{&engine_, env};
-        (*fn)(args, 0, Span<Value>(outBuf, 1), ctx);
-        result = outBuf[0];
+    if (auto *_uf = engine_.lookupUserFunction(name, env)) {
+        result = callUserFunction(*_uf, args, env);
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
             displayValue("ans", result);
@@ -2433,9 +2441,13 @@ Value TreeWalker::execCommandCall(const ASTNode *node, Environment *env)
         return result;
     }
 
-    // 3. User functions
-    if (auto *_uf = engine_.lookupUserFunction(name, env)) {
-        result = callUserFunction(*_uf, args, env);
+    // 2. External registered functions (includes workspace builtins,
+    //    import-aware via findExternal).
+    if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
+        Value outBuf[1];
+        CallContext ctx{&engine_, env};
+        (*fn)(args, 0, Span<Value>(outBuf, 1), ctx);
+        result = outBuf[0];
         if (!node->suppressOutput && !result.isEmpty()) {
             env->set("ans", result);
             displayValue("ans", result);
