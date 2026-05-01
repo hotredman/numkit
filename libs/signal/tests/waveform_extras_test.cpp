@@ -123,3 +123,18 @@ TEST_F(WaveformExtrasTest, DiricVectorShape)
     eval("y = diric(linspace(-pi, pi, 11), 7);");
     EXPECT_EQ(eval("y").numel(), 11u);
 }
+
+// Regression: `square` MUST be aliased into compat (every signal-toolbox
+// MATLAB-mirror function is) AND a user-defined `function y = square(x)`
+// MUST still shadow that builtin on every backend. The shadowing leg
+// itself is pinned kernel-side by FunctionTest.UserFunctionShadowsImportedBuiltin
+// (libs/builtin/tests); this test guards the toolbox half so an accidental
+// `regNoCompat`-style omission won't silently break short-name access.
+TEST_F(WaveformExtrasTest, SquareAliasedIntoCompat)
+{
+    Engine fresh;
+    fresh.eval("import compat.*;");
+    // Builtin reachable by short name → returns the waveform value (+1
+    // inside first half-period), not an error.
+    EXPECT_NEAR(fresh.eval("square(0.1);").toScalar(), 1.0, 1e-12);
+}
