@@ -1938,6 +1938,23 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
         }
     }
 
+    // Pre-compute caller's CALL-site arg names so the new frame can
+    // expose them via inputname(k). caller's frame.ip was advanced past
+    // the CALL instruction at the dispatch site, so CALL is at ip-1.
+    std::vector<std::string> callerArgNames;
+    if (!frames_.empty()) {
+        const auto &callerFrame = frames_.back();
+        if (callerFrame.chunk && callerFrame.ip
+            && callerFrame.ip > callerFrame.chunk->code.data()) {
+            size_t callIdx = static_cast<size_t>(
+                (callerFrame.ip - 1) - callerFrame.chunk->code.data());
+            auto it = callerFrame.chunk->callSiteArgNames.find(
+                static_cast<uint32_t>(callIdx));
+            if (it != callerFrame.chunk->callSiteArgNames.end())
+                callerArgNames = it->second;
+        }
+    }
+
     // Push call frame
     CallFrame cf;
     cf.chunk = &funcChunk;
@@ -1952,6 +1969,7 @@ void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_
     cf.isMultiReturn = isMulti;
     cf.outBase = outBase;
     cf.nout = nout;
+    cf.callerArgNames = std::move(callerArgNames);
     frames_.push_back(std::move(cf));
 
     regStackTop_ += nregs;
