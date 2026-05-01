@@ -1,5 +1,10 @@
 % FFT Spectrum — Frequency content of a signal
 % Build a signal from two sine waves and reveal them with fft.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 close all
 

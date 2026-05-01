@@ -1,5 +1,10 @@
 % Append Log — fopen with 'a'
 % 'a' preserves existing content and writes past the end of the file.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 % Start the log fresh
