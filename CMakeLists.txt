@@ -169,6 +169,8 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/filter_design/filter_design.hpp
     libs/signal/include/numkit/signal/filter_analysis/frequency_response.hpp
     libs/signal/include/numkit/signal/filter_analysis/unwrap.hpp
+    libs/signal/include/numkit/signal/filter_analysis/responses.hpp
+    libs/signal/include/numkit/signal/filter_analysis/predicates.hpp
     libs/signal/include/numkit/signal/digital_filtering/filter.hpp
     libs/signal/include/numkit/signal/digital_filtering/sosfilt.hpp
     libs/signal/include/numkit/signal/filter_implementation/conversions.hpp

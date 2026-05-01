@@ -31,6 +31,19 @@ void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void phasez_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void grpdelay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// filter_analysis/responses.cpp (D1)
+void impz_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void impzlength_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stepz_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void phasedelay_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zerophase_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// filter_analysis/predicates.cpp (D1)
+void isfir_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isstable_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isminphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ismaxphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void islinphase_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isallpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void downsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void upsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void decimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -143,10 +156,21 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "sgolay",     &signal::detail::sgolay_reg);
     reg("filter_design", "sgolayfilt", &signal::detail::sgolayfilt_reg);
 
-    // ── Filter analysis (freqz / phasez / grpdelay) ────────────────────
-    reg("filter_analysis", "freqz",    &signal::detail::freqz_reg);
-    reg("filter_analysis", "phasez",   &signal::detail::phasez_reg);
-    reg("filter_analysis", "grpdelay", &signal::detail::grpdelay_reg);
+    // ── Filter analysis (freqz / phasez / grpdelay + responses + preds) ─
+    reg("filter_analysis", "freqz",      &signal::detail::freqz_reg);
+    reg("filter_analysis", "phasez",     &signal::detail::phasez_reg);
+    reg("filter_analysis", "grpdelay",   &signal::detail::grpdelay_reg);
+    reg("filter_analysis", "impz",       &signal::detail::impz_reg);
+    reg("filter_analysis", "impzlength", &signal::detail::impzlength_reg);
+    reg("filter_analysis", "stepz",      &signal::detail::stepz_reg);
+    reg("filter_analysis", "phasedelay", &signal::detail::phasedelay_reg);
+    reg("filter_analysis", "zerophase",  &signal::detail::zerophase_reg);
+    reg("filter_analysis", "isfir",      &signal::detail::isfir_reg);
+    reg("filter_analysis", "isstable",   &signal::detail::isstable_reg);
+    reg("filter_analysis", "isminphase", &signal::detail::isminphase_reg);
+    reg("filter_analysis", "ismaxphase", &signal::detail::ismaxphase_reg);
+    reg("filter_analysis", "islinphase", &signal::detail::islinphase_reg);
+    reg("filter_analysis", "isallpass",  &signal::detail::isallpass_reg);
 
     // ── Filter implementation (form conversions: TF/SOS/ZPK) ───────────
     reg("filter_implementation", "tf2sos", &signal::detail::tf2sos_reg);
