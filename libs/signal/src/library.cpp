@@ -112,6 +112,17 @@ void SignalLibrary::install(Engine &engine)
         engine.registerFunction(std::string("signal.") + sub, name, fn);
         engine.registerFunction("compat", name, fn);
     };
+    // Variant that skips the compat alias — used for builtin names that
+    // are common user-function identifiers in tests/scripts. The full
+    // qualified path `signal.<sub>.<name>` is still available; callers
+    // who want short-name access import that explicitly. Shadowing rule
+    // on TW currently prefers builtin over user-defined when both share
+    // the short name (kernel-side; tracked separately), so until that's
+    // fixed, conflict-prone names skip compat to avoid breaking user
+    // function tests.
+    auto regNoCompat = [&](const char *sub, const char *name, ExternalFunc fn) {
+        engine.registerFunction(std::string("signal.") + sub, name, fn);
+    };
 
     // ── Transforms (FFT family, DCT, Hilbert, Goertzel, envelope, ...) ──
     reg("transforms", "fft",       &signal::detail::fft_reg);
@@ -194,7 +205,9 @@ void SignalLibrary::install(Engine &engine)
     reg("waveform_generation", "tripuls",   &signal::detail::tripuls_reg);
     reg("waveform_generation", "gauspuls",  &signal::detail::gauspuls_reg);
     reg("waveform_generation", "pulstran",  &signal::detail::pulstran_reg);
-    reg("waveform_generation", "square",    &signal::detail::square_reg);
+    // `square` is a frequent user-fn name in test scripts. Skip compat
+    // alias to keep `function y=square(x); ...; end` working on TW.
+    regNoCompat("waveform_generation", "square", &signal::detail::square_reg);
     reg("waveform_generation", "sawtooth",  &signal::detail::sawtooth_reg);
     reg("waveform_generation", "sinc",      &signal::detail::sinc_reg);
     reg("waveform_generation", "gmonopuls", &signal::detail::gmonopuls_reg);
