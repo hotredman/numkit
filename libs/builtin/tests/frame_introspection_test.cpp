@@ -243,3 +243,89 @@ TEST_P(EvalinTest, EvalinMissingArgsThrows)
 }
 
 INSTANTIATE_DUAL(EvalinTest);
+
+// ============================================================
+// inputname — caller's arg names from call site
+// ============================================================
+
+class InputnameTest : public DualEngineTest {};
+
+TEST_P(InputnameTest, BareIdentifierArgReturnsName)
+{
+    eval(R"(
+        function r = get_name(x)
+            r = inputname(1);
+        end
+    )");
+    eval("myvar = 99;");
+    eval("n = get_name(myvar);");
+    EXPECT_EQ(getVarPtr("n")->toString(), "myvar");
+}
+
+TEST_P(InputnameTest, LiteralArgReturnsEmpty)
+{
+    eval(R"(
+        function r = get_name(x)
+            r = inputname(1);
+        end
+    )");
+    eval("n = get_name(42);");
+    EXPECT_EQ(getVarPtr("n")->toString(), "");
+}
+
+TEST_P(InputnameTest, ExpressionArgReturnsEmpty)
+{
+    eval(R"(
+        function r = get_name(x)
+            r = inputname(1);
+        end
+    )");
+    eval("a = 1; b = 2; n = get_name(a + b);");
+    EXPECT_EQ(getVarPtr("n")->toString(), "");
+}
+
+TEST_P(InputnameTest, MultipleArgsMixedTypes)
+{
+    eval(R"(
+        function [n1, n2, n3] = get_names(a, b, c)
+            n1 = inputname(1);
+            n2 = inputname(2);
+            n3 = inputname(3);
+        end
+    )");
+    eval("foo = 1; bar = 2; [r1, r2, r3] = get_names(foo, 5, bar);");
+    EXPECT_EQ(getVarPtr("r1")->toString(), "foo");
+    EXPECT_EQ(getVarPtr("r2")->toString(), "");
+    EXPECT_EQ(getVarPtr("r3")->toString(), "bar");
+}
+
+TEST_P(InputnameTest, OutsideFunctionThrows)
+{
+    EXPECT_THROW(eval("n = inputname(1);"), std::exception);
+}
+
+TEST_P(InputnameTest, IndexLessThanOneThrows)
+{
+    eval(R"(
+        function r = get(x)
+            r = inputname(0);
+        end
+    )");
+    EXPECT_THROW(eval("get(42);"), std::exception);
+}
+
+TEST_P(InputnameTest, IndexBeyondArgsReturnsEmpty)
+{
+    // MATLAB: inputname(k) for k > nargin returns empty rather than
+    // throwing. Our implementation matches this when the call site
+    // metadata is shorter than k.
+    eval(R"(
+        function r = get(x)
+            r = inputname(2);
+        end
+    )");
+    eval("n = get(99);");
+    EXPECT_EQ(getVarPtr("n")->toString(), "");
+}
+
+INSTANTIATE_DUAL(InputnameTest);

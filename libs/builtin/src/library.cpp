@@ -774,6 +774,23 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             outs[0] = Value::empty();
         });
 
+    // ── inputname ────────────────────────────────────────────
+    // inputname(k) returns the variable name of the k-th input arg as
+    // written at the call site of the function containing this call.
+    // Empty string if the arg was a literal / expression / non-identifier.
+    // Throws when called from outside a function or for k < 1.
+    engine.registerFunction(
+        "inputname", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() != 1)
+                throw std::runtime_error("inputname: requires one argument (k)");
+            double kd = args[0].toScalar();
+            int k = static_cast<int>(kd);
+            if (static_cast<double>(k) != kd || k < 1)
+                throw std::runtime_error("inputname: k must be a positive integer");
+            std::string name = ctx.engine->inputName(k);
+            outs[0] = Value::fromString(name, ctx.engine->resource());
+        });
+
     // ── clc ────────────────────────────────────────────────────
     engine.registerFunction("clc",
                             [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {

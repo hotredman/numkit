@@ -937,12 +937,14 @@ uint8_t Compiler::compileMultiAssign(const ASTNode *node)
     int16_t funcIdx = addStringConstant(funcName);
 
     // CALL_MULTI: a=outBase, d=funcIdx, b=argBase, c=nargs, e=nout
+    size_t callMultiIdx = chunk_.code.size();
     emit(Instruction::make_abcde(OpCode::CALL_MULTI,
                                  outBase,
                                  argBase,
                                  static_cast<uint8_t>(argRegs.size()),
                                  funcIdx,
                                  static_cast<uint8_t>(nout)));
+    recordCallArgNames(callNode, callMultiIdx);
 
     // Move outputs to destination registers
     for (size_t i = 0; i < nout; ++i) {
@@ -2256,6 +2258,36 @@ uint8_t Compiler::compileCellAssign(const ASTNode *node)
 // Phase 4: Function calls
 // ============================================================
 
+// Record the arg names from a CALL AST node into the chunk's
+// per-call-site side table. Each child[1..] of `callNode` is an arg
+// expression; if it's a bare IDENTIFIER, we record the name (so
+// `inputname(k)` inside the callee can return it), otherwise empty.
+// Skips the side-table write entirely if every arg is non-identifier
+// (the common case for arithmetic / literal args) to keep the table
+// sparse.
+void Compiler::recordCallArgNames(const ASTNode *callNode, size_t callInstrIdx)
+{
+    if (!callNode || callNode->children.size() < 2)
+        return;
+    std::vector<std::string> names;
+    names.reserve(callNode->children.size() - 1);
+    bool anyIdent = false;
+    for (size_t i = 1; i < callNode->children.size(); ++i) {
+        const auto &child = callNode->children[i];
+        if (child && child->type == NodeType::IDENTIFIER
+            && !engine_.isReservedName(child->strValue)) {
+            names.push_back(child->strValue);
+            anyIdent = true;
+        } else {
+            names.emplace_back();
+        }
+    }
+    if (anyIdent) {
+        chunk_.callSiteArgNames[static_cast<uint32_t>(callInstrIdx)]
+            = std::move(names);
+    }
+}
+
 uint8_t Compiler::compileCall(const ASTNode *node)
 {
     auto *funcNode = node->children[0].get();
@@ -2517,12 +2549,14 @@ uint8_t Compiler::compileCall(const ASTNode *node)
 
     // General CALL
     int16_t funcIdx = addStringConstant(name);
+    size_t callIdx = chunk_.code.size();
     emit(Instruction::make_abcde(OpCode::CALL,
                                  dst,
                                  argBase,
                                  static_cast<uint8_t>(nargs),
                                  funcIdx,
                                  nargoutContext_));
+    recordCallArgNames(node, callIdx);
     return dst;
 }
 

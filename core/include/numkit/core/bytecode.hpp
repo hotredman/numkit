@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -296,6 +297,15 @@ struct BytecodeChunk
 
     // Global variable names (declared with 'global' keyword)
     std::vector<std::string> globalNames;
+
+    // Per-CALL-site arg names — populated by the compiler for each
+    // CALL / CALL_MULTI it emits. Key = index into `code` of the CALL
+    // instruction. Value = list of arg names; entry i is the name of
+    // the i-th arg if it was a bare identifier at the call site,
+    // empty string otherwise. Used by `inputname(k)` to introspect
+    // the caller's call site. Sparse on purpose — only populated for
+    // calls that have at least one bare-identifier arg.
+    std::unordered_map<uint32_t, std::vector<std::string>> callSiteArgNames;
 
     // Source mapping (parallel to code, same size — one entry per instruction)
     std::vector<SourceLoc> sourceMap;

@@ -1448,7 +1448,7 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
     // sharing the same short name (MATLAB semantics).
     if (auto *_uf = engine_.lookupUserFunction(funcName, env)) {
         funcNode->cachedUserFunc = _uf;
-        return callUserFunctionMulti(*_uf, args, env, nout);
+        return callUserFunctionMulti(*_uf, args, env, nout, node);
     }
     if (const ExternalFunc *fn = engine_.findExternal(funcName, env)) {
         funcNode->cachedOp = fn;
@@ -1627,7 +1627,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                 args.push_back(execNode(node->children[i].get(), env));
             // User-defined first (MATLAB precedence).
             if (auto *uf = engine_.lookupUserFunction(qualified, env))
-                return callUserFunction(*uf, args, env);
+                return callUserFunction(*uf, args, env, node);
             if (const ExternalFunc *fn = engine_.findExternal(qualified, env)) {
                 Value outBuf[1];
                 CallContext ctx{&engine_, env};
@@ -1665,7 +1665,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
                 argsBuf[i] = execNode(node->children[i + 1].get(), env);
             return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
                                     Span<const Value>(argsBuf, nargs),
-                                    env);
+                                    env, node);
         }
         // >4 args — fall through to vector path
         std::vector<Value> args;
@@ -1674,7 +1674,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             args.push_back(execNode(node->children[i].get(), env));
         return callUserFunction(*static_cast<const UserFunction *>(funcNode->cachedUserFunc),
                                 args,
-                                env);
+                                env, node);
     }
 
     if (funcNode->cachedOp) {
@@ -1728,7 +1728,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
         // User-defined first (MATLAB precedence over imports/builtins).
         if (auto *uf = engine_.lookupUserFunction(name, env)) {
             funcNode->cachedUserFunc = uf;
-            return callUserFunction(*uf, args, env);
+            return callUserFunction(*uf, args, env, node);
         }
         if (const ExternalFunc *fn = engine_.findExternal(name, env)) {
             funcNode->cachedOp = fn;
@@ -2558,9 +2558,34 @@ static bool astUsesIdentifier(const ASTNode *node, const char *name1, const char
     return false;
 }
 
+// Extract bare-identifier arg names from a CALL AST node for inputname(k).
+// Returns empty vector if callNode is null. Reserved names (pi, eps, …)
+// are treated as non-identifier (returned as empty string).
+static std::vector<std::string> extractCallerArgNames(const ASTNode *callNode,
+                                                       const Engine &engine)
+{
+    std::vector<std::string> names;
+    if (!callNode || callNode->children.size() < 2) return names;
+    names.reserve(callNode->children.size() - 1);
+    bool anyIdent = false;
+    for (size_t i = 1; i < callNode->children.size(); ++i) {
+        const auto &child = callNode->children[i];
+        if (child && child->type == NodeType::IDENTIFIER
+            && !engine.isReservedName(child->strValue)) {
+            names.push_back(child->strValue);
+            anyIdent = true;
+        } else {
+            names.emplace_back();
+        }
+    }
+    if (!anyIdent) names.clear();
+    return names;
+}
+
 Value TreeWalker::callUserFunction(const UserFunction &func,
                                     Span<const Value> args,
-                                    Environment *env)
+                                    Environment *env,
+                                    const ASTNode *callNode)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
 
@@ -2572,7 +2597,8 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
                                              : &engine_.constantsEnv();
     Environment localEnv(parentEnv, engine_.globalsEnv_.get());
-    FrameGuard frameGuard(activeFrames_, &localEnv);
+    FrameGuard frameGuard(activeFrames_, &localEnv,
+                          extractCallerArgNames(callNode, engine_));
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
@@ -2614,7 +2640,8 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
 std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
                                                       Span<const Value> args,
                                                       Environment *env,
-                                                      size_t nout)
+                                                      size_t nout,
+                                                      const ASTNode *callNode)
 {
     RecursionGuard rguard(currentRecursionDepth_, maxRecursionDepth_);
 
@@ -2624,7 +2651,8 @@ std::vector<Value> TreeWalker::callUserFunctionMulti(const UserFunction &func,
     Environment *parentEnv = func.closureEnv ? func.closureEnv.get()
                                              : &engine_.constantsEnv();
     Environment localEnv(parentEnv, engine_.globalsEnv_.get());
-    FrameGuard frameGuard(activeFrames_, &localEnv);
+    FrameGuard frameGuard(activeFrames_, &localEnv,
+                          extractCallerArgNames(callNode, engine_));
 
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);

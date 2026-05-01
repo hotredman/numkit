@@ -655,7 +655,7 @@ Environment *Engine::callerEnv(int n)
     if (treeWalker_) {
         const auto &frames = treeWalker_->activeFrames();
         if (n < static_cast<int>(frames.size()))
-            return frames[frames.size() - 1 - n];
+            return frames[frames.size() - 1 - n].env;
         return workspaceEnv_.get();
     }
     return workspaceEnv_.get();
@@ -670,6 +670,31 @@ void Engine::assignToCaller(int n, const std::string &name, Value val)
     if (vm_ && backend_ == Backend::VM)
         vm_->assignInCallerFrame(n, name, val);
     env->set(name, std::move(val));
+}
+
+std::string Engine::inputName(int k)
+{
+    if (k < 1)
+        throw std::runtime_error("inputname: argument index must be >= 1");
+    if (callerDepth() < 1)
+        throw std::runtime_error(
+            "inputname: must be called from within a function");
+
+    if (vm_ && backend_ == Backend::VM) {
+        const auto &names = vm_->currentFrameCallerArgNames();
+        if (k > static_cast<int>(names.size()))
+            return {};  // beyond known names: arg wasn't recorded
+        return names[k - 1];
+    }
+    if (treeWalker_) {
+        const auto &frames = treeWalker_->activeFrames();
+        if (frames.empty()) return {};
+        const auto &names = frames.back().callerArgNames;
+        if (k > static_cast<int>(names.size()))
+            return {};
+        return names[k - 1];
+    }
+    return {};
 }
 
 void Engine::clearUserFunctions()

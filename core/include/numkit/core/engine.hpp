@@ -306,6 +306,15 @@ public:
     // name is statically allocated (chunk.varMap hit). Used by assignin.
     void assignToCaller(int n, const std::string &name, Value val);
 
+    // Returns the source-text name of the k-th input arg as written at
+    // the call site of the currently-running user function (1-indexed,
+    // matching MATLAB). Empty string if the arg was not a bare
+    // identifier (literal, expression, etc.). Throws when invoked from
+    // outside any user-function call, or when k is out of range.
+    // Backed by per-CALL-site metadata recorded by the compiler / TW
+    // call sites.
+    std::string inputName(int k);
+
     // ── Virtual filesystem ────────────────────────────────────
     //
     // Registry of named filesystems ("native", "temporary", "local", …).

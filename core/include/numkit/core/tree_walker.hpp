@@ -25,9 +25,16 @@ public:
     // Active call stack (parallel to C++ recursion of callUserFunction).
     // Maintained via FrameGuard RAII so it stays in sync across exception
     // unwind. Front = outermost; back = innermost. Used by Engine's
-    // callerEnv() so builtins can introspect the call stack regardless
-    // of which backend is active.
-    const std::vector<Environment *> &activeFrames() const { return activeFrames_; }
+    // callerEnv() / inputName() so builtins can introspect the stack
+    // regardless of which backend is active.
+    struct ActiveFrame
+    {
+        Environment *env = nullptr;
+        // Arg names from caller's CALL site (bare identifier or empty).
+        // Read by inputname(k).
+        std::vector<std::string> callerArgNames;
+    };
+    const std::vector<ActiveFrame> &activeFrames() const { return activeFrames_; }
 
     // ── Public callback API ───────────────────────────────────
     // Used by Engine::callFunctionHandle so that builtins (e.g.
@@ -60,25 +67,29 @@ private:
     std::vector<Value> callArgsBuf_;
     std::atomic<int> anonCounter_{0};
 
-    // Parallel call stack of localEnv pointers — pushed on entry to
+    // Parallel call stack of (localEnv, argNames) — pushed on entry to
     // callUserFunction(), popped on exit (RAII). Lifetime safe because
     // each localEnv lives on the C++ stack frame of the same call.
-    std::vector<Environment *> activeFrames_;
+    std::vector<ActiveFrame> activeFrames_;
 
     class FrameGuard
     {
     public:
-        FrameGuard(std::vector<Environment *> &stack, Environment *env)
+        FrameGuard(std::vector<ActiveFrame> &stack, Environment *env,
+                   std::vector<std::string> argNames = {})
             : stack_(stack)
         {
-            stack_.push_back(env);
+            ActiveFrame f;
+            f.env = env;
+            f.callerArgNames = std::move(argNames);
+            stack_.push_back(std::move(f));
         }
         ~FrameGuard() { stack_.pop_back(); }
         FrameGuard(const FrameGuard &) = delete;
         FrameGuard &operator=(const FrameGuard &) = delete;
 
     private:
-        std::vector<Environment *> &stack_;
+        std::vector<ActiveFrame> &stack_;
     };
 
     class IndexContextGuard
@@ -168,11 +179,16 @@ private:
     std::vector<Value> execCallMulti(const ASTNode *node, Environment *env, size_t nout);
 
     // Function call
-    Value callUserFunction(const UserFunction &func, Span<const Value> args, Environment *env);
+    // Optional `callNode` is the AST CALL node used to extract caller's
+    // arg names for inputname(k); nullptr falls back to no names.
+    Value callUserFunction(const UserFunction &func, Span<const Value> args,
+                           Environment *env,
+                           const ASTNode *callNode = nullptr);
     std::vector<Value> callUserFunctionMulti(const UserFunction &func,
                                               Span<const Value> args,
                                               Environment *env,
-                                              size_t nout);
+                                              size_t nout,
+                                              const ASTNode *callNode = nullptr);
     Value callFuncHandle(const Value &handle, Span<const Value> args, Environment *env);
     std::vector<Value> callFuncHandleMulti(const Value &handle,
                                             Span<const Value> args,

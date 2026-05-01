@@ -209,6 +209,9 @@ private:
     // Phase 4+5: function calls
     uint8_t compileCall(const ASTNode *node);
     uint8_t compileCommandCall(const ASTNode *node);
+    // Record per-CALL-site arg names into chunk_.callSiteArgNames so
+    // inputname(k) inside the callee can introspect the call site.
+    void recordCallArgNames(const ASTNode *callNode, size_t callInstrIdx);
     uint8_t compileFunctionDef(const ASTNode *node);
     uint8_t compileReturn(const ASTNode *node);
     uint8_t compileDeleteAssign(const ASTNode *node);

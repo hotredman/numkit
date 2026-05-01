@@ -132,6 +132,16 @@ public:
     void writeToFrameMatchingEnv(Environment *env, const std::string &name,
                                  const Value &val);
 
+    // Caller arg names of the innermost user-function frame (the
+    // function that contains the running builtin's call site). Empty
+    // when at top-level. Used by inputname(k).
+    const std::vector<std::string> &currentFrameCallerArgNames() const
+    {
+        static const std::vector<std::string> kEmpty;
+        if (frames_.size() < 2) return kEmpty;
+        return frames_.back().callerArgNames;
+    }
+
 private:
     Engine &engine_;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
@@ -167,6 +177,13 @@ private:
         // builtin state. parent = workspaceEnv. Allocated on first
         // currentCallEnv() inside a user function; nullptr at top level.
         std::unique_ptr<Environment> env;
+
+        // Names of the bare-identifier args at the caller's CALL site,
+        // copied from caller's chunk.callSiteArgNames at pushCallFrame.
+        // inputname(k) reads element [k-1] from this vector. Empty
+        // string for non-identifier args, empty vector for top-level
+        // and non-tracked call sites.
+        std::vector<std::string> callerArgNames;
     };
     std::vector<CallFrame> frames_;
     Value lastResult_;
