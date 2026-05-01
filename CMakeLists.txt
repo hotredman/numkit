@@ -185,6 +185,7 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/transforms/dct.hpp
     libs/signal/include/numkit/signal/transforms/goertzel.hpp
     libs/signal/include/numkit/signal/transforms/transform_helpers.hpp
+    libs/signal/include/numkit/signal/transforms/extras.hpp
     libs/signal/include/numkit/signal/smoothing/sgolay.hpp
     libs/signal/include/numkit/signal/smoothing/medfilt.hpp
     libs/signal/include/numkit/signal/measurements/findpeaks.hpp

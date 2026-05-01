@@ -107,6 +107,14 @@ void findpeaks_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Cal
 void goertzel_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void dct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void idct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// transforms/extras.cpp (E2)
+void dftmtx_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bitrevorder_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void dst_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void idst_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rceps_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cceps_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void icceps_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // SOS family (libs/signal/src/digital_filtering/sosfilt.cpp)
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -164,6 +172,13 @@ void SignalLibrary::install(Engine &engine)
     reg("transforms", "goertzel",  &signal::detail::goertzel_reg);
     reg("transforms", "nextpow2",  &signal::detail::nextpow2_reg);
     reg("transforms", "unwrap",    &signal::detail::unwrap_reg);
+    reg("transforms", "dftmtx",      &signal::detail::dftmtx_reg);
+    reg("transforms", "bitrevorder", &signal::detail::bitrevorder_reg);
+    reg("transforms", "dst",         &signal::detail::dst_reg);
+    reg("transforms", "idst",        &signal::detail::idst_reg);
+    reg("transforms", "rceps",       &signal::detail::rceps_reg);
+    reg("transforms", "cceps",       &signal::detail::cceps_reg);
+    reg("transforms", "icceps",      &signal::detail::icceps_reg);
 
     // ── Convolution / correlation ──────────────────────────────────────
     reg("convolution", "conv",         &signal::detail::conv_reg);
