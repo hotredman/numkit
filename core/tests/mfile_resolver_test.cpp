@@ -388,6 +388,44 @@ TEST_P(MFileResolverTest, ManualPushScriptOriginEnablesSiblingLookup)
     EXPECT_DOUBLE_EQ(g->toScalar(), 40.0);
 }
 
+// ── Root-level scriptDir resolves siblings at FS root ─────────
+//
+// run('temporary:/foo.m') — file at the FS root. The `run` builtin
+// extracts scriptDir from rp.path; for "/foo.m" the directory is
+// "/" (one char), NOT "" (which would silently disable sibling
+// lookup). Pins that root-level files in a VFS resolve siblings.
+TEST_P(MFileResolverTest, RunBuiltinRootLevelFileResolvesSibling)
+{
+    auto vfs = std::make_unique<TestMemoryFS>("temporary");
+    auto *vfsRaw = vfs.get();
+    engine.registerVirtualFS(std::move(vfs));
+
+    vfsRaw->files_["/root_caller.m"] = "g = root_helper(6);\n";
+    vfsRaw->files_["/root_helper.m"] =
+        "function y = root_helper(x)\n  y = x + 100;\nend\n";
+
+    EXPECT_NO_THROW(engine.eval("run('temporary:/root_caller.m');"));
+    auto *g = engine.getVariable("g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 106.0);
+}
+
+// ── Same thing via the IDE-style direct push of scriptDir = "/" ─
+TEST_P(MFileResolverTest, ManualPushRootScriptDirResolvesSibling)
+{
+    auto vfs = std::make_unique<TestMemoryFS>("temporary");
+    auto *vfsRaw = vfs.get();
+    engine.registerVirtualFS(std::move(vfs));
+    vfsRaw->files_["/h.m"] = "function y = h(x)\n  y = x + 9;\nend\n";
+
+    engine.pushScriptOrigin("temporary", "/");
+    try { engine.eval("z = h(1);"); }
+    catch (...) { engine.popScriptOrigin(); throw; }
+    engine.popScriptOrigin();
+
+    EXPECT_DOUBLE_EQ(engine.getVariable("z")->toScalar(), 10.0);
+}
+
 // ── 1-arg pushScriptOrigin (legacy) leaves sibling lookup off ──
 //
 // The old 1-arg form (FS only, no dir) is still supported for

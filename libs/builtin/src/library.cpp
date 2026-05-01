@@ -1218,10 +1218,15 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             // sibling .m files in the same directory resolve without
             // addpath. The dir is extracted from the resolved path
             // (rp.path is the script's full path inside rp.fs).
+            // Root-level files ("/foo.m") need scriptDir = "/" — an
+            // empty string would be treated as "no scriptDir" by the
+            // resolver, so substr(0,0) won't do.
             std::string scriptDir;
             {
                 size_t slash = rp.path.find_last_of("/\\");
-                if (slash != std::string::npos)
+                if (slash == 0)
+                    scriptDir.assign(1, rp.path[0]);   // "/" or "\\"
+                else if (slash != std::string::npos)
                     scriptDir = rp.path.substr(0, slash);
             }
             ctx.engine->pushScriptOrigin(rp.fs->name(), scriptDir);
