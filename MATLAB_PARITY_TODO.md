@@ -440,7 +440,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `minus` | ⚠️ | works as binary `-` operator; not callable as named fn |
 | `mldivide` | ⚠️ | works as matrix `\` operator; not callable as named fn |
 | `mod` | ✅ |  |
-| `movsum` | ❌ | moving sum |
+| `movsum` | ✅ | moving sum |
 | `mpower` | ⚠️ | works as matrix `^` operator; not callable as named fn |
 | `mrdivide` | ⚠️ | works as matrix `/` operator; not callable as named fn |
 | `mtimes` | ⚠️ | works as matrix `*` operator; not callable as named fn |
@@ -835,7 +835,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `nufft` | ❌ | non-uniform |
 | `nufftn` | ❌ | non-uniform |
 | `padecoef` | ❌ |  |
-| `ss2tf` | ❌ | inverse |
+| `ss2tf` | ✅ | inverse |
 
 ## 3. Data Analysis
 
@@ -843,34 +843,34 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `bounds` | ❌ | `[min,max]` |
+| `bounds` | ✅ | `[min,max]` |
 | `corrcoef` | ✅ |  |
 | `cov` | ✅ |  |
 | `cummax` | ✅ |  |
 | `cummin` | ✅ |  |
-| `iqr` | ❌ | inter-quartile |
+| `iqr` | ✅ | inter-quartile |
 | `kde` | ❌ |  |
 | `mape` | ❌ |  |
 | `max` | ✅ |  |
-| `maxk` | ❌ |  |
+| `maxk` | ✅ |  |
 | `mean` | ✅ |  |
 | `median` | ✅ |  |
 | `min` | ✅ |  |
-| `mink` | ❌ |  |
+| `mink` | ✅ |  |
 | `mode` | ✅ |  |
-| `movmad` | ❌ | moving mad |
-| `movmax` | ❌ | moving max |
-| `movmean` | ❌ | moving avg |
-| `movmedian` | ❌ | moving median |
-| `movmin` | ❌ | moving min |
-| `movprod` | ❌ | moving prod |
-| `movstd` | ❌ | moving std |
-| `movsum` | ❌ | moving sum |
-| `movvar` | ❌ | moving var |
+| `movmad` | ✅ | moving mad |
+| `movmax` | ✅ | moving max |
+| `movmean` | ✅ | moving avg |
+| `movmedian` | ✅ | moving median |
+| `movmin` | ✅ | moving min |
+| `movprod` | ✅ | moving prod |
+| `movstd` | ✅ | moving std |
+| `movsum` | ✅ | moving sum |
+| `movvar` | ✅ | moving var |
 | `prctile` | ✅ |  |
 | `quantile` | ✅ |  |
-| `rms` | ❌ | root-mean-square |
-| `rmse` | ❌ |  |
+| `rms` | ✅ | root-mean-square |
+| `rmse` | ✅ |  |
 | `std` | ✅ |  |
 | `summary` | ❌ |  |
 | `var` | ✅ |  |
@@ -1057,7 +1057,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `ferror` | ✅ |  |
 | `fgetl` | ✅ |  |
 | `fgets` | ✅ |  |
-| `fileread` | ❌ | whole-file read |
+| `fileread` | ✅ | whole-file read |
 | `fopen` | ✅ |  |
 | `fprintf` | ✅ |  |
 | `fread` | ✅ |  |
@@ -1072,20 +1072,20 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `fileread` | ❌ | whole-file read |
+| `fileread` | ✅ | whole-file read |
 | `importdatatask` | ❌ |  |
 | `importtool` | ❌ |  |
 | `readcell` | ❌ |  |
-| `readlines` | ❌ |  |
-| `readmatrix` | ❌ | modern CSV |
+| `readlines` | ✅ |  |
+| `readmatrix` | ✅ | modern CSV |
 | `readtable` | ❌ | needs table type |
 | `readtimetable` | ❌ |  |
 | `readvars` | ❌ |  |
 | `textscan` | ✅ |  |
-| `type` | ❌ |  |
+| `type` | ✅ |  |
 | `writecell` | ❌ |  |
-| `writelines` | ❌ |  |
-| `writematrix` | ❌ | modern CSV |
+| `writelines` | ✅ |  |
+| `writematrix` | ✅ | modern CSV |
 | `writetable` | ❌ | needs table type |
 | `writetimetable` | ❌ |  |
 
@@ -1097,13 +1097,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `importdatatask` | ❌ |  |
 | `importtool` | ❌ |  |
 | `readcell` | ❌ |  |
-| `readmatrix` | ❌ | modern CSV |
+| `readmatrix` | ✅ | modern CSV |
 | `readtable` | ❌ | needs table type |
 | `readtimetable` | ❌ |  |
 | `readvars` | ❌ |  |
 | `sheetnames` | ❌ |  |
 | `writecell` | ❌ |  |
-| `writematrix` | ❌ | modern CSV |
+| `writematrix` | ✅ | modern CSV |
 | `writetable` | ❌ | needs table type |
 | `writetimetable` | ❌ |  |
 
@@ -1119,13 +1119,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | Function | Status | Notes |
 |---|:---:|---|
 | `filemarker` | ❌ |  |
-| `fileparts` | ❌ | split path |
-| `filesep` | ❌ | path sep |
-| `fullfile` | ❌ | OS path join |
+| `fileparts` | ✅ | split path |
+| `filesep` | ✅ | path sep |
+| `fullfile` | ✅ | OS path join |
 | `matlabdrive` | ❌ |  |
 | `matlabroot` | ❌ |  |
-| `tempdir` | ❌ |  |
-| `tempname` | ❌ |  |
+| `tempdir` | ✅ |  |
+| `tempname` | ✅ |  |
 | `toolboxdir` | ❌ |  |
 
 ## 7. Signal Processing Toolbox
@@ -1137,19 +1137,19 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `buffer` | ❌ | reshape with overlap |
 | `chirp` | ✅ |  |
 | `demod` | ❌ |  |
-| `diric` | ❌ | Dirichlet |
+| `diric` | ✅ | Dirichlet |
 | `framelbl` | ❌ |  |
 | `framesig` | ❌ |  |
 | `gauspuls` | ✅ | Gaussian pulse |
-| `gmonopuls` | ❌ | Gaussian monopulse |
+| `gmonopuls` | ✅ | Gaussian monopulse |
 | `marcumq` | ❌ |  |
 | `modulate` | ❌ |  |
 | `pulstran` | ✅ | pulse train |
 | `rectpuls` | ✅ | rectangular pulse |
-| `sawtooth` | ❌ |  |
+| `sawtooth` | ✅ |  |
 | `shiftdata` | ❌ |  |
-| `sinc` | ❌ | sin(πx)/(πx) |
-| `square` | ❌ |  |
+| `sinc` | ✅ | sin(πx)/(πx) |
+| `square` | ✅ |  |
 | `tripuls` | ✅ | triangular |
 | `udecode` | ❌ |  |
 | `uencode` | ❌ |  |
@@ -1185,7 +1185,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `firpmord` | ❌ | order estimator |
 | `gaussdesign` | ❌ |  |
 | `info` | ❌ |  |
-| `intfilt` | ❌ | interpolating FIR |
+| `intfilt` | ✅ | interpolating FIR |
 | `isdouble` | ❌ |  |
 | `issingle` | ✅ |  |
 | `kaiserord` | ❌ | Kaiser window order |
@@ -1230,63 +1230,63 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `firtype` | ❌ |  |
 | `freqz` | ✅ | discrete freq response |
 | `grpdelay` | ✅ | group delay |
-| `impz` | ❌ | impulse response |
-| `impzlength` | ❌ | impulse length |
-| `isallpass` | ❌ | predicate |
-| `isfir` | ❌ | predicate |
-| `islinphase` | ❌ | predicate |
-| `ismaxphase` | ❌ | predicate |
-| `isminphase` | ❌ | predicate |
-| `isstable` | ❌ | predicate |
-| `phasedelay` | ❌ | phase delay |
+| `impz` | ✅ | impulse response |
+| `impzlength` | ✅ | impulse length |
+| `isallpass` | ✅ | predicate |
+| `isfir` | ✅ | predicate |
+| `islinphase` | ✅ | predicate |
+| `ismaxphase` | ✅ | predicate |
+| `isminphase` | ✅ | predicate |
+| `isstable` | ✅ | predicate |
+| `phasedelay` | ✅ | phase delay |
 | `phasez` | ✅ | phase response |
-| `stepz` | ❌ | step response |
-| `zerophase` | ❌ |  |
+| `stepz` | ✅ | step response |
+| `zerophase` | ✅ |  |
 | `zplane` | ❌ |  |
 
 ### Digital Filtering (filter / filtfilt / sosfilt / lowpass / ...) — 8 ✅ + 0 ⚠️ / 41 = 19% — **NS: `signal.digital_filtering.*` + `signal.filter_implementation.*` (TF/SOS/SS/ZP conversions)**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `bandpass` | ❌ | spec-driven BP |
-| `bandstop` | ❌ | spec-driven BS |
+| `bandpass` | ✅ | spec-driven BP |
+| `bandstop` | ✅ | spec-driven BS |
 | `cell2sos` | ❌ |  |
-| `convmtx` | ❌ | convolution matrix |
+| `convmtx` | ✅ | convolution matrix |
 | `ctf2zp` | ❌ | control TF → ZPK |
 | `ctffilt` | ❌ | control TF filter |
 | `dspfwiz` | ❌ |  |
 | `eqtflength` | ❌ |  |
-| `fftfilt` | ❌ | FFT-based overlap-add |
+| `fftfilt` | ✅ | FFT-based overlap-add |
 | `filt2block` | ❌ |  |
 | `filtfilt` | ✅ | zero-phase forward+back |
 | `filtic` | ❌ | init state |
-| `hampel` | ❌ | outlier-resilient |
-| `highpass` | ❌ | spec-driven HP |
+| `hampel` | ✅ | outlier-resilient |
+| `highpass` | ✅ | spec-driven HP |
 | `latc2tf` | ❌ | inverse |
 | `latcfilt` | ❌ |  |
-| `lowpass` | ❌ | spec-driven LP |
+| `lowpass` | ✅ | spec-driven LP |
 | `medfilt1` | ✅ | median |
 | `residuez` | ❌ |  |
 | `scalefiltersections` | ❌ |  |
 | `sgolayfilt` | ✅ | Savitzky-Golay |
 | `sos2cell` | ❌ |  |
 | `sos2ctf` | ❌ |  |
-| `sos2ss` | ❌ | SOS → SS |
-| `sos2tf` | ❌ | inverse |
-| `sos2zp` | ❌ | SOS → ZPK |
+| `sos2ss` | ✅ | SOS → SS |
+| `sos2tf` | ✅ | inverse |
+| `sos2zp` | ✅ | SOS → ZPK |
 | `sosfilt` | ✅ | SOS-cascade filter |
 | `ss` | ❌ |  |
-| `ss2sos` | ❌ | inverse |
-| `ss2zp` | ❌ | SS → ZPK |
+| `ss2sos` | ✅ | inverse |
+| `ss2zp` | ✅ | SS → ZPK |
 | `tf` | ❌ |  |
 | `tf2latc` | ❌ | lattice |
 | `tf2sos` | ✅ | TF → SOS |
-| `tf2ss` | ❌ | TF → SS |
+| `tf2ss` | ✅ | TF → SS |
 | `tf2zp` | ✅ | TF → ZPK |
-| `tf2zpk` | ❌ |  |
+| `tf2zpk` | ✅ |  |
 | `zp2ctf` | ❌ |  |
 | `zp2sos` | ✅ | ZPK → SOS |
-| `zp2ss` | ❌ | inverse |
+| `zp2ss` | ✅ | inverse |
 | `zp2tf` | ✅ | inverse |
 | `zpk` | ❌ |  |
 
@@ -1297,10 +1297,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `decimate` | ✅ |  |
 | `downsample` | ✅ |  |
 | `fillgaps` | ❌ |  |
-| `interp` | ❌ |  |
-| `intfilt` | ❌ | interpolating FIR |
+| `interp` | ✅ |  |
+| `intfilt` | ✅ | interpolating FIR |
 | `resample` | ✅ |  |
-| `upfirdn` | ❌ |  |
+| `upfirdn` | ✅ |  |
 | `upsample` | ✅ |  |
 
 ### Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony) — 0 ✅ + 0 ⚠️ / 25 = 0% — **NS: `signal.parametric.*`**
@@ -1337,25 +1337,25 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `alignsignals` | ❌ | align via xcorr |
-| `cconv` | ❌ | circular convolution |
-| `convmtx` | ❌ | convolution matrix |
+| `alignsignals` | ✅ | align via xcorr |
+| `cconv` | ✅ | circular convolution |
+| `convmtx` | ✅ | convolution matrix |
 | `corrmtx` | ❌ | autocorr matrix |
 | `dtw` | ❌ | dynamic time warp |
 | `edr` | ❌ | edit distance on real |
-| `finddelay` | ❌ | estimate delay |
+| `finddelay` | ✅ | estimate delay |
 | `findsignal` | ❌ | pattern search |
-| `xcorr2` | ❌ | 2-D xcorr |
+| `xcorr2` | ✅ | 2-D xcorr |
 
 ### Transforms (FFT / DCT / DWT / Hilbert / CZT / Cepstrum) — 6 ✅ + 0 ⚠️ / 32 = 18% — **NS: `signal.transforms.*`. Promotions in core: `fft, ifft, fftshift, ifftshift`. Future wavelet split: `cwt/dwt/modwt/...` → `wavelet.*`**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `bitrevorder` | ❌ | bit-reverse permutation |
-| `cceps` | ❌ | complex cepstrum |
+| `bitrevorder` | ✅ | bit-reverse permutation |
+| `cceps` | ✅ | complex cepstrum |
 | `czt` | ❌ | chirp Z-transform |
 | `dct` | ✅ |  |
-| `dftmtx` | ❌ | DFT matrix |
+| `dftmtx` | ✅ | DFT matrix |
 | `digitrevorder` | ❌ |  |
 | `dlistft` | ❌ |  |
 | `dlstft` | ❌ |  |
@@ -1366,7 +1366,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `goertzel` | ✅ |  |
 | `hht` | ❌ | Hilbert-Huang |
 | `hilbert` | ✅ |  |
-| `icceps` | ❌ | inverse complex cepstrum |
+| `icceps` | ✅ | inverse complex cepstrum |
 | `idct` | ✅ |  |
 | `ifsst` | ❌ |  |
 | `ifwht` | ❌ | inverse |
@@ -1374,7 +1374,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `istft` | ❌ | inverse |
 | `istftlayer` | ❌ |  |
 | `pspectrum` | ❌ | easy spectral analysis |
-| `rceps` | ❌ | real cepstrum |
+| `rceps` | ✅ | real cepstrum |
 | `spectrogram` | ✅ |  |
 | `stft` | ❌ | short-time FFT |
 | `stftlayer` | ❌ |  |
@@ -1388,44 +1388,44 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `barthannwin` | ❌ | Bartlett-Hann |
+| `barthannwin` | ✅ | Bartlett-Hann |
 | `bartlett` | ✅ |  |
 | `blackman` | ✅ |  |
-| `blackmanharris` | ❌ |  |
-| `bohmanwin` | ❌ | Bohman |
-| `chebwin` | ❌ | Dolph-Chebyshev |
+| `blackmanharris` | ✅ |  |
+| `bohmanwin` | ✅ | Bohman |
+| `chebwin` | ✅ | Dolph-Chebyshev |
 | `dpss` | ❌ | discrete prolate spheroidal |
 | `dpssclear` | ❌ | cache |
 | `dpssdir` | ❌ | cache |
 | `dpssload` | ❌ | cache |
 | `dpsssave` | ❌ | cache |
 | `enbw` | ❌ | equivalent noise BW |
-| `flattopwin` | ❌ |  |
-| `gausswin` | ❌ | Gaussian |
+| `flattopwin` | ✅ |  |
+| `gausswin` | ✅ | Gaussian |
 | `hamming` | ✅ |  |
 | `hann` | ✅ |  |
 | `kaiser` | ✅ |  |
-| `nuttallwin` | ❌ |  |
-| `parzenwin` | ❌ | Parzen |
+| `nuttallwin` | ✅ |  |
+| `parzenwin` | ✅ | Parzen |
 | `rectwin` | ✅ |  |
-| `taylorwin` | ❌ | Taylor |
-| `triang` | ❌ | triangular |
-| `tukeywin` | ❌ | tapered cosine |
+| `taylorwin` | ✅ | Taylor |
+| `triang` | ✅ | triangular |
+| `tukeywin` | ✅ | tapered cosine |
 | `wvtool` | ❌ | GUI |
 
 ### Parametric Spectral Estimation (pburg / pmtm / pmusic / ...) — 1 ✅ + 0 ⚠️ / 10 = 10% — **NS: `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math)**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `db` | ❌ | magnitude → dB |
-| `db2mag` | ❌ |  |
-| `db2pow` | ❌ |  |
+| `db` | ✅ | magnitude → dB |
+| `db2mag` | ✅ |  |
+| `db2pow` | ✅ |  |
 | `findpeaks` | ✅ |  |
-| `mag2db` | ❌ |  |
+| `mag2db` | ✅ |  |
 | `pburg` | ❌ | Burg AR |
 | `pcov` | ❌ |  |
 | `pmcov` | ❌ |  |
-| `pow2db` | ❌ |  |
+| `pow2db` | ✅ |  |
 | `pyulear` | ❌ | Yule-Walker AR |
 
 ### Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...) — 3 ✅ + 0 ⚠️ / 17 = 17% — **NS: `signal.spectral_analysis.*`**
@@ -1433,17 +1433,17 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | Function | Status | Notes |
 |---|:---:|---|
 | `cpsd` | ❌ | cross-PSD |
-| `db` | ❌ | magnitude → dB |
-| `db2mag` | ❌ |  |
-| `db2pow` | ❌ |  |
+| `db` | ✅ | magnitude → dB |
+| `db2mag` | ✅ |  |
+| `db2pow` | ✅ |  |
 | `findpeaks` | ✅ |  |
-| `mag2db` | ❌ |  |
+| `mag2db` | ✅ |  |
 | `mscohere` | ❌ | magnitude-squared coherence |
 | `periodogram` | ✅ |  |
 | `plomb` | ❌ | Lomb-Scargle |
 | `pmtm` | ❌ | multi-taper |
 | `poctave` | ❌ |  |
-| `pow2db` | ❌ |  |
+| `pow2db` | ✅ |  |
 | `pspectrum` | ❌ | easy spectral analysis |
 | `pwelch` | ✅ | Welch PSD |
 | `refinepeaks` | ❌ |  |
@@ -1526,7 +1526,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `alignsignals` | ❌ | align via xcorr |
+| `alignsignals` | ✅ | align via xcorr |
 | `binmask2sigroi` | ❌ |  |
 | `countlabels` | ❌ |  |
 | `cusum` | ❌ | CUSUM change detection |
@@ -1537,7 +1537,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `extractsigroi` | ❌ |  |
 | `filenames2labels` | ❌ |  |
 | `findchangepts` | ❌ | change-point detection |
-| `finddelay` | ❌ | estimate delay |
+| `finddelay` | ✅ | estimate delay |
 | `findpeaks` | ✅ |  |
 | `findsignal` | ❌ | pattern search |
 | `folders2labels` | ❌ |  |
@@ -1546,10 +1546,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `meanfreq` | ❌ | mean frequency |
 | `medfreq` | ❌ | median frequency |
 | `mergesigroi` | ❌ |  |
-| `peak2peak` | ❌ | p-p amplitude |
-| `peak2rms` | ❌ |  |
+| `peak2peak` | ✅ | p-p amplitude |
+| `peak2rms` | ✅ |  |
 | `removesigroi` | ❌ |  |
-| `rssq` | ❌ | root-sum-squared |
+| `rssq` | ✅ | root-sum-squared |
 | `seqperiod` | ❌ |  |
 | `shortensigroi` | ❌ |  |
 | `sigrangebinmask` | ❌ |  |
@@ -1561,7 +1561,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `hampel` | ❌ | outlier-resilient |
+| `hampel` | ✅ | outlier-resilient |
 | `medfilt1` | ✅ | median |
 | `sgolay` | ✅ | Savitzky-Golay |
 | `sgolayfilt` | ✅ | Savitzky-Golay |
@@ -1585,7 +1585,26 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `tsa` | ❌ |  |
 
 
-## Summary — 296 ✅ + 24 ⚠️ / 1226 = 26%
+## Summary — 388 ✅ + 24 ⚠️ / 1226 = 32%
+
+Recent additions (feature/libs-extension, 2026-05-01 → 2026-05-02):
+
+- **A1** signal.windows extras (+11): triang, tukeywin, flattopwin, gausswin, chebwin, parzenwin, nuttallwin, taylorwin, blackmanharris, bohmanwin, barthannwin
+- **A2** signal.measurements dB (+5): db, db2mag, mag2db, db2pow, pow2db
+- **A3** signal.measurements stats (+4): rms, rssq, peak2peak, peak2rms
+- **A4** signal.waveform_generation extras (+5): square, sawtooth, sinc, gmonopuls, diric
+- **B1** stats.moving (+11): mov{mean,sum,min,max,prod,median,var,std,mad}, smoothdata, hampel
+- **B2** stats.descriptive extras (+5): bounds, iqr, maxk, mink, rmse
+- **C1** io.text (+6): fileread, readlines, writelines, readmatrix, writematrix, type
+- **C2** io.paths (+5): fullfile, fileparts, filesep, tempdir, tempname (moved from libs/builtin)
+- **D1** signal.filter_analysis (+11): impz, impzlength, stepz, phasedelay, zerophase, isfir, isstable, isminphase, ismaxphase, islinphase, isallpass
+- **D2** signal.digital_filtering spec-driven (+4): lowpass, highpass, bandpass, bandstop (also fixes a latent butter('high') bug)
+- **D3** signal.filter_implementation conversions (+9): sos2tf, sos2zp, tf2zpk, tf2ss, ss2tf, ss2zp, zp2ss, sos2ss, ss2sos
+- **E1** signal.convolution extras (+5): cconv, convmtx, xcorr2, finddelay, alignsignals
+- **F1** signal.multirate extras (+4): upfirdn, interp, intfilt, fftfilt
+- **E2** signal.transforms extras (+7): dftmtx, bitrevorder, dst, idst, rceps, cceps, icceps
+
+Total: +92 unique functions across 14 packs. All on feature/libs-extension.
 
 Status of the major missing groups (high-effort, deferred to dedicated libs):
 
@@ -1607,7 +1626,7 @@ Functions cheap to implement (often wrappers over existing kernels) but common i
 2. **Hyperbolic + degree-trig variants:** `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`, `sind`, `cosd`, `tand`, `asind`, `acosd`, `atand`, `atan2d`, `sinpi`, `cospi`
 3. **Reciprocal trig:** `sec`, `csc`, `cot` and their `*h` / `*d` / `a*` variants
 4. **Coordinate transforms:** `cart2pol`, `cart2sph`, `pol2cart`, `sph2cart`
-5. **Moving statistics:** `movmean`, `movmedian`, `movmin`, `movmax`, `movsum`, `movstd`, `movvar`, `movmad`, `movprod`, `smoothdata`, `hampel`
+5. **Moving statistics:** ~~`movmean`, `movmedian`, `movmin`, `movmax`, `movsum`, `movstd`, `movvar`, `movmad`, `movprod`, `smoothdata`, `hampel`~~ — DONE (B1)
 6. **Cell idioms:** `mat2cell`, `num2cell`, `cell2mat`, `iscellstr`, `cellplot`, `cellstr`, `celldisp`
 7. **Struct utilities:** `getfield`, `setfield`, `orderfields`, `struct2cell`, `cell2struct`, `deal`
 8. **String utilities:** `strncmp`, `strncmpi`, `strfind`, `blanks`, `deblank`, `mat2str`, `strtok`, `strjoin`, `strjust`, `cellstr`
@@ -1621,24 +1640,26 @@ Functions cheap to implement (often wrappers over existing kernels) but common i
 16. **Set ops:** `setxor`, `ismembertol`, `uniquetol`, `allunique`
 17. **Bit ops:** `bitset`, `bitget`
 18. **Constants as functions:** `flintmax`, `intmax`, `intmin`, `realmax`, `realmin`, `allfinite`, `anynan`
-19. **File-path helpers:** `fullfile`, `fileparts`, `filesep`, `pathsep`, `tempdir`, `tempname`
+19. **File-path helpers:** ~~`fullfile`, `fileparts`, `filesep`, `tempdir`, `tempname`~~ — DONE (C2; `pathsep` still in libs/builtin)
 
 ### Signal Processing Toolbox quick wins
 
-1. **Filter conversions** (algebraic, fast wrappers): `sos2tf`, `sos2zp`, `tf2ss`, `ss2tf`, `ss2zp`, `zp2ss`, `sos2ss`, `ss2sos`
-2. **Filter analysis predicates:** `isallpass`, `isfir`, `islinphase`, `ismaxphase`, `isminphase`, `isstable`
-3. **Filter analysis primary:** `impz`, `impzlength`, `stepz`, `phasedelay`, `zerophase`
-4. **Spec-driven filters:** `lowpass`, `highpass`, `bandpass`, `bandstop`
-5. **Magnitude/phase utils:** `db`, `db2mag`, `db2pow`, `mag2db`, `pow2db`, `wrapToPi`, `wrap2Pi`, `wrapTo180`, `wrapTo360`
-6. **Window family extras:** `triang`, `tukeywin`, `flattopwin`, `gausswin`, `chebwin`, `parzenwin`, `nuttallwin`, `taylorwin`
-7. **Signal stats:** `rms`, `rssq`, `peak2peak`, `peak2rms`
-8. **Waveform extras:** `square`, `sawtooth`, `sinc`, `gmonopuls`, `diric`
+1. ~~**Filter conversions** (algebraic, fast wrappers): `sos2tf`, `sos2zp`, `tf2ss`, `ss2tf`, `ss2zp`, `zp2ss`, `sos2ss`, `ss2sos`~~ — DONE (D3; plus `tf2zpk`)
+2. ~~**Filter analysis predicates:** `isallpass`, `isfir`, `islinphase`, `ismaxphase`, `isminphase`, `isstable`~~ — DONE (D1)
+3. ~~**Filter analysis primary:** `impz`, `impzlength`, `stepz`, `phasedelay`, `zerophase`~~ — DONE (D1)
+4. ~~**Spec-driven filters:** `lowpass`, `highpass`, `bandpass`, `bandstop`~~ — DONE (D2)
+5. **Magnitude/phase utils:** ~~`db`, `db2mag`, `db2pow`, `mag2db`, `pow2db`~~ DONE (A2); `wrapToPi`, `wrap2Pi`, `wrapTo180`, `wrapTo360` still TODO
+6. ~~**Window family extras:** `triang`, `tukeywin`, `flattopwin`, `gausswin`, `chebwin`, `parzenwin`, `nuttallwin`, `taylorwin`~~ — DONE (A1; plus `blackmanharris`, `bohmanwin`, `barthannwin`)
+7. ~~**Signal stats:** `rms`, `rssq`, `peak2peak`, `peak2rms`~~ — DONE (A3)
+8. ~~**Waveform extras:** `square`, `sawtooth`, `sinc`, `gmonopuls`, `diric`~~ — DONE (A4)
 9. **AR / linear-prediction:** `lpc`, `levinson`, `arburg`, `arcov`, `armcov`, `aryule`, `prony`, `stmcb`, `invfreqz`
-10. **Cepstrum + bit-rev:** `cceps`, `rceps`, `icceps`, `dftmtx`, `bitrevorder`, `dst`/`idst`
+10. ~~**Cepstrum + bit-rev:** `cceps`, `rceps`, `icceps`, `dftmtx`, `bitrevorder`, `dst`/`idst`~~ — DONE (E2)
 11. **Spectrum extras:** `cpsd`, `mscohere`, `tfestimate`, `pmtm`, `pburg`, `pyulear`, `pmusic`, `peig`, `pcov`, `pmcov`, `bandpower`
 12. **Pulse metrics:** `risetime`, `falltime`, `slewrate`, `settlingtime`, `overshoot`, `undershoot`, `dutycycle`, `pulseperiod`, `pulsesep`, `statelevels`, `midcross`
 13. **STFT family:** `stft`, `istft`, `pspectrum`
 14. **Detrending / change-point:** `detrend`, `findchangepts`, `cusum`, `findsignal`
+15. **Convolution extras (DONE — E1):** ~~`cconv`, `convmtx`, `xcorr2`, `finddelay`, `alignsignals`~~
+16. **Multirate extras (DONE — F1):** ~~`upfirdn`, `interp`, `intfilt`, `fftfilt`~~
 
 ---
 
