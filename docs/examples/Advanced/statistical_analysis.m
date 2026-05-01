@@ -1,5 +1,10 @@
 % Statistical Analysis — Mean, variance, standard deviation
 % Compute basic statistics from scratch using loops.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 data = [4 8 15 16 23 42];

@@ -1,6 +1,11 @@
 % Colormaps — Compare different color palettes
 % Use subplot + colormap() to display the same data
 % with jet, hot, parula, and gray colormaps.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 close all
 

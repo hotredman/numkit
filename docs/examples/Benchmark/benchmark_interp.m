@@ -6,6 +6,11 @@
 %   benchmark_simd.m         library functions (abs/sin/.../mtimes/fft)
 %   benchmark_simd_inplace.m same with z(:) = rhs slice assignment
 %   benchmark_grow.m         incremental array build patterns
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 fprintf('\n=== Interpreter Benchmark ===\n\n')
