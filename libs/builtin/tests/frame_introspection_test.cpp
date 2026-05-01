@@ -455,3 +455,95 @@ TEST_P(FrameIntrospectionEdgesTest, NarginInsideEvalReflectsEnclosingFunction)
 }
 
 INSTANTIATE_DUAL(FrameIntrospectionEdgesTest);
+
+// ============================================================
+// Sanity: core builtins available WITHOUT `import compat.*`
+//
+// The DualEngineTest fixture imports compat in SetUp for ergonomics,
+// but core workspace builtins (clear, who, whos, cd, pwd, eval, run,
+// assignin, evalin, inputname, import itself) are registered via the
+// 1-arg form of `registerFunction(name, fn)` — they live directly in
+// the externalFuncs_ map under their bare leaf name, NOT inside any
+// namespace. findExternal does a direct map hit before walking
+// imports. Verify on a pristine engine without compat.
+// ============================================================
+
+#include <gtest/gtest.h>
+#include <numkit/core/engine.hpp>
+
+namespace {
+
+class CoreBuiltinsNoCompatTest : public ::testing::TestWithParam<numkit::Engine::Backend> {};
+
+TEST_P(CoreBuiltinsNoCompatTest, ClearWorksWithoutImport)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    // NO `import compat.*` here.
+    e.eval("x = 42;");
+    ASSERT_NE(e.getVariable("x"), nullptr);
+    EXPECT_NO_THROW(e.eval("clear x;"));
+    EXPECT_EQ(e.getVariable("x"), nullptr);
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, ClearAllWorksWithoutImport)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    e.eval("a=1; b=2; c=3;");
+    EXPECT_NO_THROW(e.eval("clear all;"));
+    EXPECT_EQ(e.getVariable("a"), nullptr);
+    EXPECT_EQ(e.getVariable("b"), nullptr);
+    EXPECT_EQ(e.getVariable("c"), nullptr);
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, WhoWhosWorkWithoutImport)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    e.eval("v = 5;");
+    EXPECT_NO_THROW(e.eval("who;"));
+    EXPECT_NO_THROW(e.eval("whos;"));
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, EvalWorksWithoutImport)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    EXPECT_NO_THROW(e.eval("eval('q = 7;');"));
+    auto *q = e.getVariable("q");
+    ASSERT_NE(q, nullptr);
+    EXPECT_DOUBLE_EQ(q->toScalar(), 7.0);
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, AssigninEvalinWorkWithoutImport)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    EXPECT_NO_THROW(e.eval("assignin('base', 'foo', 99);"));
+    auto *foo = e.getVariable("foo");
+    ASSERT_NE(foo, nullptr);
+    EXPECT_DOUBLE_EQ(foo->toScalar(), 99.0);
+
+    EXPECT_NO_THROW(e.eval("evalin('base', 'bar = 11;');"));
+    auto *bar = e.getVariable("bar");
+    ASSERT_NE(bar, nullptr);
+    EXPECT_DOUBLE_EQ(bar->toScalar(), 11.0);
+}
+
+TEST_P(CoreBuiltinsNoCompatTest, ImportItselfWorksWithoutCompat)
+{
+    numkit::Engine e;
+    e.setBackend(GetParam());
+    // `import` is a builtin too — must be available without import.
+    EXPECT_NO_THROW(e.eval("import('signal.windows.*');"));
+}
+
+INSTANTIATE_TEST_SUITE_P(TW_VM, CoreBuiltinsNoCompatTest,
+    ::testing::Values(numkit::Engine::Backend::TreeWalker,
+                      numkit::Engine::Backend::VM),
+    [](const ::testing::TestParamInfo<numkit::Engine::Backend> &info) {
+        return info.param == numkit::Engine::Backend::TreeWalker ? "TW" : "VM";
+    });
+
+} // namespace
