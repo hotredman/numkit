@@ -186,9 +186,17 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
 
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
-  const runCode=useCallback(code=>{
+  const runCode=useCallback(async code=>{
     const activeTabObj = tabs.find(t => t.id === activeTab);
     const { adapter, origin, fallbackUsed } = pickRunOrigin(activeTabObj?.source, vfsAdapters);
+
+    // Re-sync the sync mirror with the async backend. Without this, a
+    // file the user just created via TemporaryBrowser is in IndexedDB
+    // but NOT in the engine adapter's Map cache (cache is only seeded
+    // at startup), so resolveMFile_'s exists() check would miss it.
+    if (adapter?.refresh) {
+      try { await adapter.refresh(); } catch (e) { console.warn('[runCode] refresh failed', e); }
+    }
 
     // Tell the user (once per "local-unavailable" streak) when a run
     // from a Local-Folder tab is silently routed to Temporary, so they
@@ -205,11 +213,14 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
     // Derive scriptDir from the active tab's vfsPath so sibling .m
     // files in the same folder resolve without addpath. For unsaved
     // tabs (vfsPath === null) we push only the FS, not a dir.
+    // Special-case root-level files: vfsPath="/foo.m" → scriptDir="/"
+    // (slice(0,0)="" is falsy and would silently drop scriptDir).
     let scriptDir = null;
     if (activeTabObj?.vfsPath) {
       const idx = Math.max(activeTabObj.vfsPath.lastIndexOf('/'),
                            activeTabObj.vfsPath.lastIndexOf('\\'));
-      if (idx >= 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
+      if (idx > 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
+      else if (idx === 0) scriptDir = '/';
     }
     if (origin) engine.pushScriptOrigin(origin, scriptDir);
     let result;
