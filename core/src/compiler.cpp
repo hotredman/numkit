@@ -648,8 +648,6 @@ uint8_t Compiler::compileNode(const ASTNode *node)
     case NodeType::GLOBAL_STMT:
     case NodeType::PERSISTENT_STMT:
         return compileGlobalPersistent(node);
-    case NodeType::IMPORT_DECL:
-        return compileImport(node);
     case NodeType::FIELD_ACCESS:
         return compileFieldAccess(node);
     case NodeType::DYNAMIC_FIELD_ACCESS: {
@@ -1452,29 +1450,6 @@ uint8_t Compiler::compileGlobalPersistent(const ASTNode *node)
         varRegWrite(name); // allocate register, mark as assigned
         chunk_.globalNames.push_back(name);
     }
-    return 0;
-}
-
-// ============================================================
-// Import declaration — emits PUSH_IMPORT bytecode that mutates
-// the current Environment's activeImports_ at runtime.
-// ============================================================
-uint8_t Compiler::compileImport(const ASTNode *node)
-{
-    BytecodeChunk::ImportSpec spec;
-    spec.wildcard = node->boolValue;
-    spec.alias = (spec.wildcard ? std::string{} : node->strValue);
-
-    // Join path components with '.' — convenient for runtime substring
-    // building when forming the lookup key in findExternal().
-    for (size_t i = 0; i < node->paramNames.size(); ++i) {
-        if (i > 0) spec.joinedPath.push_back('.');
-        spec.joinedPath.append(node->paramNames[i]);
-    }
-
-    int16_t idx = static_cast<int16_t>(chunk_.imports.size());
-    chunk_.imports.push_back(std::move(spec));
-    emitD(OpCode::PUSH_IMPORT, idx);
     return 0;
 }
 

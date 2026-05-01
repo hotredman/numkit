@@ -603,8 +603,6 @@ void Lexer::readIdentifier()
         {"catch", TokenType::KW_CATCH},
         {"global", TokenType::KW_GLOBAL},
         {"persistent", TokenType::KW_PERSISTENT},
-        {"import", TokenType::KW_IMPORT},
-        {"as", TokenType::KW_AS},
     };
 
     auto it = keywords.find(word);

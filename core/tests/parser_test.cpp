@@ -2433,82 +2433,134 @@ TEST_F(ParserCommentTest, EmptyLinesAndCommentsInterleaved)
 }
 
 // ============================================================
-// import declaration (Phase 5 — namespace mechanism)
+// import — parsed as command-style call to the `import` builtin.
+// `import a.b.*` ≡ `import('a.b.*')`. Runtime semantics tested in
+// namespace_resolver_test.cpp; here we just verify the COMMAND_CALL
+// shape and that `.` / `.*` glue into a single string argument.
 // ============================================================
 class ParserImportTest : public ::testing::Test
 {};
+
+static const ASTNode &importArg(const ASTNode &call, size_t i)
+{
+    EXPECT_EQ(call.type, NodeType::COMMAND_CALL);
+    EXPECT_EQ(call.strValue, "import");
+    EXPECT_GT(call.children.size(), i);
+    EXPECT_EQ(call.children[i]->type, NodeType::STRING_LITERAL);
+    return *call.children[i];
+}
 
 TEST_F(ParserImportTest, SingleSymbol)
 {
     auto ast = parseSource("import a.b.c;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
-    ASSERT_EQ(s.paramNames.size(), 3u);
-    EXPECT_EQ(s.paramNames[0], "a");
-    EXPECT_EQ(s.paramNames[1], "b");
-    EXPECT_EQ(s.paramNames[2], "c");
-    EXPECT_FALSE(s.boolValue);
-    EXPECT_EQ(s.strValue, "");
+    ASSERT_EQ(s.type, NodeType::COMMAND_CALL);
+    EXPECT_EQ(s.strValue, "import");
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(importArg(s, 0).strValue, "a.b.c");
 }
 
 TEST_F(ParserImportTest, Wildcard)
 {
     auto ast = parseSource("import signal.*;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
-    ASSERT_EQ(s.paramNames.size(), 1u);
-    EXPECT_EQ(s.paramNames[0], "signal");
-    EXPECT_TRUE(s.boolValue);
-    EXPECT_EQ(s.strValue, "");
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(importArg(s, 0).strValue, "signal.*");
 }
 
 TEST_F(ParserImportTest, NestedWildcard)
 {
     auto ast = parseSource("import signal.transforms.*;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
-    ASSERT_EQ(s.paramNames.size(), 2u);
-    EXPECT_EQ(s.paramNames[0], "signal");
-    EXPECT_EQ(s.paramNames[1], "transforms");
-    EXPECT_TRUE(s.boolValue);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(importArg(s, 0).strValue, "signal.transforms.*");
 }
 
 TEST_F(ParserImportTest, AsAlias)
 {
     auto ast = parseSource("import signal.transforms as tr;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
-    ASSERT_EQ(s.paramNames.size(), 2u);
-    EXPECT_EQ(s.paramNames[0], "signal");
-    EXPECT_EQ(s.paramNames[1], "transforms");
-    EXPECT_FALSE(s.boolValue);
-    EXPECT_EQ(s.strValue, "tr");
+    ASSERT_EQ(s.children.size(), 3u);
+    EXPECT_EQ(importArg(s, 0).strValue, "signal.transforms");
+    EXPECT_EQ(importArg(s, 1).strValue, "as");
+    EXPECT_EQ(importArg(s, 2).strValue, "tr");
 }
 
 TEST_F(ParserImportTest, CompatWildcard)
 {
     auto ast = parseSource("import compat.*;");
     const auto &s = stmt(*ast, 0);
-    EXPECT_EQ(s.type, NodeType::IMPORT_DECL);
-    ASSERT_EQ(s.paramNames.size(), 1u);
-    EXPECT_EQ(s.paramNames[0], "compat");
-    EXPECT_TRUE(s.boolValue);
-}
-
-TEST_F(ParserImportTest, AsWithWildcardThrows)
-{
-    EXPECT_THROW(parseSource("import a.b.* as x;"), std::runtime_error);
-}
-
-TEST_F(ParserImportTest, MissingIdentifierThrows)
-{
-    EXPECT_THROW(parseSource("import ;"), std::runtime_error);
+    ASSERT_EQ(s.children.size(), 1u);
+    EXPECT_EQ(importArg(s, 0).strValue, "compat.*");
 }
 
 TEST_F(ParserImportTest, FollowedByOtherStatement)
 {
     auto ast = parseSource("import compat.*; x = 42;");
     ASSERT_EQ(ast->children.size(), 2u);
-    EXPECT_EQ(stmt(*ast, 0).type, NodeType::IMPORT_DECL);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::COMMAND_CALL);
+    EXPECT_EQ(stmt(*ast, 0).strValue, "import");
+    EXPECT_EQ(stmt(*ast, 1).type, NodeType::ASSIGN);
+}
+
+TEST_F(ParserImportTest, MultiArgWildcards)
+{
+    // `import a.* b.*` — multiple wildcard imports in one statement.
+    // Each space-separated fragment becomes its own STRING_LITERAL arg.
+    auto ast = parseSource("import signal.windows.* signal.transforms.*;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 2u);
+    EXPECT_EQ(importArg(s, 0).strValue, "signal.windows.*");
+    EXPECT_EQ(importArg(s, 1).strValue, "signal.transforms.*");
+}
+
+TEST_F(ParserImportTest, MultiArgMixed)
+{
+    // Mix of single-symbol and wildcard in one `import` line.
+    auto ast = parseSource("import a.b.c x.y.*;");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.children.size(), 2u);
+    EXPECT_EQ(importArg(s, 0).strValue, "a.b.c");
+    EXPECT_EQ(importArg(s, 1).strValue, "x.y.*");
+}
+
+TEST_F(ParserImportTest, FunctionStyleSingleArg)
+{
+    // `import('signal.*')` — function-style call. Should parse as a regular
+    // CALL node (not COMMAND_CALL), with the string already as a literal.
+    auto ast = parseSource("import('signal.*');");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.type, NodeType::EXPR_STMT);
+    ASSERT_EQ(s.children.size(), 1u);
+    const auto &call = *s.children[0];
+    EXPECT_EQ(call.type, NodeType::CALL);
+    ASSERT_GE(call.children.size(), 2u);
+    EXPECT_EQ(call.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(call.children[0]->strValue, "import");
+    EXPECT_EQ(call.children[1]->type, NodeType::STRING_LITERAL);
+    EXPECT_EQ(call.children[1]->strValue, "signal.*");
+}
+
+TEST_F(ParserImportTest, FunctionStyleAliasForm)
+{
+    // `import('signal','as','s')` — 3-arg alias form.
+    auto ast = parseSource("import('signal', 'as', 's');");
+    const auto &s = stmt(*ast, 0);
+    ASSERT_EQ(s.type, NodeType::EXPR_STMT);
+    const auto &call = *s.children[0];
+    EXPECT_EQ(call.type, NodeType::CALL);
+    ASSERT_EQ(call.children.size(), 4u);  // name + 3 args
+    EXPECT_EQ(call.children[1]->strValue, "signal");
+    EXPECT_EQ(call.children[2]->strValue, "as");
+    EXPECT_EQ(call.children[3]->strValue, "s");
+}
+
+TEST_F(ParserImportTest, AsIsPlainIdentifier)
+{
+    // After dropping the KW_AS keyword, `as` is a regular identifier and
+    // can be used as a variable name without breaking the parser.
+    auto ast = parseSource("as = 5; y = as + 1;");
+    ASSERT_EQ(ast->children.size(), 2u);
+    EXPECT_EQ(stmt(*ast, 0).type, NodeType::ASSIGN);
     EXPECT_EQ(stmt(*ast, 1).type, NodeType::ASSIGN);
 }

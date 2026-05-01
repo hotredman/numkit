@@ -199,8 +199,6 @@ ASTNodePtr Parser::parseStatement()
     case TokenType::KW_GLOBAL:
     case TokenType::KW_PERSISTENT:
         return parseGlobalPersistent();
-    case TokenType::KW_IMPORT:
-        return parseImport();
     case TokenType::KW_BREAK: {
         auto [ln, cl] = loc();
         auto node = makeNode(NodeType::BREAK_STMT, ln, cl);
@@ -344,10 +342,18 @@ ASTNodePtr Parser::parseCommandStyleCall()
         std::string argStr = current().value;
         pos_++;
 
-        // Склейка: data.mat, ../dir, path/to/file
+        // Склейка: data.mat, ../dir, path/to/file, signal.*
         while (
             !isAtEnd() && current().line == cmdLine
-            && (check(TokenType::DOT) || check(TokenType::SLASH) || check(TokenType::BACKSLASH))) {
+            && (check(TokenType::DOT) || check(TokenType::SLASH) || check(TokenType::BACKSLASH)
+                || check(TokenType::DOT_STAR))) {
+            // DOT_STAR (".*") is a wildcard suffix used by `import a.b.*`
+            // — append it and stop gluing further fragments to this arg.
+            if (check(TokenType::DOT_STAR)) {
+                argStr += current().value;
+                pos_++;
+                break;
+            }
             argStr += current().value;
             pos_++;
             // После разделителя — следующий фрагмент
@@ -619,71 +625,6 @@ ASTNodePtr Parser::parseGlobalPersistent()
     while (check(TokenType::IDENTIFIER)) {
         node->paramNames.push_back(current().value);
         pos_++;
-    }
-
-    skipTerminators();
-    return node;
-}
-
-// ============================================================
-// import declaration
-//
-// Forms (see NAMESPACE_DESIGN.md Section 4):
-//   import a.b.c            single symbol — paramNames=[a,b,c], wildcard=false, alias=""
-//   import a.b.*            wildcard       — paramNames=[a,b],   wildcard=true,  alias=""
-//   import a.b as alias     alias          — paramNames=[a,b],   wildcard=false, alias="alias"
-// ============================================================
-ASTNodePtr Parser::parseImport()
-{
-    auto [ln, cl] = loc();
-    auto node = makeNode(NodeType::IMPORT_DECL, ln, cl);
-    consume(TokenType::KW_IMPORT, "import");
-
-    auto parseError = [&](const std::string &msg) {
-        throw std::runtime_error("Parse error: " + msg + " at line "
-                                 + std::to_string(current().line) + " col "
-                                 + std::to_string(current().col));
-    };
-
-    // First identifier — required.
-    if (!check(TokenType::IDENTIFIER)) {
-        parseError("expected identifier after 'import'");
-    }
-    node->paramNames.push_back(current().value);
-    pos_++;
-
-    // Read trailing `.IDENT` segments, watching for `.*` and `as`.
-    // The lexer produces a single DOT_STAR token for `.*` (it's normally
-    // the elementwise-multiply operator) — accept it here as wildcard.
-    while (check(TokenType::DOT) || check(TokenType::DOT_STAR)) {
-        if (check(TokenType::DOT_STAR)) {
-            // wildcard form: a.b.*
-            node->boolValue = true;
-            pos_++;
-            break;
-        }
-        // DOT — must be followed by identifier (`.*` is already DOT_STAR)
-        pos_++;
-        if (!check(TokenType::IDENTIFIER)) {
-            parseError("expected identifier or '*' after '.' in import");
-        }
-        node->paramNames.push_back(current().value);
-        pos_++;
-    }
-
-    // Optional `as alias`.
-    if (check(TokenType::KW_AS)) {
-        if (node->boolValue) {
-            parseError("'as' alias is not allowed with wildcard import (a.b.*)");
-        }
-        pos_++;
-        if (!check(TokenType::IDENTIFIER)) {
-            parseError("expected identifier after 'as'");
-        }
-        node->strValue = current().value;
-        pos_++;
-        // For `import a.b as x`, alias targets the namespace prefix
-        // (paramNames=[a,b]), not a single symbol.
     }
 
     skipTerminators();

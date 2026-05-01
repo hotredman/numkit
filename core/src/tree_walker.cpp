@@ -272,14 +272,6 @@ Value TreeWalker::execNodeInner(const ASTNode *node, Environment *env)
     case NodeType::GLOBAL_STMT:
     case NodeType::PERSISTENT_STMT:
         return execGlobalPersistent(node, env);
-    case NodeType::IMPORT_DECL: {
-        Import imp;
-        imp.path = node->paramNames;
-        imp.wildcard = node->boolValue;
-        imp.alias = node->strValue.empty() || imp.wildcard ? "" : node->strValue;
-        env->pushImport(std::move(imp));
-        return Value::empty();
-    }
     case NodeType::COMMAND_CALL:
         return execCommandCall(node, env);
     case NodeType::END_VAL: {
