@@ -174,7 +174,15 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
   useEffect(() => { if (vfsAdapters?.local) warnedFallbackRef.current = false; }, [vfsAdapters?.local]);
   const engine = engineProp;
 
-  useEffect(()=>{setOutput([{type:"system",text:"numkit mIDE v2.5"},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);},[]);
+  const [engineVersion, setEngineVersion] = useState(null);
+  useEffect(() => {
+    const v = engine?.version?.();
+    if (v) setEngineVersion(v);
+  }, [engine, statusProp]);
+  useEffect(()=>{
+    const banner = engineVersion ? `numkit mIDE v2.5 — build ${engineVersion}` : "numkit mIDE v2.5";
+    setOutput([{type:"system",text:banner},{type:"system",text:'Type commands below. "help <topic>" for function info.'}]);
+  },[engineVersion]);
 
   const addOutput=useCallback(items=>{setOutput(prev=>{for(const i of items)if(i.text==="__CLEAR__")return[];return[...prev,...items.filter(i=>i.text!=="__CLEAR__")];});},[]);
 
@@ -548,6 +556,7 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
         </div>
         <div style={{display:"flex",alignItems:"center",gap:6}}>
           {execTimeMs!==null&&<span>{execTimeMs.toFixed(1)}ms</span>}
+          {engineVersion&&<><span style={{color:C.border}}>|</span><span title="numkit-m engine build timestamp">build {engineVersion}</span></>}
           <span style={{color:C.border}}>|</span><span>Ctrl+S: save</span><span style={{color:C.border}}>|</span><span>Tab: autocomplete</span><span style={{color:C.border}}>|</span><span>↑↓: history</span>
         </div>
       </div>

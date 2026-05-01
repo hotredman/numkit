@@ -332,6 +332,13 @@ export async function createWasmEngine(createModule) {
         Module.repl_pop_script_origin();
       }
     },
+
+    // Engine build timestamp ("YYYY-MM-DD HH:MM:SS"), or null if the
+    // WASM binary predates the binding.
+    version() {
+      if (typeof Module.repl_version !== 'function') return null;
+      try { return Module.repl_version(); } catch { return null; }
+    },
   };
 }
 
@@ -375,5 +382,6 @@ export function createFallbackEngine() {
     registerFs() {},
     pushScriptOrigin() {},
     popScriptOrigin() {},
+    version() { return null; },
   };
 }
