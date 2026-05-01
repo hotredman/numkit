@@ -424,10 +424,15 @@ void Engine::rehashMFiles()
 
 const UserFunction *Engine::resolveMFile_(const std::string &name)
 {
-    // Build search-path list: script-origin first (if any), then mPath_.
+    // Build search-path list: script-dir first (if any), then mPath_.
+    // The implicit script-dir entry is what makes sibling lookup work
+    // without addpath — `caller.m` calling `helper(x)` resolves against
+    // the directory the running script came from. Routes through the
+    // script's FS via `resolvePath` (which also falls back to the
+    // origin's fsName when the relative path has no scheme).
     std::vector<std::string> searchDirs;
-    if (auto *origin = currentScriptOrigin())
-        searchDirs.push_back(*origin);
+    if (auto *dir = currentScriptDir(); dir && !dir->empty())
+        searchDirs.push_back(*dir);
     searchDirs.insert(searchDirs.end(), mPath_.begin(), mPath_.end());
 
     // Decompose dotted name. "pkg.sub.foo" → +pkg/+sub/foo.m. The leaf
@@ -1151,7 +1156,12 @@ VirtualFS *Engine::findVirtualFS(const std::string &name) const
 
 void Engine::pushScriptOrigin(const std::string &fsName)
 {
-    scriptOriginStack_.push_back(fsName);
+    scriptOriginStack_.push_back({fsName, std::string{}});
+}
+
+void Engine::pushScriptOrigin(const std::string &fsName, const std::string &scriptDir)
+{
+    scriptOriginStack_.push_back({fsName, scriptDir});
 }
 
 void Engine::popScriptOrigin()
@@ -1162,7 +1172,12 @@ void Engine::popScriptOrigin()
 
 const std::string *Engine::currentScriptOrigin() const
 {
-    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back();
+    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().fsName;
+}
+
+const std::string *Engine::currentScriptDir() const
+{
+    return scriptOriginStack_.empty() ? nullptr : &scriptOriginStack_.back().scriptDir;
 }
 
 namespace {

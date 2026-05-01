@@ -316,9 +316,14 @@ export async function createWasmEngine(createModule) {
 
     // Tell the engine which FS the current script came from — so
     // csvread('foo.csv') with no explicit prefix and no NUMKIT_FS env var
-    // resolves relative to that FS.
-    pushScriptOrigin(fsName) {
-      if (typeof Module.repl_push_script_origin === 'function') {
+    // resolves relative to that FS. The optional 2nd arg passes the
+    // script's containing directory so sibling .m files resolve without
+    // addpath (helper.m next to caller.m).
+    pushScriptOrigin(fsName, scriptDir) {
+      if (scriptDir &&
+          typeof Module.repl_push_script_origin_with_dir === 'function') {
+        Module.repl_push_script_origin_with_dir(fsName, scriptDir);
+      } else if (typeof Module.repl_push_script_origin === 'function') {
         Module.repl_push_script_origin(fsName);
       }
     },
