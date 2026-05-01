@@ -363,6 +363,48 @@ TEST_P(MFileResolverTest, ScriptDirAndAddpathCoexist)
     EXPECT_DOUBLE_EQ(engine.getVariable("g_far")->toScalar(), 203.0);
 }
 
+// ── IDE-style flow: manual pushScriptOrigin(fs, dir) + raw eval ──
+//
+// The IDE Run button doesn't go through the `run()` builtin. It
+// pushes the script origin (FS + dir) directly via the WASM
+// binding, then calls engine.eval(buffer). This test exercises
+// that exact code path: push (fs, dir) by hand, then eval source
+// that calls a sibling. The engine's resolveMFile_ must still
+// pick up scriptDir from currentScriptDir().
+TEST_P(MFileResolverTest, ManualPushScriptOriginEnablesSiblingLookup)
+{
+    writeMFile("ide_helper.m",
+               "function y = ide_helper(x)\n  y = x * 5;\nend\n");
+    engine.pushScriptOrigin("native", workDir.string());
+    try {
+        engine.eval("ide_g = ide_helper(8);");
+    } catch (...) {
+        engine.popScriptOrigin();
+        throw;
+    }
+    engine.popScriptOrigin();
+    auto *g = engine.getVariable("ide_g");
+    ASSERT_NE(g, nullptr);
+    EXPECT_DOUBLE_EQ(g->toScalar(), 40.0);
+}
+
+// ── 1-arg pushScriptOrigin (legacy) leaves sibling lookup off ──
+//
+// The old 1-arg form (FS only, no dir) is still supported for
+// callers that don't have a script path. With it, sibling lookup
+// must NOT engage — empty scriptDir means no implicit search dir.
+TEST_P(MFileResolverTest, LegacyPushScriptOriginNoSiblingLookup)
+{
+    writeMFile("legacy_helper.m",
+               "function y = legacy_helper(x)\n  y = x;\nend\n");
+    engine.pushScriptOrigin("native");          // 1-arg, no dir
+    bool threw = false;
+    try { engine.eval("z = legacy_helper(1);"); }
+    catch (const std::exception &) { threw = true; }
+    engine.popScriptOrigin();
+    EXPECT_TRUE(threw) << "1-arg pushScriptOrigin must not implicitly add a search dir";
+}
+
 TEST_P(MFileResolverTest, PathReturnsRegisteredDirs)
 {
     auto a = (workDir / "a").string();
