@@ -59,6 +59,11 @@ void downsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Ca
 void upsample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void decimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void resample_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// multirate/extras.cpp (F1)
+void upfirdn_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void interp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void intfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fftfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -215,11 +220,15 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_implementation", "sos2ss", &signal::detail::sos2ss_reg);
     reg("filter_implementation", "ss2sos", &signal::detail::ss2sos_reg);
 
-    // ── Multirate (decimate / interp / resample) ───────────────────────
+    // ── Multirate (decimate / interp / resample / + F1 extras) ─────────
     reg("multirate", "downsample", &signal::detail::downsample_reg);
     reg("multirate", "upsample",   &signal::detail::upsample_reg);
     reg("multirate", "decimate",   &signal::detail::decimate_reg);
     reg("multirate", "resample",   &signal::detail::resample_reg);
+    reg("multirate", "upfirdn",    &signal::detail::upfirdn_reg);
+    reg("multirate", "interp",     &signal::detail::interp_reg);
+    reg("multirate", "intfilt",    &signal::detail::intfilt_reg);
+    reg("multirate", "fftfilt",    &signal::detail::fftfilt_reg);
 
     // ── Spectral analysis (pwelch / periodogram) ───────────────────────
     reg("spectral_analysis", "periodogram", &signal::detail::periodogram_reg);
