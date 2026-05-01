@@ -54,6 +54,17 @@
       ]
     },
     {
+      "name": "Frame_Introspection",
+      "files": [
+        "assignin_setter.m",
+        "eval_dynamic_code.m",
+        "evalin_caller.m",
+        "import_alias.m",
+        "inputname_validator.m",
+        "workspace_introspection.m"
+      ]
+    },
+    {
       "name": "Functions",
       "files": [
         "factorial.m",

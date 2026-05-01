@@ -9,6 +9,11 @@
 % Sizes are tuned so a single kernel call does meaningful work
 % (≥ a few ms on typical hardware) and the whole script finishes
 % in 10–30 s on a modern desktop.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 fprintf('\n=== SIMD Library Benchmark ===\n\n')

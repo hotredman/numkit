@@ -5,6 +5,11 @@
 % actual vectorised op. Cross-check for the hypothesis that the native
 % numkit-m slowdown vs WASM on benchmark_simd.m is driven by allocator
 % churn around the 8 MB output.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 fprintf('\n=== SIMD Library Benchmark (inplace) ===\n\n')

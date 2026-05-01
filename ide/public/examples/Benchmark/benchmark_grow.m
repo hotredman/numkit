@@ -14,6 +14,11 @@
 % each iteration (O(N²) total). The ratio between A and B here is a
 % good proxy for how much a compiler-level `A = [A, x]` rewrite would
 % buy us in numkit-m.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 
 fprintf('\n=== Array Grow Benchmark ===\n\n')
