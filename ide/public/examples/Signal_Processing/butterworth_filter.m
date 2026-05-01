@@ -1,5 +1,10 @@
 % Butterworth Filter — Design and apply a lowpass filter
 % Use butter() to design, filter() to apply, and freqz() to visualize.
+% Pull toolbox functions (signal, stats, graphics, io) into scope so we
+% can call them by short name (fft, butter, plot, std, ...). Without this,
+% we'd need fully qualified names like signal.transforms.fft(...).
+import compat.*;
+
 clear
 close all
 
