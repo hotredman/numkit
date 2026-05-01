@@ -115,6 +115,9 @@ public:
     void pushScriptOrigin(const std::string &fsName) {
         engine_->pushScriptOrigin(fsName);
     }
+    void pushScriptOriginWithDir(const std::string &fsName, const std::string &scriptDir) {
+        engine_->pushScriptOrigin(fsName, scriptDir);
+    }
     void popScriptOrigin() { engine_->popScriptOrigin(); }
 
     std::string execute(const std::string& code) {
@@ -537,6 +540,12 @@ void repl_push_script_origin(const std::string &fsName) {
     g_session->pushScriptOrigin(fsName);
 }
 
+void repl_push_script_origin_with_dir(const std::string &fsName,
+                                       const std::string &scriptDir) {
+    if (!g_session) repl_init();
+    g_session->pushScriptOriginWithDir(fsName, scriptDir);
+}
+
 void repl_pop_script_origin() {
     if (!g_session) return;
     g_session->popScriptOrigin();
@@ -556,6 +565,8 @@ EMSCRIPTEN_BINDINGS(numkit_mide) {
     // Virtual filesystem bridge
     emscripten::function("repl_register_fs",           &repl_register_fs);
     emscripten::function("repl_push_script_origin",    &repl_push_script_origin);
+    emscripten::function("repl_push_script_origin_with_dir",
+                                                       &repl_push_script_origin_with_dir);
     emscripten::function("repl_pop_script_origin",     &repl_pop_script_origin);
     // Legacy (kept for backward compat)
     emscripten::function("repl_debug_execute",         &repl_debug_execute);

@@ -194,7 +194,16 @@ export default function REPL({ engine: engineProp, status: statusProp, vfsAdapte
       warnedFallbackRef.current = true;
     }
 
-    if (origin) engine.pushScriptOrigin(origin);
+    // Derive scriptDir from the active tab's vfsPath so sibling .m
+    // files in the same folder resolve without addpath. For unsaved
+    // tabs (vfsPath === null) we push only the FS, not a dir.
+    let scriptDir = null;
+    if (activeTabObj?.vfsPath) {
+      const idx = Math.max(activeTabObj.vfsPath.lastIndexOf('/'),
+                           activeTabObj.vfsPath.lastIndexOf('\\'));
+      if (idx >= 0) scriptDir = activeTabObj.vfsPath.slice(0, idx);
+    }
+    if (origin) engine.pushScriptOrigin(origin, scriptDir);
     let result;
     const t0=performance.now();
     try { result = engine.execute(code); }

@@ -333,9 +333,20 @@ public:
     void registerVirtualFS(std::unique_ptr<VirtualFS> fs);
     VirtualFS *findVirtualFS(const std::string &name) const;
 
+    // Each frame carries (fsName, scriptDir):
+    //   * fsName     — VFS that the script came from. Used by resolvePath
+    //                  as the implicit FS for relative paths inside the
+    //                  script.
+    //   * scriptDir  — directory containing the script. Used by
+    //                  resolveMFile_ as the implicit search dir, so
+    //                  sibling .m files resolve without addpath.
+    // 1-arg overload pushes an empty scriptDir — kept for callers that
+    // only know the FS (IDE running an unsaved buffer, tests).
     void pushScriptOrigin(const std::string &fsName);
+    void pushScriptOrigin(const std::string &fsName, const std::string &scriptDir);
     void popScriptOrigin();
-    const std::string *currentScriptOrigin() const;
+    const std::string *currentScriptOrigin() const;   // fsName, may be null
+    const std::string *currentScriptDir() const;      // dir, may be null/empty
 
     // Engine-owned current working directory.
     //   * `cd` / setCwd write here — canonical when non-empty.
@@ -475,7 +486,12 @@ private:
 
     // Virtual filesystem registry + script-origin stack
     std::unordered_map<std::string, std::unique_ptr<VirtualFS>> virtualFs_;
-    std::vector<std::string> scriptOriginStack_;
+    struct ScriptOriginEntry
+    {
+        std::string fsName;
+        std::string scriptDir;
+    };
+    std::vector<ScriptOriginEntry> scriptOriginStack_;
     std::string cwd_;
 
     // MATLAB-style open-file table

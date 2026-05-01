@@ -1212,7 +1212,25 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             if (!rp.fs || !rp.fs->exists(rp.path))
                 throw std::runtime_error("run: file not found: " + p);
             std::string content = rp.fs->readFile(rp.path);
-            ctx.engine->eval(content, resolveEvalScope(ctx));
+
+            // Push script origin for the duration of the run so that
+            // sibling .m files in the same directory resolve without
+            // addpath. The dir is extracted from the resolved path
+            // (rp.path is the script's full path inside rp.fs).
+            std::string scriptDir;
+            {
+                size_t slash = rp.path.find_last_of("/\\");
+                if (slash != std::string::npos)
+                    scriptDir = rp.path.substr(0, slash);
+            }
+            ctx.engine->pushScriptOrigin(rp.fs->name(), scriptDir);
+            try {
+                ctx.engine->eval(content, resolveEvalScope(ctx));
+            } catch (...) {
+                ctx.engine->popScriptOrigin();
+                throw;
+            }
+            ctx.engine->popScriptOrigin();
             outs[0] = Value::empty();
         });
 
