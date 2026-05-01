@@ -7,6 +7,8 @@ set(SIGNALLIB_SOURCES
     # filter_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/frequency_response.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/unwrap.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/responses.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_analysis/predicates.cpp
     # digital_filtering/
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/filter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/sosfilt.cpp
