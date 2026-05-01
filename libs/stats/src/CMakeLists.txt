@@ -1,8 +1,10 @@
 set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/descriptive/descriptive_extras.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moments/moments.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure

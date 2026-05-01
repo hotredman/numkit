@@ -87,4 +87,25 @@ Value cov(std::pmr::memory_resource *mr, const Value &x, const Value &y, int nor
 Value corrcoef(std::pmr::memory_resource *mr, const Value &x);
 Value corrcoef(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 
+// ── bounds ─────────────────────────────────────────────────────────────
+// bounds(X[, dim]) → (min, max) along dim. Two-output form mirrors
+// MATLAB's [lo, hi] = bounds(X).
+std::tuple<Value, Value>
+bounds(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+
+// ── iqr ────────────────────────────────────────────────────────────────
+// iqr(X[, dim]) — interquartile range = quantile(X, 0.75) - quantile(X, 0.25).
+Value iqr(std::pmr::memory_resource *mr, const Value &x, int dim = 0);
+
+// ── maxk / mink ────────────────────────────────────────────────────────
+// maxk(X, k[, dim]) — k largest along dim, descending. mink — k smallest,
+// ascending. NaN sorts last (MATLAB convention).
+Value maxk(std::pmr::memory_resource *mr, const Value &x, int k, int dim = 0);
+Value mink(std::pmr::memory_resource *mr, const Value &x, int k, int dim = 0);
+
+// ── rmse ───────────────────────────────────────────────────────────────
+// rmse(F, A[, dim]) — root-mean-square deviation of F from A.
+// F and A must be broadcast-compatible.
+Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
+
 } // namespace numkit::stats

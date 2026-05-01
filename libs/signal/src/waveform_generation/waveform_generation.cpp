@@ -172,6 +172,117 @@ Value pulstran(std::pmr::memory_resource *mr, const Value &t, const Value &d,
     return out;
 }
 
+Value square(std::pmr::memory_resource *mr, const Value &t, double duty)
+{
+    if (duty < 0.0 || duty > 100.0)
+        throw Error("square: duty cycle must be in [0, 100]",
+                     0, 0, "square", "", "m:square:badDuty");
+    constexpr double kTwoPi = 6.28318530717958647692;
+    const double threshold = duty / 100.0;
+    auto out = createLike(t, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double tv = t.elemAsDouble(i);
+        // Wrap to [0, 1) within one period.
+        double frac = tv / kTwoPi;
+        frac -= std::floor(frac);
+        dst[i] = (frac < threshold) ? 1.0 : -1.0;
+    }
+    return out;
+}
+
+Value sawtooth(std::pmr::memory_resource *mr, const Value &t, double width)
+{
+    if (width < 0.0 || width > 1.0)
+        throw Error("sawtooth: width must be in [0, 1]",
+                     0, 0, "sawtooth", "", "m:sawtooth:badWidth");
+    constexpr double kTwoPi = 6.28318530717958647692;
+    auto out = createLike(t, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i) {
+        double frac = t.elemAsDouble(i) / kTwoPi;
+        frac -= std::floor(frac);   // [0, 1)
+        // Rising portion: [0, width) → linear from -1 to +1.
+        // Falling portion: [width, 1) → linear from +1 down to -1.
+        if (width == 0.0) {
+            dst[i] = -2.0 * frac + 1.0;
+        } else if (width == 1.0) {
+            dst[i] = 2.0 * frac - 1.0;
+        } else if (frac < width) {
+            dst[i] = 2.0 * frac / width - 1.0;
+        } else {
+            dst[i] = 2.0 * (1.0 - frac) / (1.0 - width) - 1.0;
+        }
+    }
+    return out;
+}
+
+Value sinc(std::pmr::memory_resource *mr, const Value &t)
+{
+    constexpr double kPi = 3.14159265358979323846;
+    auto out = createLike(t, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double tv = t.elemAsDouble(i);
+        if (tv == 0.0) {
+            dst[i] = 1.0;
+        } else {
+            const double pt = kPi * tv;
+            dst[i] = std::sin(pt) / pt;
+        }
+    }
+    return out;
+}
+
+Value gmonopuls(std::pmr::memory_resource *mr, const Value &t, double fc)
+{
+    if (fc <= 0)
+        throw Error("gmonopuls: fc must be positive",
+                     0, 0, "gmonopuls", "", "m:gmonopuls:badFc");
+    // Standard normalised gmonopuls: y(t) = 2·√e·π·fc·t · exp(-2·(π·fc·t)²)
+    // peaks at +1 when t = 1/(2π·fc).
+    constexpr double kPi = 3.14159265358979323846;
+    const double sqrtE = std::sqrt(std::exp(1.0));
+    const double k = 2.0 * sqrtE * kPi * fc;
+    auto out = createLike(t, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t n = t.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double tv = t.elemAsDouble(i);
+        const double pft = kPi * fc * tv;
+        dst[i] = k * tv * std::exp(-2.0 * pft * pft);
+    }
+    return out;
+}
+
+Value diric(std::pmr::memory_resource *mr, const Value &x, int n)
+{
+    if (n < 1)
+        throw Error("diric: n must be a positive integer",
+                     0, 0, "diric", "", "m:diric:badN");
+    constexpr double kTwoPi = 6.28318530717958647692;
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t N = x.numel();
+    for (size_t i = 0; i < N; ++i) {
+        const double xv = x.elemAsDouble(i);
+        // Detect xv ≈ 2π·k by checking sin(x/2) ≈ 0.
+        const double s = std::sin(xv * 0.5);
+        if (std::abs(s) < 1e-12) {
+            const long k = std::lround(xv / kTwoPi);
+            // Sign: (-1)^(k·(n-1))
+            const long sign = ((k * (n - 1)) & 1) ? -1 : 1;
+            dst[i] = static_cast<double>(sign);
+        } else {
+            dst[i] = std::sin(n * xv * 0.5) / (n * s);
+        }
+    }
+    return out;
+}
+
 Value chirp(std::pmr::memory_resource *mr, const Value &t,
              double f0, double t1, double f1,
              const std::string &method)
@@ -289,6 +400,49 @@ void pulstran_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const double fcOrW = (args.size() >= 4) ? args[3].toScalar() : 1.0;
     const double bw    = (args.size() >= 5) ? args[4].toScalar() : 0.5;
     outs[0] = pulstran(mr, args[0], args[1], fnName, fcOrW, bw);
+}
+
+void square_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("square: requires at least 1 argument",
+                     0, 0, "square", "", "m:square:nargin");
+    const double duty = (args.size() >= 2) ? args[1].toScalar() : 50.0;
+    outs[0] = square(ctx.engine->resource(), args[0], duty);
+}
+
+void sawtooth_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("sawtooth: requires at least 1 argument",
+                     0, 0, "sawtooth", "", "m:sawtooth:nargin");
+    const double width = (args.size() >= 2) ? args[1].toScalar() : 1.0;
+    outs[0] = sawtooth(ctx.engine->resource(), args[0], width);
+}
+
+void sinc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("sinc: requires 1 argument",
+                     0, 0, "sinc", "", "m:sinc:nargin");
+    outs[0] = sinc(ctx.engine->resource(), args[0]);
+}
+
+void gmonopuls_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gmonopuls: requires 2 arguments (t, fc)",
+                     0, 0, "gmonopuls", "", "m:gmonopuls:nargin");
+    outs[0] = gmonopuls(ctx.engine->resource(), args[0], args[1].toScalar());
+}
+
+void diric_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("diric: requires 2 arguments (x, n)",
+                     0, 0, "diric", "", "m:diric:nargin");
+    const int n = static_cast<int>(args[1].toScalar());
+    outs[0] = diric(ctx.engine->resource(), args[0], n);
 }
 
 void chirp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

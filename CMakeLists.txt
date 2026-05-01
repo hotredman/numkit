@@ -180,6 +180,8 @@ set(NUMKIT_HEADERS
     libs/signal/include/numkit/signal/smoothing/sgolay.hpp
     libs/signal/include/numkit/signal/smoothing/medfilt.hpp
     libs/signal/include/numkit/signal/measurements/findpeaks.hpp
+    libs/signal/include/numkit/signal/measurements/dbconv.hpp
+    libs/signal/include/numkit/signal/measurements/signal_stats.hpp
     libs/signal/include/numkit/signal/spectral_analysis/periodogram_pwelch.hpp
     libs/signal/include/numkit/signal/time_frequency/spectrogram.hpp
     libs/signal/include/numkit/signal/windows/windows.hpp
@@ -187,6 +189,7 @@ set(NUMKIT_HEADERS
     libs/stats/include/numkit/stats/library.hpp
     libs/stats/include/numkit/stats/moments/moments.hpp
     libs/stats/include/numkit/stats/nan_aware/nan_aware.hpp
+    libs/stats/include/numkit/stats/moving/moving.hpp
     libs/graphics/include/numkit/graphics/library.hpp
 )
 
@@ -307,6 +310,7 @@ if(NUMKIT_BUILD_TESTS AND NOT EMSCRIPTEN)
     add_subdirectory(core/tests)
     add_subdirectory(libs/builtin/tests)
     add_subdirectory(libs/signal/tests)
+    add_subdirectory(libs/stats/tests)
     add_subdirectory(libs/graphics/tests)
 endif()
 

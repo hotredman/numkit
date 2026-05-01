@@ -44,6 +44,17 @@ void blackman_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void kaiser_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void rectwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void bartlett_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void triang_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void tukeywin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void flattopwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void gausswin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void chebwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void parzenwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void nuttallwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void taylorwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void blackmanharris_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void bohmanwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void barthannwin_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void unwrap_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hilbert_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void envelope_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -55,6 +66,11 @@ void rectpuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void tripuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void gauspuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void pulstran_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void square_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void sawtooth_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void sinc_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void gmonopuls_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void diric_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
 // Phase 9 — DSP gaps
 void medfilt1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -71,6 +87,19 @@ void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 // Savitzky-Golay (libs/signal/src/smoothing/sgolay.cpp)
 void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void sgolayfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+
+// dB conversions (libs/signal/src/measurements/dbconv.cpp)
+void db_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void db2mag_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void mag2db_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void db2pow_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void pow2db_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+
+// Signal stats (libs/signal/src/measurements/signal_stats.cpp)
+void rms_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void rssq_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void peak2peak_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void peak2rms_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 } // namespace numkit::signal::detail
 
 namespace numkit {
@@ -143,20 +172,45 @@ void SignalLibrary::install(Engine &engine)
     reg("windows", "kaiser",   &signal::detail::kaiser_reg);
     reg("windows", "rectwin",  &signal::detail::rectwin_reg);
     reg("windows", "bartlett", &signal::detail::bartlett_reg);
+    reg("windows", "triang",         &signal::detail::triang_reg);
+    reg("windows", "tukeywin",       &signal::detail::tukeywin_reg);
+    reg("windows", "flattopwin",     &signal::detail::flattopwin_reg);
+    reg("windows", "gausswin",       &signal::detail::gausswin_reg);
+    reg("windows", "chebwin",        &signal::detail::chebwin_reg);
+    reg("windows", "parzenwin",      &signal::detail::parzenwin_reg);
+    reg("windows", "nuttallwin",     &signal::detail::nuttallwin_reg);
+    reg("windows", "taylorwin",      &signal::detail::taylorwin_reg);
+    reg("windows", "blackmanharris", &signal::detail::blackmanharris_reg);
+    reg("windows", "bohmanwin",      &signal::detail::bohmanwin_reg);
+    reg("windows", "barthannwin",    &signal::detail::barthannwin_reg);
     // MATLAB legacy alias `hanning` → also points at hann_reg. compat
     // already has 'hann'; this aliases the same impl into compat as
     // 'hanning' too (separate compat entry — different short-name).
     reg("windows", "hanning",  &signal::detail::hann_reg);
 
     // ── Waveform generation (chirp / pulses) ───────────────────────────
-    reg("waveform_generation", "chirp",    &signal::detail::chirp_reg);
-    reg("waveform_generation", "rectpuls", &signal::detail::rectpuls_reg);
-    reg("waveform_generation", "tripuls",  &signal::detail::tripuls_reg);
-    reg("waveform_generation", "gauspuls", &signal::detail::gauspuls_reg);
-    reg("waveform_generation", "pulstran", &signal::detail::pulstran_reg);
+    reg("waveform_generation", "chirp",     &signal::detail::chirp_reg);
+    reg("waveform_generation", "rectpuls",  &signal::detail::rectpuls_reg);
+    reg("waveform_generation", "tripuls",   &signal::detail::tripuls_reg);
+    reg("waveform_generation", "gauspuls",  &signal::detail::gauspuls_reg);
+    reg("waveform_generation", "pulstran",  &signal::detail::pulstran_reg);
+    reg("waveform_generation", "square",    &signal::detail::square_reg);
+    reg("waveform_generation", "sawtooth",  &signal::detail::sawtooth_reg);
+    reg("waveform_generation", "sinc",      &signal::detail::sinc_reg);
+    reg("waveform_generation", "gmonopuls", &signal::detail::gmonopuls_reg);
+    reg("waveform_generation", "diric",     &signal::detail::diric_reg);
 
-    // ── Measurements (findpeaks, ...) ──────────────────────────────────
+    // ── Measurements (findpeaks, dB conv, signal stats) ────────────────
     reg("measurements", "findpeaks", &signal::detail::findpeaks_reg);
+    reg("measurements", "db",        &signal::detail::db_reg);
+    reg("measurements", "db2mag",    &signal::detail::db2mag_reg);
+    reg("measurements", "mag2db",    &signal::detail::mag2db_reg);
+    reg("measurements", "db2pow",    &signal::detail::db2pow_reg);
+    reg("measurements", "pow2db",    &signal::detail::pow2db_reg);
+    reg("measurements", "rms",       &signal::detail::rms_reg);
+    reg("measurements", "rssq",      &signal::detail::rssq_reg);
+    reg("measurements", "peak2peak", &signal::detail::peak2peak_reg);
+    reg("measurements", "peak2rms",  &signal::detail::peak2rms_reg);
 
     // ── Core promotions (NAMESPACE_DESIGN.md §7, closed whitelist) ─────
     // These 6 functions are general-purpose and reachable by short name
