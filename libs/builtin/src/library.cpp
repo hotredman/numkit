@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <iomanip>
 #include <random>
 #include <regex>
@@ -1324,6 +1325,34 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 else
                                     outs[0] = Value::empty();
                             });
+
+    // ── version ───────────────────────────────────────────────
+    // numkit-m doesn't carry a SemVer; the build's compile-time
+    // stamp serves as our "version". Returned as ISO-8601 local
+    // time "YYYY-MM-DD HH:MM:SS" so it round-trips through string
+    // ops cleanly. Captured at the time library.cpp is compiled.
+    engine.registerFunction(
+        "version",
+        [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+            // __DATE__ format is "Mmm dd yyyy" (fixed 11 chars; day
+            // gets a leading space when single-digit).
+            static const char *const months[12] = {
+                "Jan","Feb","Mar","Apr","May","Jun",
+                "Jul","Aug","Sep","Oct","Nov","Dec"};
+            const char *d = __DATE__;
+            int month = 0;
+            for (int i = 0; i < 12; ++i) {
+                if (d[0] == months[i][0] && d[1] == months[i][1]
+                    && d[2] == months[i][2]) { month = i + 1; break; }
+            }
+            int day  = (d[4] == ' ' ? 0 : (d[4] - '0') * 10) + (d[5] - '0');
+            int year = (d[7]  - '0') * 1000 + (d[8] - '0') * 100
+                     + (d[9]  - '0') *   10 + (d[10] - '0');
+            char buf[32];
+            std::snprintf(buf, sizeof(buf), "%04d-%02d-%02d %s",
+                          year, month, day, __TIME__);
+            outs[0] = Value::fromString(std::string(buf), ctx.engine->resource());
+        });
 
     // ── mkdir / rmdir / delete ────────────────────────────────
     engine.registerFunction("mkdir",
