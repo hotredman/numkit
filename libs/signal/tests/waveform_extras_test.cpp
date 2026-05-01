@@ -18,31 +18,41 @@ class WaveformExtrasTest : public ::testing::Test
 {
 public:
     Engine engine;
-    void SetUp() override { engine.eval("import compat.*;"); }
+    void SetUp() override
+    {
+        // `square` is intentionally NOT in compat (clashes with the user-fn
+        // identifier in core tests under TW). Reach it via its full path.
+        engine.eval("import compat.*;");
+        engine.eval("import signal.waveform_generation.*;");
+    }
     Value eval(const std::string &code) { return engine.eval(code); }
     double evalScalar(const std::string &code) { return eval(code).toScalar(); }
 };
+
+// Fully-qualified to bypass the missing compat alias for `square`.
+static const char *SQ = "signal.waveform_generation.square";
 
 // ── square ────────────────────────────────────────────────────────────
 TEST_F(WaveformExtrasTest, SquareBasicHalfPeriod)
 {
     // square(t) at t = 0.1 (just inside first half-period) → +1.
-    EXPECT_NEAR(evalScalar("square(0.1)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar(std::string(SQ) + "(0.1)"), 1.0, 1e-12);
     // At t just past π → -1.
-    EXPECT_NEAR(evalScalar("square(pi + 0.1)"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar(std::string(SQ) + "(pi + 0.1)"), -1.0, 1e-12);
 }
 
 TEST_F(WaveformExtrasTest, SquarePeriodic)
 {
     // square is 2π-periodic.
-    EXPECT_NEAR(evalScalar("square(0.5)"), evalScalar("square(0.5 + 2*pi)"), 1e-12);
+    EXPECT_NEAR(evalScalar(std::string(SQ) + "(0.5)"),
+                evalScalar(std::string(SQ) + "(0.5 + 2*pi)"), 1e-12);
 }
 
 TEST_F(WaveformExtrasTest, SquareDuty25)
 {
     // duty=25 → high for first 25% of period, then low.
-    EXPECT_NEAR(evalScalar("square(0.1, 25)"), 1.0, 1e-12);
-    EXPECT_NEAR(evalScalar("square(2.0, 25)"), -1.0, 1e-12);  // 2.0/(2π) ≈ 0.318 > 0.25
+    EXPECT_NEAR(evalScalar(std::string(SQ) + "(0.1, 25)"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar(std::string(SQ) + "(2.0, 25)"), -1.0, 1e-12);  // 2.0/(2π) ≈ 0.318 > 0.25
 }
 
 // ── sawtooth ──────────────────────────────────────────────────────────
@@ -122,4 +132,22 @@ TEST_F(WaveformExtrasTest, DiricVectorShape)
 {
     eval("y = diric(linspace(-pi, pi, 11), 7);");
     EXPECT_EQ(eval("y").numel(), 11u);
+}
+
+// Regression: bare `square` (no namespace prefix) must NOT resolve to the
+// signal-toolbox builtin after `import compat.*`. Catches accidental
+// re-introduction of the compat alias for `square`, which collides with
+// user-defined `function y = square(x)` in core/builtin tests on TW.
+TEST_F(WaveformExtrasTest, SquareNotAliasedIntoCompat)
+{
+    Engine fresh;
+    fresh.eval("import compat.*;");
+    bool threw = false;
+    try {
+        fresh.eval("y = square(0.1);");
+    } catch (...) {
+        threw = true;
+    }
+    EXPECT_TRUE(threw)
+        << "`square` leaked into compat — would shadow user-fn in TW tests";
 }
