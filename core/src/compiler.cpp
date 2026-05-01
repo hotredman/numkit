@@ -2357,12 +2357,14 @@ uint8_t Compiler::compileCall(const ASTNode *node)
                 emitAB(OpCode::MOVE, slot, argRegs[i]);
         }
         uint8_t dst = tempReg();
+        size_t callIdx = chunk_.code.size();
         emit(Instruction::make_abcde(OpCode::CALL_INDIRECT,
                                      dst,
                                      fhReg,
                                      argBase,
                                      0,
                                      static_cast<uint8_t>(argRegs.size())));
+        recordCallArgNames(node, callIdx);
         return dst;
     }
 
@@ -2494,12 +2496,14 @@ uint8_t Compiler::compileCall(const ASTNode *node)
                 emitAB(OpCode::MOVE, slot, argRegs[i]);
         }
         uint8_t dst = tempReg();
+        size_t callIdx = chunk_.code.size();
         emit(Instruction::make_abcde(OpCode::CALL_INDIRECT,
                                      dst,
                                      fhReg,
                                      argBase,
                                      0,
                                      static_cast<uint8_t>(argRegs.size())));
+        recordCallArgNames(node, callIdx);
         return dst;
     }
 

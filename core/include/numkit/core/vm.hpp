@@ -142,8 +142,26 @@ public:
         return frames_.back().callerArgNames;
     }
 
+    // ── Scoped-eval read-side support ──
+    //
+    // Build a snapshot of caller-frame variables (statically allocated
+    // R[reg] entries plus any per-frame dynVars overlay) so that an
+    // inner scoped eval can resolve bare identifiers that exist only
+    // in the caller's registers. Empty if no matching frame.
+    std::unordered_map<std::string, Value>
+    snapshotFrameVars(Environment *frameEnv);
+
+    // Plug `dv` in as the next-pushed top-level frame's dynVars. The
+    // pointer must outlive that frame's execution. Used by
+    // Engine::eval(src, scope) to expose caller's vars to inner exec.
+    void setNextFrameDynVars(std::unordered_map<std::string, Value> *dv)
+    {
+        nextFrameDynVars_ = dv;
+    }
+
 private:
     Engine &engine_;
+    std::unordered_map<std::string, Value> *nextFrameDynVars_ = nullptr;
     const std::unordered_map<std::string, BytecodeChunk> *compiledFuncs_ = nullptr;
     const std::unordered_map<std::string, BytecodeChunk> *scriptLocalFuncs_ = nullptr;
 

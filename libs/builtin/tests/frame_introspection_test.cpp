@@ -329,3 +329,129 @@ TEST_P(InputnameTest, IndexBeyondArgsReturnsEmpty)
 }
 
 INSTANTIATE_DUAL(InputnameTest);
+
+// ============================================================
+// Phase B+ — read-side evalin (caller-frame var pre-population)
+// ============================================================
+
+class EvalinReadSideTest : public DualEngineTest {};
+
+TEST_P(EvalinReadSideTest, EvalinReadsCallerLocalVar)
+{
+    // Inner script reads x which lives only in caller's R[reg].
+    // Pre-populated dynVars overlay must surface it.
+    eval(R"(
+        function r = peek()
+            r = evalin('caller', 'x + 1');
+        end
+        function r = f()
+            x = 5;
+            r = peek();
+        end
+    )");
+    eval("y = f();");
+    EXPECT_DOUBLE_EQ(getVar("y"), 6.0);
+}
+
+TEST_P(EvalinReadSideTest, EvalinReadsAndWritesCallerLocal)
+{
+    // Both read and update; write-through lets caller's static read
+    // observe the new value.
+    eval(R"(
+        function bump()
+            evalin('caller', 'x = x + 10;');
+        end
+        function r = f()
+            x = 5;
+            bump();
+            r = x;
+        end
+    )");
+    eval("y = f();");
+    EXPECT_DOUBLE_EQ(getVar("y"), 15.0);
+}
+
+TEST_P(EvalinReadSideTest, EvalReadsCallerLocalThroughDynamicLookup)
+{
+    // assignin sets x which caller never references statically.
+    // Caller's dynamic `eval(['disp(' n ')'])` must find x via
+    // dynVars-from-snapshot.
+    eval(R"(
+        function setit(name, val)
+            assignin('caller', name, val);
+        end
+        function r = f()
+            setit('z', 77);
+            n = 'z';
+            r = eval(n);
+        end
+    )");
+    eval("y = f();");
+    EXPECT_DOUBLE_EQ(getVar("y"), 77.0);
+}
+
+INSTANTIATE_DUAL(EvalinReadSideTest);
+
+// ============================================================
+// Phase B+ — function-handle inputname (CALL_INDIRECT path)
+// ============================================================
+
+class InputnameHandleTest : public DualEngineTest {};
+
+TEST_P(InputnameHandleTest, InputnameThroughFunctionHandle)
+{
+    eval(R"(
+        function r = grab(x)
+            r = inputname(1);
+        end
+    )");
+    eval("h = @grab; vname = 88; n = h(vname);");
+    EXPECT_EQ(getVarPtr("n")->toString(), "vname");
+}
+
+INSTANTIATE_DUAL(InputnameHandleTest);
+
+// ============================================================
+// Phase B+ — previously untested edge cases (#5, #7, #8 from
+// the limitations table)
+// ============================================================
+
+class FrameIntrospectionEdgesTest : public DualEngineTest {};
+
+// #5: re-entrant eval depth >= 3
+TEST_P(FrameIntrospectionEdgesTest, ReentrantEvalDepth3)
+{
+    // Three levels of re-entrant eval. Each layer halves the
+    // doubled-single-quote count: '''' -> '' -> ' (MATLAB string
+    // escape rule). inheritedScope_ save/restore via C++ stack must
+    // handle this without crosstalk.
+    eval("eval('eval(''eval(''''deep_v = 42;'''')'')');");
+    EXPECT_DOUBLE_EQ(getVar("deep_v"), 42.0);
+}
+
+// #8: global x inside evalin
+TEST_P(FrameIntrospectionEdgesTest, GlobalInsideEvalinBase)
+{
+    eval(R"(
+        evalin('base', 'global gv; gv = 314;');
+    )");
+    eval("global gv;");
+    EXPECT_DOUBLE_EQ(getVar("gv"), 314.0);
+}
+
+// #7-style: nargin inside eval'd code matches caller's nargin
+TEST_P(FrameIntrospectionEdgesTest, NarginInsideEvalReflectsEnclosingFunction)
+{
+    // Inside f(a, b), eval('nargin') should read f's nargin (= 2).
+    // inheritedScope_ routes the inner script's lookups through f's
+    // frame.env. nargin is in the env (set on entry).
+    eval(R"(
+        function r = f(a, b)
+            r = eval('nargin');
+        end
+    )");
+    eval("y = f(10, 20);");
+    EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
+}
+
+INSTANTIATE_DUAL(FrameIntrospectionEdgesTest);

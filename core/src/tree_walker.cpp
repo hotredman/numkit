@@ -1432,7 +1432,7 @@ std::vector<Value> TreeWalker::execCallMulti(const ASTNode *node, Environment *e
 
     auto *var = env->get(funcName);
     if (var && var->isFuncHandle())
-        return callFuncHandleMulti(*var, args, env, nout);
+        return callFuncHandleMulti(*var, args, env, nout, node);
 
     // Fast path: cached function pointer
     auto *funcNode = node->children[0].get();
@@ -1568,9 +1568,10 @@ Value TreeWalker::execUnaryOp(const ASTNode *node, Environment *env)
 }
 
 // ============================================================
-Value TreeWalker::callFuncHandle(const Value &handle, Span<const Value> args, Environment *env)
+Value TreeWalker::callFuncHandle(const Value &handle, Span<const Value> args, Environment *env,
+                                  const ASTNode *callNode)
 {
-    auto results = callFuncHandleMulti(handle, args, env, 1);
+    auto results = callFuncHandleMulti(handle, args, env, 1, callNode);
     return results.empty() ? Value::empty() : results[0];
 }
 
@@ -1593,7 +1594,8 @@ TreeWalker::callHandleMultiPublic(const Value &handle,
 std::vector<Value> TreeWalker::callFuncHandleMulti(const Value &handle,
                                                     Span<const Value> args,
                                                     Environment *env,
-                                                    size_t nout)
+                                                    size_t nout,
+                                                    const ASTNode *callNode)
 {
     const std::string &name = handle.funcHandleName();
     if (engine_.externalFuncs_.count(name)) {
@@ -1603,7 +1605,7 @@ std::vector<Value> TreeWalker::callFuncHandleMulti(const Value &handle,
         return outBuf;
     }
     if (auto *_uf = engine_.lookupUserFunction(name, env))
-        return callUserFunctionMulti(*_uf, args, env, nout);
+        return callUserFunctionMulti(*_uf, args, env, nout, callNode);
     throw std::runtime_error("Undefined function in handle: @" + name);
 }
 
@@ -1644,7 +1646,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
             args.reserve(node->children.size() - 1);
             for (size_t i = 1; i < node->children.size(); ++i)
                 args.push_back(execNode(node->children[i].get(), env));
-            return callFuncHandle(target, args, env);
+            return callFuncHandle(target, args, env, node);
         }
 
         if (target.isNumeric() || target.isLogical() || target.isChar() || target.isCell())
@@ -1706,7 +1708,7 @@ Value TreeWalker::execCall(const ASTNode *node, Environment *env, size_t nargout
     if (var) {
         if (var->isFuncHandle()) {
             auto args = buildArgs();
-            return callFuncHandle(*var, args, env);
+            return callFuncHandle(*var, args, env, node);
         }
         if (var->isNumeric() || var->isLogical() || var->isChar() || var->isCell()
             || var->isStruct())
@@ -2603,9 +2605,11 @@ Value TreeWalker::callUserFunction(const UserFunction &func,
     for (size_t i = 0; i < func.params.size() && i < args.size(); ++i)
         localEnv.setLocal(func.params[i], args[i]);
 
-    // Lazy: only set nargin/nargout if the function body actually references them
-    if (func.usesNarginNargout == -1)
-        func.usesNarginNargout = astUsesIdentifier(func.body.get(), "nargin", "nargout") ? 1 : 0;
+    // Always set nargin/nargout — VM unconditionally reserves slots for
+    // them (compiler.cpp:2986-2987), and TW's old astUsesIdentifier
+    // optimization missed references hidden inside eval'd string
+    // literals (`eval('nargin')`), causing TW/VM divergence.
+    func.usesNarginNargout = 1;
     if (func.usesNarginNargout) {
         size_t nout = std::max(func.returns.size(), size_t(1));
         localEnv.setLocal("nargin",
