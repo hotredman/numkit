@@ -39,54 +39,54 @@ ScratchVec<Complex> butterworthPoles(std::pmr::memory_resource *mr, int N)
 
 using numkit::builtin::detail::polyExpandFromRoots;
 
-void bilinearTransform(std::pmr::memory_resource *mr,
-                       const Complex *sPoles, std::size_t sN,
-                       double Wn,
-                       ScratchVec<double> &bOut,
-                       ScratchVec<double> &aOut)
+// Bilinear-transform helper: take an arbitrary set of analog poles and
+// zeros (already pre-warped + frequency-transformed) and produce the
+// real-coefficient digital (b, a). Caller is responsible for the analog
+// → analog transformations (LP scale, LP→HP); this function just maps
+// each s-plane root through z = (2+s)/(2-s).
+void bilinearTransformPZ(std::pmr::memory_resource *mr,
+                         const Complex *sPoles, std::size_t pN,
+                         const Complex *sZeros, std::size_t zN,
+                         ScratchVec<double> &bOut,
+                         ScratchVec<double> &aOut)
 {
-    const int N = static_cast<int>(sN);
-
-    ScratchVec<Complex> zPoles(static_cast<std::size_t>(N), mr);
-    for (int i = 0; i < N; ++i) {
-        const Complex sp = sPoles[i] * Wn;
-        zPoles[i] = (1.0 + sp / 2.0) / (1.0 - sp / 2.0);
+    ScratchVec<Complex> zPoles(pN, mr);
+    for (std::size_t i = 0; i < pN; ++i) {
+        const Complex sp = sPoles[i];
+        zPoles[i] = (2.0 + sp) / (2.0 - sp);
     }
-
-    ScratchVec<Complex> zZeros(static_cast<std::size_t>(N), Complex(-1.0, 0.0), mr);
-
     aOut = polyExpandFromRoots(mr, zPoles.data(), zPoles.size());
-    bOut = polyExpandFromRoots(mr, zZeros.data(), zZeros.size());
 
-    Complex numDC(0, 0), denDC(0, 0);
-    for (double v : bOut)
-        numDC += v;
-    for (double v : aOut)
-        denDC += v;
-    const double dcGain = std::abs(numDC / denDC);
-    if (dcGain > 0.0)
-        for (double &v : bOut)
-            v /= dcGain;
+    // Map each finite s-plane zero. Any "zero at infinity" in the analog
+    // domain (count = pN - zN, classic for an N-pole all-pole prototype
+    // like Butterworth LP) maps to z = -1 by the bilinear transform.
+    const std::size_t totalZ = pN;
+    ScratchVec<Complex> zZeros(totalZ, mr);
+    for (std::size_t i = 0; i < zN; ++i) {
+        const Complex sz = sZeros[i];
+        zZeros[i] = (2.0 + sz) / (2.0 - sz);
+    }
+    for (std::size_t i = zN; i < totalZ; ++i)
+        zZeros[i] = Complex(-1.0, 0.0);
+
+    bOut = polyExpandFromRoots(mr, zZeros.data(), zZeros.size());
 }
 
-void lpToHp(ScratchVec<double> &b, ScratchVec<double> &a)
+// Normalise b so that |H(z0)| == 1 at the reference frequency z0 (== 1
+// for LP, == -1 for HP).
+void normaliseAtRef(ScratchVec<double> &b, const ScratchVec<double> &a,
+                    Complex z0)
 {
-    for (size_t i = 0; i < b.size(); ++i)
-        if (i % 2 == 1)
-            b[i] = -b[i];
-    for (size_t i = 0; i < a.size(); ++i)
-        if (i % 2 == 1)
-            a[i] = -a[i];
-
-    Complex numNyq(0, 0), denNyq(0, 0);
-    for (size_t i = 0; i < b.size(); ++i)
-        numNyq += b[i] * ((i % 2 == 0) ? 1.0 : -1.0);
-    for (size_t i = 0; i < a.size(); ++i)
-        denNyq += a[i] * ((i % 2 == 0) ? 1.0 : -1.0);
-    const double nyqGain = std::abs(numNyq / denNyq);
-    if (nyqGain > 0.0)
-        for (double &v : b)
-            v /= nyqGain;
+    Complex num(0, 0), den(0, 0);
+    Complex zk(1, 0);
+    for (std::size_t i = 0; i < std::max(b.size(), a.size()); ++i) {
+        if (i < b.size()) num += b[i] * zk;
+        if (i < a.size()) den += a[i] * zk;
+        zk *= z0;
+    }
+    const double mag = std::abs(num / den);
+    if (mag > 0.0)
+        for (double &v : b) v /= mag;
 }
 
 } // anonymous namespace
@@ -101,16 +101,34 @@ butter(std::pmr::memory_resource *mr, int N, double Wn, const std::string &type)
         throw Error("butter: type must be 'low' or 'high'",
                      0, 0, "butter", "", "m:butter:badType");
 
+    // Pre-warp the digital cutoff to the analog domain.
     const double Wa = 2.0 * std::tan(M_PI * Wn / 2.0);
 
     ScratchArena scratch(mr);
-    auto sPoles = butterworthPoles(&scratch, N);
+    auto sPoles = butterworthPoles(&scratch, N);   // unit-cutoff prototype
+
+    // Apply the LP scale or LP→HP transform IN THE ANALOG DOMAIN before
+    // the bilinear map. For LP: s_k = sp_k * Wa, no finite zeros. For
+    // HP: s_k = Wa / sp_k, plus N zeros at s = 0 (which map to z = 1
+    // through the bilinear).
+    ScratchVec<Complex> sP(static_cast<std::size_t>(N), &scratch);
+    ScratchVec<Complex> sZ(&scratch);
+    if (type == "low") {
+        for (int i = 0; i < N; ++i) sP[i] = sPoles[i] * Wa;
+        // sZ stays empty — Butterworth LP has all zeros at infinity.
+    } else {
+        for (int i = 0; i < N; ++i) sP[i] = Wa / sPoles[i];
+        sZ.assign(static_cast<std::size_t>(N), Complex(0.0, 0.0));
+    }
 
     ScratchVec<double> b(&scratch), a(&scratch);
-    bilinearTransform(&scratch, sPoles.data(), sPoles.size(), Wa, b, a);
+    bilinearTransformPZ(&scratch, sP.data(), sP.size(),
+                        sZ.data(), sZ.size(), b, a);
 
-    if (type == "high")
-        lpToHp(b, a);
+    // Normalise the gain at the reference frequency: DC (z=1) for LP,
+    // Nyquist (z=-1) for HP.
+    normaliseAtRef(b, a, type == "low" ? Complex(1.0, 0.0)
+                                       : Complex(-1.0, 0.0));
 
     auto bv = Value::matrix(1, b.size(), ValueType::DOUBLE, mr);
     auto av = Value::matrix(1, a.size(), ValueType::DOUBLE, mr);
