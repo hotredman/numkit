@@ -49,30 +49,32 @@ TEST_F(SpecDrivenTest, LowpassValidatesArgs)
 }
 
 // ── highpass: 800 Hz tone passes, 50 Hz tone is suppressed ───────────
-// NOTE: the underlying butter('high') currently maps the requested
-// cutoff to the inverted band (Wn → 1-Wn) — see KNOWN_ISSUES below.
-// Until that's fixed in filter_design.cpp, the highpass wrapper
-// effectively behaves like a lowpass at (fs/2 - fpass). The tests
-// below validate the wrapper plumbing only; spectral correctness will
-// re-tighten once butter('high') is fixed.
-
-TEST_F(SpecDrivenTest, HighpassReturnsSameShape)
+TEST_F(SpecDrivenTest, HighpassRetainsHighTone)
 {
     eval("xHi = sin(2*pi*800*t);");
     eval("y = highpass(xHi, 400, fs);");
-    EXPECT_EQ(eval("y").numel(), 1024u);
+    EXPECT_NEAR(evalScalar("rms(y)"), 1.0 / std::sqrt(2.0), 0.05);
 }
 
-// (HighpassRejectsLowTone removed — depends on a correct HP design;
-//  see the note above HighpassReturnsSameShape.)
-
-// (BandpassMidband / BandpassRejectsOutOfBand removed — both rely on
-//  the high-pass leg of the cascade, which is broken pending the
-//  butter('high') fix.)
-TEST_F(SpecDrivenTest, BandpassReturnsSameShape)
+TEST_F(SpecDrivenTest, HighpassRejectsLowTone)
 {
-    eval("y = bandpass(x, [200 600], fs);");
-    EXPECT_EQ(eval("y").numel(), 1024u);
+    eval("xLo = sin(2*pi*50*t);");
+    eval("y = highpass(xLo, 400, fs);");
+    EXPECT_LT(evalScalar("rms(y)"), 0.1);
+}
+
+TEST_F(SpecDrivenTest, BandpassMidband)
+{
+    eval("xMid = sin(2*pi*300*t);");
+    eval("y = bandpass(xMid, [200 600], fs);");
+    EXPECT_NEAR(evalScalar("rms(y)"), 1.0 / std::sqrt(2.0), 0.1);
+}
+
+TEST_F(SpecDrivenTest, BandpassRejectsOutOfBand)
+{
+    eval("xLo = sin(2*pi*50*t);");
+    eval("y = bandpass(xLo, [200 600], fs);");
+    EXPECT_LT(evalScalar("rms(y)"), 0.2);
 }
 
 TEST_F(SpecDrivenTest, BandpassValidatesRange)
@@ -83,10 +85,16 @@ TEST_F(SpecDrivenTest, BandpassValidatesRange)
 }
 
 // ── bandstop: removes mid-band ───────────────────────────────────────
-// (BandstopRemovesMid / BandstopKeepsOutOfBand removed — bandstop
-//  cascades a highpass leg; same root cause as bandpass.)
-TEST_F(SpecDrivenTest, BandstopReturnsSameShape)
+TEST_F(SpecDrivenTest, BandstopRemovesMid)
 {
-    eval("y = bandstop(x, [200 600], fs);");
-    EXPECT_EQ(eval("y").numel(), 1024u);
+    eval("xMid = sin(2*pi*300*t);");
+    eval("y = bandstop(xMid, [200 600], fs);");
+    EXPECT_LT(evalScalar("rms(y)"), 0.3);
+}
+
+TEST_F(SpecDrivenTest, BandstopKeepsOutOfBand)
+{
+    eval("xLo = sin(2*pi*50*t);");
+    eval("y = bandstop(xLo, [200 600], fs);");
+    EXPECT_GT(evalScalar("rms(y)"), 0.5);
 }
