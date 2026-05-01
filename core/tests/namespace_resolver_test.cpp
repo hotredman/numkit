@@ -272,18 +272,9 @@ TEST_P(NamespaceResolverTest, AsAsCommandStyleAlias)
     EXPECT_EQ(engine.workspaceEnv().activeImports().back().alias, "tn");
 }
 
-// ── Known issue: alias prefix not consulted by the resolver ─────
-// `import test_ns as tn` pushes Import{path=[test_ns], alias="tn"}.
-// The resolver in engine.cpp explicitly skips alias entries
-// (`else if (!imp.alias.empty()) continue;`), so `tn.answer()` does
-// not resolve via prefix substitution.
-//
-// Fix sketch: when resolving a qualified call like `tn.foo`, treat
-// alias-imports as prefix-substitutions — rewrite `tn.foo` to
-// `test_ns.foo` and look up the registered name.
-//
-// DISABLED until alias resolution is implemented.
-TEST_P(NamespaceResolverTest, DISABLED_AliasPrefixCallResolves)
+// Alias prefix substitution: `import a.b as x; x.foo()` rewrites to
+// `a.b.foo` in walkImportCandidates_ (engine.cpp).
+TEST_P(NamespaceResolverTest, AliasPrefixCallResolves)
 {
     auto result = engine.eval("import test_ns as tn; y = tn.answer();");
     Value *y = engine.getVariable("y");
@@ -291,9 +282,9 @@ TEST_P(NamespaceResolverTest, DISABLED_AliasPrefixCallResolves)
     EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
 }
 
-TEST_P(NamespaceResolverTest, DISABLED_AliasPrefixSurvivesNestedNamespace)
+TEST_P(NamespaceResolverTest, AliasPrefixSurvivesNestedNamespace)
 {
-    // `import signal.transforms as tr; tr.fft(x)` should reach
+    // `import signal.transforms as tr; tr.fft(x)` reaches
     // signal.transforms.fft via the alias-prefix substitution.
     auto result = engine.eval(
         "import signal.transforms as tr; y = tr.fft([1 1 1 1]);");
