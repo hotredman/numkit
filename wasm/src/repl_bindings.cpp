@@ -120,6 +120,17 @@ public:
     }
     void popScriptOrigin() { engine_->popScriptOrigin(); }
 
+    // Build timestamp — just calls the in-engine `version` builtin
+    // and returns its string. Single source of truth in library.cpp.
+    std::string version() {
+        try {
+            auto v = engine_->eval("version;");
+            return v.toString();
+        } catch (...) {
+            return "unknown";
+        }
+    }
+
     std::string execute(const std::string& code) {
         // During active debug session, evaluate in the current frame context
         if (debugSession_ && debugSession_->isActive()) {
@@ -481,6 +492,11 @@ std::string repl_get_vars() {
     return "__VARS__:" + g_session->getWorkspaceJSON();
 }
 
+std::string repl_version() {
+    if (!g_session) repl_init();
+    return g_session->version();
+}
+
 // ── Debug API (clean — no replay) ──
 
 void repl_debug_set_breakpoints(const std::string &linesJson) {
@@ -558,6 +574,7 @@ EMSCRIPTEN_BINDINGS(numkit_mide) {
     emscripten::function("repl_reset",     &repl_reset);
     emscripten::function("repl_workspace", &repl_workspace);
     emscripten::function("repl_get_vars",  &repl_get_vars);
+    emscripten::function("repl_version",   &repl_version);
     emscripten::function("repl_debug_set_breakpoints", &repl_debug_set_breakpoints);
     emscripten::function("repl_debug_start",           &repl_debug_start);
     emscripten::function("repl_debug_resume",          &repl_debug_resume);
