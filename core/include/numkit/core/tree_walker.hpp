@@ -189,11 +189,13 @@ private:
                                               Environment *env,
                                               size_t nout,
                                               const ASTNode *callNode = nullptr);
-    Value callFuncHandle(const Value &handle, Span<const Value> args, Environment *env);
+    Value callFuncHandle(const Value &handle, Span<const Value> args, Environment *env,
+                         const ASTNode *callNode = nullptr);
     std::vector<Value> callFuncHandleMulti(const Value &handle,
                                             Span<const Value> args,
                                             Environment *env,
-                                            size_t nout);
+                                            size_t nout,
+                                            const ASTNode *callNode = nullptr);
 
     // Utilities
     bool isKnownFunction(const std::string &name) const;

@@ -247,6 +247,14 @@ ExecStatus VM::startExecution(const BytecodeChunk &chunk, const Value *args, uin
     cf.nregs = nregs;
     cf.forStackBase = 0;
     cf.tryStackBase = 0;
+    // Scoped-eval read-side: caller's variable snapshot was attached
+    // via setNextFrameDynVars before this startExecution call. Plug it
+    // in so this top-level frame's ASSERT_DEF fallback resolves bare
+    // identifiers from the caller's scope.
+    if (nextFrameDynVars_) {
+        cf.dynVars = nextFrameDynVars_;
+        nextFrameDynVars_ = nullptr;  // single-shot
+    }
     frames_.push_back(std::move(cf));
 
     // Debug: push top-level debug frame
@@ -1887,6 +1895,35 @@ void VM::writeToFrameMatchingEnv(Environment *env, const std::string &name,
         }
         return;  // matching frame found but no slot — no-op
     }
+}
+
+std::unordered_map<std::string, Value> VM::snapshotFrameVars(Environment *frameEnv)
+{
+    std::unordered_map<std::string, Value> out;
+    if (!frameEnv) return out;
+    // Find the frame that owns this env.
+    const CallFrame *match = nullptr;
+    for (const auto &f : frames_) {
+        if (f.env.get() == frameEnv) { match = &f; break; }
+    }
+    if (match) {
+        // Statically-allocated locals (live in registers).
+        for (const auto &entry : match->chunk->varMap) {
+            if (entry.second < match->nregs) {
+                const Value &v = match->R[entry.second];
+                if (!v.isUnset() && !v.isDeleted())
+                    out.emplace(entry.first, v);
+            }
+        }
+        // Existing dynVars overlay (assignin'd / debug-injected names).
+        if (match->dynVars) {
+            for (const auto &kv : *match->dynVars) {
+                if (!kv.second.isUnset() && !kv.second.isDeleted())
+                    out[kv.first] = kv.second;
+            }
+        }
+    }
+    return out;
 }
 
 void VM::pushCallFrame(const BytecodeChunk &funcChunk, const Value *args, uint8_t nargs,

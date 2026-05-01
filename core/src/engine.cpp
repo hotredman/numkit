@@ -1005,6 +1005,22 @@ Value Engine::eval(const std::string &code, Environment *scope)
     clearAllCalled_ = false;
     vm_->clearLastVarMap();
 
+    // Pre-populate inner top-level's dynVars with caller's variables
+    // (registers + existing overlay + env-resident vars) so
+    // ASSERT_DEF fallback resolves bare identifiers that live in the
+    // caller's scope. Map lives on this C++ stack frame — must
+    // outlive vm_->execute(chunk).
+    auto callerSnapshot = vm_->snapshotFrameVars(scope);
+    // Also include vars set in scope.env directly (e.g. by assignin
+    // when the name wasn't in the caller's static varMap). Env values
+    // lose to register values when both exist (registers are more
+    // up-to-date for static caller writes).
+    scope->forEachLocal([&](const std::string &n, const Value &v) {
+        if (v.isUnset() || v.isDeleted()) return;
+        callerSnapshot.try_emplace(n, v);
+    });
+    vm_->setNextFrameDynVars(callerSnapshot.empty() ? nullptr : &callerSnapshot);
+
     auto chunk = compiler_->compile(ast.get(), src);
     vm_->setCompiledFuncs(&compiler_->compiledFuncs(),
                           &compiler_->scriptLocalCompiledFuncs());

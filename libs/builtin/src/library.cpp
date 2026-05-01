@@ -828,17 +828,24 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 ScratchArena scratch(ctx.engine->resource());
                                 ScratchVec<std::string> names(&scratch);
+                                // Pseudo-vars set by callUserFunction (nargin /
+                                // nargout) shouldn't appear in `who` output —
+                                // matches MATLAB.
+                                auto isPseudo = [](const std::string &n) {
+                                    return n == "nargin" || n == "nargout";
+                                };
                                 if (args.empty()) {
                                     // localNames() excludes parent-env constants
                                     // (pi, eps, …) — they show up here only if
                                     // shadowed in the workspace, as in MATLAB.
                                     auto src = env->localNames();
-                                    names.assign(src.begin(), src.end());
+                                    for (auto &n : src)
+                                        if (!isPseudo(n)) names.push_back(n);
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {
                                             std::string varName = a.toString();
-                                            if (env->getLocal(varName))
+                                            if (env->getLocal(varName) && !isPseudo(varName))
                                                 names.push_back(varName);
                                         }
                                     }
@@ -889,17 +896,18 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
 
                                 ScratchArena scratch(ctx.engine->resource());
                                 ScratchVec<std::string> names(&scratch);
+                                auto isPseudo = [](const std::string &n) {
+                                    return n == "nargin" || n == "nargout";
+                                };
                                 if (args.empty()) {
-                                    // localNames() excludes parent-env constants
-                                    // (pi, eps, …) — they show up here only if
-                                    // shadowed in the workspace, as in MATLAB.
                                     auto src = env->localNames();
-                                    names.assign(src.begin(), src.end());
+                                    for (auto &n : src)
+                                        if (!isPseudo(n)) names.push_back(n);
                                 } else {
                                     for (auto &a : args) {
                                         if (a.isChar()) {
                                             std::string varName = a.toString();
-                                            if (env->getLocal(varName))
+                                            if (env->getLocal(varName) && !isPseudo(varName))
                                                 names.push_back(varName);
                                         }
                                     }
@@ -1182,8 +1190,21 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // ctx.env is the caller's frame.env in VM mode, workspaceEnv at
     // top-level. eval(content, scope) routes the inner top-level's
     // imports + variable assignments to that scope.
+    //
+    // Legacy compat: env var NUMKIT_LEGACY_EVAL_SCOPE=1 reverts to the
+    // pre-2026-05 behaviour where eval/run from inside a function
+    // leaked variables and imports into workspaceEnv. Provided as an
+    // escape hatch for code that depended on the old (buggy) scope.
+    auto resolveEvalScope = [](CallContext &ctx) -> Environment * {
+        const char *legacy = std::getenv("NUMKIT_LEGACY_EVAL_SCOPE");
+        if (legacy && legacy[0] == '1' && legacy[1] == '\0')
+            return &ctx.engine->workspaceEnv();
+        return ctx.env;
+    };
+
     engine.registerFunction(
-        "run", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+        "run", [resolveEvalScope](Span<const Value> args, size_t,
+                                   Span<Value> outs, CallContext &ctx) {
             if (args.empty() || !args[0].isChar())
                 throw std::runtime_error("run requires a string filename");
             std::string p = args[0].toString();
@@ -1191,7 +1212,7 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             if (!rp.fs || !rp.fs->exists(rp.path))
                 throw std::runtime_error("run: file not found: " + p);
             std::string content = rp.fs->readFile(rp.path);
-            ctx.engine->eval(content, ctx.env);
+            ctx.engine->eval(content, resolveEvalScope(ctx));
             outs[0] = Value::empty();
         });
 
@@ -1201,10 +1222,11 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     // caller (when caller is at top-level), and imports are scoped to
     // the caller's lifetime.
     engine.registerFunction(
-        "eval", [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+        "eval", [resolveEvalScope](Span<const Value> args, size_t,
+                                    Span<Value> outs, CallContext &ctx) {
             if (args.empty() || !args[0].isChar())
                 throw std::runtime_error("eval requires a string");
-            outs[0] = ctx.engine->eval(args[0].toString(), ctx.env);
+            outs[0] = ctx.engine->eval(args[0].toString(), resolveEvalScope(ctx));
         });
 
     // ── evalin ───────────────────────────────────────────────
