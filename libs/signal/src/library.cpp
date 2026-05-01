@@ -101,6 +101,16 @@ void idct_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void sosfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void zp2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void tf2sos_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// filter_implementation/conversions_extras.cpp (D3)
+void sos2tf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sos2zp_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tf2zpk_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tf2ss_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2tf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2zp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void zp2ss_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void sos2ss_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ss2sos_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Savitzky-Golay (libs/signal/src/smoothing/sgolay.cpp)
 void sgolay_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -181,9 +191,18 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_analysis", "islinphase", &signal::detail::islinphase_reg);
     reg("filter_analysis", "isallpass",  &signal::detail::isallpass_reg);
 
-    // ── Filter implementation (form conversions: TF/SOS/ZPK) ───────────
+    // ── Filter implementation (form conversions: TF/SOS/ZPK/SS) ────────
     reg("filter_implementation", "tf2sos", &signal::detail::tf2sos_reg);
     reg("filter_implementation", "zp2sos", &signal::detail::zp2sos_reg);
+    reg("filter_implementation", "sos2tf", &signal::detail::sos2tf_reg);
+    reg("filter_implementation", "sos2zp", &signal::detail::sos2zp_reg);
+    reg("filter_implementation", "tf2zpk", &signal::detail::tf2zpk_reg);
+    reg("filter_implementation", "tf2ss",  &signal::detail::tf2ss_reg);
+    reg("filter_implementation", "ss2tf",  &signal::detail::ss2tf_reg);
+    reg("filter_implementation", "ss2zp",  &signal::detail::ss2zp_reg);
+    reg("filter_implementation", "zp2ss",  &signal::detail::zp2ss_reg);
+    reg("filter_implementation", "sos2ss", &signal::detail::sos2ss_reg);
+    reg("filter_implementation", "ss2sos", &signal::detail::ss2sos_reg);
 
     // ── Multirate (decimate / interp / resample) ───────────────────────
     reg("multirate", "downsample", &signal::detail::downsample_reg);

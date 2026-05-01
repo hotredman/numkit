@@ -15,6 +15,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/digital_filtering/spec_driven.cpp
     # filter_implementation/
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_implementation/conversions_extras.cpp
     # multirate/
     ${CMAKE_CURRENT_SOURCE_DIR}/multirate/multirate.cpp
     # convolution/
