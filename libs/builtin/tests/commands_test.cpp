@@ -3,6 +3,7 @@
 
 #include "dual_engine_fixture.hpp"
 
+#include <cctype>
 #include <filesystem>
 #include <fstream>
 
@@ -584,3 +585,47 @@ TEST_P(CommandNonRegressionTest, ColonStillWorks)
 }
 
 INSTANTIATE_DUAL(CommandNonRegressionTest);
+
+// ============================================================
+// version
+// ============================================================
+//
+// numkit-m has no SemVer — `version` returns the compile-time
+// build stamp as ISO-8601 "YYYY-MM-DD HH:MM:SS".
+
+class VersionTest : public DualEngineTest {};
+
+TEST_P(VersionTest, ReturnsNonEmptyString)
+{
+    eval("v = version;");
+    auto *p = getVarPtr("v");
+    ASSERT_NE(p, nullptr);
+    ASSERT_TRUE(p->isChar());
+    EXPECT_FALSE(p->toString().empty());
+}
+
+TEST_P(VersionTest, FormatIsIsoDateTime)
+{
+    eval("v = version;");
+    std::string s = getVarPtr("v")->toString();
+    // "YYYY-MM-DD HH:MM:SS" — 19 chars exactly.
+    ASSERT_EQ(s.size(), 19u) << "got: [" << s << "]";
+    EXPECT_EQ(s[4], '-');
+    EXPECT_EQ(s[7], '-');
+    EXPECT_EQ(s[10], ' ');
+    EXPECT_EQ(s[13], ':');
+    EXPECT_EQ(s[16], ':');
+    for (size_t i : {0u,1u,2u,3u, 5u,6u, 8u,9u, 11u,12u, 14u,15u, 17u,18u})
+        EXPECT_TRUE(std::isdigit(static_cast<unsigned char>(s[i])))
+            << "non-digit at " << i << " in [" << s << "]";
+}
+
+TEST_P(VersionTest, StableWithinSession)
+{
+    eval("v1 = version;");
+    eval("v2 = version;");
+    EXPECT_EQ(getVarPtr("v1")->toString(),
+              getVarPtr("v2")->toString());
+}
+
+INSTANTIATE_DUAL(VersionTest);
