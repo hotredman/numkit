@@ -26,6 +26,11 @@ void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
 void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void filtfilt_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+// digital_filtering/spec_driven.cpp (D2)
+void lowpass_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void highpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bandpass_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bandstop_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void butter_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void fir1_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void freqz_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -144,11 +149,15 @@ void SignalLibrary::install(Engine &engine)
     reg("convolution", "deconv", &signal::detail::deconv_reg);
     reg("convolution", "xcorr",  &signal::detail::xcorr_reg);
 
-    // ── Digital filtering (filter / filtfilt / SOS family / median) ────
+    // ── Digital filtering (filter / filtfilt / SOS family / median + D2) ─
     reg("digital_filtering", "filter",   &signal::detail::filter_reg);
     reg("digital_filtering", "filtfilt", &signal::detail::filtfilt_reg);
     reg("digital_filtering", "sosfilt",  &signal::detail::sosfilt_reg);
     reg("digital_filtering", "medfilt1", &signal::detail::medfilt1_reg);
+    reg("digital_filtering", "lowpass",  &signal::detail::lowpass_reg);
+    reg("digital_filtering", "highpass", &signal::detail::highpass_reg);
+    reg("digital_filtering", "bandpass", &signal::detail::bandpass_reg);
+    reg("digital_filtering", "bandstop", &signal::detail::bandstop_reg);
 
     // ── Filter design (FIR/IIR coefficient generators) ─────────────────
     reg("filter_design", "butter",     &signal::detail::butter_reg);
