@@ -294,6 +294,70 @@ TEST_P(NamespaceResolverTest, AliasPrefixSurvivesNestedNamespace)
     EXPECT_NEAR(y->complexElem(0).real(), 4.0, 1e-12);
 }
 
+// ── Probes for edge cases — all currently fail; see comments ────
+
+// DISABLED: alias chains don't transit. Design choice (matches Python,
+// which also doesn't allow `import a as b; from b.c import x`). To
+// support this, walkImportCandidates_ would need to recursively rewrite
+// alias-prefixed paths until a fixed point. Probably a YAGNI feature —
+// just write `import a.sub as t2` explicitly.
+TEST_P(NamespaceResolverTest, DISABLED_AliasChainTransitive)
+{
+    engine.registerFunction("test_ns.sub", "deep_answer", &answer_reg);
+    EXPECT_NO_THROW(engine.eval(
+        "import test_ns as t1; import t1.sub as t2; y = t2.deep_answer();"));
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
+}
+
+// DISABLED: closures don't carry the active-import scope from their
+// definition site. When the closure runs, resolution walks the
+// invocation-time env chain; the function-local import is long gone.
+// MATLAB itself doesn't really do this (anonymous functions capture
+// workspace variables but not active imports), so this is more
+// "would-be-nice" than "bug".
+TEST_P(NamespaceResolverTest, DISABLED_ClosureCapturesFunctionLocalImport)
+{
+    engine.eval(
+        "function f = make_closure(); import test_ns.*; f = @() answer(); end;"
+        "g = make_closure();"
+        "y = g();");
+    Value *y = engine.getVariable("y");
+    ASSERT_NE(y, nullptr);
+    EXPECT_DOUBLE_EQ(y->toScalar(), 42.0);
+}
+
+// DISABLED: real bug. A builtin invoked from inside a user function
+// calls back into engine.eval() (e.g. `run('script.m')`). The inner
+// eval starts at frames_.size()==1, so currentCallEnv() returns
+// workspaceEnv. Imports pushed by the inner script land in
+// workspaceEnv — and stay there after the inner returns AND after the
+// outer function returns. They leak into the next top-level eval.
+//
+// Fix sketch: in VM::execute's re-entrant branch, snapshot
+// workspaceEnv.activeImports() before startExecution, restore after.
+// Top-level (non-reentrant) evals keep current persistence semantics.
+TEST_P(NamespaceResolverTest, DISABLED_ImportInsideReentrantEvalDoesNotLeak)
+{
+    engine.registerFunction(
+        "_run_string",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isChar())
+                throw std::runtime_error("_run_string needs a string");
+            ctx.engine->eval(args[0].toString());
+            outs[0] = Value::empty();
+        });
+
+    engine.eval(
+        "function inner_call(); _run_string('import test_ns.*;'); end;"
+        "inner_call();");
+
+    // After inner_call returns, the workspace should NOT have a
+    // lingering test_ns import — calling `answer()` bare must fail.
+    EXPECT_THROW(engine.eval("y = answer();"), std::runtime_error);
+}
+
 INSTANTIATE_TEST_SUITE_P(TW_VM, NamespaceResolverTest,
                           ::testing::Values(Engine::Backend::TreeWalker,
                                             Engine::Backend::VM),
