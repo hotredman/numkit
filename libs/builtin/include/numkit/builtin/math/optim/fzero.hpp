@@ -20,4 +20,15 @@ using ::numkit::Engine;
 Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInterval,
              Engine *engine);
 
+// ── Pack 20: minimize ────────────────────────────────────────────────
+/// fminbnd(fn, lo, hi[, tol]) — bounded scalar minimum on [lo, hi]
+/// using Brent's golden-section / parabolic-interpolation hybrid.
+Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
+              double lo, double hi, double tol, Engine *engine);
+
+/// fminsearch(fn, x0[, tol]) — multi-dimensional minimum starting at
+/// x0 (vector), Nelder-Mead simplex. Returns the minimizer vector.
+Value fminsearch(std::pmr::memory_resource *mr, const Value &fn,
+                 const Value &x0, double tol, Engine *engine);
+
 } // namespace numkit::builtin

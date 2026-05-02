@@ -7,6 +7,7 @@
 #include <numkit/builtin/math/optim/fzero.hpp>
 
 #include <numkit/core/engine.hpp>
+#include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
 
 #include "../_callback_helpers.hpp"
@@ -152,6 +153,223 @@ Value fzero(std::pmr::memory_resource *mr, const Value &fn, const Value &x0OrInt
     return Value::scalar(brent(engine, fn, a, b), mr);
 }
 
+// ── Pack 20: fminbnd / fminsearch ────────────────────────────────────
+//
+// fminbnd uses Brent's variant of golden-section + parabolic
+// interpolation, classic NR / SciPy-style implementation. fminsearch
+// runs Nelder-Mead with the standard reflection / expansion /
+// contraction / shrink coefficients.
+
+namespace {
+
+double brentMin(Engine *engine, const Value &fn, double a, double b, double tol)
+{
+    constexpr int    kMaxIter = 200;
+    const double GOLD = 0.5 * (3.0 - std::sqrt(5.0));   // ≈ 0.381966
+    constexpr double kEps = 1e-10;
+
+    double x = a + GOLD * (b - a);
+    double w = x, v = x;
+    double fx = cb::evalCallback(engine, fn, x);
+    double fw = fx, fv = fx;
+    double d = 0.0, e = 0.0;
+
+    for (int it = 0; it < kMaxIter; ++it) {
+        const double m  = 0.5 * (a + b);
+        const double t1 = tol * std::abs(x) + kEps;
+        const double t2 = 2.0 * t1;
+        if (std::abs(x - m) <= (t2 - 0.5 * (b - a))) return x;
+
+        bool gold = true;
+        if (std::abs(e) > t1) {
+            // Try parabolic fit through (v, w, x).
+            const double r1 = (x - w) * (fx - fv);
+            double q = (x - v) * (fx - fw);
+            double p = (x - v) * q - (x - w) * r1;
+            q = 2.0 * (q - r1);
+            if (q > 0) p = -p;
+            q = std::abs(q);
+            const double etemp = e;
+            e = d;
+            if (std::abs(p) < std::abs(0.5 * q * etemp) &&
+                p > q * (a - x) && p < q * (b - x)) {
+                d = p / q;
+                const double u = x + d;
+                if ((u - a) < t2 || (b - u) < t2)
+                    d = (m >= x ? t1 : -t1);
+                gold = false;
+            }
+        }
+        if (gold) {
+            e = (x >= m ? a - x : b - x);
+            d = GOLD * e;
+        }
+        const double u = (std::abs(d) >= t1) ? x + d : x + (d >= 0 ? t1 : -t1);
+        const double fu = cb::evalCallback(engine, fn, u);
+
+        if (fu <= fx) {
+            if (u >= x) a = x; else b = x;
+            v = w; fv = fw;
+            w = x; fw = fx;
+            x = u; fx = fu;
+        } else {
+            if (u < x) a = u; else b = u;
+            if (fu <= fw || w == x) {
+                v = w; fv = fw;
+                w = u; fw = fu;
+            } else if (fu <= fv || v == x || v == w) {
+                v = u; fv = fu;
+            }
+        }
+    }
+    return x;  // best so far
+}
+
+// Nelder-Mead with the standard coefficients. `n` is the dimension;
+// tol is the f-value spread tolerance. The simplex is stored as a
+// flat (n+1)*n row-of-vertices buffer; sx[i*n + j] is the j-th
+// coordinate of vertex i.
+ScratchVec<double> nelderMead(Engine *engine, const Value &fn,
+                              const double *x0, size_t n, double tol,
+                              std::pmr::memory_resource *mr)
+{
+    constexpr int kMaxIter = 500;
+    constexpr double ALPHA = 1.0;   // reflection
+    constexpr double GAMMA = 2.0;   // expansion
+    constexpr double RHO   = 0.5;   // contraction
+    constexpr double SIGMA = 0.5;   // shrink
+
+    auto evalAt = [&](const double *x) -> double {
+        Value v = Value::matrix(1, n, ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < n; ++i) v.doubleDataMut()[i] = x[i];
+        Value args[1] = { std::move(v) };
+        Value r = engine->callFunctionHandle(fn, Span<const Value>(args, 1));
+        return r.toScalar();
+    };
+
+    // Buffers (all on the per-call arena passed in via mr).
+    ScratchVec<double> sx((n + 1) * n, mr);
+    ScratchVec<double> fv(n + 1, mr);
+
+    // Initial simplex: x0 + 0.05·e_i (or 0.00025 if x0_i == 0).
+    for (size_t j = 0; j < n; ++j) sx[j] = x0[j];
+    fv[0] = evalAt(&sx[0]);
+    for (size_t i = 1; i <= n; ++i) {
+        for (size_t j = 0; j < n; ++j) sx[i * n + j] = x0[j];
+        const double xi = x0[i - 1];
+        sx[i * n + (i - 1)] = (xi != 0.0 ? 1.05 * xi : 0.00025);
+        fv[i] = evalAt(&sx[i * n]);
+    }
+
+    ScratchVec<size_t> ord(n + 1, mr);
+    ScratchVec<double> newSx((n + 1) * n, mr);
+    ScratchVec<double> newFv(n + 1, mr);
+    ScratchVec<double> centroid(n, mr);
+    ScratchVec<double> xr(n, mr);
+    ScratchVec<double> xe(n, mr);
+    ScratchVec<double> xc(n, mr);
+
+    for (int it = 0; it < kMaxIter; ++it) {
+        // Sort vertices by fv ascending.
+        for (size_t i = 0; i <= n; ++i) ord[i] = i;
+        std::sort(ord.begin(), ord.end(),
+                  [&](size_t a, size_t b) { return fv[a] < fv[b]; });
+
+        for (size_t i = 0; i <= n; ++i) {
+            const double *src = &sx[ord[i] * n];
+            for (size_t j = 0; j < n; ++j) newSx[i * n + j] = src[j];
+            newFv[i] = fv[ord[i]];
+        }
+        std::copy(newSx.begin(), newSx.end(), sx.begin());
+        std::copy(newFv.begin(), newFv.end(), fv.begin());
+
+        const double spread = fv[n] - fv[0];
+        if (spread <= tol * std::max(1.0, std::abs(fv[0]))) break;
+
+        for (size_t j = 0; j < n; ++j) centroid[j] = 0.0;
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < n; ++j)
+                centroid[j] += sx[i * n + j];
+        for (size_t j = 0; j < n; ++j) centroid[j] /= static_cast<double>(n);
+
+        for (size_t j = 0; j < n; ++j)
+            xr[j] = centroid[j] + ALPHA * (centroid[j] - sx[n * n + j]);
+        const double fxr = evalAt(xr.data());
+
+        if (fxr < fv[0]) {
+            for (size_t j = 0; j < n; ++j)
+                xe[j] = centroid[j] + GAMMA * (xr[j] - centroid[j]);
+            const double fxe = evalAt(xe.data());
+            if (fxe < fxr) {
+                for (size_t j = 0; j < n; ++j) sx[n * n + j] = xe[j];
+                fv[n] = fxe;
+            } else {
+                for (size_t j = 0; j < n; ++j) sx[n * n + j] = xr[j];
+                fv[n] = fxr;
+            }
+        } else if (fxr < fv[n - 1]) {
+            for (size_t j = 0; j < n; ++j) sx[n * n + j] = xr[j];
+            fv[n] = fxr;
+        } else {
+            const bool outside = fxr < fv[n];
+            const double *base = outside ? xr.data() : &sx[n * n];
+            for (size_t j = 0; j < n; ++j)
+                xc[j] = centroid[j] + RHO * (base[j] - centroid[j]);
+            const double fxc = evalAt(xc.data());
+            const double fcompare = outside ? fxr : fv[n];
+            if (fxc <= fcompare) {
+                for (size_t j = 0; j < n; ++j) sx[n * n + j] = xc[j];
+                fv[n] = fxc;
+            } else {
+                for (size_t i = 1; i <= n; ++i) {
+                    for (size_t j = 0; j < n; ++j)
+                        sx[i * n + j] = sx[j] + SIGMA * (sx[i * n + j] - sx[j]);
+                    fv[i] = evalAt(&sx[i * n]);
+                }
+            }
+        }
+    }
+
+    ScratchVec<double> best(n, mr);
+    for (size_t j = 0; j < n; ++j) best[j] = sx[j];
+    return best;
+}
+
+} // anon
+
+Value fminbnd(std::pmr::memory_resource *mr, const Value &fn,
+              double lo, double hi, double tol, Engine *engine)
+{
+    if (engine == nullptr)
+        throw Error("fminbnd: requires an Engine pointer",
+                     0, 0, "fminbnd", "", "m:fminbnd:noEngine");
+    if (!std::isfinite(lo) || !std::isfinite(hi) || lo >= hi)
+        throw Error("fminbnd: lo < hi must be finite",
+                     0, 0, "fminbnd", "", "m:fminbnd:badRange");
+    if (!(tol > 0)) tol = 1e-6;
+    return Value::scalar(brentMin(engine, fn, lo, hi, tol), mr);
+}
+
+Value fminsearch(std::pmr::memory_resource *mr, const Value &fn,
+                 const Value &x0, double tol, Engine *engine)
+{
+    if (engine == nullptr)
+        throw Error("fminsearch: requires an Engine pointer",
+                     0, 0, "fminsearch", "", "m:fminsearch:noEngine");
+    const size_t n = x0.numel();
+    if (n == 0)
+        throw Error("fminsearch: x0 must be non-empty",
+                     0, 0, "fminsearch", "", "m:fminsearch:badX0");
+    if (!(tol > 0)) tol = 1e-4;
+    ScratchArena scratch(mr);
+    auto xv = ScratchVec<double>(n, &scratch);
+    for (size_t i = 0; i < n; ++i) xv[i] = x0.elemAsDouble(i);
+    auto best = nelderMead(engine, fn, xv.data(), n, tol, &scratch);
+    Value r = Value::matrix(x0.dims().rows(), x0.dims().cols(), ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < n; ++i) r.doubleDataMut()[i] = best[i];
+    return r;
+}
+
 // ── Engine adapter ───────────────────────────────────────────────────
 namespace detail {
 
@@ -161,6 +379,26 @@ void fzero_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Cal
         throw Error("fzero: requires at least 2 arguments (fn, x0 or [a, b])",
                      0, 0, "fzero", "", "m:fzero:nargin");
     outs[0] = fzero(ctx.engine->resource(), args[0], args[1], ctx.engine);
+}
+
+void fminbnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("fminbnd: requires (fn, lo, hi[, tol])",
+                     0, 0, "fminbnd", "", "m:fminbnd:nargin");
+    const double lo = args[1].toScalar();
+    const double hi = args[2].toScalar();
+    const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-6;
+    outs[0] = fminbnd(ctx.engine->resource(), args[0], lo, hi, tol, ctx.engine);
+}
+
+void fminsearch_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fminsearch: requires (fn, x0[, tol])",
+                     0, 0, "fminsearch", "", "m:fminsearch:nargin");
+    const double tol = (args.size() >= 3 && !args[2].isEmpty()) ? args[2].toScalar() : 1e-4;
+    outs[0] = fminsearch(ctx.engine->resource(), args[0], args[1], tol, ctx.engine);
 }
 
 } // namespace detail
