@@ -245,21 +245,21 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `strtrim` | ✅ |  |
 | `upper` | ✅ |  |
 
-### Structures — 7 ✅ + 0 ⚠️ / 14 = 50% — **NS: core**
+### Structures — 12 ✅ + 0 ⚠️ / 14 = 86% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `arrayfun` | ✅ |  |
-| `cell2struct` | ❌ |  |
+| `cell2struct` | ✅ |  |
 | `fieldnames` | ✅ |  |
-| `getfield` | ❌ | dynamic field |
+| `getfield` | ✅ | dynamic field |
 | `isfield` | ✅ |  |
 | `isstruct` | ✅ |  |
-| `orderfields` | ❌ | reorder |
+| `orderfields` | ✅ | reorder |
 | `rmfield` | ✅ |  |
-| `setfield` | ❌ | dynamic field |
+| `setfield` | ✅ | dynamic field |
 | `struct` | ✅ |  |
-| `struct2cell` | ❌ |  |
+| `struct2cell` | ✅ |  |
 | `struct2table` | ❌ |  |
 | `structfun` | ✅ |  |
 | `table2struct` | ❌ |  |

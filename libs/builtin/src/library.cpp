@@ -300,6 +300,11 @@ void rmfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cellfun_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void structfun_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void getfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void setfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void orderfields_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void struct2cell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void cell2struct_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // matrix.cpp
 void zeros_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -713,6 +718,11 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("cell",       &builtin::detail::cell_reg);
     engine.registerFunction("cellfun",    &builtin::detail::cellfun_reg);
     engine.registerFunction("structfun",  &builtin::detail::structfun_reg);
+    engine.registerFunction("getfield",   &builtin::detail::getfield_reg);
+    engine.registerFunction("setfield",   &builtin::detail::setfield_reg);
+    engine.registerFunction("orderfields",&builtin::detail::orderfields_reg);
+    engine.registerFunction("struct2cell",&builtin::detail::struct2cell_reg);
+    engine.registerFunction("cell2struct",&builtin::detail::cell2struct_reg);
 
     // --- arrayfun (basic scalar version) ---
     engine.registerFunction("arrayfun",

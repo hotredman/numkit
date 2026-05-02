@@ -184,6 +184,101 @@ Value structfun(std::pmr::memory_resource *mr, const Value &fn, const Value &s,
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Pack 14: getfield / setfield / orderfields / struct2cell / cell2struct
+// ════════════════════════════════════════════════════════════════════════
+
+Value getfield(std::pmr::memory_resource *, const Value &s, const Value &name)
+{
+    if (!s.isStruct())
+        throw Error("getfield requires a struct", 0, 0, "getfield", "",
+                     "m:getfield:notStruct");
+    const std::string n = name.toString();
+    if (s.isStructArray()) {
+        if (s.numel() == 0)
+            throw Error("getfield: struct array is empty", 0, 0, "getfield", "",
+                         "m:getfield:emptyArray");
+        const auto &elem0 = s.structArrayElem(0);
+        auto it = elem0.find(n);
+        if (it == elem0.end())
+            throw Error("getfield: no such field '" + n + "'",
+                         0, 0, "getfield", "", "m:getfield:noField");
+        return it->second;
+    }
+    if (!s.hasField(n))
+        throw Error("getfield: no such field '" + n + "'",
+                     0, 0, "getfield", "", "m:getfield:noField");
+    return s.field(n);
+}
+
+Value setfield(std::pmr::memory_resource *mr, const Value &s,
+               const Value &name, const Value &value)
+{
+    Value out;
+    if (s.isStruct()) {
+        out = s;
+    } else if (s.isEmpty()) {
+        out = Value::structure(mr);
+    } else {
+        throw Error("setfield: first argument must be a struct or []",
+                     0, 0, "setfield", "", "m:setfield:notStruct");
+    }
+    if (out.isStructArray()) {
+        const std::string n = name.toString();
+        for (size_t i = 0; i < out.numel(); ++i)
+            out.structArrayElem(i)[n] = value;
+    } else {
+        out.field(name.toString()) = value;
+    }
+    return out;
+}
+
+Value orderfields(std::pmr::memory_resource *, const Value &s)
+{
+    if (!s.isStruct())
+        throw Error("orderfields requires a struct", 0, 0, "orderfields", "",
+                     "m:orderfields:notStruct");
+    // structFields() is std::pmr::map, iteration is already
+    // alphabetically sorted, so a copy preserves canonical order.
+    return s;
+}
+
+Value struct2cell(std::pmr::memory_resource *mr, const Value &s)
+{
+    if (!s.isStruct())
+        throw Error("struct2cell requires a struct", 0, 0, "struct2cell", "",
+                     "m:struct2cell:notStruct");
+    if (s.isStructArray())
+        throw Error("struct2cell: struct-array inputs not yet supported",
+                     0, 0, "struct2cell", "", "m:struct2cell:array");
+    const auto &fields = s.structFields();
+    auto c = Value::cell(fields.size(), 1, mr);
+    size_t i = 0;
+    for (const auto &[k, v] : fields)
+        c.cellAt(i++) = v;
+    return c;
+}
+
+Value cell2struct(std::pmr::memory_resource *mr, const Value &c, const Value &fields)
+{
+    if (!c.isCell())
+        throw Error("cell2struct: first argument must be a cell array",
+                     0, 0, "cell2struct", "", "m:cell2struct:notCell");
+    if (!fields.isCell() && !fields.isString())
+        throw Error("cell2struct: fields must be a cell of strings",
+                     0, 0, "cell2struct", "", "m:cell2struct:fieldsType");
+    const size_t nFields = fields.numel();
+    if (c.numel() != nFields)
+        throw Error("cell2struct: cell size must equal number of fields",
+                     0, 0, "cell2struct", "", "m:cell2struct:shape");
+    auto out = Value::structure(mr);
+    for (size_t i = 0; i < nFields; ++i) {
+        const std::string name = fields.cellAt(i).toString();
+        out.field(name) = c.cellAt(i);
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
 
@@ -225,6 +320,46 @@ void structfun_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
                      0, 0, "structfun", "", "m:structfun:nargin");
     bool uniform = hf::parseUniformOutputFlag(args, 2, "structfun");
     outs[0] = structfun(ctx.engine->resource(), args[0], args[1], uniform, ctx.engine);
+}
+
+void getfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("getfield requires (S, name)",
+                     0, 0, "getfield", "", "m:getfield:nargin");
+    outs[0] = getfield(ctx.engine->resource(), args[0], args[1]);
+}
+
+void setfield_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("setfield requires (S, name, value)",
+                     0, 0, "setfield", "", "m:setfield:nargin");
+    outs[0] = setfield(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+void orderfields_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("orderfields requires 1 argument",
+                     0, 0, "orderfields", "", "m:orderfields:nargin");
+    outs[0] = orderfields(ctx.engine->resource(), args[0]);
+}
+
+void struct2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("struct2cell requires 1 argument",
+                     0, 0, "struct2cell", "", "m:struct2cell:nargin");
+    outs[0] = struct2cell(ctx.engine->resource(), args[0]);
+}
+
+void cell2struct_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cell2struct requires (C, fields)",
+                     0, 0, "cell2struct", "", "m:cell2struct:nargin");
+    outs[0] = cell2struct(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

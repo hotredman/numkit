@@ -501,6 +501,52 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Struct utils — Pack 14 ────────────────────────────────────
+TEST_P(BuiltinTest, GetSetField)
+{
+    eval("s = struct('a', 1, 'b', 2);");
+    EXPECT_DOUBLE_EQ(evalScalar("getfield(s, 'a');"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("getfield(s, 'b');"), 2.0);
+    eval("s2 = setfield(s, 'a', 99);");
+    EXPECT_DOUBLE_EQ(evalScalar("getfield(s2, 'a');"), 99.0);
+    EXPECT_DOUBLE_EQ(evalScalar("getfield(s2, 'b');"), 2.0);
+    // setfield can introduce a new field.
+    eval("s3 = setfield(s, 'c', 3);");
+    EXPECT_DOUBLE_EQ(evalScalar("getfield(s3, 'c');"), 3.0);
+    // Non-existent field on getfield → error.
+    EXPECT_THROW(eval("getfield(s, 'nope');"), std::exception);
+}
+
+TEST_P(BuiltinTest, OrderFields)
+{
+    eval("s = struct('zeta', 26, 'alpha', 1, 'mu', 13);");
+    eval("s2 = orderfields(s);");
+    eval("fn = fieldnames(s2);");
+    auto *fn = getVarPtr("fn");
+    ASSERT_EQ(fn->numel(), 3u);
+    // Map-backed struct already iterates alphabetically.
+    EXPECT_EQ(fn->cellAt(0).toString(), "alpha");
+    EXPECT_EQ(fn->cellAt(1).toString(), "mu");
+    EXPECT_EQ(fn->cellAt(2).toString(), "zeta");
+}
+
+TEST_P(BuiltinTest, Struct2CellAndBack)
+{
+    eval("s = struct('a', 10, 'b', 20, 'c', 30);");
+    eval("c = struct2cell(s);");
+    auto *c = getVarPtr("c");
+    ASSERT_EQ(c->numel(), 3u);
+    EXPECT_DOUBLE_EQ(c->cellAt(0).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(c->cellAt(1).toScalar(), 20.0);
+    EXPECT_DOUBLE_EQ(c->cellAt(2).toScalar(), 30.0);
+
+    // cell2struct round-trip.
+    eval("fields = {'a'; 'b'; 'c'}; s2 = cell2struct(c, fields);");
+    EXPECT_DOUBLE_EQ(evalScalar("s2.a;"), 10.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s2.b;"), 20.0);
+    EXPECT_DOUBLE_EQ(evalScalar("s2.c;"), 30.0);
+}
+
 // ── Function handles — Pack 13 ────────────────────────────────
 TEST_P(BuiltinTest, FevalByName)
 {
