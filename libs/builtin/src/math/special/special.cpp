@@ -366,6 +366,32 @@ Value legendre(std::pmr::memory_resource *mr, int n, const Value &x)
     return r;
 }
 
+// ── Pack 27: Bessel (C++17 std::cyl_* special math) ──────────────────
+
+Value besselj(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+{
+    return elementwiseDouble(nu, x,
+        [](double n, double xx) { return std::cyl_bessel_j(n, xx); }, mr);
+}
+
+Value bessely(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+{
+    return elementwiseDouble(nu, x,
+        [](double n, double xx) { return std::cyl_neumann(n, xx); }, mr);
+}
+
+Value besseli(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+{
+    return elementwiseDouble(nu, x,
+        [](double n, double xx) { return std::cyl_bessel_i(n, xx); }, mr);
+}
+
+Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
+{
+    return elementwiseDouble(nu, x,
+        [](double n, double xx) { return std::cyl_bessel_k(n, xx); }, mr);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -428,6 +454,23 @@ void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     const int n = static_cast<int>(args[0].toScalar());
     outs[0] = legendre(ctx.engine->resource(), n, args[1]);
 }
+
+#define NK_BESSEL_REG(name)                                                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                  \
+                    Span<Value> outs, CallContext &ctx)                          \
+    {                                                                              \
+        if (args.size() < 2)                                                       \
+            throw Error(#name ": requires (nu, x)",                              \
+                         0, 0, #name, "", "m:" #name ":nargin");                  \
+        outs[0] = name(ctx.engine->resource(), args[0], args[1]);                \
+    }
+
+NK_BESSEL_REG(besselj)
+NK_BESSEL_REG(bessely)
+NK_BESSEL_REG(besseli)
+NK_BESSEL_REG(besselk)
+
+#undef NK_BESSEL_REG
 
 } // namespace detail
 

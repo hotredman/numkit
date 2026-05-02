@@ -734,6 +734,24 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Bessel — Pack 27 ──────────────────────────────────────────
+TEST_P(BuiltinTest, BesselFamily)
+{
+    // J_0(0) = 1, J_n(0) = 0 for n ≥ 1.
+    EXPECT_NEAR(evalScalar("besselj(0, 0);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("besselj(1, 0);"), 0.0, 1e-12);
+    // J_1(1) ≈ 0.4400505857449335.
+    EXPECT_NEAR(evalScalar("besselj(1, 1);"), 0.4400505857449335, 1e-10);
+    // I_0(0) = 1.
+    EXPECT_NEAR(evalScalar("besseli(0, 0);"), 1.0, 1e-12);
+    // I_0(1) ≈ 1.2660658777520084.
+    EXPECT_NEAR(evalScalar("besseli(0, 1);"), 1.2660658777520084, 1e-10);
+    // K_0(1) ≈ 0.4210244382407083 — modified Bessel 2nd kind.
+    EXPECT_NEAR(evalScalar("besselk(0, 1);"), 0.4210244382407083, 1e-10);
+    // Y_0(1) ≈ 0.0882569642156769.
+    EXPECT_NEAR(evalScalar("bessely(0, 1);"), 0.0882569642156769, 1e-10);
+}
+
 // ── More special funcs — Pack 26 ──────────────────────────────
 TEST_P(BuiltinTest, GammaInc)
 {
