@@ -64,4 +64,16 @@ Value besseli(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
 /// besselk(nu, x) — modified Bessel of the second kind K_ν(x).
 Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
 
+// ── Pack 28: Hankel + elliptic integrals ─────────────────────────────
+/// besselh(nu, k, x) — Hankel function. k == 1 → J_ν + i·Y_ν;
+/// k == 2 → J_ν − i·Y_ν. Returns complex.
+Value besselh(std::pmr::memory_resource *mr,
+              const Value &nu, int k, const Value &x);
+
+/// ellipke(m) — complete elliptic integrals of the first (K) and
+/// second (E) kind. m ∈ [0, 1]. Returns [K, E] via the (n+2)-arg
+/// adapter (multi-output) — public API returns a pair.
+struct EllipKE { Value K; Value E; };
+EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m);
+
 } // namespace numkit::builtin

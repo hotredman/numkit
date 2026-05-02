@@ -734,6 +734,40 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Hankel + elliptic — Pack 28 ───────────────────────────────
+TEST_P(BuiltinTest, Besselh)
+{
+    // H_0^(1)(1) = J_0(1) + i·Y_0(1).
+    eval("h = besselh(0, 1, 1);");
+    auto *h = getVarPtr("h");
+    ASSERT_TRUE(h->isComplex());
+    const auto c = h->toComplex();
+    EXPECT_NEAR(c.real(), 0.7651976865579666, 1e-10);  // J_0(1)
+    EXPECT_NEAR(c.imag(), 0.0882569642156769, 1e-10);  // Y_0(1)
+
+    // H_0^(2)(1) flips Y sign.
+    eval("h2 = besselh(0, 2, 1);");
+    auto *h2 = getVarPtr("h2");
+    const auto c2 = h2->toComplex();
+    EXPECT_NEAR(c2.imag(), -0.0882569642156769, 1e-10);
+}
+
+TEST_P(BuiltinTest, EllipKE)
+{
+    // K(0) = π/2, E(0) = π/2.
+    eval("[K, E] = ellipke(0);");
+    EXPECT_NEAR(getVar("K"), M_PI / 2, 1e-12);
+    EXPECT_NEAR(getVar("E"), M_PI / 2, 1e-12);
+    // K(1) = Inf, E(1) = 1.
+    eval("[K1, E1] = ellipke(1);");
+    EXPECT_TRUE(std::isinf(getVar("K1")));
+    EXPECT_NEAR(getVar("E1"), 1.0, 1e-12);
+    // K(0.5) ≈ 1.854074677301372, E(0.5) ≈ 1.350643881047676.
+    eval("[Km, Em] = ellipke(0.5);");
+    EXPECT_NEAR(getVar("Km"), 1.854074677301372, 1e-10);
+    EXPECT_NEAR(getVar("Em"), 1.350643881047676, 1e-10);
+}
+
 // ── Bessel — Pack 27 ──────────────────────────────────────────
 TEST_P(BuiltinTest, BesselFamily)
 {
