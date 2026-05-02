@@ -120,4 +120,22 @@ Value strip(std::pmr::memory_resource *mr, const Value &s,
 /// of strings, true iff s equals any element of pat.
 Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat);
 
+// ── Pack 21: string ↔ char conversion + char predicates ──────────────
+/// convertCharsToStrings(x) — char array → string scalar. Already-string
+/// inputs pass through unchanged; cells of chars become string arrays.
+Value convertCharsToStrings(std::pmr::memory_resource *mr, const Value &x);
+/// convertStringsToChars(x) — string → char row. Already-char inputs
+/// pass through. String array → cell of char rows.
+Value convertStringsToChars(std::pmr::memory_resource *mr, const Value &x);
+/// isstringscalar(x) — true iff x is a 1×1 string array.
+Value isstringscalar(std::pmr::memory_resource *mr, const Value &x);
+/// isstrprop(s, category) — elementwise classification.
+/// Categories supported: 'alpha', 'digit', 'alphanum', 'lower', 'upper',
+/// 'punct', 'space', 'wspace', 'xdigit', 'cntrl', 'graphic', 'print'.
+Value isstrprop(std::pmr::memory_resource *mr, const Value &s, const Value &category);
+/// isletter(s) — true for [a-zA-Z]. Same shape as s.
+Value isletter(std::pmr::memory_resource *mr, const Value &s);
+/// isspace(s) — true for ASCII whitespace (' ', '\t', '\n', '\r', '\f', '\v').
+Value isspaceFn(std::pmr::memory_resource *mr, const Value &s);
+
 } // namespace numkit::builtin
