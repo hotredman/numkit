@@ -121,6 +121,7 @@ void polyint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void poly_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyvalm_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polydiv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void padecoef_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void tf2zp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void zp2tf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // nansum / nanmean / nanmax / nanmin / nanvar / nanstd / nanmedian
@@ -187,6 +188,7 @@ void besseli_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besselk_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besselh_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ellipke_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void airy_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -601,6 +603,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("poly",      &builtin::detail::poly_reg);
     engine.registerFunction("polyvalm",  &builtin::detail::polyvalm_reg);
     engine.registerFunction("polydiv",   &builtin::detail::polydiv_reg);
+    engine.registerFunction("padecoef",  &builtin::detail::padecoef_reg);
     engine.registerFunction("tf2zp",     &builtin::detail::tf2zp_reg);
     engine.registerFunction("zp2tf",     &builtin::detail::zp2tf_reg);
 
@@ -786,6 +789,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("besselk",  &builtin::detail::besselk_reg);
     engine.registerFunction("besselh",  &builtin::detail::besselh_reg);
     engine.registerFunction("ellipke",  &builtin::detail::ellipke_reg);
+    engine.registerFunction("airy",     &builtin::detail::airy_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

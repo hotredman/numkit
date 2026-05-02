@@ -383,6 +383,65 @@ PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
     return { rowFromVec(mr, qv.data(), qLen), std::move(rOut) };
 }
 
+// ── Pack 36: padecoef ────────────────────────────────────────────────
+//
+// Coefficients of the (N,N) Padé approximant of e^{-T s}:
+//
+//     e^{-Ts}  ≈  P(-Ts) / P(Ts)
+//     P(x)    = Σ_{k=0..N} a_k x^k
+//     a_k     = (2N-k)! N! / ((2N)! k! (N-k)!)
+//
+// Stable forward recurrence:
+//     a_0 = 1
+//     a_{k+1} / a_k = (N - k) / ((2N - k) (k + 1))
+//
+// In MATLAB convention (descending power), the coefficient of s^{N-k}
+// is `a_k * (-T)^k` for the numerator and `a_k * T^k` for the
+// denominator. After computing both vectors we divide through by
+// den[0] so the leading denominator coefficient is 1 (matches
+// `padecoef(T,N)` in MATLAB).
+PadeCoef padecoef(std::pmr::memory_resource *mr, double T, int N)
+{
+    if (N < 0)
+        throw Error("padecoef: order N must be >= 0",
+                     0, 0, "padecoef", "", "m:padecoef:badN");
+
+    const size_t n = static_cast<size_t>(N) + 1;
+
+    // a[k] for k = 0..N.
+    ScratchArena scratch(mr);
+    ScratchVec<double> a(n, &scratch);
+    a[0] = 1.0;
+    for (int k = 0; k < N; ++k)
+        a[k + 1] = a[k] * static_cast<double>(N - k)
+                       / (static_cast<double>(2 * N - k) * (k + 1));
+
+    auto numV = Value::matrix(1, n, ValueType::DOUBLE, mr);
+    auto denV = Value::matrix(1, n, ValueType::DOUBLE, mr);
+    double *num = numV.doubleDataMut();
+    double *den = denV.doubleDataMut();
+
+    // Descending: index 0 is s^N, index N is s^0. So position N-k stores
+    // the k-th-power-of-s coefficient.
+    double powNegT = 1.0, powT = 1.0;
+    for (int k = 0; k <= N; ++k) {
+        num[N - k] = a[k] * powNegT;
+        den[N - k] = a[k] * powT;
+        powNegT *= -T;
+        powT    *=  T;
+    }
+
+    // Normalize so leading denominator coefficient is 1.
+    const double scale = den[0];
+    if (scale != 0.0) {
+        for (size_t i = 0; i < n; ++i) {
+            num[i] /= scale;
+            den[i] /= scale;
+        }
+    }
+    return { std::move(numV), std::move(denV) };
+}
+
 namespace detail {
 
 void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -473,6 +532,19 @@ void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
         throw Error("polyvalm: requires (p, A)",
                      0, 0, "polyvalm", "", "m:polyvalm:nargin");
     outs[0] = polyvalm(ctx.engine->resource(), args[0], args[1]);
+}
+
+void padecoef_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("padecoef: requires 2 arguments (T, N)",
+                     0, 0, "padecoef", "", "m:padecoef:nargin");
+    const double T = args[0].toScalar();
+    const int    N = static_cast<int>(args[1].toScalar());
+    auto p = padecoef(ctx.engine->resource(), T, N);
+    outs[0] = std::move(p.num);
+    if (nargout > 1) outs[1] = std::move(p.den);
 }
 
 void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)

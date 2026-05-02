@@ -32,3 +32,6 @@ of work + measurements.
 | `join` | core | DONE | 0.001 | — | — | — | — | N/A | Join 24-element Greek-letter string array. 10k iters. |
 | `join` | core | DONE | 0.001 | — | — | — | — | N/A | Join 24-element Greek-letter string array. 10k iters. |
 | `join` | core | DONE | 0.001 | 0.000 | — | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
+| `airy` | core | DONE | 7.487 | 0.747 | 2.840 | 0.10× | 0.38× | OK | Ai over 10k pts on [-5,5]. 10 iters. Element-wise comparison. |
+| `padecoef` | core | DONE | 0.000 | — | 0.044 | — | 151.48× | MISMATCH | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. |
+| `padecoef` | core | DONE | 0.000 | 0.001 | 0.045 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
