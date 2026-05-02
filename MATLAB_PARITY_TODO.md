@@ -51,7 +51,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 ## 1. Language Fundamentals
 
-### Entering Commands — 2 ✅ + 0 ⚠️ / 9 = 22% — **NS: core**
+### Entering Commands — 3 ✅ + 0 ⚠️ / 9 = 33% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -60,7 +60,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `commandhistory` | ❌ | IDE-only |
 | `commandwindow` | ❌ | IDE-only |
 | `diary` | ❌ | session log |
-| `format` | ❌ | output format |
+| `format` | ✅ | output format (no-op stub) |
 | `home` | ❌ | terminal home |
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
@@ -879,14 +879,14 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 ## 4. Programming and Scripts
 
-### Workspace — 6 ✅ + 0 ⚠️ / 10 = 60% — **NS: core**
+### Workspace — 8 ✅ + 0 ⚠️ / 10 = 80% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `clear` | ✅ |  |
-| `clearvars` | ❌ |  |
+| `clearvars` | ✅ |  |
 | `disp` | ✅ |  |
-| `formatteddisplaytext` | ❌ |  |
+| `formatteddisplaytext` | ✅ |  |
 | `load` | ✅ |  |
 | `openvar` | ❌ | IDE |
 | `save` | ✅ |  |

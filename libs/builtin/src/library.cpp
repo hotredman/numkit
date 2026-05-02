@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <random>
 #include <regex>
+#include <set>
 #include <sstream>
 
 namespace numkit::builtin::detail {
@@ -1951,6 +1952,75 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                                 outs[0] = Value::fromString(":", ctx.engine->resource());
 #endif
                             });
+
+    // ── Pack 25: workspace / display utilities ────────────────────────
+
+    // clearvars — clear named workspace variables. With no args, clears
+    // all. With "-except name1 name2 ...", clears everything except the
+    // listed names. Doesn't unload functions, never affects globals
+    // (matches MATLAB's `clearvars` vs. `clear` distinction).
+    engine.registerFunction("clearvars",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            auto *env = ctx.env;
+            if (args.empty()) {
+                env->clearAll();
+                outs[0] = Value::empty();
+                return;
+            }
+            // Parse "-except".
+            bool exceptMode = false;
+            std::vector<std::string> names;
+            for (size_t i = 0; i < args.size(); ++i) {
+                if (!args[i].isChar() && !args[i].isString()) continue;
+                const std::string s = args[i].toString();
+                if (s == "-except") { exceptMode = true; continue; }
+                names.push_back(s);
+            }
+            if (exceptMode) {
+                std::set<std::string> keep(names.begin(), names.end());
+                for (const auto &n : env->localNames()) {
+                    if (!keep.count(n)) env->remove(n);
+                }
+            } else {
+                for (const auto &n : names) env->remove(n);
+            }
+            outs[0] = Value::empty();
+        });
+
+    // formatteddisplaytext(x) — return what disp(x) would print, but
+    // as a string instead of writing it to the output stream.
+    engine.registerFunction("formatteddisplaytext",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("formatteddisplaytext requires 1 argument");
+            outs[0] = Value::fromString(args[0].formatDisplay(""),
+                                         ctx.engine->resource());
+        });
+
+    // format(spec) — accepted for compatibility, no-op (numkit always
+    // formats with ~15 significant digits). Recognised specs are
+    // 'short', 'long', 'compact', 'loose', 'shortG', 'longG', 'shortE',
+    // 'longE', 'rat', 'hex'; unknown specs throw.
+    engine.registerFunction("format",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &) {
+            if (!args.empty()) {
+                if (!args[0].isChar() && !args[0].isString())
+                    throw std::runtime_error(
+                        "format: argument must be a string");
+                static const std::set<std::string> known = {
+                    "short", "long", "compact", "loose",
+                    "shortg", "longg", "shorte", "longe",
+                    "shorteng", "longeng", "rat", "hex", "bank", "+", "default"
+                };
+                std::string s = args[0].toString();
+                for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                if (!known.count(s))
+                    throw std::runtime_error(
+                        "format: unrecognised format spec '" + s + "'");
+            }
+            // No-op: numkit's display already runs at full precision.
+            outs[0] = Value::empty();
+        });
 }
 
 } // namespace numkit
