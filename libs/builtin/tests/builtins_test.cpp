@@ -501,6 +501,30 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Bit ops — Pack 17 ─────────────────────────────────────────
+TEST_P(BuiltinTest, BitSetBitGet)
+{
+    // bitset: bit 1 is LSB. bitset(0, 3) = 4 (set bit 3 of 0).
+    EXPECT_DOUBLE_EQ(evalScalar("bitset(0, 3);"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bitset(0, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bitset(7, 1, 0);"), 6.0);  // clear LSB of 7
+    EXPECT_DOUBLE_EQ(evalScalar("bitset(7, 4, 1);"), 15.0); // set bit 4
+
+    // bitget extracts the n-th bit.
+    EXPECT_DOUBLE_EQ(evalScalar("bitget(5, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bitget(5, 2);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bitget(5, 3);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bitget(8, 4);"), 1.0);
+
+    // Vectorized.
+    eval("v = bitget(15, [1 2 3 4 5]);");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 5u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 0.0);
+}
+
 // ── Set ops — Pack 16 ─────────────────────────────────────────
 TEST_P(BuiltinTest, SetXor)
 {

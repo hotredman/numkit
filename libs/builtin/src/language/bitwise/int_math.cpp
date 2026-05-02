@@ -132,6 +132,39 @@ Value bitcmp(std::pmr::memory_resource *mr, const Value &a, int width)
     }, mr);
 }
 
+// bitset(A, n)        — set bit n (1-based) of each A_i to 1.
+// bitset(A, n, val)   — set bit n to `val` (0 or 1).
+// MATLAB convention: bit 1 is the LSB.
+Value bitset(std::pmr::memory_resource *mr, const Value &a, const Value &n,
+             const Value *val)
+{
+    const int v = val ? static_cast<int>(val->toScalar()) : 1;
+    if (v != 0 && v != 1)
+        throw Error("bitset: third argument must be 0 or 1",
+                     0, 0, "bitset", "", "m:bitset:badVal");
+    return elementwiseDouble(a, n, [v](double xv, double nv) {
+        const int64_t x = toInt64(xv);
+        const int bit = static_cast<int>(nv);
+        if (bit < 1 || bit > 64) return xv;
+        const uint64_t mask = uint64_t{1} << (bit - 1);
+        const uint64_t ux = static_cast<uint64_t>(x);
+        const uint64_t r  = (v == 1) ? (ux | mask) : (ux & ~mask);
+        return static_cast<double>(static_cast<int64_t>(r));
+    }, mr);
+}
+
+// bitget(A, n)        — return the n-th bit (0 or 1) of each A_i.
+Value bitget(std::pmr::memory_resource *mr, const Value &a, const Value &n)
+{
+    return elementwiseDouble(a, n, [](double xv, double nv) {
+        const int64_t x = toInt64(xv);
+        const int bit = static_cast<int>(nv);
+        if (bit < 1 || bit > 64) return 0.0;
+        const uint64_t ux = static_cast<uint64_t>(x);
+        return static_cast<double>((ux >> (bit - 1)) & 1u);
+    }, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -178,6 +211,26 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         }
     }
     outs[0] = bitcmp(ctx.engine->resource(), args[0], width);
+}
+
+void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("bitset: requires (A, n) or (A, n, val)",
+                     0, 0, "bitset", "", "m:bitset:nargin");
+    const Value *val = (args.size() >= 3 && !args[2].isEmpty())
+                           ? &args[2] : nullptr;
+    outs[0] = bitset(ctx.engine->resource(), args[0], args[1], val);
+}
+
+void bitget_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("bitget: requires (A, n)",
+                     0, 0, "bitget", "", "m:bitget:nargin");
+    outs[0] = bitget(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
