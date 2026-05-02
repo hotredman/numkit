@@ -412,6 +412,80 @@ Value acotd(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, mr);
 }
 
+// ── Coordinate transforms ────────────────────────────────────────────
+// MATLAB conventions:
+//   cart2pol(x, y)     → theta = atan2(y, x), rho = hypot(x, y)
+//   cart2pol(x, y, z)  → adds z passthrough (cylindrical)
+//   pol2cart(t, r)     → x = r*cos(t),  y = r*sin(t)
+//   cart2sph(x, y, z)  → az = atan2(y, x),
+//                        el = atan2(z, hypot(x, y)),
+//                        r  = sqrt(x²+y²+z²)
+//   sph2cart(az, el, r)→ x = r*cos(el)*cos(az),
+//                        y = r*cos(el)*sin(az),
+//                        z = r*sin(el)
+
+PolarPair cart2pol(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+{
+    Value theta = elementwiseDouble(y, x,
+        [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
+    Value rho   = elementwiseDouble(x, y,
+        [](double xx, double yy) { return std::hypot(xx, yy); }, mr);
+    return { std::move(theta), std::move(rho) };
+}
+
+CylTriple cart2pol(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z)
+{
+    auto [theta, rho] = cart2pol(mr, x, y);
+    return { std::move(theta), std::move(rho), z };
+}
+
+CartPair pol2cart(std::pmr::memory_resource *mr,
+                  const Value &theta, const Value &rho)
+{
+    Value xv = elementwiseDouble(rho, theta,
+        [](double r, double t) { return r * std::cos(t); }, mr);
+    Value yv = elementwiseDouble(rho, theta,
+        [](double r, double t) { return r * std::sin(t); }, mr);
+    return { std::move(xv), std::move(yv) };
+}
+
+CartTriple pol2cart(std::pmr::memory_resource *mr,
+                    const Value &theta, const Value &rho, const Value &z)
+{
+    auto [xv, yv] = pol2cart(mr, theta, rho);
+    return { std::move(xv), std::move(yv), z };
+}
+
+SphTriple cart2sph(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z)
+{
+    Value az = elementwiseDouble(y, x,
+        [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
+    Value rxy = elementwiseDouble(x, y,
+        [](double xx, double yy) { return std::hypot(xx, yy); }, mr);
+    Value el = elementwiseDouble(z, rxy,
+        [](double zz, double rr) { return std::atan2(zz, rr); }, mr);
+    Value r = elementwiseDouble(rxy, z,
+        [](double rxy_v, double zz) { return std::hypot(rxy_v, zz); }, mr);
+    return { std::move(az), std::move(el), std::move(r) };
+}
+
+CartTriple sph2cart(std::pmr::memory_resource *mr,
+                    const Value &az, const Value &el, const Value &r)
+{
+    // r * cos(el)
+    Value rcos_el = elementwiseDouble(r, el,
+        [](double rr, double ee) { return rr * std::cos(ee); }, mr);
+    Value xv = elementwiseDouble(rcos_el, az,
+        [](double rce, double aa) { return rce * std::cos(aa); }, mr);
+    Value yv = elementwiseDouble(rcos_el, az,
+        [](double rce, double aa) { return rce * std::sin(aa); }, mr);
+    Value zv = elementwiseDouble(r, el,
+        [](double rr, double ee) { return rr * std::sin(ee); }, mr);
+    return { std::move(xv), std::move(yv), std::move(zv) };
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -482,6 +556,64 @@ void atan2d_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Ca
         throw Error("atan2d: requires 2 arguments",
                      0, 0, "atan2d", "", "m:atan2d:nargin");
     outs[0] = atan2d(ctx.engine->resource(), args[0], args[1]);
+}
+
+void cart2pol_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cart2pol: requires at least 2 arguments",
+                     0, 0, "cart2pol", "", "m:cart2pol:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() >= 3) {
+        auto [theta, rho, z] = cart2pol(mr, args[0], args[1], args[2]);
+        outs[0] = std::move(theta);
+        if (nargout > 1) outs[1] = std::move(rho);
+        if (nargout > 2) outs[2] = std::move(z);
+        return;
+    }
+    auto [theta, rho] = cart2pol(mr, args[0], args[1]);
+    outs[0] = std::move(theta);
+    if (nargout > 1) outs[1] = std::move(rho);
+}
+
+void pol2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("pol2cart: requires at least 2 arguments",
+                     0, 0, "pol2cart", "", "m:pol2cart:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() >= 3) {
+        auto [xv, yv, zv] = pol2cart(mr, args[0], args[1], args[2]);
+        outs[0] = std::move(xv);
+        if (nargout > 1) outs[1] = std::move(yv);
+        if (nargout > 2) outs[2] = std::move(zv);
+        return;
+    }
+    auto [xv, yv] = pol2cart(mr, args[0], args[1]);
+    outs[0] = std::move(xv);
+    if (nargout > 1) outs[1] = std::move(yv);
+}
+
+void cart2sph_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("cart2sph: requires 3 arguments",
+                     0, 0, "cart2sph", "", "m:cart2sph:nargin");
+    auto [az, el, r] = cart2sph(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = std::move(az);
+    if (nargout > 1) outs[1] = std::move(el);
+    if (nargout > 2) outs[2] = std::move(r);
+}
+
+void sph2cart_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("sph2cart: requires 3 arguments",
+                     0, 0, "sph2cart", "", "m:sph2cart:nargin");
+    auto [xv, yv, zv] = sph2cart(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = std::move(xv);
+    if (nargout > 1) outs[1] = std::move(yv);
+    if (nargout > 2) outs[2] = std::move(zv);
 }
 
 } // namespace detail
