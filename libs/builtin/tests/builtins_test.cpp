@@ -341,6 +341,74 @@ TEST_P(BuiltinTest, PiScaledTrig)
     EXPECT_NEAR(evalScalar("cospi(1/3);"), 0.5, 1e-12);
 }
 
+// ── Reciprocal trig — sec/csc/cot families ────────────────────
+TEST_P(BuiltinTest, ReciprocalTrigPrimary)
+{
+    EXPECT_NEAR(evalScalar("sec(0);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sec(pi);"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("csc(pi/2);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("csc(-pi/2);"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cot(pi/4);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cot(pi/2);"), 0.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, ReciprocalTrigHyperbolic)
+{
+    EXPECT_NEAR(evalScalar("sech(0);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sech(1);"), 0.6480542736638853, 1e-12);
+    EXPECT_TRUE(std::isinf(evalScalar("csch(0);")));
+    EXPECT_NEAR(evalScalar("csch(1);"), 0.8509181282393216, 1e-12);
+    EXPECT_TRUE(std::isinf(evalScalar("coth(0);")));
+    EXPECT_NEAR(evalScalar("coth(1);"), 1.3130352854993313, 1e-12);
+}
+
+TEST_P(BuiltinTest, ReciprocalTrigDegree)
+{
+    EXPECT_NEAR(evalScalar("secd(0);"),    1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("secd(180);"), -1.0, 1e-12);
+    EXPECT_TRUE(std::isinf(evalScalar("secd(90);")));
+    EXPECT_NEAR(evalScalar("cscd(90);"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cscd(-90);"),-1.0, 1e-12);
+    EXPECT_TRUE(std::isinf(evalScalar("cscd(0);")));
+    EXPECT_NEAR(evalScalar("cotd(45);"),  1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("cotd(135);"),-1.0, 1e-12);
+    EXPECT_TRUE(std::isinf(evalScalar("cotd(0);")));
+}
+
+TEST_P(BuiltinTest, InverseReciprocalTrig)
+{
+    EXPECT_NEAR(evalScalar("asec(1);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("asec(2);"), std::acos(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("acsc(1);"), M_PI / 2, 1e-12);
+    EXPECT_NEAR(evalScalar("acsc(2);"), std::asin(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("acot(1);"), M_PI / 4, 1e-12);
+    EXPECT_NEAR(evalScalar("acot(0);"), M_PI / 2, 1e-12);
+    EXPECT_NEAR(evalScalar("asech(1);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acsch(1);"), std::asinh(1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("acoth(2);"), std::atanh(0.5), 1e-12);
+    EXPECT_NEAR(evalScalar("asecd(1);"),  0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("asecd(2);"), 60.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acscd(1);"), 90.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acscd(2);"), 30.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acotd(1);"), 45.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, ReciprocalTrigOutOfDomainComplex)
+{
+    eval("z = asec(0.5);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+    eval("w = acsc(0.5);");
+    auto *w = getVarPtr("w");
+    ASSERT_NE(w, nullptr);
+    EXPECT_TRUE(w->isComplex());
+    eval("u = acoth(0.5);");
+    auto *u = getVarPtr("u");
+    ASSERT_NE(u, nullptr);
+    EXPECT_TRUE(u->isComplex());
+}
+
 TEST_P(BuiltinTest, Floor)
 {
     EXPECT_DOUBLE_EQ(evalScalar("floor(3.7);"), 3.0);

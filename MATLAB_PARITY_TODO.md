@@ -462,22 +462,22 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uminus` | ⚠️ | works as unary `-` operator; not callable as named fn |
 | `uplus` | ⚠️ | works as unary `+` operator; not callable as named fn |
 
-### Trigonometry — 25 ✅ + 0 ⚠️ / 47 = 53% — **NS: core**
+### Trigonometry — 43 ✅ + 0 ⚠️ / 47 = 91% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `acos` | ✅ |  |
 | `acosd` | ✅ | degree |
 | `acosh` | ✅ | hyperbolic |
-| `acot` | ❌ |  |
-| `acotd` | ❌ |  |
-| `acoth` | ❌ |  |
-| `acsc` | ❌ |  |
-| `acscd` | ❌ |  |
-| `acsch` | ❌ |  |
-| `asec` | ❌ |  |
-| `asecd` | ❌ |  |
-| `asech` | ❌ |  |
+| `acot` | ✅ |  |
+| `acotd` | ✅ |  |
+| `acoth` | ✅ |  |
+| `acsc` | ✅ |  |
+| `acscd` | ✅ |  |
+| `acsch` | ✅ |  |
+| `asec` | ✅ |  |
+| `asecd` | ✅ |  |
+| `asech` | ✅ |  |
 | `asin` | ✅ |  |
 | `asind` | ✅ | degree |
 | `asinh` | ✅ | hyperbolic |
@@ -492,19 +492,19 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `cosd` | ✅ | degree |
 | `cosh` | ✅ | hyperbolic |
 | `cospi` | ✅ | use `cos(pi*x)` |
-| `cot` | ❌ | reciprocal |
-| `cotd` | ❌ |  |
-| `coth` | ❌ |  |
-| `csc` | ❌ | reciprocal |
-| `cscd` | ❌ |  |
-| `csch` | ❌ |  |
+| `cot` | ✅ | reciprocal |
+| `cotd` | ✅ |  |
+| `coth` | ✅ |  |
+| `csc` | ✅ | reciprocal |
+| `cscd` | ✅ |  |
+| `csch` | ✅ |  |
 | `deg2rad` | ✅ |  |
 | `hypot` | ✅ |  |
 | `pol2cart` | ❌ | coord xform |
 | `rad2deg` | ✅ |  |
-| `sec` | ❌ | reciprocal |
-| `secd` | ❌ |  |
-| `sech` | ❌ |  |
+| `sec` | ✅ | reciprocal |
+| `secd` | ✅ |  |
+| `sech` | ✅ |  |
 | `sin` | ✅ |  |
 | `sind` | ✅ | degree |
 | `sinh` | ✅ | hyperbolic |
