@@ -501,6 +501,39 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Numeric base conversion + rat — Pack 23 ───────────────────
+TEST_P(BuiltinTest, Dec2BinHex)
+{
+    eval("a = dec2bin(5);");
+    EXPECT_EQ(getVarPtr("a")->toString(), "101");
+    eval("b = dec2bin(5, 8);");
+    EXPECT_EQ(getVarPtr("b")->toString(), "00000101");
+    eval("c = dec2hex(255);");
+    EXPECT_EQ(getVarPtr("c")->toString(), "FF");
+    eval("d = dec2hex(16, 4);");
+    EXPECT_EQ(getVarPtr("d")->toString(), "0010");
+}
+
+TEST_P(BuiltinTest, Bin2DecHex2Dec)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("bin2dec('101');"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("bin2dec('00000101');"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hex2dec('FF');"), 255.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hex2dec('1A');"), 26.0);
+    EXPECT_DOUBLE_EQ(evalScalar("hex2dec('ff');"), 255.0);  // case-insensitive
+}
+
+TEST_P(BuiltinTest, Rat)
+{
+    eval("r = rat(0.5);");
+    EXPECT_EQ(getVarPtr("r")->toString(), "1 / 2");
+    eval("r2 = rat(0.333333);");
+    // Should converge to 1/3 with default tol.
+    EXPECT_EQ(getVarPtr("r2")->toString(), "1 / 3");
+    eval("r3 = rat(2);");
+    EXPECT_EQ(getVarPtr("r3")->toString(), "2");
+}
+
 // ── Extract / insert family — Pack 22 ─────────────────────────
 TEST_P(BuiltinTest, ExtractAfterBefore)
 {

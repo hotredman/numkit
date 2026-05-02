@@ -561,7 +561,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `legendre` | ❌ |  |
 | `psi` | ✅ |  |
 
-### Discrete Math — 8 ✅ + 0 ⚠️ / 11 = 72% — **NS: core**
+### Discrete Math — 10 ✅ + 0 ⚠️ / 11 = 90% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -574,8 +574,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `nchoosek` | ✅ |  |
 | `perms` | ✅ |  |
 | `primes` | ✅ |  |
-| `rat` | ❌ |  |
-| `rats` | ❌ |  |
+| `rat` | ✅ |  |
+| `rats` | ✅ |  |
 
 ### Polynomials — 7 ✅ + 0 ⚠️ / 12 = 58% — **NS: core**
 
