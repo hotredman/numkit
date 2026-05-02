@@ -71,4 +71,24 @@ Value startsWith(std::pmr::memory_resource *mr, const Value &s, const Value &pre
 /// endsWith(s, suffix) — logical scalar.
 Value endsWith(std::pmr::memory_resource *mr, const Value &s, const Value &suffix);
 
+// ── Pack 10: extra string utilities ──────────────────────────────────
+/// strncmp(a, b, n) — first n chars equal, case-sensitive. Logical scalar.
+Value strncmp(std::pmr::memory_resource *mr, const Value &a, const Value &b, size_t n);
+/// strncmpi(a, b, n) — first n chars equal, case-insensitive ASCII.
+Value strncmpi(std::pmr::memory_resource *mr, const Value &a, const Value &b, size_t n);
+/// strfind(s, pat) — 1-based positions of all non-overlapping pat
+/// occurrences in s. Returns 1×K row vector or empty (0×0).
+Value strfind(std::pmr::memory_resource *mr, const Value &s, const Value &pat);
+/// blanks(n) — char row of n spaces.
+Value blanks(std::pmr::memory_resource *mr, size_t n);
+/// deblank(s) — strip trailing whitespace only.
+Value deblank(std::pmr::memory_resource *mr, const Value &s);
+/// mat2str(A) — convert numeric matrix to a parseable MATLAB-syntax
+/// string, e.g. "[1 2;3 4]". 2-D only; vectors don't get the surrounding
+/// brackets when they are scalar.
+Value mat2str(std::pmr::memory_resource *mr, const Value &x, int precision = 15);
+/// strjoin(c, delim?) — join a 1-D cell of strings with `delim` (default
+/// space). Returns a single char row.
+Value strjoin(std::pmr::memory_resource *mr, const Value &c, const Value *delim = nullptr);
+
 } // namespace numkit::builtin

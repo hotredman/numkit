@@ -175,12 +175,12 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 22 ✅ + 1 ⚠️ / 65 = 35% — **NS: core**
+### Characters and Strings — 29 ✅ + 1 ⚠️ / 65 = 46% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `append` | ❌ |  |
-| `blanks` | ❌ |  |
+| `blanks` | ✅ |  |
 | `cellstr` | ❌ | cell of char rows |
 | `char` | ✅ |  |
 | `compose` | ❌ |  |
@@ -189,7 +189,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `convertcontainedstringstochars` | ❌ |  |
 | `convertstringstochars` | ❌ |  |
 | `count` | ❌ |  |
-| `deblank` | ❌ |  |
+| `deblank` | ✅ |  |
 | `double` | ✅ |  |
 | `endswith` | ❌ |  |
 | `erase` | ❌ |  |
@@ -230,18 +230,18 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `strcat` | ✅ |  |
 | `strcmp` | ✅ |  |
 | `strcmpi` | ✅ |  |
-| `strfind` | ❌ |  |
+| `strfind` | ✅ |  |
 | `string` | ✅ |  |
 | `strings` | ❌ |  |
 | `strip` | ❌ |  |
-| `strjoin` | ❌ |  |
+| `strjoin` | ✅ |  |
 | `strjust` | ❌ |  |
 | `strlength` | ✅ |  |
-| `strncmp` | ❌ |  |
-| `strncmpi` | ❌ |  |
+| `strncmp` | ✅ |  |
+| `strncmpi` | ✅ |  |
 | `strrep` | ✅ |  |
 | `strsplit` | ✅ |  |
-| `strtok` | ❌ |  |
+| `strtok` | ✅ |  |
 | `strtrim` | ✅ |  |
 | `upper` | ✅ |  |
 
