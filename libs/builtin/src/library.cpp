@@ -407,6 +407,9 @@ void transpose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagetranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagectranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void peaks_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void sphere_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void cylinder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ellipsoid_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagemtimes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void diag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sort_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -841,6 +844,9 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("pagetranspose",  &builtin::detail::pagetranspose_reg);
     engine.registerFunction("pagectranspose", &builtin::detail::pagectranspose_reg);
     engine.registerFunction("peaks",          &builtin::detail::peaks_reg);
+    engine.registerFunction("sphere",         &builtin::detail::sphere_reg);
+    engine.registerFunction("cylinder",       &builtin::detail::cylinder_reg);
+    engine.registerFunction("ellipsoid",      &builtin::detail::ellipsoid_reg);
 
     // ── Pack 11: operator-named functions ────────────────────────
     engine.registerFunction("plus",       &builtin::detail::plus_reg);

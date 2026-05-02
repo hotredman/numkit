@@ -57,3 +57,6 @@ of work + measurements.
 | `xcov` | core | DONE | 0.984 | 0.406 | — | 0.41× | — | OK | Cross-cov of 5k-pt sine. 50 iters. |
 | `peaks` | core | DONE | 0.441 | 0.808 | 1.841 | 1.83× | 4.18× | MISMATCH | 200x200 peaks() surface. 50 iters, element-wise. |
 | `peaks` | core | DONE | 0.445 | 0.699 | 1.855 | 1.57× | 4.17× | OK | 200x200 peaks() surface. 50 iters, element-wise. |
+| `sphere` | core | DONE | 0.090 | 0.050 | 0.321 | 0.55× | 3.55× | OK | Unit sphere on 101x101 grid. 200 iters, element-wise on Z. |
+| `cylinder` | core | DONE | 0.125 | 0.060 | 0.344 | 0.48× | 2.75× | OK | 201-point sin-shaped profile, 50 angular samples. 200 iters. |
+| `ellipsoid` | core | DONE | 0.094 | 0.094 | 0.394 | 1.00× | 4.19× | OK | 101x101 ellipsoid (1,2,3) center, (4,5,6) semi-axes. 200 iters. |
