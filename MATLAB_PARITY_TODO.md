@@ -175,7 +175,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 53 ✅ + 0 ⚠️ / 65 = 82% — **NS: core**
+### Characters and Strings — 54 ✅ + 0 ⚠️ / 65 = 83% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -186,7 +186,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `compose` | ❌ |  |
 | `contains` | ✅ |  |
 | `convertcharstostrings` | ✅ |  |
-| `convertcontainedstringstochars` | ❌ |  |
+| `convertcontainedstringstochars` | ✅ |  |
 | `convertstringstochars` | ✅ |  |
 | `count` | ✅ |  |
 | `deblank` | ✅ |  |
@@ -532,7 +532,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `realsqrt` | ✅ |  |
 | `sqrt` | ✅ |  |
 
-### Special Functions — 18 ✅ + 0 ⚠️ / 24 = 75% — **NS: core**
+### Special Functions — 20 ✅ + 0 ⚠️ / 24 = 83% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -550,8 +550,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `ellipke` | ✅ |  |
 | `erf` | ✅ |  |
 | `erfc` | ✅ |  |
-| `erfcinv` | ❌ |  |
-| `erfcx` | ❌ |  |
+| `erfcinv` | ✅ |  |
+| `erfcx` | ✅ |  |
 | `erfinv` | ✅ |  |
 | `expint` | ✅ |  |
 | `gamma` | ✅ |  |

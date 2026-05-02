@@ -734,6 +734,46 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Pack 35 ───────────────────────────────────────────────────
+TEST_P(BuiltinTest, ErfcinvErfcx)
+{
+    // erfcinv(1) = 0 (since erfc(0) = 1).
+    EXPECT_NEAR(evalScalar("erfcinv(1);"), 0.0, 1e-12);
+    // erfcinv(2) = -Inf, erfcinv(0) = +Inf.
+    EXPECT_TRUE(std::isinf(evalScalar("erfcinv(0);")));
+    EXPECT_TRUE(std::isinf(evalScalar("erfcinv(2);")));
+    // Round-trip: erfc(erfcinv(0.5)) ≈ 0.5.
+    EXPECT_NEAR(evalScalar("erfc(erfcinv(0.5));"), 0.5, 1e-10);
+
+    // erfcx(0) = erfc(0) = 1.
+    EXPECT_NEAR(evalScalar("erfcx(0);"), 1.0, 1e-12);
+    // erfcx(1) ≈ exp(1) * erfc(1).
+    EXPECT_NEAR(evalScalar("erfcx(1);"),
+                std::exp(1.0) * std::erfc(1.0), 1e-10);
+    // Large x: erfcx(50) ≈ 1/(x·sqrt(π)) to leading order. Our series
+    // adds the (1 - 0.5/x² + ...) correction, so the leading-order
+    // approximation matches only to ~2e-6 absolute / ~2e-4 relative.
+    EXPECT_NEAR(evalScalar("erfcx(50);"),
+                1.0 / (50.0 * std::sqrt(M_PI)), 5e-6);
+}
+
+TEST_P(BuiltinTest, ConvertContainedStringsToChars)
+{
+    // Cell with mixed entries gets the strings converted to char.
+    eval("c = convertContainedStringsToChars({\"hello\", 1, {\"nested\", 2}});");
+    auto *c = getVarPtr("c");
+    ASSERT_TRUE(c->isCell());
+    EXPECT_TRUE(c->cellAt(0).isChar());
+    EXPECT_EQ(c->cellAt(0).toString(), "hello");
+    EXPECT_DOUBLE_EQ(c->cellAt(1).toScalar(), 1.0);
+    EXPECT_TRUE(c->cellAt(2).isCell());
+    EXPECT_TRUE(c->cellAt(2).cellAt(0).isChar());
+    EXPECT_EQ(c->cellAt(2).cellAt(0).toString(), "nested");
+    // Plain numeric / char passes through.
+    eval("d = convertContainedStringsToChars(42);");
+    EXPECT_DOUBLE_EQ(getVar("d"), 42.0);
+}
+
 // ── Function-handle introspection — Pack 34 ───────────────────
 TEST_P(BuiltinTest, Functions)
 {

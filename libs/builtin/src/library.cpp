@@ -172,6 +172,8 @@ void gammaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void erfcinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void erfcx_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void beta_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void betaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void expint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -690,6 +692,53 @@ void BuiltinLibrary::install(Engine &engine)
             outs[0] = Value::cell(0, 1, ctx.engine->resource());
         });
 
+    // ── Pack 35: convertContainedStringsToChars ───────────────────────
+    //
+    // Recursive descent: char/numeric stays put; string scalar →
+    // char row; cell → cell of recursively-converted entries; struct
+    // → struct with each field converted. Mirrors MATLAB's behaviour
+    // for the typical script use case (sanitising mixed cell/struct
+    // payloads before passing to a char-only API).
+    {
+        struct Walker {
+            std::pmr::memory_resource *mr;
+            Value walk(const Value &v) {
+                if (v.isString()) {
+                    if (v.numel() <= 1)
+                        return Value::fromString(v.toString(), mr);
+                    auto c = Value::cell(v.numel(), 1, mr);
+                    for (size_t i = 0; i < v.numel(); ++i)
+                        c.cellAt(i) = Value::fromString(v.stringElem(i), mr);
+                    return c;
+                }
+                if (v.isCell()) {
+                    const auto &d = v.dims();
+                    auto c = d.is3D()
+                                ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
+                                : Value::cell(d.rows(), d.cols(), mr);
+                    for (size_t i = 0; i < v.numel(); ++i)
+                        c.cellAt(i) = walk(v.cellAt(i));
+                    return c;
+                }
+                if (v.isStruct() && !v.isStructArray()) {
+                    auto s = Value::structure(mr);
+                    for (auto &kv : v.structFields())
+                        s.field(kv.first) = walk(kv.second);
+                    return s;
+                }
+                return v;
+            }
+        };
+        engine.registerFunction("convertContainedStringsToChars",
+            [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+                if (args.empty())
+                    throw std::runtime_error(
+                        "convertContainedStringsToChars: requires 1 argument");
+                Walker w{ctx.engine->resource()};
+                outs[0] = w.walk(args[0]);
+            });
+    }
+
     // ── Phase 6 N-D manipulation ──────────────────────────────────
     engine.registerFunction("permute",  &builtin::detail::permute_reg);
     engine.registerFunction("ipermute", &builtin::detail::ipermute_reg);
@@ -712,6 +761,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("erf",      &builtin::detail::erf_reg);
     engine.registerFunction("erfc",     &builtin::detail::erfc_reg);
     engine.registerFunction("erfinv",   &builtin::detail::erfinv_reg);
+    engine.registerFunction("erfcinv",  &builtin::detail::erfcinv_reg);
+    engine.registerFunction("erfcx",    &builtin::detail::erfcx_reg);
     engine.registerFunction("beta",     &builtin::detail::beta_reg);
     engine.registerFunction("betaln",   &builtin::detail::betaln_reg);
     engine.registerFunction("expint",   &builtin::detail::expint_reg);
