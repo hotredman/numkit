@@ -1,0 +1,9 @@
+{
+  "name": "strjust",
+  "namespace": "core",
+  "setup": "M = repmat(blanks(50), 1000, 1); M(:,1:5) = repmat('hello', 1000, 1);",
+  "expr": "R = strjust(M, 'right');",
+  "iters": 200,
+  "fingerprint": ["size(R,1)", "size(R,2)", "double(R(1,end))", "double(R(end,1))"],
+  "comment": "1000x50 char matrix, right-justify. 200 iters."
+}

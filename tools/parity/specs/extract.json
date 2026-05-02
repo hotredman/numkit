@@ -1,0 +1,9 @@
+{
+  "name": "extract",
+  "namespace": "core",
+  "setup": "s = repmat('abc xyz ', 1, 1000);",
+  "expr": "e = extract(s, 'xyz');",
+  "iters": 1000,
+  "fingerprint": ["double(numel(e))", "double(strlength(e{1}))", "double(strlength(e{end}))"],
+  "comment": "Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters."
+}

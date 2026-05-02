@@ -283,3 +283,105 @@ TEST(BuiltinStringsPublicApi, Strings3D)
     EXPECT_EQ(r.dims().cols(), 3u);
     EXPECT_EQ(r.numel(), 24u);
 }
+
+// ── Pack 36: compose / strjust / extract / split / join ──────────────
+TEST(BuiltinStringsPublicApi, ComposeBroadcastsOverArray)
+{
+    auto *mr = std::pmr::get_default_resource();
+    auto a = Value::matrix(1, 3, numkit::ValueType::DOUBLE, mr);
+    a.doubleDataMut()[0] = 1; a.doubleDataMut()[1] = 2; a.doubleDataMut()[2] = 3;
+    auto fmt = mkStr(mr, "v%d");
+    Value c = numkit::builtin::compose(mr, fmt, a);
+    ASSERT_TRUE(c.isCell());
+    EXPECT_EQ(c.dims().rows(), 1u);
+    EXPECT_EQ(c.dims().cols(), 3u);
+    EXPECT_EQ(c.cellAt(0).toString(), "v1");
+    EXPECT_EQ(c.cellAt(1).toString(), "v2");
+    EXPECT_EQ(c.cellAt(2).toString(), "v3");
+}
+
+TEST(BuiltinStringsPublicApi, ComposeScalar)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value c = numkit::builtin::compose(mr, mkStr(mr, "x=%g"), Value::scalar(2.5, mr));
+    ASSERT_TRUE(c.isCell());
+    EXPECT_EQ(c.numel(), 1u);
+    EXPECT_EQ(c.cellAt(0).toString(), "x=2.5");
+}
+
+TEST(BuiltinStringsPublicApi, StrjustRight)
+{
+    auto *mr = std::pmr::get_default_resource();
+    // "ab  " over "c   " over " de "  →  "  ab" / "   c" / "  de"
+    auto m = Value::matrix(3, 4, numkit::ValueType::CHAR, mr);
+    const char *src = "abc     ddee   ";  // dummy, fill below in column-major
+    (void)src;
+    char *p = m.charDataMut();
+    // Column-major. Row r, col c → p[c*rows + r].
+    // r0 = "ab  ", r1 = "c   ", r2 = " de "
+    auto put = [&](size_t r, size_t c, char ch) { p[c * 3 + r] = ch; };
+    put(0,0,'a'); put(0,1,'b'); put(0,2,' '); put(0,3,' ');
+    put(1,0,'c'); put(1,1,' '); put(1,2,' '); put(1,3,' ');
+    put(2,0,' '); put(2,1,'d'); put(2,2,'e'); put(2,3,' ');
+    Value r = numkit::builtin::strjust(mr, m, "right");
+    EXPECT_EQ(r.dims().rows(), 3u);
+    EXPECT_EQ(r.dims().cols(), 4u);
+    const char *q = r.charData();
+    auto at = [&](size_t row, size_t col) { return q[col * 3 + row]; };
+    EXPECT_EQ(at(0,0), ' '); EXPECT_EQ(at(0,1), ' '); EXPECT_EQ(at(0,2), 'a'); EXPECT_EQ(at(0,3), 'b');
+    EXPECT_EQ(at(1,0), ' '); EXPECT_EQ(at(1,1), ' '); EXPECT_EQ(at(1,2), ' '); EXPECT_EQ(at(1,3), 'c');
+    EXPECT_EQ(at(2,0), ' '); EXPECT_EQ(at(2,1), ' '); EXPECT_EQ(at(2,2), 'd'); EXPECT_EQ(at(2,3), 'e');
+}
+
+TEST(BuiltinStringsPublicApi, ExtractMultipleMatches)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value c = numkit::builtin::extract(mr, mkStr(mr, "hello hello world"), mkStr(mr, "hello"));
+    ASSERT_TRUE(c.isCell());
+    EXPECT_EQ(c.dims().rows(), 2u);
+    EXPECT_EQ(c.dims().cols(), 1u);
+    EXPECT_EQ(c.cellAt(0).toString(), "hello");
+    EXPECT_EQ(c.cellAt(1).toString(), "hello");
+}
+
+TEST(BuiltinStringsPublicApi, ExtractNoMatch)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value c = numkit::builtin::extract(mr, mkStr(mr, "hi"), mkStr(mr, "world"));
+    ASSERT_TRUE(c.isCell());
+    EXPECT_EQ(c.numel(), 0u);
+}
+
+TEST(BuiltinStringsPublicApi, SplitKeepsEmptyTokens)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value c = numkit::builtin::split(mr, mkStr(mr, "a,b,,c"), mkStr(mr, ","));
+    ASSERT_TRUE(c.isCell());
+    EXPECT_EQ(c.dims().rows(), 4u);
+    EXPECT_EQ(c.dims().cols(), 1u);
+    EXPECT_EQ(c.cellAt(0).toString(), "a");
+    EXPECT_EQ(c.cellAt(1).toString(), "b");
+    EXPECT_EQ(c.cellAt(2).toString(), "");
+    EXPECT_EQ(c.cellAt(3).toString(), "c");
+}
+
+TEST(BuiltinStringsPublicApi, JoinStringArray)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value arr = Value::stringArray(1, 3, mr);
+    arr.stringElemSet(0, "a"); arr.stringElemSet(1, "b"); arr.stringElemSet(2, "c");
+    Value d = mkStr(mr, "-");
+    Value j = numkit::builtin::join(mr, arr, &d);
+    EXPECT_TRUE(j.isString());
+    EXPECT_EQ(j.numel(), 1u);
+    EXPECT_EQ(j.stringElem(0), "a-b-c");
+}
+
+TEST(BuiltinStringsPublicApi, JoinDefaultDelimIsSpace)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value arr = Value::stringArray(1, 3, mr);
+    arr.stringElemSet(0, "x"); arr.stringElemSet(1, "y"); arr.stringElemSet(2, "z");
+    Value j = numkit::builtin::join(mr, arr, nullptr);
+    EXPECT_EQ(j.stringElem(0), "x y z");
+}

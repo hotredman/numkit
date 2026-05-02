@@ -23,3 +23,12 @@ of work + measurements.
 | `cast` | core | DONE | 5.072 | 1.506 | 2.778 | 0.30× | 0.55× | OK | 1M doubles -> int32. 50 iters. |
 | `swapbytes` | core | DONE | 1.049 | 1.086 | 7.974 | 1.04× | 7.60× | OK | 1M uint32 byte-swap. 50 iters. |
 | `regexptranslate` | core | DONE | 0.000 | 0.005 | 0.023 | 13.86× | 63.52× | OK | Escape 21-char string with many metachars. 10k iters. |
+| `compose` | core | DONE | 0.391 | 0.265 | — | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
+| `strjust` | core | FAIL | — | — | — | — | — | N/A | 1000x50 char matrix, right-justify. 200 iters. |
+| `extract` | core | DONE | 0.106 | 0.105 | — | 1.00× | — | OK | Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters. |
+| `split` | core | DONE | 0.102 | 0.101 | — | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
+| `join` | core | FAIL | — | 0.014 | — | — | — | N/A | Join 1000-element string array with ', '. 1000 iters. |
+| `strjust` | core | DONE | 0.084 | 0.174 | 0.203 | 2.07× | 2.42× | OK | 1000x50 char matrix, right-justify. 200 iters. |
+| `join` | core | DONE | 0.001 | — | — | — | — | N/A | Join 24-element Greek-letter string array. 10k iters. |
+| `join` | core | DONE | 0.001 | — | — | — | — | N/A | Join 24-element Greek-letter string array. 10k iters. |
+| `join` | core | DONE | 0.001 | 0.000 | — | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
