@@ -332,6 +332,31 @@ void all_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void xor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cross_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void dot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+
+// Pack 11: operator-named function adapters (binary + unary).
+// Defined in language/operators/{binary,unary}_ops.cpp.
+void plus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void minus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void times_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mtimes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void rdivide_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mrdivide_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mldivide_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ldivide_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void power_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mpower_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void eq_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ne_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void lt_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void le_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void gt_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ge_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void and_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void or_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void uminus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void uplus_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void not_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ctranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 } // namespace numkit::builtin::detail
 
 namespace numkit {
@@ -519,6 +544,30 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("ndims",     &builtin::detail::ndims_reg);
     engine.registerFunction("reshape",   &builtin::detail::reshape_reg);
     engine.registerFunction("transpose", &builtin::detail::transpose_reg);
+
+    // ── Pack 11: operator-named functions ────────────────────────
+    engine.registerFunction("plus",       &builtin::detail::plus_reg);
+    engine.registerFunction("minus",      &builtin::detail::minus_reg);
+    engine.registerFunction("times",      &builtin::detail::times_reg);
+    engine.registerFunction("mtimes",     &builtin::detail::mtimes_reg);
+    engine.registerFunction("rdivide",    &builtin::detail::rdivide_reg);
+    engine.registerFunction("mrdivide",   &builtin::detail::mrdivide_reg);
+    engine.registerFunction("mldivide",   &builtin::detail::mldivide_reg);
+    engine.registerFunction("ldivide",    &builtin::detail::ldivide_reg);
+    engine.registerFunction("power",      &builtin::detail::power_reg);
+    engine.registerFunction("mpower",     &builtin::detail::mpower_reg);
+    engine.registerFunction("eq",         &builtin::detail::eq_reg);
+    engine.registerFunction("ne",         &builtin::detail::ne_reg);
+    engine.registerFunction("lt",         &builtin::detail::lt_reg);
+    engine.registerFunction("le",         &builtin::detail::le_reg);
+    engine.registerFunction("gt",         &builtin::detail::gt_reg);
+    engine.registerFunction("ge",         &builtin::detail::ge_reg);
+    engine.registerFunction("and",        &builtin::detail::and_reg);
+    engine.registerFunction("or",         &builtin::detail::or_reg);
+    engine.registerFunction("uminus",     &builtin::detail::uminus_reg);
+    engine.registerFunction("uplus",      &builtin::detail::uplus_reg);
+    engine.registerFunction("not",        &builtin::detail::not_reg);
+    engine.registerFunction("ctranspose", &builtin::detail::ctranspose_reg);
     engine.registerFunction("pagemtimes",&builtin::detail::pagemtimes_reg);
     engine.registerFunction("diag",      &builtin::detail::diag_reg);
     engine.registerFunction("sort",      &builtin::detail::sort_reg);

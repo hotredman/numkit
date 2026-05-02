@@ -65,7 +65,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 44 ✅ + 3 ⚠️ / 55 = 85% — **NS: core**
+### Matrices and Arrays — 46 ✅ + 1 ⚠️ / 55 = 85% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -74,7 +74,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `circshift` | ✅ |  |
 | `colon` | ⚠️ | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ | all combinations |
-| `ctranspose` | ⚠️ | works as postfix `'` operator; not callable as named fn |
+| `ctranspose` | ✅ | named-fn form added in Pack 11 |
 | `diag` | ✅ |  |
 | `end` | ✅ | keyword + `A(end)` indexing form |
 | `eye` | ✅ |  |
@@ -119,7 +119,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `squeeze` | ✅ |  |
 | `sub2ind` | ✅ | linear-index conv |
 | `tail` | ❌ |  |
-| `transpose` | ⚠️ | works as postfix `.'` operator; not callable as named fn |
+| `transpose` | ✅ | named-fn form added in Pack 11 |
 | `trimdata` | ❌ |  |
 | `true` | ✅ | literal/constant |
 | `vertcat` | ✅ |  |
@@ -175,7 +175,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 29 ✅ + 1 ⚠️ / 65 = 46% — **NS: core**
+### Characters and Strings — 30 ✅ + 0 ⚠️ / 65 = 46% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -213,7 +213,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `newline` | ❌ |  |
 | `num2str` | ✅ |  |
 | `pad` | ❌ |  |
-| `plus` | ⚠️ | works as binary `+` operator; not callable as named fn |
+| `plus` | ✅ | named-fn form added in Pack 11 |
 | `regexp` | ✅ |  |
 | `regexpi` | ✅ |  |
 | `regexprep` | ✅ |  |
@@ -423,44 +423,44 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 ## 2. Mathematics
 
-### Arithmetic — 12 ✅ + 14 ⚠️ / 34 = 76% — **NS: core**
+### Arithmetic — 26 ✅ + 0 ⚠️ / 34 = 76% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `bsxfun` | ❌ | legacy broadcast |
 | `ceil` | ✅ |  |
-| `ctranspose` | ⚠️ | works as postfix `'` operator; not callable as named fn |
+| `ctranspose` | ✅ | named-fn form added in Pack 11 |
 | `cumprod` | ✅ |  |
 | `cumsum` | ✅ |  |
 | `diff` | ✅ |  |
 | `fix` | ✅ |  |
 | `floor` | ✅ |  |
 | `idivide` | ❌ | integer division |
-| `ldivide` | ⚠️ | works as elementwise `.\` operator; not callable as named fn |
-| `minus` | ⚠️ | works as binary `-` operator; not callable as named fn |
-| `mldivide` | ⚠️ | works as matrix `\` operator; not callable as named fn |
+| `ldivide` | ✅ | named-fn form added in Pack 11 |
+| `minus` | ✅ | named-fn form added in Pack 11 |
+| `mldivide` | ✅ | named-fn form added in Pack 11 |
 | `mod` | ✅ |  |
 | `movsum` | ✅ | moving sum |
-| `mpower` | ⚠️ | works as matrix `^` operator; not callable as named fn |
-| `mrdivide` | ⚠️ | works as matrix `/` operator; not callable as named fn |
-| `mtimes` | ⚠️ | works as matrix `*` operator; not callable as named fn |
+| `mpower` | ✅ | named-fn form added in Pack 11 |
+| `mrdivide` | ✅ | named-fn form added in Pack 11 |
+| `mtimes` | ✅ | named-fn form added in Pack 11 |
 | `pagectranspose` | ❌ |  |
 | `pagemldivide` | ❌ |  |
 | `pagemrdivide` | ❌ |  |
 | `pagemtimes` | ✅ |  |
 | `pagetranspose` | ❌ |  |
-| `plus` | ⚠️ | works as binary `+` operator; not callable as named fn |
-| `power` | ⚠️ | works as elementwise `.^` operator; not callable as named fn |
+| `plus` | ✅ | named-fn form added in Pack 11 |
+| `power` | ✅ | named-fn form added in Pack 11 |
 | `prod` | ✅ |  |
-| `rdivide` | ⚠️ | works as elementwise `./` operator; not callable as named fn |
+| `rdivide` | ✅ | named-fn form added in Pack 11 |
 | `rem` | ✅ |  |
 | `round` | ✅ |  |
 | `sum` | ✅ |  |
 | `tensorprod` | ❌ | tensor contraction |
-| `times` | ⚠️ | works as elementwise `.*` operator; not callable as named fn |
-| `transpose` | ⚠️ | works as postfix `.'` operator; not callable as named fn |
-| `uminus` | ⚠️ | works as unary `-` operator; not callable as named fn |
-| `uplus` | ⚠️ | works as unary `+` operator; not callable as named fn |
+| `times` | ✅ | named-fn form added in Pack 11 |
+| `transpose` | ✅ | named-fn form added in Pack 11 |
+| `uminus` | ✅ | named-fn form added in Pack 11 |
+| `uplus` | ✅ | named-fn form added in Pack 11 |
 
 ### Trigonometry — 47 ✅ + 0 ⚠️ / 47 = 100% — **NS: core**
 
@@ -594,7 +594,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `residue` | ❌ | partial-fraction |
 | `roots` | ✅ |  |
 
-### Linear Algebra — 6 ✅ + 6 ⚠️ / 82 = 14% — **NS: `linalg.*` (future)**
+### Linear Algebra — 12 ✅ + 0 ⚠️ / 82 = 15% — **NS: `linalg.*` (future)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -607,7 +607,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `condeig` | ❌ | **deferred — libs/linalg** |
 | `condest` | ❌ | **deferred — libs/linalg** |
 | `cross` | ✅ |  |
-| `ctranspose` | ⚠️ | works as postfix `'` operator; not callable as named fn |
+| `ctranspose` | ✅ | named-fn form added in Pack 11 |
 | `decomposition` | ❌ | **deferred — libs/linalg** |
 | `det` | ❌ | **deferred — libs/linalg** |
 | `dot` | ✅ |  |
@@ -633,10 +633,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `lsqminnorm` | ❌ | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |
 | `lu` | ❌ | **deferred — libs/linalg** |
-| `mldivide` | ⚠️ | works as matrix `\` operator; not callable as named fn |
-| `mpower` | ⚠️ | works as matrix `^` operator; not callable as named fn |
-| `mrdivide` | ⚠️ | works as matrix `/` operator; not callable as named fn |
-| `mtimes` | ⚠️ | works as matrix `*` operator; not callable as named fn |
+| `mldivide` | ✅ | named-fn form added in Pack 11 |
+| `mpower` | ✅ | named-fn form added in Pack 11 |
+| `mrdivide` | ✅ | named-fn form added in Pack 11 |
+| `mtimes` | ✅ | named-fn form added in Pack 11 |
 | `norm` | ❌ | **deferred — libs/linalg** |
 | `normest` | ❌ | **deferred — libs/linalg** |
 | `null` | ❌ | **deferred — libs/linalg** |
@@ -676,7 +676,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `svdsketch` | ❌ |  |
 | `sylvester` | ❌ | **deferred — libs/linalg** |
 | `trace` | ❌ | **deferred — libs/linalg** |
-| `transpose` | ⚠️ | works as postfix `.'` operator; not callable as named fn |
+| `transpose` | ✅ | named-fn form added in Pack 11 |
 | `tril` | ✅ |  |
 | `triu` | ✅ |  |
 | `vecnorm` | ❌ | **deferred — libs/linalg** |

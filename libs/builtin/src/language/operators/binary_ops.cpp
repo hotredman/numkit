@@ -612,6 +612,71 @@ Value logicalOr(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return logicalBinary("|", [](bool x, bool y) { return x || y; }, mr, a, b);
 }
 
+// ── Named-function adapters for the binary operator set ──────────────
+// Pack 11: lift the "works as op only" ⚠️ entries to ✅ by exposing
+// each binary operator under its MATLAB function name. Each adapter is
+// a thin wrapper over the existing public API.
+namespace detail {
+
+#define NK_BINOP_REG(MATLAB_NAME, CXX_FN)                                            \
+    void MATLAB_NAME##_reg(Span<const Value> args, size_t /*nargout*/,              \
+                           Span<Value> outs, CallContext &ctx)                       \
+    {                                                                                 \
+        if (args.size() < 2)                                                          \
+            throw Error(#MATLAB_NAME ": requires 2 arguments",                       \
+                         0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
+        outs[0] = CXX_FN(ctx.engine->resource(), args[0], args[1]);                  \
+    }
+
+NK_BINOP_REG(plus,     plus)
+NK_BINOP_REG(minus,    minus)
+NK_BINOP_REG(times,    times)
+NK_BINOP_REG(mtimes,   mtimes)
+NK_BINOP_REG(rdivide,  rdivide)
+NK_BINOP_REG(mrdivide, mrdivide)
+NK_BINOP_REG(mldivide, mldivide)
+NK_BINOP_REG(power,    elementPower)   // MATLAB power(a,b) = a.^b → C++ elementPower
+NK_BINOP_REG(mpower,   power)          // MATLAB mpower(a,b) = a^b  → C++ power
+NK_BINOP_REG(eq,       eq)
+NK_BINOP_REG(ne,       ne)
+NK_BINOP_REG(lt,       lt)
+NK_BINOP_REG(le,       le)
+NK_BINOP_REG(gt,       gt)
+NK_BINOP_REG(ge,       ge)
+
+#undef NK_BINOP_REG
+
+// ldivide(a, b) = b ./ a (MATLAB convention).
+void ldivide_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ldivide: requires 2 arguments",
+                     0, 0, "ldivide", "", "m:ldivide:nargin");
+    outs[0] = rdivide(ctx.engine->resource(), args[1], args[0]);
+}
+
+// `and` / `or` builtins map to logicalAnd / logicalOr.
+void and_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+             CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("and: requires 2 arguments",
+                     0, 0, "and", "", "m:and:nargin");
+    outs[0] = logicalAnd(ctx.engine->resource(), args[0], args[1]);
+}
+
+void or_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+            CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("or: requires 2 arguments",
+                     0, 0, "or", "", "m:or:nargin");
+    outs[0] = logicalOr(ctx.engine->resource(), args[0], args[1]);
+}
+
+} // namespace detail
+
 } // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════
