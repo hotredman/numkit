@@ -308,6 +308,176 @@ Value strjoin(std::pmr::memory_resource *mr, const Value &c, const Value *delim)
     return Value::fromString(out, mr);
 }
 
+// ── Pack 18 ──────────────────────────────────────────────────────────
+
+Value append(std::pmr::memory_resource *mr, Span<const Value> parts)
+{
+    // Same shape as strcat but does NOT trim trailing whitespace from
+    // char-array operands (MATLAB's "append" is the literal-concatenate
+    // variant that script users reach for).
+    std::string out;
+    for (const auto &p : parts)
+        out += p.toString();
+    return Value::fromString(out, mr);
+}
+
+Value count(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+{
+    const std::string ss = s.toString();
+    const std::string pp = pat.toString();
+    if (pp.empty()) return Value::scalar(0.0, mr);
+    size_t n = 0, pos = 0;
+    while ((pos = ss.find(pp, pos)) != std::string::npos) {
+        ++n;
+        pos += pp.size();   // non-overlapping (matches MATLAB)
+    }
+    return Value::scalar(static_cast<double>(n), mr);
+}
+
+Value erase(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+{
+    std::string r = s.toString();
+    const std::string pp = pat.toString();
+    if (pp.empty()) {
+        if (s.isString()) return Value::stringScalar(r, mr);
+        return Value::fromString(r, mr);
+    }
+    size_t pos = 0;
+    while ((pos = r.find(pp, pos)) != std::string::npos)
+        r.erase(pos, pp.size());
+    if (s.isString()) return Value::stringScalar(r, mr);
+    return Value::fromString(r, mr);
+}
+
+Value replace(std::pmr::memory_resource *mr, const Value &s,
+              const Value &oldPat, const Value &newPat)
+{
+    return strrep(mr, s, oldPat, newPat);
+}
+
+Value reverse(std::pmr::memory_resource *mr, const Value &s)
+{
+    std::string r = s.toString();
+    std::reverse(r.begin(), r.end());
+    if (s.isString()) return Value::stringScalar(r, mr);
+    return Value::fromString(r, mr);
+}
+
+Value splitlines(std::pmr::memory_resource *mr, const Value &s)
+{
+    const std::string ss = s.toString();
+    ScratchArena scratch(mr);
+    ScratchVec<std::string> parts(&scratch);
+    std::string cur;
+    for (size_t i = 0; i < ss.size(); ++i) {
+        const char c = ss[i];
+        if (c == '\r') {
+            parts.push_back(std::move(cur));
+            cur.clear();
+            // Skip a following \n to handle CRLF as one separator.
+            if (i + 1 < ss.size() && ss[i + 1] == '\n') ++i;
+        } else if (c == '\n') {
+            parts.push_back(std::move(cur));
+            cur.clear();
+        } else {
+            cur.push_back(c);
+        }
+    }
+    // Always push the final segment, even if empty (matches MATLAB:
+    // splitlines("a\nb") returns 2 entries; splitlines("a\n") returns 2).
+    parts.push_back(std::move(cur));
+    auto out = Value::cell(parts.size(), 1, mr);
+    for (size_t i = 0; i < parts.size(); ++i)
+        out.cellAt(i) = Value::fromString(parts[i], mr);
+    return out;
+}
+
+namespace {
+inline std::string readSide(const Value *side, const char *def)
+{
+    if (!side) return def;
+    if (!side->isChar() && !side->isString())
+        throw std::runtime_error("string-side argument must be a string");
+    auto s = side->toString();
+    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+} // anon
+
+Value pad(std::pmr::memory_resource *mr, const Value &s, size_t n,
+          const Value *side, const Value *padChar)
+{
+    std::string r = s.toString();
+    if (r.size() >= n) {
+        if (s.isString()) return Value::stringScalar(r, mr);
+        return Value::fromString(r, mr);
+    }
+    const std::string sd = readSide(side, "right");
+    char ch = ' ';
+    if (padChar && (padChar->isChar() || padChar->isString())) {
+        const auto p = padChar->toString();
+        if (!p.empty()) ch = p[0];
+    }
+    const size_t pad = n - r.size();
+    if (sd == "right") {
+        r.append(pad, ch);
+    } else if (sd == "left") {
+        r.insert(r.begin(), pad, ch);
+    } else if (sd == "both") {
+        const size_t left = pad / 2;
+        const size_t right = pad - left;
+        r.insert(r.begin(), left, ch);
+        r.append(right, ch);
+    } else {
+        throw Error("pad: side must be 'left', 'right', or 'both'",
+                     0, 0, "pad", "", "m:pad:badSide");
+    }
+    if (s.isString()) return Value::stringScalar(r, mr);
+    return Value::fromString(r, mr);
+}
+
+Value strip(std::pmr::memory_resource *mr, const Value &s,
+            const Value *side, const Value *ch)
+{
+    std::string r = s.toString();
+    const std::string sd = readSide(side, "both");
+    std::string charsToStrip = " \t\r\n\f\v";
+    if (ch && (ch->isChar() || ch->isString())) {
+        charsToStrip = ch->toString();
+        if (charsToStrip.empty()) {
+            if (s.isString()) return Value::stringScalar(r, mr);
+            return Value::fromString(r, mr);
+        }
+    }
+    auto stripLeft = [&]() {
+        size_t i = 0;
+        while (i < r.size() && charsToStrip.find(r[i]) != std::string::npos) ++i;
+        if (i > 0) r.erase(0, i);
+    };
+    auto stripRight = [&]() {
+        while (!r.empty() && charsToStrip.find(r.back()) != std::string::npos)
+            r.pop_back();
+    };
+    if (sd == "left" || sd == "both") stripLeft();
+    if (sd == "right" || sd == "both") stripRight();
+    if (s.isString()) return Value::stringScalar(r, mr);
+    return Value::fromString(r, mr);
+}
+
+Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
+{
+    const std::string ss = s.toString();
+    if (pat.isCell()) {
+        // True iff s equals any element of pat.
+        for (size_t i = 0; i < pat.numel(); ++i) {
+            if (ss == pat.cellAt(i).toString())
+                return Value::logicalScalar(true, mr);
+        }
+        return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(ss == pat.toString(), mr);
+}
+
 Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
 {
     std::pmr::memory_resource *p = mr;
@@ -549,6 +719,80 @@ void strjoin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
                      "m:strjoin:nargin");
     const Value *delim = (args.size() >= 2) ? &args[1] : nullptr;
     outs[0] = strjoin(ctx.engine->resource(), args[0], delim);
+}
+
+void append_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    outs[0] = append(ctx.engine->resource(), args);
+}
+
+void count_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("count: requires (s, pat)",
+                     0, 0, "count", "", "m:count:nargin");
+    outs[0] = count(ctx.engine->resource(), args[0], args[1]);
+}
+
+void erase_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("erase: requires (s, pat)",
+                     0, 0, "erase", "", "m:erase:nargin");
+    outs[0] = erase(ctx.engine->resource(), args[0], args[1]);
+}
+
+void replace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("replace: requires (s, old, new)",
+                     0, 0, "replace", "", "m:replace:nargin");
+    outs[0] = replace(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+void reverse_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("reverse: requires 1 argument",
+                     0, 0, "reverse", "", "m:reverse:nargin");
+    outs[0] = reverse(ctx.engine->resource(), args[0]);
+}
+
+void splitlines_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("splitlines: requires 1 argument",
+                     0, 0, "splitlines", "", "m:splitlines:nargin");
+    outs[0] = splitlines(ctx.engine->resource(), args[0]);
+}
+
+void pad_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("pad: requires (s, n[, side[, ch]])",
+                     0, 0, "pad", "", "m:pad:nargin");
+    const size_t n = static_cast<size_t>(args[1].toScalar());
+    const Value *side = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    const Value *ch   = (args.size() >= 4 && !args[3].isEmpty()) ? &args[3] : nullptr;
+    outs[0] = pad(ctx.engine->resource(), args[0], n, side, ch);
+}
+
+void strip_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("strip: requires (s[, side[, ch]])",
+                     0, 0, "strip", "", "m:strip:nargin");
+    const Value *side = (args.size() >= 2 && !args[1].isEmpty()) ? &args[1] : nullptr;
+    const Value *ch   = (args.size() >= 3 && !args[2].isEmpty()) ? &args[2] : nullptr;
+    outs[0] = strip(ctx.engine->resource(), args[0], side, ch);
+}
+
+void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("matches: requires (s, pat)",
+                     0, 0, "matches", "", "m:matches:nargin");
+    outs[0] = matches(ctx.engine->resource(), args[0], args[1]);
 }
 
 // strtok(s, delim?) — split at first delim char. Returns [token, rem].

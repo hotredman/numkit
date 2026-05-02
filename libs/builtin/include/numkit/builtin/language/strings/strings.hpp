@@ -91,4 +91,33 @@ Value mat2str(std::pmr::memory_resource *mr, const Value &x, int precision = 15)
 /// space). Returns a single char row.
 Value strjoin(std::pmr::memory_resource *mr, const Value &c, const Value *delim = nullptr);
 
+// ── Pack 18: extra string utilities ──────────────────────────────────
+/// append(s1, s2, ...) — concatenate strings, preserving trailing
+/// whitespace (unlike strcat).
+Value append(std::pmr::memory_resource *mr, Span<const Value> parts);
+/// count(s, pat) — number of non-overlapping occurrences of pat in s.
+Value count(std::pmr::memory_resource *mr, const Value &s, const Value &pat);
+/// erase(s, pat) — return s with every non-overlapping pat removed.
+Value erase(std::pmr::memory_resource *mr, const Value &s, const Value &pat);
+/// replace(s, old, new) — alias for strrep with overlapping-match
+/// semantics matching MATLAB's `replace`.
+Value replace(std::pmr::memory_resource *mr, const Value &s,
+              const Value &oldPat, const Value &newPat);
+/// reverse(s) — reverse character order.
+Value reverse(std::pmr::memory_resource *mr, const Value &s);
+/// splitlines(s) — split on CRLF / LF / CR; returns N×1 cell. Trailing
+/// newline does not introduce a final empty token.
+Value splitlines(std::pmr::memory_resource *mr, const Value &s);
+/// pad(s, n[, side[, padChar]]) — pad to length n. `side` ∈
+/// {"right","left","both"}, default "right". `padChar` default ' '.
+Value pad(std::pmr::memory_resource *mr, const Value &s, size_t n,
+          const Value *side = nullptr, const Value *padChar = nullptr);
+/// strip(s[, side[, ch]]) — strip whitespace (or `ch`). side ∈
+/// {"both","left","right"}, default "both".
+Value strip(std::pmr::memory_resource *mr, const Value &s,
+            const Value *side = nullptr, const Value *ch = nullptr);
+/// matches(s, pat) — logical: s exactly equals pat. For pat a cell
+/// of strings, true iff s equals any element of pat.
+Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat);
+
 } // namespace numkit::builtin

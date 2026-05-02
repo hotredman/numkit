@@ -175,11 +175,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 31 ✅ + 0 ⚠️ / 65 = 48% — **NS: core**
+### Characters and Strings — 40 ✅ + 0 ⚠️ / 65 = 62% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `append` | ❌ |  |
+| `append` | ✅ |  |
 | `blanks` | ✅ |  |
 | `cellstr` | ✅ | cell of char rows |
 | `char` | ✅ |  |
@@ -188,11 +188,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `convertcharstostrings` | ❌ |  |
 | `convertcontainedstringstochars` | ❌ |  |
 | `convertstringstochars` | ❌ |  |
-| `count` | ❌ |  |
+| `count` | ✅ |  |
 | `deblank` | ✅ |  |
 | `double` | ✅ |  |
 | `endswith` | ❌ |  |
-| `erase` | ❌ |  |
+| `erase` | ✅ |  |
 | `erasebetween` | ❌ |  |
 | `extract` | ❌ |  |
 | `extractafter` | ❌ |  |
@@ -209,20 +209,20 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `isstrprop` | ❌ |  |
 | `join` | ❌ |  |
 | `lower` | ✅ |  |
-| `matches` | ❌ |  |
+| `matches` | ✅ |  |
 | `newline` | ❌ |  |
 | `num2str` | ✅ |  |
-| `pad` | ❌ |  |
+| `pad` | ✅ |  |
 | `plus` | ✅ | named-fn form added in Pack 11 |
 | `regexp` | ✅ |  |
 | `regexpi` | ✅ |  |
 | `regexprep` | ✅ |  |
 | `regexptranslate` | ❌ |  |
-| `replace` | ❌ |  |
+| `replace` | ✅ |  |
 | `replacebetween` | ❌ |  |
-| `reverse` | ❌ |  |
+| `reverse` | ✅ |  |
 | `split` | ❌ |  |
-| `splitlines` | ❌ |  |
+| `splitlines` | ✅ |  |
 | `sprintf` | ✅ |  |
 | `sscanf` | ✅ |  |
 | `startswith` | ❌ |  |
@@ -233,7 +233,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `strfind` | ✅ |  |
 | `string` | ✅ |  |
 | `strings` | ❌ |  |
-| `strip` | ❌ |  |
+| `strip` | ✅ |  |
 | `strjoin` | ✅ |  |
 | `strjust` | ❌ |  |
 | `strlength` | ✅ |  |
