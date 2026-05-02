@@ -501,6 +501,55 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Set ops — Pack 16 ─────────────────────────────────────────
+TEST_P(BuiltinTest, SetXor)
+{
+    eval("v = setxor([1 2 3 4], [3 4 5 6]);");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 4u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 6.0);
+    // Disjoint sets → union.
+    eval("u = setxor([1 2], [3 4]);");
+    EXPECT_EQ(getVarPtr("u")->numel(), 4u);
+    // Identical sets → empty.
+    eval("e = setxor([1 2 3], [1 2 3]);");
+    EXPECT_TRUE(getVarPtr("e")->isEmpty());
+}
+
+TEST_P(BuiltinTest, AllUniqueAndNumUnique)
+{
+    EXPECT_TRUE(evalBool("allunique([1 2 3 4]);"));
+    EXPECT_FALSE(evalBool("allunique([1 2 2 3]);"));
+    EXPECT_TRUE(evalBool("allunique([]);"));
+    EXPECT_TRUE(evalBool("allunique(5);"));
+
+    EXPECT_DOUBLE_EQ(evalScalar("numunique([1 2 3 2 1]);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numunique([]);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("numunique([1 1 1]);"), 1.0);
+}
+
+TEST_P(BuiltinTest, IsmemberTolUniquetol)
+{
+    // Tolerant membership.
+    eval("tf = ismembertol([1.0 2.000001 3.0], [1 2 4], 1e-4);");
+    auto *tf = getVarPtr("tf");
+    ASSERT_EQ(tf->numel(), 3u);
+    EXPECT_EQ(tf->logicalData()[0], 1);   // 1.0 ∈ {1,2,4}
+    EXPECT_EQ(tf->logicalData()[1], 1);   // 2.000001 ≈ 2
+    EXPECT_EQ(tf->logicalData()[2], 0);   // 3.0 not present
+
+    // Tolerant uniqueness.
+    eval("u = uniquetol([1.0 1.0000001 2.0 2.0000001 3.0], 1e-4);");
+    auto *u = getVarPtr("u");
+    ASSERT_EQ(u->numel(), 3u);
+    EXPECT_NEAR(u->doubleData()[0], 1.0, 1e-3);
+    EXPECT_NEAR(u->doubleData()[1], 2.0, 1e-3);
+    EXPECT_NEAR(u->doubleData()[2], 3.0, 1e-3);
+}
+
 // ── Cell idioms — Pack 15 ─────────────────────────────────────
 TEST_P(BuiltinTest, Num2Cell)
 {

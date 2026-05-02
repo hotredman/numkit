@@ -816,6 +816,121 @@ Value nchoosek(std::pmr::memory_resource *mr, double n, double k)
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Pack 16: setxor / allunique / numunique / ismembertol / uniquetol
+// ════════════════════════════════════════════════════════════════════════
+//
+// Builds on the same hash-set / sort+merge primitives used by `unique` /
+// `union` / `intersect`. The tolerant variants do an O(N²) sweep — fine
+// for the typical cell sizes (≤ 1e4) where these get called.
+
+Value setxor(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+{
+    // Symmetric difference: { x : x ∈ A xor x ∈ B }.
+    if (a.numel() == 0 && b.numel() == 0) return emptyRow(mr);
+
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<double, DoubleHashEq0> sa(&scratch), sb(&scratch);
+    sa.reserve(a.numel());
+    sb.reserve(b.numel());
+    for (size_t i = 0; i < a.numel(); ++i) sa.insert(a.doubleData()[i]);
+    for (size_t i = 0; i < b.numel(); ++i) sb.insert(b.doubleData()[i]);
+
+    auto out = ScratchVec<double>(&scratch);
+    out.reserve(sa.size() + sb.size());
+    for (double v : sa) if (!sb.count(v)) out.push_back(v);
+    for (double v : sb) if (!sa.count(v)) out.push_back(v);
+    std::sort(out.begin(), out.end());
+    return rowFromVec(mr, out.data(), out.size());
+}
+
+Value allunique(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t n = x.numel();
+    if (n <= 1) return Value::logicalScalar(true, mr);
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
+    seen.reserve(n);
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i) {
+        // NaN compares unequal to itself; MATLAB treats two NaNs as
+        // distinct in allunique, so we let them all pass through.
+        if (std::isnan(p[i])) continue;
+        if (!seen.insert(p[i]).second)
+            return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(true, mr);
+}
+
+Value numunique(std::pmr::memory_resource *mr, const Value &x)
+{
+    const size_t n = x.numel();
+    if (n == 0) return Value::scalar(0.0, mr);
+    ScratchArena scratch(mr);
+    std::pmr::unordered_set<double, DoubleHashEq0> seen(&scratch);
+    seen.reserve(n);
+    size_t nanCount = 0;
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i) {
+        if (std::isnan(p[i])) ++nanCount;
+        else seen.insert(p[i]);
+    }
+    return Value::scalar(static_cast<double>(seen.size() + nanCount), mr);
+}
+
+namespace {
+inline bool nearlyEqualTol(double x, double y, double tol)
+{
+    if (x == y) return true;
+    if (std::isnan(x) || std::isnan(y)) return false;
+    const double s = std::max(std::abs(x), std::abs(y));
+    return std::abs(x - y) <= tol * std::max(1.0, s);
+}
+} // anon
+
+Value ismembertol(std::pmr::memory_resource *mr,
+                  const Value &a, const Value &s, double tol)
+{
+    // Returns logical of size(a). For each a[i], true if there exists
+    // s[j] with |a[i] - s[j]| ≤ tol * max(1, |a|, |s|). Naive O(|a||s|).
+    auto r = createLike(a, ValueType::LOGICAL, mr);
+    const size_t na = a.numel(), ns = s.numel();
+    const double *pa = a.doubleData();
+    const double *ps = s.doubleData();
+    for (size_t i = 0; i < na; ++i) {
+        bool hit = false;
+        for (size_t j = 0; j < ns; ++j) {
+            if (nearlyEqualTol(pa[i], ps[j], tol)) { hit = true; break; }
+        }
+        r.logicalDataMut()[i] = hit ? 1 : 0;
+    }
+    return r;
+}
+
+Value uniquetol(std::pmr::memory_resource *mr, const Value &x, double tol)
+{
+    const size_t n = x.numel();
+    if (n == 0) return emptyRow(mr);
+    ScratchArena scratch(mr);
+    auto vals = ScratchVec<double>(&scratch);
+    vals.reserve(n);
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i) vals.push_back(p[i]);
+    std::sort(vals.begin(), vals.end(),
+              [](double a, double b) {
+                  if (std::isnan(b)) return !std::isnan(a);
+                  if (std::isnan(a)) return false;
+                  return a < b;
+              });
+    auto out = ScratchVec<double>(&scratch);
+    out.reserve(n);
+    for (double v : vals) {
+        if (out.empty() || !nearlyEqualTol(out.back(), v, tol))
+            out.push_back(v);
+    }
+    return rowFromVec(mr, out.data(), out.size());
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════════
 namespace detail {
@@ -938,6 +1053,59 @@ void nchoosek_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
                      0, 0, "nchoosek", "", "m:nchoosek:vectorForm");
     outs[0] = nchoosek(ctx.engine->resource(),
                        args[0].toScalar(), args[1].toScalar());
+}
+
+// ── Pack 16 adapters ─────────────────────────────────────────────────
+
+void setxor_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("setxor: requires 2 arguments",
+                     0, 0, "setxor", "", "m:setxor:nargin");
+    outs[0] = setxor(ctx.engine->resource(), args[0], args[1]);
+}
+
+void allunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("allunique: requires 1 argument",
+                     0, 0, "allunique", "", "m:allunique:nargin");
+    outs[0] = allunique(ctx.engine->resource(), args[0]);
+}
+
+void numunique_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("numunique: requires 1 argument",
+                     0, 0, "numunique", "", "m:numunique:nargin");
+    outs[0] = numunique(ctx.engine->resource(), args[0]);
+}
+
+void ismembertol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                     CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ismembertol: requires (A, S, [tol])",
+                     0, 0, "ismembertol", "", "m:ismembertol:nargin");
+    double tol = (args.size() >= 3 && !args[2].isEmpty())
+                     ? args[2].toScalar()
+                     : 1e-6;
+    outs[0] = ismembertol(ctx.engine->resource(), args[0], args[1], tol);
+}
+
+void uniquetol_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("uniquetol: requires (A, [tol])",
+                     0, 0, "uniquetol", "", "m:uniquetol:nargin");
+    double tol = (args.size() >= 2 && !args[1].isEmpty())
+                     ? args[1].toScalar()
+                     : 1e-6;
+    outs[0] = uniquetol(ctx.engine->resource(), args[0], tol);
 }
 
 } // namespace detail
