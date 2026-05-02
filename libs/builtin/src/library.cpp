@@ -235,6 +235,12 @@ void splitlines_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pad_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void matches_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void convertCharsToStrings_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void convertStringsToChars_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isstringscalar_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isstrprop_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isletter_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isspace_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexpi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexprep_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -719,6 +725,15 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("pad",        &builtin::detail::pad_reg);
     engine.registerFunction("strip",      &builtin::detail::strip_reg);
     engine.registerFunction("matches",    &builtin::detail::matches_reg);
+    engine.registerFunction("convertCharsToStrings",
+                                          &builtin::detail::convertCharsToStrings_reg);
+    engine.registerFunction("convertStringsToChars",
+                                          &builtin::detail::convertStringsToChars_reg);
+    engine.registerFunction("isstringscalar",
+                                          &builtin::detail::isstringscalar_reg);
+    engine.registerFunction("isstrprop",  &builtin::detail::isstrprop_reg);
+    engine.registerFunction("isletter",   &builtin::detail::isletter_reg);
+    engine.registerFunction("isspace",    &builtin::detail::isspace_reg);
     engine.registerFunction("regexp",     &builtin::detail::regexp_reg);
     engine.registerFunction("regexpi",    &builtin::detail::regexpi_reg);
     engine.registerFunction("regexprep",  &builtin::detail::regexprep_reg);

@@ -478,6 +478,149 @@ Value matches(std::pmr::memory_resource *mr, const Value &s, const Value &pat)
     return Value::logicalScalar(ss == pat.toString(), mr);
 }
 
+// ── Pack 21 ──────────────────────────────────────────────────────────
+
+Value convertCharsToStrings(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isString()) return x;
+    if (x.isChar())   return Value::stringScalar(x.toString(), mr);
+    if (x.isCell()) {
+        const auto &d = x.dims();
+        auto c = d.is3D()
+                    ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
+                    : Value::cell(d.rows(), d.cols(), mr);
+        for (size_t i = 0; i < x.numel(); ++i) {
+            const auto &e = x.cellAt(i);
+            if (e.isChar())
+                c.cellAt(i) = Value::stringScalar(e.toString(), mr);
+            else
+                c.cellAt(i) = e;
+        }
+        return c;
+    }
+    // Numeric / other types: pass through unchanged.
+    return x;
+}
+
+Value convertStringsToChars(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isChar()) return x;
+    if (x.isString()) {
+        if (x.numel() <= 1) {
+            return Value::fromString(x.toString(), mr);
+        }
+        // Multi-element string → cell of char rows.
+        const auto &d = x.dims();
+        auto c = d.is3D()
+                    ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
+                    : Value::cell(d.rows(), d.cols(), mr);
+        for (size_t i = 0; i < x.numel(); ++i)
+            c.cellAt(i) = Value::fromString(x.stringElem(i), mr);
+        return c;
+    }
+    if (x.isCell()) {
+        const auto &d = x.dims();
+        auto c = d.is3D()
+                    ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
+                    : Value::cell(d.rows(), d.cols(), mr);
+        for (size_t i = 0; i < x.numel(); ++i) {
+            const auto &e = x.cellAt(i);
+            if (e.isString())
+                c.cellAt(i) = Value::fromString(e.toString(), mr);
+            else
+                c.cellAt(i) = e;
+        }
+        return c;
+    }
+    return x;
+}
+
+Value isstringscalar(std::pmr::memory_resource *mr, const Value &x)
+{
+    return Value::logicalScalar(x.isString() && x.numel() == 1, mr);
+}
+
+namespace {
+// Build a logical array shaped like the input char/string by running
+// `predFn(c)` over each character.
+template <typename PredFn>
+Value applyCharPred(std::pmr::memory_resource *mr, const Value &s, PredFn pred)
+{
+    if (s.isChar()) {
+        const std::string str = s.toString();
+        const size_t n = str.size();
+        // Mirror char's shape (1×N for typical char rows).
+        const auto &d = s.dims();
+        auto r = (d.is3D()
+                     ? Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                       ValueType::LOGICAL, mr)
+                     : Value::matrix(d.rows(), d.cols(),
+                                     ValueType::LOGICAL, mr));
+        for (size_t i = 0; i < n && i < r.numel(); ++i)
+            r.logicalDataMut()[i] = pred(static_cast<unsigned char>(str[i])) ? 1 : 0;
+        return r;
+    }
+    if (s.isString()) {
+        // For string array, MATLAB returns a cell array of logical
+        // arrays (one per element). For now support scalar strings.
+        if (s.numel() == 1) {
+            const std::string str = s.toString();
+            auto r = Value::matrix(1, str.size(), ValueType::LOGICAL, mr);
+            for (size_t i = 0; i < str.size(); ++i)
+                r.logicalDataMut()[i] = pred(static_cast<unsigned char>(str[i])) ? 1 : 0;
+            return r;
+        }
+        throw Error("char-predicate: string-array form not supported",
+                     0, 0, "isstrprop", "", "m:isstrprop:stringArray");
+    }
+    throw Error("char-predicate: input must be char or string",
+                 0, 0, "isstrprop", "", "m:isstrprop:type");
+}
+} // anon
+
+Value isstrprop(std::pmr::memory_resource *mr, const Value &s, const Value &category)
+{
+    if (!category.isChar() && !category.isString())
+        throw Error("isstrprop: category must be a string",
+                     0, 0, "isstrprop", "", "m:isstrprop:cat");
+    auto cat = category.toString();
+    for (auto &c : cat) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (cat == "alpha")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isalpha(c) != 0; });
+    if (cat == "digit")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isdigit(c) != 0; });
+    if (cat == "alphanum")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isalnum(c) != 0; });
+    if (cat == "lower")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::islower(c) != 0; });
+    if (cat == "upper")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isupper(c) != 0; });
+    if (cat == "punct")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::ispunct(c) != 0; });
+    if (cat == "space" || cat == "wspace")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isspace(c) != 0; });
+    if (cat == "xdigit")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isxdigit(c) != 0; });
+    if (cat == "cntrl")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::iscntrl(c) != 0; });
+    if (cat == "graphic")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isgraph(c) != 0; });
+    if (cat == "print")
+        return applyCharPred(mr, s, [](unsigned char c) { return std::isprint(c) != 0; });
+    throw Error("isstrprop: unknown category '" + cat + "'",
+                 0, 0, "isstrprop", "", "m:isstrprop:badCat");
+}
+
+Value isletter(std::pmr::memory_resource *mr, const Value &s)
+{
+    return applyCharPred(mr, s, [](unsigned char c) { return std::isalpha(c) != 0; });
+}
+
+Value isspaceFn(std::pmr::memory_resource *mr, const Value &s)
+{
+    return applyCharPred(mr, s, [](unsigned char c) { return std::isspace(c) != 0; });
+}
+
 Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
 {
     std::pmr::memory_resource *p = mr;
@@ -793,6 +936,54 @@ void matches_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("matches: requires (s, pat)",
                      0, 0, "matches", "", "m:matches:nargin");
     outs[0] = matches(ctx.engine->resource(), args[0], args[1]);
+}
+
+void convertCharsToStrings_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("convertCharsToStrings: requires 1 argument",
+                     0, 0, "convertCharsToStrings", "", "m:convertCharsToStrings:nargin");
+    outs[0] = convertCharsToStrings(ctx.engine->resource(), args[0]);
+}
+
+void convertStringsToChars_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("convertStringsToChars: requires 1 argument",
+                     0, 0, "convertStringsToChars", "", "m:convertStringsToChars:nargin");
+    outs[0] = convertStringsToChars(ctx.engine->resource(), args[0]);
+}
+
+void isstringscalar_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isstringscalar: requires 1 argument",
+                     0, 0, "isstringscalar", "", "m:isstringscalar:nargin");
+    outs[0] = isstringscalar(ctx.engine->resource(), args[0]);
+}
+
+void isstrprop_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("isstrprop: requires (s, category)",
+                     0, 0, "isstrprop", "", "m:isstrprop:nargin");
+    outs[0] = isstrprop(ctx.engine->resource(), args[0], args[1]);
+}
+
+void isletter_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isletter: requires 1 argument",
+                     0, 0, "isletter", "", "m:isletter:nargin");
+    outs[0] = isletter(ctx.engine->resource(), args[0]);
+}
+
+void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isspace: requires 1 argument",
+                     0, 0, "isspace", "", "m:isspace:nargin");
+    outs[0] = isspaceFn(ctx.engine->resource(), args[0]);
 }
 
 // strtok(s, delim?) — split at first delim char. Returns [token, rem].

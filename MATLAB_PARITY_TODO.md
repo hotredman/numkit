@@ -175,7 +175,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 40 ✅ + 0 ⚠️ / 65 = 62% — **NS: core**
+### Characters and Strings — 46 ✅ + 0 ⚠️ / 65 = 71% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -185,9 +185,9 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `char` | ✅ |  |
 | `compose` | ❌ |  |
 | `contains` | ✅ |  |
-| `convertcharstostrings` | ❌ |  |
+| `convertcharstostrings` | ✅ |  |
 | `convertcontainedstringstochars` | ❌ |  |
-| `convertstringstochars` | ❌ |  |
+| `convertstringstochars` | ✅ |  |
 | `count` | ✅ |  |
 | `deblank` | ✅ |  |
 | `double` | ✅ |  |
@@ -202,11 +202,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `insertbefore` | ❌ |  |
 | `iscellstr` | ✅ | predicate |
 | `ischar` | ✅ |  |
-| `isletter` | ❌ |  |
-| `isspace` | ❌ |  |
+| `isletter` | ✅ |  |
+| `isspace` | ✅ |  |
 | `isstring` | ✅ |  |
-| `isstringscalar` | ❌ |  |
-| `isstrprop` | ❌ |  |
+| `isstringscalar` | ✅ |  |
+| `isstrprop` | ✅ |  |
 | `join` | ❌ |  |
 | `lower` | ✅ |  |
 | `matches` | ✅ |  |

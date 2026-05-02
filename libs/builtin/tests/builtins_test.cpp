@@ -501,6 +501,56 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── String conversion + char predicates — Pack 21 ─────────────
+TEST_P(BuiltinTest, ConvertCharsStrings)
+{
+    eval("s = convertCharsToStrings('hello');");
+    auto *s = getVarPtr("s");
+    EXPECT_TRUE(s->isString());
+    EXPECT_EQ(s->toString(), "hello");
+
+    eval("c = convertStringsToChars(\"world\");");
+    auto *c = getVarPtr("c");
+    EXPECT_TRUE(c->isChar());
+    EXPECT_EQ(c->toString(), "world");
+
+    EXPECT_TRUE(evalBool("isstringscalar(\"hi\");"));
+    EXPECT_FALSE(evalBool("isstringscalar('hi');"));   // char, not string
+    EXPECT_FALSE(evalBool("isstringscalar(1);"));
+}
+
+TEST_P(BuiltinTest, IsstrpropAndFamily)
+{
+    // isstrprop on 'aB1!'.
+    eval("a = isstrprop('aB1!', 'alpha');");
+    auto *a = getVarPtr("a");
+    ASSERT_EQ(a->numel(), 4u);
+    EXPECT_EQ(a->logicalData()[0], 1);   // a
+    EXPECT_EQ(a->logicalData()[1], 1);   // B
+    EXPECT_EQ(a->logicalData()[2], 0);   // 1
+    EXPECT_EQ(a->logicalData()[3], 0);   // !
+
+    eval("d = isstrprop('a1B2', 'digit');");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->logicalData()[0], 0);
+    EXPECT_EQ(d->logicalData()[1], 1);
+    EXPECT_EQ(d->logicalData()[2], 0);
+    EXPECT_EQ(d->logicalData()[3], 1);
+
+    // isletter / isspace shortcuts.
+    eval("L = isletter('a B 1');");
+    auto *L = getVarPtr("L");
+    EXPECT_EQ(L->logicalData()[0], 1);
+    EXPECT_EQ(L->logicalData()[1], 0);   // space
+    EXPECT_EQ(L->logicalData()[2], 1);
+
+    eval("S = isspace('a b\tc');");
+    auto *S = getVarPtr("S");
+    EXPECT_EQ(S->logicalData()[0], 0);   // a
+    EXPECT_EQ(S->logicalData()[1], 1);   // space
+    EXPECT_EQ(S->logicalData()[3], 1);   // tab
+}
+
 // ── Optimization — Pack 20 ────────────────────────────────────
 TEST_P(BuiltinTest, FminbndScalar)
 {
