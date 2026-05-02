@@ -239,6 +239,179 @@ Value cospi(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return cospi_scalar(v); }, mr);
 }
 
+// ── Reciprocal trig (sec/csc/cot families) ────────────────────────────
+//
+// Defined as `1 / primary` for the forward forms and via the primary
+// inverse on `1/x` for the inverse forms (matches MATLAB).
+// IEEE 754 propagates ±Inf for divide-by-zero, so cot(0), csc(0),
+// sech(±Inf) etc. fall out naturally without special-casing.
+
+Value sec(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cos(c); }, mr);
+    return unaryDouble(x, [](double v) { return 1.0 / std::cos(v); }, mr);
+}
+
+Value csc(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sin(c); }, mr);
+    return unaryDouble(x, [](double v) { return 1.0 / std::sin(v); }, mr);
+}
+
+Value cot(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(c) / std::sin(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::cos(v) / std::sin(v); }, mr);
+}
+
+Value sech(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cosh(c); }, mr);
+    return unaryDouble(x, [](double v) { return 1.0 / std::cosh(v); }, mr);
+}
+
+Value csch(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sinh(c); }, mr);
+    return unaryDouble(x, [](double v) { return 1.0 / std::sinh(v); }, mr);
+}
+
+Value coth(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cosh(c) / std::sinh(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::cosh(v) / std::sinh(v); }, mr);
+}
+
+Value secd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::cos(c * kDeg2Rad); }, mr);
+    // sec is undefined at ±90°; cosd snaps those to 0 → 1/0 = ±Inf in IEEE.
+    return unaryDouble(x, [](double v) { return 1.0 / cosd_scalar(v); }, mr);
+}
+
+Value cscd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return Complex(1.0) / std::sin(c * kDeg2Rad); }, mr);
+    return unaryDouble(x, [](double v) { return 1.0 / sind_scalar(v); }, mr);
+}
+
+Value cotd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) {
+            return std::cos(c * kDeg2Rad) / std::sin(c * kDeg2Rad);
+        }, mr);
+    // cotd(0) = +Inf, cotd(180) = +Inf — driven by sind_scalar exact zeros.
+    return unaryDouble(x, [](double v) { return cosd_scalar(v) / sind_scalar(v); }, mr);
+}
+
+// ── Inverse reciprocal trig ──────────────────────────────────────────
+// Defined as the primary inverse of 1/x. acot uses atan2(1, x) so that
+// acot(0) = π/2 (MATLAB convention) instead of NaN-from-1/0.
+
+Value asec(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acos(Complex(1.0) / c); }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v > -1.0 && v < 1.0)
+            return Value::complexScalar(std::acos(Complex(1.0 / v, 0.0)), mr);
+    }
+    return unaryDouble(x, [](double v) { return std::acos(1.0 / v); }, mr);
+}
+
+Value acsc(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::asin(Complex(1.0) / c); }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v > -1.0 && v < 1.0 && v != 0.0)
+            return Value::complexScalar(std::asin(Complex(1.0 / v, 0.0)), mr);
+    }
+    return unaryDouble(x, [](double v) { return std::asin(1.0 / v); }, mr);
+}
+
+Value acot(std::pmr::memory_resource *mr, const Value &x)
+{
+    // atan2(1, x) → x>0: atan(1/x); x<0: atan(1/x)+π/2 mapping; x=0: π/2.
+    // MATLAB's acot uses the principal branch that goes to π/2 at x=0.
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::atan(Complex(1.0) / c); }, mr);
+    return unaryDouble(x, [](double v) { return std::atan(1.0 / v); }, mr);
+}
+
+Value asech(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acosh(Complex(1.0) / c); }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v <= 0.0 || v > 1.0)
+            return Value::complexScalar(std::acosh(Complex(1.0 / v, 0.0)), mr);
+    }
+    return unaryDouble(x, [](double v) { return std::acosh(1.0 / v); }, mr);
+}
+
+Value acsch(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::asinh(Complex(1.0) / c); }, mr);
+    return unaryDouble(x, [](double v) { return std::asinh(1.0 / v); }, mr);
+}
+
+Value acoth(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::atanh(Complex(1.0) / c); }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v >= -1.0 && v <= 1.0)
+            return Value::complexScalar(std::atanh(Complex(1.0 / v, 0.0)), mr);
+    }
+    return unaryDouble(x, [](double v) { return std::atanh(1.0 / v); }, mr);
+}
+
+Value asecd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acos(Complex(1.0) / c) * kRad2Deg; }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v > -1.0 && v < 1.0)
+            return Value::complexScalar(std::acos(Complex(1.0 / v, 0.0)) * kRad2Deg, mr);
+    }
+    return unaryDouble(x, [](double v) { return std::acos(1.0 / v) * kRad2Deg; }, mr);
+}
+
+Value acscd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::asin(Complex(1.0) / c) * kRad2Deg; }, mr);
+    if (x.isScalar()) {
+        const double v = x.toScalar();
+        if (v > -1.0 && v < 1.0 && v != 0.0)
+            return Value::complexScalar(std::asin(Complex(1.0 / v, 0.0)) * kRad2Deg, mr);
+    }
+    return unaryDouble(x, [](double v) { return std::asin(1.0 / v) * kRad2Deg; }, mr);
+}
+
+Value acotd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::atan(Complex(1.0) / c) * kRad2Deg; }, mr);
+    return unaryDouble(x, [](double v) { return std::atan(1.0 / v) * kRad2Deg; }, mr);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -273,6 +446,25 @@ NK_UNARY_ADAPTER(atand, atand)
 
 NK_UNARY_ADAPTER(sinpi, sinpi)
 NK_UNARY_ADAPTER(cospi, cospi)
+
+NK_UNARY_ADAPTER(sec,   sec)
+NK_UNARY_ADAPTER(csc,   csc)
+NK_UNARY_ADAPTER(cot,   cot)
+NK_UNARY_ADAPTER(sech,  sech)
+NK_UNARY_ADAPTER(csch,  csch)
+NK_UNARY_ADAPTER(coth,  coth)
+NK_UNARY_ADAPTER(secd,  secd)
+NK_UNARY_ADAPTER(cscd,  cscd)
+NK_UNARY_ADAPTER(cotd,  cotd)
+NK_UNARY_ADAPTER(asec,  asec)
+NK_UNARY_ADAPTER(acsc,  acsc)
+NK_UNARY_ADAPTER(acot,  acot)
+NK_UNARY_ADAPTER(asech, asech)
+NK_UNARY_ADAPTER(acsch, acsch)
+NK_UNARY_ADAPTER(acoth, acoth)
+NK_UNARY_ADAPTER(asecd, asecd)
+NK_UNARY_ADAPTER(acscd, acscd)
+NK_UNARY_ADAPTER(acotd, acotd)
 
 #undef NK_UNARY_ADAPTER
 

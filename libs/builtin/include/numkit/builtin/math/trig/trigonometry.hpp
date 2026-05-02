@@ -43,4 +43,25 @@ Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x);
 Value sinpi(std::pmr::memory_resource *mr, const Value &x);
 Value cospi(std::pmr::memory_resource *mr, const Value &x);
 
+// Reciprocal-trig family: sec/csc/cot and their hyperbolic / degree /
+// inverse / inverse-hyperbolic / inverse-degree forms.
+Value sec(std::pmr::memory_resource *mr, const Value &x);
+Value csc(std::pmr::memory_resource *mr, const Value &x);
+Value cot(std::pmr::memory_resource *mr, const Value &x);
+Value sech(std::pmr::memory_resource *mr, const Value &x);
+Value csch(std::pmr::memory_resource *mr, const Value &x);
+Value coth(std::pmr::memory_resource *mr, const Value &x);
+Value secd(std::pmr::memory_resource *mr, const Value &x);
+Value cscd(std::pmr::memory_resource *mr, const Value &x);
+Value cotd(std::pmr::memory_resource *mr, const Value &x);
+Value asec(std::pmr::memory_resource *mr, const Value &x);
+Value acsc(std::pmr::memory_resource *mr, const Value &x);
+Value acot(std::pmr::memory_resource *mr, const Value &x);
+Value asech(std::pmr::memory_resource *mr, const Value &x);
+Value acsch(std::pmr::memory_resource *mr, const Value &x);
+Value acoth(std::pmr::memory_resource *mr, const Value &x);
+Value asecd(std::pmr::memory_resource *mr, const Value &x);
+Value acscd(std::pmr::memory_resource *mr, const Value &x);
+Value acotd(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin
