@@ -2117,6 +2117,124 @@ TEST_P(BuiltinTest, IsStrPropUnknownCategoryThrows)
     EXPECT_EQ(e->numel(), 0u);
 }
 
+// ============================================================
+// Prod-grade test pack T4 — empty-input regression sweep
+// ============================================================
+//
+// For every new builtin that takes an array-shaped argument, [] must
+// not crash and must return a sensible empty / scalar result. These
+// are the cheap-to-write tests that catch the "didn't think about
+// what happens when n == 0" bugs.
+
+TEST_P(BuiltinTest, EmptyInputTrigFamily)
+{
+    auto isEmpty = [&](const std::string &expr) {
+        eval(expr);
+        return getVarPtr("z") && getVarPtr("z")->isEmpty();
+    };
+    EXPECT_TRUE(isEmpty("z = sinh([]);"));
+    EXPECT_TRUE(isEmpty("z = cosh([]);"));
+    EXPECT_TRUE(isEmpty("z = tanh([]);"));
+    EXPECT_TRUE(isEmpty("z = sind([]);"));
+    EXPECT_TRUE(isEmpty("z = cosd([]);"));
+    EXPECT_TRUE(isEmpty("z = sinpi([]);"));
+    EXPECT_TRUE(isEmpty("z = cospi([]);"));
+    EXPECT_TRUE(isEmpty("z = sec([]);"));
+    EXPECT_TRUE(isEmpty("z = asec([]);"));
+}
+
+TEST_P(BuiltinTest, EmptyInputShapePredicates)
+{
+    // isvector([]) is false (numel == 0), but other predicates handle
+    // the empty case in their own way — just check no crash.
+    EXPECT_FALSE(evalBool("isvector([]);"));
+    EXPECT_TRUE(evalBool("issorted([]);"));
+    EXPECT_TRUE(evalBool("isuniform([]);"));
+    EXPECT_TRUE(evalBool("allunique([]);"));
+    EXPECT_DOUBLE_EQ(evalScalar("numunique([]);"), 0.0);
+    EXPECT_TRUE(evalBool("allfinite([]);"));
+    EXPECT_FALSE(evalBool("anynan([]);"));
+}
+
+TEST_P(BuiltinTest, EmptyInputManipFamily)
+{
+    auto isEmpty = [&](const std::string &expr) {
+        eval(expr);
+        return getVarPtr("z") && getVarPtr("z")->isEmpty();
+    };
+    EXPECT_TRUE(isEmpty("z = flip([]);"));
+    EXPECT_TRUE(isEmpty("z = paddata([], 0);"));
+    EXPECT_TRUE(isEmpty("z = trimdata([1 2 3], 0);"));
+    EXPECT_TRUE(isEmpty("z = resize([], 0);"));
+    // poly of empty roots — current impl returns 0-len row.
+    eval("e = poly([]);");
+    EXPECT_EQ(getVarPtr("e")->numel(), 0u);
+    EXPECT_TRUE(isEmpty("z = setxor([], []);"));
+    EXPECT_TRUE(isEmpty("z = uniquetol([], 1e-6);"));
+}
+
+TEST_P(BuiltinTest, EmptyInputStringFamily)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("count('', 'x');"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('abc', '');"), 0.0);
+    eval("a = erase('', 'x');");
+    EXPECT_EQ(getVarPtr("a")->toString(), "");
+    eval("b = reverse('');");
+    EXPECT_EQ(getVarPtr("b")->toString(), "");
+    eval("c = pad('', 0);");
+    EXPECT_EQ(getVarPtr("c")->toString(), "");
+    eval("d = strip('');");
+    EXPECT_EQ(getVarPtr("d")->toString(), "");
+    EXPECT_FALSE(evalBool("matches('', 'x');"));
+    EXPECT_TRUE(evalBool("matches('', '');"));
+}
+
+TEST_P(BuiltinTest, EmptyInputSpecialFamily)
+{
+    auto isEmpty = [&](const std::string &expr) {
+        eval(expr);
+        return getVarPtr("z") && getVarPtr("z")->isEmpty();
+    };
+    EXPECT_TRUE(isEmpty("z = besselj(0, []);"));
+    EXPECT_TRUE(isEmpty("z = beta([], []);"));
+    EXPECT_TRUE(isEmpty("z = gammainc([], 1);"));
+    EXPECT_TRUE(isEmpty("z = expint([]);"));
+    EXPECT_TRUE(isEmpty("z = psi([]);"));
+}
+
+TEST_P(BuiltinTest, EmptyInputCellStruct)
+{
+    // num2cell([]) returns 0×0 cell.
+    eval("c = num2cell([]);");
+    EXPECT_TRUE(getVarPtr("c")->isCell());
+    EXPECT_EQ(getVarPtr("c")->numel(), 0u);
+    // cell2mat({}) returns empty matrix.
+    eval("m = cell2mat({});");
+    EXPECT_TRUE(getVarPtr("m")->isEmpty());
+    // iscellstr({}) is true vacuously.
+    EXPECT_TRUE(evalBool("iscellstr({});"));
+}
+
+TEST_P(BuiltinTest, EmptyInputBitOps)
+{
+    auto isEmpty = [&](const std::string &expr) {
+        eval(expr);
+        return getVarPtr("z") && getVarPtr("z")->isEmpty();
+    };
+    EXPECT_TRUE(isEmpty("z = bitset([], 1);"));
+    EXPECT_TRUE(isEmpty("z = bitget([], 1);"));
+}
+
+TEST_P(BuiltinTest, EmptyInputIdivideBsxfun)
+{
+    auto isEmpty = [&](const std::string &expr) {
+        eval(expr);
+        return getVarPtr("z") && getVarPtr("z")->isEmpty();
+    };
+    EXPECT_TRUE(isEmpty("z = idivide([], 3);"));
+    EXPECT_TRUE(isEmpty("z = bsxfun(@plus, [], []);"));
+}
+
 INSTANTIATE_DUAL(BuiltinTest);
 
 // ============================================================

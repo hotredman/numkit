@@ -796,7 +796,10 @@ namespace {
 inline bool isVectorLike(const Value &v)
 {
     const auto &d = v.dims();
-    return d.ndim() <= 2 && (d.rows() == 1 || d.cols() == 1 || v.isScalar());
+    // Accept scalars, 1×N / N×1 vectors, and the genuinely-empty 0×0
+    // (so paddata([], n) doesn't throw — it just expands the empty
+    // store with zeros).
+    return d.ndim() <= 2 && (d.rows() <= 1 || d.cols() <= 1 || v.isScalar());
 }
 } // anon
 
@@ -805,7 +808,7 @@ Value paddata(std::pmr::memory_resource *mr, const Value &v, size_t n)
     if (!isVectorLike(v))
         throw Error("paddata: vector input required",
                      0, 0, "paddata", "", "m:paddata:notVector");
-    if (v.type() != ValueType::DOUBLE)
+    if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("paddata: only DOUBLE inputs supported",
                      0, 0, "paddata", "", "m:paddata:type");
     const size_t cur = v.numel();
@@ -825,7 +828,7 @@ Value trimdata(std::pmr::memory_resource *mr, const Value &v, size_t n)
     if (!isVectorLike(v))
         throw Error("trimdata: vector input required",
                      0, 0, "trimdata", "", "m:trimdata:notVector");
-    if (v.type() != ValueType::DOUBLE)
+    if (!v.isEmpty() && v.type() != ValueType::DOUBLE)
         throw Error("trimdata: only DOUBLE inputs supported",
                      0, 0, "trimdata", "", "m:trimdata:type");
     const size_t cur = v.numel();
