@@ -501,6 +501,30 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Function handles — Pack 13 ────────────────────────────────
+TEST_P(BuiltinTest, FevalByName)
+{
+    EXPECT_NEAR(evalScalar("feval('sin', 0);"), 0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("feval('cos', 0);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("feval('plus', 2, 3);"), 5.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, FevalByHandle)
+{
+    eval("h = @sin; v = feval(h, pi/2);");
+    EXPECT_NEAR(getVar("v"), 1.0, 1e-12);
+    eval("h2 = str2func('cos'); w = feval(h2, 0);");
+    EXPECT_NEAR(getVar("w"), 1.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, Func2Str)
+{
+    eval("h = @sin; s = func2str(h);");
+    EXPECT_EQ(getVarPtr("s")->toString(), "@sin");
+    eval("h2 = str2func('cos'); s2 = func2str(h2);");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "@cos");
+}
+
 // ── shiftdim — Pack 12 ────────────────────────────────────────
 TEST_P(BuiltinTest, ShiftDimPositive)
 {

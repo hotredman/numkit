@@ -728,6 +728,62 @@ void BuiltinLibrary::install(Engine &engine)
                                     return;
                                 }
                             });
+
+    // ── Pack 13: function handles ─────────────────────────────────────
+    // feval(handle_or_name, args...) — invoke through the engine's
+    // existing handle-call path. Accepts either a real function handle
+    // or a name/string (str2func it on the fly).
+    engine.registerFunction("feval",
+                            [](Span<const Value> args, size_t nargout,
+                               Span<Value> outs, CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error("feval requires at least 1 argument");
+                                Value handle;
+                                if (args[0].isFuncHandle()) {
+                                    handle = args[0];
+                                } else if (args[0].isChar() || args[0].isString()) {
+                                    handle = Value::funcHandle(args[0].toString(),
+                                                                ctx.engine->resource());
+                                } else {
+                                    throw std::runtime_error(
+                                        "feval: first argument must be a function handle or name");
+                                }
+                                Span<const Value> callArgs(args.data() + 1, args.size() - 1);
+                                if (nargout <= 1) {
+                                    outs[0] = ctx.engine->callFunctionHandle(handle, callArgs, ctx.env);
+                                } else {
+                                    auto rs = ctx.engine->callFunctionHandleMulti(
+                                        handle, callArgs, nargout, ctx.env);
+                                    for (size_t i = 0; i < nargout && i < outs.size() && i < rs.size(); ++i)
+                                        outs[i] = std::move(rs[i]);
+                                }
+                            });
+
+    // str2func('name') — create a function handle by name.
+    engine.registerFunction("str2func",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error("str2func requires 1 argument");
+                                if (!args[0].isChar() && !args[0].isString())
+                                    throw std::runtime_error(
+                                        "str2func: argument must be a string");
+                                outs[0] = Value::funcHandle(args[0].toString(),
+                                                             ctx.engine->resource());
+                            });
+
+    // func2str(@fn) — recover the name of a function handle.
+    engine.registerFunction("func2str",
+                            [](Span<const Value> args, size_t /*nargout*/,
+                               Span<Value> outs, CallContext &ctx) {
+                                if (args.empty())
+                                    throw std::runtime_error("func2str requires 1 argument");
+                                if (!args[0].isFuncHandle())
+                                    throw std::runtime_error(
+                                        "func2str: argument must be a function handle");
+                                outs[0] = Value::fromString("@" + args[0].funcHandleName(),
+                                                             ctx.engine->resource());
+                            });
 }
 
 // ============================================================
