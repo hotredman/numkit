@@ -130,6 +130,52 @@ Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
     return Value::fromString(out, mr);
 }
 
+// ── Pack 36: regexptranslate ─────────────────────────────────────────
+Value regexptranslate(std::pmr::memory_resource *mr, const std::string &op,
+                       const std::string &s)
+{
+    // Characters that carry special meaning in ECMAScript regex syntax —
+    // matches the set MATLAB's regexptranslate('escape', …) prepends `\`
+    // to.
+    auto isMeta = [](char c) {
+        switch (c) {
+        case '.': case '*': case '+': case '?': case '|':
+        case '(': case ')': case '[': case ']': case '{': case '}':
+        case '^': case '$': case '\\':
+            return true;
+        default:
+            return false;
+        }
+    };
+
+    std::string out;
+    out.reserve(s.size() * 2);
+
+    if (op == "escape") {
+        for (char c : s) {
+            if (isMeta(c)) out += '\\';
+            out += c;
+        }
+        return Value::fromString(out, mr);
+    }
+    if (op == "wildcard") {
+        // MATLAB rules: `*` → `.*`, `?` → `.`, every other regex meta is
+        // escaped. Non-meta non-wildcard chars pass through.
+        for (char c : s) {
+            if (c == '*')      out += ".*";
+            else if (c == '?') out += '.';
+            else {
+                if (isMeta(c)) out += '\\';
+                out += c;
+            }
+        }
+        return Value::fromString(out, mr);
+    }
+    throw Error("regexptranslate: unsupported op '" + op + "' "
+                "(supported: 'escape', 'wildcard')",
+                 0, 0, "regexptranslate", "", "m:regexptranslate:badOp");
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -172,6 +218,22 @@ void regexprep_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
         throw Error("regexprep: requires 3 arguments (s, pat, rep)",
                      0, 0, "regexprep", "", "m:regexprep:nargin");
     outs[0] = regexprep(ctx.engine->resource(), args[0], args[1], args[2], false);
+}
+
+void regexptranslate_reg(Span<const Value> args, size_t, Span<Value> outs,
+                         CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("regexptranslate: requires 2 arguments (op, str)",
+                     0, 0, "regexptranslate", "", "m:regexptranslate:nargin");
+    if (!args[0].isChar() && !args[0].isString())
+        throw Error("regexptranslate: op must be a char or string",
+                     0, 0, "regexptranslate", "", "m:regexptranslate:badOp");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("regexptranslate: str must be a char or string",
+                     0, 0, "regexptranslate", "", "m:regexptranslate:badStr");
+    outs[0] = regexptranslate(ctx.engine->resource(),
+                              args[0].toString(), args[1].toString());
 }
 
 } // namespace detail

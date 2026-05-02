@@ -284,6 +284,7 @@ void rats_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexpi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void regexprep_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void regexptranslate_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // types.cpp
 void double_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -297,6 +298,8 @@ void uint16_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uint32_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void uint64_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void logical_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void cast_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void swapbytes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isnumeric_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void islogical_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ischar_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -931,6 +934,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("regexp",     &builtin::detail::regexp_reg);
     engine.registerFunction("regexpi",    &builtin::detail::regexpi_reg);
     engine.registerFunction("regexprep",  &builtin::detail::regexprep_reg);
+    engine.registerFunction("regexptranslate", &builtin::detail::regexptranslate_reg);
 
     // ── Phase 6c: types.cpp public-API-backed built-ins ────────────
     engine.registerFunction("double",    &builtin::detail::double_reg);
@@ -944,6 +948,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("uint32",    &builtin::detail::uint32_reg);
     engine.registerFunction("uint64",    &builtin::detail::uint64_reg);
     engine.registerFunction("logical",   &builtin::detail::logical_reg);
+    engine.registerFunction("cast",      &builtin::detail::cast_reg);
+    engine.registerFunction("swapbytes", &builtin::detail::swapbytes_reg);
     engine.registerFunction("isnumeric", &builtin::detail::isnumeric_reg);
     engine.registerFunction("islogical", &builtin::detail::islogical_reg);
     engine.registerFunction("ischar",    &builtin::detail::ischar_reg);

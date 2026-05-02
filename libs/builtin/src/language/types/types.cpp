@@ -2,6 +2,7 @@
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/types/types.hpp>
+#include <numkit/builtin/language/strings/strings.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -527,6 +528,90 @@ Value classOf(std::pmr::memory_resource *mr, const Value &x)
     return Value::fromString(mtypeName(x.type()), mr);
 }
 
+// ── Pack 36: cast + swapbytes ────────────────────────────────────────
+Value cast(std::pmr::memory_resource *mr, const Value &x,
+           const std::string &classname)
+{
+    if (classname == "double")  return toDouble(mr, x);
+    if (classname == "single")  return single(mr, x);
+    if (classname == "int8")    return int8(mr, x);
+    if (classname == "int16")   return int16(mr, x);
+    if (classname == "int32")   return int32(mr, x);
+    if (classname == "int64")   return int64(mr, x);
+    if (classname == "uint8")   return uint8(mr, x);
+    if (classname == "uint16")  return uint16(mr, x);
+    if (classname == "uint32")  return uint32(mr, x);
+    if (classname == "uint64")  return uint64(mr, x);
+    if (classname == "logical") return logical(mr, x);
+    if (classname == "char")    return toChar(mr, x);
+    if (classname == "string")  return toString(mr, x);
+    throw Error("cast: unsupported class '" + classname + "'",
+                 0, 0, "cast", "", "m:cast:badClass");
+}
+
+namespace {
+
+// Byte-swap helper. 1-byte types pass through; 2/4/8-byte types
+// re-interpret as the matching unsigned int and reverse.
+template <typename T>
+T swapBytesScalar(T v)
+{
+    static_assert(std::is_trivially_copyable_v<T>);
+    if constexpr (sizeof(T) == 1) {
+        return v;
+    } else if constexpr (sizeof(T) == 2) {
+        uint16_t u; std::memcpy(&u, &v, 2);
+        u = static_cast<uint16_t>((u << 8) | (u >> 8));
+        T r; std::memcpy(&r, &u, 2); return r;
+    } else if constexpr (sizeof(T) == 4) {
+        uint32_t u; std::memcpy(&u, &v, 4);
+        u = ((u & 0xFF000000U) >> 24) | ((u & 0x00FF0000U) >> 8)
+          | ((u & 0x0000FF00U) << 8)  | ((u & 0x000000FFU) << 24);
+        T r; std::memcpy(&r, &u, 4); return r;
+    } else {  // 8
+        uint64_t u; std::memcpy(&u, &v, 8);
+        u = ((u & 0xFF00000000000000ULL) >> 56) | ((u & 0x00FF000000000000ULL) >> 40)
+          | ((u & 0x0000FF0000000000ULL) >> 24) | ((u & 0x000000FF00000000ULL) >> 8)
+          | ((u & 0x00000000FF000000ULL) << 8)  | ((u & 0x0000000000FF0000ULL) << 24)
+          | ((u & 0x000000000000FF00ULL) << 40) | ((u & 0x00000000000000FFULL) << 56);
+        T r; std::memcpy(&r, &u, 8); return r;
+    }
+}
+
+template <typename T>
+Value swapBytesArray(std::pmr::memory_resource *mr, const Value &x)
+{
+    Value r = createLike(x, x.type(), mr);
+    const T *src = static_cast<const T *>(x.rawData());
+    T *dst = static_cast<T *>(r.rawDataMut());
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = swapBytesScalar(src[i]);
+    return r;
+}
+
+} // namespace
+
+Value swapbytes(std::pmr::memory_resource *mr, const Value &x)
+{
+    switch (x.type()) {
+    case ValueType::INT8:    return int8(mr, x);     // copy through (1 byte = identity)
+    case ValueType::UINT8:   return uint8(mr, x);
+    case ValueType::LOGICAL: return logical(mr, x);
+    case ValueType::INT16:   return swapBytesArray<int16_t>(mr, x);
+    case ValueType::UINT16:  return swapBytesArray<uint16_t>(mr, x);
+    case ValueType::INT32:   return swapBytesArray<int32_t>(mr, x);
+    case ValueType::UINT32:  return swapBytesArray<uint32_t>(mr, x);
+    case ValueType::INT64:   return swapBytesArray<int64_t>(mr, x);
+    case ValueType::UINT64:  return swapBytesArray<uint64_t>(mr, x);
+    case ValueType::SINGLE:  return swapBytesArray<float>(mr, x);
+    case ValueType::DOUBLE:  return swapBytesArray<double>(mr, x);
+    default:
+        throw Error("swapbytes: input must be a numeric or logical array",
+                     0, 0, "swapbytes", "", "m:swapbytes:badType");
+    }
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -686,6 +771,26 @@ void class_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ct
         throw Error("class: requires 1 argument", 0, 0, "class", "",
                      "m:class:nargin");
     outs[0] = classOf(ctx.engine->resource(), args[0]);
+}
+
+// ── Pack 36 adapters ─────────────────────────────────────────────────
+void cast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cast: requires 2 arguments (x, classname)",
+                     0, 0, "cast", "", "m:cast:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("cast: classname must be a char or string",
+                     0, 0, "cast", "", "m:cast:badClass");
+    outs[0] = cast(ctx.engine->resource(), args[0], args[1].toString());
+}
+
+void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("swapbytes: requires 1 argument",
+                     0, 0, "swapbytes", "", "m:swapbytes:nargin");
+    outs[0] = swapbytes(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail

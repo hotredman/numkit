@@ -1,0 +1,9 @@
+{
+  "name": "regexptranslate",
+  "namespace": "core",
+  "setup": "s = 'a.b*c?d|e(f)g[h]i{j}k';",
+  "expr": "t = regexptranslate('escape', s);",
+  "iters": 10000,
+  "fingerprint": ["length(t)", "double(t(1))", "double(t(end))"],
+  "comment": "Escape 21-char string with many metachars. 10k iters."
+}

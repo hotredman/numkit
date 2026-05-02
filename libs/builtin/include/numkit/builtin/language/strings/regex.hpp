@@ -26,4 +26,12 @@ Value regexpFind(std::pmr::memory_resource *mr, const Value &s, const Value &pat
 Value regexprep(std::pmr::memory_resource *mr, const Value &s, const Value &pat,
                  const Value &rep, bool ignoreCase = false);
 
+/// regexptranslate(op, str)
+///   op = "escape"   — escape regex metacharacters with `\`.
+///   op = "wildcard" — translate MATLAB glob wildcards to a regex
+///                     (`*` → `.*`, `?` → `.`, escape rest).
+/// "compose" / "flexible" not implemented (NaN-string case + multi-arg).
+Value regexptranslate(std::pmr::memory_resource *mr, const std::string &op,
+                       const std::string &s);
+
 } // namespace numkit::builtin
