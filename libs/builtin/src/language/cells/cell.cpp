@@ -5,6 +5,7 @@
 // struct.cpp via the inline header below.
 
 #include <numkit/builtin/language/cells/cell.hpp>
+#include <numkit/builtin/language/arrays/matrix.hpp>  // horzcat / vertcat
 #include <numkit/builtin/library.hpp>
 
 #include <numkit/core/engine.hpp>
@@ -93,6 +94,131 @@ Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
 }
 
 // ════════════════════════════════════════════════════════════════════════
+// Pack 15: num2cell / cell2mat / iscellstr / cellstr
+// ════════════════════════════════════════════════════════════════════════
+
+Value num2cell(std::pmr::memory_resource *mr, const Value &x)
+{
+    // Wraps each element of x in its own scalar cell. Supports DOUBLE,
+    // SINGLE, integer, LOGICAL, COMPLEX, CHAR. Output mirrors input
+    // shape (2-D fast path; 3-D handled by 3-D cell ctor).
+    const auto &d = x.dims();
+    if (d.ndim() > 3)
+        throw Error("num2cell: ND inputs (>3) not yet supported",
+                     0, 0, "num2cell", "", "m:num2cell:rank");
+    auto c = d.is3D()
+                ? Value::cell3D(d.rows(), d.cols(), d.pages(), mr)
+                : Value::cell(d.rows(), d.cols(), mr);
+    const size_t n = x.numel();
+    if (x.isComplex()) {
+        for (size_t i = 0; i < n; ++i)
+            c.cellAt(i) = Value::complexScalar(x.complexData()[i], mr);
+    } else {
+        for (size_t i = 0; i < n; ++i)
+            c.cellAt(i) = Value::scalar(x.elemAsDouble(i), mr);
+    }
+    return c;
+}
+
+Value cell2mat(std::pmr::memory_resource *mr, const Value &c)
+{
+    if (!c.isCell())
+        throw Error("cell2mat: input must be a cell array",
+                     0, 0, "cell2mat", "", "m:cell2mat:notCell");
+    if (c.numel() == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Fast path: every entry is a DOUBLE scalar → cell shape becomes
+    // matrix shape.
+    bool allDoubleScalar = true;
+    for (size_t i = 0; i < c.numel(); ++i) {
+        const auto &e = c.cellAt(i);
+        if (!e.isScalar() || e.type() != ValueType::DOUBLE) {
+            allDoubleScalar = false;
+            break;
+        }
+    }
+    if (allDoubleScalar) {
+        const auto &cd = c.dims();
+        if (cd.ndim() > 2)
+            throw Error("cell2mat: 3-D scalar cells not yet supported",
+                         0, 0, "cell2mat", "", "m:cell2mat:rank");
+        auto m = Value::matrix(cd.rows(), cd.cols(), ValueType::DOUBLE, mr);
+        for (size_t i = 0; i < c.numel(); ++i)
+            m.doubleDataMut()[i] = c.cellAt(i).toScalar();
+        return m;
+    }
+
+    // General 2-D case: horzcat each row of the cell, then vertcat the
+    // resulting row blocks. Sub-cell elements may themselves be matrices.
+    const auto &cd = c.dims();
+    if (cd.ndim() > 2)
+        throw Error("cell2mat: only 2-D cell arrays of matrices are supported",
+                     0, 0, "cell2mat", "", "m:cell2mat:rank");
+    const size_t R = cd.rows(), C = cd.cols();
+    if (R == 1) {
+        ScratchArena scratch(mr);
+        ScratchVec<Value> row(C, &scratch);
+        for (size_t j = 0; j < C; ++j) row[j] = c.cellAt(j);
+        return horzcat(mr, row.data(), C);
+    }
+    if (C == 1) {
+        ScratchArena scratch(mr);
+        ScratchVec<Value> col(R, &scratch);
+        for (size_t i = 0; i < R; ++i) col[i] = c.cellAt(i);
+        return vertcat(mr, col.data(), R);
+    }
+    // Full 2-D: horzcat each row, then vertcat results.
+    ScratchArena scratch(mr);
+    ScratchVec<Value> rowBlocks(R, &scratch);
+    for (size_t i = 0; i < R; ++i) {
+        ScratchVec<Value> rowCells(C, &scratch);
+        for (size_t j = 0; j < C; ++j)
+            rowCells[j] = c.cellAt(j * R + i);  // column-major linear index
+        rowBlocks[i] = horzcat(mr, rowCells.data(), C);
+    }
+    return vertcat(mr, rowBlocks.data(), R);
+}
+
+Value iscellstr(std::pmr::memory_resource *mr, const Value &c)
+{
+    if (!c.isCell()) return Value::logicalScalar(false, mr);
+    for (size_t i = 0; i < c.numel(); ++i) {
+        const auto &e = c.cellAt(i);
+        // Each cell entry must be a char row (or empty char []).
+        if (!(e.isChar() || (e.isEmpty() && e.type() == ValueType::CHAR)))
+            return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(true, mr);
+}
+
+Value cellstr(std::pmr::memory_resource *mr, const Value &x)
+{
+    // char row → 1×1 cell of that char row.
+    // string scalar/array → numel × 1 cell of char rows.
+    // cell-of-strings → unchanged.
+    if (x.isCell()) {
+        // Validate it's already a cellstr; otherwise copy regardless
+        // (MATLAB's cellstr just rebuilds char from any input).
+        return x;
+    }
+    if (x.isChar()) {
+        auto c = Value::cell(1, 1, mr);
+        c.cellAt(0) = x;
+        return c;
+    }
+    if (x.isString()) {
+        const size_t n = x.numel();
+        auto c = Value::cell(n, 1, mr);
+        for (size_t i = 0; i < n; ++i)
+            c.cellAt(i) = Value::fromString(x.stringElem(i), mr);
+        return c;
+    }
+    throw Error("cellstr: input must be a string array or char array",
+                 0, 0, "cellstr", "", "m:cellstr:type");
+}
+
+// ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
 
@@ -143,6 +269,38 @@ void cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx
     for (size_t i = 0; i < args.size(); ++i)
         dims[i] = static_cast<size_t>(args[i].toScalar());
     outs[0] = Value::cellND(dims.data(), static_cast<int>(args.size()));
+}
+
+void num2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("num2cell requires 1 argument",
+                     0, 0, "num2cell", "", "m:num2cell:nargin");
+    outs[0] = num2cell(ctx.engine->resource(), args[0]);
+}
+
+void cell2mat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cell2mat requires 1 argument",
+                     0, 0, "cell2mat", "", "m:cell2mat:nargin");
+    outs[0] = cell2mat(ctx.engine->resource(), args[0]);
+}
+
+void iscellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("iscellstr requires 1 argument",
+                     0, 0, "iscellstr", "", "m:iscellstr:nargin");
+    outs[0] = iscellstr(ctx.engine->resource(), args[0]);
+}
+
+void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cellstr requires 1 argument",
+                     0, 0, "cellstr", "", "m:cellstr:nargin");
+    outs[0] = cellstr(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail
