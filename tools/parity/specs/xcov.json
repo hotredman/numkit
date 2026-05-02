@@ -1,0 +1,10 @@
+{
+  "name": "xcov",
+  "namespace": "core",
+  "setup": "t = (1:5000)/5000; x = sin(2*pi*5*t) + 0.3;",
+  "expr": "[c, lags] = xcov(x);",
+  "iters": 50,
+  "tol": 1e-9,
+  "fingerprint": ["sum(c)", "c(round(end/2))", "lags(1)", "lags(end)"],
+  "comment": "Cross-cov of 5k-pt sine. 50 iters."
+}

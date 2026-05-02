@@ -592,6 +592,77 @@ Value swapBytesArray(std::pmr::memory_resource *mr, const Value &x)
 
 } // namespace
 
+// Map a MATLAB classname string → (ValueType, element-size-in-bytes).
+namespace {
+
+struct TypeInfo { ValueType vt; size_t elemSize; };
+
+TypeInfo typeInfoFor(const std::string &classname)
+{
+    if (classname == "double")  return { ValueType::DOUBLE,  sizeof(double)   };
+    if (classname == "single")  return { ValueType::SINGLE,  sizeof(float)    };
+    if (classname == "int8")    return { ValueType::INT8,    sizeof(int8_t)   };
+    if (classname == "int16")   return { ValueType::INT16,   sizeof(int16_t)  };
+    if (classname == "int32")   return { ValueType::INT32,   sizeof(int32_t)  };
+    if (classname == "int64")   return { ValueType::INT64,   sizeof(int64_t)  };
+    if (classname == "uint8")   return { ValueType::UINT8,   sizeof(uint8_t)  };
+    if (classname == "uint16")  return { ValueType::UINT16,  sizeof(uint16_t) };
+    if (classname == "uint32")  return { ValueType::UINT32,  sizeof(uint32_t) };
+    if (classname == "uint64")  return { ValueType::UINT64,  sizeof(uint64_t) };
+    if (classname == "logical") return { ValueType::LOGICAL, sizeof(uint8_t)  };
+    if (classname == "char")    return { ValueType::CHAR,    sizeof(char)     };
+    return { ValueType::DOUBLE, 0u };  // sentinel: 0 size = unknown
+}
+
+size_t elemSizeOf(ValueType t)
+{
+    switch (t) {
+    case ValueType::DOUBLE:  return sizeof(double);
+    case ValueType::SINGLE:  return sizeof(float);
+    case ValueType::COMPLEX: return sizeof(double) * 2;
+    case ValueType::INT8:
+    case ValueType::UINT8:
+    case ValueType::LOGICAL:
+    case ValueType::CHAR:    return 1;
+    case ValueType::INT16:
+    case ValueType::UINT16:  return 2;
+    case ValueType::INT32:
+    case ValueType::UINT32:  return 4;
+    case ValueType::INT64:
+    case ValueType::UINT64:  return 8;
+    default:                 return 0;
+    }
+}
+
+} // namespace
+
+Value typecast(std::pmr::memory_resource *mr, const Value &x,
+               const std::string &classname)
+{
+    TypeInfo info = typeInfoFor(classname);
+    if (info.elemSize == 0)
+        throw Error("typecast: unsupported class '" + classname + "'",
+                     0, 0, "typecast", "", "m:typecast:badClass");
+
+    const size_t srcElemSize = elemSizeOf(x.type());
+    if (srcElemSize == 0)
+        throw Error("typecast: input type does not have a contiguous byte buffer",
+                     0, 0, "typecast", "", "m:typecast:badInputType");
+
+    const size_t totalBytes = x.numel() * srcElemSize;
+    if (totalBytes % info.elemSize != 0)
+        throw Error("typecast: input byte count must be a multiple of the "
+                    "destination element size",
+                     0, 0, "typecast", "", "m:typecast:badSize");
+    const size_t newCount = totalBytes / info.elemSize;
+
+    // Output is always a row vector (matches MATLAB).
+    Value out = Value::matrix(1, newCount, info.vt, mr);
+    if (totalBytes > 0)
+        std::memcpy(out.rawDataMut(), x.rawData(), totalBytes);
+    return out;
+}
+
 Value swapbytes(std::pmr::memory_resource *mr, const Value &x)
 {
     switch (x.type()) {
@@ -791,6 +862,17 @@ void swapbytes_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext
         throw Error("swapbytes: requires 1 argument",
                      0, 0, "swapbytes", "", "m:swapbytes:nargin");
     outs[0] = swapbytes(ctx.engine->resource(), args[0]);
+}
+
+void typecast_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("typecast: requires 2 arguments (x, classname)",
+                     0, 0, "typecast", "", "m:typecast:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("typecast: classname must be a char or string",
+                     0, 0, "typecast", "", "m:typecast:badClass");
+    outs[0] = typecast(ctx.engine->resource(), args[0], args[1].toString());
 }
 
 } // namespace detail

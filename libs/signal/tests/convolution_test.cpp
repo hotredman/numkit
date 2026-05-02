@@ -248,3 +248,28 @@ TEST_F(ConvolutionTest, Conv2SeparableImpulseIdentity)
     eval("delta = max(abs(F(:) - A(:)));");
     EXPECT_LT(evalScalar("delta"), 1e-12);
 }
+
+// ── Pack 36: xcov ────────────────────────────────────────────────────
+TEST_F(ConvolutionTest, XcovOnConstantIsZero)
+{
+    // For a constant signal, xcov returns ~0 everywhere.
+    eval("c = xcov([5 5 5 5]);");
+    EXPECT_LT(evalScalar("max(abs(c(:)))"), 1e-12);
+}
+
+TEST_F(ConvolutionTest, XcovEqualsXcorrOnCenteredSignal)
+{
+    eval("x = [1 2 3 4 5];"
+         "xc = x - mean(x);"
+         "[a, ~] = xcorr(xc);"
+         "[b, ~] = xcov(x);"
+         "delta = max(abs(a(:) - b(:)));");
+    EXPECT_LT(evalScalar("delta"), 1e-12);
+}
+
+TEST_F(ConvolutionTest, XcovTwoSignalsLength)
+{
+    eval("[c, lags] = xcov([1 2 3 4], [4 3 2 1]);");
+    EXPECT_EQ(static_cast<int>(evalScalar("length(c)")), 7);
+    EXPECT_EQ(static_cast<int>(evalScalar("length(lags)")), 7);
+}

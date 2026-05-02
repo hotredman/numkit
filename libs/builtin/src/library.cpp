@@ -310,6 +310,7 @@ void uint64_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void logical_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cast_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void swapbytes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void typecast_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isnumeric_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void islogical_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ischar_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -405,6 +406,7 @@ void reshape_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void transpose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagetranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagectranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void peaks_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagemtimes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void diag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sort_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -838,6 +840,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("transpose", &builtin::detail::transpose_reg);
     engine.registerFunction("pagetranspose",  &builtin::detail::pagetranspose_reg);
     engine.registerFunction("pagectranspose", &builtin::detail::pagectranspose_reg);
+    engine.registerFunction("peaks",          &builtin::detail::peaks_reg);
 
     // ── Pack 11: operator-named functions ────────────────────────
     engine.registerFunction("plus",       &builtin::detail::plus_reg);
@@ -975,6 +978,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("logical",   &builtin::detail::logical_reg);
     engine.registerFunction("cast",      &builtin::detail::cast_reg);
     engine.registerFunction("swapbytes", &builtin::detail::swapbytes_reg);
+    engine.registerFunction("typecast",  &builtin::detail::typecast_reg);
     engine.registerFunction("isnumeric", &builtin::detail::isnumeric_reg);
     engine.registerFunction("islogical", &builtin::detail::islogical_reg);
     engine.registerFunction("ischar",    &builtin::detail::ischar_reg);

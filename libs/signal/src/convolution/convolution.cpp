@@ -118,6 +118,28 @@ xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     return std::make_tuple(std::move(r), std::move(lags));
 }
 
+// ── Pack 36: xcov ────────────────────────────────────────────────────
+std::tuple<Value, Value>
+xcov(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+{
+    // xcov = xcorr on the centered signals.
+    auto centerInPlace = [mr](const Value &v) -> Value {
+        const size_t n = v.numel();
+        if (n == 0) return v;
+        const double *vd = v.doubleData();
+        double sum = 0.0;
+        for (size_t i = 0; i < n; ++i) sum += vd[i];
+        const double m = sum / static_cast<double>(n);
+        Value c = Value::matrix(1, n, ValueType::DOUBLE, mr);
+        double *cd = c.doubleDataMut();
+        for (size_t i = 0; i < n; ++i) cd[i] = vd[i] - m;
+        return c;
+    };
+    Value xc = centerInPlace(x);
+    Value yc = centerInPlace(y);
+    return xcorr(mr, xc, yc);
+}
+
 // ── Pack 36: conv2 / filter2 / convn ─────────────────────────────────
 namespace {
 
@@ -386,6 +408,20 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     outs[0] = std::move(std::get<0>(result));
     if (nargout > 1)
         outs[1] = std::move(std::get<1>(result));
+}
+
+void xcov_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("xcov: requires at least 1 argument",
+                     0, 0, "xcov", "", "m:xcov:nargin");
+    auto *mr = ctx.engine->resource();
+    auto result = (args.size() >= 2)
+        ? xcov(mr, args[0], args[1])
+        : xcov(mr, args[0]);
+    outs[0] = std::move(std::get<0>(result));
+    if (nargout > 1) outs[1] = std::move(std::get<1>(result));
 }
 
 void conv2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

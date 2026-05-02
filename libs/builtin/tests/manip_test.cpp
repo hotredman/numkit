@@ -702,4 +702,26 @@ TEST_P(ManipTest, PagectransposeMatchesPagetransposeOnReal)
          "delta = max(abs(Bt(:) - Bc(:)));");
     EXPECT_LT(evalScalar("delta;"), 1e-12);
 }
+// ── Pack 36: peaks ───────────────────────────────────────────────────
+TEST_P(ManipTest, PeaksDefaultIs49x49)
+{
+    eval("Z = peaks(49);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,1);")), 49);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,2);")), 49);
+}
+
+TEST_P(ManipTest, PeaksSizeNxN)
+{
+    eval("Z = peaks(7);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,1);")), 7);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,2);")), 7);
+}
+
+TEST_P(ManipTest, PeaksKnownReferenceValues)
+{
+    // Reference values probed from MATLAB R2025b.
+    eval("Z = peaks(5);");
+    EXPECT_NEAR(evalScalar("sum(Z(:));"), 5.436719235, 1e-9);
+    EXPECT_NEAR(evalScalar("Z(3,3);"),    0.9810118431, 1e-9);
+}
 INSTANTIATE_DUAL(ManipTest);
