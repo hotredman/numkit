@@ -108,4 +108,11 @@ Value mink(std::pmr::memory_resource *mr, const Value &x, int k, int dim = 0);
 // F and A must be broadcast-compatible.
 Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
 
+// ── mape ───────────────────────────────────────────────────────────────
+// mape(F, A[, dim]) — mean absolute percentage error of forecast F vs
+// actual A: 100 * mean(|(A - F) / A|, dim). Zero entries in A produce
+// Inf in the per-element ratio (MATLAB matches this; the mean propagates
+// the Inf).
+Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
+
 } // namespace numkit::stats

@@ -1,0 +1,9 @@
+{
+  "name": "lastwarn",
+  "namespace": "core",
+  "setup": "lastwarn('seed-msg', 'm:seed');",
+  "expr": "[m, i] = lastwarn();",
+  "iters": 100000,
+  "fingerprint": ["double(strlength(m))", "double(strlength(i))"],
+  "comment": "Read last warning state. 100k iters, scalar timing."
+}

@@ -48,3 +48,8 @@ of work + measurements.
 | `convn` | core | DONE | 0.028 | 0.057 | 0.023 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
 | `pagetranspose` | core | DONE | 0.083 | 0.092 | 0.052 | 1.11× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `pagectranspose` | core | DONE | 0.207 | 0.049 | 0.049 | 0.24× | 0.23× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
+| `mape` | stats | FAIL | — | 2.633 | 9.311 | — | — | N/A | 1M-point MAPE between two close signals. 50 iters. |
+| `mape` | stats | FAIL | — | 2.563 | 9.384 | — | — | N/A | 1M-point MAPE between two close signals. 50 iters. |
+| `mape` | stats | DONE | 9.740 | 2.669 | 9.647 | 0.27× | 0.99× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
+| `lastwarn` | core | DONE | 0.000 | 0.000 | 0.002 | 1.20× | 8.46× | OK | Read last warning state. 100k iters, scalar timing. |
+| `mape` | stats | DONE | 9.431 | 2.640 | 9.258 | 0.28× | 0.98× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |

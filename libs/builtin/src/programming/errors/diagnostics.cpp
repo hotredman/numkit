@@ -47,14 +47,23 @@ void error(Span<const Value> args)
     throw Error(msg);
 }
 
+// thread_local last-warning state. Updated by warning() and lastwarnSet,
+// read by lastwarnGet. Private storage — TU-local accessor only.
+namespace {
+thread_local std::string gLastWarnMsg;
+thread_local std::string gLastWarnId;
+}
+
 void warning(Engine &engine, Span<const Value> args)
 {
     if (args.empty())
         return;
     std::string first = args[0].toString();
     std::string msg;
+    std::string id;
     if (args.size() >= 2 && first.find(':') != std::string::npos
         && (args[1].isChar() || args[1].isString())) {
+        id  = first;
         msg = (args.size() > 2) ? formatOnce(args[1].toString(), args, 2)
                                 : args[1].toString();
     } else if (args.size() > 1) {
@@ -62,7 +71,20 @@ void warning(Engine &engine, Span<const Value> args)
     } else {
         msg = first;
     }
+    gLastWarnMsg = msg;
+    gLastWarnId  = id;
     engine.outputText("Warning: " + msg + "\n");
+}
+
+LastWarn lastwarnGet()
+{
+    return { gLastWarnMsg, gLastWarnId };
+}
+
+void lastwarnSet(const std::string &msg, const std::string &id)
+{
+    gLastWarnMsg = msg;
+    gLastWarnId  = id;
 }
 
 Value mexception(std::pmr::memory_resource *mr, Span<const Value> args)
@@ -141,6 +163,34 @@ void error_reg(Span<const Value> args, size_t, Span<Value>, CallContext &)
 void warning_reg(Span<const Value> args, size_t, Span<Value>, CallContext &ctx)
 {
     warning(*ctx.engine, args);
+}
+
+void lastwarn_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    // Two-output read form: [msg, id] = lastwarn();
+    if (args.empty()) {
+        auto lw = lastwarnGet();
+        outs[0] = Value::fromString(lw.msg, mr);
+        if (nargout > 1) outs[1] = Value::fromString(lw.id, mr);
+        return;
+    }
+    // Set form: lastwarn(msg) or lastwarn(msg, id).
+    if (!args[0].isChar() && !args[0].isString())
+        throw Error("lastwarn: msg must be a char or string",
+                     0, 0, "lastwarn", "", "m:lastwarn:badArg");
+    std::string msg = args[0].toString();
+    std::string id;
+    if (args.size() >= 2) {
+        if (!args[1].isChar() && !args[1].isString())
+            throw Error("lastwarn: id must be a char or string",
+                         0, 0, "lastwarn", "", "m:lastwarn:badId");
+        id = args[1].toString();
+    }
+    lastwarnSet(msg, id);
+    // MATLAB's set form returns nothing; we mirror that.
+    if (nargout > 0) outs[0] = Value::fromString("", mr);
 }
 
 void MException_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
