@@ -141,23 +141,23 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `try` | ✅ | keyword (`try/catch`) |
 | `while` | ✅ | keyword |
 
-### Numeric Types — 20 ✅ + 0 ⚠️ / 29 = 68% — **NS: core**
+### Numeric Types — 27 ✅ + 0 ⚠️ / 29 = 93% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `allfinite` | ❌ | whole-array `all(isfinite)` |
-| `anynan` | ❌ | whole-array `any(isnan)` |
+| `allfinite` | ✅ | whole-array `all(isfinite)` |
+| `anynan` | ✅ | whole-array `any(isnan)` |
 | `cast` | ❌ | type conversion |
 | `double` | ✅ |  |
 | `eps` | ✅ | constant (machine eps) |
-| `flintmax` | ❌ | largest exact float-int |
+| `flintmax` | ✅ | largest exact float-int |
 | `inf` | ✅ | constant |
 | `int16` | ✅ |  |
 | `int32` | ✅ |  |
 | `int64` | ✅ |  |
 | `int8` | ✅ |  |
-| `intmax` | ❌ | max int per type |
-| `intmin` | ❌ | min int per type |
+| `intmax` | ✅ | max int per type |
+| `intmin` | ✅ | min int per type |
 | `isfinite` | ✅ |  |
 | `isfloat` | ✅ |  |
 | `isinf` | ✅ |  |
@@ -166,8 +166,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `isnumeric` | ✅ |  |
 | `isreal` | ✅ |  |
 | `nan` | ✅ | constant |
-| `realmax` | ❌ | largest finite double |
-| `realmin` | ❌ | smallest normal double |
+| `realmax` | ✅ | largest finite double |
+| `realmin` | ✅ | smallest normal double |
 | `single` | ✅ |  |
 | `typecast` | ❌ | reinterpret bytes |
 | `uint16` | ✅ |  |
