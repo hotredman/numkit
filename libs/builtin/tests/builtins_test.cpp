@@ -734,6 +734,26 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Function-handle introspection — Pack 34 ───────────────────
+TEST_P(BuiltinTest, Functions)
+{
+    // The .function field name collides with the `function` keyword,
+    // so use getfield for read-side access.
+    eval("s = functions(@sin);");
+    eval("nm = getfield(s, 'function');");
+    EXPECT_EQ(getVarPtr("nm")->toString(), "sin");
+    eval("ty = s.type;");
+    EXPECT_EQ(getVarPtr("ty")->toString(), "simple");
+}
+
+TEST_P(BuiltinTest, LocalFunctions)
+{
+    eval("c = localfunctions();");
+    auto *c = getVarPtr("c");
+    ASSERT_TRUE(c->isCell());
+    EXPECT_EQ(c->numel(), 0u);
+}
+
 // ── idivide / bsxfun — Pack 33 ────────────────────────────────
 TEST_P(BuiltinTest, Idivide)
 {

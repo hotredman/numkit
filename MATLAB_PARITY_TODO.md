@@ -286,15 +286,15 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `table2cell` | ❌ |  |
 | `timetable` | ❌ |  |
 
-### Function Handles — 3 ✅ + 0 ⚠️ / 6 = 50% — **NS: core**
+### Function Handles — 5 ✅ + 0 ⚠️ / 6 = 83% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `feval` | ✅ | call handle by name |
 | `func2str` | ✅ | inspect |
 | `function_handle` | ❌ | OOP class |
-| `functions` | ❌ | introspection |
-| `localfunctions` | ❌ |  |
+| `functions` | ✅ | introspection |
+| `localfunctions` | ✅ | (stub: empty cell) |
 | `str2func` | ✅ | create handle |
 
 ### Categorical Arrays — 1 ✅ + 0 ⚠️ / 17 = 5% — **NS: `categorical.*` (future)**
