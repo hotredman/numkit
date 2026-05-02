@@ -65,7 +65,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `iskeyword` | ✅ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 50 ✅ + 1 ⚠️ / 55 = 93% — **NS: core**
+### Matrices and Arrays — 53 ✅ + 1 ⚠️ / 55 = 98% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -104,13 +104,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `ndims` | ✅ |  |
 | `numel` | ✅ |  |
 | `ones` | ✅ |  |
-| `paddata` | ❌ | pad N-D |
+| `paddata` | ✅ | pad N-D |
 | `permute` | ✅ |  |
 | `rand` | ✅ |  |
 | `repelem` | ✅ |  |
 | `repmat` | ✅ |  |
 | `reshape` | ✅ |  |
-| `resize` | ❌ | general resize |
+| `resize` | ✅ | general resize |
 | `rot90` | ✅ |  |
 | `shiftdim` | ✅ |  |
 | `size` | ✅ |  |
@@ -120,7 +120,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `sub2ind` | ✅ | linear-index conv |
 | `tail` | ✅ |  |
 | `transpose` | ✅ | named-fn form added in Pack 11 |
-| `trimdata` | ❌ |  |
+| `trimdata` | ✅ |  |
 | `true` | ✅ | literal/constant |
 | `vertcat` | ✅ |  |
 | `zeros` | ✅ |  |
