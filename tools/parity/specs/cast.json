@@ -1,0 +1,9 @@
+{
+  "name": "cast",
+  "namespace": "core",
+  "setup": "x = double(1:1000000);",
+  "expr": "y = cast(x, 'int32');",
+  "iters": 50,
+  "fingerprint": ["double(sum(y(:)))", "double(y(1))", "double(y(end))", "double(y(round(end/2)))"],
+  "comment": "1M doubles -> int32. 50 iters."
+}

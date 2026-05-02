@@ -101,4 +101,18 @@ Value isequaln(std::pmr::memory_resource *mr, const Value &a, const Value &b);
 /// a keyword.
 Value classOf(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Pack 36: cast + swapbytes ────────────────────────────────────────
+/// cast(x, classname) — convert x to the type named by `classname`.
+/// Accepted names: "double", "single", "int8".."int64", "uint8".."uint64",
+/// "logical", "char", "string". Saturating for integers, same as the
+/// per-type constructors (int32, etc.).
+Value cast(std::pmr::memory_resource *mr, const Value &x,
+           const std::string &classname);
+
+/// swapbytes(x) — reverse byte order within each element. Per MATLAB:
+/// elements of size 1 (int8, uint8, logical, char) pass through.
+/// double / single elements are bitwise-swapped, producing the same
+/// result as memcpy → reverse → memcpy.
+Value swapbytes(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin

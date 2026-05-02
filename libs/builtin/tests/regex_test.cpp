@@ -143,4 +143,35 @@ TEST_P(RegexTest, RegexprepNoMatchReturnsOriginal)
     EXPECT_EQ(getVarPtr("s")->toString(), "abc");
 }
 
+// ── Pack 36: regexptranslate ────────────────────────────────────────
+TEST_P(RegexTest, RegexptranslateEscapesMetachars)
+{
+    eval("s = regexptranslate('escape', 'a.b*c');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "a\\.b\\*c");
+}
+
+TEST_P(RegexTest, RegexptranslateEscapeNoMetaPassthrough)
+{
+    eval("s = regexptranslate('escape', 'hello');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "hello");
+}
+
+TEST_P(RegexTest, RegexptranslateWildcardStarBecomesDotStar)
+{
+    eval("s = regexptranslate('wildcard', '*.txt');");
+    EXPECT_EQ(getVarPtr("s")->toString(), ".*\\.txt");
+}
+
+TEST_P(RegexTest, RegexptranslateWildcardQuestionBecomesDot)
+{
+    eval("s = regexptranslate('wildcard', 'data?.csv');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "data.\\.csv");
+}
+
+TEST_P(RegexTest, RegexptranslateBadOpThrows)
+{
+    EXPECT_THROW(eval("s = regexptranslate('bogus', 'x');"),
+                 std::exception);
+}
+
 INSTANTIATE_DUAL(RegexTest);

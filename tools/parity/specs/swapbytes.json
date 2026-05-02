@@ -1,0 +1,9 @@
+{
+  "name": "swapbytes",
+  "namespace": "core",
+  "setup": "x = uint32(1:1000000);",
+  "expr": "y = swapbytes(x);",
+  "iters": 50,
+  "fingerprint": ["double(sum(y(:)))", "double(y(1))", "double(y(end))", "double(y(round(end/2)))"],
+  "comment": "1M uint32 byte-swap. 50 iters."
+}

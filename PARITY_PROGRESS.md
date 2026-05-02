@@ -20,3 +20,6 @@ of work + measurements.
 | `erf` | core | DONE | 9.174 | 2.555 | 7.130 | 0.28× | 0.78× | OK | smoke-test (already implemented). N=1e6, mean over 10 iters. |
 | `newline` | core | DONE | 0.000 | 0.000 | 0.001 | 0.10× | 7.25× | OK | ASCII LF char. Bench is 100k iters of the call itself. |
 | `strings` | core | DONE | 0.710 | 0.158 | — | 0.22× | — | OK | 100x100 empty-string array. 1000 iters. |
+| `cast` | core | DONE | 5.072 | 1.506 | 2.778 | 0.30× | 0.55× | OK | 1M doubles -> int32. 50 iters. |
+| `swapbytes` | core | DONE | 1.049 | 1.086 | 7.974 | 1.04× | 7.60× | OK | 1M uint32 byte-swap. 50 iters. |
+| `regexptranslate` | core | DONE | 0.000 | 0.005 | 0.023 | 13.86× | 63.52× | OK | Escape 21-char string with many metachars. 10k iters. |

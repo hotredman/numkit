@@ -188,3 +188,63 @@ TEST(BuiltinTypesPublicApi, ClassOfInt32)
     Value r = numkit::builtin::classOf(mr, i);
     EXPECT_EQ(r.toString(), "int32");
 }
+
+// ── Pack 36: cast / swapbytes ────────────────────────────────────────
+TEST(BuiltinTypesPublicApi, CastDispatchesByName)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = Value::scalar(3.7, mr);
+    EXPECT_EQ(numkit::builtin::cast(mr, v, "int32").type(), numkit::ValueType::INT32);
+    EXPECT_EQ(numkit::builtin::cast(mr, v, "uint16").type(), numkit::ValueType::UINT16);
+    EXPECT_EQ(numkit::builtin::cast(mr, v, "single").type(), numkit::ValueType::SINGLE);
+    EXPECT_EQ(numkit::builtin::cast(mr, v, "logical").type(), numkit::ValueType::LOGICAL);
+}
+
+TEST(BuiltinTypesPublicApi, CastIntegerSaturates)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = Value::scalar(99999.0, mr);
+    Value r = numkit::builtin::cast(mr, v, "int8");
+    EXPECT_EQ(r.elemAsDouble(0), 127.0);
+}
+
+TEST(BuiltinTypesPublicApi, CastBadClassThrows)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = Value::scalar(0.0, mr);
+    EXPECT_THROW(numkit::builtin::cast(mr, v, "bogus"), numkit::Error);
+}
+
+TEST(BuiltinTypesPublicApi, SwapbytesUint16)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = numkit::builtin::uint16(mr, Value::scalar(258.0, mr));  // 0x0102
+    Value r = numkit::builtin::swapbytes(mr, v);
+    EXPECT_EQ(r.type(), numkit::ValueType::UINT16);
+    EXPECT_EQ(r.elemAsDouble(0), 513.0);  // 0x0201
+}
+
+TEST(BuiltinTypesPublicApi, SwapbytesUint32)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = numkit::builtin::uint32(mr, Value::scalar(1.0, mr));
+    Value r = numkit::builtin::swapbytes(mr, v);
+    EXPECT_EQ(r.elemAsDouble(0), 16777216.0);  // 0x01000000
+}
+
+TEST(BuiltinTypesPublicApi, SwapbytesInvolution)
+{
+    auto *mr = std::pmr::get_default_resource();
+    // swapbytes(swapbytes(x)) == x for every supported type.
+    Value v = numkit::builtin::int32(mr, Value::scalar(0x12345678, mr));
+    Value r = numkit::builtin::swapbytes(mr, numkit::builtin::swapbytes(mr, v));
+    EXPECT_EQ(r.elemAsDouble(0), v.elemAsDouble(0));
+}
+
+TEST(BuiltinTypesPublicApi, SwapbytesByteWidth1IsIdentity)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = numkit::builtin::uint8(mr, Value::scalar(0x42, mr));
+    Value r = numkit::builtin::swapbytes(mr, v);
+    EXPECT_EQ(r.elemAsDouble(0), 0x42);
+}
