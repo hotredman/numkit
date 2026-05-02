@@ -115,4 +115,13 @@ Value cast(std::pmr::memory_resource *mr, const Value &x,
 /// result as memcpy → reverse → memcpy.
 Value swapbytes(std::pmr::memory_resource *mr, const Value &x);
 
+/// typecast(x, classname) — reinterpret the raw byte buffer of `x` as
+/// elements of the named type. No value conversion: bit-for-bit
+/// reinterpretation. The byte count must divide evenly by the new
+/// element size. Output element count = byteCount / newElemSize.
+/// Supported `classname`: same set as cast() except 'string' (string
+/// arrays don't have a contiguous byte buffer).
+Value typecast(std::pmr::memory_resource *mr, const Value &x,
+               const std::string &classname);
+
 } // namespace numkit::builtin

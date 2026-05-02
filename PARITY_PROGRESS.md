@@ -53,3 +53,7 @@ of work + measurements.
 | `mape` | stats | DONE | 9.740 | 2.669 | 9.647 | 0.27× | 0.99× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
 | `lastwarn` | core | DONE | 0.000 | 0.000 | 0.002 | 1.20× | 8.46× | OK | Read last warning state. 100k iters, scalar timing. |
 | `mape` | stats | DONE | 9.431 | 2.640 | 9.258 | 0.28× | 0.98× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
+| `typecast` | core | DONE | 1.059 | 0.010 | 1.027 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
+| `xcov` | core | DONE | 0.984 | 0.406 | — | 0.41× | — | OK | Cross-cov of 5k-pt sine. 50 iters. |
+| `peaks` | core | DONE | 0.441 | 0.808 | 1.841 | 1.83× | 4.18× | MISMATCH | 200x200 peaks() surface. 50 iters, element-wise. |
+| `peaks` | core | DONE | 0.445 | 0.699 | 1.855 | 1.57× | 4.17× | OK | 200x200 peaks() surface. 50 iters, element-wise. |

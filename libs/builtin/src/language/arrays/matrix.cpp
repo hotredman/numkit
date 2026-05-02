@@ -261,6 +261,36 @@ Value pagectranspose(std::pmr::memory_resource *mr, const Value &x)
     return pageTransposeAny(mr, x, /*conjugate=*/true);
 }
 
+// ── peaks ────────────────────────────────────────────────────────────
+Value peaks(std::pmr::memory_resource *mr, size_t n)
+{
+    if (n == 0) return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    auto Z = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    double *zd = Z.doubleDataMut();
+
+    // x, y = linspace(-3, 3, n) on a meshgrid: X varies along columns,
+    // Y along rows (so row i → y, col j → x — matches MATLAB peaks).
+    const double step = (n > 1) ? 6.0 / static_cast<double>(n - 1) : 0.0;
+    for (size_t j = 0; j < n; ++j) {  // column index → x axis
+        const double x = (n > 1) ? -3.0 + step * static_cast<double>(j) : 0.0;
+        for (size_t i = 0; i < n; ++i) {  // row index → y axis
+            const double y = (n > 1) ? -3.0 + step * static_cast<double>(i) : 0.0;
+            // MATLAB peaks formula (Press et al., adapted from MATLAB source).
+            const double xm1   = 1.0 - x;
+            const double yp1   = y + 1.0;
+            const double term1 = 3.0 * xm1 * xm1
+                                  * std::exp(-(x * x) - yp1 * yp1);
+            const double term2 = -10.0 * (x / 5.0 - x * x * x - y * y * y * y * y)
+                                  * std::exp(-(x * x) - (y * y));
+            const double xp1   = x + 1.0;
+            const double term3 = -std::exp(-(xp1 * xp1) - (y * y)) / 3.0;
+            zd[j * n + i] = term1 + term2 + term3;
+        }
+    }
+    return Z;
+}
+
 // ── pagemtimes: page-wise matrix multiply ──────────────────────────────
 //
 // MATLAB R2020b+ batched matmul. Treats axes 1-2 of each operand as the
@@ -1655,6 +1685,20 @@ void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
         throw Error("pagectranspose: requires 1 argument",
                      0, 0, "pagectranspose", "", "m:pagectranspose:nargin");
     outs[0] = pagectranspose(ctx.engine->resource(), args[0]);
+}
+
+void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
+               CallContext &ctx)
+{
+    size_t n = 49;  // MATLAB default
+    if (!args.empty()) {
+        const double dn = args[0].toScalar();
+        if (dn < 0 || dn > 1.0e9 || std::isnan(dn))
+            throw Error("peaks: n must be a non-negative integer",
+                         0, 0, "peaks", "", "m:peaks:badN");
+        n = static_cast<size_t>(dn);
+    }
+    outs[0] = peaks(ctx.engine->resource(), n);
 }
 
 void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

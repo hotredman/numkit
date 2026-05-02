@@ -248,3 +248,47 @@ TEST(BuiltinTypesPublicApi, SwapbytesByteWidth1IsIdentity)
     Value r = numkit::builtin::swapbytes(mr, v);
     EXPECT_EQ(r.elemAsDouble(0), 0x42);
 }
+
+// ── Pack 36: typecast ────────────────────────────────────────────────
+TEST(BuiltinTypesPublicApi, TypecastUint32ToUint16)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = numkit::builtin::uint32(mr, Value::scalar(258.0, mr));
+    Value r = numkit::builtin::typecast(mr, v, "uint16");
+    EXPECT_EQ(r.type(), numkit::ValueType::UINT16);
+    EXPECT_EQ(r.numel(), 2u);
+    EXPECT_EQ(r.elemAsDouble(0), 258.0);
+    EXPECT_EQ(r.elemAsDouble(1),   0.0);
+}
+
+TEST(BuiltinTypesPublicApi, TypecastSingleArrayToUint8)
+{
+    auto *mr = std::pmr::get_default_resource();
+    auto v = Value::matrix(1, 2, numkit::ValueType::SINGLE, mr);
+    static_cast<float *>(v.rawDataMut())[0] = 1.0f;
+    static_cast<float *>(v.rawDataMut())[1] = 2.0f;
+    Value r = numkit::builtin::typecast(mr, v, "uint8");
+    EXPECT_EQ(r.numel(), 8u);
+    // 1.0f → 0x3F800000 little-endian → bytes 00 00 80 3F
+    EXPECT_EQ(r.elemAsDouble(2), 128.0);
+    EXPECT_EQ(r.elemAsDouble(3),  63.0);
+    // 2.0f → 0x40000000 → bytes 00 00 00 40
+    EXPECT_EQ(r.elemAsDouble(7),  64.0);
+}
+
+TEST(BuiltinTypesPublicApi, TypecastMisalignedSizeThrows)
+{
+    auto *mr = std::pmr::get_default_resource();
+    // 3 uint8 = 3 bytes; cannot reinterpret as uint16 (needs multiple of 2).
+    auto v = Value::matrix(1, 3, numkit::ValueType::UINT8, mr);
+    EXPECT_THROW(numkit::builtin::typecast(mr, v, "uint16"), numkit::Error);
+}
+
+TEST(BuiltinTypesPublicApi, TypecastSameTypeIsIdentity)
+{
+    auto *mr = std::pmr::get_default_resource();
+    Value v = numkit::builtin::int32(mr, Value::scalar(42.0, mr));
+    Value r = numkit::builtin::typecast(mr, v, "int32");
+    EXPECT_EQ(r.numel(), 1u);
+    EXPECT_EQ(r.elemAsDouble(0), 42.0);
+}

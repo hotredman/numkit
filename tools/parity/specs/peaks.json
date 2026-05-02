@@ -1,0 +1,10 @@
+{
+  "name": "peaks",
+  "namespace": "core",
+  "setup": "n = 200;",
+  "expr": "Z = peaks(n);",
+  "iters": 50,
+  "tol": 1e-12,
+  "out_var": "Z",
+  "comment": "200x200 peaks() surface. 50 iters, element-wise."
+}

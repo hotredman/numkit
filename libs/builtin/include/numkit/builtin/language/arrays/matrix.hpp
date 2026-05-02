@@ -60,6 +60,13 @@ Value transpose(std::pmr::memory_resource *mr, const Value &x);
 /// element level; complex elements are transposed without conjugation.
 Value pagetranspose(std::pmr::memory_resource *mr, const Value &x);
 
+/// peaks(n) — MATLAB demo surface: sample points of the function
+///   z(x,y) = 3*(1-x)^2*exp(-x^2-(y+1)^2)
+///          - 10*(x/5 - x^3 - y^5)*exp(-x^2 - y^2)
+///          - exp(-(x+1)^2 - y^2) / 3
+/// on the n×n grid (x, y) = linspace(-3, 3, n). Default n = 49.
+Value peaks(std::pmr::memory_resource *mr, size_t n);
+
 /// Page-wise conjugate transpose. Identical to pagetranspose for real
 /// inputs; for complex inputs, conjugates each element while transposing.
 Value pagectranspose(std::pmr::memory_resource *mr, const Value &x);

@@ -41,6 +41,17 @@ xcorr(std::pmr::memory_resource *mr, const Value &x)
     return xcorr(mr, x, x);
 }
 
+/// Cross-covariance: xcov(x, y) = xcorr(x - mean(x), y - mean(y)).
+/// Returns (c, lags) like xcorr. Auto-cov form xcov(x) = xcov(x, x).
+std::tuple<Value, Value>
+xcov(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+
+inline std::tuple<Value, Value>
+xcov(std::pmr::memory_resource *mr, const Value &x)
+{
+    return xcov(mr, x, x);
+}
+
 /// 2-D convolution. `shape` ∈ {"full" (default), "same", "valid"}.
 /// Direct nested-loop implementation; for large inputs FFT-based 2-D
 /// conv would be faster but is not yet wired in.
