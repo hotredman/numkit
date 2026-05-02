@@ -307,7 +307,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `combinations` | ❌ | all combinations |
 | `countcats` | ❌ |  |
 | `discretize` | ✅ |  |
-| `iscategorical` | ❌ |  |
+| `iscategorical` | ✅ | stub: false on absent types | |  |
 | `iscategory` | ❌ |  |
 | `isordinal` | ❌ |  |
 | `isprotected` | ❌ |  |
@@ -344,8 +344,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `ismember` | ✅ |  |
 | `ismissing` | ❌ |  |
 | `issortedrows` | ❌ |  |
-| `istable` | ❌ |  |
-| `istabular` | ❌ |  |
+| `istable` | ✅ | stub: false on absent types | |  |
+| `istabular` | ✅ | stub: false on absent types | |  |
 | `join` | ✅ |  |
 | `jointables` | ❌ |  |
 | `mergevars` | ❌ |  |
