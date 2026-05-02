@@ -166,6 +166,10 @@ void psi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void gammainc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void betainc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void legendre_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void besselj_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void bessely_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void besseli_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void besselk_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -620,6 +624,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("gammainc", &builtin::detail::gammainc_reg);
     engine.registerFunction("betainc",  &builtin::detail::betainc_reg);
     engine.registerFunction("legendre", &builtin::detail::legendre_reg);
+    engine.registerFunction("besselj",  &builtin::detail::besselj_reg);
+    engine.registerFunction("bessely",  &builtin::detail::bessely_reg);
+    engine.registerFunction("besseli",  &builtin::detail::besseli_reg);
+    engine.registerFunction("besselk",  &builtin::detail::besselk_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

@@ -532,16 +532,16 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `realsqrt` | ✅ |  |
 | `sqrt` | ✅ |  |
 
-### Special Functions — 12 ✅ + 0 ⚠️ / 24 = 50% — **NS: core**
+### Special Functions — 16 ✅ + 0 ⚠️ / 24 = 67% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `airy` | ❌ |  |
 | `besselh` | ❌ |  |
-| `besseli` | ❌ |  |
-| `besselj` | ❌ |  |
-| `besselk` | ❌ |  |
-| `bessely` | ❌ |  |
+| `besseli` | ✅ |  |
+| `besselj` | ✅ |  |
+| `besselk` | ✅ |  |
+| `bessely` | ✅ |  |
 | `beta` | ✅ |  |
 | `betainc` | ✅ |  |
 | `betaincinv` | ❌ |  |

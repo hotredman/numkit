@@ -54,4 +54,14 @@ Value betainc(std::pmr::memory_resource *mr, const Value &x,
 /// (n+1) × length(x) matrix; row m+1 is P_n^m(x).
 Value legendre(std::pmr::memory_resource *mr, int n, const Value &x);
 
+// ── Pack 27: Bessel functions (C++17 std::cyl_*) ─────────────────────
+/// besselj(nu, x) — Bessel function of the first kind J_ν(x).
+Value besselj(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
+/// bessely(nu, x) — Bessel of the second kind Y_ν(x).
+Value bessely(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
+/// besseli(nu, x) — modified Bessel of the first kind I_ν(x).
+Value besseli(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
+/// besselk(nu, x) — modified Bessel of the second kind K_ν(x).
+Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x);
+
 } // namespace numkit::builtin
