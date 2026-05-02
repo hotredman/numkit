@@ -1902,6 +1902,117 @@ TEST_P(BuiltinTest, PaddataColumnOrientation)
     EXPECT_EQ(cols(*t), 1u);
 }
 
+// ============================================================
+// Prod-grade test pack T2 — roundtrip / property tests
+// ============================================================
+//
+// These check identities the impl must satisfy by construction. They
+// catch bugs that pointwise tests miss (e.g. an off-by-one in
+// poly/roots that still passes "this case looks right").
+
+TEST_P(BuiltinTest, PolyRootsRoundtrip)
+{
+    // r = roots(p), then p' = poly(r) should reproduce p up to a
+    // leading-coefficient scale (poly always normalises to leading 1).
+    eval("p = [1 -6 11 -6];");          // (x-1)(x-2)(x-3)
+    eval("r = roots(p); p2 = poly(r);");
+    auto *p2 = getVarPtr("p2");
+    ASSERT_EQ(p2->numel(), 4u);
+    // Reconstructed coefficients should be {1, -6, 11, -6}.
+    EXPECT_NEAR(p2->doubleData()[0],  1.0,  1e-10);
+    EXPECT_NEAR(p2->doubleData()[1], -6.0,  1e-10);
+    EXPECT_NEAR(p2->doubleData()[2], 11.0,  1e-10);
+    EXPECT_NEAR(p2->doubleData()[3], -6.0,  1e-10);
+}
+
+TEST_P(BuiltinTest, IdivideRemRelation)
+{
+    // For 'fix' mode: a == idivide(a, b, 'fix') * b + rem(a, b).
+    eval("a = [10 -10 7 -7]; b = [3 3 -3 -3];");
+    eval("q = idivide(a, b, 'fix'); r = rem(a, b); recon = q .* b + r;");
+    auto *recon = getVarPtr("recon");
+    ASSERT_EQ(recon->numel(), 4u);
+    EXPECT_DOUBLE_EQ(recon->doubleData()[0],  10.0);
+    EXPECT_DOUBLE_EQ(recon->doubleData()[1], -10.0);
+    EXPECT_DOUBLE_EQ(recon->doubleData()[2],   7.0);
+    EXPECT_DOUBLE_EQ(recon->doubleData()[3],  -7.0);
+}
+
+TEST_P(BuiltinTest, BetaIncSymmetry)
+{
+    // I_x(a, b) + I_(1-x)(b, a) == 1 for all a, b > 0, x ∈ (0, 1).
+    EXPECT_NEAR(evalScalar("betainc(0.3, 2, 5) + betainc(0.7, 5, 2);"),
+                1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("betainc(0.7, 1, 1) + betainc(0.3, 1, 1);"),
+                1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("betainc(0.1, 4, 7) + betainc(0.9, 7, 4);"),
+                1.0, 1e-10);
+}
+
+TEST_P(BuiltinTest, GammaIncComplementSum)
+{
+    // P(a, x) + Q(a, x) = 1, where Q is upper incomplete. We only
+    // expose the lower form, but the relation P(a, ∞) → 1 is checkable.
+    EXPECT_NEAR(evalScalar("gammainc(100, 3);"), 1.0, 1e-10);
+    EXPECT_NEAR(evalScalar("gammainc(1e-10, 3);"), 0.0, 1e-15);
+}
+
+TEST_P(BuiltinTest, MkppUnmkppRoundtrip)
+{
+    eval("br = [0 1 2 3]; cf = [1 0; 2 1; 3 0];");
+    eval("pp = mkpp(br, cf); [b, c, l, k, d] = unmkpp(pp);");
+    auto *b = getVarPtr("b");
+    auto *c = getVarPtr("c");
+    ASSERT_EQ(b->numel(), 4u);
+    EXPECT_DOUBLE_EQ(b->doubleData()[0], 0.0);
+    EXPECT_DOUBLE_EQ(b->doubleData()[3], 3.0);
+    ASSERT_EQ(rows(*c), 3u);
+    ASSERT_EQ(cols(*c), 2u);
+    EXPECT_DOUBLE_EQ((*c)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*c)(2, 1), 0.0);
+    EXPECT_DOUBLE_EQ(getVar("l"), 3.0);
+    EXPECT_DOUBLE_EQ(getVar("k"), 2.0);
+}
+
+TEST_P(BuiltinTest, CartPolarRoundtripVector)
+{
+    // 2-D roundtrip on a vector of points.
+    eval("xs = [3 -1 0 5]; ys = [4 0 7 -12];");
+    eval("[t, r] = cart2pol(xs, ys); [xb, yb] = pol2cart(t, r);");
+    auto *xb = getVarPtr("xb");
+    auto *yb = getVarPtr("yb");
+    ASSERT_EQ(xb->numel(), 4u);
+    for (size_t i = 0; i < 4u; ++i) {
+        EXPECT_NEAR(xb->doubleData()[i],
+                    (i == 0 ? 3.0 : i == 1 ? -1.0 : i == 2 ? 0.0 : 5.0),
+                    1e-12);
+        EXPECT_NEAR(yb->doubleData()[i],
+                    (i == 0 ? 4.0 : i == 1 ? 0.0 : i == 2 ? 7.0 : -12.0),
+                    1e-12);
+    }
+}
+
+TEST_P(BuiltinTest, ErfErfinvRoundtrip)
+{
+    // erf(erfinv(y)) == y for y ∈ (-1, 1).
+    EXPECT_NEAR(evalScalar("erf(erfinv(0.3));"), 0.3, 1e-10);
+    EXPECT_NEAR(evalScalar("erf(erfinv(-0.7));"), -0.7, 1e-10);
+    EXPECT_NEAR(evalScalar("erf(erfinv(0.99));"), 0.99, 1e-10);
+}
+
+TEST_P(BuiltinTest, Sub2IndInd2SubRoundtrip)
+{
+    // For each linear index, ind2sub then sub2ind returns the original.
+    eval("siz = [3 4 2]; ind = [1 7 12 24];");
+    eval("[r, c, p] = ind2sub(siz, ind); back = sub2ind(siz, r, c, p);");
+    auto *back = getVarPtr("back");
+    ASSERT_EQ(back->numel(), 4u);
+    EXPECT_DOUBLE_EQ(back->doubleData()[0],  1.0);
+    EXPECT_DOUBLE_EQ(back->doubleData()[1],  7.0);
+    EXPECT_DOUBLE_EQ(back->doubleData()[2], 12.0);
+    EXPECT_DOUBLE_EQ(back->doubleData()[3], 24.0);
+}
+
 INSTANTIATE_DUAL(BuiltinTest);
 
 // ============================================================
