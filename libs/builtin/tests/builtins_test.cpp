@@ -501,6 +501,83 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── String utils — Pack 10 ────────────────────────────────────
+TEST_P(BuiltinTest, Strncmp)
+{
+    EXPECT_TRUE(evalBool("strncmp('hello world', 'hello there', 5);"));
+    // First 6 chars match ("hello "), so 6 is still true; first 7 differ.
+    EXPECT_TRUE(evalBool("strncmp('hello world', 'hello there', 6);"));
+    EXPECT_FALSE(evalBool("strncmp('hello world', 'hello there', 7);"));
+    EXPECT_TRUE(evalBool("strncmpi('HELLO', 'hello', 5);"));
+    EXPECT_FALSE(evalBool("strncmp('HELLO', 'hello', 5);"));
+}
+
+TEST_P(BuiltinTest, Strfind)
+{
+    eval("p = strfind('abcabc', 'b');");
+    auto *p = getVarPtr("p");
+    ASSERT_EQ(p->numel(), 2u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 2.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], 5.0);
+    eval("e = strfind('hello', 'xyz');");
+    auto *e = getVarPtr("e");
+    EXPECT_TRUE(e->isEmpty());
+    eval("a = strfind('aaaa', 'aa');");
+    auto *a = getVarPtr("a");
+    // Overlapping matches: positions 1, 2, 3.
+    ASSERT_EQ(a->numel(), 3u);
+    EXPECT_DOUBLE_EQ(a->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(a->doubleData()[2], 3.0);
+}
+
+TEST_P(BuiltinTest, BlanksAndDeblank)
+{
+    eval("b = blanks(5);");
+    auto *b = getVarPtr("b");
+    EXPECT_EQ(b->toString(), "     ");
+    eval("d = deblank('hello   ');");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->toString(), "hello");
+    // deblank preserves leading whitespace.
+    eval("d2 = deblank('   hello   ');");
+    auto *d2 = getVarPtr("d2");
+    EXPECT_EQ(d2->toString(), "   hello");
+}
+
+TEST_P(BuiltinTest, Mat2str)
+{
+    eval("s1 = mat2str(5);");
+    EXPECT_EQ(getVarPtr("s1")->toString(), "5");
+    eval("s2 = mat2str([1 2 3]);");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "[1 2 3]");
+    eval("s3 = mat2str([1 2; 3 4]);");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "[1 2;3 4]");
+    eval("s4 = mat2str([]);");
+    EXPECT_EQ(getVarPtr("s4")->toString(), "[]");
+}
+
+TEST_P(BuiltinTest, Strjoin)
+{
+    eval("s = strjoin({'a', 'b', 'c'});");
+    EXPECT_EQ(getVarPtr("s")->toString(), "a b c");
+    eval("s2 = strjoin({'foo', 'bar', 'baz'}, '-');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "foo-bar-baz");
+}
+
+TEST_P(BuiltinTest, Strtok)
+{
+    eval("[t, r] = strtok('hello world foo');");
+    EXPECT_EQ(getVarPtr("t")->toString(), "hello");
+    EXPECT_EQ(getVarPtr("r")->toString(), " world foo");
+    // With explicit delim.
+    eval("[t2, r2] = strtok('a,b,c', ',');");
+    EXPECT_EQ(getVarPtr("t2")->toString(), "a");
+    EXPECT_EQ(getVarPtr("r2")->toString(), ",b,c");
+    // Leading delim is skipped.
+    eval("[t3, r3] = strtok('   foo bar');");
+    EXPECT_EQ(getVarPtr("t3")->toString(), "foo");
+}
+
 // ── pow2 / realpow / reallog / realsqrt ───────────────────────
 TEST_P(BuiltinTest, Pow2Family)
 {
