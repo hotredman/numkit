@@ -29,4 +29,19 @@ Value expm1(std::pmr::memory_resource *mr, const Value &x);
 /// log1p(x) — log(1 + x), accurate near zero.
 Value log1p(std::pmr::memory_resource *mr, const Value &x);
 
+/// pow2(y)        — 2 .^ y elementwise.
+/// pow2(f, e)     — f .* 2 .^ e elementwise (libc ldexp).
+Value pow2(std::pmr::memory_resource *mr, const Value &y);
+Value pow2(std::pmr::memory_resource *mr, const Value &f, const Value &e);
+
+/// realpow(x, y)  — x .^ y, but errors if any result would be complex
+/// (negative base with non-integer exponent).
+Value realpow(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+
+/// reallog(x)     — log(x), errors on x < 0 (would be complex).
+Value reallog(std::pmr::memory_resource *mr, const Value &x);
+
+/// realsqrt(x)    — sqrt(x), errors on x < 0.
+Value realsqrt(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin

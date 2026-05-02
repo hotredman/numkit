@@ -501,6 +501,36 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── pow2 / realpow / reallog / realsqrt ───────────────────────
+TEST_P(BuiltinTest, Pow2Family)
+{
+    // 1-arg form: pow2(y) = 2^y.
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(0);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(10);"), 1024.0);
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(-3);"), 0.125);
+
+    // 2-arg form: pow2(F, E) = F * 2^floor(E).
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(1.5, 2);"), 6.0);   // 1.5 * 4
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(3, 0);"),   3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("pow2(1, 10);"),  1024.0);
+}
+
+TEST_P(BuiltinTest, RealPowRealLogRealSqrt)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("realpow(2, 10);"), 1024.0);
+    EXPECT_DOUBLE_EQ(evalScalar("realpow(-2, 3);"),   -8.0);   // negative^integer is real.
+    // Negative base + non-integer exponent → error.
+    EXPECT_THROW(eval("realpow(-2, 0.5);"), std::exception);
+
+    EXPECT_NEAR(evalScalar("reallog(exp(1));"), 1.0, 1e-12);
+    EXPECT_DOUBLE_EQ(evalScalar("reallog(1);"), 0.0);
+    EXPECT_THROW(eval("reallog(-1);"), std::exception);
+
+    EXPECT_DOUBLE_EQ(evalScalar("realsqrt(4);"), 2.0);
+    EXPECT_DOUBLE_EQ(evalScalar("realsqrt(0);"), 0.0);
+    EXPECT_THROW(eval("realsqrt(-1);"), std::exception);
+}
+
 // ── Numeric limits ────────────────────────────────────────────
 TEST_P(BuiltinTest, NumericLimits)
 {
