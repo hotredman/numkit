@@ -734,6 +734,160 @@ Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
     return strLikeOf(mr, s, ss);
 }
 
+// ── Pack 23 ──────────────────────────────────────────────────────────
+
+namespace {
+std::string toBaseString(uint64_t v, int base, int minWidth)
+{
+    if (v == 0) {
+        std::string s(std::max(1, minWidth), '0');
+        return s;
+    }
+    std::string out;
+    while (v > 0) {
+        const int d = static_cast<int>(v % static_cast<uint64_t>(base));
+        out.push_back(d < 10 ? char('0' + d) : char('A' + d - 10));
+        v /= static_cast<uint64_t>(base);
+    }
+    while (static_cast<int>(out.size()) < minWidth) out.push_back('0');
+    std::reverse(out.begin(), out.end());
+    return out;
+}
+
+uint64_t parseBase(const std::string &s, int base)
+{
+    uint64_t v = 0;
+    for (char c : s) {
+        if (std::isspace(static_cast<unsigned char>(c))) continue;
+        int d;
+        if (c >= '0' && c <= '9') d = c - '0';
+        else if (c >= 'a' && c <= 'f') d = 10 + (c - 'a');
+        else if (c >= 'A' && c <= 'F') d = 10 + (c - 'A');
+        else throw Error(std::string("invalid digit '") + c + "' for base "
+                          + std::to_string(base),
+                          0, 0, "base", "", "m:base:badDigit");
+        if (d >= base)
+            throw Error(std::string("digit '") + c + "' out of range for base "
+                          + std::to_string(base),
+                          0, 0, "base", "", "m:base:badDigit");
+        v = v * static_cast<uint64_t>(base) + static_cast<uint64_t>(d);
+    }
+    return v;
+}
+
+// Convert an N-element double vector to a 2-D char matrix where each
+// row holds the base-`base` representation, padded to the maximum
+// observed width (and at least minWidth).
+Value vecToBaseMatrix(std::pmr::memory_resource *mr, const Value &d,
+                      int base, int minWidth)
+{
+    const size_t n = d.numel();
+    if (n == 0) return Value::fromString("", mr);
+    if (n == 1) {
+        const double v = d.toScalar();
+        if (v < 0) throw Error("dec2*: value must be non-negative",
+                                0, 0, "dec2", "", "m:dec2:negative");
+        return Value::fromString(
+            toBaseString(static_cast<uint64_t>(v), base, minWidth), mr);
+    }
+    // Compute max width.
+    ScratchArena scratch(mr);
+    auto rows = ScratchVec<std::string>(&scratch);
+    rows.reserve(n);
+    int maxW = minWidth;
+    for (size_t i = 0; i < n; ++i) {
+        const double v = d.elemAsDouble(i);
+        if (v < 0) throw Error("dec2*: value must be non-negative",
+                                0, 0, "dec2", "", "m:dec2:negative");
+        rows.emplace_back(toBaseString(static_cast<uint64_t>(v), base, 0));
+        maxW = std::max<int>(maxW, static_cast<int>(rows.back().size()));
+    }
+    // Pad each row to maxW with leading zeros.
+    for (auto &r : rows)
+        while (static_cast<int>(r.size()) < maxW)
+            r.insert(r.begin(), '0');
+    // Build a CHAR matrix n × maxW, column-major.
+    auto m = Value::matrix(n, maxW, ValueType::CHAR, mr);
+    char *dst = static_cast<char *>(m.rawDataMut());
+    for (size_t r = 0; r < n; ++r)
+        for (int c = 0; c < maxW; ++c)
+            dst[c * n + r] = rows[r][c];
+    return m;
+}
+} // anon
+
+Value dec2bin(std::pmr::memory_resource *mr, const Value &d, int minWidth)
+{
+    return vecToBaseMatrix(mr, d, 2, minWidth);
+}
+
+Value dec2hex(std::pmr::memory_resource *mr, const Value &d, int minWidth)
+{
+    return vecToBaseMatrix(mr, d, 16, minWidth);
+}
+
+Value bin2dec(std::pmr::memory_resource *mr, const Value &s)
+{
+    return Value::scalar(static_cast<double>(parseBase(s.toString(), 2)), mr);
+}
+
+Value hex2dec(std::pmr::memory_resource *mr, const Value &s)
+{
+    return Value::scalar(static_cast<double>(parseBase(s.toString(), 16)), mr);
+}
+
+namespace {
+// Stern-Brocot-style continued-fraction expansion: returns numerator
+// and denominator with |x - p/q| ≤ tol·|x|, prefering small q.
+std::pair<long long, long long> ratPQ(double x, double tol)
+{
+    if (!std::isfinite(x))
+        return {0, 0};
+    const double tgt = std::abs(x);
+    long long sign = (x < 0) ? -1 : 1;
+    double r = tgt;
+    long long h0 = 1, h1 = 0;
+    long long k0 = 0, k1 = 1;
+    for (int i = 0; i < 64; ++i) {
+        const long long a = static_cast<long long>(std::floor(r));
+        const long long h = a * h0 + h1;
+        const long long k = a * k0 + k1;
+        h1 = h0; h0 = h;
+        k1 = k0; k0 = k;
+        const double approx = static_cast<double>(h0) / static_cast<double>(k0);
+        if (std::abs(approx - tgt) <= tol * std::max(1.0, tgt)) break;
+        const double frac = r - static_cast<double>(a);
+        if (frac == 0.0) break;
+        r = 1.0 / frac;
+        if (r > 1e15) break;  // numerical safety
+    }
+    return {sign * h0, k0};
+}
+} // anon
+
+Value rat(std::pmr::memory_resource *mr, const Value &x, double tol)
+{
+    const double v = x.toScalar();
+    if (!std::isfinite(v))
+        return Value::fromString(std::isnan(v) ? "NaN" : (v > 0 ? "Inf" : "-Inf"), mr);
+    const auto [p, q] = ratPQ(v, tol);
+    std::ostringstream os;
+    if (q == 1)
+        os << p;
+    else
+        os << p << " / " << q;
+    return Value::fromString(os.str(), mr);
+}
+
+Value rats(std::pmr::memory_resource *mr, const Value &x, int len)
+{
+    Value r = rat(mr, x, 1e-6);
+    if (len <= 0) return r;
+    std::string s = r.toString();
+    while (static_cast<int>(s.size()) < len) s = " " + s;
+    return Value::fromString(s, mr);
+}
+
 Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
 {
     std::pmr::memory_resource *p = mr;
@@ -1145,6 +1299,62 @@ void replaceBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallCo
                      0, 0, "replaceBetween", "", "m:replaceBetween:nargin");
     outs[0] = replaceBetween(ctx.engine->resource(),
                              args[0], args[1], args[2], args[3]);
+}
+
+void dec2bin_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dec2bin requires (d[, n])",
+                     0, 0, "dec2bin", "", "m:dec2bin:nargin");
+    int n = (args.size() >= 2 && !args[1].isEmpty())
+              ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = dec2bin(ctx.engine->resource(), args[0], n);
+}
+
+void dec2hex_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("dec2hex requires (d[, n])",
+                     0, 0, "dec2hex", "", "m:dec2hex:nargin");
+    int n = (args.size() >= 2 && !args[1].isEmpty())
+              ? static_cast<int>(args[1].toScalar()) : 0;
+    outs[0] = dec2hex(ctx.engine->resource(), args[0], n);
+}
+
+void bin2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bin2dec requires 1 argument",
+                     0, 0, "bin2dec", "", "m:bin2dec:nargin");
+    outs[0] = bin2dec(ctx.engine->resource(), args[0]);
+}
+
+void hex2dec_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("hex2dec requires 1 argument",
+                     0, 0, "hex2dec", "", "m:hex2dec:nargin");
+    outs[0] = hex2dec(ctx.engine->resource(), args[0]);
+}
+
+void rat_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rat requires (x[, tol])",
+                     0, 0, "rat", "", "m:rat:nargin");
+    double tol = (args.size() >= 2 && !args[1].isEmpty())
+                     ? args[1].toScalar() : 1e-6;
+    outs[0] = rat(ctx.engine->resource(), args[0], tol);
+}
+
+void rats_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rats requires (x[, len])",
+                     0, 0, "rats", "", "m:rats:nargin");
+    int len = (args.size() >= 2 && !args[1].isEmpty())
+                  ? static_cast<int>(args[1].toScalar()) : 13;
+    outs[0] = rats(ctx.engine->resource(), args[0], len);
 }
 
 // strtok(s, delim?) — split at first delim char. Returns [token, rem].

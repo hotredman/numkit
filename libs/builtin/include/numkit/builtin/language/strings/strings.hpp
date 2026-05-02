@@ -159,4 +159,21 @@ Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
                      const Value &start, const Value &end,
                      const Value &newText);
 
+// ── Pack 23: numeric base / fraction conversion ──────────────────────
+/// dec2bin(d[, n]) — non-negative integer → binary char row, padded to
+/// at least n digits. Vector input → 2-D char matrix (one row per d_i).
+Value dec2bin(std::pmr::memory_resource *mr, const Value &d, int minWidth);
+/// dec2hex(d[, n]) — uppercase hex char row, padded to ≥ n.
+Value dec2hex(std::pmr::memory_resource *mr, const Value &d, int minWidth);
+/// bin2dec(s) — parse binary digit string → double.
+Value bin2dec(std::pmr::memory_resource *mr, const Value &s);
+/// hex2dec(s) — parse hex (case-insensitive, no '0x') → double.
+Value hex2dec(std::pmr::memory_resource *mr, const Value &s);
+
+/// rat(x[, tol]) — continued-fraction approximation. Returns a string
+/// of the form "n / d" (matches MATLAB's "rat" with one output).
+Value rat(std::pmr::memory_resource *mr, const Value &x, double tol);
+/// rats(x[, len]) — same as rat but pads to fixed width `len`.
+Value rats(std::pmr::memory_resource *mr, const Value &x, int len);
+
 } // namespace numkit::builtin
