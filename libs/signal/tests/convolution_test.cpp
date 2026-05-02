@@ -181,3 +181,70 @@ TEST_F(ConvolutionTest, XcorrLagsRange)
     EXPECT_DOUBLE_EQ(evalScalar("lags(4)"), 0.0);
     EXPECT_DOUBLE_EQ(evalScalar("lags(7)"), 3.0);
 }
+
+// ── Pack 36: conv2 / filter2 / convn ────────────────────────────────
+TEST_F(ConvolutionTest, Conv2FullKnownExample)
+{
+    // A=[1 2 3;4 5 6;7 8 9], B=[1 0;0 -1] → MATLAB-verified result.
+    eval("A = [1 2 3; 4 5 6; 7 8 9]; B = [1 0; 0 -1];");
+    eval("C = conv2(A, B);");
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,1)"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(1,4)"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(2,2)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("C(4,4)"), -9.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,1)"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("size(C,2)"), 4.0);
+}
+
+TEST_F(ConvolutionTest, Conv2SameMatchesMatlab)
+{
+    // 'same' for P=Q=2 should drop 1 row from top, 1 col from left.
+    eval("A = [1 2 3; 4 5 6; 7 8 9]; B = [1 0; 0 -1];");
+    eval("S = conv2(A, B, 'same');");
+    EXPECT_DOUBLE_EQ(evalScalar("S(1,1)"),  4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S(1,3)"), -3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("S(3,3)"), -9.0);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,1)")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(S,2)")), 3);
+}
+
+TEST_F(ConvolutionTest, Conv2ValidShape)
+{
+    eval("A = [1 2 3; 4 5 6; 7 8 9]; B = [1 0; 0 -1];");
+    eval("V = conv2(A, B, 'valid');");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(V,1)")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(V,2)")), 2);
+    // conv2 flips B: out(i,j) = sum A(i+p, j+q) * B(P-1-p, Q-1-q).
+    // For B=[1 0; 0 -1], flipped is [-1 0; 0 1] → out = A(i+1,j+1) - A(i,j).
+    EXPECT_DOUBLE_EQ(evalScalar("V(1,1)"), 5.0 - 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("V(2,2)"), 9.0 - 5.0);
+}
+
+TEST_F(ConvolutionTest, Filter2EquivalentToConv2WithRot90)
+{
+    eval("A = [1 2 3; 4 5 6; 7 8 9]; h = [1 0; 0 -1];");
+    eval("F = filter2(h, A);");
+    // filter2 default 'same' = conv2(A, rot90(h, 2), 'same')
+    // rot90(h,2) = [-1 0; 0 1]; expected from MATLAB probe.
+    EXPECT_DOUBLE_EQ(evalScalar("F(1,1)"), -4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("F(1,3)"),  3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("F(3,3)"),  9.0);
+}
+
+TEST_F(ConvolutionTest, ConvnFallsThroughToConv2For2D)
+{
+    eval("A = [1 2; 3 4]; B = [1 -1];");
+    eval("Cn = convn(A, B);");
+    eval("C2 = conv2(A, B);");
+    eval("delta = max(abs(Cn(:) - C2(:)));");
+    EXPECT_LT(evalScalar("delta"), 1e-12);
+}
+
+TEST_F(ConvolutionTest, Conv2SeparableImpulseIdentity)
+{
+    // Convolving by [1] should be identity in 'same' mode.
+    eval("A = [2 7 6; 9 5 1; 4 3 8];");
+    eval("F = conv2(A, [1], 'same');");
+    eval("delta = max(abs(F(:) - A(:)));");
+    EXPECT_LT(evalScalar("delta"), 1e-12);
+}

@@ -1,0 +1,10 @@
+{
+  "name": "filter2",
+  "namespace": "core",
+  "setup": "[ii, jj] = meshgrid(1:128, 1:128); A = sin(0.05*ii)+cos(0.07*jj); h = [-1 -1 -1; -1 8 -1; -1 -1 -1];",
+  "expr": "F = filter2(h, A);",
+  "iters": 100,
+  "tol": 1e-12,
+  "out_var": "F",
+  "comment": "128x128 image with 3x3 Laplacian kernel. 100 iters."
+}

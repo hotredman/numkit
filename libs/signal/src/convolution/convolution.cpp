@@ -118,6 +118,228 @@ xcorr(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     return std::make_tuple(std::move(r), std::move(lags));
 }
 
+// ── Pack 36: conv2 / filter2 / convn ─────────────────────────────────
+namespace {
+
+// Direct 2-D convolution into a `(M+P-1) × (N+Q-1)` "full" output buffer.
+// A is M×N (column-major, src1), B is P×Q (column-major, src2).
+// Output `out` must be sized M+P-1 by N+Q-1, column-major.
+void conv2Direct(const double *A, size_t M, size_t N,
+                 const double *B, size_t P, size_t Q,
+                 double *out)
+{
+    const size_t outR = M + P - 1;
+    const size_t outC = N + Q - 1;
+    std::fill_n(out, outR * outC, 0.0);
+    for (size_t j = 0; j < Q; ++j) {
+        for (size_t i = 0; i < P; ++i) {
+            const double bij = B[j * P + i];
+            if (bij == 0.0) continue;
+            for (size_t cc = 0; cc < N; ++cc) {
+                const size_t outCol = j + cc;
+                for (size_t rr = 0; rr < M; ++rr) {
+                    out[outCol * outR + (i + rr)] += A[cc * M + rr] * bij;
+                }
+            }
+        }
+    }
+}
+
+// Crop a "full" 2-D conv result to MATLAB's "same" or "valid" shape.
+// Returns a fresh Value sized appropriately. fullR/fullC are dims of
+// the full result; A is the first input (size M×N), B is the second
+// (size P×Q).
+Value cropConv2(std::pmr::memory_resource *mr, const double *full,
+                size_t fullR, size_t fullC,
+                size_t M, size_t N, size_t P, size_t Q,
+                const std::string &shape)
+{
+    if (shape == "full") {
+        auto out = Value::matrix(fullR, fullC, ValueType::DOUBLE, mr);
+        std::memcpy(out.doubleDataMut(), full, fullR * fullC * sizeof(double));
+        return out;
+    }
+    if (shape == "same") {
+        // Center-crop to size of A. MATLAB picks r0 = floor(P/2),
+        // c0 = floor(Q/2) (verified empirically against R2025b for
+        // both even and odd P, Q).
+        const size_t outR = M, outC = N;
+        const size_t r0 = P / 2;
+        const size_t c0 = Q / 2;
+        auto out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        for (size_t cc = 0; cc < outC; ++cc)
+            for (size_t rr = 0; rr < outR; ++rr)
+                od[cc * outR + rr] = full[(cc + c0) * fullR + (rr + r0)];
+        return out;
+    }
+    if (shape == "valid") {
+        // Output is max(M-P+1, 0) × max(N-Q+1, 0).
+        const size_t outR = (M >= P) ? M - P + 1 : 0;
+        const size_t outC = (N >= Q) ? N - Q + 1 : 0;
+        auto out = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+        if (outR == 0 || outC == 0) return out;
+        double *od = out.doubleDataMut();
+        const size_t r0 = P - 1;
+        const size_t c0 = Q - 1;
+        for (size_t cc = 0; cc < outC; ++cc)
+            for (size_t rr = 0; rr < outR; ++rr)
+                od[cc * outR + rr] = full[(cc + c0) * fullR + (rr + r0)];
+        return out;
+    }
+    throw Error("conv2: shape must be 'full', 'same', or 'valid'",
+                 0, 0, "conv2", "", "m:conv2:badShape");
+}
+
+void requireDouble2D(const Value &v, const char *name)
+{
+    if (v.type() != ValueType::DOUBLE)
+        throw Error(std::string(name) + ": only DOUBLE inputs are supported",
+                     0, 0, name, "", std::string("m:") + name + ":notDouble");
+    if (v.dims().ndim() > 2)
+        throw Error(std::string(name) + ": input must be 1-D or 2-D",
+                     0, 0, name, "", std::string("m:") + name + ":nd");
+}
+
+} // namespace
+
+Value conv2(std::pmr::memory_resource *mr,
+            const Value &A, const Value &B,
+            const std::string &shape)
+{
+    requireDouble2D(A, "conv2");
+    requireDouble2D(B, "conv2");
+
+    const size_t M = A.dims().rows(), N = A.dims().cols();
+    const size_t P = B.dims().rows(), Q = B.dims().cols();
+    if (M == 0 || N == 0 || P == 0 || Q == 0) {
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    }
+
+    const size_t fullR = M + P - 1, fullC = N + Q - 1;
+    ScratchArena scratch(mr);
+    ScratchVec<double> full(fullR * fullC, &scratch);
+    conv2Direct(A.doubleData(), M, N, B.doubleData(), P, Q, full.data());
+
+    return cropConv2(mr, full.data(), fullR, fullC, M, N, P, Q, shape);
+}
+
+Value filter2(std::pmr::memory_resource *mr,
+              const Value &h, const Value &X,
+              const std::string &shape)
+{
+    requireDouble2D(h, "filter2");
+    requireDouble2D(X, "filter2");
+
+    // filter2(h, X, shape) = conv2(X, rot90(h, 2), shape).
+    // rot90(h, 2) flips rows + cols: out[i,j] = h[P-1-i, Q-1-j].
+    const size_t P = h.dims().rows(), Q = h.dims().cols();
+    auto hf = Value::matrix(P, Q, ValueType::DOUBLE, mr);
+    const double *src = h.doubleData();
+    double *dst       = hf.doubleDataMut();
+    for (size_t j = 0; j < Q; ++j)
+        for (size_t i = 0; i < P; ++i)
+            dst[j * P + i] = src[(Q - 1 - j) * P + (P - 1 - i)];
+    return conv2(mr, X, hf, shape);
+}
+
+Value convn(std::pmr::memory_resource *mr,
+            const Value &A, const Value &B,
+            const std::string &shape)
+{
+    if (A.type() != ValueType::DOUBLE || B.type() != ValueType::DOUBLE)
+        throw Error("convn: only DOUBLE inputs are supported",
+                     0, 0, "convn", "", "m:convn:notDouble");
+    const int da = A.dims().ndim(), db = B.dims().ndim();
+    const int nd = std::max(da, db);
+    if (nd <= 1) {
+        return conv(mr, A, B, shape);
+    }
+    if (nd == 2) {
+        return conv2(mr, A, B, shape);
+    }
+    if (nd != 3) {
+        throw Error("convn: only 1-D, 2-D, 3-D inputs supported",
+                     0, 0, "convn", "", "m:convn:nd");
+    }
+    // 3-D: direct nested-loop convolution.
+    const size_t M = A.dims().rows(), N = A.dims().cols();
+    const size_t Mp = (A.dims().ndim() == 3) ? A.dims().pages() : 1;
+    const size_t P = B.dims().rows(), Q = B.dims().cols();
+    const size_t Pp = (B.dims().ndim() == 3) ? B.dims().pages() : 1;
+    const size_t outR = M + P - 1, outC = N + Q - 1, outP = Mp + Pp - 1;
+    if (M == 0 || N == 0 || P == 0 || Q == 0 || Mp == 0 || Pp == 0) {
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+    }
+
+    auto outV = Value::matrix3d(outR, outC, outP, ValueType::DOUBLE, mr);
+    double *out = outV.doubleDataMut();
+    const size_t pageStrideOut = outR * outC;
+    const size_t pageStrideA   = M * N;
+    const size_t pageStrideB   = P * Q;
+    const double *Ad = A.doubleData();
+    const double *Bd = B.doubleData();
+    std::fill_n(out, outR * outC * outP, 0.0);
+
+    for (size_t bp = 0; bp < Pp; ++bp) {
+        for (size_t ap = 0; ap < Mp; ++ap) {
+            const size_t op = ap + bp;
+            for (size_t bj = 0; bj < Q; ++bj) {
+                for (size_t bi = 0; bi < P; ++bi) {
+                    const double bv = Bd[bp * pageStrideB + bj * P + bi];
+                    if (bv == 0.0) continue;
+                    for (size_t ac = 0; ac < N; ++ac) {
+                        for (size_t ar = 0; ar < M; ++ar) {
+                            const double av = Ad[ap * pageStrideA + ac * M + ar];
+                            out[op * pageStrideOut
+                                + (ac + bj) * outR
+                                + (ar + bi)] += av * bv;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (shape == "full") return outV;
+    if (shape == "same") {
+        // Center-crop to A's shape. floor(P/2) offset matches MATLAB's
+        // conv2 / convn 'same' rule for both even and odd kernel sizes.
+        const size_t r0 = P  / 2;
+        const size_t c0 = Q  / 2;
+        const size_t p0 = Pp / 2;
+        auto crop = Value::matrix3d(M, N, Mp, ValueType::DOUBLE, mr);
+        double *cd = crop.doubleDataMut();
+        for (size_t pp = 0; pp < Mp; ++pp)
+            for (size_t cc = 0; cc < N; ++cc)
+                for (size_t rr = 0; rr < M; ++rr)
+                    cd[pp * M * N + cc * M + rr] =
+                        out[(pp + p0) * pageStrideOut
+                            + (cc + c0) * outR
+                            + (rr + r0)];
+        return crop;
+    }
+    if (shape == "valid") {
+        const size_t outR2 = (M >= P)  ? M  - P  + 1 : 0;
+        const size_t outC2 = (N >= Q)  ? N  - Q  + 1 : 0;
+        const size_t outP2 = (Mp >= Pp)? Mp - Pp + 1 : 0;
+        if (outR2 == 0 || outC2 == 0 || outP2 == 0)
+            return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        auto crop = Value::matrix3d(outR2, outC2, outP2, ValueType::DOUBLE, mr);
+        double *cd = crop.doubleDataMut();
+        for (size_t pp = 0; pp < outP2; ++pp)
+            for (size_t cc = 0; cc < outC2; ++cc)
+                for (size_t rr = 0; rr < outR2; ++rr)
+                    cd[pp * outR2 * outC2 + cc * outR2 + rr] =
+                        out[(pp + Pp - 1) * pageStrideOut
+                            + (cc + Q - 1) * outR
+                            + (rr + P - 1)];
+        return crop;
+    }
+    throw Error("convn: shape must be 'full', 'same', or 'valid'",
+                 0, 0, "convn", "", "m:convn:badShape");
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -164,6 +386,42 @@ void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCon
     outs[0] = std::move(std::get<0>(result));
     if (nargout > 1)
         outs[1] = std::move(std::get<1>(result));
+}
+
+void conv2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("conv2: requires at least 2 arguments",
+                     0, 0, "conv2", "", "m:conv2:nargin");
+    std::string shape = "full";
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+        shape = args[2].toString();
+    outs[0] = conv2(ctx.engine->resource(), args[0], args[1], shape);
+}
+
+void filter2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("filter2: requires at least 2 arguments (h, X)",
+                     0, 0, "filter2", "", "m:filter2:nargin");
+    std::string shape = "same";
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+        shape = args[2].toString();
+    outs[0] = filter2(ctx.engine->resource(), args[0], args[1], shape);
+}
+
+void convn_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("convn: requires at least 2 arguments",
+                     0, 0, "convn", "", "m:convn:nargin");
+    std::string shape = "full";
+    if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
+        shape = args[2].toString();
+    outs[0] = convn(ctx.engine->resource(), args[0], args[1], shape);
 }
 
 } // namespace detail

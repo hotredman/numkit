@@ -1,0 +1,10 @@
+{
+  "name": "convn",
+  "namespace": "core",
+  "setup": "[ii, jj] = meshgrid(1:64, 1:64); A = sin(0.05*ii)+cos(0.07*jj); B = ones(5,5)/25;",
+  "expr": "C = convn(A, B, 'same');",
+  "iters": 100,
+  "tol": 1e-12,
+  "out_var": "C",
+  "comment": "64x64 2-D image / convn dispatch (delegates to conv2). 100 iters."
+}
