@@ -75,6 +75,40 @@ Value erfinv(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return erfinvScalar(v); }, mr);
 }
 
+Value erfcinv(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryDouble(x, [](double v) {
+        // Domain check: (0, 2). y = 0 → +Inf, y = 2 → -Inf.
+        if (v <= 0.0) return std::numeric_limits<double>::infinity();
+        if (v >= 2.0) return -std::numeric_limits<double>::infinity();
+        return erfinvScalar(1.0 - v);
+    }, mr);
+}
+
+Value erfcx(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryDouble(x, [](double v) {
+        // erfcx(x) = exp(x²) · erfc(x). Direct formula loses precision
+        // for moderately large x; use the Cody / Faddeeva approach via
+        // exp(x²) · erfc(x) and rely on libm's erfc accuracy.
+        if (std::isnan(v)) return v;
+        if (v < 0.0) {
+            // erfcx(-x) = 2·exp(x²) - erfcx(x). Direct compute is fine
+            // for negative x of small magnitude.
+            return std::exp(v * v) * std::erfc(v);
+        }
+        // Large x: erfc(x) ~ exp(-x²)/(x √π) · (1 − 1/(2x²) + ...)
+        // so erfcx(x) ~ 1/(x √π) · series. Use direct exp·erfc when
+        // x² < ~700 (no overflow in exp(x²)·tiny).
+        if (v < 26.0) return std::exp(v * v) * std::erfc(v);
+        // Asymptotic series for x >= 26 (erfc(x) ~ exp(-x²)/(x √π) · ...)
+        const double inv_sqrt_pi = 0.5641895835477563;
+        const double y = 1.0 / (v * v);
+        return inv_sqrt_pi / v
+             * (1.0 - 0.5 * y + 0.75 * y * y - 1.875 * y * y * y);
+    }, mr);
+}
+
 // ── Pack 19: beta / betaln / expint / psi ────────────────────────────
 
 Value beta(std::pmr::memory_resource *mr, const Value &z, const Value &w)
@@ -506,6 +540,8 @@ NK_UNARY_ADAPTER(gammaln, gammaln)
 NK_UNARY_ADAPTER(erf,     erf)
 NK_UNARY_ADAPTER(erfc,    erfc)
 NK_UNARY_ADAPTER(erfinv,  erfinv)
+NK_UNARY_ADAPTER(erfcinv, erfcinv)
+NK_UNARY_ADAPTER(erfcx,   erfcx)
 NK_UNARY_ADAPTER(expint,  expint)
 NK_UNARY_ADAPTER(psi,     psi)
 

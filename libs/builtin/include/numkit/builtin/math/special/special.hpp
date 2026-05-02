@@ -29,6 +29,15 @@ Value erfc(std::pmr::memory_resource *mr, const Value &x);
 ///              followed by 3 Newton steps for full double precision.
 Value erfinv(std::pmr::memory_resource *mr, const Value &x);
 
+/// erfcinv(y) — inverse complementary error function: x = erfcinv(y)
+///              ⇔ erfc(x) == y. Domain (0, 2). Computed as
+///              erfinv(1 - y).
+Value erfcinv(std::pmr::memory_resource *mr, const Value &x);
+
+/// erfcx(x)   — scaled complementary error function exp(x²) · erfc(x).
+///              Numerically stable for large x where erfc(x) underflows.
+Value erfcx(std::pmr::memory_resource *mr, const Value &x);
+
 // ── Pack 19: extra special functions ─────────────────────────────────
 /// beta(z, w)    — B(z, w) = Γ(z)Γ(w)/Γ(z+w). Computed via lgamma to
 /// avoid overflow.
