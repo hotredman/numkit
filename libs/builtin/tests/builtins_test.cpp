@@ -734,6 +734,53 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Misc — Pack 31 ────────────────────────────────────────────
+TEST_P(BuiltinTest, Freqspace)
+{
+    eval("f = freqspace(4);");
+    auto *f = getVarPtr("f");
+    ASSERT_EQ(f->numel(), 4u);
+    EXPECT_NEAR(f->doubleData()[0], -1.0, 1e-12);
+    EXPECT_NEAR(f->doubleData()[1], -0.5, 1e-12);
+    EXPECT_NEAR(f->doubleData()[2],  0.0, 1e-12);
+    EXPECT_NEAR(f->doubleData()[3],  0.5, 1e-12);
+    // 'whole' shifts to [0, 2-2/n].
+    eval("g = freqspace(4, 'whole');");
+    auto *g = getVarPtr("g");
+    EXPECT_NEAR(g->doubleData()[0], 0.0, 1e-12);
+    EXPECT_NEAR(g->doubleData()[3], 1.5, 1e-12);
+}
+
+TEST_P(BuiltinTest, HeadTail)
+{
+    eval("A = (1:10)';");  // 10x1 column vector
+    eval("h = head(A);");  // default n = min(8, 10) = 8
+    auto *h = getVarPtr("h");
+    EXPECT_EQ(h->numel(), 8u);
+    EXPECT_DOUBLE_EQ(h->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(h->doubleData()[7], 8.0);
+
+    eval("t = tail(A, 3);");
+    auto *t = getVarPtr("t");
+    EXPECT_EQ(t->numel(), 3u);
+    EXPECT_DOUBLE_EQ(t->doubleData()[0], 8.0);
+    EXPECT_DOUBLE_EQ(t->doubleData()[2], 10.0);
+}
+
+TEST_P(BuiltinTest, Iskeyword)
+{
+    EXPECT_TRUE(evalBool("iskeyword('for');"));
+    EXPECT_TRUE(evalBool("iskeyword('while');"));
+    EXPECT_TRUE(evalBool("iskeyword('end');"));
+    EXPECT_FALSE(evalBool("iskeyword('foo');"));
+    EXPECT_FALSE(evalBool("iskeyword('Sin');"));   // case-sensitive
+    // 0-arg returns the cell of all keywords.
+    eval("kw = iskeyword();");
+    auto *kw = getVarPtr("kw");
+    ASSERT_TRUE(kw->isCell());
+    EXPECT_GT(kw->numel(), 10u);
+}
+
 // ── Piecewise polynomial — Pack 30 ────────────────────────────
 TEST_P(BuiltinTest, MkppPpvalUnmkpp)
 {

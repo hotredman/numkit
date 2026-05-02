@@ -7,6 +7,8 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <cstring>
+#include <thread>
 #include <iomanip>
 #include <random>
 #include <regex>
@@ -2051,6 +2053,112 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
             // No-op: numkit's display already runs at full precision.
             outs[0] = Value::empty();
         });
+
+    // ── Pack 31: misc gap-filling ─────────────────────────────────────
+
+    // home — like clc; cursor to top + clear.
+    engine.registerFunction("home",
+        [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+            ctx.engine->outputText("__CLEAR__\n");
+            outs[0] = Value::empty();
+        });
+
+    // pause(t) — block for t seconds. pause() with no arg is a no-op
+    // (we don't have a wait-for-keypress hook).
+    engine.registerFunction("pause",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &) {
+            if (!args.empty() && !args[0].isEmpty()) {
+                const double t = args[0].toScalar();
+                if (std::isfinite(t) && t > 0) {
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(static_cast<long long>(t * 1000.0)));
+                }
+            }
+            outs[0] = Value::empty();
+        });
+
+    // iskeyword() / iskeyword(s) — list MATLAB reserved words / test one.
+    engine.registerFunction("iskeyword",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            static const std::vector<std::string> kw = {
+                "break", "case", "catch", "classdef", "continue", "else",
+                "elseif", "end", "for", "function", "global", "if",
+                "otherwise", "parfor", "persistent", "return", "spmd",
+                "switch", "try", "while"
+            };
+            auto *mr = ctx.engine->resource();
+            if (args.empty()) {
+                auto c = Value::cell(kw.size(), 1, mr);
+                for (size_t i = 0; i < kw.size(); ++i)
+                    c.cellAt(i) = Value::fromString(kw[i], mr);
+                outs[0] = std::move(c);
+                return;
+            }
+            const std::string s = args[0].toString();
+            outs[0] = Value::logicalScalar(
+                std::find(kw.begin(), kw.end(), s) != kw.end(), mr);
+        });
+
+    // freqspace(n) — frequency-spacing vector for FFT-style problems.
+    // n elements, evenly spaced over [-1, 1 - 2/n].
+    // freqspace(n, 'whole') gives [0, 2-2/n] instead.
+    engine.registerFunction("freqspace",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("freqspace requires (n[, 'whole'])");
+            const size_t n = static_cast<size_t>(args[0].toScalar());
+            if (n == 0) {
+                outs[0] = Value::matrix(1, 0, ValueType::DOUBLE, ctx.engine->resource());
+                return;
+            }
+            bool whole = false;
+            if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
+                std::string s = args[1].toString();
+                for (auto &c : s)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+                whole = (s == "whole");
+            }
+            auto v = Value::matrix(1, n, ValueType::DOUBLE, ctx.engine->resource());
+            double *d = v.doubleDataMut();
+            const double step = 2.0 / static_cast<double>(n);
+            const double start = whole ? 0.0 : -1.0;
+            for (size_t i = 0; i < n; ++i)
+                d[i] = start + step * static_cast<double>(i);
+            outs[0] = std::move(v);
+        });
+
+    // head(A[, n]) / tail(A[, n]) — first / last n rows of A. Defaults
+    // to min(8, size(A, 1)) like MATLAB.
+    auto headTailImpl = [](bool isHead) {
+        return [isHead](Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error((isHead ? "head" : "tail")
+                                         + std::string(" requires 1 argument"));
+            const Value &A = args[0];
+            if (A.dims().ndim() > 2)
+                throw std::runtime_error("head/tail: ND inputs (>2) not supported");
+            const size_t R = A.dims().rows(), C = A.dims().cols();
+            size_t n = std::min<size_t>(R, 8);
+            if (args.size() >= 2 && !args[1].isEmpty())
+                n = static_cast<size_t>(args[1].toScalar());
+            n = std::min(n, R);
+            auto *mr = ctx.engine->resource();
+            auto out = Value::matrix(n, C, A.type(), mr);
+            const size_t es = elementSize(A.type());
+            const char *src = static_cast<const char *>(A.rawData());
+            char *dst = static_cast<char *>(out.rawDataMut());
+            const size_t rowOff = isHead ? 0 : R - n;
+            for (size_t c = 0; c < C; ++c) {
+                std::memcpy(dst + (c * n) * es,
+                            src + (c * R + rowOff) * es,
+                            n * es);
+            }
+            outs[0] = std::move(out);
+        };
+    };
+    engine.registerFunction("head", headTailImpl(true));
+    engine.registerFunction("tail", headTailImpl(false));
 }
 
 } // namespace numkit
