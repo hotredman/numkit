@@ -175,7 +175,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 46 ✅ + 0 ⚠️ / 65 = 71% — **NS: core**
+### Characters and Strings — 53 ✅ + 0 ⚠️ / 65 = 82% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -193,13 +193,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `double` | ✅ |  |
 | `endswith` | ❌ |  |
 | `erase` | ✅ |  |
-| `erasebetween` | ❌ |  |
+| `erasebetween` | ✅ |  |
 | `extract` | ❌ |  |
-| `extractafter` | ❌ |  |
-| `extractbefore` | ❌ |  |
-| `extractbetween` | ❌ |  |
-| `insertafter` | ❌ |  |
-| `insertbefore` | ❌ |  |
+| `extractafter` | ✅ |  |
+| `extractbefore` | ✅ |  |
+| `extractbetween` | ✅ |  |
+| `insertafter` | ✅ |  |
+| `insertbefore` | ✅ |  |
 | `iscellstr` | ✅ | predicate |
 | `ischar` | ✅ |  |
 | `isletter` | ✅ |  |
@@ -219,7 +219,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `regexprep` | ✅ |  |
 | `regexptranslate` | ❌ |  |
 | `replace` | ✅ |  |
-| `replacebetween` | ❌ |  |
+| `replacebetween` | ✅ |  |
 | `reverse` | ✅ |  |
 | `split` | ❌ |  |
 | `splitlines` | ✅ |  |

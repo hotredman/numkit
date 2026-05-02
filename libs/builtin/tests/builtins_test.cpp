@@ -501,6 +501,51 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Extract / insert family — Pack 22 ─────────────────────────
+TEST_P(BuiltinTest, ExtractAfterBefore)
+{
+    // String pattern.
+    eval("s = extractAfter('hello world', ' ');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "world");
+    eval("s2 = extractBefore('hello world', ' ');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "hello");
+    // Numeric position.
+    eval("s3 = extractAfter('abcdef', 3);");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "def");
+    eval("s4 = extractBefore('abcdef', 3);");
+    EXPECT_EQ(getVarPtr("s4")->toString(), "ab");
+    // Pattern not found → empty.
+    eval("s5 = extractAfter('hello', 'xyz');");
+    EXPECT_EQ(getVarPtr("s5")->toString(), "");
+}
+
+TEST_P(BuiltinTest, ExtractBetween)
+{
+    eval("s = extractBetween('[hello] [world]', '[', ']');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "hello");
+    eval("s2 = extractBetween('a-b-c-d', '-', '-');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "b");
+}
+
+TEST_P(BuiltinTest, InsertAfterBefore)
+{
+    eval("s = insertAfter('hello', 'lo', ' world');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "hello world");
+    eval("s2 = insertBefore('world', 'world', 'hello ');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "hello world");
+    // Numeric position.
+    eval("s3 = insertAfter('abcdef', 3, 'XYZ');");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "abcXYZdef");
+}
+
+TEST_P(BuiltinTest, EraseReplaceBetween)
+{
+    eval("s = eraseBetween('a[junk]b', '[', ']');");
+    EXPECT_EQ(getVarPtr("s")->toString(), "a[]b");
+    eval("s2 = replaceBetween('foo<old>bar', '<', '>', 'NEW');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "foo<NEW>bar");
+}
+
 // ── String conversion + char predicates — Pack 21 ─────────────
 TEST_P(BuiltinTest, ConvertCharsStrings)
 {
