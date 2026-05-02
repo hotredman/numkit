@@ -65,4 +65,13 @@ Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based = 0);
 Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t n);
 Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n);
 
+// ── Pack 32: array shape pads (vectors only) ─────────────────────────
+/// paddata(v, n) — pad v with zeros (trailing) until length == n.
+/// If numel(v) ≥ n, returns v unchanged.
+Value paddata(std::pmr::memory_resource *mr, const Value &v, size_t n);
+/// trimdata(v, n) — truncate v from the trailing end to length n.
+Value trimdata(std::pmr::memory_resource *mr, const Value &v, size_t n);
+/// resize(v, n) — pad-or-trim to exactly length n.
+Value resize(std::pmr::memory_resource *mr, const Value &v, size_t n);
+
 } // namespace numkit::builtin

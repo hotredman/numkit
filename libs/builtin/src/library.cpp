@@ -144,6 +144,9 @@ void flip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void repelem_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sub2ind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ind2sub_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void paddata_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void trimdata_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void resize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // nd_manip.cpp
 void permute_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -610,6 +613,9 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("repelem",   &builtin::detail::repelem_reg);
     engine.registerFunction("sub2ind",   &builtin::detail::sub2ind_reg);
     engine.registerFunction("ind2sub",   &builtin::detail::ind2sub_reg);
+    engine.registerFunction("paddata",   &builtin::detail::paddata_reg);
+    engine.registerFunction("trimdata",  &builtin::detail::trimdata_reg);
+    engine.registerFunction("resize",    &builtin::detail::resize_reg);
 
     // ── Phase 6 N-D manipulation ──────────────────────────────────
     engine.registerFunction("permute",  &builtin::detail::permute_reg);

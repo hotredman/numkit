@@ -734,6 +734,39 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Array shape pads — Pack 32 ────────────────────────────────
+TEST_P(BuiltinTest, PaddataTrimdata)
+{
+    eval("p = paddata([1 2 3], 6);");
+    auto *p = getVarPtr("p");
+    ASSERT_EQ(p->numel(), 6u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[3], 0.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[5], 0.0);
+    // Already long enough: pass-through.
+    eval("p2 = paddata([1 2 3 4 5], 3);");
+    EXPECT_EQ(getVarPtr("p2")->numel(), 5u);
+
+    eval("t = trimdata([1 2 3 4 5], 3);");
+    auto *t = getVarPtr("t");
+    EXPECT_EQ(t->numel(), 3u);
+    EXPECT_DOUBLE_EQ(t->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(t->doubleData()[2], 3.0);
+
+    // resize covers both: pad to 6, trim to 2.
+    eval("r = resize([1 2 3], 6);");
+    EXPECT_EQ(getVarPtr("r")->numel(), 6u);
+    eval("r2 = resize([1 2 3 4 5], 2);");
+    EXPECT_EQ(getVarPtr("r2")->numel(), 2u);
+
+    // Column orientation preserved.
+    eval("c = paddata([1; 2; 3], 5);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 5u);
+    EXPECT_EQ(cols(*c), 1u);
+}
+
 // ── Misc — Pack 31 ────────────────────────────────────────────
 TEST_P(BuiltinTest, Freqspace)
 {

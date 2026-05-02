@@ -785,6 +785,64 @@ Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n)
     return r;
 }
 
+// ────────────────────────────────────────────────────────────────────
+// Pack 32: paddata / trimdata / resize
+// ────────────────────────────────────────────────────────────────────
+//
+// Vector-only for now; row/column orientation is preserved. Numeric
+// inputs only — the pad cell is `0` (matches MATLAB R2024 default).
+
+namespace {
+inline bool isVectorLike(const Value &v)
+{
+    const auto &d = v.dims();
+    return d.ndim() <= 2 && (d.rows() == 1 || d.cols() == 1 || v.isScalar());
+}
+} // anon
+
+Value paddata(std::pmr::memory_resource *mr, const Value &v, size_t n)
+{
+    if (!isVectorLike(v))
+        throw Error("paddata: vector input required",
+                     0, 0, "paddata", "", "m:paddata:notVector");
+    if (v.type() != ValueType::DOUBLE)
+        throw Error("paddata: only DOUBLE inputs supported",
+                     0, 0, "paddata", "", "m:paddata:type");
+    const size_t cur = v.numel();
+    if (cur >= n) return v;
+    const auto &d = v.dims();
+    const bool col = (d.cols() == 1 && d.rows() > 1);
+    auto out = col ? Value::matrix(n, 1, ValueType::DOUBLE, mr)
+                   : Value::matrix(1, n, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    if (cur > 0) std::memcpy(dst, v.doubleData(), cur * sizeof(double));
+    for (size_t i = cur; i < n; ++i) dst[i] = 0.0;
+    return out;
+}
+
+Value trimdata(std::pmr::memory_resource *mr, const Value &v, size_t n)
+{
+    if (!isVectorLike(v))
+        throw Error("trimdata: vector input required",
+                     0, 0, "trimdata", "", "m:trimdata:notVector");
+    if (v.type() != ValueType::DOUBLE)
+        throw Error("trimdata: only DOUBLE inputs supported",
+                     0, 0, "trimdata", "", "m:trimdata:type");
+    const size_t cur = v.numel();
+    if (cur <= n) return v;
+    const auto &d = v.dims();
+    const bool col = (d.cols() == 1 && d.rows() > 1);
+    auto out = col ? Value::matrix(n, 1, ValueType::DOUBLE, mr)
+                   : Value::matrix(1, n, ValueType::DOUBLE, mr);
+    if (n > 0) std::memcpy(out.doubleDataMut(), v.doubleData(), n * sizeof(double));
+    return out;
+}
+
+Value resize(std::pmr::memory_resource *mr, const Value &v, size_t n)
+{
+    return (v.numel() < n) ? paddata(mr, v, n) : trimdata(mr, v, n);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -1005,6 +1063,24 @@ void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     outs[0] = std::move(r);
 }
+
+// paddata / trimdata / resize adapters.
+#define NK_RESIZE_REG(FN)                                                       \
+    void FN##_reg(Span<const Value> args, size_t /*nargout*/,                  \
+                  Span<Value> outs, CallContext &ctx)                           \
+    {                                                                            \
+        if (args.size() < 2)                                                     \
+            throw Error(#FN " requires (v, n)",                                  \
+                         0, 0, #FN, "", "m:" #FN ":nargin");                     \
+        const size_t n = static_cast<size_t>(args[1].toScalar());                \
+        outs[0] = FN(ctx.engine->resource(), args[0], n);                       \
+    }
+
+NK_RESIZE_REG(paddata)
+NK_RESIZE_REG(trimdata)
+NK_RESIZE_REG(resize)
+
+#undef NK_RESIZE_REG
 
 // ind2sub(siz, ind) → multiple outputs (one per dim of siz). When the
 // caller requests fewer outputs than siz has dims, the last output
