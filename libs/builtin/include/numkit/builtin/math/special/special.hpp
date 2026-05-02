@@ -85,4 +85,15 @@ Value besselh(std::pmr::memory_resource *mr,
 struct EllipKE { Value K; Value E; };
 EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m);
 
+// ── Pack 36: airy ────────────────────────────────────────────────────
+/// airy(k, x) — Airy function family per MATLAB:
+///   k = 0 → Ai(x)         (default in MATLAB if k omitted)
+///   k = 1 → Ai'(x)        (derivative)
+///   k = 2 → Bi(x)         (second-kind Airy)
+///   k = 3 → Bi'(x)
+/// Implemented via std::cyl_bessel_{j,i,k} of fractional order
+/// ±1/3, ±2/3 using the connection formulas in DLMF §9.6.
+/// Vectorizes over `x`; `k` must be a scalar in {0,1,2,3}.
+Value airy(std::pmr::memory_resource *mr, int k, const Value &x);
+
 } // namespace numkit::builtin

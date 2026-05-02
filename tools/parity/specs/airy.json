@@ -1,0 +1,10 @@
+{
+  "name": "airy",
+  "namespace": "core",
+  "setup": "x = linspace(-5, 5, 10000);",
+  "expr": "y = airy(0, x);",
+  "iters": 10,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Ai over 10k pts on [-5,5]. 10 iters. Element-wise comparison."
+}

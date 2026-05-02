@@ -77,4 +77,12 @@ Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A);
 struct PolyDiv { Value q; Value r; };
 PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a);
 
+// ── Pack 36: padecoef ────────────────────────────────────────────────
+/// padecoef(T, N) — coefficients of the (N,N) Padé approximant of
+/// e^{-T·s}. Returns (num, den) row vectors in descending order of s,
+/// normalized so the leading denominator coefficient is 1 (matches
+/// MATLAB's `[num,den] = padecoef(T,N)`).
+struct PadeCoef { Value num; Value den; };
+PadeCoef padecoef(std::pmr::memory_resource *mr, double T, int N);
+
 } // namespace numkit::builtin

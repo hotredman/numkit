@@ -153,3 +153,47 @@ TEST_P(SpecialFuncsTest, ErfinvVectorInput)
 }
 
 INSTANTIATE_DUAL(SpecialFuncsTest);
+
+// ── Pack 36: airy ─────────────────────────────────────────────────
+// Reference values are MATLAB R2025b's airy(k, x) probed 2026-05-03.
+TEST_P(SpecialFuncsTest, AiryAtZero)
+{
+    EXPECT_NEAR(evalScalar("airy(0, 0);"),  0.35502805388781722, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(1, 0);"), -0.25881940379280682, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(2, 0);"),  0.61492662744600068, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(3, 0);"),  0.44828835735382638, 1e-14);
+}
+
+TEST_P(SpecialFuncsTest, AiryNegativeArgument)
+{
+    EXPECT_NEAR(evalScalar("airy(0, -1);"),  0.53556088329235219, 1e-13);
+    EXPECT_NEAR(evalScalar("airy(1, -1);"), -0.01016056711664515, 1e-13);
+    EXPECT_NEAR(evalScalar("airy(2, -1);"),  0.10399738949694459, 1e-13);
+    EXPECT_NEAR(evalScalar("airy(3, -1);"),  0.59237562642279229, 1e-13);
+}
+
+TEST_P(SpecialFuncsTest, AiryPositiveArgument)
+{
+    EXPECT_NEAR(evalScalar("airy(0, 1);"),   0.13529241631288147, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(1, 1);"),  -0.15914744129679323, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(2, 1);"),   1.20742359495287133, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(3, 1);"),   0.93243593339277542, 1e-14);
+}
+
+TEST_P(SpecialFuncsTest, AiryLargeArgument)
+{
+    // Bi(3) ≈ 14.0373, exponential-ish growth.
+    EXPECT_NEAR(evalScalar("airy(0, 3);"), 0.00659113935746072, 1e-14);
+    EXPECT_NEAR(evalScalar("airy(2, 3);"), 14.037328963730223,  1e-12);
+}
+
+TEST_P(SpecialFuncsTest, AiryDefaultIsAi)
+{
+    // airy(x) with one arg should equal airy(0, x).
+    EXPECT_NEAR(evalScalar("airy(1.5);"), evalScalar("airy(0, 1.5);"), 1e-15);
+}
+
+TEST_P(SpecialFuncsTest, AiryBadKThrows)
+{
+    EXPECT_THROW(eval("airy(5, 1);"), std::exception);
+}

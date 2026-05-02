@@ -312,4 +312,38 @@ TEST_P(PolyTest, Tf2zpZp2tfRoundTrip)
     EXPECT_LT(evalScalar("da;"), 1e-12);
 }
 
+// ── Pack 36: padecoef ───────────────────────────────────────────────
+TEST_P(PolyTest, PadecoefT1N2)
+{
+    eval("[num, den] = padecoef(1, 2);");
+    eval("c0 = num(1); c1 = num(2); c2 = num(3); "
+         "d0 = den(1); d1 = den(2); d2 = den(3);");
+    EXPECT_DOUBLE_EQ(evalScalar("c0;"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c1;"),  -6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("c2;"),  12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d0;"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d1;"),   6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("d2;"),  12.0);
+}
+
+TEST_P(PolyTest, PadecoefDenIsNumWithSignFlip)
+{
+    // For Pade(N,N) of e^{-Ts}, den(s) = num(-s).
+    eval("[num, den] = padecoef(0.7, 4);");
+    eval("alt = (-1).^(0:4) .* num;");
+    for (int i = 1; i <= 5; ++i) {
+        const std::string e =
+            "abs(den(" + std::to_string(i) + ") - alt(" + std::to_string(i) + "))";
+        EXPECT_LT(evalScalar(e + ";"), 1e-12);
+    }
+}
+
+TEST_P(PolyTest, PadecoefN0IsConstant)
+{
+    eval("[num, den] = padecoef(2.0, 0);");
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(num);")), 1);
+    EXPECT_EQ(static_cast<int>(evalScalar("numel(den);")), 1);
+    EXPECT_DOUBLE_EQ(evalScalar("num(1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("den(1);"), 1.0);
+}
 INSTANTIATE_DUAL(PolyTest);

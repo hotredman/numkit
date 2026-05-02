@@ -522,6 +522,91 @@ EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m)
     return { std::move(K), std::move(E) };
 }
 
+// ── Pack 36: Airy functions via Bessel connection formulae ──────────
+namespace {
+
+// Airy at scalar x for kind k ∈ {0,1,2,3}.
+//   k=0: Ai(x), k=1: Ai'(x), k=2: Bi(x), k=3: Bi'(x).
+// Uses DLMF §9.6: connection to modified Bessel (x>0) and J Bessel (x<0).
+// At x=0 we return the analytic constants (Bessel formulas have removable
+// singularities there).
+double airyScalar(int k, double x)
+{
+    if (std::isnan(x)) return x;
+
+    // Constants at x = 0 (DLMF 9.2):
+    //   Ai(0)  = 1 / (3^{2/3} Γ(2/3))
+    //   Ai'(0) = -1 / (3^{1/3} Γ(1/3))
+    //   Bi(0)  = 1 / (3^{1/6} Γ(2/3))
+    //   Bi'(0) = 3^{1/6} / Γ(1/3)
+    if (x == 0.0) {
+        constexpr double kAi0  =  0.35502805388781723926;
+        constexpr double kAip0 = -0.25881940379280679841;
+        constexpr double kBi0  =  0.61492662744600073516;
+        constexpr double kBip0 =  0.44828835735382635791;
+        switch (k) {
+            case 0: return kAi0;
+            case 1: return kAip0;
+            case 2: return kBi0;
+            case 3: return kBip0;
+            default: return std::nan("");
+        }
+    }
+
+    constexpr double kSqrt3   = 1.7320508075688772;
+    constexpr double kInvPi   = 0.31830988618379067;
+    constexpr double kInvSqrt3= 0.57735026918962576;
+
+    if (x > 0.0) {
+        // ζ = (2/3) x^{3/2}
+        const double zeta = (2.0 / 3.0) * x * std::sqrt(x);
+        const double sx3  = std::sqrt(x / 3.0);          // sqrt(x/3)
+        const double i13p = std::cyl_bessel_i( 1.0/3.0, zeta);
+        const double i13m = std::cyl_bessel_i(-1.0/3.0, zeta);
+        const double i23p = std::cyl_bessel_i( 2.0/3.0, zeta);
+        const double i23m = std::cyl_bessel_i(-2.0/3.0, zeta);
+        const double k13  = std::cyl_bessel_k( 1.0/3.0, zeta);
+        const double k23  = std::cyl_bessel_k( 2.0/3.0, zeta);
+        switch (k) {
+            case 0: return kInvPi * sx3 * k13;
+            case 1: return -(x * kInvSqrt3) * kInvPi * k23;
+            case 2: return sx3 * (i13p + i13m);
+            case 3: return (x * kInvSqrt3) * (i23p + i23m);
+            default: return std::nan("");
+        }
+    }
+
+    // x < 0
+    const double ax   = -x;
+    const double zeta = (2.0 / 3.0) * ax * std::sqrt(ax);
+    const double sax  = std::sqrt(ax);
+    const double j13p = std::cyl_bessel_j( 1.0/3.0, zeta);
+    const double j13m = std::cyl_bessel_j(-1.0/3.0, zeta);
+    const double j23p = std::cyl_bessel_j( 2.0/3.0, zeta);
+    const double j23m = std::cyl_bessel_j(-2.0/3.0, zeta);
+    // Sign of Ai'(x<0) follows Abramowitz & Stegun 10.4.18:
+    //   Ai'(-z) = (z/3) (J_{2/3}(ζ) - J_{-2/3}(ζ)).
+    // (DLMF 9.6.7 prepends an extra minus that disagrees with MATLAB
+    // and the standard tabulated values; A&S sign matches MATLAB.)
+    switch (k) {
+        case 0: return (sax / 3.0) * (j13p + j13m);
+        case 1: return (ax  / 3.0) * (j23p - j23m);
+        case 2: return (sax * kInvSqrt3) * (j13m - j13p);
+        case 3: return (ax  * kInvSqrt3) * (j23p + j23m);
+        default: return std::nan("");
+    }
+}
+
+} // namespace
+
+Value airy(std::pmr::memory_resource *mr, int k, const Value &x)
+{
+    if (k < 0 || k > 3)
+        throw Error("airy: kind k must be 0..3 (got " + std::to_string(k) + ")",
+                     0, 0, "airy", "", "m:airy:badK");
+    return unaryDouble(x, [k](double v) { return airyScalar(k, v); }, mr);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -627,6 +712,21 @@ void ellipke_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
     auto res = ellipke(ctx.engine->resource(), args[0]);
     outs[0] = std::move(res.K);
     if (nargout > 1) outs[1] = std::move(res.E);
+}
+
+void airy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("airy: requires at least 1 argument (x or k,x)",
+                     0, 0, "airy", "", "m:airy:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        outs[0] = airy(mr, 0, args[0]);  // default Ai
+        return;
+    }
+    int k = static_cast<int>(args[0].toScalar());
+    outs[0] = airy(mr, k, args[1]);
 }
 
 } // namespace detail
