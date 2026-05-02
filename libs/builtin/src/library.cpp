@@ -2335,6 +2335,30 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     };
     engine.registerFunction("head", headTailImpl(true));
     engine.registerFunction("tail", headTailImpl(false));
+
+    // ── Pack 36: type-predicate stubs for absent types ─────────────
+    // These predicates always return logical false because numkit has
+    // no categorical / table / timetable / datetime / duration types
+    // yet. Returning false (instead of erroring) is correct MATLAB
+    // behaviour — `iscategorical(double_array)` etc. all return false.
+    // Lets MATLAB-source code that defensively checks the type port
+    // without errors.
+    //
+    // Note: `isordinal` / `isprotected` do throw in MATLAB when the
+    // input is non-categorical, so we deliberately do NOT stub those
+    // here — keeping their absence preserves the type-error signal.
+    auto alwaysFalsePredicate =
+        [](Span<const Value>, size_t /*nargout*/, Span<Value> outs,
+           CallContext &ctx) {
+            outs[0] = Value::logicalScalar(false, ctx.engine->resource());
+        };
+    engine.registerFunction("iscategorical",     alwaysFalsePredicate);
+    engine.registerFunction("istable",           alwaysFalsePredicate);
+    engine.registerFunction("istimetable",       alwaysFalsePredicate);
+    engine.registerFunction("istabular",         alwaysFalsePredicate);
+    engine.registerFunction("isdatetime",        alwaysFalsePredicate);
+    engine.registerFunction("isduration",        alwaysFalsePredicate);
+    engine.registerFunction("iscalendarduration",alwaysFalsePredicate);
 }
 
 } // namespace numkit
