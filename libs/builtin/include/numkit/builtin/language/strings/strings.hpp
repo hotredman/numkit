@@ -189,4 +189,34 @@ Value newlineFn(std::pmr::memory_resource *mr);
 Value stringsND(std::pmr::memory_resource *mr,
                 const size_t *dims, size_t ndim);
 
+/// compose(fmt, x) — apply sprintf-style `fmt` to each element of `x`,
+/// returning a same-shaped cell of char arrays. fmt is consumed once
+/// per element (single-spec broadcast). Multi-spec / multi-column
+/// formatting is currently not supported.
+Value compose(std::pmr::memory_resource *mr,
+              const Value &fmt, const Value &x);
+
+/// strjust(M, side) — justify each row of char matrix `M`. `side`
+/// is "right" (default), "left", or "center".
+Value strjust(std::pmr::memory_resource *mr,
+              const Value &M, const std::string &side);
+
+/// extract(s, pat) — every non-overlapping literal occurrence of `pat`
+/// in `s`. Returns a K×1 cell column of matched substrings (empty
+/// 0×0 cell if no matches). MATLAB Pattern objects are not supported.
+Value extract(std::pmr::memory_resource *mr,
+              const Value &s, const Value &pat);
+
+/// split(s, delim) — split `s` on every occurrence of `delim` (single
+/// char or string). Returns N×1 cell column. Empty tokens are kept
+/// (matching MATLAB; this differs from strsplit, which drops them).
+Value split(std::pmr::memory_resource *mr,
+            const Value &s, const Value &delim);
+
+/// join(arr, delim) — concatenate elements of string array `arr`
+/// separated by `delim`. 2-D arrays are joined along columns,
+/// producing one row per source row (N×1). Default delim is ' '.
+Value join(std::pmr::memory_resource *mr,
+           const Value &arr, const Value *delim);
+
 } // namespace numkit::builtin

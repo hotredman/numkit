@@ -7,6 +7,7 @@
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/strings/strings.hpp>
+#include <numkit/builtin/language/strings/format.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/scratch.hpp>
@@ -16,9 +17,11 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstring>
 #include <limits>
 #include <sstream>
 #include <string>
+#include <vector>
 
 namespace numkit::builtin {
 
@@ -931,6 +934,210 @@ Value endsWith(std::pmr::memory_resource *mr, const Value &s, const Value &suffi
         mr);
 }
 
+// ── Pack 36: compose / strjust / extract / split / join ──────────────
+
+namespace {
+
+// Read element i of x as a Value scalar to feed sprintf.
+Value elemScalar(std::pmr::memory_resource *mr, const Value &x, size_t i)
+{
+    if (x.isNumeric()) {
+        return Value::scalar(x.elemAsDouble(i), mr);
+    }
+    if (x.isLogical()) {
+        return Value::logicalScalar(x.elemAsDouble(i) != 0, mr);
+    }
+    if (x.isString())  return Value::stringScalar(x.stringElem(i), mr);
+    if (x.isCell())    return x.cellAt(i);  // cell-of-strings allowed
+    return Value::scalar(0.0, mr);
+}
+
+// Get a char input string from char or string-scalar.
+const std::string strInput(const Value &v)
+{
+    if (v.isChar() || (v.isString() && v.isScalar())) return v.toString();
+    if (v.isString()) return v.stringElem(0);  // first elem of array
+    return v.toString();  // last-resort coercion
+}
+
+// Find every non-overlapping occurrence of `needle` in `hay` and append
+// each matched substring to `out`.
+void findAllLiteral(const std::string &hay, const std::string &needle,
+                    std::vector<std::string> &out)
+{
+    if (needle.empty()) return;
+    size_t pos = 0;
+    while (true) {
+        size_t f = hay.find(needle, pos);
+        if (f == std::string::npos) break;
+        out.push_back(needle);
+        pos = f + needle.size();
+    }
+}
+
+// Split `s` by `delim` keeping empty tokens (MATLAB `split` semantics).
+void splitKeepEmpty(const std::string &s, const std::string &delim,
+                    std::vector<std::string> &out)
+{
+    if (delim.empty()) { out.push_back(s); return; }
+    size_t pos = 0;
+    while (true) {
+        size_t f = s.find(delim, pos);
+        if (f == std::string::npos) {
+            out.push_back(s.substr(pos));
+            return;
+        }
+        out.push_back(s.substr(pos, f - pos));
+        pos = f + delim.size();
+    }
+}
+
+} // namespace
+
+Value compose(std::pmr::memory_resource *mr,
+              const Value &fmt, const Value &x)
+{
+    if (!fmt.isChar() && !fmt.isString())
+        throw Error("compose: format must be a char or string",
+                     0, 0, "compose", "", "m:compose:badFmt");
+    const std::string fmtStr = fmt.toString();
+
+    if (x.isScalar()) {
+        Value one = elemScalar(mr, x, 0);
+        Value c = Value::cell(1, 1, mr);
+        c.cellAt(0) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
+        return c;
+    }
+
+    const auto &dims = x.dims();
+    Value c = Value::cell(dims.rows(), dims.cols(), mr);
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) {
+        Value one = elemScalar(mr, x, i);
+        c.cellAt(i) = Value::fromString(formatOnce(fmtStr, {&one, 1}, 0), mr);
+    }
+    return c;
+}
+
+Value strjust(std::pmr::memory_resource *mr,
+              const Value &M, const std::string &side)
+{
+    if (!M.isChar())
+        throw Error("strjust: input must be a char matrix",
+                     0, 0, "strjust", "", "m:strjust:badInput");
+    const auto &dims = M.dims();
+    const size_t rows = dims.rows();
+    const size_t cols = dims.cols();
+    const std::string src = M.toString();
+    if (rows == 0 || cols == 0) return M;
+
+    std::string out(rows * cols, ' ');
+    for (size_t r = 0; r < rows; ++r) {
+        // Column-major: row r, col c -> src[c*rows + r].
+        size_t firstNonSp = cols, lastNonSp = 0;
+        bool hasNonSp = false;
+        for (size_t c = 0; c < cols; ++c) {
+            char ch = src[c * rows + r];
+            if (ch != ' ') {
+                if (!hasNonSp) { firstNonSp = c; hasNonSp = true; }
+                lastNonSp = c;
+            }
+        }
+        if (!hasNonSp) continue;  // whole row blank
+
+        const size_t len = lastNonSp - firstNonSp + 1;
+        size_t target;
+        if      (side == "left")   target = 0;
+        else if (side == "center") target = (cols - len) / 2;
+        else if (side == "right")  target = cols - len;
+        else throw Error("strjust: side must be 'left', 'right', or 'center'",
+                          0, 0, "strjust", "", "m:strjust:badSide");
+
+        for (size_t c = 0; c < len; ++c)
+            out[(target + c) * rows + r] = src[(firstNonSp + c) * rows + r];
+    }
+
+    // Build a char matrix of the same shape as M.
+    Value r = Value::matrix(rows, cols, ValueType::CHAR, mr);
+    char *p = r.charDataMut();
+    std::memcpy(p, out.data(), rows * cols);
+    return r;
+}
+
+Value extract(std::pmr::memory_resource *mr,
+              const Value &s, const Value &pat)
+{
+    const std::string sStr = strInput(s);
+    const std::string pStr = strInput(pat);
+
+    std::vector<std::string> hits;
+    findAllLiteral(sStr, pStr, hits);
+
+    if (hits.empty()) return Value::cell(0, 0, mr);
+    Value c = Value::cell(hits.size(), 1, mr);
+    for (size_t i = 0; i < hits.size(); ++i)
+        c.cellAt(i) = Value::fromString(hits[i], mr);
+    return c;
+}
+
+Value split(std::pmr::memory_resource *mr,
+            const Value &s, const Value &delim)
+{
+    const std::string sStr = strInput(s);
+    const std::string dStr = strInput(delim);
+
+    std::vector<std::string> parts;
+    splitKeepEmpty(sStr, dStr, parts);
+
+    Value c = Value::cell(parts.size(), 1, mr);
+    for (size_t i = 0; i < parts.size(); ++i)
+        c.cellAt(i) = Value::fromString(parts[i], mr);
+    return c;
+}
+
+Value join(std::pmr::memory_resource *mr,
+           const Value &arr, const Value *delim)
+{
+    const std::string d = delim ? strInput(*delim) : std::string(" ");
+
+    auto getElem = [&](size_t i) -> std::string {
+        if (arr.isString()) return arr.stringElem(i);
+        if (arr.isCell())   return arr.cellAt(i).toString();
+        return arr.toString();  // scalar char/string fallback
+    };
+
+    if (arr.isScalar()) {
+        return Value::stringScalar(getElem(0), mr);
+    }
+
+    const auto &dims = arr.dims();
+    const size_t rows = dims.rows();
+    const size_t cols = dims.cols();
+
+    if (rows == 1 || cols == 1) {
+        // 1-D: glue all elements with `d`.
+        std::string out;
+        const size_t n = arr.numel();
+        for (size_t i = 0; i < n; ++i) {
+            if (i > 0) out += d;
+            out += getElem(i);
+        }
+        return Value::stringScalar(out, mr);
+    }
+
+    // 2-D: join along columns -> N×1 string column.
+    Value r = Value::stringArray(rows, 1, mr);
+    for (size_t row = 0; row < rows; ++row) {
+        std::string out;
+        for (size_t col = 0; col < cols; ++col) {
+            if (col > 0) out += d;
+            out += getElem(col * rows + row);
+        }
+        r.stringElemSet(row, out);
+    }
+    return r;
+}
+
 // ── Pack 36: array constructors / character constants ───────────────
 Value newlineFn(std::pmr::memory_resource *mr)
 {
@@ -1427,6 +1634,69 @@ void strings_reg(Span<const Value> args, size_t, Span<Value> outs,
     ScratchArena scratch(mr);
     auto d = parseDimsArgsND(&scratch, args);
     outs[0] = stringsND(mr, d.data(), d.size());
+}
+
+void compose_reg(Span<const Value> args, size_t, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("compose: requires 2 arguments (fmt, x)",
+                     0, 0, "compose", "", "m:compose:nargin");
+    outs[0] = compose(ctx.engine->resource(), args[0], args[1]);
+}
+
+void strjust_reg(Span<const Value> args, size_t, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("strjust: requires at least 1 argument",
+                     0, 0, "strjust", "", "m:strjust:nargin");
+    std::string side = "right";
+    if (args.size() >= 2) {
+        if (!args[1].isChar() && !args[1].isString())
+            throw Error("strjust: side must be a char or string",
+                         0, 0, "strjust", "", "m:strjust:badSide");
+        side = args[1].toString();
+    }
+    outs[0] = strjust(ctx.engine->resource(), args[0], side);
+}
+
+void extract_reg(Span<const Value> args, size_t, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("extract: requires 2 arguments (s, pat)",
+                     0, 0, "extract", "", "m:extract:nargin");
+    outs[0] = extract(ctx.engine->resource(), args[0], args[1]);
+}
+
+void split_reg(Span<const Value> args, size_t, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("split: requires at least 1 argument",
+                     0, 0, "split", "", "m:split:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        // Default delimiter is whitespace per MATLAB; we use ' '.
+        Value sp = Value::fromString(" ", mr);
+        outs[0] = split(mr, args[0], sp);
+        return;
+    }
+    outs[0] = split(mr, args[0], args[1]);
+}
+
+void join_reg(Span<const Value> args, size_t, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("join: requires at least 1 argument",
+                     0, 0, "join", "", "m:join:nargin");
+    if (args.size() >= 2) {
+        outs[0] = join(ctx.engine->resource(), args[0], &args[1]);
+    } else {
+        outs[0] = join(ctx.engine->resource(), args[0], nullptr);
+    }
 }
 
 } // namespace detail

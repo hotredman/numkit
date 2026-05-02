@@ -1,0 +1,9 @@
+{
+  "name": "join",
+  "namespace": "core",
+  "setup": "arr = [\"alpha\",\"beta\",\"gamma\",\"delta\",\"epsilon\",\"zeta\",\"eta\",\"theta\",\"iota\",\"kappa\",\"lambda\",\"mu\",\"nu\",\"xi\",\"omicron\",\"pi\",\"rho\",\"sigma\",\"tau\",\"upsilon\",\"phi\",\"chi\",\"psi\",\"omega\"];",
+  "expr": "j = join(arr, ', ');",
+  "iters": 10000,
+  "fingerprint": ["double(strlength(j))", "double(numel(char(j)))"],
+  "comment": "Join 24-element Greek-letter string array. 10k iters."
+}

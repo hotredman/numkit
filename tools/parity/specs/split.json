@@ -1,0 +1,9 @@
+{
+  "name": "split",
+  "namespace": "core",
+  "setup": "s = repmat('abc,', 1, 1000); s = s(1:end-1);",
+  "expr": "p = split(s, ',');",
+  "iters": 1000,
+  "fingerprint": ["double(numel(p))", "double(strlength(p{1}))", "double(strlength(p{end}))"],
+  "comment": "Split CSV-like 4000-char string into 1000 tokens. 1000 iters."
+}

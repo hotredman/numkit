@@ -156,10 +156,31 @@ def run_numkit(spec: Spec, *, timed: bool) -> Result:
     )
 
 
+def _write_script(script: str) -> Path:
+    """Write a temp .m file. Caller deletes when done.
+
+    We persist scripts on disk because passing `"`-quoted MATLAB code
+    inline through Windows argv mangles double quotes (the script
+    `["a","b"]` arrives at the engine as `[a,b]`). Files keep them
+    intact.
+    """
+    f = tempfile.NamedTemporaryFile("w", suffix=".m", delete=False, encoding="utf-8")
+    f.write(script)
+    f.close()
+    return Path(f.name)
+
+
 def run_matlab(spec: Spec, *, timed: bool) -> Result:
     script = build_script(spec, timed=timed)
-    cmd = [MATLAB_EXE, "-batch", script]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    path = _write_script(script)
+    try:
+        # matlab -batch <script-name-without-extension>.
+        # We pass the file's directory via --addpath equivalent; cleaner to
+        # cd into it via run() / matlab's working dir.
+        cmd = [MATLAB_EXE, "-batch", f"run('{path.as_posix()}')"]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    finally:
+        path.unlink(missing_ok=True)
     timing, fp = parse_output(p.stdout)
     return Result(
         ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
@@ -173,8 +194,12 @@ def run_matlab(spec: Spec, *, timed: bool) -> Result:
 
 def run_octave(spec: Spec, *, timed: bool) -> Result:
     script = build_script(spec, timed=timed)
-    cmd = [OCTAVE_EXE, "--no-gui", "--eval", script]
-    p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    path = _write_script(script)
+    try:
+        cmd = [OCTAVE_EXE, "--no-gui", "--quiet", str(path)]
+        p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    finally:
+        path.unlink(missing_ok=True)
     timing, fp = parse_output(p.stdout)
     return Result(
         ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),

@@ -1,0 +1,9 @@
+{
+  "name": "compose",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = compose('val=%d', x);",
+  "iters": 100,
+  "fingerprint": ["double(numel(y))", "double(strlength(y{1}))", "double(strlength(y{end}))"],
+  "comment": "Format 1000 ints with single-spec template. 100 iters."
+}
