@@ -27,6 +27,9 @@ void interpft_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
 void conv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void deconv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void xcorr_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void conv2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void filter2_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void convn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 // convolution/extras.cpp (E1)
 void cconv_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -190,6 +193,9 @@ void SignalLibrary::install(Engine &engine)
     reg("convolution", "conv",         &signal::detail::conv_reg);
     reg("convolution", "deconv",       &signal::detail::deconv_reg);
     reg("convolution", "xcorr",        &signal::detail::xcorr_reg);
+    reg("convolution", "conv2",        &signal::detail::conv2_reg);
+    reg("convolution", "filter2",      &signal::detail::filter2_reg);
+    reg("convolution", "convn",        &signal::detail::convn_reg);
     reg("convolution", "cconv",        &signal::detail::cconv_reg);
     reg("convolution", "convmtx",      &signal::detail::convmtx_reg);
     reg("convolution", "xcorr2",       &signal::detail::xcorr2_reg);
@@ -317,6 +323,9 @@ void SignalLibrary::install(Engine &engine)
     engine.registerFunction("", "fftshift",  &signal::detail::fftshift_reg);
     engine.registerFunction("", "ifftshift", &signal::detail::ifftshift_reg);
     engine.registerFunction("", "conv",      &signal::detail::conv_reg);
+    engine.registerFunction("", "conv2",     &signal::detail::conv2_reg);
+    engine.registerFunction("", "filter2",   &signal::detail::filter2_reg);
+    engine.registerFunction("", "convn",     &signal::detail::convn_reg);
     engine.registerFunction("", "xcorr",     &signal::detail::xcorr_reg);
     engine.registerFunction("", "interpft",  &signal::detail::interpft_reg);
 }

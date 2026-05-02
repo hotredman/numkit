@@ -43,3 +43,6 @@ of work + measurements.
 | `interpft` | core | DONE | 0.012 | 0.040 | 0.205 | 3.42× | 17.31× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
 | `fft2` | core | DONE | 1.127 | 0.677 | 0.658 | 0.60× | 0.58× | OK | 256x256 deterministic test signal, complex 2-D FFT. 50 iters. |
 | `ifft2` | core | DONE | 1.840 | 0.702 | 1.042 | 0.38× | 0.57× | OK | 256x256 inverse 2-D FFT (after fft2 of deterministic signal). 50 iters. |
+| `conv2` | core | DONE | 0.318 | 0.080 | 0.110 | 0.25× | 0.34× | OK | 128x128 image, 7x7 averaging kernel, 'same' shape. 100 iters. |
+| `filter2` | core | DONE | 0.141 | 0.072 | 0.049 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
+| `convn` | core | DONE | 0.028 | 0.057 | 0.023 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
