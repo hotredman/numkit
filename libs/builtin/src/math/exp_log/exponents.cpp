@@ -47,6 +47,56 @@ Value log1p(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::log1p(v); }, mr);
 }
 
+// ── pow2 / realpow / reallog / realsqrt ──────────────────────────────
+
+Value pow2(std::pmr::memory_resource *mr, const Value &y)
+{
+    return unaryDouble(y, [](double v) { return std::exp2(v); }, mr);
+}
+
+Value pow2(std::pmr::memory_resource *mr, const Value &f, const Value &e)
+{
+    // ldexp(f, int_e) = f * 2^int_e. MATLAB's pow2(F, E) takes the
+    // floor of E for the integer exponent.
+    return elementwiseDouble(f, e,
+        [](double ff, double ee) {
+            return std::ldexp(ff, static_cast<int>(std::floor(ee)));
+        }, mr);
+}
+
+Value realpow(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+{
+    // Emit error if any (x_i < 0) AND (y_i is not an integer).
+    auto checkPair = [](double xx, double yy) {
+        if (xx < 0.0 && yy != std::floor(yy)) {
+            throw std::runtime_error(
+                "realpow produced complex result — use power(.^) instead");
+        }
+        return std::pow(xx, yy);
+    };
+    return elementwiseDouble(x, y, checkPair, mr);
+}
+
+Value reallog(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryDouble(x, [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error(
+                "reallog produced complex result — use log(...) instead");
+        return std::log(v);
+    }, mr);
+}
+
+Value realsqrt(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryDouble(x, [](double v) {
+        if (v < 0.0)
+            throw std::runtime_error(
+                "realsqrt produced complex result — use sqrt(...) instead");
+        return std::sqrt(v);
+    }, mr);
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -66,7 +116,30 @@ NK_UNARY_ADAPTER(log10, log10)
 NK_UNARY_ADAPTER(expm1, expm1)
 NK_UNARY_ADAPTER(log1p, log1p)
 
+NK_UNARY_ADAPTER(reallog,  reallog)
+NK_UNARY_ADAPTER(realsqrt, realsqrt)
+
 #undef NK_UNARY_ADAPTER
+
+void pow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("pow2: requires 1 or 2 arguments",
+                     0, 0, "pow2", "", "m:pow2:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() >= 2)
+        outs[0] = pow2(mr, args[0], args[1]);
+    else
+        outs[0] = pow2(mr, args[0]);
+}
+
+void realpow_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("realpow: requires 2 arguments",
+                     0, 0, "realpow", "", "m:realpow:nargin");
+    outs[0] = realpow(ctx.engine->resource(), args[0], args[1]);
+}
 
 } // namespace detail
 

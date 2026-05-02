@@ -514,7 +514,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `tand` | ✅ | degree |
 | `tanh` | ✅ | hyperbolic |
 
-### Exponents and Logarithms — 9 ✅ + 0 ⚠️ / 13 = 69% — **NS: core**
+### Exponents and Logarithms — 13 ✅ + 0 ⚠️ / 13 = 100% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -526,10 +526,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `log2` | ✅ |  |
 | `nextpow2` | ✅ |  |
 | `nthroot` | ✅ |  |
-| `pow2` | ❌ |  |
-| `reallog` | ❌ |  |
-| `realpow` | ❌ |  |
-| `realsqrt` | ❌ |  |
+| `pow2` | ✅ |  |
+| `reallog` | ✅ |  |
+| `realpow` | ✅ |  |
+| `realsqrt` | ✅ |  |
 | `sqrt` | ✅ |  |
 
 ### Special Functions — 5 ✅ + 0 ⚠️ / 24 = 20% — **NS: core**
