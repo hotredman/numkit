@@ -247,6 +247,8 @@ void strncmp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strncmpi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strfind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void blanks_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void newline_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void strings_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void deblank_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void mat2str_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void strjoin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -889,6 +891,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("strncmpi",   &builtin::detail::strncmpi_reg);
     engine.registerFunction("strfind",    &builtin::detail::strfind_reg);
     engine.registerFunction("blanks",     &builtin::detail::blanks_reg);
+    engine.registerFunction("newline",    &builtin::detail::newline_reg);
+    engine.registerFunction("strings",    &builtin::detail::strings_reg);
     engine.registerFunction("deblank",    &builtin::detail::deblank_reg);
     engine.registerFunction("mat2str",    &builtin::detail::mat2str_reg);
     engine.registerFunction("strjoin",    &builtin::detail::strjoin_reg);

@@ -1,0 +1,9 @@
+{
+  "name": "erf",
+  "namespace": "core",
+  "setup": "x = linspace(-3, 3, 1000000);",
+  "expr": "y = erf(x);",
+  "iters": 10,
+  "fingerprint": ["sum(y(:))", "y(1)", "y(end)", "y(round(end/2))"],
+  "comment": "smoke-test (already implemented). N=1e6, mean over 10 iters."
+}

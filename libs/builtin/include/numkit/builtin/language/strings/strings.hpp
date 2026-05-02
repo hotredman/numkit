@@ -176,4 +176,17 @@ Value rat(std::pmr::memory_resource *mr, const Value &x, double tol);
 /// rats(x[, len]) — same as rat but pads to fixed width `len`.
 Value rats(std::pmr::memory_resource *mr, const Value &x, int len);
 
+// ── Pack 36: array constructors / character constants ────────────────
+/// newline — ASCII LF as a 1×1 char. Equivalent to `char(10)` /
+/// `sprintf('\n')`. Takes no input; the `mr` argument is just for the
+/// allocator-passing convention.
+Value newlineFn(std::pmr::memory_resource *mr);
+
+/// strings(d1, d2, ...) — string array of given shape, every element "".
+/// Same dim-arg conventions as `zeros` / `cell`: scalar `n` → n×n,
+/// `(m,n)` → m×n, `(m,n,p)` → m×n×p, single vector arg → its elements.
+/// `dims` may have 0..N entries; ndim<2 is normalized to {n,n} or {1,1}.
+Value stringsND(std::pmr::memory_resource *mr,
+                const size_t *dims, size_t ndim);
+
 } // namespace numkit::builtin

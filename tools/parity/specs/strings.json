@@ -1,0 +1,9 @@
+{
+  "name": "strings",
+  "namespace": "core",
+  "setup": "",
+  "expr": "S = strings(100, 100);",
+  "iters": 1000,
+  "fingerprint": ["size(S,1)", "size(S,2)", "numel(S)", "sum(strlength(S(:)))"],
+  "comment": "100x100 empty-string array. 1000 iters."
+}
