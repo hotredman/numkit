@@ -189,6 +189,9 @@ void besselk_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void besselh_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ellipke_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void airy_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void gammaincinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void betaincinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ellipj_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -790,6 +793,9 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("besselh",  &builtin::detail::besselh_reg);
     engine.registerFunction("ellipke",  &builtin::detail::ellipke_reg);
     engine.registerFunction("airy",     &builtin::detail::airy_reg);
+    engine.registerFunction("gammaincinv", &builtin::detail::gammaincinv_reg);
+    engine.registerFunction("betaincinv",  &builtin::detail::betaincinv_reg);
+    engine.registerFunction("ellipj",   &builtin::detail::ellipj_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

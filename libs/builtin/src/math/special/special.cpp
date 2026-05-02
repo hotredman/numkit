@@ -607,6 +607,199 @@ Value airy(std::pmr::memory_resource *mr, int k, const Value &x)
     return unaryDouble(x, [k](double v) { return airyScalar(k, v); }, mr);
 }
 
+// ── Pack 36: gammaincinv / betaincinv / ellipj ──────────────────────
+namespace {
+
+// Inverse regularized lower incomplete gamma. Solves gammainc(x, a) = P.
+// Uses Wilson-Hilferty initial guess, then Newton.
+double gammaincinvScalar(double P, double a)
+{
+    if (std::isnan(P) || std::isnan(a))            return std::nan("");
+    if (a <= 0.0)                                  return std::nan("");
+    if (P < 0.0 || P > 1.0)                        return std::nan("");
+    if (P == 0.0)                                  return 0.0;
+    if (P == 1.0)                                  return std::numeric_limits<double>::infinity();
+
+    // Wilson-Hilferty: chi^2_{2a} ≈ 2a (1 - 1/(9a) + Z/sqrt(9a))^3,
+    // where Z = sqrt(2)*erfinv(2P-1) is the standard-normal quantile.
+    const double Z   = std::sqrt(2.0) * erfinvScalar(2.0 * P - 1.0);
+    const double t   = 1.0 - 1.0 / (9.0 * a) + Z / std::sqrt(9.0 * a);
+    double x = a * t * t * t;
+    if (!std::isfinite(x) || x <= 0.0) x = 0.5 * a;  // fallback
+
+    // Newton iterations on f(x) = gammainc(x, a) - P. Density:
+    //   f'(x) = x^{a-1} exp(-x) / Γ(a)
+    // Compute log-density to avoid over/underflow.
+    const double lgA = std::lgamma(a);
+    for (int it = 0; it < 60; ++it) {
+        const double f = gammaincScalar(x, a) - P;
+        if (std::abs(f) < 1e-15) break;
+        const double logf = (a - 1.0) * std::log(x) - x - lgA;
+        const double df   = std::exp(logf);
+        if (df < 1e-300) break;
+        double dx = f / df;
+        // Damp if step would overshoot beyond [0, ∞).
+        if (dx >= x) dx = 0.5 * x;
+        x -= dx;
+        if (x <= 0.0) x = 1e-300;
+        if (std::abs(dx) < 1e-13 * (std::abs(x) + 1.0)) break;
+    }
+    return x;
+}
+
+// Inverse regularized incomplete beta. Solves betainc(x, a, b) = P.
+// Uses normal-approximation initial guess, then Newton with bisection
+// fallback (since betainc can be very flat).
+double betaincinvScalar(double P, double a, double b)
+{
+    if (std::isnan(P) || std::isnan(a) || std::isnan(b)) return std::nan("");
+    if (a <= 0.0 || b <= 0.0)                            return std::nan("");
+    if (P < 0.0 || P > 1.0)                              return std::nan("");
+    if (P == 0.0) return 0.0;
+    if (P == 1.0) return 1.0;
+
+    // Initial guess: AS 26.5.22 — for symmetric a≈b uses normal; otherwise
+    // a small/large-tail guess. Simple bracketing suffices.
+    double lo = 0.0, hi = 1.0;
+    double x = a / (a + b);  // mode-ish
+
+    // Pre-compute log B(a,b) for the derivative.
+    const double lbeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+
+    for (int it = 0; it < 80; ++it) {
+        const double f = betaincScalar(x, a, b) - P;
+        if (std::abs(f) < 1e-15) break;
+
+        // Update bracket.
+        if (f > 0) hi = x;
+        else        lo = x;
+
+        // Density: f'(x) = x^{a-1} (1-x)^{b-1} / B(a,b). Use logs.
+        const double logf = (a - 1.0) * std::log(x)
+                          + (b - 1.0) * std::log1p(-x)
+                          - lbeta;
+        const double df   = std::exp(logf);
+        double xNew;
+        if (df > 1e-300) {
+            xNew = x - f / df;
+        } else {
+            xNew = 0.5 * (lo + hi);
+        }
+        // If Newton step leaves bracket, bisect.
+        if (!(xNew > lo && xNew < hi))
+            xNew = 0.5 * (lo + hi);
+
+        if (std::abs(xNew - x) < 1e-14 * (std::abs(x) + 1.0)) {
+            x = xNew;
+            break;
+        }
+        x = xNew;
+    }
+    return x;
+}
+
+// Jacobi elliptic functions (sn, cn, dn) at u with parameter m.
+// Implementation: descending Landen via the AGM. Standard A&S 16.4.
+// Returns 3 doubles by reference; m must satisfy 0 ≤ m ≤ 1.
+void ellipjScalar(double u, double m, double &sn, double &cn, double &dn)
+{
+    if (std::isnan(u) || std::isnan(m) || m < 0.0 || m > 1.0) {
+        sn = cn = dn = std::nan("");
+        return;
+    }
+    if (m == 0.0) { sn = std::sin(u); cn = std::cos(u); dn = 1.0; return; }
+    if (m == 1.0) {
+        const double t = std::tanh(u);
+        sn = t; cn = 1.0 / std::cosh(u); dn = cn;
+        return;
+    }
+
+    // Landen sequence: a_n+1 = (a_n + b_n)/2, b_n+1 = sqrt(a_n*b_n),
+    // c_n+1 = (a_n - b_n)/2. Stop when c_n is below tol or n maxed.
+    constexpr int kMax = 16;
+    double a[kMax + 1], c[kMax + 1];
+    a[0] = 1.0;
+    double b = std::sqrt(1.0 - m);
+    c[0] = std::sqrt(m);
+    int n = 0;
+    for (int i = 1; i <= kMax; ++i) {
+        const double an = 0.5 * (a[i - 1] + b);
+        const double bn = std::sqrt(a[i - 1] * b);
+        const double cn_= 0.5 * (a[i - 1] - b);
+        a[i] = an;
+        c[i] = cn_;
+        b    = bn;
+        n    = i;
+        if (std::abs(cn_) < 1e-15 * std::abs(an)) break;
+    }
+    // Compute φ_n = 2^n * a_n * u, then unwind via
+    //   φ_{i-1} = (1/2) (φ_i + asin((c_i / a_i) * sin(φ_i)))
+    double phi = std::ldexp(a[n] * u, n);  // 2^n * a_n * u
+    for (int i = n; i >= 1; --i) {
+        phi = 0.5 * (phi + std::asin((c[i] / a[i]) * std::sin(phi)));
+    }
+    sn = std::sin(phi);
+    cn = std::cos(phi);
+    dn = std::sqrt(1.0 - m * sn * sn);
+}
+
+} // namespace
+
+Value gammaincinv(std::pmr::memory_resource *mr, const Value &P, const Value &a)
+{
+    return elementwiseDouble(P, a,
+        [](double pp, double aa) { return gammaincinvScalar(pp, aa); }, mr);
+}
+
+Value betaincinv(std::pmr::memory_resource *mr, const Value &P,
+                 const Value &a, const Value &b)
+{
+    if (P.isScalar() && a.isScalar() && b.isScalar()) {
+        return Value::scalar(
+            betaincinvScalar(P.toScalar(), a.toScalar(), b.toScalar()), mr);
+    }
+    const size_t np = P.numel(), na = a.numel(), nb = b.numel();
+    const size_t n = std::max({np, na, nb});
+    auto pickShape = [&]() -> const Value & {
+        if (np == n) return P;
+        if (na == n) return a;
+        return b;
+    };
+    auto r = createLike(pickShape(), ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < n; ++i) {
+        const double pi = (np == 1) ? P.toScalar() : P.doubleData()[i];
+        const double ai = (na == 1) ? a.toScalar() : a.doubleData()[i];
+        const double bi = (nb == 1) ? b.toScalar() : b.doubleData()[i];
+        r.doubleDataMut()[i] = betaincinvScalar(pi, ai, bi);
+    }
+    return r;
+}
+
+EllipJ ellipj(std::pmr::memory_resource *mr, const Value &u, const Value &m)
+{
+    if (u.isScalar() && m.isScalar()) {
+        double sn, cn, dn;
+        ellipjScalar(u.toScalar(), m.toScalar(), sn, cn, dn);
+        return { Value::scalar(sn, mr), Value::scalar(cn, mr), Value::scalar(dn, mr) };
+    }
+    const size_t nu = u.numel(), nm = m.numel();
+    const size_t n  = std::max(nu, nm);
+    const Value &shape = (nu == n) ? u : m;
+    auto sn = createLike(shape, ValueType::DOUBLE, mr);
+    auto cn = createLike(shape, ValueType::DOUBLE, mr);
+    auto dn = createLike(shape, ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < n; ++i) {
+        const double ui = (nu == 1) ? u.toScalar() : u.doubleData()[i];
+        const double mi = (nm == 1) ? m.toScalar() : m.doubleData()[i];
+        double s, c, d;
+        ellipjScalar(ui, mi, s, c, d);
+        sn.doubleDataMut()[i] = s;
+        cn.doubleDataMut()[i] = c;
+        dn.doubleDataMut()[i] = d;
+    }
+    return { std::move(sn), std::move(cn), std::move(dn) };
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -727,6 +920,36 @@ void airy_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     }
     int k = static_cast<int>(args[0].toScalar());
     outs[0] = airy(mr, k, args[1]);
+}
+
+void gammaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
+                     CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gammaincinv: requires 2 arguments (P, a)",
+                     0, 0, "gammaincinv", "", "m:gammaincinv:nargin");
+    outs[0] = gammaincinv(ctx.engine->resource(), args[0], args[1]);
+}
+
+void betaincinv_reg(Span<const Value> args, size_t, Span<Value> outs,
+                    CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("betaincinv: requires 3 arguments (P, a, b)",
+                     0, 0, "betaincinv", "", "m:betaincinv:nargin");
+    outs[0] = betaincinv(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+void ellipj_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ellipj: requires 2 arguments (u, m)",
+                     0, 0, "ellipj", "", "m:ellipj:nargin");
+    auto r = ellipj(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = std::move(r.sn);
+    if (nargout > 1) outs[1] = std::move(r.cn);
+    if (nargout > 2) outs[2] = std::move(r.dn);
 }
 
 } // namespace detail

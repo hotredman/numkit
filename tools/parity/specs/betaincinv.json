@@ -1,0 +1,10 @@
+{
+  "name": "betaincinv",
+  "namespace": "core",
+  "setup": "P = linspace(0.01, 0.99, 2000); a = 3; b = 5;",
+  "expr": "x = betaincinv(P, a, b);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "x",
+  "comment": "Inverse regularized beta over 2k probability points, a=3 b=5. 20 iters, element-wise."
+}
