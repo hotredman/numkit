@@ -447,6 +447,64 @@ Value blkdiag(std::pmr::memory_resource *mr, const Value *values, size_t count)
     return r;
 }
 
+// ────────────────────────────────────────────────────────────────────
+// shiftdim
+// ────────────────────────────────────────────────────────────────────
+//
+// shiftdim(A, n) cyclically shifts the dim ordering. n > 0 promotes
+// permute([n+1..N, 1..n]); n < 0 prepends |n| singleton dims via
+// reshape; n == 0 is the identity. The auto form `[B, k] =
+// shiftdim(A)` drops leading singletons and reports the count.
+//
+// Cyclic semantics: n is taken mod N for n > 0 (so shiftdim(A, N) is
+// the identity, matching MATLAB).
+
+Value shiftdim(std::pmr::memory_resource *mr, const Value &x, int n)
+{
+    if (n == 0) return x;
+
+    const auto &d = x.dims();
+    const int N = d.ndim();
+
+    if (n > 0) {
+        // Reduce n mod N — shifting by N is the identity.
+        const int eff = (N > 0) ? (n % N) : 0;
+        if (eff == 0) return x;
+        constexpr int kMaxNd = Dims::kMaxRank;
+        int perm[kMaxNd];
+        for (int i = 0; i < N; ++i)
+            perm[i] = ((i + eff) % N) + 1;  // 1-based
+        return permute(mr, x, perm, static_cast<std::size_t>(N));
+    }
+
+    // n < 0: prepend |n| singleton dims via reshape.
+    const int k = -n;
+    const int newN = N + k;
+    constexpr int kMaxNd = Dims::kMaxRank;
+    if (newN > kMaxNd)
+        throw Error("shiftdim: rank exceeds 32",
+                     0, 0, "shiftdim", "", "m:shiftdim:tooManyDims");
+    size_t newDims[kMaxNd];
+    for (int i = 0; i < k; ++i) newDims[i] = 1;
+    for (int i = 0; i < N; ++i) newDims[k + i] = d.dim(i);
+    return reshapeND(mr, x, newDims, static_cast<std::size_t>(newN));
+}
+
+ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x)
+{
+    const auto &d = x.dims();
+    const int N = d.ndim();
+    int k = 0;
+    while (k < N && d.dim(k) == 1) ++k;
+    if (k == 0) return { x, 0 };
+    // Avoid collapsing all dims to "scalar with rank 0" — keep at least
+    // 1D worth of structure (matches MATLAB: shiftdim(ones(1,1,3))
+    // returns a 1×3 row, not a 0-D scalar).
+    if (k == N) k = N - 1;
+    if (k <= 0) return { x, 0 };
+    return { shiftdim(mr, x, k), k };
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -514,6 +572,25 @@ void blkdiag_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                  CallContext &ctx)
 {
     outs[0] = blkdiag(ctx.engine->resource(), args.data(), args.size());
+}
+
+void shiftdim_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("shiftdim: requires 1 or 2 arguments",
+                     0, 0, "shiftdim", "", "m:shiftdim:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const int n = static_cast<int>(args[1].toScalar());
+        outs[0] = shiftdim(mr, args[0], n);
+        return;
+    }
+    // Auto form: [B, k] = shiftdim(A).
+    auto res = shiftdimAuto(mr, args[0]);
+    outs[0] = std::move(res.v);
+    if (nargout > 1)
+        outs[1] = Value::scalar(static_cast<double>(res.dropped), mr);
 }
 
 } // namespace detail

@@ -65,7 +65,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 46 ✅ + 1 ⚠️ / 55 = 85% — **NS: core**
+### Matrices and Arrays — 47 ✅ + 1 ⚠️ / 55 = 87% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -112,7 +112,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `reshape` | ✅ |  |
 | `resize` | ❌ | general resize |
 | `rot90` | ✅ |  |
-| `shiftdim` | ❌ |  |
+| `shiftdim` | ✅ |  |
 | `size` | ✅ |  |
 | `sort` | ✅ |  |
 | `sortrows` | ✅ |  |

@@ -140,6 +140,7 @@ void ipermute_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void squeeze_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void blkdiag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void shiftdim_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // math/elementary/ (Phase 7 floating-point additions)
 void hypot_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -499,6 +500,7 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("squeeze",  &builtin::detail::squeeze_reg);
     engine.registerFunction("cat",      &builtin::detail::cat_reg);
     engine.registerFunction("blkdiag",  &builtin::detail::blkdiag_reg);
+    engine.registerFunction("shiftdim", &builtin::detail::shiftdim_reg);
 
     // ── Phase 7 numeric utilities ─────────────────────────────────
     engine.registerFunction("hypot",    &builtin::detail::hypot_reg);
