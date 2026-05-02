@@ -734,6 +734,57 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Polynomial extras — Pack 29 ───────────────────────────────
+TEST_P(BuiltinTest, PolyFromRoots)
+{
+    // poly([1 2]) = [1 -3 2] (coefficients of (x-1)(x-2) = x²-3x+2).
+    eval("p = poly([1 2]);");
+    auto *p = getVarPtr("p");
+    ASSERT_EQ(p->numel(), 3u);
+    EXPECT_DOUBLE_EQ(p->doubleData()[0],  1.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[1], -3.0);
+    EXPECT_DOUBLE_EQ(p->doubleData()[2],  2.0);
+    // poly([0]) = [1 0].
+    eval("p2 = poly([0]);");
+    auto *p2 = getVarPtr("p2");
+    EXPECT_DOUBLE_EQ(p2->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(p2->doubleData()[1], 0.0);
+}
+
+TEST_P(BuiltinTest, Polyvalm)
+{
+    // p(x) = x² - 3x + 2; A = [1 0; 0 2]; p(A) = [1 0; 0 4] - 3·[1 0; 0 2] + 2·I
+    //      = [1-3+2  0; 0  4-6+2] = [0 0; 0 0].
+    eval("A = [1 0; 0 2]; M = polyvalm([1 -3 2], A);");
+    auto *M = getVarPtr("M");
+    ASSERT_EQ(rows(*M), 2u);
+    EXPECT_NEAR((*M)(0, 0), 0.0, 1e-12);
+    EXPECT_NEAR((*M)(1, 1), 0.0, 1e-12);
+    // Identity polynomial p(x) = x → p(A) = A.
+    eval("M2 = polyvalm([1 0], [1 2; 3 4]);");
+    auto *M2 = getVarPtr("M2");
+    EXPECT_DOUBLE_EQ((*M2)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*M2)(1, 1), 4.0);
+}
+
+TEST_P(BuiltinTest, Polydiv)
+{
+    // (x³ - 1) / (x - 1) = x² + x + 1, remainder 0.
+    eval("[q, r] = polydiv([1 0 0 -1], [1 -1]);");
+    auto *q = getVarPtr("q");
+    auto *r = getVarPtr("r");
+    ASSERT_EQ(q->numel(), 3u);
+    EXPECT_DOUBLE_EQ(q->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(q->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(q->doubleData()[2], 1.0);
+    EXPECT_DOUBLE_EQ(r->doubleData()[0], 0.0);
+    // (x² + 3x + 2) / (x + 1) = x + 2, remainder 0.
+    eval("[q2, r2] = polydiv([1 3 2], [1 1]);");
+    auto *q2 = getVarPtr("q2");
+    EXPECT_DOUBLE_EQ(q2->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(q2->doubleData()[1], 2.0);
+}
+
 // ── Hankel + elliptic — Pack 28 ───────────────────────────────
 TEST_P(BuiltinTest, Besselh)
 {
