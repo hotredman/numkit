@@ -482,3 +482,66 @@ TEST(DspFftPublicApi, RoundTrip3DOnEachDim)
         }
     }
 }
+
+// ── Pack 36: fft2 / ifft2 / interpft ────────────────────────────────
+TEST(SignalFftPublicApi, Fft2RoundTripIsIdentity)
+{
+    auto *mr = std::pmr::get_default_resource();
+    auto x = numkit::Value::matrix(4, 4, numkit::ValueType::DOUBLE, mr);
+    for (int i = 0; i < 16; ++i) x.doubleDataMut()[i] = i + 1;
+    numkit::Value Y = numkit::signal::fft2(mr, x);
+    EXPECT_EQ(Y.type(), numkit::ValueType::COMPLEX);
+    EXPECT_EQ(Y.dims().rows(), 4u);
+    EXPECT_EQ(Y.dims().cols(), 4u);
+
+    numkit::Value Z = numkit::signal::ifft2(mr, Y);
+    for (int i = 0; i < 16; ++i) {
+        const double got = Z.isComplex() ? Z.complexData()[i].real()
+                                         : Z.doubleData()[i];
+        EXPECT_NEAR(got, i + 1, 1e-10);
+    }
+}
+
+TEST(SignalFftPublicApi, Fft2WithExplicitSizes)
+{
+    auto *mr = std::pmr::get_default_resource();
+    auto x = numkit::Value::matrix(2, 3, numkit::ValueType::DOUBLE, mr);
+    for (int i = 0; i < 6; ++i) x.doubleDataMut()[i] = i + 1;
+    // Pad to 4×5 in frequency.
+    numkit::Value Y = numkit::signal::fft2(mr, x, 4, 5);
+    EXPECT_EQ(Y.dims().rows(), 4u);
+    EXPECT_EQ(Y.dims().cols(), 5u);
+}
+
+TEST(SignalFftPublicApi, InterpftLengthMatches)
+{
+    auto *mr = std::pmr::get_default_resource();
+    auto x = numkit::Value::matrix(1, 8, numkit::ValueType::DOUBLE, mr);
+    for (int i = 0; i < 8; ++i)
+        x.doubleDataMut()[i] = std::sin(2.0 * M_PI * i / 8.0);
+    numkit::Value y = numkit::signal::interpft(mr, x, 32);
+    EXPECT_EQ(y.numel(), 32u);
+    // Identity case: n == length(x).
+    numkit::Value y2 = numkit::signal::interpft(mr, x, 8);
+    EXPECT_EQ(y2.numel(), 8u);
+}
+
+TEST(SignalFftPublicApi, InterpftPureSinusoidExact)
+{
+    // For a single bin sine at integer frequency, interpft should
+    // reconstruct the underlying continuous waveform on the dense grid.
+    auto *mr = std::pmr::get_default_resource();
+    const size_t M = 16, N = 64;
+    auto x = numkit::Value::matrix(1, M, numkit::ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < M; ++i)
+        x.doubleDataMut()[i] = std::cos(2.0 * M_PI * 2.0 * i / M);  // freq=2
+
+    numkit::Value y = numkit::signal::interpft(mr, x, N);
+    ASSERT_EQ(y.numel(), N);
+    for (size_t i = 0; i < N; ++i) {
+        const double ref = std::cos(2.0 * M_PI * 2.0 * i / N);
+        const double got = y.isComplex() ? y.complexData()[i].real()
+                                         : y.doubleData()[i];
+        EXPECT_NEAR(got, ref, 1e-10) << "i=" << i;
+    }
+}

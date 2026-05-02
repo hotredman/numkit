@@ -1,0 +1,10 @@
+{
+  "name": "fft2",
+  "namespace": "core",
+  "setup": "[ii, jj] = meshgrid(1:256, 1:256); X = sin(0.05*ii) + cos(0.07*jj);",
+  "expr": "Y = fft2(X);",
+  "iters": 50,
+  "tol": 1e-9,
+  "fingerprint": ["sum(real(Y(:)))", "sum(imag(Y(:)))", "real(Y(1,1))", "real(Y(end,end))"],
+  "comment": "256x256 deterministic test signal, complex 2-D FFT. 50 iters."
+}

@@ -526,6 +526,151 @@ Value ifft(std::pmr::memory_resource *mr, const Value &X, int n, int dim)
     return fftAlongDim(X, N, dim, /*dir=*/-1, mr);
 }
 
+// ── 2-D DFT and FFT-based interpolation (added 2026-05-03 batch 6) ───
+Value fft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
+{
+    // fft2(X[, m, n]) = fft(fft(X, m, 1), n, 2). MATLAB pads/truncates
+    // to (m, n); when omitted, uses size(X).
+    Value step1 = fft(mr, X, m, 1);
+    return fft(mr, step1, n, 2);
+}
+
+Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m, int n)
+{
+    Value step1 = ifft(mr, X, m, 1);
+    return ifft(mr, step1, n, 2);
+}
+
+Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim)
+{
+    if (n <= 0)
+        throw Error("interpft: output length n must be positive",
+                     0, 0, "interpft", "", "m:interpft:badN");
+    if (dim < 0 || dim > 3)
+        throw Error("interpft: dim must be 0 (auto), 1, 2, or 3",
+                     0, 0, "interpft", "", "m:interpft:badDim");
+
+    // Resolve auto-dim same way `fft` does.
+    int useDim = dim;
+    if (useDim == 0) {
+        const auto &d = x.dims();
+        if (d.rows() > 1)        useDim = 1;
+        else if (d.cols() > 1)   useDim = 2;
+        else if (d.is3D() && d.pages() > 1) useDim = 3;
+        else                     useDim = 1;
+    }
+
+    // Length along the chosen axis.
+    const auto &d = x.dims();
+    size_t mLen = 1;
+    if      (useDim == 1) mLen = d.rows();
+    else if (useDim == 2) mLen = d.cols();
+    else if (useDim == 3) mLen = d.pages();
+    if (mLen == 0)
+        return x;  // empty input → same shape, no-op
+    if (static_cast<size_t>(n) == mLen)
+        return x;  // identity case
+
+    // FFT along that axis. fft always returns COMPLEX for non-empty input.
+    Value X = fft(mr, x, /*n=*/-1, useDim);
+
+    // Zero-pad / truncate in frequency domain. The trick: keep the
+    // first half (positive frequencies) and the last half (negative
+    // frequencies, mirror), drop / insert zeros in the middle.
+    //
+    // We implement this by calling fft with n_target on the original
+    // signal — but fft's "zero-pad in time domain" is NOT the same.
+    // Instead: do it manually via dim-agnostic copy.
+    //
+    // Easiest dim-agnostic way: do it for dim=1 and dim=2 only (numkit
+    // common case), use Value indexing directly. For 3-D / dim=3 we
+    // route via permutation.
+    const size_t nOut = static_cast<size_t>(n);
+    const size_t half = mLen / 2;        // floor(m/2)
+
+    auto pickN = [&](size_t r, size_t c) -> Value {
+        Value Y = Value::complexMatrix(r, c, mr);
+        auto *dst = Y.complexDataMut();
+        for (size_t i = 0; i < r * c; ++i) dst[i] = {0.0, 0.0};
+        return Y;
+    };
+
+    // Scale a possibly-complex / possibly-real Value by `s` in-place.
+    // ifft may have downgraded to DOUBLE when the imaginary part vanished;
+    // we just multiply the underlying data either way.
+    auto scaleVal = [&](Value v) -> Value {
+        const double s = static_cast<double>(nOut) / static_cast<double>(mLen);
+        const size_t total = v.numel();
+        if (v.type() == ValueType::COMPLEX) {
+            auto *p = v.complexDataMut();
+            for (size_t i = 0; i < total; ++i) p[i] *= s;
+        } else if (v.type() == ValueType::DOUBLE) {
+            auto *p = v.doubleDataMut();
+            for (size_t i = 0; i < total; ++i) p[i] *= s;
+        }
+        return v;
+    };
+
+    if (useDim == 1 && (d.ndim() <= 2)) {
+        // Column-wise interpolation in 2-D matrix (rows × cols).
+        const size_t cols = d.cols();
+        Value Y = pickN(nOut, cols);
+        const auto *src = X.complexData();
+        auto *dst       = Y.complexDataMut();
+        for (size_t c = 0; c < cols; ++c) {
+            const size_t srcCol = c * mLen;
+            const size_t dstCol = c * nOut;
+            // Front half [0..half] → first half+1 of dst.
+            for (size_t i = 0; i <= half && i < nOut; ++i)
+                dst[dstCol + i] = src[srcCol + i];
+            // Back half (last `half-((mLen%2==0)?1:0)` rows) → end of dst.
+            const size_t backLen = mLen - half - 1;
+            for (size_t i = 0; i < backLen; ++i) {
+                if (nOut - backLen + i < nOut)
+                    dst[dstCol + nOut - backLen + i] =
+                        src[srcCol + half + 1 + i];
+            }
+            // Even-m: split the Nyquist bin between the two halves.
+            if ((mLen & 1u) == 0u && nOut > mLen) {
+                const size_t mid = half;
+                dst[dstCol + mid] = src[srcCol + mid] * 0.5;
+                if (nOut - mid < nOut)
+                    dst[dstCol + nOut - mid] = src[srcCol + mid] * 0.5;
+            }
+        }
+        return scaleVal(ifft(mr, Y, /*n=*/-1, 1));
+    }
+
+    if (useDim == 2 && (d.ndim() <= 2)) {
+        // Row-wise interpolation. Build the padded spectrum as a (rows × nOut)
+        // matrix by walking columns.
+        const size_t rows = d.rows();
+        Value Y = pickN(rows, nOut);
+        const auto *src = X.complexData();
+        auto *dst       = Y.complexDataMut();
+        const size_t backLen = mLen - half - 1;
+        for (size_t r = 0; r < rows; ++r) {
+            for (size_t i = 0; i <= half && i < nOut; ++i)
+                dst[i * rows + r] = src[i * rows + r];
+            for (size_t i = 0; i < backLen; ++i) {
+                if (nOut - backLen + i < nOut)
+                    dst[(nOut - backLen + i) * rows + r] =
+                        src[(half + 1 + i) * rows + r];
+            }
+            if ((mLen & 1u) == 0u && nOut > mLen) {
+                const size_t mid = half;
+                dst[mid * rows + r] = src[mid * rows + r] * 0.5;
+                if (nOut - mid < nOut)
+                    dst[(nOut - mid) * rows + r] = src[mid * rows + r] * 0.5;
+            }
+        }
+        return scaleVal(ifft(mr, Y, /*n=*/-1, 2));
+    }
+
+    throw Error("interpft: dim 3 / N-D inputs not yet supported",
+                 0, 0, "interpft", "", "m:interpft:dimUnsupported");
+}
+
 // ── Engine adapters ────────────────────────────────────────────────────
 //
 // Marshal MATLAB calling convention (variable nargin, Value args)
@@ -565,6 +710,46 @@ void ifft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
         dim = static_cast<int>(args[2].toScalar());
 
     outs[0] = ifft(ctx.engine->resource(), args[0], n, dim);
+}
+
+void fft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fft2: requires at least 1 argument",
+                     0, 0, "fft2", "", "m:fft2:nargin");
+    int m = -1, n = -1;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        m = static_cast<int>(args[1].toScalar());
+    if (args.size() >= 3 && !args[2].isEmpty())
+        n = static_cast<int>(args[2].toScalar());
+    outs[0] = fft2(ctx.engine->resource(), args[0], m, n);
+}
+
+void ifft2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ifft2: requires at least 1 argument",
+                     0, 0, "ifft2", "", "m:ifft2:nargin");
+    int m = -1, n = -1;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        m = static_cast<int>(args[1].toScalar());
+    if (args.size() >= 3 && !args[2].isEmpty())
+        n = static_cast<int>(args[2].toScalar());
+    outs[0] = ifft2(ctx.engine->resource(), args[0], m, n);
+}
+
+void interpft_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                  CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("interpft: requires 2 arguments (x, n)",
+                     0, 0, "interpft", "", "m:interpft:nargin");
+    const int n = static_cast<int>(args[1].toScalar());
+    int dim = 0;
+    if (args.size() >= 3) dim = static_cast<int>(args[2].toScalar());
+    outs[0] = interpft(ctx.engine->resource(), args[0], n, dim);
 }
 
 } // namespace detail

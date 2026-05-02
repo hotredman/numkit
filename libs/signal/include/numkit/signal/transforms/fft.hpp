@@ -33,4 +33,15 @@ Value fft(std::pmr::memory_resource *mr, const Value &x, int n = -1, int dim = 0
 /// 1D inverse DFT along a given dimension. Same parameter semantics as `fft`.
 Value ifft(std::pmr::memory_resource *mr, const Value &X, int n = -1, int dim = 0);
 
+/// 2-D DFT. fft2(X) ≡ fft(fft(X, m, 1), n, 2). m = -1 / n = -1 use size(X).
+Value fft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
+
+/// 2-D inverse DFT. Same shape semantics as fft2.
+Value ifft2(std::pmr::memory_resource *mr, const Value &X, int m = -1, int n = -1);
+
+/// interpft(x, n[, dim]) — band-limited (FFT-based) interpolation of `x`
+/// to `n` equispaced samples along `dim`. dim=0 means "first non-singleton".
+/// Implementation: FFT → zero-pad in frequency domain → IFFT → scale by n/m.
+Value interpft(std::pmr::memory_resource *mr, const Value &x, int n, int dim = 0);
+
 } // namespace numkit::signal
