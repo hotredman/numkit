@@ -156,6 +156,10 @@ void gammaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void erfinv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void beta_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void betaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void expint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void psi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -541,6 +545,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("erf",      &builtin::detail::erf_reg);
     engine.registerFunction("erfc",     &builtin::detail::erfc_reg);
     engine.registerFunction("erfinv",   &builtin::detail::erfinv_reg);
+    engine.registerFunction("beta",     &builtin::detail::beta_reg);
+    engine.registerFunction("betaln",   &builtin::detail::betaln_reg);
+    engine.registerFunction("expint",   &builtin::detail::expint_reg);
+    engine.registerFunction("psi",      &builtin::detail::psi_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

@@ -532,7 +532,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `realsqrt` | ✅ |  |
 | `sqrt` | ✅ |  |
 
-### Special Functions — 5 ✅ + 0 ⚠️ / 24 = 20% — **NS: core**
+### Special Functions — 9 ✅ + 0 ⚠️ / 24 = 38% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -542,10 +542,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `besselj` | ❌ |  |
 | `besselk` | ❌ |  |
 | `bessely` | ❌ |  |
-| `beta` | ❌ |  |
+| `beta` | ✅ |  |
 | `betainc` | ❌ |  |
 | `betaincinv` | ❌ |  |
-| `betaln` | ❌ |  |
+| `betaln` | ✅ |  |
 | `ellipj` | ❌ |  |
 | `ellipke` | ❌ |  |
 | `erf` | ✅ |  |
@@ -553,13 +553,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `erfcinv` | ❌ |  |
 | `erfcx` | ❌ |  |
 | `erfinv` | ✅ |  |
-| `expint` | ❌ |  |
+| `expint` | ✅ |  |
 | `gamma` | ✅ |  |
 | `gammainc` | ❌ |  |
 | `gammaincinv` | ❌ |  |
 | `gammaln` | ✅ |  |
 | `legendre` | ❌ |  |
-| `psi` | ❌ |  |
+| `psi` | ✅ |  |
 
 ### Discrete Math — 8 ✅ + 0 ⚠️ / 11 = 72% — **NS: core**
 

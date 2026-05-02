@@ -29,4 +29,18 @@ Value erfc(std::pmr::memory_resource *mr, const Value &x);
 ///              followed by 3 Newton steps for full double precision.
 Value erfinv(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Pack 19: extra special functions ─────────────────────────────────
+/// beta(z, w)    — B(z, w) = Γ(z)Γ(w)/Γ(z+w). Computed via lgamma to
+/// avoid overflow.
+Value beta(std::pmr::memory_resource *mr, const Value &z, const Value &w);
+/// betaln(z, w)  — log B(z, w) = lgamma(z) + lgamma(w) - lgamma(z+w).
+Value betaln(std::pmr::memory_resource *mr, const Value &z, const Value &w);
+/// expint(x)     — E1(x) = ∫_x^∞ e^{-t}/t dt for x > 0. Series for
+/// small x, asymptotic continued-fraction-style for large x. Returns
+/// NaN for x < 0 (would be complex).
+Value expint(std::pmr::memory_resource *mr, const Value &x);
+/// psi(x)        — digamma function ψ(x) = Γ'(x)/Γ(x). Recurrence to
+/// shift x ≥ 6, then asymptotic series.
+Value psi(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin
