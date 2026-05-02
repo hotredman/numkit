@@ -501,6 +501,39 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Optimization — Pack 20 ────────────────────────────────────
+TEST_P(BuiltinTest, FminbndScalar)
+{
+    // Min of (x-3)^2 on [0, 10] is x=3, value=0.
+    eval("y = fminbnd(@(x) (x-3)^2, 0, 10);");
+    EXPECT_NEAR(getVar("y"), 3.0, 1e-4);
+    // Min of cos(x) on [0, 2*pi] is at x=pi.
+    eval("y2 = fminbnd(@cos, 0, 6);");
+    EXPECT_NEAR(getVar("y2"), M_PI, 1e-4);
+}
+
+TEST_P(BuiltinTest, FminsearchVector)
+{
+    // 2-D quadratic: min of (x1-1)^2 + 10*(x2-2)^2 at [1, 2].
+    // Nelder-Mead with default 1e-4 tol converges to ~1e-2.
+    eval("y = fminsearch(@(v) (v(1)-1)^2 + 10*(v(2)-2)^2, [0 0]);");
+    auto *y = getVarPtr("y");
+    ASSERT_EQ(y->numel(), 2u);
+    EXPECT_NEAR(y->doubleData()[0], 1.0, 1e-2);
+    EXPECT_NEAR(y->doubleData()[1], 2.0, 1e-2);
+}
+
+TEST_P(BuiltinTest, OptimsetGet)
+{
+    eval("o = optimset('TolX', 1e-9, 'MaxIter', 200);");
+    EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'TolX');"), 1e-9);
+    EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'MaxIter');"), 200.0);
+    // Default is preserved when not overridden.
+    EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'TolFun');"), 1e-6);
+    // Missing key with user default.
+    EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
+}
+
 // ── Special funcs — Pack 19 ───────────────────────────────────
 TEST_P(BuiltinTest, BetaBetaln)
 {

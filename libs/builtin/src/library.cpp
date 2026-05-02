@@ -104,6 +104,8 @@ void polyfit_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyval_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void trapz_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void fzero_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void fminbnd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void fminsearch_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void integral_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void roots_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void polyder_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -492,6 +494,48 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("polyval",   &builtin::detail::polyval_reg);
     engine.registerFunction("trapz",     &builtin::detail::trapz_reg);
     engine.registerFunction("fzero",     &builtin::detail::fzero_reg);
+    engine.registerFunction("fminbnd",   &builtin::detail::fminbnd_reg);
+    engine.registerFunction("fminsearch",&builtin::detail::fminsearch_reg);
+
+    // optimset / optimget — option struct utility, implemented as
+    // lambdas (no public API needed).
+    engine.registerFunction("optimset",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            // optimset(name1, val1, name2, val2, ...) → struct with those
+            // fields. Defaults are filled in for any keys not supplied so
+            // callers can rely on their presence.
+            auto *mr = ctx.engine->resource();
+            auto s = Value::structure(mr);
+            // MATLAB-typical default values.
+            s.field("Display")     = Value::fromString("notify", mr);
+            s.field("MaxFunEvals") = Value::scalar(1000.0, mr);
+            s.field("MaxIter")     = Value::scalar(500.0, mr);
+            s.field("TolFun")      = Value::scalar(1e-6, mr);
+            s.field("TolX")        = Value::scalar(1e-6, mr);
+            // Apply user overrides.
+            for (size_t i = 0; i + 1 < args.size(); i += 2) {
+                if (!args[i].isChar() && !args[i].isString())
+                    throw std::runtime_error(
+                        "optimset: option name must be a string");
+                s.field(args[i].toString()) = args[i + 1];
+            }
+            outs[0] = std::move(s);
+        });
+
+    engine.registerFunction("optimget",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw std::runtime_error("optimget requires (options, name[, default])");
+            const Value &opts = args[0];
+            const std::string name = args[1].toString();
+            if (opts.isStruct() && opts.hasField(name)) {
+                outs[0] = opts.field(name);
+                return;
+            }
+            // Fallback to user-supplied default; otherwise [].
+            if (args.size() >= 3) outs[0] = args[2];
+            else outs[0] = Value::empty();
+        });
     engine.registerFunction("integral",  &builtin::detail::integral_reg);
     engine.registerFunction("roots",     &builtin::detail::roots_reg);
     engine.registerFunction("polyder",   &builtin::detail::polyder_reg);

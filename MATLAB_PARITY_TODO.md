@@ -715,17 +715,17 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `spline` | ✅ |  |
 | `unmkpp` | ❌ |  |
 
-### Optimization — 1 ✅ + 0 ⚠️ / 7 = 14% — **NS: core**
+### Optimization — 5 ✅ + 0 ⚠️ / 7 = 71% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `fminbnd` | ❌ | 1-D bounded |
-| `fminsearch` | ❌ | Nelder-Mead |
+| `fminbnd` | ✅ | 1-D bounded |
+| `fminsearch` | ✅ | Nelder-Mead |
 | `fzero` | ✅ |  |
 | `lsqnonneg` | ❌ |  |
-| `optimget` | ❌ |  |
+| `optimget` | ✅ |  |
 | `optimize` | ❌ |  |
-| `optimset` | ❌ |  |
+| `optimset` | ✅ |  |
 
 ### Ordinary Differential Equations — 0 ✅ + 0 ⚠️ / 21 = 0% — **NS: `ode.*` (future)**
 
