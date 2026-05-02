@@ -501,6 +501,44 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Numeric limits ────────────────────────────────────────────
+TEST_P(BuiltinTest, NumericLimits)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("flintmax();"), 9007199254740992.0);   // 2^53
+    EXPECT_DOUBLE_EQ(evalScalar("flintmax('double');"), 9007199254740992.0);
+    EXPECT_DOUBLE_EQ(evalScalar("flintmax('single');"), 16777216.0);   // 2^24
+
+    EXPECT_DOUBLE_EQ(evalScalar("double(intmax());"), 2147483647.0);   // int32 max
+    EXPECT_DOUBLE_EQ(evalScalar("double(intmax('int8'));"),  127.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(intmax('uint8'));"), 255.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(intmin('int8'));"), -128.0);
+    EXPECT_DOUBLE_EQ(evalScalar("double(intmin('uint8'));"), 0.0);
+
+    EXPECT_NEAR(evalScalar("realmax();"), 1.7976931348623157e+308, 1e295);
+    EXPECT_NEAR(evalScalar("realmin();"), 2.2250738585072014e-308, 1e-320);
+}
+
+// ── allfinite / anynan ────────────────────────────────────────
+TEST_P(BuiltinTest, AllFiniteAnyNan)
+{
+    EXPECT_TRUE(evalBool("allfinite([1 2 3]);"));
+    EXPECT_FALSE(evalBool("allfinite([1 inf 3]);"));
+    EXPECT_FALSE(evalBool("allfinite([1 nan 3]);"));
+    EXPECT_TRUE(evalBool("allfinite([]);"));
+    EXPECT_TRUE(evalBool("allfinite(5);"));
+
+    EXPECT_FALSE(evalBool("anynan([1 2 3]);"));
+    EXPECT_TRUE(evalBool("anynan([1 nan 3]);"));
+    EXPECT_FALSE(evalBool("anynan([1 inf 3]);"));   // inf is not nan
+    EXPECT_FALSE(evalBool("anynan([]);"));
+    EXPECT_FALSE(evalBool("anynan(5);"));
+
+    // 2-D arrays.
+    EXPECT_TRUE(evalBool("allfinite([1 2; 3 4]);"));
+    EXPECT_FALSE(evalBool("allfinite([1 nan; 3 4]);"));
+    EXPECT_TRUE(evalBool("anynan([1 nan; 3 4]);"));
+}
+
 TEST_P(BuiltinTest, CartPolVectorized)
 {
     eval("[t, r] = cart2pol([3 0 -1], [4 1  0]);");

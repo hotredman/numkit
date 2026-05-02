@@ -234,6 +234,13 @@ void ismatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issorted_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void flintmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void intmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void intmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void realmax_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void realmin_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void allfinite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void anynan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // `class` is registered via lambda in registerWorkspaceBuiltins() —
@@ -574,6 +581,13 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("issorted",   &builtin::detail::issorted_reg);
     engine.registerFunction("issortedrows",&builtin::detail::issortedrows_reg);
     engine.registerFunction("isuniform",  &builtin::detail::isuniform_reg);
+    engine.registerFunction("flintmax",   &builtin::detail::flintmax_reg);
+    engine.registerFunction("intmax",     &builtin::detail::intmax_reg);
+    engine.registerFunction("intmin",     &builtin::detail::intmin_reg);
+    engine.registerFunction("realmax",    &builtin::detail::realmax_reg);
+    engine.registerFunction("realmin",    &builtin::detail::realmin_reg);
+    engine.registerFunction("allfinite",  &builtin::detail::allfinite_reg);
+    engine.registerFunction("anynan",     &builtin::detail::anynan_reg);
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     // `class` registered in registerWorkspaceBuiltins() as a lambda

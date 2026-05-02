@@ -68,6 +68,26 @@ Value issortedrows(std::pmr::memory_resource *mr, const Value &x);
 /// supported (no [tf, step] tuple).
 Value isuniform(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Numeric limits / whole-array float predicates ────────────────────
+/// flintmax(typeName?) — largest exact integer representable as the
+/// given float type. Default 'double' → 2^53. 'single' → 2^24.
+Value flintmax(std::pmr::memory_resource *mr, const Value *typeName = nullptr);
+/// intmax(typeName?) — largest value of the named integer class.
+/// Default 'int32'. Returns a typed integer scalar.
+Value intmax(std::pmr::memory_resource *mr, const Value *typeName = nullptr);
+/// intmin(typeName?) — smallest value of the named integer class.
+Value intmin(std::pmr::memory_resource *mr, const Value *typeName = nullptr);
+/// realmax(typeName?) — largest finite value of the named float class.
+Value realmax(std::pmr::memory_resource *mr, const Value *typeName = nullptr);
+/// realmin(typeName?) — smallest positive normal value of the named
+/// float class.
+Value realmin(std::pmr::memory_resource *mr, const Value *typeName = nullptr);
+
+/// allfinite(A) — equivalent to all(isfinite(A(:))) but single-pass.
+Value allfinite(std::pmr::memory_resource *mr, const Value &x);
+/// anynan(A) — equivalent to any(isnan(A(:))).
+Value anynan(std::pmr::memory_resource *mr, const Value &x);
+
 // ── Equality ─────────────────────────────────────────────────────────
 /// isequal(a, b) — deep equality, NaN != NaN.
 Value isequal(std::pmr::memory_resource *mr, const Value &a, const Value &b);

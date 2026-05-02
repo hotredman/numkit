@@ -369,6 +369,145 @@ Value isuniform(std::pmr::memory_resource *mr, const Value &x)
     return Value::logicalScalar(true, mr);
 }
 
+// ── Numeric limits ───────────────────────────────────────────────────
+
+namespace {
+inline std::string readTypeName(const Value *t, const char *def)
+{
+    if (!t) return def;
+    if (!t->isChar() && !t->isString())
+        throw std::runtime_error("numeric-limit: type argument must be a string");
+    auto s = t->toString();
+    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    return s;
+}
+
+template <typename T>
+inline Value typedScalar(std::pmr::memory_resource *mr, ValueType vt, T v)
+{
+    auto r = Value::matrix(1, 1, vt, mr);
+    *static_cast<T *>(r.rawDataMut()) = v;
+    return r;
+}
+} // anon
+
+Value flintmax(std::pmr::memory_resource *mr, const Value *t)
+{
+    auto name = readTypeName(t, "double");
+    if (name == "single")
+        return typedScalar<float>(mr, ValueType::SINGLE, static_cast<float>(1u << 24));
+    if (name == "double")
+        return Value::scalar(9007199254740992.0, mr);  // 2^53 exactly
+    throw std::runtime_error("flintmax: type must be 'double' or 'single'");
+}
+
+Value intmax(std::pmr::memory_resource *mr, const Value *t)
+{
+    auto name = readTypeName(t, "int32");
+    if (name == "int8")   return typedScalar<int8_t>(mr,   ValueType::INT8,   std::numeric_limits<int8_t>::max());
+    if (name == "int16")  return typedScalar<int16_t>(mr,  ValueType::INT16,  std::numeric_limits<int16_t>::max());
+    if (name == "int32")  return typedScalar<int32_t>(mr,  ValueType::INT32,  std::numeric_limits<int32_t>::max());
+    if (name == "int64")  return typedScalar<int64_t>(mr,  ValueType::INT64,  std::numeric_limits<int64_t>::max());
+    if (name == "uint8")  return typedScalar<uint8_t>(mr,  ValueType::UINT8,  std::numeric_limits<uint8_t>::max());
+    if (name == "uint16") return typedScalar<uint16_t>(mr, ValueType::UINT16, std::numeric_limits<uint16_t>::max());
+    if (name == "uint32") return typedScalar<uint32_t>(mr, ValueType::UINT32, std::numeric_limits<uint32_t>::max());
+    if (name == "uint64") return typedScalar<uint64_t>(mr, ValueType::UINT64, std::numeric_limits<uint64_t>::max());
+    throw std::runtime_error("intmax: unsupported integer class");
+}
+
+Value intmin(std::pmr::memory_resource *mr, const Value *t)
+{
+    auto name = readTypeName(t, "int32");
+    if (name == "int8")   return typedScalar<int8_t>(mr,   ValueType::INT8,   std::numeric_limits<int8_t>::min());
+    if (name == "int16")  return typedScalar<int16_t>(mr,  ValueType::INT16,  std::numeric_limits<int16_t>::min());
+    if (name == "int32")  return typedScalar<int32_t>(mr,  ValueType::INT32,  std::numeric_limits<int32_t>::min());
+    if (name == "int64")  return typedScalar<int64_t>(mr,  ValueType::INT64,  std::numeric_limits<int64_t>::min());
+    if (name == "uint8")  return typedScalar<uint8_t>(mr,  ValueType::UINT8,  static_cast<uint8_t>(0));
+    if (name == "uint16") return typedScalar<uint16_t>(mr, ValueType::UINT16, static_cast<uint16_t>(0));
+    if (name == "uint32") return typedScalar<uint32_t>(mr, ValueType::UINT32, static_cast<uint32_t>(0));
+    if (name == "uint64") return typedScalar<uint64_t>(mr, ValueType::UINT64, static_cast<uint64_t>(0));
+    throw std::runtime_error("intmin: unsupported integer class");
+}
+
+Value realmax(std::pmr::memory_resource *mr, const Value *t)
+{
+    auto name = readTypeName(t, "double");
+    if (name == "single")
+        return typedScalar<float>(mr, ValueType::SINGLE, std::numeric_limits<float>::max());
+    if (name == "double")
+        return Value::scalar(std::numeric_limits<double>::max(), mr);
+    throw std::runtime_error("realmax: type must be 'double' or 'single'");
+}
+
+Value realmin(std::pmr::memory_resource *mr, const Value *t)
+{
+    auto name = readTypeName(t, "double");
+    if (name == "single")
+        return typedScalar<float>(mr, ValueType::SINGLE, std::numeric_limits<float>::min());
+    if (name == "double")
+        return Value::scalar(std::numeric_limits<double>::min(), mr);
+    throw std::runtime_error("realmin: type must be 'double' or 'single'");
+}
+
+// ── Whole-array float predicates ────────────────────────────────────
+
+Value allfinite(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isEmpty()) return Value::logicalScalar(true, mr);
+    if (!x.isNumeric()) return Value::logicalScalar(false, mr);
+    if (x.isScalar()) {
+        if (x.isComplex()) {
+            const auto c = x.toComplex();
+            return Value::logicalScalar(std::isfinite(c.real()) && std::isfinite(c.imag()), mr);
+        }
+        return Value::logicalScalar(std::isfinite(x.toScalar()), mr);
+    }
+    const size_t n = x.numel();
+    if (x.isComplex()) {
+        const Complex *p = x.complexData();
+        for (size_t i = 0; i < n; ++i)
+            if (!std::isfinite(p[i].real()) || !std::isfinite(p[i].imag()))
+                return Value::logicalScalar(false, mr);
+        return Value::logicalScalar(true, mr);
+    }
+    if (isFloatType(x.type())) {
+        const double *p = x.doubleData();
+        for (size_t i = 0; i < n; ++i)
+            if (!std::isfinite(p[i])) return Value::logicalScalar(false, mr);
+        return Value::logicalScalar(true, mr);
+    }
+    // Integer / logical types are always finite.
+    return Value::logicalScalar(true, mr);
+}
+
+Value anynan(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isEmpty()) return Value::logicalScalar(false, mr);
+    if (!x.isNumeric()) return Value::logicalScalar(false, mr);
+    if (x.isScalar()) {
+        if (x.isComplex()) {
+            const auto c = x.toComplex();
+            return Value::logicalScalar(std::isnan(c.real()) || std::isnan(c.imag()), mr);
+        }
+        return Value::logicalScalar(std::isnan(x.toScalar()), mr);
+    }
+    const size_t n = x.numel();
+    if (x.isComplex()) {
+        const Complex *p = x.complexData();
+        for (size_t i = 0; i < n; ++i)
+            if (std::isnan(p[i].real()) || std::isnan(p[i].imag()))
+                return Value::logicalScalar(true, mr);
+        return Value::logicalScalar(false, mr);
+    }
+    if (isFloatType(x.type())) {
+        const double *p = x.doubleData();
+        for (size_t i = 0; i < n; ++i)
+            if (std::isnan(p[i])) return Value::logicalScalar(true, mr);
+        return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(false, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
@@ -483,6 +622,40 @@ void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext 
                      "m:issorted:nargin");
     const Value *mode = (args.size() >= 2) ? &args[1] : nullptr;
     outs[0] = issorted(ctx.engine->resource(), args[0], mode);
+}
+
+// flintmax/intmax/intmin/realmax/realmin all share an "optional type-name
+// string" calling convention; one adapter per fn keeps error messages
+// useful.
+#define NK_LIMIT_REG(FN)                                                              \
+    void FN##_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) \
+    {                                                                                  \
+        const Value *t = args.empty() ? nullptr : &args[0];                            \
+        outs[0] = FN(ctx.engine->resource(), t);                                       \
+    }
+
+NK_LIMIT_REG(flintmax)
+NK_LIMIT_REG(intmax)
+NK_LIMIT_REG(intmin)
+NK_LIMIT_REG(realmax)
+NK_LIMIT_REG(realmin)
+
+#undef NK_LIMIT_REG
+
+void allfinite_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("allfinite: requires 1 argument", 0, 0, "allfinite", "",
+                     "m:allfinite:nargin");
+    outs[0] = allfinite(ctx.engine->resource(), args[0]);
+}
+
+void anynan_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("anynan: requires 1 argument", 0, 0, "anynan", "",
+                     "m:anynan:nargin");
+    outs[0] = anynan(ctx.engine->resource(), args[0]);
 }
 
 void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
