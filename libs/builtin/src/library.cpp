@@ -368,6 +368,7 @@ void getenv_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // diagnostics.cpp
 void error_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void warning_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void lastwarn_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void MException_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void rethrow_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void throw_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -1032,6 +1033,7 @@ void BuiltinLibrary::install(Engine &engine)
     // ── programming/errors/diagnostics.cpp public-API-backed built-ins ──────
     engine.registerFunction("error",      &builtin::detail::error_reg);
     engine.registerFunction("warning",    &builtin::detail::warning_reg);
+    engine.registerFunction("lastwarn",   &builtin::detail::lastwarn_reg);
     engine.registerFunction("MException", &builtin::detail::MException_reg);
     engine.registerFunction("rethrow",    &builtin::detail::rethrow_reg);
     engine.registerFunction("throw",      &builtin::detail::throw_reg);

@@ -249,6 +249,48 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
     return v;
 }
 
+// ── mape ──────────────────────────────────────────────────────────────
+Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim)
+{
+    if (f.dims() != a.dims() && !(f.isScalar() || a.isScalar()))
+        throw Error("mape: F and A must have compatible sizes",
+                     0, 0, "mape", "", "m:mape:sizeMismatch");
+    const size_t n = std::max(f.numel(), a.numel());
+    auto pct = (f.numel() >= a.numel())
+                  ? createLike(f, ValueType::DOUBLE, mr)
+                  : createLike(a, ValueType::DOUBLE, mr);
+    double *dst = pct.doubleDataMut();
+
+    if (f.isScalar()) {
+        const double fs = f.toScalar();
+        for (size_t i = 0; i < n; ++i) {
+            const double ai = a.elemAsDouble(i);
+            dst[i] = std::abs((ai - fs) / ai) * 100.0;
+        }
+    } else if (a.isScalar()) {
+        const double as = a.toScalar();
+        for (size_t i = 0; i < n; ++i) {
+            const double fi = f.elemAsDouble(i);
+            dst[i] = std::abs((as - fi) / as) * 100.0;
+        }
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            const double fi = f.elemAsDouble(i);
+            const double ai = a.elemAsDouble(i);
+            dst[i] = std::abs((ai - fi) / ai) * 100.0;
+        }
+    }
+
+    const int dResolved = resolveDim(pct, dim, "mape");
+    return applyAlongDim(pct, dResolved,
+        [](size_t, const double *s, size_t k) -> double {
+            if (k == 0) return std::numeric_limits<double>::quiet_NaN();
+            double sum = 0.0;
+            for (size_t i = 0; i < k; ++i) sum += s[i];
+            return sum / static_cast<double>(k);
+        }, mr);
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -290,6 +332,16 @@ void mink_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     const int k = static_cast<int>(args[1].toScalar());
     const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
     outs[0] = mink(ctx.engine->resource(), args[0], k, dim);
+}
+
+void mape_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mape: requires 2 arguments (F, A)",
+                     0, 0, "mape", "", "m:mape:nargin");
+    const int dim = (args.size() >= 3) ? static_cast<int>(args[2].toScalar()) : 0;
+    outs[0] = mape(ctx.engine->resource(), args[0], args[1], dim);
 }
 
 void rmse_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -1,0 +1,10 @@
+{
+  "name": "mape",
+  "namespace": "stats",
+  "setup": "if exist('numkit', 'var') == 0; try; import compat.*; catch; end; end; F = sin((1:1000000) * 0.01) + 1.5; A = sin((1:1000000) * 0.01) + 1.6;",
+  "expr": "p = mape(F, A);",
+  "iters": 50,
+  "tol": 1e-10,
+  "fingerprint": ["double(p)"],
+  "comment": "1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat."
+}

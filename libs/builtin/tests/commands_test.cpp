@@ -629,3 +629,42 @@ TEST_P(VersionTest, StableWithinSession)
 }
 
 INSTANTIATE_DUAL(VersionTest);
+
+// ── Pack 36: lastwarn ────────────────────────────────────────────────
+class LastwarnTest : public DualEngineTest {};
+
+TEST_P(LastwarnTest, ClearedStateIsEmpty)
+{
+    // Reset shared thread_local state — other tests in the binary may
+    // have fired warning() before us.
+    eval("lastwarn('');");
+    eval("[m, i] = lastwarn();");
+    EXPECT_EQ(getVarPtr("m")->toString(), "");
+    EXPECT_EQ(getVarPtr("i")->toString(), "");
+}
+
+TEST_P(LastwarnTest, WarningSetsState)
+{
+    eval("warning('m:test:foo', 'something happened');");
+    eval("[m, i] = lastwarn();");
+    EXPECT_EQ(getVarPtr("m")->toString(), "something happened");
+    EXPECT_EQ(getVarPtr("i")->toString(), "m:test:foo");
+}
+
+TEST_P(LastwarnTest, ManualSetForm)
+{
+    eval("lastwarn('manual reset', 'm:reset');");
+    eval("[m, i] = lastwarn();");
+    EXPECT_EQ(getVarPtr("m")->toString(), "manual reset");
+    EXPECT_EQ(getVarPtr("i")->toString(), "m:reset");
+}
+
+TEST_P(LastwarnTest, ManualResetWithEmpty)
+{
+    eval("warning('m:test:bar', 'first');");
+    eval("lastwarn('');");
+    eval("[m, i] = lastwarn();");
+    EXPECT_EQ(getVarPtr("m")->toString(), "");
+}
+
+INSTANTIATE_DUAL(LastwarnTest);

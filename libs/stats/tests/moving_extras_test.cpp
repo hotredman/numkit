@@ -193,3 +193,30 @@ TEST_F(MovingTest, RmseTwoVectorsZeroOnIdentical)
 {
     EXPECT_NEAR(evalScalar("rmse([1 2 3], [1 2 3])"), 0.0, 1e-12);
 }
+
+// ── Pack 36: mape ─────────────────────────────────────────────────
+TEST_F(MovingTest, MapeKnownExample)
+{
+    // F = [98 90 110 120], A = 100 → per-elem |Δ|/A = [0.02 0.10 0.10 0.20]
+    // mean × 100 = 10.5
+    EXPECT_NEAR(evalScalar("mape([98 90 110 120], [100 100 100 100])"), 10.5, 1e-12);
+}
+
+TEST_F(MovingTest, MapeIdenticalIsZero)
+{
+    EXPECT_NEAR(evalScalar("mape([1 2 3 4], [1 2 3 4])"), 0.0, 1e-12);
+}
+
+TEST_F(MovingTest, MapeScalarBroadcast)
+{
+    // F scalar 0, A = [10 20] → mean(|10|/10, |20|/20)*100 = 100.
+    EXPECT_NEAR(evalScalar("mape(0, [10 20])"), 100.0, 1e-12);
+}
+
+TEST_F(MovingTest, MapeAlongDim2)
+{
+    // 2x2 -> mape per row.
+    eval("M = mape([1 2; 3 4], [2 4; 6 8], 2);");
+    EXPECT_NEAR(evalScalar("M(1)"), 50.0, 1e-12);  // (|1/2|+|2/4|)/2 *100 = 50
+    EXPECT_NEAR(evalScalar("M(2)"), 50.0, 1e-12);
+}

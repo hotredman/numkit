@@ -26,6 +26,15 @@ namespace numkit::builtin {
 /// Same form-dispatch as error() but does not throw.
 void warning(Engine &engine, Span<const Value> args);
 
+// ── MATLAB lastwarn() ────────────────────────────────────────────────
+/// Most-recent warning state. `warning(...)` updates these; the
+/// `lastwarn` builtin reads them. Storage is thread_local in the
+/// implementation TU, so concurrent engines on different threads
+/// each see their own last-warning. No core-side state involved.
+struct LastWarn { std::string msg; std::string id; };
+LastWarn lastwarnGet();
+void     lastwarnSet(const std::string &msg, const std::string &id);
+
 // ── MATLAB MException() ──────────────────────────────────────────────
 /// Create an MException-like struct with "identifier" and "message"
 /// fields. Form: MException(id, msg, arg1, ...). Throws on <2 args.

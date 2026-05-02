@@ -27,6 +27,7 @@ void iqr_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void maxk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mink_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rmse_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mape_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // moments/moments.cpp
 void skewness_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kurtosis_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -78,6 +79,7 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "maxk",      &stats::detail::maxk_reg);
     reg("descriptive", "mink",      &stats::detail::mink_reg);
     reg("descriptive", "rmse",      &stats::detail::rmse_reg);
+    reg("descriptive", "mape",      &stats::detail::mape_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
