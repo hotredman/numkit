@@ -22,4 +22,25 @@ Value acos(std::pmr::memory_resource *mr, const Value &x);
 Value atan(std::pmr::memory_resource *mr, const Value &x);
 Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x);
 
+// Hyperbolic — sinh/cosh/tanh and their inverses.
+Value sinh(std::pmr::memory_resource *mr, const Value &x);
+Value cosh(std::pmr::memory_resource *mr, const Value &x);
+Value tanh(std::pmr::memory_resource *mr, const Value &x);
+Value asinh(std::pmr::memory_resource *mr, const Value &x);
+Value acosh(std::pmr::memory_resource *mr, const Value &x);
+Value atanh(std::pmr::memory_resource *mr, const Value &x);
+
+// Degree-input/-output forms — sind(x) = sin(x*pi/180) etc.
+Value sind(std::pmr::memory_resource *mr, const Value &x);
+Value cosd(std::pmr::memory_resource *mr, const Value &x);
+Value tand(std::pmr::memory_resource *mr, const Value &x);
+Value asind(std::pmr::memory_resource *mr, const Value &x);
+Value acosd(std::pmr::memory_resource *mr, const Value &x);
+Value atand(std::pmr::memory_resource *mr, const Value &x);
+Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x);
+
+// Pi-scaled forms — sinpi(x) = sin(pi*x), accurate near integers.
+Value sinpi(std::pmr::memory_resource *mr, const Value &x);
+Value cospi(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin

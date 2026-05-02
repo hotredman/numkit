@@ -255,6 +255,92 @@ TEST_P(BuiltinTest, MathFunctions)
     EXPECT_NEAR(evalScalar("log(1);"), 0.0, 1e-12);
 }
 
+// ── Hyperbolic trig ─────────────────────────────────────────
+TEST_P(BuiltinTest, Hyperbolic)
+{
+    EXPECT_NEAR(evalScalar("sinh(0);"), 0.0, 1e-15);
+    EXPECT_NEAR(evalScalar("cosh(0);"), 1.0, 1e-15);
+    EXPECT_NEAR(evalScalar("tanh(0);"), 0.0, 1e-15);
+    EXPECT_NEAR(evalScalar("sinh(1);"),  1.1752011936438014, 1e-12);
+    EXPECT_NEAR(evalScalar("cosh(1);"),  1.5430806348152437, 1e-12);
+    EXPECT_NEAR(evalScalar("tanh(1);"),  0.7615941559557649, 1e-12);
+    // Inverses are exact identities.
+    EXPECT_NEAR(evalScalar("asinh(sinh(0.5));"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("acosh(cosh(0.5));"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("atanh(tanh(0.5));"), 0.5, 1e-12);
+    // acosh of a value < 1 returns a complex result (matches MATLAB).
+    eval("z = acosh(0);");
+    auto *z = getVarPtr("z");
+    ASSERT_NE(z, nullptr);
+    EXPECT_TRUE(z->isComplex());
+}
+
+TEST_P(BuiltinTest, HyperbolicVector)
+{
+    eval("v = sinh([0 1 -1]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 3u);
+    EXPECT_NEAR(v->doubleData()[0], 0.0, 1e-12);
+    EXPECT_NEAR(v->doubleData()[1],  1.1752011936438014, 1e-12);
+    EXPECT_NEAR(v->doubleData()[2], -1.1752011936438014, 1e-12);
+}
+
+// ── Degree-input trig ───────────────────────────────────────
+TEST_P(BuiltinTest, DegreeTrig)
+{
+    // Exact zeros at integer multiples of 180°.
+    EXPECT_DOUBLE_EQ(evalScalar("sind(0);"),    0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sind(180);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sind(-180);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sind(360);"),  0.0);
+    // ±1 at ±90°.
+    EXPECT_DOUBLE_EQ(evalScalar("sind(90);"),   1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sind(-90);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cosd(0);"),    1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cosd(180);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cosd(90);"),   0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cosd(-90);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tand(0);"),    0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("tand(180);"),  0.0);
+    EXPECT_NEAR(evalScalar("tand(45);"), 1.0, 1e-12);
+    // tan(±90°) is ±Inf.
+    EXPECT_TRUE(std::isinf(evalScalar("tand(90);")));
+    EXPECT_TRUE(std::isinf(evalScalar("tand(-90);")));
+    // Inverses return degrees.
+    EXPECT_NEAR(evalScalar("asind(1);"),  90.0, 1e-12);
+    EXPECT_NEAR(evalScalar("asind(0);"),   0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("asind(-1);"), -90.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acosd(1);"),    0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acosd(0);"),   90.0, 1e-12);
+    EXPECT_NEAR(evalScalar("acosd(-1);"), 180.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atand(1);"),   45.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atand(0);"),    0.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atan2d(1, 1);"),  45.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atan2d(1, 0);"),  90.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atan2d(0, -1);"),180.0, 1e-12);
+    EXPECT_NEAR(evalScalar("atan2d(-1, 1);"),-45.0, 1e-12);
+}
+
+// ── Pi-scaled trig ──────────────────────────────────────────
+TEST_P(BuiltinTest, PiScaledTrig)
+{
+    // Exact zeros at integer args.
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(0);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(1);"),  0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(-1);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(100);"),0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(0.5);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sinpi(-0.5);"),-1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cospi(0);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cospi(1);"), -1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cospi(0.5);"),0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("cospi(-0.5);"),0.0);
+    // 1/3 is irrational in radians-times-pi, no clean equality.
+    EXPECT_NEAR(evalScalar("sinpi(1/6);"), 0.5, 1e-12);
+    EXPECT_NEAR(evalScalar("cospi(1/3);"), 0.5, 1e-12);
+}
+
 TEST_P(BuiltinTest, Floor)
 {
     EXPECT_DOUBLE_EQ(evalScalar("floor(3.7);"), 3.0);

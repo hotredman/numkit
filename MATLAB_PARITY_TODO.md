@@ -462,13 +462,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uminus` | ⚠️ | works as unary `-` operator; not callable as named fn |
 | `uplus` | ⚠️ | works as unary `+` operator; not callable as named fn |
 
-### Trigonometry — 10 ✅ + 0 ⚠️ / 47 = 21% — **NS: core**
+### Trigonometry — 25 ✅ + 0 ⚠️ / 47 = 53% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `acos` | ✅ |  |
-| `acosd` | ❌ | degree |
-| `acosh` | ❌ | hyperbolic |
+| `acosd` | ✅ | degree |
+| `acosh` | ✅ | hyperbolic |
 | `acot` | ❌ |  |
 | `acotd` | ❌ |  |
 | `acoth` | ❌ |  |
@@ -479,19 +479,19 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `asecd` | ❌ |  |
 | `asech` | ❌ |  |
 | `asin` | ✅ |  |
-| `asind` | ❌ | degree |
-| `asinh` | ❌ | hyperbolic |
+| `asind` | ✅ | degree |
+| `asinh` | ✅ | hyperbolic |
 | `atan` | ✅ |  |
 | `atan2` | ✅ |  |
-| `atan2d` | ❌ | degree |
-| `atand` | ❌ | degree |
-| `atanh` | ❌ | hyperbolic |
+| `atan2d` | ✅ | degree |
+| `atand` | ✅ | degree |
+| `atanh` | ✅ | hyperbolic |
 | `cart2pol` | ❌ | coord xform |
 | `cart2sph` | ❌ | coord xform |
 | `cos` | ✅ |  |
-| `cosd` | ❌ | degree |
-| `cosh` | ❌ | hyperbolic |
-| `cospi` | ❌ | use `cos(pi*x)` |
+| `cosd` | ✅ | degree |
+| `cosh` | ✅ | hyperbolic |
+| `cospi` | ✅ | use `cos(pi*x)` |
 | `cot` | ❌ | reciprocal |
 | `cotd` | ❌ |  |
 | `coth` | ❌ |  |
@@ -506,13 +506,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `secd` | ❌ |  |
 | `sech` | ❌ |  |
 | `sin` | ✅ |  |
-| `sind` | ❌ | degree |
-| `sinh` | ❌ | hyperbolic |
-| `sinpi` | ❌ | use `sin(pi*x)` |
+| `sind` | ✅ | degree |
+| `sinh` | ✅ | hyperbolic |
+| `sinpi` | ✅ | use `sin(pi*x)` |
 | `sph2cart` | ❌ | coord xform |
 | `tan` | ✅ |  |
-| `tand` | ❌ | degree |
-| `tanh` | ❌ | hyperbolic |
+| `tand` | ✅ | degree |
+| `tanh` | ✅ | hyperbolic |
 
 ### Exponents and Logarithms — 9 ✅ + 0 ⚠️ / 13 = 69% — **NS: core**
 
