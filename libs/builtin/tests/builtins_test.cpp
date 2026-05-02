@@ -501,6 +501,40 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Special funcs — Pack 19 ───────────────────────────────────
+TEST_P(BuiltinTest, BetaBetaln)
+{
+    // B(1, 1) = 1.
+    EXPECT_NEAR(evalScalar("beta(1, 1);"), 1.0, 1e-12);
+    // B(2, 3) = 1/12.
+    EXPECT_NEAR(evalScalar("beta(2, 3);"), 1.0 / 12.0, 1e-12);
+    // B(0.5, 0.5) = pi.
+    EXPECT_NEAR(evalScalar("beta(0.5, 0.5);"), M_PI, 1e-12);
+    // betaln consistency.
+    EXPECT_NEAR(evalScalar("betaln(2, 3);"), std::log(1.0 / 12.0), 1e-12);
+    EXPECT_NEAR(evalScalar("exp(betaln(0.5, 0.5));"), M_PI, 1e-12);
+}
+
+TEST_P(BuiltinTest, ExpintAndPsi)
+{
+    // E1(1) ≈ 0.21938393439552027
+    EXPECT_NEAR(evalScalar("expint(1);"), 0.21938393439552027, 1e-10);
+    // E1(0.5) ≈ 0.5597735947761607
+    EXPECT_NEAR(evalScalar("expint(0.5);"), 0.5597735947761607, 1e-10);
+    // E1(5) ≈ 0.001148295591742
+    EXPECT_NEAR(evalScalar("expint(5);"), 0.001148295591742, 1e-12);
+    // E1(0) = +Inf.
+    EXPECT_TRUE(std::isinf(evalScalar("expint(0);")));
+
+    // psi(1) = -γ ≈ -0.5772156649015329
+    EXPECT_NEAR(evalScalar("psi(1);"), -0.5772156649015329, 1e-10);
+    // psi(2) = 1 - γ.
+    EXPECT_NEAR(evalScalar("psi(2);"), 1.0 - 0.5772156649015329, 1e-10);
+    // psi(0.5) = -γ - 2*ln(2).
+    EXPECT_NEAR(evalScalar("psi(0.5);"),
+                -0.5772156649015329 - 2.0 * std::log(2.0), 1e-10);
+}
+
 // ── String utils — Pack 18 ────────────────────────────────────
 TEST_P(BuiltinTest, AppendCountErase)
 {
