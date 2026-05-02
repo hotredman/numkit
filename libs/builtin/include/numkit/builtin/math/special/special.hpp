@@ -43,4 +43,15 @@ Value expint(std::pmr::memory_resource *mr, const Value &x);
 /// shift x ≥ 6, then asymptotic series.
 Value psi(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Pack 26: incomplete gamma / beta / Legendre ──────────────────────
+/// gammainc(x, a) — regularized lower incomplete gamma P(a, x) =
+/// γ(a, x)/Γ(a). x ≥ 0, a > 0.
+Value gammainc(std::pmr::memory_resource *mr, const Value &x, const Value &a);
+/// betainc(x, a, b) — regularized incomplete beta I_x(a, b).
+Value betainc(std::pmr::memory_resource *mr, const Value &x,
+              const Value &a, const Value &b);
+/// legendre(n, x) — associated Legendre polynomials. Returns an
+/// (n+1) × length(x) matrix; row m+1 is P_n^m(x).
+Value legendre(std::pmr::memory_resource *mr, int n, const Value &x);
+
 } // namespace numkit::builtin

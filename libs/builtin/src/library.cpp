@@ -163,6 +163,9 @@ void beta_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void betaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void expint_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void psi_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void gammainc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void betainc_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void legendre_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // int_math.cpp
 void gcd_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -614,6 +617,9 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("betaln",   &builtin::detail::betaln_reg);
     engine.registerFunction("expint",   &builtin::detail::expint_reg);
     engine.registerFunction("psi",      &builtin::detail::psi_reg);
+    engine.registerFunction("gammainc", &builtin::detail::gammainc_reg);
+    engine.registerFunction("betainc",  &builtin::detail::betainc_reg);
+    engine.registerFunction("legendre", &builtin::detail::legendre_reg);
     engine.registerFunction("gcd",      &builtin::detail::gcd_reg);
     engine.registerFunction("lcm",      &builtin::detail::lcm_reg);
     engine.registerFunction("bitand",   &builtin::detail::bitand_reg);

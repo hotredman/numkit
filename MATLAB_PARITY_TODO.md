@@ -532,7 +532,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `realsqrt` | ✅ |  |
 | `sqrt` | ✅ |  |
 
-### Special Functions — 9 ✅ + 0 ⚠️ / 24 = 38% — **NS: core**
+### Special Functions — 12 ✅ + 0 ⚠️ / 24 = 50% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -543,7 +543,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `besselk` | ❌ |  |
 | `bessely` | ❌ |  |
 | `beta` | ✅ |  |
-| `betainc` | ❌ |  |
+| `betainc` | ✅ |  |
 | `betaincinv` | ❌ |  |
 | `betaln` | ✅ |  |
 | `ellipj` | ❌ |  |
@@ -555,10 +555,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `erfinv` | ✅ |  |
 | `expint` | ✅ |  |
 | `gamma` | ✅ |  |
-| `gammainc` | ❌ |  |
+| `gammainc` | ✅ |  |
 | `gammaincinv` | ❌ |  |
 | `gammaln` | ✅ |  |
-| `legendre` | ❌ |  |
+| `legendre` | ✅ |  |
 | `psi` | ✅ |  |
 
 ### Discrete Math — 10 ✅ + 0 ⚠️ / 11 = 90% — **NS: core**
