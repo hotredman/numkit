@@ -662,6 +662,34 @@ void BuiltinLibrary::install(Engine &engine)
                 args[0], Span<const Value>(callArgs, 2), ctx.env);
         });
 
+    // ── Pack 34: function-handle introspection ────────────────────────
+    //
+    // functions(@h) returns a small struct describing the handle.
+    // numkit handles only carry a name, so the {function, type, file}
+    // fields are the natural set; advanced MATLAB metadata
+    // (workspace, parentage) is not available.
+    engine.registerFunction("functions",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.empty() || !args[0].isFuncHandle())
+                throw std::runtime_error("functions: argument must be a function handle");
+            auto *mr = ctx.engine->resource();
+            auto s = Value::structure(mr);
+            const std::string name = args[0].funcHandleName();
+            s.field("function") = Value::fromString(name, mr);
+            s.field("type")     = Value::fromString("simple", mr);
+            s.field("file")     = Value::fromString("", mr);
+            outs[0] = std::move(s);
+        });
+
+    // localfunctions() — MATLAB returns a cell of handles to local
+    // functions defined in the current m-file. Without per-file
+    // function-table introspection we return the empty cell, which
+    // matches MATLAB when called outside a function file.
+    engine.registerFunction("localfunctions",
+        [](Span<const Value>, size_t, Span<Value> outs, CallContext &ctx) {
+            outs[0] = Value::cell(0, 1, ctx.engine->resource());
+        });
+
     // ── Phase 6 N-D manipulation ──────────────────────────────────
     engine.registerFunction("permute",  &builtin::detail::permute_reg);
     engine.registerFunction("ipermute", &builtin::detail::ipermute_reg);
