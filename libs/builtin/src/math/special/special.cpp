@@ -392,6 +392,102 @@ Value besselk(std::pmr::memory_resource *mr, const Value &nu, const Value &x)
         [](double n, double xx) { return std::cyl_bessel_k(n, xx); }, mr);
 }
 
+// ── Pack 28: Hankel + complete elliptic integrals ────────────────────
+
+Value besselh(std::pmr::memory_resource *mr,
+              const Value &nu, int k, const Value &x)
+{
+    if (k != 1 && k != 2)
+        throw Error("besselh: k must be 1 or 2",
+                     0, 0, "besselh", "", "m:besselh:badK");
+    // Build a complex array of J_ν(x) + (k==1 ? +1 : −1) · i · Y_ν(x).
+    // elementwiseComplex requires both operands to be complex; we build
+    // the result in a real-imag pass instead.
+    if (nu.isScalar() && x.isScalar()) {
+        const double n = nu.toScalar();
+        const double xx = x.toScalar();
+        const double j = std::cyl_bessel_j(n, xx);
+        const double y = std::cyl_neumann(n, xx);
+        const double sign = (k == 1) ? 1.0 : -1.0;
+        return Value::complexScalar(Complex(j, sign * y), mr);
+    }
+    // Use the reference operand for shape (whichever is non-scalar).
+    const Value &shape = !nu.isScalar() ? nu : x;
+    auto r = createLike(shape, ValueType::COMPLEX, mr);
+    Complex *dst = r.complexDataMut();
+    const size_t N = shape.numel();
+    const double sign = (k == 1) ? 1.0 : -1.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double n  = nu.isScalar() ? nu.toScalar()
+                                         : nu.doubleData()[i];
+        const double xx = x.isScalar() ? x.toScalar()
+                                       : x.doubleData()[i];
+        dst[i] = Complex(std::cyl_bessel_j(n, xx),
+                         sign * std::cyl_neumann(n, xx));
+    }
+    return r;
+}
+
+namespace {
+// Complete elliptic integrals K(m) and E(m) via the AGM.
+//
+// Setup: a_0 = 1, g_0 = sqrt(1-m), c_0² = m.
+//   AGM step: a_{n+1} = (a_n+g_n)/2, g_{n+1} = sqrt(a_n g_n).
+//   c_{n+1}² = ((a_n-g_n)/2)² = c_n² / 4·(...) → easier: c_{n+1} = (a_n-g_n)/2.
+//   K(m) = π / (2·AGM)
+//   E(m) = K(m) · (1 − Σ_{n=0}^{∞} 2^(n-1) c_n²)
+std::pair<double, double> ellipKEScalar(double m)
+{
+    if (std::isnan(m)) {
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        return {nan, nan};
+    }
+    if (m == 1.0) return {std::numeric_limits<double>::infinity(), 1.0};
+    if (m < 0.0 || m > 1.0)
+        return {std::numeric_limits<double>::quiet_NaN(),
+                std::numeric_limits<double>::quiet_NaN()};
+
+    double a = 1.0, g = std::sqrt(1.0 - m);
+    // n = 0: term = 0.5 · m.
+    double sum = 0.5 * m;
+    // For n = 1, 2, ... we'll add 2^(n-1) · c_n², where
+    // c_n = (a_{n-1} - g_{n-1}) / 2  →  c_n² = (a-g)² / 4.
+    // So term_n = 2^(n-1) · (a-g)² / 4 = 2^(n-3) · (a-g)².
+    // Build `scale` starting at 2^(1-3) = 0.25 and double each step.
+    double scale = 0.25;
+    constexpr int kMaxIter = 64;
+    for (int i = 0; i < kMaxIter; ++i) {
+        const double diff = a - g;
+        if (std::abs(diff) < 1e-17 * a) break;
+        sum += scale * diff * diff;
+        const double aNew = 0.5 * (a + g);
+        const double gNew = std::sqrt(a * g);
+        a = aNew; g = gNew;
+        scale *= 2.0;
+    }
+    const double K = 3.14159265358979323846 / (2.0 * a);
+    const double E = K * (1.0 - sum);
+    return {K, E};
+}
+} // anon
+
+EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m)
+{
+    auto K = createLike(m, ValueType::DOUBLE, mr);
+    auto E = createLike(m, ValueType::DOUBLE, mr);
+    if (m.isScalar()) {
+        const auto [k, e] = ellipKEScalar(m.toScalar());
+        return { Value::scalar(k, mr), Value::scalar(e, mr) };
+    }
+    const size_t n = m.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const auto [k, e] = ellipKEScalar(m.doubleData()[i]);
+        K.doubleDataMut()[i] = k;
+        E.doubleDataMut()[i] = e;
+    }
+    return { std::move(K), std::move(E) };
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -471,6 +567,31 @@ NK_BESSEL_REG(besseli)
 NK_BESSEL_REG(besselk)
 
 #undef NK_BESSEL_REG
+
+void besselh_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("besselh: requires (nu, x) or (nu, k, x)",
+                     0, 0, "besselh", "", "m:besselh:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // 2-arg form defaults to k = 1.
+        outs[0] = besselh(mr, args[0], 1, args[1]);
+        return;
+    }
+    const int k = static_cast<int>(args[1].toScalar());
+    outs[0] = besselh(mr, args[0], k, args[2]);
+}
+
+void ellipke_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ellipke: requires 1 argument",
+                     0, 0, "ellipke", "", "m:ellipke:nargin");
+    auto res = ellipke(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(res.K);
+    if (nargout > 1) outs[1] = std::move(res.E);
+}
 
 } // namespace detail
 
