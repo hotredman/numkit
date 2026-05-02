@@ -227,6 +227,13 @@ void issingle_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isnan_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isinf_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isfinite_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isvector_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isrow_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void iscolumn_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ismatrix_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void issorted_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void issortedrows_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void isuniform_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequal_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void isequaln_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // `class` is registered via lambda in registerWorkspaceBuiltins() —
@@ -560,6 +567,13 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("isnan",     &builtin::detail::isnan_reg);
     engine.registerFunction("isinf",     &builtin::detail::isinf_reg);
     engine.registerFunction("isfinite",  &builtin::detail::isfinite_reg);
+    engine.registerFunction("isvector",   &builtin::detail::isvector_reg);
+    engine.registerFunction("isrow",      &builtin::detail::isrow_reg);
+    engine.registerFunction("iscolumn",   &builtin::detail::iscolumn_reg);
+    engine.registerFunction("ismatrix",   &builtin::detail::ismatrix_reg);
+    engine.registerFunction("issorted",   &builtin::detail::issorted_reg);
+    engine.registerFunction("issortedrows",&builtin::detail::issortedrows_reg);
+    engine.registerFunction("isuniform",  &builtin::detail::isuniform_reg);
     engine.registerFunction("isequal",   &builtin::detail::isequal_reg);
     engine.registerFunction("isequaln",  &builtin::detail::isequaln_reg);
     // `class` registered in registerWorkspaceBuiltins() as a lambda

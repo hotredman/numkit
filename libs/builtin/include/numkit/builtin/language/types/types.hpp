@@ -48,6 +48,26 @@ Value isnan(std::pmr::memory_resource *mr, const Value &x);
 Value isinf(std::pmr::memory_resource *mr, const Value &x);
 Value isfinite(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Shape predicates ─────────────────────────────────────────────────
+Value isvector(std::pmr::memory_resource *mr, const Value &x);
+Value isrow(std::pmr::memory_resource *mr, const Value &x);
+Value iscolumn(std::pmr::memory_resource *mr, const Value &x);
+Value ismatrix(std::pmr::memory_resource *mr, const Value &x);
+
+// ── Order predicates ─────────────────────────────────────────────────
+/// issorted(A, mode?) — true if A is sorted under `mode` ("ascend",
+/// "descend", "monotonic", "strictascend", "strictdescend"). For matrix
+/// inputs, returns true iff every column is sorted under `mode`.
+Value issorted(std::pmr::memory_resource *mr, const Value &x,
+               const Value *mode = nullptr);
+/// issortedrows(A) — true if rows of A are in ascending lex order.
+Value issortedrows(std::pmr::memory_resource *mr, const Value &x);
+/// isuniform(x) — true if vector x has constant first-differences (within
+/// floating-point tolerance). For matrices, applies along the first
+/// non-singleton dimension. Currently only the single-output form is
+/// supported (no [tf, step] tuple).
+Value isuniform(std::pmr::memory_resource *mr, const Value &x);
+
 // ── Equality ─────────────────────────────────────────────────────────
 /// isequal(a, b) — deep equality, NaN != NaN.
 Value isequal(std::pmr::memory_resource *mr, const Value &a, const Value &b);
