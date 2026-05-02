@@ -66,6 +66,14 @@ class Spec:
     tol: float = 1e-9
     fingerprint: list[str] = field(default_factory=list)
     comment: str = ""
+    # Full-element correctness comparison. If `out_var` is non-empty we
+    # dump every element of that variable as a SAVE block AFTER the
+    # timed loop, and the harness compares element-by-element (with
+    # `tol`) instead of falling back on fingerprints. Numeric / logical
+    # / integer outputs go through `double()`; char/string get dumped
+    # as text; cells of chars get one element per line. Set on specs
+    # whose output is small enough that 1× full-print is acceptable.
+    out_var: str = ""
 
     @classmethod
     def from_json(cls, path: Path) -> "Spec":
@@ -75,11 +83,55 @@ class Spec:
 
 # ────────────────────────── script builder ───────────────────────────
 
+# Inline MATLAB/Octave/numkit-compatible code that prints `<var>` as a
+# SAVE block parsed by `parse_save_block` below. Type-dispatches at run
+# time so the same snippet works for double / single / int* / logical /
+# char / string / cell-of-chars outputs.
+SAVE_DUMP_TEMPLATE = r"""
+sv__ = __VAR__;
+if isnumeric(sv__) || islogical(sv__)
+    flat__ = double(sv__(:));
+    fprintf('SAVE_NUM_BEGIN %d\n', numel(flat__));
+    for i__ = 1:numel(flat__)
+        fprintf('%.17g\n', flat__(i__));
+    end
+    fprintf('SAVE_END\n');
+elseif ischar(sv__)
+    fprintf('SAVE_CHAR_BEGIN %d\n', numel(sv__));
+    fprintf('%s\n', sv__(:)');
+    fprintf('SAVE_END\n');
+elseif isstring(sv__)
+    fprintf('SAVE_STR_BEGIN %d\n', numel(sv__));
+    for i__ = 1:numel(sv__)
+        fprintf('%s\n', char(sv__(i__)));
+    end
+    fprintf('SAVE_END\n');
+elseif iscell(sv__)
+    fprintf('SAVE_CELL_BEGIN %d\n', numel(sv__));
+    for i__ = 1:numel(sv__)
+        el__ = sv__{i__};
+        if ischar(el__) || isstring(el__)
+            fprintf('%s\n', char(el__));
+        elseif isnumeric(el__) && isscalar(el__)
+            fprintf('%.17g\n', double(el__));
+        else
+            fprintf('?\n');
+        end
+    end
+    fprintf('SAVE_END\n');
+else
+    fprintf('SAVE_NONE\n');
+end
+"""
+
+
 def build_script(spec: Spec, *, timed: bool) -> str:
     """Build a MATLAB/Octave/numkit-compatible script.
 
-    timed=True   → run warmup + iters loop, print elapsed_ms then fingerprint.
-    timed=False  → just produce fingerprint (used for correctness reference).
+    timed=True   → run warmup + iters loop, print elapsed_ms,
+                   fingerprints, and (if out_var is set) a full SAVE
+                   block of the output variable.
+    timed=False  → just produce fingerprints (correctness reference).
     """
     fp_exprs = spec.fingerprint or [
         f"sum({spec.expr.split('=')[0].strip()}(:))",
@@ -90,6 +142,8 @@ def build_script(spec: Spec, *, timed: bool) -> str:
         f"fprintf('FP %d %.17g\\n', {i}, double({e}));"
         for i, e in enumerate(fp_exprs)
     )
+
+    save_dump = SAVE_DUMP_TEMPLATE.replace("__VAR__", spec.out_var) if spec.out_var else ""
 
     if timed:
         return (
@@ -102,27 +156,79 @@ def build_script(spec: Spec, *, timed: bool) -> str:
             f"elapsed_ms = toc(t0) * 1000.0 / {spec.iters};\n"
             f"fprintf('TIMING %.6f\\n', elapsed_ms);\n"
             f"{fp_print}\n"
+            f"{save_dump}\n"
         )
     else:
-        return f"{spec.setup}\n{spec.expr}\n{fp_print}\n"
+        return f"{spec.setup}\n{spec.expr}\n{fp_print}\n{save_dump}\n"
 
 
 # ───────────────────────── engine runners ────────────────────────────
+
+@dataclass
+class SaveBlock:
+    """Parsed SAVE_* block from one engine. `kind` is num/char/str/cell.
+
+    For num: items is list[float]. For char: items is one str (the whole
+    matrix as text). For str/cell: items is list[str].
+    """
+    kind: str = ""
+    items: list = field(default_factory=list)
+
+    def is_empty(self) -> bool:
+        return self.kind == "" or (self.kind != "char" and len(self.items) == 0)
+
 
 @dataclass
 class Result:
     ok: bool
     elapsed_ms: float | None = None
     fingerprint: list[float] = field(default_factory=list)
+    save: SaveBlock = field(default_factory=SaveBlock)
     raw_stdout: str = ""
     raw_stderr: str = ""
     error: str = ""
 
 
-def parse_output(out: str) -> tuple[float | None, list[float]]:
+def parse_save_block(lines: list[str]) -> SaveBlock:
+    """Walk `lines` from index 0 looking for SAVE_*_BEGIN..SAVE_END."""
+    sb = SaveBlock()
+    n = len(lines)
+    i = 0
+    while i < n:
+        line = lines[i].strip()
+        m = re.match(r"^SAVE_NUM_BEGIN\s+(\d+)$", line)
+        if m:
+            count = int(m.group(1))
+            sb.kind = "num"
+            sb.items = []
+            for j in range(i + 1, min(i + 1 + count, n)):
+                try:
+                    sb.items.append(float(lines[j].strip()))
+                except ValueError:
+                    break
+            return sb
+        m = re.match(r"^SAVE_CHAR_BEGIN\s+(\d+)$", line)
+        if m:
+            sb.kind = "char"
+            sb.items = [lines[i + 1] if i + 1 < n else ""]
+            return sb
+        m = re.match(r"^SAVE_(STR|CELL)_BEGIN\s+(\d+)$", line)
+        if m:
+            count = int(m.group(2))
+            sb.kind = "str" if m.group(1) == "STR" else "cell"
+            sb.items = []
+            for j in range(i + 1, min(i + 1 + count, n)):
+                sb.items.append(lines[j])
+            return sb
+        i += 1
+    return sb
+
+
+def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
     timing = None
     fps: dict[int, float] = {}
-    for line in out.splitlines():
+    lines = out.splitlines()
+    for line in lines:
         m = re.match(r"^TIMING\s+(\S+)$", line.strip())
         if m:
             timing = float(m.group(1))
@@ -130,7 +236,8 @@ def parse_output(out: str) -> tuple[float | None, list[float]]:
         if m:
             fps[int(m.group(1))] = float(m.group(2))
     fp_list = [fps[i] for i in sorted(fps.keys())]
-    return timing, fp_list
+    sb = parse_save_block(lines)
+    return timing, fp_list, sb
 
 
 def run_numkit(spec: Spec, *, timed: bool) -> Result:
@@ -145,11 +252,12 @@ def run_numkit(spec: Spec, *, timed: bool) -> Result:
                            text=True, timeout=120)
     finally:
         os.unlink(path)
-    timing, fp = parse_output(p.stdout)
+    timing, fp, sb = parse_output(p.stdout)
     return Result(
         ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
         elapsed_ms=timing,
         fingerprint=fp,
+        save=sb,
         raw_stdout=p.stdout,
         raw_stderr=p.stderr,
         error="" if p.returncode == 0 else f"exit {p.returncode}",
@@ -181,11 +289,12 @@ def run_matlab(spec: Spec, *, timed: bool) -> Result:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     finally:
         path.unlink(missing_ok=True)
-    timing, fp = parse_output(p.stdout)
+    timing, fp, sb = parse_output(p.stdout)
     return Result(
         ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
         elapsed_ms=timing,
         fingerprint=fp,
+        save=sb,
         raw_stdout=p.stdout,
         raw_stderr=p.stderr,
         error="" if p.returncode == 0 else f"exit {p.returncode}",
@@ -200,11 +309,12 @@ def run_octave(spec: Spec, *, timed: bool) -> Result:
         p = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     finally:
         path.unlink(missing_ok=True)
-    timing, fp = parse_output(p.stdout)
+    timing, fp, sb = parse_output(p.stdout)
     return Result(
         ok=(p.returncode == 0 and (not timed or timing is not None) and len(fp) > 0),
         elapsed_ms=timing,
         fingerprint=fp,
+        save=sb,
         raw_stdout=p.stdout,
         raw_stderr=p.stderr,
         error="" if p.returncode == 0 else f"exit {p.returncode}",
@@ -228,6 +338,41 @@ def fp_close(a: list[float], b: list[float], tol: float) -> bool:
 
 def fp_str(fp: list[float]) -> str:
     return "[" + ", ".join(f"{x:.6g}" for x in fp) + "]"
+
+
+def save_close(a: SaveBlock, b: SaveBlock, tol: float) -> tuple[bool, str]:
+    """Element-wise compare two SAVE blocks. Returns (ok, reason)."""
+    if a.kind != b.kind:
+        return False, f"kind mismatch: {a.kind} vs {b.kind}"
+    if a.kind == "num":
+        if len(a.items) != len(b.items):
+            return False, f"length mismatch: {len(a.items)} vs {len(b.items)}"
+        worst = 0.0
+        worst_idx = -1
+        for i, (x, y) in enumerate(zip(a.items, b.items)):
+            if x != x and y != y:
+                continue
+            diff = abs(x - y)
+            scale = max(abs(x), abs(y), 1.0)
+            rel = diff / scale
+            if rel > worst:
+                worst = rel
+                worst_idx = i
+            if rel > tol:
+                return False, (f"elem {i}: {x:.17g} vs {y:.17g} "
+                               f"(rel={rel:.3g} > tol={tol:.3g})")
+        return True, f"max rel diff {worst:.3g} at idx {worst_idx}"
+    if a.kind == "char":
+        ok = a.items == b.items
+        return ok, "" if ok else f"char text differs: {a.items[0][:40]!r} vs {b.items[0][:40]!r}"
+    if a.kind in ("str", "cell"):
+        if len(a.items) != len(b.items):
+            return False, f"length mismatch: {len(a.items)} vs {len(b.items)}"
+        for i, (x, y) in enumerate(zip(a.items, b.items)):
+            if x != y:
+                return False, f"elem {i}: {x!r} vs {y!r}"
+        return True, ""
+    return False, f"unknown kind {a.kind}"
 
 
 # ─────────────────────────── log writer ──────────────────────────────
@@ -325,12 +470,29 @@ def run_one(spec_path: Path, *, no_matlab: bool, no_octave: bool, verbose: bool)
         if ref is None:
             correctness = "N/A"
             status = "DONE"
-        elif fp_close(nk.fingerprint, ref.fingerprint, spec.tol):
-            correctness = "OK"
-            status = "DONE"
         else:
-            correctness = "MISMATCH"
-            status = "DONE"
+            # Prefer element-wise SAVE-block comparison when both engines
+            # produced one (= spec.out_var is set). Fall back to
+            # fingerprint comparison otherwise.
+            use_save = (spec.out_var
+                        and not nk.save.is_empty()
+                        and not ref.save.is_empty())
+            if use_save:
+                ok, why = save_close(nk.save, ref.save, spec.tol)
+                if ok:
+                    correctness = "OK"
+                    if verbose and why:
+                        print(f"  save-compare: {why}", flush=True)
+                else:
+                    correctness = "MISMATCH"
+                    print(f"  save-mismatch: {why}", flush=True)
+                status = "DONE"
+            elif fp_close(nk.fingerprint, ref.fingerprint, spec.tol):
+                correctness = "OK"
+                status = "DONE"
+            else:
+                correctness = "MISMATCH"
+                status = "DONE"
 
     append_row(
         name=spec.name, namespace=spec.namespace, status=status,
