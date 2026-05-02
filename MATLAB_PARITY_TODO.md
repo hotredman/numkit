@@ -147,7 +147,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 |---|:---:|---|
 | `allfinite` | ✅ | whole-array `all(isfinite)` |
 | `anynan` | ✅ | whole-array `any(isnan)` |
-| `cast` | ❌ | type conversion |
+| `cast` | ✅ | type conversion |
 | `double` | ✅ |  |
 | `eps` | ✅ | constant (machine eps) |
 | `flintmax` | ✅ | largest exact float-int |
@@ -169,7 +169,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `realmax` | ✅ | largest finite double |
 | `realmin` | ✅ | smallest normal double |
 | `single` | ✅ |  |
-| `typecast` | ❌ | reinterpret bytes |
+| `typecast` | ✅ | reinterpret bytes |
 | `uint16` | ✅ |  |
 | `uint32` | ✅ |  |
 | `uint64` | ✅ |  |
@@ -183,7 +183,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `blanks` | ✅ |  |
 | `cellstr` | ✅ | cell of char rows |
 | `char` | ✅ |  |
-| `compose` | ❌ |  |
+| `compose` | ✅ |  |
 | `contains` | ✅ |  |
 | `convertcharstostrings` | ✅ |  |
 | `convertcontainedstringstochars` | ✅ |  |
@@ -194,7 +194,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `endswith` | ❌ |  |
 | `erase` | ✅ |  |
 | `erasebetween` | ✅ |  |
-| `extract` | ❌ |  |
+| `extract` | ✅ |  |
 | `extractafter` | ✅ |  |
 | `extractbefore` | ✅ |  |
 | `extractbetween` | ✅ |  |
@@ -207,21 +207,21 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `isstring` | ✅ |  |
 | `isstringscalar` | ✅ |  |
 | `isstrprop` | ✅ |  |
-| `join` | ❌ |  |
+| `join` | ✅ |  |
 | `lower` | ✅ |  |
 | `matches` | ✅ |  |
-| `newline` | ❌ |  |
+| `newline` | ✅ |  |
 | `num2str` | ✅ |  |
 | `pad` | ✅ |  |
 | `plus` | ✅ | named-fn form added in Pack 11 |
 | `regexp` | ✅ |  |
 | `regexpi` | ✅ |  |
 | `regexprep` | ✅ |  |
-| `regexptranslate` | ❌ |  |
+| `regexptranslate` | ✅ |  |
 | `replace` | ✅ |  |
 | `replacebetween` | ✅ |  |
 | `reverse` | ✅ |  |
-| `split` | ❌ |  |
+| `split` | ✅ |  |
 | `splitlines` | ✅ |  |
 | `sprintf` | ✅ |  |
 | `sscanf` | ✅ |  |
@@ -232,10 +232,10 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `strcmpi` | ✅ |  |
 | `strfind` | ✅ |  |
 | `string` | ✅ |  |
-| `strings` | ❌ |  |
+| `strings` | ✅ |  |
 | `strip` | ✅ |  |
 | `strjoin` | ✅ |  |
-| `strjust` | ❌ |  |
+| `strjust` | ✅ |  |
 | `strlength` | ✅ |  |
 | `strncmp` | ✅ |  |
 | `strncmpi` | ✅ |  |
@@ -346,7 +346,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `issortedrows` | ❌ |  |
 | `istable` | ❌ |  |
 | `istabular` | ❌ |  |
-| `join` | ❌ |  |
+| `join` | ✅ |  |
 | `jointables` | ❌ |  |
 | `mergevars` | ❌ |  |
 | `movevars` | ❌ |  |
@@ -401,7 +401,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `bitset` | ✅ | set bit |
 | `bitshift` | ✅ |  |
 | `bitxor` | ✅ |  |
-| `swapbytes` | ❌ |  |
+| `swapbytes` | ✅ |  |
 
 ### Set Operations — 10 ✅ + 0 ⚠️ / 13 = 77% — **NS: core**
 
@@ -412,7 +412,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `intersect` | ✅ |  |
 | `ismember` | ✅ |  |
 | `ismembertol` | ✅ | tol variant |
-| `join` | ❌ |  |
+| `join` | ✅ |  |
 | `numunique` | ✅ | count distinct |
 | `outerjoin` | ❌ |  |
 | `setdiff` | ✅ |  |
@@ -444,11 +444,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `mpower` | ✅ | named-fn form added in Pack 11 |
 | `mrdivide` | ✅ | named-fn form added in Pack 11 |
 | `mtimes` | ✅ | named-fn form added in Pack 11 |
-| `pagectranspose` | ❌ |  |
+| `pagectranspose` | ✅ |  |
 | `pagemldivide` | ❌ |  |
 | `pagemrdivide` | ❌ |  |
 | `pagemtimes` | ✅ |  |
-| `pagetranspose` | ❌ |  |
+| `pagetranspose` | ✅ |  |
 | `plus` | ✅ | named-fn form added in Pack 11 |
 | `power` | ✅ | named-fn form added in Pack 11 |
 | `prod` | ✅ |  |
@@ -536,7 +536,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `airy` | ❌ |  |
+| `airy` | ✅ |  |
 | `besselh` | ✅ |  |
 | `besseli` | ✅ |  |
 | `besselj` | ✅ |  |
@@ -544,9 +544,9 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `bessely` | ✅ |  |
 | `beta` | ✅ |  |
 | `betainc` | ✅ |  |
-| `betaincinv` | ❌ |  |
+| `betaincinv` | ✅ |  |
 | `betaln` | ✅ |  |
-| `ellipj` | ❌ |  |
+| `ellipj` | ✅ |  |
 | `ellipke` | ✅ |  |
 | `erf` | ✅ |  |
 | `erfc` | ✅ |  |
@@ -556,7 +556,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `expint` | ✅ |  |
 | `gamma` | ✅ |  |
 | `gammainc` | ✅ |  |
-| `gammaincinv` | ❌ |  |
+| `gammaincinv` | ✅ |  |
 | `gammaln` | ✅ |  |
 | `legendre` | ✅ |  |
 | `psi` | ✅ |  |
@@ -644,7 +644,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `ordqz` | ❌ | **deferred — libs/linalg** |
 | `ordschur` | ❌ | **deferred — libs/linalg** |
 | `orth` | ❌ | **deferred — libs/linalg** |
-| `pagectranspose` | ❌ |  |
+| `pagectranspose` | ✅ |  |
 | `pageeig` | ❌ |  |
 | `pageinv` | ❌ |  |
 | `pagelsqminnorm` | ❌ |  |
@@ -654,7 +654,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `pagenorm` | ❌ |  |
 | `pagepinv` | ❌ |  |
 | `pagesvd` | ❌ |  |
-| `pagetranspose` | ❌ |  |
+| `pagetranspose` | ✅ |  |
 | `pinv` | ❌ | **deferred — libs/linalg** |
 | `planerot` | ❌ | **deferred — libs/linalg** |
 | `polyeig` | ❌ | poly eig |
@@ -702,13 +702,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `interp1` | ✅ |  |
 | `interp2` | ✅ |  |
 | `interp3` | ✅ |  |
-| `interpft` | ❌ |  |
+| `interpft` | ✅ |  |
 | `interpn` | ✅ |  |
 | `makima` | ❌ |  |
 | `meshgrid` | ✅ |  |
 | `mkpp` | ✅ |  |
 | `ndgrid` | ✅ |  |
-| `padecoef` | ❌ |  |
+| `padecoef` | ✅ |  |
 | `pchip` | ✅ |  |
 | `ppval` | ✅ |  |
 | `scatteredinterpolant` | ❌ |  |
@@ -816,25 +816,25 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | Function | Status | Notes |
 |---|:---:|---|
 | `conv` | ✅ |  |
-| `conv2` | ❌ |  |
-| `convn` | ❌ |  |
+| `conv2` | ✅ |  |
+| `convn` | ✅ |  |
 | `deconv` | ✅ |  |
 | `fft` | ✅ |  |
-| `fft2` | ❌ | N-D FFT |
+| `fft2` | ✅ | N-D FFT |
 | `fftn` | ❌ | N-D FFT |
 | `fftshift` | ✅ |  |
 | `fftw` | ❌ | wisdom file |
 | `filter` | ✅ |  |
-| `filter2` | ❌ |  |
+| `filter2` | ✅ |  |
 | `ifft` | ✅ |  |
-| `ifft2` | ❌ | N-D FFT |
+| `ifft2` | ✅ | N-D FFT |
 | `ifftn` | ❌ | N-D FFT |
 | `ifftshift` | ✅ |  |
-| `interpft` | ❌ |  |
+| `interpft` | ✅ |  |
 | `nextpow2` | ✅ |  |
 | `nufft` | ❌ | non-uniform |
 | `nufftn` | ❌ | non-uniform |
-| `padecoef` | ❌ |  |
+| `padecoef` | ✅ |  |
 | `ss2tf` | ✅ | inverse |
 
 ## 3. Data Analysis
@@ -850,7 +850,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `cummin` | ✅ |  |
 | `iqr` | ✅ | inter-quartile |
 | `kde` | ❌ |  |
-| `mape` | ❌ |  |
+| `mape` | ✅ |  |
 | `max` | ✅ |  |
 | `maxk` | ✅ |  |
 | `mean` | ✅ |  |
@@ -875,7 +875,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `summary` | ❌ |  |
 | `var` | ✅ |  |
 | `xcorr` | ✅ | cross-correlation |
-| `xcov` | ❌ | cross-covariance |
+| `xcov` | ✅ | cross-covariance |
 
 ## 4. Programming and Scripts
 
@@ -900,7 +900,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 |---|:---:|---|
 | `assert` | ✅ |  |
 | `error` | ✅ |  |
-| `lastwarn` | ❌ |  |
+| `lastwarn` | ✅ |  |
 | `oncleanup` | ❌ |  |
 | `try` | ✅ | keyword (`try/catch`) |
 | `warning` | ✅ |  |
@@ -983,8 +983,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | Function | Status | Notes |
 |---|:---:|---|
 | `contour3` | ❌ |  |
-| `cylinder` | ❌ |  |
-| `ellipsoid` | ❌ |  |
+| `cylinder` | ✅ |  |
+| `ellipsoid` | ✅ |  |
 | `fimplicit3` | ❌ |  |
 | `fmesh` | ❌ |  |
 | `fsurf` | ❌ |  |
@@ -993,9 +993,9 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `meshc` | ❌ |  |
 | `meshz` | ❌ |  |
 | `pcolor` | ✅ |  |
-| `peaks` | ❌ |  |
+| `peaks` | ✅ |  |
 | `ribbon` | ❌ |  |
-| `sphere` | ❌ |  |
+| `sphere` | ✅ |  |
 | `surf` | ✅ |  |
 | `surf2patch` | ❌ |  |
 | `surface` | ❌ |  |
