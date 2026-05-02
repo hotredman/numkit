@@ -402,6 +402,8 @@ void numel_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ndims_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void reshape_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void transpose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pagetranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void pagectranspose_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void pagemtimes_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void diag_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void sort_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -833,6 +835,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("ndims",     &builtin::detail::ndims_reg);
     engine.registerFunction("reshape",   &builtin::detail::reshape_reg);
     engine.registerFunction("transpose", &builtin::detail::transpose_reg);
+    engine.registerFunction("pagetranspose",  &builtin::detail::pagetranspose_reg);
+    engine.registerFunction("pagectranspose", &builtin::detail::pagectranspose_reg);
 
     // ── Pack 11: operator-named functions ────────────────────────
     engine.registerFunction("plus",       &builtin::detail::plus_reg);

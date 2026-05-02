@@ -55,6 +55,15 @@ Value reshapeND(std::pmr::memory_resource *mr, const Value &x,
 /// 2D matrix transpose (no complex conjugation). Throws Error on 3D input.
 Value transpose(std::pmr::memory_resource *mr, const Value &x);
 
+/// Page-wise transpose. Each (rows × cols) page is transposed in place;
+/// for 1-D / 2-D inputs falls back to plain transpose. Real-only at the
+/// element level; complex elements are transposed without conjugation.
+Value pagetranspose(std::pmr::memory_resource *mr, const Value &x);
+
+/// Page-wise conjugate transpose. Identical to pagetranspose for real
+/// inputs; for complex inputs, conjugates each element while transposing.
+Value pagectranspose(std::pmr::memory_resource *mr, const Value &x);
+
 /// Page-wise matrix multiply: treats axes 1-2 as M×K / K×N matrices,
 /// axes ≥3 as batch dims. Output shape is [M, N, ...broadcast(batchX, batchY)].
 /// DOUBLE only. Inner dim mismatch throws.
