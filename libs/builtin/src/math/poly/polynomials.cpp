@@ -264,6 +264,125 @@ zp2tf(std::pmr::memory_resource *mr, const Value &z, const Value &p, double k)
                            rowFromVec(mr, aRaw.data(), aRaw.size()));
 }
 
+// ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
+
+Value poly(std::pmr::memory_resource *mr, const Value &r)
+{
+    // Vector-of-roots → coefficient row. Real-only path uses the
+    // existing helper (which drops the imaginary residue, fine when
+    // the roots have come from `roots(p)` of a real polynomial).
+    if (r.isEmpty()) return rowFromVec(mr, nullptr, 0);
+    ScratchArena scratch(mr);
+    const size_t n = r.numel();
+    auto cv = ScratchVec<Complex>(n, &scratch);
+    if (r.isComplex()) {
+        const Complex *p = r.complexData();
+        for (size_t i = 0; i < n; ++i) cv[i] = p[i];
+    } else {
+        const double *p = r.doubleData();
+        for (size_t i = 0; i < n; ++i) cv[i] = Complex(p[i], 0.0);
+    }
+    auto coeffs = detail::polyExpandFromRoots(&scratch, cv.data(), n);
+    return rowFromVec(mr, coeffs.data(), coeffs.size());
+}
+
+Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A)
+{
+    if (A.dims().ndim() > 2 || A.dims().rows() != A.dims().cols())
+        throw Error("polyvalm: A must be a square matrix",
+                     0, 0, "polyvalm", "", "m:polyvalm:notSquare");
+    const size_t n = A.dims().rows();
+    const size_t k = p.numel();
+
+    // Build `result = p_0 * I` (deg-0 case shortcut included).
+    auto I = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    {
+        double *d = I.doubleDataMut();
+        std::fill(d, d + n * n, 0.0);
+        for (size_t i = 0; i < n; ++i) d[i * n + i] = 1.0;
+    }
+    if (k == 0) return I;
+
+    // Horner at the matrix level: result = result * A + p_i * I.
+    // p[0] is the leading coefficient.
+    auto result = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    {
+        double *d = result.doubleDataMut();
+        const double p0 = p.doubleData()[0];
+        for (size_t i = 0; i < n * n; ++i) d[i] = 0.0;
+        for (size_t i = 0; i < n; ++i) d[i * n + i] = p0;
+    }
+    for (size_t step = 1; step < k; ++step) {
+        // result = result * A
+        auto next = Value::matrix(n, n, ValueType::DOUBLE, mr);
+        const double *Rp = result.doubleData();
+        const double *Ap = A.doubleData();
+        double *Np = next.doubleDataMut();
+        // Column-major matmul.
+        for (size_t i = 0; i < n; ++i)
+            for (size_t j = 0; j < n; ++j) {
+                double s = 0.0;
+                for (size_t kk = 0; kk < n; ++kk)
+                    s += Rp[kk * n + i] * Ap[j * n + kk];
+                Np[j * n + i] = s;
+            }
+        // result = next + p[step] * I
+        const double pi = p.doubleData()[step];
+        for (size_t i = 0; i < n; ++i) Np[i * n + i] += pi;
+        result = std::move(next);
+    }
+    return result;
+}
+
+PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a)
+{
+    if (a.isEmpty() || a.numel() == 0)
+        throw Error("polydiv: divisor must be non-empty",
+                     0, 0, "polydiv", "", "m:polydiv:emptyA");
+    const size_t na = a.numel();
+    const size_t nb = b.numel();
+    // Strip leading zeros from a (matches MATLAB behaviour).
+    size_t aOff = 0;
+    while (aOff + 1 < na && a.doubleData()[aOff] == 0.0) ++aOff;
+    const size_t aEff = na - aOff;
+    if (aEff == 0 || a.doubleData()[aOff] == 0.0)
+        throw Error("polydiv: divisor is zero", 0, 0, "polydiv", "",
+                     "m:polydiv:zeroDivisor");
+
+    if (nb < aEff) {
+        // Quotient is 0; remainder == b.
+        auto q = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        q.doubleDataMut()[0] = 0.0;
+        return { std::move(q), b };
+    }
+
+    ScratchArena scratch(mr);
+    auto bb = ScratchVec<double>(nb, &scratch);
+    for (size_t i = 0; i < nb; ++i) bb[i] = b.doubleData()[i];
+    const double aLead = a.doubleData()[aOff];
+    const size_t qLen = nb - aEff + 1;
+    auto qv = ScratchVec<double>(qLen, &scratch);
+    for (size_t i = 0; i < qLen; ++i) qv[i] = 0.0;
+
+    for (size_t i = 0; i < qLen; ++i) {
+        const double coef = bb[i] / aLead;
+        qv[i] = coef;
+        for (size_t j = 0; j < aEff; ++j)
+            bb[i + j] -= coef * a.doubleData()[aOff + j];
+    }
+    // Remainder: bb[qLen .. nb-1]; trim leading zeros.
+    size_t rOff = qLen;
+    while (rOff < nb && bb[rOff] == 0.0) ++rOff;
+    Value rOut;
+    if (rOff >= nb) {
+        rOut = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+        rOut.doubleDataMut()[0] = 0.0;
+    } else {
+        rOut = rowFromVec(mr, bb.data() + rOff, nb - rOff);
+    }
+    return { rowFromVec(mr, qv.data(), qLen), std::move(rOut) };
+}
+
 namespace detail {
 
 void roots_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
@@ -338,6 +457,32 @@ void polyval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
         throw Error("polyval: requires 2 arguments",
                      0, 0, "polyval", "", "m:polyval:nargin");
     outs[0] = polyval(ctx.engine->resource(), args[0], args[1]);
+}
+
+void poly_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("poly: requires 1 argument",
+                     0, 0, "poly", "", "m:poly:nargin");
+    outs[0] = poly(ctx.engine->resource(), args[0]);
+}
+
+void polyvalm_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("polyvalm: requires (p, A)",
+                     0, 0, "polyvalm", "", "m:polyvalm:nargin");
+    outs[0] = polyvalm(ctx.engine->resource(), args[0], args[1]);
+}
+
+void polydiv_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("polydiv: requires (b, a)",
+                     0, 0, "polydiv", "", "m:polydiv:nargin");
+    auto res = polydiv(ctx.engine->resource(), args[0], args[1]);
+    outs[0] = std::move(res.q);
+    if (nargout > 1) outs[1] = std::move(res.r);
 }
 
 } // namespace detail

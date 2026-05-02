@@ -577,20 +577,20 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `rat` | ✅ |  |
 | `rats` | ✅ |  |
 
-### Polynomials — 7 ✅ + 0 ⚠️ / 12 = 58% — **NS: core**
+### Polynomials — 10 ✅ + 0 ⚠️ / 12 = 83% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `conv` | ✅ |  |
 | `deconv` | ✅ |  |
-| `poly` | ❌ | roots → coeffs |
+| `poly` | ✅ | roots → coeffs |
 | `polyder` | ✅ |  |
-| `polydiv` | ❌ |  |
+| `polydiv` | ✅ |  |
 | `polyeig` | ❌ | poly eig |
 | `polyfit` | ✅ |  |
 | `polyint` | ✅ |  |
 | `polyval` | ✅ |  |
-| `polyvalm` | ❌ | matrix poly eval |
+| `polyvalm` | ✅ | matrix poly eval |
 | `residue` | ❌ | partial-fraction |
 | `roots` | ✅ |  |
 

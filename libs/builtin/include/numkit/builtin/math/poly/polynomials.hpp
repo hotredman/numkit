@@ -62,4 +62,19 @@ Value polyfit(std::pmr::memory_resource *mr, const Value &x, const Value &y, int
 /// Horner evaluation of polynomial p at x. Returns array same shape as x.
 Value polyval(std::pmr::memory_resource *mr, const Value &p, const Value &x);
 
+// ── Pack 29: poly / polyvalm / polydiv ───────────────────────────────
+/// poly(r) — coefficient row of the polynomial whose roots are the
+/// elements of r. Returns DOUBLE for real input; COMPLEX-valued roots
+/// must be passed as a complex vector (yielding a complex result).
+Value poly(std::pmr::memory_resource *mr, const Value &r);
+
+/// polyvalm(p, A) — matrix polynomial evaluation: p_0·I + p_1·A +
+/// p_2·A² + … (Horner at the matrix level). A must be square.
+Value polyvalm(std::pmr::memory_resource *mr, const Value &p, const Value &A);
+
+/// polydiv(b, a) — long-division of b(x) by a(x) returning the
+/// quotient q and remainder r such that b = q*a + r. Returns the pair.
+struct PolyDiv { Value q; Value r; };
+PolyDiv polydiv(std::pmr::memory_resource *mr, const Value &b, const Value &a);
+
 } // namespace numkit::builtin
