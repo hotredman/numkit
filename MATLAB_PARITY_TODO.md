@@ -264,7 +264,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `structfun` | ✅ |  |
 | `table2struct` | ❌ |  |
 
-### Cell Arrays — 10 ✅ + 0 ⚠️ / 17 = 59% — **NS: core**
+### Cell Arrays — 12 ✅ + 0 ⚠️ / 17 = 71% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -272,13 +272,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `cell2mat` | ✅ | concat cells |
 | `cell2struct` | ✅ |  |
 | `cell2table` | ❌ |  |
-| `celldisp` | ❌ |  |
+| `celldisp` | ✅ |  |
 | `cellfun` | ✅ |  |
 | `cellplot` | ❌ |  |
 | `cellstr` | ✅ | cell of char rows |
 | `iscell` | ✅ |  |
 | `iscellstr` | ✅ | predicate |
-| `mat2cell` | ❌ | split into cell |
+| `mat2cell` | ✅ | split into cell |
 | `num2cell` | ✅ | wrap each elem |
 | `string` | ✅ |  |
 | `struct2cell` | ✅ |  |

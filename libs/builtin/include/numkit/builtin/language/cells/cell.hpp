@@ -56,4 +56,14 @@ Value iscellstr(std::pmr::memory_resource *mr, const Value &c);
 /// cell-of-strings → identity.
 Value cellstr(std::pmr::memory_resource *mr, const Value &x);
 
+// ── Pack 24 ──────────────────────────────────────────────────────────
+/// mat2cell(A, R)        — vector input: split into a 1×N cell where
+///                         element i is A[..., R(i)].
+/// mat2cell(A, R, C)     — 2-D input: split rows by R and cols by C.
+/// sum(R) == size(A,1), sum(C) == size(A,2). Block at (i, j) has
+/// shape R(i) × C(j).
+Value mat2cell(std::pmr::memory_resource *mr, const Value &x,
+               const double *rowSizes, size_t nRow,
+               const double *colSizes, size_t nCol);
+
 } // namespace numkit::builtin

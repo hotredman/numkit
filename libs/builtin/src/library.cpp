@@ -344,6 +344,7 @@ void num2cell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cell2mat_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void iscellstr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void cellstr_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void mat2cell_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void structfun_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void getfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void setfield_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -850,6 +851,42 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("cell2mat",   &builtin::detail::cell2mat_reg);
     engine.registerFunction("iscellstr",  &builtin::detail::iscellstr_reg);
     engine.registerFunction("cellstr",    &builtin::detail::cellstr_reg);
+    engine.registerFunction("mat2cell",   &builtin::detail::mat2cell_reg);
+
+    // ── Pack 24: deal + celldisp (lambdas) ────────────────────────────
+    // deal — distribute inputs to outputs. Single input → broadcast to
+    // all outputs; multiple inputs → 1-to-1 with outs.
+    engine.registerFunction("deal",
+        [](Span<const Value> args, size_t nargout,
+           Span<Value> outs, CallContext &) {
+            if (args.empty())
+                throw std::runtime_error("deal requires at least 1 argument");
+            if (args.size() == 1) {
+                for (size_t i = 0; i < nargout && i < outs.size(); ++i)
+                    outs[i] = args[0];
+                return;
+            }
+            const size_t n = std::min(nargout, args.size());
+            for (size_t i = 0; i < n && i < outs.size(); ++i)
+                outs[i] = args[i];
+        });
+
+    // celldisp(c[, name]) — print each cell's contents.
+    engine.registerFunction("celldisp",
+        [](Span<const Value> args, size_t, Span<Value>, CallContext &ctx) {
+            if (args.empty())
+                throw std::runtime_error("celldisp requires 1 argument");
+            const Value &c = args[0];
+            if (!c.isCell())
+                throw std::runtime_error("celldisp: input must be a cell");
+            const std::string name = (args.size() >= 2)
+                                          ? args[1].toString()
+                                          : std::string("ans");
+            for (size_t i = 0; i < c.numel(); ++i) {
+                ctx.engine->outputText(name + "{" + std::to_string(i + 1) + "} =\n");
+                ctx.engine->outputText(c.cellAt(i).formatDisplay("") + "\n");
+            }
+        });
     engine.registerFunction("structfun",  &builtin::detail::structfun_reg);
     engine.registerFunction("getfield",   &builtin::detail::getfield_reg);
     engine.registerFunction("setfield",   &builtin::detail::setfield_reg);
