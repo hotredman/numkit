@@ -621,6 +621,119 @@ Value isspaceFn(std::pmr::memory_resource *mr, const Value &s)
     return applyCharPred(mr, s, [](unsigned char c) { return std::isspace(c) != 0; });
 }
 
+// ── Pack 22 ──────────────────────────────────────────────────────────
+//
+// Position-or-pattern lookup: numeric scalar → 0-based index, string
+// → find first occurrence and return its [begin, end) range.
+
+namespace {
+struct PosRange { size_t begin; size_t end; bool found; };
+
+// Resolve `p` to a [begin, end) range in `s`. For a numeric position
+// p, [p-1, p) is returned (so callers can treat it as a "single
+// character" anchor). For a string pattern, [pos, pos+len).
+PosRange resolvePos(const std::string &s, const Value &p)
+{
+    if (p.isChar() || p.isString()) {
+        const std::string pat = p.toString();
+        if (pat.empty()) return {0, 0, false};
+        const size_t pos = s.find(pat);
+        if (pos == std::string::npos) return {0, 0, false};
+        return {pos, pos + pat.size(), true};
+    }
+    // Numeric scalar (1-based).
+    const auto p1 = static_cast<long long>(p.toScalar());
+    if (p1 < 1 || static_cast<size_t>(p1) > s.size())
+        return {0, 0, false};
+    return {static_cast<size_t>(p1 - 1), static_cast<size_t>(p1), true};
+}
+
+inline Value strLikeOf(std::pmr::memory_resource *mr, const Value &s,
+                       const std::string &out)
+{
+    if (s.isString()) return Value::stringScalar(out, mr);
+    return Value::fromString(out, mr);
+}
+} // anon
+
+Value extractAfter(std::pmr::memory_resource *mr, const Value &s, const Value &p)
+{
+    const std::string ss = s.toString();
+    const auto r = resolvePos(ss, p);
+    if (!r.found) return strLikeOf(mr, s, "");
+    return strLikeOf(mr, s, ss.substr(r.end));
+}
+
+Value extractBefore(std::pmr::memory_resource *mr, const Value &s, const Value &p)
+{
+    const std::string ss = s.toString();
+    const auto r = resolvePos(ss, p);
+    if (!r.found) return strLikeOf(mr, s, "");
+    return strLikeOf(mr, s, ss.substr(0, r.begin));
+}
+
+Value extractBetween(std::pmr::memory_resource *mr, const Value &s,
+                     const Value &start, const Value &end)
+{
+    const std::string ss = s.toString();
+    const auto rs = resolvePos(ss, start);
+    if (!rs.found) return strLikeOf(mr, s, "");
+    // For "between", search for the end pattern only after the start
+    // pattern's tail to avoid hitting the same span.
+    const std::string tail = ss.substr(rs.end);
+    const auto re = resolvePos(tail, end);
+    if (!re.found) return strLikeOf(mr, s, "");
+    return strLikeOf(mr, s, tail.substr(0, re.begin));
+}
+
+Value insertAfter(std::pmr::memory_resource *mr, const Value &s,
+                  const Value &p, const Value &newText)
+{
+    std::string ss = s.toString();
+    const auto r = resolvePos(ss, p);
+    if (!r.found) return s;
+    ss.insert(r.end, newText.toString());
+    return strLikeOf(mr, s, ss);
+}
+
+Value insertBefore(std::pmr::memory_resource *mr, const Value &s,
+                   const Value &p, const Value &newText)
+{
+    std::string ss = s.toString();
+    const auto r = resolvePos(ss, p);
+    if (!r.found) return s;
+    ss.insert(r.begin, newText.toString());
+    return strLikeOf(mr, s, ss);
+}
+
+Value eraseBetween(std::pmr::memory_resource *mr, const Value &s,
+                   const Value &start, const Value &end)
+{
+    std::string ss = s.toString();
+    const auto rs = resolvePos(ss, start);
+    if (!rs.found) return s;
+    const std::string tail = ss.substr(rs.end);
+    const auto re = resolvePos(tail, end);
+    if (!re.found) return s;
+    // Remove the substring (rs.end, rs.end + re.begin).
+    ss.erase(rs.end, re.begin);
+    return strLikeOf(mr, s, ss);
+}
+
+Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
+                     const Value &start, const Value &end,
+                     const Value &newText)
+{
+    std::string ss = s.toString();
+    const auto rs = resolvePos(ss, start);
+    if (!rs.found) return s;
+    const std::string tail = ss.substr(rs.end);
+    const auto re = resolvePos(tail, end);
+    if (!re.found) return s;
+    ss.replace(rs.end, re.begin, newText.toString());
+    return strLikeOf(mr, s, ss);
+}
+
 Value strrep(std::pmr::memory_resource *mr, const Value &s, const Value &oldPat, const Value &newPat)
 {
     std::pmr::memory_resource *p = mr;
@@ -984,6 +1097,54 @@ void isspace_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("isspace: requires 1 argument",
                      0, 0, "isspace", "", "m:isspace:nargin");
     outs[0] = isspaceFn(ctx.engine->resource(), args[0]);
+}
+
+#define NK_STR_BIN_REG(FN)                                                       \
+    void FN##_reg(Span<const Value> args, size_t, Span<Value> outs,             \
+                  CallContext &ctx)                                              \
+    {                                                                             \
+        if (args.size() < 2)                                                      \
+            throw Error(#FN " requires 2 arguments",                             \
+                         0, 0, #FN, "", "m:" #FN ":nargin");                      \
+        outs[0] = FN(ctx.engine->resource(), args[0], args[1]);                  \
+    }
+
+NK_STR_BIN_REG(extractAfter)
+NK_STR_BIN_REG(extractBefore)
+
+#undef NK_STR_BIN_REG
+
+void extractBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("extractBetween requires (s, start, end)",
+                     0, 0, "extractBetween", "", "m:extractBetween:nargin");
+    outs[0] = extractBetween(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+#define NK_STR_TRI_REG(FN)                                                       \
+    void FN##_reg(Span<const Value> args, size_t, Span<Value> outs,             \
+                  CallContext &ctx)                                              \
+    {                                                                             \
+        if (args.size() < 3)                                                      \
+            throw Error(#FN " requires 3 arguments",                             \
+                         0, 0, #FN, "", "m:" #FN ":nargin");                      \
+        outs[0] = FN(ctx.engine->resource(), args[0], args[1], args[2]);         \
+    }
+
+NK_STR_TRI_REG(insertAfter)
+NK_STR_TRI_REG(insertBefore)
+NK_STR_TRI_REG(eraseBetween)
+
+#undef NK_STR_TRI_REG
+
+void replaceBetween_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("replaceBetween requires (s, start, end, new)",
+                     0, 0, "replaceBetween", "", "m:replaceBetween:nargin");
+    outs[0] = replaceBetween(ctx.engine->resource(),
+                             args[0], args[1], args[2], args[3]);
 }
 
 // strtok(s, delim?) — split at first delim char. Returns [token, rem].

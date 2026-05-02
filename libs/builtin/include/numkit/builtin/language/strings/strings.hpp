@@ -138,4 +138,25 @@ Value isletter(std::pmr::memory_resource *mr, const Value &s);
 /// isspace(s) — true for ASCII whitespace (' ', '\t', '\n', '\r', '\f', '\v').
 Value isspaceFn(std::pmr::memory_resource *mr, const Value &s);
 
+// ── Pack 22: extract / insert / erase / replace at positions ─────────
+//
+// Each function accepts a position-or-pattern argument:
+//   numeric scalar  — 1-based character index
+//   char/string     — first occurrence of the literal pattern in s
+// `Between` variants take two such arguments.
+
+Value extractAfter(std::pmr::memory_resource *mr, const Value &s, const Value &p);
+Value extractBefore(std::pmr::memory_resource *mr, const Value &s, const Value &p);
+Value extractBetween(std::pmr::memory_resource *mr, const Value &s,
+                     const Value &start, const Value &end);
+Value insertAfter(std::pmr::memory_resource *mr, const Value &s,
+                  const Value &p, const Value &newText);
+Value insertBefore(std::pmr::memory_resource *mr, const Value &s,
+                   const Value &p, const Value &newText);
+Value eraseBetween(std::pmr::memory_resource *mr, const Value &s,
+                   const Value &start, const Value &end);
+Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
+                     const Value &start, const Value &end,
+                     const Value &newText);
+
 } // namespace numkit::builtin
