@@ -38,4 +38,16 @@ Value cat(std::pmr::memory_resource *mr, int dim, const Value *values, size_t co
 /// the diagonal and zeros elsewhere. 2D inputs only.
 Value blkdiag(std::pmr::memory_resource *mr, const Value *values, size_t count);
 
+/// shiftdim(A, n) — cyclic-left shift of dim ordering by n. For n > 0:
+/// equivalent to permute with `[n+1, n+2, ..., N, 1, 2, ..., n]`. For
+/// n < 0: prepend |n| singleton dimensions. n is reduced mod N when
+/// it equals or exceeds N.
+Value shiftdim(std::pmr::memory_resource *mr, const Value &x, int n);
+
+/// Auto form `[B, k] = shiftdim(A)` — drop leading singleton dims and
+/// report how many were dropped. If no leading singletons, returns
+/// {A, 0}.
+struct ShiftDimAuto { Value v; int dropped; };
+ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin

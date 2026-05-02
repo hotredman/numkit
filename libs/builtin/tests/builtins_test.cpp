@@ -501,6 +501,55 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── shiftdim — Pack 12 ────────────────────────────────────────
+TEST_P(BuiltinTest, ShiftDimPositive)
+{
+    // 2-D: shiftdim(A, 1) is a transpose-like rotation.
+    eval("A = [1 2 3; 4 5 6]; B = shiftdim(A, 1);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 2u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 1), 6.0);
+
+    // 3-D: shiftdim(ones(2,3,4), 1) should yield 3×4×2.
+    eval("S = size(shiftdim(ones(2,3,4), 1));");
+    auto *S = getVarPtr("S");
+    EXPECT_DOUBLE_EQ(S->doubleData()[0], 3.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[1], 4.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[2], 2.0);
+}
+
+TEST_P(BuiltinTest, ShiftDimNegativePrepends)
+{
+    // shiftdim(ones(3,4), -1) prepends a singleton → 1×3×4.
+    eval("S = size(shiftdim(ones(3,4), -1));");
+    auto *S = getVarPtr("S");
+    ASSERT_GE(S->numel(), 3u);
+    EXPECT_DOUBLE_EQ(S->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(S->doubleData()[2], 4.0);
+}
+
+TEST_P(BuiltinTest, ShiftDimAuto)
+{
+    // [B, k] = shiftdim(A) drops leading singletons.
+    eval("[B, k] = shiftdim(ones(1,1,3));");
+    EXPECT_DOUBLE_EQ(getVar("k"), 2.0);
+    auto *B = getVarPtr("B");
+    EXPECT_EQ(B->numel(), 3u);
+    // Row vector (1×3) has one leading singleton → k=1, B is 3×1 column.
+    eval("[B2, k2] = shiftdim([1 2 3]);");
+    EXPECT_DOUBLE_EQ(getVar("k2"), 1.0);
+    auto *B2 = getVarPtr("B2");
+    EXPECT_EQ(rows(*B2), 3u);
+    EXPECT_EQ(cols(*B2), 1u);
+    // Column vector (3×1): no leading singleton, k=0.
+    eval("[B3, k3] = shiftdim([1; 2; 3]);");
+    EXPECT_DOUBLE_EQ(getVar("k3"), 0.0);
+}
+
 // ── Pack 11: operator-named functions ─────────────────────────
 TEST_P(BuiltinTest, OperatorNamedArith)
 {
