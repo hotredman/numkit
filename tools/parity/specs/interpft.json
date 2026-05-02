@@ -1,0 +1,10 @@
+{
+  "name": "interpft",
+  "namespace": "core",
+  "setup": "M = 256; t = (0:M-1)/M; x = sin(2*pi*5*t) + 0.5*cos(2*pi*7*t);",
+  "expr": "y = interpft(x, 1024);",
+  "iters": 200,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise."
+}

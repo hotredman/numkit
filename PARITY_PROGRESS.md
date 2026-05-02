@@ -38,3 +38,8 @@ of work + measurements.
 | `gammaincinv` | core | DONE | 1.725 | 2.029 | 40.203 | 1.18× | 23.31× | OK | Inverse regularized gamma over 5k probability points, a=2.5. 20 iters, element-wise. |
 | `betaincinv` | core | DONE | 1.119 | 1.162 | 4.955 | 1.04× | 4.43× | OK | Inverse regularized beta over 2k probability points, a=3 b=5. 20 iters, element-wise. |
 | `ellipj` | core | DONE | 0.614 | 1.367 | 0.863 | 2.23× | 1.41× | OK | Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn. |
+| `fft2` | core | DONE | 1.180 | 0.553 | 0.681 | 0.47× | 0.58× | MISMATCH | 256x256 random matrix, complex 2-D FFT. 50 iters. |
+| `ifft2` | core | DONE | 1.660 | 0.535 | 1.095 | 0.32× | 0.66× | MISMATCH | 256x256 inverse 2-D FFT (after fft2 from same RNG seed). 50 iters. |
+| `interpft` | core | DONE | 0.012 | 0.040 | 0.205 | 3.42× | 17.31× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
+| `fft2` | core | DONE | 1.127 | 0.677 | 0.658 | 0.60× | 0.58× | OK | 256x256 deterministic test signal, complex 2-D FFT. 50 iters. |
+| `ifft2` | core | DONE | 1.840 | 0.702 | 1.042 | 0.38× | 0.57× | OK | 256x256 inverse 2-D FFT (after fft2 of deterministic signal). 50 iters. |
