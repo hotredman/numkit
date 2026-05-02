@@ -734,6 +734,41 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── idivide / bsxfun — Pack 33 ────────────────────────────────
+TEST_P(BuiltinTest, Idivide)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("idivide(10, 3);"), 3.0);          // fix(3.33) = 3
+    EXPECT_DOUBLE_EQ(evalScalar("idivide(-10, 3);"), -3.0);        // fix(-3.33) = -3
+    EXPECT_DOUBLE_EQ(evalScalar("idivide(-10, 3, 'floor');"), -4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("idivide(7, 2, 'ceil');"), 4.0);
+    EXPECT_DOUBLE_EQ(evalScalar("idivide(7, 2, 'round');"), 4.0);
+    // Vectorized.
+    eval("v = idivide([10 20 30], 4);");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);  // fix(2.5) = 2
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 7.0);  // fix(7.5) = 7
+}
+
+TEST_P(BuiltinTest, Bsxfun)
+{
+    // bsxfun(@plus, [1 2 3], [10; 20]) → 2×3 broadcast.
+    eval("M = bsxfun(@plus, [1 2 3], [10; 20]);");
+    auto *M = getVarPtr("M");
+    ASSERT_EQ(rows(*M), 2u);
+    ASSERT_EQ(cols(*M), 3u);
+    EXPECT_DOUBLE_EQ((*M)(0, 0), 11.0);
+    EXPECT_DOUBLE_EQ((*M)(0, 2), 13.0);
+    EXPECT_DOUBLE_EQ((*M)(1, 0), 21.0);
+    EXPECT_DOUBLE_EQ((*M)(1, 2), 23.0);
+    // Custom anon function.
+    eval("M2 = bsxfun(@(a, b) a .* b + 1, [1 2 3], [10; 20]);");
+    auto *M2 = getVarPtr("M2");
+    EXPECT_DOUBLE_EQ((*M2)(0, 0), 11.0);
+    EXPECT_DOUBLE_EQ((*M2)(1, 2), 61.0);
+}
+
 // ── Array shape pads — Pack 32 ────────────────────────────────
 TEST_P(BuiltinTest, PaddataTrimdata)
 {

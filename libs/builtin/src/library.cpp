@@ -1,4 +1,6 @@
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/language/operators/binary_ops.hpp>
+#include <numkit/builtin/math/arithmetic/rounding.hpp>
 
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
@@ -616,6 +618,49 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("paddata",   &builtin::detail::paddata_reg);
     engine.registerFunction("trimdata",  &builtin::detail::trimdata_reg);
     engine.registerFunction("resize",    &builtin::detail::resize_reg);
+
+    // ── Pack 33: idivide + bsxfun ─────────────────────────────────────
+    //
+    // idivide(A, B[, opt]) — integer-style division with rounding mode
+    // opt ∈ {'fix' (default), 'floor', 'ceil', 'round'}. Both inputs
+    // are coerced to DOUBLE for the calculation; result type follows
+    // input A (DOUBLE in / DOUBLE out is fine for typical script use).
+    engine.registerFunction("idivide",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 2)
+                throw std::runtime_error("idivide requires (A, B[, opt])");
+            std::string opt = "fix";
+            if (args.size() >= 3 && (args[2].isChar() || args[2].isString())) {
+                opt = args[2].toString();
+                for (auto &c : opt)
+                    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+            }
+            auto *mr = ctx.engine->resource();
+            // Compose: fix(A ./ B) = idivide. Using public API avoids
+            // re-implementing broadcast logic.
+            Value q = builtin::rdivide(mr, args[0], args[1]);
+            if (opt == "fix" || opt.empty())   outs[0] = builtin::fix(mr, q);
+            else if (opt == "floor")            outs[0] = builtin::floor(mr, q);
+            else if (opt == "ceil")             outs[0] = builtin::ceil(mr, q);
+            else if (opt == "round")            outs[0] = builtin::round(mr, q);
+            else
+                throw std::runtime_error(
+                    "idivide: opt must be 'fix', 'floor', 'ceil', or 'round'");
+        });
+
+    // bsxfun(fn, A, B) — apply fn elementwise to (A, B). numkit's
+    // built-in elementwise ops already broadcast, so the wrapper just
+    // forwards to the function handle.
+    engine.registerFunction("bsxfun",
+        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+            if (args.size() < 3)
+                throw std::runtime_error("bsxfun requires (fn, A, B)");
+            if (!args[0].isFuncHandle())
+                throw std::runtime_error("bsxfun: first argument must be a function handle");
+            const Value callArgs[2] = { args[1], args[2] };
+            outs[0] = ctx.engine->callFunctionHandle(
+                args[0], Span<const Value>(callArgs, 2), ctx.env);
+        });
 
     // ── Phase 6 N-D manipulation ──────────────────────────────────
     engine.registerFunction("permute",  &builtin::detail::permute_reg);

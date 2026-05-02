@@ -423,11 +423,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 ## 2. Mathematics
 
-### Arithmetic — 26 ✅ + 0 ⚠️ / 34 = 76% — **NS: core**
+### Arithmetic — 28 ✅ + 0 ⚠️ / 34 = 82% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `bsxfun` | ❌ | legacy broadcast |
+| `bsxfun` | ✅ | legacy broadcast |
 | `ceil` | ✅ |  |
 | `ctranspose` | ✅ | named-fn form added in Pack 11 |
 | `cumprod` | ✅ |  |
@@ -435,7 +435,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `diff` | ✅ |  |
 | `fix` | ✅ |  |
 | `floor` | ✅ |  |
-| `idivide` | ❌ | integer division |
+| `idivide` | ✅ | integer division |
 | `ldivide` | ✅ | named-fn form added in Pack 11 |
 | `minus` | ✅ | named-fn form added in Pack 11 |
 | `mldivide` | ✅ | named-fn form added in Pack 11 |
