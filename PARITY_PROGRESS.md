@@ -35,3 +35,6 @@ of work + measurements.
 | `airy` | core | DONE | 7.487 | 0.747 | 2.840 | 0.10× | 0.38× | OK | Ai over 10k pts on [-5,5]. 10 iters. Element-wise comparison. |
 | `padecoef` | core | DONE | 0.000 | — | 0.044 | — | 151.48× | MISMATCH | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. |
 | `padecoef` | core | DONE | 0.000 | 0.001 | 0.045 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
+| `gammaincinv` | core | DONE | 1.725 | 2.029 | 40.203 | 1.18× | 23.31× | OK | Inverse regularized gamma over 5k probability points, a=2.5. 20 iters, element-wise. |
+| `betaincinv` | core | DONE | 1.119 | 1.162 | 4.955 | 1.04× | 4.43× | OK | Inverse regularized beta over 2k probability points, a=3 b=5. 20 iters, element-wise. |
+| `ellipj` | core | DONE | 0.614 | 1.367 | 0.863 | 2.23× | 1.41× | OK | Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn. |

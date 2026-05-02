@@ -96,4 +96,21 @@ EllipKE ellipke(std::pmr::memory_resource *mr, const Value &m);
 /// Vectorizes over `x`; `k` must be a scalar in {0,1,2,3}.
 Value airy(std::pmr::memory_resource *mr, int k, const Value &x);
 
+/// gammaincinv(P, a) — inverse of regularized lower incomplete gamma:
+/// returns x such that gammainc(x, a) == P. Domain: P ∈ [0,1], a > 0.
+/// Newton iteration on `gammainc` with a Wilson-Hilferty starting point.
+Value gammaincinv(std::pmr::memory_resource *mr, const Value &P, const Value &a);
+
+/// betaincinv(P, a, b) — inverse of regularized incomplete beta:
+/// returns x such that betainc(x, a, b) == P. Domain: P ∈ [0,1],
+/// a > 0, b > 0. Newton iteration on `betainc`.
+Value betaincinv(std::pmr::memory_resource *mr, const Value &P,
+                 const Value &a, const Value &b);
+
+/// ellipj(u, m) — Jacobi elliptic functions sn, cn, dn. m ∈ [0, 1].
+/// Implemented via the descending Landen / arithmetic-geometric-mean
+/// transformation (Abramowitz & Stegun 16.4).
+struct EllipJ { Value sn; Value cn; Value dn; };
+EllipJ ellipj(std::pmr::memory_resource *mr, const Value &u, const Value &m);
+
 } // namespace numkit::builtin

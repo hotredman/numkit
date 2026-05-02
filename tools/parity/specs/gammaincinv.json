@@ -1,0 +1,10 @@
+{
+  "name": "gammaincinv",
+  "namespace": "core",
+  "setup": "P = linspace(0.01, 0.99, 5000); a = 2.5;",
+  "expr": "x = gammaincinv(P, a);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "x",
+  "comment": "Inverse regularized gamma over 5k probability points, a=2.5. 20 iters, element-wise."
+}

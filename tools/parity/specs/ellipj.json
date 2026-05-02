@@ -1,0 +1,11 @@
+{
+  "name": "ellipj",
+  "namespace": "core",
+  "setup": "u = linspace(-3, 3, 5000); m = 0.7;",
+  "expr": "[s, c, d] = ellipj(u, m);",
+  "iters": 50,
+  "tol": 1e-12,
+  "fingerprint": ["sum(s)", "sum(c)", "sum(d)", "s(1)", "c(end)"],
+  "out_var": "s",
+  "comment": "Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn."
+}
