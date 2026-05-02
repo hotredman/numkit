@@ -140,6 +140,30 @@ Value transposeNC(std::pmr::memory_resource *mr, const Value &x)
                  0, 0, "transpose", "", "m:transpose:unsupportedType");
 }
 
+// ── Named-function adapters for unary operators ──────────────────────
+// Pack 11: thin wrappers exposing the operator implementations under
+// their MATLAB function names.
+namespace detail {
+
+#define NK_UNOP_REG(MATLAB_NAME, CXX_FN)                                             \
+    void MATLAB_NAME##_reg(Span<const Value> args, size_t /*nargout*/,              \
+                           Span<Value> outs, CallContext &ctx)                       \
+    {                                                                                 \
+        if (args.empty())                                                             \
+            throw Error(#MATLAB_NAME ": requires 1 argument",                        \
+                         0, 0, #MATLAB_NAME, "", "m:" #MATLAB_NAME ":nargin");        \
+        outs[0] = CXX_FN(ctx.engine->resource(), args[0]);                           \
+    }
+
+NK_UNOP_REG(uminus,     uminus)
+NK_UNOP_REG(uplus,      uplus)
+NK_UNOP_REG(not,        logicalNot)
+NK_UNOP_REG(ctranspose, ctranspose)
+
+#undef NK_UNOP_REG
+
+} // namespace detail
+
 } // namespace numkit::builtin
 
 // ════════════════════════════════════════════════════════════════════════

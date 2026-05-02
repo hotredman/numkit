@@ -501,6 +501,59 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Pack 11: operator-named functions ─────────────────────────
+TEST_P(BuiltinTest, OperatorNamedArith)
+{
+    EXPECT_DOUBLE_EQ(evalScalar("plus(2, 3);"),  5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("minus(7, 4);"), 3.0);
+    EXPECT_DOUBLE_EQ(evalScalar("times(3, 4);"), 12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mtimes(3, 4);"), 12.0);
+    EXPECT_DOUBLE_EQ(evalScalar("rdivide(10, 4);"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("ldivide(4, 10);"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("mrdivide(10, 4);"), 2.5);
+    EXPECT_DOUBLE_EQ(evalScalar("power(2, 10);"),  1024.0);
+    EXPECT_DOUBLE_EQ(evalScalar("mpower(2, 10);"), 1024.0);
+    EXPECT_DOUBLE_EQ(evalScalar("uminus(5);"), -5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("uplus(-3);"), -3.0);
+    eval("v = plus([1 2 3], [10 20 30]);");
+    auto *v = getVarPtr("v");
+    ASSERT_EQ(v->numel(), 3u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 11.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 33.0);
+}
+
+TEST_P(BuiltinTest, OperatorNamedCompare)
+{
+    EXPECT_TRUE(evalBool("eq(3, 3);"));
+    EXPECT_FALSE(evalBool("eq(3, 4);"));
+    EXPECT_TRUE(evalBool("ne(3, 4);"));
+    EXPECT_TRUE(evalBool("lt(2, 3);"));
+    EXPECT_TRUE(evalBool("le(3, 3);"));
+    EXPECT_TRUE(evalBool("gt(4, 3);"));
+    EXPECT_TRUE(evalBool("ge(3, 3);"));
+}
+
+TEST_P(BuiltinTest, OperatorNamedLogical)
+{
+    EXPECT_TRUE(evalBool("and(true, true);"));
+    EXPECT_FALSE(evalBool("and(true, false);"));
+    EXPECT_TRUE(evalBool("or(false, true);"));
+    EXPECT_FALSE(evalBool("or(false, false);"));
+    EXPECT_TRUE(evalBool("not(false);"));
+    EXPECT_FALSE(evalBool("not(true);"));
+}
+
+TEST_P(BuiltinTest, OperatorNamedTranspose)
+{
+    eval("A = [1 2 3; 4 5 6]; B = ctranspose(A);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 3u);
+    EXPECT_EQ(cols(*B), 2u);
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(2, 1), 6.0);
+}
+
 // ── String utils — Pack 10 ────────────────────────────────────
 TEST_P(BuiltinTest, Strncmp)
 {
