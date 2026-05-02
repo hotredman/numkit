@@ -261,6 +261,112 @@ Value pagectranspose(std::pmr::memory_resource *mr, const Value &x)
     return pageTransposeAny(mr, x, /*conjugate=*/true);
 }
 
+// ── sphere / cylinder / ellipsoid ───────────────────────────────────
+Surface3 sphere(std::pmr::memory_resource *mr, size_t n)
+{
+    // Match MATLAB's parametrisation exactly:
+    //   theta = (-n:2:n)/n * pi          → linspace(-π,  π,  n+1)
+    //   phi   = (-n:2:n)/n * pi/2        → linspace(-π/2, π/2, n+1)
+    //   cosphi(end-points) := 0          (clamp at the poles)
+    //   sintheta(end-points) := 0        (clamp θ at ±π)
+    //   X = cos(phi) * cos(theta)
+    //   Y = cos(phi) * sin(theta)
+    //   Z = sin(phi) * ones(1, n+1)
+    constexpr double kPi = 3.14159265358979323846;
+    const size_t m = n + 1;
+    auto X = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    auto Z = Value::matrix(m, m, ValueType::DOUBLE, mr);
+    double *xd = X.doubleDataMut();
+    double *yd = Y.doubleDataMut();
+    double *zd = Z.doubleDataMut();
+
+    if (n == 0) return { std::move(X), std::move(Y), std::move(Z) };
+
+    std::vector<double> cosPhi(m), sinPhi(m);
+    for (size_t i = 0; i < m; ++i) {
+        const double phi = (2.0 * static_cast<double>(i) - static_cast<double>(n))
+                              / static_cast<double>(n) * (kPi / 2.0);
+        cosPhi[i] = std::cos(phi);
+        sinPhi[i] = std::sin(phi);
+    }
+    cosPhi[0] = 0.0;
+    cosPhi[m - 1] = 0.0;
+
+    std::vector<double> cosTh(m), sinTh(m);
+    for (size_t j = 0; j < m; ++j) {
+        const double theta = (2.0 * static_cast<double>(j) - static_cast<double>(n))
+                                / static_cast<double>(n) * kPi;
+        cosTh[j] = std::cos(theta);
+        sinTh[j] = std::sin(theta);
+    }
+    sinTh[0] = 0.0;
+    sinTh[m - 1] = 0.0;
+
+    for (size_t j = 0; j < m; ++j) {
+        for (size_t i = 0; i < m; ++i) {
+            const size_t k = j * m + i;
+            xd[k] = cosPhi[i] * cosTh[j];
+            yd[k] = cosPhi[i] * sinTh[j];
+            zd[k] = sinPhi[i];
+        }
+    }
+    return { std::move(X), std::move(Y), std::move(Z) };
+}
+
+Surface3 cylinder(std::pmr::memory_resource *mr, const Value &R, size_t n)
+{
+    // Profile R is a 1-D vector of radii along z. Output is length(R) ×
+    // (n+1). z is linspace(0, 1, length(R)) repeated across columns.
+    constexpr double kPi = 3.14159265358979323846;
+    const size_t rows = R.numel();
+    if (rows == 0) {
+        auto Z = Value::matrix(0, 0, ValueType::DOUBLE, mr);
+        return { Z, Z, Z };
+    }
+
+    const size_t cols = n + 1;
+    auto X = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    auto Z = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *xd = X.doubleDataMut();
+    double *yd = Y.doubleDataMut();
+    double *zd = Z.doubleDataMut();
+
+    const double *Rd = R.doubleData();
+    for (size_t j = 0; j < cols; ++j) {
+        const double theta = 2.0 * kPi * static_cast<double>(j) / static_cast<double>(n);
+        const double ct = std::cos(theta), st = std::sin(theta);
+        for (size_t i = 0; i < rows; ++i) {
+            const size_t k = j * rows + i;
+            xd[k] = Rd[i] * ct;
+            yd[k] = Rd[i] * st;
+            zd[k] = (rows == 1) ? 0.0
+                                 : static_cast<double>(i) / static_cast<double>(rows - 1);
+        }
+    }
+    return { std::move(X), std::move(Y), std::move(Z) };
+}
+
+Surface3 ellipsoid(std::pmr::memory_resource *mr,
+                   double xc, double yc, double zc,
+                   double xr, double yr, double zr,
+                   size_t n)
+{
+    // Same parametrisation as sphere, scaled by (xr, yr, zr) and shifted.
+    auto sph = sphere(mr, n);
+    const size_t total = sph.X.numel();
+    double *xd = sph.X.doubleDataMut();
+    double *yd = sph.Y.doubleDataMut();
+    double *zd = sph.Z.doubleDataMut();
+    for (size_t k = 0; k < total; ++k) {
+        xd[k] = xc + xr * xd[k];
+        yd[k] = yc + yr * yd[k];
+        zd[k] = zc + zr * zd[k];
+    }
+    return sph;
+}
+
 // ── peaks ────────────────────────────────────────────────────────────
 Value peaks(std::pmr::memory_resource *mr, size_t n)
 {
@@ -1699,6 +1805,67 @@ void peaks_reg(Span<const Value> args, size_t, Span<Value> outs,
         n = static_cast<size_t>(dn);
     }
     outs[0] = peaks(ctx.engine->resource(), n);
+}
+
+void sphere_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                CallContext &ctx)
+{
+    size_t n = 20;  // MATLAB default
+    if (!args.empty()) n = static_cast<size_t>(args[0].toScalar());
+    auto s = sphere(ctx.engine->resource(), n);
+    outs[0] = std::move(s.X);
+    if (nargout > 1) outs[1] = std::move(s.Y);
+    if (nargout > 2) outs[2] = std::move(s.Z);
+}
+
+void cylinder_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                  CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    size_t n = 20;
+    Value R;
+    if (args.empty()) {
+        // Default profile [1 1].
+        R = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        R.doubleDataMut()[0] = 1.0;
+        R.doubleDataMut()[1] = 1.0;
+    } else {
+        if (args[0].isScalar()) {
+            // cylinder(n) — single integer arg is `n`, R defaults to [1 1].
+            n = static_cast<size_t>(args[0].toScalar());
+            R = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+            R.doubleDataMut()[0] = 1.0;
+            R.doubleDataMut()[1] = 1.0;
+        } else {
+            R = args[0];
+            if (args.size() >= 2)
+                n = static_cast<size_t>(args[1].toScalar());
+        }
+    }
+    auto s = cylinder(mr, R, n);
+    outs[0] = std::move(s.X);
+    if (nargout > 1) outs[1] = std::move(s.Y);
+    if (nargout > 2) outs[2] = std::move(s.Z);
+}
+
+void ellipsoid_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.size() < 6)
+        throw Error("ellipsoid: requires (xc, yc, zc, xr, yr, zr [, n])",
+                     0, 0, "ellipsoid", "", "m:ellipsoid:nargin");
+    const double xc = args[0].toScalar();
+    const double yc = args[1].toScalar();
+    const double zc = args[2].toScalar();
+    const double xr = args[3].toScalar();
+    const double yr = args[4].toScalar();
+    const double zr = args[5].toScalar();
+    size_t n = 20;
+    if (args.size() >= 7) n = static_cast<size_t>(args[6].toScalar());
+    auto s = ellipsoid(ctx.engine->resource(), xc, yc, zc, xr, yr, zr, n);
+    outs[0] = std::move(s.X);
+    if (nargout > 1) outs[1] = std::move(s.Y);
+    if (nargout > 2) outs[2] = std::move(s.Z);
 }
 
 void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

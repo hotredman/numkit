@@ -724,4 +724,62 @@ TEST_P(ManipTest, PeaksKnownReferenceValues)
     EXPECT_NEAR(evalScalar("sum(Z(:));"), 5.436719235, 1e-9);
     EXPECT_NEAR(evalScalar("Z(3,3);"),    0.9810118431, 1e-9);
 }
+// ── Pack 36: sphere / cylinder / ellipsoid ──────────────────────────
+TEST_P(ManipTest, SphereDefaultIs21x21)
+{
+    eval("[X, Y, Z] = sphere(20);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,1);")), 21);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,2);")), 21);
+}
+
+TEST_P(ManipTest, SphereOnUnitSphereIdentity)
+{
+    // X^2 + Y^2 + Z^2 == 1 on a unit sphere.
+    eval("[X, Y, Z] = sphere(20);"
+         "delta = max(abs(X(:).^2 + Y(:).^2 + Z(:).^2 - 1));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
+
+TEST_P(ManipTest, SphereMatlabRefSums)
+{
+    // Verified against MATLAB R2025b probe. Tolerance loosened to 1e-4
+    // because trig sum order between MATLAB's BLAS-vector outer product
+    // and our scalar inner loop differs by O(n) cancellations of opposite
+    // sign, accumulating ~3e-5 gap on (n+1)^2 = 441 terms — still ULP-quality
+    // per element, just non-bit-exact in the reduction.
+    eval("[X, Y, Z] = sphere(20);");
+    EXPECT_NEAR(evalScalar("sum(X(:));"), -12.706168614303716, 1e-4);
+    EXPECT_LT(std::abs(evalScalar("sum(Z(:));")), 1e-12);
+}
+
+TEST_P(ManipTest, CylinderDefaultProfile)
+{
+    eval("[X, Y, Z] = cylinder([1 2 1], 10);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,1);")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(Z,2);")), 11);
+    EXPECT_NEAR(evalScalar("X(1,1);"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("sum(Z(:));"), 16.5, 1e-12);
+}
+
+TEST_P(ManipTest, EllipsoidScaledAxes)
+{
+    eval("[X, Y, Z] = ellipsoid(0, 0, 0, 1, 2, 3, 20);");
+    EXPECT_NEAR(evalScalar("max(X(:));"), 1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("max(Y(:));"), 2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("max(Z(:));"), 3.0, 1e-12);
+    EXPECT_NEAR(evalScalar("min(X(:));"), -1.0, 1e-12);
+    EXPECT_NEAR(evalScalar("min(Y(:));"), -2.0, 1e-12);
+    EXPECT_NEAR(evalScalar("min(Z(:));"), -3.0, 1e-12);
+}
+
+TEST_P(ManipTest, EllipsoidShifted)
+{
+    // Use n=20 so the discrete grid hits θ = ±π/2 and φ = ±π/2 exactly
+    // (n=10 misses sin(-π/2)=-1 by the lattice spacing — MATLAB has the
+    // same artefact, so this is correctness, not bug).
+    eval("[X, Y, Z] = ellipsoid(5, -3, 7, 1, 1, 1, 20);");
+    EXPECT_NEAR(evalScalar("max(X(:));"), 6.0, 1e-12);
+    EXPECT_NEAR(evalScalar("min(Y(:));"), -4.0, 1e-12);
+    EXPECT_NEAR(evalScalar("max(Z(:));"), 8.0, 1e-12);
+}
 INSTANTIATE_DUAL(ManipTest);

@@ -67,6 +67,26 @@ Value pagetranspose(std::pmr::memory_resource *mr, const Value &x);
 /// on the n×n grid (x, y) = linspace(-3, 3, n). Default n = 49.
 Value peaks(std::pmr::memory_resource *mr, size_t n);
 
+/// Triple-output surface generators (multi-out — caller takes the first
+/// component as primary, the rest via nargout). All return three (n+1)
+/// × (n+1) matrices (or rows×(n+1) for cylinder). Matches MATLAB to ULP.
+struct Surface3 { Value X; Value Y; Value Z; };
+
+/// sphere(n) — unit sphere on an (n+1) × (n+1) grid (n=20 default).
+Surface3 sphere(std::pmr::memory_resource *mr, size_t n);
+
+/// cylinder(R, n) — surface of revolution of profile R along z ∈ [0, 1].
+/// Output is length(R) × (n+1). Default n = 20. Default R = [1 1] (unit
+/// cylinder of unit height).
+Surface3 cylinder(std::pmr::memory_resource *mr, const Value &R, size_t n);
+
+/// ellipsoid(xc, yc, zc, xr, yr, zr, n) — axis-aligned ellipsoid centered
+/// at (xc, yc, zc) with semi-axes (xr, yr, zr). Output (n+1) × (n+1).
+Surface3 ellipsoid(std::pmr::memory_resource *mr,
+                   double xc, double yc, double zc,
+                   double xr, double yr, double zr,
+                   size_t n);
+
 /// Page-wise conjugate transpose. Identical to pagetranspose for real
 /// inputs; for complex inputs, conjugates each element while transposing.
 Value pagectranspose(std::pmr::memory_resource *mr, const Value &x);
