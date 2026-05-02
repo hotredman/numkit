@@ -2013,6 +2013,110 @@ TEST_P(BuiltinTest, Sub2IndInd2SubRoundtrip)
     EXPECT_DOUBLE_EQ(back->doubleData()[3], 24.0);
 }
 
+// ============================================================
+// Prod-grade test pack T3 — isstrprop full category coverage
+// ============================================================
+//
+// Sample 'Aa 1!\t' selected so each character lands in a different
+// subset:
+//   index 0: 'A'  — alpha, upper, alphanum, graphic, print
+//   index 1: 'a'  — alpha, lower, alphanum, graphic, print, xdigit
+//   index 2: ' '  — space, wspace, print
+//   index 3: '1'  — digit, alphanum, xdigit, graphic, print
+//   index 4: '!'  — punct, graphic, print
+//   index 5: '\t' — space, wspace, cntrl
+
+TEST_P(BuiltinTest, IsStrPropAllCategories)
+{
+    eval("s = ['A' 'a' ' ' '1' '!' char(9)];");
+
+    eval("a = isstrprop(s, 'alpha');");
+    auto *a = getVarPtr("a");
+    ASSERT_EQ(a->numel(), 6u);
+    EXPECT_EQ(a->logicalData()[0], 1);  // A
+    EXPECT_EQ(a->logicalData()[1], 1);  // a
+    EXPECT_EQ(a->logicalData()[2], 0);  // space
+    EXPECT_EQ(a->logicalData()[3], 0);  // 1
+    EXPECT_EQ(a->logicalData()[4], 0);  // !
+    EXPECT_EQ(a->logicalData()[5], 0);  // \t
+
+    eval("d = isstrprop(s, 'digit');");
+    auto *d = getVarPtr("d");
+    EXPECT_EQ(d->logicalData()[3], 1);  // 1
+    EXPECT_EQ(d->logicalData()[0], 0);
+
+    eval("an = isstrprop(s, 'alphanum');");
+    auto *an = getVarPtr("an");
+    EXPECT_EQ(an->logicalData()[0], 1);  // A
+    EXPECT_EQ(an->logicalData()[1], 1);  // a
+    EXPECT_EQ(an->logicalData()[3], 1);  // 1
+    EXPECT_EQ(an->logicalData()[2], 0);  // space
+    EXPECT_EQ(an->logicalData()[4], 0);  // !
+
+    eval("lo = isstrprop(s, 'lower');");
+    auto *lo = getVarPtr("lo");
+    EXPECT_EQ(lo->logicalData()[0], 0);  // A
+    EXPECT_EQ(lo->logicalData()[1], 1);  // a
+
+    eval("up = isstrprop(s, 'upper');");
+    auto *up = getVarPtr("up");
+    EXPECT_EQ(up->logicalData()[0], 1);  // A
+    EXPECT_EQ(up->logicalData()[1], 0);  // a
+
+    eval("pn = isstrprop(s, 'punct');");
+    auto *pn = getVarPtr("pn");
+    EXPECT_EQ(pn->logicalData()[4], 1);  // !
+    EXPECT_EQ(pn->logicalData()[0], 0);  // A
+
+    eval("sp = isstrprop(s, 'space');");
+    auto *sp = getVarPtr("sp");
+    EXPECT_EQ(sp->logicalData()[2], 1);  // ' '
+    EXPECT_EQ(sp->logicalData()[5], 1);  // \t
+    EXPECT_EQ(sp->logicalData()[0], 0);  // A
+
+    // 'wspace' is an alias for 'space'.
+    eval("ws = isstrprop(s, 'wspace');");
+    auto *ws = getVarPtr("ws");
+    EXPECT_EQ(ws->logicalData()[2], 1);
+    EXPECT_EQ(ws->logicalData()[5], 1);
+
+    eval("xd = isstrprop(s, 'xdigit');");
+    auto *xd = getVarPtr("xd");
+    EXPECT_EQ(xd->logicalData()[1], 1);  // 'a' is hex digit
+    EXPECT_EQ(xd->logicalData()[3], 1);  // '1' is hex digit
+    EXPECT_EQ(xd->logicalData()[0], 1);  // 'A' is hex digit
+    EXPECT_EQ(xd->logicalData()[2], 0);  // space
+
+    eval("ct = isstrprop(s, 'cntrl');");
+    auto *ct = getVarPtr("ct");
+    EXPECT_EQ(ct->logicalData()[5], 1);  // \t
+    EXPECT_EQ(ct->logicalData()[0], 0);  // A
+
+    eval("gr = isstrprop(s, 'graphic');");
+    auto *gr = getVarPtr("gr");
+    EXPECT_EQ(gr->logicalData()[0], 1);  // A
+    EXPECT_EQ(gr->logicalData()[3], 1);  // 1
+    EXPECT_EQ(gr->logicalData()[4], 1);  // !
+    EXPECT_EQ(gr->logicalData()[2], 0);  // space (printable but not "graphic")
+    EXPECT_EQ(gr->logicalData()[5], 0);  // \t
+
+    eval("pr = isstrprop(s, 'print');");
+    auto *pr = getVarPtr("pr");
+    EXPECT_EQ(pr->logicalData()[0], 1);  // A
+    EXPECT_EQ(pr->logicalData()[2], 1);  // space (print includes space)
+    EXPECT_EQ(pr->logicalData()[4], 1);  // !
+    EXPECT_EQ(pr->logicalData()[5], 0);  // \t (not printable)
+}
+
+TEST_P(BuiltinTest, IsStrPropUnknownCategoryThrows)
+{
+    EXPECT_THROW(eval("isstrprop('abc', 'bogus');"), std::exception);
+    // Empty input is allowed; result is 1×0 logical.
+    eval("e = isstrprop('', 'alpha');");
+    auto *e = getVarPtr("e");
+    EXPECT_EQ(e->numel(), 0u);
+}
+
 INSTANTIATE_DUAL(BuiltinTest);
 
 // ============================================================
