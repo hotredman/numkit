@@ -693,6 +693,98 @@ Value triu(std::pmr::memory_resource *mr, const Value &x, int k)
     return r;
 }
 
+// ────────────────────────────────────────────────────────────────────
+// flip — generalized N-D flip
+// ────────────────────────────────────────────────────────────────────
+
+Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based)
+{
+    int axis;
+    if (dim1Based <= 0) {
+        // First non-singleton dim, 0-based.
+        axis = 0;
+        const auto &d = x.dims();
+        for (int i = 0; i < d.ndim(); ++i) {
+            if (d.dim(i) > 1) { axis = i; break; }
+        }
+    } else {
+        axis = dim1Based - 1;
+    }
+    return flipNDAlongAxis(mr, x, axis, "flip");
+}
+
+// ────────────────────────────────────────────────────────────────────
+// repelem — element-wise replication
+// ────────────────────────────────────────────────────────────────────
+//
+// 1-D form: repelem(v, n) returns a vector where v(i) is repeated n
+// times for each i. Output length = numel(v) * n. Result shape mirrors
+// the input vector's row/column orientation (row → row, column →
+// column, scalar → 1×n row).
+//
+// 2-D form: repelem(A, m, n) replaces each element a(i,j) with an
+// m × n constant block of a(i,j) values. Output is (R*m) × (C*n).
+//
+// DOUBLE inputs only for now (covers ~all script use). Other types
+// would need the typed-byte-copy treatment used by repmat / flip.
+
+Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t n)
+{
+    const auto &d = x.dims();
+    if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1 && !x.isScalar()))
+        throw Error("repelem: 1-arg form requires a vector input",
+                     0, 0, "repelem", "", "m:repelem:notVector");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "m:repelem:type");
+
+    const size_t inN = x.numel();
+    const size_t outN = inN * n;
+    // Preserve column-vector orientation; scalar → row vector of n.
+    const bool isCol = (d.rows() > 1 && d.cols() == 1);
+    auto r = isCol ? Value::matrix(outN, 1, ValueType::DOUBLE, mr)
+                   : Value::matrix(1, outN, ValueType::DOUBLE, mr);
+    if (outN == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    for (size_t i = 0; i < inN; ++i) {
+        const double v = src[i];
+        for (size_t k = 0; k < n; ++k)
+            dst[i * n + k] = v;
+    }
+    return r;
+}
+
+Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n)
+{
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw Error("repelem: 3-arg form is 2-D only",
+                     0, 0, "repelem", "", "m:repelem:rank");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("repelem: only DOUBLE inputs are supported",
+                     0, 0, "repelem", "", "m:repelem:type");
+
+    const size_t R = d.rows(), C = d.cols();
+    const size_t outR = R * m, outC = C * n;
+    auto r = Value::matrix(outR, outC, ValueType::DOUBLE, mr);
+    if (outR == 0 || outC == 0) return r;
+
+    const double *src = x.doubleData();
+    double *dst = r.doubleDataMut();
+    // Column-major: walk output by (outRow, outCol) and pull from
+    // src(outRow / m, outCol / n).
+    for (size_t oc = 0; oc < outC; ++oc) {
+        const size_t srcCol = oc / n;
+        for (size_t orow = 0; orow < outR; ++orow) {
+            const size_t srcRow = orow / m;
+            dst[oc * outR + orow] = src[srcCol * R + srcRow];
+        }
+    }
+    return r;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -825,6 +917,163 @@ NK_TRI_REG(tril)
 NK_TRI_REG(triu)
 
 #undef NK_TRI_REG
+
+void flip_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+              CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("flip: requires at least 1 argument",
+                     0, 0, "flip", "", "m:flip:nargin");
+    int dim = (args.size() >= 2 && !args[1].isEmpty())
+                  ? static_cast<int>(args[1].toScalar())
+                  : 0;
+    outs[0] = flip(ctx.engine->resource(), args[0], dim);
+}
+
+void repelem_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("repelem: requires at least 2 arguments",
+                     0, 0, "repelem", "", "m:repelem:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        const size_t n = static_cast<size_t>(args[1].toScalar());
+        outs[0] = repelem(mr, args[0], n);
+        return;
+    }
+    const size_t m = static_cast<size_t>(args[1].toScalar());
+    const size_t n = static_cast<size_t>(args[2].toScalar());
+    outs[0] = repelem(mr, args[0], m, n);
+}
+
+// sub2ind(siz, i1, i2, ...) → linear index. Column-major, 1-based.
+void sub2ind_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("sub2ind: requires siz and at least 1 subscript",
+                     0, 0, "sub2ind", "", "m:sub2ind:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &siz = args[0];
+    const size_t nDims = siz.numel();
+    if (nDims == 0)
+        throw Error("sub2ind: siz must not be empty",
+                     0, 0, "sub2ind", "", "m:sub2ind:badSiz");
+
+    ScratchArena scratch(mr);
+    auto dims = ScratchVec<size_t>(nDims, &scratch);
+    for (size_t i = 0; i < nDims; ++i)
+        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
+
+    // Subscript args. Pad missing higher-dim subs with 1.
+    const size_t nSubs = args.size() - 1;
+    if (nSubs > nDims)
+        throw Error("sub2ind: too many subscript arrays for given siz",
+                     0, 0, "sub2ind", "", "m:sub2ind:tooManySubs");
+
+    // All sub arrays must agree on shape; result inherits that shape.
+    const Value &shapeRef = args[1];
+    const size_t outN = shapeRef.numel();
+    for (size_t a = 1; a < args.size(); ++a) {
+        if (args[a].numel() != outN)
+            throw Error("sub2ind: subscript arrays must be the same size",
+                         0, 0, "sub2ind", "", "m:sub2ind:shape");
+    }
+
+    auto r = (shapeRef.isScalar())
+                ? Value::scalar(0.0, mr)
+                : Value::matrix(shapeRef.dims().rows(), shapeRef.dims().cols(),
+                                ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    // Strides for column-major: stride[0]=1, stride[1]=dim0, stride[2]=dim0*dim1.
+    auto strideOfDim = [&](size_t d) {
+        size_t s = 1;
+        for (size_t i = 0; i < d && i < nDims; ++i) s *= dims[i];
+        return s;
+    };
+    for (size_t k = 0; k < outN; ++k) {
+        size_t lin = 0;
+        for (size_t d = 0; d < nSubs; ++d) {
+            const double sd = args[d + 1].isScalar()
+                                  ? args[d + 1].toScalar()
+                                  : args[d + 1].doubleData()[k];
+            const size_t idx = static_cast<size_t>(sd) - 1;  // 1-based → 0-based
+            lin += idx * strideOfDim(d);
+        }
+        dst[k] = static_cast<double>(lin + 1);  // back to 1-based
+    }
+    outs[0] = std::move(r);
+}
+
+// ind2sub(siz, ind) → multiple outputs (one per dim of siz). When the
+// caller requests fewer outputs than siz has dims, the last output
+// absorbs trailing dims (column-major linear index of the remainder).
+void ind2sub_reg(Span<const Value> args, size_t nargout, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ind2sub: requires siz and ind",
+                     0, 0, "ind2sub", "", "m:ind2sub:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &siz = args[0];
+    const Value &ind = args[1];
+    const size_t nDims = siz.numel();
+    if (nDims == 0)
+        throw Error("ind2sub: siz must not be empty",
+                     0, 0, "ind2sub", "", "m:ind2sub:badSiz");
+
+    ScratchArena scratch(mr);
+    auto dims = ScratchVec<size_t>(nDims, &scratch);
+    for (size_t i = 0; i < nDims; ++i)
+        dims[i] = static_cast<size_t>(siz.doubleData()[i]);
+
+    const size_t outDims = std::max<size_t>(nargout, 1);
+    const size_t outN = ind.numel();
+
+    // Build effective dim list: outDims entries. The first outDims-1
+    // match siz; the last absorbs the product of remaining dims.
+    auto effDim = [&](size_t d) -> size_t {
+        if (d + 1 < outDims) return d < nDims ? dims[d] : 1;
+        // Last output: absorb everything from d..nDims-1.
+        size_t r = 1;
+        for (size_t i = d; i < nDims; ++i) r *= dims[i];
+        return r ? r : 1;
+    };
+    // Strides from outDims dim list.
+    ScratchVec<size_t> stride(outDims, &scratch);
+    {
+        size_t s = 1;
+        for (size_t d = 0; d < outDims; ++d) {
+            stride[d] = s;
+            s *= effDim(d);
+        }
+    }
+
+    auto makeLike = [&]() {
+        return ind.isScalar()
+                   ? Value::scalar(0.0, mr)
+                   : Value::matrix(ind.dims().rows(), ind.dims().cols(),
+                                   ValueType::DOUBLE, mr);
+    };
+    ScratchVec<Value> rs(&scratch);
+    rs.reserve(outDims);
+    for (size_t i = 0; i < outDims; ++i) rs.emplace_back(makeLike());
+
+    for (size_t k = 0; k < outN; ++k) {
+        const double iv = ind.isScalar() ? ind.toScalar() : ind.doubleData()[k];
+        size_t lin = static_cast<size_t>(iv) - 1;
+        for (size_t d = 0; d < outDims; ++d) {
+            const size_t v = (d + 1 < outDims)
+                                 ? (lin / stride[d]) % effDim(d)
+                                 : (lin / stride[d]);
+            rs[d].doubleDataMut()[k] = static_cast<double>(v + 1);
+        }
+    }
+
+    for (size_t i = 0; i < outDims && i < outs.size(); ++i)
+        outs[i] = std::move(rs[i]);
+}
 
 } // namespace detail
 

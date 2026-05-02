@@ -52,4 +52,17 @@ Value circshiftND(std::pmr::memory_resource *mr, const Value &x,
 Value tril(std::pmr::memory_resource *mr, const Value &x, int k = 0);
 Value triu(std::pmr::memory_resource *mr, const Value &x, int k = 0);
 
+/// flip(A)         — flip along the first non-singleton dim.
+/// flip(A, dim)    — flip along the given 1-based dim.
+/// Type-preserving (DOUBLE / SINGLE / int / logical / cell / struct via
+/// byte-copy on the elemental cell).
+Value flip(std::pmr::memory_resource *mr, const Value &x, int dim1Based = 0);
+
+/// repelem(v, n)        — vector v, scalar n: each element of v repeated
+///                        n times consecutively.
+/// repelem(A, m, n)     — matrix A, scalar counts: every entry expands
+///                        to an m × n block of copies.
+Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t n);
+Value repelem(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n);
+
 } // namespace numkit::builtin

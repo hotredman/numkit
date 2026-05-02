@@ -65,7 +65,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 40 ✅ + 3 ⚠️ / 55 = 78% — **NS: core**
+### Matrices and Arrays — 44 ✅ + 3 ⚠️ / 55 = 85% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -79,13 +79,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `end` | ✅ | keyword + `A(end)` indexing form |
 | `eye` | ✅ |  |
 | `false` | ✅ | literal/constant |
-| `flip` | ❌ | general N-D flip |
+| `flip` | ✅ | general N-D flip |
 | `fliplr` | ✅ |  |
 | `flipud` | ✅ |  |
 | `freqspace` | ❌ |  |
 | `head` | ❌ |  |
 | `horzcat` | ✅ |  |
-| `ind2sub` | ❌ | linear-index conv |
+| `ind2sub` | ✅ | linear-index conv |
 | `ipermute` | ✅ |  |
 | `iscolumn` | ✅ | predicate |
 | `isempty` | ✅ |  |
@@ -107,7 +107,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `paddata` | ❌ | pad N-D |
 | `permute` | ✅ |  |
 | `rand` | ✅ |  |
-| `repelem` | ❌ |  |
+| `repelem` | ✅ |  |
 | `repmat` | ✅ |  |
 | `reshape` | ✅ |  |
 | `resize` | ❌ | general resize |
@@ -117,7 +117,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `sort` | ✅ |  |
 | `sortrows` | ✅ |  |
 | `squeeze` | ✅ |  |
-| `sub2ind` | ❌ | linear-index conv |
+| `sub2ind` | ✅ | linear-index conv |
 | `tail` | ❌ |  |
 | `transpose` | ⚠️ | works as postfix `.'` operator; not callable as named fn |
 | `trimdata` | ❌ |  |

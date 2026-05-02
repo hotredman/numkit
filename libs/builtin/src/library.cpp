@@ -129,6 +129,10 @@ void rot90_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void circshift_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void tril_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void triu_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void flip_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void repelem_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void sub2ind_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ind2sub_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // nd_manip.cpp
 void permute_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -447,6 +451,10 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("circshift", &builtin::detail::circshift_reg);
     engine.registerFunction("tril",      &builtin::detail::tril_reg);
     engine.registerFunction("triu",      &builtin::detail::triu_reg);
+    engine.registerFunction("flip",      &builtin::detail::flip_reg);
+    engine.registerFunction("repelem",   &builtin::detail::repelem_reg);
+    engine.registerFunction("sub2ind",   &builtin::detail::sub2ind_reg);
+    engine.registerFunction("ind2sub",   &builtin::detail::ind2sub_reg);
 
     // ── Phase 6 N-D manipulation ──────────────────────────────────
     engine.registerFunction("permute",  &builtin::detail::permute_reg);

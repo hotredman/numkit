@@ -518,6 +518,98 @@ TEST_P(BuiltinTest, NumericLimits)
     EXPECT_NEAR(evalScalar("realmin();"), 2.2250738585072014e-308, 1e-320);
 }
 
+// ── flip / repelem / sub2ind / ind2sub ────────────────────────
+TEST_P(BuiltinTest, Flip)
+{
+    eval("v = flip([1 2 3 4]);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 4u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 4.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 1.0);
+
+    // Column vector flips along its single non-singleton dim.
+    eval("u = flip([10; 20; 30]);");
+    auto *u = getVarPtr("u");
+    EXPECT_DOUBLE_EQ(u->doubleData()[0], 30.0);
+    EXPECT_DOUBLE_EQ(u->doubleData()[2], 10.0);
+
+    // flip(A, 1) = flipud, flip(A, 2) = fliplr.
+    eval("A = [1 2 3; 4 5 6]; B1 = flip(A, 1); B2 = flip(A, 2);");
+    auto *B1 = getVarPtr("B1");
+    auto *B2 = getVarPtr("B2");
+    EXPECT_DOUBLE_EQ((*B1)(0, 0), 4.0);
+    EXPECT_DOUBLE_EQ((*B1)(1, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B2)(0, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*B2)(0, 2), 1.0);
+}
+
+TEST_P(BuiltinTest, RepelemVector)
+{
+    eval("v = repelem([1 2 3], 2);");
+    auto *v = getVarPtr("v");
+    ASSERT_NE(v, nullptr);
+    EXPECT_EQ(v->numel(), 6u);
+    EXPECT_DOUBLE_EQ(v->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[1], 1.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[2], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[3], 2.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[4], 3.0);
+    EXPECT_DOUBLE_EQ(v->doubleData()[5], 3.0);
+}
+
+TEST_P(BuiltinTest, RepelemMatrixBlocks)
+{
+    eval("A = [1 2; 3 4]; B = repelem(A, 2, 3);");
+    auto *B = getVarPtr("B");
+    ASSERT_NE(B, nullptr);
+    EXPECT_EQ(rows(*B), 4u);
+    EXPECT_EQ(cols(*B), 6u);
+    // First block is 2x3 of 1's.
+    EXPECT_DOUBLE_EQ((*B)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 2), 1.0);
+    // Block to the right is 2x3 of 2's.
+    EXPECT_DOUBLE_EQ((*B)(0, 3), 2.0);
+    EXPECT_DOUBLE_EQ((*B)(1, 5), 2.0);
+    // Block below is 2x3 of 3's.
+    EXPECT_DOUBLE_EQ((*B)(2, 0), 3.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 2), 3.0);
+    // Bottom-right block is 2x3 of 4's.
+    EXPECT_DOUBLE_EQ((*B)(2, 3), 4.0);
+    EXPECT_DOUBLE_EQ((*B)(3, 5), 4.0);
+}
+
+TEST_P(BuiltinTest, Sub2IndIndSub)
+{
+    // 2-D: column-major. siz=[3 4], (2,3) → 8.
+    EXPECT_DOUBLE_EQ(evalScalar("sub2ind([3 4], 2, 3);"), 8.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sub2ind([3 4], 1, 1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("sub2ind([3 4], 3, 4);"), 12.0);
+
+    // ind2sub round-trip.
+    eval("[r, c] = ind2sub([3 4], 8);");
+    EXPECT_DOUBLE_EQ(getVar("r"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 3.0);
+
+    // Vector of indices.
+    eval("[r2, c2] = ind2sub([3 4], [1 8 12]);");
+    auto *r2 = getVarPtr("r2");
+    auto *c2 = getVarPtr("c2");
+    EXPECT_DOUBLE_EQ(r2->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c2->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(r2->doubleData()[1], 2.0);
+    EXPECT_DOUBLE_EQ(c2->doubleData()[1], 3.0);
+    EXPECT_DOUBLE_EQ(r2->doubleData()[2], 3.0);
+    EXPECT_DOUBLE_EQ(c2->doubleData()[2], 4.0);
+
+    // 3-D: siz=[2 3 4], (2, 1, 3) → ind = (3-1)*6 + (1-1)*2 + 2 = 14.
+    EXPECT_DOUBLE_EQ(evalScalar("sub2ind([2 3 4], 2, 1, 3);"), 14.0);
+    eval("[a, b, c] = ind2sub([2 3 4], 14);");
+    EXPECT_DOUBLE_EQ(getVar("a"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 3.0);
+}
+
 // ── allfinite / anynan ────────────────────────────────────────
 TEST_P(BuiltinTest, AllFiniteAnyNan)
 {
