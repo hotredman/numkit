@@ -1,0 +1,10 @@
+{
+  "name": "pagectranspose",
+  "namespace": "core",
+  "setup": "[ii, jj] = meshgrid(1:64, 1:128); A = zeros(128, 64, 8); for k=1:8; A(:,:,k) = sin(0.05*ii) + cos(0.07*jj) * k; end",
+  "expr": "B = pagectranspose(A);",
+  "iters": 100,
+  "tol": 1e-12,
+  "out_var": "B",
+  "comment": "128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters."
+}

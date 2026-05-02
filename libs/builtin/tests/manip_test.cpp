@@ -656,4 +656,50 @@ TEST_P(ManipTest, Rot904DPreservesIntegerType)
     EXPECT_DOUBLE_EQ(evalScalar("double(B(3, 2, 1, 1));"), 2.0);
 }
 
+// ── Pack 36: pagetranspose / pagectranspose ─────────────────────────
+TEST_P(ManipTest, PagetransposeOn2DEqualsTranspose)
+{
+    eval("M = [1 2 3; 4 5 6];");
+    eval("T = pagetranspose(M);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T,1);")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(T,2);")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("T(1,1);"), 1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("T(3,2);"), 6.0);
+}
+
+TEST_P(ManipTest, PagetransposeSwapsRowsAndColsPerPage)
+{
+    eval("A = zeros(2,3,2);"
+         "A(:,:,1) = [1 2 3; 4 5 6];"
+         "A(:,:,2) = [7 8 9; 10 11 12];");
+    eval("B = pagetranspose(A);");
+    EXPECT_EQ(static_cast<int>(evalScalar("size(B,1);")), 3);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(B,2);")), 2);
+    EXPECT_EQ(static_cast<int>(evalScalar("size(B,3);")), 2);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1,1,1);"),  1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3,2,1);"),  6.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(1,1,2);"),  7.0);
+    EXPECT_DOUBLE_EQ(evalScalar("B(3,2,2);"), 12.0);
+}
+
+TEST_P(ManipTest, PagetransposeIsInvolution)
+{
+    eval("A = zeros(2,3,2);"
+         "A(:,:,1) = [1 2 3; 4 5 6];"
+         "A(:,:,2) = [7 8 9; 10 11 12];");
+    eval("B = pagetranspose(pagetranspose(A));");
+    eval("delta = max(abs(A(:) - B(:)));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
+
+TEST_P(ManipTest, PagectransposeMatchesPagetransposeOnReal)
+{
+    eval("A = zeros(2,3,2);"
+         "A(:,:,1) = [1 2 3; 4 5 6];"
+         "A(:,:,2) = [7 8 9; 10 11 12];");
+    eval("Bt = pagetranspose(A);"
+         "Bc = pagectranspose(A);"
+         "delta = max(abs(Bt(:) - Bc(:)));");
+    EXPECT_LT(evalScalar("delta;"), 1e-12);
+}
 INSTANTIATE_DUAL(ManipTest);

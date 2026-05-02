@@ -46,3 +46,5 @@ of work + measurements.
 | `conv2` | core | DONE | 0.318 | 0.080 | 0.110 | 0.25× | 0.34× | OK | 128x128 image, 7x7 averaging kernel, 'same' shape. 100 iters. |
 | `filter2` | core | DONE | 0.141 | 0.072 | 0.049 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 | `convn` | core | DONE | 0.028 | 0.057 | 0.023 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
+| `pagetranspose` | core | DONE | 0.083 | 0.092 | 0.052 | 1.11× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
+| `pagectranspose` | core | DONE | 0.207 | 0.049 | 0.049 | 0.24× | 0.23× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |

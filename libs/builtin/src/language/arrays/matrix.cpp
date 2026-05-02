@@ -186,6 +186,81 @@ Value transpose(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
+// ── pagetranspose / pagectranspose ───────────────────────────────────
+namespace {
+
+// Per-page transpose helper. `conjugate` flips the sign of imaginary
+// parts when input is COMPLEX. For DOUBLE / SINGLE inputs the flag is
+// ignored at the element level (no-op).
+template <typename T>
+Value pageTransposeT(std::pmr::memory_resource *mr, const Value &x,
+                     ValueType ty, bool conjugate)
+{
+    const auto &d = x.dims();
+    const size_t M = d.rows(), N = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1u;
+
+    auto out = (P == 1u)
+        ? Value::matrix(N, M, ty, mr)
+        : Value::matrix3d(N, M, P, ty, mr);
+
+    const T *src = static_cast<const T *>(x.rawData());
+    T *dst       = static_cast<T *>(out.rawDataMut());
+    const size_t pageInElems  = M * N;
+    const size_t pageOutElems = N * M;
+
+    for (size_t p = 0; p < P; ++p) {
+        const T *sp = src + p * pageInElems;
+        T *dp       = dst + p * pageOutElems;
+        for (size_t j = 0; j < N; ++j) {
+            for (size_t i = 0; i < M; ++i) {
+                if constexpr (std::is_same_v<T, Complex>) {
+                    Complex v = sp[j * M + i];
+                    dp[i * N + j] = conjugate ? std::conj(v) : v;
+                } else {
+                    (void)conjugate;
+                    dp[i * N + j] = sp[j * M + i];
+                }
+            }
+        }
+    }
+    return out;
+}
+
+Value pageTransposeAny(std::pmr::memory_resource *mr, const Value &x,
+                       bool conjugate)
+{
+    switch (x.type()) {
+    case ValueType::DOUBLE:  return pageTransposeT<double>(mr, x, ValueType::DOUBLE, conjugate);
+    case ValueType::SINGLE:  return pageTransposeT<float>(mr, x, ValueType::SINGLE, conjugate);
+    case ValueType::COMPLEX: return pageTransposeT<Complex>(mr, x, ValueType::COMPLEX, conjugate);
+    case ValueType::INT8:    return pageTransposeT<int8_t>(mr, x, ValueType::INT8, conjugate);
+    case ValueType::INT16:   return pageTransposeT<int16_t>(mr, x, ValueType::INT16, conjugate);
+    case ValueType::INT32:   return pageTransposeT<int32_t>(mr, x, ValueType::INT32, conjugate);
+    case ValueType::INT64:   return pageTransposeT<int64_t>(mr, x, ValueType::INT64, conjugate);
+    case ValueType::UINT8:   return pageTransposeT<uint8_t>(mr, x, ValueType::UINT8, conjugate);
+    case ValueType::UINT16:  return pageTransposeT<uint16_t>(mr, x, ValueType::UINT16, conjugate);
+    case ValueType::UINT32:  return pageTransposeT<uint32_t>(mr, x, ValueType::UINT32, conjugate);
+    case ValueType::UINT64:  return pageTransposeT<uint64_t>(mr, x, ValueType::UINT64, conjugate);
+    case ValueType::LOGICAL: return pageTransposeT<uint8_t>(mr, x, ValueType::LOGICAL, conjugate);
+    default:
+        throw Error("pagetranspose: unsupported input type",
+                     0, 0, "pagetranspose", "", "m:pagetranspose:badType");
+    }
+}
+
+} // namespace
+
+Value pagetranspose(std::pmr::memory_resource *mr, const Value &x)
+{
+    return pageTransposeAny(mr, x, /*conjugate=*/false);
+}
+
+Value pagectranspose(std::pmr::memory_resource *mr, const Value &x)
+{
+    return pageTransposeAny(mr, x, /*conjugate=*/true);
+}
+
 // ── pagemtimes: page-wise matrix multiply ──────────────────────────────
 //
 // MATLAB R2020b+ batched matmul. Treats axes 1-2 of each operand as the
@@ -1562,6 +1637,24 @@ void transpose_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("transpose: requires 1 argument",
                      0, 0, "transpose", "", "m:transpose:nargin");
     outs[0] = transpose(ctx.engine->resource(), args[0]);
+}
+
+void pagetranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
+                       CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("pagetranspose: requires 1 argument",
+                     0, 0, "pagetranspose", "", "m:pagetranspose:nargin");
+    outs[0] = pagetranspose(ctx.engine->resource(), args[0]);
+}
+
+void pagectranspose_reg(Span<const Value> args, size_t, Span<Value> outs,
+                        CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("pagectranspose: requires 1 argument",
+                     0, 0, "pagectranspose", "", "m:pagectranspose:nargin");
+    outs[0] = pagectranspose(ctx.engine->resource(), args[0]);
 }
 
 void pagemtimes_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
