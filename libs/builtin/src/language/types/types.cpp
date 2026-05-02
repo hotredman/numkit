@@ -210,6 +210,165 @@ Value isfinite(std::pmr::memory_resource *mr, const Value &x)
     return r;
 }
 
+// ── Shape predicates ─────────────────────────────────────────────────
+
+Value isvector(std::pmr::memory_resource *mr, const Value &x)
+{
+    const auto &d = x.dims();
+    bool tf = d.ndim() <= 2 && (d.rows() == 1 || d.cols() == 1) && x.numel() > 0;
+    return Value::logicalScalar(tf, mr);
+}
+
+Value isrow(std::pmr::memory_resource *mr, const Value &x)
+{
+    const auto &d = x.dims();
+    bool tf = d.ndim() <= 2 && d.rows() == 1;
+    return Value::logicalScalar(tf, mr);
+}
+
+Value iscolumn(std::pmr::memory_resource *mr, const Value &x)
+{
+    const auto &d = x.dims();
+    bool tf = d.ndim() <= 2 && d.cols() == 1;
+    return Value::logicalScalar(tf, mr);
+}
+
+Value ismatrix(std::pmr::memory_resource *mr, const Value &x)
+{
+    return Value::logicalScalar(x.dims().ndim() <= 2, mr);
+}
+
+// ── Order predicates ─────────────────────────────────────────────────
+
+namespace {
+enum class SortMode { Ascend, Descend, Monotonic, StrictAscend, StrictDescend };
+
+inline bool readSortMode(const Value *m, SortMode &out)
+{
+    out = SortMode::Ascend;
+    if (!m) return true;
+    if (!m->isChar() && !m->isString()) return false;
+    auto s = m->toString();
+    for (auto &c : s) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (s == "ascend")        { out = SortMode::Ascend;        return true; }
+    if (s == "descend")       { out = SortMode::Descend;       return true; }
+    if (s == "monotonic")     { out = SortMode::Monotonic;     return true; }
+    if (s == "strictascend")  { out = SortMode::StrictAscend;  return true; }
+    if (s == "strictdescend") { out = SortMode::StrictDescend; return true; }
+    return false;
+}
+
+// Returns true if values [first, first+n) are sorted under `mode`.
+inline bool runSorted(const double *first, size_t n, SortMode mode)
+{
+    if (n < 2) return true;
+    // NaN anywhere → not sorted (matches MATLAB issorted behaviour for
+    // simple ascend/descend modes).
+    for (size_t i = 0; i < n; ++i)
+        if (std::isnan(first[i])) return false;
+
+    switch (mode) {
+    case SortMode::Ascend:
+        for (size_t i = 1; i < n; ++i) if (first[i] < first[i-1]) return false;
+        return true;
+    case SortMode::Descend:
+        for (size_t i = 1; i < n; ++i) if (first[i] > first[i-1]) return false;
+        return true;
+    case SortMode::StrictAscend:
+        for (size_t i = 1; i < n; ++i) if (first[i] <= first[i-1]) return false;
+        return true;
+    case SortMode::StrictDescend:
+        for (size_t i = 1; i < n; ++i) if (first[i] >= first[i-1]) return false;
+        return true;
+    case SortMode::Monotonic: {
+        bool asc = true, desc = true;
+        for (size_t i = 1; i < n; ++i) {
+            if (first[i] < first[i-1]) asc = false;
+            if (first[i] > first[i-1]) desc = false;
+        }
+        return asc || desc;
+    }
+    }
+    return true; // unreachable
+}
+} // anon
+
+Value issorted(std::pmr::memory_resource *mr, const Value &x, const Value *mode)
+{
+    SortMode m = SortMode::Ascend;
+    if (!readSortMode(mode, m))
+        throw std::runtime_error("issorted: unrecognized sort mode");
+    if (x.isEmpty() || x.isScalar())
+        return Value::logicalScalar(true, mr);
+
+    const auto &d = x.dims();
+    const double *p = x.doubleData();
+    if (d.ndim() <= 2 && (d.rows() == 1 || d.cols() == 1)) {
+        return Value::logicalScalar(runSorted(p, x.numel(), m), mr);
+    }
+    // Matrix / 3-D / N-D: every column (along dim 1) must satisfy `mode`.
+    const size_t r = d.rows();
+    const size_t restCount = x.numel() / r;
+    for (size_t k = 0; k < restCount; ++k) {
+        if (!runSorted(p + k * r, r, m))
+            return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(true, mr);
+}
+
+Value issortedrows(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isEmpty() || x.isScalar())
+        return Value::logicalScalar(true, mr);
+    const auto &d = x.dims();
+    if (d.ndim() > 2)
+        throw std::runtime_error("issortedrows: input must be 2-D");
+    const size_t R = d.rows(), C = d.cols();
+    if (R < 2) return Value::logicalScalar(true, mr);
+    const double *p = x.doubleData();
+    auto getElem = [&](size_t row, size_t col) { return p[col * R + row]; };
+    for (size_t i = 1; i < R; ++i) {
+        for (size_t c = 0; c < C; ++c) {
+            const double a = getElem(i - 1, c);
+            const double b = getElem(i, c);
+            if (std::isnan(a) || std::isnan(b))
+                return Value::logicalScalar(false, mr);
+            if (a < b) break;          // strictly less → ordered, next row.
+            if (a > b)                 // strictly greater → out of order.
+                return Value::logicalScalar(false, mr);
+            // equal → look at next column.
+        }
+    }
+    return Value::logicalScalar(true, mr);
+}
+
+Value isuniform(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isEmpty()) return Value::logicalScalar(true, mr);
+    if (x.isScalar()) return Value::logicalScalar(true, mr);
+    const size_t n = x.numel();
+    const auto &d = x.dims();
+    // Treat as 1-D: only meaningful for row/column vectors.
+    if (d.ndim() > 2 || (d.rows() != 1 && d.cols() != 1))
+        throw std::runtime_error("isuniform: input must be a vector");
+    if (n < 2) return Value::logicalScalar(true, mr);
+    const double *p = x.doubleData();
+    for (size_t i = 0; i < n; ++i)
+        if (!std::isfinite(p[i])) return Value::logicalScalar(false, mr);
+    const double step = p[1] - p[0];
+    // Tolerance: 4 * eps(max-magnitude in vector or step), follows MATLAB
+    // isuniform's "approximately uniform" semantics.
+    double scale = std::abs(step);
+    for (size_t i = 0; i < n; ++i) scale = std::max(scale, std::abs(p[i]));
+    const double tol = 4 * std::numeric_limits<double>::epsilon() * scale;
+    for (size_t i = 1; i < n - 1; ++i) {
+        const double s = p[i + 1] - p[i];
+        if (std::abs(s - step) > tol)
+            return Value::logicalScalar(false, mr);
+    }
+    return Value::logicalScalar(true, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Public API — equality + introspection
 // ════════════════════════════════════════════════════════════════════════
@@ -308,8 +467,23 @@ NK_PRED_REG(issingle)
 NK_PRED_REG(isnan)
 NK_PRED_REG(isinf)
 NK_PRED_REG(isfinite)
+NK_PRED_REG(isvector)
+NK_PRED_REG(isrow)
+NK_PRED_REG(iscolumn)
+NK_PRED_REG(ismatrix)
+NK_PRED_REG(issortedrows)
+NK_PRED_REG(isuniform)
 
 #undef NK_PRED_REG
+
+void issorted_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("issorted: requires 1 argument", 0, 0, "issorted", "",
+                     "m:issorted:nargin");
+    const Value *mode = (args.size() >= 2) ? &args[1] : nullptr;
+    outs[0] = issorted(ctx.engine->resource(), args[0], mode);
+}
 
 void isequal_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
 {

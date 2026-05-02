@@ -448,6 +448,59 @@ TEST_P(BuiltinTest, CartSphRoundtrip)
     EXPECT_NEAR(getVar("zv"), 1.0, 1e-12);
 }
 
+// ── Shape predicates ──────────────────────────────────────────
+TEST_P(BuiltinTest, ShapePredicates)
+{
+    EXPECT_TRUE(evalBool("isvector([1 2 3]);"));
+    EXPECT_TRUE(evalBool("isvector([1; 2; 3]);"));
+    EXPECT_TRUE(evalBool("isvector(5);"));
+    EXPECT_FALSE(evalBool("isvector([1 2; 3 4]);"));
+    EXPECT_FALSE(evalBool("isvector([]);"));
+    EXPECT_TRUE(evalBool("isrow([1 2 3]);"));
+    EXPECT_FALSE(evalBool("isrow([1; 2; 3]);"));
+    EXPECT_TRUE(evalBool("iscolumn([1; 2; 3]);"));
+    EXPECT_FALSE(evalBool("iscolumn([1 2 3]);"));
+    EXPECT_TRUE(evalBool("ismatrix([1 2; 3 4]);"));
+    EXPECT_TRUE(evalBool("ismatrix(5);"));
+    // 3-D arrays are not matrices.
+    EXPECT_FALSE(evalBool("ismatrix(ones(2,2,2));"));
+}
+
+// ── Order predicates ──────────────────────────────────────────
+TEST_P(BuiltinTest, IsSorted)
+{
+    EXPECT_TRUE(evalBool("issorted([1 2 3]);"));
+    EXPECT_TRUE(evalBool("issorted([1 1 2 3]);"));
+    EXPECT_FALSE(evalBool("issorted([1 3 2]);"));
+    EXPECT_TRUE(evalBool("issorted([3 2 1], 'descend');"));
+    EXPECT_FALSE(evalBool("issorted([1 1 2], 'strictascend');"));
+    EXPECT_TRUE(evalBool("issorted([1 2 3], 'strictascend');"));
+    EXPECT_TRUE(evalBool("issorted([3 2 1], 'monotonic');"));
+    EXPECT_TRUE(evalBool("issorted([1 2 3], 'monotonic');"));
+    EXPECT_FALSE(evalBool("issorted([1 3 2], 'monotonic');"));
+    // Matrix: each column must be sorted.
+    EXPECT_TRUE(evalBool("issorted([1 2; 3 4]);"));
+    EXPECT_FALSE(evalBool("issorted([3 1; 1 2]);"));
+}
+
+TEST_P(BuiltinTest, IsSortedRows)
+{
+    EXPECT_TRUE(evalBool("issortedrows([1 2; 3 4]);"));
+    EXPECT_FALSE(evalBool("issortedrows([3 4; 1 2]);"));
+    // Equal first column → secondary key.
+    EXPECT_TRUE(evalBool("issortedrows([1 2; 1 3; 2 1]);"));
+    EXPECT_FALSE(evalBool("issortedrows([1 3; 1 2]);"));
+}
+
+TEST_P(BuiltinTest, IsUniform)
+{
+    EXPECT_TRUE(evalBool("isuniform([1 2 3 4 5]);"));
+    EXPECT_TRUE(evalBool("isuniform(linspace(0, 1, 11));"));
+    EXPECT_FALSE(evalBool("isuniform([1 2 4 8]);"));
+    EXPECT_TRUE(evalBool("isuniform(5);"));
+    EXPECT_TRUE(evalBool("isuniform([]);"));
+}
+
 TEST_P(BuiltinTest, CartPolVectorized)
 {
     eval("[t, r] = cart2pol([3 0 -1], [4 1  0]);");

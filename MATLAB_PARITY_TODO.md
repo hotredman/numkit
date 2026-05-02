@@ -65,7 +65,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `iskeyword` | ❌ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 33 ✅ + 3 ⚠️ / 55 = 65% — **NS: core**
+### Matrices and Arrays — 40 ✅ + 3 ⚠️ / 55 = 78% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -87,15 +87,15 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `horzcat` | ✅ |  |
 | `ind2sub` | ❌ | linear-index conv |
 | `ipermute` | ✅ |  |
-| `iscolumn` | ❌ | predicate |
+| `iscolumn` | ✅ | predicate |
 | `isempty` | ✅ |  |
-| `ismatrix` | ❌ | predicate |
-| `isrow` | ❌ | predicate |
+| `ismatrix` | ✅ | predicate |
+| `isrow` | ✅ | predicate |
 | `isscalar` | ✅ |  |
-| `issorted` | ❌ | check sorted |
-| `issortedrows` | ❌ |  |
-| `isuniform` | ❌ | uniform-spacing test |
-| `isvector` | ❌ | predicate |
+| `issorted` | ✅ | check sorted |
+| `issortedrows` | ✅ |  |
+| `isuniform` | ✅ | uniform-spacing test |
+| `isvector` | ✅ | predicate |
 | `length` | ✅ |  |
 | `linspace` | ✅ |  |
 | `logspace` | ✅ |  |
