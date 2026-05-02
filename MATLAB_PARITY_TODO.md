@@ -51,7 +51,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 
 ## 1. Language Fundamentals
 
-### Entering Commands — 3 ✅ + 0 ⚠️ / 9 = 33% — **NS: core**
+### Entering Commands — 5 ✅ + 0 ⚠️ / 9 = 56% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -61,11 +61,11 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `commandwindow` | ❌ | IDE-only |
 | `diary` | ❌ | session log |
 | `format` | ✅ | output format (no-op stub) |
-| `home` | ❌ | terminal home |
-| `iskeyword` | ❌ | introspection |
+| `home` | ✅ | terminal home |
+| `iskeyword` | ✅ | introspection |
 | `more` | ❌ | pager |
 
-### Matrices and Arrays — 47 ✅ + 1 ⚠️ / 55 = 87% — **NS: core**
+### Matrices and Arrays — 50 ✅ + 1 ⚠️ / 55 = 93% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -82,8 +82,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `flip` | ✅ | general N-D flip |
 | `fliplr` | ✅ |  |
 | `flipud` | ✅ |  |
-| `freqspace` | ❌ |  |
-| `head` | ❌ |  |
+| `freqspace` | ✅ |  |
+| `head` | ✅ |  |
 | `horzcat` | ✅ |  |
 | `ind2sub` | ✅ | linear-index conv |
 | `ipermute` | ✅ |  |
@@ -118,14 +118,14 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `sortrows` | ✅ |  |
 | `squeeze` | ✅ |  |
 | `sub2ind` | ✅ | linear-index conv |
-| `tail` | ❌ |  |
+| `tail` | ✅ |  |
 | `transpose` | ✅ | named-fn form added in Pack 11 |
 | `trimdata` | ❌ |  |
 | `true` | ✅ | literal/constant |
 | `vertcat` | ✅ |  |
 | `zeros` | ✅ |  |
 
-### Control Flow — 9 ✅ + 0 ⚠️ / 11 = 81% — **NS: core (keywords)**
+### Control Flow — 10 ✅ + 0 ⚠️ / 11 = 91% — **NS: core (keywords)**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -135,7 +135,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `for` | ✅ | keyword |
 | `if` | ✅ | keyword |
 | `parfor` | ❌ | parallel — out of scope |
-| `pause` | ❌ | no time.sleep |
+| `pause` | ✅ | no time.sleep |
 | `return` | ✅ | keyword |
 | `switch` | ✅ | keyword (`switch/case/otherwise`) |
 | `try` | ✅ | keyword (`try/catch`) |
@@ -336,7 +336,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `groupfilter` | ❌ |  |
 | `groupsummary` | ❌ |  |
 | `grouptransform` | ❌ |  |
-| `head` | ❌ |  |
+| `head` | ✅ |  |
 | `height` | ❌ |  |
 | `inner2outer` | ❌ |  |
 | `innerjoin` | ❌ |  |
@@ -378,7 +378,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `table2cell` | ❌ |  |
 | `table2struct` | ❌ |  |
 | `table2timetable` | ❌ |  |
-| `tail` | ❌ |  |
+| `tail` | ✅ |  |
 | `timetable2table` | ❌ |  |
 | `topkrows` | ❌ |  |
 | `union` | ✅ |  |
