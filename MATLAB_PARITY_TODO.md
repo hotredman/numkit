@@ -390,15 +390,15 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `width` | ❌ |  |
 | `writetable` | ❌ | needs table type |
 
-### Bit-wise Operations — 5 ✅ + 0 ⚠️ / 8 = 62% — **NS: core**
+### Bit-wise Operations — 7 ✅ + 0 ⚠️ / 8 = 88% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `bitand` | ✅ |  |
 | `bitcmp` | ✅ |  |
-| `bitget` | ❌ | get bit |
+| `bitget` | ✅ | get bit |
 | `bitor` | ✅ |  |
-| `bitset` | ❌ | set bit |
+| `bitset` | ✅ | set bit |
 | `bitshift` | ✅ |  |
 | `bitxor` | ✅ |  |
 | `swapbytes` | ❌ |  |

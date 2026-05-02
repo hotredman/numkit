@@ -165,6 +165,8 @@ void bitor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitxor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitshift_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void bitcmp_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void bitset_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void bitget_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
 // discrete.cpp
 void unique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -537,6 +539,8 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("bitxor",   &builtin::detail::bitxor_reg);
     engine.registerFunction("bitshift", &builtin::detail::bitshift_reg);
     engine.registerFunction("bitcmp",   &builtin::detail::bitcmp_reg);
+    engine.registerFunction("bitset",   &builtin::detail::bitset_reg);
+    engine.registerFunction("bitget",   &builtin::detail::bitget_reg);
 
     // ── Phase 8 set / search ops ──────────────────────────────────
     engine.registerFunction("unique",     &builtin::detail::unique_reg);
