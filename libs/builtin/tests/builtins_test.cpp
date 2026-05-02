@@ -734,6 +734,28 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── Piecewise polynomial — Pack 30 ────────────────────────────
+TEST_P(BuiltinTest, MkppPpvalUnmkpp)
+{
+    // Two pieces, both linear: piece 1 is x in [0,1], polynomial 2x;
+    // piece 2 is x-1 mapped to coefs [1 1] → 1·u+1 with u=x-1.
+    eval("pp = mkpp([0 1 2], [2 0; 1 1]);");
+    EXPECT_DOUBLE_EQ(evalScalar("ppval(pp, 0);"),    0.0);  // piece 0: 2·0 + 0
+    EXPECT_DOUBLE_EQ(evalScalar("ppval(pp, 0.5);"),  1.0);  // piece 0: 2·0.5
+    // Closed-left, open-right convention: x=1 is the start of piece 1.
+    // u = 1 - 1 = 0 → 1·0 + 1 = 1.
+    EXPECT_DOUBLE_EQ(evalScalar("ppval(pp, 1);"),    1.0);
+    EXPECT_DOUBLE_EQ(evalScalar("ppval(pp, 1.5);"),  1.5);  // piece 1: 1·0.5 + 1
+    EXPECT_DOUBLE_EQ(evalScalar("ppval(pp, 2);"),    2.0);  // piece 1: 1·1 + 1
+
+    // unmkpp returns breaks, coefs, pieces, order, dim.
+    eval("[b, c, l, k, d] = unmkpp(pp);");
+    auto *b = getVarPtr("b");
+    EXPECT_EQ(b->numel(), 3u);
+    EXPECT_DOUBLE_EQ(getVar("l"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("k"), 2.0);
+}
+
 // ── Polynomial extras — Pack 29 ───────────────────────────────
 TEST_P(BuiltinTest, PolyFromRoots)
 {
