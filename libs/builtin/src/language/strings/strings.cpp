@@ -931,6 +931,35 @@ Value endsWith(std::pmr::memory_resource *mr, const Value &s, const Value &suffi
         mr);
 }
 
+// ── Pack 36: array constructors / character constants ───────────────
+Value newlineFn(std::pmr::memory_resource *mr)
+{
+    return Value::fromString("\n", mr);
+}
+
+Value stringsND(std::pmr::memory_resource *mr,
+                const size_t *dims, size_t ndim)
+{
+    if (ndim == 0)
+        return Value::stringScalar("", mr);
+
+    const size_t r = dims[0];
+    const size_t c = (ndim >= 2) ? dims[1] : r;  // strings(n) → n×n.
+    size_t p = 0;
+    if (ndim >= 3) {
+        p = 1;
+        for (size_t i = 2; i < ndim; ++i)
+            p *= dims[i];  // collapse extras into pages (3D cap).
+    }
+
+    auto v = (p == 0) ? Value::stringArray(r, c, mr)
+                      : Value::stringArray3D(r, c, p, mr);
+    const size_t n = v.numel();
+    for (size_t i = 0; i < n; ++i)
+        v.stringElemSet(i, "");
+    return v;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -1382,6 +1411,22 @@ void strtok_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     if (nargout > 1) {
         outs[1] = Value::fromString(end < s.size() ? s.substr(end) : std::string{}, mr);
     }
+}
+
+// ── Pack 36 adapters ─────────────────────────────────────────────────
+void newline_reg(Span<const Value> /*args*/, size_t, Span<Value> outs,
+                 CallContext &ctx)
+{
+    outs[0] = newlineFn(ctx.engine->resource());
+}
+
+void strings_reg(Span<const Value> args, size_t, Span<Value> outs,
+                 CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, args);
+    outs[0] = stringsND(mr, d.data(), d.size());
 }
 
 } // namespace detail

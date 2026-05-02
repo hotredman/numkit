@@ -231,3 +231,55 @@ TEST(BuiltinStringsPublicApi, EndsWithTrueFalse)
                                               mkStr(mr, ".txt"))
                      .toBool());
 }
+
+// ── Pack 36: newline / strings ────────────────────────────────────────
+TEST(BuiltinStringsPublicApi, NewlineIsLfChar)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::newlineFn(mr);
+    ASSERT_TRUE(r.isChar());
+    EXPECT_EQ(r.numel(), 1u);
+    EXPECT_EQ(r.toString(), std::string("\n"));
+}
+
+TEST(BuiltinStringsPublicApi, StringsZeroArgIsEmptyScalar)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    Value r = numkit::builtin::stringsND(mr, nullptr, 0);
+    EXPECT_EQ(r.dims().rows(), 1u);
+    EXPECT_EQ(r.dims().cols(), 1u);
+    EXPECT_EQ(r.numel(), 1u);
+    EXPECT_EQ(r.stringElem(0), "");
+}
+
+TEST(BuiltinStringsPublicApi, StringsNxNFromSingleArg)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    size_t d[] = {4};
+    Value r = numkit::builtin::stringsND(mr, d, 1);
+    EXPECT_EQ(r.dims().rows(), 4u);
+    EXPECT_EQ(r.dims().cols(), 4u);
+    EXPECT_EQ(r.numel(), 16u);
+    for (size_t i = 0; i < r.numel(); ++i)
+        EXPECT_EQ(r.stringElem(i), "");
+}
+
+TEST(BuiltinStringsPublicApi, StringsMxN)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    size_t d[] = {2, 3};
+    Value r = numkit::builtin::stringsND(mr, d, 2);
+    EXPECT_EQ(r.dims().rows(), 2u);
+    EXPECT_EQ(r.dims().cols(), 3u);
+    EXPECT_EQ(r.numel(), 6u);
+}
+
+TEST(BuiltinStringsPublicApi, Strings3D)
+{
+    std::pmr::memory_resource *mr = std::pmr::get_default_resource();
+    size_t d[] = {2, 3, 4};
+    Value r = numkit::builtin::stringsND(mr, d, 3);
+    EXPECT_EQ(r.dims().rows(), 2u);
+    EXPECT_EQ(r.dims().cols(), 3u);
+    EXPECT_EQ(r.numel(), 24u);
+}

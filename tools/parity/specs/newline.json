@@ -1,0 +1,9 @@
+{
+  "name": "newline",
+  "namespace": "core",
+  "setup": "",
+  "expr": "nl = newline;",
+  "iters": 100000,
+  "fingerprint": ["double(nl)", "length(nl)"],
+  "comment": "ASCII LF char. Bench is 100k iters of the call itself."
+}
