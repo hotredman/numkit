@@ -12,6 +12,7 @@
 
 #include <cmath>
 #include <limits>
+#include <vector>
 
 namespace numkit::builtin {
 
@@ -178,6 +179,193 @@ Value psi(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return psiScalar(v); }, mr);
 }
 
+// ── Pack 26: incomplete gamma / beta / Legendre ──────────────────────
+
+namespace {
+// Regularized lower incomplete gamma P(a, x) = γ(a,x)/Γ(a).
+// Series form (good for x < a+1) and continued-fraction form (good for
+// x ≥ a+1). Numerical Recipes layout.
+double gserScalar(double a, double x)
+{
+    if (x <= 0.0) return 0.0;
+    constexpr int kMaxIter = 200;
+    constexpr double kEps = 1e-15;
+    double ap = a;
+    double summ = 1.0 / a;
+    double del = summ;
+    for (int n = 0; n < kMaxIter; ++n) {
+        ap += 1.0;
+        del *= x / ap;
+        summ += del;
+        if (std::abs(del) < std::abs(summ) * kEps) break;
+    }
+    return summ * std::exp(-x + a * std::log(x) - std::lgamma(a));
+}
+
+double gcfScalar(double a, double x)
+{
+    constexpr int kMaxIter = 200;
+    constexpr double kEps = 1e-15;
+    constexpr double kFpMin = 1e-300;
+    double b = x + 1.0 - a;
+    double c = 1.0 / kFpMin;
+    double d = 1.0 / b;
+    double h = d;
+    for (int i = 1; i <= kMaxIter; ++i) {
+        const double an = -i * (i - a);
+        b += 2.0;
+        d = an * d + b;
+        if (std::abs(d) < kFpMin) d = kFpMin;
+        c = b + an / c;
+        if (std::abs(c) < kFpMin) c = kFpMin;
+        d = 1.0 / d;
+        const double del = d * c;
+        h *= del;
+        if (std::abs(del - 1.0) < kEps) break;
+    }
+    const double Q = std::exp(-x + a * std::log(x) - std::lgamma(a)) * h;
+    return 1.0 - Q;
+}
+
+double gammaincScalar(double x, double a)
+{
+    if (std::isnan(x) || std::isnan(a)) return std::numeric_limits<double>::quiet_NaN();
+    if (x < 0.0 || a <= 0.0) return std::numeric_limits<double>::quiet_NaN();
+    if (x == 0.0) return 0.0;
+    if (x < a + 1.0) return gserScalar(a, x);
+    return gcfScalar(a, x);
+}
+
+// Regularized incomplete beta I_x(a, b) = B(x; a, b) / B(a, b).
+// Continued-fraction (Lentz) per Numerical Recipes.
+double betacfScalar(double a, double b, double x)
+{
+    constexpr int kMaxIter = 200;
+    constexpr double kEps = 1e-15;
+    constexpr double kFpMin = 1e-300;
+    const double qab = a + b, qap = a + 1.0, qam = a - 1.0;
+    double c = 1.0;
+    double d = 1.0 - qab * x / qap;
+    if (std::abs(d) < kFpMin) d = kFpMin;
+    d = 1.0 / d;
+    double h = d;
+    for (int m = 1; m <= kMaxIter; ++m) {
+        const int m2 = 2 * m;
+        double aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+        d = 1.0 + aa * d;
+        if (std::abs(d) < kFpMin) d = kFpMin;
+        c = 1.0 + aa / c;
+        if (std::abs(c) < kFpMin) c = kFpMin;
+        d = 1.0 / d;
+        h *= d * c;
+        aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+        d = 1.0 + aa * d;
+        if (std::abs(d) < kFpMin) d = kFpMin;
+        c = 1.0 + aa / c;
+        if (std::abs(c) < kFpMin) c = kFpMin;
+        d = 1.0 / d;
+        const double del = d * c;
+        h *= del;
+        if (std::abs(del - 1.0) < kEps) break;
+    }
+    return h;
+}
+
+double betaincScalar(double x, double a, double b)
+{
+    if (std::isnan(x) || std::isnan(a) || std::isnan(b))
+        return std::numeric_limits<double>::quiet_NaN();
+    if (x < 0.0 || x > 1.0 || a <= 0.0 || b <= 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    if (x == 0.0) return 0.0;
+    if (x == 1.0) return 1.0;
+    const double bt = std::exp(std::lgamma(a + b) - std::lgamma(a) - std::lgamma(b)
+                                + a * std::log(x) + b * std::log(1.0 - x));
+    if (x < (a + 1.0) / (a + b + 2.0))
+        return bt * betacfScalar(a, b, x) / a;
+    return 1.0 - bt * betacfScalar(b, a, 1.0 - x) / b;
+}
+} // anon
+
+Value gammainc(std::pmr::memory_resource *mr, const Value &x, const Value &a)
+{
+    return elementwiseDouble(x, a,
+        [](double xx, double aa) { return gammaincScalar(xx, aa); }, mr);
+}
+
+Value betainc(std::pmr::memory_resource *mr, const Value &x,
+              const Value &a, const Value &b)
+{
+    // Compose two element-wise binaries: first build a tmp matrix of
+    // (a, b) → fold with x as outer. Easier: walk arrays in parallel
+    // here for the broadcast-scalar / same-shape cases.
+    if (x.isScalar() && a.isScalar() && b.isScalar()) {
+        return Value::scalar(
+            betaincScalar(x.toScalar(), a.toScalar(), b.toScalar()), mr);
+    }
+    // For non-scalar inputs, require matching shape (no broadcast for
+    // 3-arg). MATLAB allows broadcasting too; covered by repeated unary.
+    const size_t nx = x.numel(), na = a.numel(), nb = b.numel();
+    const size_t n = std::max({nx, na, nb});
+    auto pickShape = [&]() -> const Value & {
+        if (nx == n) return x;
+        if (na == n) return a;
+        return b;
+    };
+    auto r = createLike(pickShape(), ValueType::DOUBLE, mr);
+    for (size_t i = 0; i < n; ++i) {
+        const double xi = (nx == 1) ? x.toScalar() : x.doubleData()[i];
+        const double ai = (na == 1) ? a.toScalar() : a.doubleData()[i];
+        const double bi = (nb == 1) ? b.toScalar() : b.doubleData()[i];
+        r.doubleDataMut()[i] = betaincScalar(xi, ai, bi);
+    }
+    return r;
+}
+
+Value legendre(std::pmr::memory_resource *mr, int n, const Value &x)
+{
+    if (n < 0)
+        throw Error("legendre: n must be >= 0", 0, 0, "legendre", "",
+                     "m:legendre:badN");
+    const size_t L = x.numel();
+    auto r = Value::matrix(static_cast<size_t>(n + 1), L, ValueType::DOUBLE, mr);
+    double *dst = r.doubleDataMut();
+    // Build P_n^m(x) for m = 0..n at each x_k.
+    for (size_t k = 0; k < L; ++k) {
+        const double xk = x.elemAsDouble(k);
+        // P_0^0 = 1.
+        std::vector<double> P(n + 1, 0.0);
+        // Use the standard recursion. Compute P_n^m via:
+        //   P_m^m = (-1)^m (2m-1)!! (1-x²)^(m/2)
+        //   P_{m+1}^m = x (2m+1) P_m^m
+        //   P_l^m = ((2l-1) x P_{l-1}^m - (l+m-1) P_{l-2}^m) / (l - m)
+        const double sx = std::sqrt(std::max(0.0, 1.0 - xk * xk));
+        for (int m = 0; m <= n; ++m) {
+            // P_m^m = (-1)^m * (2m-1)!! * (sin θ)^m, where sin θ = sqrt(1-x²).
+            double pmm = 1.0;
+            for (int i = 1; i <= m; ++i)
+                pmm *= -(2.0 * i - 1.0) * sx;
+            if (n == m) { P[m] = pmm; continue; }
+            // P_{m+1}^m = x (2m+1) P_m^m.
+            double pmmp1 = xk * (2.0 * m + 1.0) * pmm;
+            if (n == m + 1) { P[m] = pmmp1; continue; }
+            // Recur up to l = n.
+            double pll = 0.0;
+            for (int l = m + 2; l <= n; ++l) {
+                pll = ((2.0 * l - 1.0) * xk * pmmp1
+                        - (l + m - 1.0) * pmm) / (l - m);
+                pmm = pmmp1;
+                pmmp1 = pll;
+            }
+            P[m] = pmmp1;
+        }
+        // Write column k.
+        for (int m = 0; m <= n; ++m)
+            dst[k * (n + 1) + m] = P[m];
+    }
+    return r;
+}
+
 // ── Engine adapters ──────────────────────────────────────────────────
 namespace detail {
 
@@ -217,6 +405,28 @@ void betaln_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("betaln: requires (Z, W)",
                      0, 0, "betaln", "", "m:betaln:nargin");
     outs[0] = betaln(ctx.engine->resource(), args[0], args[1]);
+}
+
+void gammainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gammainc: requires (X, A)", 0, 0, "gammainc", "", "m:gammainc:nargin");
+    outs[0] = gammainc(ctx.engine->resource(), args[0], args[1]);
+}
+
+void betainc_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("betainc: requires (X, A, B)", 0, 0, "betainc", "", "m:betainc:nargin");
+    outs[0] = betainc(ctx.engine->resource(), args[0], args[1], args[2]);
+}
+
+void legendre_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("legendre: requires (n, x)", 0, 0, "legendre", "", "m:legendre:nargin");
+    const int n = static_cast<int>(args[0].toScalar());
+    outs[0] = legendre(ctx.engine->resource(), n, args[1]);
 }
 
 } // namespace detail

@@ -734,6 +734,48 @@ TEST_P(BuiltinTest, OptimsetGet)
     EXPECT_DOUBLE_EQ(evalScalar("optimget(o, 'NoSuch', 42);"), 42.0);
 }
 
+// ── More special funcs — Pack 26 ──────────────────────────────
+TEST_P(BuiltinTest, GammaInc)
+{
+    // P(1, x) = 1 - exp(-x).
+    EXPECT_NEAR(evalScalar("gammainc(1, 1);"),  1.0 - std::exp(-1.0), 1e-12);
+    EXPECT_NEAR(evalScalar("gammainc(0.5, 1);"),1.0 - std::exp(-0.5), 1e-12);
+    // P(a, 0) = 0.
+    EXPECT_DOUBLE_EQ(evalScalar("gammainc(0, 2);"), 0.0);
+    // P(2, ∞) approaches 1.
+    EXPECT_NEAR(evalScalar("gammainc(50, 2);"), 1.0, 1e-10);
+}
+
+TEST_P(BuiltinTest, BetaInc)
+{
+    // I_0.5(1, 1) = 0.5.
+    EXPECT_NEAR(evalScalar("betainc(0.5, 1, 1);"), 0.5, 1e-12);
+    // I_0(a, b) = 0; I_1(a, b) = 1.
+    EXPECT_DOUBLE_EQ(evalScalar("betainc(0, 2, 3);"), 0.0);
+    EXPECT_DOUBLE_EQ(evalScalar("betainc(1, 2, 3);"), 1.0);
+    // I_0.5(2, 2) = 0.5 (symmetric).
+    EXPECT_NEAR(evalScalar("betainc(0.5, 2, 2);"), 0.5, 1e-12);
+}
+
+TEST_P(BuiltinTest, Legendre)
+{
+    // P_0(x) = 1.
+    eval("p = legendre(0, 0.5);");
+    auto *p = getVarPtr("p");
+    EXPECT_DOUBLE_EQ(p->doubleData()[0], 1.0);
+    // P_1(0.5) = 0.5 (P_1^0); P_1^1(0.5) = -sqrt(1-0.25) ≈ -0.8660254.
+    eval("p1 = legendre(1, 0.5);");
+    auto *p1 = getVarPtr("p1");
+    EXPECT_NEAR(p1->doubleData()[0],  0.5, 1e-12);
+    EXPECT_NEAR(p1->doubleData()[1], -std::sqrt(0.75), 1e-12);
+    // P_2(1) = 1 for all m, except P_2^m(1) = 0 for m > 0.
+    eval("p2 = legendre(2, 1);");
+    auto *p2 = getVarPtr("p2");
+    EXPECT_NEAR(p2->doubleData()[0], 1.0, 1e-12);
+    EXPECT_NEAR(p2->doubleData()[1], 0.0, 1e-12);
+    EXPECT_NEAR(p2->doubleData()[2], 0.0, 1e-12);
+}
+
 // ── Special funcs — Pack 19 ───────────────────────────────────
 TEST_P(BuiltinTest, BetaBetaln)
 {
