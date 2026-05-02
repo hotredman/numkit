@@ -1808,6 +1808,100 @@ TEST_P(BuiltinTest, LogspaceSinglePoint)
     EXPECT_NEAR(x->doubleData()[0], 100.0, 1e-10);
 }
 
+// ============================================================
+// Prod-grade test pack T1 — ND + non-DOUBLE coverage
+// ============================================================
+//
+// The original parity packs added scalar / 2-D / DOUBLE tests for each
+// builtin, which is enough to catch a flat-out wrong impl but misses
+// rank-3+ shape preservation and type preservation through byte-copy
+// kernels. T1 fills the obvious gaps.
+
+TEST_P(BuiltinTest, FlipPreservesType)
+{
+    // flip uses byte-copy via flipNDAlongAxis — verify it actually
+    // preserves the input type rather than coercing to DOUBLE.
+    eval("v = int32([1 2 3 4]); r = flip(v);");
+    auto *r = getVarPtr("r");
+    EXPECT_EQ(r->type(), ValueType::INT32);
+    EXPECT_EQ(r->numel(), 4u);
+
+    eval("L = logical([1 0 1 0]); rL = flip(L);");
+    auto *rL = getVarPtr("rL");
+    EXPECT_EQ(rL->type(), ValueType::LOGICAL);
+    EXPECT_EQ(rL->logicalData()[0], 0);
+    EXPECT_EQ(rL->logicalData()[3], 1);
+}
+
+TEST_P(BuiltinTest, Flip3DAlongDim)
+{
+    // 3-D flip along each dim. zeros(2,3,4) is too sparse — use reshape
+    // to get unique values per cell.
+    eval("A = reshape(1:24, 2, 3, 4);");
+    eval("F1 = flip(A, 1); F2 = flip(A, 2); F3 = flip(A, 3);");
+    // F1 swaps rows within every 2-row column — A(1,1,1)=1 → F1(2,1,1)=1.
+    auto *F1 = getVarPtr("F1");
+    EXPECT_DOUBLE_EQ(F1->doubleData()[1], 1.0);   // [r=1][c=0][p=0]
+    EXPECT_DOUBLE_EQ(F1->doubleData()[0], 2.0);   // [r=0][c=0][p=0]
+    // F3 reverses page order — A(1,1,1)=1 → F3(1,1,4)=1; F3(1,1,1)=A(1,1,4)=19.
+    auto *F3 = getVarPtr("F3");
+    EXPECT_DOUBLE_EQ(F3->doubleData()[0], 19.0);
+}
+
+TEST_P(BuiltinTest, RepelemColumnVector)
+{
+    // repelem on a column should keep column orientation.
+    eval("c = repelem([1; 2; 3], 2);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 6u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[0], 1.0);
+    EXPECT_DOUBLE_EQ(c->doubleData()[5], 3.0);
+}
+
+TEST_P(BuiltinTest, Num2Cell3D)
+{
+    // num2cell of a 3-D array: cell shape mirrors input.
+    eval("A = reshape(1:8, 2, 2, 2); C = num2cell(A);");
+    auto *C = getVarPtr("C");
+    ASSERT_TRUE(C->isCell());
+    EXPECT_EQ(C->dims().rows(),  2u);
+    EXPECT_EQ(C->dims().cols(),  2u);
+    EXPECT_EQ(C->dims().pages(), 2u);
+    EXPECT_EQ(C->numel(), 8u);
+    // Index 0 is column-major: A(1,1,1) = 1.
+    EXPECT_DOUBLE_EQ(C->cellAt(0).toScalar(), 1.0);
+    EXPECT_DOUBLE_EQ(C->cellAt(7).toScalar(), 8.0);
+}
+
+TEST_P(BuiltinTest, HeadTailPreservesType)
+{
+    // head/tail operate on rows — use a column vector so n maps to row
+    // count and the byte-copy path actually picks up a non-DOUBLE type.
+    eval("v = uint8([10 20 30 40 50]'); h = head(v, 3); t = tail(v, 2);");
+    auto *h = getVarPtr("h");
+    auto *t = getVarPtr("t");
+    EXPECT_EQ(h->type(), ValueType::UINT8);
+    EXPECT_EQ(t->type(), ValueType::UINT8);
+    EXPECT_EQ(rows(*h), 3u);
+    EXPECT_EQ(rows(*t), 2u);
+}
+
+TEST_P(BuiltinTest, PaddataColumnOrientation)
+{
+    // paddata on a column should still produce a column.
+    eval("c = paddata([1; 2; 3], 6);");
+    auto *c = getVarPtr("c");
+    EXPECT_EQ(rows(*c), 6u);
+    EXPECT_EQ(cols(*c), 1u);
+    EXPECT_DOUBLE_EQ(c->doubleData()[5], 0.0);
+    // Trim also preserves orientation.
+    eval("t = trimdata([1; 2; 3; 4; 5], 2);");
+    auto *t = getVarPtr("t");
+    EXPECT_EQ(rows(*t), 2u);
+    EXPECT_EQ(cols(*t), 1u);
+}
+
 INSTANTIATE_DUAL(BuiltinTest);
 
 // ============================================================
