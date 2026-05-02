@@ -462,7 +462,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uminus` | ⚠️ | works as unary `-` operator; not callable as named fn |
 | `uplus` | ⚠️ | works as unary `+` operator; not callable as named fn |
 
-### Trigonometry — 43 ✅ + 0 ⚠️ / 47 = 91% — **NS: core**
+### Trigonometry — 47 ✅ + 0 ⚠️ / 47 = 100% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -486,8 +486,8 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `atan2d` | ✅ | degree |
 | `atand` | ✅ | degree |
 | `atanh` | ✅ | hyperbolic |
-| `cart2pol` | ❌ | coord xform |
-| `cart2sph` | ❌ | coord xform |
+| `cart2pol` | ✅ | coord xform |
+| `cart2sph` | ✅ | coord xform |
 | `cos` | ✅ |  |
 | `cosd` | ✅ | degree |
 | `cosh` | ✅ | hyperbolic |
@@ -500,7 +500,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `csch` | ✅ |  |
 | `deg2rad` | ✅ |  |
 | `hypot` | ✅ |  |
-| `pol2cart` | ❌ | coord xform |
+| `pol2cart` | ✅ | coord xform |
 | `rad2deg` | ✅ |  |
 | `sec` | ✅ | reciprocal |
 | `secd` | ✅ |  |
@@ -509,7 +509,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `sind` | ✅ | degree |
 | `sinh` | ✅ | hyperbolic |
 | `sinpi` | ✅ | use `sin(pi*x)` |
-| `sph2cart` | ❌ | coord xform |
+| `sph2cart` | ✅ | coord xform |
 | `tan` | ✅ |  |
 | `tand` | ✅ | degree |
 | `tanh` | ✅ | hyperbolic |

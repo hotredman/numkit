@@ -409,6 +409,60 @@ TEST_P(BuiltinTest, ReciprocalTrigOutOfDomainComplex)
     EXPECT_TRUE(u->isComplex());
 }
 
+// ── Coordinate transforms ─────────────────────────────────────
+TEST_P(BuiltinTest, CartPolarRoundtrip)
+{
+    eval("[t, r] = cart2pol(3, 4);");
+    EXPECT_NEAR(getVar("t"), std::atan2(4.0, 3.0), 1e-12);
+    EXPECT_NEAR(getVar("r"), 5.0, 1e-12);
+    // pol2cart inverse.
+    eval("[xv, yv] = pol2cart(t, r);");
+    EXPECT_NEAR(getVar("xv"), 3.0, 1e-12);
+    EXPECT_NEAR(getVar("yv"), 4.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, CartPolar3DPassthrough)
+{
+    // 3-arg cart2pol/pol2cart treat z as a passthrough (cylindrical).
+    eval("[t, r, z] = cart2pol(3, 4, 7);");
+    EXPECT_NEAR(getVar("t"), std::atan2(4.0, 3.0), 1e-12);
+    EXPECT_NEAR(getVar("r"), 5.0, 1e-12);
+    EXPECT_NEAR(getVar("z"), 7.0, 1e-12);
+    eval("[a, b, c] = pol2cart(t, r, z);");
+    EXPECT_NEAR(getVar("a"), 3.0, 1e-12);
+    EXPECT_NEAR(getVar("b"), 4.0, 1e-12);
+    EXPECT_NEAR(getVar("c"), 7.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, CartSphRoundtrip)
+{
+    // (1, 1, 1) → az = pi/4, el = atan2(1, sqrt(2)), r = sqrt(3).
+    eval("[a, e, r] = cart2sph(1, 1, 1);");
+    EXPECT_NEAR(getVar("a"), M_PI / 4, 1e-12);
+    EXPECT_NEAR(getVar("e"), std::atan2(1.0, std::sqrt(2.0)), 1e-12);
+    EXPECT_NEAR(getVar("r"), std::sqrt(3.0), 1e-12);
+    // sph2cart inverse.
+    eval("[xv, yv, zv] = sph2cart(a, e, r);");
+    EXPECT_NEAR(getVar("xv"), 1.0, 1e-12);
+    EXPECT_NEAR(getVar("yv"), 1.0, 1e-12);
+    EXPECT_NEAR(getVar("zv"), 1.0, 1e-12);
+}
+
+TEST_P(BuiltinTest, CartPolVectorized)
+{
+    eval("[t, r] = cart2pol([3 0 -1], [4 1  0]);");
+    auto *t = getVarPtr("t");
+    auto *r = getVarPtr("r");
+    ASSERT_EQ(t->numel(), 3u);
+    ASSERT_EQ(r->numel(), 3u);
+    EXPECT_NEAR(t->doubleData()[0], std::atan2(4.0, 3.0), 1e-12);
+    EXPECT_NEAR(t->doubleData()[1], M_PI / 2,             1e-12);
+    EXPECT_NEAR(t->doubleData()[2], M_PI,                 1e-12);
+    EXPECT_NEAR(r->doubleData()[0], 5.0, 1e-12);
+    EXPECT_NEAR(r->doubleData()[1], 1.0, 1e-12);
+    EXPECT_NEAR(r->doubleData()[2], 1.0, 1e-12);
+}
+
 TEST_P(BuiltinTest, Floor)
 {
     EXPECT_DOUBLE_EQ(evalScalar("floor(3.7);"), 3.0);

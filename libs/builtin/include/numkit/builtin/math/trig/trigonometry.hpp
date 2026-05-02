@@ -64,4 +64,25 @@ Value asecd(std::pmr::memory_resource *mr, const Value &x);
 Value acscd(std::pmr::memory_resource *mr, const Value &x);
 Value acotd(std::pmr::memory_resource *mr, const Value &x);
 
+// Coordinate transforms — Cartesian ↔ polar / cylindrical / spherical.
+// 2-arg cart2pol/pol2cart are the planar (polar) form; 3-arg variants
+// pass z through unchanged (cylindrical).
+struct PolarPair { Value theta, rho; };
+struct CylTriple { Value theta, rho, z; };
+struct CartPair  { Value x, y; };
+struct CartTriple{ Value x, y, z; };
+struct SphTriple { Value az, el, r; };
+
+PolarPair cart2pol(std::pmr::memory_resource *mr, const Value &x, const Value &y);
+CylTriple cart2pol(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z);
+CartPair  pol2cart(std::pmr::memory_resource *mr,
+                   const Value &theta, const Value &rho);
+CartTriple pol2cart(std::pmr::memory_resource *mr,
+                    const Value &theta, const Value &rho, const Value &z);
+SphTriple cart2sph(std::pmr::memory_resource *mr,
+                   const Value &x, const Value &y, const Value &z);
+CartTriple sph2cart(std::pmr::memory_resource *mr,
+                    const Value &az, const Value &el, const Value &r);
+
 } // namespace numkit::builtin
