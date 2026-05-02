@@ -501,6 +501,69 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── String utils — Pack 18 ────────────────────────────────────
+TEST_P(BuiltinTest, AppendCountErase)
+{
+    eval("a = append('foo', 'bar', 'baz');");
+    EXPECT_EQ(getVarPtr("a")->toString(), "foobarbaz");
+    EXPECT_DOUBLE_EQ(evalScalar("count('abracadabra', 'a');"), 5.0);
+    EXPECT_DOUBLE_EQ(evalScalar("count('aaaa', 'aa');"), 2.0);  // non-overlapping
+    eval("e = erase('hello world', 'l');");
+    EXPECT_EQ(getVarPtr("e")->toString(), "heo word");
+    eval("e2 = erase('foofoofoo', 'foo');");
+    EXPECT_EQ(getVarPtr("e2")->toString(), "");
+}
+
+TEST_P(BuiltinTest, ReverseReplaceMatches)
+{
+    eval("r = reverse('hello');");
+    EXPECT_EQ(getVarPtr("r")->toString(), "olleh");
+    eval("rp = replace('foo bar foo', 'foo', 'baz');");
+    EXPECT_EQ(getVarPtr("rp")->toString(), "baz bar baz");
+    EXPECT_TRUE(evalBool("matches('cat', 'cat');"));
+    EXPECT_FALSE(evalBool("matches('cat', 'dog');"));
+    EXPECT_TRUE(evalBool("matches('cat', {'dog', 'cat', 'bird'});"));
+    EXPECT_FALSE(evalBool("matches('fish', {'dog', 'cat', 'bird'});"));
+}
+
+TEST_P(BuiltinTest, Splitlines)
+{
+    // sprintf interprets escape sequences; single-quoted strings don't.
+    eval("c = splitlines(sprintf('a\\nb\\nc'));");
+    auto *c = getVarPtr("c");
+    ASSERT_EQ(c->numel(), 3u);
+    EXPECT_EQ(c->cellAt(0).toString(), "a");
+    EXPECT_EQ(c->cellAt(1).toString(), "b");
+    EXPECT_EQ(c->cellAt(2).toString(), "c");
+    // CRLF: build via char(13)+char(10) since the engine's sprintf
+    // doesn't appear to expand \\r the same way it does \\n.
+    eval("nl = [char(13) char(10)]; c2 = splitlines(['x' nl 'y' nl 'z']);");
+    auto *c2 = getVarPtr("c2");
+    ASSERT_EQ(c2->numel(), 3u);
+    EXPECT_EQ(c2->cellAt(0).toString(), "x");
+    EXPECT_EQ(c2->cellAt(2).toString(), "z");
+}
+
+TEST_P(BuiltinTest, PadStrip)
+{
+    eval("p1 = pad('abc', 6);");           // default right
+    EXPECT_EQ(getVarPtr("p1")->toString(), "abc   ");
+    eval("p2 = pad('abc', 6, 'left');");
+    EXPECT_EQ(getVarPtr("p2")->toString(), "   abc");
+    eval("p3 = pad('abc', 7, 'both', '*');");
+    EXPECT_EQ(getVarPtr("p3")->toString(), "**abc**");
+    // No pad needed.
+    eval("p4 = pad('abcdef', 4);");
+    EXPECT_EQ(getVarPtr("p4")->toString(), "abcdef");
+
+    eval("s1 = strip('   hello   ');");
+    EXPECT_EQ(getVarPtr("s1")->toString(), "hello");
+    eval("s2 = strip('   hello   ', 'left');");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "hello   ");
+    eval("s3 = strip('xxhelloxx', 'both', 'x');");
+    EXPECT_EQ(getVarPtr("s3")->toString(), "hello");
+}
+
 // ── Bit ops — Pack 17 ─────────────────────────────────────────
 TEST_P(BuiltinTest, BitSetBitGet)
 {
