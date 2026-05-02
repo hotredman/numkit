@@ -175,13 +175,13 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `uint64` | ✅ |  |
 | `uint8` | ✅ |  |
 
-### Characters and Strings — 30 ✅ + 0 ⚠️ / 65 = 46% — **NS: core**
+### Characters and Strings — 31 ✅ + 0 ⚠️ / 65 = 48% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `append` | ❌ |  |
 | `blanks` | ✅ |  |
-| `cellstr` | ❌ | cell of char rows |
+| `cellstr` | ✅ | cell of char rows |
 | `char` | ✅ |  |
 | `compose` | ❌ |  |
 | `contains` | ✅ |  |
@@ -200,7 +200,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `extractbetween` | ❌ |  |
 | `insertafter` | ❌ |  |
 | `insertbefore` | ❌ |  |
-| `iscellstr` | ❌ | predicate |
+| `iscellstr` | ✅ | predicate |
 | `ischar` | ✅ |  |
 | `isletter` | ❌ |  |
 | `isspace` | ❌ |  |
@@ -264,24 +264,24 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `structfun` | ✅ |  |
 | `table2struct` | ❌ |  |
 
-### Cell Arrays — 4 ✅ + 0 ⚠️ / 17 = 23% — **NS: core**
+### Cell Arrays — 10 ✅ + 0 ⚠️ / 17 = 59% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
 | `cell` | ✅ |  |
-| `cell2mat` | ❌ | concat cells |
-| `cell2struct` | ❌ |  |
+| `cell2mat` | ✅ | concat cells |
+| `cell2struct` | ✅ |  |
 | `cell2table` | ❌ |  |
 | `celldisp` | ❌ |  |
 | `cellfun` | ✅ |  |
 | `cellplot` | ❌ |  |
-| `cellstr` | ❌ | cell of char rows |
+| `cellstr` | ✅ | cell of char rows |
 | `iscell` | ✅ |  |
-| `iscellstr` | ❌ | predicate |
+| `iscellstr` | ✅ | predicate |
 | `mat2cell` | ❌ | split into cell |
-| `num2cell` | ❌ | wrap each elem |
+| `num2cell` | ✅ | wrap each elem |
 | `string` | ✅ |  |
-| `struct2cell` | ❌ |  |
+| `struct2cell` | ✅ |  |
 | `table` | ❌ |  |
 | `table2cell` | ❌ |  |
 | `timetable` | ❌ |  |

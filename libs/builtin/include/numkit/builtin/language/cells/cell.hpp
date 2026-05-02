@@ -41,4 +41,19 @@ Value cell(std::pmr::memory_resource *mr, size_t rows, size_t cols, size_t pages
 Value cellfun(std::pmr::memory_resource *mr, const Value &fn, const Value &c,
                bool uniformOutput, Engine *engine = nullptr);
 
+// ── Pack 15: cell idioms ──────────────────────────────────────────────
+/// num2cell(A) — wrap each element of A in a scalar cell.
+Value num2cell(std::pmr::memory_resource *mr, const Value &x);
+
+/// cell2mat(C) — concatenate cells back into a single matrix. Fast
+/// path for cell of DOUBLE scalars; general case horzcat-then-vertcat.
+Value cell2mat(std::pmr::memory_resource *mr, const Value &c);
+
+/// iscellstr(C) — true iff C is a cell whose every entry is a char row.
+Value iscellstr(std::pmr::memory_resource *mr, const Value &c);
+
+/// cellstr(s) — char row → 1×1 cell; string array → N×1 cell;
+/// cell-of-strings → identity.
+Value cellstr(std::pmr::memory_resource *mr, const Value &x);
+
 } // namespace numkit::builtin

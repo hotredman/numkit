@@ -501,6 +501,68 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Cell idioms — Pack 15 ─────────────────────────────────────
+TEST_P(BuiltinTest, Num2Cell)
+{
+    eval("c = num2cell([10 20 30]);");
+    auto *c = getVarPtr("c");
+    ASSERT_TRUE(c->isCell());
+    EXPECT_EQ(c->numel(), 3u);
+    EXPECT_DOUBLE_EQ(c->cellAt(0).toScalar(), 10.0);
+    EXPECT_DOUBLE_EQ(c->cellAt(2).toScalar(), 30.0);
+    // 2-D shape preserved.
+    eval("c2 = num2cell([1 2; 3 4]);");
+    auto *c2 = getVarPtr("c2");
+    EXPECT_EQ(rows(*c2), 2u);
+    EXPECT_EQ(cols(*c2), 2u);
+}
+
+TEST_P(BuiltinTest, Cell2MatScalars)
+{
+    eval("c = {1, 2, 3; 4, 5, 6};");
+    eval("M = cell2mat(c);");
+    auto *M = getVarPtr("M");
+    EXPECT_EQ(rows(*M), 2u);
+    EXPECT_EQ(cols(*M), 3u);
+    EXPECT_DOUBLE_EQ((*M)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*M)(1, 2), 6.0);
+}
+
+TEST_P(BuiltinTest, Cell2MatBlocks)
+{
+    // Row of two 2x2 blocks → 2x4.
+    eval("A = [1 2; 3 4]; B = [5 6; 7 8];");
+    eval("M = cell2mat({A, B});");
+    auto *M = getVarPtr("M");
+    EXPECT_EQ(rows(*M), 2u);
+    EXPECT_EQ(cols(*M), 4u);
+    EXPECT_DOUBLE_EQ((*M)(0, 0), 1.0);
+    EXPECT_DOUBLE_EQ((*M)(0, 2), 5.0);
+    EXPECT_DOUBLE_EQ((*M)(1, 3), 8.0);
+}
+
+TEST_P(BuiltinTest, IsCellStr)
+{
+    EXPECT_TRUE(evalBool("iscellstr({'foo', 'bar', 'baz'});"));
+    EXPECT_FALSE(evalBool("iscellstr({'foo', 1, 'bar'});"));
+    EXPECT_FALSE(evalBool("iscellstr({1, 2, 3});"));
+    // Non-cell input → false.
+    EXPECT_FALSE(evalBool("iscellstr('plain string');"));
+}
+
+TEST_P(BuiltinTest, Cellstr)
+{
+    eval("c = cellstr('hello');");
+    auto *c = getVarPtr("c");
+    ASSERT_TRUE(c->isCell());
+    EXPECT_EQ(c->numel(), 1u);
+    EXPECT_EQ(c->cellAt(0).toString(), "hello");
+    // Cell pass-through.
+    eval("c2 = cellstr({'a', 'b'});");
+    auto *c2 = getVarPtr("c2");
+    EXPECT_EQ(c2->numel(), 2u);
+}
+
 // ── Struct utils — Pack 14 ────────────────────────────────────
 TEST_P(BuiltinTest, GetSetField)
 {
