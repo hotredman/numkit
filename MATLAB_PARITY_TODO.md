@@ -363,7 +363,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `rowfun` | ❌ |  |
 | `rows2vars` | ❌ |  |
 | `setdiff` | ✅ |  |
-| `setxor` | ❌ | symmetric set diff |
+| `setxor` | ✅ | symmetric set diff |
 | `sortrows` | ✅ |  |
 | `splitapply` | ❌ |  |
 | `splitvars` | ❌ |  |
@@ -403,23 +403,23 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `bitxor` | ✅ |  |
 | `swapbytes` | ❌ |  |
 
-### Set Operations — 5 ✅ + 0 ⚠️ / 13 = 38% — **NS: core**
+### Set Operations — 10 ✅ + 0 ⚠️ / 13 = 77% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
-| `allunique` | ❌ | distinct check |
+| `allunique` | ✅ | distinct check |
 | `innerjoin` | ❌ |  |
 | `intersect` | ✅ |  |
 | `ismember` | ✅ |  |
-| `ismembertol` | ❌ | tol variant |
+| `ismembertol` | ✅ | tol variant |
 | `join` | ❌ |  |
-| `numunique` | ❌ | count distinct |
+| `numunique` | ✅ | count distinct |
 | `outerjoin` | ❌ |  |
 | `setdiff` | ✅ |  |
-| `setxor` | ❌ | symmetric set diff |
+| `setxor` | ✅ | symmetric set diff |
 | `union` | ✅ |  |
 | `unique` | ✅ |  |
-| `uniquetol` | ❌ | tol variant |
+| `uniquetol` | ✅ | tol variant |
 
 ## 2. Mathematics
 

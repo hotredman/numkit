@@ -172,6 +172,11 @@ void ismember_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void union_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void intersect_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void setdiff_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void setxor_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void allunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void numunique_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void ismembertol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void uniquetol_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void histcounts_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void discretize_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 
@@ -539,6 +544,11 @@ void BuiltinLibrary::install(Engine &engine)
     engine.registerFunction("union",      &builtin::detail::union_reg);
     engine.registerFunction("intersect",  &builtin::detail::intersect_reg);
     engine.registerFunction("setdiff",    &builtin::detail::setdiff_reg);
+    engine.registerFunction("setxor",     &builtin::detail::setxor_reg);
+    engine.registerFunction("allunique",  &builtin::detail::allunique_reg);
+    engine.registerFunction("numunique",  &builtin::detail::numunique_reg);
+    engine.registerFunction("ismembertol",&builtin::detail::ismembertol_reg);
+    engine.registerFunction("uniquetol",  &builtin::detail::uniquetol_reg);
     engine.registerFunction("histcounts", &builtin::detail::histcounts_reg);
     engine.registerFunction("discretize", &builtin::detail::discretize_reg);
     engine.registerFunction("accumarray", &builtin::detail::accumarray_reg);
