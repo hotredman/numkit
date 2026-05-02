@@ -501,6 +501,46 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Workspace / display — Pack 25 ─────────────────────────────
+TEST_P(BuiltinTest, Clearvars)
+{
+    // Function-call form (avoids MATLAB command syntax for `-except`).
+    eval("a = 1; b = 2; c = 3;");
+    EXPECT_DOUBLE_EQ(getVar("a"), 1.0);
+    eval("clearvars('b');");
+    EXPECT_DOUBLE_EQ(getVar("a"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 3.0);
+    EXPECT_EQ(getVarPtr("b"), nullptr);
+
+    // -except keeps only the listed names.
+    eval("x = 1; y = 2; z = 3;");
+    eval("clearvars('-except', 'y');");
+    EXPECT_DOUBLE_EQ(getVar("y"), 2.0);
+    EXPECT_EQ(getVarPtr("x"), nullptr);
+    EXPECT_EQ(getVarPtr("z"), nullptr);
+}
+
+TEST_P(BuiltinTest, FormattedDisplayText)
+{
+    eval("s = formatteddisplaytext(42);");
+    auto *s = getVarPtr("s");
+    ASSERT_TRUE(s->isChar());
+    // The exact formatting may include leading whitespace and trailing
+    // newlines; just check that "42" appears in there.
+    EXPECT_NE(s->toString().find("42"), std::string::npos);
+}
+
+TEST_P(BuiltinTest, FormatNoOp)
+{
+    // format accepts known specs without error.
+    EXPECT_NO_THROW(eval("format short;"));
+    EXPECT_NO_THROW(eval("format long;"));
+    EXPECT_NO_THROW(eval("format compact;"));
+    EXPECT_NO_THROW(eval("format();"));   // 0-arg also OK
+    // Unknown spec throws.
+    EXPECT_THROW(eval("format weird;"), std::exception);
+}
+
 // ── Cell / struct misc — Pack 24 ──────────────────────────────
 TEST_P(BuiltinTest, Deal)
 {
