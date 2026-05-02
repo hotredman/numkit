@@ -692,7 +692,7 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `randstream` | ❌ |  |
 | `rng` | ✅ |  |
 
-### Interpolation — 8 ✅ + 0 ⚠️ / 18 = 44% — **NS: core**
+### Interpolation — 11 ✅ + 0 ⚠️ / 18 = 61% — **NS: core**
 
 | Function | Status | Notes |
 |---|:---:|---|
@@ -706,14 +706,14 @@ Future libs: `linalg.*`, `sparse.*`, `ode.*`, `table.*`, `categorical.*`,
 | `interpn` | ✅ |  |
 | `makima` | ❌ |  |
 | `meshgrid` | ✅ |  |
-| `mkpp` | ❌ |  |
+| `mkpp` | ✅ |  |
 | `ndgrid` | ✅ |  |
 | `padecoef` | ❌ |  |
 | `pchip` | ✅ |  |
-| `ppval` | ❌ |  |
+| `ppval` | ✅ |  |
 | `scatteredinterpolant` | ❌ |  |
 | `spline` | ✅ |  |
-| `unmkpp` | ❌ |  |
+| `unmkpp` | ✅ |  |
 
 ### Optimization — 5 ✅ + 0 ⚠️ / 7 = 71% — **NS: core**
 

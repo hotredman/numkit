@@ -587,6 +587,74 @@ Value pchip(std::pmr::memory_resource *mr, const Value &x, const Value &y, const
 // polyfit / polyval moved to math/elementary/polynomials.cpp
 // trapz moved to math/integration/integration.cpp
 
+// ── Pack 30: mkpp / ppval ────────────────────────────────────────────
+
+Value mkpp(std::pmr::memory_resource *mr, const Value &breaks, const Value &coefs)
+{
+    if (breaks.numel() < 2)
+        throw Error("mkpp: breaks must have at least 2 entries",
+                     0, 0, "mkpp", "", "m:mkpp:breaks");
+    const size_t L = breaks.numel() - 1;  // pieces
+    if (coefs.dims().ndim() > 2)
+        throw Error("mkpp: only 2-D coefs (pieces × order) supported",
+                     0, 0, "mkpp", "", "m:mkpp:rank");
+    const size_t pieces = coefs.dims().rows();
+    const size_t order  = coefs.dims().cols();
+    if (pieces != L)
+        throw Error("mkpp: rows(coefs) must equal numel(breaks) - 1",
+                     0, 0, "mkpp", "", "m:mkpp:shape");
+
+    auto pp = Value::structure(mr);
+    pp.field("form")   = Value::fromString("pp", mr);
+    pp.field("breaks") = breaks;
+    pp.field("coefs")  = coefs;
+    pp.field("pieces") = Value::scalar(static_cast<double>(L), mr);
+    pp.field("order")  = Value::scalar(static_cast<double>(order), mr);
+    pp.field("dim")    = Value::scalar(1.0, mr);
+    return pp;
+}
+
+Value ppval(std::pmr::memory_resource *mr, const Value &pp, const Value &x)
+{
+    if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
+        throw Error("ppval: first argument must be a pp struct",
+                     0, 0, "ppval", "", "m:ppval:notPp");
+    const Value &breaks = pp.field("breaks");
+    const Value &coefs  = pp.field("coefs");
+    const size_t L      = breaks.numel() - 1;
+    const size_t order  = coefs.dims().cols();
+    const double *bp    = breaks.doubleData();
+    const double *cp    = coefs.doubleData();
+    const size_t cR     = coefs.dims().rows();   // pieces (column-major stride)
+
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t N = x.numel();
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        // Find piece index j such that breaks[j] <= xi < breaks[j+1].
+        // Linear scan is fine for typical L ≤ ~64; binary search if it
+        // ever matters.
+        size_t j = 0;
+        if (xi <= bp[0]) j = 0;
+        else if (xi >= bp[L]) j = L - 1;
+        else {
+            // First k with bp[k+1] > xi.
+            j = L - 1;
+            for (size_t k = 0; k < L; ++k) {
+                if (xi < bp[k + 1]) { j = k; break; }
+            }
+        }
+        const double u = xi - bp[j];
+        // Local polynomial: coefs(j, 0) is the leading (highest) power.
+        double y = cp[0 * cR + j];
+        for (size_t k = 1; k < order; ++k)
+            y = y * u + cp[k * cR + j];
+        dst[i] = y;
+    }
+    return out;
+}
+
 // ── Engine adapters ───────────────────────────────────────────────────
 namespace detail {
 
@@ -699,6 +767,41 @@ void interpn_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallC
 
 // polyfit_reg / polyval_reg → math/elementary/polynomials.cpp
 // trapz_reg                 → math/integration/integration.cpp
+
+void mkpp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mkpp: requires (breaks, coefs)",
+                     0, 0, "mkpp", "", "m:mkpp:nargin");
+    outs[0] = mkpp(ctx.engine->resource(), args[0], args[1]);
+}
+
+void ppval_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ppval: requires (pp, x)",
+                     0, 0, "ppval", "", "m:ppval:nargin");
+    outs[0] = ppval(ctx.engine->resource(), args[0], args[1]);
+}
+
+void unmkpp_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("unmkpp: requires 1 argument",
+                     0, 0, "unmkpp", "", "m:unmkpp:nargin");
+    const Value &pp = args[0];
+    if (!pp.isStruct() || !pp.hasField("breaks") || !pp.hasField("coefs"))
+        throw Error("unmkpp: input must be a pp struct",
+                     0, 0, "unmkpp", "", "m:unmkpp:notPp");
+    outs[0] = pp.field("breaks");
+    if (nargout > 1) outs[1] = pp.field("coefs");
+    if (nargout > 2) outs[2] = pp.hasField("pieces") ? pp.field("pieces")
+                                                     : Value::scalar(0.0, ctx.engine->resource());
+    if (nargout > 3) outs[3] = pp.hasField("order")  ? pp.field("order")
+                                                     : Value::scalar(0.0, ctx.engine->resource());
+    if (nargout > 4) outs[4] = pp.hasField("dim")    ? pp.field("dim")
+                                                     : Value::scalar(1.0, ctx.engine->resource());
+}
 
 } // namespace detail
 
