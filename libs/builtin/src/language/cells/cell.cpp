@@ -218,6 +218,77 @@ Value cellstr(std::pmr::memory_resource *mr, const Value &x)
                  0, 0, "cellstr", "", "m:cellstr:type");
 }
 
+Value mat2cell(std::pmr::memory_resource *mr, const Value &x,
+               const double *rowSizes, size_t nRow,
+               const double *colSizes, size_t nCol)
+{
+    if (x.dims().ndim() > 2)
+        throw Error("mat2cell: only 2-D inputs are supported",
+                     0, 0, "mat2cell", "", "m:mat2cell:rank");
+    if (x.type() != ValueType::DOUBLE)
+        throw Error("mat2cell: only DOUBLE inputs are supported",
+                     0, 0, "mat2cell", "", "m:mat2cell:type");
+
+    const size_t R = x.dims().rows(), C = x.dims().cols();
+
+    // Vector form: mat2cell(v, sizes). Treat sizes as row-direction
+    // when v is a column, column-direction when v is a row.
+    const bool vectorForm = (nCol == 0);
+    ScratchArena scratch(mr);
+    auto rowS = ScratchVec<size_t>(&scratch);
+    auto colS = ScratchVec<size_t>(&scratch);
+
+    if (vectorForm) {
+        if (R == 1) {
+            rowS.assign({R});
+            colS.reserve(nRow);
+            for (size_t i = 0; i < nRow; ++i)
+                colS.push_back(static_cast<size_t>(rowSizes[i]));
+        } else {
+            rowS.reserve(nRow);
+            for (size_t i = 0; i < nRow; ++i)
+                rowS.push_back(static_cast<size_t>(rowSizes[i]));
+            colS.assign({C});
+        }
+    } else {
+        rowS.reserve(nRow);
+        for (size_t i = 0; i < nRow; ++i)
+            rowS.push_back(static_cast<size_t>(rowSizes[i]));
+        colS.reserve(nCol);
+        for (size_t j = 0; j < nCol; ++j)
+            colS.push_back(static_cast<size_t>(colSizes[j]));
+    }
+
+    size_t rsum = 0, csum = 0;
+    for (size_t s : rowS) rsum += s;
+    for (size_t s : colS) csum += s;
+    if (rsum != R)
+        throw Error("mat2cell: row sizes must sum to size(A,1)",
+                     0, 0, "mat2cell", "", "m:mat2cell:rowSum");
+    if (csum != C)
+        throw Error("mat2cell: column sizes must sum to size(A,2)",
+                     0, 0, "mat2cell", "", "m:mat2cell:colSum");
+
+    auto c = Value::cell(rowS.size(), colS.size(), mr);
+    const double *src = x.doubleData();
+    size_t rowOff = 0;
+    for (size_t i = 0; i < rowS.size(); ++i) {
+        size_t colOff = 0;
+        for (size_t j = 0; j < colS.size(); ++j) {
+            const size_t br = rowS[i], bc = colS[j];
+            auto block = Value::matrix(br, bc, ValueType::DOUBLE, mr);
+            double *dst = block.doubleDataMut();
+            for (size_t cc = 0; cc < bc; ++cc)
+                for (size_t rr = 0; rr < br; ++rr)
+                    dst[cc * br + rr] = src[(colOff + cc) * R + (rowOff + rr)];
+            c.cellAt(j * rowS.size() + i) = std::move(block);
+            colOff += bc;
+        }
+        rowOff += rowS[i];
+    }
+    return c;
+}
+
 // ════════════════════════════════════════════════════════════════════════
 // Adapters
 // ════════════════════════════════════════════════════════════════════════
@@ -301,6 +372,24 @@ void cellstr_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
         throw Error("cellstr requires 1 argument",
                      0, 0, "cellstr", "", "m:cellstr:nargin");
     outs[0] = cellstr(ctx.engine->resource(), args[0]);
+}
+
+void mat2cell_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mat2cell: requires (A, R[, C])",
+                     0, 0, "mat2cell", "", "m:mat2cell:nargin");
+    auto *mr = ctx.engine->resource();
+    const Value &rArg = args[1];
+    if (args.size() == 2) {
+        outs[0] = mat2cell(mr, args[0], rArg.doubleData(), rArg.numel(),
+                           nullptr, 0);
+    } else {
+        const Value &cArg = args[2];
+        outs[0] = mat2cell(mr, args[0],
+                           rArg.doubleData(), rArg.numel(),
+                           cArg.doubleData(), cArg.numel());
+    }
 }
 
 } // namespace detail

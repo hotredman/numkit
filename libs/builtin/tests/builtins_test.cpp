@@ -501,6 +501,38 @@ TEST_P(BuiltinTest, IsUniform)
     EXPECT_TRUE(evalBool("isuniform([]);"));
 }
 
+// ── Cell / struct misc — Pack 24 ──────────────────────────────
+TEST_P(BuiltinTest, Deal)
+{
+    eval("[a, b, c] = deal(1, 2, 3);");
+    EXPECT_DOUBLE_EQ(getVar("a"), 1.0);
+    EXPECT_DOUBLE_EQ(getVar("b"), 2.0);
+    EXPECT_DOUBLE_EQ(getVar("c"), 3.0);
+    // Single input broadcasts.
+    eval("[x, y, z] = deal(5);");
+    EXPECT_DOUBLE_EQ(getVar("x"), 5.0);
+    EXPECT_DOUBLE_EQ(getVar("y"), 5.0);
+    EXPECT_DOUBLE_EQ(getVar("z"), 5.0);
+}
+
+TEST_P(BuiltinTest, Mat2cell)
+{
+    // 2-D split: 4×6 matrix → 2 row-blocks of 2 rows, 3 col-blocks of 2 cols.
+    eval("A = reshape(1:24, 4, 6); C = mat2cell(A, [2 2], [2 2 2]);");
+    auto *C = getVarPtr("C");
+    ASSERT_TRUE(C->isCell());
+    EXPECT_EQ(rows(*C), 2u);
+    EXPECT_EQ(cols(*C), 3u);
+    EXPECT_EQ(rows(C->cellAt(0)), 2u);   // C{1,1}
+    EXPECT_EQ(cols(C->cellAt(0)), 2u);
+    // Row-vector form.
+    eval("v = 1:6; W = mat2cell(v, [3 3]);");
+    auto *W = getVarPtr("W");
+    ASSERT_TRUE(W->isCell());
+    EXPECT_EQ(W->numel(), 2u);
+    EXPECT_EQ(W->cellAt(0).numel(), 3u);
+}
+
 // ── Numeric base conversion + rat — Pack 23 ───────────────────
 TEST_P(BuiltinTest, Dec2BinHex)
 {
