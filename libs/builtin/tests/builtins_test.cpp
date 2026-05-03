@@ -1372,10 +1372,13 @@ TEST_P(BuiltinTest, FevalByHandle)
 
 TEST_P(BuiltinTest, Func2Str)
 {
+    // MATLAB returns the bare name for named handles (no `@` prefix).
+    // Anonymous handles return their full source text with `@`.
+    // See BUGS.md #16.
     eval("h = @sin; s = func2str(h);");
-    EXPECT_EQ(getVarPtr("s")->toString(), "@sin");
+    EXPECT_EQ(getVarPtr("s")->toString(), "sin");
     eval("h2 = str2func('cos'); s2 = func2str(h2);");
-    EXPECT_EQ(getVarPtr("s2")->toString(), "@cos");
+    EXPECT_EQ(getVarPtr("s2")->toString(), "cos");
 }
 
 // ── shiftdim — Pack 12 ────────────────────────────────────────

@@ -326,7 +326,7 @@ map by name. Should preserve insertion-time slot index.
 
 ---
 
-## 16. `libs/builtin`: `func2str(@sin)` returns `'@sin'` instead of `'sin'` — **P3**
+## 16. `libs/builtin`: `func2str(@sin)` returns `'@sin'` instead of `'sin'` — **P3** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -344,6 +344,11 @@ handles will show a leading `@` that MATLAB omits.
 should branch on "is the handle wrapping a named function?" and
 emit name only in that case.
 **First seen:** 2026-05-03, parity bulk-bench iteration 14.
+**Fixed:** library.cpp's func2str lambda now detects anon-handle naming
+convention (`__anon_<N>` prefix) and returns the bare name for named
+handles, `@__anon_<N>` placeholder for anonymous (we don't preserve
+anon-source-text yet, so this is a best-effort fallback). Func2Str
+unit test updated to match MATLAB-spec.
 
 ---
 
