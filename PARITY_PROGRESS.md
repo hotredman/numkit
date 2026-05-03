@@ -327,8 +327,8 @@ multiple sections; all occurrences refresh together).
 | `height` | ❌ |  |  |  |  |  |
 | `inner2outer` | ❌ |  |  |  |  |  |
 | `innerjoin` | ❌ |  |  |  |  |  |
-| `intersect` | ✅ |  |  |  |  |  |
-| `ismember` | ✅ |  |  |  |  |  |
+| `intersect` | ✅ | 0.623 | 0.43× | 0.42× | OK | Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE. |
+| `ismember` | ✅ | 1.359 | 0.30× | 0.55× | OK | Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical. |
 | `ismissing` | ❌ |  |  |  |  |  |
 | `issortedrows` | ❌ |  |  |  |  |  |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
@@ -347,8 +347,8 @@ multiple sections; all occurrences refresh together).
 | `rmprop` | ❌ |  |  |  |  |  |
 | `rowfun` | ❌ |  |  |  |  |  |
 | `rows2vars` | ❌ |  |  |  |  |  |
-| `setdiff` | ✅ |  |  |  |  |  |
-| `setxor` | ✅ |  |  |  |  | symmetric set diff |
+| `setdiff` | ✅ | 0.591 | 0.52× | 0.50× | OK | Sig: C = setdiff(A, B). 10k minus 10k. 100 iters. Element-wise SAVE. |
+| `setxor` | ✅ | 0.971 | 0.57× | 0.35× | OK | Sig: C = setxor(A, B). 10k symdiff 10k. 100 iters. Element-wise SAVE. |
 | `sortrows` | ✅ |  |  |  |  |  |
 | `splitapply` | ❌ |  |  |  |  |  |
 | `splitvars` | ❌ |  |  |  |  |  |
@@ -366,8 +366,8 @@ multiple sections; all occurrences refresh together).
 | `tail` | ✅ |  |  |  |  |  |
 | `timetable2table` | ❌ |  |  |  |  |  |
 | `topkrows` | ❌ |  |  |  |  |  |
-| `union` | ✅ |  |  |  |  |  |
-| `unique` | ✅ |  |  |  |  |  |
+| `union` | ✅ | 1.183 | 0.33× | 0.15× | OK | Sig: C = union(A, B). 10k union 10k. 100 iters. Element-wise SAVE. |
+| `unique` | ✅ | 0.931 | 1.08× | 0.35× | OK | Sig: C = unique(A). 100k with ~7919 distinct. 100 iters. Element-wise SAVE. |
 | `unstack` | ❌ |  |  |  |  |  |
 | `unstacktablevariables` | ❌ |  |  |  |  |  |
 | `varfun` | ❌ |  |  |  |  |  |
@@ -381,13 +381,13 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitand` | ✅ |  |  |  |  |  |
-| `bitcmp` | ✅ |  |  |  |  |  |
-| `bitget` | ✅ |  |  |  |  | get bit |
-| `bitor` | ✅ |  |  |  |  |  |
-| `bitset` | ✅ |  |  |  |  | set bit |
-| `bitshift` | ✅ |  |  |  |  |  |
-| `bitxor` | ✅ |  |  |  |  |  |
+| `bitand` | ✅ | 5.839 | 1.85× | 2.29× | OK | Sig: Y = bitand(A, B). 1M double (numkit rejects uint32 — see BUGS #13). 50 iters. |
+| `bitcmp` | ✅ | 4.817 | 0.50× |  | OK | Sig: Y = bitcmp(A, type). 1M double + 'uint32' (numkit rejects uint32 array — see BUGS #13). 50 iters. |
+| `bitget` | ✅ | 3.916 | 0.63× | 2.51× | OK | Sig: Y = bitget(A, K). 1M double, bit 3. 50 iters. |
+| `bitor` | ✅ | 6.197 | 1.74× | 2.18× | OK | Sig: Y = bitor(A, B). 1M double. 50 iters. |
+| `bitset` | ✅ | 4.155 | 0.61× | 8.75× | OK | Sig: Y = bitset(A, K). 1M double, set bit 5. 50 iters. |
+| `bitshift` | ✅ | 4.447 | 0.56× | 1.74× | OK | Sig: Y = bitshift(A, K). 1M double << 3. 50 iters. |
+| `bitxor` | ✅ | 5.789 | 1.87× | 2.28× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
 | `swapbytes` | ✅ | 1.049 | 1.04× | 7.60× | OK | 1M uint32 byte-swap. 50 iters. |
 
 ## Set Operations
@@ -398,16 +398,16 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `allunique` | ✅ |  |  |  |  | distinct check |
 | `innerjoin` | ❌ |  |  |  |  |  |
-| `intersect` | ✅ |  |  |  |  |  |
-| `ismember` | ✅ |  |  |  |  |  |
+| `intersect` | ✅ | 0.623 | 0.43× | 0.42× | OK | Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE. |
+| `ismember` | ✅ | 1.359 | 0.30× | 0.55× | OK | Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical. |
 | `ismembertol` | ✅ |  |  |  |  | tol variant |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
 | `numunique` | ✅ |  |  |  |  | count distinct |
 | `outerjoin` | ❌ |  |  |  |  |  |
-| `setdiff` | ✅ |  |  |  |  |  |
-| `setxor` | ✅ |  |  |  |  | symmetric set diff |
-| `union` | ✅ |  |  |  |  |  |
-| `unique` | ✅ |  |  |  |  |  |
+| `setdiff` | ✅ | 0.591 | 0.52× | 0.50× | OK | Sig: C = setdiff(A, B). 10k minus 10k. 100 iters. Element-wise SAVE. |
+| `setxor` | ✅ | 0.971 | 0.57× | 0.35× | OK | Sig: C = setxor(A, B). 10k symdiff 10k. 100 iters. Element-wise SAVE. |
+| `union` | ✅ | 1.183 | 0.33× | 0.15× | OK | Sig: C = union(A, B). 10k union 10k. 100 iters. Element-wise SAVE. |
+| `unique` | ✅ | 0.931 | 1.08× | 0.35× | OK | Sig: C = unique(A). 100k with ~7919 distinct. 100 iters. Element-wise SAVE. |
 | `uniquetol` | ✅ |  |  |  |  | tol variant |
 
 ## Arithmetic

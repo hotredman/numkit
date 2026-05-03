@@ -1,0 +1,10 @@
+{
+  "name": "union",
+  "namespace": "core",
+  "setup": "a = 1:10000; b = 5000:15000;",
+  "expr": "y = union(a, b);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: C = union(A, B). 10k union 10k. 100 iters. Element-wise SAVE."
+}

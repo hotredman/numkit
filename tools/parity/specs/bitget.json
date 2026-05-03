@@ -1,0 +1,10 @@
+{
+  "name": "bitget",
+  "namespace": "core",
+  "setup": "a = double(1:1000000); k = 3;",
+  "expr": "y = bitget(a, k);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = bitget(A, K). 1M double, bit 3. 50 iters."
+}

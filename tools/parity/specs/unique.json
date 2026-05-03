@@ -1,0 +1,10 @@
+{
+  "name": "unique",
+  "namespace": "core",
+  "setup": "a = mod(1:100000, 7919) + 1;",
+  "expr": "y = unique(a);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: C = unique(A). 100k with ~7919 distinct. 100 iters. Element-wise SAVE."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "ismember",
+  "namespace": "core",
+  "setup": "a = 1:100000; b = 5:5:100000;",
+  "expr": "y = ismember(a, b);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical."
+}

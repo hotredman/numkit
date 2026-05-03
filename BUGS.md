@@ -246,6 +246,33 @@ post-pass to trim leading zeros until first non-zero coefficient.
 
 ---
 
+## 13. `libs/builtin`: bit-ops reject integer typed arrays — **P2**
+
+**Reproducer:**
+```matlab
+a = uint32(1:5);
+bitand(a, a)         % numkit: "Not a double array (in call to 'bitand')"
+bitor(a, a)          % same
+bitxor(a, a)         % same
+bitcmp(a)            % same — and bitcmp NEEDS uint type in MATLAB
+% Workaround:
+bitand(double(1:5), double(0:4))                % works
+bitcmp(double(1:5), 'uint32')                   % works
+```
+**MATLAB:** all bit-ops accept any integer type (uint8/16/32/64,
+int8/16/32/64) AND non-negative double values (the latter as a
+historical convenience). numkit only accepts double.
+**Impact:** Parity gap. Functionally bit-ops work via the double path,
+but typical MATLAB code in the wild stores bitfields as `uint32` /
+`uint64` for memory and clarity, and that breaks here.
+Specifically, `bitcmp(uint_array)` (the canonical 1-arg form, type
+inferred from input) cannot be expressed in numkit at all — must
+use the 2-arg `bitcmp(double_array, 'uint32')` form.
+**Where:** [libs/builtin/src/](libs/builtin/) bit-op adapters.
+**First seen:** 2026-05-03, parity bulk-bench iteration 8.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

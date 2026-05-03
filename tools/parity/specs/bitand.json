@@ -1,0 +1,10 @@
+{
+  "name": "bitand",
+  "namespace": "core",
+  "setup": "a = double(1:1000000); b = double(0:999999);",
+  "expr": "y = bitand(a, b);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = bitand(A, B). 1M double (numkit rejects uint32 \u2014 see BUGS #13). 50 iters."
+}
