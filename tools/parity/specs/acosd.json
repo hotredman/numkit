@@ -1,0 +1,10 @@
+{
+  "name": "acosd",
+  "namespace": "core",
+  "setup": "x = linspace(-1, 1, 1000000);",
+  "expr": "y = acosd(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = acosd(X). 1M-pt sweep on [-1,1]. Inverse trig (degrees). 20 iters. Element-wise SAVE. tol relaxed to 1e-10 because acos derivative diverges near x=\u00b11 (1 elem rel diff 1.11e-12 at x\u22480.99993, algorithmically correct)."
+}

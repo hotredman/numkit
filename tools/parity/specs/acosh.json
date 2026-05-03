@@ -1,0 +1,10 @@
+{
+  "name": "acosh",
+  "namespace": "core",
+  "setup": "x = linspace(1, 10, 1000000);",
+  "expr": "y = acosh(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = acosh(X). 1M-pt on [1,10] (domain X>=1). 20 iters. Element-wise SAVE."
+}

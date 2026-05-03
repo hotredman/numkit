@@ -1,0 +1,10 @@
+{
+  "name": "sech",
+  "namespace": "core",
+  "setup": "x = linspace(-5, 5, 1000000);",
+  "expr": "y = sech(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = sech(X). 1M-pt on [-5, 5]. 20 iters. Element-wise SAVE."
+}

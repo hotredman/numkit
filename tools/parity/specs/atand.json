@@ -1,0 +1,10 @@
+{
+  "name": "atand",
+  "namespace": "core",
+  "setup": "x = linspace(-10, 10, 1000000);",
+  "expr": "y = atand(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = atand(X). 1M-pt on [-10,10]. Inverse (degrees). 20 iters. Element-wise SAVE."
+}
