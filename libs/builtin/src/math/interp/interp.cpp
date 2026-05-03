@@ -669,12 +669,93 @@ void interp1_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
     outs[0] = interp1(ctx.engine->resource(), args[0], args[1], args[2], method);
 }
 
+// 2-arg `spline(x, y)` returns a pp struct (piecewise polynomial form)
+// usable with `ppval`. Coefficients are derived from the natural cubic
+// spline's second-derivative form via the standard transformation
+// (see comment block in implementation). See BUGS.md #22.
+namespace {
+
+Value splinePp(std::pmr::memory_resource *mr, const Value &x, const Value &y)
+{
+    const size_t n = x.numel();
+    if (n != y.numel())
+        throw Error("spline: x and y must have same length",
+                     0, 0, "spline", "", "m:spline:lengthMismatch");
+    if (n < 2)
+        throw Error("spline: need at least 2 data points",
+                     0, 0, "spline", "", "m:spline:tooFewPoints");
+
+    ScratchArena scratch(mr);
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+
+    // Compute sigma (second derivatives at knots) - same tridiagonal
+    // solve as interpSpline above.
+    const size_t nm1 = n - 1;
+    ScratchVec<double> h(nm1, &scratch);
+    for (size_t i = 0; i < nm1; ++i) h[i] = xd[i + 1] - xd[i];
+
+    ScratchVec<double> sigma(n, 0.0, &scratch);
+    if (n >= 3) {
+        const size_t m = n - 2;
+        ScratchVec<double> diag(m, &scratch), upper(m, &scratch),
+                           lower(m, &scratch), rhs(m, &scratch);
+        for (size_t i = 0; i < m; ++i) {
+            const size_t j = i + 1;
+            diag[i] = 2.0 * (h[j - 1] + h[j]);
+            rhs[i] = 6.0 * ((yd[j + 1] - yd[j]) / h[j]
+                          - (yd[j] - yd[j - 1]) / h[j - 1]);
+            if (i > 0)         lower[i] = h[j - 1];
+            if (i < m - 1)     upper[i] = h[j];
+        }
+        for (size_t i = 1; i < m; ++i) {
+            const double w = lower[i] / diag[i - 1];
+            diag[i] -= w * upper[i - 1];
+            rhs[i]  -= w * rhs[i - 1];
+        }
+        sigma[m] = rhs[m - 1] / diag[m - 1];
+        for (int i = static_cast<int>(m) - 2; i >= 0; --i)
+            sigma[i + 1] = (rhs[i] - upper[i] * sigma[i + 2]) / diag[i];
+    }
+
+    // Build [nm1 x 4] coefficient matrix in column-major order.
+    // For each interval i, with dx = x - xd[i] in [0, h_i]:
+    //   y(dx) = a*dx^3 + b*dx^2 + c*dx + d
+    //   a = (sigma_{i+1} - sigma_i) / (6 * h_i)
+    //   b = sigma_i / 2
+    //   c = (y_{i+1} - y_i) / h_i - h_i * (2*sigma_i + sigma_{i+1}) / 6
+    //   d = y_i
+    auto coefs = Value::matrix(nm1, 4, ValueType::DOUBLE, mr);
+    double *cp = coefs.doubleDataMut();
+    for (size_t i = 0; i < nm1; ++i) {
+        const double hi = h[i];
+        const double a  = (sigma[i + 1] - sigma[i]) / (6.0 * hi);
+        const double b  = sigma[i] / 2.0;
+        const double c  = (yd[i + 1] - yd[i]) / hi
+                          - hi * (2.0 * sigma[i] + sigma[i + 1]) / 6.0;
+        const double d  = yd[i];
+        cp[i + 0 * nm1] = a;   // col 0
+        cp[i + 1 * nm1] = b;
+        cp[i + 2 * nm1] = c;
+        cp[i + 3 * nm1] = d;
+    }
+    return mkpp(mr, x, coefs);
+}
+
+} // namespace
+
 void spline_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 2) {
+        // pp-struct form. See BUGS.md #22.
+        outs[0] = splinePp(mr, args[0], args[1]);
+        return;
+    }
     if (args.size() < 3)
-        throw Error("spline: requires 3 arguments",
+        throw Error("spline: requires (x, y) or (x, y, xq)",
                      0, 0, "spline", "", "m:spline:nargin");
-    outs[0] = spline(ctx.engine->resource(), args[0], args[1], args[2]);
+    outs[0] = spline(mr, args[0], args[1], args[2]);
 }
 
 void interp2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

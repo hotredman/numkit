@@ -508,7 +508,7 @@ grid-form input + implicit-meshgrid for vector Xq/Yq) still pending.
 
 ---
 
-## 22. `libs/builtin`: `spline(x, v)` (2-arg pp-struct form) unsupported — **P2**
+## 22. `libs/builtin`: `spline(x, v)` (2-arg pp-struct form) unsupported — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -523,6 +523,14 @@ evaluates at xq directly. numkit only supports the 3-arg form.
 many times — the canonical "factor + apply" pattern.
 **Where:** [libs/builtin/src/](libs/builtin/) `spline` adapter.
 **First seen:** 2026-05-03, parity bulk-bench iteration 18.
+**Fix (2026-05-03):** Added a `splinePp(x, y)` helper in
+[libs/builtin/src/math/interp/interp.cpp] that runs the existing
+natural-cubic-spline tridiagonal solve, transforms the second-
+derivative form into per-interval `[a*dx^3 + b*dx^2 + c*dx + d]`
+coefficients, and packages them via `mkpp` into a pp struct. The
+2-arg `spline_reg` form routes here; 3-arg keeps direct evaluation.
+Verified: `ppval(spline(x, v), xq)` matches `spline(x, v, xq)` to
+~1e-16 on `sin(linspace(0, 10, 50))`.
 
 ---
 
