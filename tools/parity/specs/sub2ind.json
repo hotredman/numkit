@@ -1,0 +1,10 @@
+{
+  "name": "sub2ind",
+  "namespace": "core",
+  "setup": "sz = [1000 1000]; r = repmat(1:1000, 1, 1000); c = reshape(repmat(1:1000, 1000, 1), 1, 1000000);",
+  "expr": "y = sub2ind(sz, r, c);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: IND = sub2ind(SZ, I, J). 1M (r,c) pairs. 50 iters.",
+  "out_var": "y"
+}

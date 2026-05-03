@@ -1,0 +1,10 @@
+{
+  "name": "cross",
+  "namespace": "core",
+  "setup": "a = [1 0 0]; b = [0 1 0];",
+  "expr": "y = cross(a, b);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported \u2014 see BUGS). 100k iters.",
+  "out_var": "y"
+}

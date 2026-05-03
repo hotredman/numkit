@@ -1,0 +1,10 @@
+{
+  "name": "freqspace",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = freqspace(n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: F = freqspace(N). N=1024 (numkit returns N values, MATLAB returns N/2+1 = 513 for N even \u2014 see BUGS). 1000 iters.",
+  "out_var": "y"
+}

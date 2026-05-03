@@ -1,0 +1,10 @@
+{
+  "name": "sortrows",
+  "namespace": "core",
+  "setup": "X = mod((1:10000)', 1000) + (1:10000)' / 1e7; A = [X, X*2, X+5];",
+  "expr": "y = sortrows(A);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: B = sortrows(A). 10k\u00d73 sort by first col. 100 iters.",
+  "out_var": "y"
+}

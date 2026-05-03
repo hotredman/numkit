@@ -54,10 +54,10 @@ multiple sections; all occurrences refresh together).
 | `flip` | ✅ | 2.122 | 0.79× | 1.03× | OK | Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE. |
 | `fliplr` | ✅ | 2.144 | 0.80× | 1.02× | OK | Sig: B = fliplr(A). 1000x1000 left-right flip. 100 iters. Element-wise SAVE. |
 | `flipud` | ✅ | 2.308 | 0.53× | 0.99× | OK | Sig: B = flipud(A). 1000x1000 up-down flip. 100 iters. Element-wise SAVE. |
-| `freqspace` | ✅ |  |  |  |  |  |
-| `head` | ✅ |  |  |  |  |  |
-| `horzcat` | ✅ |  |  |  |  |  |
-| `ind2sub` | ✅ |  |  |  |  | linear-index conv |
+| `freqspace` | ✅ | 0.001 | 14.68× |  | MISMATCH | Sig: F = freqspace(N). 1024-pt freq vector. 10000 iters. |
+| `head` | ✅ | 0.000 | 59.14× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
+| `horzcat` | ✅ | 1.842 | 0.62× | 0.57× | OK | Sig: D = horzcat(A, B). 500x500 || 500x500. 100 iters. |
+| `ind2sub` | ✅ | 12.093 |  | 0.93× | OK | Sig: [I,J] = ind2sub(SZ, IND). 1M idx → row index. SAVE on row idx (y). 50 iters. |
 | `ipermute` | ✅ | 5.008 | 0.66× | 1.16× | OK | Sig: Y = ipermute(X, ORDER). Round-trip via permute. 100 iters. |
 | `iscolumn` | ✅ | 0.000 | 26.89× | 68.46× | OK | Sig: TF = iscolumn(X). 1k column. 100k iters. |
 | `isempty` | ✅ | 0.000 | 25.72× | 34.68× | OK | Sig: TF = isempty(X). Empty []. 100k iters. |
@@ -79,18 +79,18 @@ multiple sections; all occurrences refresh together).
 | `paddata` | ✅ |  |  |  |  | pad N-D |
 | `permute` | ✅ | 2.322 | 0.54× | 1.11× | OK | Sig: Y = permute(X, ORDER). 100×100×100 → reordered. 100 iters. |
 | `rand` | ✅ |  |  |  |  |  |
-| `repelem` | ✅ |  |  |  |  |  |
+| `repelem` | ✅ | 2.189 | 0.55× | 1.01× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
 | `repmat` | ✅ | 2.113 | 0.44× | 1.08× | OK | Sig: B = repmat(A,M,N). 50x50 → 1000x1000. 100 iters. |
 | `reshape` | ✅ | 1.999 | 0.00× | 1.06× | OK | Sig: B = reshape(A,M,N). 1M vec → 1000x1000. 100 iters. |
 | `resize` | ✅ |  |  |  |  | general resize |
-| `rot90` | ✅ |  |  |  |  |  |
-| `shiftdim` | ✅ |  |  |  |  |  |
+| `rot90` | ✅ | 2.992 | 0.80× | 1.92× | OK | Sig: B = rot90(A). 1k×1k 90° rotate. 100 iters. |
+| `shiftdim` | ✅ | 2.273 | 0.01× | 7.12× | MISMATCH | Sig: B = shiftdim(A). Drop leading singleton. 1000 iters. |
 | `size` | ✅ | 0.000 | 18.70× | 36.28× | OK | Sig: S = size(X). 2D 100x600 → [100 600]. 100k iters. |
 | `sort` | ✅ | 44.711 | 0.15× | 0.15× | OK | Sig: B = sort(A). 1M deterministic sin values. 100 iters. Element-wise SAVE. |
-| `sortrows` | ✅ |  |  |  |  |  |
+| `sortrows` | ✅ | 0.425 | 0.74× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
 | `squeeze` | ✅ | 2.034 | 0.01× | 0.00× | OK | Sig: Y = squeeze(X). 1×1k×1×1k → 1k×1k. 1000 iters. |
-| `sub2ind` | ✅ |  |  |  |  | linear-index conv |
-| `tail` | ✅ |  |  |  |  |  |
+| `sub2ind` | ✅ | 7.505 | 0.23× | 0.47× | OK | Sig: IND = sub2ind(SZ, I, J). 1M (r,c) pairs. 50 iters. |
+| `tail` | ✅ | 0.000 | 54.28× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
 | `trimdata` | ✅ |  |  |  |  |  |
 | `true` | ✅ |  |  |  |  | literal/constant |
@@ -324,7 +324,7 @@ multiple sections; all occurrences refresh together).
 | `groupfilter` | ❌ |  |  |  |  |  |
 | `groupsummary` | ❌ |  |  |  |  |  |
 | `grouptransform` | ❌ |  |  |  |  |  |
-| `head` | ✅ |  |  |  |  |  |
+| `head` | ✅ | 0.000 | 59.14× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `height` | ❌ |  |  |  |  |  |
 | `inner2outer` | ❌ |  |  |  |  |  |
 | `innerjoin` | ❌ |  |  |  |  |  |
@@ -350,7 +350,7 @@ multiple sections; all occurrences refresh together).
 | `rows2vars` | ❌ |  |  |  |  |  |
 | `setdiff` | ✅ | 0.591 | 0.52× | 0.50× | OK | Sig: C = setdiff(A, B). 10k minus 10k. 100 iters. Element-wise SAVE. |
 | `setxor` | ✅ | 0.971 | 0.57× | 0.35× | OK | Sig: C = setxor(A, B). 10k symdiff 10k. 100 iters. Element-wise SAVE. |
-| `sortrows` | ✅ |  |  |  |  |  |
+| `sortrows` | ✅ | 0.425 | 0.74× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
 | `splitapply` | ❌ |  |  |  |  |  |
 | `splitvars` | ❌ |  |  |  |  |  |
 | `stack` | ❌ |  |  |  |  |  |
@@ -364,7 +364,7 @@ multiple sections; all occurrences refresh together).
 | `table2cell` | ❌ |  |  |  |  |  |
 | `table2struct` | ❌ |  |  |  |  |  |
 | `table2timetable` | ❌ |  |  |  |  |  |
-| `tail` | ✅ |  |  |  |  |  |
+| `tail` | ✅ | 0.000 | 54.28× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `timetable2table` | ❌ |  |  |  |  |  |
 | `topkrows` | ❌ |  |  |  |  |  |
 | `union` | ✅ | 1.183 | 0.33× | 0.15× | OK | Sig: C = union(A, B). 10k union 10k. 100 iters. Element-wise SAVE. |
@@ -608,11 +608,11 @@ multiple sections; all occurrences refresh together).
 | `cond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `cross` | ✅ |  |  |  |  |  |
+| `cross` | ✅ | 0.000 | 19.03× | 187.75× | OK | Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported — see BUGS). 100k iters. |
 | `ctranspose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `dot` | ✅ |  |  |  |  |  |
+| `dot` | ✅ | 2.036 | 0.02× | 0.07× | OK | Sig: D = dot(A, B). 1M-elem dot product. 100 iters. Scalar fp. |
 | `eig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `expm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -627,7 +627,7 @@ multiple sections; all occurrences refresh together).
 | `issymmetric` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `istril` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `istriu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `kron` | ✅ |  |  |  |  |  |
+| `kron` | ✅ | 0.189 | 0.51× | 0.12× | OK | Sig: K = kron(A, B). 10x10 ⊗ 20x20 = 200x200. 100 iters. |
 | `ldl` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `linsolve` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `logm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -679,8 +679,8 @@ multiple sections; all occurrences refresh together).
 | `sylvester` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `trace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
-| `tril` | ✅ |  |  |  |  |  |
-| `triu` | ✅ |  |  |  |  |  |
+| `tril` | ✅ | 2.260 | 0.88× | 0.94× | OK | Sig: L = tril(A). 1k×1k lower triangular. 100 iters. |
+| `triu` | ✅ | 2.255 | 0.89× | 0.97× | OK | Sig: U = triu(A). 1k×1k upper triangular. 100 iters. |
 | `vecnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 
 ## Random Number Generation
