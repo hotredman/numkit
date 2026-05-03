@@ -144,6 +144,13 @@ void geoinv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void geornd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void geostat_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/negbin.cpp
+void nbinpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nbincdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nbininv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nbinrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void nbinstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -275,6 +282,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "geoinv",   &stats::detail::geoinv_reg);
     reg("dist", "geornd",   &stats::detail::geornd_reg);
     reg("dist", "geostat",  &stats::detail::geostat_reg);
+
+    reg("dist", "nbinpdf",  &stats::detail::nbinpdf_reg);
+    reg("dist", "nbincdf",  &stats::detail::nbincdf_reg);
+    reg("dist", "nbininv",  &stats::detail::nbininv_reg);
+    reg("dist", "nbinrnd",  &stats::detail::nbinrnd_reg);
+    reg("dist", "nbinstat", &stats::detail::nbinstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
