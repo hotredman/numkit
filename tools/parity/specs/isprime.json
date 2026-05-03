@@ -1,0 +1,10 @@
+{
+  "name": "isprime",
+  "namespace": "core",
+  "setup": "x = 1:10000;",
+  "expr": "y = isprime(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: TF = isprime(X). 1..10000. 20 iters. Element-wise SAVE on logical."
+}

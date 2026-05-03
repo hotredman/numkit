@@ -1,0 +1,10 @@
+{
+  "name": "nchoosek",
+  "namespace": "core",
+  "setup": "x = 0:30; n = 30; y = zeros(1, length(x)); for i = 1:length(x); y(i) = nchoosek(n, x(i)); end",
+  "expr": "y = y;",
+  "iters": 1,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter."
+}

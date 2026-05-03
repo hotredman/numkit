@@ -1,0 +1,10 @@
+{
+  "name": "polyint",
+  "namespace": "core",
+  "setup": "p = sin(linspace(0, 5, 100));",
+  "expr": "y = polyint(p);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE."
+}

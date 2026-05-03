@@ -1,0 +1,10 @@
+{
+  "name": "polyval",
+  "namespace": "core",
+  "setup": "p = [1 -3 2 5 -7]; x = linspace(-10, 10, 1000000);",
+  "expr": "y = polyval(p, x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = polyval(P, X). 4th-order poly on 1M pts. 20 iters. Element-wise SAVE."
+}

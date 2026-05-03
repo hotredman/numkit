@@ -1,0 +1,10 @@
+{
+  "name": "polyfit",
+  "namespace": "core",
+  "setup": "x = linspace(0, 10, 1000); y_data = sin(x);",
+  "expr": "y = polyfit(x, y_data, 5);",
+  "iters": 100,
+  "tol": 1e-9,
+  "out_var": "y",
+  "comment": "Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise)."
+}

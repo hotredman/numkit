@@ -1,0 +1,10 @@
+{
+  "name": "factorial",
+  "namespace": "core",
+  "setup": "x = 0:20;",
+  "expr": "y = factorial(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = factorial(N). N=0:20. 1k iters. Element-wise SAVE."
+}

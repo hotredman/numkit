@@ -1,0 +1,10 @@
+{
+  "name": "gcd",
+  "namespace": "core",
+  "setup": "a = 1:1000; b = 7:1006;",
+  "expr": "y = gcd(a, b);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE."
+}

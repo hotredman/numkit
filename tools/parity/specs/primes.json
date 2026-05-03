@@ -1,0 +1,10 @@
+{
+  "name": "primes",
+  "namespace": "core",
+  "setup": "n = 100000;",
+  "expr": "y = primes(n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE."
+}
