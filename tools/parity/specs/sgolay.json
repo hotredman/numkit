@@ -1,0 +1,10 @@
+{
+  "name": "sgolay",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = sgolay(3, 11);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,12 @@
+{
+  "name": "fullfile",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = fullfile('foo', 'bar', 'baz.txt');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: F = fullfile(PARTS). 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

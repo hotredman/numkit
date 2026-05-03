@@ -1,0 +1,10 @@
+{
+  "name": "zerophase",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
+  "expr": "[y, jj] = zerophase(b, a, n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters.",
+  "out_var": "y"
+}

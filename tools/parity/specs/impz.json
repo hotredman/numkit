@@ -1,0 +1,10 @@
+{
+  "name": "impz",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
+  "expr": "[y, jj] = impz(b, a, n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters.",
+  "out_var": "y"
+}

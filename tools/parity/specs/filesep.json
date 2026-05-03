@@ -1,0 +1,12 @@
+{
+  "name": "filesep",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = filesep;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: SEP = filesep. OS-specific separator. 100k iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

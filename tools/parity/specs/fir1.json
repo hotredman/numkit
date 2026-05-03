@@ -1,0 +1,10 @@
+{
+  "name": "fir1",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = fir1(20, 0.4);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "freqz",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
+  "expr": "[y, jj] = freqz(b, a, n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters.",
+  "out_var": "y"
+}

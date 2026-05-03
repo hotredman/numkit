@@ -1157,13 +1157,13 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `filemarker` | ❌ |  |  |  |  |  |
-| `fileparts` | ✅ |  |  |  |  | split path |
-| `filesep` | ✅ |  |  |  |  | path sep |
-| `fullfile` | ✅ |  |  |  |  | OS path join |
+| `fileparts` | ✅ | 0.000 | 8.71× |  | OK | Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters. |
+| `filesep` | ✅ | 0.000 | 3.30× |  | OK | Sig: SEP = filesep. OS-specific separator. 100k iters. |
+| `fullfile` | ✅ | 0.001 | 16.71× |  | OK | Sig: F = fullfile(PARTS). 10000 iters. |
 | `matlabdrive` | ❌ |  |  |  |  |  |
 | `matlabroot` | ❌ |  |  |  |  |  |
-| `tempdir` | ✅ |  |  |  |  |  |
-| `tempname` | ✅ |  |  |  |  |  |
+| `tempdir` | ✅ | 0.013 | 0.07× |  | OK | Sig: D = tempdir. 10000 iters. |
+| `tempname` | ✅ | 0.014 | 1.05× |  | OK | Sig: F = tempname. 10000 iters. |
 | `toolboxdir` | ❌ |  |  |  |  |  |
 
 ## Waveform Generation
@@ -1200,7 +1200,7 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `butter` | ✅ |  |  |  |  | IIR Butterworth |
+| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
 | `buttord` | ❌ |  |  |  |  | order estimator |
 | `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
 | `cheb1ord` | ❌ |  |  |  |  | order estimator |
@@ -1216,7 +1216,7 @@ multiple sections; all occurrences refresh together).
 | `ellipord` | ❌ |  |  |  |  | order estimator |
 | `filt2block` | ❌ |  |  |  |  |  |
 | `filteranalyzer` | ❌ |  |  |  |  |  |
-| `fir1` | ✅ |  |  |  |  | FIR window-design |
+| `fir1` | ✅ | 0.000 | 152.85× | 3103.22× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
 | `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
 | `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
 | `fircls1` | ❌ |  |  |  |  |  |
@@ -1227,14 +1227,14 @@ multiple sections; all occurrences refresh together).
 | `info` | ❌ |  |  |  |  |  |
 | `intfilt` | ✅ | 0.001 | 460.66× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |
-| `issingle` | ✅ |  |  |  |  |  |
+| `issingle` | ✅ | 0.000 |  |  | N/A | Sig: TF = issingle(X). 100k iters. |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
 | `polystab` | ❌ |  |  |  |  |  |
 | `rcosdesign` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolay` | ✅ |  |  |  |  | Savitzky-Golay |
+| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
 | `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `yulewalk` | ❌ |  |  |  |  | recursive YW |
 
@@ -1248,7 +1248,7 @@ multiple sections; all occurrences refresh together).
 | `besself` | ❌ |  |  |  |  | IIR Bessel |
 | `bilinear` | ❌ |  |  |  |  |  |
 | `buttap` | ❌ |  |  |  |  | analog prototype |
-| `butter` | ✅ |  |  |  |  | IIR Butterworth |
+| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
 | `cheb1ap` | ❌ |  |  |  |  | analog prototype |
 | `cheb2ap` | ❌ |  |  |  |  | analog prototype |
 | `cheby1` | ❌ |  |  |  |  | IIR Chebyshev I |
@@ -1272,9 +1272,9 @@ multiple sections; all occurrences refresh together).
 | `filternorm` | ❌ |  |  |  |  |  |
 | `filtord` | ❌ |  |  |  |  |  |
 | `firtype` | ❌ |  |  |  |  |  |
-| `freqz` | ✅ |  |  |  |  | discrete freq response |
-| `grpdelay` | ✅ |  |  |  |  | group delay |
-| `impz` | ✅ |  |  |  |  | impulse response |
+| `freqz` | ✅ | 0.004 | 21.99× | 51.25× | MISMATCH | Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters. |
+| `grpdelay` | ✅ | 0.006 | 29.69× | 26.74× | MISMATCH | Sig: [G,W] = grpdelay(B,A,N). Group delay. 1000 iters. |
+| `impz` | ✅ | 0.002 | 38.13× | 13.46× | OK | Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters. |
 | `impzlength` | ✅ | 0.000 | 321.89× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
 | `isallpass` | ✅ | 0.000 | 109.38× |  | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
 | `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
@@ -1282,10 +1282,10 @@ multiple sections; all occurrences refresh together).
 | `ismaxphase` | ✅ | 0.001 | 190.76× |  | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
 | `isminphase` | ✅ | 0.000 | 271.10× |  | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.000 | 193.32× |  | OK | Sig: TF = isstable(B, A). 10000 iters. |
-| `phasedelay` | ✅ |  |  |  |  | phase delay |
+| `phasedelay` | ✅ | 0.006 | 148.34× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
 | `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
 | `stepz` | ✅ | 0.002 | 41.25× |  | OK | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
-| `zerophase` | ✅ |  |  |  |  |  |
+| `zerophase` | ✅ | 0.005 | 146.86× |  | MISMATCH | Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters. |
 | `zplane` | ❌ |  |  |  |  |  |
 
 ## Digital Filtering (filter / filtfilt / sosfilt / lowpass / ...)
@@ -1477,7 +1477,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ |  |  |  |  |  |
+| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `pburg` | ❌ |  |  |  |  | Burg AR |
@@ -1495,7 +1495,7 @@ multiple sections; all occurrences refresh together).
 | `cpsd` | ❌ |  |  |  |  | cross-PSD |
 | `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ |  |  |  |  |  |
+| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ❌ |  |  |  |  | magnitude-squared coherence |
@@ -1633,7 +1633,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `hampel` | ✅ | 0.726 | 0.21× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
 | `medfilt1` | ✅ | 1.680 | 0.20× |  | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
-| `sgolay` | ✅ |  |  |  |  | Savitzky-Golay |
+| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
 | `sgolayfilt` | ✅ | 0.121 | 1.07× |  | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 
 ## Vibration Analysis (envspectrum / order tracking / modal)
