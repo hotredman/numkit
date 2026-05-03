@@ -638,7 +638,7 @@ but these named-fn stubs are misleading because the row says ✅.
 
 ---
 
-## 29. `libs/builtin`: `idivide(int_array, ...)` rejects integer-typed input — **P2**
+## 29. `libs/builtin`: `idivide(int_array, ...)` rejects integer-typed input — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -655,6 +655,14 @@ and rejects int. Same root cause class as BUGS #13 (bit-ops reject
 int input).
 **Where:** [libs/builtin/src/](libs/builtin/) `idivide` adapter.
 **First seen:** 2026-05-03, parity bulk-bench iteration 24.
+**Fix (2026-05-03):** Rewrote `idivide` in
+[libs/builtin/src/library.cpp](libs/builtin/src/library.cpp) to
+match MATLAB semantics: require ≥1 integer operand, accept the
+other as same-class integer or scalar double; reject double-double
+and mixed-class integer inputs with MATLAB-exact error messages.
+Internally converts both to DOUBLE for divide+round, then casts back
+to the integer operand's class via `builtin::cast`. Result type
+matches the integer operand (preserves int8/16/32/64 and uint8/…).
 
 ---
 

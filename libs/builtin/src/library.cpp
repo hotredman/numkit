@@ -1,9 +1,11 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/language/operators/binary_ops.hpp>
+#include <numkit/builtin/language/types/types.hpp>
 #include <numkit/builtin/math/arithmetic/rounding.hpp>
 
 #include <numkit/core/scratch.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value_type.hpp>
 
 #include <algorithm>
 #include <atomic>
@@ -650,9 +652,12 @@ void BuiltinLibrary::install(Engine &engine)
     // ── Pack 33: idivide + bsxfun ─────────────────────────────────────
     //
     // idivide(A, B[, opt]) — integer-style division with rounding mode
-    // opt ∈ {'fix' (default), 'floor', 'ceil', 'round'}. Both inputs
-    // are coerced to DOUBLE for the calculation; result type follows
-    // input A (DOUBLE in / DOUBLE out is fine for typical script use).
+    // opt ∈ {'fix' (default), 'floor', 'ceil', 'round'}. Per MATLAB,
+    // at least one of A/B must be of an integer class (idivide on two
+    // doubles is rejected). The other operand can be a same-class
+    // integer or a scalar double; mixed integer classes / non-scalar
+    // doubles are rejected. Result type matches the integer operand.
+    // See BUGS.md #29.
     engine.registerFunction("idivide",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.size() < 2)
@@ -664,16 +669,53 @@ void BuiltinLibrary::install(Engine &engine)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
             }
             auto *mr = ctx.engine->resource();
-            // Compose: fix(A ./ B) = idivide. Using public API avoids
-            // re-implementing broadcast logic.
-            Value q = builtin::rdivide(mr, args[0], args[1]);
-            if (opt == "fix" || opt.empty())   outs[0] = builtin::fix(mr, q);
-            else if (opt == "floor")            outs[0] = builtin::floor(mr, q);
-            else if (opt == "ceil")             outs[0] = builtin::ceil(mr, q);
-            else if (opt == "round")            outs[0] = builtin::round(mr, q);
+
+            const ValueType t0 = args[0].type();
+            const ValueType t1 = args[1].type();
+            const bool int0 = isIntegerType(t0);
+            const bool int1 = isIntegerType(t1);
+            const bool dbl0 = (t0 == ValueType::DOUBLE);
+            const bool dbl1 = (t1 == ValueType::DOUBLE);
+
+            if (!int0 && !int1)
+                throw std::runtime_error(
+                    "At least one argument must belong to an integer class.");
+
+            ValueType resultType;
+            if (int0 && int1) {
+                if (t0 != t1)
+                    throw std::runtime_error(
+                        "Integers can only be combined with integers of the same "
+                        "class, or scalar doubles.");
+                resultType = t0;
+            } else if (int0) {
+                if (!dbl1 || !args[1].isScalar())
+                    throw std::runtime_error(
+                        "Integers can only be combined with integers of the same "
+                        "class, or scalar doubles.");
+                resultType = t0;
+            } else {
+                if (!dbl0 || !args[0].isScalar())
+                    throw std::runtime_error(
+                        "Integers can only be combined with integers of the same "
+                        "class, or scalar doubles.");
+                resultType = t1;
+            }
+
+            // Compose: round(A ./ B). rdivide on integer arrays returns
+            // double, so the rounding helpers see DOUBLE input.
+            const Value a = builtin::toDouble(mr, args[0]);
+            const Value b = builtin::toDouble(mr, args[1]);
+            Value q = builtin::rdivide(mr, a, b);
+            if (opt == "fix" || opt.empty()) q = builtin::fix(mr, q);
+            else if (opt == "floor")          q = builtin::floor(mr, q);
+            else if (opt == "ceil")           q = builtin::ceil(mr, q);
+            else if (opt == "round")          q = builtin::round(mr, q);
             else
                 throw std::runtime_error(
                     "idivide: opt must be 'fix', 'floor', 'ceil', or 'round'");
+
+            outs[0] = builtin::cast(mr, q, mtypeName(resultType));
         });
 
     // bsxfun(fn, A, B) — apply fn elementwise to (A, B). numkit's

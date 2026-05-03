@@ -797,18 +797,29 @@ TEST_P(BuiltinTest, LocalFunctions)
 // ── idivide / bsxfun — Pack 33 ────────────────────────────────
 TEST_P(BuiltinTest, Idivide)
 {
-    EXPECT_DOUBLE_EQ(evalScalar("idivide(10, 3);"), 3.0);          // fix(3.33) = 3
-    EXPECT_DOUBLE_EQ(evalScalar("idivide(-10, 3);"), -3.0);        // fix(-3.33) = -3
-    EXPECT_DOUBLE_EQ(evalScalar("idivide(-10, 3, 'floor');"), -4.0);
-    EXPECT_DOUBLE_EQ(evalScalar("idivide(7, 2, 'ceil');"), 4.0);
-    EXPECT_DOUBLE_EQ(evalScalar("idivide(7, 2, 'round');"), 4.0);
-    // Vectorized.
-    eval("v = idivide([10 20 30], 4);");
+    // MATLAB rule: at least one operand must be of integer class. The
+    // other can be the same-class integer or a scalar double. Result
+    // type matches the integer operand. See BUGS.md #29.
+    EXPECT_EQ(evalScalar("double(idivide(int32(10), int32(3)));"),  3.0);
+    EXPECT_EQ(evalScalar("double(idivide(int32(-10), int32(3)));"), -3.0);
+    EXPECT_EQ(evalScalar("double(idivide(int32(-10), int32(3), 'floor'));"), -4.0);
+    EXPECT_EQ(evalScalar("double(idivide(int32(7), int32(2), 'ceil'));"),    4.0);
+    EXPECT_EQ(evalScalar("double(idivide(int32(7), int32(2), 'round'));"),   4.0);
+    // Mixed: integer array + scalar double divisor.
+    eval("v = idivide(int32([10 20 30]), 4);");
     auto *v = getVarPtr("v");
     ASSERT_EQ(v->numel(), 3u);
-    EXPECT_DOUBLE_EQ(v->doubleData()[0], 2.0);  // fix(2.5) = 2
-    EXPECT_DOUBLE_EQ(v->doubleData()[1], 5.0);
-    EXPECT_DOUBLE_EQ(v->doubleData()[2], 7.0);  // fix(7.5) = 7
+    EXPECT_EQ(v->type(), ValueType::INT32);
+    EXPECT_EQ(v->int32Data()[0], 2);   // fix(2.5) = 2
+    EXPECT_EQ(v->int32Data()[1], 5);
+    EXPECT_EQ(v->int32Data()[2], 7);   // fix(7.5) = 7
+}
+
+TEST_P(BuiltinTest, IdivideRejectsDoubleDouble)
+{
+    // MATLAB R2025b: idivide(double, double) → "At least one argument
+    // must belong to an integer class."
+    EXPECT_THROW(eval("y = idivide(10, 3);"), std::runtime_error);
 }
 
 TEST_P(BuiltinTest, Bsxfun)
@@ -1936,8 +1947,11 @@ TEST_P(BuiltinTest, PolyRootsRoundtrip)
 TEST_P(BuiltinTest, IdivideRemRelation)
 {
     // For 'fix' mode: a == idivide(a, b, 'fix') * b + rem(a, b).
-    eval("a = [10 -10 7 -7]; b = [3 3 -3 -3];");
-    eval("q = idivide(a, b, 'fix'); r = rem(a, b); recon = q .* b + r;");
+    // idivide takes int; rem currently requires double, so do the
+    // remainder side in double space and reconstitute. See BUGS.md #29.
+    eval("ai = int32([10 -10 7 -7]); bi = int32([3 3 -3 -3]);");
+    eval("ad = double(ai); bd = double(bi);");
+    eval("q = double(idivide(ai, bi, 'fix')); r = rem(ad, bd); recon = q .* bd + r;");
     auto *recon = getVarPtr("recon");
     ASSERT_EQ(recon->numel(), 4u);
     EXPECT_DOUBLE_EQ(recon->doubleData()[0],  10.0);
@@ -2239,7 +2253,7 @@ TEST_P(BuiltinTest, EmptyInputIdivideBsxfun)
         eval(expr);
         return getVarPtr("z") && getVarPtr("z")->isEmpty();
     };
-    EXPECT_TRUE(isEmpty("z = idivide([], 3);"));
+    EXPECT_TRUE(isEmpty("z = idivide(int32([]), int32(3));"));
     EXPECT_TRUE(isEmpty("z = bsxfun(@plus, [], []);"));
 }
 
