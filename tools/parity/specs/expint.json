@@ -1,0 +1,10 @@
+{
+  "name": "expint",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 50, 100000);",
+  "expr": "y = expint(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = expint(X). 100k-pt on (0,50]. 20 iters. Element-wise SAVE."
+}

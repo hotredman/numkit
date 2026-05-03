@@ -1,0 +1,10 @@
+{
+  "name": "erfc",
+  "namespace": "core",
+  "setup": "x = linspace(-5, 5, 1000000);",
+  "expr": "y = erfc(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = erfc(X). 1M-pt sweep. 20 iters. Element-wise SAVE."
+}

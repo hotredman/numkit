@@ -171,38 +171,28 @@ mass-SIMD pass should close all of these.
 
 ---
 
-## 10. `libs/signal`: `nextpow2` is scalar-only and namespaced — **P2**
+## 10. `libs/signal`: `compat.nextpow2` is scalar-only — **P2**
 
-**Reproducer:** `nextpow2([1, 2, 5, 100])` → "VM: undefined function 'nextpow2'".
-After `import signal.*`: `nextpow2([1, 2, 5, 100])` → "Cannot convert
-double to scalar (in call to 'nextpow2')".
-**MATLAB:** unqualified, accepts any-shape input, returns same-shape output.
-**Impact:** Surfaced when bulk-benching the `Logs` section — element-wise
-spec on a 1M-pt array can't even run. Function is technically present
-(libs/signal has it) but parity-incompatible.
-**Where:** [libs/signal/src/library.cpp](libs/signal/src/library.cpp) registers it under `signal.*`;
-implementation in [libs/signal/src/transforms/transform_helpers.cpp](libs/signal/src/transforms/transform_helpers.cpp)
-takes a single double scalar.
-**Fix:** lift to top-level (`core` namespace) and vectorize over input
-shape — straightforward libs work, deferred from this cycle.
+**Reproducer:**
+```matlab
+import compat.*
+nextpow2(100)            % → 7  (scalar OK)
+nextpow2([1 2 5 100])    % → "Cannot convert double to scalar (in call to 'nextpow2')"
+```
+**MATLAB:** `nextpow2` is unqualified and vectorized — accepts any-shape
+input and returns same-shape output.
+**Impact:** Element-wise bulk-bench on a 1M-pt array can't run; the
+compat alias only covers the scalar case.
+**Where:** [libs/signal/src/library.cpp](libs/signal/src/library.cpp)
+aliases `signal.nextpow2` into `compat`; implementation in
+[libs/signal/src/transforms/transform_helpers.cpp](libs/signal/src/transforms/transform_helpers.cpp)
+takes a single `double` scalar.
+**Fix:** vectorize the impl (broadcast `nextpow2` element-wise over any
+shape). Straightforward libs work, deferred from this cycle.
+**Note (2026-05-03):** The earlier flag here that "nextpow2 isn't found
+without `import signal.*`" was wrong — `import compat.*` flattens it,
+and the parity harness now injects that line on every numkit run.
 **First seen:** 2026-05-03, parity bulk-bench iteration 4.
-
----
-
-## 11. `libs/stats`: `movsum` (and likely siblings) namespaced under `stats.*` — **P2**
-
-**Reproducer:** `movsum([1 2 3 4 5], 3)` → "VM: undefined function 'movsum'".
-After `import stats.*`: works correctly.
-**MATLAB:** unqualified, top-level — `movsum`, `movmean`, `movmedian`,
-`movmin`, `movmax`, `movvar`, `movstd`, `movprod` are all expected at
-the global scope.
-**Impact:** Surfaces in bulk-bench when the spec calls these without an
-explicit `import`. Implementation is correct (same fingerprint as
-MATLAB after import), it's purely a registration / namespace issue.
-**Where:** [libs/stats/src/library.cpp](libs/stats/src/library.cpp) registers under `stats.*`.
-**Fix:** lift the moving-window family to top-level (or alias under both
-`stats.*` and unqualified) — a libs-side change, deferred.
-**First seen:** 2026-05-03, parity bulk-bench iteration 5.
 
 ---
 

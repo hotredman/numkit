@@ -429,7 +429,7 @@ multiple sections; all occurrences refresh together).
 | `minus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `mldivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `mod` | ✅ | 3.384 | 0.30× | 1.45× | OK | Sig: Y = mod(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
-| `movsum` | ✅ |  |  |  | N/A | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
+| `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
 | `mpower` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `mrdivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `mtimes` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
@@ -537,24 +537,24 @@ multiple sections; all occurrences refresh together).
 | `besselj` | ✅ |  |  |  |  |  |
 | `besselk` | ✅ |  |  |  |  |  |
 | `bessely` | ✅ |  |  |  |  |  |
-| `beta` | ✅ |  |  |  |  |  |
-| `betainc` | ✅ |  |  |  |  |  |
+| `beta` | ✅ | 63.067 | 0.11× | 0.70× | OK | Sig: Y = beta(Z, W). 1000x1000 grid. 20 iters. Element-wise SAVE. |
+| `betainc` | ✅ | 0.095 | 1.09× | 3.09× | OK | Sig: I = betainc(X, A, B). 1k-pt with scalar a=2.5 b=4. 20 iters. Element-wise SAVE. |
 | `betaincinv` | ✅ | 1.119 | 1.04× | 4.43× | OK | Inverse regularized beta over 2k probability points, a=3 b=5. 20 iters, element-wise. |
-| `betaln` | ✅ |  |  |  |  |  |
+| `betaln` | ✅ | 149.841 | 0.05× | 0.25× | OK | Sig: Y = betaln(Z, W). 1000x1000 grid. 20 iters. Element-wise SAVE. |
 | `ellipj` | ✅ | 0.614 | 2.23× | 1.41× | OK | Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn. |
 | `ellipke` | ✅ |  |  |  |  |  |
 | `erf` | ✅ | 9.174 | 0.28× | 0.78× | OK | smoke-test (already implemented). N=1e6, mean over 10 iters. |
-| `erfc` | ✅ |  |  |  |  |  |
-| `erfcinv` | ✅ |  |  |  |  |  |
-| `erfcx` | ✅ |  |  |  |  |  |
-| `erfinv` | ✅ |  |  |  |  |  |
-| `expint` | ✅ |  |  |  |  |  |
-| `gamma` | ✅ |  |  |  |  |  |
+| `erfc` | ✅ | 12.800 | 0.21× | 0.84× | OK | Sig: Y = erfc(X). 1M-pt sweep. 20 iters. Element-wise SAVE. |
+| `erfcinv` | ✅ | 46.123 | 0.08× | 0.28× | OK | Sig: Y = erfcinv(X). 1M-pt sweep on (0,2). 20 iters. Element-wise SAVE. |
+| `erfcx` | ✅ | 8.660 | 0.21× | 0.45× | OK | Sig: Y = erfcx(X) = exp(X^2)*erfc(X). 1M-pt. 20 iters. Element-wise SAVE. |
+| `erfinv` | ✅ | 45.836 | 0.08× | 0.28× | OK | Sig: Y = erfinv(X). 1M-pt sweep avoiding singularities. 20 iters. Element-wise SAVE. |
+| `expint` | ✅ | 4.783 | 3.12× | 8.57× | OK | Sig: Y = expint(X). 100k-pt on (0,50]. 20 iters. Element-wise SAVE. |
+| `gamma` | ✅ | 1.306 | 0.28× | 0.84× | OK | Sig: Y = gamma(X). 100k-pt sweep on (0,10]. 20 iters. Element-wise SAVE. |
 | `gammainc` | ✅ |  |  |  |  |  |
 | `gammaincinv` | ✅ | 1.725 | 1.18× | 23.31× | OK | Inverse regularized gamma over 5k probability points, a=2.5. 20 iters, element-wise. |
-| `gammaln` | ✅ |  |  |  |  |  |
-| `legendre` | ✅ |  |  |  |  |  |
-| `psi` | ✅ |  |  |  |  |  |
+| `gammaln` | ✅ | 3.523 | 0.09× | 0.24× | OK | Sig: Y = gammaln(X). 100k-pt sweep on (0,100]. 20 iters. Element-wise SAVE. |
+| `legendre` | ✅ | 0.039 | 12.03× | 6.21× | OK | Sig: P = legendre(N, X). N=4, 1k pts. 20 iters. SAVE on (n+1)x1000 matrix. |
+| `psi` | ✅ | 0.689 | 0.81× | 1.05× | OK | Sig: Y = psi(X). 100k-pt sweep on positive domain. 20 iters. Element-wise SAVE. |
 
 ## Discrete Math
 
@@ -878,7 +878,7 @@ multiple sections; all occurrences refresh together).
 | `movmin` | ✅ |  |  |  |  | moving min |
 | `movprod` | ✅ |  |  |  |  | moving prod |
 | `movstd` | ✅ |  |  |  |  | moving std |
-| `movsum` | ✅ |  |  |  | N/A | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
+| `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
 | `movvar` | ✅ |  |  |  |  | moving var |
 | `prctile` | ✅ |  |  |  |  |  |
 | `quantile` | ✅ |  |  |  |  |  |
