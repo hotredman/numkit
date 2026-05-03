@@ -1,0 +1,10 @@
+{
+  "name": "cellfun",
+  "namespace": "core",
+  "setup": "c = {1, 2, 3, 4, 5};",
+  "expr": "y = cellfun(@(x) x*2, c);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: A = cellfun(@F, C). Apply to cells. 1000 iters.",
+  "out_var": "y"
+}

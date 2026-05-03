@@ -1,0 +1,14 @@
+{
+  "name": "mat2cell",
+  "namespace": "core",
+  "setup": "M = reshape(1:36, 6, 6); rsz = [3 3]; csz = [3 3];",
+  "expr": "y = mat2cell(M, rsz, csz);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C = mat2cell(M, R, C). 6x6 \u2192 2x2 cell of 3x3. 10000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(numel(y{1}))",
+    "double(numel(y{end}))"
+  ]
+}

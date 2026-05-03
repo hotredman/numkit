@@ -1,0 +1,10 @@
+{
+  "name": "pagemtimes",
+  "namespace": "core",
+  "setup": "A = reshape(1:8000, 20, 20, 20); B = reshape(1:8000, 20, 20, 20);",
+  "expr": "y = pagemtimes(A, B);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C = pagemtimes(A, B). 20\u00d720\u00d720 batch matmul. 100 iters.",
+  "out_var": "y"
+}

@@ -164,7 +164,7 @@ multiple sections; all occurrences refresh together).
 | `compose` | ✅ | 0.391 | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
 | `contains` | ✅ | 0.000 | 3.59× |  | OK | Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14). |
 | `convertcharstostrings` | ✅ | 0.000 | 5.02× |  | OK | Sig: S = convertCharsToStrings(C). 100k iters. |
-| `convertcontainedstringstochars` | ✅ |  |  |  |  |  |
+| `convertcontainedstringstochars` | ✅ | 0.000 | 2.02× |  | OK | Sig: C2 = convertContainedStringsToChars(C). 10000 iters. |
 | `convertstringstochars` | ✅ | 0.000 | 3.06× |  | OK | Sig: C = convertStringsToChars(S). 100k iters. |
 | `count` | ✅ | 0.005 | 1.11× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
 | `deblank` | ✅ | 0.000 | 4.21× | 145.71× | OK | Sig: S = deblank(S). Trim trailing space. 10000 iters. |
@@ -210,8 +210,8 @@ multiple sections; all occurrences refresh together).
 | `strcmp` | ✅ | 0.000 | 7.11× | 33.62× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
 | `strcmpi` | ✅ | 0.000 | 4.77× | 21.40× | OK | Sig: TF = strcmpi(A, B). 100k iters. |
 | `strfind` | ✅ | 0.017 | 0.71× | 0.77× | OK | Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters. |
-| `string` | ✅ |  |  |  |  |  |
-| `strings` | ✅ | 0.710 | 0.22× | — | OK | 100x100 empty-string array. 1000 iters. |
+| `string` | ✅ | 0.002 | 0.68× |  | OK | Sig: S = string(X). Numeric → string array. 1000 iters. fp limited to numel (string-array indexing broken — BUGS #7). |
+| `strings` | ✅ | 0.724 | 0.19× |  | OK | Sig: S = strings(M, N). 100x100 empty string array. 10000 iters. |
 | `strip` | ✅ | 0.000 | 12.71× |  | OK | Sig: S = strip(S). Trim both. 10000 iters. |
 | `strjoin` | ✅ | 0.009 | 12.80× | 89.14× | OK | Sig: S = strjoin(C, DELIM). 1k tokens via for-init (repmat rejects cell). 1000 iters. |
 | `strjust` | ✅ | 0.000 | 18.35× | 320.71× | OK | Sig: S2 = strjust(S, side). 3-row right-justify. 10000 iters. |
@@ -236,13 +236,13 @@ multiple sections; all occurrences refresh together).
 | `getfield` | ✅ | 0.000 | 15.25× | 107.10× | OK | Sig: V = getfield(S, F). 100k iters. |
 | `isfield` | ✅ | 0.000 | 6.67× | 26.00× | OK | Sig: TF = isfield(S, F). 100k iters. |
 | `isstruct` | ✅ | 0.000 | 8.76× | 29.48× | OK | Sig: TF = isstruct(S). Returns scalar logical. 100k iters. |
-| `orderfields` | ✅ |  |  |  |  | reorder |
+| `orderfields` | ✅ | 0.000 |  |  | N/A | Sig: S2 = orderfields(S). Alphabetical sort of fields. 10000 iters. |
 | `rmfield` | ✅ | 0.000 | 13.56× | 11.47× | OK | Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters. |
 | `setfield` | ✅ | 0.000 | 7.82× | 67.62× | OK | Sig: S2 = setfield(S, F, V). 10k iters. |
 | `struct` | ✅ | 0.000 | 7.90× | 34.50× | OK | Sig: S = struct(name1,val1,...). 5 fields. 10k iters. Custom fp. |
 | `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
 | `struct2table` | ❌ |  |  |  |  |  |
-| `structfun` | ✅ |  |  |  |  |  |
+| `structfun` | ✅ | 0.002 | 3.03× | 38.01× | OK | Sig: A = structfun(@F, S). Apply *2 to each field. 1000 iters. (May fail due to lambda BUG #11). |
 | `table2struct` | ❌ |  |  |  |  |  |
 
 ## Cell Arrays
@@ -252,18 +252,18 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `cell` | ✅ | 0.068 | 0.08× | 2.60× | OK | Sig: C = cell(M, N). 100x100 empty cell. 1000 iters. |
-| `cell2mat` | ✅ |  |  |  |  | concat cells |
+| `cell2mat` | ✅ | 0.000 | 36.51× | 149.49× | OK | Sig: M = cell2mat(C). 3x3 cell of scalars. 10000 iters. |
 | `cell2struct` | ✅ | 0.000 | 4.73× | 15.26× | OK | Sig: S = cell2struct(C, FIELDS, DIM). 10k iters. |
 | `cell2table` | ❌ |  |  |  |  |  |
-| `celldisp` | ✅ |  |  |  |  |  |
-| `cellfun` | ✅ |  |  |  |  |  |
+| `celldisp` | ✅ |  |  |  | N/A | Sig: celldisp(C). Captured via evalc. 10000 iters. |
+| `cellfun` | ✅ | 0.002 | 2.64× | 20.17× | OK | Sig: A = cellfun(@F, C). Apply to cells. 1000 iters. |
 | `cellplot` | ❌ |  |  |  |  |  |
 | `cellstr` | ✅ | 0.000 | 13.65× |  | MISMATCH | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
 | `iscell` | ✅ | 0.000 | 8.30× | 36.14× | OK | Sig: TF = iscell(X). 100k iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
-| `mat2cell` | ✅ |  |  |  |  | split into cell |
+| `mat2cell` | ✅ | 0.001 | 17.51× | 7.67× | OK | Sig: C = mat2cell(M, R, C). 6x6 → 2x2 cell of 3x3. 10000 iters. |
 | `num2cell` | ✅ | 0.007 | 10.72× | 7.25× | OK | Sig: C = num2cell(A). 1k-vec wrap each. 1000 iters. |
-| `string` | ✅ |  |  |  |  |  |
+| `string` | ✅ | 0.002 | 0.68× |  | OK | Sig: S = string(X). Numeric → string array. 1000 iters. fp limited to numel (string-array indexing broken — BUGS #7). |
 | `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
 | `table` | ❌ |  |  |  |  |  |
 | `table2cell` | ❌ |  |  |  |  |  |
@@ -275,11 +275,11 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feval` | ✅ |  |  |  |  | call handle by name |
+| `feval` | ✅ | 0.000 | 4.85× | 26.99× | OK | Sig: V = feval(F, X). Call sin(pi/2) via feval. 100k iters. |
 | `func2str` | ✅ | 0.000 | 4.42× |  | MISMATCH | Sig: S = func2str(F). 10k iters. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
-| `functions` | ✅ |  |  |  |  | introspection |
-| `localfunctions` | ✅ |  |  |  |  | (stub: empty cell) |
+| `functions` | ✅ | 0.000 | 2.77× | 6.59× | OK | Sig: I = functions(F). Introspect handle. 10000 iters. |
+| `localfunctions` | ✅ | 0.000 | 373.56× | 9.30× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 14.84× | 19.64× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
 ## Categorical Arrays
@@ -437,7 +437,7 @@ multiple sections; all occurrences refresh together).
 | `pagectranspose` | ✅ | 0.207 | 0.24× | 0.23× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
 | `pagemldivide` | ❌ |  |  |  |  |  |
 | `pagemrdivide` | ❌ |  |  |  |  |  |
-| `pagemtimes` | ✅ |  |  |  |  |  |
+| `pagemtimes` | ✅ | 0.020 | 0.77× |  | OK | Sig: C = pagemtimes(A, B). 20×20×20 batch matmul. 100 iters. |
 | `pagetranspose` | ✅ | 0.083 | 1.11× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
 | `plus` | ✅ | 2.142 | 0.05× | 1.21× | OK | Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters. |
 | `power` | ✅ | 0.984 | 0.02× | 0.04× | OK | Sig: Y = power(A, B). 100k-pt squaring. 100 iters. |
@@ -573,7 +573,7 @@ multiple sections; all occurrences refresh together).
 | `perms` | ✅ | 0.003 | 38.05× | 3.05× | OK | Sig: P = perms(V). 6! = 720 perms. 100 iters. |
 | `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |
 | `rat` | ✅ | 0.001 | 82.13× |  | MISMATCH | Sig: S = rat(X, TOL). Continued frac of pi. 1000 iters. |
-| `rats` | ✅ |  |  |  |  |  |
+| `rats` | ✅ | 0.001 | 35.70× |  | MISMATCH | Sig: S = rats(X). Continued frac as char. 10000 iters. |
 
 ## Polynomials
 
@@ -652,7 +652,7 @@ multiple sections; all occurrences refresh together).
 | `pagelsqminnorm` | ❌ |  |  |  |  |  |
 | `pagemldivide` | ❌ |  |  |  |  |  |
 | `pagemrdivide` | ❌ |  |  |  |  |  |
-| `pagemtimes` | ✅ |  |  |  |  |  |
+| `pagemtimes` | ✅ | 0.020 | 0.77× |  | OK | Sig: C = pagemtimes(A, B). 20×20×20 batch matmul. 100 iters. |
 | `pagenorm` | ❌ |  |  |  |  |  |
 | `pagepinv` | ❌ |  |  |  |  |  |
 | `pagesvd` | ❌ |  |  |  |  |  |

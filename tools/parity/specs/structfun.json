@@ -1,0 +1,10 @@
+{
+  "name": "structfun",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2,'c',3,'d',4,'e',5);",
+  "expr": "y = structfun(@(x) x*2, s);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: A = structfun(@F, S). Apply *2 to each field. 1000 iters. (May fail due to lambda BUG #11).",
+  "out_var": "y"
+}
