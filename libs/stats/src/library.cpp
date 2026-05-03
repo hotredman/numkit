@@ -109,6 +109,13 @@ void wblinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wblrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void wblstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/rayleigh.cpp
+void raylpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void raylstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -210,6 +217,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "wblinv",   &stats::detail::wblinv_reg);
     reg("dist", "wblrnd",   &stats::detail::wblrnd_reg);
     reg("dist", "wblstat",  &stats::detail::wblstat_reg);
+
+    reg("dist", "raylpdf",  &stats::detail::raylpdf_reg);
+    reg("dist", "raylcdf",  &stats::detail::raylcdf_reg);
+    reg("dist", "raylinv",  &stats::detail::raylinv_reg);
+    reg("dist", "raylrnd",  &stats::detail::raylrnd_reg);
+    reg("dist", "raylstat", &stats::detail::raylstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
