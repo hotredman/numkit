@@ -9,8 +9,10 @@
 
 #include <numkit/builtin/language/bitwise/int_math.hpp>
 
+#include <numkit/builtin/language/types/types.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
+#include <numkit/core/value_type.hpp>
 
 #include "helpers.hpp"
 
@@ -170,6 +172,75 @@ Value bitget(std::pmr::memory_resource *mr, const Value &a, const Value &n)
 // ════════════════════════════════════════════════════════════════════
 namespace detail {
 
+namespace {
+
+// Pick the integer class that bitand/bitor/bitxor results follow.
+// MATLAB rules (matching idivide's cousin): both int → same class
+// (mixed int classes error), one int + scalar double → int's class,
+// double-double → DOUBLE (bit ops accept double as a historical
+// convenience). See BUGS.md #13.
+ValueType pickBitwiseResultType(const Value &a, const Value &b, const char *fn)
+{
+    const ValueType t0 = a.type();
+    const ValueType t1 = b.type();
+    const bool int0 = isIntegerType(t0);
+    const bool int1 = isIntegerType(t1);
+    const bool dbl0 = (t0 == ValueType::DOUBLE);
+    const bool dbl1 = (t1 == ValueType::DOUBLE);
+
+    if (!int0 && !int1) return ValueType::DOUBLE;
+    if (int0 && int1) {
+        if (t0 != t1)
+            throw Error(std::string(fn) + ": integer inputs must be the same class",
+                         0, 0, fn, "",
+                         std::string("m:") + fn + ":mixedInt");
+        return t0;
+    }
+    // One int, one non-int.
+    if (int0) {
+        if (!dbl1 || !b.isScalar())
+            throw Error(std::string(fn) + ": integer + non-scalar-double mix",
+                         0, 0, fn, "",
+                         std::string("m:") + fn + ":badMix");
+        return t0;
+    }
+    if (!dbl0 || !a.isScalar())
+        throw Error(std::string(fn) + ": integer + non-scalar-double mix",
+                     0, 0, fn, "",
+                     std::string("m:") + fn + ":badMix");
+    return t1;
+}
+
+// Run binary bitwise op `fn` (takes mr + two DOUBLE Values) over
+// possibly-int inputs. Casts both inputs to DOUBLE; restores the
+// integer class on the result if MATLAB would.
+template <typename Fn>
+Value runBitwiseBinary(std::pmr::memory_resource *mr,
+                       const Value &a, const Value &b,
+                       const char *fnName, Fn fn)
+{
+    const ValueType rt = pickBitwiseResultType(a, b, fnName);
+    Value ad = (a.type() == ValueType::DOUBLE) ? a : toDouble(mr, a);
+    Value bd = (b.type() == ValueType::DOUBLE) ? b : toDouble(mr, b);
+    Value r = fn(mr, ad, bd);
+    if (rt != ValueType::DOUBLE)
+        r = cast(mr, r, mtypeName(rt));
+    return r;
+}
+
+} // namespace
+
+#define NK_BIN_REG_BIT(name, fn)                                                       \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                       \
+                    Span<Value> outs, CallContext &ctx)                               \
+    {                                                                                  \
+        if (args.size() < 2)                                                           \
+            throw Error(#name ": requires 2 arguments",                               \
+                         0, 0, #name, "", "m:" #name ":nargin");                       \
+        outs[0] = runBitwiseBinary(ctx.engine->resource(), args[0], args[1],           \
+                                   #name, fn);                                         \
+    }
+
 #define NK_BIN_REG(name, fn)                                                   \
     void name##_reg(Span<const Value> args, size_t /*nargout*/,               \
                     Span<Value> outs, CallContext &ctx)                       \
@@ -182,12 +253,13 @@ namespace detail {
 
 NK_BIN_REG(gcd,      gcd)
 NK_BIN_REG(lcm,      lcm)
-NK_BIN_REG(bitand,   bitand_)
-NK_BIN_REG(bitor,    bitor_)
-NK_BIN_REG(bitxor,   bitxor_)
-NK_BIN_REG(bitshift, bitshift)
+NK_BIN_REG_BIT(bitand,   bitand_)
+NK_BIN_REG_BIT(bitor,    bitor_)
+NK_BIN_REG_BIT(bitxor,   bitxor_)
+NK_BIN_REG_BIT(bitshift, bitshift)
 
 #undef NK_BIN_REG
+#undef NK_BIN_REG_BIT
 
 void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
                 CallContext &ctx)
@@ -195,22 +267,50 @@ void bitcmp_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
     if (args.empty())
         throw Error("bitcmp: requires at least 1 argument",
                      0, 0, "bitcmp", "", "m:bitcmp:nargin");
-    int width = 64;
+    auto *mr = ctx.engine->resource();
+
+    int width = 0;
+    std::string explicitType;       // empty = inferred or default
+
     if (args.size() >= 2 && !args[1].isEmpty()) {
         if (args[1].isChar() || args[1].isString()) {
             const auto t = args[1].toString();
-            if (t == "uint8"  || t == "int8")  width = 8;
-            else if (t == "uint16" || t == "int16") width = 16;
-            else if (t == "uint32" || t == "int32") width = 32;
-            else if (t == "uint64" || t == "int64") width = 64;
+            if      (t == "uint8"  || t == "int8")  { width = 8;  explicitType = t; }
+            else if (t == "uint16" || t == "int16") { width = 16; explicitType = t; }
+            else if (t == "uint32" || t == "int32") { width = 32; explicitType = t; }
+            else if (t == "uint64" || t == "int64") { width = 64; explicitType = t; }
             else
                 throw Error("bitcmp: unknown type name",
                              0, 0, "bitcmp", "", "m:bitcmp:badType");
         } else {
             width = static_cast<int>(args[1].toScalar());
         }
+    } else {
+        // 1-arg form: width / class is inferred from the input type.
+        // MATLAB requires an integer-typed input here. See BUGS.md #13.
+        const ValueType t = args[0].type();
+        if (!isIntegerType(t))
+            throw Error(
+                "bitcmp: 1-arg form requires an integer input "
+                "(use bitcmp(A, 'uintN') for double inputs).",
+                0, 0, "bitcmp", "", "m:bitcmp:doubleNeedsClass");
+        explicitType = mtypeName(t);
+        switch (t) {
+        case ValueType::INT8: case ValueType::UINT8:  width = 8;  break;
+        case ValueType::INT16: case ValueType::UINT16: width = 16; break;
+        case ValueType::INT32: case ValueType::UINT32: width = 32; break;
+        case ValueType::INT64: case ValueType::UINT64: width = 64; break;
+        default: width = 64; break;
+        }
     }
-    outs[0] = bitcmp(ctx.engine->resource(), args[0], width);
+
+    // Run the bitwise complement in DOUBLE space, then cast back to
+    // the integer class if specified.
+    Value input = isIntegerType(args[0].type()) ? toDouble(mr, args[0]) : args[0];
+    Value r = bitcmp(mr, input, width);
+    if (!explicitType.empty())
+        r = cast(mr, r, explicitType);
+    outs[0] = std::move(r);
 }
 
 void bitset_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,

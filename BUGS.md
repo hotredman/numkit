@@ -252,7 +252,7 @@ cancellation); the single-poly form was just missing the call.
 
 ---
 
-## 13. `libs/builtin`: bit-ops reject integer typed arrays — **P2**
+## 13. `libs/builtin`: bit-ops reject integer typed arrays — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -276,6 +276,16 @@ inferred from input) cannot be expressed in numkit at all — must
 use the 2-arg `bitcmp(double_array, 'uint32')` form.
 **Where:** [libs/builtin/src/](libs/builtin/) bit-op adapters.
 **First seen:** 2026-05-03, parity bulk-bench iteration 8.
+**Fix (2026-05-03):** Wrapped the bitand/bitor/bitxor/bitshift adapters
+in [libs/builtin/src/language/bitwise/int_math.cpp] with a
+`runBitwiseBinary` helper that picks the result class via MATLAB's
+type rules (both int → same class; mixed-class int → error; one int
++ scalar double → int's class; both double → DOUBLE), then runs the
+existing DOUBLE-space pipeline and casts the result back to the
+chosen integer class. `bitcmp` got a 1-arg form: integer input infers
+the width from its class and returns the same integer class
+(`bitcmp(uint8(0))` → `uint8(255)`); double input still requires the
+explicit-class 2-arg form.
 
 ---
 
