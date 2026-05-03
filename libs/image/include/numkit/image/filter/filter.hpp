@@ -35,4 +35,25 @@ Value fspecial(std::pmr::memory_resource *mr,
                const std::string &type,
                const std::vector<double> &params);
 
+/// imfilter(I, h, [boundary, output_size, conv_or_corr])
+///   boundary: 0 (default), 'replicate', 'symmetric', 'circular'
+///   output_size: 'same' (default) or 'full'
+///   conv_or_corr: 'corr' (default) or 'conv'
+Value imfilter(std::pmr::memory_resource *mr,
+               const Value &I, const Value &h,
+               PadMode boundary, double pad_value,
+               bool full, bool flip_kernel);
+
+/// imgaussfilt(I, sigma[, FilterSize]) — 2-D Gaussian filtering with
+/// boundary='replicate', output='same'.
+Value imgaussfilt(std::pmr::memory_resource *mr,
+                  const Value &I, double sigma, int filter_size);
+
+/// imboxfilt(I, FilterSize) — local mean filter with replicate boundary.
+Value imboxfilt(std::pmr::memory_resource *mr, const Value &I, int filter_size);
+
+/// medfilt2(I[, [m n]]) — 2-D median filter. Default 3×3.
+Value medfilt2(std::pmr::memory_resource *mr, const Value &I,
+               int rows = 3, int cols = 3);
+
 } // namespace numkit::image

@@ -3022,7 +3022,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 ## Image Filtering
 
-**Namespace:** `image.filter.*` — 2 ✅ + 0 ⚠️ / 36 = 6%
+**Namespace:** `image.filter.*` — 6 ✅ + 0 ⚠️ / 36 = 17%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3039,12 +3039,12 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ❌ |  |  |  |  | bilateral |
-| `imboxfilt` | ❌ |  |  |  |  |  |
+| `imboxfilt` | ✅ |  |  |  | OK | average kernel via fspecial + imfilter, replicate boundary |
 | `imboxfilt3` | ❌ |  |  |  |  |  |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
-| `imfilter` | ❌ |  |  |  |  |  |
+| `imfilter` | ✅ |  |  |  | OK | corr/conv, same/full, replicate/symmetric/circular/scalar |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
-| `imgaussfilt` | ❌ |  |  |  |  |  |
+| `imgaussfilt` | ✅ |  |  |  | OK | composes fspecial('gaussian') + imfilter |
 | `imgaussfilt3` | ❌ |  |  |  |  |  |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
@@ -3052,7 +3052,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
 | `integralImage` | ❌ |  |  |  |  |  |
 | `integralImage3` | ❌ |  |  |  |  |  |
-| `medfilt2` | ❌ |  |  |  |  |  |
+| `medfilt2` | ✅ |  |  |  | OK | sliding-window median; default 3×3, zero-padded boundary |
 | `medfilt3` | ❌ |  |  |  |  |  |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |

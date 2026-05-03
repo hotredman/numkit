@@ -42,8 +42,12 @@ void xyz2lab_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lab2xyz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
-void padarray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
-void fspecial_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fspecial_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgaussfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -86,6 +90,10 @@ void ImageLibrary::install(Engine &engine)
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
+    reg("filter", "imfilter",     &image::detail::imfilter_reg);
+    reg("filter", "imgaussfilt",  &image::detail::imgaussfilt_reg);
+    reg("filter", "imboxfilt",    &image::detail::imboxfilt_reg);
+    reg("filter", "medfilt2",     &image::detail::medfilt2_reg);
 }
 
 } // namespace numkit
