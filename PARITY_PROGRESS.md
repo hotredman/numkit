@@ -1237,15 +1237,15 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 ## Hierarchical Clustering
 
-**Namespace:** `stats.hcluster.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+**Namespace:** `stats.cluster.*` — 5 ✅ + 0 ⚠️ / 7 = 71%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `linkage` | ❌ |  |  |  |  | agglomerative tree |
-| `cluster` | ❌ |  |  |  |  | flat clusters from linkage |
-| `clusterdata` | ❌ |  |  |  |  | data → flat clusters one-shot |
-| `cophenet` | ❌ |  |  |  |  | cophenetic correlation |
-| `inconsistent` | ❌ |  |  |  |  |  |
+| `linkage` | ✅ |  |  |  | OK | single/complete/average/weighted/centroid/median/ward |
+| `cluster` | ✅ |  |  |  | OK | maxclust + cutoff (distance criterion) |
+| `clusterdata` | ✅ |  |  |  | OK | pdist + linkage + cluster one-shot |
+| `cophenet` | ✅ |  |  |  | OK | Pearson between Y and cophenetic distances |
+| `inconsistent` | ✅ |  |  |  | OK | (mean, std, count, inconsistency) at given depth |
 | `dendrogram` | ❌ |  |  |  |  | display |
 | `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |
 
