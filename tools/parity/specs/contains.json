@@ -1,0 +1,13 @@
+{
+  "name": "contains",
+  "namespace": "core",
+  "setup": "s = repmat('apple banana cherry ', 1, 100); pat = 'banana';",
+  "expr": "y = contains(s, pat);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14)."
+}

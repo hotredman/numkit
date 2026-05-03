@@ -1,0 +1,13 @@
+{
+  "name": "strcmp",
+  "namespace": "core",
+  "setup": "a = 'apple'; b = 'apple';",
+  "expr": "y = strcmp(a, b);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14)."
+}

@@ -273,6 +273,36 @@ use the 2-arg `bitcmp(double_array, 'uint32')` form.
 
 ---
 
+## 14. `core/`: `(:)` on a logical scalar segfaults — **P0**
+
+**Reproducer:**
+```matlab
+y = true;
+z = y(:);            % Segmentation fault (exit 139)
+```
+Same crash for `false(:)`, `logical(0)(:)`, `logical(1)(:)`, the
+result of `strcmp(eq_strs)`, etc. — anything that produces a scalar
+`logical` and is then colon-flattened.
+**Works fine:** `scalar_double(:)`, `[true false true](:)` (logical
+vector with 2+ elements).
+**Symptom:** `Segmentation fault` (Windows: SEH 0xC0000005). No
+stderr output, just process death.
+**Impact:** Surfaces in any code that flattens a possibly-scalar
+boolean for subsequent reduction (`sum(strcmp(a,b)(:))`, common
+defensive pattern). Also breaks the parity harness's default
+fingerprint `sum(y(:))` for any function whose output may be a
+scalar logical (`strcmp`, `contains`, `startsWith`, `isequal`,
+`xor`, `any` w/ scalar input, ...).
+**Where:** core indexing dispatch — colon flattening on a 1-elem
+logical container. Probably misses a special-case for the SBO/scalar
+path of logical Value.
+**Status:** **pending — core fix required.** Not actionable from
+this cycle (libs/ only).
+**First seen:** 2026-05-03, parity bulk-bench iteration 10 (probing
+`strcmp` SAVE-block hang).
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

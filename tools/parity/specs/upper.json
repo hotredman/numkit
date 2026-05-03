@@ -1,0 +1,10 @@
+{
+  "name": "upper",
+  "namespace": "core",
+  "setup": "s = repmat('Hello World UPPER lower 123 ABC ', 1, 1000);",
+  "expr": "y = upper(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = upper(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "replace",
+  "namespace": "core",
+  "setup": "s = repmat('foo bar baz qux ', 1, 1000);",
+  "expr": "y = replace(s, 'bar', 'BAZ');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters."
+}

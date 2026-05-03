@@ -1,0 +1,14 @@
+{
+  "name": "strsplit",
+  "namespace": "core",
+  "setup": "s = repmat('apple,banana,cherry,date,elderberry,', 1, 100);",
+  "expr": "y = strsplit(s, ',');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "numel(y)",
+    "double(strlength(y{1}))",
+    "double(strlength(y{end-1}))"
+  ],
+  "comment": "Sig: C = strsplit(S, DELIM). 3.5k string, 500 splits \u2192 cell. 1000 iters. Custom fp (cell out)."
+}

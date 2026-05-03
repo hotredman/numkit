@@ -1,0 +1,10 @@
+{
+  "name": "strjoin",
+  "namespace": "core",
+  "setup": "c = cell(1, 1000); for i = 1:1000; c{i} = 'tok'; end",
+  "expr": "y = strjoin(c, '-');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: S = strjoin(C, DELIM). 1k tokens via for-init (repmat rejects cell). 1000 iters."
+}

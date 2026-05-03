@@ -1,0 +1,10 @@
+{
+  "name": "count",
+  "namespace": "core",
+  "setup": "s = repmat('abcabcabc abc xyz abc ', 1, 100); pat = 'abc';",
+  "expr": "y = count(s, pat);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: N = count(S, PAT). 2.2k char string. 10k iters."
+}
