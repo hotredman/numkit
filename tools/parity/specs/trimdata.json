@@ -1,0 +1,10 @@
+{
+  "name": "trimdata",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = trimdata(x, 500);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = trimdata(X, M). Trim to 500. 1000 iters.",
+  "out_var": "y"
+}

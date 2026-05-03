@@ -1,0 +1,13 @@
+{
+  "name": "isuniform",
+  "namespace": "core",
+  "setup": "x = linspace(0, 100, 100000);",
+  "expr": "y = isuniform(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isuniform(X). 100k uniform. 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

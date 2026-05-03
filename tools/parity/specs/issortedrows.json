@@ -1,0 +1,13 @@
+{
+  "name": "issortedrows",
+  "namespace": "core",
+  "setup": "X = sortrows(reshape(1:30000, 10000, 3));",
+  "expr": "y = issortedrows(X);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = issortedrows(X). 10k\u00d73 pre-sorted. 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

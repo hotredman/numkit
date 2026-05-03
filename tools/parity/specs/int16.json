@@ -1,0 +1,10 @@
+{
+  "name": "int16",
+  "namespace": "core",
+  "setup": "x = linspace(-30000, 30000, 1000000);",
+  "expr": "y = int16(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = int16(X). 1M doubles \u2192 int16. 50 iters.",
+  "out_var": "y"
+}

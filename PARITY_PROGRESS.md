@@ -46,7 +46,7 @@ multiple sections; all occurrences refresh together).
 | `circshift` | ✅ | 3.830 | 0.33× | 0.64× | OK | Sig: B = circshift(A, K). 1000x1000 shift [3 5]. 100 iters. Element-wise SAVE. |
 | `colon` | ⚠️ |  |  |  |  | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ |  |  |  |  | all combinations |
-| `ctranspose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `diag` | ✅ | 0.008 | 1.22× | 1.97× | OK | Sig: V = diag(A). Diagonal of 2000x2000 deterministic. 100 iters. |
 | `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
 | `eye` | ✅ | 1.808 | 0.57× | 0.00× | OK | Sig: I = eye(N). 1000x1000 identity. 100 iters. |
@@ -65,8 +65,8 @@ multiple sections; all occurrences refresh together).
 | `isrow` | ✅ | 0.000 | 29.38× | 17.67× | OK | Sig: TF = isrow(X). 1k row. 100k iters. |
 | `isscalar` | ✅ | 0.000 | 41.65× | 43.61× | OK | Sig: TF = isscalar(X). 100k iters. |
 | `issorted` | ✅ | 0.008 | 0.86× | 1.64× | OK | Sig: TF = issorted(X). 10k pre-sorted. 10k iters. |
-| `issortedrows` | ✅ |  |  |  |  |  |
-| `isuniform` | ✅ |  |  |  |  | uniform-spacing test |
+| `issortedrows` | ✅ | 0.012 | 0.66× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
+| `isuniform` | ✅ | 0.174 | 0.10× | 5.40× | OK | Sig: TF = isuniform(X). 100k uniform. 10000 iters. |
 | `isvector` | ✅ | 0.000 | 26.56× | 51.51× | OK | Sig: TF = isvector(X). 10k vec. 100k iters. |
 | `length` | ✅ | 0.000 | 26.91× | 36.70× | OK | Sig: L = length(X). 100x600 → returns 600. 100k iters. |
 | `linspace` | ✅ | 2.871 | 1.00× | 0.80× | OK | Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE. |
@@ -76,13 +76,13 @@ multiple sections; all occurrences refresh together).
 | `ndims` | ✅ | 0.000 | 27.42× | 25.81× | OK | Sig: N = ndims(X). 2D mat → 2. 100k iters. |
 | `numel` | ✅ | 0.000 | 22.63× | 20.44× | OK | Sig: N = numel(X). 1M-elem mat. 100k iters. |
 | `ones` | ✅ | 2.645 | 0.73× | 0.84× | OK | Sig: O = ones(M,N). 1000x1000. 100 iters. |
-| `paddata` | ✅ |  |  |  |  | pad N-D |
+| `paddata` | ✅ | 0.001 | 114.03× |  | OK | Sig: Y = paddata(X, M). Pad to 1500. 1000 iters. |
 | `permute` | ✅ | 2.322 | 0.54× | 1.11× | OK | Sig: Y = permute(X, ORDER). 100×100×100 → reordered. 100 iters. |
 | `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `repelem` | ✅ | 2.189 | 0.55× | 1.01× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
 | `repmat` | ✅ | 2.113 | 0.44× | 1.08× | OK | Sig: B = repmat(A,M,N). 50x50 → 1000x1000. 100 iters. |
 | `reshape` | ✅ | 1.999 | 0.00× | 1.06× | OK | Sig: B = reshape(A,M,N). 1M vec → 1000x1000. 100 iters. |
-| `resize` | ✅ |  |  |  |  | general resize |
+| `resize` | ✅ | 0.001 | 132.27× | 9756.20× | OK | Sig: Y = resize(X, M). Resize to 1500 (pad with zeros). 1000 iters. |
 | `rot90` | ✅ | 2.992 | 0.80× | 1.92× | OK | Sig: B = rot90(A). 1k×1k 90° rotate. 100 iters. |
 | `shiftdim` | ✅ | 2.273 | 0.01× | 7.12× | MISMATCH | Sig: B = shiftdim(A). Drop leading singleton. 1000 iters. |
 | `size` | ✅ | 0.000 | 18.70× | 36.28× | OK | Sig: S = size(X). 2D 100x600 → [100 600]. 100k iters. |
@@ -92,9 +92,9 @@ multiple sections; all occurrences refresh together).
 | `sub2ind` | ✅ | 7.505 | 0.23× | 0.47× | OK | Sig: IND = sub2ind(SZ, I, J). 1M (r,c) pairs. 50 iters. |
 | `tail` | ✅ | 0.000 | 54.28× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
-| `trimdata` | ✅ |  |  |  |  |  |
+| `trimdata` | ✅ | 0.000 | 125.66× |  | OK | Sig: Y = trimdata(X, M). Trim to 500. 1000 iters. |
 | `true` | ✅ |  |  |  |  | literal/constant |
-| `vertcat` | ✅ |  |  |  |  |  |
+| `vertcat` | ✅ | 1.811 | 0.64× | 0.60× | OK | Sig: D = vertcat(A,B). 500x500 stack. 100 iters. |
 | `zeros` | ✅ | 1.807 | 0.03× | 1.16× | OK | Sig: Z = zeros(M,N). 1000x1000. 100 iters. |
 
 ## Control Flow
@@ -127,11 +127,11 @@ multiple sections; all occurrences refresh together).
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `eps` | ✅ | 0.000 | 21.02× | 44.01× | OK | Sig: E = eps. Machine epsilon scalar. 1M iters. |
 | `flintmax` | ✅ | 0.000 | 25.86× | 47.63× | OK | Sig: M = flintmax. Largest exact float-int. 1M iters. |
-| `inf` | ✅ |  |  |  |  | constant |
-| `int16` | ✅ |  |  |  |  |  |
+| `inf` | ✅ | 0.000 | 37.86× | 44.14× | OK | Sig: I = Inf. 1M iters. |
+| `int16` | ✅ | 4.773 | 0.03× | 0.48× | OK | Sig: Y = int16(X). 1M doubles → int16. 50 iters. |
 | `int32` | ✅ | 5.063 | 0.03× | 0.54× | OK | Sig: Y = int32(X). 1M doubles → int32. 50 iters. Element-wise SAVE. |
-| `int64` | ✅ |  |  |  |  |  |
-| `int8` | ✅ |  |  |  |  |  |
+| `int64` | ✅ | 5.983 | 0.20× | 0.60× | OK | Sig: Y = int64(X). 1M doubles → int64. 50 iters. |
+| `int8` | ✅ | 4.314 | 0.02× | 0.42× | OK | Sig: Y = int8(X). 1M doubles → int8. 50 iters. |
 | `intmax` | ✅ | 0.000 | 11.60× | 16.41× | OK | Sig: M = intmax(TYPE). int32 max. 1M iters. |
 | `intmin` | ✅ | 0.000 | 11.16× | 4.63× | OK | Sig: M = intmin(TYPE). int32 min. 1M iters. |
 | `isfinite` | ✅ | 3.404 | 0.02× | 0.07× | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
@@ -141,15 +141,15 @@ multiple sections; all occurrences refresh together).
 | `isnan` | ✅ | 3.391 | 0.03× | 0.07× | OK | Sig: TF = isnan(X). 1M-pt with NaN every 3rd. 50 iters. Element-wise SAVE on logical. |
 | `isnumeric` | ✅ | 0.000 | 23.28× | 24.81× | OK | Sig: TF = isnumeric(X). Returns scalar. 100k iters. |
 | `isreal` | ✅ | 0.000 | 18.13× | 31.18× | OK | Sig: TF = isreal(X). Returns scalar. 100k iters. |
-| `nan` | ✅ |  |  |  |  | constant |
+| `nan` | ✅ | 0.000 | 166.43× | 9.70× | OK | Sig: N = NaN. 1M iters. fp checks isnan since y itself is NaN. |
 | `realmax` | ✅ | 0.000 | 30.11× | 45.22× | OK | Sig: M = realmax. Largest finite double. 1M iters. |
 | `realmin` | ✅ | 0.000 | 31.22× | 26.61× | OK | Sig: M = realmin. Smallest normal double. 1M iters. |
 | `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `typecast` | ✅ | 1.059 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
-| `uint16` | ✅ |  |  |  |  |  |
+| `uint16` | ✅ | 4.810 | 0.02× | 0.44× | OK | Sig: Y = uint16(X). 1M → uint16. 50 iters. |
 | `uint32` | ✅ | 5.264 | 0.03× | 0.49× | OK | Sig: Y = uint32(X). 1M doubles → uint32. 50 iters. Element-wise SAVE. |
-| `uint64` | ✅ |  |  |  |  |  |
-| `uint8` | ✅ |  |  |  |  |  |
+| `uint64` | ✅ | 6.278 | 0.20× | 0.59× | OK | Sig: Y = uint64(X). 1M → uint64. 50 iters. |
+| `uint8` | ✅ | 4.303 | 0.02× | 0.38× | OK | Sig: Y = uint8(X). 1M → uint8. 50 iters. |
 
 ## Characters and Strings
 
@@ -331,7 +331,7 @@ multiple sections; all occurrences refresh together).
 | `intersect` | ✅ | 0.623 | 0.43× | 0.42× | OK | Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE. |
 | `ismember` | ✅ | 1.359 | 0.30× | 0.55× | OK | Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical. |
 | `ismissing` | ❌ |  |  |  |  |  |
-| `issortedrows` | ❌ |  |  |  |  |  |
+| `issortedrows` | ❌ | 0.012 | 0.66× |  | OK | Sig: TF = issortedrows(X). 10k×3 pre-sorted. 1000 iters. |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
 | `jointables` | ❌ |  |  |  |  |  |
 | `mergevars` | ❌ |  |  |  |  |  |
@@ -419,7 +419,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `bsxfun` | ✅ |  |  |  |  | legacy broadcast |
 | `ceil` | ✅ | 4.028 | 0.14× | 0.87× | OK | Sig: Y = ceil(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
-| `ctranspose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `cumprod` | ✅ | 0.002 | 13.53× | 24.37× | OK | Sig: Y = cumprod(X). 1k-pt cumprod near 1 (avoid overflow). 20 iters. |
 | `cumsum` | ✅ | 2.579 | 1.13× | 1.01× | OK | Sig: Y = cumsum(X). 1M-pt cumulative sum (default dim). 20 iters. |
 | `diff` | ✅ | 4.714 | 0.31× | 0.50× | OK | Sig: Y = diff(X). 1M-pt adjacent differences. 20 iters. Element-wise SAVE. |
@@ -609,7 +609,7 @@ multiple sections; all occurrences refresh together).
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `cross` | ✅ | 0.000 | 19.03× | 187.75× | OK | Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported — see BUGS). 100k iters. |
-| `ctranspose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `dot` | ✅ | 2.036 | 0.02× | 0.07× | OK | Sig: D = dot(A, B). 1M-elem dot product. 100 iters. Scalar fp. |

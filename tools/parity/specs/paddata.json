@@ -1,0 +1,10 @@
+{
+  "name": "paddata",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = paddata(x, 1500);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = paddata(X, M). Pad to 1500. 1000 iters.",
+  "out_var": "y"
+}
