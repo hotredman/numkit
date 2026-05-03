@@ -174,6 +174,12 @@ void sfdr_reg            (Span<const Value>, size_t, Span<Value>, CallContext &)
 void instfreq_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void instbw_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// Vibration analysis (libs/signal/src/measurements/vibration.cpp)
+void envspectrum_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void tachorpm_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rainflow_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tsa_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // Pulse / transition metrics (libs/signal/src/measurements/pulse_metrics.cpp)
 void statelevels_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void midcross_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -358,6 +364,10 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "sfdr",             &signal::detail::sfdr_reg);
     reg("spectral_analysis", "instfreq",         &signal::detail::instfreq_reg);
     reg("spectral_analysis", "instbw",           &signal::detail::instbw_reg);
+    reg("vibration",    "envspectrum",  &signal::detail::envspectrum_reg);
+    reg("vibration",    "tachorpm",     &signal::detail::tachorpm_reg);
+    reg("vibration",    "rainflow",     &signal::detail::rainflow_reg);
+    reg("vibration",    "tsa",          &signal::detail::tsa_reg);
     reg("measurements", "statelevels",  &signal::detail::statelevels_reg);
     reg("measurements", "midcross",     &signal::detail::midcross_reg);
     reg("measurements", "risetime",     &signal::detail::risetime_reg);

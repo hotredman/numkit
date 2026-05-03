@@ -1643,16 +1643,16 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `envspectrum` | ❌ |  |  |  |  | envelope spectrum |
+| `envspectrum` | ✅ |  |  |  |  | envelope spectrum |
 | `modalfit` | ❌ |  |  |  |  | modal-fit |
 | `modalfrf` | ❌ |  |  |  |  |  |
 | `modalsd` | ❌ |  |  |  |  |  |
 | `orderspectrum` | ❌ |  |  |  |  |  |
 | `ordertrack` | ❌ |  |  |  |  |  |
 | `orderwaveform` | ❌ |  |  |  |  |  |
-| `rainflow` | ❌ |  |  |  |  |  |
+| `rainflow` | ✅ |  |  |  |  |  |
 | `rpmfreqmap` | ❌ |  |  |  |  |  |
 | `rpmordermap` | ❌ |  |  |  |  |  |
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |
-| `tachorpm` | ❌ |  |  |  |  | tachometer→RPM |
-| `tsa` | ❌ |  |  |  |  |  |
+| `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
+| `tsa` | ✅ |  |  |  |  |  |
