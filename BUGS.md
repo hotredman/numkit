@@ -387,7 +387,7 @@ to wrap as a 1-by-1 cell.
 
 ---
 
-## 18. `libs/builtin`: `cross(A,B)` rejects 3-by-N matrix batch form — **P2**
+## 18. `libs/builtin`: `cross(A,B)` rejects 3-by-N matrix batch form — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -404,6 +404,13 @@ that dimension element-wise across the others.
 physics, robotics) requires looping in numkit instead of one call.
 **Where:** [libs/builtin/src/](libs/builtin/) `cross` adapter.
 **First seen:** 2026-05-03, parity bulk-bench iteration 17.
+**Fix (2026-05-03):** `cross` in
+[libs/builtin/src/language/arrays/matrix.cpp] now picks the first
+dimension of size 3 (matching MATLAB/Octave's dim-selection rule:
+nr==3 → cross along rows / batch over columns; otherwise nc==3 →
+cross along cols / batch over rows). The 1x3 / 3x1 vector case is
+the degenerate 1-batch form. Errors with same-shape mismatch and
+"need a dim of length 3" use MATLAB-style messages.
 
 ---
 
