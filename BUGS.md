@@ -473,7 +473,7 @@ stripped down to a minimum rank of 2 via `reshapeND`. The explicit
 
 ---
 
-## 21. `libs/builtin`: `meshgrid(xv)` / `interp2(X,Y,...)` 2-D-input forms missing — **P2**
+## 21. `libs/builtin`: `meshgrid(xv)` / `interp2(X,Y,...)` 2-D-input forms missing — **P2** ⚠ partial
 
 **Reproducers:**
 ```matlab
@@ -501,6 +501,10 @@ default path most snippets use.
 **Where:** [libs/builtin/src/](libs/builtin/) `meshgrid` adapter (1-arg
 overload) + `interp2` adapter (grid-input + implicit-meshgrid forms).
 **First seen:** 2026-05-03, parity bulk-bench iteration 18.
+**Fix (2026-05-03, partial):** Case A `meshgrid(xv)` ≡ `meshgrid(xv,xv)`
+implemented in [libs/builtin/src/language/arrays/matrix.cpp]
+(`meshgrid_reg` adapter handles 1/2/3-arg). Cases B & C (interp2
+grid-form input + implicit-meshgrid for vector Xq/Yq) still pending.
 
 ---
 
@@ -522,7 +526,7 @@ many times — the canonical "factor + apply" pattern.
 
 ---
 
-## 23. `libs/builtin`: `meshgrid(x,y,z)` 3-arg form returns only 2 outputs — **P2**
+## 23. `libs/builtin`: `meshgrid(x,y,z)` 3-arg form returns only 2 outputs — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -542,6 +546,10 @@ inputs internally in some idioms), 3-D plotting setup.
 implements 2-arg / 2-output form. Already partially flagged in
 BUGS #21 (1-arg form missing); add the 3-arg form too.
 **First seen:** 2026-05-03, parity bulk-bench iteration 19.
+**Fix (2026-05-03):** Added a 3-input `meshgrid(x, y, z)` overload in
+[libs/builtin/src/language/arrays/matrix.cpp] returning three
+`[ny, nx, nz]` 3-D DOUBLE arrays. Adapter dispatches by `args.size()`:
+1-arg (BUGS #21 case A), 2-arg, 3-arg.
 
 ---
 

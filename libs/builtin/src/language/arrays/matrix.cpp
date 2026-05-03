@@ -1076,6 +1076,33 @@ std::tuple<Value, Value> meshgrid(std::pmr::memory_resource *mr, const Value &x,
     return std::make_tuple(std::move(X), std::move(Y));
 }
 
+// 3-arg meshgrid: returns three [ny, nx, nz] 3-D arrays. See BUGS.md #23.
+std::tuple<Value, Value, Value>
+meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+         const Value &z)
+{
+    const size_t nx = x.numel(), ny = y.numel(), nz = z.numel();
+    auto X = Value::matrix3d(ny, nx, nz, ValueType::DOUBLE, mr);
+    auto Y = Value::matrix3d(ny, nx, nz, ValueType::DOUBLE, mr);
+    auto Z = Value::matrix3d(ny, nx, nz, ValueType::DOUBLE, mr);
+    double *xd = X.doubleDataMut();
+    double *yd = Y.doubleDataMut();
+    double *zd = Z.doubleDataMut();
+    for (size_t p = 0; p < nz; ++p) {
+        const double zp = z.elemAsDouble(p);
+        for (size_t c = 0; c < nx; ++c) {
+            const double xc = x.elemAsDouble(c);
+            for (size_t r = 0; r < ny; ++r) {
+                const size_t idx = r + c * ny + p * (nx * ny);
+                xd[idx] = xc;
+                yd[idx] = y.elemAsDouble(r);
+                zd[idx] = zp;
+            }
+        }
+    }
+    return std::make_tuple(std::move(X), std::move(Y), std::move(Z));
+}
+
 // ── ndgrid ──────────────────────────────────────────────────────────
 std::tuple<Value, Value>
 ndgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y)
@@ -2054,13 +2081,32 @@ void vertcat_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, C
 
 void meshgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
 {
-    if (args.size() < 2)
-        throw Error("meshgrid: requires 2 arguments",
+    if (args.empty())
+        throw Error("meshgrid: requires at least 1 argument",
                      0, 0, "meshgrid", "", "m:meshgrid:nargin");
-    auto [X, Y] = meshgrid(ctx.engine->resource(), args[0], args[1]);
-    outs[0] = std::move(X);
-    if (nargout > 1)
-        outs[1] = std::move(Y);
+    auto *mr = ctx.engine->resource();
+    if (args.size() == 1) {
+        // meshgrid(x) ≡ meshgrid(x, x). See BUGS.md #21.
+        auto [X, Y] = meshgrid(mr, args[0], args[0]);
+        outs[0] = std::move(X);
+        if (nargout > 1) outs[1] = std::move(Y);
+        return;
+    }
+    if (args.size() == 2) {
+        auto [X, Y] = meshgrid(mr, args[0], args[1]);
+        outs[0] = std::move(X);
+        if (nargout > 1) outs[1] = std::move(Y);
+        return;
+    }
+    if (args.size() == 3) {
+        auto [X, Y, Z] = meshgrid(mr, args[0], args[1], args[2]);
+        outs[0] = std::move(X);
+        if (nargout > 1) outs[1] = std::move(Y);
+        if (nargout > 2) outs[2] = std::move(Z);
+        return;
+    }
+    throw Error("meshgrid: 4+ inputs are not supported",
+                 0, 0, "meshgrid", "", "m:meshgrid:tooManyInputs");
 }
 
 void ndgrid_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
