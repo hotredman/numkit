@@ -1,0 +1,10 @@
+{
+  "name": "bartlett",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = bartlett(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = bartlett(N). 1024-pt triangular. 10000 iters."
+}

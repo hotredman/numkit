@@ -1,0 +1,10 @@
+{
+  "name": "db",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 1000, 100000);",
+  "expr": "y = db(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: D = db(X). magnitude \u2192 dB. 100k iters."
+}

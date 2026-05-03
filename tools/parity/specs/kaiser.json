@@ -1,0 +1,10 @@
+{
+  "name": "kaiser",
+  "namespace": "core",
+  "setup": "n = 1024; b = 5;",
+  "expr": "y = kaiser(n, b);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = kaiser(N, BETA). beta=5. 10000 iters."
+}

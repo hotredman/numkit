@@ -1,0 +1,10 @@
+{
+  "name": "mag2db",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 1000, 100000);",
+  "expr": "y = mag2db(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: D = mag2db(M). 100k iters."
+}

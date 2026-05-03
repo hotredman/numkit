@@ -1,0 +1,10 @@
+{
+  "name": "gausswin",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = gausswin(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = gausswin(N). Gaussian. 10000 iters."
+}

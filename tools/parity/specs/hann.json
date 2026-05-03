@@ -1,0 +1,10 @@
+{
+  "name": "hann",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = hann(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = hann(N). 1024-pt Hann window. 10000 iters."
+}
