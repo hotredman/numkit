@@ -1,0 +1,13 @@
+{
+  "name": "peak2peak",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = peak2peak(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: P = peak2peak(X). 1M-pt range. 100 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

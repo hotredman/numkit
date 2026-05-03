@@ -1,0 +1,10 @@
+{
+  "name": "downsample",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 100000));",
+  "expr": "y = downsample(x, 4);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = downsample(X, N). N=4. 1000 iters.",
+  "out_var": "y"
+}

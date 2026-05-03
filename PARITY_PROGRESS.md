@@ -1275,13 +1275,13 @@ multiple sections; all occurrences refresh together).
 | `freqz` | ✅ |  |  |  |  | discrete freq response |
 | `grpdelay` | ✅ |  |  |  |  | group delay |
 | `impz` | ✅ |  |  |  |  | impulse response |
-| `impzlength` | ✅ |  |  |  |  | impulse length |
-| `isallpass` | ✅ |  |  |  |  | predicate |
-| `isfir` | ✅ |  |  |  |  | predicate |
-| `islinphase` | ✅ |  |  |  |  | predicate |
-| `ismaxphase` | ✅ |  |  |  |  | predicate |
-| `isminphase` | ✅ |  |  |  |  | predicate |
-| `isstable` | ✅ |  |  |  |  | predicate |
+| `impzlength` | ✅ | 0.000 | 321.89× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
+| `isallpass` | ✅ | 0.000 | 109.38× |  | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
+| `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
+| `islinphase` | ✅ | 0.000 | 260.22× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
+| `ismaxphase` | ✅ | 0.001 | 190.76× |  | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
+| `isminphase` | ✅ | 0.000 | 271.10× |  | OK | Sig: TF = isminphase(B, A). 10000 iters. |
+| `isstable` | ✅ | 0.000 | 193.32× |  | OK | Sig: TF = isstable(B, A). 10000 iters. |
 | `phasedelay` | ✅ |  |  |  |  | phase delay |
 | `phasez` | ✅ |  |  |  |  | phase response |
 | `stepz` | ✅ |  |  |  |  | step response |
@@ -1297,7 +1297,7 @@ multiple sections; all occurrences refresh together).
 | `bandpass` | ✅ |  |  |  |  | spec-driven BP |
 | `bandstop` | ✅ |  |  |  |  | spec-driven BS |
 | `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ |  |  |  |  | convolution matrix |
+| `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
@@ -1343,13 +1343,13 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `decimate` | ✅ |  |  |  |  |  |
-| `downsample` | ✅ |  |  |  |  |  |
+| `downsample` | ✅ | 0.111 | 0.50× |  | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ |  |  |  |  |  |
 | `intfilt` | ✅ |  |  |  |  | interpolating FIR |
 | `resample` | ✅ |  |  |  |  |  |
 | `upfirdn` | ✅ |  |  |  |  |  |
-| `upsample` | ✅ |  |  |  |  |  |
+| `upsample` | ✅ | 0.321 | 0.21× |  | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
 
 ## Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony)
 
@@ -1390,8 +1390,8 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `alignsignals` | ✅ |  |  |  |  | align via xcorr |
-| `cconv` | ✅ |  |  |  |  | circular convolution |
-| `convmtx` | ✅ |  |  |  |  | convolution matrix |
+| `cconv` | ✅ | 3.802 | 0.06× |  | MISMATCH | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
+| `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
@@ -1408,7 +1408,7 @@ multiple sections; all occurrences refresh together).
 | `bitrevorder` | ✅ |  |  |  |  | bit-reverse permutation |
 | `cceps` | ✅ |  |  |  |  | complex cepstrum |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
-| `dct` | ✅ |  |  |  |  |  |
+| `dct` | ✅ | 3.801 | 0.02× |  | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
 | `dftmtx` | ✅ |  |  |  |  | DFT matrix |
 | `digitrevorder` | ❌ |  |  |  |  |  |
 | `dlistft` | ❌ |  |  |  |  |  |
@@ -1614,10 +1614,10 @@ multiple sections; all occurrences refresh together).
 | `meanfreq` | ❌ |  |  |  |  | mean frequency |
 | `medfreq` | ❌ |  |  |  |  | median frequency |
 | `mergesigroi` | ❌ |  |  |  |  |  |
-| `peak2peak` | ✅ |  |  |  |  | p-p amplitude |
-| `peak2rms` | ✅ |  |  |  |  |  |
+| `peak2peak` | ✅ | 3.152 | 0.03× |  | OK | Sig: P = peak2peak(X). 1M-pt range. 100 iters. |
+| `peak2rms` | ✅ | 3.096 | 0.86× |  | OK | Sig: R = peak2rms(X). 100 iters. |
 | `removesigroi` | ❌ |  |  |  |  |  |
-| `rssq` | ✅ |  |  |  |  | root-sum-squared |
+| `rssq` | ✅ | 2.855 | 0.08× |  | OK | Sig: R = rssq(X). 100 iters. |
 | `seqperiod` | ❌ |  |  |  |  |  |
 | `shortensigroi` | ❌ |  |  |  |  |  |
 | `sigrangebinmask` | ❌ |  |  |  |  |  |

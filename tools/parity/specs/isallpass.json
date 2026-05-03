@@ -1,0 +1,13 @@
+{
+  "name": "isallpass",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1 0.5];",
+  "expr": "y = isallpass(b, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

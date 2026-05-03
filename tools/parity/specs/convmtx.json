@@ -1,0 +1,10 @@
+{
+  "name": "convmtx",
+  "namespace": "core",
+  "setup": "h = [1 -0.5 0.25];",
+  "expr": "y = convmtx(h, 100);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters.",
+  "out_var": "y"
+}
