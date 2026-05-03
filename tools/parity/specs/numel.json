@@ -1,0 +1,13 @@
+{
+  "name": "numel",
+  "namespace": "core",
+  "setup": "x = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = numel(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: N = numel(X). 1M-elem mat. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

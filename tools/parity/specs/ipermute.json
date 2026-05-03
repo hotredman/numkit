@@ -1,0 +1,10 @@
+{
+  "name": "ipermute",
+  "namespace": "core",
+  "setup": "x = reshape(1:1000000, 100, 100, 100);",
+  "expr": "y = ipermute(permute(x, [3 1 2]), [3 1 2]);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: Y = ipermute(X, ORDER). Round-trip via permute. 100 iters.",
+  "out_var": "y"
+}

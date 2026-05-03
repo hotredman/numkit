@@ -1,0 +1,13 @@
+{
+  "name": "isvector",
+  "namespace": "core",
+  "setup": "x = 1:10000;",
+  "expr": "y = isvector(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isvector(X). 10k vec. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

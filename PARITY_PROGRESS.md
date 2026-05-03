@@ -58,26 +58,26 @@ multiple sections; all occurrences refresh together).
 | `head` | ✅ |  |  |  |  |  |
 | `horzcat` | ✅ |  |  |  |  |  |
 | `ind2sub` | ✅ |  |  |  |  | linear-index conv |
-| `ipermute` | ✅ |  |  |  |  |  |
-| `iscolumn` | ✅ |  |  |  |  | predicate |
-| `isempty` | ✅ |  |  |  |  |  |
-| `ismatrix` | ✅ |  |  |  |  | predicate |
-| `isrow` | ✅ |  |  |  |  | predicate |
-| `isscalar` | ✅ |  |  |  |  |  |
-| `issorted` | ✅ |  |  |  |  | check sorted |
+| `ipermute` | ✅ | 5.008 | 0.66× | 1.16× | OK | Sig: Y = ipermute(X, ORDER). Round-trip via permute. 100 iters. |
+| `iscolumn` | ✅ | 0.000 | 26.89× | 68.46× | OK | Sig: TF = iscolumn(X). 1k column. 100k iters. |
+| `isempty` | ✅ | 0.000 | 25.72× | 34.68× | OK | Sig: TF = isempty(X). Empty []. 100k iters. |
+| `ismatrix` | ✅ | 0.000 | 24.44× | 57.78× | OK | Sig: TF = ismatrix(X). 1k×1k mat. 100k iters. |
+| `isrow` | ✅ | 0.000 | 29.38× | 17.67× | OK | Sig: TF = isrow(X). 1k row. 100k iters. |
+| `isscalar` | ✅ | 0.000 | 41.65× | 43.61× | OK | Sig: TF = isscalar(X). 100k iters. |
+| `issorted` | ✅ | 0.008 | 0.86× | 1.64× | OK | Sig: TF = issorted(X). 10k pre-sorted. 10k iters. |
 | `issortedrows` | ✅ |  |  |  |  |  |
 | `isuniform` | ✅ |  |  |  |  | uniform-spacing test |
-| `isvector` | ✅ |  |  |  |  | predicate |
-| `length` | ✅ |  |  |  |  |  |
+| `isvector` | ✅ | 0.000 | 26.56× | 51.51× | OK | Sig: TF = isvector(X). 10k vec. 100k iters. |
+| `length` | ✅ | 0.000 | 26.91× | 36.70× | OK | Sig: L = length(X). 100x600 → returns 600. 100k iters. |
 | `linspace` | ✅ | 2.871 | 1.00× | 0.80× | OK | Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE. |
 | `logspace` | ✅ | 9.205 | 0.95× | 1.42× | OK | Sig: V = logspace(A,B,N). N=1M log-spaced. 100 iters. Element-wise SAVE. |
 | `meshgrid` | ✅ |  |  |  |  |  |
 | `ndgrid` | ✅ |  |  |  |  |  |
-| `ndims` | ✅ |  |  |  |  |  |
-| `numel` | ✅ |  |  |  |  |  |
+| `ndims` | ✅ | 0.000 | 27.42× | 25.81× | OK | Sig: N = ndims(X). 2D mat → 2. 100k iters. |
+| `numel` | ✅ | 0.000 | 22.63× | 20.44× | OK | Sig: N = numel(X). 1M-elem mat. 100k iters. |
 | `ones` | ✅ | 2.645 | 0.73× | 0.84× | OK | Sig: O = ones(M,N). 1000x1000. 100 iters. |
 | `paddata` | ✅ |  |  |  |  | pad N-D |
-| `permute` | ✅ |  |  |  |  |  |
+| `permute` | ✅ | 2.322 | 0.54× | 1.11× | OK | Sig: Y = permute(X, ORDER). 100×100×100 → reordered. 100 iters. |
 | `rand` | ✅ |  |  |  |  |  |
 | `repelem` | ✅ |  |  |  |  |  |
 | `repmat` | ✅ | 2.113 | 0.44× | 1.08× | OK | Sig: B = repmat(A,M,N). 50x50 → 1000x1000. 100 iters. |
@@ -85,13 +85,13 @@ multiple sections; all occurrences refresh together).
 | `resize` | ✅ |  |  |  |  | general resize |
 | `rot90` | ✅ |  |  |  |  |  |
 | `shiftdim` | ✅ |  |  |  |  |  |
-| `size` | ✅ |  |  |  |  |  |
+| `size` | ✅ | 0.000 | 18.70× | 36.28× | OK | Sig: S = size(X). 2D 100x600 → [100 600]. 100k iters. |
 | `sort` | ✅ | 44.711 | 0.15× | 0.15× | OK | Sig: B = sort(A). 1M deterministic sin values. 100 iters. Element-wise SAVE. |
 | `sortrows` | ✅ |  |  |  |  |  |
-| `squeeze` | ✅ |  |  |  |  |  |
+| `squeeze` | ✅ | 2.034 | 0.01× | 0.00× | OK | Sig: Y = squeeze(X). 1×1k×1×1k → 1k×1k. 1000 iters. |
 | `sub2ind` | ✅ |  |  |  |  | linear-index conv |
 | `tail` | ✅ |  |  |  |  |  |
-| `transpose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
 | `trimdata` | ✅ |  |  |  |  |  |
 | `true` | ✅ |  |  |  |  | literal/constant |
 | `vertcat` | ✅ |  |  |  |  |  |
@@ -448,7 +448,7 @@ multiple sections; all occurrences refresh together).
 | `sum` | ✅ | 1.378 | 0.05× | 0.29× | OK | Sig: Y = sum(X). 1M-pt full reduction (default dim). 20 iters. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
 | `times` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `transpose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
 | `uminus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `uplus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 
@@ -678,7 +678,7 @@ multiple sections; all occurrences refresh together).
 | `svdsketch` | ❌ |  |  |  |  |  |
 | `sylvester` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `trace` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `transpose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
 | `tril` | ✅ |  |  |  |  |  |
 | `triu` | ✅ |  |  |  |  |  |
 | `vecnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |

@@ -1,0 +1,13 @@
+{
+  "name": "length",
+  "namespace": "core",
+  "setup": "x = reshape(1:60000, 100, 600);",
+  "expr": "y = length(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: L = length(X). 100x600 \u2192 returns 600. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "isempty",
+  "namespace": "core",
+  "setup": "x = [];",
+  "expr": "y = isempty(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isempty(X). Empty []. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

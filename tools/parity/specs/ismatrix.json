@@ -1,0 +1,13 @@
+{
+  "name": "ismatrix",
+  "namespace": "core",
+  "setup": "x = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = ismatrix(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: TF = ismatrix(X). 1k\u00d71k mat. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}
