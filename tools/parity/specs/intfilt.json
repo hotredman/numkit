@@ -2,9 +2,9 @@
   "name": "intfilt",
   "namespace": "core",
   "setup": "% nop",
-  "expr": "y = intfilt(4, 6, 'l');",
+  "expr": "y = intfilt(4, 6, 0.5);",
   "iters": 100,
   "tol": 1e-09,
   "out_var": "y",
-  "comment": "Sig: H = intfilt(R, L, ALPHA). FIR coeffs. 1000 iters."
+  "comment": "Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters."
 }

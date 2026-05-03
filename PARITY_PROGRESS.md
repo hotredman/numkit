@@ -1225,7 +1225,7 @@ multiple sections; all occurrences refresh together).
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ❌ |  |  |  |  |  |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ |  |  |  | N/A | Sig: H = intfilt(R, L, ALPHA). FIR coeffs. 1000 iters. |
+| `intfilt` | ✅ | 0.001 | 460.66× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |
 | `issingle` | ✅ |  |  |  |  |  |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
@@ -1283,8 +1283,8 @@ multiple sections; all occurrences refresh together).
 | `isminphase` | ✅ | 0.000 | 271.10× |  | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.000 | 193.32× |  | OK | Sig: TF = isstable(B, A). 10000 iters. |
 | `phasedelay` | ✅ |  |  |  |  | phase delay |
-| `phasez` | ✅ | 0.005 |  |  | N/A | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
-| `stepz` | ✅ | 0.002 |  |  | N/A | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
+| `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
+| `stepz` | ✅ | 0.002 | 41.25× |  | OK | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
 | `zerophase` | ✅ |  |  |  |  |  |
 | `zplane` | ❌ |  |  |  |  |  |
 
@@ -1294,8 +1294,8 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ |  |  |  | N/A | Sig: Y = bandpass(X, WPASS). 10k-pt BPF. 100 iters. |
-| `bandstop` | ✅ |  |  |  | N/A | Sig: Y = bandstop(X, WSTOP). 10k-pt BSF. 100 iters. |
+| `bandpass` | ✅ | 0.582 | 108.47× |  | MISMATCH | Sig: Y = bandpass(X, [LO HI], FS). 100 iters. |
+| `bandstop` | ✅ | 0.620 | 96.67× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
 | `cell2sos` | ❌ |  |  |  |  |  |
 | `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
@@ -1307,19 +1307,19 @@ multiple sections; all occurrences refresh together).
 | `filtfilt` | ✅ | 0.260 | 1.42× |  | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.726 | 0.21× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
-| `highpass` | ✅ |  |  |  | N/A | Sig: Y = highpass(X, WPASS). 10k-pt HPF. 100 iters. |
+| `highpass` | ✅ | 0.292 | 193.96× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ |  |  |  | N/A | Sig: Y = lowpass(X, WPASS). 10k-pt LPF. 100 iters. |
+| `lowpass` | ✅ | 0.288 | 186.26× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
 | `medfilt1` | ✅ | 1.680 | 0.20× |  | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolayfilt` | ✅ | 0.121 | 1.07× |  | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.001 |  |  | N/A | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
-| `sos2tf` | ✅ | 0.001 |  |  | N/A | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
-| `sos2zp` | ✅ | 0.002 |  |  | N/A | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
+| `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
 | `sosfilt` | ✅ | 0.100 | 0.39× |  | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
 | `ss` | ❌ |  |  |  |  |  |
 | `ss2sos` | ✅ | 0.001 | 110.21× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
@@ -1327,13 +1327,13 @@ multiple sections; all occurrences refresh together).
 | `tf` | ❌ |  |  |  |  |  |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
 | `tf2sos` | ✅ | 0.001 | 96.52× |  | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
-| `tf2ss` | ✅ | 0.000 |  |  | N/A | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
-| `tf2zp` | ✅ | 0.001 |  |  | N/A | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
-| `tf2zpk` | ✅ | 0.001 |  |  | N/A | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
+| `tf2ss` | ✅ | 0.000 | 14.43× | 3654.83× | MISMATCH | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
+| `tf2zp` | ✅ | 0.001 | 21.65× | 2076.90× | OK | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
+| `tf2zpk` | ✅ | 0.001 | 27.84× |  | OK | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
 | `zp2ctf` | ❌ |  |  |  |  |  |
 | `zp2sos` | ✅ | 0.000 | 256.12× |  | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
-| `zp2ss` | ✅ | 0.001 |  |  | N/A | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
-| `zp2tf` | ✅ | 0.000 |  |  | N/A | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
+| `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
+| `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
 | `zpk` | ❌ |  |  |  |  |  |
 
 ## Multirate Signal Processing (decimate / interp / resample / ...)
@@ -1346,7 +1346,7 @@ multiple sections; all occurrences refresh together).
 | `downsample` | ✅ | 0.111 | 0.50× |  | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
 | `fillgaps` | ❌ |  |  |  |  |  |
 | `interp` | ✅ | 3.573 | 0.22× |  | MISMATCH | Sig: Y = interp(X, L). Upsample×4 with FIR. 100 iters. |
-| `intfilt` | ✅ |  |  |  | N/A | Sig: H = intfilt(R, L, ALPHA). FIR coeffs. 1000 iters. |
+| `intfilt` | ✅ | 0.001 | 460.66× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
 | `resample` | ✅ | 0.464 | 1.68× |  | MISMATCH | Sig: Y = resample(X, P, Q). 3:2. 100 iters. |
 | `upfirdn` | ✅ | 0.023 | 3.77× |  | MISMATCH | Sig: Y = upfirdn(X, H, P, Q). 100 iters. |
 | `upsample` | ✅ | 0.321 | 0.21× |  | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
@@ -1414,7 +1414,7 @@ multiple sections; all occurrences refresh together).
 | `dlistft` | ❌ |  |  |  |  |  |
 | `dlstft` | ❌ |  |  |  |  |  |
 | `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `envelope` | ✅ |  |  |  | N/A | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `envelope` | ✅ | 0.654 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
 | `goertzel` | ✅ | 0.068 | 2.60× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
@@ -1600,7 +1600,7 @@ multiple sections; all occurrences refresh together).
 | `cusum` | ❌ |  |  |  |  | CUSUM change detection |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `envelope` | ✅ |  |  |  | N/A | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `envelope` | ✅ | 0.654 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
 | `extendsigroi` | ❌ |  |  |  |  |  |
 | `extractsigroi` | ❌ |  |  |  |  |  |
 | `filenames2labels` | ❌ |  |  |  |  |  |

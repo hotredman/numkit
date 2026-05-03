@@ -1,10 +1,10 @@
 {
   "name": "bandpass",
   "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 10000));",
-  "expr": "y = bandpass(x, [0.2 0.4]);",
+  "setup": "fs = 1000; x = sin(linspace(0, 100, 10000));",
+  "expr": "y = bandpass(x, [100 300], fs);",
   "iters": 100,
   "tol": 1e-09,
   "out_var": "y",
-  "comment": "Sig: Y = bandpass(X, WPASS). 10k-pt BPF. 100 iters."
+  "comment": "Sig: Y = bandpass(X, [LO HI], FS). 100 iters."
 }
