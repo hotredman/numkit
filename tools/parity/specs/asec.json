@@ -1,0 +1,10 @@
+{
+  "name": "asec",
+  "namespace": "core",
+  "setup": "x = linspace(1.001, 100, 1000000);",
+  "expr": "y = asec(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = asec(X). 1M-pt domain |X|>=1. 20 iters."
+}

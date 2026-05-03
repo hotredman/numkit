@@ -1,0 +1,10 @@
+{
+  "name": "asecd",
+  "namespace": "core",
+  "setup": "x = linspace(1.001, 100, 1000000);",
+  "expr": "y = asecd(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = asecd(X). 1M-pt deg. 20 iters."
+}

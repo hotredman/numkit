@@ -1,0 +1,10 @@
+{
+  "name": "acsch",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 10, 1000000);",
+  "expr": "y = acsch(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = acsch(X). 1M-pt avoid 0 (X != 0). 20 iters."
+}
