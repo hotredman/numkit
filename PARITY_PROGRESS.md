@@ -1576,18 +1576,18 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dutycycle` | ❌ |  |  |  |  | duty cycle |
-| `falltime` | ❌ |  |  |  |  |  |
-| `midcross` | ❌ |  |  |  |  | mid-ref crossings |
-| `overshoot` | ❌ |  |  |  |  |  |
-| `pulseperiod` | ❌ |  |  |  |  |  |
-| `pulsesep` | ❌ |  |  |  |  |  |
-| `pulsewidth` | ❌ |  |  |  |  |  |
-| `risetime` | ❌ |  |  |  |  |  |
-| `settlingtime` | ❌ |  |  |  |  |  |
-| `slewrate` | ❌ |  |  |  |  |  |
-| `statelevels` | ❌ |  |  |  |  |  |
-| `undershoot` | ❌ |  |  |  |  |  |
+| `dutycycle` | ✅ |  |  |  |  | duty cycle |
+| `falltime` | ✅ |  |  |  |  |  |
+| `midcross` | ✅ |  |  |  |  | mid-ref crossings |
+| `overshoot` | ✅ |  |  |  |  |  |
+| `pulseperiod` | ✅ |  |  |  |  |  |
+| `pulsesep` | ✅ |  |  |  |  |  |
+| `pulsewidth` | ✅ |  |  |  |  |  |
+| `risetime` | ✅ |  |  |  |  |  |
+| `settlingtime` | ✅ |  |  |  |  |  |
+| `slewrate` | ✅ |  |  |  |  |  |
+| `statelevels` | ✅ |  |  |  |  |  |
+| `undershoot` | ✅ |  |  |  |  |  |
 
 ## Signal Descriptive Statistics (rms / peak2peak / envelope / sigROIs / ...)
 
