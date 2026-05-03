@@ -591,6 +591,54 @@ instead of a single `find`.
 
 ---
 
+## 28. `core/`: `mldivide` / `mrdivide` / `mpower` named-fn forms not implemented — **P2**
+
+**Reproducers:**
+```matlab
+A = eye(3) + 0.01*[1 2 3; 4 5 6; 7 8 9];
+B = [1; 2; 3];
+mldivide(A, B)
+% MATLAB / Octave:  3-element solution vector
+% numkit:           "Matrix left division not implemented"
+
+mrdivide(A, B')   % same — "not implemented"
+mpower(A, 2)      % same
+```
+**Symptom:** numkit ✅-marks these in PARITY_PROGRESS as "named-fn form
+added in Pack 11" but the actual function body throws "not implemented".
+The `\` and `/` and `^` operator dispatch may work; only the named-fn
+adapters are stubs.
+**MATLAB:** these are core matrix solve / inverse-matmul / matrix-power
+ops; named-fn form is just `mldivide(A,B) === A\B`.
+**Impact:** Code that uses `mldivide(A, B)` style (cleaner for
+generic-programming) breaks. Workaround = use operator form.
+**Where:** [libs/](libs/) — likely the dispatch table maps the named
+form to a not-yet-wired-up routine. Linalg as a whole is deferred,
+but these named-fn stubs are misleading because the row says ✅.
+**First seen:** 2026-05-03, parity bulk-bench iteration 24.
+
+---
+
+## 29. `libs/builtin`: `idivide(int_array, ...)` rejects integer-typed input — **P2**
+
+**Reproducer:**
+```matlab
+idivide(int32([1 2 3 4 5]), int32(2))
+% MATLAB / Octave:  int32([0 1 1 2 2])
+% numkit:           "Not a double array (in call to 'idivide')"
+```
+**MATLAB:** `idivide` is documented as integer-only (it converts
+fractional results to integers via specified rounding mode). It
+specifically REQUIRES integer-typed input — `idivide(double, ...)`
+errors in MATLAB.
+**Impact:** numkit's behavior is the inverse — it requires double
+and rejects int. Same root cause class as BUGS #13 (bit-ops reject
+int input).
+**Where:** [libs/builtin/src/](libs/builtin/) `idivide` adapter.
+**First seen:** 2026-05-03, parity bulk-bench iteration 24.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

@@ -1,0 +1,10 @@
+{
+  "name": "plus",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 100, 1000000)); b = cos(linspace(0, 100, 1000000));",
+  "expr": "y = plus(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters.",
+  "out_var": "y"
+}

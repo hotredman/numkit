@@ -1,0 +1,10 @@
+{
+  "name": "rdivide",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 100, 1000000)); b = 1 + cos(linspace(0, 100, 1000000));",
+  "expr": "y = rdivide(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = rdivide(A, B). 1M-pt div. 50 iters.",
+  "out_var": "y"
+}
