@@ -47,6 +47,23 @@ Value nextpow2(std::pmr::memory_resource *mr, double n)
     return Value::scalar(std::ceil(std::log2(n)), mr);
 }
 
+// Vectorized form: smallest integer p such that 2^p >= |x_i| for each
+// element. MATLAB documents elementwise behavior; the absolute value
+// rule mirrors MATLAB's handling of negatives. See BUGS.md #10.
+Value nextpow2(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isEmpty()) return x;
+    if (x.isScalar()) return nextpow2(mr, std::abs(x.toScalar()));
+    auto out = createLike(x, ValueType::DOUBLE, mr);
+    double *dst = out.doubleDataMut();
+    const size_t n = x.numel();
+    for (size_t i = 0; i < n; ++i) {
+        const double v = std::abs(x.elemAsDouble(i));
+        dst[i] = (v <= 0.0) ? 0.0 : std::ceil(std::log2(v));
+    }
+    return out;
+}
+
 Value fftshift(std::pmr::memory_resource *mr, const Value &x)
 {
     return cyclicShift(x, x.numel() / 2, mr);
@@ -64,7 +81,7 @@ void nextpow2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, 
     if (args.empty())
         throw Error("nextpow2: requires 1 argument",
                      0, 0, "nextpow2", "", "m:nextpow2:nargin");
-    outs[0] = nextpow2(ctx.engine->resource(), args[0].toScalar());
+    outs[0] = nextpow2(ctx.engine->resource(), args[0]);
 }
 
 void fftshift_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)

@@ -11,8 +11,12 @@
 namespace numkit::signal {
 
 /// Smallest integer p such that 2^p >= n. Returns 0 for n <= 0.
-/// MATLAB's nextpow2.
+/// MATLAB's nextpow2 (scalar form).
 Value nextpow2(std::pmr::memory_resource *mr, double n);
+
+/// Vectorized form: applies nextpow2 elementwise to any-shape input.
+/// Returns a DOUBLE array with the same shape as `x`.
+Value nextpow2(std::pmr::memory_resource *mr, const Value &x);
 
 /// Cyclic shift by N/2 — zero-frequency bin moves to the center.
 /// For real and complex input. Operates element-wise across numel(x).
