@@ -1,0 +1,10 @@
+{
+  "name": "prod",
+  "namespace": "core",
+  "setup": "x = linspace(0.99, 1.01, 1000);",
+  "expr": "y = prod(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = prod(X). 1k-pt reduction near 1 (avoid overflow). 20 iters."
+}

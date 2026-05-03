@@ -1,0 +1,10 @@
+{
+  "name": "fix",
+  "namespace": "core",
+  "setup": "x = linspace(-100, 100, 1000000) + 0.3;",
+  "expr": "y = fix(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = fix(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE."
+}

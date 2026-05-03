@@ -1,0 +1,10 @@
+{
+  "name": "cumprod",
+  "namespace": "core",
+  "setup": "x = linspace(0.999, 1.001, 1000);",
+  "expr": "y = cumprod(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = cumprod(X). 1k-pt cumprod near 1 (avoid overflow). 20 iters."
+}

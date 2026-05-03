@@ -1,0 +1,10 @@
+{
+  "name": "sum",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1, 1000000);",
+  "expr": "y = sum(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = sum(X). 1M-pt full reduction (default dim). 20 iters."
+}
