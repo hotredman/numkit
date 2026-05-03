@@ -10,6 +10,8 @@
 
 #include <numkit/signal/spectral_analysis/spectral_metrics.hpp>
 #include <numkit/signal/spectral_analysis/periodogram_pwelch.hpp>
+#include <numkit/signal/transforms/hilbert.hpp>
+#include <numkit/signal/windows/windows.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -371,6 +373,248 @@ Value spectralskewness(std::pmr::memory_resource *mr, const Value &x, const Valu
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Harmonic / SNR family
+// ════════════════════════════════════════════════════════════════════
+//
+// Strategy: compute a Kaiser-windowed periodogram (matches MATLAB's
+// default snr: Kaiser(N, 38) gives near-zero sidelobes so leakage
+// stays below realistic noise floors), find the dominant peak skipping
+// a few DC bins, then sum a "skirt" of `kSkirtBins` bins on each side
+// as the fundamental power. Repeat for harmonics. Noise = remainder.
+
+namespace {
+
+PsdPair computePsdKaiser(std::pmr::memory_resource *mr, const Value &x, double fs)
+{
+    // Build Kaiser(beta=38) window of length numel(x).
+    Value win = kaiser(mr, x.numel(), 38.0);
+    auto [Pxx, F] = periodogram(mr, x, win, /*nfft=*/0);
+    const size_t n = Pxx.numel();
+    PsdPair p;
+    p.Pxx.resize(n);
+    p.F.resize(n);
+    const size_t nfft = (n > 1) ? 2 * (n - 1) : 1;
+    if (fs > 0.0) {
+        const double fScale = fs / (2.0 * M_PI);
+        const double pScale = static_cast<double>(nfft) / fs;
+        for (size_t i = 0; i < n; ++i) {
+            p.F[i]   = F.doubleData()[i] * fScale;
+            p.Pxx[i] = Pxx.doubleData()[i] * pScale;
+        }
+    } else {
+        const double pScale = static_cast<double>(nfft) / (2.0 * M_PI);
+        for (size_t i = 0; i < n; ++i) {
+            p.F[i]   = F.doubleData()[i];
+            p.Pxx[i] = Pxx.doubleData()[i] * pScale;
+        }
+    }
+    return p;
+}
+
+constexpr int kSkirtBins  = 8;   // half-width of fundamental skirt
+constexpr int kHarmonics  = 6;   // number of harmonics to track
+constexpr int kDcBins     = 8;   // DC bins to ignore when finding peak
+
+// Sum P over [lo, hi) inclusive of lo, exclusive of hi (uses raw bin
+// values; for narrow peaks this is close to the trapezoidal estimate
+// times df, scaled identically across all sums so the ratio in dB is
+// unchanged).
+double sumBins(const std::vector<double> &P, int lo, int hi)
+{
+    if (lo < 0) lo = 0;
+    if (hi > static_cast<int>(P.size())) hi = static_cast<int>(P.size());
+    double s = 0.0;
+    for (int i = lo; i < hi; ++i) s += P[i];
+    return s;
+}
+
+// Find the bin of the dominant peak, ignoring the first kDcBins.
+int findFundamentalBin(const std::vector<double> &P)
+{
+    int pk = kDcBins;
+    double pkV = -1.0;
+    for (int i = kDcBins; i < static_cast<int>(P.size()); ++i)
+        if (P[i] > pkV) { pkV = P[i]; pk = i; }
+    return pk;
+}
+
+struct HarmonicAnalysis {
+    double pSig;     // fundamental power
+    double pHarm;    // sum of harmonic powers
+    double pNoise;   // remainder (everything else, excluding DC bins)
+    double pSpurMax; // largest single spur OUTSIDE the fundamental skirt
+    int    f0Bin;
+};
+
+HarmonicAnalysis analyseHarmonics(const std::vector<double> &P)
+{
+    const int nbins = static_cast<int>(P.size());
+    HarmonicAnalysis r{0, 0, 0, 0, 0};
+    if (nbins < 2) return r;
+
+    r.f0Bin = findFundamentalBin(P);
+    const int f0 = r.f0Bin;
+
+    // Mark which bins belong to the fundamental skirt or a harmonic
+    // skirt. Everything else contributes to noise (after skipping DC
+    // bins at the start).
+    std::vector<uint8_t> mark(nbins, 0); // 1=fund, 2=harm
+    for (int j = std::max(0, f0 - kSkirtBins);
+         j < std::min(nbins, f0 + kSkirtBins + 1); ++j) mark[j] = 1;
+    for (int n = 2; n <= kHarmonics; ++n) {
+        const int bin = n * f0;
+        if (bin >= nbins) break;
+        for (int j = std::max(0, bin - kSkirtBins);
+             j < std::min(nbins, bin + kSkirtBins + 1); ++j) {
+            if (mark[j] == 0) mark[j] = 2;
+        }
+    }
+
+    for (int i = 0; i < nbins; ++i) {
+        if (i < kDcBins && mark[i] == 0) continue; // ignore DC noise contrib
+        if      (mark[i] == 1) r.pSig  += P[i];
+        else if (mark[i] == 2) r.pHarm += P[i];
+        else                   r.pNoise += P[i];
+    }
+
+    // Largest spur: scan for local maxima OUTSIDE the fundamental skirt
+    // and take the biggest peak value (not its surrounding bin sum —
+    // sfdr is a single-bin / peak-to-peak metric).
+    for (int i = 1; i + 1 < nbins; ++i) {
+        if (mark[i] == 1) continue;        // skip fundamental skirt
+        if (i < kDcBins) continue;
+        if (P[i] >= P[i - 1] && P[i] >= P[i + 1] && P[i] > r.pSpurMax)
+            r.pSpurMax = P[i];
+    }
+    return r;
+}
+
+double safeDb(double num, double den)
+{
+    if (num <= 0.0 || den <= 0.0)
+        return std::numeric_limits<double>::quiet_NaN();
+    return 10.0 * std::log10(num / den);
+}
+
+} // anonymous
+
+Value snr(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 0.0);
+    auto p = computePsdKaiser(mr, x, fsv);
+    auto h = analyseHarmonics(p.Pxx);
+    return Value::scalar(safeDb(h.pSig, h.pNoise), mr);
+}
+
+Value sinad(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 0.0);
+    auto p = computePsdKaiser(mr, x, fsv);
+    auto h = analyseHarmonics(p.Pxx);
+    return Value::scalar(safeDb(h.pSig, h.pNoise + h.pHarm), mr);
+}
+
+Value thd(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 0.0);
+    auto p = computePsdKaiser(mr, x, fsv);
+    auto h = analyseHarmonics(p.Pxx);
+    return Value::scalar(safeDb(h.pHarm, h.pSig), mr);
+}
+
+Value sfdr(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 0.0);
+    auto p = computePsdKaiser(mr, x, fsv);
+    auto h = analyseHarmonics(p.Pxx);
+    // sfdr compares the fundamental peak amplitude to the largest
+    // spurious peak. P[fundamental_bin] is the peak power.
+    const double pPeak = (h.f0Bin >= 0 && h.f0Bin < (int)p.Pxx.size())
+                         ? p.Pxx[h.f0Bin] : 0.0;
+    return Value::scalar(safeDb(pPeak, h.pSpurMax), mr);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Instantaneous frequency / bandwidth (analytic-signal-based)
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Read complex Value (output of hilbert) into separate re/im vectors.
+void readComplex(const Value &z, std::vector<double> &re, std::vector<double> &im)
+{
+    const size_t n = z.numel();
+    re.resize(n); im.resize(n);
+    if (z.type() == ValueType::COMPLEX) {
+        const Complex *c = z.complexData();
+        for (size_t i = 0; i < n; ++i) { re[i] = c[i].real(); im[i] = c[i].imag(); }
+    } else {
+        for (size_t i = 0; i < n; ++i) {
+            re[i] = z.elemAsDouble(i);
+            im[i] = 0.0;
+        }
+    }
+}
+
+} // anonymous
+
+Value instfreq(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 1.0);
+    Value z = hilbert(mr, x);
+    std::vector<double> re, im;
+    readComplex(z, re, im);
+    const size_t n = re.size();
+    if (n < 2) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    // Centred-difference of unwrapped phase. We avoid a full unwrap by
+    // computing the phase delta between consecutive samples directly
+    // and wrapping into (-π, π]; this is what `unwrap` would yield on
+    // the local difference.
+    //
+    // numkit's hilbert produces the conjugate analytic signal pattern
+    // (verified by smoke test: hilbert(cos θ) ≈ cos θ - i sin θ on the
+    // signal interior). We negate the phase delta so that a positive-
+    // frequency signal yields positive instantaneous frequency.
+    auto out = Value::matrix(n - 1, 1, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    constexpr double kPi = 3.14159265358979323846;
+    for (size_t i = 0; i + 1 < n; ++i) {
+        const double p1 = std::atan2(im[i + 1], re[i + 1]);
+        const double p0 = std::atan2(im[i], re[i]);
+        double dp = p1 - p0;
+        while (dp >  kPi) dp -= 2.0 * kPi;
+        while (dp <= -kPi) dp += 2.0 * kPi;
+        d[i] = -dp * fsv / (2.0 * kPi);
+    }
+    return out;
+}
+
+Value instbw(std::pmr::memory_resource *mr, const Value &x, const Value *fs)
+{
+    const double fsv = scalarOr(fs, 1.0);
+    Value z = hilbert(mr, x);
+    std::vector<double> re, im;
+    readComplex(z, re, im);
+    const size_t n = re.size();
+    if (n < 2) return Value::matrix(0, 1, ValueType::DOUBLE, mr);
+
+    // Envelope A[i] = sqrt(re² + im²); inst-BW per MATLAB:
+    //   B(t) = (1 / (2π)) * |dA/dt| / A(t)
+    auto out = Value::matrix(n - 1, 1, ValueType::DOUBLE, mr);
+    double *d = out.doubleDataMut();
+    constexpr double kPi = 3.14159265358979323846;
+    std::vector<double> A(n);
+    for (size_t i = 0; i < n; ++i) A[i] = std::hypot(re[i], im[i]);
+    for (size_t i = 0; i + 1 < n; ++i) {
+        const double dA = (A[i + 1] - A[i]) * fsv;  // per-second
+        const double Aavg = 0.5 * (A[i + 1] + A[i]);
+        d[i] = (Aavg > 0.0) ? std::abs(dA) / (2.0 * kPi * Aavg) : 0.0;
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -420,6 +664,12 @@ NK_SPEC1_REG(spectralflatness, spectralflatness)
 NK_SPEC1_REG(spectralentropy,  spectralentropy)
 NK_SPEC1_REG(spectralkurtosis, spectralkurtosis)
 NK_SPEC1_REG(spectralskewness, spectralskewness)
+NK_SPEC1_REG(snr,              snr)
+NK_SPEC1_REG(sinad,            sinad)
+NK_SPEC1_REG(thd,              thd)
+NK_SPEC1_REG(sfdr,             sfdr)
+NK_SPEC1_REG(instfreq,         instfreq)
+NK_SPEC1_REG(instbw,           instbw)
 
 #undef NK_SPEC1_REG
 
