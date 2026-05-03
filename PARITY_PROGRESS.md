@@ -1226,14 +1226,14 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 ## Distance Metrics
 
-**Namespace:** `stats.dist_metric.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
+**Namespace:** `stats.cluster.*` — 4 ✅ + 0 ⚠️ / 4 = 100%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `pdist` | ❌ |  |  |  |  | pairwise distances |
-| `pdist2` | ❌ |  |  |  |  | between two sets |
-| `squareform` | ❌ |  |  |  |  | upper-tri vec ↔ symmetric matrix |
-| `mahal` | ❌ |  |  |  |  | Mahalanobis distance |
+| `pdist` | ✅ |  |  |  | OK | euclidean / sqeuclidean / cityblock / chebychev / minkowski / cosine / correlation / hamming / jaccard |
+| `pdist2` | ✅ |  |  |  | OK | same metrics |
+| `squareform` | ✅ |  |  |  | OK | bidirectional vec ↔ square |
+| `mahal` | ✅ |  |  |  | OK | Cholesky-based, throws on non-PSD covariance |
 
 ## Hierarchical Clustering
 

@@ -170,6 +170,12 @@ void movstd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movmad_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void smoothdata_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void hampel_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// cluster/distance.cpp
+void pdist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pdist2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void squareform_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mahal_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -321,6 +327,11 @@ void StatsLibrary::install(Engine &engine)
     reg("moving", "movmad",     &stats::detail::movmad_reg);
     reg("moving", "smoothdata", &stats::detail::smoothdata_reg);
     reg("moving", "hampel",     &stats::detail::hampel_reg);
+
+    reg("cluster", "pdist",      &stats::detail::pdist_reg);
+    reg("cluster", "pdist2",     &stats::detail::pdist2_reg);
+    reg("cluster", "squareform", &stats::detail::squareform_reg);
+    reg("cluster", "mahal",      &stats::detail::mahal_reg);
 }
 
 } // namespace numkit
