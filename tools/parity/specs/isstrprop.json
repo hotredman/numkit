@@ -1,0 +1,14 @@
+{
+  "name": "isstrprop",
+  "namespace": "core",
+  "setup": "s = repmat('Abc 123 def 456 ', 1, 100);",
+  "expr": "y = isstrprop(s, 'digit');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isstrprop(S, prop). 1.6k char check digit. 1000 iters.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

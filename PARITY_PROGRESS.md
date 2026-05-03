@@ -171,24 +171,24 @@ multiple sections; all occurrences refresh together).
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `endswith` | ❌ |  |  |  |  |  |
 | `erase` | ✅ | 0.002 | 2.26× | 10.85× | OK | Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters. |
-| `erasebetween` | ✅ |  |  |  |  |  |
+| `erasebetween` | ✅ | 0.000 | 7.57× |  | MISMATCH | Sig: S2 = eraseBetween(S, A, B). 10000 iters. |
 | `extract` | ✅ | 0.106 | 1.00× | — | OK | Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters. |
 | `extractafter` | ✅ | 0.000 | 2.75× |  | OK | Sig: S2 = extractAfter(S, PAT). 10k iters. Function name camelCase. |
 | `extractbefore` | ✅ | 0.000 | 2.81× |  | OK | Sig: S2 = extractBefore(S, PAT). 10k iters. |
-| `extractbetween` | ✅ |  |  |  |  |  |
-| `insertafter` | ✅ |  |  |  |  |  |
-| `insertbefore` | ✅ |  |  |  |  |  |
+| `extractbetween` | ✅ |  |  |  | N/A | Sig: S2 = extractBetween(S, A, B). 3 matches. 10000 iters. |
+| `insertafter` | ✅ | 0.000 | 6.63× |  | OK | Sig: S2 = insertAfter(S, PAT, ADD). 10000 iters. |
+| `insertbefore` | ✅ | 0.000 | 6.54× |  | OK | Sig: S2 = insertBefore(S, PAT, ADD). 10000 iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
-| `ischar` | ✅ |  |  |  |  |  |
+| `ischar` | ✅ | 0.000 | 8.05× | 34.28× | OK | Sig: TF = ischar(X). 100k iters. |
 | `isletter` | ✅ | 0.034 | 0.77× | 2.18× | OK | Sig: TF = isletter(S). 14k char input. 1000 iters. Logical-array fp. |
 | `isspace` | ✅ | 0.028 | 1.02× | 2.07× | OK | Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp. |
 | `isstring` | ✅ | 0.000 | 23.96× | 66.39× | OK | Sig: TF = isstring(X). Returns scalar logical. 100k iters. |
 | `isstringscalar` | ✅ |  |  |  | N/A | Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters. |
-| `isstrprop` | ✅ |  |  |  |  |  |
+| `isstrprop` | ✅ | 0.004 | 0.60× | 5.37× | OK | Sig: TF = isstrprop(S, prop). 1.6k char check digit. 1000 iters. |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
 | `lower` | ✅ | 0.046 | 1.59× | 3.67× | OK | Sig: Y = lower(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
-| `matches` | ✅ |  |  |  |  |  |
-| `newline` | ✅ | 0.000 | 0.10× | 7.25× | OK | ASCII LF char. Bench is 100k iters of the call itself. |
+| `matches` | ✅ | 0.000 | 3.69× |  | OK | Sig: TF = matches(S, PAT). Single string check. 10000 iters. |
+| `newline` | ✅ | 0.000 | 3.15× | 7.71× | OK | Sig: NL = newline. ASCII LF=10. 100k iters. |
 | `num2str` | ✅ | 0.001 | 18.09× | 347.70× | MISMATCH | Sig: S = num2str(X). 100k iters. |
 | `pad` | ✅ | 0.000 | 15.01× |  | OK | Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters. |
 | `plus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
@@ -197,7 +197,7 @@ multiple sections; all occurrences refresh together).
 | `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
 | `regexptranslate` | ✅ | 0.000 | 18.05× | 86.59× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.012 | 2.62× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
-| `replacebetween` | ✅ |  |  |  |  |  |
+| `replacebetween` | ✅ | 0.001 | 5.28× |  | MISMATCH | Sig: S2 = replaceBetween(S, A, B, REP). 10000 iters. |
 | `reverse` | ✅ | 0.000 | 8.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.102 | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
 | `splitlines` | ✅ | 0.001 | 3.19× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
@@ -208,19 +208,19 @@ multiple sections; all occurrences refresh together).
 | `str2double` | ✅ | 0.000 | 24.98× | 16.03× | OK | Sig: V = str2double(S). 100k iters. |
 | `strcat` | ✅ | 0.001 | 26.76× | 84.88× | OK | Sig: S = strcat(A, B). 5k + 6k char concat. 1000 iters. |
 | `strcmp` | ✅ | 0.000 | 7.11× | 33.62× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
-| `strcmpi` | ✅ |  |  |  |  |  |
+| `strcmpi` | ✅ | 0.000 | 4.77× | 21.40× | OK | Sig: TF = strcmpi(A, B). 100k iters. |
 | `strfind` | ✅ | 0.017 | 0.71× | 0.77× | OK | Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters. |
 | `string` | ✅ |  |  |  |  |  |
 | `strings` | ✅ | 0.710 | 0.22× | — | OK | 100x100 empty-string array. 1000 iters. |
 | `strip` | ✅ | 0.000 | 12.71× |  | OK | Sig: S = strip(S). Trim both. 10000 iters. |
 | `strjoin` | ✅ | 0.009 | 12.80× | 89.14× | OK | Sig: S = strjoin(C, DELIM). 1k tokens via for-init (repmat rejects cell). 1000 iters. |
-| `strjust` | ✅ | 0.084 | 2.07× | 2.42× | OK | 1000x50 char matrix, right-justify. 200 iters. |
+| `strjust` | ✅ | 0.000 | 18.35× | 320.71× | OK | Sig: S2 = strjust(S, side). 3-row right-justify. 10000 iters. |
 | `strlength` | ✅ | 0.000 | 8.95× |  | OK | Sig: L = strlength(S). Single string (cellstr form differs). 100k iters. |
-| `strncmp` | ✅ |  |  |  |  |  |
-| `strncmpi` | ✅ |  |  |  |  |  |
+| `strncmp` | ✅ | 0.000 | 6.92× | 35.38× | OK | Sig: TF = strncmp(A, B, N). 100k iters. |
+| `strncmpi` | ✅ | 0.000 | 5.67× | 25.72× | OK | Sig: TF = strncmpi(A, B, N). 100k iters. |
 | `strrep` | ✅ | 0.012 | 1.59× | 1.21× | OK | Sig: Y = strrep(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
 | `strsplit` | ✅ | 0.076 | 1.27× |  | MISMATCH | Sig: C = strsplit(S, DELIM). 3.5k string, 500 splits → cell. 1000 iters. Custom fp (cell out). |
-| `strtok` | ✅ |  |  |  |  |  |
+| `strtok` | ✅ | 0.000 |  | 85.38× | OK | Sig: [TOK, REM] = strtok(S). 10000 iters. |
 | `strtrim` | ✅ | 0.000 | 3.09× | 135.74× | OK | Sig: S = strtrim(S). Trim leading+trailing. 10000 iters. |
 | `upper` | ✅ | 0.068 | 1.10× | 2.51× | OK | Sig: Y = upper(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 
@@ -568,7 +568,7 @@ multiple sections; all occurrences refresh together).
 | `gcd` | ✅ | 0.012 | 9.98× | 3.05× | OK | Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
 | `isprime` | ✅ | 0.132 | 3.35× | 46.77× | OK | Sig: TF = isprime(X). 1..10000. 20 iters. Element-wise SAVE on logical. |
 | `lcm` | ✅ | 0.014 | 11.69× | 6.69× | OK | Sig: L = lcm(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
-| `matchpairs` | ❌ |  |  |  |  |  |
+| `matchpairs` | ❌ |  |  |  | N/A | Sig: M = matchpairs(C, COST_NON). Hungarian-style 3×4. 1000 iters. |
 | `nchoosek` | ✅ | 0.007 | 28.74× | 4.32× | OK | Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter. |
 | `perms` | ✅ |  |  |  |  |  |
 | `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |

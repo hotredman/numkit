@@ -1,0 +1,10 @@
+{
+  "name": "strtok",
+  "namespace": "core",
+  "setup": "s = 'hello world goodbye foo bar baz';",
+  "expr": "[y, jj] = strtok(s);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [TOK, REM] = strtok(S). 10000 iters.",
+  "out_var": "y"
+}

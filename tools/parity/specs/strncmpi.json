@@ -1,0 +1,13 @@
+{
+  "name": "strncmpi",
+  "namespace": "core",
+  "setup": "a = 'HelloWorld'; b = 'HELLOxxxxx';",
+  "expr": "y = strncmpi(a, b, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = strncmpi(A, B, N). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

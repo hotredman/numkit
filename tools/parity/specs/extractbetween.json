@@ -1,0 +1,13 @@
+{
+  "name": "extractbetween",
+  "namespace": "core",
+  "setup": "s = '<<hello>><<world>><<foo>>';",
+  "expr": "y = extractBetween(s, '<<', '>>');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S2 = extractBetween(S, A, B). 3 matches. 10000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))"
+  ]
+}

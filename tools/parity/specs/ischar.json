@@ -1,0 +1,13 @@
+{
+  "name": "ischar",
+  "namespace": "core",
+  "setup": "x = 'hello';",
+  "expr": "y = ischar(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = ischar(X). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}
