@@ -1,4 +1,4 @@
-// libs/builtin/src/math/elementary/backends/abs_simd.cpp
+// libs/builtin/src/math/elementary/backends/abs_highway.cpp
 //
 // Highway dynamic-dispatch version of abs(). This file is re-included
 // by <hwy/foreach_target.h> once per SIMD target; the per-target copy
@@ -24,7 +24,7 @@
 
 // ── Highway dynamic-dispatch boilerplate ────────────────────────────────
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/abs_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/abs_highway.cpp"
 #include <hwy/foreach_target.h>   // includes this file once per target
 #include <hwy/highway.h>
 
@@ -39,7 +39,7 @@ namespace hn = hwy::HWY_NAMESPACE;
 // target namespace because it doesn't benefit from vectorisation.
 //
 // Uses the same head/body/tail NT-store pattern as the binary ops in
-// binary_ops_simd.cpp — see the comment block there for the
+// binary_ops_highway.cpp — see the comment block there for the
 // rationale. abs is also a write-once-discard-rest pattern at large N
 // so the cache-bypass payoff is similar.
 void AbsLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)

@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/compare_simd.cpp
+// libs/builtin/src/lang/operators/backends/compare_highway.cpp
 //
 // Highway dynamic-dispatch SIMD comparisons (==, ~=, <, >, <=, >=) for
 // DOUBLE × DOUBLE inputs. Phase P1.5 — surfaced as the residual bottleneck
@@ -25,7 +25,7 @@
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "language/operators/backends/compare_simd.cpp"
+#define HWY_TARGET_INCLUDE "language/operators/backends/compare_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

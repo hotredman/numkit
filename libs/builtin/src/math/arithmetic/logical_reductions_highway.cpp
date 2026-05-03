@@ -1,4 +1,4 @@
-// libs/builtin/src/math/elementary/backends/logical_reductions_simd.cpp
+// libs/builtin/src/math/elementary/backends/logical_reductions_highway.cpp
 //
 // Highway dynamic-dispatch any() / all() with early-exit. Replaces the
 // applyAlongDim+promoteToDouble path that used to dominate the bench
@@ -30,7 +30,7 @@
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/logical_reductions_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/logical_reductions_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

@@ -2,7 +2,7 @@
 //
 // Reference scalar implementations of exp / log. Compiled when
 // NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
-// exp_log_simd.cpp and matches this file bit-for-bit on complex
+// exp_log_highway.cpp and matches this file bit-for-bit on complex
 // inputs (SIMD only helps the real-vector fast path).
 
 #include <numkit/builtin/math/exp_log/exponents.hpp>

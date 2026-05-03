@@ -2,7 +2,7 @@
 //
 // Scalar reference inner loops for plus / minus / times / rdivide on
 // real double arrays. Compiled when NUMKIT_WITH_SIMD=OFF. The
-// Highway-dispatched variant lives in binary_ops_simd.cpp.
+// Highway-dispatched variant lives in binary_ops_highway.cpp.
 
 #include "binary_ops_loops.hpp"
 

@@ -4,7 +4,7 @@
 // sinh, cosh, tanh, asin, acos, atan, atan2, asinh, acosh, atanh,
 // sind, cosd, tand, asind, acosd, atand, atan2d, sinpi, cospi.
 // Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant
-// lives in trig_simd.cpp and matches this file bit-for-bit on complex
+// lives in trig_highway.cpp and matches this file bit-for-bit on complex
 // inputs (SIMD only helps the real-vector fast path).
 
 #include <numkit/builtin/math/trig/trigonometry.hpp>
