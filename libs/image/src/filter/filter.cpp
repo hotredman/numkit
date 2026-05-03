@@ -300,6 +300,184 @@ Value fspecial(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imfilter / imgaussfilt / imboxfilt / medfilt2
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+inline double sample_padded(const Value &I, int r, int c, int H, int W,
+                            PadMode mode, double pv) {
+    if (mode == PadMode::Constant) {
+        if (r < 0 || r >= H || c < 0 || c >= W) return pv;
+    } else {
+        r = fold_index(r, H, mode);
+        c = fold_index(c, W, mode);
+    }
+    return I.elemAsDouble((size_t)c * (size_t)H + (size_t)r);
+}
+
+inline void store_classed(Value &out, size_t i, double v, ValueType t) {
+    switch (t) {
+        case ValueType::DOUBLE: out.doubleDataMut()[i] = v; break;
+        case ValueType::SINGLE: out.singleDataMut()[i] = (float)v; break;
+        case ValueType::UINT8: {
+            if (v < 0) v = 0; if (v > 255) v = 255;
+            out.uint8DataMut()[i] = (uint8_t)std::lround(v); break;
+        }
+        case ValueType::UINT16: {
+            if (v < 0) v = 0; if (v > 65535) v = 65535;
+            out.uint16DataMut()[i] = (uint16_t)std::lround(v); break;
+        }
+        case ValueType::INT16: {
+            if (v < -32768) v = -32768; if (v > 32767) v = 32767;
+            out.int16DataMut()[i] = (int16_t)std::lround(v); break;
+        }
+        default:
+            throw Error("imfilter: unsupported class", 0, 0, "imfilter", "",
+                        "m:imfilter:badtype");
+    }
+}
+
+} // anonymous
+
+Value imfilter(std::pmr::memory_resource *mr,
+               const Value &I, const Value &h,
+               PadMode boundary, double pad_value,
+               bool full, bool flip_kernel)
+{
+    const int H = (int)I.dims().rows();
+    const int W = (int)I.dims().cols();
+    const int kH = (int)h.dims().rows();
+    const int kW = (int)h.dims().cols();
+    const int half_r = kH / 2;
+    const int half_c = kW / 2;
+
+    int outH, outW;
+    if (full) { outH = H + kH - 1; outW = W + kW - 1; }
+    else      { outH = H; outW = W; }
+
+    Value out = Value::matrix(outH, outW, I.type(), mr);
+    if (outH == 0 || outW == 0) return out;
+
+    // Read kernel into a contiguous double buffer.
+    std::vector<double> kbuf((size_t)kH * (size_t)kW);
+    for (size_t i = 0; i < kbuf.size(); ++i) kbuf[i] = h.elemAsDouble(i);
+
+    // For 'same' correlation: output(r,c) = Σ_{ki, kj} kernel[ki, kj]
+    //                                       · I[r + ki - half_r, c + kj - half_c].
+    // For 'conv': flip the kernel by 180° before applying.
+    auto getK = [&](int ki, int kj) -> double {
+        const int kki = flip_kernel ? (kH - 1 - ki) : ki;
+        const int kkj = flip_kernel ? (kW - 1 - kj) : kj;
+        return kbuf[(size_t)kkj * (size_t)kH + (size_t)kki];
+    };
+
+    if (full) {
+        // 'full' mode: index translation inside the larger output grid.
+        for (int oc = 0; oc < outW; ++oc) {
+            for (int orow = 0; orow < outH; ++orow) {
+                double s = 0.0;
+                for (int kj = 0; kj < kW; ++kj) {
+                    const int c_in = oc - kj;
+                    if (c_in < 0 || c_in >= W) continue;
+                    for (int ki = 0; ki < kH; ++ki) {
+                        const int r_in = orow - ki;
+                        if (r_in < 0 || r_in >= H) continue;
+                        s += getK(ki, kj) * I.elemAsDouble((size_t)c_in * (size_t)H + (size_t)r_in);
+                    }
+                }
+                store_classed(out, (size_t)oc * (size_t)outH + (size_t)orow, s, I.type());
+            }
+        }
+    } else {
+        for (int oc = 0; oc < W; ++oc) {
+            for (int orow = 0; orow < H; ++orow) {
+                double s = 0.0;
+                for (int kj = 0; kj < kW; ++kj) {
+                    const int c_in = oc + kj - half_c;
+                    for (int ki = 0; ki < kH; ++ki) {
+                        const int r_in = orow + ki - half_r;
+                        s += getK(ki, kj) * sample_padded(I, r_in, c_in, H, W,
+                                                          boundary, pad_value);
+                    }
+                }
+                store_classed(out, (size_t)oc * (size_t)H + (size_t)orow, s, I.type());
+            }
+        }
+    }
+    return out;
+}
+
+Value imgaussfilt(std::pmr::memory_resource *mr,
+                  const Value &I, double sigma, int filter_size)
+{
+    if (filter_size <= 0) {
+        // Default: 2·ceil(2σ) + 1.
+        filter_size = 2 * (int)std::ceil(2.0 * sigma) + 1;
+        if (filter_size < 3) filter_size = 3;
+    }
+    if (filter_size % 2 == 0) filter_size += 1;
+    Value k = fspecial_gaussian(mr, filter_size, filter_size, sigma);
+    return imfilter(mr, I, k, PadMode::Replicate, 0.0,
+                    /*full=*/false, /*flip_kernel=*/false);
+}
+
+Value imboxfilt(std::pmr::memory_resource *mr, const Value &I, int filter_size)
+{
+    if (filter_size <= 0) filter_size = 3;
+    if (filter_size % 2 == 0) filter_size += 1;
+    Value k = fspecial_average(mr, filter_size, filter_size);
+    return imfilter(mr, I, k, PadMode::Replicate, 0.0,
+                    /*full=*/false, /*flip_kernel=*/false);
+}
+
+Value medfilt2(std::pmr::memory_resource *mr, const Value &I, int rows, int cols)
+{
+    const int H = (int)I.dims().rows();
+    const int W = (int)I.dims().cols();
+    const int half_r = rows / 2;
+    const int half_c = cols / 2;
+    Value out = Value::matrix(H, W, I.type(), mr);
+    if (H == 0 || W == 0) return out;
+
+    std::vector<double> window;
+    window.reserve((size_t)rows * (size_t)cols);
+
+    for (int oc = 0; oc < W; ++oc) {
+        for (int orow = 0; orow < H; ++orow) {
+            window.clear();
+            for (int kj = 0; kj < cols; ++kj) {
+                for (int ki = 0; ki < rows; ++ki) {
+                    const int r_in = orow + ki - half_r;
+                    const int c_in = oc + kj - half_c;
+                    // MATLAB medfilt2 default: zero-pad outside.
+                    if (r_in < 0 || r_in >= H || c_in < 0 || c_in >= W) {
+                        window.push_back(0.0);
+                    } else {
+                        window.push_back(I.elemAsDouble((size_t)c_in * (size_t)H + (size_t)r_in));
+                    }
+                }
+            }
+            std::nth_element(window.begin(),
+                             window.begin() + window.size() / 2,
+                             window.end());
+            double med = window[window.size() / 2];
+            if ((window.size() & 1) == 0) {
+                // Even count: average of two middle values. nth_element put
+                // the upper-middle in place; find max of the lower half.
+                double left_max = -std::numeric_limits<double>::infinity();
+                for (auto it = window.begin();
+                     it != window.begin() + window.size() / 2; ++it)
+                    if (*it > left_max) left_max = *it;
+                med = 0.5 * (left_max + med);
+            }
+            store_classed(out, (size_t)oc * (size_t)H + (size_t)orow, med, I.type());
+        }
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -392,6 +570,84 @@ void fspecial_reg(Span<const Value> args, size_t /*nargout*/,
         params.push_back(args[2].toScalar());
 
     outs[0] = fspecial(ctx.engine->resource(), type, params);
+}
+
+void imfilter_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imfilter: requires (I, h[, options])",
+                    0, 0, "imfilter", "", "m:imfilter:nargin");
+    PadMode boundary = PadMode::Constant;
+    double pad_value = 0.0;
+    bool full = false;
+    bool flip_kernel = false;  // 'corr' default
+    for (size_t i = 2; i < args.size(); ++i) {
+        const Value &a = args[i];
+        if (a.isChar() || a.isString()) {
+            auto s = a.toString();
+            if      (s == "replicate") boundary = PadMode::Replicate;
+            else if (s == "symmetric") boundary = PadMode::Symmetric;
+            else if (s == "circular")  boundary = PadMode::Circular;
+            else if (s == "full")      full = true;
+            else if (s == "same")      full = false;
+            else if (s == "conv")      flip_kernel = true;
+            else if (s == "corr")      flip_kernel = false;
+        } else {
+            pad_value = a.toScalar();
+            boundary = PadMode::Constant;
+        }
+    }
+    outs[0] = imfilter(ctx.engine->resource(), args[0], args[1],
+                       boundary, pad_value, full, flip_kernel);
+}
+
+void imgaussfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imgaussfilt: requires (I[, sigma][, FilterSize])",
+                    0, 0, "imgaussfilt", "", "m:imgaussfilt:nargin");
+    double sigma = (args.size() >= 2 && !args[1].isEmpty()) ? args[1].toScalar() : 0.5;
+    int fs = 0;  // auto
+    // Look for 'FilterSize' name-value pair.
+    for (size_t i = 2; i + 1 < args.size(); ++i) {
+        if ((args[i].isChar() || args[i].isString())
+            && args[i].toString() == "FilterSize") {
+            fs = (int)args[i + 1].toScalar();
+            break;
+        }
+    }
+    outs[0] = imgaussfilt(ctx.engine->resource(), args[0], sigma, fs);
+}
+
+void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imboxfilt: requires (I[, FilterSize])",
+                    0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
+    int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
+    outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+}
+
+void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("medfilt2: requires (I[, [m n]])",
+                    0, 0, "medfilt2", "", "m:medfilt2:nargin");
+    int rows = 3, cols = 3;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) {
+            rows = cols = (int)v.toScalar();
+        } else if (v.numel() >= 2) {
+            rows = (int)v.elemAsDouble(0);
+            cols = (int)v.elemAsDouble(1);
+        }
+    }
+    outs[0] = medfilt2(ctx.engine->resource(), args[0], rows, cols);
 }
 
 } // namespace detail
