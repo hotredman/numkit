@@ -1,0 +1,13 @@
+{
+  "name": "min",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = min(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: M = min(X). 1M-pt. 100 iters. Scalar fp.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

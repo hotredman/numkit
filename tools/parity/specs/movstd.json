@@ -1,0 +1,10 @@
+{
+  "name": "movstd",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1, 1000000); k = 5;",
+  "expr": "y = movstd(x, k);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: M = movstd(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE.",
+  "out_var": "y"
+}

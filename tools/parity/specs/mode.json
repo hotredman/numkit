@@ -1,0 +1,13 @@
+{
+  "name": "mode",
+  "namespace": "core",
+  "setup": "x = mod(1:1000000, 7919);",
+  "expr": "y = mode(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

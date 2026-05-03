@@ -1,0 +1,10 @@
+{
+  "name": "cummax",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = cummax(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE.",
+  "out_var": "y"
+}
