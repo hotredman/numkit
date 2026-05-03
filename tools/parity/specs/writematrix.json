@@ -1,0 +1,12 @@
+{
+  "name": "writematrix",
+  "namespace": "core",
+  "setup": "fname = [tempname, '.csv']; M = reshape(1:9, 3, 3);",
+  "expr": "writematrix(M, fname); y = fileread(fname);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: writematrix(M, F). 100 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "writelines",
+  "namespace": "core",
+  "setup": "fname = tempname; lines = [\"foo\"; \"bar\"; \"baz\"];",
+  "expr": "writelines(lines, fname); y = readlines(fname);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: writelines(L, F). 100 iters.",
+  "fingerprint": [
+    "double(numel(y))"
+  ]
+}

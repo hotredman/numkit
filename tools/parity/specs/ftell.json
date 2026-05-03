@@ -1,0 +1,12 @@
+{
+  "name": "ftell",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, zeros(1, 100), 'double'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); fseek(fid, 16, 'bof'); y = ftell(fid); fclose(fid);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: POS = ftell(FID). 1000 iters.",
+  "fingerprint": [
+    "double(y)"
+  ]
+}

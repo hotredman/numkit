@@ -1,0 +1,12 @@
+{
+  "name": "fwrite",
+  "namespace": "core",
+  "setup": "fname = tempname;",
+  "expr": "fid = fopen(fname, 'w'); y = fwrite(fid, 1:1000, 'double'); fclose(fid);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: COUNT = fwrite(FID, A, PRECISION). 100 iters.",
+  "fingerprint": [
+    "double(y)"
+  ]
+}

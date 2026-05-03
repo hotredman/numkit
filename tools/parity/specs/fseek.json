@@ -1,0 +1,12 @@
+{
+  "name": "fseek",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, zeros(1, 100), 'double'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); y = fseek(fid, 16, 'bof'); fclose(fid);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: STATUS = fseek(FID, OFFSET, ORIGIN). 1000 iters.",
+  "fingerprint": [
+    "double(y)"
+  ]
+}

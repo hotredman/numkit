@@ -1,0 +1,13 @@
+{
+  "name": "issparse",
+  "namespace": "core",
+  "setup": "x = [0 0 1; 0 2 0; 3 0 0];",
+  "expr": "y = issparse(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = issparse(X). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

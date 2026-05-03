@@ -1,0 +1,12 @@
+{
+  "name": "fprintf",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w');",
+  "expr": "fprintf(fid, '%d ', 1:100); fclose(fid); y = fileread(fname);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: COUNT = fprintf(FID, FMT, A). 100 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}
