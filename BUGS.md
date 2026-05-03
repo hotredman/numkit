@@ -356,7 +356,7 @@ unit test updated to match MATLAB-spec.
 
 ---
 
-## 17. `libs/builtin`: `cellstr(multi_row_char)` flattens column-major instead of row-split — **P2**
+## 17. `libs/builtin`: `cellstr(multi_row_char)` flattens column-major instead of row-split — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -378,6 +378,12 @@ formatting) and wants to convert to cellstr produces garbage data.
 to iterate rows of the char matrix and deblank each, not column-major
 flatten.
 **First seen:** 2026-05-03, parity bulk-bench iteration 15.
+**Fix (2026-05-03):** `cellstr` in
+[libs/builtin/src/language/cells/cell.cpp] now splits multi-row CHAR
+input into M rows (column-major buffer indexing: element (r,c) at
+`r + c*nr`), strips trailing spaces from each row (MATLAB's `deblank`
+semantics), and packages into an M-by-1 cell. 1-row CHAR continues
+to wrap as a 1-by-1 cell.
 
 ---
 
