@@ -458,11 +458,11 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `acos` | ✅ | 6.911 | 0.23× | 1.15× | OK | Sig: Y = acos(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
-| `acosd` | ✅ |  |  |  |  | degree |
-| `acosh` | ✅ |  |  |  |  | hyperbolic |
-| `acot` | ✅ |  |  |  |  |  |
-| `acotd` | ✅ |  |  |  |  |  |
-| `acoth` | ✅ |  |  |  |  |  |
+| `acosd` | ✅ | 6.752 | 0.23× | 1.92× | OK | Sig: Y = acosd(X). 1M-pt sweep on [-1,1]. Inverse trig (degrees). 20 iters. Element-wise SAVE. tol relaxed to 1e-10 because acos derivative diverges near x=±1 (1 elem rel diff 1.11e-12 at x≈0.99993, algorithmically correct). |
+| `acosh` | ✅ | 9.405 | 0.22× | 1.02× | OK | Sig: Y = acosh(X). 1M-pt on [1,10] (domain X>=1). 20 iters. Element-wise SAVE. |
+| `acot` | ✅ | 6.452 | 0.09× | 1.81× | OK | Sig: Y = acot(X). 1M-pt on [0.1,10] (avoid 0 singularity). 20 iters. Element-wise SAVE. |
+| `acotd` | ✅ | 6.589 | 0.09× | 2.13× | OK | Sig: Y = acotd(X). 1M-pt (degrees). 20 iters. Element-wise SAVE. |
+| `acoth` | ✅ | 8.760 | 0.28× | 1.92× | OK | Sig: Y = acoth(X). 1M-pt on (1,10] (domain |X|>1). 20 iters. Element-wise SAVE. |
 | `acsc` | ✅ |  |  |  |  |  |
 | `acscd` | ✅ |  |  |  |  |  |
 | `acsch` | ✅ |  |  |  |  |  |
@@ -470,13 +470,13 @@ multiple sections; all occurrences refresh together).
 | `asecd` | ✅ |  |  |  |  |  |
 | `asech` | ✅ |  |  |  |  |  |
 | `asin` | ✅ | 6.750 | 0.24× | 1.23× | OK | Sig: Y = asin(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
-| `asind` | ✅ |  |  |  |  | degree |
-| `asinh` | ✅ |  |  |  |  | hyperbolic |
+| `asind` | ✅ | 6.855 | 0.29× | 1.95× | OK | Sig: Y = asind(X). 1M-pt on [-1,1]. Inverse (degrees). 20 iters. Element-wise SAVE. |
+| `asinh` | ✅ | 10.521 | 0.13× | 0.77× | OK | Sig: Y = asinh(X). 1M-pt on [-10,10]. 20 iters. Element-wise SAVE. |
 | `atan` | ✅ | 6.363 | 0.09× | 0.69× | OK | Sig: Y = atan(X). 1M-pt sweep on [-10, 10]. 20 iters. Element-wise SAVE. |
 | `atan2` | ✅ | 10.641 | 0.07× | 0.73× | OK | Sig: P = atan2(Y, X). 1000x1000 quadrant grid. 20 iters. Element-wise SAVE. |
-| `atan2d` | ✅ |  |  |  |  | degree |
-| `atand` | ✅ |  |  |  |  | degree |
-| `atanh` | ✅ |  |  |  |  | hyperbolic |
+| `atan2d` | ✅ | 10.705 | 0.09× | 0.95× | OK | Sig: Z = atan2d(Y, X). 1k×1k quadrant grid (degrees). 20 iters. Element-wise SAVE. |
+| `atand` | ✅ | 6.528 | 0.11× | 1.04× | OK | Sig: Y = atand(X). 1M-pt on [-10,10]. Inverse (degrees). 20 iters. Element-wise SAVE. |
+| `atanh` | ✅ | 8.309 | 0.33× | 1.12× | OK | Sig: Y = atanh(X). 1M-pt on (-1,1) (avoid pole). 20 iters. Element-wise SAVE. |
 | `cart2pol` | ✅ | 17.127 | 0.19× | 1.34× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
 | `cart2sph` | ✅ |  |  |  |  | coord xform |
 | `cos` | ✅ | 0.855 | 1.03× | 5.49× | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
@@ -493,9 +493,9 @@ multiple sections; all occurrences refresh together).
 | `hypot` | ✅ | 6.636 | 0.17× | 0.75× | OK | Sig: Y = hypot(A, B). 1k×1k grid. 20 iters. Element-wise SAVE. |
 | `pol2cart` | ✅ |  |  |  |  | coord xform |
 | `rad2deg` | ✅ |  |  |  |  |  |
-| `sec` | ✅ |  |  |  |  | reciprocal |
-| `secd` | ✅ |  |  |  |  |  |
-| `sech` | ✅ |  |  |  |  |  |
+| `sec` | ✅ | 6.642 | 0.10× | 1.77× | OK | Sig: Y = sec(X). 1M-pt on [-1.5, 1.5] (avoid π/2). 20 iters. Element-wise SAVE. |
+| `secd` | ✅ | 9.655 | 0.08× | 3.07× | OK | Sig: Y = secd(X). 1M-pt on [-89°, 89°]. 20 iters. Element-wise SAVE. |
+| `sech` | ✅ | 8.684 | 0.11× | 1.52× | OK | Sig: Y = sech(X). 1M-pt on [-5, 5]. 20 iters. Element-wise SAVE. |
 | `sin` | ✅ | 0.845 | 1.07× | 5.61× | OK | Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `sind` | ✅ | 10.629 | 0.07× | 1.92× | OK | Sig: Y = sind(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
 | `sinh` | ✅ | 8.339 | 0.15× | 0.69× | OK | Sig: Y = sinh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |

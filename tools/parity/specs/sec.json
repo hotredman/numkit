@@ -1,0 +1,10 @@
+{
+  "name": "sec",
+  "namespace": "core",
+  "setup": "x = linspace(-1.5, 1.5, 1000000);",
+  "expr": "y = sec(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = sec(X). 1M-pt on [-1.5, 1.5] (avoid \u03c0/2). 20 iters. Element-wise SAVE."
+}

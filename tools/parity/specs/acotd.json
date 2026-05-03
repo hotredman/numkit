@@ -1,0 +1,10 @@
+{
+  "name": "acotd",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 10, 1000000);",
+  "expr": "y = acotd(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = acotd(X). 1M-pt (degrees). 20 iters. Element-wise SAVE."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "acot",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 10, 1000000);",
+  "expr": "y = acot(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = acot(X). 1M-pt on [0.1,10] (avoid 0 singularity). 20 iters. Element-wise SAVE."
+}
