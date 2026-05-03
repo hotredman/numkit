@@ -163,9 +163,9 @@ multiple sections; all occurrences refresh together).
 | `char` | ✅ | 0.000 | 2.37× | 11.62× | OK | Sig: S = char(X). ASCII codes A-Z. 10000 iters. |
 | `compose` | ✅ | 0.391 | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
 | `contains` | ✅ | 0.000 | 3.59× |  | OK | Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14). |
-| `convertcharstostrings` | ✅ |  |  |  |  |  |
+| `convertcharstostrings` | ✅ | 0.000 | 5.02× |  | OK | Sig: S = convertCharsToStrings(C). 100k iters. |
 | `convertcontainedstringstochars` | ✅ |  |  |  |  |  |
-| `convertstringstochars` | ✅ |  |  |  |  |  |
+| `convertstringstochars` | ✅ | 0.000 | 3.06× |  | OK | Sig: C = convertStringsToChars(S). 100k iters. |
 | `count` | ✅ | 0.005 | 1.11× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
 | `deblank` | ✅ | 0.000 | 4.21× | 145.71× | OK | Sig: S = deblank(S). Trim trailing space. 10000 iters. |
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
@@ -189,23 +189,23 @@ multiple sections; all occurrences refresh together).
 | `lower` | ✅ | 0.046 | 1.59× | 3.67× | OK | Sig: Y = lower(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 | `matches` | ✅ |  |  |  |  |  |
 | `newline` | ✅ | 0.000 | 0.10× | 7.25× | OK | ASCII LF char. Bench is 100k iters of the call itself. |
-| `num2str` | ✅ |  |  |  |  |  |
+| `num2str` | ✅ | 0.001 | 18.09× | 347.70× | MISMATCH | Sig: S = num2str(X). 100k iters. |
 | `pad` | ✅ | 0.000 | 15.01× |  | OK | Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters. |
 | `plus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `regexp` | ✅ |  |  |  |  |  |
-| `regexpi` | ✅ |  |  |  |  |  |
-| `regexprep` | ✅ |  |  |  |  |  |
-| `regexptranslate` | ✅ | 0.000 | 13.86× | 63.52× | OK | Escape 21-char string with many metachars. 10k iters. |
+| `regexp` | ✅ | 0.300 | 0.20× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
+| `regexpi` | ✅ | 0.074 | 0.45× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
+| `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
+| `regexptranslate` | ✅ | 0.000 | 18.05× | 86.59× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.012 | 2.62× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
 | `replacebetween` | ✅ |  |  |  |  |  |
 | `reverse` | ✅ | 0.000 | 8.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.102 | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
 | `splitlines` | ✅ | 0.001 | 3.19× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
 '. 1000 iters. |
-| `sprintf` | ✅ |  |  |  |  |  |
-| `sscanf` | ✅ |  |  |  |  |  |
+| `sprintf` | ✅ | 0.001 | 5.38× | 5.43× | OK | Sig: S = sprintf(FMT, ...). Format scalar+int. 100k iters. |
+| `sscanf` | ✅ | 0.000 | 5.16× | 80.00× | OK | Sig: A = sscanf(S, FMT). 5 floats. 100k iters. |
 | `startswith` | ❌ |  |  |  |  |  |
-| `str2double` | ✅ |  |  |  |  |  |
+| `str2double` | ✅ | 0.000 | 24.98× | 16.03× | OK | Sig: V = str2double(S). 100k iters. |
 | `strcat` | ✅ | 0.001 | 26.76× | 84.88× | OK | Sig: S = strcat(A, B). 5k + 6k char concat. 1000 iters. |
 | `strcmp` | ✅ | 0.000 | 7.11× | 33.62× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
 | `strcmpi` | ✅ |  |  |  |  |  |
@@ -690,8 +690,8 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
-| `randi` | ✅ |  |  |  |  |  |
-| `randn` | ✅ |  |  |  |  |  |
+| `randi` | ✅ | 6.307 | 0.75× | 1.72× | OK | Sig: A = randi(IMAX, M, N). 1k×1k uniform-int. 100 iters. |
+| `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
 | `randperm` | ✅ |  |  |  |  |  |
 | `randstream` | ❌ |  |  |  |  |  |
 | `rng` | ✅ |  |  |  |  |  |
@@ -872,12 +872,12 @@ multiple sections; all occurrences refresh together).
 | `min` | ✅ | 1.435 | 0.03× | 0.55× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
 | `mink` | ✅ | 71.151 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |
 | `mode` | ✅ | 18.749 | 0.48× | 2.75× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
-| `movmad` | ✅ |  |  |  |  | moving mad |
+| `movmad` | ✅ | 4.178 | 0.05× | 4.50× | OK | Sig: M = movmad(X, K). 100k. 50 iters. |
 | `movmax` | ✅ | 4.771 | 0.29× | 19.05× | OK | Sig: M = movmax(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movmean` | ✅ | 4.885 | 0.29× | 19.38× | OK | Sig: M = movmean(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movmedian` | ✅ |  |  |  |  | moving median |
+| `movmedian` | ✅ | 2.264 | 0.05× | 4.89× | OK | Sig: M = movmedian(X, K). 100k window=5 (median is heavier). 50 iters. |
 | `movmin` | ✅ | 4.650 | 0.29× | 18.33× | OK | Sig: M = movmin(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `movprod` | ✅ |  |  |  |  | moving prod |
+| `movprod` | ✅ | 4.689 | 0.28× | 17.83× | OK | Sig: M = movprod(X, K). 1M near-1 vals. 50 iters. |
 | `movstd` | ✅ | 7.371 | 0.20× | 17.26× | OK | Sig: M = movstd(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
 | `movvar` | ✅ | 6.842 | 0.22× | 19.23× | OK | Sig: M = movvar(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |

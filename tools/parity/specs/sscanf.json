@@ -1,0 +1,10 @@
+{
+  "name": "sscanf",
+  "namespace": "core",
+  "setup": "s = '1.5 2.5 3.5 4.5 5.5';",
+  "expr": "y = sscanf(s, '%f');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: A = sscanf(S, FMT). 5 floats. 100k iters.",
+  "out_var": "y"
+}

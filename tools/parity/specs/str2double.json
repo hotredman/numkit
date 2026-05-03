@@ -1,0 +1,13 @@
+{
+  "name": "str2double",
+  "namespace": "core",
+  "setup": "s = '3.14159265358979';",
+  "expr": "y = str2double(s);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: V = str2double(S). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

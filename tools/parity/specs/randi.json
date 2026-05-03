@@ -1,0 +1,14 @@
+{
+  "name": "randi",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = randi(100, 1000, 1000);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: A = randi(IMAX, M, N). 1k\u00d71k uniform-int. 100 iters.",
+  "fingerprint": [
+    "numel(y)",
+    "double(size(y, 1))",
+    "double(size(y, 2))"
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "num2str",
+  "namespace": "core",
+  "setup": "x = pi;",
+  "expr": "y = num2str(x, '%.10f');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S = num2str(X). 100k iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,13 @@
+{
+  "name": "regexpi",
+  "namespace": "core",
+  "setup": "s = repmat('Hello WORLD heLLo wORLd ', 1, 100);",
+  "expr": "y = regexpi(s, 'hello', 'match');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))"
+  ]
+}

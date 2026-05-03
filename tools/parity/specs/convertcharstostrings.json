@@ -1,0 +1,12 @@
+{
+  "name": "convertcharstostrings",
+  "namespace": "core",
+  "setup": "c = 'hello world';",
+  "expr": "y = convertCharsToStrings(c);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S = convertCharsToStrings(C). 100k iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

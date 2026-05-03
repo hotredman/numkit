@@ -1,0 +1,10 @@
+{
+  "name": "regexprep",
+  "namespace": "core",
+  "setup": "s = repmat('foo 1 bar 2 baz 3 ', 1, 100);",
+  "expr": "y = regexprep(s, '\\d+', 'NUM');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters.",
+  "out_var": "y"
+}

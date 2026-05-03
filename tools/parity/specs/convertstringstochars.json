@@ -1,0 +1,10 @@
+{
+  "name": "convertstringstochars",
+  "namespace": "core",
+  "setup": "s = \"hello world\";",
+  "expr": "y = convertStringsToChars(s);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C = convertStringsToChars(S). 100k iters.",
+  "out_var": "y"
+}

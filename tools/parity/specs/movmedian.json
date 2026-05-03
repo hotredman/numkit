@@ -1,0 +1,10 @@
+{
+  "name": "movmedian",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 100000));",
+  "expr": "y = movmedian(x, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: M = movmedian(X, K). 100k window=5 (median is heavier). 50 iters.",
+  "out_var": "y"
+}
