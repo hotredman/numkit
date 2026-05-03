@@ -1,0 +1,13 @@
+{
+  "name": "rmse",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000)); y_pred = x + 0.01*cos(linspace(0, 100, 1000000));",
+  "expr": "y = rmse(y_pred, x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: R = rmse(F, A). 1M-pt. 100 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

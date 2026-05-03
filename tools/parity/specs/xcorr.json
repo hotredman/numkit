@@ -1,0 +1,10 @@
+{
+  "name": "xcorr",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 5000));",
+  "expr": "y = xcorr(x, x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters.",
+  "out_var": "y"
+}

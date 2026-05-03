@@ -32,7 +32,7 @@ multiple sections; all occurrences refresh together).
 | `diary` | ❌ |  |  |  |  | session log |
 | `format` | ✅ |  |  |  |  | output format (no-op stub) |
 | `home` | ✅ |  |  |  |  | terminal home |
-| `iskeyword` | ✅ |  |  |  |  | introspection |
+| `iskeyword` | ✅ | 0.000 | 5.37× | 6.40× | OK | Sig: TF = iskeyword(NAME). Returns scalar logical. 100k iters. |
 | `more` | ❌ |  |  |  |  | pager |
 
 ## Matrices and Arrays
@@ -50,7 +50,7 @@ multiple sections; all occurrences refresh together).
 | `diag` | ✅ | 0.008 | 1.22× | 1.97× | OK | Sig: V = diag(A). Diagonal of 2000x2000 deterministic. 100 iters. |
 | `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
 | `eye` | ✅ | 1.808 | 0.57× | 0.00× | OK | Sig: I = eye(N). 1000x1000 identity. 100 iters. |
-| `false` | ✅ |  |  |  |  | literal/constant |
+| `false` | ✅ |  |  |  | N/A | Sig: F = false(M, N). 100x100 logical. 1000 iters. |
 | `flip` | ✅ | 2.122 | 0.79× | 1.03× | OK | Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE. |
 | `fliplr` | ✅ | 2.144 | 0.80× | 1.02× | OK | Sig: B = fliplr(A). 1000x1000 left-right flip. 100 iters. Element-wise SAVE. |
 | `flipud` | ✅ | 2.308 | 0.53× | 0.99× | OK | Sig: B = flipud(A). 1000x1000 up-down flip. 100 iters. Element-wise SAVE. |
@@ -93,7 +93,7 @@ multiple sections; all occurrences refresh together).
 | `tail` | ✅ | 0.000 | 54.28× |  | OK | Sig: Y = tail(X, K). Last 100 elements. 10000 iters. |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
 | `trimdata` | ✅ | 0.000 | 125.66× |  | OK | Sig: Y = trimdata(X, M). Trim to 500. 1000 iters. |
-| `true` | ✅ |  |  |  |  | literal/constant |
+| `true` | ✅ |  |  |  | N/A | Sig: T = true(M, N). 100x100 logical. 1000 iters. |
 | `vertcat` | ✅ | 1.811 | 0.64× | 0.60× | OK | Sig: D = vertcat(A,B). 500x500 stack. 100 iters. |
 | `zeros` | ✅ | 1.807 | 0.03× | 1.16× | OK | Sig: Z = zeros(M,N). 1000x1000. 100 iters. |
 
@@ -694,7 +694,7 @@ multiple sections; all occurrences refresh together).
 | `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
 | `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
 | `randstream` | ❌ |  |  |  |  |  |
-| `rng` | ✅ |  |  |  |  |  |
+| `rng` | ✅ | 0.001 | 33.99× | 33.95× | MISMATCH | Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters. |
 
 ## Interpolation
 
@@ -709,17 +709,17 @@ multiple sections; all occurrences refresh together).
 | `interp2` | ✅ |  |  |  | N/A | Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 → 200x200 bilinear. 50 iters. |
 | `interp3` | ✅ |  |  |  | N/A | Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20³ → 50³ trilinear. 10 iters. |
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
-| `interpn` | ✅ |  |  |  |  |  |
+| `interpn` | ✅ |  |  |  | N/A | Sig: Vq = interpn(...) N-D interp. 20³ → 50³. 10 iters. |
 | `makima` | ❌ |  |  |  |  |  |
 | `meshgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 100 iters. SAVE on X. |
-| `mkpp` | ✅ |  |  |  |  |  |
+| `mkpp` | ✅ | 0.000 | 6.87× | 56.79× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
 | `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
 | `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
 | `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
 | `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
 | `scatteredinterpolant` | ❌ |  |  |  |  |  |
 | `spline` | ✅ | 0.016 | 23.98× | 40.02× | MISMATCH | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
-| `unmkpp` | ✅ |  |  |  |  |  |
+| `unmkpp` | ✅ | 0.000 | 3.90× | 46.01× | OK | Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters. |
 
 ## Optimization
 
@@ -849,7 +849,7 @@ multiple sections; all occurrences refresh together).
 | `nufft` | ❌ |  |  |  |  | non-uniform |
 | `nufftn` | ❌ |  |  |  |  | non-uniform |
 | `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
-| `ss2tf` | ✅ |  |  |  |  | inverse |
+| `ss2tf` | ✅ | 0.001 |  |  | N/A | Sig: [NUM,DEN] = ss2tf(A,B,C,D). State-space → transfer fn. 10000 iters. |
 
 ## Descriptive Statistics
 
@@ -859,7 +859,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `bounds` | ✅ | 6.271 | 0.02× | 0.25× | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
 | `corrcoef` | ✅ | 0.070 | 2.30× | 5.01× | OK | Sig: R = corrcoef(M). 2-col 10k matrix. 100 iters. |
-| `cov` | ✅ |  |  |  |  |  |
+| `cov` | ✅ | 0.030 | 1.02× | 1.75× | OK | Sig: C = cov(M). 2-col 10k cov matrix. 1000 iters. |
 | `cummax` | ✅ | 2.385 | 1.08× | 1.17× | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
 | `cummin` | ✅ | 2.504 | 1.05× | 1.04× | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ | 69.423 | 0.11× | 0.35× | MISMATCH | Sig: R = iqr(X). 1M-pt inter-quartile. 50 iters. |
@@ -884,11 +884,11 @@ multiple sections; all occurrences refresh together).
 | `prctile` | ✅ | 33.491 | 0.23× | 0.72× | MISMATCH | Sig: Y = prctile(X, P). 1M-pt at 4 percentiles. 50 iters. |
 | `quantile` | ✅ | 33.734 | 0.23× | 0.72× | MISMATCH | Sig: Y = quantile(X, Q). 1M-pt at 4 quantiles. 50 iters. |
 | `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
-| `rmse` | ✅ |  |  |  |  |  |
+| `rmse` | ✅ | 8.994 | 0.26× | 2.19× | OK | Sig: R = rmse(F, A). 1M-pt. 100 iters. |
 | `std` | ✅ | 0.323 | 4.70× | 26.33× | OK | Sig: S = std(X). 1M-pt. 100 iters. Scalar fp. |
 | `summary` | ❌ |  |  |  |  |  |
 | `var` | ✅ | 0.326 | 4.46× | 26.48× | OK | Sig: V = var(X). 1M-pt. 100 iters. Scalar fp. |
-| `xcorr` | ✅ |  |  |  |  | cross-correlation |
+| `xcorr` | ✅ | 0.952 | 0.19× |  | OK | Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters. |
 | `xcov` | ✅ | 0.984 | 0.41× | — | OK | Cross-cov of 5k-pt sine. 50 iters. |
 
 ## Workspace
@@ -914,12 +914,12 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `assert` | ✅ |  |  |  |  |  |
+| `assert` | ✅ | 0.000 | 3.02× |  | OK | Sig: assert(COND). Pass-case. 100k iters. |
 | `error` | ✅ |  |  |  |  |  |
-| `lastwarn` | ✅ | 0.000 | 1.20× | 8.46× | OK | Read last warning state. 100k iters, scalar timing. |
+| `lastwarn` | ✅ | 0.000 | 3.19× |  | OK | Sig: msg = lastwarn. Read last warning. 100k iters. |
 | `oncleanup` | ❌ |  |  |  |  |  |
 | `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
-| `warning` | ✅ |  |  |  |  |  |
+| `warning` | ✅ | 0.000 | 38.66× |  | OK | Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters. |
 
 ## Exception Handling
 
