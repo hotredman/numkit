@@ -1,0 +1,10 @@
+{
+  "name": "upsample",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 25000));",
+  "expr": "y = upsample(x, 4);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = upsample(X, N). N=4. 1000 iters.",
+  "out_var": "y"
+}

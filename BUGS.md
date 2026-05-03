@@ -679,6 +679,64 @@ Likely needs 3-D meshgrid first.
 
 ---
 
+## 32. `libs/signal`: `impzlength` overestimates IIR impulse-response length — **P3**
+
+**Reproducer:**
+```matlab
+b = [1 -0.5]; a = [1 -0.99];
+impzlength(b, a)
+% MATLAB:  985
+% numkit:  1146
+```
+Both engines return a length sufficient for the response to decay below
+threshold; numkit's estimate is conservative (~16% longer).
+**Impact:** Cosmetic — anything that allocates buffers based on this
+gets a slightly larger array. Functionally correct.
+**Where:** [libs/signal/src/](libs/signal/) — different decay-tolerance
+constant or different pole-magnitude formula.
+**First seen:** 2026-05-03, parity bulk-bench iteration 29.
+
+---
+
+## 33. `libs/signal`: `cconv(a, b)` defaults to N=length(a), MATLAB defaults to length(a)+length(b)-1 — **P2**
+
+**Reproducer:**
+```matlab
+cconv(rand(1,1000), rand(1,1000))
+% MATLAB:  1999-element vector (length(a) + length(b) - 1, linear conv length)
+% numkit:  1000-element vector (length(a) only)
+```
+**MATLAB:** the documented default for `cconv(a, b)` is N = length(a) +
+length(b) - 1, equivalent to a linear convolution. The 3-arg form
+`cconv(a, b, N)` does true circular convolution with period N.
+**Impact:** numkit's `cconv(a, b)` (2-arg form) returns the
+length-N=length(a) circular conv, which is the WRONG default per
+MATLAB semantics. Real parity bug.
+**Where:** [libs/signal/src/](libs/signal/) `cconv` — fix default N.
+**First seen:** 2026-05-03, parity bulk-bench iteration 29.
+
+---
+
+## 34. `libs/signal`: `convmtx` element-ordering / shape differs — **P2**
+
+**Reproducer:**
+```matlab
+h = [1 -0.5 0.25];
+A = convmtx(h, 100);
+A(1, 2)
+% MATLAB:  0       (lower-triangular Toeplitz layout, [1 0 0 ...; -0.5 1 0 ...; ...])
+% numkit:  -0.5    (different shape — possibly upper-triangular or transposed)
+```
+The fingerprint sums match (both produce a 102×100 matrix with the same
+sum), but the element layout differs.
+**Impact:** Anything using `convmtx` for matrix-formed convolution
+(linear regression formulation, etc.) gets the wrong product.
+**Where:** [libs/signal/src/](libs/signal/) `convmtx` — likely shape /
+indexing convention bug.
+**First seen:** 2026-05-03, parity bulk-bench iteration 29.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

@@ -1,0 +1,13 @@
+{
+  "name": "peak2rms",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = peak2rms(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: R = peak2rms(X). 100 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

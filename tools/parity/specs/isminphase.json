@@ -1,0 +1,13 @@
+{
+  "name": "isminphase",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = 1;",
+  "expr": "y = isminphase(b, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isminphase(B, A). 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

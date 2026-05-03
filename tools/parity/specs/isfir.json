@@ -1,0 +1,13 @@
+{
+  "name": "isfir",
+  "namespace": "core",
+  "setup": "b = [1 -0.5 0.25]; a = 1;",
+  "expr": "y = isfir(b, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isfir(B, A). 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

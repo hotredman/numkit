@@ -1,0 +1,10 @@
+{
+  "name": "cconv",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 100, 1000)); b = cos(linspace(0, 100, 1000));",
+  "expr": "y = cconv(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: C = cconv(A, B). Circular convolution. 100 iters.",
+  "out_var": "y"
+}

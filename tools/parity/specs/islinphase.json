@@ -1,0 +1,13 @@
+{
+  "name": "islinphase",
+  "namespace": "core",
+  "setup": "b = [1 -0.5 1]; a = 1;",
+  "expr": "y = islinphase(b, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = islinphase(B, A). 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

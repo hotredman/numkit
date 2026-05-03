@@ -1,0 +1,13 @@
+{
+  "name": "ismaxphase",
+  "namespace": "core",
+  "setup": "b = [1 -2.5 1]; a = 1;",
+  "expr": "y = ismaxphase(b, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = ismaxphase(B, A). 10000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}
