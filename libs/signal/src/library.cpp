@@ -190,6 +190,12 @@ void is2rc_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rc2is_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lar2rc_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rc2lar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void arcov_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void armcov_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void prony_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void corrmtx_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poly2lsf_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lsf2poly_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Vibration analysis (libs/signal/src/measurements/vibration.cpp)
 void envspectrum_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -396,6 +402,12 @@ void SignalLibrary::install(Engine &engine)
     reg("parametric", "rc2is",     &signal::detail::rc2is_reg);
     reg("parametric", "lar2rc",    &signal::detail::lar2rc_reg);
     reg("parametric", "rc2lar",    &signal::detail::rc2lar_reg);
+    reg("parametric", "arcov",     &signal::detail::arcov_reg);
+    reg("parametric", "armcov",    &signal::detail::armcov_reg);
+    reg("parametric", "prony",     &signal::detail::prony_reg);
+    reg("parametric", "corrmtx",   &signal::detail::corrmtx_reg);
+    reg("parametric", "poly2lsf",  &signal::detail::poly2lsf_reg);
+    reg("parametric", "lsf2poly",  &signal::detail::lsf2poly_reg);
     reg("vibration",    "envspectrum",  &signal::detail::envspectrum_reg);
     reg("vibration",    "tachorpm",     &signal::detail::tachorpm_reg);
     reg("vibration",    "rainflow",     &signal::detail::rainflow_reg);

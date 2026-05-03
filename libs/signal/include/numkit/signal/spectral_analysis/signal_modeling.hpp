@@ -83,4 +83,37 @@ Value lar2rc(std::pmr::memory_resource *mr, const Value &g);
 /// rc2lar(k) — reflection coefficients → log-area-ratio.
 Value rc2lar(std::pmr::memory_resource *mr, const Value &k);
 
+// ── Covariance / modified-covariance AR + Prony + corrmtx ─────────
+
+/// arcov(x, p) — covariance AR: minimise the forward prediction
+/// error energy over n = p .. N-1. Returns (a, e).
+std::tuple<Value, Value>
+arcov(std::pmr::memory_resource *mr, const Value &x, int p);
+
+/// armcov(x, p) — modified-covariance AR: average forward + backward
+/// prediction error energies. Returns (a, e).
+std::tuple<Value, Value>
+armcov(std::pmr::memory_resource *mr, const Value &x, int p);
+
+/// prony(h, nb, na) — given impulse response h, identify a (nb, na)
+/// IIR filter b(z)/a(z). Returns (b, a). Solves a denominator system
+/// by least squares then convolves a with h to recover b.
+std::tuple<Value, Value>
+prony(std::pmr::memory_resource *mr, const Value &h, int nb, int na);
+
+/// corrmtx(x, m) — generate the (n+m) × (m+1) data matrix X such
+/// that X'·X is the autocorrelation matrix Rxx (default
+/// 'autocorrelation' method). Other methods not yet supported.
+Value corrmtx(std::pmr::memory_resource *mr, const Value &x, int m);
+
+// ── LSF ↔ AR poly ─────────────────────────────────────────────────
+
+/// poly2lsf(a) — line spectral frequencies (in rad). Returns a column
+/// vector of N angles in (0, π) for AR poly of order N.
+Value poly2lsf(std::pmr::memory_resource *mr, const Value &a);
+
+/// lsf2poly(lsf) — inverse: LSF angles → AR coefficient vector
+/// length N+1.
+Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf);
+
 } // namespace numkit::signal
