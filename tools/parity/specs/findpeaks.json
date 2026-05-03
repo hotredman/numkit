@@ -1,0 +1,10 @@
+{
+  "name": "findpeaks",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 10000));",
+  "expr": "[y, jj] = findpeaks(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: [PKS, LOC] = findpeaks(X). 100 iters.",
+  "out_var": "y"
+}

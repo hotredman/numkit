@@ -1,0 +1,10 @@
+{
+  "name": "bitrevorder",
+  "namespace": "core",
+  "setup": "x = (1:1024)';",
+  "expr": "y = bitrevorder(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters.",
+  "out_var": "y"
+}

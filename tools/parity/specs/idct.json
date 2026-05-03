@@ -1,0 +1,10 @@
+{
+  "name": "idct",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1024)); X = dct(x);",
+  "expr": "y = idct(X);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters.",
+  "out_var": "y"
+}

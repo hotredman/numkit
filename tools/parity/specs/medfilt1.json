@@ -1,0 +1,10 @@
+{
+  "name": "medfilt1",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 100000));",
+  "expr": "y = medfilt1(x, 5);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = medfilt1(X, K). 100k window=5. 100 iters.",
+  "out_var": "y"
+}

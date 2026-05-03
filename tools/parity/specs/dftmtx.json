@@ -1,0 +1,14 @@
+{
+  "name": "dftmtx",
+  "namespace": "core",
+  "setup": "n = 64;",
+  "expr": "y = dftmtx(n);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(real(y(1, 1)))",
+    "double(real(y(end, end)))"
+  ]
+}

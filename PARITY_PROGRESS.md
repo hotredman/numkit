@@ -1302,19 +1302,19 @@ multiple sections; all occurrences refresh together).
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ |  |  |  |  | FFT-based overlap-add |
+| `fftfilt` | ✅ | 1.769 | 1.93× | 5.18× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
 | `filt2block` | ❌ |  |  |  |  |  |
-| `filtfilt` | ✅ |  |  |  |  | zero-phase forward+back |
+| `filtfilt` | ✅ | 0.260 | 1.42× |  | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
 | `filtic` | ❌ |  |  |  |  | init state |
-| `hampel` | ✅ |  |  |  |  | outlier-resilient |
+| `hampel` | ✅ | 0.726 | 0.21× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
 | `highpass` | ✅ |  |  |  |  | spec-driven HP |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
 | `lowpass` | ✅ |  |  |  |  | spec-driven LP |
-| `medfilt1` | ✅ |  |  |  |  | median |
+| `medfilt1` | ✅ | 1.680 | 0.20× |  | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolayfilt` | ✅ |  |  |  |  | Savitzky-Golay |
+| `sgolayfilt` | ✅ | 0.121 | 1.07× |  | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
 | `sos2ss` | ✅ |  |  |  |  | SOS → SS |
@@ -1389,15 +1389,15 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ |  |  |  |  | align via xcorr |
+| `alignsignals` | ✅ | 0.094 |  |  | N/A | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
 | `cconv` | ✅ | 3.802 | 0.06× |  | MISMATCH | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
 | `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `finddelay` | ✅ |  |  |  |  | estimate delay |
+| `finddelay` | ✅ | 0.085 | 2.17× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
-| `xcorr2` | ✅ |  |  |  |  | 2-D xcorr |
+| `xcorr2` | ✅ | 0.225 | 0.17× |  | OK | Sig: C = xcorr2(A, B). 32x32 vs 8x8. 1000 iters. |
 
 ## Transforms (FFT / DCT / DWT / Hilbert / CZT / Cepstrum)
 
@@ -1405,30 +1405,30 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitrevorder` | ✅ |  |  |  |  | bit-reverse permutation |
+| `bitrevorder` | ✅ | 0.003 | 164.39× |  | OK | Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters. |
 | `cceps` | ✅ |  |  |  |  | complex cepstrum |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
 | `dct` | ✅ | 3.801 | 0.02× |  | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
-| `dftmtx` | ✅ |  |  |  |  | DFT matrix |
+| `dftmtx` | ✅ | 0.033 | 0.73× |  | OK | Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters. |
 | `digitrevorder` | ❌ |  |  |  |  |  |
 | `dlistft` | ❌ |  |  |  |  |  |
 | `dlstft` | ❌ |  |  |  |  |  |
 | `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `envelope` | ✅ |  |  |  |  |  |
+| `envelope` | ✅ |  |  |  | N/A | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
 | `goertzel` | ✅ |  |  |  |  |  |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
-| `hilbert` | ✅ |  |  |  |  |  |
+| `hilbert` | ✅ | 0.019 | 4.43× |  | OK | Sig: H = hilbert(X). Analytic signal real part. 1000 iters. |
 | `icceps` | ✅ |  |  |  |  | inverse complex cepstrum |
-| `idct` | ✅ |  |  |  |  |  |
+| `idct` | ✅ | 3.843 | 0.02× |  | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
 | `instfreq` | ❌ |  |  |  |  | instantaneous frequency |
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `rceps` | ✅ |  |  |  |  | real cepstrum |
+| `rceps` | ✅ | 0.024 | 2.50× |  | OK | Sig: Y = rceps(X). Real cepstrum. 1000 iters. |
 | `spectrogram` | ✅ |  |  |  |  |  |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
@@ -1478,7 +1478,7 @@ multiple sections; all occurrences refresh together).
 | `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ |  |  |  |  |  |
-| `findpeaks` | ✅ |  |  |  |  |  |
+| `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `pburg` | ❌ |  |  |  |  | Burg AR |
 | `pcov` | ❌ |  |  |  |  |  |
@@ -1496,7 +1496,7 @@ multiple sections; all occurrences refresh together).
 | `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ |  |  |  |  |  |
-| `findpeaks` | ✅ |  |  |  |  |  |
+| `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ❌ |  |  |  |  | magnitude-squared coherence |
 | `periodogram` | ✅ |  |  |  |  |  |
@@ -1594,19 +1594,19 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ |  |  |  |  | align via xcorr |
+| `alignsignals` | ✅ | 0.094 |  |  | N/A | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
 | `binmask2sigroi` | ❌ |  |  |  |  |  |
 | `countlabels` | ❌ |  |  |  |  |  |
 | `cusum` | ❌ |  |  |  |  | CUSUM change detection |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
-| `envelope` | ✅ |  |  |  |  |  |
+| `envelope` | ✅ |  |  |  | N/A | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
 | `extendsigroi` | ❌ |  |  |  |  |  |
 | `extractsigroi` | ❌ |  |  |  |  |  |
 | `filenames2labels` | ❌ |  |  |  |  |  |
 | `findchangepts` | ❌ |  |  |  |  | change-point detection |
-| `finddelay` | ✅ |  |  |  |  | estimate delay |
-| `findpeaks` | ✅ |  |  |  |  |  |
+| `finddelay` | ✅ | 0.085 | 2.17× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
+| `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `findsignal` | ❌ |  |  |  |  | pattern search |
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
@@ -1631,10 +1631,10 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `hampel` | ✅ |  |  |  |  | outlier-resilient |
-| `medfilt1` | ✅ |  |  |  |  | median |
+| `hampel` | ✅ | 0.726 | 0.21× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
+| `medfilt1` | ✅ | 1.680 | 0.20× |  | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
 | `sgolay` | ✅ |  |  |  |  | Savitzky-Golay |
-| `sgolayfilt` | ✅ |  |  |  |  | Savitzky-Golay |
+| `sgolayfilt` | ✅ | 0.121 | 1.07× |  | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 
 ## Vibration Analysis (envspectrum / order tracking / modal)
 
