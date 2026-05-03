@@ -54,6 +54,15 @@ Value randnND(std::pmr::memory_resource *mr, std::mt19937 &rng,
                const size_t *dims, int ndims);
 
 // ── Seeding / state control ──────────────────────────────────────────
+
+/// The process-wide shared mt19937 engine. Use this when composing
+/// new random samplers (e.g. distribution-specific *rnd in libs/stats)
+/// so all RNG paths share the same state and respect rng(seed).
+/// Wrap accesses in `std::lock_guard<std::mutex>{rngMutex()}` if your
+/// caller can race with rand / randn / randi.
+std::mt19937 &sharedEngine();
+std::mutex &rngMutex();
+
 /// Seed the shared RNG. seed=0 matches MATLAB's rng('default').
 void rngSeed(uint64_t seed);
 

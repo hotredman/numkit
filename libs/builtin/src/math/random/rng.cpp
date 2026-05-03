@@ -26,7 +26,6 @@ namespace numkit::builtin {
 // ────────────────────────────────────────────────────────────────────
 // Process-static RNG state
 // ────────────────────────────────────────────────────────────────────
-namespace {
 
 std::mutex &rngMutex()
 {
@@ -42,6 +41,8 @@ std::mt19937 &sharedEngine()
     static std::mt19937 gen(0u);
     return gen;
 }
+
+namespace {
 
 // Serialise mt19937 state to / from a text blob. mt19937's stream
 // operators emit 624 + 1 numbers separated by whitespace — robust

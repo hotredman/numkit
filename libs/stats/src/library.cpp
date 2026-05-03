@@ -39,6 +39,13 @@ void nanmax_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanmin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanvar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nanstd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+// distributions/normal.cpp
+void normpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void norminv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void normstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -80,6 +87,12 @@ void StatsLibrary::install(Engine &engine)
     reg("descriptive", "mink",      &stats::detail::mink_reg);
     reg("descriptive", "rmse",      &stats::detail::rmse_reg);
     reg("descriptive", "mape",      &stats::detail::mape_reg);
+
+    reg("dist", "normpdf",  &stats::detail::normpdf_reg);
+    reg("dist", "normcdf",  &stats::detail::normcdf_reg);
+    reg("dist", "norminv",  &stats::detail::norminv_reg);
+    reg("dist", "normrnd",  &stats::detail::normrnd_reg);
+    reg("dist", "normstat", &stats::detail::normstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
