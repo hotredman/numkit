@@ -1390,7 +1390,7 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `alignsignals` | ✅ | 0.094 |  |  | N/A | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
-| `cconv` | ✅ | 3.802 | 0.06× |  | MISMATCH | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
+| `cconv` | ✅ | 10.603 | 0.02× |  | OK | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
 | `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
