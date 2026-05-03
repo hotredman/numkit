@@ -6,6 +6,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/nan_aware/nan_aware.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/moving/moving.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/normal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/chi2.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
