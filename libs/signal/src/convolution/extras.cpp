@@ -52,7 +52,12 @@ Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_
 }
 
 // ── convmtx ───────────────────────────────────────────────────────────
-// Output shape: (n + nh - 1) × n. Column j is h shifted down by j.
+// MATLAB shape rules (from `help convmtx`):
+//   * h is a row    → returns n × (n+nh-1) matrix; row k is h shifted
+//     right by k (so X*h_col == conv(x, h)).
+//   * h is a column → returns (n+nh-1) × n matrix; column k is h
+//     shifted down by k.
+// See BUGS.md #34.
 Value convmtx(std::pmr::memory_resource *mr, const Value &h, size_t n)
 {
     if (n == 0)
@@ -62,14 +67,35 @@ Value convmtx(std::pmr::memory_resource *mr, const Value &h, size_t n)
     if (nh == 0)
         throw Error("convmtx: h must be non-empty",
                      0, 0, "convmtx", "", "m:convmtx:emptyH");
-    const size_t rows = n + nh - 1;
-    auto out = Value::matrix(rows, n, ValueType::DOUBLE, mr);
+
+    // Default to row-form when h is a vector with rows() == 1 OR is
+    // 1-D / scalar. Column form only when h is explicitly Nx1 (rows>1).
+    const bool hIsColumn = (h.dims().rows() > 1 && h.dims().cols() == 1);
+
+    if (hIsColumn) {
+        const size_t rows = n + nh - 1;
+        auto out = Value::matrix(rows, n, ValueType::DOUBLE, mr);
+        double *dst = out.doubleDataMut();
+        std::fill(dst, dst + rows * n, 0.0);
+        for (size_t col = 0; col < n; ++col) {
+            for (size_t i = 0; i < nh; ++i) {
+                // Column-major: index = row + col * rows.
+                dst[(col + i) + col * rows] = readReal(h, i);
+            }
+        }
+        return out;
+    }
+
+    // Row form: out(row, row+i) = h(i), for row in [0, n) and i in [0, nh).
+    // Output is n × (n + nh - 1).
+    const size_t cols = n + nh - 1;
+    auto out = Value::matrix(n, cols, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
-    std::fill(dst, dst + rows * n, 0.0);
-    for (size_t col = 0; col < n; ++col) {
+    std::fill(dst, dst + n * cols, 0.0);
+    for (size_t row = 0; row < n; ++row) {
         for (size_t i = 0; i < nh; ++i) {
-            // Column-major: index = row + col * rows.
-            dst[(col + i) + col * rows] = readReal(h, i);
+            // Column-major: index = row + (row+i) * n.
+            dst[row + (row + i) * n] = readReal(h, i);
         }
     }
     return out;

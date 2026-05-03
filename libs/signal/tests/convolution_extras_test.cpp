@@ -42,20 +42,34 @@ TEST_F(ConvolutionExtrasTest, CconvImpulseIsIdentity)
 // ── convmtx ───────────────────────────────────────────────────────────
 TEST_F(ConvolutionExtrasTest, ConvmtxShape)
 {
-    // h length 3, n = 4 → output (3+4-1)×4 = 6×4.
+    // Row h of length 3 → output is n × (n + nh - 1) = 4 × 6.
+    // Column h of length 3 → output is (n + nh - 1) × n = 6 × 4.
+    // See BUGS.md #34.
     eval("M = convmtx([1 2 3], 4);");
-    EXPECT_EQ(eval("M").dims().rows(), 6u);
-    EXPECT_EQ(eval("M").dims().cols(), 4u);
+    EXPECT_EQ(eval("M").dims().rows(), 4u);
+    EXPECT_EQ(eval("M").dims().cols(), 6u);
+    eval("Mc = convmtx([1; 2; 3], 4);");
+    EXPECT_EQ(eval("Mc").dims().rows(), 6u);
+    EXPECT_EQ(eval("Mc").dims().cols(), 4u);
 }
 
 TEST_F(ConvolutionExtrasTest, ConvmtxMultipliesLikeConv)
 {
-    // M*x should equal conv(h, x).
-    eval("h = [1 2 3]; x = [4 5 6 7]';");
-    eval("M = convmtx(h, 4); y_mtx = M * x; y_dir = conv(h, x);");
+    // Row form: x_row * M == conv(x, h). MATLAB row-h form returns
+    // n × (n + nh - 1), and the row-vector multiply produces the
+    // length-(n+nh-1) convolution.
+    eval("h = [1 2 3]; x = [4 5 6 7];");
+    eval("M = convmtx(h, 4); y_mtx = x * M; y_dir = conv(x, h);");
     for (int i = 1; i <= 6; ++i) {
         EXPECT_NEAR(evalScalar("y_mtx(" + std::to_string(i) + ")"),
                     evalScalar("y_dir(" + std::to_string(i) + ")"), 1e-12);
+    }
+    // Column form: M_col * x_col == conv(h, x).
+    eval("hc = [1; 2; 3]; xc = [4; 5; 6; 7];");
+    eval("Mc = convmtx(hc, 4); y_col = Mc * xc; y_dir2 = conv(hc, xc);");
+    for (int i = 1; i <= 6; ++i) {
+        EXPECT_NEAR(evalScalar("y_col(" + std::to_string(i) + ")"),
+                    evalScalar("y_dir2(" + std::to_string(i) + ")"), 1e-12);
     }
 }
 

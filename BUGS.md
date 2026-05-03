@@ -850,7 +850,7 @@ Perf-only follow-up if needed (likely composes via FFT in libs/signal/transforms
 
 ---
 
-## 34. `libs/signal`: `convmtx` element-ordering / shape differs — **P2**
+## 34. `libs/signal`: `convmtx` element-ordering / shape differs — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -867,6 +867,14 @@ sum), but the element layout differs.
 **Where:** [libs/signal/src/](libs/signal/) `convmtx` — likely shape /
 indexing convention bug.
 **First seen:** 2026-05-03, parity bulk-bench iteration 29.
+**Fix (2026-05-03):** `convmtx` in
+[libs/signal/src/convolution/extras.cpp] now branches on h's shape:
+* Row h (or 1-D / scalar) → returns `n × (n + nh - 1)`, row k holds
+  h shifted right by k, so `x_row * M == conv(x, h)`.
+* Column h (rows > 1) → keeps the previous `(n + nh - 1) × n` form,
+  column k = h shifted down by k, so `M * x_col == conv(h, x)`.
+Verified both forms against MATLAB R2025b. Existing tests updated
+to assert the MATLAB-shape conventions (was numkit-bug shape).
 
 ---
 
