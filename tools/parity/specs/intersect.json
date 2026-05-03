@@ -1,0 +1,10 @@
+{
+  "name": "intersect",
+  "namespace": "core",
+  "setup": "a = 1:10000; b = 5000:15000;",
+  "expr": "y = intersect(a, b);",
+  "iters": 50,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE."
+}
