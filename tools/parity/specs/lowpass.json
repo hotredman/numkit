@@ -1,0 +1,10 @@
+{
+  "name": "lowpass",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 10000));",
+  "expr": "y = lowpass(x, 0.2);",
+  "iters": 100,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = lowpass(X, WPASS). 10k-pt LPF. 100 iters."
+}

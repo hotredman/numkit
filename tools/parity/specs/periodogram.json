@@ -1,0 +1,10 @@
+{
+  "name": "periodogram",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1024));",
+  "expr": "[y, jj] = periodogram(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX."
+}

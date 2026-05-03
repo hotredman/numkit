@@ -1225,7 +1225,7 @@ multiple sections; all occurrences refresh together).
 | `firpmord` | ❌ |  |  |  |  | order estimator |
 | `gaussdesign` | ❌ |  |  |  |  |  |
 | `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ |  |  |  |  | interpolating FIR |
+| `intfilt` | ✅ |  |  |  | N/A | Sig: H = intfilt(R, L, ALPHA). FIR coeffs. 1000 iters. |
 | `isdouble` | ❌ |  |  |  |  |  |
 | `issingle` | ✅ |  |  |  |  |  |
 | `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
@@ -1294,8 +1294,8 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ |  |  |  |  | spec-driven BP |
-| `bandstop` | ✅ |  |  |  |  | spec-driven BS |
+| `bandpass` | ✅ |  |  |  | N/A | Sig: Y = bandpass(X, WPASS). 10k-pt BPF. 100 iters. |
+| `bandstop` | ✅ |  |  |  | N/A | Sig: Y = bandstop(X, WSTOP). 10k-pt BSF. 100 iters. |
 | `cell2sos` | ❌ |  |  |  |  |  |
 | `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
@@ -1307,10 +1307,10 @@ multiple sections; all occurrences refresh together).
 | `filtfilt` | ✅ | 0.260 | 1.42× |  | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
 | `filtic` | ❌ |  |  |  |  | init state |
 | `hampel` | ✅ | 0.726 | 0.21× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
-| `highpass` | ✅ |  |  |  |  | spec-driven HP |
+| `highpass` | ✅ |  |  |  | N/A | Sig: Y = highpass(X, WPASS). 10k-pt HPF. 100 iters. |
 | `latc2tf` | ❌ |  |  |  |  | inverse |
 | `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ |  |  |  |  | spec-driven LP |
+| `lowpass` | ✅ |  |  |  | N/A | Sig: Y = lowpass(X, WPASS). 10k-pt LPF. 100 iters. |
 | `medfilt1` | ✅ | 1.680 | 0.20× |  | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
 | `residuez` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
@@ -1342,13 +1342,13 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `decimate` | ✅ |  |  |  |  |  |
+| `decimate` | ✅ | 1.478 | 1.80× |  | MISMATCH | Sig: Y = decimate(X, M). M=4. 100 iters. |
 | `downsample` | ✅ | 0.111 | 0.50× |  | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
 | `fillgaps` | ❌ |  |  |  |  |  |
-| `interp` | ✅ |  |  |  |  |  |
-| `intfilt` | ✅ |  |  |  |  | interpolating FIR |
-| `resample` | ✅ |  |  |  |  |  |
-| `upfirdn` | ✅ |  |  |  |  |  |
+| `interp` | ✅ | 3.573 | 0.22× |  | MISMATCH | Sig: Y = interp(X, L). Upsample×4 with FIR. 100 iters. |
+| `intfilt` | ✅ |  |  |  | N/A | Sig: H = intfilt(R, L, ALPHA). FIR coeffs. 1000 iters. |
+| `resample` | ✅ | 0.464 | 1.68× |  | MISMATCH | Sig: Y = resample(X, P, Q). 3:2. 100 iters. |
+| `upfirdn` | ✅ | 0.023 | 3.77× |  | MISMATCH | Sig: Y = upfirdn(X, H, P, Q). 100 iters. |
 | `upsample` | ✅ | 0.321 | 0.21× |  | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
 
 ## Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony)
@@ -1406,7 +1406,7 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bitrevorder` | ✅ | 0.003 | 164.39× |  | OK | Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters. |
-| `cceps` | ✅ |  |  |  |  | complex cepstrum |
+| `cceps` | ✅ | 0.029 | 6.50× |  | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
 | `czt` | ❌ |  |  |  |  | chirp Z-transform |
 | `dct` | ✅ | 3.801 | 0.02× |  | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
 | `dftmtx` | ✅ | 0.033 | 0.73× |  | OK | Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters. |
@@ -1417,10 +1417,10 @@ multiple sections; all occurrences refresh together).
 | `envelope` | ✅ |  |  |  | N/A | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
-| `goertzel` | ✅ |  |  |  |  |  |
+| `goertzel` | ✅ | 0.068 | 2.60× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `hilbert` | ✅ | 0.019 | 4.43× |  | OK | Sig: H = hilbert(X). Analytic signal real part. 1000 iters. |
-| `icceps` | ✅ |  |  |  |  | inverse complex cepstrum |
+| `icceps` | ✅ | 0.033 | 2.10× |  | OK | Sig: Y = icceps(C). Inverse complex cepstrum. 100 iters. |
 | `idct` | ✅ | 3.843 | 0.02× |  | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
@@ -1429,7 +1429,7 @@ multiple sections; all occurrences refresh together).
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `rceps` | ✅ | 0.024 | 2.50× |  | OK | Sig: Y = rceps(X). Real cepstrum. 1000 iters. |
-| `spectrogram` | ✅ |  |  |  |  |  |
+| `spectrogram` | ✅ | 0.103 |  |  | N/A | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
@@ -1499,13 +1499,13 @@ multiple sections; all occurrences refresh together).
 | `findpeaks` | ✅ | 0.017 |  |  | N/A | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ❌ |  |  |  |  | magnitude-squared coherence |
-| `periodogram` | ✅ |  |  |  |  |  |
+| `periodogram` | ✅ | 0.010 |  | 11.41× | MISMATCH | Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX. |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |
 | `poctave` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.247 | 0.84× |  | OK | Sig: D = pow2db(P). 100k iters. |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `pwelch` | ✅ |  |  |  |  | Welch PSD |
+| `pwelch` | ✅ | 0.062 |  |  | N/A | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
 | `spectralentropy` | ❌ |  |  |  |  |  |
 | `tfestimate` | ❌ |  |  |  |  | TF estimate |
@@ -1559,7 +1559,7 @@ multiple sections; all occurrences refresh together).
 | `spectralflatness` | ❌ |  |  |  |  |  |
 | `spectralkurtosis` | ❌ |  |  |  |  |  |
 | `spectralskewness` | ❌ |  |  |  |  |  |
-| `spectrogram` | ✅ |  |  |  |  |  |
+| `spectrogram` | ✅ | 0.103 |  |  | N/A | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
 | `stftmag2sig` | ❌ |  |  |  |  |  |
