@@ -41,19 +41,19 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `blkdiag` | ✅ |  |  |  |  |  |
-| `cat` | ✅ |  |  |  |  |  |
-| `circshift` | ✅ |  |  |  |  |  |
+| `blkdiag` | ✅ | 0.081 | 1.19× | 1.88× | OK | Sig: D = blkdiag(A,B,C). 50/80/60 deterministic mats. 100 iters. Element-wise SAVE. |
+| `cat` | ✅ | 1.843 | 0.91× | 0.59× | OK | Sig: D = cat(DIM,A,B). 500x500 vert-cat. 100 iters. Element-wise SAVE. |
+| `circshift` | ✅ | 3.830 | 0.33× | 0.64× | OK | Sig: B = circshift(A, K). 1000x1000 shift [3 5]. 100 iters. Element-wise SAVE. |
 | `colon` | ⚠️ |  |  |  |  | works as `:` (range) operator; not callable as named fn |
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `ctranspose` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `diag` | ✅ |  |  |  |  |  |
+| `diag` | ✅ | 0.008 | 1.22× | 1.97× | OK | Sig: V = diag(A). Diagonal of 2000x2000 deterministic. 100 iters. |
 | `end` | ✅ |  |  |  |  | keyword + `A(end)` indexing form |
-| `eye` | ✅ |  |  |  |  |  |
+| `eye` | ✅ | 1.808 | 0.57× | 0.00× | OK | Sig: I = eye(N). 1000x1000 identity. 100 iters. |
 | `false` | ✅ |  |  |  |  | literal/constant |
-| `flip` | ✅ |  |  |  |  | general N-D flip |
-| `fliplr` | ✅ |  |  |  |  |  |
-| `flipud` | ✅ |  |  |  |  |  |
+| `flip` | ✅ | 2.122 | 0.79× | 1.03× | OK | Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE. |
+| `fliplr` | ✅ | 2.144 | 0.80× | 1.02× | OK | Sig: B = fliplr(A). 1000x1000 left-right flip. 100 iters. Element-wise SAVE. |
+| `flipud` | ✅ | 2.308 | 0.53× | 0.99× | OK | Sig: B = flipud(A). 1000x1000 up-down flip. 100 iters. Element-wise SAVE. |
 | `freqspace` | ✅ |  |  |  |  |  |
 | `head` | ✅ |  |  |  |  |  |
 | `horzcat` | ✅ |  |  |  |  |  |
@@ -69,24 +69,24 @@ multiple sections; all occurrences refresh together).
 | `isuniform` | ✅ |  |  |  |  | uniform-spacing test |
 | `isvector` | ✅ |  |  |  |  | predicate |
 | `length` | ✅ |  |  |  |  |  |
-| `linspace` | ✅ |  |  |  |  |  |
-| `logspace` | ✅ |  |  |  |  |  |
+| `linspace` | ✅ | 2.871 | 1.00× | 0.80× | OK | Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE. |
+| `logspace` | ✅ | 9.205 | 0.95× | 1.42× | OK | Sig: V = logspace(A,B,N). N=1M log-spaced. 100 iters. Element-wise SAVE. |
 | `meshgrid` | ✅ |  |  |  |  |  |
 | `ndgrid` | ✅ |  |  |  |  |  |
 | `ndims` | ✅ |  |  |  |  |  |
 | `numel` | ✅ |  |  |  |  |  |
-| `ones` | ✅ |  |  |  |  |  |
+| `ones` | ✅ | 2.645 | 0.73× | 0.84× | OK | Sig: O = ones(M,N). 1000x1000. 100 iters. |
 | `paddata` | ✅ |  |  |  |  | pad N-D |
 | `permute` | ✅ |  |  |  |  |  |
 | `rand` | ✅ |  |  |  |  |  |
 | `repelem` | ✅ |  |  |  |  |  |
-| `repmat` | ✅ |  |  |  |  |  |
-| `reshape` | ✅ |  |  |  |  |  |
+| `repmat` | ✅ | 2.113 | 0.44× | 1.08× | OK | Sig: B = repmat(A,M,N). 50x50 → 1000x1000. 100 iters. |
+| `reshape` | ✅ | 1.999 | 0.00× | 1.06× | OK | Sig: B = reshape(A,M,N). 1M vec → 1000x1000. 100 iters. |
 | `resize` | ✅ |  |  |  |  | general resize |
 | `rot90` | ✅ |  |  |  |  |  |
 | `shiftdim` | ✅ |  |  |  |  |  |
 | `size` | ✅ |  |  |  |  |  |
-| `sort` | ✅ |  |  |  |  |  |
+| `sort` | ✅ | 44.711 | 0.15× | 0.15× | OK | Sig: B = sort(A). 1M deterministic sin values. 100 iters. Element-wise SAVE. |
 | `sortrows` | ✅ |  |  |  |  |  |
 | `squeeze` | ✅ |  |  |  |  |  |
 | `sub2ind` | ✅ |  |  |  |  | linear-index conv |
@@ -95,7 +95,7 @@ multiple sections; all occurrences refresh together).
 | `trimdata` | ✅ |  |  |  |  |  |
 | `true` | ✅ |  |  |  |  | literal/constant |
 | `vertcat` | ✅ |  |  |  |  |  |
-| `zeros` | ✅ |  |  |  |  |  |
+| `zeros` | ✅ | 1.807 | 0.03× | 1.16× | OK | Sig: Z = zeros(M,N). 1000x1000. 100 iters. |
 
 ## Control Flow
 

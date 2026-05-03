@@ -1,0 +1,10 @@
+{
+  "name": "reshape",
+  "namespace": "core",
+  "setup": "A = 1:1000000;",
+  "expr": "y = reshape(A, 1000, 1000);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: B = reshape(A,M,N). 1M vec \u2192 1000x1000. 100 iters."
+}

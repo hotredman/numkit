@@ -1,0 +1,10 @@
+{
+  "name": "eye",
+  "namespace": "core",
+  "setup": "n = 1000;",
+  "expr": "y = eye(n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: I = eye(N). 1000x1000 identity. 100 iters."
+}

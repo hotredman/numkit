@@ -1,0 +1,10 @@
+{
+  "name": "blkdiag",
+  "namespace": "core",
+  "setup": "A = reshape(1:2500, 50, 50); B = reshape(1:6400, 80, 80); C = reshape(1:3600, 60, 60);",
+  "expr": "y = blkdiag(A, B, C);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: D = blkdiag(A,B,C). 50/80/60 deterministic mats. 100 iters. Element-wise SAVE."
+}

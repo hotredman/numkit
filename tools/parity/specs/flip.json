@@ -1,0 +1,10 @@
+{
+  "name": "flip",
+  "namespace": "core",
+  "setup": "A = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = flip(A, 2);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE."
+}

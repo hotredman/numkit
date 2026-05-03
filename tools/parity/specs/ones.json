@@ -1,0 +1,10 @@
+{
+  "name": "ones",
+  "namespace": "core",
+  "setup": "n = 1000;",
+  "expr": "y = ones(n, n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: O = ones(M,N). 1000x1000. 100 iters."
+}

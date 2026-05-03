@@ -1,0 +1,10 @@
+{
+  "name": "linspace",
+  "namespace": "core",
+  "setup": "n = 1000000;",
+  "expr": "y = linspace(0, 1, n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE."
+}
