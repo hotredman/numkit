@@ -190,6 +190,11 @@ void cluster_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void clusterdata_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cophenet_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// dim/pca.cpp
+void pca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pcacov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pcares_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -354,6 +359,10 @@ void StatsLibrary::install(Engine &engine)
     reg("cluster", "clusterdata",&stats::detail::clusterdata_reg);
     reg("cluster", "cophenet",   &stats::detail::cophenet_reg);
     reg("cluster", "inconsistent", &stats::detail::inconsistent_reg);
+
+    reg("dim", "pca",     &stats::detail::pca_reg);
+    reg("dim", "pcacov",  &stats::detail::pcacov_reg);
+    reg("dim", "pcares",  &stats::detail::pcares_reg);
 }
 
 } // namespace numkit
