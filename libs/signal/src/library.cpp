@@ -186,6 +186,11 @@ void lp2bs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bilinear_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// Top-level IIR designs (libs/signal/src/filter_design/iir_designs.cpp)
+void cheby1_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cheby2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void besself_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // Signal modelling (libs/signal/src/spectral_analysis/signal_modeling.cpp)
 void levinson_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rlevinson_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -409,6 +414,9 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "lp2bs",    &signal::detail::lp2bs_reg);
     reg("filter_design", "bilinear", &signal::detail::bilinear_reg);
     reg("filter_design", "freqs",    &signal::detail::freqs_reg);
+    reg("filter_design", "cheby1",   &signal::detail::cheby1_reg);
+    reg("filter_design", "cheby2",   &signal::detail::cheby2_reg);
+    reg("filter_design", "besself",  &signal::detail::besself_reg);
     reg("parametric", "levinson",  &signal::detail::levinson_reg);
     reg("parametric", "rlevinson", &signal::detail::rlevinson_reg);
     reg("parametric", "aryule",    &signal::detail::aryule_reg);

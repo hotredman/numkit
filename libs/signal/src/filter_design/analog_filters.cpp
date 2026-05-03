@@ -129,20 +129,22 @@ cheb2ap(std::pmr::memory_resource *mr, int N, double Rs)
                      std::cosh(mu) * std::cos(theta));
         p[k - 1] = 1.0 / p1;
     }
-    // Zeros: at j / sin((2k-1)π/(2N)) for k=1..N, but only for k where
-    // (2k-1)π/(2N) ≠ π/2 (i.e., skipped on odd N at the centre).
+    // Zeros at j / cos((2k-1)π/(2N)) for k=1..N (excluding θ=π/2 which
+    // corresponds to a zero at infinity — drops out for odd N at the
+    // centre k = (N+1)/2).
     for (int k = 1; k <= N; ++k) {
         const double theta = M_PI * (2.0 * k - 1.0) / (2.0 * N);
-        const double s = std::sin(theta);
-        if (std::abs(s) < 1e-12) continue;
-        z.push_back(Cd(0.0, 1.0 / s));
+        const double c = std::cos(theta);
+        if (std::abs(c) < 1e-12) continue;
+        z.push_back(Cd(0.0, 1.0 / c));
     }
-    // Gain: ∏ |poles| / ∏ |zeros| (real).
+    // Gain: real(prod(-poles) / prod(-zeros)) — preserves the DC value
+    // of the analog prototype.
     Cd num(1.0, 0.0), den(1.0, 0.0);
     for (auto &pp : p) num *= -pp;
     for (auto &zz : z) den *= -zz;
     const double k = (std::abs(den) > 0)
-                     ? std::abs(num) / std::abs(den) : std::abs(num);
+                     ? (num / den).real() : num.real();
     return std::make_tuple(packComplexCol(mr, z),
                            packComplexCol(mr, p),
                            Value::scalar(k, mr));

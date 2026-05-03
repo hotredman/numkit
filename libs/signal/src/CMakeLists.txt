@@ -43,6 +43,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/signal_modeling.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/analog_filters.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter_design/iir_designs.cpp
     # time_frequency/
     ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp
     # windows/
