@@ -123,6 +123,13 @@ void poissinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poissrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poisstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/binomial.cpp
+void binopdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binocdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binoinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binornd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void binostat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -236,6 +243,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "poissinv", &stats::detail::poissinv_reg);
     reg("dist", "poissrnd", &stats::detail::poissrnd_reg);
     reg("dist", "poisstat", &stats::detail::poisstat_reg);
+
+    reg("dist", "binopdf",  &stats::detail::binopdf_reg);
+    reg("dist", "binocdf",  &stats::detail::binocdf_reg);
+    reg("dist", "binoinv",  &stats::detail::binoinv_reg);
+    reg("dist", "binornd",  &stats::detail::binornd_reg);
+    reg("dist", "binostat", &stats::detail::binostat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
