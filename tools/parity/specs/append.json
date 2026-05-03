@@ -1,0 +1,10 @@
+{
+  "name": "append",
+  "namespace": "core",
+  "setup": "a = repmat('foo', 1, 1000);",
+  "expr": "y = append(a, 'bar');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = append(S1,S2). 3k char + 'bar'. 1000 iters.",
+  "out_var": "y"
+}

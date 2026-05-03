@@ -1,0 +1,10 @@
+{
+  "name": "strtrim",
+  "namespace": "core",
+  "setup": "s = '   hello world   ';",
+  "expr": "y = strtrim(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = strtrim(S). Trim leading+trailing. 10000 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "extractbefore",
+  "namespace": "core",
+  "setup": "s = 'hello world goodbye'; pat = ' world';",
+  "expr": "y = extractBefore(s, pat);",
+  "iters": 10000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: S2 = extractBefore(S, PAT). 10k iters."
+}

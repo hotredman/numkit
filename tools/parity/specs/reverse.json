@@ -1,0 +1,10 @@
+{
+  "name": "reverse",
+  "namespace": "core",
+  "setup": "s = repmat('abcdefghij', 1, 100);",
+  "expr": "y = reverse(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S2 = reverse(S). 1k-char reverse. 10000 iters.",
+  "out_var": "y"
+}

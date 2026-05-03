@@ -1,0 +1,10 @@
+{
+  "name": "pad",
+  "namespace": "core",
+  "setup": "s = 'foo';",
+  "expr": "y = pad(s, 20);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters.",
+  "out_var": "y"
+}

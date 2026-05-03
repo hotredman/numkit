@@ -1,0 +1,10 @@
+{
+  "name": "blanks",
+  "namespace": "core",
+  "setup": "n = 1000;",
+  "expr": "y = blanks(n);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = blanks(N). N=1000. 10000 iters.",
+  "out_var": "y"
+}

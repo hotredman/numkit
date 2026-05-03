@@ -1,0 +1,10 @@
+{
+  "name": "extractafter",
+  "namespace": "core",
+  "setup": "s = 'hello world goodbye'; pat = 'world ';",
+  "expr": "y = extractAfter(s, pat);",
+  "iters": 10000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: S2 = extractAfter(S, PAT). 10k iters. Function name camelCase."
+}

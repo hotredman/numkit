@@ -1,0 +1,14 @@
+{
+  "name": "splitlines",
+  "namespace": "core",
+  "setup": "s = sprintf('line1\\nline2\\nline3\\nline4\\nline5');",
+  "expr": "y = splitlines(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: C = splitlines(S). 5-line input via sprintf '\n'. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))",
+    "double(strlength(y{end}))"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "name": "cellstr",
+  "namespace": "core",
+  "setup": "ch = char(['apple   '; 'banana  '; 'cherry  ']);",
+  "expr": "y = cellstr(ch);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: C = cellstr(CHAR). 3-row char mat \u2192 cellstr. 10000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))",
+    "double(strlength(y{end}))"
+  ]
+}

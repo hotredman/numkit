@@ -345,6 +345,31 @@ emit name only in that case.
 
 ---
 
+## 17. `libs/builtin`: `cellstr(multi_row_char)` flattens column-major instead of row-split — **P2**
+
+**Reproducer:**
+```matlab
+ch = char(['apple   '; 'banana  '; 'cherry  ']);    % 3x8 char matrix
+size(ch)         %     [3 8]
+y = cellstr(ch);
+% MATLAB:  3-element cell: {'apple'; 'banana'; 'cherry'}  (per row, trailing spaces stripped)
+% numkit:  1-element cell: {'abcpahpnelarenr ay     '}    (24-char column-major dump)
+```
+**Symptom:** numkit reads the char matrix in column-major order (Fortran
+layout), concatenates ALL elements into one string, wraps in a 1-cell.
+The expected behavior is splitting the matrix into N row-strings,
+each trimmed of trailing spaces, packaged as N-element cellstr.
+**MATLAB:** `cellstr(M)` where M is M-by-N char matrix returns an
+M-by-1 cell array with each element being a `deblank`'d row.
+**Impact:** Anything that constructs a char block (file I/O, table
+formatting) and wants to convert to cellstr produces garbage data.
+**Where:** [libs/builtin/src/...cellstr...cpp](libs/builtin/) — needs
+to iterate rows of the char matrix and deblank each, not column-major
+flatten.
+**First seen:** 2026-05-03, parity bulk-bench iteration 15.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

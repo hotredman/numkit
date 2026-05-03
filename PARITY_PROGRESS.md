@@ -157,31 +157,31 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `append` | ✅ |  |  |  |  |  |
-| `blanks` | ✅ |  |  |  |  |  |
-| `cellstr` | ✅ |  |  |  |  | cell of char rows |
-| `char` | ✅ |  |  |  |  |  |
+| `append` | ✅ | 0.000 | 8.59× |  | OK | Sig: S = append(S1,S2). 3k char + 'bar'. 1000 iters. |
+| `blanks` | ✅ | 0.000 | 3.40× | 30.21× | OK | Sig: S = blanks(N). N=1000. 10000 iters. |
+| `cellstr` | ✅ | 0.000 | 13.65× |  | MISMATCH | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
+| `char` | ✅ | 0.000 | 2.37× | 11.62× | OK | Sig: S = char(X). ASCII codes A-Z. 10000 iters. |
 | `compose` | ✅ | 0.391 | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
 | `contains` | ✅ | 0.000 | 3.59× |  | OK | Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14). |
 | `convertcharstostrings` | ✅ |  |  |  |  |  |
 | `convertcontainedstringstochars` | ✅ |  |  |  |  |  |
 | `convertstringstochars` | ✅ |  |  |  |  |  |
 | `count` | ✅ | 0.005 | 1.11× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
-| `deblank` | ✅ |  |  |  |  |  |
+| `deblank` | ✅ | 0.000 | 4.21× | 145.71× | OK | Sig: S = deblank(S). Trim trailing space. 10000 iters. |
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `endswith` | ❌ |  |  |  |  |  |
-| `erase` | ✅ |  |  |  |  |  |
+| `erase` | ✅ | 0.002 | 2.26× | 10.85× | OK | Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters. |
 | `erasebetween` | ✅ |  |  |  |  |  |
 | `extract` | ✅ | 0.106 | 1.00× | — | OK | Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters. |
-| `extractafter` | ✅ |  |  |  |  |  |
-| `extractbefore` | ✅ |  |  |  |  |  |
+| `extractafter` | ✅ | 0.000 | 2.75× |  | OK | Sig: S2 = extractAfter(S, PAT). 10k iters. Function name camelCase. |
+| `extractbefore` | ✅ | 0.000 | 2.81× |  | OK | Sig: S2 = extractBefore(S, PAT). 10k iters. |
 | `extractbetween` | ✅ |  |  |  |  |  |
 | `insertafter` | ✅ |  |  |  |  |  |
 | `insertbefore` | ✅ |  |  |  |  |  |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `ischar` | ✅ |  |  |  |  |  |
-| `isletter` | ✅ |  |  |  |  |  |
-| `isspace` | ✅ |  |  |  |  |  |
+| `isletter` | ✅ | 0.034 | 0.77× | 2.18× | OK | Sig: TF = isletter(S). 14k char input. 1000 iters. Logical-array fp. |
+| `isspace` | ✅ | 0.028 | 1.02× | 2.07× | OK | Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp. |
 | `isstring` | ✅ |  |  |  |  |  |
 | `isstringscalar` | ✅ |  |  |  |  |  |
 | `isstrprop` | ✅ |  |  |  |  |  |
@@ -190,7 +190,7 @@ multiple sections; all occurrences refresh together).
 | `matches` | ✅ |  |  |  |  |  |
 | `newline` | ✅ | 0.000 | 0.10× | 7.25× | OK | ASCII LF char. Bench is 100k iters of the call itself. |
 | `num2str` | ✅ |  |  |  |  |  |
-| `pad` | ✅ |  |  |  |  |  |
+| `pad` | ✅ | 0.000 | 15.01× |  | OK | Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters. |
 | `plus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
 | `regexp` | ✅ |  |  |  |  |  |
 | `regexpi` | ✅ |  |  |  |  |  |
@@ -198,9 +198,10 @@ multiple sections; all occurrences refresh together).
 | `regexptranslate` | ✅ | 0.000 | 13.86× | 63.52× | OK | Escape 21-char string with many metachars. 10k iters. |
 | `replace` | ✅ | 0.012 | 2.62× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
 | `replacebetween` | ✅ |  |  |  |  |  |
-| `reverse` | ✅ |  |  |  |  |  |
+| `reverse` | ✅ | 0.000 | 8.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.102 | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
-| `splitlines` | ✅ |  |  |  |  |  |
+| `splitlines` | ✅ | 0.001 | 3.19× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
+'. 1000 iters. |
 | `sprintf` | ✅ |  |  |  |  |  |
 | `sscanf` | ✅ |  |  |  |  |  |
 | `startswith` | ❌ |  |  |  |  |  |
@@ -211,7 +212,7 @@ multiple sections; all occurrences refresh together).
 | `strfind` | ✅ | 0.017 | 0.71× | 0.77× | OK | Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters. |
 | `string` | ✅ |  |  |  |  |  |
 | `strings` | ✅ | 0.710 | 0.22× | — | OK | 100x100 empty-string array. 1000 iters. |
-| `strip` | ✅ |  |  |  |  |  |
+| `strip` | ✅ | 0.000 | 12.71× |  | OK | Sig: S = strip(S). Trim both. 10000 iters. |
 | `strjoin` | ✅ | 0.009 | 12.80× | 89.14× | OK | Sig: S = strjoin(C, DELIM). 1k tokens via for-init (repmat rejects cell). 1000 iters. |
 | `strjust` | ✅ | 0.084 | 2.07× | 2.42× | OK | 1000x50 char matrix, right-justify. 200 iters. |
 | `strlength` | ✅ | 0.000 | 8.95× |  | OK | Sig: L = strlength(S). Single string (cellstr form differs). 100k iters. |
@@ -220,7 +221,7 @@ multiple sections; all occurrences refresh together).
 | `strrep` | ✅ | 0.012 | 1.59× | 1.21× | OK | Sig: Y = strrep(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
 | `strsplit` | ✅ | 0.076 | 1.27× |  | MISMATCH | Sig: C = strsplit(S, DELIM). 3.5k string, 500 splits → cell. 1000 iters. Custom fp (cell out). |
 | `strtok` | ✅ |  |  |  |  |  |
-| `strtrim` | ✅ |  |  |  |  |  |
+| `strtrim` | ✅ | 0.000 | 3.09× | 135.74× | OK | Sig: S = strtrim(S). Trim leading+trailing. 10000 iters. |
 | `upper` | ✅ | 0.068 | 1.10× | 2.51× | OK | Sig: Y = upper(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 
 ## Structures
@@ -257,7 +258,7 @@ multiple sections; all occurrences refresh together).
 | `celldisp` | ✅ |  |  |  |  |  |
 | `cellfun` | ✅ |  |  |  |  |  |
 | `cellplot` | ❌ |  |  |  |  |  |
-| `cellstr` | ✅ |  |  |  |  | cell of char rows |
+| `cellstr` | ✅ | 0.000 | 13.65× |  | MISMATCH | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
 | `iscell` | ✅ | 0.000 | 8.30× | 36.14× | OK | Sig: TF = iscell(X). 100k iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `mat2cell` | ✅ |  |  |  |  | split into cell |
