@@ -149,6 +149,12 @@ Value vertcat(std::pmr::memory_resource *mr, const Value *values, size_t count);
 /// meshgrid(x, y) returns (X, Y) matrices of size [ny, nx].
 std::tuple<Value, Value> meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y);
 
+/// meshgrid(x, y, z) returns three (X, Y, Z) 3-D arrays of size
+/// [ny, nx, nz].
+std::tuple<Value, Value, Value>
+meshgrid(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+         const Value &z);
+
 /// ndgrid(x, y) — N-D companion to meshgrid. Each output has shape
 /// [numel(x), numel(y), ...] (first-arg axes-major) — the opposite
 /// of meshgrid's MATLAB convention. Output type DOUBLE.
