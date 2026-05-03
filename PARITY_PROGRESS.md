@@ -134,11 +134,11 @@ multiple sections; all occurrences refresh together).
 | `int8` | ✅ | 2.604 | 0.04× |  | OK | Sig: Y = int8(X). 1M doubles → int8. 50 iters. |
 | `intmax` | ✅ | 0.000 | 11.60× | 16.41× | OK | Sig: M = intmax(TYPE). int32 max. 1M iters. |
 | `intmin` | ✅ | 0.000 | 11.16× | 4.63× | OK | Sig: M = intmin(TYPE). int32 min. 1M iters. |
-| `isfinite` | ✅ | 3.404 | 0.02× | 0.07× | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
+| `isfinite` | ✅ | 0.322 | 0.27× |  | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
 | `isfloat` | ✅ | 0.000 | 20.26× | 26.00× | OK | Sig: TF = isfloat(X). Returns scalar. 100k iters. |
-| `isinf` | ✅ | 3.383 | 0.03× | 0.07× | OK | Sig: TF = isinf(X). 1M-pt with Inf/-Inf scattered. 50 iters. |
+| `isinf` | ✅ | 0.255 | 0.29× |  | OK | Sig: TF = isinf(X). 1M-pt with Inf/-Inf scattered. 50 iters. |
 | `isinteger` | ✅ | 0.000 | 20.54× | 16.06× | OK | Sig: TF = isinteger(X). Returns scalar. 100k iters. |
-| `isnan` | ✅ | 3.391 | 0.03× | 0.07× | OK | Sig: TF = isnan(X). 1M-pt with NaN every 3rd. 50 iters. Element-wise SAVE on logical. |
+| `isnan` | ✅ | 0.257 | 0.37× |  | OK | Sig: TF = isnan(X). 1M-pt with NaN every 3rd. 50 iters. Element-wise SAVE on logical. |
 | `isnumeric` | ✅ | 0.000 | 23.28× | 24.81× | OK | Sig: TF = isnumeric(X). Returns scalar. 100k iters. |
 | `isreal` | ✅ | 0.000 | 18.13× | 31.18× | OK | Sig: TF = isreal(X). Returns scalar. 100k iters. |
 | `nan` | ✅ | 0.000 | 166.43× | 9.70× | OK | Sig: N = NaN. 1M iters. fp checks isnan since y itself is NaN. |
