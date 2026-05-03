@@ -1,0 +1,10 @@
+{
+  "name": "exp",
+  "namespace": "core",
+  "setup": "x = linspace(-10, 10, 1000000);",
+  "expr": "y = exp(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = exp(X). 1M-pt sweep on [-10,10]. 20 iters. Element-wise SAVE."
+}

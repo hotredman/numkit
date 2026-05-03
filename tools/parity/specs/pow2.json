@@ -1,0 +1,10 @@
+{
+  "name": "pow2",
+  "namespace": "core",
+  "setup": "x = linspace(-50, 50, 1000000);",
+  "expr": "y = pow2(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = pow2(X) = 2.^X. 1M-pt on [-50, 50]. 20 iters. Element-wise SAVE."
+}

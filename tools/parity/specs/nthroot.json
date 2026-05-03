@@ -1,0 +1,10 @@
+{
+  "name": "nthroot",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 100, 1000000);",
+  "expr": "y = nthroot(x, 3);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = nthroot(X, N). N=3, X on [0.001, 100]. 20 iters. Element-wise SAVE."
+}
