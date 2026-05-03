@@ -56,7 +56,7 @@ introduced by parity work.
 
 ---
 
-## 4. `libs/builtin`: `string()` doesn't accept cell-of-chars — **P2**
+## 4. `libs/builtin`: `string()` doesn't accept cell-of-chars — **P2** ✅ FIXED
 
 **Reproducer:** `string({'a','b','c'})` → "Cannot convert input to string".
 **MATLAB:** returns a 1×3 string array.
@@ -66,10 +66,14 @@ the cell→string idiom that's common in MATLAB code.
 **Where:** `libs/builtin/src/language/strings/strings.cpp` —
 `toString()` rejects cells.
 **First seen:** 2026-05-03 while specing `join` bench.
+**Fix (2026-05-03):** Added a CELL branch to `toString` that walks
+the source cell elementwise (each must be char / string / numeric
+scalar) and packages into an N-element string array of the same
+shape.
 
 ---
 
-## 5. `libs/builtin`: indexed assignment to string-array elements unsupported — **P2**
+## 5. `libs/builtin`: indexed assignment to string-array elements unsupported — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -81,20 +85,29 @@ arr(1) = "x";   % → Indexed assignment not supported for type 'string'
 loops; users must concat via `["a","b",...]` literal.
 **Where:** somewhere in indexing dispatch (likely `core/`).
 **First seen:** 2026-05-03 while specing `join` bench.
+**Fix (2026-05-03):** Added STRING branches to `writeElem` /
+`writeScalar` in [core/src/value.cpp]. Source value can be string,
+char, or numeric scalar — all go through `stringElemSet`.
 
 ---
 
-## 6. `libs/builtin`: `repmat` doesn't accept `string` type — **P2**
+## 6. `libs/builtin`: `repmat` doesn't accept `string` type — **P2** ✅ FIXED
 
 **Reproducer:** `repmat("hi", 1, 100)` → "ND repmat does not support
 type 'string'".
 **MATLAB:** returns 1×100 string array.
 **Where:** `libs/builtin/src/language/arrays/...` `repmat` code path.
 **First seen:** 2026-05-03 while specing `join` bench.
+**Fix (2026-05-03):** `repmatND` in
+[libs/builtin/src/language/arrays/manip.cpp] now has a STRING/CELL
+path (the byte-memcpy fast path can't apply to vector<Value>-backed
+storage). Walks output indices, mods back to source via per-axis
+modulo strides, and copies via `stringElemSet` / `cellAt`. The 2-D
+`repmat` entry point delegates to ND for non-DOUBLE types.
 
 ---
 
-## 7. `libs/builtin`: parens-indexing on `string` arrays unsupported — **P2**
+## 7. `libs/builtin`: parens-indexing on `string` arrays unsupported — **P2** ✅ FIXED
 
 **Reproducer:** `S = strings(2,3); S(1,1)` → "elemAt not supported for
 type 'string'".
@@ -102,10 +115,15 @@ type 'string'".
 **Workaround:** use `strlength(S(:))`-style aggregate operations.
 **Where:** core indexing dispatch.
 **First seen:** 2026-05-03 while smoke-testing the new `strings()`.
+**Fix (2026-05-03):** Added STRING cases to `Value::elemAt`,
+`Value::indexGet`, and `Value::indexGet2D` in [core/src/value.cpp].
+Each builds a fresh string scalar / array and copies via
+`stringElemSet`. 3-D / ND slicing still routes through the existing
+infrastructure (CELL-style; STRING ND would need similar additions).
 
 ---
 
-## 8. `libs/builtin`: 2-D string-array literal `["a","b"; "c","d"]` rejected — **P2**
+## 8. `libs/builtin`: 2-D string-array literal `["a","b"; "c","d"]` rejected — **P2** ✅ FIXED
 
 **Reproducer:** `["a","b"; "c","d"]` → "Concatenation not supported for
 type 'string' (in matrix construction)".
@@ -114,6 +132,11 @@ type 'string' (in matrix construction)".
 unsupported for strings).
 **Where:** matrix-literal dispatch in core, string-side concat helpers.
 **First seen:** 2026-05-03 while specing `join` bench in 2-D form.
+**Fix (2026-05-03):** Added a STRING branch to `Value::vertcat` in
+[core/src/value.cpp] (horzcat already had one). `["a","b"; "c","d"]`
+now correctly assembles a 2×2 string array. Char / scalar operands
+auto-promote to single-element strings to match horzcat's existing
+behavior.
 
 ---
 

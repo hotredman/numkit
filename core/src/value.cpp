@@ -711,6 +711,44 @@ Value Value::vertcat(const Value *elems, size_t count, std::pmr::memory_resource
         return result;
     }
 
+    // String-array vertcat: 2-D literal `["a","b"; "c","d"]` lands here.
+    // Each row arg is a 1×N (or M×N) string; stack into a (sum-rows)×N
+    // string array. Char operands auto-promote to single-element strings.
+    // See BUGS.md #8.
+    bool hasString = false;
+    for (size_t i = 0; i < count; ++i)
+        if (!elems[i].isEmpty() && elems[i].type() == ValueType::STRING) {
+            hasString = true;
+            break;
+        }
+    if (hasString) {
+        auto result = Value::stringArray(totalRows, cols, mr);
+        size_t rowOff = 0;
+        for (size_t i = 0; i < count; ++i) {
+            if (elems[i].isEmpty())
+                continue;
+            size_t eR, eC, eP;
+            getElemDims(elems[i], eR, eC, eP);
+            if (elems[i].type() == ValueType::STRING) {
+                for (size_t c = 0; c < eC; ++c)
+                    for (size_t r = 0; r < eR; ++r)
+                        result.stringElemSet((c) * totalRows + (rowOff + r),
+                                              elems[i].stringElem(c * eR + r));
+            } else if (elems[i].isChar() || elems[i].isScalar()) {
+                // single char / numeric scalar → broadcast 1 string per cell.
+                const std::string s = elems[i].toString();
+                for (size_t c = 0; c < eC; ++c)
+                    for (size_t r = 0; r < eR; ++r)
+                        result.stringElemSet((c) * totalRows + (rowOff + r), s);
+            } else {
+                throw std::runtime_error(
+                    "String concatenation: row element must be string, char, or scalar");
+            }
+            rowOff += eR;
+        }
+        return result;
+    }
+
     ValueType outType = promoteNumericType(elems, count);
 
     auto result = (pages > 1) ? Value::matrix3d(totalRows, cols, pages, outType, mr)
@@ -758,6 +796,10 @@ Value Value::elemAt(size_t idx, std::pmr::memory_resource *mr) const
     }
     case ValueType::CELL:
         return cellAt(idx);
+    case ValueType::STRING:
+        // String-array element access — return a 1×1 string scalar
+        // holding the string at the linear index. See BUGS.md #7.
+        return Value::stringScalar(stringElem(idx), mr);
     case ValueType::STRUCT: {
         // s(i) on a struct → a 1×1 struct holding the i-th element's
         // fields. With AoS storage there's no fast-path: even for a
@@ -842,6 +884,14 @@ Value Value::indexGet(const size_t *indices, size_t count, std::pmr::memory_reso
             result.cellAt(i) = cellAt(indices[i]);
         return result;
     }
+    case ValueType::STRING: {
+        // String-array slice: copy strings at the requested indices
+        // into a fresh string array of the result shape. See BUGS.md #7.
+        auto result = Value::stringArray(rr, cc, mr);
+        for (size_t i = 0; i < count; ++i)
+            result.stringElemSet(i, stringElem(indices[i]));
+        return result;
+    }
     // Typed integer / single: raw memcpy per element, same target type.
     case ValueType::INT8: case ValueType::INT16: case ValueType::INT32: case ValueType::INT64:
     case ValueType::UINT8: case ValueType::UINT16: case ValueType::UINT32: case ValueType::UINT64:
@@ -879,6 +929,19 @@ Value Value::indexGet2D(const size_t *rowIdx, size_t nrows,
         for (size_t c = 0; c < ncols; ++c)
             for (size_t r = 0; r < nrows; ++r)
                 result.cellAt(c * nrows + r) = cellAt(d.sub2ind(rowIdx[r], colIdx[c]));
+        return result;
+    }
+    if (t == ValueType::STRING) {
+        // String 2-D slice: copy strings element-by-element. STRING
+        // elements live in cellData (vector<Value>), not a contiguous
+        // byte buffer, so the memcpy fast path doesn't apply. See
+        // BUGS.md #7.
+        auto &d = dims();
+        auto result = Value::stringArray(nrows, ncols, mr);
+        for (size_t c = 0; c < ncols; ++c)
+            for (size_t r = 0; r < nrows; ++r)
+                result.stringElemSet(c * nrows + r,
+                                      stringElem(d.sub2ind(rowIdx[r], colIdx[c])));
         return result;
     }
 
@@ -1216,6 +1279,13 @@ static void writeElem(Value &dst, size_t idx, const Value &val, size_t valIdx)
     case ValueType::CELL:
         dst.cellAt(idx) = val.cellAt(valIdx);
         break;
+    case ValueType::STRING:
+        // String-array element write. val can be string, char, or
+        // numeric scalar (MATLAB allows any of these). See BUGS.md #5.
+        if (val.isString())      dst.stringElemSet(idx, val.stringElem(valIdx));
+        else if (val.isChar())   dst.stringElemSet(idx, val.toString());
+        else                     dst.stringElemSet(idx, val.toString());
+        break;
     // Typed integer / single: narrowing conversion from the source
     // element's double value. MATLAB saturates on overflow; we match
     // that by using the cast boundaries of each target type.
@@ -1254,6 +1324,13 @@ static void writeScalar(Value &dst, size_t idx, const Value &val)
         break;
     case ValueType::CELL:
         dst.cellAt(idx) = val;
+        break;
+    case ValueType::STRING:
+        // Broadcast assignment: write the same string value into idx.
+        // String, char, or numeric-scalar source. See BUGS.md #5.
+        if (val.isString())     dst.stringElemSet(idx, val.stringElem(0));
+        else if (val.isChar())  dst.stringElemSet(idx, val.toString());
+        else                    dst.stringElemSet(idx, val.toString());
         break;
     case ValueType::INT8:   dst.int8DataMut()[idx]   = static_cast<int8_t  >(val.toScalar()); break;
     case ValueType::INT16:  dst.int16DataMut()[idx]  = static_cast<int16_t >(val.toScalar()); break;

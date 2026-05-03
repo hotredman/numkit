@@ -28,6 +28,15 @@ namespace numkit::builtin {
 // pages for the 3D form). Output dims: (R*m) × (C*n) × (P*p).
 Value repmat(std::pmr::memory_resource *mr, const Value &x, size_t m, size_t n, size_t p)
 {
+    // STRING / CELL / non-DOUBLE types delegate to the ND path which
+    // handles them. The fast 2-D DOUBLE memcpy loop below assumes
+    // contiguous double storage. See BUGS.md #6.
+    const ValueType t = x.type();
+    if (t != ValueType::DOUBLE) {
+        const size_t tiles[3] = { m, n, p };
+        const int nd = (p > 1 || x.dims().is3D()) ? 3 : 2;
+        return repmatND(mr, x, tiles, nd);
+    }
     const auto &dd = x.dims();
     const size_t R = dd.rows(), C = dd.cols();
     const size_t P = dd.is3D() ? dd.pages() : 1;
@@ -77,8 +86,7 @@ Value repmatND(std::pmr::memory_resource *mr, const Value &x,
                 const size_t *tiles, int ntiles)
 {
     const ValueType t = x.type();
-    if (t == ValueType::CELL || t == ValueType::STRUCT || t == ValueType::STRING
-        || t == ValueType::FUNC_HANDLE)
+    if (t == ValueType::STRUCT || t == ValueType::FUNC_HANDLE)
         throw Error(std::string("repmat: ND repmat does not support type '")
                      + mtypeName(t) + "'",
                      0, 0, "repmat", "", "m:repmat:typeND");
@@ -90,6 +98,64 @@ Value repmatND(std::pmr::memory_resource *mr, const Value &x,
         throw Error("repmat: rank exceeds 32",
                      0, 0, "repmat", "", "m:repmat:tooManyDims");
     if (outNdim < 1) outNdim = 1;
+
+    // STRING / CELL store contents as vector<Value> in cellData, not a
+    // contiguous byte buffer — the memcpy paths below would dereference
+    // a null rawData(). Walk by element and copy Values directly.
+    // See BUGS.md #6 and #7-related cell-array handling.
+    if (t == ValueType::STRING || t == ValueType::CELL) {
+        size_t inDP[kMaxNd];
+        size_t tilesP[kMaxNd];
+        size_t outD[kMaxNd];
+        for (int i = 0; i < outNdim; ++i) {
+            inDP[i]   = (i < inDims.ndim()) ? inDims.dim(i) : 1;
+            tilesP[i] = (i < ntiles)        ? tiles[i]      : 1;
+            outD[i]   = inDP[i] * tilesP[i];
+        }
+        // Build output of the same value-type (STRING or CELL) with
+        // the new shape; cellData is allocated empty and filled.
+        Value r;
+        if (t == ValueType::STRING) {
+            if (outNdim <= 2)
+                r = Value::stringArray(outD[0], outNdim >= 2 ? outD[1] : 1, mr);
+            else if (outNdim == 3)
+                r = Value::stringArray3D(outD[0], outD[1], outD[2], mr);
+            else
+                throw Error("repmat: ND > 3 not supported for string",
+                             0, 0, "repmat", "", "m:repmat:tooManyDimsStr");
+        } else { // CELL
+            if (outNdim <= 2)
+                r = Value::cell(outD[0], outNdim >= 2 ? outD[1] : 1, mr);
+            else
+                throw Error("repmat: ND > 2 not supported for cell",
+                             0, 0, "repmat", "", "m:repmat:tooManyDimsCell");
+        }
+        if (x.numel() == 0) return r;
+
+        size_t outStrides[kMaxNd];
+        computeStridesColMajor(r.dims(), outStrides);
+        size_t srcStrides[kMaxNd];
+        computeStridesColMajor(inDims, srcStrides);
+        for (int i = inDims.ndim(); i < outNdim; ++i) srcStrides[i] = 0;
+
+        const size_t total = r.numel();
+        for (size_t outIdx = 0; outIdx < total; ++outIdx) {
+            // Recover output coord, map back to source coord by per-axis modulo.
+            size_t rem = outIdx;
+            size_t srcIdx = 0;
+            for (int d = outNdim - 1; d >= 0; --d) {
+                const size_t coord = rem / outStrides[d];
+                rem -= coord * outStrides[d];
+                if (d < inDims.ndim())
+                    srcIdx += (coord % inDP[d]) * srcStrides[d];
+            }
+            if (t == ValueType::STRING)
+                r.stringElemSet(outIdx, x.stringElem(srcIdx));
+            else
+                r.cellAt(outIdx) = x.cellAt(srcIdx);
+        }
+        return r;
+    }
 
     size_t inDimPadded[kMaxNd];
     size_t tilesPadded[kMaxNd];
