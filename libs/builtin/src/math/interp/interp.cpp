@@ -73,6 +73,70 @@ interpNearest(std::pmr::memory_resource *mr,
     return yq;
 }
 
+// Build the n-vector of second derivatives at knots (sigma) using
+// MATLAB's not-a-knot boundary conditions. Falls back to natural BCs
+// for n == 3 (NaK is degenerate). Tridiagonal system has the standard
+// interior rows (j=1..n-2) with the first/last rows modified to
+// substitute sigma_0 / sigma_{n-1} with their NaK linear combinations.
+ScratchVec<double>
+computeSplineSigma(std::pmr::memory_resource *mr,
+                   const double *x, const double *y, size_t n,
+                   const double *h)
+{
+    ScratchVec<double> sigma(n, 0.0, mr);
+    if (n < 3) return sigma;
+
+    const size_t m = n - 2;
+    ScratchVec<double> diag(m, mr), upper(m, mr), lower(m, mr), rhs(m, mr);
+
+    for (size_t i = 0; i < m; ++i) {
+        const size_t j = i + 1;
+        diag[i] = 2.0 * (h[j - 1] + h[j]);
+        rhs[i] = 6.0 * ((y[j + 1] - y[j]) / h[j] - (y[j] - y[j - 1]) / h[j - 1]);
+        if (i > 0)         lower[i] = h[j - 1];
+        if (i < m - 1)     upper[i] = h[j];
+    }
+
+    // Not-a-knot modifications (only when n >= 4; for n==3 fall back
+    // to natural BCs). See BUGS.md note attached to spline parity:
+    //   sigma_0 = ((h_0 + h_1) * s_1 - h_0 * s_2) / h_1
+    //   sigma_{n-1} = ((h_{n-3} + h_{n-2}) * s_{n-2}
+    //                  - h_{n-2} * s_{n-3}) / h_{n-3}
+    // Substitute into rows 0 and m-1 of the standard tridiagonal.
+    if (m >= 2) {
+        const double h0 = h[0];
+        const double h1 = h[1];
+        diag[0]  = (h0 + h1) * (h0 + 2.0 * h1) / h1;
+        upper[0] = (h1 * h1 - h0 * h0) / h1;
+
+        const double hL  = h[n - 3];   // h_{n-3}
+        const double hL1 = h[n - 2];   // h_{n-2}
+        diag[m - 1]  = (hL + hL1) * (2.0 * hL + hL1) / hL;
+        lower[m - 1] = (hL * hL - hL1 * hL1) / hL;
+    }
+
+    for (size_t i = 1; i < m; ++i) {
+        const double w = lower[i] / diag[i - 1];
+        diag[i] -= w * upper[i - 1];
+        rhs[i]  -= w * rhs[i - 1];
+    }
+
+    sigma[m] = rhs[m - 1] / diag[m - 1];
+    for (int i = static_cast<int>(m) - 2; i >= 0; --i)
+        sigma[i + 1] = (rhs[i] - upper[i] * sigma[i + 2]) / diag[i];
+
+    // Recover boundary sigmas from the NaK linear combinations.
+    if (m >= 2) {
+        const double h0 = h[0];
+        const double h1 = h[1];
+        sigma[0] = ((h0 + h1) * sigma[1] - h0 * sigma[2]) / h1;
+        const double hL  = h[n - 3];
+        const double hL1 = h[n - 2];
+        sigma[n - 1] = ((hL + hL1) * sigma[n - 2] - hL1 * sigma[n - 3]) / hL;
+    }
+    return sigma;
+}
+
 ScratchVec<double>
 interpSpline(std::pmr::memory_resource *mr,
              const double *x, const double *y, size_t n,
@@ -87,32 +151,7 @@ interpSpline(std::pmr::memory_resource *mr,
     for (size_t i = 0; i < nm1; ++i)
         h[i] = x[i + 1] - x[i];
 
-    const size_t m = n - 2;
-    ScratchVec<double> sigma(n, 0.0, mr);
-
-    if (m > 0) {
-        ScratchVec<double> diag(m, mr), upper(m, mr), lower(m, mr), rhs(m, mr);
-
-        for (size_t i = 0; i < m; ++i) {
-            const size_t j = i + 1;
-            diag[i] = 2.0 * (h[j - 1] + h[j]);
-            rhs[i] = 6.0 * ((y[j + 1] - y[j]) / h[j] - (y[j] - y[j - 1]) / h[j - 1]);
-            if (i > 0)
-                lower[i] = h[j - 1];
-            if (i < m - 1)
-                upper[i] = h[j];
-        }
-
-        for (size_t i = 1; i < m; ++i) {
-            const double w = lower[i] / diag[i - 1];
-            diag[i] -= w * upper[i - 1];
-            rhs[i] -= w * rhs[i - 1];
-        }
-
-        sigma[m] = rhs[m - 1] / diag[m - 1];
-        for (int i = static_cast<int>(m) - 2; i >= 0; --i)
-            sigma[i + 1] = (rhs[i] - upper[i] * sigma[i + 2]) / diag[i];
-    }
+    auto sigma = computeSplineSigma(mr, x, y, n, h.data());
 
     ScratchVec<double> yq(nq, mr);
     for (size_t k = 0; k < nq; ++k) {
@@ -689,34 +728,11 @@ Value splinePp(std::pmr::memory_resource *mr, const Value &x, const Value &y)
     const double *xd = x.doubleData();
     const double *yd = y.doubleData();
 
-    // Compute sigma (second derivatives at knots) - same tridiagonal
-    // solve as interpSpline above.
+    // Reuse interpSpline's not-a-knot sigma helper. See BUGS.md #22.
     const size_t nm1 = n - 1;
     ScratchVec<double> h(nm1, &scratch);
     for (size_t i = 0; i < nm1; ++i) h[i] = xd[i + 1] - xd[i];
-
-    ScratchVec<double> sigma(n, 0.0, &scratch);
-    if (n >= 3) {
-        const size_t m = n - 2;
-        ScratchVec<double> diag(m, &scratch), upper(m, &scratch),
-                           lower(m, &scratch), rhs(m, &scratch);
-        for (size_t i = 0; i < m; ++i) {
-            const size_t j = i + 1;
-            diag[i] = 2.0 * (h[j - 1] + h[j]);
-            rhs[i] = 6.0 * ((yd[j + 1] - yd[j]) / h[j]
-                          - (yd[j] - yd[j - 1]) / h[j - 1]);
-            if (i > 0)         lower[i] = h[j - 1];
-            if (i < m - 1)     upper[i] = h[j];
-        }
-        for (size_t i = 1; i < m; ++i) {
-            const double w = lower[i] / diag[i - 1];
-            diag[i] -= w * upper[i - 1];
-            rhs[i]  -= w * rhs[i - 1];
-        }
-        sigma[m] = rhs[m - 1] / diag[m - 1];
-        for (int i = static_cast<int>(m) - 2; i >= 0; --i)
-            sigma[i + 1] = (rhs[i] - upper[i] * sigma[i + 2]) / diag[i];
-    }
+    auto sigma = computeSplineSigma(&scratch, xd, yd, n, h.data());
 
     // Build [nm1 x 4] coefficient matrix in column-major order.
     // For each interval i, with dx = x - xd[i] in [0, h_i]:
