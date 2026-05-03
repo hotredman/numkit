@@ -32,7 +32,8 @@ is a coordination failure.
   - `libs/graphics/` (plotting)
   - `libs/io/` (file I/O)
   - Their respective `tests/` subdirs
-  - `MATLAB_PARITY_PLAN.md`, `MATLAB_PARITY_TODO.md`
+  - `PARITY_PROGRESS.md` (live parity map; both sessions append rows
+    via `tools/parity/run_parity.py`)
 - **May read but not write:** anything in `core/` or `libs/builtin/`.
 
 ---

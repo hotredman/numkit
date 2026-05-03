@@ -13,10 +13,9 @@ stats, graphics, linalg, sparse, ode, table, …) и numkit-специфичны
    numkit-only от MATLAB-mirror)
 
 Связанные документы:
-- [MATLAB_PARITY_TODO.md](MATLAB_PARITY_TODO.md) — cross-reference
-  1226 функций MATLAB, аннотирован namespace-ами
-- [MATLAB_PARITY_PLAN.md](MATLAB_PARITY_PLAN.md) — phased plan по
-  реализации недостающих функций
+- [PARITY_PROGRESS.md](PARITY_PROGRESS.md) — живая карта парити со
+  всеми функциями MATLAB-doc, разбитая по секциям/namespace. Колонки:
+  status (✅/❌/⚠️), numkit_ms, vs_MATLAB, vs_Octave, correctness.
 
 ---
 
