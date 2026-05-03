@@ -1,0 +1,10 @@
+{
+  "name": "besselk",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 10, 10000);",
+  "expr": "y = besselk(0, x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: K = besselk(NU, X). K_0 on (0.1,10]. 50 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "poly",
+  "namespace": "core",
+  "setup": "r = [1; 2; 3; 4; 5];",
+  "expr": "y = poly(r);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: P = poly(R). Roots \u2192 polynomial coefficients. 10000 iters.",
+  "out_var": "y"
+}

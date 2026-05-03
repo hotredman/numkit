@@ -1,0 +1,10 @@
+{
+  "name": "besselj",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 30, 10000);",
+  "expr": "y = besselj(0, x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: J = besselj(NU, X). J_0 on (0.1,30]. 50 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "discretize",
+  "namespace": "core",
+  "setup": "x = linspace(0, 100, 100000); edges = 0:10:100;",
+  "expr": "y = discretize(x, edges);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: BIN = discretize(X, EDGES). 100k pts into 10 bins. 100 iters.",
+  "out_var": "y"
+}
