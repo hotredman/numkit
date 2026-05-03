@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -192,6 +193,182 @@ Value histeq(std::pmr::memory_resource *mr, const Value &I, int n)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Otsu thresholding
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Single-threshold Otsu on a histogram of L bins. Returns (level ∈ [0,L-1],
+// em ∈ [0, 1]).
+std::pair<int, double> otsu_one_level(const std::vector<double> &counts) {
+    const int L = (int)counts.size();
+    double total = 0.0;
+    double sum_total = 0.0;
+    for (int i = 0; i < L; ++i) { total += counts[i]; sum_total += i * counts[i]; }
+    if (total <= 0.0) return {0, 0.0};
+
+    double w0 = 0.0, sum0 = 0.0;
+    double best_var = -1.0;
+    int best_t = 0;
+    for (int t = 0; t < L - 1; ++t) {
+        w0 += counts[t]; sum0 += t * counts[t];
+        const double w1 = total - w0;
+        if (w0 == 0.0 || w1 == 0.0) continue;
+        const double mu0 = sum0 / w0;
+        const double mu1 = (sum_total - sum0) / w1;
+        const double diff = mu0 - mu1;
+        const double inter_var = w0 * w1 * diff * diff;
+        if (inter_var > best_var) { best_var = inter_var; best_t = t; }
+    }
+    // Effectiveness metric η = σ_b² / σ_T² (matches MATLAB graythresh's
+    // 2nd output). With unnormalised counts: σ_b² = best_var / T²,
+    // σ_T² = total_var / T, so η = best_var / (T · total_var).
+    const double mu = sum_total / total;
+    double total_var = 0.0;
+    for (int i = 0; i < L; ++i) total_var += counts[i] * (i - mu) * (i - mu);
+    const double em = (total_var > 0.0) ? (best_var / (total * total_var)) : 0.0;
+    return {best_t, em};
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+otsuthresh(std::pmr::memory_resource *mr, const Value &counts_v) {
+    const size_t L = counts_v.numel();
+    std::vector<double> c(L);
+    for (size_t i = 0; i < L; ++i) c[i] = counts_v.elemAsDouble(i);
+    auto [lvl, em] = otsu_one_level(c);
+    const double thresh = (L > 1) ? double(lvl) / double(L - 1) : 0.0;
+    return std::make_tuple(Value::scalar(thresh, mr), Value::scalar(em, mr));
+}
+
+std::tuple<Value, Value>
+graythresh(std::pmr::memory_resource *mr, const Value &I) {
+    auto [counts, _] = imhist(mr, I, default_nbins(I));
+    return otsuthresh(mr, counts);
+}
+
+std::tuple<Value, Value>
+multithresh(std::pmr::memory_resource *mr, const Value &I, int N) {
+    if (N <= 1) {
+        auto [t, em] = graythresh(mr, I);
+        return std::make_tuple(std::move(t), std::move(em));
+    }
+    if (N > 5)
+        throw Error("multithresh: N > 5 not supported (exhaustive search would be too slow)",
+                    0, 0, "multithresh", "", "m:multithresh:tooMany");
+
+    const int L = default_nbins(I);
+    auto [counts_v, _] = imhist(mr, I, L);
+    std::vector<double> counts(L);
+    for (int i = 0; i < L; ++i) counts[i] = counts_v.doubleData()[i];
+
+    double total = 0.0, sum_total = 0.0;
+    for (int i = 0; i < L; ++i) { total += counts[i]; sum_total += i * counts[i]; }
+    if (total <= 0.0) {
+        Value t = Value::matrix(1, N, ValueType::DOUBLE, mr);
+        return std::make_tuple(std::move(t), Value::scalar(0.0, mr));
+    }
+
+    // Build cumulative sums for fast w/μ computation.
+    std::vector<double> P(L + 1, 0.0), S(L + 1, 0.0);
+    for (int i = 0; i < L; ++i) {
+        P[i + 1] = P[i] + counts[i];
+        S[i + 1] = S[i] + i * counts[i];
+    }
+
+    auto class_var = [&](int lo, int hi) {
+        // [lo, hi] inclusive
+        const double w = P[hi + 1] - P[lo];
+        if (w == 0.0) return 0.0;
+        const double s = S[hi + 1] - S[lo];
+        const double mu = s / w;
+        return w * mu * mu;
+    };
+
+    // Exhaustive search over N thresholds t1 < t2 < ... < tN (in 0..L-2).
+    std::vector<int> best(N, 0);
+    double best_var = -1.0;
+
+    std::vector<int> idx(N);
+    std::function<void(int, int)> recurse = [&](int depth, int start) {
+        if (depth == N) {
+            // Build sum of class variances.
+            double v = 0.0;
+            int prev = 0;
+            for (int k = 0; k < N; ++k) {
+                v += class_var(prev, idx[k]);
+                prev = idx[k] + 1;
+            }
+            v += class_var(prev, L - 1);
+            if (v > best_var) { best_var = v; best = idx; }
+            return;
+        }
+        for (int t = start; t < L - 1 - (N - 1 - depth); ++t) {
+            idx[depth] = t;
+            recurse(depth + 1, t + 1);
+        }
+    };
+    recurse(0, 0);
+
+    Value t_out = Value::matrix(1, N, ValueType::DOUBLE, mr);
+    double *td = t_out.doubleDataMut();
+    for (int k = 0; k < N; ++k) td[k] = double(best[k]) / double(L - 1);
+    // Effectiveness η = sigma_b^2 / sigma_T^2.
+    const double mu = sum_total / total;
+    double total_var = 0.0;
+    for (int i = 0; i < L; ++i) total_var += counts[i] * (i - mu) * (i - mu);
+    // best_var is sum of w·μ² over classes; sigma_b² = sum w·μ² − total·mu².
+    const double sigma_b2 = best_var - total * mu * mu;
+    const double em = (total_var > 0.0) ? (sigma_b2 / total_var) : 0.0;
+    return std::make_tuple(std::move(t_out), Value::scalar(em, mr));
+}
+
+Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh) {
+    const size_t N = I.numel();
+    Value out;
+    const auto &d = I.dims();
+    if (I.isScalar()) out = Value::matrix(1, 1, ValueType::LOGICAL, mr);
+    else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                           ValueType::LOGICAL, mr);
+    else              out = Value::matrix(d.rows(), d.cols(),
+                                          ValueType::LOGICAL, mr);
+    if (N == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < N; ++i) od[i] = (element_to_unit(I, i) > thresh) ? 1 : 0;
+    return out;
+}
+
+Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels) {
+    const size_t Lcount = levels.numel();
+    std::vector<double> lv(Lcount);
+    for (size_t i = 0; i < Lcount; ++i) lv[i] = levels.elemAsDouble(i);
+    std::sort(lv.begin(), lv.end());
+
+    const size_t N = I.numel();
+    Value out;
+    const auto &d = I.dims();
+    if (I.isScalar()) out = Value::matrix(1, 1, ValueType::DOUBLE, mr);
+    else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                           ValueType::DOUBLE, mr);
+    else              out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double u = element_to_unit(I, i);
+        // class index = first level we don't exceed; output is 1-indexed.
+        size_t cls = 1;
+        for (size_t k = 0; k < Lcount; ++k) {
+            if (u <= lv[k]) break;
+            ++cls;
+        }
+        od[i] = double(cls);
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -269,6 +446,65 @@ void histeq_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:histeq:nargin");
     int n = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 64;
     outs[0] = histeq(ctx.engine->resource(), args[0], n);
+}
+
+void graythresh_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("graythresh: requires I", 0, 0, "graythresh", "",
+                    "m:graythresh:nargin");
+    auto [t, em] = graythresh(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(t);
+    if (nargout > 1) outs[1] = std::move(em);
+}
+
+void otsuthresh_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("otsuthresh: requires counts", 0, 0, "otsuthresh", "",
+                    "m:otsuthresh:nargin");
+    auto [t, em] = otsuthresh(ctx.engine->resource(), args[0]);
+    outs[0] = std::move(t);
+    if (nargout > 1) outs[1] = std::move(em);
+}
+
+void multithresh_reg(Span<const Value> args, size_t nargout,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("multithresh: requires (I[, N])", 0, 0, "multithresh", "",
+                    "m:multithresh:nargin");
+    int N = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 1;
+    auto [t, em] = multithresh(ctx.engine->resource(), args[0], N);
+    outs[0] = std::move(t);
+    if (nargout > 1) outs[1] = std::move(em);
+}
+
+void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imbinarize: requires (I[, thresh])", 0, 0, "imbinarize", "",
+                    "m:imbinarize:nargin");
+    double thresh;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        thresh = args[1].toScalar();
+    } else {
+        auto [t, _] = graythresh(ctx.engine->resource(), args[0]);
+        thresh = t.toScalar();
+    }
+    outs[0] = imbinarize(ctx.engine->resource(), args[0], thresh);
+}
+
+void imquantize_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imquantize: requires (I, levels)", 0, 0, "imquantize", "",
+                    "m:imquantize:nargin");
+    outs[0] = imquantize(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

@@ -34,4 +34,26 @@ Value imadjust(std::pmr::memory_resource *mr, const Value &I,
 /// histeq(I[, n]) — histogram equalisation with n=64 default bins.
 Value histeq(std::pmr::memory_resource *mr, const Value &I, int n);
 
+// ── Thresholding ──────────────────────────────────────────────────────
+
+/// graythresh(I) — Otsu's threshold + effectiveness metric.
+/// Returns (threshold ∈ [0, 1], em ∈ [0, 1]).
+std::tuple<Value, Value>
+graythresh(std::pmr::memory_resource *mr, const Value &I);
+
+/// otsuthresh(counts) — Otsu's threshold from a histogram. Returns
+/// (threshold ∈ [0, 1], em).
+std::tuple<Value, Value>
+otsuthresh(std::pmr::memory_resource *mr, const Value &counts);
+
+/// multithresh(I[, N]) — N-level Otsu. Returns (N thresholds, em).
+std::tuple<Value, Value>
+multithresh(std::pmr::memory_resource *mr, const Value &I, int N);
+
+/// imbinarize(I[, thresh]) — apply a threshold (default = graythresh).
+Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh);
+
+/// imquantize(I, levels) — quantise into N+1 classes given N thresholds.
+Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels);
+
 } // namespace numkit::image
