@@ -1,0 +1,10 @@
+{
+  "name": "cummin",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = cummin(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE.",
+  "out_var": "y"
+}

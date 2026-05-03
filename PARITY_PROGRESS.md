@@ -859,34 +859,34 @@ multiple sections; all occurrences refresh together).
 | `bounds` | ✅ |  |  |  |  | `[min,max]` |
 | `corrcoef` | ✅ |  |  |  |  |  |
 | `cov` | ✅ |  |  |  |  |  |
-| `cummax` | ✅ |  |  |  |  |  |
-| `cummin` | ✅ |  |  |  |  |  |
+| `cummax` | ✅ | 2.385 | 1.08× | 1.17× | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
+| `cummin` | ✅ | 2.504 | 1.05× | 1.04× | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
 | `iqr` | ✅ |  |  |  |  | inter-quartile |
 | `kde` | ❌ |  |  |  |  |  |
 | `mape` | ✅ | 9.431 | 0.28× | 0.98× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
-| `max` | ✅ |  |  |  |  |  |
+| `max` | ✅ | 1.462 | 0.04× | 0.54× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
 | `maxk` | ✅ |  |  |  |  |  |
-| `mean` | ✅ |  |  |  |  |  |
-| `median` | ✅ |  |  |  |  |  |
-| `min` | ✅ |  |  |  |  |  |
+| `mean` | ✅ | 1.357 | 0.06× | 0.74× | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. |
+| `median` | ✅ | 3.330 | 1.47× | 2.30× | OK | Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. |
+| `min` | ✅ | 1.435 | 0.03× | 0.55× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
 | `mink` | ✅ |  |  |  |  |  |
-| `mode` | ✅ |  |  |  |  |  |
+| `mode` | ✅ | 18.749 | 0.48× | 2.75× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
 | `movmad` | ✅ |  |  |  |  | moving mad |
-| `movmax` | ✅ |  |  |  |  | moving max |
-| `movmean` | ✅ |  |  |  |  | moving avg |
+| `movmax` | ✅ | 4.771 | 0.29× | 19.05× | OK | Sig: M = movmax(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
+| `movmean` | ✅ | 4.885 | 0.29× | 19.38× | OK | Sig: M = movmean(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movmedian` | ✅ |  |  |  |  | moving median |
-| `movmin` | ✅ |  |  |  |  | moving min |
+| `movmin` | ✅ | 4.650 | 0.29× | 18.33× | OK | Sig: M = movmin(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movprod` | ✅ |  |  |  |  | moving prod |
-| `movstd` | ✅ |  |  |  |  | moving std |
+| `movstd` | ✅ | 7.371 | 0.20× | 17.26× | OK | Sig: M = movstd(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
-| `movvar` | ✅ |  |  |  |  | moving var |
+| `movvar` | ✅ | 6.842 | 0.22× | 19.23× | OK | Sig: M = movvar(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `prctile` | ✅ |  |  |  |  |  |
 | `quantile` | ✅ |  |  |  |  |  |
-| `rms` | ✅ |  |  |  |  | root-mean-square |
+| `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
 | `rmse` | ✅ |  |  |  |  |  |
-| `std` | ✅ |  |  |  |  |  |
+| `std` | ✅ | 0.323 | 4.70× | 26.33× | OK | Sig: S = std(X). 1M-pt. 100 iters. Scalar fp. |
 | `summary` | ❌ |  |  |  |  |  |
-| `var` | ✅ |  |  |  |  |  |
+| `var` | ✅ | 0.326 | 4.46× | 26.48× | OK | Sig: V = var(X). 1M-pt. 100 iters. Scalar fp. |
 | `xcorr` | ✅ |  |  |  |  | cross-correlation |
 | `xcov` | ✅ | 0.984 | 0.41× | — | OK | Cross-cov of 5k-pt sine. 50 iters. |
 
