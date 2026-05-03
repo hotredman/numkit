@@ -1,0 +1,10 @@
+{
+  "name": "sort",
+  "namespace": "core",
+  "setup": "A = sin(linspace(0, 100, 1000000));",
+  "expr": "y = sort(A);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: B = sort(A). 1M deterministic sin values. 100 iters. Element-wise SAVE."
+}

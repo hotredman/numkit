@@ -1,0 +1,10 @@
+{
+  "name": "circshift",
+  "namespace": "core",
+  "setup": "A = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = circshift(A, [3 5]);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: B = circshift(A, K). 1000x1000 shift [3 5]. 100 iters. Element-wise SAVE."
+}

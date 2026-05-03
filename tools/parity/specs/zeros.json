@@ -1,0 +1,10 @@
+{
+  "name": "zeros",
+  "namespace": "core",
+  "setup": "n = 1000;",
+  "expr": "y = zeros(n, n);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Z = zeros(M,N). 1000x1000. 100 iters."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "diag",
+  "namespace": "core",
+  "setup": "A = reshape(1:4000000, 2000, 2000);",
+  "expr": "y = diag(A);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: V = diag(A). Diagonal of 2000x2000 deterministic. 100 iters."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "fliplr",
+  "namespace": "core",
+  "setup": "A = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = fliplr(A);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: B = fliplr(A). 1000x1000 left-right flip. 100 iters. Element-wise SAVE."
+}
