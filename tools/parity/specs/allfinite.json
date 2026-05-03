@@ -1,0 +1,13 @@
+{
+  "name": "allfinite",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1, 1000000);",
+  "expr": "y = allfinite(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = allfinite(X). Returns scalar (logical-scalar fp BUGS #14). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

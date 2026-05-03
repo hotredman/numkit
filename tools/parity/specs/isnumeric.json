@@ -1,0 +1,13 @@
+{
+  "name": "isnumeric",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1, 1000000);",
+  "expr": "y = isnumeric(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isnumeric(X). Returns scalar. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

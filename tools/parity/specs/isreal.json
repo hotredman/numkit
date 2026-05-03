@@ -1,0 +1,13 @@
+{
+  "name": "isreal",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1, 1000000);",
+  "expr": "y = isreal(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isreal(X). Returns scalar. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

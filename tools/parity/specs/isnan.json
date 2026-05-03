@@ -1,0 +1,14 @@
+{
+  "name": "isnan",
+  "namespace": "core",
+  "setup": "x = [1 2 NaN 4 5 NaN 7 8 NaN 10]; x = repmat(x, 1, 100000);",
+  "expr": "y = isnan(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isnan(X). 1M-pt with NaN every 3rd. 50 iters. Element-wise SAVE on logical.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

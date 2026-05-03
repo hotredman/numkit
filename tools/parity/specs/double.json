@@ -1,0 +1,10 @@
+{
+  "name": "double",
+  "namespace": "core",
+  "setup": "x = single(linspace(0, 1, 1000000));",
+  "expr": "y = double(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Y = double(X). 1M single \u2192 double. 50 iters. Element-wise SAVE.",
+  "out_var": "y"
+}
