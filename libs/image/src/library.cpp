@@ -18,6 +18,16 @@ void imabsdiff_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcomplement_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imlincomb_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imapplymatrix_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// type_convert/type_convert.cpp
+void im2double_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void im2single_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void im2uint8_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void im2uint16_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void im2int16_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mat2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void im2gray_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgb2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -37,6 +47,15 @@ void ImageLibrary::install(Engine &engine)
     reg("arith", "imcomplement",  &image::detail::imcomplement_reg);
     reg("arith", "imlincomb",     &image::detail::imlincomb_reg);
     reg("arith", "imapplymatrix", &image::detail::imapplymatrix_reg);
+
+    reg("type",  "im2double",     &image::detail::im2double_reg);
+    reg("type",  "im2single",     &image::detail::im2single_reg);
+    reg("type",  "im2uint8",      &image::detail::im2uint8_reg);
+    reg("type",  "im2uint16",     &image::detail::im2uint16_reg);
+    reg("type",  "im2int16",      &image::detail::im2int16_reg);
+    reg("type",  "mat2gray",      &image::detail::mat2gray_reg);
+    reg("type",  "im2gray",       &image::detail::im2gray_reg);
+    reg("color", "rgb2gray",      &image::detail::rgb2gray_reg);
 }
 
 } // namespace numkit

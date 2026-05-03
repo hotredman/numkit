@@ -2895,7 +2895,7 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 
 ## Image Type Conversion
 
-**Namespace:** `image.type.*` — 0 ✅ + 0 ⚠️ / 27 = 0%
+**Namespace:** `image.type.*` — 8 ✅ + 0 ⚠️ / 27 = 30%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -2906,12 +2906,12 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 | `graythresh` | ❌ |  |  |  |  | Otsu threshold |
 | `grayslice` | ❌ |  |  |  |  | scalar quantize |
 | `im2bw` | ❌ |  |  |  |  | legacy → imbinarize |
-| `im2double` | ❌ |  |  |  |  |  |
-| `im2gray` | ❌ |  |  |  |  | RGB-or-gray pass-through |
-| `im2int16` | ❌ |  |  |  |  |  |
-| `im2single` | ❌ |  |  |  |  |  |
-| `im2uint16` | ❌ |  |  |  |  |  |
-| `im2uint8` | ❌ |  |  |  |  |  |
+| `im2double` | ✅ |  |  |  | OK | clamps int classes through unit-range |
+| `im2gray` | ✅ |  |  |  | OK | RGB-or-gray pass-through |
+| `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
+| `im2single` | ✅ |  |  |  | OK |  |
+| `im2uint16` | ✅ |  |  |  | OK |  |
+| `im2uint8` | ✅ |  |  |  | OK | bit-replicate up; round-down on uint16 |
 | `imbinarize` | ❌ |  |  |  |  |  |
 | `imquantize` | ❌ |  |  |  |  |  |
 | `imsplit` | ❌ |  |  |  |  | split RGB → 3 planes |
@@ -2919,10 +2919,10 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 | `ind2rgb` | ❌ |  |  |  |  |  |
 | `iptnum2ordinal` | ❌ |  |  |  |  |  |
 | `label2rgb` | ❌ |  |  |  |  | colourize a label image |
-| `mat2gray` | ❌ |  |  |  |  | rescale to [0, 1] |
+| `mat2gray` | ✅ |  |  |  | OK | auto-detect range or explicit [lo hi] |
 | `multithresh` | ❌ |  |  |  |  | multilevel Otsu |
 | `otsuthresh` | ❌ |  |  |  |  | Otsu from histogram |
-| `rgb2gray` | ❌ |  |  |  |  | luminance |
+| `rgb2gray` | ✅ |  |  |  | OK | Rec.601 coefficients |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
 | `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
