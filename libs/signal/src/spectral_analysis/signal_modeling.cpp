@@ -677,6 +677,128 @@ Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// invfreqs / invfreqz — Levi equation-error LSQ
+// ════════════════════════════════════════════════════════════════════
+//
+// Given a desired complex frequency response H(jω_k) (or H(e^{jω_k}))
+// at K frequency points, fit (b, a) such that B(jω) ≈ H · A(jω).
+// With a_0 = 1 fixed, each frequency point contributes one complex
+// equation linear in the (nb + 1 + na) real unknowns:
+//
+//   -b_0 - b_1·xᵏ - … - b_nb·xᵏⁿᵇ + a_1·H_k·xᵏ + … + a_na·H_k·xᵏⁿᵃ = -H_k
+//
+// where x = jω_k for invfreqs and x = e^{-jω_k} for invfreqz (z⁻¹ form).
+// Stack real and imaginary parts → 2K real equations in nv = nb+1+na
+// real unknowns; solve via normal equations using solveSPD.
+
+namespace {
+
+using Cd_invfreq = std::complex<double>;
+
+std::vector<Cd_invfreq> readComplexVecLocal(const Value &v) {
+    const size_t n = v.numel();
+    std::vector<Cd_invfreq> out(n);
+    if (v.type() == ValueType::COMPLEX) {
+        const Cd_invfreq *cd = v.complexData();
+        for (size_t i = 0; i < n; ++i) out[i] = cd[i];
+    } else {
+        for (size_t i = 0; i < n; ++i) out[i] = Cd_invfreq(v.elemAsDouble(i), 0.0);
+    }
+    return out;
+}
+
+// Common solver: x is the "step" variable per frequency point —
+// jω_k for invfreqs, e^{-jω_k} for invfreqz.
+std::tuple<std::vector<double>, std::vector<double>>
+invfreqLSQ(const std::vector<Cd_invfreq> &H,
+           const std::vector<Cd_invfreq> &x,
+           int nb, int na)
+{
+    const int K  = static_cast<int>(H.size());
+    const int nv = nb + 1 + na;
+    if (K * 2 < nv)
+        throw std::runtime_error("invfreq: not enough frequency points to fit (nb, na)");
+
+    // Build A (2K × nv) row-major, plus rhs (length 2K).
+    std::vector<double> Ar(2 * K * nv, 0.0);
+    std::vector<double> rhs(2 * K, 0.0);
+    for (int k = 0; k < K; ++k) {
+        // Build x^0..x^max(nb, na) once.
+        const int M = std::max(nb, na);
+        std::vector<Cd_invfreq> xpow(M + 1);
+        xpow[0] = Cd_invfreq(1.0, 0.0);
+        for (int i = 1; i <= M; ++i) xpow[i] = xpow[i - 1] * x[k];
+
+        // Row k contains:
+        //   -1, -x, -x², …, -x^nb, H·x, H·x², …, H·x^na
+        std::vector<Cd_invfreq> row(nv);
+        for (int i = 0; i <= nb; ++i) row[i] = -xpow[i];
+        for (int j = 1; j <= na; ++j) row[nb + j] = H[k] * xpow[j];
+
+        // Stack real / imag into Ar.
+        for (int c = 0; c < nv; ++c) {
+            Ar[(2 * k    ) * nv + c] = row[c].real();
+            Ar[(2 * k + 1) * nv + c] = row[c].imag();
+        }
+        rhs[2 * k    ] = -H[k].real();
+        rhs[2 * k + 1] = -H[k].imag();
+    }
+
+    // Normal equations: (Aᵀ A) θ = Aᵀ rhs.
+    std::vector<double> AtA(nv * nv, 0.0);
+    std::vector<double> Atb(nv, 0.0);
+    for (int i = 0; i < nv; ++i) {
+        for (int j = 0; j < nv; ++j) {
+            double s = 0.0;
+            for (int r = 0; r < 2 * K; ++r) s += Ar[r * nv + i] * Ar[r * nv + j];
+            AtA[i * nv + j] = s;
+        }
+        double s = 0.0;
+        for (int r = 0; r < 2 * K; ++r) s += Ar[r * nv + i] * rhs[r];
+        Atb[i] = s;
+    }
+    auto theta = solveSPD(AtA, Atb, nv);
+
+    // theta = [b_0, ..., b_nb, a_1, ..., a_na]
+    std::vector<double> b(nb + 1), a(na + 1);
+    for (int i = 0; i <= nb; ++i) b[i] = theta[i];
+    a[0] = 1.0;
+    for (int j = 1; j <= na; ++j) a[j] = theta[nb + j];
+    return std::make_tuple(std::move(b), std::move(a));
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+invfreqs(std::pmr::memory_resource *mr, const Value &H, const Value &w,
+         int nb, int na)
+{
+    auto Hv = readComplexVecLocal(H);
+    auto wv = readVec(w);
+    if (Hv.size() != wv.size())
+        throw std::runtime_error("invfreqs: H and w must be the same length");
+    std::vector<Cd_invfreq> x(wv.size());
+    for (size_t k = 0; k < wv.size(); ++k) x[k] = Cd_invfreq(0.0, wv[k]); // jω
+    auto [b, a] = invfreqLSQ(Hv, x, nb, na);
+    return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+}
+
+std::tuple<Value, Value>
+invfreqz(std::pmr::memory_resource *mr, const Value &H, const Value &w,
+         int nb, int na)
+{
+    auto Hv = readComplexVecLocal(H);
+    auto wv = readVec(w);
+    if (Hv.size() != wv.size())
+        throw std::runtime_error("invfreqz: H and w must be the same length");
+    std::vector<Cd_invfreq> x(wv.size());
+    for (size_t k = 0; k < wv.size(); ++k)
+        x[k] = std::exp(Cd_invfreq(0.0, -wv[k])); // z⁻¹
+    auto [b, a] = invfreqLSQ(Hv, x, nb, na);
+    return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -827,6 +949,32 @@ void corrmtx_reg(Span<const Value> args, size_t /*nargout*/,
                      0, 0, "corrmtx", "", "m:corrmtx:nargin");
     const int m = static_cast<int>(args[1].toScalar());
     outs[0] = corrmtx(ctx.engine->resource(), args[0], m);
+}
+
+void invfreqs_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("invfreqs: requires (H, w, nb, na)",
+                     0, 0, "invfreqs", "", "m:invfreqs:nargin");
+    const int nb = static_cast<int>(args[2].toScalar());
+    const int na = static_cast<int>(args[3].toScalar());
+    auto [b, a] = invfreqs(ctx.engine->resource(), args[0], args[1], nb, na);
+    outs[0] = std::move(b);
+    if (nargout > 1) outs[1] = std::move(a);
+}
+
+void invfreqz_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 4)
+        throw Error("invfreqz: requires (H, w, nb, na)",
+                     0, 0, "invfreqz", "", "m:invfreqz:nargin");
+    const int nb = static_cast<int>(args[2].toScalar());
+    const int na = static_cast<int>(args[3].toScalar());
+    auto [b, a] = invfreqz(ctx.engine->resource(), args[0], args[1], nb, na);
+    outs[0] = std::move(b);
+    if (nargout > 1) outs[1] = std::move(a);
 }
 
 } // namespace detail

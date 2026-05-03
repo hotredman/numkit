@@ -198,6 +198,8 @@ void rlevinson_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void aryule_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void arburg_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lpc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void invfreqs_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void invfreqz_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ac2poly_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void poly2ac_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ac2rc_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -440,6 +442,8 @@ void SignalLibrary::install(Engine &engine)
     reg("parametric", "corrmtx",   &signal::detail::corrmtx_reg);
     reg("parametric", "poly2lsf",  &signal::detail::poly2lsf_reg);
     reg("parametric", "lsf2poly",  &signal::detail::lsf2poly_reg);
+    reg("parametric", "invfreqs",  &signal::detail::invfreqs_reg);
+    reg("parametric", "invfreqz",  &signal::detail::invfreqz_reg);
     reg("vibration",    "envspectrum",  &signal::detail::envspectrum_reg);
     reg("vibration",    "tachorpm",     &signal::detail::tachorpm_reg);
     reg("vibration",    "rainflow",     &signal::detail::rainflow_reg);
