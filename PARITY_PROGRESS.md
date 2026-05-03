@@ -2895,7 +2895,7 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 
 ## Image Type Conversion
 
-**Namespace:** `image.type.*` — 8 ✅ + 0 ⚠️ / 27 = 30%
+**Namespace:** `image.type.*` — 13 ✅ + 0 ⚠️ / 27 = 48%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -2903,7 +2903,7 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 | `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
 | `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
 | `gray2ind` | ❌ |  |  |  |  |  |
-| `graythresh` | ❌ |  |  |  |  | Otsu threshold |
+| `graythresh` | ✅ |  |  |  | OK | Otsu's 2nd output η = σ_b²/σ_T² |
 | `grayslice` | ❌ |  |  |  |  | scalar quantize |
 | `im2bw` | ❌ |  |  |  |  | legacy → imbinarize |
 | `im2double` | ✅ |  |  |  | OK | clamps int classes through unit-range |
@@ -2912,16 +2912,16 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 | `im2single` | ✅ |  |  |  | OK |  |
 | `im2uint16` | ✅ |  |  |  | OK |  |
 | `im2uint8` | ✅ |  |  |  | OK | bit-replicate up; round-down on uint16 |
-| `imbinarize` | ❌ |  |  |  |  |  |
-| `imquantize` | ❌ |  |  |  |  |  |
+| `imbinarize` | ✅ |  |  |  | OK | auto graythresh fallback or explicit threshold |
+| `imquantize` | ✅ |  |  |  | OK | N+1 classes from N levels |
 | `imsplit` | ❌ |  |  |  |  | split RGB → 3 planes |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ❌ |  |  |  |  |  |
 | `iptnum2ordinal` | ❌ |  |  |  |  |  |
 | `label2rgb` | ❌ |  |  |  |  | colourize a label image |
 | `mat2gray` | ✅ |  |  |  | OK | auto-detect range or explicit [lo hi] |
-| `multithresh` | ❌ |  |  |  |  | multilevel Otsu |
-| `otsuthresh` | ❌ |  |  |  |  | Otsu from histogram |
+| `multithresh` | ✅ |  |  |  | OK | exhaustive search up to N=5 |
+| `otsuthresh` | ✅ |  |  |  | OK | Otsu from precomputed histogram |
 | `rgb2gray` | ✅ |  |  |  | OK | Rec.601 coefficients |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
