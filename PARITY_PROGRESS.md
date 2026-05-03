@@ -2929,41 +2929,41 @@ Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below
 
 ## Color Space Conversion
 
-**Namespace:** `image.color.*` — 0 ✅ + 0 ⚠️ / 30 = 0%
+**Namespace:** `image.color.*` — 10 ✅ + 0 ⚠️ / 30 = 33%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
 | `colorangle` | ❌ |  |  |  |  | angle between two RGB colors |
 | `deltaE` | ❌ |  |  |  |  | CIE76 colour-difference |
-| `hsv2rgb` | ❌ |  |  |  |  |  |
+| `hsv2rgb` | ✅ |  |  |  | OK | round-trip with rgb2hsv exact |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
 | `lab2double` | ❌ |  |  |  |  |  |
-| `lab2rgb` | ❌ |  |  |  |  |  |
+| `lab2rgb` | ✅ |  |  |  | OK | composes lab2xyz + xyz2rgb |
 | `lab2uint16` | ❌ |  |  |  |  |  |
 | `lab2uint8` | ❌ |  |  |  |  |  |
-| `lab2xyz` | ❌ |  |  |  |  |  |
+| `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
 | `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
 | `ntsc2rgb` | ❌ |  |  |  |  |  |
-| `rgb2hsv` | ❌ |  |  |  |  |  |
-| `rgb2lab` | ❌ |  |  |  |  |  |
+| `rgb2hsv` | ✅ |  |  |  | OK |  |
+| `rgb2lab` | ✅ |  |  |  | OK | matches MATLAB R2025b L*a*b* exactly |
 | `rgb2lin` | ❌ |  |  |  |  | sRGB gamma → linear |
 | `rgb2ntsc` | ❌ |  |  |  |  |  |
-| `rgb2xyz` | ❌ |  |  |  |  |  |
-| `rgb2ycbcr` | ❌ |  |  |  |  |  |
+| `rgb2xyz` | ✅ |  |  |  | OK | sRGB→linear→XYZ (D65 white) |
+| `rgb2ycbcr` | ✅ |  |  |  | OK | BT.601, double output in [0, 1] |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
 | `whitepoint` | ❌ |  |  |  |  | tristimulus white-points |
 | `xyz2double` | ❌ |  |  |  |  |  |
-| `xyz2lab` | ❌ |  |  |  |  |  |
-| `xyz2rgb` | ❌ |  |  |  |  |  |
+| `xyz2lab` | ✅ |  |  |  | OK |  |
+| `xyz2rgb` | ✅ |  |  |  | OK |  |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
 | `xyz2uint16` | ❌ |  |  |  |  |  |
-| `ycbcr2rgb` | ❌ |  |  |  |  |  |
+| `ycbcr2rgb` | ✅ |  |  |  | OK |  |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 
 ## Synthetic Images and Display
