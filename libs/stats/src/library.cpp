@@ -88,6 +88,13 @@ void expinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void exprnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void expstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/uniform.cpp
+void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unifstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -171,6 +178,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "expinv",   &stats::detail::expinv_reg);
     reg("dist", "exprnd",   &stats::detail::exprnd_reg);
     reg("dist", "expstat",  &stats::detail::expstat_reg);
+
+    reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
+    reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);
+    reg("dist", "unifinv",  &stats::detail::unifinv_reg);
+    reg("dist", "unifrnd",  &stats::detail::unifrnd_reg);
+    reg("dist", "unifstat", &stats::detail::unifstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
