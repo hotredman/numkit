@@ -3169,18 +3169,18 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 ## Image Arithmetic
 
-**Namespace:** `image.arith.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `image.arith.*` — 8 ✅ + 0 ⚠️ / 8 = 100%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imabsdiff` | ❌ |  |  |  |  |  |
-| `imadd` | ❌ |  |  |  |  |  |
-| `imapplymatrix` | ❌ |  |  |  |  |  |
-| `imcomplement` | ❌ |  |  |  |  |  |
-| `imdivide` | ❌ |  |  |  |  |  |
-| `imlincomb` | ❌ |  |  |  |  |  |
-| `immultiply` | ❌ |  |  |  |  |  |
-| `imsubtract` | ❌ |  |  |  |  |  |
+| `imabsdiff` | ✅ |  |  |  | OK | saturating uint8/uint16/int16, pass-through float |
+| `imadd` | ✅ |  |  |  | OK |  |
+| `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
+| `imcomplement` | ✅ |  |  |  | OK | MAX(class) - X for ints; 1 - X for float |
+| `imdivide` | ✅ |  |  |  | OK |  |
+| `imlincomb` | ✅ |  |  |  | OK | (k1, A1, k2, A2, ..., [output_class]) |
+| `immultiply` | ✅ |  |  |  | OK |  |
+| `imsubtract` | ✅ |  |  |  | OK |  |
 
 ## Image Segmentation
 
