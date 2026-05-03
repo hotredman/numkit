@@ -1,0 +1,13 @@
+{
+  "name": "squeeze",
+  "namespace": "core",
+  "setup": "x = ones(1, 1000, 1, 1000);",
+  "expr": "y = squeeze(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: Y = squeeze(X). 1\u00d71k\u00d71\u00d71k \u2192 1k\u00d71k. 1000 iters.",
+  "fingerprint": [
+    "numel(y)",
+    "double(ndims(y))"
+  ]
+}

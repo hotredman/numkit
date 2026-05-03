@@ -1,0 +1,13 @@
+{
+  "name": "isrow",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = isrow(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isrow(X). 1k row. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

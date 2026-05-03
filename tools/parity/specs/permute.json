@@ -1,0 +1,10 @@
+{
+  "name": "permute",
+  "namespace": "core",
+  "setup": "x = reshape(1:1000000, 100, 100, 100);",
+  "expr": "y = permute(x, [3 1 2]);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: Y = permute(X, ORDER). 100\u00d7100\u00d7100 \u2192 reordered. 100 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "size",
+  "namespace": "core",
+  "setup": "x = reshape(1:60000, 100, 600);",
+  "expr": "y = size(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: S = size(X). 2D 100x600 \u2192 [100 600]. 100k iters.",
+  "fingerprint": [
+    "numel(y)",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

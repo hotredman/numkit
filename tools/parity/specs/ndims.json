@@ -1,0 +1,13 @@
+{
+  "name": "ndims",
+  "namespace": "core",
+  "setup": "x = reshape(1:60000, 100, 600);",
+  "expr": "y = ndims(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: N = ndims(X). 2D mat \u2192 2. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

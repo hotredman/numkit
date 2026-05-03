@@ -1,0 +1,13 @@
+{
+  "name": "issorted",
+  "namespace": "core",
+  "setup": "x = sort(sin(linspace(0,100,10000)));",
+  "expr": "y = issorted(x);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: TF = issorted(X). 10k pre-sorted. 10k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}
