@@ -129,4 +129,20 @@ Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
     return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
 }
 
+Value tan(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, mr);
+    return unaryDouble(x, [](double v) { return std::tan(v); }, mr);
+}
+
+Value acosh(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 1.0)
+        return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
+    return unaryDouble(x, [](double v) { return std::acosh(v); }, mr);
+}
+
 } // namespace numkit::builtin

@@ -1,10 +1,10 @@
 // libs/builtin/src/math/trig/trigonometry.cpp
 //
 // Trig functions whose implementations don't fit the simple SIMD
-// backend pattern: tan (composes sin/cos), acosh (mixed-domain
-// promotion), and the degree / multiple-of-π variants. The
-// SIMD-friendly trig kernels (sin, cos, sinh, cosh, tanh, asin, acos,
-// atan, asinh, atanh, atan2) live in trig_simd.cpp / trig_portable.cpp.
+// backend pattern: the degree / multiple-of-π variants. The
+// SIMD-friendly trig kernels (sin, cos, tan, sinh, cosh, tanh, asin,
+// acos, atan, atan2, asinh, acosh, atanh) live in trig_simd.cpp /
+// trig_portable.cpp.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/math/trig/trigonometry.hpp>
@@ -18,24 +18,6 @@
 #include <complex>
 
 namespace numkit::builtin {
-
-Value tan(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::tan(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::tan(v); }, mr);
-}
-
-Value acosh(std::pmr::memory_resource *mr, const Value &x)
-{
-    // Real branch returns NaN for |x|<1, where MATLAB returns a complex
-    // value. Promote to complex when we hit any out-of-domain element.
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
-    if (x.isScalar() && x.toScalar() < 1.0)
-        return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
-    return unaryDouble(x, [](double v) { return std::acosh(v); }, mr);
-}
 
 // ── Degree-input/-output trig ─────────────────────────────────────────
 //
