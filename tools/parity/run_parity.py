@@ -133,10 +133,20 @@ def build_script(spec: Spec, *, timed: bool) -> str:
                    block of the output variable.
     timed=False  → just produce fingerprints (correctness reference).
     """
+    # Auto-fp: use the first assigned output as the fingerprint var.
+    # For `[y, jj, kk] = tf2zp(...)` the LHS is `[y, jj, kk]` — strip
+    # the brackets and take only the first name. MATLAB rejects
+    # indexing a literal `[a,b,c](:)` directly.
+    lhs = spec.expr.split("=")[0].strip()
+    if lhs.startswith("[") and lhs.endswith("]"):
+        # multi-output assignment — pick first var name
+        first_var = lhs[1:-1].split(",")[0].strip()
+    else:
+        first_var = lhs
     fp_exprs = spec.fingerprint or [
-        f"sum({spec.expr.split('=')[0].strip()}(:))",
-        f"{spec.expr.split('=')[0].strip()}(1)",
-        f"{spec.expr.split('=')[0].strip()}(end)",
+        f"sum({first_var}(:))",
+        f"{first_var}(1)",
+        f"{first_var}(end)",
     ]
     fp_print = "\n".join(
         f"fprintf('FP %d %.17g\\n', {i}, double({e}));"
@@ -317,7 +327,15 @@ def run_matlab(spec: Spec, *, timed: bool) -> Result:
 
 
 def run_octave(spec: Spec, *, timed: bool) -> Result:
-    script = build_script(spec, timed=timed)
+    # Octave needs `pkg load <name>` for non-base packages (signal,
+    # statistics, control). MATLAB has these built-in so we don't
+    # touch the MATLAB script — only inject for Octave.
+    octave_prelude = (
+        "try; pkg load signal; end_try_catch\n"
+        "try; pkg load statistics; end_try_catch\n"
+        "try; pkg load control; end_try_catch\n"
+    )
+    script = octave_prelude + build_script(spec, timed=timed)
     path = _write_script(script)
     try:
         cmd = [OCTAVE_EXE, "--no-gui", "--quiet", str(path)]
@@ -494,27 +512,38 @@ def run_one(spec_path: Path, *, no_matlab: bool, no_octave: bool, verbose: bool)
     nk = run_numkit(spec, timed=True)
     print(f"  numkit:  ok={nk.ok}  ms={fmt_ms(nk.elapsed_ms)}  fp={fp_str(nk.fingerprint)}",
           flush=True)
-    if verbose and not nk.ok:
-        print("  numkit stderr:", nk.raw_stderr[:500])
-        print("  numkit stdout:", nk.raw_stdout[:500])
+    if not nk.ok:
+        # Always log stderr/stdout when an engine fails so the user
+        # can see why; verbose mode just adds longer excerpts.
+        cap = 2000 if verbose else 500
+        if nk.raw_stderr.strip():
+            print("  numkit stderr:", nk.raw_stderr[:cap].rstrip())
+        if nk.raw_stdout.strip():
+            print("  numkit stdout:", nk.raw_stdout[:cap].rstrip())
 
     ml = None
     if not no_matlab:
         ml = run_matlab(spec, timed=True)
         print(f"  matlab:  ok={ml.ok}  ms={fmt_ms(ml.elapsed_ms)}  fp={fp_str(ml.fingerprint)}",
               flush=True)
-        if verbose and not ml.ok:
-            print("  matlab stderr:", ml.raw_stderr[:500])
-            print("  matlab stdout:", ml.raw_stdout[:500])
+        if not ml.ok:
+            cap = 2000 if verbose else 500
+            if ml.raw_stderr.strip():
+                print("  matlab stderr:", ml.raw_stderr[:cap].rstrip())
+            if ml.raw_stdout.strip():
+                print("  matlab stdout:", ml.raw_stdout[:cap].rstrip())
 
     oc = None
     if not no_octave:
         oc = run_octave(spec, timed=True)
         print(f"  octave:  ok={oc.ok}  ms={fmt_ms(oc.elapsed_ms)}  fp={fp_str(oc.fingerprint)}",
               flush=True)
-        if verbose and not oc.ok:
-            print("  octave stderr:", oc.raw_stderr[:500])
-            print("  octave stdout:", oc.raw_stdout[:500])
+        if not oc.ok:
+            cap = 2000 if verbose else 500
+            if oc.raw_stderr.strip():
+                print("  octave stderr:", oc.raw_stderr[:cap].rstrip())
+            if oc.raw_stdout.strip():
+                print("  octave stdout:", oc.raw_stdout[:cap].rstrip())
 
     if not nk.ok:
         status = "FAIL"
