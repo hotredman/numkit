@@ -36,27 +36,28 @@ set(STDLIB_SOURCES
 )
 
 # Backend-split functions: one definition per TU, picked at configure
-# time via NUMKIT_WITH_SIMD. The math backends share helpers and live
-# under math/_backends/. The operator backends are co-located next to
-# their consumer in language/operators/backends/.
+# time via NUMKIT_WITH_SIMD. SIMD and portable variants live next to
+# their public-API consumers in the same feature directory:
+#   math/arithmetic/  — abs, cumsum, logical reductions, var reduction
+#   math/trig/        — sin, cos (trig family)
+#   math/exp_log/     — exp, log (exp/log family)
+#   language/operators/backends/ — binary ops, compare
 if(NUMKIT_WITH_SIMD)
-    # math/_backends/ kernels
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/abs_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/transcendental_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/logical_reductions_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/var_reduction_simd.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/cumsum_simd.cpp)
-    # language/operators/backends/ kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/abs_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/cumsum_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/logical_reductions_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/var_reduction_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_simd.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_simd.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/backends/binary_ops_simd.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/backends/compare_simd.cpp)
 else()
-    # math/_backends/ kernels
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/abs_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/transcendental_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/logical_reductions_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/var_reduction_portable.cpp)
-    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/_backends/cumsum_portable.cpp)
-    # language/operators/backends/ kernels
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/abs_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/cumsum_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/logical_reductions_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/arithmetic/var_reduction_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/trig/trig_portable.cpp)
+    list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/math/exp_log/exp_log_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/backends/binary_ops_portable.cpp)
     list(APPEND STDLIB_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/language/operators/backends/compare_portable.cpp)
 endif()

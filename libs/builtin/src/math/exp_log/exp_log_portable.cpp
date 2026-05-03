@@ -1,12 +1,11 @@
-// libs/builtin/src/math/elementary/backends/transcendental_portable.cpp
+// libs/builtin/src/math/exp_log/exp_log_portable.cpp
 //
-// Reference scalar implementations of sin / cos / exp / log. Compiled
-// when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
-// transcendental_simd.cpp and matches this file bit-for-bit on
-// complex inputs (SIMD only helps the real-vector fast path).
+// Reference scalar implementations of exp / log. Compiled when
+// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
+// exp_log_simd.cpp and matches this file bit-for-bit on complex
+// inputs (SIMD only helps the real-vector fast path).
 
 #include <numkit/builtin/math/exp_log/exponents.hpp>
-#include <numkit/builtin/math/trig/trigonometry.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -46,20 +45,6 @@ Value unaryRealDoubleHint(std::pmr::memory_resource *mr, const Value &x, Value *
 }
 
 } // namespace
-
-Value sin(std::pmr::memory_resource *mr, const Value &x, Value *hint)
-{
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::sin(v); },
-        [](const Complex &c) { return std::sin(c); });
-}
-
-Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
-{
-    return unaryRealDoubleHint(mr, x, hint,
-        [](double v) { return std::cos(v); },
-        [](const Complex &c) { return std::cos(c); });
-}
 
 Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {

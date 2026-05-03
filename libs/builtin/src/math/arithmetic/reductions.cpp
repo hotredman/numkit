@@ -19,7 +19,7 @@
 
 #include "helpers.hpp"
 #include "reduction_helpers.hpp"
-#include "math/_backends/var_reduction.hpp"  // for sumScan + addInto
+#include "math/arithmetic/var_reduction.hpp"  // for sumScan + addInto
 
 #include <algorithm>
 #include <cmath>

@@ -20,7 +20,7 @@
 
 #include "helpers.hpp"
 #include "reduction_helpers.hpp"
-#include "math/_backends/var_reduction.hpp"
+#include "math/arithmetic/var_reduction.hpp"
 
 #include <algorithm>
 #include <cmath>

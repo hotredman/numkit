@@ -30,7 +30,7 @@
 #include <cstdint>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/_backends/logical_reductions_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/logical_reductions_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

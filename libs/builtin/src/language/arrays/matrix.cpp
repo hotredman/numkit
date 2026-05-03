@@ -10,7 +10,7 @@
 #include "reduction_helpers.hpp"
 #include "rows_helpers.hpp"
 #include "language/operators/backends/binary_ops_loops.hpp"
-#include "math/_backends/cumsum.hpp"
+#include "math/arithmetic/cumsum.hpp"
 
 #include <algorithm>
 #include <cmath>
