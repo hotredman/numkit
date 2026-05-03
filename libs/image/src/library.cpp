@@ -48,6 +48,12 @@ void imfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// contrast/contrast.cpp
+void imhist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stretchlim_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imadjust_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void histeq_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -94,6 +100,11 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imgaussfilt",  &image::detail::imgaussfilt_reg);
     reg("filter", "imboxfilt",    &image::detail::imboxfilt_reg);
     reg("filter", "medfilt2",     &image::detail::medfilt2_reg);
+
+    reg("contrast", "imhist",     &image::detail::imhist_reg);
+    reg("contrast", "stretchlim", &image::detail::stretchlim_reg);
+    reg("contrast", "imadjust",   &image::detail::imadjust_reg);
+    reg("contrast", "histeq",     &image::detail::histeq_reg);
 }
 
 } // namespace numkit

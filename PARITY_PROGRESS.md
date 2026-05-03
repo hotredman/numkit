@@ -3065,14 +3065,14 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 ## Contrast Adjustment
 
-**Namespace:** `image.contrast.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+**Namespace:** `image.contrast.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `adapthisteq` | ❌ |  |  |  |  | CLAHE |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
-| `histeq` | ❌ |  |  |  |  | histogram equalisation |
-| `imadjust` | ❌ |  |  |  |  |  |
+| `histeq` | ✅ |  |  |  | OK | n-bin CDF mapping |
+| `imadjust` | ✅ |  |  |  | OK | [low_in high_in] → [low_out high_out] with gamma |
 | `imadjustn` | ❌ |  |  |  |  | N-D variant |
 | `imflatfield` | ❌ |  |  |  |  |  |
 | `imhistmatch` | ❌ |  |  |  |  |  |
@@ -3083,7 +3083,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ❌ |  |  |  |  |  |
+| `stretchlim` | ✅ |  |  |  | OK | per-channel for RGB; default tol [0.01, 0.99] |
 
 ## ROI-Based Processing (functions only)
 
@@ -3243,7 +3243,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Region and Image Properties
 
-**Namespace:** `image.region.*` — 0 ✅ + 0 ⚠️ / 28 = 0%
+**Namespace:** `image.region.*` — 1 ✅ + 0 ⚠️ / 28 = 4%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3266,7 +3266,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `corr2` | ❌ |  |  |  |  | 2-D correlation coefficient |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
-| `imhist` | ❌ |  |  |  |  |  |
+| `imhist` | ✅ |  |  |  | OK | returns counts + bin centres |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
 | `labelmatrix` | ❌ |  |  |  |  |  |
