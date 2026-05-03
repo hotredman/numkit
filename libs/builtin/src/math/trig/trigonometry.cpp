@@ -3,7 +3,7 @@
 // Trig functions whose implementations don't fit the simple SIMD
 // backend pattern: the degree / multiple-of-π variants. The
 // SIMD-friendly trig kernels (sin, cos, tan, sinh, cosh, tanh, asin,
-// acos, atan, atan2, asinh, acosh, atanh) live in trig_simd.cpp /
+// acos, atan, atan2, asinh, acosh, atanh) live in trig_highway.cpp /
 // trig_portable.cpp.
 
 #include <numkit/builtin/library.hpp>
@@ -71,7 +71,7 @@ inline double tand_scalar(double x)
 } // anonymous
 
 // sind / cosd / tand / asind / acosd / atand / atan2d / sinpi / cospi
-// now live in trig_simd.cpp / trig_portable.cpp. The snap-helpers
+// now live in trig_highway.cpp / trig_portable.cpp. The snap-helpers
 // (sind_scalar, cosd_scalar, tand_scalar) remain in this file's
 // anonymous namespace because secd / cscd / cotd reuse them below.
 

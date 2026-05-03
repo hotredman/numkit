@@ -1,4 +1,4 @@
-// libs/builtin/src/math/elementary/backends/cumsum_simd.cpp
+// libs/builtin/src/math/elementary/backends/cumsum_highway.cpp
 //
 // Highway dynamic-dispatch prefix-op family (Hillis-Steele) for cumsum,
 // cumprod, cummax, cummin. Per N-lane SIMD vector: log2(N) `(shift +
@@ -26,7 +26,7 @@
 #include <limits>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/cumsum_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/cumsum_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

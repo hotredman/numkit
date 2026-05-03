@@ -1,4 +1,4 @@
-// libs/builtin/src/math/elementary/backends/var_reduction_simd.cpp
+// libs/builtin/src/math/elementary/backends/var_reduction_highway.cpp
 //
 // Highway dynamic-dispatch two-pass variance kernel (P5). Two scans:
 //   pass 1: lane-parallel sum → mean
@@ -13,7 +13,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/arithmetic/var_reduction_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/var_reduction_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

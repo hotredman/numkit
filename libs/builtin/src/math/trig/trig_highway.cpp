@@ -1,4 +1,4 @@
-// libs/builtin/src/math/trig/trig_simd.cpp
+// libs/builtin/src/math/trig/trig_highway.cpp
 //
 // Highway dynamic-dispatch trig family: sin, cos, sinh, cosh, tanh,
 // asin, acos, atan, atan2, asinh, atanh. Each function gets its own
@@ -27,7 +27,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/trig/trig_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/trig/trig_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>
@@ -211,7 +211,7 @@ void Atan2Loop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
 //
 // MATLAB preserves exact zeros / ±1 at integer multiples of 90° on
 // scalar input (e.g. sind(180) == 0 exactly, not ~1.2e-16). The
-// public-API scalar fast-path (in trig_simd.cpp / trig_portable.cpp)
+// public-API scalar fast-path (in trig_highway.cpp / trig_portable.cpp)
 // keeps the snap. The SIMD vector path does NOT snap — for typical
 // 1M-pt sweeps the inputs are not exact integer multiples of 90.
 // (Bench-OK; if a downstream consumer needs vector-path exact-zero

@@ -1,4 +1,4 @@
-// libs/builtin/src/lang/operators/backends/binary_ops_simd.cpp
+// libs/builtin/src/lang/operators/backends/binary_ops_highway.cpp
 //
 // Highway dynamic-dispatch inner loops for plus / minus / times /
 // rdivide on real double arrays. One HWY_EXPORT / HWY_DYNAMIC_DISPATCH
@@ -18,7 +18,7 @@
 #include <hwy/cache_control.h>  // hwy::FlushStream() — sfence on x86
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "language/operators/backends/binary_ops_simd.cpp"
+#define HWY_TARGET_INCLUDE "language/operators/backends/binary_ops_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 

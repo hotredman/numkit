@@ -2,7 +2,7 @@
 //
 // Reference scalar implementation of abs(). Compiled when
 // NUMKIT_WITH_SIMD=OFF (see libs/builtin/src/CMakeLists.txt). The
-// Highway-dispatched variant lives in abs_simd.cpp — both share
+// Highway-dispatched variant lives in abs_highway.cpp — both share
 // exactly this behaviour for small / complex / scalar inputs; the
 // SIMD backend only diverges on the real-vector fast path.
 

@@ -1,4 +1,4 @@
-// libs/builtin/src/math/exp_log/exp_log_simd.cpp
+// libs/builtin/src/math/exp_log/exp_log_highway.cpp
 //
 // Highway dynamic-dispatch exp / log. Each function gets its own
 // HWY_EXPORT / HWY_DYNAMIC_DISPATCH pair; the HWY_NAMESPACE block up
@@ -24,7 +24,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/exp_log/exp_log_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/exp_log/exp_log_highway.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>
