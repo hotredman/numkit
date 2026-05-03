@@ -457,7 +457,7 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `acos` | ✅ |  |  |  |  |  |
+| `acos` | ✅ | 6.911 | 0.23× | 1.15× | OK | Sig: Y = acos(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
 | `acosd` | ✅ |  |  |  |  | degree |
 | `acosh` | ✅ |  |  |  |  | hyperbolic |
 | `acot` | ✅ |  |  |  |  |  |
@@ -469,10 +469,10 @@ multiple sections; all occurrences refresh together).
 | `asec` | ✅ |  |  |  |  |  |
 | `asecd` | ✅ |  |  |  |  |  |
 | `asech` | ✅ |  |  |  |  |  |
-| `asin` | ✅ |  |  |  |  |  |
+| `asin` | ✅ | 6.750 | 0.24× | 1.23× | OK | Sig: Y = asin(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
 | `asind` | ✅ |  |  |  |  | degree |
 | `asinh` | ✅ |  |  |  |  | hyperbolic |
-| `atan` | ✅ |  |  |  |  |  |
+| `atan` | ✅ | 6.363 | 0.09× | 0.69× | OK | Sig: Y = atan(X). 1M-pt sweep on [-10, 10]. 20 iters. Element-wise SAVE. |
 | `atan2` | ✅ | 10.641 | 0.07× | 0.73× | OK | Sig: P = atan2(Y, X). 1000x1000 quadrant grid. 20 iters. Element-wise SAVE. |
 | `atan2d` | ✅ |  |  |  |  | degree |
 | `atand` | ✅ |  |  |  |  | degree |
@@ -480,9 +480,9 @@ multiple sections; all occurrences refresh together).
 | `cart2pol` | ✅ | 17.127 | 0.19× | 1.34× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
 | `cart2sph` | ✅ |  |  |  |  | coord xform |
 | `cos` | ✅ | 0.855 | 1.03× | 5.49× | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
-| `cosd` | ✅ |  |  |  |  | degree |
-| `cosh` | ✅ |  |  |  |  | hyperbolic |
-| `cospi` | ✅ |  |  |  |  | use `cos(pi*x)` |
+| `cosd` | ✅ | 10.733 | 0.09× | 2.07× | OK | Sig: Y = cosd(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
+| `cosh` | ✅ | 8.197 | 0.11× | 0.69× | OK | Sig: Y = cosh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
+| `cospi` | ✅ | 9.236 | 0.07× | 1.93× | OK | Sig: Y = cospi(X) = cos(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
 | `cot` | ✅ |  |  |  |  | reciprocal |
 | `cotd` | ✅ |  |  |  |  |  |
 | `coth` | ✅ |  |  |  |  |  |
@@ -490,20 +490,20 @@ multiple sections; all occurrences refresh together).
 | `cscd` | ✅ |  |  |  |  |  |
 | `csch` | ✅ |  |  |  |  |  |
 | `deg2rad` | ✅ |  |  |  |  |  |
-| `hypot` | ✅ |  |  |  |  |  |
+| `hypot` | ✅ | 6.636 | 0.17× | 0.75× | OK | Sig: Y = hypot(A, B). 1k×1k grid. 20 iters. Element-wise SAVE. |
 | `pol2cart` | ✅ |  |  |  |  | coord xform |
 | `rad2deg` | ✅ |  |  |  |  |  |
 | `sec` | ✅ |  |  |  |  | reciprocal |
 | `secd` | ✅ |  |  |  |  |  |
 | `sech` | ✅ |  |  |  |  |  |
 | `sin` | ✅ | 0.845 | 1.07× | 5.61× | OK | Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
-| `sind` | ✅ |  |  |  |  | degree |
-| `sinh` | ✅ |  |  |  |  | hyperbolic |
-| `sinpi` | ✅ |  |  |  |  | use `sin(pi*x)` |
+| `sind` | ✅ | 10.629 | 0.07× | 1.92× | OK | Sig: Y = sind(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
+| `sinh` | ✅ | 8.339 | 0.15× | 0.69× | OK | Sig: Y = sinh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
+| `sinpi` | ✅ | 9.110 | 0.09× | 1.90× | OK | Sig: Y = sinpi(X) = sin(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
 | `sph2cart` | ✅ |  |  |  |  | coord xform |
 | `tan` | ✅ | 7.283 | 0.12× | 0.73× | OK | Sig: Y = tan(X). 1M-point sweep on [-1.5, 1.5] (avoid π/2 singularity). 20 iters. Element-wise SAVE. |
-| `tand` | ✅ |  |  |  |  | degree |
-| `tanh` | ✅ |  |  |  |  | hyperbolic |
+| `tand` | ✅ | 10.176 | 0.09× | 2.59× | OK | Sig: Y = tand(X). 1M-pt sweep on [-89°, 89°] (avoid 90° singularity). 20 iters. Element-wise SAVE. |
+| `tanh` | ✅ | 9.677 | 0.13× | 0.72× | OK | Sig: Y = tanh(X). 1M-pt sweep on [-5, 5]. 20 iters. Element-wise SAVE. |
 
 ## Exponents and Logarithms
 
