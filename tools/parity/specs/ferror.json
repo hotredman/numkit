@@ -1,0 +1,12 @@
+{
+  "name": "ferror",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, 1:10, 'double'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); y = ferror(fid); fclose(fid);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: MSG = ferror(FID). 1000 iters.",
+  "fingerprint": [
+    "double(strlength(y) >= 0)"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "formatteddisplaytext",
+  "namespace": "core",
+  "setup": "x = pi;",
+  "expr": "y = formattedDisplayText(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S = formattedDisplayText(X). 1000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

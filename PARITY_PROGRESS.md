@@ -109,7 +109,7 @@ multiple sections; all occurrences refresh together).
 | `for` | ✅ |  |  |  |  | keyword |
 | `if` | ✅ |  |  |  |  | keyword |
 | `parfor` | ❌ |  |  |  |  | parallel — out of scope |
-| `pause` | ✅ |  |  |  |  | no time.sleep |
+| `pause` | ✅ | 0.000 | 744.48× | 32.63× | OK | Sig: pause(N). N=0 (no-op). 100k iters. |
 | `return` | ✅ |  |  |  |  | keyword |
 | `switch` | ✅ |  |  |  |  | keyword (`switch/case/otherwise`) |
 | `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
@@ -899,8 +899,8 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `clear` | ✅ |  |  |  |  |  |
 | `clearvars` | ✅ |  |  |  |  |  |
-| `disp` | ✅ |  |  |  |  |  |
-| `formatteddisplaytext` | ✅ |  |  |  |  |  |
+| `disp` | ✅ |  |  |  | N/A | Sig: disp(X) — captured via evalc. 1000 iters. |
+| `formatteddisplaytext` | ✅ |  |  |  | N/A | Sig: S = formattedDisplayText(X). 1000 iters. |
 | `load` | ✅ |  |  |  |  |  |
 | `openvar` | ❌ |  |  |  |  | IDE |
 | `save` | ✅ |  |  |  |  |  |
@@ -1082,13 +1082,13 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ |  |  |  |  |  |
-| `feof` | ✅ |  |  |  |  |  |
-| `ferror` | ✅ |  |  |  |  |  |
-| `fgetl` | ✅ |  |  |  |  |  |
-| `fgets` | ✅ |  |  |  |  |  |
+| `fclose` | ✅ | 0.025 | 0.77× | 0.94× | OK | Sig: STATUS = fclose(FID). 1000 iters. |
+| `feof` | ✅ | 0.026 | 1.13× | 1.33× | OK | Sig: TF = feof(FID). 1000 iters. |
+| `ferror` | ✅ | 0.026 | 0.78× |  | OK | Sig: MSG = ferror(FID). 1000 iters. |
+| `fgetl` | ✅ | 0.025 | 1.14× |  | OK | Sig: LINE = fgetl(FID). 1000 iters. |
+| `fgets` | ✅ | 0.026 | 1.08× |  | OK | Sig: LINE = fgets(FID). 1000 iters. |
 | `fileread` | ✅ | 0.018 | 4.50× |  | OK | Sig: T = fileread(F). 1000 iters. |
-| `fopen` | ✅ |  |  |  |  |  |
+| `fopen` | ✅ | 0.027 | 0.69× | 0.88× | OK | Sig: FID = fopen(F). 1000 iters. |
 | `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
 | `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
 | `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
@@ -1464,7 +1464,7 @@ multiple sections; all occurrences refresh together).
 | `nuttallwin` | ✅ | 0.010 | 2.24× |  | OK | Sig: W = nuttallwin(N). 10000 iters. |
 | `parzenwin` | ✅ | 0.001 | 44.38× |  | OK | Sig: W = parzenwin(N). 10000 iters. |
 | `rectwin` | ✅ | 0.001 | 1.70× |  | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
-| `taylorwin` | ✅ |  |  |  |  | Taylor |
+| `taylorwin` | ✅ | 0.013 | 3.16× | 7.12× | MISMATCH | Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters. |
 | `triang` | ✅ | 0.001 | 9.16× |  | OK | Sig: W = triang(N). Triangular. 10000 iters. |
 | `tukeywin` | ✅ | 0.002 | 9.48× |  | OK | Sig: W = tukeywin(N, R). r=0.5. 10000 iters. |
 | `wvtool` | ❌ |  |  |  |  | GUI |
