@@ -418,13 +418,13 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bsxfun` | ✅ | 2.169 | 0.55× | 0.99× | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
-| `ceil` | ✅ | 4.028 | 0.14× | 0.87× | OK | Sig: Y = ceil(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
+| `ceil` | ✅ | 2.262 | 0.21× |  | OK | Sig: Y = ceil(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
 | `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `cumprod` | ✅ | 0.002 | 13.53× | 24.37× | OK | Sig: Y = cumprod(X). 1k-pt cumprod near 1 (avoid overflow). 20 iters. |
 | `cumsum` | ✅ | 2.579 | 1.13× | 1.01× | OK | Sig: Y = cumsum(X). 1M-pt cumulative sum (default dim). 20 iters. |
 | `diff` | ✅ | 4.714 | 0.31× | 0.50× | OK | Sig: Y = diff(X). 1M-pt adjacent differences. 20 iters. Element-wise SAVE. |
-| `fix` | ✅ | 5.126 | 0.08× | 0.71× | OK | Sig: Y = fix(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
-| `floor` | ✅ | 4.055 | 0.10× | 0.88× | OK | Sig: Y = floor(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
+| `fix` | ✅ | 2.171 | 0.23× |  | OK | Sig: Y = fix(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
+| `floor` | ✅ | 2.112 | 0.23× |  | OK | Sig: Y = floor(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
 | `idivide` | ✅ |  |  |  | N/A | Sig: Y = idivide(A, B). int32 division. 50 iters. |
 | `ldivide` | ✅ | 2.120 | 0.06× | 1.25× | MISMATCH | Sig: Y = ldivide(A, B). 1M-pt left-div = B/A. 50 iters. |
 | `minus` | ✅ | 2.054 | 0.06× | 1.20× | OK | Sig: Y = minus(A, B). 1M-pt sub. 50 iters. |
@@ -444,7 +444,7 @@ multiple sections; all occurrences refresh together).
 | `prod` | ✅ | 0.002 | 11.52× | 20.71× | OK | Sig: Y = prod(X). 1k-pt reduction near 1 (avoid overflow). 20 iters. |
 | `rdivide` | ✅ | 2.112 | 0.07× | 1.22× | MISMATCH | Sig: Y = rdivide(A, B). 1M-pt div. 50 iters. |
 | `rem` | ✅ | 4.909 | 0.15× | 0.96× | OK | Sig: Y = rem(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
-| `round` | ✅ | 4.992 | 0.11× | 0.72× | OK | Sig: Y = round(X). 1M-pt sweep with non-half offset. 20 iters. Element-wise SAVE. |
+| `round` | ✅ | 2.158 | 0.21× |  | OK | Sig: Y = round(X). 1M-pt sweep with non-half offset. 20 iters. Element-wise SAVE. |
 | `sum` | ✅ | 1.378 | 0.05× | 0.29× | OK | Sig: Y = sum(X). 1M-pt full reduction (default dim). 20 iters. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
 | `times` | ✅ | 2.133 | 0.07× | 1.17× | OK | Sig: Y = times(A, B). 1M-pt elementwise mul. 50 iters. |
