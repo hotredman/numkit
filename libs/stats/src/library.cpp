@@ -130,6 +130,20 @@ void binoinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void binornd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void binostat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/unid.cpp
+void unidpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unidcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unidinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unidrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void unidstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// distributions/geometric.cpp
+void geopdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geocdf_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geoinv_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geornd_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void geostat_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -249,6 +263,18 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "binoinv",  &stats::detail::binoinv_reg);
     reg("dist", "binornd",  &stats::detail::binornd_reg);
     reg("dist", "binostat", &stats::detail::binostat_reg);
+
+    reg("dist", "unidpdf",  &stats::detail::unidpdf_reg);
+    reg("dist", "unidcdf",  &stats::detail::unidcdf_reg);
+    reg("dist", "unidinv",  &stats::detail::unidinv_reg);
+    reg("dist", "unidrnd",  &stats::detail::unidrnd_reg);
+    reg("dist", "unidstat", &stats::detail::unidstat_reg);
+
+    reg("dist", "geopdf",   &stats::detail::geopdf_reg);
+    reg("dist", "geocdf",   &stats::detail::geocdf_reg);
+    reg("dist", "geoinv",   &stats::detail::geoinv_reg);
+    reg("dist", "geornd",   &stats::detail::geornd_reg);
+    reg("dist", "geostat",  &stats::detail::geostat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
