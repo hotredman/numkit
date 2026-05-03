@@ -1,0 +1,14 @@
+{
+  "name": "num2cell",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = num2cell(x);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(y))",
+    "double(y{1})",
+    "double(y{end})"
+  ],
+  "comment": "Sig: C = num2cell(A). 1k-vec wrap each. 1000 iters."
+}

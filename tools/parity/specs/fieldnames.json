@@ -1,0 +1,14 @@
+{
+  "name": "fieldnames",
+  "namespace": "core",
+  "setup": "s = struct('alpha',1,'beta',2,'gamma',3,'delta',4,'epsilon',5);",
+  "expr": "y = fieldnames(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))",
+    "double(strlength(y{end}))"
+  ],
+  "comment": "Sig: C = fieldnames(S). 5-field struct. 10k iters. Cell-out fp."
+}

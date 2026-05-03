@@ -1,0 +1,13 @@
+{
+  "name": "isstruct",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2);",
+  "expr": "y = isstruct(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = isstruct(S). Returns scalar logical. 100k iters."
+}

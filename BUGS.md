@@ -303,6 +303,48 @@ this cycle (libs/ only).
 
 ---
 
+## 15. `core/`: `fieldnames(struct)` returns alphabetical, not insertion order — **P2**
+
+**Reproducer:**
+```matlab
+s = struct('alpha',1,'beta',2,'gamma',3,'delta',4,'epsilon',5);
+fieldnames(s)
+% MATLAB:  {'alpha';'beta';'gamma';'delta';'epsilon'}  (insertion order)
+% numkit:  {'alpha';'beta';'delta';'epsilon';'gamma'}  (alphabetical)
+```
+**MATLAB:** `fieldnames` preserves the order in which fields were
+added — this is documented behavior and load-bearing for many MATLAB
+codebases that iterate fields with confidence about ordering.
+**Impact:** Anything that depends on field insertion order (loops,
+printf-style output, JSON serialization) gets reordered silently.
+**Where:** `core/` — struct field storage probably uses an ordered
+map by name. Should preserve insertion-time slot index.
+**Status:** **pending — core fix required.**
+**First seen:** 2026-05-03, parity bulk-bench iteration 14.
+
+---
+
+## 16. `libs/builtin`: `func2str(@sin)` returns `'@sin'` instead of `'sin'` — **P3**
+
+**Reproducer:**
+```matlab
+f = @sin;
+func2str(f)
+% MATLAB:  'sin'      (3 chars)
+% numkit:  '@sin'     (4 chars, includes leading @)
+```
+**MATLAB:** for a named handle (`@fname`), `func2str` returns just
+the function name. The `@` prefix is preserved only for anonymous
+handles (`@(x) x*2` → `'@(x)x*2'`).
+**Impact:** Cosmetic — anything that displays / serializes function
+handles will show a leading `@` that MATLAB omits.
+**Where:** [libs/builtin/src/](libs/builtin/) `func2str` implementation —
+should branch on "is the handle wrapping a named function?" and
+emit name only in that case.
+**First seen:** 2026-05-03, parity bulk-bench iteration 14.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

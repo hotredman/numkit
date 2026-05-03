@@ -1,0 +1,13 @@
+{
+  "name": "iscell",
+  "namespace": "core",
+  "setup": "c = {1, 'a', [1 2]};",
+  "expr": "y = iscell(c);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = iscell(X). 100k iters."
+}

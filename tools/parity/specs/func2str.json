@@ -1,0 +1,12 @@
+{
+  "name": "func2str",
+  "namespace": "core",
+  "setup": "f = @sin;",
+  "expr": "y = func2str(f);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(strlength(y))"
+  ],
+  "comment": "Sig: S = func2str(F). 10k iters."
+}

@@ -1,0 +1,13 @@
+{
+  "name": "getfield",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2,'c',3);",
+  "expr": "y = getfield(s, 'b');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: V = getfield(S, F). 100k iters."
+}

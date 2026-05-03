@@ -1,0 +1,12 @@
+{
+  "name": "rmfield",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2,'c',3,'d',4,'e',5);",
+  "expr": "y = rmfield(s, 'c');",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(fieldnames(y)))"
+  ],
+  "comment": "Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters."
+}

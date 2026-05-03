@@ -1,0 +1,13 @@
+{
+  "name": "str2func",
+  "namespace": "core",
+  "setup": "name = 'sin';",
+  "expr": "y = str2func(name);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y(0))",
+    "double(y(pi/2))"
+  ],
+  "comment": "Sig: F = str2func(NAME). 10k iters. fp checks created handle works."
+}
