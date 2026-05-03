@@ -1,0 +1,10 @@
+{
+  "name": "zp2ss",
+  "namespace": "core",
+  "setup": "z = [0.5; -0.5]; p = [0.3+0.1j; 0.3-0.1j]; k = 1;",
+  "expr": "[y, jj, kk, ll] = zp2ss(z, p, k);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters."
+}

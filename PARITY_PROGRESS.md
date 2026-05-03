@@ -1283,8 +1283,8 @@ multiple sections; all occurrences refresh together).
 | `isminphase` | ✅ | 0.000 | 271.10× |  | OK | Sig: TF = isminphase(B, A). 10000 iters. |
 | `isstable` | ✅ | 0.000 | 193.32× |  | OK | Sig: TF = isstable(B, A). 10000 iters. |
 | `phasedelay` | ✅ |  |  |  |  | phase delay |
-| `phasez` | ✅ |  |  |  |  | phase response |
-| `stepz` | ✅ |  |  |  |  | step response |
+| `phasez` | ✅ | 0.005 |  |  | N/A | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
+| `stepz` | ✅ | 0.002 |  |  | N/A | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
 | `zerophase` | ✅ |  |  |  |  |  |
 | `zplane` | ❌ |  |  |  |  |  |
 
@@ -1317,23 +1317,23 @@ multiple sections; all occurrences refresh together).
 | `sgolayfilt` | ✅ | 0.121 | 1.07× |  | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 | `sos2cell` | ❌ |  |  |  |  |  |
 | `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ |  |  |  |  | SOS → SS |
-| `sos2tf` | ✅ |  |  |  |  | inverse |
-| `sos2zp` | ✅ |  |  |  |  | SOS → ZPK |
-| `sosfilt` | ✅ |  |  |  |  | SOS-cascade filter |
+| `sos2ss` | ✅ | 0.001 |  |  | N/A | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
+| `sos2tf` | ✅ | 0.001 |  |  | N/A | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 |  |  | N/A | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sosfilt` | ✅ | 0.100 | 0.39× |  | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
 | `ss` | ❌ |  |  |  |  |  |
-| `ss2sos` | ✅ |  |  |  |  | inverse |
-| `ss2zp` | ✅ |  |  |  |  | SS → ZPK |
+| `ss2sos` | ✅ | 0.001 | 110.21× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
+| `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
 | `tf` | ❌ |  |  |  |  |  |
 | `tf2latc` | ❌ |  |  |  |  | lattice |
-| `tf2sos` | ✅ |  |  |  |  | TF → SOS |
-| `tf2ss` | ✅ |  |  |  |  | TF → SS |
-| `tf2zp` | ✅ |  |  |  |  | TF → ZPK |
-| `tf2zpk` | ✅ |  |  |  |  |  |
+| `tf2sos` | ✅ | 0.001 | 96.52× |  | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
+| `tf2ss` | ✅ | 0.000 |  |  | N/A | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
+| `tf2zp` | ✅ | 0.001 |  |  | N/A | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
+| `tf2zpk` | ✅ | 0.001 |  |  | N/A | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
 | `zp2ctf` | ❌ |  |  |  |  |  |
-| `zp2sos` | ✅ |  |  |  |  | ZPK → SOS |
-| `zp2ss` | ✅ |  |  |  |  | inverse |
-| `zp2tf` | ✅ |  |  |  |  | inverse |
+| `zp2sos` | ✅ | 0.000 | 256.12× |  | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
+| `zp2ss` | ✅ | 0.001 |  |  | N/A | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
+| `zp2tf` | ✅ | 0.000 |  |  | N/A | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
 | `zpk` | ❌ |  |  |  |  |  |
 
 ## Multirate Signal Processing (decimate / interp / resample / ...)

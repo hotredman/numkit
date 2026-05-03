@@ -1,0 +1,10 @@
+{
+  "name": "sos2ss",
+  "namespace": "core",
+  "setup": "sos = [1 0.5 0.25 1 0.1 0.05];",
+  "expr": "[y, jj, kk, ll] = sos2ss(sos);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters."
+}
