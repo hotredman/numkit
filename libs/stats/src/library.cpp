@@ -183,6 +183,13 @@ void kmeans_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // cluster/kmedoids.cpp
 void kmedoids_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dbscan_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// cluster/linkage.cpp
+void linkage_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cluster_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void clusterdata_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cophenet_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -342,6 +349,11 @@ void StatsLibrary::install(Engine &engine)
     reg("cluster", "kmeans",     &stats::detail::kmeans_reg);
     reg("cluster", "kmedoids",   &stats::detail::kmedoids_reg);
     reg("cluster", "dbscan",     &stats::detail::dbscan_reg);
+    reg("cluster", "linkage",    &stats::detail::linkage_reg);
+    reg("cluster", "cluster",    &stats::detail::cluster_reg);
+    reg("cluster", "clusterdata",&stats::detail::clusterdata_reg);
+    reg("cluster", "cophenet",   &stats::detail::cophenet_reg);
+    reg("cluster", "inconsistent", &stats::detail::inconsistent_reg);
 }
 
 } // namespace numkit
