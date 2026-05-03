@@ -41,6 +41,7 @@ set(SIGNALLIB_SOURCES
     # spectral_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/spectral_metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/signal_modeling.cpp
     # time_frequency/
     ${CMAKE_CURRENT_SOURCE_DIR}/time_frequency/spectrogram.cpp
     # windows/
