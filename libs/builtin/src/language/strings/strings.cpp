@@ -105,6 +105,27 @@ Value toString(std::pmr::memory_resource *mr, const Value &x)
     }
     if (x.isLogical())
         return Value::stringScalar(x.toBool() ? "true" : "false", p);
+    if (x.isCell()) {
+        // Cell-of-chars / cell-of-strings → string array of same shape.
+        // See BUGS.md #4.
+        const size_t n = x.numel();
+        auto result = Value::stringArray(x.dims().rows(), x.dims().cols(), p);
+        for (size_t i = 0; i < n; ++i) {
+            const Value &el = x.cellAt(i);
+            if (el.isChar() || el.isString())
+                result.stringElemSet(i, el.toString());
+            else if (el.isNumeric() && el.isScalar()) {
+                std::ostringstream os;
+                os << el.toScalar();
+                result.stringElemSet(i, os.str());
+            } else {
+                throw Error(
+                    "string: cell elements must be char, string, or numeric scalar",
+                    0, 0, "string", "", "m:string:cellElementType");
+            }
+        }
+        return result;
+    }
     throw Error("Cannot convert input to string", 0, 0, "string", "",
                  "m:string:unsupportedType");
 }

@@ -71,7 +71,7 @@ multiple sections; all occurrences refresh together).
 | `length` | ✅ | 0.000 | 26.91× | 36.70× | OK | Sig: L = length(X). 100x600 → returns 600. 100k iters. |
 | `linspace` | ✅ | 2.871 | 1.00× | 0.80× | OK | Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE. |
 | `logspace` | ✅ | 9.205 | 0.95× | 1.42× | OK | Sig: V = logspace(A,B,N). N=1M log-spaced. 100 iters. Element-wise SAVE. |
-| `meshgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 100 iters. SAVE on X. |
+| `meshgrid` | ✅ | 11.413 | 0.21× | 0.40× | OK | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 50 iters. SAVE on X. |
 | `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
 | `ndims` | ✅ | 0.000 | 27.42× | 25.81× | OK | Sig: N = ndims(X). 2D mat → 2. 100k iters. |
 | `numel` | ✅ | 0.000 | 22.63× | 20.44× | OK | Sig: N = numel(X). 1M-elem mat. 100k iters. |
@@ -84,7 +84,7 @@ multiple sections; all occurrences refresh together).
 | `reshape` | ✅ | 1.999 | 0.00× | 1.06× | OK | Sig: B = reshape(A,M,N). 1M vec → 1000x1000. 100 iters. |
 | `resize` | ✅ | 0.001 | 132.27× | 9756.20× | OK | Sig: Y = resize(X, M). Resize to 1500 (pad with zeros). 1000 iters. |
 | `rot90` | ✅ | 2.992 | 0.80× | 1.92× | OK | Sig: B = rot90(A). 1k×1k 90° rotate. 100 iters. |
-| `shiftdim` | ✅ | 2.273 | 0.01× | 7.12× | MISMATCH | Sig: B = shiftdim(A). Drop leading singleton. 1000 iters. |
+| `shiftdim` | ✅ | 4.641 | 0.00× | 3.64× | OK | Sig: B = shiftdim(A). Drop leading singleton (numkit ndims=3, MATLAB=2 — see BUGS). 1000 iters. |
 | `size` | ✅ | 0.000 | 18.70× | 36.28× | OK | Sig: S = size(X). 2D 100x600 → [100 600]. 100k iters. |
 | `sort` | ✅ | 44.711 | 0.15× | 0.15× | OK | Sig: B = sort(A). 1M deterministic sin values. 100 iters. Element-wise SAVE. |
 | `sortrows` | ✅ | 0.425 | 0.74× | 0.19× | OK | Sig: B = sortrows(A). 10k×3 sort by first col. 100 iters. |
@@ -159,7 +159,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `append` | ✅ | 0.000 | 8.59× |  | OK | Sig: S = append(S1,S2). 3k char + 'bar'. 1000 iters. |
 | `blanks` | ✅ | 0.000 | 3.40× | 30.21× | OK | Sig: S = blanks(N). N=1000. 10000 iters. |
-| `cellstr` | ✅ | 0.000 | 13.65× |  | MISMATCH | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
+| `cellstr` | ✅ | 0.001 | 3.97× |  | OK | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
 | `char` | ✅ | 0.000 | 2.37× | 11.62× | OK | Sig: S = char(X). ASCII codes A-Z. 10000 iters. |
 | `compose` | ✅ | 0.391 | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
 | `contains` | ✅ | 0.000 | 3.59× |  | OK | Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14). |
@@ -171,11 +171,11 @@ multiple sections; all occurrences refresh together).
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `endswith` | ❌ |  |  |  |  |  |
 | `erase` | ✅ | 0.002 | 2.26× | 10.85× | OK | Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters. |
-| `erasebetween` | ✅ | 0.000 | 7.57× |  | MISMATCH | Sig: S2 = eraseBetween(S, A, B). 10000 iters. |
+| `erasebetween` | ✅ | 0.000 | 6.45× |  | OK | Sig: S2 = eraseBetween(S, A, B). 10000 iters. |
 | `extract` | ✅ | 0.106 | 1.00× | — | OK | Extract 'xyz' from 8000-char string with 1000 hits. 1000 iters. |
 | `extractafter` | ✅ | 0.000 | 2.75× |  | OK | Sig: S2 = extractAfter(S, PAT). 10k iters. Function name camelCase. |
 | `extractbefore` | ✅ | 0.000 | 2.81× |  | OK | Sig: S2 = extractBefore(S, PAT). 10k iters. |
-| `extractbetween` | ✅ |  |  |  | N/A | Sig: S2 = extractBetween(S, A, B). 3 matches. 10000 iters. |
+| `extractbetween` | ✅ | 0.001 | 3.42× |  | OK | Sig: S2 = extractBetween(S, A, B). 3 matches. 10000 iters. |
 | `insertafter` | ✅ | 0.000 | 6.63× |  | OK | Sig: S2 = insertAfter(S, PAT, ADD). 10000 iters. |
 | `insertbefore` | ✅ | 0.000 | 6.54× |  | OK | Sig: S2 = insertBefore(S, PAT, ADD). 10000 iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
@@ -197,7 +197,7 @@ multiple sections; all occurrences refresh together).
 | `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
 | `regexptranslate` | ✅ | 0.000 | 18.05× | 86.59× | OK | Sig: T = regexptranslate('escape', S). 14-char metachars. 10000 iters. |
 | `replace` | ✅ | 0.012 | 2.62× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
-| `replacebetween` | ✅ | 0.001 | 5.28× |  | MISMATCH | Sig: S2 = replaceBetween(S, A, B, REP). 10000 iters. |
+| `replacebetween` | ✅ | 0.001 | 5.08× |  | OK | Sig: S2 = replaceBetween(S, A, B, REP). 10000 iters. |
 | `reverse` | ✅ | 0.000 | 8.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.102 | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
 | `splitlines` | ✅ | 0.001 | 3.19× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
@@ -258,7 +258,7 @@ multiple sections; all occurrences refresh together).
 | `celldisp` | ✅ |  |  |  | N/A | Sig: celldisp(C). Captured via evalc. 10000 iters. |
 | `cellfun` | ✅ | 0.002 | 2.64× | 20.17× | OK | Sig: A = cellfun(@F, C). Apply to cells. 1000 iters. |
 | `cellplot` | ❌ |  |  |  |  |  |
-| `cellstr` | ✅ | 0.000 | 13.65× |  | MISMATCH | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
+| `cellstr` | ✅ | 0.001 | 3.97× |  | OK | Sig: C = cellstr(CHAR). 3-row char mat → cellstr. 10000 iters. |
 | `iscell` | ✅ | 0.000 | 8.30× | 36.14× | OK | Sig: TF = iscell(X). 100k iters. |
 | `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `mat2cell` | ✅ | 0.001 | 17.51× | 7.67× | OK | Sig: C = mat2cell(M, R, C). 6x6 → 2x2 cell of 3x3. 10000 iters. |
@@ -382,13 +382,13 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bitand` | ✅ | 5.839 | 1.85× | 2.29× | OK | Sig: Y = bitand(A, B). 1M double (numkit rejects uint32 — see BUGS #13). 50 iters. |
-| `bitcmp` | ✅ | 4.817 | 0.50× |  | OK | Sig: Y = bitcmp(A, type). 1M double + 'uint32' (numkit rejects uint32 array — see BUGS #13). 50 iters. |
+| `bitand` | ✅ | 5.979 | 1.84× | 2.29× | OK | Sig: Y = bitand(A, B). 1M double (numkit rejects uint32 — see BUGS #13). 50 iters. |
+| `bitcmp` | ✅ | 6.355 | 0.38× |  | OK | Sig: Y = bitcmp(A, type). 1M double + 'uint32' (numkit rejects uint32 array — see BUGS #13). 50 iters. |
 | `bitget` | ✅ | 3.916 | 0.63× | 2.51× | OK | Sig: Y = bitget(A, K). 1M double, bit 3. 50 iters. |
-| `bitor` | ✅ | 6.197 | 1.74× | 2.18× | OK | Sig: Y = bitor(A, B). 1M double. 50 iters. |
+| `bitor` | ✅ | 5.795 | 1.85× | 2.35× | OK | Sig: Y = bitor(A, B). 1M double. 50 iters. |
 | `bitset` | ✅ | 4.155 | 0.61× | 8.75× | OK | Sig: Y = bitset(A, K). 1M double, set bit 5. 50 iters. |
-| `bitshift` | ✅ | 4.447 | 0.56× | 1.74× | OK | Sig: Y = bitshift(A, K). 1M double << 3. 50 iters. |
-| `bitxor` | ✅ | 5.789 | 1.87× | 2.28× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
+| `bitshift` | ✅ | 4.415 | 0.56× | 1.79× | OK | Sig: Y = bitshift(A, K). 1M double << 3. 50 iters. |
+| `bitxor` | ✅ | 5.769 | 1.84× | 2.37× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
 | `swapbytes` | ✅ | 1.070 | 0.95× | 8.06× | OK | Sig: Y = swapbytes(X). 1M uint32 endian-swap. 50 iters. (uint out — fp via double cast). |
 
 ## Set Operations
@@ -425,7 +425,7 @@ multiple sections; all occurrences refresh together).
 | `diff` | ✅ | 4.714 | 0.31× | 0.50× | OK | Sig: Y = diff(X). 1M-pt adjacent differences. 20 iters. Element-wise SAVE. |
 | `fix` | ✅ | 2.171 | 0.23× |  | OK | Sig: Y = fix(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
 | `floor` | ✅ | 2.112 | 0.23× |  | OK | Sig: Y = floor(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
-| `idivide` | ✅ |  |  |  | N/A | Sig: Y = idivide(A, B). int32 division. 50 iters. |
+| `idivide` | ✅ | 10.146 | 0.10× | 0.84× | OK | Sig: Y = idivide(A, B). int32 division. 50 iters. |
 | `ldivide` | ✅ | 2.120 | 0.06× | 1.25× | MISMATCH | Sig: Y = ldivide(A, B). 1M-pt left-div = B/A. 50 iters. |
 | `minus` | ✅ | 2.054 | 0.06× | 1.20× | OK | Sig: Y = minus(A, B). 1M-pt sub. 50 iters. |
 | `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
@@ -518,7 +518,7 @@ multiple sections; all occurrences refresh together).
 | `log10` | ✅ | 6.206 | 0.39× | 1.31× | OK | Sig: Y = log10(X). 1M-pt on [0.001, 1000]. 20 iters. Element-wise SAVE. |
 | `log1p` | ✅ | 6.747 | 0.29× | 1.33× | OK | Sig: Y = log1p(X) = log(1+X). 1M-pt on [-0.5, 5] (avoid X=-1). 20 iters. Element-wise SAVE. |
 | `log2` | ✅ | 8.248 | 0.30× | 1.90× | OK | Sig: Y = log2(X). 1M-pt on [0.001, 1024]. 20 iters. Element-wise SAVE. |
-| `nextpow2` | ✅ |  |  |  | N/A | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
+| `nextpow2` | ✅ | 7.982 | 0.56× | 1.62× | OK | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
 | `nthroot` | ✅ | 10.025 | 1.72× | 1.00× | OK | Sig: Y = nthroot(X, N). N=3, X on [0.001, 100]. 20 iters. Element-wise SAVE. |
 | `pow2` | ✅ | 5.549 | 0.74× | 0.61× | OK | Sig: Y = pow2(X) = 2.^X. 1M-pt on [-50, 50]. 20 iters. Element-wise SAVE. |
 | `reallog` | ✅ | 6.065 | 0.35× | 1.40× | OK | Sig: Y = reallog(X). Strict positive domain. 1M-pt on [0.001, 100]. 20 iters. Element-wise SAVE. |
@@ -584,7 +584,7 @@ multiple sections; all occurrences refresh together).
 | `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 | `poly` | ✅ | 0.000 | 84.89× | 164.01× | OK | Sig: P = poly(R). Roots → polynomial coefficients. 10000 iters. |
-| `polyder` | ✅ | 0.001 | 71.29× | 28.02× | MISMATCH | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
+| `polyder` | ✅ | 0.001 | 79.15× | 34.66× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ | 0.000 |  | 73.27× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
 | `polyfit` | ✅ | 0.054 | 0.92× | 1.53× | OK | Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise). |
@@ -608,7 +608,7 @@ multiple sections; all occurrences refresh together).
 | `cond` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condeig` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `cross` | ✅ | 0.000 | 19.03× | 187.75× | OK | Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported — see BUGS). 100k iters. |
+| `cross` | ✅ | 0.000 | 18.24× | 177.90× | OK | Sig: C = cross(A, B). Single 3-vec pair (numkit batch unsupported — see BUGS). 100k iters. |
 | `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `decomposition` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `det` | ❌ |  |  |  |  | **deferred — libs/linalg** |
@@ -711,14 +711,14 @@ multiple sections; all occurrences refresh together).
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
 | `interpn` | ✅ |  |  |  | N/A | Sig: Vq = interpn(...) N-D interp. 20³ → 50³. 10 iters. |
 | `makima` | ❌ |  |  |  |  |  |
-| `meshgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 100 iters. SAVE on X. |
+| `meshgrid` | ✅ | 11.413 | 0.21× | 0.40× | OK | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 50 iters. SAVE on X. |
 | `mkpp` | ✅ | 0.000 | 6.87× | 56.79× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
 | `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
 | `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
 | `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
 | `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
 | `scatteredinterpolant` | ❌ |  |  |  |  |  |
-| `spline` | ✅ | 0.016 | 23.98× | 40.02× | MISMATCH | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
+| `spline` | ✅ | 0.017 | 22.81× | 37.93× | OK | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
 | `unmkpp` | ✅ | 0.000 | 3.90× | 46.01× | OK | Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters. |
 
 ## Optimization
@@ -845,7 +845,7 @@ multiple sections; all occurrences refresh together).
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
 | `ifftshift` | ✅ | 0.003 | 4.08× | 8.09× | OK | Sig: Y = ifftshift(X). 1024-pt unshift. 1000 iters. |
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
-| `nextpow2` | ✅ |  |  |  | N/A | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
+| `nextpow2` | ✅ | 7.982 | 0.56× | 1.62× | OK | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
 | `nufft` | ❌ |  |  |  |  | non-uniform |
 | `nufftn` | ❌ |  |  |  |  | non-uniform |
 | `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
@@ -1297,7 +1297,7 @@ multiple sections; all occurrences refresh together).
 | `bandpass` | ✅ | 0.582 | 108.47× |  | MISMATCH | Sig: Y = bandpass(X, [LO HI], FS). 100 iters. |
 | `bandstop` | ✅ | 0.620 | 96.67× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
 | `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
 | `ctffilt` | ❌ |  |  |  |  | control TF filter |
 | `dspfwiz` | ❌ |  |  |  |  |  |
@@ -1391,7 +1391,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `alignsignals` | ✅ | 0.094 |  |  | N/A | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
 | `cconv` | ✅ | 10.603 | 0.02× |  | OK | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
-| `convmtx` | ✅ | 0.042 | 0.82× |  | MISMATCH | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
 | `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
