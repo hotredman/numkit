@@ -30,6 +30,23 @@ inline bool sameShapeDoubleFastPath(const numkit::Value &a,
     return !a.isScalar() && !b.isScalar() && a.dims() == b.dims();
 }
 
+// MATLAB auto-coerces logical to double in arithmetic ops. Cast a
+// LOGICAL Value into a fresh DOUBLE Value of the same shape; pass
+// through any other type unchanged. See BUGS.md #24.
+inline numkit::Value coerceLogicalToDouble(const numkit::Value &v,
+                                           std::pmr::memory_resource *mr)
+{
+    using namespace numkit;
+    if (v.type() != ValueType::LOGICAL) return v;
+    Value out = numkit::createLike(v, ValueType::DOUBLE, mr);
+    const uint8_t *src = v.logicalData();
+    double *dst = out.doubleDataMut();
+    const size_t n = v.numel();
+    for (size_t i = 0; i < n; ++i)
+        dst[i] = static_cast<double>(src[i]);
+    return out;
+}
+
 } // namespace
 
 namespace numkit::builtin {
@@ -45,6 +62,9 @@ Value plus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    // MATLAB auto-coerces logical to double for arithmetic. See BUGS.md #24.
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return plus(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::plus<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -95,6 +115,8 @@ Value minus(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return minus(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::minus<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -117,6 +139,8 @@ Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return times(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::multiplies<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -137,6 +161,9 @@ Value times(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 Value mtimes(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
     std::pmr::memory_resource *p = mr;
+
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return mtimes(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
 
     // Matrix-multiply is undefined for N-D arrays (N > 2) except the
     // scalar * NDArray degenerate form, which is just an elementwise
@@ -190,6 +217,8 @@ Value rdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return rdivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::divides<Complex>{}, p);
     if (a.type() == ValueType::DOUBLE && b.type() == ValueType::DOUBLE) {
@@ -213,6 +242,8 @@ Value mrdivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return mrdivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex())
         return elementwiseComplex(a, b, std::divides<Complex>{}, p);
     {
@@ -232,6 +263,8 @@ Value mldivide(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return mldivide(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isScalar() && b.isScalar())
         return Value::scalar(b.toScalar() / a.toScalar(), p);
     throw Error("Matrix left division not implemented", 0, 0, "mldivide", "",
@@ -243,6 +276,8 @@ Value power(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return power(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex()) {
         auto [ca, cb] = promoteToComplex(a, b, p);
         return Value::complexScalar(std::pow(ca.toComplex(), cb.toComplex()), p);
@@ -258,6 +293,8 @@ Value elementPower(std::pmr::memory_resource *mr, const Value &a, const Value &b
     std::pmr::memory_resource *p = mr;
     if (a.isEmpty() || b.isEmpty())
         return emptyArithResult(a, b, p);
+    if (a.type() == ValueType::LOGICAL || b.type() == ValueType::LOGICAL)
+        return elementPower(p, coerceLogicalToDouble(a, p), coerceLogicalToDouble(b, p));
     if (a.isComplex() || b.isComplex()) {
         return elementwiseComplex(
             a, b, [](const Complex &x, const Complex &y) { return std::pow(x, y); }, p);
