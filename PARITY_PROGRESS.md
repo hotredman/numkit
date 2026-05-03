@@ -460,7 +460,7 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `acos` | ✅ | 2.682 | 0.65× |  | OK | Sig: Y = acos(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
 | `acosd` | ✅ | 6.752 | 0.23× | 1.92× | OK | Sig: Y = acosd(X). 1M-pt sweep on [-1,1]. Inverse trig (degrees). 20 iters. Element-wise SAVE. tol relaxed to 1e-10 because acos derivative diverges near x=±1 (1 elem rel diff 1.11e-12 at x≈0.99993, algorithmically correct). |
-| `acosh` | ✅ | 9.405 | 0.22× | 1.02× | OK | Sig: Y = acosh(X). 1M-pt on [1,10] (domain X>=1). 20 iters. Element-wise SAVE. |
+| `acosh` | ✅ | 3.651 | 0.54× |  | OK | Sig: Y = acosh(X). 1M-pt on [1,10] (domain X>=1). 20 iters. Element-wise SAVE. |
 | `acot` | ✅ | 6.452 | 0.09× | 1.81× | OK | Sig: Y = acot(X). 1M-pt on [0.1,10] (avoid 0 singularity). 20 iters. Element-wise SAVE. |
 | `acotd` | ✅ | 6.589 | 0.09× | 2.13× | OK | Sig: Y = acotd(X). 1M-pt (degrees). 20 iters. Element-wise SAVE. |
 | `acoth` | ✅ | 8.760 | 0.28× | 1.92× | OK | Sig: Y = acoth(X). 1M-pt on (1,10] (domain |X|>1). 20 iters. Element-wise SAVE. |
@@ -502,7 +502,7 @@ multiple sections; all occurrences refresh together).
 | `sinh` | ✅ | 3.126 | 0.38× |  | OK | Sig: Y = sinh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
 | `sinpi` | ✅ | 9.110 | 0.09× | 1.90× | OK | Sig: Y = sinpi(X) = sin(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
 | `sph2cart` | ✅ |  |  |  | N/A | Sig: [X,Y,Z] = sph2cart(TH,PH,R). 50³ grid. 50 iters. SAVE on X (y). |
-| `tan` | ✅ | 7.283 | 0.12× | 0.73× | OK | Sig: Y = tan(X). 1M-point sweep on [-1.5, 1.5] (avoid π/2 singularity). 20 iters. Element-wise SAVE. |
+| `tan` | ✅ | 3.353 | 0.26× |  | OK | Sig: Y = tan(X). 1M-point sweep on [-1.5, 1.5] (avoid π/2 singularity). 20 iters. Element-wise SAVE. |
 | `tand` | ✅ | 10.176 | 0.09× | 2.59× | OK | Sig: Y = tand(X). 1M-pt sweep on [-89°, 89°] (avoid 90° singularity). 20 iters. Element-wise SAVE. |
 | `tanh` | ✅ | 3.057 | 0.40× |  | OK | Sig: Y = tanh(X). 1M-pt sweep on [-5, 5]. 20 iters. Element-wise SAVE. |
 

@@ -166,6 +166,31 @@ void AtanhLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
     for (; i < n; ++i) out[i] = std::atanh(in[i]);
 }
 
+// tan(x) = sin(x) / cos(x) — composed because Highway has no Tan.
+void TanLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Div(hn::Sin(d, v), hn::Cos(d, v)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::tan(in[i]);
+}
+
+void AcoshLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Acosh(d, v), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::acosh(in[i]);
+}
+
 // ── Atan2 (binary) ───────────────────────────────────────────────────
 
 void Atan2Loop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
@@ -201,6 +226,8 @@ HWY_EXPORT(AtanLoop);
 HWY_EXPORT(AsinhLoop);
 HWY_EXPORT(AtanhLoop);
 HWY_EXPORT(Atan2Loop);
+HWY_EXPORT(TanLoop);
+HWY_EXPORT(AcoshLoop);
 
 namespace {
 
@@ -368,6 +395,34 @@ Value atanh(std::pmr::memory_resource *mr, const Value &x)
         },
         [](double v) { return std::atanh(v); },
         [](const Complex &c) { return std::atanh(c); });
+}
+
+Value tan(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(TanLoop)(in, out, n);
+        },
+        [](double v) { return std::tan(v); },
+        [](const Complex &c) { return std::tan(c); });
+}
+
+Value acosh(std::pmr::memory_resource *mr, const Value &x)
+{
+    // MATLAB promotes a scalar |x|<1 to complex (so acosh(0.5) → 1.0472i,
+    // not NaN). Vector path matches std::acosh — NaN for out-of-domain.
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acosh(c); }, mr);
+    if (x.isScalar() && x.toScalar() < 1.0)
+        return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(AcoshLoop)(in, out, n);
+        },
+        [](double v) { return std::acosh(v); },
+        [](const Complex &c) { return std::acosh(c); });
 }
 
 // atan2 is binary: y, x → P. Real same-shape case uses the SIMD
