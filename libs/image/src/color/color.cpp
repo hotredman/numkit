@@ -1,0 +1,330 @@
+// libs/image/src/color/color.cpp
+//
+// Colour-space conversions. Portable scalar implementation; SIMD
+// optimisation deferred to a later phase.
+
+#include <numkit/image/color/color.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+
+namespace numkit::image {
+
+namespace {
+
+// Detect input layout: returns (H, W, P) where P is 3, and a triple of
+// strides (s_pix, s_chan) so that x[pix_idx, chan] = data[pix_idx*s_pix
+// + chan*s_chan]. Supports H×W×3 (s_pix=1, s_chan=H*W) and N×3 colormap
+// (s_pix=1, s_chan=N).
+struct Layout {
+    size_t H, W, npix, s_pix, s_chan;
+    bool is_3d;
+};
+
+Layout detect_layout(const Value &x, const char *fn) {
+    const auto &d = x.dims();
+    Layout lay{};
+    if (d.is3D() && d.pages() == 3) {
+        lay.H = d.rows(); lay.W = d.cols();
+        lay.npix = lay.H * lay.W;
+        lay.s_pix = 1;
+        lay.s_chan = lay.npix;
+        lay.is_3d = true;
+    } else if (!d.is3D() && d.cols() == 3) {
+        lay.H = d.rows(); lay.W = 1;
+        lay.npix = d.rows();
+        lay.s_pix = 1;
+        lay.s_chan = lay.npix;
+        lay.is_3d = false;
+    } else {
+        throw Error(std::string(fn) + ": input must be H×W×3 or N×3",
+                    0, 0, fn, "", std::string("m:") + fn + ":size");
+    }
+    return lay;
+}
+
+// Read a [0,1] float from an integer image element with class scaling.
+inline double element_to_unit(const Value &x, size_t i) {
+    const double v = x.elemAsDouble(i);
+    switch (x.type()) {
+        case ValueType::DOUBLE:
+        case ValueType::SINGLE:  return v;
+        case ValueType::UINT8:   return v / 255.0;
+        case ValueType::UINT16:  return v / 65535.0;
+        case ValueType::INT16:   return (v + 32768.0) / 65535.0;
+        case ValueType::LOGICAL: return v != 0.0 ? 1.0 : 0.0;
+        default:                 return v;
+    }
+}
+
+Value alloc_out_double(std::pmr::memory_resource *mr, const Layout &lay) {
+    if (lay.is_3d) return Value::matrix3d(lay.H, lay.W, 3, ValueType::DOUBLE, mr);
+    return Value::matrix(lay.H, 3, ValueType::DOUBLE, mr);
+}
+
+// Generic per-pixel transform.
+template <typename Op>
+Value pixel_transform(std::pmr::memory_resource *mr, const Value &x, const char *fn, Op op) {
+    auto lay = detect_layout(x, fn);
+    Value out = alloc_out_double(mr, lay);
+    if (lay.npix == 0) return out;
+    double *od = out.doubleDataMut();
+
+    for (size_t p = 0; p < lay.npix; ++p) {
+        const double a = element_to_unit(x, p + 0 * lay.s_chan);
+        const double b = element_to_unit(x, p + 1 * lay.s_chan);
+        const double c = element_to_unit(x, p + 2 * lay.s_chan);
+        std::array<double, 3> r = op(a, b, c);
+        od[p + 0 * lay.s_chan] = r[0];
+        od[p + 1 * lay.s_chan] = r[1];
+        od[p + 2 * lay.s_chan] = r[2];
+    }
+    return out;
+}
+
+// Same as pixel_transform but without the unit-scale conversion: input
+// is read as raw doubles (used for HSV / YCbCr / Lab → RGB where the
+// input is already in the appropriate domain).
+template <typename Op>
+Value pixel_transform_raw(std::pmr::memory_resource *mr, const Value &x, const char *fn, Op op) {
+    auto lay = detect_layout(x, fn);
+    Value out = alloc_out_double(mr, lay);
+    if (lay.npix == 0) return out;
+    double *od = out.doubleDataMut();
+
+    for (size_t p = 0; p < lay.npix; ++p) {
+        const double a = x.elemAsDouble(p + 0 * lay.s_chan);
+        const double b = x.elemAsDouble(p + 1 * lay.s_chan);
+        const double c = x.elemAsDouble(p + 2 * lay.s_chan);
+        std::array<double, 3> r = op(a, b, c);
+        od[p + 0 * lay.s_chan] = r[0];
+        od[p + 1 * lay.s_chan] = r[1];
+        od[p + 2 * lay.s_chan] = r[2];
+    }
+    return out;
+}
+
+} // anonymous
+
+// ════════════════════════════════════════════════════════════════════
+// RGB ↔ HSV  (MATLAB convention: all channels in [0, 1])
+// ════════════════════════════════════════════════════════════════════
+
+Value rgb2hsv(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform(mr, x, "rgb2hsv", [](double r, double g, double b) {
+        const double cmax = std::max({r, g, b});
+        const double cmin = std::min({r, g, b});
+        const double delta = cmax - cmin;
+        double h = 0.0;
+        if (delta > 0.0) {
+            if (cmax == r)      h = std::fmod((g - b) / delta, 6.0) / 6.0;
+            else if (cmax == g) h = ((b - r) / delta + 2.0) / 6.0;
+            else                h = ((r - g) / delta + 4.0) / 6.0;
+            if (h < 0.0) h += 1.0;
+        }
+        const double s = (cmax == 0.0) ? 0.0 : delta / cmax;
+        return std::array<double, 3>{h, s, cmax};
+    });
+}
+
+Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform_raw(mr, x, "hsv2rgb", [](double h, double s, double v) {
+        // Wrap h into [0, 1).
+        h = h - std::floor(h);
+        const double H = h * 6.0;
+        const int    I = static_cast<int>(std::floor(H));
+        const double f = H - I;
+        const double p = v * (1.0 - s);
+        const double q = v * (1.0 - s * f);
+        const double t = v * (1.0 - s * (1.0 - f));
+        switch (I % 6) {
+            case 0: return std::array<double, 3>{v, t, p};
+            case 1: return std::array<double, 3>{q, v, p};
+            case 2: return std::array<double, 3>{p, v, t};
+            case 3: return std::array<double, 3>{p, q, v};
+            case 4: return std::array<double, 3>{t, p, v};
+            default:return std::array<double, 3>{v, p, q};
+        }
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RGB ↔ YCbCr (ITU-R BT.601, the MATLAB default)
+// Input RGB in [0, 1]; output YCbCr scaled to [16/255 .. 235/255] for
+// Y, [16/255 .. 240/255] for Cb/Cr (this matches MATLAB rgb2ycbcr's
+// output in DOUBLE class).
+// ════════════════════════════════════════════════════════════════════
+
+Value rgb2ycbcr(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform(mr, x, "rgb2ycbcr", [](double r, double g, double b) {
+        // BT.601 conversion (8-bit-style numbers, normalised by 255).
+        const double y  = ( 65.481 * r + 128.553 * g +  24.966 * b +  16.0) / 255.0;
+        const double cb = (-37.797 * r -  74.203 * g + 112.0   * b + 128.0) / 255.0;
+        const double cr = (112.0   * r -  93.786 * g -  18.214 * b + 128.0) / 255.0;
+        return std::array<double, 3>{y, cb, cr};
+    });
+}
+
+Value ycbcr2rgb(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform_raw(mr, x, "ycbcr2rgb", [](double y, double cb, double cr) {
+        // Inverse BT.601 (matches MATLAB ycbcr2rgb on DOUBLE input).
+        const double Y  = y  * 255.0;
+        const double Cb = cb * 255.0;
+        const double Cr = cr * 255.0;
+        const double r = (   298.082 * Y +    0.0   * (Cb - 128.0) + 408.583 * (Cr - 128.0)) / 255.0 / 255.0 - 222.921 / 255.0;
+        const double g = (   298.082 * Y -  100.291 * (Cb - 128.0) - 208.120 * (Cr - 128.0)) / 255.0 / 255.0 + 135.576 / 255.0;
+        const double bo= (   298.082 * Y +  516.412 * (Cb - 128.0) +    0.0  * (Cr - 128.0)) / 255.0 / 255.0 - 276.836 / 255.0;
+        // The above factoring isn't pretty — explicit inverse matrix:
+        //   R = 1.164*(Y-16) + 1.596*(Cr-128)
+        //   G = 1.164*(Y-16) - 0.392*(Cb-128) - 0.813*(Cr-128)
+        //   B = 1.164*(Y-16) + 2.017*(Cb-128)
+        // Use that directly for clarity / accuracy:
+        const double Ys = 1.16438356 * (Y - 16.0);
+        const double Cbs = Cb - 128.0;
+        const double Crs = Cr - 128.0;
+        double R = (Ys                + 1.59602715 * Crs) / 255.0;
+        double G = (Ys - 0.39176229*Cbs - 0.81296765 * Crs) / 255.0;
+        double B = (Ys + 2.01723214 * Cbs                 ) / 255.0;
+        // Clip [0, 1].
+        R = std::clamp(R, 0.0, 1.0);
+        G = std::clamp(G, 0.0, 1.0);
+        B = std::clamp(B, 0.0, 1.0);
+        (void)r; (void)g; (void)bo;  // silence unused warnings
+        return std::array<double, 3>{R, G, B};
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// RGB ↔ XYZ (sRGB → CIE XYZ, D65 white point)
+// MATLAB convention applies sRGB gamma decode first.
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+inline double srgb_decode(double c) {
+    // sRGB gamma → linear.
+    return (c <= 0.04045) ? (c / 12.92) : std::pow((c + 0.055) / 1.055, 2.4);
+}
+inline double srgb_encode(double c) {
+    // Linear → sRGB gamma.
+    return (c <= 0.0031308) ? (12.92 * c) : (1.055 * std::pow(c, 1.0 / 2.4) - 0.055);
+}
+} // anonymous
+
+Value rgb2xyz(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform(mr, x, "rgb2xyz", [](double r, double g, double b) {
+        // sRGB → linear.
+        const double Rl = srgb_decode(r);
+        const double Gl = srgb_decode(g);
+        const double Bl = srgb_decode(b);
+        // sRGB / D65 matrix (CIE).
+        const double X = 0.4124564 * Rl + 0.3575761 * Gl + 0.1804375 * Bl;
+        const double Y = 0.2126729 * Rl + 0.7151522 * Gl + 0.0721750 * Bl;
+        const double Z = 0.0193339 * Rl + 0.1191920 * Gl + 0.9503041 * Bl;
+        return std::array<double, 3>{X, Y, Z};
+    });
+}
+
+Value xyz2rgb(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform_raw(mr, x, "xyz2rgb", [](double X, double Y, double Z) {
+        // Inverse matrix (sRGB / D65).
+        const double Rl =  3.2404542 * X - 1.5371385 * Y - 0.4985314 * Z;
+        const double Gl = -0.9692660 * X + 1.8760108 * Y + 0.0415560 * Z;
+        const double Bl =  0.0556434 * X - 0.2040259 * Y + 1.0572252 * Z;
+        double R = srgb_encode(std::clamp(Rl, 0.0, 1.0));
+        double G = srgb_encode(std::clamp(Gl, 0.0, 1.0));
+        double B = srgb_encode(std::clamp(Bl, 0.0, 1.0));
+        return std::array<double, 3>{R, G, B};
+    });
+}
+
+// ════════════════════════════════════════════════════════════════════
+// XYZ ↔ Lab (CIELAB, D65 reference white)
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+constexpr double XYZ_Xn = 0.95047;  // D65
+constexpr double XYZ_Yn = 1.00000;
+constexpr double XYZ_Zn = 1.08883;
+inline double f_lab(double t) {
+    constexpr double delta = 6.0 / 29.0;
+    constexpr double delta3 = delta * delta * delta;
+    if (t > delta3) return std::cbrt(t);
+    return t / (3.0 * delta * delta) + 4.0 / 29.0;
+}
+inline double finv_lab(double t) {
+    constexpr double delta = 6.0 / 29.0;
+    if (t > delta) return t * t * t;
+    return 3.0 * delta * delta * (t - 4.0 / 29.0);
+}
+} // anonymous
+
+Value xyz2lab(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform_raw(mr, x, "xyz2lab", [](double X, double Y, double Z) {
+        const double fx = f_lab(X / XYZ_Xn);
+        const double fy = f_lab(Y / XYZ_Yn);
+        const double fz = f_lab(Z / XYZ_Zn);
+        const double L  = 116.0 * fy - 16.0;
+        const double a  = 500.0 * (fx - fy);
+        const double b  = 200.0 * (fy - fz);
+        return std::array<double, 3>{L, a, b};
+    });
+}
+
+Value lab2xyz(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform_raw(mr, x, "lab2xyz", [](double L, double a, double b) {
+        const double fy = (L + 16.0) / 116.0;
+        const double fx = fy + a / 500.0;
+        const double fz = fy - b / 200.0;
+        const double X = XYZ_Xn * finv_lab(fx);
+        const double Y = XYZ_Yn * finv_lab(fy);
+        const double Z = XYZ_Zn * finv_lab(fz);
+        return std::array<double, 3>{X, Y, Z};
+    });
+}
+
+Value rgb2lab(std::pmr::memory_resource *mr, const Value &x) {
+    Value xyz = rgb2xyz(mr, x);
+    return xyz2lab(mr, xyz);
+}
+
+Value lab2rgb(std::pmr::memory_resource *mr, const Value &x) {
+    Value xyz = lab2xyz(mr, x);
+    return xyz2rgb(mr, xyz);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════
+
+namespace detail {
+
+#define NK_COLOR_REG(name)                                                        \
+    void name##_reg(Span<const Value> args, size_t /*nargout*/,                   \
+                    Span<Value> outs, CallContext &ctx)                           \
+    {                                                                               \
+        if (args.empty())                                                           \
+            throw Error(#name ": requires X", 0, 0, #name, "",                     \
+                        "m:" #name ":nargin");                                     \
+        outs[0] = name(ctx.engine->resource(), args[0]);                           \
+    }
+
+NK_COLOR_REG(rgb2hsv)
+NK_COLOR_REG(hsv2rgb)
+NK_COLOR_REG(rgb2ycbcr)
+NK_COLOR_REG(ycbcr2rgb)
+NK_COLOR_REG(rgb2xyz)
+NK_COLOR_REG(xyz2rgb)
+NK_COLOR_REG(rgb2lab)
+NK_COLOR_REG(lab2rgb)
+NK_COLOR_REG(xyz2lab)
+NK_COLOR_REG(lab2xyz)
+
+#undef NK_COLOR_REG
+
+} // namespace detail
+} // namespace numkit::image
