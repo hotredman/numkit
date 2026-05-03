@@ -130,6 +130,10 @@ Value polyder(std::pmr::memory_resource *mr, const Value &p)
     ScratchArena scratch(mr);
     auto pv = readPolyAsDouble(&scratch, p, "polyder");
     auto deriv = polyderRaw(&scratch, pv.data(), pv.size());
+    // MATLAB convention: polynomial coefficient vectors are canonical
+    // (no leading zeros), so a polyder result like [0, 1, 2] must be
+    // trimmed to [1, 2]. See BUGS.md #12.
+    trimLeadingZeros(deriv);
     return rowFromVec(mr, deriv.data(), deriv.size());
 }
 

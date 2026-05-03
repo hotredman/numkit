@@ -225,7 +225,7 @@ unaffected.
 
 ---
 
-## 12. `libs/builtin`: `polyder` doesn't strip leading zeros from result — **P3**
+## 12. `libs/builtin`: `polyder` doesn't strip leading zeros from result — **P3** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -245,6 +245,10 @@ diverge.
 **Where:** [libs/builtin/src/...polyder...cpp](libs/builtin/) — needs a
 post-pass to trim leading zeros until first non-zero coefficient.
 **First seen:** 2026-05-03, parity bulk-bench iteration 7.
+**Fix (2026-05-03):** Added `trimLeadingZeros(deriv)` in the 1-arg
+`polyder` path in [libs/builtin/src/math/poly/polynomials.cpp]. The
+helper already existed for the 2-arg form (rational-derivative
+cancellation); the single-poly form was just missing the call.
 
 ---
 
