@@ -1425,7 +1425,7 @@ multiple sections; all occurrences refresh together).
 | `idct` | ✅ | 3.917 | 0.02× | 0.03× | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
 | `ifsst` | ❌ |  |  |  |  |  |
 | `ifwht` | ❌ |  |  |  |  | inverse |
-| `instfreq` | ❌ |  |  |  |  | instantaneous frequency |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
@@ -1519,21 +1519,21 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `bandpower` | ✅ |  |  |  |  |  |
 | `enbw` | ✅ |  |  |  |  | equivalent noise BW |
-| `instbw` | ❌ |  |  |  |  |  |
-| `instfreq` | ❌ |  |  |  |  | instantaneous frequency |
+| `instbw` | ✅ |  |  |  |  |  |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
 | `meanfreq` | ✅ |  |  |  |  | mean frequency |
 | `medfreq` | ✅ |  |  |  |  | median frequency |
 | `obw` | ✅ |  |  |  |  |  |
 | `powerbw` | ✅ |  |  |  |  |  |
-| `sfdr` | ❌ |  |  |  |  | spurious-free dynamic range |
-| `sinad` | ❌ |  |  |  |  | signal-noise-distortion |
-| `snr` | ❌ |  |  |  |  | signal-to-noise |
+| `sfdr` | ✅ |  |  |  |  | spurious-free dynamic range |
+| `sinad` | ✅ |  |  |  |  | signal-noise-distortion |
+| `snr` | ✅ |  |  |  |  | signal-to-noise |
 | `spectralcrest` | ✅ |  |  |  |  |  |
 | `spectralentropy` | ✅ |  |  |  |  |  |
 | `spectralflatness` | ✅ |  |  |  |  |  |
 | `spectralkurtosis` | ✅ |  |  |  |  |  |
 | `spectralskewness` | ✅ |  |  |  |  |  |
-| `thd` | ❌ |  |  |  |  | total harmonic distortion |
+| `thd` | ✅ |  |  |  |  | total harmonic distortion |
 | `toi` | ❌ |  |  |  |  | third-order intercept |
 
 ## Time-Frequency Analysis (spectrogram / stft / cwt / wvd / ...)
@@ -1548,8 +1548,8 @@ multiple sections; all occurrences refresh together).
 | `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
 | `hht` | ❌ |  |  |  |  | Hilbert-Huang |
 | `ifsst` | ❌ |  |  |  |  |  |
-| `instbw` | ❌ |  |  |  |  |  |
-| `instfreq` | ❌ |  |  |  |  | instantaneous frequency |
+| `instbw` | ✅ |  |  |  |  |  |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
 | `iscola` | ❌ |  |  |  |  |  |
 | `istft` | ❌ |  |  |  |  | inverse |
 | `istftlayer` | ❌ |  |  |  |  |  |
