@@ -41,4 +41,26 @@ std::tuple<Value, Value>
 besself(std::pmr::memory_resource *mr, int N,
         const Value &Wn, FilterType ftype = FilterType::Lowpass, bool analog = false);
 
+// ── Order estimators (digital, normalised Wn ∈ (0, 1)) ─────────────
+
+/// buttord(Wp, Ws, Rp, Rs[, 's']) — minimum order Butterworth filter
+/// meeting passband ripple ≤ Rp and stopband attenuation ≥ Rs.
+/// Returns (N, Wn) where Wn is the natural / cutoff frequency.
+/// Wp, Ws are scalars (low/highpass) or 2-vectors (band{pass,stop}).
+std::tuple<int, Value>
+buttord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
+        double Rp, double Rs, bool analog = false);
+
+/// cheb1ord(Wp, Ws, Rp, Rs[, 's']) — minimum order Chebyshev type I.
+/// Returns (N, Wn) where Wn is the passband edge.
+std::tuple<int, Value>
+cheb1ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
+         double Rp, double Rs, bool analog = false);
+
+/// cheb2ord(Wp, Ws, Rp, Rs[, 's']) — minimum order Chebyshev type II.
+/// Returns (N, Wn) where Wn is the stopband edge.
+std::tuple<int, Value>
+cheb2ord(std::pmr::memory_resource *mr, const Value &Wp, const Value &Ws,
+         double Rp, double Rs, bool analog = false);
+
 } // namespace numkit::signal
