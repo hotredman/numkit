@@ -1,0 +1,10 @@
+{
+  "name": "coth",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 5, 1000000);",
+  "expr": "y = coth(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = coth(X). 1M-pt avoid 0 pole. 20 iters."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "deg2rad",
+  "namespace": "core",
+  "setup": "x = linspace(-720, 720, 1000000);",
+  "expr": "y = deg2rad(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: R = deg2rad(D). 1M-pt sweep. 20 iters."
+}

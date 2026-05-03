@@ -463,12 +463,12 @@ multiple sections; all occurrences refresh together).
 | `acot` | ✅ | 6.452 | 0.09× | 1.81× | OK | Sig: Y = acot(X). 1M-pt on [0.1,10] (avoid 0 singularity). 20 iters. Element-wise SAVE. |
 | `acotd` | ✅ | 6.589 | 0.09× | 2.13× | OK | Sig: Y = acotd(X). 1M-pt (degrees). 20 iters. Element-wise SAVE. |
 | `acoth` | ✅ | 8.760 | 0.28× | 1.92× | OK | Sig: Y = acoth(X). 1M-pt on (1,10] (domain |X|>1). 20 iters. Element-wise SAVE. |
-| `acsc` | ✅ |  |  |  |  |  |
-| `acscd` | ✅ |  |  |  |  |  |
-| `acsch` | ✅ |  |  |  |  |  |
-| `asec` | ✅ |  |  |  |  |  |
-| `asecd` | ✅ |  |  |  |  |  |
-| `asech` | ✅ |  |  |  |  |  |
+| `acsc` | ✅ | 6.491 | 0.22× | 2.40× | OK | Sig: Y = acsc(X). 1M-pt domain |X|>=1. 20 iters. |
+| `acscd` | ✅ | 6.601 | 0.23× | 3.04× | OK | Sig: Y = acscd(X). 1M-pt deg. 20 iters. |
+| `acsch` | ✅ | 11.801 | 0.08× | 1.31× | OK | Sig: Y = acsch(X). 1M-pt avoid 0 (X != 0). 20 iters. |
+| `asec` | ✅ | 6.587 | 0.23× | 2.32× | OK | Sig: Y = asec(X). 1M-pt domain |X|>=1. 20 iters. |
+| `asecd` | ✅ | 6.762 | 0.23× | 3.05× | OK | Sig: Y = asecd(X). 1M-pt deg. 20 iters. |
+| `asech` | ✅ | 10.153 | 0.21× | 1.69× | OK | Sig: Y = asech(X). 1M-pt domain (0,1]. 20 iters. |
 | `asin` | ✅ | 6.750 | 0.24× | 1.23× | OK | Sig: Y = asin(X). 1M-pt sweep on [-1, 1]. 20 iters. Element-wise SAVE. |
 | `asind` | ✅ | 6.855 | 0.29× | 1.95× | OK | Sig: Y = asind(X). 1M-pt on [-1,1]. Inverse (degrees). 20 iters. Element-wise SAVE. |
 | `asinh` | ✅ | 10.521 | 0.13× | 0.77× | OK | Sig: Y = asinh(X). 1M-pt on [-10,10]. 20 iters. Element-wise SAVE. |
@@ -483,16 +483,16 @@ multiple sections; all occurrences refresh together).
 | `cosd` | ✅ | 10.733 | 0.09× | 2.07× | OK | Sig: Y = cosd(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
 | `cosh` | ✅ | 8.197 | 0.11× | 0.69× | OK | Sig: Y = cosh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
 | `cospi` | ✅ | 9.236 | 0.07× | 1.93× | OK | Sig: Y = cospi(X) = cos(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
-| `cot` | ✅ |  |  |  |  | reciprocal |
-| `cotd` | ✅ |  |  |  |  |  |
-| `coth` | ✅ |  |  |  |  |  |
-| `csc` | ✅ |  |  |  |  | reciprocal |
-| `cscd` | ✅ |  |  |  |  |  |
-| `csch` | ✅ |  |  |  |  |  |
-| `deg2rad` | ✅ |  |  |  |  |  |
+| `cot` | ✅ | 8.745 | 0.13× | 1.56× | OK | Sig: Y = cot(X). 1M-pt on (0, π) avoiding 0/π poles. 20 iters. |
+| `cotd` | ✅ | 14.327 | 0.07× | 2.49× | OK | Sig: Y = cotd(X). 1M-pt deg, avoid 0/180. 20 iters. |
+| `coth` | ✅ | 10.989 | 0.12× | 1.32× | OK | Sig: Y = coth(X). 1M-pt avoid 0 pole. 20 iters. |
+| `csc` | ✅ | 7.207 | 0.12× | 1.69× | OK | Sig: Y = csc(X). 1M-pt on (0, π). 20 iters. |
+| `cscd` | ✅ | 9.650 | 0.07× | 2.85× | OK | Sig: Y = cscd(X). 1M-pt deg. 20 iters. |
+| `csch` | ✅ | 8.617 | 0.14× | 1.52× | OK | Sig: Y = csch(X). 1M-pt avoid 0 pole. 20 iters. |
+| `deg2rad` | ✅ | 4.090 | 0.33× | 0.61× | OK | Sig: R = deg2rad(D). 1M-pt sweep. 20 iters. |
 | `hypot` | ✅ | 6.636 | 0.17× | 0.75× | OK | Sig: Y = hypot(A, B). 1k×1k grid. 20 iters. Element-wise SAVE. |
-| `pol2cart` | ✅ |  |  |  |  | coord xform |
-| `rad2deg` | ✅ |  |  |  |  |  |
+| `pol2cart` | ✅ | 15.792 |  | 0.99× | OK | Sig: [X,Y]=pol2cart(TH,R). 1k×1k grid. 20 iters. SAVE on X. |
+| `rad2deg` | ✅ | 3.942 | 0.36× | 0.60× | OK | Sig: D = rad2deg(R). 1M-pt sweep. 20 iters. |
 | `sec` | ✅ | 6.642 | 0.10× | 1.77× | OK | Sig: Y = sec(X). 1M-pt on [-1.5, 1.5] (avoid π/2). 20 iters. Element-wise SAVE. |
 | `secd` | ✅ | 9.655 | 0.08× | 3.07× | OK | Sig: Y = secd(X). 1M-pt on [-89°, 89°]. 20 iters. Element-wise SAVE. |
 | `sech` | ✅ | 8.684 | 0.11× | 1.52× | OK | Sig: Y = sech(X). 1M-pt on [-5, 5]. 20 iters. Element-wise SAVE. |

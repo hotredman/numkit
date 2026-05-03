@@ -1,0 +1,10 @@
+{
+  "name": "pol2cart",
+  "namespace": "core",
+  "setup": "th = linspace(0, 2*pi, 1000); r = linspace(0, 5, 1000); [TH, R] = meshgrid(th, r);",
+  "expr": "[X, Y_out] = pol2cart(TH, R); y = X;",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: [X,Y]=pol2cart(TH,R). 1k\u00d71k grid. 20 iters. SAVE on X."
+}
