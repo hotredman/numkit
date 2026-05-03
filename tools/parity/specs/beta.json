@@ -1,0 +1,10 @@
+{
+  "name": "beta",
+  "namespace": "core",
+  "setup": "z = linspace(0.5, 5, 1000); w = linspace(0.5, 5, 1000); [Z, W] = meshgrid(z, w);",
+  "expr": "y = beta(Z, W);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = beta(Z, W). 1000x1000 grid. 20 iters. Element-wise SAVE."
+}

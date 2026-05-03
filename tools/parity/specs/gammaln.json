@@ -1,0 +1,10 @@
+{
+  "name": "gammaln",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 100, 100000);",
+  "expr": "y = gammaln(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = gammaln(X). 100k-pt sweep on (0,100]. 20 iters. Element-wise SAVE."
+}

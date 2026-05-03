@@ -1,0 +1,10 @@
+{
+  "name": "legendre",
+  "namespace": "core",
+  "setup": "x = linspace(-1, 1, 1000); n = 4;",
+  "expr": "y = legendre(n, x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: P = legendre(N, X). N=4, 1k pts. 20 iters. SAVE on (n+1)x1000 matrix."
+}

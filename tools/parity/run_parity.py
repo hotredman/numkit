@@ -243,7 +243,10 @@ def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
 def run_numkit(spec: Spec, *, timed: bool) -> Result:
     if not NUMKIT_EXE.exists():
         return Result(ok=False, error=f"numkit binary missing: {NUMKIT_EXE}")
-    script = build_script(spec, timed=timed)
+    # numkit-only: many libs/{signal,stats} fns are also aliased into
+    # `compat.<name>` so `import compat.*` brings them flat. MATLAB has
+    # no compat package, so we inject this only for the numkit run.
+    script = "import compat.*\n" + build_script(spec, timed=timed)
     with tempfile.NamedTemporaryFile("w", suffix=".m", delete=False, encoding="utf-8") as f:
         f.write(script)
         path = f.name

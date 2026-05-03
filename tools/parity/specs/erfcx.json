@@ -1,0 +1,10 @@
+{
+  "name": "erfcx",
+  "namespace": "core",
+  "setup": "x = linspace(-2, 100, 1000000);",
+  "expr": "y = erfcx(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = erfcx(X) = exp(X^2)*erfc(X). 1M-pt. 20 iters. Element-wise SAVE."
+}

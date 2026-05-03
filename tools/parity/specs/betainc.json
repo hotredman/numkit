@@ -1,0 +1,10 @@
+{
+  "name": "betainc",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 0.999, 1000); a = 2.5; b = 4.0;",
+  "expr": "y = betainc(x, a, b);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: I = betainc(X, A, B). 1k-pt with scalar a=2.5 b=4. 20 iters. Element-wise SAVE."
+}

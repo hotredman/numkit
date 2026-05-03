@@ -1,0 +1,10 @@
+{
+  "name": "gamma",
+  "namespace": "core",
+  "setup": "x = linspace(0.1, 10, 100000);",
+  "expr": "y = gamma(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = gamma(X). 100k-pt sweep on (0,10]. 20 iters. Element-wise SAVE."
+}

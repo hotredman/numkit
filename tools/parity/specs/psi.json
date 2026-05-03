@@ -1,0 +1,10 @@
+{
+  "name": "psi",
+  "namespace": "core",
+  "setup": "x = linspace(0.5, 50, 100000);",
+  "expr": "y = psi(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = psi(X). 100k-pt sweep on positive domain. 20 iters. Element-wise SAVE."
+}

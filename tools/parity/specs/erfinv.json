@@ -1,0 +1,10 @@
+{
+  "name": "erfinv",
+  "namespace": "core",
+  "setup": "x = linspace(-0.999, 0.999, 1000000);",
+  "expr": "y = erfinv(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = erfinv(X). 1M-pt sweep avoiding singularities. 20 iters. Element-wise SAVE."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "erfcinv",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 1.999, 1000000);",
+  "expr": "y = erfcinv(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = erfcinv(X). 1M-pt sweep on (0,2). 20 iters. Element-wise SAVE."
+}
