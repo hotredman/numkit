@@ -478,7 +478,7 @@ multiple sections; all occurrences refresh together).
 | `atan2d` | ✅ | 3.537 | 0.22× |  | OK | Sig: Z = atan2d(Y, X). 1k×1k quadrant grid (degrees). 20 iters. Element-wise SAVE. |
 | `atand` | ✅ | 2.799 | 0.19× |  | OK | Sig: Y = atand(X). 1M-pt on [-10,10]. Inverse (degrees). 20 iters. Element-wise SAVE. |
 | `atanh` | ✅ | 2.940 | 0.86× |  | OK | Sig: Y = atanh(X). 1M-pt on (-1,1) (avoid pole). 20 iters. Element-wise SAVE. |
-| `cart2pol` | ✅ | 17.127 | 0.19× | 1.34× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
+| `cart2pol` | ✅ | 5.881 | 0.53× |  | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
 | `cart2sph` | ✅ |  |  |  | N/A | Sig: [TH,PHI,R] = cart2sph(X,Y,Z). 50³ grid. 50 iters. SAVE on TH (y). |
 | `cos` | ✅ | 0.867 | 1.27× |  | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `cosd` | ✅ | 2.733 | 0.29× |  | OK | Sig: Y = cosd(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
@@ -491,7 +491,7 @@ multiple sections; all occurrences refresh together).
 | `cscd` | ✅ | 9.650 | 0.07× | 2.85× | OK | Sig: Y = cscd(X). 1M-pt deg. 20 iters. |
 | `csch` | ✅ | 8.617 | 0.14× | 1.52× | OK | Sig: Y = csch(X). 1M-pt avoid 0 pole. 20 iters. |
 | `deg2rad` | ✅ | 4.090 | 0.33× | 0.61× | OK | Sig: R = deg2rad(D). 1M-pt sweep. 20 iters. |
-| `hypot` | ✅ | 6.636 | 0.17× | 0.75× | OK | Sig: Y = hypot(A, B). 1k×1k grid. 20 iters. Element-wise SAVE. |
+| `hypot` | ✅ | 2.431 | 0.44× |  | OK | Sig: Y = hypot(A, B). 1k×1k grid. 20 iters. Element-wise SAVE. |
 | `pol2cart` | ✅ | 15.792 |  | 0.99× | OK | Sig: [X,Y]=pol2cart(TH,R). 1k×1k grid. 20 iters. SAVE on X. |
 | `rad2deg` | ✅ | 3.942 | 0.36× | 0.60× | OK | Sig: D = rad2deg(R). 1M-pt sweep. 20 iters. |
 | `sec` | ✅ | 6.642 | 0.10× | 1.77× | OK | Sig: Y = sec(X). 1M-pt on [-1.5, 1.5] (avoid π/2). 20 iters. Element-wise SAVE. |

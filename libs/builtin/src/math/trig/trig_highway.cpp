@@ -191,7 +191,7 @@ void AcoshLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::siz
     for (; i < n; ++i) out[i] = std::acosh(in[i]);
 }
 
-// ── Atan2 (binary) ───────────────────────────────────────────────────
+// ── Atan2 / Hypot (binary) ───────────────────────────────────────────
 
 void Atan2Loop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
                double *HWY_RESTRICT out, std::size_t n)
@@ -205,6 +205,25 @@ void Atan2Loop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
         hn::StoreU(hn::Atan2(d, vy, vx), d, out + i);
     }
     for (; i < n; ++i) out[i] = std::atan2(y[i], x[i]);
+}
+
+// hypot(a, b) = sqrt(a² + b²). Highway has Sqrt but no Hypot;
+// composing this way is fast but loses std::hypot's overflow-safe
+// scaling for |a|, |b| > sqrt(DBL_MAX) ≈ 1.34e154. Scalar tail uses
+// std::hypot. For typical inputs (well within the safe range) the
+// SIMD path is correct to ULP and matches MATLAB.
+void HypotLoop(const double *HWY_RESTRICT a, const double *HWY_RESTRICT b,
+               double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto va = hn::LoadU(d, a + i);
+        auto vb = hn::LoadU(d, b + i);
+        hn::StoreU(hn::Sqrt(hn::MulAdd(va, va, hn::Mul(vb, vb))), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::hypot(a[i], b[i]);
 }
 
 // ── Degree variants: SIMD bulk path. ─────────────────────────────────
@@ -375,6 +394,7 @@ HWY_EXPORT(AtandLoop);
 HWY_EXPORT(Atan2dLoop);
 HWY_EXPORT(SinpiLoop);
 HWY_EXPORT(CospiLoop);
+HWY_EXPORT(HypotLoop);
 
 namespace {
 
@@ -798,6 +818,32 @@ Value cospi(std::pmr::memory_resource *mr, const Value &x)
         },
         cospi_scalar,
         [](const Complex &c) { return std::cos(kPi * c); });
+}
+
+// hypot binary: same shape pattern as atan2 — same-shape real path
+// goes SIMD; mixed/scalar/complex falls back to std::hypot via the
+// generic scaffold.
+Value hypot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+{
+    if (a.isComplex() || b.isComplex())
+        return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
+    if (a.isScalar() && b.isScalar())
+        return Value::scalar(std::hypot(a.toScalar(), b.toScalar()), mr);
+
+    if (!a.isScalar() && !b.isScalar() && a.dims() == b.dims()) {
+        Value r = createLike(a, ValueType::DOUBLE, mr);
+        if (a.numel() == 0)
+            return r;
+        const double *ap  = a.doubleData();
+        const double *bp  = b.doubleData();
+        double       *out = r.doubleDataMut();
+        numkit::detail::parallel_for(a.numel(), numkit::detail::kTranscendentalThreshold,
+            [=](std::size_t s, std::size_t e) {
+                HWY_DYNAMIC_DISPATCH(HypotLoop)(ap + s, bp + s, out + s, e - s);
+            });
+        return r;
+    }
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
 }
 
 } // namespace numkit::builtin
