@@ -151,6 +151,13 @@ void nbininv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nbinrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nbinstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/hypergeom.cpp
+void hygepdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hygecdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hygeinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hygernd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hygestat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -288,6 +295,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "nbininv",  &stats::detail::nbininv_reg);
     reg("dist", "nbinrnd",  &stats::detail::nbinrnd_reg);
     reg("dist", "nbinstat", &stats::detail::nbinstat_reg);
+
+    reg("dist", "hygepdf",  &stats::detail::hygepdf_reg);
+    reg("dist", "hygecdf",  &stats::detail::hygecdf_reg);
+    reg("dist", "hygeinv",  &stats::detail::hygeinv_reg);
+    reg("dist", "hygernd",  &stats::detail::hygernd_reg);
+    reg("dist", "hygestat", &stats::detail::hygestat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
