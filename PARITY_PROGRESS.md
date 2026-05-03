@@ -1882,6 +1882,260 @@ as a pair of flat decomposition / reconstruction functions.
 | `wfusmat` | ❌ |  |  |  |  | matrix fusion |
 | `wentropy` | ❌ |  |  |  |  | wavelet entropy |
 
+## Communications Toolbox — Modulation
+
+**Namespace:** `comm.mod.*` — 0 ✅ + 0 ⚠️ / 29 = 0%
+
+Function-form modulators / demodulators. The `comm.PSKModulator` /
+`comm.QAMModulator` / `comm.OFDMModulator` System Object family is
+intentionally omitted, along with `constellation` (object method) and
+`showResourceMapping` (display).
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `genqammod` | ❌ |  |  |  |  | generic QAM |
+| `genqamdemod` | ❌ |  |  |  |  |  |
+| `modnorm` | ❌ |  |  |  |  | normalisation factor for unit-energy symbols |
+| `pammod` | ❌ |  |  |  |  | PAM modulator |
+| `pamdemod` | ❌ |  |  |  |  |  |
+| `qammod` | ❌ |  |  |  |  | rectangular QAM |
+| `qamdemod` | ❌ |  |  |  |  |  |
+| `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
+| `apskdemod` | ❌ |  |  |  |  |  |
+| `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
+| `mil188qamdemod` | ❌ |  |  |  |  |  |
+| `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
+| `mskdemod` | ❌ |  |  |  |  |  |
+| `fskmod` | ❌ |  |  |  |  | M-ary FSK |
+| `fskdemod` | ❌ |  |  |  |  |  |
+| `ofdmmod` | ❌ |  |  |  |  | OFDM |
+| `ofdmdemod` | ❌ |  |  |  |  |  |
+| `dpskmod` | ❌ |  |  |  |  | differential PSK |
+| `dpskdemod` | ❌ |  |  |  |  |  |
+| `pskmod` | ❌ |  |  |  |  | M-ary PSK |
+| `pskdemod` | ❌ |  |  |  |  |  |
+| `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
+| `amdemod` | ❌ |  |  |  |  |  |
+| `fmmod` | ❌ |  |  |  |  | frequency modulation |
+| `fmdemod` | ❌ |  |  |  |  |  |
+| `pmmod` | ❌ |  |  |  |  | phase modulation |
+| `pmdemod` | ❌ |  |  |  |  |  |
+| `ssbmod` | ❌ |  |  |  |  | single-sideband |
+| `ssbdemod` | ❌ |  |  |  |  |  |
+
+## Communications Toolbox — Sources, Sinks, and Signal Operations
+
+**Namespace:** `comm.signals.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `randerr` | ❌ |  |  |  |  | random binary error patterns |
+| `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
+| `wgn` | ❌ |  |  |  |  | white Gaussian noise samples |
+| `biterr` | ❌ |  |  |  |  | bit-error count |
+| `symerr` | ❌ |  |  |  |  | symbol-error count |
+| `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
+| `mask2shift` | ❌ |  |  |  |  | shift-register mask → shift |
+| `shift2mask` | ❌ |  |  |  |  |  |
+| `bit2int` | ❌ |  |  |  |  | pack bits to integers |
+| `int2bit` | ❌ |  |  |  |  | unpack integers to bits |
+| `bi2de` | ❌ |  |  |  |  | binary → decimal (legacy alias) |
+| `de2bi` | ❌ |  |  |  |  | decimal → binary (legacy alias) |
+| `hex2poly` | ❌ |  |  |  |  | hex string → polynomial coeffs |
+| `oct2poly` | ❌ |  |  |  |  |  |
+| `oct2dec` | ❌ |  |  |  |  | octal → decimal |
+| `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
+| `convertSNR` | ❌ |  |  |  |  | EbNo / EsNo / SNR conversions |
+
+## Communications Toolbox — Source Coding
+
+**Namespace:** `comm.source_coding.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
+| `arithdeco` | ❌ |  |  |  |  |  |
+| `compand` | ❌ |  |  |  |  | μ-law / A-law companding |
+| `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
+| `dpcmdeco` | ❌ |  |  |  |  |  |
+| `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
+| `huffmandict` | ❌ |  |  |  |  | build Huffman code table |
+| `huffmanenco` | ❌ |  |  |  |  |  |
+| `huffmandeco` | ❌ |  |  |  |  |  |
+| `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
+| `quantiz` | ❌ |  |  |  |  | apply quantisation table |
+
+## Communications Toolbox — Error Detection and Correction
+
+**Namespace:** `comm.fec.*` — 0 ✅ + 0 ⚠️ / 26 = 0%
+
+`crcConfig`, `ldpcEncoderConfig`, `ldpcDecoderConfig`, the System
+Objects (`comm.CRCGenerator`, `comm.LDPCEncoder`, etc.) and the `gf`
+class are intentionally omitted. Galois-field math is exposed through
+the flat `gf*` function family below.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `crcGenerate` | ❌ |  |  |  |  | append CRC parity bits |
+| `crcDetect` | ❌ |  |  |  |  |  |
+| `cyclgen` | ❌ |  |  |  |  | cyclic-code generator matrix |
+| `cyclpoly` | ❌ |  |  |  |  | cyclic-code generator polynomials |
+| `encode` | ❌ |  |  |  |  | generic block encoder |
+| `decode` | ❌ |  |  |  |  | generic block decoder |
+| `gfweight` | ❌ |  |  |  |  | minimum distance |
+| `gen2par` | ❌ |  |  |  |  | generator ↔ parity-check matrix |
+| `hammgen` | ❌ |  |  |  |  | Hamming generator/parity-check |
+| `syndtable` | ❌ |  |  |  |  | syndrome decoding table |
+| `bchenc` | ❌ |  |  |  |  | BCH encoder |
+| `bchdec` | ❌ |  |  |  |  |  |
+| `bchgenpoly` | ❌ |  |  |  |  |  |
+| `bchnumerr` | ❌ |  |  |  |  |  |
+| `rsenc` | ❌ |  |  |  |  | Reed-Solomon encoder |
+| `rsdec` | ❌ |  |  |  |  |  |
+| `rsgenpoly` | ❌ |  |  |  |  |  |
+| `rsgenpolycoeffs` | ❌ |  |  |  |  |  |
+| `ldpcEncode` | ❌ |  |  |  |  |  |
+| `ldpcDecode` | ❌ |  |  |  |  |  |
+| `ldpcPCM` | ❌ |  |  |  |  | parity-check matrices for standards |
+| `ldpcQuasiCyclicMatrix` | ❌ |  |  |  |  |  |
+| `tpcenc` | ❌ |  |  |  |  | turbo product encoder |
+| `tpcdec` | ❌ |  |  |  |  |  |
+| `convenc` | ❌ |  |  |  |  | convolutional encoder |
+| `vitdec` | ❌ |  |  |  |  | Viterbi decoder |
+
+## Communications Toolbox — Trellis and Galois Field Utilities
+
+**Namespace:** `comm.gf.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `distspec` | ❌ |  |  |  |  | distance spectrum of conv code |
+| `iscatastrophic` | ❌ |  |  |  |  |  |
+| `istrellis` | ❌ |  |  |  |  |  |
+| `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
+| `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
+| `dftmtx` | ❌ |  |  |  |  | already in core / FFT |
+| `isprimitive` | ❌ |  |  |  |  |  |
+| `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
+| `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
+| `gfadd` | ❌ |  |  |  |  | GF addition |
+| `gfconv` | ❌ |  |  |  |  | GF polynomial multiply |
+| `gfcosets` | ❌ |  |  |  |  | GF(p^m) cosets |
+| `gfdeconv` | ❌ |  |  |  |  | GF polynomial divide |
+| `gfdiv` | ❌ |  |  |  |  | element-wise GF division |
+| `gffilter` | ❌ |  |  |  |  | GF FIR filter |
+| `gflineq` | ❌ |  |  |  |  | linear equations over GF(p) |
+| `gfminpol` | ❌ |  |  |  |  |  |
+| `gfmul` | ❌ |  |  |  |  | element-wise GF multiplication |
+| `gfpretty` | ❌ |  |  |  |  | pretty-print GF poly |
+| `gfprimck` | ❌ |  |  |  |  | check primitivity |
+| `gfprimdf` | ❌ |  |  |  |  | default primitive polynomial |
+| `gftuple` | ❌ |  |  |  |  | exponential ↔ polynomial form |
+
+## Communications Toolbox — Interleaving
+
+**Namespace:** `comm.intrlv.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `intrlv` | ❌ |  |  |  |  | generic interleaver |
+| `deintrlv` | ❌ |  |  |  |  |  |
+| `algintrlv` | ❌ |  |  |  |  | algebraic |
+| `algdeintrlv` | ❌ |  |  |  |  |  |
+| `helscanintrlv` | ❌ |  |  |  |  | helical-scan |
+| `helscandeintrlv` | ❌ |  |  |  |  |  |
+| `matintrlv` | ❌ |  |  |  |  | matrix |
+| `matdeintrlv` | ❌ |  |  |  |  |  |
+| `randintrlv` | ❌ |  |  |  |  | random |
+| `randdeintrlv` | ❌ |  |  |  |  |  |
+| `convintrlv` | ❌ |  |  |  |  | convolutional |
+| `convdeintrlv` | ❌ |  |  |  |  |  |
+| `helintrlv` | ❌ |  |  |  |  | helical |
+| `heldeintrlv` | ❌ |  |  |  |  |  |
+| `muxintrlv` | ❌ |  |  |  |  | multiplexed |
+| `muxdeintrlv` | ❌ |  |  |  |  |  |
+
+## Communications Toolbox — Pulse Shaping, Equalization, MIMO
+
+**Namespace:** `comm.shape.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+System-Object equalisers (`comm.LinearEqualizer`, `comm.MLSEEqualizer`,
+`comm.DecisionFeedbackEqualizer`) are omitted; only the function-form
+MLSE entry is exposed.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `gaussdesign` | ❌ |  |  |  |  | Gaussian pulse-shaping filter |
+| `rcosdesign` | ❌ |  |  |  |  | raised-cosine |
+| `rectpulse` | ❌ |  |  |  |  | rectangular pulse shaper |
+| `intdump` | ❌ |  |  |  |  | integrate & dump |
+| `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
+| `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
+| `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
+| `ofdmPrecode` | ❌ |  |  |  |  | OFDM precoding |
+
+## Communications Toolbox — RF and Channel Impairments
+
+**Namespace:** `comm.rf.*` — 0 ✅ + 0 ⚠️ / 10 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `awgn` | ❌ |  |  |  |  | additive white Gaussian noise channel |
+| `bsc` | ❌ |  |  |  |  | binary symmetric channel |
+| `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
+| `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
+| `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
+| `iqcoef2imbal` | ❌ |  |  |  |  | coefficients → amp/phase imbalance |
+| `iqimbal2coef` | ❌ |  |  |  |  |  |
+| `srmdelay` | ❌ |  |  |  |  | sample-rate-matching delay |
+| `channelDelay` | ❌ |  |  |  |  | channel-delay estimation |
+| `ofdmChannelResponse` | ❌ |  |  |  |  | OFDM frequency-domain channel |
+
+## Communications Toolbox — Propagation Path Loss and Geometry
+
+**Namespace:** `comm.propagation.*` — 0 ✅ + 0 ⚠️ / 15 = 0%
+
+OOP `propagationModel` family, ray-tracing classes (`raytrace`,
+`coverage`, `pattern`, `sinr`, `link`, `sigstrength`) and the antenna /
+basemap object hierarchy intentionally omitted — only flat scalar /
+vector path-loss models and coordinate transforms.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fspl` | ❌ |  |  |  |  | free-space path loss |
+| `cranerainpl` | ❌ |  |  |  |  | Crane rain attenuation |
+| `rainpl` | ❌ |  |  |  |  | ITU rain attenuation |
+| `gaspl` | ❌ |  |  |  |  | gas (oxygen + water vapour) |
+| `fogpl` | ❌ |  |  |  |  | fog / cloud |
+| `raypl` | ❌ |  |  |  |  | propagation along a ray |
+| `buildingMaterialPermittivity` | ❌ |  |  |  |  | ITU building materials |
+| `earthSurfacePermittivity` | ❌ |  |  |  |  |  |
+| `los` | ❌ |  |  |  |  | line-of-sight check |
+| `doppler` | ❌ |  |  |  |  | Doppler-shift utility |
+| `rangeangle` | ❌ |  |  |  |  | range and angle between coordinates |
+| `global2localcoord` | ❌ |  |  |  |  |  |
+| `local2globalcoord` | ❌ |  |  |  |  |  |
+| `cart2sphvec` | ❌ |  |  |  |  | rotate vector to spherical basis |
+| `sph2cartvec` | ❌ |  |  |  |  |  |
+
+## Communications Toolbox — Performance Analysis
+
+**Namespace:** `comm.perf.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `berawgn` | ❌ |  |  |  |  | analytical BER over AWGN |
+| `bercoding` | ❌ |  |  |  |  | with coding gain |
+| `berconfint` | ❌ |  |  |  |  | confidence interval |
+| `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
+| `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
+| `bersync` | ❌ |  |  |  |  | with imperfect sync |
+| `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
+| `marcumq` | ❌ |  |  |  |  | Marcum Q function |
+| `qfunc` | ❌ |  |  |  |  | tail of standard normal |
+| `qfuncinv` | ❌ |  |  |  |  |  |
+| `noisebw` | ❌ |  |  |  |  | equivalent noise bandwidth |
+
 ## Workspace
 
 **Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
