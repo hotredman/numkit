@@ -1,0 +1,13 @@
+{
+  "name": "finddelay",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 10, 1000)); b = sin(linspace(0, 10, 1000) + 0.5);",
+  "expr": "y = finddelay(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: D = finddelay(A, B). 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

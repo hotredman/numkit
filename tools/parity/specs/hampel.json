@@ -1,0 +1,10 @@
+{
+  "name": "hampel",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 10000));",
+  "expr": "y = hampel(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters.",
+  "out_var": "y"
+}

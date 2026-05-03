@@ -1,0 +1,10 @@
+{
+  "name": "fftfilt",
+  "namespace": "core",
+  "setup": "b = ones(1, 32) / 32; x = sin(linspace(0, 100, 100000));",
+  "expr": "y = fftfilt(b, x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters.",
+  "out_var": "y"
+}

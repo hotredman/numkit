@@ -1,0 +1,10 @@
+{
+  "name": "envelope",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 10000)) .* (1 + 0.5*sin(linspace(0, 5, 10000)));",
+  "expr": "[y, jj] = envelope(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP.",
+  "out_var": "y"
+}

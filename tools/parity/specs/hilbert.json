@@ -1,0 +1,10 @@
+{
+  "name": "hilbert",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1024));",
+  "expr": "y = real(hilbert(x));",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: H = hilbert(X). Analytic signal real part. 1000 iters.",
+  "out_var": "y"
+}

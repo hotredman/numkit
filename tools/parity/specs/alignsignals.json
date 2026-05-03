@@ -1,0 +1,10 @@
+{
+  "name": "alignsignals",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 10, 1000)); b = sin(linspace(0, 10, 1000) + 0.5);",
+  "expr": "[y, jj] = alignsignals(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters.",
+  "out_var": "y"
+}

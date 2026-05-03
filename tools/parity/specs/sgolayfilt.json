@@ -1,0 +1,10 @@
+{
+  "name": "sgolayfilt",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 10000));",
+  "expr": "y = sgolayfilt(x, 3, 11);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters.",
+  "out_var": "y"
+}
