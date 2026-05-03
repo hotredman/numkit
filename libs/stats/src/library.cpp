@@ -116,6 +116,13 @@ void raylinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void raylrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void raylstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/poisson.cpp
+void poisspdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poisscdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poissinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poissrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poisstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -223,6 +230,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "raylinv",  &stats::detail::raylinv_reg);
     reg("dist", "raylrnd",  &stats::detail::raylrnd_reg);
     reg("dist", "raylstat", &stats::detail::raylstat_reg);
+
+    reg("dist", "poisspdf", &stats::detail::poisspdf_reg);
+    reg("dist", "poisscdf", &stats::detail::poisscdf_reg);
+    reg("dist", "poissinv", &stats::detail::poissinv_reg);
+    reg("dist", "poissrnd", &stats::detail::poissrnd_reg);
+    reg("dist", "poisstat", &stats::detail::poisstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
