@@ -1,0 +1,10 @@
+{
+  "name": "sosfilt",
+  "namespace": "core",
+  "setup": "sos = [1 0.5 0.25 1 0.1 0.05]; x = sin(linspace(0, 100, 10000));",
+  "expr": "y = sosfilt(sos, x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters."
+}
