@@ -2291,8 +2291,13 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
         });
 
     // freqspace(n) — frequency-spacing vector for FFT-style problems.
-    // n elements, evenly spaced over [-1, 1 - 2/n].
-    // freqspace(n, 'whole') gives [0, 2-2/n] instead.
+    // MATLAB R2025b semantics:
+    //   freqspace(n) default form:
+    //     n even → n/2+1 points on [0, 1]
+    //     n odd  → (n+1)/2 points on [0, 1 - 1/n]
+    //   freqspace(n, 'whole'):
+    //     n points on [0, 2 - 2/n]
+    // See BUGS.md #19.
     engine.registerFunction("freqspace",
         [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
             if (args.empty())
@@ -2309,13 +2314,38 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 whole = (s == "whole");
             }
-            auto v = Value::matrix(1, n, ValueType::DOUBLE, ctx.engine->resource());
-            double *d = v.doubleDataMut();
-            const double step = 2.0 / static_cast<double>(n);
-            const double start = whole ? 0.0 : -1.0;
-            for (size_t i = 0; i < n; ++i)
-                d[i] = start + step * static_cast<double>(i);
-            outs[0] = std::move(v);
+            if (whole) {
+                // n points from 0 to 2 - 2/n in 2/n steps.
+                auto v = Value::matrix(1, n, ValueType::DOUBLE, ctx.engine->resource());
+                double *d = v.doubleDataMut();
+                const double step = 2.0 / static_cast<double>(n);
+                for (size_t i = 0; i < n; ++i)
+                    d[i] = step * static_cast<double>(i);
+                outs[0] = std::move(v);
+            } else {
+                // Default form: half-spectrum.
+                // Even n: n/2+1 points on [0, 1].
+                // Odd n:  (n+1)/2 points on [0, 1 - 1/n].
+                size_t m;
+                double last;
+                if (n % 2 == 0) {
+                    m = n / 2 + 1;
+                    last = 1.0;
+                } else {
+                    m = (n + 1) / 2;
+                    last = 1.0 - 1.0 / static_cast<double>(n);
+                }
+                auto v = Value::matrix(1, m, ValueType::DOUBLE, ctx.engine->resource());
+                double *d = v.doubleDataMut();
+                if (m == 1) {
+                    d[0] = 0.0;
+                } else {
+                    const double step = last / static_cast<double>(m - 1);
+                    for (size_t i = 0; i < m; ++i)
+                        d[i] = step * static_cast<double>(i);
+                }
+                outs[0] = std::move(v);
+            }
         });
 
     // head(A[, n]) / tail(A[, n]) — first / last n rows of A. Defaults

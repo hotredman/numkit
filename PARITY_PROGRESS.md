@@ -54,7 +54,7 @@ multiple sections; all occurrences refresh together).
 | `flip` | ✅ | 2.122 | 0.79× | 1.03× | OK | Sig: B = flip(A, DIM). 1000x1000 flip dim 2. 100 iters. Element-wise SAVE. |
 | `fliplr` | ✅ | 2.144 | 0.80× | 1.02× | OK | Sig: B = fliplr(A). 1000x1000 left-right flip. 100 iters. Element-wise SAVE. |
 | `flipud` | ✅ | 2.308 | 0.53× | 0.99× | OK | Sig: B = flipud(A). 1000x1000 up-down flip. 100 iters. Element-wise SAVE. |
-| `freqspace` | ✅ | 0.001 | 14.68× |  | MISMATCH | Sig: F = freqspace(N). 1024-pt freq vector. 10000 iters. |
+| `freqspace` | ✅ | 0.001 | 18.30× |  | OK | Sig: F = freqspace(N). N=1024 (numkit returns N values, MATLAB returns N/2+1 = 513 for N even — see BUGS). 1000 iters. |
 | `head` | ✅ | 0.000 | 59.14× |  | OK | Sig: Y = head(X, K). First 100 elements. 10000 iters. |
 | `horzcat` | ✅ | 1.842 | 0.62× | 0.57× | OK | Sig: D = horzcat(A, B). 500x500 || 500x500. 100 iters. |
 | `ind2sub` | ✅ | 12.093 |  | 0.93× | OK | Sig: [I,J] = ind2sub(SZ, IND). 1M idx → row index. SAVE on row idx (y). 50 iters. |
