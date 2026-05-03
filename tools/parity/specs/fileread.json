@@ -1,0 +1,12 @@
+{
+  "name": "fileread",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, 'Hello world\\n'); fclose(fid);",
+  "expr": "y = fileread(fname);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: T = fileread(F). 1000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

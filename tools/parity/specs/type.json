@@ -1,0 +1,12 @@
+{
+  "name": "type",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, 'hello'); fclose(fid);",
+  "expr": "y = evalc(['type(''', fname, ''')']);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: type(F). Captured via evalc. 1000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

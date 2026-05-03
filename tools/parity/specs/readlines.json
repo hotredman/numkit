@@ -1,0 +1,12 @@
+{
+  "name": "readlines",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, 'a\\nb\\nc\\nd\\n'); fclose(fid);",
+  "expr": "y = readlines(fname);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: L = readlines(F). 4-line file. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))"
+  ]
+}

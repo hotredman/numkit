@@ -1,0 +1,10 @@
+{
+  "name": "fread",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, 1:1000, 'double'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); y = fread(fid, 1000, 'double'); fclose(fid);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: A = fread(FID, COUNT, PRECISION). 100 iters.",
+  "out_var": "y"
+}

@@ -789,7 +789,7 @@ multiple sections; all occurrences refresh together).
 | `gplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `ichol` | ❌ |  |  |  |  |  |
 | `ilu` | ❌ |  |  |  |  |  |
-| `issparse` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `issparse` | ❌ |  |  |  | N/A | Sig: TF = issparse(X). 100k iters. |
 | `lsqr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `minres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `nnz` | ✅ | 0.142 | 0.23× | 1.39× | OK | Sig: N = nnz(X). 1M-pt count. 1000 iters. |
@@ -1087,15 +1087,15 @@ multiple sections; all occurrences refresh together).
 | `ferror` | ✅ |  |  |  |  |  |
 | `fgetl` | ✅ |  |  |  |  |  |
 | `fgets` | ✅ |  |  |  |  |  |
-| `fileread` | ✅ |  |  |  |  | whole-file read |
+| `fileread` | ✅ | 0.018 | 4.50× |  | OK | Sig: T = fileread(F). 1000 iters. |
 | `fopen` | ✅ |  |  |  |  |  |
-| `fprintf` | ✅ |  |  |  |  |  |
-| `fread` | ✅ |  |  |  |  |  |
-| `frewind` | ✅ |  |  |  |  |  |
-| `fscanf` | ✅ |  |  |  |  |  |
-| `fseek` | ✅ |  |  |  |  |  |
-| `ftell` | ✅ |  |  |  |  |  |
-| `fwrite` | ✅ |  |  |  |  |  |
+| `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
+| `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
+| `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
+| `fscanf` | ✅ | 0.027 | 1.63× | 1.90× | OK | Sig: A = fscanf(FID, FMT). 1000 iters. |
+| `fseek` | ✅ | 0.028 | 1.01× | 1.15× | OK | Sig: STATUS = fseek(FID, OFFSET, ORIGIN). 1000 iters. |
+| `ftell` | ✅ | 0.028 | 1.03× | 1.23× | OK | Sig: POS = ftell(FID). 1000 iters. |
+| `fwrite` | ✅ | 0.235 | 2.12× | 1.06× | OK | Sig: COUNT = fwrite(FID, A, PRECISION). 100 iters. |
 | `openedfiles` | ❌ |  |  |  |  |  |
 
 ## Text Files (CSV / dlm / readtable)
@@ -1104,20 +1104,20 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ |  |  |  |  | whole-file read |
+| `fileread` | ✅ | 0.018 | 4.50× |  | OK | Sig: T = fileread(F). 1000 iters. |
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readlines` | ✅ |  |  |  |  |  |
-| `readmatrix` | ✅ |  |  |  |  | modern CSV |
+| `readlines` | ✅ | 0.018 | 145.54× |  | MISMATCH | Sig: L = readlines(F). 4-line file. 1000 iters. |
+| `readmatrix` | ✅ | 0.020 | 270.07× |  | OK | Sig: M = readmatrix(F). 100 iters. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
-| `textscan` | ✅ |  |  |  |  |  |
-| `type` | ✅ |  |  |  |  |  |
+| `textscan` | ✅ | 0.028 | 4.16× | 1.97× | OK | Sig: C = textscan(FID, FMT). 100 iters. |
+| `type` | ✅ |  |  |  | N/A | Sig: type(F). Captured via evalc. 1000 iters. |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writelines` | ✅ |  |  |  |  |  |
-| `writematrix` | ✅ |  |  |  |  | modern CSV |
+| `writelines` | ✅ |  |  |  | N/A | Sig: writelines(L, F). 100 iters. |
+| `writematrix` | ✅ | 0.611 | 4.21× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 
@@ -1131,13 +1131,13 @@ multiple sections; all occurrences refresh together).
 | `importdatatask` | ❌ |  |  |  |  |  |
 | `importtool` | ❌ |  |  |  |  |  |
 | `readcell` | ❌ |  |  |  |  |  |
-| `readmatrix` | ✅ |  |  |  |  | modern CSV |
+| `readmatrix` | ✅ | 0.020 | 270.07× |  | OK | Sig: M = readmatrix(F). 100 iters. |
 | `readtable` | ❌ |  |  |  |  | needs table type |
 | `readtimetable` | ❌ |  |  |  |  |  |
 | `readvars` | ❌ |  |  |  |  |  |
 | `sheetnames` | ❌ |  |  |  |  |  |
 | `writecell` | ❌ |  |  |  |  |  |
-| `writematrix` | ✅ |  |  |  |  | modern CSV |
+| `writematrix` | ✅ | 0.611 | 4.21× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 | `writetimetable` | ❌ |  |  |  |  |  |
 

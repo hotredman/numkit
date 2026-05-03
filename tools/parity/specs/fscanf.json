@@ -1,0 +1,10 @@
+{
+  "name": "fscanf",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fprintf(fid, '1 2 3 4 5'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); y = fscanf(fid, '%d'); fclose(fid);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: A = fscanf(FID, FMT). 1000 iters.",
+  "out_var": "y"
+}
