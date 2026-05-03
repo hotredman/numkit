@@ -195,6 +195,7 @@ Value iscellstr(std::pmr::memory_resource *mr, const Value &c)
 Value cellstr(std::pmr::memory_resource *mr, const Value &x)
 {
     // char row → 1×1 cell of that char row.
+    // M-by-N char matrix → M-by-1 cell, each element a deblank'd row.
     // string scalar/array → numel × 1 cell of char rows.
     // cell-of-strings → unchanged.
     if (x.isCell()) {
@@ -203,9 +204,31 @@ Value cellstr(std::pmr::memory_resource *mr, const Value &x)
         return x;
     }
     if (x.isChar()) {
-        auto c = Value::cell(1, 1, mr);
-        c.cellAt(0) = x;
-        return c;
+        const size_t nr = x.dims().rows();
+        const size_t nc = x.dims().cols();
+        if (nr <= 1) {
+            auto c = Value::cell(1, 1, mr);
+            c.cellAt(0) = x;
+            return c;
+        }
+        // Multi-row char matrix: split per row and deblank trailing
+        // spaces. Char data is column-major, so element (r, c) lives at
+        // index r + c * nr. See BUGS.md #17.
+        const char *src = x.charData();
+        auto out = Value::cell(nr, 1, mr);
+        std::string row;
+        row.reserve(nc);
+        for (size_t r = 0; r < nr; ++r) {
+            row.clear();
+            for (size_t c = 0; c < nc; ++c)
+                row.push_back(src[r + c * nr]);
+            // deblank: strip trailing spaces (but not other whitespace,
+            // matching MATLAB's deblank).
+            while (!row.empty() && row.back() == ' ')
+                row.pop_back();
+            out.cellAt(r) = Value::fromString(row, mr);
+        }
+        return out;
     }
     if (x.isString()) {
         const size_t n = x.numel();
