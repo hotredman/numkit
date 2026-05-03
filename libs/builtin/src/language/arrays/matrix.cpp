@@ -1609,14 +1609,54 @@ Value xorOf(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 
 Value cross(std::pmr::memory_resource *mr, const Value &a, const Value &b)
 {
-    if (a.numel() != 3 || b.numel() != 3)
-        throw Error("cross requires 3-element vectors",
+    // MATLAB: cross(A, B) operates along the first dimension with
+    // size 3. Common shapes: 1x3, 3x1, 3xN, Nx3. The result has the
+    // same shape as the inputs. See BUGS.md #18.
+    const auto &da = a.dims();
+    const auto &db = b.dims();
+    if (da.rows() != db.rows() || da.cols() != db.cols())
+        throw Error("cross: A and B must have the same shape",
+                     0, 0, "cross", "", "m:cross:shapeMismatch");
+
+    const size_t nr = da.rows();
+    const size_t nc = da.cols();
+
+    // Pick the dimension to cross along: first one of size 3.
+    int crossDim;
+    if (nr == 3)      crossDim = 0; // cross along rows (each column is a 3-vec)
+    else if (nc == 3) crossDim = 1; // cross along cols (each row is a 3-vec)
+    else
+        throw Error("cross: A and B must have at least one dimension of length 3",
                      0, 0, "cross", "", "m:cross:badSize");
-    auto r = Value::matrix(1, 3, ValueType::DOUBLE, mr);
-    r.doubleDataMut()[0] = a.doubleData()[1] * b.doubleData()[2] - a.doubleData()[2] * b.doubleData()[1];
-    r.doubleDataMut()[1] = a.doubleData()[2] * b.doubleData()[0] - a.doubleData()[0] * b.doubleData()[2];
-    r.doubleDataMut()[2] = a.doubleData()[0] * b.doubleData()[1] - a.doubleData()[1] * b.doubleData()[0];
-    return r;
+
+    auto out = Value::matrix(nr, nc, ValueType::DOUBLE, mr);
+    const double *ad = a.doubleData();
+    const double *bd = b.doubleData();
+    double *od = out.doubleDataMut();
+
+    if (crossDim == 0) {
+        // 3xN: column-major storage, so col c starts at c*3.
+        const size_t batches = nc;
+        for (size_t c = 0; c < batches; ++c) {
+            const size_t base = c * 3;
+            const double a0 = ad[base], a1 = ad[base + 1], a2 = ad[base + 2];
+            const double b0 = bd[base], b1 = bd[base + 1], b2 = bd[base + 2];
+            od[base    ] = a1 * b2 - a2 * b1;
+            od[base + 1] = a2 * b0 - a0 * b2;
+            od[base + 2] = a0 * b1 - a1 * b0;
+        }
+    } else {
+        // Nx3: column-major, so element (r, k) at r + k*nr.
+        const size_t batches = nr;
+        for (size_t r = 0; r < batches; ++r) {
+            const double a0 = ad[r], a1 = ad[r + nr], a2 = ad[r + 2 * nr];
+            const double b0 = bd[r], b1 = bd[r + nr], b2 = bd[r + 2 * nr];
+            od[r           ] = a1 * b2 - a2 * b1;
+            od[r +     nr  ] = a2 * b0 - a0 * b2;
+            od[r + 2 * nr  ] = a0 * b1 - a1 * b0;
+        }
+    }
+    return out;
 }
 
 Value dot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
