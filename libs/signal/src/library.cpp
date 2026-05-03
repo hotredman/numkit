@@ -184,6 +184,7 @@ void lp2hp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2bp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lp2bs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bilinear_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void impinvar_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // Top-level IIR designs (libs/signal/src/filter_design/iir_designs.cpp)
@@ -413,6 +414,7 @@ void SignalLibrary::install(Engine &engine)
     reg("filter_design", "lp2bp",    &signal::detail::lp2bp_reg);
     reg("filter_design", "lp2bs",    &signal::detail::lp2bs_reg);
     reg("filter_design", "bilinear", &signal::detail::bilinear_reg);
+    reg("filter_design", "impinvar", &signal::detail::impinvar_reg);
     reg("filter_design", "freqs",    &signal::detail::freqs_reg);
     reg("filter_design", "cheby1",   &signal::detail::cheby1_reg);
     reg("filter_design", "cheby2",   &signal::detail::cheby2_reg);

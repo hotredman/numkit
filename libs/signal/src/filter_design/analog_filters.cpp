@@ -6,6 +6,8 @@
 
 #include <numkit/signal/filter_design/analog_filters.hpp>
 
+#include <numkit/builtin/math/poly/polynomials.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -389,44 +391,132 @@ bilinear(std::pmr::memory_resource *mr, const Value &b, const Value &a,
 // ════════════════════════════════════════════════════════════════════
 // Impulse-invariance design (impinvar)
 // ════════════════════════════════════════════════════════════════════
-// Partial-fraction-based implementation. For each simple pole pₖ of
-// the analog system, the digital pole is e^{pₖ·T} (T = 1/fs); the
-// numerator is recovered by enforcing impulse-response invariance
-// between the analog and digital systems.
+//
+// For an analog filter b(s)/a(s) with N distinct simple poles pₖ, the
+// partial-fraction expansion is b/a = Σ rₖ/(s - pₖ) with residues
+// rₖ = b(pₖ)/a'(pₖ). Sampling the analog impulse response at rate fs
+// gives the digital filter
+//
+//   H_d(z) = T · Σ rₖ / (1 - eᵖᵏᵀ · z⁻¹),    T = 1/fs
+//
+// which we re-combine into (b_d, a_d) form via:
+//
+//   a_d(z⁻¹) = ∏ (1 - αₖ · z⁻¹),                αₖ = eᵖᵏᵀ
+//   b_d(z⁻¹) = T · Σ rₖ · ∏_{j≠k} (1 - αⱼ · z⁻¹)
+//
+// Imaginary parts in the final coefficients cancel to within roundoff
+// when the analog filter is real (conjugate-pole pairing).
 
 namespace {
 
-// Compute partial-fraction residues of an analog system with simple
-// poles. b(s)/a(s) = Σ rₖ/(s - pₖ). Returns (residues, poles).
-std::tuple<std::vector<Cd>, std::vector<Cd>>
-partialFractions(const std::vector<double> &b, const std::vector<double> &a)
-{
-    // Find roots of a (the poles). For now only simple poles are
-    // supported; repeated poles need the higher-order residue
-    // formula. For impinvar this is the common case.
-    const int N = static_cast<int>(a.size()) - 1;
-    if (N <= 0) return {{}, {}};
-    // Build companion matrix and find eigenvalues — but we don't
-    // have eig. As a stop-gap, use the existing polynomial root
-    // finder (numkit::builtin::roots).
-    // Defer implementation: emit an empty result so the higher level
-    // can handle it.
-    (void)b;
-    return {{}, {}};
+// Horner evaluation of a real polynomial p (coefficients high → low) at
+// a complex point.
+inline Cd hornerReal(const std::vector<double> &p, Cd x) {
+    Cd r(0.0, 0.0);
+    for (auto c : p) r = r * x + Cd(c, 0.0);
+    return r;
+}
+
+// poly(roots) for complex roots — returns coefficients high → low,
+// length roots.size() + 1.
+std::vector<Cd> polyFromRootsComplex(const std::vector<Cd> &roots) {
+    std::vector<Cd> p = { Cd(1.0, 0.0) };
+    for (auto rk : roots) {
+        std::vector<Cd> np(p.size() + 1, Cd(0.0, 0.0));
+        for (size_t i = 0; i < p.size(); ++i) {
+            np[i]     += p[i];
+            np[i + 1] -= rk * p[i];
+        }
+        p = std::move(np);
+    }
+    return p;
 }
 
 } // anonymous
 
 std::tuple<Value, Value>
 impinvar(std::pmr::memory_resource *mr, const Value &b, const Value &a,
-         double fs, double tol)
+         double fs, double /*tol*/)
 {
-    (void)b; (void)a; (void)fs; (void)tol;
-    // Not yet implemented: needs reliable polynomial-root finding
-    // that handles repeated roots and a partial-fraction residue
-    // calculator. Returns empty pair so callers can detect.
-    throw std::runtime_error("impinvar: not yet implemented");
-    return std::make_tuple(packDoubleRow(mr, {}), packDoubleRow(mr, {}));
+    auto bv = readVec(b);
+    auto av = readVec(a);
+    if (av.size() < 2)
+        throw std::runtime_error("impinvar: a must have degree ≥ 1");
+    if (bv.size() >= av.size())
+        throw std::runtime_error("impinvar: numerator degree must be less than denominator");
+    const int N = static_cast<int>(av.size()) - 1;
+    const double T = 1.0 / fs;
+
+    // 1) Roots of a → analog poles.
+    Value pV = ::numkit::builtin::roots(mr, a);
+    auto pv = readComplexVec(pV);
+    if (static_cast<int>(pv.size()) != N)
+        throw std::runtime_error("impinvar: roots() returned unexpected count");
+
+    // 2) Compute residues r_k = b(p_k) / a'(p_k).
+    Value aprimeV = ::numkit::builtin::polyder(mr, a);
+    auto apv = readVec(aprimeV);
+    std::vector<Cd> r(N);
+    for (int k = 0; k < N; ++k) {
+        const Cd bp  = hornerReal(bv,  pv[k]);
+        const Cd app = hornerReal(apv, pv[k]);
+        r[k] = bp / app;
+    }
+
+    // 3) Digital poles α_k = exp(p_k · T).
+    std::vector<Cd> alpha(N);
+    for (int k = 0; k < N; ++k) alpha[k] = std::exp(pv[k] * T);
+
+    // 4) a_d = poly(α) — built straight in complex; cast to double at end.
+    std::vector<Cd> ad_c = polyFromRootsComplex(alpha);  // length N+1
+
+    // 5) b_d = Σ r_k · T · ∏_{j≠k} (1 - α_j · q), polynomial in q = z⁻¹
+    //    of degree N-1, length N. The ∏_{j≠k} (1 - α_j q) factor differs
+    //    from polyFromRootsComplex which produces ∏ (q - α_j); we adjust
+    //    by computing it on the fly.
+    auto polyExceptK = [&](int k) {
+        std::vector<Cd> p = { Cd(1.0, 0.0) };
+        for (int j = 0; j < N; ++j) {
+            if (j == k) continue;
+            // multiply by (1 - α_j · q): (existing p) * (1, -α_j) in q-order
+            std::vector<Cd> np(p.size() + 1, Cd(0.0, 0.0));
+            for (size_t i = 0; i < p.size(); ++i) {
+                np[i]     += p[i];                  // ·1
+                np[i + 1] += -alpha[j] * p[i];      // · (-α_j · q)
+            }
+            p = std::move(np);
+        }
+        return p;
+    };
+
+    std::vector<Cd> bd_c(N, Cd(0.0, 0.0));
+    for (int k = 0; k < N; ++k) {
+        const std::vector<Cd> partial = polyExceptK(k);   // length N (in q-order)
+        const Cd s = r[k] * T;
+        for (int i = 0; i < N; ++i) bd_c[i] += s * partial[i];
+    }
+
+    // 6) Express a_d in q-form. polyFromRootsComplex produced the
+    //    standard "high-to-low" polynomial coefficients of (z - α_k);
+    //    converted to q = z⁻¹ form, ∏ (1 - α_k · q) has the SAME
+    //    coefficients but ordered low-to-high. Concretely:
+    //    ∏ (z - α_k) =     z^N      - Σα·z^(N-1) + ... + (-1)^N ∏α
+    //    ∏ (1 - α_k q) =   1        - Σα·q       + ... + (-1)^N ∏α·q^N
+    //    so the two are reverses of each other. We want MATLAB-style
+    //    "high-z" first which equals the original ad_c (no reversal).
+    std::vector<double> ad_d(N + 1);
+    for (int i = 0; i <= N; ++i) ad_d[i] = ad_c[i].real();
+
+    // bd_c is in q-form (low-to-high q). To match MATLAB row-vector
+    // convention (high-to-low z, equivalently low-to-high z⁻¹ leading
+    // with z^0 coefficient), keep low-to-high order for b — that puts
+    // b[0] as the z^0 coefficient. Since the impulse-invariance design
+    // is strictly proper (no z^0 term), b[0] should be ~0; the next
+    // coefficients are the z⁻¹, z⁻², ... ones.
+    std::vector<double> bd_d(N);
+    for (int i = 0; i < N; ++i) bd_d[i] = bd_c[i].real();
+
+    return std::make_tuple(packDoubleRow(mr, bd_d), packDoubleRow(mr, ad_d));
 }
 
 // ════════════════════════════════════════════════════════════════════
@@ -547,6 +637,18 @@ void bilinear_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     const double fs = args[2].toScalar();
     const double fp = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 0.0;
     auto [bd, ad] = bilinear(ctx.engine->resource(), args[0], args[1], fs, fp);
+    outs[0] = std::move(bd);
+    if (nargout > 1) outs[1] = std::move(ad);
+}
+
+void impinvar_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("impinvar: requires (b, a, fs[, tol])",
+                     0, 0, "impinvar", "", "m:impinvar:nargin");
+    const double fs  = args[2].toScalar();
+    const double tol = (args.size() >= 4 && !args[3].isEmpty()) ? args[3].toScalar() : 1e-3;
+    auto [bd, ad] = impinvar(ctx.engine->resource(), args[0], args[1], fs, tol);
     outs[0] = std::move(bd);
     if (nargout > 1) outs[1] = std::move(ad);
 }
