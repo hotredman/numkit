@@ -162,10 +162,51 @@ Value xcorr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
     const size_t cOut = cA + cB - 1;
     auto out = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
+    if (rOut == 0 || cOut == 0) return out;
     std::fill(dst, dst + rOut * cOut, 0.0);
 
-    // C[k+rB-1, l+cB-1] = sum_{i,j} A[i+k, j+l] * B[i, j]
-    // for k in [-(rB-1) .. rA-1], l in [-(cB-1) .. cA-1].
+    // FFT-based fast path: cross-correlation == conv2(A, flip(B)). Pad
+    // A (zero) and the flipped B into rOut × cOut grids, fft2 both,
+    // multiply pointwise, ifft2, take real part. Threshold below the
+    // FFT path's startup cost — for tiny problems direct is faster.
+    const size_t cellsOut = rOut * cOut;
+    const size_t cellsDirect = rA * cA * rB * cB;
+    const bool useFft = cellsDirect > 8192 && cellsOut >= 64;
+
+    if (useFft) {
+        auto Ap = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
+        auto Bf = Value::matrix(rOut, cOut, ValueType::DOUBLE, mr);
+        double *ad = Ap.doubleDataMut();
+        double *bd = Bf.doubleDataMut();
+        std::fill(ad, ad + cellsOut, 0.0);
+        std::fill(bd, bd + cellsOut, 0.0);
+        // Place A in the top-left.
+        for (size_t j = 0; j < cA; ++j)
+            for (size_t i = 0; i < rA; ++i)
+                ad[i + j * rOut] = A(i, j);
+        // Place flipped B (both axes) in the top-left.
+        for (size_t j = 0; j < cB; ++j)
+            for (size_t i = 0; i < rB; ++i)
+                bd[i + j * rOut] = B(rB - 1 - i, cB - 1 - j);
+
+        Value FA = fft2(mr, Ap);
+        Value FB = fft2(mr, Bf);
+        const Complex *fa = FA.complexData();
+        const Complex *fb = FB.complexData();
+        auto Z = Value::complexMatrix(rOut, cOut, mr);
+        Complex *zd = Z.complexDataMut();
+        for (size_t k = 0; k < cellsOut; ++k) zd[k] = fa[k] * fb[k];
+        Value z = ifft2(mr, Z);
+        if (z.type() == ValueType::COMPLEX) {
+            const Complex *zr = z.complexData();
+            for (size_t k = 0; k < cellsOut; ++k) dst[k] = zr[k].real();
+        } else {
+            std::memcpy(dst, z.doubleData(), cellsOut * sizeof(double));
+        }
+        return out;
+    }
+
+    // Direct path for small inputs.
     for (size_t i = 0; i < rA; ++i) {
         for (size_t j = 0; j < cA; ++j) {
             const double a = A(i, j);
