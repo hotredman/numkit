@@ -1,0 +1,10 @@
+{
+  "name": "blackman",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = blackman(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = blackman(N). 1024-pt Blackman. 10000 iters."
+}

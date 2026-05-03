@@ -1,0 +1,10 @@
+{
+  "name": "tukeywin",
+  "namespace": "core",
+  "setup": "n = 1024; r = 0.5;",
+  "expr": "y = tukeywin(n, r);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = tukeywin(N, R). r=0.5. 10000 iters."
+}

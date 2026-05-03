@@ -1445,9 +1445,9 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `barthannwin` | ✅ |  |  |  |  | Bartlett-Hann |
-| `bartlett` | ✅ |  |  |  |  |  |
-| `blackman` | ✅ |  |  |  |  |  |
-| `blackmanharris` | ✅ |  |  |  |  |  |
+| `bartlett` | ✅ | 0.002 | 6.14× | 10.10× | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
+| `blackman` | ✅ | 0.007 | 4.61× | 3.81× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
+| `blackmanharris` | ✅ | 0.010 | 2.79× |  | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
 | `bohmanwin` | ✅ |  |  |  |  | Bohman |
 | `chebwin` | ✅ |  |  |  |  | Dolph-Chebyshev |
 | `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
@@ -1456,17 +1456,17 @@ multiple sections; all occurrences refresh together).
 | `dpssload` | ❌ |  |  |  |  | cache |
 | `dpsssave` | ❌ |  |  |  |  | cache |
 | `enbw` | ❌ |  |  |  |  | equivalent noise BW |
-| `flattopwin` | ✅ |  |  |  |  |  |
-| `gausswin` | ✅ |  |  |  |  | Gaussian |
-| `hamming` | ✅ |  |  |  |  |  |
-| `hann` | ✅ |  |  |  |  |  |
-| `kaiser` | ✅ |  |  |  |  |  |
+| `flattopwin` | ✅ | 0.014 | 3.12× |  | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
+| `gausswin` | ✅ | 0.004 | 4.85× |  | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
+| `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
+| `hann` | ✅ | 0.004 | 9.34× |  | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
+| `kaiser` | ✅ | 0.019 | 1.62× |  | OK | Sig: W = kaiser(N, BETA). beta=5. 10000 iters. |
 | `nuttallwin` | ✅ |  |  |  |  |  |
 | `parzenwin` | ✅ |  |  |  |  | Parzen |
-| `rectwin` | ✅ |  |  |  |  |  |
+| `rectwin` | ✅ | 0.001 | 1.70× |  | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
 | `taylorwin` | ✅ |  |  |  |  | Taylor |
-| `triang` | ✅ |  |  |  |  | triangular |
-| `tukeywin` | ✅ |  |  |  |  | tapered cosine |
+| `triang` | ✅ | 0.001 | 9.16× |  | OK | Sig: W = triang(N). Triangular. 10000 iters. |
+| `tukeywin` | ✅ | 0.002 | 9.48× |  | OK | Sig: W = tukeywin(N, R). r=0.5. 10000 iters. |
 | `wvtool` | ❌ |  |  |  |  | GUI |
 
 ## Parametric Spectral Estimation (pburg / pmtm / pmusic / ...)
@@ -1475,15 +1475,15 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `db` | ✅ |  |  |  |  | magnitude → dB |
-| `db2mag` | ✅ |  |  |  |  |  |
+| `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ |  |  |  |  |  |
 | `findpeaks` | ✅ |  |  |  |  |  |
-| `mag2db` | ✅ |  |  |  |  |  |
+| `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `pburg` | ❌ |  |  |  |  | Burg AR |
 | `pcov` | ❌ |  |  |  |  |  |
 | `pmcov` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ |  |  |  |  |  |
+| `pow2db` | ✅ | 0.247 | 0.84× |  | OK | Sig: D = pow2db(P). 100k iters. |
 | `pyulear` | ❌ |  |  |  |  | Yule-Walker AR |
 
 ## Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...)
@@ -1493,17 +1493,17 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `cpsd` | ❌ |  |  |  |  | cross-PSD |
-| `db` | ✅ |  |  |  |  | magnitude → dB |
-| `db2mag` | ✅ |  |  |  |  |  |
+| `db` | ✅ | 0.444 | 0.59× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.645 | 0.93× |  | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ |  |  |  |  |  |
 | `findpeaks` | ✅ |  |  |  |  |  |
-| `mag2db` | ✅ |  |  |  |  |  |
+| `mag2db` | ✅ | 0.252 | 0.91× |  | OK | Sig: D = mag2db(M). 100k iters. |
 | `mscohere` | ❌ |  |  |  |  | magnitude-squared coherence |
 | `periodogram` | ✅ |  |  |  |  |  |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |
 | `poctave` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ |  |  |  |  |  |
+| `pow2db` | ✅ | 0.247 | 0.84× |  | OK | Sig: D = pow2db(P). 100k iters. |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `pwelch` | ✅ |  |  |  |  | Welch PSD |
 | `refinepeaks` | ❌ |  |  |  |  |  |
