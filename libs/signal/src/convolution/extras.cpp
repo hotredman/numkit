@@ -25,10 +25,16 @@ double readReal(const Value &v, size_t i)
 } // namespace
 
 // ── cconv ─────────────────────────────────────────────────────────────
+// MATLAB default for cconv(x, y) (no N): N = length(x) + length(y) - 1
+// — the linear-convolution length. The 3-arg form cconv(x, y, n) does
+// true circular convolution with period n. See BUGS.md #33.
 Value cconv(std::pmr::memory_resource *mr, const Value &x, const Value &y, size_t n)
 {
     const size_t nx = x.numel(), ny = y.numel();
-    if (n == 0) n = std::max(nx, ny);
+    if (n == 0) {
+        if (nx == 0 || ny == 0) n = 0;
+        else                    n = nx + ny - 1;
+    }
     auto out = Value::matrix(1, n, ValueType::DOUBLE, mr);
     double *dst = out.doubleDataMut();
     std::fill(dst, dst + n, 0.0);

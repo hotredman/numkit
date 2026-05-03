@@ -735,7 +735,7 @@ constant or different pole-magnitude formula.
 
 ---
 
-## 33. `libs/signal`: `cconv(a, b)` defaults to N=length(a), MATLAB defaults to length(a)+length(b)-1 — **P2**
+## 33. `libs/signal`: `cconv(a, b)` defaults to N=length(a), MATLAB defaults to length(a)+length(b)-1 — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -751,6 +751,11 @@ length-N=length(a) circular conv, which is the WRONG default per
 MATLAB semantics. Real parity bug.
 **Where:** [libs/signal/src/](libs/signal/) `cconv` — fix default N.
 **First seen:** 2026-05-03, parity bulk-bench iteration 29.
+**Fixed:** convolution/extras.cpp's cconv now uses N = nx + ny - 1
+when no N supplied (matches MATLAB linear-conv length). Bench
+correctness now OK; perf is 47× slower than MATLAB at N=1999 because
+of the O(N²) inner loop — MATLAB uses FFT-based circular conv.
+Perf-only follow-up if needed (likely composes via FFT in libs/signal/transforms).
 
 ---
 
