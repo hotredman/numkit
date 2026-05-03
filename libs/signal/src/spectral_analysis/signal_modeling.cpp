@@ -8,8 +8,14 @@
 
 #include <numkit/signal/spectral_analysis/signal_modeling.hpp>
 
+#include <numkit/builtin/math/poly/polynomials.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 #include <algorithm>
 #include <cmath>
@@ -356,6 +362,321 @@ Value rc2lar(std::pmr::memory_resource *mr, const Value &k)
 }
 
 // ════════════════════════════════════════════════════════════════════
+// Covariance / modified-covariance AR + Prony + corrmtx
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Solve a small symmetric positive-definite system A·x = b in place
+// using Gaussian elimination with partial pivoting. A is row-major
+// p×p; returns x. For ill-conditioned inputs (singular matrix)
+// returns the partial result.
+std::vector<double>
+solveSPD(std::vector<double> &A, std::vector<double> &b, int p)
+{
+    for (int k = 0; k < p; ++k) {
+        // Pivot.
+        int piv = k;
+        double pivVal = std::abs(A[k * p + k]);
+        for (int i = k + 1; i < p; ++i)
+            if (std::abs(A[i * p + k]) > pivVal) { pivVal = std::abs(A[i * p + k]); piv = i; }
+        if (pivVal < 1e-300) continue;
+        if (piv != k) {
+            for (int j = k; j < p; ++j)
+                std::swap(A[k * p + j], A[piv * p + j]);
+            std::swap(b[k], b[piv]);
+        }
+        const double diag = A[k * p + k];
+        for (int i = k + 1; i < p; ++i) {
+            const double f = A[i * p + k] / diag;
+            for (int j = k; j < p; ++j) A[i * p + j] -= f * A[k * p + j];
+            b[i] -= f * b[k];
+        }
+    }
+    std::vector<double> x(p, 0.0);
+    for (int i = p - 1; i >= 0; --i) {
+        double s = b[i];
+        for (int j = i + 1; j < p; ++j) s -= A[i * p + j] * x[j];
+        const double diag = A[i * p + i];
+        x[i] = (std::abs(diag) > 1e-300) ? s / diag : 0.0;
+    }
+    return x;
+}
+
+// Build the covariance correlation R_{ij} = sum_{n=p..N-1} x[n-i] * x[n-j]
+// for i, j in 0..p. Used by arcov / armcov.
+std::vector<double>
+covMatrixForward(const std::vector<double> &x, int p)
+{
+    const int N = static_cast<int>(x.size());
+    std::vector<double> R((p + 1) * (p + 1), 0.0);
+    for (int n = p; n < N; ++n) {
+        for (int i = 0; i <= p; ++i)
+            for (int j = 0; j <= p; ++j)
+                R[i * (p + 1) + j] += x[n - i] * x[n - j];
+    }
+    return R;
+}
+
+std::vector<double>
+covMatrixForwardBackward(const std::vector<double> &x, int p)
+{
+    const int N = static_cast<int>(x.size());
+    auto R = covMatrixForward(x, p);
+    // Backward: R += sum_{n=0..N-1-p} x[n+i] x[n+j]
+    for (int n = 0; n + p < N; ++n) {
+        for (int i = 0; i <= p; ++i)
+            for (int j = 0; j <= p; ++j)
+                R[i * (p + 1) + j] += x[n + i] * x[n + j];
+    }
+    return R;
+}
+
+// Given a (p+1)×(p+1) covariance matrix R indexed R[i,j] for i,j in
+// 0..p, solve for AR coefficients a[1..p] from R[1..p, 1..p] · a =
+// -R[1..p, 0]. Returns full a vector with a[0] = 1 prepended, plus
+// the prediction error e = R[0,0] + sum_k a[k] * R[0,k].
+struct ArCovResult { std::vector<double> a; double e; };
+ArCovResult solveArCov(const std::vector<double> &R, int p)
+{
+    std::vector<double> A(p * p, 0.0);
+    std::vector<double> b(p, 0.0);
+    for (int i = 0; i < p; ++i) {
+        for (int j = 0; j < p; ++j) A[i * p + j] = R[(i + 1) * (p + 1) + (j + 1)];
+        b[i] = -R[(i + 1) * (p + 1) + 0];
+    }
+    auto a_tail = solveSPD(A, b, p);
+    std::vector<double> a(p + 1, 0.0);
+    a[0] = 1.0;
+    for (int k = 0; k < p; ++k) a[k + 1] = a_tail[k];
+    double e = R[0];
+    for (int k = 1; k <= p; ++k) e += a[k] * R[k];
+    return {a, e};
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+arcov(std::pmr::memory_resource *mr, const Value &x, int p)
+{
+    auto v = readVec(x);
+    auto R = covMatrixForward(v, p);
+    // Normalise by the count of summed terms (N - p) so e has the
+    // same units as the residual variance.
+    const int N = static_cast<int>(v.size());
+    const double norm = static_cast<double>(std::max(N - p, 1));
+    for (auto &r : R) r /= norm;
+    auto res = solveArCov(R, p);
+    return std::make_tuple(rowVec(mr, res.a), Value::scalar(res.e, mr));
+}
+
+std::tuple<Value, Value>
+armcov(std::pmr::memory_resource *mr, const Value &x, int p)
+{
+    auto v = readVec(x);
+    auto R = covMatrixForwardBackward(v, p);
+    const int N = static_cast<int>(v.size());
+    const double norm = static_cast<double>(std::max(2 * (N - p), 1));
+    for (auto &r : R) r /= norm;
+    auto res = solveArCov(R, p);
+    return std::make_tuple(rowVec(mr, res.a), Value::scalar(res.e, mr));
+}
+
+// ── prony ─────────────────────────────────────────────────────────
+// Identify a numerator b (length nb+1) and denominator a (length na+1)
+// such that the IIR filter b(z)/a(z) has impulse response approximately
+// equal to h. Standard formulation:
+//   1. Form the Hankel-like matrix H of `h` shifted, build the system
+//      H_{na rows after first nb+1 samples} · [a[1..na]] = -h[nb+1..]
+//   2. Solve by least squares.
+//   3. b = (a convolved with h) truncated to nb+1 terms.
+std::tuple<Value, Value>
+prony(std::pmr::memory_resource *mr, const Value &h, int nb, int na)
+{
+    auto hv = readVec(h);
+    const int N = static_cast<int>(hv.size());
+    if (na > 0) {
+        // Build linear system M · a_tail = -rhs, where M is (N-1-nb) × na
+        // and rhs is length (N-1-nb). M[i, j] = h[nb+1+i-1-j] (padded
+        // with zeros on the left), rhs[i] = h[nb+1+i].
+        const int rows = std::max(N - 1 - nb, 1);
+        std::vector<double> M(rows * na, 0.0);
+        std::vector<double> rhs(rows, 0.0);
+        for (int i = 0; i < rows; ++i) {
+            for (int j = 0; j < na; ++j) {
+                const int idx = nb + i - j;  // h index = nb+1+i - (j+1) = nb+i-j
+                M[i * na + j] = (idx >= 0 && idx < N) ? hv[idx] : 0.0;
+            }
+            const int rhs_idx = nb + 1 + i;
+            rhs[i] = (rhs_idx < N) ? -hv[rhs_idx] : 0.0;
+        }
+        // Normal equations: (M^T M) · a_tail = M^T rhs
+        std::vector<double> MtM(na * na, 0.0);
+        std::vector<double> Mtb(na, 0.0);
+        for (int i = 0; i < na; ++i) {
+            for (int j = 0; j < na; ++j) {
+                double s = 0.0;
+                for (int k = 0; k < rows; ++k) s += M[k * na + i] * M[k * na + j];
+                MtM[i * na + j] = s;
+            }
+            double s = 0.0;
+            for (int k = 0; k < rows; ++k) s += M[k * na + i] * rhs[k];
+            Mtb[i] = s;
+        }
+        auto a_tail = solveSPD(MtM, Mtb, na);
+        std::vector<double> a(na + 1, 0.0);
+        a[0] = 1.0;
+        for (int k = 0; k < na; ++k) a[k + 1] = a_tail[k];
+
+        // b = (a * h) truncated to nb+1 terms.
+        std::vector<double> b(nb + 1, 0.0);
+        for (int i = 0; i <= nb; ++i) {
+            double s = 0.0;
+            for (int k = 0; k <= std::min(i, na); ++k)
+                if (i - k < N) s += a[k] * hv[i - k];
+            b[i] = s;
+        }
+        return std::make_tuple(rowVec(mr, b), rowVec(mr, a));
+    }
+    // na == 0: pure FIR. b[i] = h[i] for i = 0..nb, a = [1].
+    std::vector<double> b(nb + 1, 0.0);
+    for (int i = 0; i <= nb && i < N; ++i) b[i] = hv[i];
+    return std::make_tuple(rowVec(mr, b), rowVec(mr, std::vector<double>{1.0}));
+}
+
+// ── corrmtx ───────────────────────────────────────────────────────
+// MATLAB default 'autocorrelation' method: produces the (n+m)×(m+1)
+// data matrix X with X(i, j) = x(i-j+1), zero-padded outside the
+// input range, such that X' * X is the (m+1)×(m+1) autocorrelation
+// matrix.
+Value corrmtx(std::pmr::memory_resource *mr, const Value &x, int m)
+{
+    auto v = readVec(x);
+    const int N = static_cast<int>(v.size());
+    const int rows = N + m;
+    const int cols = m + 1;
+    auto X = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    double *d = X.doubleDataMut();
+    std::fill(d, d + rows * cols, 0.0);
+    for (int j = 0; j < cols; ++j) {
+        for (int i = 0; i < rows; ++i) {
+            const int idx = i - j;     // x[i-j], zero outside [0, N)
+            if (idx >= 0 && idx < N) d[i + j * rows] = v[idx];
+        }
+    }
+    return X;
+}
+
+// ── LSF ↔ AR poly ────────────────────────────────────────────────
+// LSF is built from P(z) = A(z) + z^{-(N+1)} A_R(z) and Q(z) = A(z)
+// - z^{-(N+1)} A_R(z), where A_R is the reverse of A. The roots of
+// P and Q lie on the unit circle, alternating; the LSF angles are
+// the angles of those roots in (0, π).
+
+namespace {
+
+std::vector<double> reverseVec(const std::vector<double> &v)
+{
+    return std::vector<double>(v.rbegin(), v.rend());
+}
+
+// Pad poly p (descending power) to total length n with leading zeros.
+std::vector<double> padLeft(const std::vector<double> &p, int n)
+{
+    std::vector<double> r(n, 0.0);
+    const int off = n - static_cast<int>(p.size());
+    for (size_t i = 0; i < p.size(); ++i) r[off + i] = p[i];
+    return r;
+}
+
+} // anonymous
+
+Value poly2lsf(std::pmr::memory_resource *mr, const Value &a)
+{
+    auto av = readVec(a);
+    const int N = static_cast<int>(av.size()) - 1;
+    if (N <= 0) return colVec(mr, std::vector<double>{});
+
+    // Build P = A + A_R_shifted, Q = A - A_R_shifted, both length N+2.
+    auto ar = reverseVec(av);
+    std::vector<double> P(N + 2, 0.0), Q(N + 2, 0.0);
+    for (int i = 0; i <= N; ++i) {
+        P[i] = av[i];
+        Q[i] = av[i];
+    }
+    for (int i = 1; i <= N + 1; ++i) {
+        P[i] += ar[i - 1];
+        Q[i] -= ar[i - 1];
+    }
+    // Find roots and pick angles in (0, π).
+    std::vector<double> angles;
+    for (auto &poly : {P, Q}) {
+        Value polyV = rowVec(mr, poly);
+        Value rts = numkit::builtin::roots(mr, polyV);
+        const size_t n = rts.numel();
+        for (size_t i = 0; i < n; ++i) {
+            const Complex c = rts.complexData()[i];
+            const double a_ang = std::atan2(c.imag(), c.real());
+            if (a_ang > 1e-9 && a_ang < M_PI - 1e-9) angles.push_back(a_ang);
+        }
+    }
+    std::sort(angles.begin(), angles.end());
+    // Should yield N angles.
+    if (static_cast<int>(angles.size()) > N) angles.resize(N);
+    return colVec(mr, angles);
+}
+
+Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf)
+{
+    auto lv = readVec(lsf);
+    const int N = static_cast<int>(lv.size());
+    if (N == 0) return rowVec(mr, std::vector<double>{1.0});
+
+    // Build P(z) = (1+z^-1) * prod_{odd i} (1 - 2 cos(w_i) z^-1 + z^-2)
+    // Build Q(z) = (1-z^-1) * prod_{even i} (1 - 2 cos(w_i) z^-1 + z^-2)
+    // (using 0-based indexing: even-indexed lsf go into P, odd into Q,
+    // matching MATLAB.)
+    std::vector<std::vector<double>> Ppairs, Qpairs;
+    for (int i = 0; i < N; ++i) {
+        const double c = std::cos(lv[i]);
+        std::vector<double> q = {1.0, -2.0 * c, 1.0};
+        if (i % 2 == 0) Ppairs.push_back(q);
+        else            Qpairs.push_back(q);
+    }
+    auto convAll = [](std::vector<std::vector<double>> &ps,
+                      const std::vector<double> &lead) {
+        std::vector<double> r = lead;
+        for (auto &p : ps) {
+            std::vector<double> nr(r.size() + p.size() - 1, 0.0);
+            for (size_t i = 0; i < r.size(); ++i)
+                for (size_t j = 0; j < p.size(); ++j)
+                    nr[i + j] += r[i] * p[j];
+            r = nr;
+        }
+        return r;
+    };
+    auto P = convAll(Ppairs, std::vector<double>{1.0,  1.0});
+    auto Q = convAll(Qpairs, std::vector<double>{1.0, -1.0});
+
+    // Pad to common length, then a = (P + Q) / 2.
+    const int M = std::max(P.size(), Q.size());
+    P = padLeft(P, M); Q = padLeft(Q, M);
+    std::vector<double> a(M, 0.0);
+    for (int i = 0; i < M; ++i) a[i] = 0.5 * (P[i] + Q[i]);
+    // P and Q are degree-(N+1) polynomials, so (P+Q)/2 is also degree
+    // N+1. The trailing coefficient cancels exactly for valid LSF
+    // (it represents z^{-(N+1)} A_R - z^{-(N+1)} A_R = 0); trim it
+    // along with any leading zero so we land on the canonical
+    // length-(N+1) AR coefficient vector. Tolerate small numerical
+    // dust on the trailing term.
+    while (a.size() > static_cast<size_t>(N + 1)
+           && std::abs(a.back()) < 1e-9)
+        a.pop_back();
+    while (a.size() > 1 && a.front() == 0.0) a.erase(a.begin());
+    return rowVec(mr, a);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -462,8 +783,51 @@ NK_UNARY_CONV_REG(is2rc)
 NK_UNARY_CONV_REG(rc2is)
 NK_UNARY_CONV_REG(lar2rc)
 NK_UNARY_CONV_REG(rc2lar)
+NK_UNARY_CONV_REG(poly2lsf)
+NK_UNARY_CONV_REG(lsf2poly)
 
 #undef NK_UNARY_CONV_REG
+
+#define NK_AR2_REG(name, fn)                                                    \
+    void name##_reg(Span<const Value> args, size_t nargout,                    \
+                    Span<Value> outs, CallContext &ctx)                        \
+    {                                                                            \
+        if (args.size() < 2)                                                     \
+            throw Error(#name ": requires (x, p)",                              \
+                         0, 0, #name, "", "m:" #name ":nargin");                 \
+        const int p = static_cast<int>(args[1].toScalar());                     \
+        auto [a, e] = fn(ctx.engine->resource(), args[0], p);                   \
+        outs[0] = std::move(a);                                                  \
+        if (nargout > 1) outs[1] = std::move(e);                                 \
+    }
+
+NK_AR2_REG(arcov,  arcov)
+NK_AR2_REG(armcov, armcov)
+
+#undef NK_AR2_REG
+
+void prony_reg(Span<const Value> args, size_t nargout,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("prony: requires (h, nb, na)",
+                     0, 0, "prony", "", "m:prony:nargin");
+    const int nb = static_cast<int>(args[1].toScalar());
+    const int na = static_cast<int>(args[2].toScalar());
+    auto [b, a] = prony(ctx.engine->resource(), args[0], nb, na);
+    outs[0] = std::move(b);
+    if (nargout > 1) outs[1] = std::move(a);
+}
+
+void corrmtx_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("corrmtx: requires (x, m)",
+                     0, 0, "corrmtx", "", "m:corrmtx:nargin");
+    const int m = static_cast<int>(args[1].toScalar());
+    outs[0] = corrmtx(ctx.engine->resource(), args[0], m);
+}
 
 } // namespace detail
 } // namespace numkit::signal

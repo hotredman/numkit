@@ -1361,21 +1361,21 @@ multiple sections; all occurrences refresh together).
 | `ac2poly` | ✅ |  |  |  |  |  |
 | `ac2rc` | ✅ |  |  |  |  |  |
 | `arburg` | ✅ |  |  |  |  | Burg AR |
-| `arcov` | ❌ |  |  |  |  | covariance AR |
-| `armcov` | ❌ |  |  |  |  | modified cov AR |
+| `arcov` | ✅ |  |  |  |  | covariance AR |
+| `armcov` | ✅ |  |  |  |  | modified cov AR |
 | `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
-| `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
+| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
 | `invfreqs` | ❌ |  |  |  |  |  |
 | `invfreqz` | ❌ |  |  |  |  | IIR sys-id |
 | `is2rc` | ✅ |  |  |  |  |  |
 | `lar2rc` | ✅ |  |  |  |  |  |
 | `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
 | `lpc` | ✅ |  |  |  |  | linear prediction |
-| `lsf2poly` | ❌ |  |  |  |  |  |
+| `lsf2poly` | ✅ |  |  |  |  |  |
 | `poly2ac` | ✅ |  |  |  |  |  |
-| `poly2lsf` | ❌ |  |  |  |  |  |
+| `poly2lsf` | ✅ |  |  |  |  |  |
 | `poly2rc` | ✅ |  |  |  |  |  |
-| `prony` | ❌ |  |  |  |  | Prony method |
+| `prony` | ✅ |  |  |  |  | Prony method |
 | `rc2ac` | ✅ |  |  |  |  |  |
 | `rc2is` | ✅ |  |  |  |  |  |
 | `rc2lar` | ✅ |  |  |  |  |  |
@@ -1393,7 +1393,7 @@ multiple sections; all occurrences refresh together).
 | `alignsignals` | ✅ | 0.099 | 2.19× |  | MISMATCH | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
 | `cconv` | ✅ | 10.545 | 0.02× | 0.03× | OK | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
 | `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
+| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
 | `dtw` | ❌ |  |  |  |  | dynamic time warp |
 | `edr` | ❌ |  |  |  |  | edit distance on real |
 | `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
