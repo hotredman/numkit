@@ -68,93 +68,12 @@ inline double tand_scalar(double x)
     return std::tan(xr * kDeg2Rad);
 }
 
-inline double sinpi_scalar(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    // remainder reduces to [-1, 1] (the period of sin(pi*x) is 2).
-    const double xr = std::remainder(x, 2.0);
-    if (xr == 0.0 || xr == 1.0 || xr == -1.0) return 0.0;
-    if (xr ==  0.5) return  1.0;
-    if (xr == -0.5) return -1.0;
-    return std::sin(kPi * xr);
-}
-
-inline double cospi_scalar(double x)
-{
-    if (std::isnan(x)) return x;
-    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
-    const double xr = std::remainder(x, 2.0);
-    if (xr ==  0.5 || xr == -0.5) return 0.0;
-    if (xr ==  0.0) return  1.0;
-    if (xr ==  1.0 || xr == -1.0) return -1.0;
-    return std::cos(kPi * xr);
-}
 } // anonymous
 
-Value sind(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sin(c * kDeg2Rad); }, mr);
-    return unaryDouble(x, [](double v) { return sind_scalar(v); }, mr);
-}
-
-Value cosd(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::cos(c * kDeg2Rad); }, mr);
-    return unaryDouble(x, [](double v) { return cosd_scalar(v); }, mr);
-}
-
-Value tand(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::tan(c * kDeg2Rad); }, mr);
-    return unaryDouble(x, [](double v) { return tand_scalar(v); }, mr);
-}
-
-Value asind(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::asin(c) * kRad2Deg; }, mr);
-    return unaryDouble(x, [](double v) { return std::asin(v) * kRad2Deg; }, mr);
-}
-
-Value acosd(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::acos(c) * kRad2Deg; }, mr);
-    return unaryDouble(x, [](double v) { return std::acos(v) * kRad2Deg; }, mr);
-}
-
-Value atand(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::atan(c) * kRad2Deg; }, mr);
-    return unaryDouble(x, [](double v) { return std::atan(v) * kRad2Deg; }, mr);
-}
-
-Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
-{
-    return elementwiseDouble(y, x,
-        [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg; }, mr);
-}
-
-// ── Pi-scaled ─────────────────────────────────────────────────────────
-
-Value sinpi(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sin(kPi * c); }, mr);
-    return unaryDouble(x, [](double v) { return sinpi_scalar(v); }, mr);
-}
-
-Value cospi(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::cos(kPi * c); }, mr);
-    return unaryDouble(x, [](double v) { return cospi_scalar(v); }, mr);
-}
+// sind / cosd / tand / asind / acosd / atand / atan2d / sinpi / cospi
+// now live in trig_simd.cpp / trig_portable.cpp. The snap-helpers
+// (sind_scalar, cosd_scalar, tand_scalar) remain in this file's
+// anonymous namespace because secd / cscd / cotd reuse them below.
 
 // ── Reciprocal trig (sec/csc/cot families) ────────────────────────────
 //

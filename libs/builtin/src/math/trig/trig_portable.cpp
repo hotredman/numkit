@@ -1,10 +1,11 @@
 // libs/builtin/src/math/trig/trig_portable.cpp
 //
-// Reference scalar implementations of trig family: sin, cos, sinh,
-// cosh, tanh, asin, acos, atan, atan2, asinh, atanh. Compiled when
-// NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant lives in
-// trig_simd.cpp and matches this file bit-for-bit on complex inputs
-// (SIMD only helps the real-vector fast path).
+// Reference scalar implementations of trig family: sin, cos, tan,
+// sinh, cosh, tanh, asin, acos, atan, atan2, asinh, acosh, atanh,
+// sind, cosd, tand, asind, acosd, atand, atan2d, sinpi, cospi.
+// Compiled when NUMKIT_WITH_SIMD=OFF; the Highway-dispatched variant
+// lives in trig_simd.cpp and matches this file bit-for-bit on complex
+// inputs (SIMD only helps the real-vector fast path).
 
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 
@@ -143,6 +144,117 @@ Value acosh(std::pmr::memory_resource *mr, const Value &x)
     if (x.isScalar() && x.toScalar() < 1.0)
         return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
     return unaryDouble(x, [](double v) { return std::acosh(v); }, mr);
+}
+
+// ── Degree variants + sinpi/cospi (scalar fallback) ──────────────────
+
+namespace {
+constexpr double kDeg2Rad_p = 3.14159265358979323846 / 180.0;
+constexpr double kRad2Deg_p = 180.0 / 3.14159265358979323846;
+constexpr double kPi_p      = 3.14159265358979323846;
+
+inline double sind_scalar_p(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 0.0 || xr == 180.0 || xr == -180.0) return 0.0;
+    if (xr == 90.0)  return  1.0;
+    if (xr == -90.0) return -1.0;
+    return std::sin(xr * kDeg2Rad_p);
+}
+inline double cosd_scalar_p(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 90.0 || xr == -90.0 || xr == 270.0 || xr == -270.0) return 0.0;
+    if (xr == 0.0) return  1.0;
+    if (xr == 180.0 || xr == -180.0) return -1.0;
+    return std::cos(xr * kDeg2Rad_p);
+}
+inline double tand_scalar_p(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 0.0 || xr == 180.0 || xr == -180.0) return 0.0;
+    if (xr == 90.0)  return  std::numeric_limits<double>::infinity();
+    if (xr == -90.0) return -std::numeric_limits<double>::infinity();
+    if (xr == 270.0) return  std::numeric_limits<double>::infinity();
+    if (xr == -270.0)return -std::numeric_limits<double>::infinity();
+    return std::tan(xr * kDeg2Rad_p);
+}
+inline double sinpi_scalar_p(double x)
+{
+    if (std::isnan(x)) return x;
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::remainder(x, 2.0);
+    if (xr == 0.0 || xr == 1.0 || xr == -1.0) return 0.0;
+    if (xr ==  0.5) return  1.0;
+    if (xr == -0.5) return -1.0;
+    return std::sin(kPi_p * xr);
+}
+inline double cospi_scalar_p(double x)
+{
+    if (std::isnan(x)) return x;
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::remainder(x, 2.0);
+    if (xr ==  0.5 || xr == -0.5) return 0.0;
+    if (xr ==  0.0) return  1.0;
+    if (xr ==  1.0 || xr == -1.0) return -1.0;
+    return std::cos(kPi_p * xr);
+}
+} // anonymous
+
+Value sind(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sin(c * kDeg2Rad_p); }, mr);
+    return unaryDouble(x, [](double v) { return sind_scalar_p(v); }, mr);
+}
+Value cosd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(c * kDeg2Rad_p); }, mr);
+    return unaryDouble(x, [](double v) { return cosd_scalar_p(v); }, mr);
+}
+Value tand(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::tan(c * kDeg2Rad_p); }, mr);
+    return unaryDouble(x, [](double v) { return tand_scalar_p(v); }, mr);
+}
+Value asind(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::asin(c) * kRad2Deg_p; }, mr);
+    return unaryDouble(x, [](double v) { return std::asin(v) * kRad2Deg_p; }, mr);
+}
+Value acosd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::acos(c) * kRad2Deg_p; }, mr);
+    return unaryDouble(x, [](double v) { return std::acos(v) * kRad2Deg_p; }, mr);
+}
+Value atand(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::atan(c) * kRad2Deg_p; }, mr);
+    return unaryDouble(x, [](double v) { return std::atan(v) * kRad2Deg_p; }, mr);
+}
+Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+{
+    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg_p; }, mr);
+}
+Value sinpi(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sin(kPi_p * c); }, mr);
+    return unaryDouble(x, [](double v) { return sinpi_scalar_p(v); }, mr);
+}
+Value cospi(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(kPi_p * c); }, mr);
+    return unaryDouble(x, [](double v) { return cospi_scalar_p(v); }, mr);
 }
 
 } // namespace numkit::builtin

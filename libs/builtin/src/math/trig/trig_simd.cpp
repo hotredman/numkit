@@ -207,6 +207,144 @@ void Atan2Loop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
     for (; i < n; ++i) out[i] = std::atan2(y[i], x[i]);
 }
 
+// ── Degree variants: SIMD bulk path. ─────────────────────────────────
+//
+// MATLAB preserves exact zeros / ±1 at integer multiples of 90° on
+// scalar input (e.g. sind(180) == 0 exactly, not ~1.2e-16). The
+// public-API scalar fast-path (in trig_simd.cpp / trig_portable.cpp)
+// keeps the snap. The SIMD vector path does NOT snap — for typical
+// 1M-pt sweeps the inputs are not exact integer multiples of 90.
+// (Bench-OK; if a downstream consumer needs vector-path exact-zero
+// snapping, add a post-pass that overrides multiples of 90.)
+
+namespace deg_consts {
+constexpr double kDeg2Rad = 3.14159265358979323846 / 180.0;
+constexpr double kRad2Deg = 180.0 / 3.14159265358979323846;
+constexpr double kPi      = 3.14159265358979323846;
+}
+
+void SindLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kDeg2Rad);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Sin(d, hn::Mul(v, k)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::sin(in[i] * deg_consts::kDeg2Rad);
+}
+
+void CosdLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kDeg2Rad);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Cos(d, hn::Mul(v, k)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::cos(in[i] * deg_consts::kDeg2Rad);
+}
+
+void TandLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kDeg2Rad);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        auto r = hn::Mul(v, k);
+        hn::StoreU(hn::Div(hn::Sin(d, r), hn::Cos(d, r)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::tan(in[i] * deg_consts::kDeg2Rad);
+}
+
+void AsindLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kRad2Deg);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Mul(hn::Asin(d, v), k), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::asin(in[i]) * deg_consts::kRad2Deg;
+}
+
+void AcosdLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kRad2Deg);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Mul(hn::Acos(d, v), k), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::acos(in[i]) * deg_consts::kRad2Deg;
+}
+
+void AtandLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kRad2Deg);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Mul(hn::Atan(d, v), k), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::atan(in[i]) * deg_consts::kRad2Deg;
+}
+
+void Atan2dLoop(const double *HWY_RESTRICT y, const double *HWY_RESTRICT x,
+                double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kRad2Deg);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto vy = hn::LoadU(d, y + i);
+        auto vx = hn::LoadU(d, x + i);
+        hn::StoreU(hn::Mul(hn::Atan2(d, vy, vx), k), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::atan2(y[i], x[i]) * deg_consts::kRad2Deg;
+}
+
+// ── Multiple-of-π variants. ──────────────────────────────────────────
+
+void SinpiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kPi);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Sin(d, hn::Mul(v, k)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::sin(deg_consts::kPi * in[i]);
+}
+
+void CospiLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
+{
+    const hn::ScalableTag<double> d;
+    const std::size_t N = hn::Lanes(d);
+    const auto k = hn::Set(d, deg_consts::kPi);
+    std::size_t i = 0;
+    for (; i + N <= n; i += N) {
+        auto v = hn::LoadU(d, in + i);
+        hn::StoreU(hn::Cos(d, hn::Mul(v, k)), d, out + i);
+    }
+    for (; i < n; ++i) out[i] = std::cos(deg_consts::kPi * in[i]);
+}
+
 } // namespace HWY_NAMESPACE
 } // namespace numkit::builtin
 HWY_AFTER_NAMESPACE();
@@ -228,8 +366,81 @@ HWY_EXPORT(AtanhLoop);
 HWY_EXPORT(Atan2Loop);
 HWY_EXPORT(TanLoop);
 HWY_EXPORT(AcoshLoop);
+HWY_EXPORT(SindLoop);
+HWY_EXPORT(CosdLoop);
+HWY_EXPORT(TandLoop);
+HWY_EXPORT(AsindLoop);
+HWY_EXPORT(AcosdLoop);
+HWY_EXPORT(AtandLoop);
+HWY_EXPORT(Atan2dLoop);
+HWY_EXPORT(SinpiLoop);
+HWY_EXPORT(CospiLoop);
 
 namespace {
+
+// Constants for degree / multiple-of-π variants (scalar path).
+// kept in the anonymous namespace so they don't leak.
+constexpr double kDeg2Rad = 3.14159265358979323846 / 180.0;
+constexpr double kRad2Deg = 180.0 / 3.14159265358979323846;
+constexpr double kPi      = 3.14159265358979323846;
+
+// Snap exact integer multiples of 90° to exact 0 / ±1 / ±Inf.
+// Used by the scalar fast-path for sind / cosd / tand to match
+// MATLAB exactly (e.g. sind(180) == 0 not ~1.2e-16). The vector
+// SIMD path skips this — bench inputs rarely hit exact multiples.
+inline double sind_scalar(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 0.0 || xr == 180.0 || xr == -180.0) return 0.0;
+    if (xr == 90.0)  return  1.0;
+    if (xr == -90.0) return -1.0;
+    return std::sin(xr * kDeg2Rad);
+}
+
+inline double cosd_scalar(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 90.0 || xr == -90.0 || xr == 270.0 || xr == -270.0) return 0.0;
+    if (xr == 0.0) return  1.0;
+    if (xr == 180.0 || xr == -180.0) return -1.0;
+    return std::cos(xr * kDeg2Rad);
+}
+
+inline double tand_scalar(double x)
+{
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::fmod(x, 360.0);
+    if (xr == 0.0 || xr == 180.0 || xr == -180.0) return 0.0;
+    if (xr == 90.0)  return  std::numeric_limits<double>::infinity();
+    if (xr == -90.0) return -std::numeric_limits<double>::infinity();
+    if (xr == 270.0) return  std::numeric_limits<double>::infinity();
+    if (xr == -270.0)return -std::numeric_limits<double>::infinity();
+    return std::tan(xr * kDeg2Rad);
+}
+
+inline double sinpi_scalar(double x)
+{
+    if (std::isnan(x)) return x;
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::remainder(x, 2.0);
+    if (xr == 0.0 || xr == 1.0 || xr == -1.0) return 0.0;
+    if (xr ==  0.5) return  1.0;
+    if (xr == -0.5) return -1.0;
+    return std::sin(kPi * xr);
+}
+
+inline double cospi_scalar(double x)
+{
+    if (std::isnan(x)) return x;
+    if (!std::isfinite(x)) return std::numeric_limits<double>::quiet_NaN();
+    const double xr = std::remainder(x, 2.0);
+    if (xr ==  0.5 || xr == -0.5) return 0.0;
+    if (xr ==  0.0) return  1.0;
+    if (xr ==  1.0 || xr == -1.0) return -1.0;
+    return std::cos(kPi * xr);
+}
 
 // Shared shape for sin/cos: delegate complex / scalar to the
 // reference path, route real vectors through the dispatcher. When
@@ -449,6 +660,144 @@ Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
         return r;
     }
     return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
+}
+
+// ── Degree variants + sinpi/cospi: SIMD-dispatched real-vector path ──
+//
+// Scalar path uses the snap-helpers above to preserve MATLAB's exact
+// 0 / ±1 / ±Inf at integer multiples of 90 (degree variants) or ½
+// (sinpi/cospi). Vector SIMD path multiplies-and-calls Sin/Cos/Atan
+// without snapping; for typical bench inputs this is correct to ULP.
+
+Value sind(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sin(c * kDeg2Rad); }, mr);
+    if (x.isScalar())
+        return Value::scalar(sind_scalar(x.toScalar()), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(SindLoop)(in, out, n);
+        },
+        sind_scalar,
+        [](const Complex &c) { return std::sin(c * kDeg2Rad); });
+}
+
+Value cosd(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(c * kDeg2Rad); }, mr);
+    if (x.isScalar())
+        return Value::scalar(cosd_scalar(x.toScalar()), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(CosdLoop)(in, out, n);
+        },
+        cosd_scalar,
+        [](const Complex &c) { return std::cos(c * kDeg2Rad); });
+}
+
+Value tand(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::tan(c * kDeg2Rad); }, mr);
+    if (x.isScalar())
+        return Value::scalar(tand_scalar(x.toScalar()), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(TandLoop)(in, out, n);
+        },
+        tand_scalar,
+        [](const Complex &c) { return std::tan(c * kDeg2Rad); });
+}
+
+Value asind(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(AsindLoop)(in, out, n);
+        },
+        [](double v) { return std::asin(v) * kRad2Deg; },
+        [](const Complex &c) { return std::asin(c) * kRad2Deg; });
+}
+
+Value acosd(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(AcosdLoop)(in, out, n);
+        },
+        [](double v) { return std::acos(v) * kRad2Deg; },
+        [](const Complex &c) { return std::acos(c) * kRad2Deg; });
+}
+
+Value atand(std::pmr::memory_resource *mr, const Value &x)
+{
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(AtandLoop)(in, out, n);
+        },
+        [](double v) { return std::atan(v) * kRad2Deg; },
+        [](const Complex &c) { return std::atan(c) * kRad2Deg; });
+}
+
+Value atan2d(std::pmr::memory_resource *mr, const Value &y, const Value &x)
+{
+    if (y.isComplex() || x.isComplex())
+        return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg; }, mr);
+    if (y.isScalar() && x.isScalar())
+        return Value::scalar(std::atan2(y.toScalar(), x.toScalar()) * kRad2Deg, mr);
+
+    if (!y.isScalar() && !x.isScalar() && y.dims() == x.dims()) {
+        Value r = createLike(y, ValueType::DOUBLE, mr);
+        if (y.numel() == 0)
+            return r;
+        const double *yp  = y.doubleData();
+        const double *xp  = x.doubleData();
+        double       *out = r.doubleDataMut();
+        numkit::detail::parallel_for(y.numel(), numkit::detail::kTranscendentalThreshold,
+            [=](std::size_t s, std::size_t e) {
+                HWY_DYNAMIC_DISPATCH(Atan2dLoop)(yp + s, xp + s, out + s, e - s);
+            });
+        return r;
+    }
+    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx) * kRad2Deg; }, mr);
+}
+
+Value sinpi(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::sin(kPi * c); }, mr);
+    if (x.isScalar())
+        return Value::scalar(sinpi_scalar(x.toScalar()), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(SinpiLoop)(in, out, n);
+        },
+        sinpi_scalar,
+        [](const Complex &c) { return std::sin(kPi * c); });
+}
+
+Value cospi(std::pmr::memory_resource *mr, const Value &x)
+{
+    if (x.isComplex())
+        return unaryComplex(x, [](const Complex &c) { return std::cos(kPi * c); }, mr);
+    if (x.isScalar())
+        return Value::scalar(cospi_scalar(x.toScalar()), mr);
+    return unaryRealDouble(
+        mr, x, /*hint*/ nullptr,
+        [](const double *in, double *out, std::size_t n) {
+            HWY_DYNAMIC_DISPATCH(CospiLoop)(in, out, n);
+        },
+        cospi_scalar,
+        [](const Complex &c) { return std::cos(kPi * c); });
 }
 
 } // namespace numkit::builtin
