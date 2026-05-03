@@ -1026,6 +1026,343 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `ncx2rnd` | ❌ |  |  |  |  |  |
 | `ncx2stat` | ❌ |  |  |  |  |  |
 
+## Distribution Fitting (MLE / likelihood)
+
+**Namespace:** `stats.fit.*` — 0 ✅ + 0 ⚠️ / 24 = 0%
+
+OOP `fitdist` / `makedist` family intentionally omitted — only flat
+function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `mle` | ❌ |  |  |  |  | generic MLE for arbitrary pdf |
+| `mlecov` | ❌ |  |  |  |  | covariance of MLE estimates |
+| `betafit` | ❌ |  |  |  |  |  |
+| `betalike` | ❌ |  |  |  |  |  |
+| `binofit` | ❌ |  |  |  |  |  |
+| `evfit` | ❌ |  |  |  |  | extreme value |
+| `evlike` | ❌ |  |  |  |  |  |
+| `expfit` | ❌ |  |  |  |  |  |
+| `explike` | ❌ |  |  |  |  |  |
+| `gamfit` | ❌ |  |  |  |  |  |
+| `gamlike` | ❌ |  |  |  |  |  |
+| `gevfit` | ❌ |  |  |  |  | generalised extreme value |
+| `gevlike` | ❌ |  |  |  |  |  |
+| `gpfit` | ❌ |  |  |  |  | generalised Pareto |
+| `gplike` | ❌ |  |  |  |  |  |
+| `lognfit` | ❌ |  |  |  |  |  |
+| `lognlike` | ❌ |  |  |  |  |  |
+| `nbinfit` | ❌ |  |  |  |  |  |
+| `normfit` | ❌ |  |  |  |  |  |
+| `normlike` | ❌ |  |  |  |  |  |
+| `poissfit` | ❌ |  |  |  |  |  |
+| `raylfit` | ❌ |  |  |  |  |  |
+| `unifit` | ❌ |  |  |  |  | continuous uniform |
+| `wblfit` | ❌ |  |  |  |  |  |
+| `wbllike` | ❌ |  |  |  |  |  |
+
+## Multivariate Distributions
+
+**Namespace:** `stats.mvdist.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `mvncdf` | ❌ |  |  |  |  | multivariate normal |
+| `mvnpdf` | ❌ |  |  |  |  |  |
+| `mvnrnd` | ❌ |  |  |  |  |  |
+| `mvtcdf` | ❌ |  |  |  |  | multivariate t |
+| `mvtpdf` | ❌ |  |  |  |  |  |
+| `mvtrnd` | ❌ |  |  |  |  |  |
+| `mnpdf` | ❌ |  |  |  |  | multinomial |
+| `mnrnd` | ❌ |  |  |  |  |  |
+| `wishrnd` | ❌ |  |  |  |  | Wishart |
+| `iwishrnd` | ❌ |  |  |  |  | inverse Wishart |
+| `copulapdf` | ❌ |  |  |  |  |  |
+| `copulacdf` | ❌ |  |  |  |  |  |
+| `copulafit` | ❌ |  |  |  |  |  |
+| `copulaparam` | ❌ |  |  |  |  |  |
+| `copulastat` | ❌ |  |  |  |  |  |
+| `copularnd` | ❌ |  |  |  |  |  |
+
+## Pearson / Johnson Distributions
+
+**Namespace:** `stats.pearson.*` / `stats.johnson.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `pearspdf` | ❌ |  |  |  |  | Pearson family |
+| `pearscdf` | ❌ |  |  |  |  |  |
+| `pearsinv` | ❌ |  |  |  |  |  |
+| `pearsrnd` | ❌ |  |  |  |  |  |
+| `johnsrnd` | ❌ |  |  |  |  | Johnson family random |
+| `randg` | ❌ |  |  |  |  | gamma random utility |
+
+## Empirical / Kernel Distributions
+
+**Namespace:** `stats.empirical.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `ecdf` | ❌ |  |  |  |  | empirical cdf |
+| `ecdfhist` | ❌ |  |  |  |  | hist from ecdf |
+| `ksdensity` | ❌ |  |  |  |  | kernel density estimation |
+| `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |
+
+## Hypothesis Tests
+
+**Namespace:** `stats.test.*` — 0 ✅ + 0 ⚠️ / 25 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `adtest` | ❌ |  |  |  |  | Anderson-Darling normality |
+| `ansaribradley` | ❌ |  |  |  |  | scale test |
+| `barttest` | ❌ |  |  |  |  | Bartlett's sphericity |
+| `chi2gof` | ❌ |  |  |  |  | chi-squared goodness-of-fit |
+| `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
+| `fishertest` | ❌ |  |  |  |  | Fisher's exact (2×2) |
+| `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
+| `jbtest` | ❌ |  |  |  |  | Jarque-Bera |
+| `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
+| `kruskalwallis` | ❌ |  |  |  |  | non-parametric ANOVA |
+| `kstest` | ❌ |  |  |  |  | Kolmogorov-Smirnov |
+| `kstest2` | ❌ |  |  |  |  | two-sample KS |
+| `lillietest` | ❌ |  |  |  |  | Lilliefors |
+| `meanEffectSize` | ❌ |  |  |  |  | Cohen's d, Hedges' g |
+| `mmdtest` | ❌ |  |  |  |  | maximum mean discrepancy |
+| `multcompare` | ❌ |  |  |  |  | post-hoc multiple comparisons |
+| `ranksum` | ❌ |  |  |  |  | Wilcoxon rank-sum |
+| `runstest` | ❌ |  |  |  |  | runs test for randomness |
+| `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |
+| `signrank` | ❌ |  |  |  |  | Wilcoxon signed-rank |
+| `signtest` | ❌ |  |  |  |  | sign test |
+| `ttest` | ❌ |  |  |  |  | one-sample t |
+| `ttest2` | ❌ |  |  |  |  | two-sample t |
+| `vartest` | ❌ |  |  |  |  | one-sample variance |
+| `vartest2` | ❌ |  |  |  |  | two-sample variance |
+| `vartestn` | ❌ |  |  |  |  | n-sample variance |
+| `ztest` | ❌ |  |  |  |  | one-sample z |
+
+## Resampling Techniques
+
+**Namespace:** `stats.resample.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bootci` | ❌ |  |  |  |  | bootstrap confidence intervals |
+| `bootstrp` | ❌ |  |  |  |  | bootstrap statistics |
+| `combnk` | ❌ |  |  |  |  | enumerate combinations |
+| `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
+| `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
+| `datasample` | ❌ |  |  |  |  | sample with/without replacement |
+| `jackknife` | ❌ |  |  |  |  | leave-one-out |
+| `randsample` | ❌ |  |  |  |  | random sample |
+
+## Quasirandom Sequences and MCMC
+
+**Namespace:** `stats.qmc.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `haltonset` | ❌ |  |  |  |  | Halton sequence |
+| `lhsdesign` | ❌ |  |  |  |  | Latin hypercube |
+| `lhsnorm` | ❌ |  |  |  |  | Latin hypercube w/ normal |
+| `mhsample` | ❌ |  |  |  |  | Metropolis-Hastings |
+| `qrandstream` | ❌ |  |  |  |  | quasi-random stream constructor |
+| `slicesample` | ❌ |  |  |  |  | slice sampler |
+| `sobolset` | ❌ |  |  |  |  | Sobol sequence |
+| `qrand` | ❌ |  |  |  |  | draw from qrandstream |
+
+## ANOVA / MANOVA / Correlation
+
+**Namespace:** `stats.anova.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
+
+OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; only the legacy function-form entry points (anova1/anova2/anovan) which return F-statistic and p-value tables.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `anova1` | ❌ |  |  |  |  | one-way ANOVA |
+| `anova2` | ❌ |  |  |  |  | two-way balanced |
+| `anovan` | ❌ |  |  |  |  | n-way |
+| `manova1` | ❌ |  |  |  |  | one-way MANOVA |
+| `canoncorr` | ❌ |  |  |  |  | canonical correlation |
+| `dummyvar` | ❌ |  |  |  |  | dummy-coding categorical |
+| `aoctool` | ❌ |  |  |  |  | analysis of covariance (interactive — defer) |
+| `mauchly` | ❌ |  |  |  |  | Mauchly's sphericity |
+| `epsilon` | ❌ |  |  |  |  | sphericity adjustments |
+
+## Linear Regression (function-form)
+
+**Namespace:** `stats.regress.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+
+OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. Only the legacy command-form entry points that return numerics (coeffs, residuals, CIs).
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `regress` | ❌ |  |  |  |  | OLS multiple regression |
+| `robustfit` | ❌ |  |  |  |  | robust (M-estimator) regression |
+| `lscov` | ❌ |  |  |  |  | weighted/general LSQ |
+| `stepwisefit` | ❌ |  |  |  |  | stepwise selection |
+| `glmfit` | ❌ |  |  |  |  | generalised linear model |
+| `glmval` | ❌ |  |  |  |  | predict from glmfit |
+| `mvregress` | ❌ |  |  |  |  | multivariate regression |
+| `mvregresslike` | ❌ |  |  |  |  |  |
+| `plsregress` | ❌ |  |  |  |  | partial least squares |
+| `ridge` | ❌ |  |  |  |  |  |
+| `lasso` | ❌ |  |  |  |  |  |
+| `lassoglm` | ❌ |  |  |  |  |  |
+| `polyconf` | ❌ |  |  |  |  | polynomial CI prediction |
+
+## Nonlinear Regression (function-form)
+
+**Namespace:** `stats.nlfit.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `nlinfit` | ❌ |  |  |  |  | nonlinear LSQ |
+| `nlparci` | ❌ |  |  |  |  | parameter CIs |
+| `nlpredci` | ❌ |  |  |  |  | predicted-value CIs |
+| `statset` | ❌ |  |  |  |  | options struct setter |
+| `statget` | ❌ |  |  |  |  | options struct getter |
+
+## Distance Metrics
+
+**Namespace:** `stats.dist_metric.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `pdist` | ❌ |  |  |  |  | pairwise distances |
+| `pdist2` | ❌ |  |  |  |  | between two sets |
+| `squareform` | ❌ |  |  |  |  | upper-tri vec ↔ symmetric matrix |
+| `mahal` | ❌ |  |  |  |  | Mahalanobis distance |
+
+## Hierarchical Clustering
+
+**Namespace:** `stats.hcluster.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `linkage` | ❌ |  |  |  |  | agglomerative tree |
+| `cluster` | ❌ |  |  |  |  | flat clusters from linkage |
+| `clusterdata` | ❌ |  |  |  |  | data → flat clusters one-shot |
+| `cophenet` | ❌ |  |  |  |  | cophenetic correlation |
+| `inconsistent` | ❌ |  |  |  |  |  |
+| `dendrogram` | ❌ |  |  |  |  | display |
+| `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |
+
+## Partitional Clustering
+
+**Namespace:** `stats.pcluster.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `kmeans` | ❌ |  |  |  |  | k-means (Lloyd's algorithm) |
+| `kmedoids` | ❌ |  |  |  |  | k-medoids (PAM) |
+| `dbscan` | ❌ |  |  |  |  | density-based |
+| `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
+
+## Cluster Evaluation
+
+**Namespace:** `stats.cluster_eval.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `silhouette` | ❌ |  |  |  |  | silhouette plot/values |
+| `evalclusters` | ❌ |  |  |  |  | CalinskiHarabasz / DaviesBouldin / gap / silhouette |
+| `manovacluster` | ❌ |  |  |  |  | dendrogram from MANOVA |
+
+## Nearest Neighbors (function-form)
+
+**Namespace:** `stats.knn.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
+
+OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitted; flat function form only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `knnsearch` | ❌ |  |  |  |  | k nearest neighbours |
+| `rangesearch` | ❌ |  |  |  |  | within-radius search |
+| `createns` | ❌ |  |  |  |  | tree constructor (returns struct, not class) |
+
+## Hidden Markov Models
+
+**Namespace:** `stats.hmm.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `hmmdecode` | ❌ |  |  |  |  | forward-backward |
+| `hmmestimate` | ❌ |  |  |  |  | MLE from labelled sequence |
+| `hmmgenerate` | ❌ |  |  |  |  | sample sequences |
+| `hmmtrain` | ❌ |  |  |  |  | Baum-Welch |
+| `hmmviterbi` | ❌ |  |  |  |  | most-likely state path |
+
+## Dimensionality Reduction
+
+**Namespace:** `stats.dim.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `pca` | ❌ |  |  |  |  | principal component analysis |
+| `pcacov` | ❌ |  |  |  |  | PCA from covariance matrix |
+| `pcares` | ❌ |  |  |  |  | residuals after k components |
+| `ppca` | ❌ |  |  |  |  | probabilistic PCA |
+| `factoran` | ❌ |  |  |  |  | factor analysis |
+| `rica` | ❌ |  |  |  |  | reconstruction ICA |
+| `sparsefilt` | ❌ |  |  |  |  | sparse filtering |
+| `tsne` | ❌ |  |  |  |  | t-SNE |
+
+## Feature Selection (function-form)
+
+**Namespace:** `stats.fselect.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fscchi2` | ❌ |  |  |  |  | classification — chi-squared score |
+| `fscmrmr` | ❌ |  |  |  |  | classification — minimum redundancy max relevance |
+| `fscnca` | ❌ |  |  |  |  | classification — neighbourhood comp. analysis |
+| `fsrftest` | ❌ |  |  |  |  | regression — F-test score |
+| `fsrmrmr` | ❌ |  |  |  |  | regression — mRMR |
+| `fsrnca` | ❌ |  |  |  |  | regression — NCA |
+| `fsulaplacian` | ❌ |  |  |  |  | unsupervised Laplacian score |
+| `relieff` | ❌ |  |  |  |  | ReliefF |
+| `sequentialfs` | ❌ |  |  |  |  | sequential feature selection |
+
+## Linear Discriminant Analysis (function-form)
+
+**Namespace:** `stats.lda.*` — 0 ✅ + 0 ⚠️ / 1 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `classify` | ❌ |  |  |  |  | LDA / QDA classification (function-form) |
+
+## Descriptive Statistics — extras
+
+**Namespace:** `stats.descriptive.*` — additions on top of the existing section above. 0 ✅ + 0 ⚠️ / 23 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
+| `corr` | ❌ |  |  |  |  | (with type='Spearman'/'Kendall' options) |
+| `corrcov` | ❌ |  |  |  |  | covariance → correlation |
+| `crosstab` | ❌ |  |  |  |  | cross-tabulation |
+| `geomean` | ❌ |  |  |  |  | geometric mean |
+| `grpstats` | ❌ |  |  |  |  | group-wise statistics |
+| `harmmean` | ❌ |  |  |  |  | harmonic mean |
+| `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
+| `mad` | ❌ |  |  |  |  | mean / median absolute deviation |
+| `moment` | ❌ |  |  |  |  | central moment of order k |
+| `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
+| `partialcorr` | ❌ |  |  |  |  |  |
+| `partialcorri` | ❌ |  |  |  |  | with internal vars |
+| `range` | ❌ |  |  |  |  | max - min |
+| `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
+| `skewness` | ❌ |  |  |  |  |  |
+| `tabulate` | ❌ |  |  |  |  | frequency table |
+| `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
+| `trimmean` | ❌ |  |  |  |  | trimmed mean |
+| `zscore` | ❌ |  |  |  |  | standardise |
+| `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
+| `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
+| `nanmean` | ❌ |  |  |  |  | (legacy alias) |
+
 ## Workspace
 
 **Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
