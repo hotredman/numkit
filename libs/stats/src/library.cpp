@@ -95,6 +95,13 @@ void unifinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/lognormal.cpp
+void lognpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void logncdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void logninv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lognrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lognstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -184,6 +191,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "unifinv",  &stats::detail::unifinv_reg);
     reg("dist", "unifrnd",  &stats::detail::unifrnd_reg);
     reg("dist", "unifstat", &stats::detail::unifstat_reg);
+
+    reg("dist", "lognpdf",  &stats::detail::lognpdf_reg);
+    reg("dist", "logncdf",  &stats::detail::logncdf_reg);
+    reg("dist", "logninv",  &stats::detail::logninv_reg);
+    reg("dist", "lognrnd",  &stats::detail::lognrnd_reg);
+    reg("dist", "lognstat", &stats::detail::lognstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);

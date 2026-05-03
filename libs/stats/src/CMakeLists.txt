@@ -13,6 +13,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gamma_dist.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/uniform.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/lognormal.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
