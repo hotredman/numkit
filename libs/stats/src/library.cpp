@@ -102,6 +102,13 @@ void logninv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lognrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lognstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/weibull.cpp
+void wblpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wblstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -197,6 +204,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "logninv",  &stats::detail::logninv_reg);
     reg("dist", "lognrnd",  &stats::detail::lognrnd_reg);
     reg("dist", "lognstat", &stats::detail::lognstat_reg);
+
+    reg("dist", "wblpdf",   &stats::detail::wblpdf_reg);
+    reg("dist", "wblcdf",   &stats::detail::wblcdf_reg);
+    reg("dist", "wblinv",   &stats::detail::wblinv_reg);
+    reg("dist", "wblrnd",   &stats::detail::wblrnd_reg);
+    reg("dist", "wblstat",  &stats::detail::wblstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
