@@ -293,7 +293,7 @@ multiple sections; all occurrences refresh together).
 | `categories` | ❌ |  |  |  |  |  |
 | `combinations` | ❌ |  |  |  |  | all combinations |
 | `countcats` | ❌ |  |  |  |  |  |
-| `discretize` | ✅ |  |  |  |  |  |
+| `discretize` | ✅ | 0.106 | 0.99× |  | OK | Sig: BIN = discretize(X, EDGES). 100k pts into 10 bins. 100 iters. |
 | `iscategory` | ❌ |  |  |  |  |  |
 | `isordinal` | ❌ |  |  |  |  |  |
 | `isprotected` | ❌ |  |  |  |  |  |
@@ -524,7 +524,7 @@ multiple sections; all occurrences refresh together).
 | `reallog` | ✅ | 6.065 | 0.35× | 1.40× | OK | Sig: Y = reallog(X). Strict positive domain. 1M-pt on [0.001, 100]. 20 iters. Element-wise SAVE. |
 | `realpow` | ✅ | 12.251 | 0.48× | 1.36× | OK | Sig: Z = realpow(X,Y). 1k×1k grid of x>0, real exp. 20 iters. Element-wise SAVE. |
 | `realsqrt` | ✅ | 4.286 | 0.33× | 1.89× | OK | Sig: Y = realsqrt(X). 1M-pt on [0, 1000]. 20 iters. Element-wise SAVE. |
-| `sqrt` | ✅ |  |  |  |  |  |
+| `sqrt` | ✅ | 4.191 | 0.30× | 1.81× | OK | Sig: Y = sqrt(X). 1M-pt sqrt. 50 iters. |
 
 ## Special Functions
 
@@ -533,17 +533,17 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `airy` | ✅ | 7.487 | 0.10× | 0.38× | OK | Ai over 10k pts on [-5,5]. 10 iters. Element-wise comparison. |
-| `besselh` | ✅ |  |  |  |  |  |
-| `besseli` | ✅ |  |  |  |  |  |
-| `besselj` | ✅ |  |  |  |  |  |
-| `besselk` | ✅ |  |  |  |  |  |
-| `bessely` | ✅ |  |  |  |  |  |
+| `besselh` | ✅ | 0.317 | 1.16× | 7.20× | OK | Sig: H = besselh(NU, K, X). H1_0 on (0.1,10]. 50 iters. |
+| `besseli` | ✅ | 0.096 | 2.53× | 22.58× | OK | Sig: I = besseli(NU, X). I_0 on (0.1,10]. 50 iters. |
+| `besselj` | ✅ | 0.141 | 2.60× | 20.24× | OK | Sig: J = besselj(NU, X). J_0 on (0.1,30]. 50 iters. |
+| `besselk` | ✅ | 0.139 | 1.72× | 12.34× | OK | Sig: K = besselk(NU, X). K_0 on (0.1,10]. 50 iters. |
+| `bessely` | ✅ | 0.218 | 2.25× | 15.78× | OK | Sig: Y = bessely(NU, X). Y_0 on (0.1,30]. 50 iters. |
 | `beta` | ✅ | 63.067 | 0.11× | 0.70× | OK | Sig: Y = beta(Z, W). 1000x1000 grid. 20 iters. Element-wise SAVE. |
 | `betainc` | ✅ | 0.095 | 1.09× | 3.09× | OK | Sig: I = betainc(X, A, B). 1k-pt with scalar a=2.5 b=4. 20 iters. Element-wise SAVE. |
 | `betaincinv` | ✅ | 1.119 | 1.04× | 4.43× | OK | Inverse regularized beta over 2k probability points, a=3 b=5. 20 iters, element-wise. |
 | `betaln` | ✅ | 149.841 | 0.05× | 0.25× | OK | Sig: Y = betaln(Z, W). 1000x1000 grid. 20 iters. Element-wise SAVE. |
 | `ellipj` | ✅ | 0.614 | 2.23× | 1.41× | OK | Jacobi sn over 5k pts at m=0.7. 50 iters, element-wise on sn. |
-| `ellipke` | ✅ |  |  |  |  |  |
+| `ellipke` | ✅ | 0.760 |  | 1.31× | OK | Sig: [K, E] = ellipke(M). Complete elliptic K, E. 50 iters. SAVE on K. |
 | `erf` | ✅ | 9.174 | 0.28× | 0.78× | OK | smoke-test (already implemented). N=1e6, mean over 10 iters. |
 | `erfc` | ✅ | 12.800 | 0.21× | 0.84× | OK | Sig: Y = erfc(X). 1M-pt sweep. 20 iters. Element-wise SAVE. |
 | `erfcinv` | ✅ | 46.123 | 0.08× | 0.28× | OK | Sig: Y = erfcinv(X). 1M-pt sweep on (0,2). 20 iters. Element-wise SAVE. |
@@ -551,7 +551,7 @@ multiple sections; all occurrences refresh together).
 | `erfinv` | ✅ | 45.836 | 0.08× | 0.28× | OK | Sig: Y = erfinv(X). 1M-pt sweep avoiding singularities. 20 iters. Element-wise SAVE. |
 | `expint` | ✅ | 4.783 | 3.12× | 8.57× | OK | Sig: Y = expint(X). 100k-pt on (0,50]. 20 iters. Element-wise SAVE. |
 | `gamma` | ✅ | 1.306 | 0.28× | 0.84× | OK | Sig: Y = gamma(X). 100k-pt sweep on (0,10]. 20 iters. Element-wise SAVE. |
-| `gammainc` | ✅ |  |  |  |  |  |
+| `gammainc` | ✅ | 0.146 | 1.40× | 2.77× | OK | Sig: P = gammainc(X, A). Regularized lower gamma at X=2.5. 100 iters. |
 | `gammaincinv` | ✅ | 1.725 | 1.18× | 23.31× | OK | Inverse regularized gamma over 5k probability points, a=2.5. 20 iters, element-wise. |
 | `gammaln` | ✅ | 3.523 | 0.09× | 0.24× | OK | Sig: Y = gammaln(X). 100k-pt sweep on (0,100]. 20 iters. Element-wise SAVE. |
 | `legendre` | ✅ | 0.039 | 12.03× | 6.21× | OK | Sig: P = legendre(N, X). N=4, 1k pts. 20 iters. SAVE on (n+1)x1000 matrix. |
@@ -563,16 +563,16 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `factor` | ✅ |  |  |  |  |  |
+| `factor` | ✅ | 0.000 | 12455.93× | 893270.48× | MISMATCH | Sig: F = factor(N). Sum of #factors for 1..1000. 100 iters. |
 | `factorial` | ✅ | 0.000 | 39.29× | 39.98× | OK | Sig: Y = factorial(N). N=0:20. 1k iters. Element-wise SAVE. |
 | `gcd` | ✅ | 0.012 | 9.98× | 3.05× | OK | Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
 | `isprime` | ✅ | 0.132 | 3.35× | 46.77× | OK | Sig: TF = isprime(X). 1..10000. 20 iters. Element-wise SAVE on logical. |
 | `lcm` | ✅ | 0.014 | 11.69× | 6.69× | OK | Sig: L = lcm(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
 | `matchpairs` | ❌ |  |  |  | N/A | Sig: M = matchpairs(C, COST_NON). Hungarian-style 3×4. 1000 iters. |
 | `nchoosek` | ✅ | 0.007 | 28.74× | 4.32× | OK | Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter. |
-| `perms` | ✅ |  |  |  |  |  |
+| `perms` | ✅ | 0.003 | 38.05× | 3.05× | OK | Sig: P = perms(V). 6! = 720 perms. 100 iters. |
 | `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |
-| `rat` | ✅ |  |  |  |  |  |
+| `rat` | ✅ | 0.001 | 82.13× |  | MISMATCH | Sig: S = rat(X, TOL). Continued frac of pi. 1000 iters. |
 | `rats` | ✅ |  |  |  |  |  |
 
 ## Polynomials
@@ -583,14 +583,14 @@ multiple sections; all occurrences refresh together).
 |---|:---:|---:|---:|---:|:---:|---|
 | `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
-| `poly` | ✅ |  |  |  |  | roots → coeffs |
+| `poly` | ✅ | 0.000 | 84.89× | 164.01× | OK | Sig: P = poly(R). Roots → polynomial coefficients. 10000 iters. |
 | `polyder` | ✅ | 0.001 | 71.29× | 28.02× | MISMATCH | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
-| `polydiv` | ✅ |  |  |  |  |  |
+| `polydiv` | ✅ | 0.000 |  | 73.27× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
 | `polyfit` | ✅ | 0.054 | 0.92× | 1.53× | OK | Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise). |
 | `polyint` | ✅ | 0.001 | 15.55× | 28.71× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
 | `polyval` | ✅ | 3.318 | 0.81× | 7.69× | OK | Sig: Y = polyval(P, X). 4th-order poly on 1M pts. 20 iters. Element-wise SAVE. |
-| `polyvalm` | ✅ |  |  |  |  | matrix poly eval |
+| `polyvalm` | ✅ | 0.001 | 35.94× | 53.27× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
 | `roots` | ✅ | 0.001 | 21.54× | 38.26× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
 
@@ -692,7 +692,7 @@ multiple sections; all occurrences refresh together).
 | `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `randi` | ✅ | 6.307 | 0.75× | 1.72× | OK | Sig: A = randi(IMAX, M, N). 1k×1k uniform-int. 100 iters. |
 | `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
-| `randperm` | ✅ |  |  |  |  |  |
+| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
 | `randstream` | ❌ |  |  |  |  |  |
 | `rng` | ✅ |  |  |  |  |  |
 
@@ -798,7 +798,7 @@ multiple sections; all occurrences refresh together).
 | `nzmax` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `pcg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `qmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `randperm` | ✅ |  |  |  |  |  |
+| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
 | `spalloc` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `sparse` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `spaugment` | ❌ |  |  |  |  |  |

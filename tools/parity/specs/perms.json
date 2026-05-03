@@ -1,0 +1,14 @@
+{
+  "name": "perms",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = perms(1:6);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: P = perms(V). 6! = 720 perms. 100 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(size(y, 1))",
+    "double(size(y, 2))"
+  ]
+}

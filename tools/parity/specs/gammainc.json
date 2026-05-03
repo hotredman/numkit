@@ -1,0 +1,10 @@
+{
+  "name": "gammainc",
+  "namespace": "core",
+  "setup": "a = linspace(0.001, 0.999, 1000); xv = 2.5;",
+  "expr": "y = gammainc(xv, a);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: P = gammainc(X, A). Regularized lower gamma at X=2.5. 100 iters.",
+  "out_var": "y"
+}

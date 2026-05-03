@@ -1,0 +1,10 @@
+{
+  "name": "ellipke",
+  "namespace": "core",
+  "setup": "m = linspace(0, 0.99, 10000);",
+  "expr": "[y, jj] = ellipke(m);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: [K, E] = ellipke(M). Complete elliptic K, E. 50 iters. SAVE on K.",
+  "out_var": "y"
+}

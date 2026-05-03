@@ -1,0 +1,14 @@
+{
+  "name": "randperm",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = randperm(100000);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: P = randperm(N). 100k random permutation. 100 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(min(y))",
+    "double(max(y))"
+  ]
+}
