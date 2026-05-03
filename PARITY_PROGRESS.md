@@ -1363,6 +1363,127 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
 | `nanmean` | ❌ |  |  |  |  | (legacy alias) |
 
+## Curve Fitting Toolbox — Splines
+
+**Namespace:** `cfit.splines.*` — 0 ✅ + 0 ⚠️ / 49 = 0%
+
+OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
+GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
+omitted. Curve Fitting's value for a non-OOP runtime sits in the spline
+construction / postprocessing primitives — those are all flat functions.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bspline` | ❌ |  |  |  |  | B-spline of given order |
+| `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
+| `csapi` | ❌ |  |  |  |  | cubic spline interpolation |
+| `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
+| `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
+| `rscvn` | ❌ |  |  |  |  | rational cubic curve |
+| `spapi` | ❌ |  |  |  |  | B-spline interpolation |
+| `spaps` | ❌ |  |  |  |  | smoothing spline (penalised) |
+| `spap2` | ❌ |  |  |  |  | least-squares spline fit |
+| `spcrv` | ❌ |  |  |  |  | uniform B-spline curve |
+| `tpaps` | ❌ |  |  |  |  | thin-plate smoothing spline (2-D) |
+| `ppmak` | ❌ |  |  |  |  | piecewise-polynomial form constructor |
+| `rpmak` | ❌ |  |  |  |  | rational pp form |
+| `rsmak` | ❌ |  |  |  |  | rational spline |
+| `spmak` | ❌ |  |  |  |  | B-spline form constructor |
+| `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
+| `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
+| `fnbrk` | ❌ |  |  |  |  | extract part / break info |
+| `fnchg` | ❌ |  |  |  |  | change spline properties |
+| `fncmb` | ❌ |  |  |  |  | combine splines |
+| `fnder` | ❌ |  |  |  |  | derivative of spline |
+| `fndir` | ❌ |  |  |  |  | directional derivative |
+| `fnint` | ❌ |  |  |  |  | integral of spline |
+| `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
+| `fnmin` | ❌ |  |  |  |  | min of spline |
+| `fnplt` | ❌ |  |  |  |  | display |
+| `fnrfn` | ❌ |  |  |  |  | refine knots |
+| `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
+| `fnval` | ❌ |  |  |  |  | evaluate at points |
+| `fnxtr` | ❌ |  |  |  |  | extrapolate |
+| `fnzeros` | ❌ |  |  |  |  | zeros of spline |
+| `bkbrk` | ❌ |  |  |  |  | break-and-coefs |
+| `slvblk` | ❌ |  |  |  |  | solve almost-block-diagonal system |
+| `spcol` | ❌ |  |  |  |  | B-spline collocation matrix |
+| `stcol` | ❌ |  |  |  |  | stform collocation matrix |
+| `subplus` | ❌ |  |  |  |  | x_+ truncated power |
+| `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
+| `augknt` | ❌ |  |  |  |  | augment knot sequence |
+| `aveknt` | ❌ |  |  |  |  | knot averages |
+| `brk2knt` | ❌ |  |  |  |  | breaks → knots with given multiplicity |
+| `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
+| `knt2brk` | ❌ |  |  |  |  | knots → breaks + multiplicities |
+| `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
+| `optknt` | ❌ |  |  |  |  | optimal knot distribution |
+| `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
+| `datastats` | ❌ |  |  |  |  | basic descriptive on (x, y) |
+| `prepareCurveData` | ❌ |  |  |  |  | sanitise (NaN, Inf, complex) |
+| `prepareSurfaceData` | ❌ |  |  |  |  | 2-D variant |
+| `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
+
+## Optimization Toolbox
+
+**Namespace:** `optim.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+The new problem-based API (`optimproblem`, `optimvar`, `optimexpr`,
+`optimconstr`, `optimeq`, `optimineq`, `solve`, `evaluate`, `prob2struct`,
+`infeasibility`, `findindex`, `issatisfied`, `paretoplot`, `optimvalues`,
+the `show*` / `write*` family, `eqnproblem`, `fcn2optimexpr`) is OOP /
+expression-tree based and intentionally omitted; we expose only the
+solver-based legacy API which is flat function-form.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fmincon` | ❌ |  |  |  |  | constrained nonlinear minimisation |
+| `fminunc` | ❌ |  |  |  |  | unconstrained nonlinear minimisation |
+| `fseminf` | ❌ |  |  |  |  | semi-infinite optimisation |
+| `fgoalattain` | ❌ |  |  |  |  | multi-objective goal attainment |
+| `fminimax` | ❌ |  |  |  |  | minimax optimisation |
+| `linprog` | ❌ |  |  |  |  | linear programming |
+| `intlinprog` | ❌ |  |  |  |  | mixed-integer linear programming |
+| `quadprog` | ❌ |  |  |  |  | quadratic programming |
+| `coneprog` | ❌ |  |  |  |  | second-order cone programming |
+| `secondordercone` | ❌ |  |  |  |  | SOC constraint helper |
+| `lsqlin` | ❌ |  |  |  |  | linear LSQ with bounds & linear constraints |
+| `lsqcurvefit` | ❌ |  |  |  |  | nonlinear LSQ in curve-fit signature |
+| `lsqnonlin` | ❌ |  |  |  |  | nonlinear LSQ |
+| `fsolve` | ❌ |  |  |  |  | system of nonlinear equations |
+| `mpsread` | ❌ |  |  |  |  | MPS-format LP reader (defer — I/O) |
+| `optimoptions` | ❌ |  |  |  |  | options struct (modern) |
+| `resetoptions` | ❌ |  |  |  |  | reset options to default |
+| `checkGradients` | ❌ |  |  |  |  | finite-diff gradient check |
+| `optimwarmstart` | ❌ |  |  |  |  | warm-start handle for lsqlin/quadprog |
+| `integerConstraint` | ❌ |  |  |  |  | helper for integer DOF |
+| `mldivide` | ✅ |  |  |  | OK | already in core (operator `\`) |
+
+## Global Optimization Toolbox
+
+**Namespace:** `gads.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+
+Problem-based API (`optimproblem`/`optimvar`/etc.), MultiStart class
+methods (`createOptimProblem`/`list`/`run`) and `paretoplot` (display)
+intentionally omitted — flat solver functions only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `ga` | ❌ |  |  |  |  | genetic algorithm |
+| `gamultiobj` | ❌ |  |  |  |  | multi-objective GA |
+| `paretosearch` | ❌ |  |  |  |  | direct multi-objective search |
+| `particleswarm` | ❌ |  |  |  |  | particle swarm optimisation |
+| `patternsearch` | ❌ |  |  |  |  | direct (mesh / GPS / MADS) |
+| `simulannealbnd` | ❌ |  |  |  |  | bounded simulated annealing |
+| `surrogateopt` | ❌ |  |  |  |  | surrogate-model optimisation |
+| `packfcn` | ❌ |  |  |  |  | pack/unpack obj-fcn args |
+| `gaoptimset` | ❌ |  |  |  |  | legacy GA options setter |
+| `gaoptimget` | ❌ |  |  |  |  | legacy GA options getter |
+| `psoptimset` | ❌ |  |  |  |  | legacy patternsearch options setter |
+| `psoptimget` | ❌ |  |  |  |  | legacy patternsearch options getter |
+| `saoptimset` | ❌ |  |  |  |  | legacy SA options setter |
+| `saoptimget` | ❌ |  |  |  |  | legacy SA options getter |
+
 ## Workspace
 
 **Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
