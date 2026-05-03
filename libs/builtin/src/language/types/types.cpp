@@ -27,6 +27,12 @@ void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
 void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
 void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
 void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
+
+// Forward-declare the isnan/isinf/isfinite backend (defined in
+// math/arithmetic/isfinite_{highway,portable}.cpp).
+void doubleIsNaNLoop(const double *in, uint8_t *out, std::size_t n);
+void doubleIsInfLoop(const double *in, uint8_t *out, std::size_t n);
+void doubleIsFiniteLoop(const double *in, uint8_t *out, std::size_t n);
 } // namespace numkit::builtin::detail
 
 namespace numkit::builtin {
@@ -218,8 +224,8 @@ Value isnan(std::pmr::memory_resource *mr, const Value &x)
     if (x.isScalar())
         return Value::logicalScalar(std::isnan(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
-    for (size_t i = 0; i < x.numel(); ++i)
-        r.logicalDataMut()[i] = std::isnan(x.doubleData()[i]) ? 1 : 0;
+    if (x.numel() == 0) return r;
+    ::numkit::builtin::detail::doubleIsNaNLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -229,8 +235,8 @@ Value isinf(std::pmr::memory_resource *mr, const Value &x)
     if (x.isScalar())
         return Value::logicalScalar(std::isinf(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
-    for (size_t i = 0; i < x.numel(); ++i)
-        r.logicalDataMut()[i] = std::isinf(x.doubleData()[i]) ? 1 : 0;
+    if (x.numel() == 0) return r;
+    ::numkit::builtin::detail::doubleIsInfLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
@@ -240,8 +246,8 @@ Value isfinite(std::pmr::memory_resource *mr, const Value &x)
     if (x.isScalar())
         return Value::logicalScalar(std::isfinite(x.toScalar()), p);
     auto r = createLike(x, ValueType::LOGICAL, p);
-    for (size_t i = 0; i < x.numel(); ++i)
-        r.logicalDataMut()[i] = std::isfinite(x.doubleData()[i]) ? 1 : 0;
+    if (x.numel() == 0) return r;
+    ::numkit::builtin::detail::doubleIsFiniteLoop(x.doubleData(), r.logicalDataMut(), x.numel());
     return r;
 }
 
