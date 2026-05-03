@@ -1,0 +1,10 @@
+{
+  "name": "minus",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 100, 1000000)); b = cos(linspace(0, 100, 1000000));",
+  "expr": "y = minus(a, b);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = minus(A, B). 1M-pt sub. 50 iters.",
+  "out_var": "y"
+}

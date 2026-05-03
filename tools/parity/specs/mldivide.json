@@ -1,0 +1,10 @@
+{
+  "name": "mldivide",
+  "namespace": "core",
+  "setup": "A = eye(100) + 0.01*reshape(1:10000, 100, 100); B = (1:100)';",
+  "expr": "y = mldivide(A, B);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: X = mldivide(A, B) = A\\B. 100x100. 100 iters.",
+  "out_var": "y"
+}

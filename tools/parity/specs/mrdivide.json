@@ -1,0 +1,10 @@
+{
+  "name": "mrdivide",
+  "namespace": "core",
+  "setup": "B = eye(100) + 0.01*reshape(1:10000, 100, 100); A = (1:100);",
+  "expr": "y = mrdivide(A, B);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "bsxfun",
+  "namespace": "core",
+  "setup": "A = reshape(1:1000, 1, 1000); B = reshape(1:1000, 1000, 1);",
+  "expr": "y = bsxfun(@plus, A, B);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 \u2192 1k\u00d71k. 100 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,14 @@
+{
+  "name": "swapbytes",
+  "namespace": "core",
+  "setup": "x = uint16(1:100000);",
+  "expr": "y = swapbytes(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = swapbytes(X). Already has int32 spec; this checks uint16 path. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

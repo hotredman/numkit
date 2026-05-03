@@ -1,0 +1,10 @@
+{
+  "name": "uminus",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = uminus(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = uminus(X). 1M-pt unary minus. 50 iters.",
+  "out_var": "y"
+}

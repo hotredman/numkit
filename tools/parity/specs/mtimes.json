@@ -1,0 +1,10 @@
+{
+  "name": "mtimes",
+  "namespace": "core",
+  "setup": "A = reshape(1:10000, 100, 100); B = reshape(1:10000, 100, 100);",
+  "expr": "y = mtimes(A, B);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: C = mtimes(A, B). 100x100 matmul. 100 iters.",
+  "out_var": "y"
+}

@@ -1,0 +1,10 @@
+{
+  "name": "mpower",
+  "namespace": "core",
+  "setup": "A = eye(20) + 0.001*reshape(1:400, 20, 20);",
+  "expr": "y = mpower(A, 2);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters.",
+  "out_var": "y"
+}

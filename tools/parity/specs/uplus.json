@@ -1,0 +1,10 @@
+{
+  "name": "uplus",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = uplus(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = uplus(X). 1M-pt unary plus (no-op). 50 iters.",
+  "out_var": "y"
+}

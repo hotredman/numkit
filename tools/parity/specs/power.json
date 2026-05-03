@@ -1,0 +1,10 @@
+{
+  "name": "power",
+  "namespace": "core",
+  "setup": "a = 1 + 0.01*sin(linspace(0, 10, 100000));",
+  "expr": "y = power(a, 2);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = power(A, B). 100k-pt squaring. 100 iters.",
+  "out_var": "y"
+}

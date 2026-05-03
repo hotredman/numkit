@@ -191,7 +191,7 @@ multiple sections; all occurrences refresh together).
 | `newline` | ✅ | 0.000 | 3.15× | 7.71× | OK | Sig: NL = newline. ASCII LF=10. 100k iters. |
 | `num2str` | ✅ | 0.001 | 18.09× | 347.70× | MISMATCH | Sig: S = num2str(X). 100k iters. |
 | `pad` | ✅ | 0.000 | 15.01× |  | OK | Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters. |
-| `plus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `plus` | ✅ | 2.142 | 0.05× | 1.21× | OK | Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters. |
 | `regexp` | ✅ | 0.300 | 0.20× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
 | `regexpi` | ✅ | 0.074 | 0.45× |  | OK | Sig: M = regexpi(S, PAT, 'match'). Case-insensitive. 1000 iters. |
 | `regexprep` | ✅ | 0.248 | 0.19× | 0.91× | OK | Sig: S2 = regexprep(S, PAT, REP). 1.8k char replace. 1000 iters. |
@@ -417,7 +417,7 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bsxfun` | ✅ |  |  |  |  | legacy broadcast |
+| `bsxfun` | ✅ | 2.169 | 0.55× | 0.99× | OK | Sig: D = bsxfun(@op, A, B). Broadcast 1x1k + 1kx1 → 1k×1k. 100 iters. |
 | `ceil` | ✅ | 4.028 | 0.14× | 0.87× | OK | Sig: Y = ceil(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
 | `ctranspose` | ✅ | 6.955 | 0.22× | 0.37× | OK | Sig: Y = ctranspose(A). 1k×1k Hermitian (real → same as transpose). 100 iters. |
 | `cumprod` | ✅ | 0.002 | 13.53× | 24.37× | OK | Sig: Y = cumprod(X). 1k-pt cumprod near 1 (avoid overflow). 20 iters. |
@@ -425,32 +425,32 @@ multiple sections; all occurrences refresh together).
 | `diff` | ✅ | 4.714 | 0.31× | 0.50× | OK | Sig: Y = diff(X). 1M-pt adjacent differences. 20 iters. Element-wise SAVE. |
 | `fix` | ✅ | 5.126 | 0.08× | 0.71× | OK | Sig: Y = fix(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
 | `floor` | ✅ | 4.055 | 0.10× | 0.88× | OK | Sig: Y = floor(X). 1M-pt sweep with non-integer offset. 20 iters. Element-wise SAVE. |
-| `idivide` | ✅ |  |  |  |  | integer division |
-| `ldivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `minus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mldivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `idivide` | ✅ |  |  |  | N/A | Sig: Y = idivide(A, B). int32 division. 50 iters. |
+| `ldivide` | ✅ | 2.120 | 0.06× | 1.25× | MISMATCH | Sig: Y = ldivide(A, B). 1M-pt left-div = B/A. 50 iters. |
+| `minus` | ✅ | 2.054 | 0.06× | 1.20× | OK | Sig: Y = minus(A, B). 1M-pt sub. 50 iters. |
+| `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
 | `mod` | ✅ | 3.384 | 0.30× | 1.45× | OK | Sig: Y = mod(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
 | `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
-| `mpower` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mrdivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mtimes` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `mpower` | ✅ |  |  |  | N/A | Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters. |
+| `mrdivide` | ✅ |  |  |  | N/A | Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters. |
+| `mtimes` | ✅ | 0.093 | 0.52× | 0.79× | OK | Sig: C = mtimes(A, B). 100x100 matmul. 100 iters. |
 | `pagectranspose` | ✅ | 0.207 | 0.24× | 0.23× | OK | 128x64x8 real-valued — pagectranspose equals pagetranspose. 100 iters. |
 | `pagemldivide` | ❌ |  |  |  |  |  |
 | `pagemrdivide` | ❌ |  |  |  |  |  |
 | `pagemtimes` | ✅ |  |  |  |  |  |
 | `pagetranspose` | ✅ | 0.083 | 1.11× | 0.63× | OK | 128x64x8 array, page-wise transpose. 100 iters. |
-| `plus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `power` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `plus` | ✅ | 2.142 | 0.05× | 1.21× | OK | Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters. |
+| `power` | ✅ | 0.984 | 0.02× | 0.04× | OK | Sig: Y = power(A, B). 100k-pt squaring. 100 iters. |
 | `prod` | ✅ | 0.002 | 11.52× | 20.71× | OK | Sig: Y = prod(X). 1k-pt reduction near 1 (avoid overflow). 20 iters. |
-| `rdivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `rdivide` | ✅ | 2.112 | 0.07× | 1.22× | MISMATCH | Sig: Y = rdivide(A, B). 1M-pt div. 50 iters. |
 | `rem` | ✅ | 4.909 | 0.15× | 0.96× | OK | Sig: Y = rem(X, D). 1M-pt with scalar divisor 7. 20 iters. Element-wise SAVE. |
 | `round` | ✅ | 4.992 | 0.11× | 0.72× | OK | Sig: Y = round(X). 1M-pt sweep with non-half offset. 20 iters. Element-wise SAVE. |
 | `sum` | ✅ | 1.378 | 0.05× | 0.29× | OK | Sig: Y = sum(X). 1M-pt full reduction (default dim). 20 iters. |
 | `tensorprod` | ❌ |  |  |  |  | tensor contraction |
-| `times` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `times` | ✅ | 2.133 | 0.07× | 1.17× | OK | Sig: Y = times(A, B). 1M-pt elementwise mul. 50 iters. |
 | `transpose` | ✅ | 7.375 | 0.20× | 0.35× | OK | Sig: Y = transpose(X). 1k×1k transpose. 100 iters. Element-wise SAVE. |
-| `uminus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `uplus` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `uminus` | ✅ | 3.806 | 0.03× | 0.58× | OK | Sig: Y = uminus(X). 1M-pt unary minus. 50 iters. |
+| `uplus` | ✅ | 0.000 | 13.31× | 16.92× | OK | Sig: Y = uplus(X). 1M-pt unary plus (no-op). 50 iters. |
 
 ## Trigonometry
 
@@ -635,10 +635,10 @@ multiple sections; all occurrences refresh together).
 | `lsqminnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
 | `lu` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `mldivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mpower` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mrdivide` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
-| `mtimes` | ✅ |  |  |  |  | named-fn form added in Pack 11 |
+| `mldivide` | ✅ |  |  |  | N/A | Sig: X = mldivide(A, B) = A\B. 100x100. 100 iters. |
+| `mpower` | ✅ |  |  |  | N/A | Sig: Y = mpower(A, n). 20x20 matrix squared. 1000 iters. |
+| `mrdivide` | ✅ |  |  |  | N/A | Sig: X = mrdivide(A, B) = A/B. 100x100. 100 iters. |
+| `mtimes` | ✅ | 0.093 | 0.52× | 0.79× | OK | Sig: C = mtimes(A, B). 100x100 matmul. 100 iters. |
 | `norm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `null` | ❌ |  |  |  |  | **deferred — libs/linalg** |
