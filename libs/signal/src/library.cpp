@@ -174,6 +174,23 @@ void sfdr_reg            (Span<const Value>, size_t, Span<Value>, CallContext &)
 void instfreq_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void instbw_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// Signal modelling (libs/signal/src/spectral_analysis/signal_modeling.cpp)
+void levinson_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rlevinson_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void aryule_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void arburg_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lpc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ac2poly_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poly2ac_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ac2rc_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rc2ac_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void poly2rc_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rc2poly_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void is2rc_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rc2is_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lar2rc_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rc2lar_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // Vibration analysis (libs/signal/src/measurements/vibration.cpp)
 void envspectrum_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void tachorpm_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -364,6 +381,21 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "sfdr",             &signal::detail::sfdr_reg);
     reg("spectral_analysis", "instfreq",         &signal::detail::instfreq_reg);
     reg("spectral_analysis", "instbw",           &signal::detail::instbw_reg);
+    reg("parametric", "levinson",  &signal::detail::levinson_reg);
+    reg("parametric", "rlevinson", &signal::detail::rlevinson_reg);
+    reg("parametric", "aryule",    &signal::detail::aryule_reg);
+    reg("parametric", "arburg",    &signal::detail::arburg_reg);
+    reg("parametric", "lpc",       &signal::detail::lpc_reg);
+    reg("parametric", "ac2poly",   &signal::detail::ac2poly_reg);
+    reg("parametric", "poly2ac",   &signal::detail::poly2ac_reg);
+    reg("parametric", "ac2rc",     &signal::detail::ac2rc_reg);
+    reg("parametric", "rc2ac",     &signal::detail::rc2ac_reg);
+    reg("parametric", "poly2rc",   &signal::detail::poly2rc_reg);
+    reg("parametric", "rc2poly",   &signal::detail::rc2poly_reg);
+    reg("parametric", "is2rc",     &signal::detail::is2rc_reg);
+    reg("parametric", "rc2is",     &signal::detail::rc2is_reg);
+    reg("parametric", "lar2rc",    &signal::detail::lar2rc_reg);
+    reg("parametric", "rc2lar",    &signal::detail::rc2lar_reg);
     reg("vibration",    "envspectrum",  &signal::detail::envspectrum_reg);
     reg("vibration",    "tachorpm",     &signal::detail::tachorpm_reg);
     reg("vibration",    "rainflow",     &signal::detail::rainflow_reg);

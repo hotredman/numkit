@@ -1358,29 +1358,29 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `ac2poly` | ❌ |  |  |  |  |  |
-| `ac2rc` | ❌ |  |  |  |  |  |
-| `arburg` | ❌ |  |  |  |  | Burg AR |
+| `ac2poly` | ✅ |  |  |  |  |  |
+| `ac2rc` | ✅ |  |  |  |  |  |
+| `arburg` | ✅ |  |  |  |  | Burg AR |
 | `arcov` | ❌ |  |  |  |  | covariance AR |
 | `armcov` | ❌ |  |  |  |  | modified cov AR |
-| `aryule` | ❌ |  |  |  |  | Yule-Walker AR |
+| `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
 | `corrmtx` | ❌ |  |  |  |  | autocorr matrix |
 | `invfreqs` | ❌ |  |  |  |  |  |
 | `invfreqz` | ❌ |  |  |  |  | IIR sys-id |
-| `is2rc` | ❌ |  |  |  |  |  |
-| `lar2rc` | ❌ |  |  |  |  |  |
-| `levinson` | ❌ |  |  |  |  | Levinson-Durbin |
-| `lpc` | ❌ |  |  |  |  | linear prediction |
+| `is2rc` | ✅ |  |  |  |  |  |
+| `lar2rc` | ✅ |  |  |  |  |  |
+| `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
+| `lpc` | ✅ |  |  |  |  | linear prediction |
 | `lsf2poly` | ❌ |  |  |  |  |  |
-| `poly2ac` | ❌ |  |  |  |  |  |
+| `poly2ac` | ✅ |  |  |  |  |  |
 | `poly2lsf` | ❌ |  |  |  |  |  |
-| `poly2rc` | ❌ |  |  |  |  |  |
+| `poly2rc` | ✅ |  |  |  |  |  |
 | `prony` | ❌ |  |  |  |  | Prony method |
-| `rc2ac` | ❌ |  |  |  |  |  |
-| `rc2is` | ❌ |  |  |  |  |  |
-| `rc2lar` | ❌ |  |  |  |  |  |
-| `rc2poly` | ❌ |  |  |  |  |  |
-| `rlevinson` | ❌ |  |  |  |  | reverse Levinson |
+| `rc2ac` | ✅ |  |  |  |  |  |
+| `rc2is` | ✅ |  |  |  |  |  |
+| `rc2lar` | ✅ |  |  |  |  |  |
+| `rc2poly` | ✅ |  |  |  |  |  |
+| `rlevinson` | ✅ |  |  |  |  | reverse Levinson |
 | `schurrc` | ❌ |  |  |  |  | Schur recursion |
 | `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
 
