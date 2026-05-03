@@ -397,6 +397,8 @@ void cell2struct_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 // matrix.cpp
 void zeros_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void ones_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void true_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
+void false_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void eye_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void size_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
 void length_reg(Span<const Value>, size_t, Span<Value>, CallContext&);
@@ -834,6 +836,8 @@ void BuiltinLibrary::install(Engine &engine)
     // ── Phase 6c: matrix.cpp public-API-backed built-ins ───────────
     engine.registerFunction("zeros",     &builtin::detail::zeros_reg);
     engine.registerFunction("ones",      &builtin::detail::ones_reg);
+    engine.registerFunction("true",      &builtin::detail::true_reg);
+    engine.registerFunction("false",     &builtin::detail::false_reg);
     engine.registerFunction("eye",       &builtin::detail::eye_reg);
     engine.registerFunction("size",      &builtin::detail::size_reg);
     engine.registerFunction("length",    &builtin::detail::length_reg);

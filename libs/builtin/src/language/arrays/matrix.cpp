@@ -1654,6 +1654,40 @@ void ones_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, Call
     outs[0] = onesND(mr, d.data(), d.size());
 }
 
+// `true` and `false` are MATLAB built-in functions (not constants):
+// bare `true` returns a scalar logical 1; `true(M, N, ...)` returns a
+// logical array filled with 1 (or 0 for false). Mirrors zeros/ones
+// shape parsing. See BUGS.md #30.
+void true_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::logicalScalar(true, mr);
+        return;
+    }
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, args);
+    stripTrailingOnes(d);
+    auto v = createMatrixND(d.data(), d.size(), ValueType::LOGICAL, mr);
+    uint8_t *p = v.logicalDataMut();
+    for (size_t i = 0; i < v.numel(); ++i) p[i] = 1;
+    outs[0] = std::move(v);
+}
+
+void false_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    if (args.empty()) {
+        outs[0] = Value::logicalScalar(false, mr);
+        return;
+    }
+    ScratchArena scratch(mr);
+    auto d = parseDimsArgsND(&scratch, args);
+    stripTrailingOnes(d);
+    // createMatrixND zero-fills LOGICAL by default.
+    outs[0] = createMatrixND(d.data(), d.size(), ValueType::LOGICAL, mr);
+}
+
 void eye_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
 {
     auto d = parseDimsArgs(args);

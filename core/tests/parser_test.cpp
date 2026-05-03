@@ -171,13 +171,17 @@ TEST_F(ParserStringLiteralTest, EmptyString)
 class ParserBoolLiteralTest : public ::testing::Test
 {};
 
+// `true`/`false` are MATLAB built-in functions, not literals — the lexer
+// emits IDENTIFIER (not KW_TRUE/KW_FALSE), so the parser produces an
+// IDENTIFIER node. The 0-arg call resolves at runtime to logical(1) /
+// logical(0). See BUGS.md #30.
 TEST_F(ParserBoolLiteralTest, TrueLiteral)
 {
     auto ast = parseSource("true;");
     const auto &s = stmt(*ast, 0);
     ASSERT_EQ(s.children.size(), 1u);
-    EXPECT_EQ(s.children[0]->type, NodeType::BOOL_LITERAL);
-    EXPECT_TRUE(s.children[0]->boolValue);
+    EXPECT_EQ(s.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(s.children[0]->strValue, "true");
 }
 
 TEST_F(ParserBoolLiteralTest, FalseLiteral)
@@ -185,8 +189,8 @@ TEST_F(ParserBoolLiteralTest, FalseLiteral)
     auto ast = parseSource("false;");
     const auto &s = stmt(*ast, 0);
     ASSERT_EQ(s.children.size(), 1u);
-    EXPECT_EQ(s.children[0]->type, NodeType::BOOL_LITERAL);
-    EXPECT_FALSE(s.children[0]->boolValue);
+    EXPECT_EQ(s.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(s.children[0]->strValue, "false");
 }
 
 // ============================================================
@@ -1219,8 +1223,9 @@ TEST_F(ParserWhileTest, WhileTrue)
     )");
     const auto &s = stmt(*ast, 0);
     EXPECT_EQ(s.type, NodeType::WHILE_STMT);
-    EXPECT_EQ(s.children[0]->type, NodeType::BOOL_LITERAL);
-    EXPECT_TRUE(s.children[0]->boolValue);
+    // `true` is now an IDENTIFIER (built-in function call), not a literal.
+    EXPECT_EQ(s.children[0]->type, NodeType::IDENTIFIER);
+    EXPECT_EQ(s.children[0]->strValue, "true");
 }
 
 // ============================================================
