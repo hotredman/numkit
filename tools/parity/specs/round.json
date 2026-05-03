@@ -1,0 +1,10 @@
+{
+  "name": "round",
+  "namespace": "core",
+  "setup": "x = linspace(-100, 100, 1000000) + 0.27;",
+  "expr": "y = round(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = round(X). 1M-pt sweep with non-half offset. 20 iters. Element-wise SAVE."
+}

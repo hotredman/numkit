@@ -189,6 +189,23 @@ shape — straightforward libs work, deferred from this cycle.
 
 ---
 
+## 11. `libs/stats`: `movsum` (and likely siblings) namespaced under `stats.*` — **P2**
+
+**Reproducer:** `movsum([1 2 3 4 5], 3)` → "VM: undefined function 'movsum'".
+After `import stats.*`: works correctly.
+**MATLAB:** unqualified, top-level — `movsum`, `movmean`, `movmedian`,
+`movmin`, `movmax`, `movvar`, `movstd`, `movprod` are all expected at
+the global scope.
+**Impact:** Surfaces in bulk-bench when the spec calls these without an
+explicit `import`. Implementation is correct (same fingerprint as
+MATLAB after import), it's purely a registration / namespace issue.
+**Where:** [libs/stats/src/library.cpp](libs/stats/src/library.cpp) registers under `stats.*`.
+**Fix:** lift the moving-window family to top-level (or alias under both
+`stats.*` and unqualified) — a libs-side change, deferred.
+**First seen:** 2026-05-03, parity bulk-bench iteration 5.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
