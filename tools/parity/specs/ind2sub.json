@@ -1,0 +1,10 @@
+{
+  "name": "ind2sub",
+  "namespace": "core",
+  "setup": "sz = [1000 1000]; idx = 1:1000000;",
+  "expr": "[y, jj] = ind2sub(sz, idx);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: [I,J] = ind2sub(SZ, IND). 1M idx \u2192 row index. SAVE on row idx (y). 50 iters.",
+  "out_var": "y"
+}

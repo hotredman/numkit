@@ -370,6 +370,66 @@ flatten.
 
 ---
 
+## 18. `libs/builtin`: `cross(A,B)` rejects 3-by-N matrix batch form — **P2**
+
+**Reproducer:**
+```matlab
+a = [1 0 0; 0 1 0; 0 0 1]';   % 3x3, three column-vectors
+b = [0 1 0; 0 0 1; 1 0 0]';   % 3x3
+cross(a, b)
+% MATLAB / Octave: 3x3 matrix of cross products, column-by-column
+% numkit:           "cross requires 3-element vectors"
+```
+**MATLAB:** `cross(A, B)` works on any-shape arrays as long as one
+dimension is 3 (the cross-product axis); cross is computed along
+that dimension element-wise across the others.
+**Impact:** Vectorized 3-vector batch processing (common in graphics,
+physics, robotics) requires looping in numkit instead of one call.
+**Where:** [libs/builtin/src/](libs/builtin/) `cross` adapter.
+**First seen:** 2026-05-03, parity bulk-bench iteration 17.
+
+---
+
+## 19. `libs/builtin`: `freqspace(N)` returns wrong-length vector — **P2**
+
+**Reproducer:**
+```matlab
+freqspace(1024)
+% MATLAB:  513 elements (= N/2 + 1 for even N), values in [0, 1]
+% numkit:  1024 elements,                       values in [-1, ~1)
+```
+**MATLAB:** `freqspace(N)` returns "frequency spacing for frequency
+response" — for even N, that's N/2 + 1 points on `[0, 1]`. (For
+N×N 2-D freqspace, it returns differently.) numkit returns N points
+on `[-1, 1)`.
+**Impact:** Anything calling freqspace with even N gets
+2× the elements with wrong starting value.
+**Where:** [libs/builtin/src/](libs/builtin/) `freqspace`
+implementation — needs to follow MATLAB's docstring formula.
+**First seen:** 2026-05-03, parity bulk-bench iteration 17.
+
+---
+
+## 20. `core/`: `shiftdim` doesn't strip trailing singletons — **P2**
+
+**Reproducer:**
+```matlab
+A = ones(1, 1000, 1000);   % size = [1 1000 1000]
+B = shiftdim(A);
+ndims(B)
+% MATLAB:  2          (drops leading singleton, then trailing trailing dim)
+% numkit:  3          (only drops the leading singleton, keeps trailing)
+```
+**MATLAB:** `shiftdim(A)` drops leading singletons AND collapses
+trailing singletons until ndims is at most 2 for matrix-shaped data.
+**Impact:** Shape-dependent code that expects 2-D output gets 3-D
+back (with trailing dim 1, but `ndims` ≠ 2 still confuses callers).
+**Where:** core or libs/builtin `shiftdim` — needs to apply MATLAB's
+canonical-trailing-dim normalization.
+**First seen:** 2026-05-03, parity bulk-bench iteration 17.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

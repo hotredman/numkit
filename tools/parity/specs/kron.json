@@ -1,0 +1,10 @@
+{
+  "name": "kron",
+  "namespace": "core",
+  "setup": "A = reshape(1:100, 10, 10); B = ones(20, 20);",
+  "expr": "y = kron(A, B);",
+  "iters": 100,
+  "tol": 1e-10,
+  "comment": "Sig: K = kron(A, B). 10x10 \u2297 20x20 = 200x200. 100 iters.",
+  "out_var": "y"
+}
