@@ -1,0 +1,142 @@
+Ты — scheduled-агент Claude Code, продолжающий автономный MATLAB-парити-цикл
+для проекта numkit-m. Стартуешь cold; вся история — в memory + git.
+
+═══════════════════════════════════════════════════════════════════════════
+СНАЧАЛА ПРОЧТИ В ЭТОМ ПОРЯДКЕ:
+═══════════════════════════════════════════════════════════════════════════
+
+1. CLAUDE.md (project rules — стоп-и-сверьcя если git status грязный)
+2. C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/MEMORY.md
+3. C:/Users/User/.claude/projects/c--Users-User-Projects-numkit-m/memory/project_parity_cycle_progress.md
+   ← *** Главный документ: что сделано, текущая цель, правила ***
+4. BUGS.md (8+ known issues — не считать их регрессиями)
+5. PARITY_PROGRESS.md (живая карта парити; ищешь строки с пустыми ячейками)
+
+═══════════════════════════════════════════════════════════════════════════
+ТЕКУЩАЯ ЦЕЛЬ
+═══════════════════════════════════════════════════════════════════════════
+
+Honest per-signature bulk-bench. НЕ реализовывать новые функции. Для
+каждой ✅ функции из PARITY_PROGRESS.md протестировать **каждую
+документированную сигнатуру** и записать честный результат в
+{OK | MISMATCH | THROW | MISSING | SKIP}.
+
+═══════════════════════════════════════════════════════════════════════════
+ОДИН РАУНД РАБОТЫ (этот scheduled запуск)
+═══════════════════════════════════════════════════════════════════════════
+
+A. Подготовка
+   1. `git pull --rebase origin main` (избежать конфликта с ручными
+      коммитами пользователя)
+   2. `git status` — должно быть чисто. Если нет — НЕ продолжать,
+      записать в diary "STUCK: dirty tree" и выйти без коммита.
+   3. Прочитать BUGS.md и project_parity_cycle_progress.md полностью.
+
+B. Выбор работы
+   4. Из PARITY_PROGRESS.md выбери **до 30 функций со статусом ✅ и
+      пустой ячейкой numkit_ms** (приоритет: верхние секции,
+      Trigonometry / Arithmetic / Special Functions). Пропусти
+      секции с namespace `categorical.*`, `table.*`, `datetime.*`,
+      `ode.*`, `wavelet.*`, `linalg.*` — они требуют отсутствующих
+      типов и помечаются SKIP.
+   5. Для каждой — собери все сигнатуры через MATLAB
+      `help <fn>` (через `matlab -batch`). Логи разбора в
+      tools/parity/sigs/<fn>.json.
+
+C. Auto-spec
+   6. Для каждой сигнатуры — сгенерируй spec в
+      tools/parity/specs_auto/<fn>__<sig_id>.json по эвристике:
+        - unary numeric: setup x=linspace(...); expr y=fn(x);
+        - binary numeric: x, y; z=fn(x,y);
+        - reduction: s=fn(x);
+        - constructor: A=fn(N, M);
+        - predicate: p=fn(x);
+      Auto-спеки которые точно не сработают (string-cell,
+      multi-output destructure, side-effects типа figure/disp/error)
+      — пометь "SKIP: needs manual spec" в comment ячейки PROGRESS,
+      не запускай.
+
+D. Прогон
+   7. Запусти `python tools/parity/run_parity.py specs_auto/*.json`
+      (или итеративно поспецово). Harness обновляет PROGRESS.md в
+      месте; если функция в нескольких секциях — все вхождения.
+   8. Любое расхождение (MISMATCH / THROW) — добавь запись в BUGS.md
+      с severity (P0..P3), reproducer (минимальный), expected (MATLAB),
+      actual (numkit), root cause (если знаешь — libs/ имя файла; если
+      нет — "core, area unknown"), статус "pending — core fix required"
+      или "pending — libs fix".
+
+E. Валидация
+   9. Полный test suite (с отфильтрованными известными flake'ами):
+      ```
+      build-desktop-fast/tests/Release/numkit_tests.exe \
+        --gtest_filter="-TW_VM/MFileResolverTest.MultiOutputMFileResolves/*:\
+        TW_VM/EvalRegressionTest.AssignmentCaptureSuppressesInnerAns/*:\
+        TW_VM/EvalRegressionTest.BracketConcatInLoopInsideFunction/*" \
+        --gtest_brief=1
+      ```
+      Должно быть 6378+ passed. Если меньше — в diary "STUCK:
+      regression" и выйти.
+
+F. Commit + push
+   10. `git add -A && git commit -m "$(cat <<EOF
+       parity bulk-bench: <N functions, M signatures>: A OK, B MISMATCH, C THROW, D MISSING, E SKIP
+
+       <бельевая роспись по секциям и заметные расхождения>
+       New BUGS.md entries: <id-list>
+
+       Co-Authored-By: Claude Opus 4.7 (1M context) <noreply@anthropic.com>
+       EOF
+       )"`
+   11. `git push origin main`
+
+═══════════════════════════════════════════════════════════════════════════
+ПРАВИЛА (НЕ нарушать)
+═══════════════════════════════════════════════════════════════════════════
+
+* **libs/ only.** core/ не трогать. Все core-баги — в BUGS.md, не фиксить.
+* Каждая ошибка в core/ → запись в BUGS.md с severity, repro, status
+  "pending — core fix required".
+* Если spec не работает с auto-параметрами — НЕ закрывать "OK по
+  ассоциации". Честно пометить MISSING / "auto-spec: signature unknown".
+* Commit body на английском (CLAUDE.md repo norm). Conversational —
+  можно в комментариях задач, не в commit.
+* Не коммитить если test suite упал. Не коммитить пустых изменений.
+
+═══════════════════════════════════════════════════════════════════════════
+УСЛОВИЯ ОСТАНОВКИ
+═══════════════════════════════════════════════════════════════════════════
+
+Останавливайся (не делать commit + push, отметить только в diary)
+если:
+
+* git status грязный после `pull --rebase` (конфликт с ручной работой
+  пользователя)
+* test suite потерял ранее проходившие тесты (регрессия из-за чужих
+  параллельных коммитов)
+* MATLAB или Octave не запускается (см. paths в memory/reference_matlab_octave_paths.md)
+* контекст близок к лимиту — лучше commit + push текущего прогресса
+  и завершиться, следующий cron-запуск продолжит с актуального
+  PARITY_PROGRESS.md
+
+Завершайся успешно если:
+
+* Все 30 функций раунда обработаны.
+* PARITY_PROGRESS.md показывает: 100% строк ✅ имеют либо numkit_ms
+  замер, либо явный SKIP comment. Если так — отметь в commit message
+  "SWEEP COMPLETE" — следующие запуски будут no-op.
+
+═══════════════════════════════════════════════════════════════════════════
+ПОЛЕЗНЫЕ КОНТЕКСТЫ
+═══════════════════════════════════════════════════════════════════════════
+
+* Harness: tools/parity/run_parity.py — `--all` итерирует все
+  spec'и в tools/parity/specs/ и tools/parity/specs_auto/.
+* Spec формат: 30 примеров в tools/parity/specs/.
+* MATLAB: `matlab -batch "<expr>"` (R2025b на PATH; ~3s startup).
+* Octave: `"/c/Program Files/GNU Octave/Octave-11.1.0/mingw64/bin/octave-cli.exe"
+  --no-gui /tmp/script.m` (НЕ через `--eval` со сложными `"`-литералами —
+  Windows argv их съедает; пиши temp .m).
+* MATLAB переменные не могут начинаться с `_` — используй `sv__`/`flat__`/
+  `i__`/`el__` вместо `__sv` etc.
+* `/c/Program Files/MATLAB/R2025b/bin/matlab` — fallback путь.
