@@ -1173,22 +1173,22 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `buffer` | ❌ |  |  |  |  | reshape with overlap |
-| `chirp` | ✅ |  |  |  |  |  |
+| `chirp` | ✅ | 0.030 | 2.14× |  | OK | Sig: Y = chirp(T, F0, T1, F1). 4096-pt linear sweep. 1000 iters. |
 | `demod` | ❌ |  |  |  |  |  |
-| `diric` | ✅ |  |  |  |  | Dirichlet |
+| `diric` | ✅ | 0.114 | 0.95× |  | OK | Sig: Y = diric(X, N). Dirichlet kernel N=5. 1000 iters. |
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
-| `gauspuls` | ✅ |  |  |  |  | Gaussian pulse |
-| `gmonopuls` | ✅ |  |  |  |  | Gaussian monopulse |
+| `gauspuls` | ✅ | 0.107 | 0.43× |  | MISMATCH | Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters. |
+| `gmonopuls` | ✅ | 0.049 | 0.66× |  | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
 | `marcumq` | ❌ |  |  |  |  |  |
 | `modulate` | ❌ |  |  |  |  |  |
-| `pulstran` | ✅ |  |  |  |  | pulse train |
-| `rectpuls` | ✅ |  |  |  |  | rectangular pulse |
-| `sawtooth` | ✅ |  |  |  |  |  |
+| `pulstran` | ✅ | 0.009 | 4.81× |  | MISMATCH | Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters. |
+| `rectpuls` | ✅ | 0.019 | 1.06× |  | OK | Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters. |
+| `sawtooth` | ✅ | 0.027 | 1.80× |  | OK | Sig: Y = sawtooth(T). 1000 iters. |
 | `shiftdata` | ❌ |  |  |  |  |  |
-| `sinc` | ✅ |  |  |  |  | sin(πx)/(πx) |
-| `square` | ✅ |  |  |  |  |  |
-| `tripuls` | ✅ |  |  |  |  | triangular |
+| `sinc` | ✅ | 0.731 | 0.28× | 1.75× | OK | Sig: Y = sinc(X). 100k-pt sin(πx)/(πx). 1000 iters. |
+| `square` | ✅ | 0.061 | 0.54× |  | OK | Sig: Y = square(T). Square wave. 1000 iters. |
+| `tripuls` | ✅ | 0.058 | 0.77× |  | OK | Sig: Y = tripuls(T). Triangular pulse. 1000 iters. |
 | `udecode` | ❌ |  |  |  |  |  |
 | `uencode` | ❌ |  |  |  |  |  |
 | `unshiftdata` | ❌ |  |  |  |  |  |
@@ -1444,12 +1444,12 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `barthannwin` | ✅ |  |  |  |  | Bartlett-Hann |
+| `barthannwin` | ✅ | 0.004 | 4.41× |  | OK | Sig: W = barthannwin(N). Bartlett-Hann. 10000 iters. |
 | `bartlett` | ✅ | 0.002 | 6.14× | 10.10× | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
 | `blackman` | ✅ | 0.007 | 4.61× | 3.81× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
 | `blackmanharris` | ✅ | 0.010 | 2.79× |  | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
-| `bohmanwin` | ✅ |  |  |  |  | Bohman |
-| `chebwin` | ✅ |  |  |  |  | Dolph-Chebyshev |
+| `bohmanwin` | ✅ | 0.007 | 3.50× |  | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
+| `chebwin` | ✅ | 0.024 | 0.84× |  | MISMATCH | Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters. |
 | `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
 | `dpssclear` | ❌ |  |  |  |  | cache |
 | `dpssdir` | ❌ |  |  |  |  | cache |
@@ -1461,8 +1461,8 @@ multiple sections; all occurrences refresh together).
 | `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
 | `hann` | ✅ | 0.004 | 9.34× |  | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
 | `kaiser` | ✅ | 0.019 | 1.62× |  | OK | Sig: W = kaiser(N, BETA). beta=5. 10000 iters. |
-| `nuttallwin` | ✅ |  |  |  |  |  |
-| `parzenwin` | ✅ |  |  |  |  | Parzen |
+| `nuttallwin` | ✅ | 0.010 | 2.24× |  | OK | Sig: W = nuttallwin(N). 10000 iters. |
+| `parzenwin` | ✅ | 0.001 | 44.38× |  | OK | Sig: W = parzenwin(N). 10000 iters. |
 | `rectwin` | ✅ | 0.001 | 1.70× |  | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
 | `taylorwin` | ✅ |  |  |  |  | Taylor |
 | `triang` | ✅ | 0.001 | 9.16× |  | OK | Sig: W = triang(N). Triangular. 10000 iters. |

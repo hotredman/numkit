@@ -679,6 +679,32 @@ Likely needs 3-D meshgrid first.
 
 ---
 
+## 35. `libs/signal`: `chebwin(N, R)` degenerates to all-ones for large N — **P2**
+
+**Reproducer:**
+```matlab
+chebwin(10, 100)
+% MATLAB:  Dolph-Chebyshev window — values in [0, 1] with main-lobe shape
+% numkit:  small-N case roughly works (some structure)
+chebwin(1024, 100)
+% MATLAB:  proper window, sum ~378
+% numkit:  all 1s, sum = 1024
+```
+**Symptom:** numkit's `chebwin` returns the correct shape for very small
+N but degenerates to all-ones (or all-near-1) for typical analysis
+sizes (N ≥ ~64). Likely a numerical-overflow path in the FFT-of-
+Chebyshev computation that silently saturates.
+**MATLAB:** all N values produce the proper window with main-lobe-to-
+sidelobe ratio R dB.
+**Impact:** Anything using `chebwin` for spectral analysis at typical
+sizes gets a rectangular (no-window) result silently — wrong leakage
+properties.
+**Where:** [libs/signal/src/](libs/signal/) `chebwin` — likely the
+intermediate spectrum hits Inf or NaN at large N and gets clamped.
+**First seen:** 2026-05-03, parity bulk-bench iteration 33.
+
+---
+
 ## 32. `libs/signal`: `impzlength` overestimates IIR impulse-response length — **P3**
 
 **Reproducer:**

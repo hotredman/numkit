@@ -1,0 +1,10 @@
+{
+  "name": "diric",
+  "namespace": "core",
+  "setup": "x = linspace(-2*pi, 2*pi, 10000);",
+  "expr": "y = diric(x, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = diric(X, N). Dirichlet kernel N=5. 1000 iters."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "chebwin",
+  "namespace": "core",
+  "setup": "n = 1024; r = 100;",
+  "expr": "y = chebwin(n, r);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters."
+}
