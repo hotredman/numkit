@@ -1166,6 +1166,11 @@ void BuiltinLibrary::install(Engine &engine)
                             });
 
     // func2str(@fn) — recover the name of a function handle.
+    // MATLAB: named handles (`@sin`) return just the bare name `'sin'`;
+    // anonymous handles (`@(x) x*2`) return the full `'@(x)x*2'` source
+    // text. We don't store anon source text, so fall back to the
+    // internal `__anon_<N>` name with `@` prefix for those — best-
+    // effort placeholder. See BUGS.md #16.
     engine.registerFunction("func2str",
                             [](Span<const Value> args, size_t /*nargout*/,
                                Span<Value> outs, CallContext &ctx) {
@@ -1174,8 +1179,14 @@ void BuiltinLibrary::install(Engine &engine)
                                 if (!args[0].isFuncHandle())
                                     throw std::runtime_error(
                                         "func2str: argument must be a function handle");
-                                outs[0] = Value::fromString("@" + args[0].funcHandleName(),
-                                                             ctx.engine->resource());
+                                const std::string name = args[0].funcHandleName();
+                                // Detect anon-handle naming convention: parser
+                                // assigns `__anon_<N>` to lambdas. Named
+                                // handles (sin, foo, etc.) get the bare name.
+                                const bool isAnon = name.rfind("__anon_", 0) == 0;
+                                outs[0] = Value::fromString(
+                                    isAnon ? ("@" + name) : name,
+                                    ctx.engine->resource());
                             });
 }
 
