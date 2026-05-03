@@ -1,0 +1,10 @@
+{
+  "name": "nonzeros",
+  "namespace": "core",
+  "setup": "x = double(mod(1:1000000, 13) == 0) .* (1:1000000);",
+  "expr": "y = nonzeros(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: V = nonzeros(X). 1M-pt extract non-zero (logical\u2192double cast for .*). 100 iters."
+}

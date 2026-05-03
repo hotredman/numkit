@@ -1,0 +1,14 @@
+{
+  "name": "ismembertol",
+  "namespace": "core",
+  "setup": "a = linspace(0, 1, 10000); b = linspace(0, 1, 100);",
+  "expr": "y = ismembertol(a, b, 0.005);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = ismembertol(A, B, TOL). 10k vs 100 with tol=0.005. 100 iters.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

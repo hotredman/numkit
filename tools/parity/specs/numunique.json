@@ -1,0 +1,13 @@
+{
+  "name": "numunique",
+  "namespace": "core",
+  "setup": "x = mod(1:10000, 137);",
+  "expr": "y = numunique(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: N = numunique(X). 10k with 137 distinct. 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

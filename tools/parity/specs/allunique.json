@@ -1,0 +1,13 @@
+{
+  "name": "allunique",
+  "namespace": "core",
+  "setup": "x = 1:10000;",
+  "expr": "y = allunique(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = allunique(X). 10k unique values. 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

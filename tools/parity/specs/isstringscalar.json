@@ -1,0 +1,13 @@
+{
+  "name": "isstringscalar",
+  "namespace": "core",
+  "setup": "s = \"hello\";",
+  "expr": "y = isStringScalar(s);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

@@ -502,6 +502,44 @@ BUGS #21 (1-arg form missing); add the 3-arg form too.
 
 ---
 
+## 24. `core/`: `.*` (and other elementwise ops) reject `logical .* double` — **P2**
+
+**Reproducer:**
+```matlab
+x = (mod(1:10, 3) == 0) .* (1:10)
+% MATLAB / Octave:  [0 0 3 0 0 6 0 0 9 0]   (auto-coerce logical → double)
+% numkit:           "Unsupported types for .* (in operator '.*')"
+```
+**MATLAB:** logical values auto-coerce to double in arithmetic ops.
+The pattern `(predicate) .* values` is canonical for masking.
+**Impact:** Defensive masking idioms break; users must explicitly
+`double(predicate) .* values`. Possibly affects `+`, `-`, `./` too.
+**Where:** core elementwise dispatch — needs to insert auto-cast for
+logical operands when paired with numeric.
+**Status:** **pending — core fix required.**
+**First seen:** 2026-05-03, parity bulk-bench iteration 20.
+
+---
+
+## 25. `libs/builtin`: `isStringScalar` (camelCase) not registered — **P3**
+
+**Reproducer:**
+```matlab
+s = "hello";
+isStringScalar(s)   % MATLAB: 1   numkit: undefined function
+isstringscalar(s)   % numkit:  1   MATLAB: undefined function
+```
+**MATLAB:** the canonical name is camelCase (`isStringScalar`). numkit
+only registers the lowercase alias.
+**Impact:** Cross-MATLAB code that uses the canonical camelCase name
+fails. Lowercase already works.
+**Where:** [libs/builtin/src/](libs/builtin/) — add `isStringScalar`
+as alias to existing `isstringscalar` registration. Cosmetic / 1-line
+fix.
+**First seen:** 2026-05-03, parity bulk-bench iteration 20.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

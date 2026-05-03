@@ -1,0 +1,10 @@
+{
+  "name": "uniquetol",
+  "namespace": "core",
+  "setup": "x = round(linspace(0, 100, 10000) * 100) / 100;",
+  "expr": "y = uniquetol(x, 0.01);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: U = uniquetol(X, TOL). 10k with rounded vals. 100 iters.",
+  "out_var": "y"
+}
