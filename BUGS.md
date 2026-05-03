@@ -540,6 +540,28 @@ fix.
 
 ---
 
+## 26. `libs/builtin`: `num2str(X, fmt)` and `num2str(X, n)` ignore the precision argument — **P2**
+
+**Reproducer:**
+```matlab
+x = pi;
+num2str(x)             % numkit: '3.14159'  MATLAB: '3.1416'  (defaults differ — both reasonable)
+num2str(x, '%.10f')    % numkit: '3.14159'  MATLAB: '3.1415926536'
+num2str(x, 12)         % numkit: '3.14159'  MATLAB: '3.14159265359'
+```
+**Symptom:** numkit returns the same 7-digit default regardless of
+the second argument — both the printf format-string form and the
+digit-count form are silently ignored.
+**MATLAB:** `num2str(X, fmt)` honors the C-style printf spec, and
+`num2str(X, n)` returns up to n significant digits.
+**Impact:** Anything formatting numerics for display, logging, or
+serialization gets stuck at numkit's default precision. Common usage.
+**Where:** [libs/builtin/src/](libs/builtin/) `num2str` adapter — needs
+to actually parse + apply the second arg, branching on its type.
+**First seen:** 2026-05-03, parity bulk-bench iteration 21.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

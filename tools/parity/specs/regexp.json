@@ -1,0 +1,14 @@
+{
+  "name": "regexp",
+  "namespace": "core",
+  "setup": "s = repmat('abc 123 xyz 456 def 789 ', 1, 100);",
+  "expr": "y = regexp(s, '\\d+', 'match');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters.",
+  "fingerprint": [
+    "double(numel(y))",
+    "double(strlength(y{1}))",
+    "double(strlength(y{end}))"
+  ]
+}

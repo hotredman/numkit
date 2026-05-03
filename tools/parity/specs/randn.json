@@ -1,0 +1,14 @@
+{
+  "name": "randn",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = randn(1000, 1000);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: A = randn(M,N). 1k\u00d71k normal. 100 iters. RNG-stream-diff fp.",
+  "fingerprint": [
+    "numel(y)",
+    "double(size(y, 1))",
+    "double(size(y, 2))"
+  ]
+}

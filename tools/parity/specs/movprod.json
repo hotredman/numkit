@@ -1,0 +1,10 @@
+{
+  "name": "movprod",
+  "namespace": "core",
+  "setup": "x = 1 + 0.001*sin(linspace(0, 100, 1000000));",
+  "expr": "y = movprod(x, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: M = movprod(X, K). 1M near-1 vals. 50 iters.",
+  "out_var": "y"
+}

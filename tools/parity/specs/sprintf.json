@@ -1,0 +1,10 @@
+{
+  "name": "sprintf",
+  "namespace": "core",
+  "setup": "x = 3.14159265358979; n = 42;",
+  "expr": "y = sprintf('pi=%.6f n=%d', x, n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S = sprintf(FMT, ...). Format scalar+int. 100k iters.",
+  "out_var": "y"
+}
