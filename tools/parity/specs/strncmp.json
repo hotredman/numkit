@@ -1,0 +1,13 @@
+{
+  "name": "strncmp",
+  "namespace": "core",
+  "setup": "a = 'helloworld'; b = 'helloXXXXX';",
+  "expr": "y = strncmp(a, b, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = strncmp(A, B, N). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

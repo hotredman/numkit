@@ -562,6 +562,35 @@ to actually parse + apply the second arg, branching on its type.
 
 ---
 
+## 27. `libs/builtin`: `*Between` family handles only first occurrence — **P2**
+
+**Reproducers:**
+```matlab
+s = '<<a>><<b>><<c>>';
+extractBetween(s, '<<', '>>')
+% MATLAB:  3-element cell {'a';'b';'c'}
+% numkit:  single char 'a' (just first match)
+
+eraseBetween(s, '<<', '>>')
+% MATLAB:  '<<>><<>><<>>' (all 3 replaced)
+% numkit:  '<<>><<b>><<c>>' (only first)
+
+replaceBetween(s, '<<', '>>', 'X')
+% MATLAB:  '<<X>><<X>><<X>>'
+% numkit:  '<<X>><<b>><<c>>'
+```
+**Symptom:** numkit's `extractBetween` / `eraseBetween` / `replaceBetween`
+all stop after the first matched delimiter pair. MATLAB iterates all
+non-overlapping matches.
+**Impact:** Multi-match string processing breaks. Common pattern for
+log parsing, template extraction, etc.
+**Where:** [libs/builtin/src/](libs/builtin/) the three adapters — likely
+share an internal "find next pair" helper that needs a `while` loop
+instead of a single `find`.
+**First seen:** 2026-05-03, parity bulk-bench iteration 23.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

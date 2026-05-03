@@ -1,9 +1,13 @@
 {
   "name": "newline",
   "namespace": "core",
-  "setup": "",
-  "expr": "nl = newline;",
-  "iters": 100000,
-  "fingerprint": ["double(nl)", "length(nl)"],
-  "comment": "ASCII LF char. Bench is 100k iters of the call itself."
+  "setup": "% nop",
+  "expr": "y = newline;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: NL = newline. ASCII LF=10. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
 }

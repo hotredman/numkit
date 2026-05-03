@@ -1,0 +1,10 @@
+{
+  "name": "erasebetween",
+  "namespace": "core",
+  "setup": "s = 'foo<<remove me>>bar<<also>>baz';",
+  "expr": "y = eraseBetween(s, '<<', '>>');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S2 = eraseBetween(S, A, B). 10000 iters.",
+  "out_var": "y"
+}

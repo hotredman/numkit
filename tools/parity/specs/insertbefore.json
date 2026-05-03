@@ -1,0 +1,10 @@
+{
+  "name": "insertbefore",
+  "namespace": "core",
+  "setup": "s = 'foo bar baz qux';",
+  "expr": "y = insertBefore(s, 'bar', '<X>');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S2 = insertBefore(S, PAT, ADD). 10000 iters.",
+  "out_var": "y"
+}

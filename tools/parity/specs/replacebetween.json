@@ -1,0 +1,10 @@
+{
+  "name": "replacebetween",
+  "namespace": "core",
+  "setup": "s = 'foo<<old1>>bar<<old2>>baz';",
+  "expr": "y = replaceBetween(s, '<<', '>>', 'NEW');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S2 = replaceBetween(S, A, B, REP). 10000 iters.",
+  "out_var": "y"
+}
