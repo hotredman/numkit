@@ -7,6 +7,7 @@
 #include <numkit/builtin/library.hpp>
 #include <numkit/signal/library.hpp>
 #include <numkit/stats/library.hpp>
+#include <numkit/image/library.hpp>
 #include <numkit/graphics/library.hpp>
 #include <numkit/io/library.hpp>
 #include <numkit/core/tree_walker.hpp>
@@ -66,6 +67,7 @@ Engine::Engine(std::pmr::memory_resource *mr)
     BuiltinLibrary::install(*this);
     SignalLibrary::install(*this);
     StatsLibrary::install(*this);
+    ImageLibrary::install(*this);
     GraphicsLibrary::install(*this);
     IoLibrary::install(*this);
 }
