@@ -117,35 +117,57 @@ unsupported for strings).
 
 ---
 
-## 9. `libs/builtin`: scalar trig functions miss SIMD on element-wise input — **P3**
+## 9. `libs/builtin`: most scalar trig / hyperbolic functions miss SIMD — **P3**
 
-**Functions:** `tan`, `atan2` (and by extension `cart2pol` / `cart2sph` / `sph2cart` /
-`hypot` which build on them).
+**Functions** (perf-only — correctness OK on all):
+- inverse: `acos`, `asin`, `atan`, `atan2`
+- hyperbolic: `sinh`, `cosh`, `tanh`
+- direct (slow): `tan`
+- degree variants: `sind`, `cosd`, `tand`
+- multiple-of-π: `sinpi`, `cospi`
+- coord helpers: `cart2pol`, `hypot` (and by extension `cart2sph` / `sph2cart`)
 
-**Symptom (parity-bench iteration 1):**
+**Already SIMD-OK (parity-class):** `sin`, `cos` go through
+`transcendental_simd.cpp` via Highway lanes.
 
-| function | numkit_ms | matlab_ms | vs MATLAB |
-|---|---:|---:|---:|
-| `sin` (1M pts)         | 0.85 | 0.90 | 1.07× (parity) |
-| `cos` (1M pts)         | 0.86 | 0.88 | 1.03× (parity) |
-| `tan` (1M pts)         | 7.28 | 0.86 | **0.12×** |
-| `atan2` (1M-elem grid) | 10.64 | 0.69 | **0.07×** |
-| `cart2pol` (1M grid)   | 17.13 | 3.27 | **0.19×** |
+**Symptom (parity-bench iterations 1 & 2):**
 
-Correctness ULP-level OK on all five. `sin`/`cos` already SIMD-vectorized
-through Highway in `libs/builtin/src/math/_backends/transcendental_simd.cpp`.
-`tan`, `atan2`, and consequently the coord-transform helpers, fall back to
-scalar `std::tan` / `std::atan2` — same ~8× gap MATLAB closes with vector trig.
+| function | numkit_ms | vs MATLAB |
+|---|---:|---:|
+| `sin`      |  0.85 | **1.07×** parity |
+| `cos`      |  0.86 | **1.03×** parity |
+| `tan`      |  7.28 | 0.12× |
+| `atan2`    | 10.64 | 0.07× |
+| `cart2pol` | 17.13 | 0.19× |
+| `acos`     |  6.91 | 0.23× |
+| `asin`     |  6.75 | 0.24× |
+| `atan`     |  6.36 | 0.09× |
+| `cosd`     | 10.73 | 0.09× |
+| `cosh`     |  8.20 | 0.11× |
+| `cospi`    |  9.24 | 0.07× |
+| `hypot`    |  6.64 | 0.17× |
+| `sind`     | 10.63 | 0.07× |
+| `sinh`     |  8.34 | 0.15× |
+| `sinpi`    |  9.11 | 0.09× |
+| `tand`     | 10.18 | 0.09× |
+| `tanh`     |  9.68 | 0.13× |
 
-**Where:** `libs/builtin/src/math/trig/...` for `tan` / `atan2`;
-`libs/builtin/src/math/_backends/transcendental_simd.cpp` for the SIMD
-plumbing. The Highway pattern is already in place for `sin` / `cos`; adding
-`tan` and `atan2` lanes is mechanical.
+Correctness ULP-level OK on all (1M-point sweeps, element-wise SAVE
+comparison vs MATLAB R2025b). The 5–15× perf gap is uniform: every
+non-{sin,cos} trig falls through to scalar `std::*` because SIMD
+lanes are only wired for sin / cos in
+`libs/builtin/src/math/_backends/transcendental_simd.cpp`.
 
-**Status:** **pending — libs fix.** Not blocking parity. Will be addressed
-once the bulk-bench identifies the full set of perf gaps.
+**Where:** `libs/builtin/src/math/trig/*.cpp` for the trig adapters;
+`transcendental_simd.cpp` for the Highway plumbing. The pattern for
+`sin` / `cos` is the template — adding `tan`, `asin`, `acos`, `atan`,
+`atan2`, the hyperbolics, the `*d` and `*pi` variants, and `hypot` is
+mechanical.
 
-**First seen:** 2026-05-03, parity bulk-bench iteration 1.
+**Status:** **pending — libs fix.** Not blocking parity. Single
+mass-SIMD pass should close all of these.
+
+**First seen:** 2026-05-03, parity bulk-bench iterations 1 & 2.
 
 ---
 

@@ -1,0 +1,10 @@
+{
+  "name": "sinpi",
+  "namespace": "core",
+  "setup": "x = linspace(-2, 2, 1000000);",
+  "expr": "y = sinpi(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = sinpi(X) = sin(\u03c0\u00b7X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE."
+}

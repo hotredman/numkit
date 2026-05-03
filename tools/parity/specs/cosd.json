@@ -1,0 +1,10 @@
+{
+  "name": "cosd",
+  "namespace": "core",
+  "setup": "x = linspace(-720, 720, 1000000);",
+  "expr": "y = cosd(x);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: Y = cosd(X). 1M-pt sweep on [-720\u00b0, 720\u00b0]. degree variant. 20 iters. Element-wise SAVE."
+}
