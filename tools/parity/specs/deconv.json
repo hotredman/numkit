@@ -1,0 +1,10 @@
+{
+  "name": "deconv",
+  "namespace": "core",
+  "setup": "u = [1 2 3 4]; v = [1 -1];",
+  "expr": "[y, jj] = deconv(u, v);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters.",
+  "out_var": "y"
+}

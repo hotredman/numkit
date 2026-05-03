@@ -1,0 +1,13 @@
+{
+  "name": "flintmax",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = flintmax;",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: M = flintmax. Largest exact float-int. 1M iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

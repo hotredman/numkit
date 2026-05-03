@@ -1,0 +1,10 @@
+{
+  "name": "cart2sph",
+  "namespace": "core",
+  "setup": "x = linspace(-2,2,50); y_in = linspace(-2,2,50); z = linspace(-2,2,50); [X,Y,Z] = meshgrid(x,y_in,z);",
+  "expr": "[y, jj, kk] = cart2sph(X, Y, Z);",
+  "iters": 50,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: [TH,PHI,R] = cart2sph(X,Y,Z). 50\u00b3 grid. 50 iters. SAVE on TH (y)."
+}

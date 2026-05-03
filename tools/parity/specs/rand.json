@@ -1,0 +1,14 @@
+{
+  "name": "rand",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = rand(1000, 1000);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: A = rand(M,N). 1k\u00d71k uniform. 100 iters. Custom fp (RNG diffs).",
+  "fingerprint": [
+    "numel(y)",
+    "double(size(y, 1))",
+    "double(size(y, 2))"
+  ]
+}

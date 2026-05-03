@@ -1,0 +1,14 @@
+{
+  "name": "ifft",
+  "namespace": "core",
+  "setup": "X = fft(sin(linspace(0, 100, 1024)));",
+  "expr": "y = ifft(X);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: y = ifft(Y). 1024-pt inverse. 1000 iters.",
+  "fingerprint": [
+    "double(real(sum(y(:))))",
+    "double(real(y(1)))",
+    "double(real(y(end)))"
+  ]
+}

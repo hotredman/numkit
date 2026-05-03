@@ -1,0 +1,10 @@
+{
+  "name": "filter",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1]; x = sin(linspace(0, 100, 100000));",
+  "expr": "y = filter(b, a, x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters.",
+  "out_var": "y"
+}

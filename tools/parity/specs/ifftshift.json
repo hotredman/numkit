@@ -1,0 +1,14 @@
+{
+  "name": "ifftshift",
+  "namespace": "core",
+  "setup": "X = fft(sin(linspace(0, 100, 1024)));",
+  "expr": "y = ifftshift(X);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = ifftshift(X). 1024-pt unshift. 1000 iters.",
+  "fingerprint": [
+    "double(real(sum(y(:))))",
+    "double(real(y(1)))",
+    "double(real(y(end)))"
+  ]
+}
