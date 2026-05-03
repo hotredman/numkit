@@ -949,6 +949,10 @@ void BuiltinLibrary::install(Engine &engine)
                                           &builtin::detail::convertStringsToChars_reg);
     engine.registerFunction("isstringscalar",
                                           &builtin::detail::isstringscalar_reg);
+    // MATLAB exports the canonical camelCase name `isStringScalar`;
+    // alias it to the same impl. See BUGS.md #25.
+    engine.registerFunction("isStringScalar",
+                                          &builtin::detail::isstringscalar_reg);
     engine.registerFunction("isstrprop",  &builtin::detail::isstrprop_reg);
     engine.registerFunction("isletter",   &builtin::detail::isletter_reg);
     engine.registerFunction("isspace",    &builtin::detail::isspace_reg);

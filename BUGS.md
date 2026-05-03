@@ -523,7 +523,7 @@ logical operands when paired with numeric.
 
 ---
 
-## 25. `libs/builtin`: `isStringScalar` (camelCase) not registered — **P3**
+## 25. `libs/builtin`: `isStringScalar` (camelCase) not registered — **P3** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -539,6 +539,8 @@ fails. Lowercase already works.
 as alias to existing `isstringscalar` registration. Cosmetic / 1-line
 fix.
 **First seen:** 2026-05-03, parity bulk-bench iteration 20.
+**Fixed:** added camelCase alias to library.cpp registration. Both
+names now resolve to the same impl.
 
 ---
 
