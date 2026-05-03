@@ -892,6 +892,140 @@ multiple sections; all occurrences refresh together).
 | `xcorr` | ✅ | 0.959 | 0.20× | 1.08× | OK | Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters. |
 | `xcov` | ✅ | 1.011 | 0.36× | 0.99× | OK | Cross-cov of 5k-pt sine. 50 iters. |
 
+## Probability Distributions
+
+**Namespace:** `stats.dist.*` — 85 ✅ + 0 ⚠️ / 130+ = 65%
+
+Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `normpdf` | ✅ |  |  |  | OK | normal — Φ via 0.5·erfc(-z/√2) |
+| `normcdf` | ✅ |  |  |  | OK |  |
+| `norminv` | ✅ |  |  |  | OK | Acklam approx + 1 Newton refinement |
+| `normrnd` | ✅ |  |  |  | OK |  |
+| `normstat` | ✅ |  |  |  | OK |  |
+| `chi2pdf` | ✅ |  |  |  | OK | chi-squared k DOF |
+| `chi2cdf` | ✅ |  |  |  | OK | gammainc(x/2, k/2) |
+| `chi2inv` | ✅ |  |  |  | OK | 2·gammaincinv(p, k/2) |
+| `chi2rnd` | ✅ |  |  |  | OK |  |
+| `chi2stat` | ✅ |  |  |  | OK |  |
+| `tpdf` | ✅ |  |  |  | OK | Student's t |
+| `tcdf` | ✅ |  |  |  | OK | betainc on z = ν/(ν+x²), branch by sign |
+| `tinv` | ✅ |  |  |  | OK |  |
+| `trnd` | ✅ |  |  |  | OK | Z/√(X/ν), Z~N(0,1), X~χ²(ν) |
+| `tstat` | ✅ |  |  |  | OK |  |
+| `fpdf` | ✅ |  |  |  | OK | Fisher F(v1, v2) |
+| `fcdf` | ✅ |  |  |  | OK | betainc(v1·x/(v1·x+v2), v1/2, v2/2) |
+| `finv` | ✅ |  |  |  | OK |  |
+| `frnd` | ✅ |  |  |  | OK | (X1/v1)/(X2/v2), Xi~χ²(vi) |
+| `fstat` | ✅ |  |  |  | OK |  |
+| `betapdf` | ✅ |  |  |  | OK | beta(a, b); log-form for stability |
+| `betacdf` | ✅ |  |  |  | OK | I_x(a, b) directly |
+| `betainv` | ✅ |  |  |  | OK |  |
+| `betarnd` | ✅ |  |  |  | OK | U/(U+V), U~Gamma(a,1), V~Gamma(b,1) |
+| `betastat` | ✅ |  |  |  | OK |  |
+| `gampdf` | ✅ |  |  |  | OK | gamma(a=shape, b=scale); MATLAB convention |
+| `gamcdf` | ✅ |  |  |  | OK | gammainc(x/b, a) |
+| `gaminv` | ✅ |  |  |  | OK |  |
+| `gamrnd` | ✅ |  |  |  | OK | std::gamma_distribution(a, b) |
+| `gamstat` | ✅ |  |  |  | OK |  |
+| `exppdf` | ✅ |  |  |  | OK | exponential — MATLAB uses MEAN μ (not rate) |
+| `expcdf` | ✅ |  |  |  | OK | -expm1(-x/μ) |
+| `expinv` | ✅ |  |  |  | OK |  |
+| `exprnd` | ✅ |  |  |  | OK |  |
+| `expstat` | ✅ |  |  |  | OK |  |
+| `unifpdf` | ✅ |  |  |  | OK | continuous uniform [a, b]; defaults a=0, b=1 |
+| `unifcdf` | ✅ |  |  |  | OK |  |
+| `unifinv` | ✅ |  |  |  | OK |  |
+| `unifrnd` | ✅ |  |  |  | OK |  |
+| `unifstat` | ✅ |  |  |  | OK |  |
+| `lognpdf` | ✅ |  |  |  | OK | lognormal — params are μ, σ of underlying normal |
+| `logncdf` | ✅ |  |  |  | OK |  |
+| `logninv` | ✅ |  |  |  | OK |  |
+| `lognrnd` | ✅ |  |  |  | OK |  |
+| `lognstat` | ✅ |  |  |  | OK | mean = e^(μ+σ²/2), var = expm1(σ²)·e^(2μ+σ²) |
+| `wblpdf` | ✅ |  |  |  | OK | Weibull: a=scale, b=shape (MATLAB) — flip vs std order |
+| `wblcdf` | ✅ |  |  |  | OK |  |
+| `wblinv` | ✅ |  |  |  | OK |  |
+| `wblrnd` | ✅ |  |  |  | OK |  |
+| `wblstat` | ✅ |  |  |  | OK |  |
+| `raylpdf` | ✅ |  |  |  | OK | Rayleigh — single scale b > 0 |
+| `raylcdf` | ✅ |  |  |  | OK |  |
+| `raylinv` | ✅ |  |  |  | OK |  |
+| `raylrnd` | ✅ |  |  |  | OK | inverse-cdf sampling |
+| `raylstat` | ✅ |  |  |  | OK |  |
+| `poisspdf` | ✅ |  |  |  | OK | Poisson |
+| `poisscdf` | ✅ |  |  |  | OK | F(k; λ) = 1 - gammainc(λ, ⌊k⌋+1) |
+| `poissinv` | ✅ |  |  |  | OK | normal-approx start, walk with 1-ULP tolerance |
+| `poissrnd` | ✅ |  |  |  | OK |  |
+| `poisstat` | ✅ |  |  |  | OK | mean = var = λ |
+| `binopdf` | ✅ |  |  |  | OK | binomial |
+| `binocdf` | ✅ |  |  |  | OK | I_{1-p}(n - ⌊k⌋, ⌊k⌋ + 1) |
+| `binoinv` | ✅ |  |  |  | OK |  |
+| `binornd` | ✅ |  |  |  | OK |  |
+| `binostat` | ✅ |  |  |  | OK |  |
+| `unidpdf` | ✅ |  |  |  | OK | discrete uniform on {1..N} |
+| `unidcdf` | ✅ |  |  |  | OK |  |
+| `unidinv` | ✅ |  |  |  | OK |  |
+| `unidrnd` | ✅ |  |  |  | OK |  |
+| `unidstat` | ✅ |  |  |  | OK |  |
+| `geopdf` | ✅ |  |  |  | OK | geometric (failures before 1st success) |
+| `geocdf` | ✅ |  |  |  | OK | -expm1((⌊k⌋+1)·log1p(-p)) |
+| `geoinv` | ✅ |  |  |  | OK |  |
+| `geornd` | ✅ |  |  |  | OK |  |
+| `geostat` | ✅ |  |  |  | OK |  |
+| `nbinpdf` | ✅ |  |  |  | OK | negative binomial |
+| `nbincdf` | ✅ |  |  |  | OK | I_p(r, ⌊k⌋ + 1) |
+| `nbininv` | ✅ |  |  |  | OK |  |
+| `nbinrnd` | ✅ |  |  |  | OK | Gamma-Poisson mixture; supports real r |
+| `nbinstat` | ✅ |  |  |  | OK |  |
+| `hygepdf` | ✅ |  |  |  | OK | hypergeometric (M, K, N) |
+| `hygecdf` | ✅ |  |  |  | OK | forward sum via pmf-recurrence |
+| `hygeinv` | ✅ |  |  |  | OK |  |
+| `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
+| `hygestat` | ✅ |  |  |  | OK |  |
+| `evpdf` | ❌ |  |  |  |  | extreme value (Gumbel) — pending |
+| `evcdf` | ❌ |  |  |  |  |  |
+| `evinv` | ❌ |  |  |  |  |  |
+| `evrnd` | ❌ |  |  |  |  |  |
+| `evstat` | ❌ |  |  |  |  |  |
+| `gevpdf` | ❌ |  |  |  |  | generalized extreme value |
+| `gevcdf` | ❌ |  |  |  |  |  |
+| `gevinv` | ❌ |  |  |  |  |  |
+| `gevrnd` | ❌ |  |  |  |  |  |
+| `gevstat` | ❌ |  |  |  |  |  |
+| `gppdf` | ❌ |  |  |  |  | generalized Pareto |
+| `gpcdf` | ❌ |  |  |  |  |  |
+| `gpinv` | ❌ |  |  |  |  |  |
+| `gprnd` | ❌ |  |  |  |  |  |
+| `gpstat` | ❌ |  |  |  |  |  |
+| `nakapdf` | ❌ |  |  |  |  | Nakagami |
+| `nakacdf` | ❌ |  |  |  |  |  |
+| `nakainv` | ❌ |  |  |  |  |  |
+| `nakarnd` | ❌ |  |  |  |  |  |
+| `nakastat` | ❌ |  |  |  |  |  |
+| `ricepdf` | ❌ |  |  |  |  | Rician |
+| `ricecdf` | ❌ |  |  |  |  |  |
+| `riceinv` | ❌ |  |  |  |  |  |
+| `ricernd` | ❌ |  |  |  |  |  |
+| `ricestat` | ❌ |  |  |  |  |  |
+| `ncfpdf` | ❌ |  |  |  |  | noncentral F |
+| `ncfcdf` | ❌ |  |  |  |  |  |
+| `ncfinv` | ❌ |  |  |  |  |  |
+| `ncfrnd` | ❌ |  |  |  |  |  |
+| `ncfstat` | ❌ |  |  |  |  |  |
+| `nctpdf` | ❌ |  |  |  |  | noncentral t |
+| `nctcdf` | ❌ |  |  |  |  |  |
+| `nctinv` | ❌ |  |  |  |  |  |
+| `nctrnd` | ❌ |  |  |  |  |  |
+| `nctstat` | ❌ |  |  |  |  |  |
+| `ncx2pdf` | ❌ |  |  |  |  | noncentral chi-squared |
+| `ncx2cdf` | ❌ |  |  |  |  |  |
+| `ncx2inv` | ❌ |  |  |  |  |  |
+| `ncx2rnd` | ❌ |  |  |  |  |  |
+| `ncx2stat` | ❌ |  |  |  |  |  |
+
 ## Workspace
 
 **Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
@@ -1197,17 +1331,17 @@ multiple sections; all occurrences refresh together).
 
 ## Filter Design (FIR / IIR coefficient generators)
 
-**Namespace:** `signal.filter_design.*` — 6 ✅ + 0 ⚠️ / 37 = 16%
+**Namespace:** `signal.filter_design.*` — 11 ✅ + 0 ⚠️ / 37 = 30%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
-| `buttord` | ❌ |  |  |  |  | order estimator |
+| `buttord` | ✅ |  |  |  | OK | LP/HP match MATLAB exactly; band-edge refinement deferred. |
 | `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
-| `cheb1ord` | ❌ |  |  |  |  | order estimator |
-| `cheb2ord` | ❌ |  |  |  |  | order estimator |
-| `cheby1` | ❌ |  |  |  |  | IIR Chebyshev I |
-| `cheby2` | ❌ |  |  |  |  | IIR Chebyshev II |
+| `cheb1ord` | ✅ |  |  |  | OK | Wn = Wp (passband edge). |
+| `cheb2ord` | ✅ |  |  |  | OK | Wn = Ws (stopband edge). |
+| `cheby1` | ✅ |  |  |  | OK | LP/HP/BP/BS via cheb1ap+lp2X+zp2tf+bilinear. |
+| `cheby2` | ✅ |  |  |  | OK | Cheb2ap zero formula was 1/sin → 1/cos; fixed in 6ec8a62. |
 | `designfilt` | ❌ |  |  |  |  |  |
 | `designfilter` | ❌ |  |  |  |  |  |
 | `digitalfilter` | ❌ |  |  |  |  |  |
@@ -1241,23 +1375,23 @@ multiple sections; all occurrences refresh together).
 
 ## Analog Filters (prototype + analog response)
 
-**Namespace:** `signal.filter_design.*` — 1 ✅ + 0 ⚠️ / 17 = 5%
+**Namespace:** `signal.filter_design.*` — 14 ✅ + 0 ⚠️ / 17 = 82%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `besselap` | ✅ |  |  |  |  | analog prototype |
-| `besself` | ❌ |  |  |  |  | IIR Bessel |
+| `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
 | `bilinear` | ✅ |  |  |  |  |  |
 | `buttap` | ✅ |  |  |  |  | analog prototype |
 | `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
 | `cheb1ap` | ✅ |  |  |  |  | analog prototype |
-| `cheb2ap` | ✅ |  |  |  |  | analog prototype |
-| `cheby1` | ❌ |  |  |  |  | IIR Chebyshev I |
-| `cheby2` | ❌ |  |  |  |  | IIR Chebyshev II |
-| `ellip` | ❌ |  |  |  |  | IIR elliptic |
-| `ellipap` | ❌ |  |  |  |  | analog prototype |
+| `cheb2ap` | ✅ |  |  |  |  | analog prototype (zeros formula fixed in 6ec8a62) |
+| `cheby1` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 0.5, 0.4) test. |
+| `cheby2` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 30, 0.4) test. |
+| `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
+| `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
 | `freqs` | ✅ |  |  |  |  | analog freq response |
-| `impinvar` | ❌ |  |  |  |  |  |
+| `impinvar` | ✅ |  |  |  | OK | Matches MATLAB to 8 decimals on simple-pole tests. Repeated poles not yet supported. |
 | `lp2bp` | ✅ |  |  |  |  |  |
 | `lp2bs` | ✅ |  |  |  |  |  |
 | `lp2hp` | ✅ |  |  |  |  |  |
@@ -1354,7 +1488,7 @@ multiple sections; all occurrences refresh together).
 
 ## Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony)
 
-**Namespace:** `signal.parametric.*` — 0 ✅ + 0 ⚠️ / 25 = 0%
+**Namespace:** `signal.parametric.*` — 23 ✅ + 0 ⚠️ / 25 = 92%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1365,8 +1499,8 @@ multiple sections; all occurrences refresh together).
 | `armcov` | ✅ |  |  |  |  | modified cov AR |
 | `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
 | `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
-| `invfreqs` | ❌ |  |  |  |  |  |
-| `invfreqz` | ❌ |  |  |  |  | IIR sys-id |
+| `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
+| `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
 | `is2rc` | ✅ |  |  |  |  |  |
 | `lar2rc` | ✅ |  |  |  |  |  |
 | `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
