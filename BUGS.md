@@ -196,30 +196,32 @@ and the parity harness now injects that line on every numkit run.
 
 ---
 
-## 11. `core/`: `arrayfun(@lambda, vec)` ignores the lambda body — **P1**
+## 11. `core/` or `libs/`: `arrayfun(@lambda, vec)` ignores the lambda body — **P1**
 
 **Reproducer:**
 ```matlab
 arrayfun(@(x) x*2, 1:5)     % numkit: [1 2 3 4 5]   ; MATLAB: [2 4 6 8 10]
 arrayfun(@(x) x^2, 1:5)     % numkit: [1 2 3 4 5]   ; MATLAB: [1 4 9 16 25]
 arrayfun(@(x) sin(x), 1:5)  % numkit: [1 2 3 4 5]   ; MATLAB: sin([1..5])
-arrayfun(@(k) nchoosek(30,k), 0:5)
-                            % numkit: [0 1 2 3 4 5] ; MATLAB: [1 30 435 ...]
+
+% IMPORTANT — sibling functions are NOT broken (verified 2026-05-03):
+cellfun(@(x) x*2, {1,2,3,4,5})            % numkit: [2 4 6 8 10] OK
+structfun(@(x) x*2, struct('a',1,'b',2))  % numkit: [2;4]        OK
 ```
-**Symptom:** The anonymous-function body is completely bypassed; arrayfun
-returns the iterated input value verbatim. Direct calls to the body
-work — `nchoosek(30,15)` returns 155117520 correctly. Only the
-arrayfun-wrapped form is broken.
-**Impact:** Any MATLAB code that uses `arrayfun(@(...)..., ...)` will
-silently produce wrong results — not a crash, just the wrong answer.
-This is likely the most dangerous parity bug found so far.
-**Where:** `core/` — arrayfun dispatch + lambda body application
-in TreeWalker / VM. Probably the lambda's captured AST isn't being
-re-bound to the `x` arg at each iteration.
-**Status:** **pending — core fix required.** Documented; do not attempt
-fix from this cycle (libs/ only).
+**Symptom:** The anonymous-function body is completely bypassed for
+`arrayfun`; the iterated input is returned verbatim. The same lambda
+applied via `cellfun` or `structfun` works correctly. Bug is specific
+to the `arrayfun` adapter.
+**Impact:** Any MATLAB code using `arrayfun(@(...)..., ...)` produces
+silent wrong results — no crash, just wrong answers.
+**Where:** `arrayfun` adapter only. The bug is likely in the
+arrayfun-specific argument-binding path; cellfun/structfun must use
+a different (working) lambda-application code path.
+**Status:** **pending fix.** May be libs-side after all (since
+cellfun/structfun work) — not necessarily core.
 **First seen:** 2026-05-03, parity bulk-bench iteration 7 (probing
-`nchoosek` MISMATCH).
+`nchoosek` MISMATCH). Refined iter 26 — confirmed cellfun/structfun
+unaffected.
 
 ---
 

@@ -1,0 +1,12 @@
+{
+  "name": "localfunctions",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = localfunctions();",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: F = localfunctions(). Stub returns empty cell. 100k iters.",
+  "fingerprint": [
+    "double(numel(y))"
+  ]
+}

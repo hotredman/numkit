@@ -1,0 +1,12 @@
+{
+  "name": "rats",
+  "namespace": "core",
+  "setup": "x = pi;",
+  "expr": "y = rats(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: S = rats(X). Continued frac as char. 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

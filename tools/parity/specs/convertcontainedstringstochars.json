@@ -1,0 +1,12 @@
+{
+  "name": "convertcontainedstringstochars",
+  "namespace": "core",
+  "setup": "c = {'a', \"b\", {'c', \"d\"}};",
+  "expr": "y = convertContainedStringsToChars(c);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C2 = convertContainedStringsToChars(C). 10000 iters.",
+  "fingerprint": [
+    "double(numel(y))"
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "functions",
+  "namespace": "core",
+  "setup": "f = @sin;",
+  "expr": "y = functions(f);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: I = functions(F). Introspect handle. 10000 iters.",
+  "fingerprint": [
+    "double(numel(fieldnames(y)))"
+  ]
+}

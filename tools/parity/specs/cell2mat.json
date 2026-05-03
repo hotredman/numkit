@@ -1,0 +1,10 @@
+{
+  "name": "cell2mat",
+  "namespace": "core",
+  "setup": "c = {1, 2, 3; 4, 5, 6; 7, 8, 9};",
+  "expr": "y = cell2mat(c);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: M = cell2mat(C). 3x3 cell of scalars. 10000 iters.",
+  "out_var": "y"
+}

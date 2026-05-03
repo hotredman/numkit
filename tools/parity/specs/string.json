@@ -1,0 +1,12 @@
+{
+  "name": "string",
+  "namespace": "core",
+  "setup": "x = [1.5 2.5 3.5];",
+  "expr": "y = string(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "fingerprint": [
+    "double(numel(y))"
+  ],
+  "comment": "Sig: S = string(X). Numeric \u2192 string array. 1000 iters. fp limited to numel (string-array indexing broken \u2014 BUGS #7)."
+}
