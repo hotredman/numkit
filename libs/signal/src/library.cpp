@@ -174,6 +174,18 @@ void sfdr_reg            (Span<const Value>, size_t, Span<Value>, CallContext &)
 void instfreq_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void instbw_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// Analog filter design (libs/signal/src/filter_design/analog_filters.cpp)
+void buttap_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cheb1ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void cheb2ap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void besselap_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lp2lp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lp2hp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lp2bp_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void lp2bs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bilinear_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void freqs_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // Signal modelling (libs/signal/src/spectral_analysis/signal_modeling.cpp)
 void levinson_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rlevinson_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -387,6 +399,16 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "sfdr",             &signal::detail::sfdr_reg);
     reg("spectral_analysis", "instfreq",         &signal::detail::instfreq_reg);
     reg("spectral_analysis", "instbw",           &signal::detail::instbw_reg);
+    reg("filter_design", "buttap",   &signal::detail::buttap_reg);
+    reg("filter_design", "cheb1ap",  &signal::detail::cheb1ap_reg);
+    reg("filter_design", "cheb2ap",  &signal::detail::cheb2ap_reg);
+    reg("filter_design", "besselap", &signal::detail::besselap_reg);
+    reg("filter_design", "lp2lp",    &signal::detail::lp2lp_reg);
+    reg("filter_design", "lp2hp",    &signal::detail::lp2hp_reg);
+    reg("filter_design", "lp2bp",    &signal::detail::lp2bp_reg);
+    reg("filter_design", "lp2bs",    &signal::detail::lp2bs_reg);
+    reg("filter_design", "bilinear", &signal::detail::bilinear_reg);
+    reg("filter_design", "freqs",    &signal::detail::freqs_reg);
     reg("parametric", "levinson",  &signal::detail::levinson_reg);
     reg("parametric", "rlevinson", &signal::detail::rlevinson_reg);
     reg("parametric", "aryule",    &signal::detail::aryule_reg);

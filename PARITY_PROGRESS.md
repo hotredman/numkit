@@ -1245,23 +1245,23 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `besselap` | ❌ |  |  |  |  | analog prototype |
+| `besselap` | ✅ |  |  |  |  | analog prototype |
 | `besself` | ❌ |  |  |  |  | IIR Bessel |
-| `bilinear` | ❌ |  |  |  |  |  |
-| `buttap` | ❌ |  |  |  |  | analog prototype |
+| `bilinear` | ✅ |  |  |  |  |  |
+| `buttap` | ✅ |  |  |  |  | analog prototype |
 | `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
-| `cheb1ap` | ❌ |  |  |  |  | analog prototype |
-| `cheb2ap` | ❌ |  |  |  |  | analog prototype |
+| `cheb1ap` | ✅ |  |  |  |  | analog prototype |
+| `cheb2ap` | ✅ |  |  |  |  | analog prototype |
 | `cheby1` | ❌ |  |  |  |  | IIR Chebyshev I |
 | `cheby2` | ❌ |  |  |  |  | IIR Chebyshev II |
 | `ellip` | ❌ |  |  |  |  | IIR elliptic |
 | `ellipap` | ❌ |  |  |  |  | analog prototype |
-| `freqs` | ❌ |  |  |  |  | analog freq response |
+| `freqs` | ✅ |  |  |  |  | analog freq response |
 | `impinvar` | ❌ |  |  |  |  |  |
-| `lp2bp` | ❌ |  |  |  |  |  |
-| `lp2bs` | ❌ |  |  |  |  |  |
-| `lp2hp` | ❌ |  |  |  |  |  |
-| `lp2lp` | ❌ |  |  |  |  |  |
+| `lp2bp` | ✅ |  |  |  |  |  |
+| `lp2bs` | ✅ |  |  |  |  |  |
+| `lp2hp` | ✅ |  |  |  |  |  |
+| `lp2lp` | ✅ |  |  |  |  |  |
 
 ## Digital Filter Analysis (freqz / phasez / grpdelay / impz / ...)
 
