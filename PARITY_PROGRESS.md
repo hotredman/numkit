@@ -1484,6 +1484,404 @@ intentionally omitted — flat solver functions only.
 | `saoptimset` | ❌ |  |  |  |  | legacy SA options setter |
 | `saoptimget` | ❌ |  |  |  |  | legacy SA options getter |
 
+## Control System Toolbox — LTI Models
+
+**Namespace:** `control.lti.*` — 0 ✅ + 0 ⚠️ / 19 = 0%
+
+`tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
+as flat structure-returning functions (returning a struct with fields
+{num, den}, {z, p, k}, {A, B, C, D}, {response, frequency} etc.) and
+the data-extraction `*data` functions read those structs. The full
+`lti` / `dynamicSystem` class hierarchy and Simulink integration
+(`slTuner`, `addBlock`/`removeBlock`/`setBlockParam`, etc.) are
+intentionally omitted.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `tf` | ❌ |  |  |  |  | transfer function — struct {num, den, Ts} |
+| `zpk` | ❌ |  |  |  |  | zero-pole-gain — struct {z, p, k, Ts} |
+| `ss` | ❌ |  |  |  |  | state-space — struct {A, B, C, D, Ts} |
+| `frd` | ❌ |  |  |  |  | freq-response data — struct {resp, freq} |
+| `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
+| `filt` | ❌ |  |  |  |  | discrete tf with z⁻¹ ordering |
+| `pid` | ❌ |  |  |  |  | parallel-form PID controller |
+| `pid2` | ❌ |  |  |  |  | 2-DOF PID |
+| `pidstd` | ❌ |  |  |  |  | standard-form PID |
+| `pidstd2` | ❌ |  |  |  |  | 2-DOF standard PID |
+| `rss` | ❌ |  |  |  |  | random stable continuous SS |
+| `drss` | ❌ |  |  |  |  | random stable discrete SS |
+| `tfdata` | ❌ |  |  |  |  | extract num/den |
+| `zpkdata` | ❌ |  |  |  |  | extract z/p/k |
+| `ssdata` | ❌ |  |  |  |  | extract A/B/C/D |
+| `frdata` | ❌ |  |  |  |  | extract response/freq |
+| `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
+| `piddata` | ❌ |  |  |  |  |  |
+| `pidstddata` | ❌ |  |  |  |  |  |
+
+## Control System Toolbox — Model Properties
+
+**Namespace:** `control.props.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `isct` | ❌ |  |  |  |  | continuous-time? |
+| `isdt` | ❌ |  |  |  |  | discrete-time? |
+| `isproper` | ❌ |  |  |  |  | proper transfer function? |
+| `issiso` | ❌ |  |  |  |  | single-input single-output? |
+| `isstable` | ❌ |  |  |  |  |  |
+| `isstatic` | ❌ |  |  |  |  | gain only? |
+| `order` | ❌ |  |  |  |  | system order |
+| `pole` | ❌ |  |  |  |  | poles |
+| `zero` | ❌ |  |  |  |  | zeros |
+| `tzero` | ❌ |  |  |  |  | transmission zeros |
+| `damp` | ❌ |  |  |  |  | natural frequencies & damping |
+
+## Control System Toolbox — Model Conversion & Reduction
+
+**Namespace:** `control.convert.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `c2d` | ❌ |  |  |  |  | continuous → discrete |
+| `c2dOptions` | ❌ |  |  |  |  |  |
+| `d2c` | ❌ |  |  |  |  | discrete → continuous |
+| `d2cOptions` | ❌ |  |  |  |  |  |
+| `d2d` | ❌ |  |  |  |  | resample discrete |
+| `d2dOptions` | ❌ |  |  |  |  |  |
+| `ss2ss` | ❌ |  |  |  |  | similarity transform |
+| `canon` | ❌ |  |  |  |  | canonical realisation |
+| `balreal` | ❌ |  |  |  |  | balanced realisation |
+| `prescale` | ❌ |  |  |  |  | improve numerics by scaling |
+| `modalreal` | ❌ |  |  |  |  | modal realisation |
+| `compreal` | ❌ |  |  |  |  | companion realisation |
+| `minreal` | ❌ |  |  |  |  | minimal realisation |
+| `sminreal` | ❌ |  |  |  |  | structurally minimal |
+| `balred` | ❌ |  |  |  |  | balanced reduction |
+| `modred` | ❌ |  |  |  |  | model reduction |
+| `hsvd` | ❌ |  |  |  |  | Hankel singular values |
+| `pade` | ❌ |  |  |  |  | Padé approximation of delay |
+
+## Control System Toolbox — Interconnections
+
+**Namespace:** `control.connect.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `feedback` | ❌ |  |  |  |  |  |
+| `series` | ❌ |  |  |  |  |  |
+| `parallel` | ❌ |  |  |  |  |  |
+| `connect` | ❌ |  |  |  |  | name-based interconnect |
+| `append` | ❌ |  |  |  |  | block-diagonal stack |
+| `lft` | ❌ |  |  |  |  | linear fractional transform |
+| `sumblk` | ❌ |  |  |  |  | summation block (for connect) |
+
+## Control System Toolbox — Time and Frequency Response
+
+**Namespace:** `control.response.*` — 0 ✅ + 0 ⚠️ / 19 = 0%
+
+`*plot` variants intentionally dropped — they're display-only mirrors
+of the numeric functions (which already return data when called with
+output args).
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `step` | ❌ |  |  |  |  | step response |
+| `stepinfo` | ❌ |  |  |  |  | overshoot, rise time, settling time |
+| `impulse` | ❌ |  |  |  |  |  |
+| `initial` | ❌ |  |  |  |  | response from initial state |
+| `lsim` | ❌ |  |  |  |  | linear simulation |
+| `lsiminfo` | ❌ |  |  |  |  |  |
+| `gensig` | ❌ |  |  |  |  | input signal generator |
+| `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
+| `bode` | ❌ |  |  |  |  | mag + phase vs frequency |
+| `bodemag` | ❌ |  |  |  |  | magnitude only |
+| `nyquist` | ❌ |  |  |  |  |  |
+| `nichols` | ❌ |  |  |  |  |  |
+| `sigma` | ❌ |  |  |  |  | singular-value response |
+| `freqresp` | ❌ |  |  |  |  | complex H(jw) on a grid |
+| `evalfr` | ❌ |  |  |  |  | H at one freq |
+| `dcgain` | ❌ |  |  |  |  |  |
+| `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
+| `getPeakGain` | ❌ |  |  |  |  | H∞ |
+| `getGainCrossover` | ❌ |  |  |  |  |  |
+
+## Control System Toolbox — Stability and Margins
+
+**Namespace:** `control.margin.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `margin` | ❌ |  |  |  |  | gain & phase margin |
+| `allmargin` | ❌ |  |  |  |  | all stability margins |
+| `db2mag` | ❌ |  |  |  |  |  |
+| `mag2db` | ❌ |  |  |  |  |  |
+| `pzmap` | ❌ |  |  |  |  | pole-zero map (numeric form) |
+| `rlocus` | ❌ |  |  |  |  | root locus |
+
+## Control System Toolbox — State-Space Design and Estimation
+
+**Namespace:** `control.design.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+
+OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
+`particleFilter`) intentionally omitted — they're class-objects with
+methods (`correct`, `predict`, etc.). Flat steady-state designs only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `lqr` | ❌ |  |  |  |  | linear-quadratic regulator |
+| `lqry` | ❌ |  |  |  |  | LQR with output weighting |
+| `lqi` | ❌ |  |  |  |  | LQR with integral action |
+| `dlqr` | ❌ |  |  |  |  | discrete LQR |
+| `lqrd` | ❌ |  |  |  |  | continuous LQR with sampled controller |
+| `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
+| `lqgreg` | ❌ |  |  |  |  | LQG regulator |
+| `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
+| `place` | ❌ |  |  |  |  | pole placement |
+| `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
+| `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
+| `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
+| `reg` | ❌ |  |  |  |  | full-state controller + observer |
+| `ctrb` | ❌ |  |  |  |  | controllability matrix |
+| `obsv` | ❌ |  |  |  |  | observability matrix |
+| `gram` | ❌ |  |  |  |  | controllability/observability gramian |
+| `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
+| `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
+
+## Control System Toolbox — Matrix Equations
+
+**Namespace:** `control.matrixeq.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `lyap` | ❌ |  |  |  |  | continuous Lyapunov |
+| `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
+| `dlyap` | ❌ |  |  |  |  | discrete Lyapunov |
+| `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
+| `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
+| `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
+| `gcare` | ❌ |  |  |  |  | generalised continuous Riccati |
+| `gdare` | ❌ |  |  |  |  | generalised discrete Riccati |
+
+## Control System Toolbox — PID Tuning and Modal Analysis
+
+**Namespace:** `control.tune.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+`pidTuner`, `looptune`, `systune`, `slTuner` and friends intentionally
+omitted — interactive / Simulink / OOP.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `pidtune` | ❌ |  |  |  |  | automatic PID tuning |
+| `pidtuneOptions` | ❌ |  |  |  |  |  |
+| `getPIDLoopResponse` | ❌ |  |  |  |  |  |
+| `modalsep` | ❌ |  |  |  |  | modal separation |
+| `stabsep` | ❌ |  |  |  |  | stable / unstable split |
+| `freqsep` | ❌ |  |  |  |  | slow / fast modes |
+| `spectralfact` | ❌ |  |  |  |  | spectral factorisation |
+
+## Wavelet Toolbox — Continuous Wavelet Transforms
+
+**Namespace:** `wavelet.cwt.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
+
+`cwtfilterbank` (class) and the deep-learning layer family
+(`cwtLayer`/`icwtLayer`/`dlcwt`/etc.) intentionally omitted.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cwt` | ❌ |  |  |  |  | continuous wavelet transform |
+| `icwt` | ❌ |  |  |  |  | inverse CWT |
+| `cwtfreqbounds` | ❌ |  |  |  |  | frequency support |
+| `centfrq` | ❌ |  |  |  |  | central frequency of wavelet |
+| `scal2frq` | ❌ |  |  |  |  | scale → pseudo-frequency |
+| `wcoherence` | ❌ |  |  |  |  | wavelet coherence |
+| `wsst` | ❌ |  |  |  |  | wavelet synchrosqueezed transform |
+| `iwsst` | ❌ |  |  |  |  | inverse WSST |
+| `wsstridge` | ❌ |  |  |  |  | ridges of WSST |
+| `wtmm` | ❌ |  |  |  |  | wavelet transform modulus maxima |
+| `wavefun` | ❌ |  |  |  |  | wavelet & scaling function values |
+| `wavefun2` | ❌ |  |  |  |  | 2-D variant |
+| `wavsupport` | ❌ |  |  |  |  | effective support |
+| `qfactor` | ❌ |  |  |  |  | quality factor |
+| `wavemngr` | ❌ |  |  |  |  | wavelet manager |
+| `waveinfo` | ❌ |  |  |  |  | info on a wavelet family |
+
+## Wavelet Toolbox — Discrete Wavelet Transforms (1-D)
+
+**Namespace:** `wavelet.dwt.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dwt` | ❌ |  |  |  |  | single-level DWT |
+| `idwt` | ❌ |  |  |  |  | single-level inverse |
+| `wavedec` | ❌ |  |  |  |  | multi-level DWT |
+| `waverec` | ❌ |  |  |  |  | multi-level reconstruction |
+| `appcoef` | ❌ |  |  |  |  | extract approximation coeffs |
+| `detcoef` | ❌ |  |  |  |  | extract detail coeffs |
+| `wrcoef` | ❌ |  |  |  |  | reconstruct from one band |
+| `dwtmode` | ❌ |  |  |  |  | extension mode |
+| `dyaddown` | ❌ |  |  |  |  | downsample by 2 |
+| `dyadup` | ❌ |  |  |  |  | upsample with zero insertion |
+| `wkeep` | ❌ |  |  |  |  | extract central part |
+| `wextend` | ❌ |  |  |  |  | extend signal |
+| `wcodemat` | ❌ |  |  |  |  | quantise/scale image for display |
+| `haart` | ❌ |  |  |  |  | Haar wavelet transform |
+| `ihaart` | ❌ |  |  |  |  | inverse Haar |
+| `wmaxlev` | ❌ |  |  |  |  | maximum decomposition level |
+| `dwpt` | ❌ |  |  |  |  | discrete wavelet packet transform |
+| `idwpt` | ❌ |  |  |  |  | inverse DWPT |
+
+## Wavelet Toolbox — Discrete Wavelet Transforms (2-D / 3-D)
+
+**Namespace:** `wavelet.dwt2.*` — 0 ✅ + 0 ⚠️ / 15 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dwt2` | ❌ |  |  |  |  | 2-D single-level DWT |
+| `idwt2` | ❌ |  |  |  |  |  |
+| `wavedec2` | ❌ |  |  |  |  |  |
+| `waverec2` | ❌ |  |  |  |  |  |
+| `appcoef2` | ❌ |  |  |  |  |  |
+| `detcoef2` | ❌ |  |  |  |  |  |
+| `wrcoef2` | ❌ |  |  |  |  |  |
+| `wpdec2` | ❌ |  |  |  |  | 2-D wavelet packet |
+| `wprec2` | ❌ |  |  |  |  |  |
+| `haart2` | ❌ |  |  |  |  |  |
+| `ihaart2` | ❌ |  |  |  |  |  |
+| `wavedec3` | ❌ |  |  |  |  | 3-D |
+| `waverec3` | ❌ |  |  |  |  |  |
+| `dwt3` | ❌ |  |  |  |  |  |
+| `idwt3` | ❌ |  |  |  |  |  |
+
+## Wavelet Toolbox — Stationary, MODWT, and Wavelet Packets
+
+**Namespace:** `wavelet.swt_modwt.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `swt` | ❌ |  |  |  |  | stationary (à trous) wavelet transform |
+| `iswt` | ❌ |  |  |  |  |  |
+| `swt2` | ❌ |  |  |  |  |  |
+| `iswt2` | ❌ |  |  |  |  |  |
+| `modwt` | ❌ |  |  |  |  | maximal-overlap DWT |
+| `imodwt` | ❌ |  |  |  |  |  |
+| `modwtmra` | ❌ |  |  |  |  | multi-resolution analysis from MODWT |
+| `modwtcorr` | ❌ |  |  |  |  | scale-by-scale correlation |
+| `modwtvar` | ❌ |  |  |  |  | scale-by-scale variance |
+| `modwtxcorr` | ❌ |  |  |  |  | cross-correlation |
+| `modwpt` | ❌ |  |  |  |  | maximal-overlap packet |
+| `imodwpt` | ❌ |  |  |  |  |  |
+| `wpdec` | ❌ |  |  |  |  | wavelet packet decomposition |
+| `wprec` | ❌ |  |  |  |  | reconstruction |
+| `wpcoef` | ❌ |  |  |  |  |  |
+| `wprcoef` | ❌ |  |  |  |  |  |
+| `besttree` | ❌ |  |  |  |  | best-basis selection |
+
+## Wavelet Toolbox — Denoising and Compression
+
+**Namespace:** `wavelet.denoise.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `wdenoise` | ❌ |  |  |  |  | 1-D denoising |
+| `wdenoise2` | ❌ |  |  |  |  | 2-D denoising |
+| `wden` | ❌ |  |  |  |  | classical denoising |
+| `wdencmp` | ❌ |  |  |  |  | denoise / compress |
+| `wpdencmp` | ❌ |  |  |  |  | wavelet-packet denoise / compress |
+| `wnoisest` | ❌ |  |  |  |  | noise-level estimate |
+| `wvarchg` | ❌ |  |  |  |  | variance-change detection |
+| `ddencmp` | ❌ |  |  |  |  | default thresholding parameters |
+| `thselect` | ❌ |  |  |  |  | threshold selection |
+| `wthcoef` | ❌ |  |  |  |  | apply threshold to detail coeffs |
+| `wthcoef2` | ❌ |  |  |  |  |  |
+| `wthresh` | ❌ |  |  |  |  | hard / soft threshold |
+| `wmulden` | ❌ |  |  |  |  | multivariate denoising |
+| `measerr` | ❌ |  |  |  |  | quality measures (PSNR/MSE/MAX/L2) |
+| `wnoise` | ❌ |  |  |  |  | noisy test signal |
+| `wcompress` | ❌ |  |  |  |  | compression front-end |
+
+## Wavelet Toolbox — Filter Banks and Wavelet Families
+
+**Namespace:** `wavelet.filt.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `wfilters` | ❌ |  |  |  |  | LO/HI decomposition + reconstruction filters |
+| `orthfilt` | ❌ |  |  |  |  | orthogonal filter quadruple |
+| `qmf` | ❌ |  |  |  |  | quadrature mirror filter |
+| `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
+| `dbwavf` | ❌ |  |  |  |  | Daubechies scaling filter |
+| `coifwavf` | ❌ |  |  |  |  | Coiflets |
+| `symwavf` | ❌ |  |  |  |  | symlets |
+| `dbaux` | ❌ |  |  |  |  | Daubechies aux |
+| `symaux` | ❌ |  |  |  |  | symlet aux |
+| `biorwavf` | ❌ |  |  |  |  | biorthogonal scaling filter |
+| `rbiowavf` | ❌ |  |  |  |  | reverse biorthogonal |
+| `fejerkorovkin` | ❌ |  |  |  |  | Fejér-Korovkin filters |
+| `mbscalf` | ❌ |  |  |  |  | Morris minimum-bandwidth |
+| `hanscalf` | ❌ |  |  |  |  | Han scaling filter |
+| `blscalf` | ❌ |  |  |  |  | Beylkin |
+| `bswfun` | ❌ |  |  |  |  | biorthogonal scaling/wavelet via cascade |
+| `wrev` | ❌ |  |  |  |  | reverse a vector |
+| `isbiorthwfb` | ❌ |  |  |  |  | check biorthogonal filter bank |
+| `isorthwfb` | ❌ |  |  |  |  | check orthogonal filter bank |
+| `wavelets` | ❌ |  |  |  |  | list available wavelet names |
+| `waveletfamilies` | ❌ |  |  |  |  | list families |
+| `wavenames` | ❌ |  |  |  |  |  |
+
+## Wavelet Toolbox — Continuous Wavelet Shapes
+
+**Namespace:** `wavelet.shape.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `meyer` | ❌ |  |  |  |  | Meyer wavelet |
+| `meyeraux` | ❌ |  |  |  |  | auxiliary fcn |
+| `mexihat` | ❌ |  |  |  |  | Mexican hat |
+| `morlet` | ❌ |  |  |  |  | Morlet wavelet |
+| `cgauwavf` | ❌ |  |  |  |  | complex Gaussian |
+| `cmorwavf` | ❌ |  |  |  |  | complex Morlet |
+| `fbspwavf` | ❌ |  |  |  |  | frequency B-spline |
+| `gauswavf` | ❌ |  |  |  |  | real Gaussian wavelet |
+| `intwave` | ❌ |  |  |  |  | wavelet integral |
+| `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
+| `shanwavf` | ❌ |  |  |  |  | Shannon wavelet |
+
+## Wavelet Toolbox — Lifting
+
+**Namespace:** `wavelet.lift.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+`liftingScheme` and `liftingStep` are MATLAB classes; we treat lifting
+as a pair of flat decomposition / reconstruction functions.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `lwt` | ❌ |  |  |  |  | lifting wavelet transform |
+| `ilwt` | ❌ |  |  |  |  |  |
+| `lwt2` | ❌ |  |  |  |  |  |
+| `ilwt2` | ❌ |  |  |  |  |  |
+| `lwtcoef` | ❌ |  |  |  |  | extract one band |
+| `lwtcoef2` | ❌ |  |  |  |  |  |
+
+## Wavelet Toolbox — Decomposition Trees and Misc
+
+**Namespace:** `wavelet.misc.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dualtree` | ❌ |  |  |  |  | dual-tree complex DWT |
+| `idualtree` | ❌ |  |  |  |  |  |
+| `dualtree2` | ❌ |  |  |  |  |  |
+| `idualtree2` | ❌ |  |  |  |  |  |
+| `dddtree` | ❌ |  |  |  |  | double-density DWT |
+| `idddtree` | ❌ |  |  |  |  |  |
+| `tqwt` | ❌ |  |  |  |  | tunable Q-factor wavelet transform |
+| `itqwt` | ❌ |  |  |  |  |  |
+| `wfbm` | ❌ |  |  |  |  | fractional Brownian motion |
+| `wfbmesti` | ❌ |  |  |  |  | Hurst exponent estimate |
+| `wfusimg` | ❌ |  |  |  |  | image fusion |
+| `wfusmat` | ❌ |  |  |  |  | matrix fusion |
+| `wentropy` | ❌ |  |  |  |  | wavelet entropy |
+
 ## Workspace
 
 **Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
