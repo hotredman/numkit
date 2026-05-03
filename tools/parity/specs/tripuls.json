@@ -1,0 +1,10 @@
+{
+  "name": "tripuls",
+  "namespace": "core",
+  "setup": "t = linspace(-2, 2, 10000);",
+  "expr": "y = tripuls(t);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = tripuls(T). Triangular pulse. 1000 iters."
+}

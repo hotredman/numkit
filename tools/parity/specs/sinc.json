@@ -1,0 +1,10 @@
+{
+  "name": "sinc",
+  "namespace": "core",
+  "setup": "x = linspace(-10, 10, 100000);",
+  "expr": "y = sinc(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = sinc(X). 100k-pt sin(\u03c0x)/(\u03c0x). 1000 iters."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "gauspuls",
+  "namespace": "core",
+  "setup": "t = linspace(-1, 1, 10000);",
+  "expr": "y = gauspuls(t, 5, 0.5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters."
+}

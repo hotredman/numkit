@@ -1,0 +1,10 @@
+{
+  "name": "pulstran",
+  "namespace": "core",
+  "setup": "t = 0:0.001:0.5; d = 0:0.1:0.5;",
+  "expr": "y = pulstran(t, d, 'rectpuls', 0.05);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters."
+}

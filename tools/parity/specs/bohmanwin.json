@@ -1,0 +1,10 @@
+{
+  "name": "bohmanwin",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = bohmanwin(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = bohmanwin(N). Bohman. 10000 iters."
+}

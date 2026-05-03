@@ -1,0 +1,10 @@
+{
+  "name": "nuttallwin",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = nuttallwin(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: W = nuttallwin(N). 10000 iters."
+}

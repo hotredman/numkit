@@ -1,0 +1,10 @@
+{
+  "name": "chirp",
+  "namespace": "core",
+  "setup": "t = linspace(0, 1, 4096);",
+  "expr": "y = chirp(t, 50, 1, 250);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = chirp(T, F0, T1, F1). 4096-pt linear sweep. 1000 iters."
+}

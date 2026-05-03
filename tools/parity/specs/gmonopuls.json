@@ -1,0 +1,10 @@
+{
+  "name": "gmonopuls",
+  "namespace": "core",
+  "setup": "t = linspace(-1, 1, 10000);",
+  "expr": "y = gmonopuls(t, 5);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters."
+}
