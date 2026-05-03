@@ -1,0 +1,13 @@
+{
+  "name": "issingle",
+  "namespace": "core",
+  "setup": "x = single(1.5);",
+  "expr": "y = issingle(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = issingle(X). 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

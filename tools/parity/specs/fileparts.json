@@ -1,0 +1,14 @@
+{
+  "name": "fileparts",
+  "namespace": "core",
+  "setup": "p = '/foo/bar/baz.txt';",
+  "expr": "[y, jj, kk] = fileparts(p);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y))",
+    "double(strlength(jj))",
+    "double(strlength(kk))"
+  ]
+}

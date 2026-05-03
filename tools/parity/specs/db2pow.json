@@ -1,0 +1,10 @@
+{
+  "name": "db2pow",
+  "namespace": "core",
+  "setup": "x = linspace(-100, 100, 100000);",
+  "expr": "y = db2pow(x);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: P = db2pow(D). 100k pts. 1000 iters.",
+  "out_var": "y"
+}

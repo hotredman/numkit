@@ -1,0 +1,12 @@
+{
+  "name": "tempdir",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = tempdir;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: D = tempdir. 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y) > 0)"
+  ]
+}

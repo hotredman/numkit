@@ -1,0 +1,12 @@
+{
+  "name": "tempname",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = tempname;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: F = tempname. 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y) > 0)"
+  ]
+}

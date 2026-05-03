@@ -1,0 +1,10 @@
+{
+  "name": "phasedelay",
+  "namespace": "core",
+  "setup": "b = [1 -0.5]; a = [1 -0.99]; n = 256;",
+  "expr": "[y, jj] = phasedelay(b, a, n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters.",
+  "out_var": "y"
+}
