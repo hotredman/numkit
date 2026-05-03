@@ -16,6 +16,19 @@
 #include <limits>
 #include <type_traits>
 
+// Forward-declare the SIMD/portable cast backend (defined in
+// language/types/casts_{highway,portable}.cpp).
+namespace numkit::builtin::detail {
+void doubleToInt8 (const double *in, int8_t   *out, std::size_t n);
+void doubleToInt16(const double *in, int16_t  *out, std::size_t n);
+void doubleToInt32(const double *in, int32_t  *out, std::size_t n);
+void doubleToInt64(const double *in, int64_t  *out, std::size_t n);
+void doubleToUInt8 (const double *in, uint8_t  *out, std::size_t n);
+void doubleToUInt16(const double *in, uint16_t *out, std::size_t n);
+void doubleToUInt32(const double *in, uint32_t *out, std::size_t n);
+void doubleToUInt64(const double *in, uint64_t *out, std::size_t n);
+} // namespace numkit::builtin::detail
+
 namespace numkit::builtin {
 
 // ════════════════════════════════════════════════════════════════════════
@@ -44,6 +57,27 @@ Value numericConstructor(ValueType targetType, const Value &x, std::pmr::memory_
     const size_t n = x.numel();
     Value r = createLike(x, targetType, mr);
     T *dst = static_cast<T *>(r.rawDataMut());
+
+    // SIMD fast path: double → integer target. Skips the per-element
+    // virtual dispatch through elemAsDouble. Only kicks in when source
+    // is DOUBLE and there's actual data; falls through for other source
+    // types (single, int*, logical, char) where the bulk of the cost
+    // is type-conversion not iteration.
+    if constexpr (std::is_integral_v<T>) {
+        if (x.type() == ValueType::DOUBLE && n > 0) {
+            const double *src = x.doubleData();
+            if constexpr (std::is_same_v<T, int8_t>)        ::numkit::builtin::detail::doubleToInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, int16_t>)  ::numkit::builtin::detail::doubleToInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, int32_t>)  ::numkit::builtin::detail::doubleToInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, int64_t>)  ::numkit::builtin::detail::doubleToInt64(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint8_t>)  ::numkit::builtin::detail::doubleToUInt8 (src, dst, n);
+            else if constexpr (std::is_same_v<T, uint16_t>) ::numkit::builtin::detail::doubleToUInt16(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint32_t>) ::numkit::builtin::detail::doubleToUInt32(src, dst, n);
+            else if constexpr (std::is_same_v<T, uint64_t>) ::numkit::builtin::detail::doubleToUInt64(src, dst, n);
+            return r;
+        }
+    }
+
     for (size_t i = 0; i < n; ++i) {
         double v = x.elemAsDouble(i);
         if constexpr (std::is_integral_v<T>)

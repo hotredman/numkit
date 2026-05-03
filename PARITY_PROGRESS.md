@@ -128,10 +128,10 @@ multiple sections; all occurrences refresh together).
 | `eps` | ✅ | 0.000 | 21.02× | 44.01× | OK | Sig: E = eps. Machine epsilon scalar. 1M iters. |
 | `flintmax` | ✅ | 0.000 | 25.86× | 47.63× | OK | Sig: M = flintmax. Largest exact float-int. 1M iters. |
 | `inf` | ✅ | 0.000 | 37.86× | 44.14× | OK | Sig: I = Inf. 1M iters. |
-| `int16` | ✅ | 4.773 | 0.03× | 0.48× | OK | Sig: Y = int16(X). 1M doubles → int16. 50 iters. |
-| `int32` | ✅ | 5.063 | 0.03× | 0.54× | OK | Sig: Y = int32(X). 1M doubles → int32. 50 iters. Element-wise SAVE. |
-| `int64` | ✅ | 5.983 | 0.20× | 0.60× | OK | Sig: Y = int64(X). 1M doubles → int64. 50 iters. |
-| `int8` | ✅ | 4.314 | 0.02× | 0.42× | OK | Sig: Y = int8(X). 1M doubles → int8. 50 iters. |
+| `int16` | ✅ | 3.031 | 0.05× |  | OK | Sig: Y = int16(X). 1M doubles → int16. 50 iters. |
+| `int32` | ✅ | 1.184 | 0.14× |  | OK | Sig: Y = int32(X). 1M doubles → int32. 50 iters. Element-wise SAVE. |
+| `int64` | ✅ | 2.295 | 0.54× |  | OK | Sig: Y = int64(X). 1M doubles → int64. 50 iters. |
+| `int8` | ✅ | 2.604 | 0.04× |  | OK | Sig: Y = int8(X). 1M doubles → int8. 50 iters. |
 | `intmax` | ✅ | 0.000 | 11.60× | 16.41× | OK | Sig: M = intmax(TYPE). int32 max. 1M iters. |
 | `intmin` | ✅ | 0.000 | 11.16× | 4.63× | OK | Sig: M = intmin(TYPE). int32 min. 1M iters. |
 | `isfinite` | ✅ | 3.404 | 0.02× | 0.07× | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
@@ -146,10 +146,10 @@ multiple sections; all occurrences refresh together).
 | `realmin` | ✅ | 0.000 | 31.22× | 26.61× | OK | Sig: M = realmin. Smallest normal double. 1M iters. |
 | `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `typecast` | ✅ | 1.059 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
-| `uint16` | ✅ | 4.810 | 0.02× | 0.44× | OK | Sig: Y = uint16(X). 1M → uint16. 50 iters. |
-| `uint32` | ✅ | 5.264 | 0.03× | 0.49× | OK | Sig: Y = uint32(X). 1M doubles → uint32. 50 iters. Element-wise SAVE. |
-| `uint64` | ✅ | 6.278 | 0.20× | 0.59× | OK | Sig: Y = uint64(X). 1M → uint64. 50 iters. |
-| `uint8` | ✅ | 4.303 | 0.02× | 0.38× | OK | Sig: Y = uint8(X). 1M → uint8. 50 iters. |
+| `uint16` | ✅ | 3.028 | 0.03× |  | OK | Sig: Y = uint16(X). 1M → uint16. 50 iters. |
+| `uint32` | ✅ | 1.379 | 0.11× |  | OK | Sig: Y = uint32(X). 1M doubles → uint32. 50 iters. Element-wise SAVE. |
+| `uint64` | ✅ | 4.515 | 0.28× |  | OK | Sig: Y = uint64(X). 1M → uint64. 50 iters. |
+| `uint8` | ✅ | 2.579 | 0.03× |  | OK | Sig: Y = uint8(X). 1M → uint8. 50 iters. |
 
 ## Characters and Strings
 
