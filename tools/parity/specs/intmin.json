@@ -1,0 +1,13 @@
+{
+  "name": "intmin",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = intmin('int32');",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: M = intmin(TYPE). int32 min. 1M iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

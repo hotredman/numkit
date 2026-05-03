@@ -78,7 +78,7 @@ multiple sections; all occurrences refresh together).
 | `ones` | ✅ | 2.645 | 0.73× | 0.84× | OK | Sig: O = ones(M,N). 1000x1000. 100 iters. |
 | `paddata` | ✅ |  |  |  |  | pad N-D |
 | `permute` | ✅ | 2.322 | 0.54× | 1.11× | OK | Sig: Y = permute(X, ORDER). 100×100×100 → reordered. 100 iters. |
-| `rand` | ✅ |  |  |  |  |  |
+| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `repelem` | ✅ | 2.189 | 0.55× | 1.01× | OK | Sig: Y = repelem(X, K). 1k vec each elem 1000x. 50 iters. |
 | `repmat` | ✅ | 2.113 | 0.44× | 1.08× | OK | Sig: B = repmat(A,M,N). 50x50 → 1000x1000. 100 iters. |
 | `reshape` | ✅ | 1.999 | 0.00× | 1.06× | OK | Sig: B = reshape(A,M,N). 1M vec → 1000x1000. 100 iters. |
@@ -125,15 +125,15 @@ multiple sections; all occurrences refresh together).
 | `anynan` | ✅ | 0.276 | 0.12× |  | OK | Sig: TF = anynan(X). Returns scalar. 100k iters. |
 | `cast` | ✅ | 5.072 | 0.30× | 0.55× | OK | 1M doubles -> int32. 50 iters. |
 | `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
-| `eps` | ✅ |  |  |  |  | constant (machine eps) |
-| `flintmax` | ✅ |  |  |  |  | largest exact float-int |
+| `eps` | ✅ | 0.000 | 21.02× | 44.01× | OK | Sig: E = eps. Machine epsilon scalar. 1M iters. |
+| `flintmax` | ✅ | 0.000 | 25.86× | 47.63× | OK | Sig: M = flintmax. Largest exact float-int. 1M iters. |
 | `inf` | ✅ |  |  |  |  | constant |
 | `int16` | ✅ |  |  |  |  |  |
 | `int32` | ✅ | 5.063 | 0.03× | 0.54× | OK | Sig: Y = int32(X). 1M doubles → int32. 50 iters. Element-wise SAVE. |
 | `int64` | ✅ |  |  |  |  |  |
 | `int8` | ✅ |  |  |  |  |  |
-| `intmax` | ✅ |  |  |  |  | max int per type |
-| `intmin` | ✅ |  |  |  |  | min int per type |
+| `intmax` | ✅ | 0.000 | 11.60× | 16.41× | OK | Sig: M = intmax(TYPE). int32 max. 1M iters. |
+| `intmin` | ✅ | 0.000 | 11.16× | 4.63× | OK | Sig: M = intmin(TYPE). int32 min. 1M iters. |
 | `isfinite` | ✅ | 3.404 | 0.02× | 0.07× | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
 | `isfloat` | ✅ | 0.000 | 20.26× | 26.00× | OK | Sig: TF = isfloat(X). Returns scalar. 100k iters. |
 | `isinf` | ✅ | 3.383 | 0.03× | 0.07× | OK | Sig: TF = isinf(X). 1M-pt with Inf/-Inf scattered. 50 iters. |
@@ -142,8 +142,8 @@ multiple sections; all occurrences refresh together).
 | `isnumeric` | ✅ | 0.000 | 23.28× | 24.81× | OK | Sig: TF = isnumeric(X). Returns scalar. 100k iters. |
 | `isreal` | ✅ | 0.000 | 18.13× | 31.18× | OK | Sig: TF = isreal(X). Returns scalar. 100k iters. |
 | `nan` | ✅ |  |  |  |  | constant |
-| `realmax` | ✅ |  |  |  |  | largest finite double |
-| `realmin` | ✅ |  |  |  |  | smallest normal double |
+| `realmax` | ✅ | 0.000 | 30.11× | 45.22× | OK | Sig: M = realmax. Largest finite double. 1M iters. |
+| `realmin` | ✅ | 0.000 | 31.22× | 26.61× | OK | Sig: M = realmin. Smallest normal double. 1M iters. |
 | `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `typecast` | ✅ | 1.059 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
 | `uint16` | ✅ |  |  |  |  |  |
@@ -479,7 +479,7 @@ multiple sections; all occurrences refresh together).
 | `atand` | ✅ | 6.528 | 0.11× | 1.04× | OK | Sig: Y = atand(X). 1M-pt on [-10,10]. Inverse (degrees). 20 iters. Element-wise SAVE. |
 | `atanh` | ✅ | 8.309 | 0.33× | 1.12× | OK | Sig: Y = atanh(X). 1M-pt on (-1,1) (avoid pole). 20 iters. Element-wise SAVE. |
 | `cart2pol` | ✅ | 17.127 | 0.19× | 1.34× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
-| `cart2sph` | ✅ |  |  |  |  | coord xform |
+| `cart2sph` | ✅ |  |  |  | N/A | Sig: [TH,PHI,R] = cart2sph(X,Y,Z). 50³ grid. 50 iters. SAVE on TH (y). |
 | `cos` | ✅ | 0.855 | 1.03× | 5.49× | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `cosd` | ✅ | 10.733 | 0.09× | 2.07× | OK | Sig: Y = cosd(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
 | `cosh` | ✅ | 8.197 | 0.11× | 0.69× | OK | Sig: Y = cosh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
@@ -501,7 +501,7 @@ multiple sections; all occurrences refresh together).
 | `sind` | ✅ | 10.629 | 0.07× | 1.92× | OK | Sig: Y = sind(X). 1M-pt sweep on [-720°, 720°]. degree variant. 20 iters. Element-wise SAVE. |
 | `sinh` | ✅ | 8.339 | 0.15× | 0.69× | OK | Sig: Y = sinh(X). 1M-pt sweep on [-3, 3]. 20 iters. Element-wise SAVE. |
 | `sinpi` | ✅ | 9.110 | 0.09× | 1.90× | OK | Sig: Y = sinpi(X) = sin(π·X). 1M-pt sweep on [-2, 2]. 20 iters. Element-wise SAVE. |
-| `sph2cart` | ✅ |  |  |  |  | coord xform |
+| `sph2cart` | ✅ |  |  |  | N/A | Sig: [X,Y,Z] = sph2cart(TH,PH,R). 50³ grid. 50 iters. SAVE on X (y). |
 | `tan` | ✅ | 7.283 | 0.12× | 0.73× | OK | Sig: Y = tan(X). 1M-point sweep on [-1.5, 1.5] (avoid π/2 singularity). 20 iters. Element-wise SAVE. |
 | `tand` | ✅ | 10.176 | 0.09× | 2.59× | OK | Sig: Y = tand(X). 1M-pt sweep on [-89°, 89°] (avoid 90° singularity). 20 iters. Element-wise SAVE. |
 | `tanh` | ✅ | 9.677 | 0.13× | 0.72× | OK | Sig: Y = tanh(X). 1M-pt sweep on [-5, 5]. 20 iters. Element-wise SAVE. |
@@ -582,7 +582,7 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
-| `deconv` | ✅ |  |  |  |  |  |
+| `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 | `poly` | ✅ |  |  |  |  | roots → coeffs |
 | `polyder` | ✅ | 0.001 | 71.29× | 28.02× | MISMATCH | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ |  |  |  |  |  |
@@ -689,7 +689,7 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `rand` | ✅ |  |  |  |  |  |
+| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
 | `randi` | ✅ |  |  |  |  |  |
 | `randn` | ✅ |  |  |  |  |  |
 | `randperm` | ✅ |  |  |  |  |  |
@@ -832,18 +832,18 @@ multiple sections; all occurrences refresh together).
 | `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `conv2` | ✅ | 0.318 | 0.25× | 0.34× | OK | 128x128 image, 7x7 averaging kernel, 'same' shape. 100 iters. |
 | `convn` | ✅ | 0.028 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
-| `deconv` | ✅ |  |  |  |  |  |
-| `fft` | ✅ |  |  |  |  |  |
+| `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
+| `fft` | ✅ | 0.004 | 2.22× | 4.49× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
 | `fft2` | ✅ | 1.127 | 0.60× | 0.58× | OK | 256x256 deterministic test signal, complex 2-D FFT. 50 iters. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
-| `fftshift` | ✅ |  |  |  |  |  |
+| `fftshift` | ✅ | 0.003 | 14.24× | 8.90× | OK | Sig: Y = fftshift(X). 1024-pt shift. 1000 iters. |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
-| `filter` | ✅ |  |  |  |  |  |
+| `filter` | ✅ | 1.154 | 0.05× | 0.11× | OK | Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters. |
 | `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
-| `ifft` | ✅ |  |  |  |  |  |
+| `ifft` | ✅ | 0.010 | 0.67× | 4.15× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
 | `ifft2` | ✅ | 1.840 | 0.38× | 0.57× | OK | 256x256 inverse 2-D FFT (after fft2 of deterministic signal). 50 iters. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
-| `ifftshift` | ✅ |  |  |  |  |  |
+| `ifftshift` | ✅ | 0.003 | 4.08× | 8.09× | OK | Sig: Y = ifftshift(X). 1024-pt unshift. 1000 iters. |
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
 | `nextpow2` | ✅ |  |  |  | N/A | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
 | `nufft` | ❌ |  |  |  |  | non-uniform |

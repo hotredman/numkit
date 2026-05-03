@@ -479,6 +479,29 @@ many times — the canonical "factor + apply" pattern.
 
 ---
 
+## 23. `libs/builtin`: `meshgrid(x,y,z)` 3-arg form returns only 2 outputs — **P2**
+
+**Reproducer:**
+```matlab
+[X, Y, Z] = meshgrid(linspace(-2,2,5), linspace(-2,2,5), linspace(-2,2,5));
+% MATLAB:  X, Y, Z each 5x5x5
+% numkit:  X is 5x5 (2-D!), Y returned, Z undefined
+```
+**Symptom:** numkit's meshgrid stops at 2-D regardless of how many
+input vectors / output slots are given. Cannot construct 3-D grids
+for volumetric processing or `cart2sph(X,Y,Z)` / `sph2cart(...)`.
+**MATLAB:** `meshgrid(x,y,z)` returns three M×N×P arrays (M=length(y),
+N=length(x), P=length(z)).
+**Impact:** Anything using 3-D grids fails — cart2sph, sph2cart with
+ndgrid-input, volumetric interpolation (interp3 uses meshgrid'd
+inputs internally in some idioms), 3-D plotting setup.
+**Where:** [libs/builtin/src/](libs/builtin/) `meshgrid` adapter — only
+implements 2-arg / 2-output form. Already partially flagged in
+BUGS #21 (1-arg form missing); add the 3-arg form too.
+**First seen:** 2026-05-03, parity bulk-bench iteration 19.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

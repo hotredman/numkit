@@ -1,0 +1,14 @@
+{
+  "name": "fft",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1024));",
+  "expr": "y = fft(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out).",
+  "fingerprint": [
+    "double(real(sum(y(:))))",
+    "double(real(y(1)))",
+    "double(real(y(end)))"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "intmax",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = intmax('int32');",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: M = intmax(TYPE). int32 max. 1M iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}
