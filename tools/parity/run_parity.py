@@ -98,7 +98,7 @@ if isnumeric(sv__) || islogical(sv__)
     fprintf('SAVE_END\n');
 elseif ischar(sv__)
     fprintf('SAVE_CHAR_BEGIN %d\n', numel(sv__));
-    fprintf('%s\n', sv__(:)');
+    fprintf('%s\n', reshape(sv__, 1, []));
     fprintf('SAVE_END\n');
 elseif isstring(sv__)
     fprintf('SAVE_STR_BEGIN %d\n', numel(sv__));

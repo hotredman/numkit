@@ -1,0 +1,10 @@
+{
+  "name": "strfind",
+  "namespace": "core",
+  "setup": "s = repmat('foobar baz qux ', 1, 1000); pat = 'baz';",
+  "expr": "y = strfind(s, pat);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters."
+}

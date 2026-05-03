@@ -162,11 +162,11 @@ multiple sections; all occurrences refresh together).
 | `cellstr` | ✅ |  |  |  |  | cell of char rows |
 | `char` | ✅ |  |  |  |  |  |
 | `compose` | ✅ | 0.391 | 0.68× | — | OK | Format 1000 ints with single-spec template. 100 iters. |
-| `contains` | ✅ |  |  |  |  |  |
+| `contains` | ✅ | 0.000 | 3.59× |  | OK | Sig: TF = contains(S, PAT). 2k char single check (cellstr/string-array forms have parity issues). 1000 iters. Logical-scalar fp (BUGS #14). |
 | `convertcharstostrings` | ✅ |  |  |  |  |  |
 | `convertcontainedstringstochars` | ✅ |  |  |  |  |  |
 | `convertstringstochars` | ✅ |  |  |  |  |  |
-| `count` | ✅ |  |  |  |  |  |
+| `count` | ✅ | 0.005 | 1.11× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
 | `deblank` | ✅ |  |  |  |  |  |
 | `double` | ✅ |  |  |  |  |  |
 | `endswith` | ❌ |  |  |  |  |  |
@@ -186,7 +186,7 @@ multiple sections; all occurrences refresh together).
 | `isstringscalar` | ✅ |  |  |  |  |  |
 | `isstrprop` | ✅ |  |  |  |  |  |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
-| `lower` | ✅ |  |  |  |  |  |
+| `lower` | ✅ | 0.046 | 1.59× | 3.67× | OK | Sig: Y = lower(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 | `matches` | ✅ |  |  |  |  |  |
 | `newline` | ✅ | 0.000 | 0.10× | 7.25× | OK | ASCII LF char. Bench is 100k iters of the call itself. |
 | `num2str` | ✅ |  |  |  |  |  |
@@ -196,7 +196,7 @@ multiple sections; all occurrences refresh together).
 | `regexpi` | ✅ |  |  |  |  |  |
 | `regexprep` | ✅ |  |  |  |  |  |
 | `regexptranslate` | ✅ | 0.000 | 13.86× | 63.52× | OK | Escape 21-char string with many metachars. 10k iters. |
-| `replace` | ✅ |  |  |  |  |  |
+| `replace` | ✅ | 0.012 | 2.62× |  | OK | Sig: Y = replace(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
 | `replacebetween` | ✅ |  |  |  |  |  |
 | `reverse` | ✅ |  |  |  |  |  |
 | `split` | ✅ | 0.102 | 0.99× | — | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
@@ -205,23 +205,23 @@ multiple sections; all occurrences refresh together).
 | `sscanf` | ✅ |  |  |  |  |  |
 | `startswith` | ❌ |  |  |  |  |  |
 | `str2double` | ✅ |  |  |  |  |  |
-| `strcat` | ✅ |  |  |  |  |  |
-| `strcmp` | ✅ |  |  |  |  |  |
+| `strcat` | ✅ | 0.001 | 26.76× | 84.88× | OK | Sig: S = strcat(A, B). 5k + 6k char concat. 1000 iters. |
+| `strcmp` | ✅ | 0.000 | 7.11× | 33.62× | OK | Sig: TF = strcmp(A, B). char-vs-char only. 100k iters. Logical-scalar fp (BUGS #14). |
 | `strcmpi` | ✅ |  |  |  |  |  |
-| `strfind` | ✅ |  |  |  |  |  |
+| `strfind` | ✅ | 0.017 | 0.71× | 0.77× | OK | Sig: K = strfind(S, PAT). 15k string, 1k matches. 1000 iters. |
 | `string` | ✅ |  |  |  |  |  |
 | `strings` | ✅ | 0.710 | 0.22× | — | OK | 100x100 empty-string array. 1000 iters. |
 | `strip` | ✅ |  |  |  |  |  |
-| `strjoin` | ✅ |  |  |  |  |  |
+| `strjoin` | ✅ | 0.009 | 12.80× | 89.14× | OK | Sig: S = strjoin(C, DELIM). 1k tokens via for-init (repmat rejects cell). 1000 iters. |
 | `strjust` | ✅ | 0.084 | 2.07× | 2.42× | OK | 1000x50 char matrix, right-justify. 200 iters. |
-| `strlength` | ✅ |  |  |  |  |  |
+| `strlength` | ✅ | 0.000 | 8.95× |  | OK | Sig: L = strlength(S). Single string (cellstr form differs). 100k iters. |
 | `strncmp` | ✅ |  |  |  |  |  |
 | `strncmpi` | ✅ |  |  |  |  |  |
-| `strrep` | ✅ |  |  |  |  |  |
-| `strsplit` | ✅ |  |  |  |  |  |
+| `strrep` | ✅ | 0.012 | 1.59× | 1.21× | OK | Sig: Y = strrep(S, OLD, NEW). 16k string, 1k replacements. 1000 iters. |
+| `strsplit` | ✅ | 0.076 | 1.27× |  | MISMATCH | Sig: C = strsplit(S, DELIM). 3.5k string, 500 splits → cell. 1000 iters. Custom fp (cell out). |
 | `strtok` | ✅ |  |  |  |  |  |
 | `strtrim` | ✅ |  |  |  |  |  |
-| `upper` | ✅ |  |  |  |  |  |
+| `upper` | ✅ | 0.068 | 1.10× | 2.51× | OK | Sig: Y = upper(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 
 ## Structures
 
