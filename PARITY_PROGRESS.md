@@ -1296,13 +1296,13 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 ## Dimensionality Reduction
 
-**Namespace:** `stats.dim.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `stats.dim.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `pca` | ❌ |  |  |  |  | principal component analysis |
-| `pcacov` | ❌ |  |  |  |  | PCA from covariance matrix |
-| `pcares` | ❌ |  |  |  |  | residuals after k components |
+| `pca` | ✅ |  |  |  | OK | Jacobi eigendecomp on cov(X); coeff/score/latent/T²/explained/μ |
+| `pcacov` | ✅ |  |  |  | OK | direct eigendecomp on covariance matrix |
+| `pcares` | ✅ |  |  |  | OK | residual = X - reconstruct from k PCs |
 | `ppca` | ❌ |  |  |  |  | probabilistic PCA |
 | `factoran` | ❌ |  |  |  |  | factor analysis |
 | `rica` | ❌ |  |  |  |  | reconstruction ICA |
