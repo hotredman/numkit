@@ -20,6 +20,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/binomial.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/unid.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/geometric.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/negbin.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
