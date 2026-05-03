@@ -1,0 +1,10 @@
+{
+  "name": "taylorwin",
+  "namespace": "core",
+  "setup": "n = 1024;",
+  "expr": "y = taylorwin(n);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters.",
+  "out_var": "y"
+}

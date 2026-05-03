@@ -1,0 +1,12 @@
+{
+  "name": "fopen",
+  "namespace": "core",
+  "setup": "fname = tempname; fid = fopen(fname, 'w'); fwrite(fid, 1:10, 'double'); fclose(fid);",
+  "expr": "fid = fopen(fname, 'r'); y = fid; fclose(fid);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: FID = fopen(F). 1000 iters.",
+  "fingerprint": [
+    "double(y > 0)"
+  ]
+}

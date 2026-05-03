@@ -1,0 +1,12 @@
+{
+  "name": "pause",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "pause(0); y = 1;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: pause(N). N=0 (no-op). 100k iters.",
+  "fingerprint": [
+    "double(y)"
+  ]
+}

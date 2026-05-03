@@ -1,0 +1,12 @@
+{
+  "name": "disp",
+  "namespace": "core",
+  "setup": "x = [1 2 3 4 5];",
+  "expr": "y = evalc('disp(x)');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: disp(X) \u2014 captured via evalc. 1000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}
