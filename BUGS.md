@@ -397,7 +397,7 @@ physics, robotics) requires looping in numkit instead of one call.
 
 ---
 
-## 19. `libs/builtin`: `freqspace(N)` returns wrong-length vector — **P2**
+## 19. `libs/builtin`: `freqspace(N)` returns wrong-length vector — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -414,6 +414,10 @@ on `[-1, 1)`.
 **Where:** [libs/builtin/src/](libs/builtin/) `freqspace`
 implementation — needs to follow MATLAB's docstring formula.
 **First seen:** 2026-05-03, parity bulk-bench iteration 17.
+**Fixed:** library.cpp's freqspace lambda rewritten with the correct
+half-spectrum (even n → n/2+1; odd n → (n+1)/2) and 'whole' form
+(n points on [0, 2-2/n]). Bench: parity OK; numkit 11× faster than
+MATLAB (sub-millisecond on N=1024). Existing test updated to MATLAB-spec.
 
 ---
 

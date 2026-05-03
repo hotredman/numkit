@@ -865,16 +865,21 @@ TEST_P(BuiltinTest, PaddataTrimdata)
 // ── Misc — Pack 31 ────────────────────────────────────────────
 TEST_P(BuiltinTest, Freqspace)
 {
+    // MATLAB-spec: freqspace(n) default form is half-spectrum:
+    //   even n → n/2+1 points on [0, 1]
+    //   odd n  → (n+1)/2 points on [0, 1 - 1/n]
+    // 'whole' form: n points on [0, 2 - 2/n].
+    // See BUGS.md #19.
     eval("f = freqspace(4);");
     auto *f = getVarPtr("f");
-    ASSERT_EQ(f->numel(), 4u);
-    EXPECT_NEAR(f->doubleData()[0], -1.0, 1e-12);
-    EXPECT_NEAR(f->doubleData()[1], -0.5, 1e-12);
-    EXPECT_NEAR(f->doubleData()[2],  0.0, 1e-12);
-    EXPECT_NEAR(f->doubleData()[3],  0.5, 1e-12);
-    // 'whole' shifts to [0, 2-2/n].
+    ASSERT_EQ(f->numel(), 3u);
+    EXPECT_NEAR(f->doubleData()[0], 0.0, 1e-12);
+    EXPECT_NEAR(f->doubleData()[1], 0.5, 1e-12);
+    EXPECT_NEAR(f->doubleData()[2], 1.0, 1e-12);
+    // 'whole' returns n elements on [0, 2-2/n].
     eval("g = freqspace(4, 'whole');");
     auto *g = getVarPtr("g");
+    ASSERT_EQ(g->numel(), 4u);
     EXPECT_NEAR(g->doubleData()[0], 0.0, 1e-12);
     EXPECT_NEAR(g->doubleData()[3], 1.5, 1e-12);
 }
