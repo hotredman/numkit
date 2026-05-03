@@ -53,6 +53,13 @@ void chi2inv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void chi2rnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void chi2stat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/students_t.cpp
+void tpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void trnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -106,6 +113,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "chi2inv",  &stats::detail::chi2inv_reg);
     reg("dist", "chi2rnd",  &stats::detail::chi2rnd_reg);
     reg("dist", "chi2stat", &stats::detail::chi2stat_reg);
+
+    reg("dist", "tpdf",     &stats::detail::tpdf_reg);
+    reg("dist", "tcdf",     &stats::detail::tcdf_reg);
+    reg("dist", "tinv",     &stats::detail::tinv_reg);
+    reg("dist", "trnd",     &stats::detail::trnd_reg);
+    reg("dist", "tstat",    &stats::detail::tstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
