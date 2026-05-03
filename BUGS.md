@@ -438,7 +438,7 @@ MATLAB (sub-millisecond on N=1024). Existing test updated to MATLAB-spec.
 
 ---
 
-## 20. `core/`: `shiftdim` doesn't strip trailing singletons — **P2**
+## 20. `core/`: `shiftdim` doesn't strip trailing singletons — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -455,6 +455,11 @@ back (with trailing dim 1, but `ndims` ≠ 2 still confuses callers).
 **Where:** core or libs/builtin `shiftdim` — needs to apply MATLAB's
 canonical-trailing-dim normalization.
 **First seen:** 2026-05-03, parity bulk-bench iteration 17.
+**Fix (2026-05-03):** Added trailing-singleton trim to `shiftdimAuto`
+in [libs/builtin/src/language/arrays/nd_manip.cpp]. After the
+auto-detected leading-singleton shift, trailing dims of 1 are
+stripped down to a minimum rank of 2 via `reshapeND`. The explicit
+`shiftdim(A, n)` form preserves dims (matches MATLAB).
 
 ---
 

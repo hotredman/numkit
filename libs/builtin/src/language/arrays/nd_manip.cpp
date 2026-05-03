@@ -502,7 +502,22 @@ ShiftDimAuto shiftdimAuto(std::pmr::memory_resource *mr, const Value &x)
     // returns a 1×3 row, not a 0-D scalar).
     if (k == N) k = N - 1;
     if (k <= 0) return { x, 0 };
-    return { shiftdim(mr, x, k), k };
+    Value y = shiftdim(mr, x, k);
+    // MATLAB-spec: the auto form ALSO strips trailing singletons (so
+    // shiftdim(ones(1,1000,1000)) returns a 2-D 1000x1000, not a
+    // 3-D 1000x1000x1). The explicit shiftdim(A, n) form does not.
+    // See BUGS.md #20.
+    const auto &yd = y.dims();
+    const int Ny = yd.ndim();
+    int newN = Ny;
+    while (newN > 2 && yd.dim(newN - 1) == 1) --newN;
+    if (newN < Ny) {
+        constexpr int kMaxNd = Dims::kMaxRank;
+        size_t trimmed[kMaxNd];
+        for (int i = 0; i < newN; ++i) trimmed[i] = yd.dim(i);
+        y = reshapeND(mr, y, trimmed, static_cast<std::size_t>(newN));
+    }
+    return { std::move(y), k };
 }
 
 // ════════════════════════════════════════════════════════════════════
