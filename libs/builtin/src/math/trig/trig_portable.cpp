@@ -257,4 +257,9 @@ Value cospi(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return cospi_scalar_p(v); }, mr);
 }
 
+Value hypot(std::pmr::memory_resource *mr, const Value &a, const Value &b)
+{
+    return elementwiseDouble(a, b, [](double aa, double bb) { return std::hypot(aa, bb); }, mr);
+}
+
 } // namespace numkit::builtin

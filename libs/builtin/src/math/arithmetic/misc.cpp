@@ -41,11 +41,9 @@ Value rem(std::pmr::memory_resource *mr, const Value &a, const Value &b)
     return elementwiseDouble(a, b, [](double aa, double bb) { return std::fmod(aa, bb); }, mr);
 }
 
-Value hypot(std::pmr::memory_resource *mr, const Value &x, const Value &y)
-{
-    return elementwiseDouble(x, y,
-        [](double a, double b) { return std::hypot(a, b); }, mr);
-}
+// hypot moved to math/trig/trig_highway.cpp (composes Sqrt(a²+b²) via
+// SIMD; pairs naturally with atan2 which lives there). The portable
+// scalar version is in trig_portable.cpp.
 
 // nthroot(x, n): real n-th root. For negative x with odd integer n,
 // returns the negative real root (sign(x) * |x|^(1/n)). For negative x

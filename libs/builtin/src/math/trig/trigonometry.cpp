@@ -7,6 +7,7 @@
 // trig_portable.cpp.
 
 #include <numkit/builtin/library.hpp>
+#include <numkit/builtin/math/arithmetic/misc.hpp>          // hypot decl
 #include <numkit/builtin/math/trig/trigonometry.hpp>
 
 #include <numkit/core/engine.hpp>
@@ -262,10 +263,10 @@ Value acotd(std::pmr::memory_resource *mr, const Value &x)
 
 PolarPair cart2pol(std::pmr::memory_resource *mr, const Value &x, const Value &y)
 {
-    Value theta = elementwiseDouble(y, x,
-        [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
-    Value rho   = elementwiseDouble(x, y,
-        [](double xx, double yy) { return std::hypot(xx, yy); }, mr);
+    // Compose via the SIMD-dispatched atan2 + hypot (in trig_highway.cpp).
+    // Each call gets the full vector SIMD path on real-same-shape inputs.
+    Value theta = atan2(mr, y, x);
+    Value rho   = hypot(mr, x, y);
     return { std::move(theta), std::move(rho) };
 }
 
