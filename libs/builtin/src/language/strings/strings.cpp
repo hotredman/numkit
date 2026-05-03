@@ -31,11 +31,37 @@ namespace numkit::builtin {
 
 // ── Conversion ──────────────────────────────────────────────────────────
 
+// MATLAB num2str signatures (R2025b):
+//   num2str(X)         → ~5 significant digits (default)
+//   num2str(X, N)      → N significant digits, where N is integer
+//   num2str(X, FMT)    → printf-style format
+// See BUGS.md #26.
 Value num2str(std::pmr::memory_resource *mr, const Value &x)
 {
-    std::ostringstream os;
-    os << x.toScalar();
-    return Value::fromString(os.str(), mr);
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%.5g", x.toScalar());
+    return Value::fromString(std::string(buf), mr);
+}
+
+Value num2str(std::pmr::memory_resource *mr, const Value &x, const Value &spec)
+{
+    const double v = x.toScalar();
+    char buf[256];
+    if (spec.isChar() || spec.isString()) {
+        // Format-string form: pass through sprintf. Single-arg only;
+        // MATLAB allows multi-arg formats but our path is scalar.
+        const std::string fmt = spec.toString();
+        std::snprintf(buf, sizeof(buf), fmt.c_str(), v);
+        return Value::fromString(std::string(buf), mr);
+    }
+    // Numeric N: N significant digits via %.<N>g.
+    int n = static_cast<int>(spec.toScalar());
+    if (n < 1)  n = 1;
+    if (n > 99) n = 99;
+    char fmt[16];
+    std::snprintf(fmt, sizeof(fmt), "%%.%dg", n);
+    std::snprintf(buf, sizeof(buf), fmt, v);
+    return Value::fromString(std::string(buf), mr);
 }
 
 Value str2num(std::pmr::memory_resource *mr, const Value &s)
@@ -1177,7 +1203,10 @@ void num2str_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &
 {
     if (args.empty())
         throw Error("num2str: requires 1 argument", 0, 0, "num2str", "", "m:num2str:nargin");
-    outs[0] = num2str(ctx.engine->resource(), args[0]);
+    if (args.size() >= 2)
+        outs[0] = num2str(ctx.engine->resource(), args[0], args[1]);
+    else
+        outs[0] = num2str(ctx.engine->resource(), args[0]);
 }
 
 void str2num_reg(Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx)

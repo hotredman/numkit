@@ -553,7 +553,7 @@ names now resolve to the same impl.
 
 ---
 
-## 26. `libs/builtin`: `num2str(X, fmt)` and `num2str(X, n)` ignore the precision argument — **P2**
+## 26. `libs/builtin`: `num2str(X, fmt)` and `num2str(X, n)` ignore the precision argument — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -572,6 +572,12 @@ serialization gets stuck at numkit's default precision. Common usage.
 **Where:** [libs/builtin/src/](libs/builtin/) `num2str` adapter — needs
 to actually parse + apply the second arg, branching on its type.
 **First seen:** 2026-05-03, parity bulk-bench iteration 21.
+**Fixed:** added 2-arg overload to `num2str(mr, x, spec)` in
+strings.cpp (and matching declaration in strings.hpp + reg in
+strings.cpp). Spec branches on type: char/string → snprintf with the
+fmt; numeric → `%.<N>g` format. Default 1-arg form changed from
+ostringstream-default-6 to `%.5g` (matches MATLAB's documented
+5-significant-digit default).
 
 ---
 

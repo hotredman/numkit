@@ -189,7 +189,7 @@ multiple sections; all occurrences refresh together).
 | `lower` | ✅ | 0.046 | 1.59× | 3.67× | OK | Sig: Y = lower(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 | `matches` | ✅ | 0.000 | 3.69× |  | OK | Sig: TF = matches(S, PAT). Single string check. 10000 iters. |
 | `newline` | ✅ | 0.000 | 3.15× | 7.71× | OK | Sig: NL = newline. ASCII LF=10. 100k iters. |
-| `num2str` | ✅ | 0.001 | 18.09× | 347.70× | MISMATCH | Sig: S = num2str(X). 100k iters. |
+| `num2str` | ✅ | 0.000 | 29.03× |  | OK | Sig: S = num2str(X). 100k iters. |
 | `pad` | ✅ | 0.000 | 15.01× |  | OK | Sig: S2 = pad(S, LEN). Pad 'foo' to length 20. 10000 iters. |
 | `plus` | ✅ | 2.142 | 0.05× | 1.21× | OK | Sig: Y = plus(A, B). 1M-pt elementwise add via named fn. 50 iters. |
 | `regexp` | ✅ | 0.300 | 0.20× |  | OK | Sig: M = regexp(S, PAT, 'match'). 2.5k char, find digit groups. 1000 iters. |
