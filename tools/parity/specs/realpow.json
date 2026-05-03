@@ -1,0 +1,10 @@
+{
+  "name": "realpow",
+  "namespace": "core",
+  "setup": "x = linspace(0.5, 3, 1000); y = linspace(-2, 2, 1000); [X,Y] = meshgrid(x,y);",
+  "expr": "Z = realpow(X, Y);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "Z",
+  "comment": "Sig: Z = realpow(X,Y). 1k\u00d71k grid of x>0, real exp. 20 iters. Element-wise SAVE."
+}

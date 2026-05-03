@@ -171,6 +171,24 @@ mass-SIMD pass should close all of these.
 
 ---
 
+## 10. `libs/signal`: `nextpow2` is scalar-only and namespaced — **P2**
+
+**Reproducer:** `nextpow2([1, 2, 5, 100])` → "VM: undefined function 'nextpow2'".
+After `import signal.*`: `nextpow2([1, 2, 5, 100])` → "Cannot convert
+double to scalar (in call to 'nextpow2')".
+**MATLAB:** unqualified, accepts any-shape input, returns same-shape output.
+**Impact:** Surfaced when bulk-benching the `Logs` section — element-wise
+spec on a 1M-pt array can't even run. Function is technically present
+(libs/signal has it) but parity-incompatible.
+**Where:** [libs/signal/src/library.cpp](libs/signal/src/library.cpp) registers it under `signal.*`;
+implementation in [libs/signal/src/transforms/transform_helpers.cpp](libs/signal/src/transforms/transform_helpers.cpp)
+takes a single double scalar.
+**Fix:** lift to top-level (`core` namespace) and vectorize over input
+shape — straightforward libs work, deferred from this cycle.
+**First seen:** 2026-05-03, parity bulk-bench iteration 4.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

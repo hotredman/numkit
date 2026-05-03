@@ -1,0 +1,10 @@
+{
+  "name": "nextpow2",
+  "namespace": "core",
+  "setup": "x = linspace(1, 1e6, 1000000);",
+  "expr": "y = nextpow2(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE."
+}

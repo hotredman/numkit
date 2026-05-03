@@ -1,0 +1,10 @@
+{
+  "name": "expm1",
+  "namespace": "core",
+  "setup": "x = linspace(-2, 2, 1000000);",
+  "expr": "y = expm1(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = expm1(X) = exp(X)-1. 1M-pt on [-2,2]. 20 iters. Element-wise SAVE."
+}

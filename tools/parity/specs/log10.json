@@ -1,0 +1,10 @@
+{
+  "name": "log10",
+  "namespace": "core",
+  "setup": "x = linspace(0.001, 1000, 1000000);",
+  "expr": "y = log10(x);",
+  "iters": 20,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: Y = log10(X). 1M-pt on [0.001, 1000]. 20 iters. Element-wise SAVE."
+}
