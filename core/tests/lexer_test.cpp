@@ -492,14 +492,17 @@ TEST(Lexer, KeywordFunction)
     expectSingleToken("function", TokenType::KW_FUNCTION);
 }
 
-TEST(Lexer, KeywordTrue)
+// `true` and `false` are no longer keywords — they're MATLAB built-in
+// functions (resolved via the function registry, not parsed as
+// literals). See BUGS.md #30.
+TEST(Lexer, IdentifierTrue)
 {
-    expectSingleToken("true", TokenType::KW_TRUE);
+    expectSingleToken("true", TokenType::IDENTIFIER);
 }
 
-TEST(Lexer, KeywordFalse)
+TEST(Lexer, IdentifierFalse)
 {
-    expectSingleToken("false", TokenType::KW_FALSE);
+    expectSingleToken("false", TokenType::IDENTIFIER);
 }
 
 TEST(Lexer, KeywordSwitch)

@@ -594,8 +594,11 @@ void Lexer::readIdentifier()
         {"continue", TokenType::KW_CONTINUE},
         {"return", TokenType::KW_RETURN},
         {"function", TokenType::KW_FUNCTION},
-        {"true", TokenType::KW_TRUE},
-        {"false", TokenType::KW_FALSE},
+        // Note: `true` and `false` are NOT keywords. MATLAB treats them
+        // as built-in functions (registered in libs/builtin), so the
+        // lexer emits IDENTIFIER for them. Bare `true` resolves to a
+        // 0-arg function call → logical scalar 1; `true(M, N)` is a
+        // proper function call → MxN logical array. See BUGS.md #30.
         {"switch", TokenType::KW_SWITCH},
         {"case", TokenType::KW_CASE},
         {"otherwise", TokenType::KW_OTHERWISE},

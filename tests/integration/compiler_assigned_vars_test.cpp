@@ -213,9 +213,15 @@ TEST(ReservedNames, UnionMatchesKBuiltinNames)
 
 TEST(ReservedNames, ConstantsContainExpectedNames)
 {
-    for (auto *n : {"pi", "eps", "inf", "nan", "i", "j", "true", "false"})
+    // `true`/`false` are MATLAB built-in functions, not constants — they
+    // support shape forms `true(M, N)` etc. and must NOT be in
+    // kBuiltinConstants. See BUGS.md #30.
+    for (auto *n : {"pi", "eps", "inf", "nan", "i", "j"})
         EXPECT_TRUE(kBuiltinConstants.count(n) > 0)
             << n << " must be in kBuiltinConstants";
+    for (auto *n : {"true", "false"})
+        EXPECT_FALSE(kBuiltinConstants.count(n) > 0)
+            << n << " must NOT be in kBuiltinConstants (it's a function)";
 }
 
 TEST(ReservedNames, PseudoVarsContainExpectedNames)

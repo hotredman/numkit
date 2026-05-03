@@ -658,7 +658,7 @@ int input).
 
 ---
 
-## 30. `libs/builtin`: `true(M, N)` / `false(M, N)` shape-form rejected — **P2**
+## 30. `libs/builtin`: `true(M, N)` / `false(M, N)` shape-form rejected — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -676,6 +676,15 @@ parallel to `zeros` / `ones`.
 **Where:** [libs/builtin/src/](libs/builtin/) — true/false adapters
 need the size-arg overload (mirror `ones` adapter).
 **First seen:** 2026-05-03, parity bulk-bench iteration 27.
+**Fix (2026-05-03):** `true`/`false` were lexer keywords producing
+`BOOL_LITERAL` AST nodes, bypassing function dispatch entirely. Made
+them MATLAB-style built-in functions: removed from lexer keyword
+table (now emit `IDENTIFIER`), removed from `kBuiltinConstants` and
+`constantsEnv_` (so VM compiler routes them through function lookup
+instead of preloading from constants), added `true_reg` / `false_reg`
+in `libs/builtin/src/language/arrays/matrix.cpp` mirroring `ones_reg`
+shape parsing. Bare `true`/`false` resolve to scalar logicals via
+0-arg call; `true(M, N, ...)` builds an MxN... logical array.
 
 ---
 

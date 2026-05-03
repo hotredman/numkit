@@ -24,7 +24,10 @@ namespace numkit {
 // Reserved names — see types.hpp for per-set semantics.
 // ============================================================
 const std::unordered_set<std::string> kBuiltinConstants = {
-    "pi", "eps", "inf", "Inf", "nan", "NaN", "true", "false", "i", "j",
+    // `true` and `false` are MATLAB built-in functions, not constants —
+    // they support shape forms `true(M, N)` etc. See library.cpp /
+    // matrix.cpp:true_reg/false_reg and BUGS.md #30.
+    "pi", "eps", "inf", "Inf", "nan", "NaN", "i", "j",
 };
 
 const std::unordered_set<std::string> kPseudoVars = {
@@ -82,8 +85,11 @@ void Engine::reinstallConstants()
     constantsEnv_->set("Inf", Value::scalar(std::numeric_limits<double>::infinity(), mr_));
     constantsEnv_->set("nan", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
     constantsEnv_->set("NaN", Value::scalar(std::numeric_limits<double>::quiet_NaN(), mr_));
-    constantsEnv_->set("true", Value::logicalScalar(true, mr_));
-    constantsEnv_->set("false", Value::logicalScalar(false, mr_));
+    // `true` and `false` are MATLAB built-in functions, not constants.
+    // Bare `true` calls true() → scalar logical 1; `true(M, N)` calls
+    // true(M, N) → MxN logical array. Registration lives in
+    // libs/builtin/src/library.cpp via true_reg / false_reg. See
+    // BUGS.md #30.
     constantsEnv_->set("i", Value::complexScalar(0.0, 1.0, mr_));
     constantsEnv_->set("j", Value::complexScalar(0.0, 1.0, mr_));
 
