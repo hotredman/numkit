@@ -154,6 +154,20 @@ void rms_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallConte
 void rssq_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void peak2peak_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void peak2rms_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+
+// Pulse / transition metrics (libs/signal/src/measurements/pulse_metrics.cpp)
+void statelevels_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void midcross_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void risetime_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void falltime_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void slewrate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void overshoot_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void undershoot_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void settlingtime_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void pulsewidth_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pulseperiod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pulsesep_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dutycycle_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::signal::detail
 
 namespace numkit {
@@ -308,6 +322,18 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "mag2db",    &signal::detail::mag2db_reg);
     reg("measurements", "db2pow",    &signal::detail::db2pow_reg);
     reg("measurements", "pow2db",    &signal::detail::pow2db_reg);
+    reg("measurements", "statelevels",  &signal::detail::statelevels_reg);
+    reg("measurements", "midcross",     &signal::detail::midcross_reg);
+    reg("measurements", "risetime",     &signal::detail::risetime_reg);
+    reg("measurements", "falltime",     &signal::detail::falltime_reg);
+    reg("measurements", "slewrate",     &signal::detail::slewrate_reg);
+    reg("measurements", "overshoot",    &signal::detail::overshoot_reg);
+    reg("measurements", "undershoot",   &signal::detail::undershoot_reg);
+    reg("measurements", "settlingtime", &signal::detail::settlingtime_reg);
+    reg("measurements", "pulsewidth",   &signal::detail::pulsewidth_reg);
+    reg("measurements", "pulseperiod",  &signal::detail::pulseperiod_reg);
+    reg("measurements", "pulsesep",     &signal::detail::pulsesep_reg);
+    reg("measurements", "dutycycle",    &signal::detail::dutycycle_reg);
     reg("measurements", "rms",       &signal::detail::rms_reg);
     reg("measurements", "rssq",      &signal::detail::rssq_reg);
     reg("measurements", "peak2peak", &signal::detail::peak2peak_reg);

@@ -36,6 +36,7 @@ set(SIGNALLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/findpeaks.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/dbconv.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/measurements/signal_stats.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/measurements/pulse_metrics.cpp
     # spectral_analysis/
     ${CMAKE_CURRENT_SOURCE_DIR}/spectral_analysis/periodogram_pwelch.cpp
     # time_frequency/
