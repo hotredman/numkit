@@ -24,7 +24,7 @@
 
 // ── Highway dynamic-dispatch boilerplate ────────────────────────────────
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/_backends/abs_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/arithmetic/abs_simd.cpp"
 #include <hwy/foreach_target.h>   // includes this file once per target
 #include <hwy/highway.h>
 

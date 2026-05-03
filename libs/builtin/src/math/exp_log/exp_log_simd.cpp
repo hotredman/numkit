@@ -1,18 +1,17 @@
-// libs/builtin/src/math/elementary/backends/transcendental_simd.cpp
+// libs/builtin/src/math/exp_log/exp_log_simd.cpp
 //
-// Highway dynamic-dispatch sin / cos / exp / log. Each function gets
-// its own HWY_EXPORT / HWY_DYNAMIC_DISPATCH pair; the HWY_NAMESPACE
-// block up top holds the target-specific vector loops. Highway's
-// hwy/contrib/math header provides the underlying Sin / Cos / Exp /
-// Log primitives (SLEEF-derived polynomial approximations; ULP <= 4
+// Highway dynamic-dispatch exp / log. Each function gets its own
+// HWY_EXPORT / HWY_DYNAMIC_DISPATCH pair; the HWY_NAMESPACE block up
+// top holds the target-specific vector loops. Highway's
+// hwy/contrib/math header provides the underlying Exp / Log
+// primitives (SLEEF-derived polynomial approximations; ULP <= 4
 // across all supported targets).
 //
-// The complex and scalar paths mirror transcendental_portable.cpp
-// exactly — SIMD doesn't help there. Parity vs the scalar reference is
+// The complex and scalar paths mirror exp_log_portable.cpp exactly —
+// SIMD doesn't help there. Parity vs the scalar reference is
 // verified in libs/builtin/tests/simd_parity_test.cpp.
 
 #include <numkit/builtin/math/exp_log/exponents.hpp>
-#include <numkit/builtin/math/trig/trigonometry.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/parallel_for.hpp>
@@ -25,7 +24,7 @@
 #include <cstddef>
 
 #undef HWY_TARGET_INCLUDE
-#define HWY_TARGET_INCLUDE "math/_backends/transcendental_simd.cpp"
+#define HWY_TARGET_INCLUDE "math/exp_log/exp_log_simd.cpp"
 #include <hwy/foreach_target.h>
 #include <hwy/highway.h>
 #include <hwy/contrib/math/math-inl.h>
@@ -35,30 +34,6 @@ namespace numkit::builtin {
 namespace HWY_NAMESPACE {
 
 namespace hn = hwy::HWY_NAMESPACE;
-
-void SinLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
-{
-    const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
-    std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Sin(d, v), d, out + i);
-    }
-    for (; i < n; ++i) out[i] = std::sin(in[i]);
-}
-
-void CosLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
-{
-    const hn::ScalableTag<double> d;
-    const std::size_t N = hn::Lanes(d);
-    std::size_t i = 0;
-    for (; i + N <= n; i += N) {
-        auto v = hn::LoadU(d, in + i);
-        hn::StoreU(hn::Cos(d, v), d, out + i);
-    }
-    for (; i < n; ++i) out[i] = std::cos(in[i]);
-}
 
 void ExpLoop(const double *HWY_RESTRICT in, double *HWY_RESTRICT out, std::size_t n)
 {
@@ -92,14 +67,12 @@ HWY_AFTER_NAMESPACE();
 
 namespace numkit::builtin {
 
-HWY_EXPORT(SinLoop);
-HWY_EXPORT(CosLoop);
 HWY_EXPORT(ExpLoop);
 HWY_EXPORT(LogLoop);
 
 namespace {
 
-// Shared shape for sin/cos/exp/log: delegate complex / scalar to the
+// Shared shape for exp/log: delegate complex / scalar to the
 // reference path, route real vectors through the dispatcher. When
 // `hint` is a uniquely-owned heap double of matching shape, steal
 // its buffer instead of allocating a fresh result — saves the
@@ -136,28 +109,6 @@ Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint
 }
 
 } // namespace
-
-Value sin(std::pmr::memory_resource *mr, const Value &x, Value *hint)
-{
-    return unaryRealDouble(
-        mr, x, hint,
-        [](const double *in, double *out, std::size_t n) {
-            HWY_DYNAMIC_DISPATCH(SinLoop)(in, out, n);
-        },
-        [](double v) { return std::sin(v); },
-        [](const Complex &c) { return std::sin(c); });
-}
-
-Value cos(std::pmr::memory_resource *mr, const Value &x, Value *hint)
-{
-    return unaryRealDouble(
-        mr, x, hint,
-        [](const double *in, double *out, std::size_t n) {
-            HWY_DYNAMIC_DISPATCH(CosLoop)(in, out, n);
-        },
-        [](double v) { return std::cos(v); },
-        [](const Complex &c) { return std::cos(c); });
-}
 
 Value exp(std::pmr::memory_resource *mr, const Value &x, Value *hint)
 {
