@@ -1,0 +1,10 @@
+{
+  "name": "pchip",
+  "namespace": "core",
+  "setup": "x = linspace(0, 10, 50); v = sin(x); xq = linspace(0, 10, 1000);",
+  "expr": "y = pchip(x, v, xq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: yq = pchip(x, v, xq). 50 \u2192 1000 PCHIP. 100 iters.",
+  "out_var": "y"
+}

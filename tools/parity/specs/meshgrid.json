@@ -1,0 +1,10 @@
+{
+  "name": "meshgrid",
+  "namespace": "core",
+  "setup": "x = linspace(-3, 3, 1000); y = linspace(-3, 3, 1000);",
+  "expr": "[y, jj] = meshgrid(x, y);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: [X,Y] = meshgrid(x,y). 1k\u00d71k grid. 100 iters. SAVE on X.",
+  "out_var": "y"
+}

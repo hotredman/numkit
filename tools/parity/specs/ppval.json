@@ -1,0 +1,10 @@
+{
+  "name": "ppval",
+  "namespace": "core",
+  "setup": "pp = spline(linspace(0,10,50), sin(linspace(0,10,50))); xq = linspace(0, 10, 10000);",
+  "expr": "y = ppval(pp, xq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: V = ppval(PP, X). 50-knot spline \u2192 10k pts. 100 iters.",
+  "out_var": "y"
+}

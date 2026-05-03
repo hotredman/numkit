@@ -1,0 +1,13 @@
+{
+  "name": "bounds",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "[y, jj] = bounds(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters.",
+  "fingerprint": [
+    "double(y)",
+    "double(jj)"
+  ]
+}

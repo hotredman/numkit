@@ -1,0 +1,10 @@
+{
+  "name": "maxk",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = maxk(x, 10);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: B = maxk(X, K). Top 10 of 1M. 100 iters.",
+  "out_var": "y"
+}

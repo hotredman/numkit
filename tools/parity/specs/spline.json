@@ -1,0 +1,10 @@
+{
+  "name": "spline",
+  "namespace": "core",
+  "setup": "x = linspace(0, 10, 50); v = sin(x); xq = linspace(0, 10, 1000);",
+  "expr": "y = spline(x, v, xq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: yq = spline(x, v, xq). 50 \u2192 1000 cubic spline. 100 iters.",
+  "out_var": "y"
+}

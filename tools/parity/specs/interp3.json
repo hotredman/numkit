@@ -1,0 +1,10 @@
+{
+  "name": "interp3",
+  "namespace": "core",
+  "setup": "[X,Y,Z] = ndgrid(linspace(0,10,20)); V = sin(X).*cos(Y).*Z; [Xq,Yq,Zq] = ndgrid(linspace(0,10,50));",
+  "expr": "y = interp3(X, Y, Z, V, Xq, Yq, Zq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20\u00b3 \u2192 50\u00b3 trilinear. 10 iters.",
+  "out_var": "y"
+}

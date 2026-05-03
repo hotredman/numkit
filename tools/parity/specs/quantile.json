@@ -1,0 +1,10 @@
+{
+  "name": "quantile",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000)); q = [0.25 0.5 0.75 0.9];",
+  "expr": "y = quantile(x, q);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Y = quantile(X, Q). 1M-pt at 4 quantiles. 50 iters.",
+  "out_var": "y"
+}
