@@ -81,6 +81,13 @@ void gaminv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gamrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gamstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/exponential.cpp
+void exppdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void expcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void expinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void exprnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void expstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -158,6 +165,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "gaminv",   &stats::detail::gaminv_reg);
     reg("dist", "gamrnd",   &stats::detail::gamrnd_reg);
     reg("dist", "gamstat",  &stats::detail::gamstat_reg);
+
+    reg("dist", "exppdf",   &stats::detail::exppdf_reg);
+    reg("dist", "expcdf",   &stats::detail::expcdf_reg);
+    reg("dist", "expinv",   &stats::detail::expinv_reg);
+    reg("dist", "exprnd",   &stats::detail::exprnd_reg);
+    reg("dist", "expstat",  &stats::detail::expstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);

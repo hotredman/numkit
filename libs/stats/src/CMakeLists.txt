@@ -11,6 +11,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/fisher_f.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/beta.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gamma_dist.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
