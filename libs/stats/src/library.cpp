@@ -74,6 +74,13 @@ void betainv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void betarnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void betastat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/gamma_dist.cpp
+void gampdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gamcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gaminv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gamrnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void gamstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -145,6 +152,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "betainv",  &stats::detail::betainv_reg);
     reg("dist", "betarnd",  &stats::detail::betarnd_reg);
     reg("dist", "betastat", &stats::detail::betastat_reg);
+
+    reg("dist", "gampdf",   &stats::detail::gampdf_reg);
+    reg("dist", "gamcdf",   &stats::detail::gamcdf_reg);
+    reg("dist", "gaminv",   &stats::detail::gaminv_reg);
+    reg("dist", "gamrnd",   &stats::detail::gamrnd_reg);
+    reg("dist", "gamstat",  &stats::detail::gamstat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);

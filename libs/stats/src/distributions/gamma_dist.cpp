@@ -1,0 +1,157 @@
+// libs/stats/src/distributions/gamma_dist.cpp
+//
+// Gamma distribution. Uses MATLAB convention: gampdf(x, a, b) interprets a
+// as shape and b as scale (NOT rate). So f(x) = x^(a-1) exp(-x/b) /
+// (b^a · Γ(a)). cdf composes gammainc on x/b; icdf uses gammaincinv;
+// rnd uses std::gamma_distribution directly.
+
+#include <numkit/stats/distributions/gamma_dist.hpp>
+
+#include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/builtin/math/special/special.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <cmath>
+#include <limits>
+#include <mutex>
+#include <random>
+
+namespace numkit::stats {
+
+namespace {
+
+template <typename Op>
+Value elementwise(std::pmr::memory_resource *mr, const Value &x, Op op)
+{
+    if (x.isScalar()) return Value::scalar(op(x.toScalar()), mr);
+    const auto &d = x.dims();
+    Value out;
+    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr);
+    else          out = Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t n = x.numel();
+    if (n == 0) return out;
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < n; ++i) od[i] = op(x.elemAsDouble(i));
+    return out;
+}
+
+} // anonymous
+
+Value gampdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0)
+        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    // log f(x) = (a-1) log x - x/b - a log b - lgamma(a)
+    const double log_b = std::log(b);
+    const double lga   = std::lgamma(a);
+    return elementwise(mr, x, [=](double xi) {
+        if (xi < 0.0) return 0.0;
+        if (xi == 0.0) {
+            if (a < 1.0) return std::numeric_limits<double>::infinity();
+            if (a > 1.0) return 0.0;
+            return std::exp(-lga - log_b); // a == 1 → 1/b
+        }
+        const double lp = (a - 1.0) * std::log(xi)
+                        - xi / b
+                        - a * log_b
+                        - lga;
+        return std::exp(lp);
+    });
+}
+
+Value gamcdf(std::pmr::memory_resource *mr, const Value &x, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0)
+        return elementwise(mr, x, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    Value xs = elementwise(mr, x, [=](double xi) {
+        return (xi <= 0.0) ? 0.0 : xi / b;
+    });
+    Value av = Value::scalar(a, mr);
+    return ::numkit::builtin::gammainc(mr, xs, av);
+}
+
+Value gaminv(std::pmr::memory_resource *mr, const Value &p, double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0)
+        return elementwise(mr, p, [](double){ return std::numeric_limits<double>::quiet_NaN(); });
+    Value av = Value::scalar(a, mr);
+    Value q  = ::numkit::builtin::gammaincinv(mr, p, av);
+    return elementwise(mr, q, [=](double qi){ return b * qi; });
+}
+
+Value gamrnd(std::pmr::memory_resource *mr, double a, double b, size_t rows, size_t cols)
+{
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+    auto out = Value::matrix(rows, cols, ValueType::DOUBLE, mr);
+    if (a <= 0.0 || b <= 0.0 || rows * cols == 0) return out;
+    double *od = out.doubleDataMut();
+    const size_t n = rows * cols;
+    std::gamma_distribution<double> gd(a, b);
+    std::lock_guard<std::mutex> lk(mtx);
+    for (size_t i = 0; i < n; ++i) od[i] = gd(gen);
+    return out;
+}
+
+std::tuple<double, double> gamstat(double a, double b)
+{
+    if (a <= 0.0 || b <= 0.0) {
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        return std::make_tuple(nan, nan);
+    }
+    return std::make_tuple(a * b, a * b * b);
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════
+
+namespace detail {
+
+void gampdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("gampdf: requires (x, a, b)", 0, 0, "gampdf", "", "m:gampdf:nargin");
+    outs[0] = gampdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+}
+
+void gamcdf_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("gamcdf: requires (x, a, b)", 0, 0, "gamcdf", "", "m:gamcdf:nargin");
+    outs[0] = gamcdf(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+}
+
+void gaminv_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("gaminv: requires (p, a, b)", 0, 0, "gaminv", "", "m:gaminv:nargin");
+    outs[0] = gaminv(ctx.engine->resource(), args[0], args[1].toScalar(), args[2].toScalar());
+}
+
+void gamrnd_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gamrnd: requires (a, b[, m, n])", 0, 0, "gamrnd", "", "m:gamrnd:nargin");
+    const double a = args[0].toScalar();
+    const double b = args[1].toScalar();
+    size_t rows = 1, cols = 1;
+    if (args.size() >= 3 && !args[2].isEmpty()) rows = static_cast<size_t>(args[2].toScalar());
+    if (args.size() >= 4 && !args[3].isEmpty()) cols = static_cast<size_t>(args[3].toScalar());
+    else if (args.size() >= 3) cols = rows;
+    outs[0] = gamrnd(ctx.engine->resource(), a, b, rows, cols);
+}
+
+void gamstat_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("gamstat: requires (a, b)", 0, 0, "gamstat", "", "m:gamstat:nargin");
+    auto [m, v] = gamstat(args[0].toScalar(), args[1].toScalar());
+    outs[0] = Value::scalar(m, ctx.engine->resource());
+    if (nargout > 1) outs[1] = Value::scalar(v, ctx.engine->resource());
+}
+
+} // namespace detail
+} // namespace numkit::stats
