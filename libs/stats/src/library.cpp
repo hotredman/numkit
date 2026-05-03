@@ -179,6 +179,10 @@ void mahal_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // cluster/kmeans.cpp
 void kmeans_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// cluster/kmedoids.cpp
+void kmedoids_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dbscan_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -336,6 +340,8 @@ void StatsLibrary::install(Engine &engine)
     reg("cluster", "squareform", &stats::detail::squareform_reg);
     reg("cluster", "mahal",      &stats::detail::mahal_reg);
     reg("cluster", "kmeans",     &stats::detail::kmeans_reg);
+    reg("cluster", "kmedoids",   &stats::detail::kmedoids_reg);
+    reg("cluster", "dbscan",     &stats::detail::dbscan_reg);
 }
 
 } // namespace numkit

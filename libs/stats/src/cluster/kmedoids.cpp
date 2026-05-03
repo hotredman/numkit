@@ -1,0 +1,312 @@
+// libs/stats/src/cluster/kmedoids.cpp
+
+#include <numkit/stats/cluster/kmedoids.hpp>
+
+#include <numkit/builtin/math/random/rng.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <mutex>
+#include <random>
+#include <vector>
+
+namespace numkit::stats {
+
+namespace {
+
+enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev };
+
+Metric parse_metric(const std::string &s) {
+    if (s == "euclidean")        return Metric::Euclidean;
+    if (s == "squaredeuclidean") return Metric::SqEuclidean;
+    if (s == "cityblock")        return Metric::Cityblock;
+    if (s == "chebychev")        return Metric::Chebychev;
+    return Metric::Euclidean;
+}
+
+inline double dist_pair(const double *a, const double *b, size_t D, Metric m) {
+    switch (m) {
+        case Metric::Euclidean: {
+            double s = 0.0;
+            for (size_t k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
+            return std::sqrt(s);
+        }
+        case Metric::SqEuclidean: {
+            double s = 0.0;
+            for (size_t k = 0; k < D; ++k) { double d = a[k] - b[k]; s += d * d; }
+            return s;
+        }
+        case Metric::Cityblock: {
+            double s = 0.0;
+            for (size_t k = 0; k < D; ++k) s += std::fabs(a[k] - b[k]);
+            return s;
+        }
+        case Metric::Chebychev: {
+            double m_ = 0.0;
+            for (size_t k = 0; k < D; ++k) {
+                double d = std::fabs(a[k] - b[k]);
+                if (d > m_) m_ = d;
+            }
+            return m_;
+        }
+    }
+    return 0.0;
+}
+
+// Read X (N×D, column-major) into a flat row-major buffer.
+std::vector<double> read_rows(const Value &X) {
+    const size_t N = X.dims().rows();
+    const size_t D = X.dims().cols();
+    std::vector<double> out(N * D);
+    for (size_t r = 0; r < N; ++r)
+        for (size_t c = 0; c < D; ++c)
+            out[r * D + c] = X.elemAsDouble(c * N + r);
+    return out;
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value>
+kmedoids(std::pmr::memory_resource *mr, const Value &X, int K,
+         int max_iter, int replicates, const std::string &metric_name)
+{
+    if (max_iter <= 0)   max_iter = 100;
+    if (replicates <= 0) replicates = 1;
+    const Metric m = parse_metric(metric_name);
+
+    const size_t N = X.dims().rows();
+    const size_t D = X.dims().cols();
+    if (K < 1 || (size_t)K > N)
+        throw Error("kmedoids: K must be in 1..N", 0, 0, "kmedoids", "",
+                    "m:kmedoids:badK");
+
+    std::vector<double> Xv = read_rows(X);
+    auto &gen = ::numkit::builtin::sharedEngine();
+    auto &mtx = ::numkit::builtin::rngMutex();
+
+    std::vector<int>    best_med((size_t)K), best_idx(N);
+    std::vector<double> best_sumd((size_t)K);
+    double best_total = std::numeric_limits<double>::infinity();
+
+    std::vector<int>    med((size_t)K);
+    std::vector<int>    idx(N);
+    std::vector<double> sumd((size_t)K);
+
+    for (int rep = 0; rep < replicates; ++rep) {
+        // Random initial medoids — sample K distinct rows.
+        {
+            std::lock_guard<std::mutex> lk(mtx);
+            std::vector<int> all((int)N);
+            for (size_t i = 0; i < N; ++i) all[i] = (int)i;
+            std::shuffle(all.begin(), all.end(), gen);
+            for (int k = 0; k < K; ++k) med[k] = all[k];
+        }
+
+        for (int iter = 0; iter < max_iter; ++iter) {
+            // Assign each point to nearest medoid.
+            std::fill(sumd.begin(), sumd.end(), 0.0);
+            double total = 0.0;
+            for (size_t i = 0; i < N; ++i) {
+                int best = 0;
+                double bd = std::numeric_limits<double>::infinity();
+                for (int k = 0; k < K; ++k) {
+                    const double d = dist_pair(&Xv[i * D],
+                                                &Xv[(size_t)med[k] * D], D, m);
+                    if (d < bd) { bd = d; best = k; }
+                }
+                idx[i] = best;
+                sumd[best] += bd;
+                total += bd;
+            }
+
+            // Update each medoid: among its members, pick the one whose
+            // sum of distances to the rest is minimal.
+            bool changed = false;
+            for (int k = 0; k < K; ++k) {
+                std::vector<int> members;
+                members.reserve(N / K);
+                for (size_t i = 0; i < N; ++i)
+                    if (idx[i] == k) members.push_back((int)i);
+                if (members.empty()) continue;
+
+                int new_med = med[k];
+                double best_sum = std::numeric_limits<double>::infinity();
+                for (int cand : members) {
+                    double s = 0.0;
+                    for (int p : members) {
+                        s += dist_pair(&Xv[(size_t)cand * D],
+                                       &Xv[(size_t)p * D], D, m);
+                    }
+                    if (s < best_sum) { best_sum = s; new_med = cand; }
+                }
+                if (new_med != med[k]) { med[k] = new_med; changed = true; }
+            }
+            if (!changed) break;
+        }
+
+        // Re-evaluate total against final medoids.
+        double total = 0.0;
+        std::fill(sumd.begin(), sumd.end(), 0.0);
+        for (size_t i = 0; i < N; ++i) {
+            const int k = idx[i];
+            const double d = dist_pair(&Xv[i * D], &Xv[(size_t)med[k] * D], D, m);
+            sumd[k] += d;
+            total += d;
+        }
+
+        if (total < best_total) {
+            best_total = total;
+            best_med = med;
+            best_idx = idx;
+            best_sumd = sumd;
+        }
+    }
+
+    Value idx_out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *ip = idx_out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) ip[i] = double(best_idx[i] + 1);
+
+    Value med_out = Value::matrix(K, D, ValueType::DOUBLE, mr);
+    double *mp = med_out.doubleDataMut();
+    for (int k = 0; k < K; ++k)
+        for (size_t d = 0; d < D; ++d)
+            mp[d * K + k] = Xv[(size_t)best_med[k] * D + d];
+
+    Value sumd_out = Value::matrix(K, 1, ValueType::DOUBLE, mr);
+    double *sp = sumd_out.doubleDataMut();
+    for (int k = 0; k < K; ++k) sp[k] = best_sumd[k];
+
+    return std::make_tuple(std::move(idx_out), std::move(med_out),
+                           std::move(sumd_out));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// dbscan
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value>
+dbscan(std::pmr::memory_resource *mr, const Value &X,
+       double eps, int minpts, const std::string &metric_name)
+{
+    if (eps <= 0.0)  throw Error("dbscan: eps must be positive",
+                                 0, 0, "dbscan", "", "m:dbscan:badeps");
+    if (minpts <= 0) minpts = 1;
+    const Metric m = parse_metric(metric_name);
+
+    const size_t N = X.dims().rows();
+    const size_t D = X.dims().cols();
+    std::vector<double> Xv = read_rows(X);
+
+    // Compute all pairwise distances (N²·D — straightforward for first cut).
+    auto neighbours = [&](size_t i) {
+        std::vector<int> out;
+        out.reserve(16);
+        for (size_t j = 0; j < N; ++j) {
+            if (j == i) { out.push_back((int)j); continue; }
+            const double d = dist_pair(&Xv[i * D], &Xv[j * D], D, m);
+            if (d <= eps) out.push_back((int)j);
+        }
+        return out;
+    };
+
+    std::vector<int>     labels(N, 0);   // 0 = unclassified-or-noise
+    std::vector<uint8_t> core(N, 0);
+    int cluster = 0;
+
+    for (size_t i = 0; i < N; ++i) {
+        if (labels[i] != 0) continue;
+        auto nbrs = neighbours(i);
+        if ((int)nbrs.size() < minpts) {
+            labels[i] = -1;  // mark noise (will be remapped to 0 below)
+            continue;
+        }
+        ++cluster;
+        labels[i] = cluster;
+        core[i] = 1;
+
+        // Expand seed set.
+        std::vector<int> seeds(nbrs.begin(), nbrs.end());
+        for (size_t s = 0; s < seeds.size(); ++s) {
+            const int q = seeds[s];
+            if ((size_t)q == i) continue;
+            if (labels[q] == -1) labels[q] = cluster;  // noise → border
+            if (labels[q] != 0) continue;              // already assigned
+            labels[q] = cluster;
+            auto qn = neighbours((size_t)q);
+            if ((int)qn.size() >= minpts) {
+                core[q] = 1;
+                for (int n : qn) {
+                    if (labels[n] == 0 || labels[n] == -1) seeds.push_back(n);
+                }
+            }
+        }
+    }
+
+    // Remap noise (-1) → 0 (MATLAB convention).
+    Value idx = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    double *ip = idx.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        ip[i] = (labels[i] == -1) ? 0.0 : double(labels[i]);
+
+    Value core_v = Value::matrix(N, 1, ValueType::LOGICAL, mr);
+    uint8_t *cp = core_v.logicalDataMut();
+    for (size_t i = 0; i < N; ++i) cp[i] = core[i];
+
+    return std::make_tuple(std::move(idx), std::move(core_v));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// Engine adapters
+// ════════════════════════════════════════════════════════════════════
+
+namespace detail {
+
+void kmedoids_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("kmedoids: requires (X, K[, MaxIter, Replicates, metric])",
+                    0, 0, "kmedoids", "", "m:kmedoids:nargin");
+    const int K = (int)args[1].toScalar();
+    int max_iter  = 100;
+    int replicates = 1;
+    std::string metric = "euclidean";
+    for (size_t i = 2; i + 1 < args.size(); ++i) {
+        if (args[i].isChar() || args[i].isString()) {
+            const auto s = args[i].toString();
+            const Value &v = args[i + 1];
+            if      (s == "MaxIter")    max_iter  = (int)v.toScalar();
+            else if (s == "Replicates") replicates = (int)v.toScalar();
+            else if (s == "Distance")   metric = v.toString();
+        }
+    }
+    auto [idx, M, sumd] = kmedoids(ctx.engine->resource(), args[0], K,
+                                    max_iter, replicates, metric);
+    outs[0] = std::move(idx);
+    if (nargout > 1) outs[1] = std::move(M);
+    if (nargout > 2) outs[2] = std::move(sumd);
+}
+
+void dbscan_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("dbscan: requires (X, eps, minpts[, metric])",
+                    0, 0, "dbscan", "", "m:dbscan:nargin");
+    const double eps    = args[1].toScalar();
+    const int    minpts = (int)args[2].toScalar();
+    std::string metric  = "euclidean";
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
+        metric = args[3].toString();
+    auto [idx, core] = dbscan(ctx.engine->resource(), args[0], eps, minpts, metric);
+    outs[0] = std::move(idx);
+    if (nargout > 1) outs[1] = std::move(core);
+}
+
+} // namespace detail
+} // namespace numkit::stats

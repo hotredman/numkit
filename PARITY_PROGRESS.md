@@ -1251,13 +1251,13 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 ## Partitional Clustering
 
-**Namespace:** `stats.cluster.*` — 1 ✅ + 0 ⚠️ / 4 = 25%
+**Namespace:** `stats.cluster.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `kmeans` | ✅ |  |  |  | OK | Lloyd's + k-means++ init, MaxIter / Replicates options |
-| `kmedoids` | ❌ |  |  |  |  | k-medoids (PAM) |
-| `dbscan` | ❌ |  |  |  |  | density-based |
+| `kmedoids` | ✅ |  |  |  | OK | PAM-style; supports euclidean/sqeuclidean/cityblock/chebychev |
+| `dbscan` | ✅ |  |  |  | OK | core-point expansion; noise → label 0 (MATLAB convention) |
 | `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
 
 ## Cluster Evaluation
