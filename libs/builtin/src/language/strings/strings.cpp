@@ -701,18 +701,73 @@ Value extractBefore(std::pmr::memory_resource *mr, const Value &s, const Value &
     return strLikeOf(mr, s, ss.substr(0, r.begin));
 }
 
+namespace {
+
+// Find all non-overlapping (start, end) delimiter pairs in `ss`. Each
+// match's `begin` is the index of the opening delimiter, `end` is one
+// past the closing delimiter, and `between` brackets just the inner
+// text (between the two delimiters). Numeric (position-arg) inputs
+// return at most one pair. See BUGS.md #27.
+struct BetweenMatch {
+    size_t openBegin;   // index of first char of opening delimiter
+    size_t openEnd;     // index just past opening delimiter (start of inner)
+    size_t closeBegin;  // index of first char of closing delimiter (end of inner)
+    size_t closeEnd;    // index just past closing delimiter
+};
+
+std::vector<BetweenMatch>
+findAllBetweenPairs(const std::string &ss, const Value &start, const Value &end)
+{
+    std::vector<BetweenMatch> matches;
+    const bool startIsPattern = (start.isChar() || start.isString());
+    const bool endIsPattern   = (end.isChar()   || end.isString());
+
+    if (!startIsPattern || !endIsPattern) {
+        // Numeric-anchor form: at most one match.
+        const auto rs = resolvePos(ss, start);
+        if (!rs.found) return matches;
+        const std::string tail = ss.substr(rs.end);
+        const auto re = resolvePos(tail, end);
+        if (!re.found) return matches;
+        matches.push_back({rs.begin, rs.end, rs.end + re.begin, rs.end + re.end});
+        return matches;
+    }
+
+    const std::string sp = start.toString();
+    const std::string ep = end.toString();
+    if (sp.empty() || ep.empty()) return matches;
+
+    size_t cursor = 0;
+    while (cursor < ss.size()) {
+        const size_t sPos = ss.find(sp, cursor);
+        if (sPos == std::string::npos) break;
+        const size_t innerBeg = sPos + sp.size();
+        const size_t ePos = ss.find(ep, innerBeg);
+        if (ePos == std::string::npos) break;
+        matches.push_back({sPos, innerBeg, ePos, ePos + ep.size()});
+        // Advance past the closing delimiter so non-overlapping pairs
+        // are matched — `<<a>><<b>>` yields 2 matches, not 1.
+        cursor = ePos + ep.size();
+    }
+    return matches;
+}
+
+} // namespace
+
 Value extractBetween(std::pmr::memory_resource *mr, const Value &s,
                      const Value &start, const Value &end)
 {
     const std::string ss = s.toString();
-    const auto rs = resolvePos(ss, start);
-    if (!rs.found) return strLikeOf(mr, s, "");
-    // For "between", search for the end pattern only after the start
-    // pattern's tail to avoid hitting the same span.
-    const std::string tail = ss.substr(rs.end);
-    const auto re = resolvePos(tail, end);
-    if (!re.found) return strLikeOf(mr, s, "");
-    return strLikeOf(mr, s, tail.substr(0, re.begin));
+    const auto matches = findAllBetweenPairs(ss, start, end);
+    // MATLAB returns an M-by-1 cell of inner strings — even for a
+    // single match. Empty result is a 0-by-1 cell. See BUGS.md #27.
+    auto c = Value::cell(matches.size(), 1, mr);
+    for (size_t i = 0; i < matches.size(); ++i) {
+        const auto &m = matches[i];
+        const std::string inner = ss.substr(m.openEnd, m.closeBegin - m.openEnd);
+        c.cellAt(i) = strLikeOf(mr, s, inner);
+    }
+    return c;
 }
 
 Value insertAfter(std::pmr::memory_resource *mr, const Value &s,
@@ -738,29 +793,40 @@ Value insertBefore(std::pmr::memory_resource *mr, const Value &s,
 Value eraseBetween(std::pmr::memory_resource *mr, const Value &s,
                    const Value &start, const Value &end)
 {
-    std::string ss = s.toString();
-    const auto rs = resolvePos(ss, start);
-    if (!rs.found) return s;
-    const std::string tail = ss.substr(rs.end);
-    const auto re = resolvePos(tail, end);
-    if (!re.found) return s;
-    // Remove the substring (rs.end, rs.end + re.begin).
-    ss.erase(rs.end, re.begin);
-    return strLikeOf(mr, s, ss);
+    const std::string ss = s.toString();
+    const auto matches = findAllBetweenPairs(ss, start, end);
+    if (matches.empty()) return s;
+    // Walk left-to-right copying segments outside the matched ranges.
+    // See BUGS.md #27.
+    std::string out;
+    out.reserve(ss.size());
+    size_t cursor = 0;
+    for (const auto &m : matches) {
+        out.append(ss, cursor, m.openEnd - cursor);   // up to and including opening delim
+        cursor = m.closeBegin;                          // skip the inner text
+    }
+    out.append(ss, cursor, ss.size() - cursor);
+    return strLikeOf(mr, s, out);
 }
 
 Value replaceBetween(std::pmr::memory_resource *mr, const Value &s,
                      const Value &start, const Value &end,
                      const Value &newText)
 {
-    std::string ss = s.toString();
-    const auto rs = resolvePos(ss, start);
-    if (!rs.found) return s;
-    const std::string tail = ss.substr(rs.end);
-    const auto re = resolvePos(tail, end);
-    if (!re.found) return s;
-    ss.replace(rs.end, re.begin, newText.toString());
-    return strLikeOf(mr, s, ss);
+    const std::string ss = s.toString();
+    const std::string nt = newText.toString();
+    const auto matches = findAllBetweenPairs(ss, start, end);
+    if (matches.empty()) return s;
+    std::string out;
+    out.reserve(ss.size());
+    size_t cursor = 0;
+    for (const auto &m : matches) {
+        out.append(ss, cursor, m.openEnd - cursor);   // copy through opening delim
+        out.append(nt);                                // replacement text
+        cursor = m.closeBegin;                          // resume at closing delim
+    }
+    out.append(ss, cursor, ss.size() - cursor);
+    return strLikeOf(mr, s, out);
 }
 
 // ── Pack 23 ──────────────────────────────────────────────────────────

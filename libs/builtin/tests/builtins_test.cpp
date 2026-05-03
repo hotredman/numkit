@@ -626,10 +626,28 @@ TEST_P(BuiltinTest, ExtractAfterBefore)
 
 TEST_P(BuiltinTest, ExtractBetween)
 {
+    // MATLAB extractBetween always returns an Mx1 cell (even for a
+    // single match) - non-overlapping match list. See BUGS.md #27.
     eval("s = extractBetween('[hello] [world]', '[', ']');");
-    EXPECT_EQ(getVarPtr("s")->toString(), "hello");
+    auto *s = getVarPtr("s");
+    ASSERT_TRUE(s->isCell());
+    ASSERT_EQ(s->numel(), 2u);
+    EXPECT_EQ(s->cellAt(0).toString(), "hello");
+    EXPECT_EQ(s->cellAt(1).toString(), "world");
+
+    // Same-delimiter case: 'a-b-c-d' yields one non-overlapping pair.
     eval("s2 = extractBetween('a-b-c-d', '-', '-');");
-    EXPECT_EQ(getVarPtr("s2")->toString(), "b");
+    auto *s2 = getVarPtr("s2");
+    ASSERT_TRUE(s2->isCell());
+    ASSERT_EQ(s2->numel(), 1u);
+    EXPECT_EQ(s2->cellAt(0).toString(), "b");
+
+    // Single match → 1x1 cell.
+    eval("s3 = extractBetween('foo<<a>>bar', '<<', '>>');");
+    auto *s3 = getVarPtr("s3");
+    ASSERT_TRUE(s3->isCell());
+    ASSERT_EQ(s3->numel(), 1u);
+    EXPECT_EQ(s3->cellAt(0).toString(), "a");
 }
 
 TEST_P(BuiltinTest, InsertAfterBefore)

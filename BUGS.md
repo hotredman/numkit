@@ -635,7 +635,7 @@ ostringstream-default-6 to `%.5g` (matches MATLAB's documented
 
 ---
 
-## 27. `libs/builtin`: `*Between` family handles only first occurrence — **P2**
+## 27. `libs/builtin`: `*Between` family handles only first occurrence — **P2** ✅ FIXED
 
 **Reproducers:**
 ```matlab
@@ -661,6 +661,14 @@ log parsing, template extraction, etc.
 share an internal "find next pair" helper that needs a `while` loop
 instead of a single `find`.
 **First seen:** 2026-05-03, parity bulk-bench iteration 23.
+**Fix (2026-05-03):** Added `findAllBetweenPairs` helper in
+[libs/builtin/src/language/strings/strings.cpp]: walks left-to-right,
+collecting every non-overlapping (open, close) delimiter pair (advance
+cursor past the closing delim each iteration). `extractBetween` now
+always returns an Mx1 cell of inner strings (matching MATLAB —
+including for single matches); `eraseBetween` / `replaceBetween` walk
+the match list and rebuild the string in one pass. Numeric-anchor
+inputs still match at most once. Existing test updated to MATLAB-spec.
 
 ---
 
