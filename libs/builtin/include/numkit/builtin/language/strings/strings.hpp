@@ -8,8 +8,11 @@
 namespace numkit::builtin {
 
 // ── Conversion ───────────────────────────────────────────────────────
-/// num2str(x) — scalar number → char array (decimal, default formatting).
+/// num2str(x) — scalar number → char array (5 significant digits).
 Value num2str(std::pmr::memory_resource *mr, const Value &x);
+/// num2str(x, N) — N significant digits if N is an integer.
+/// num2str(x, fmt) — printf-style format string.
+Value num2str(std::pmr::memory_resource *mr, const Value &x, const Value &spec);
 
 /// str2num(s) — parse string as a number; returns empty Value on failure.
 Value str2num(std::pmr::memory_resource *mr, const Value &s);
