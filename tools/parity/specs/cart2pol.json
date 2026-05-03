@@ -1,0 +1,11 @@
+{
+  "name": "cart2pol",
+  "namespace": "core",
+  "setup": "x = linspace(-3, 3, 1000); y = linspace(-3, 3, 1000); [X, Y] = meshgrid(x, y);",
+  "expr": "[TH, R] = cart2pol(X, Y);",
+  "iters": 20,
+  "tol": 1e-12,
+  "fingerprint": ["sum(TH(:))", "sum(R(:))", "TH(1,1)", "R(1,1)", "TH(end,end)", "R(end,end)"],
+  "out_var": "TH",
+  "comment": "Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters."
+}

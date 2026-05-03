@@ -117,6 +117,38 @@ unsupported for strings).
 
 ---
 
+## 9. `libs/builtin`: scalar trig functions miss SIMD on element-wise input — **P3**
+
+**Functions:** `tan`, `atan2` (and by extension `cart2pol` / `cart2sph` / `sph2cart` /
+`hypot` which build on them).
+
+**Symptom (parity-bench iteration 1):**
+
+| function | numkit_ms | matlab_ms | vs MATLAB |
+|---|---:|---:|---:|
+| `sin` (1M pts)         | 0.85 | 0.90 | 1.07× (parity) |
+| `cos` (1M pts)         | 0.86 | 0.88 | 1.03× (parity) |
+| `tan` (1M pts)         | 7.28 | 0.86 | **0.12×** |
+| `atan2` (1M-elem grid) | 10.64 | 0.69 | **0.07×** |
+| `cart2pol` (1M grid)   | 17.13 | 3.27 | **0.19×** |
+
+Correctness ULP-level OK on all five. `sin`/`cos` already SIMD-vectorized
+through Highway in `libs/builtin/src/math/_backends/transcendental_simd.cpp`.
+`tan`, `atan2`, and consequently the coord-transform helpers, fall back to
+scalar `std::tan` / `std::atan2` — same ~8× gap MATLAB closes with vector trig.
+
+**Where:** `libs/builtin/src/math/trig/...` for `tan` / `atan2`;
+`libs/builtin/src/math/_backends/transcendental_simd.cpp` for the SIMD
+plumbing. The Highway pattern is already in place for `sin` / `cos`; adding
+`tan` and `atan2` lanes is mechanical.
+
+**Status:** **pending — libs fix.** Not blocking parity. Will be addressed
+once the bulk-bench identifies the full set of perf gaps.
+
+**First seen:** 2026-05-03, parity bulk-bench iteration 1.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
@@ -124,3 +156,5 @@ unsupported for strings).
   "Fixed in commit X" line; new bugs go to the bottom.
 - Bugs whose root cause sits in `core/` are tracked here for
   visibility but not actioned by this cycle.
+- P3 perf gaps surfaced by bulk-bench are documented here too (see #9).
+  They are not regressions; they're SIMD-optimization candidates.

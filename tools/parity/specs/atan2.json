@@ -1,0 +1,10 @@
+{
+  "name": "atan2",
+  "namespace": "core",
+  "setup": "x = linspace(-1, 1, 1000); y = linspace(-1, 1, 1000); [X, Y] = meshgrid(x, y);",
+  "expr": "Z = atan2(Y, X);",
+  "iters": 20,
+  "tol": 1e-12,
+  "out_var": "Z",
+  "comment": "Sig: P = atan2(Y, X). 1000x1000 quadrant grid. 20 iters. Element-wise SAVE."
+}
