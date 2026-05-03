@@ -1,0 +1,10 @@
+{
+  "name": "vertcat",
+  "namespace": "core",
+  "setup": "A = reshape(1:250000, 500, 500); B = reshape(1:250000, 500, 500);",
+  "expr": "y = vertcat(A, B);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: D = vertcat(A,B). 500x500 stack. 100 iters.",
+  "out_var": "y"
+}

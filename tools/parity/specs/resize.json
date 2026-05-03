@@ -1,0 +1,10 @@
+{
+  "name": "resize",
+  "namespace": "core",
+  "setup": "x = 1:1000;",
+  "expr": "y = resize(x, 1500);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = resize(X, M). Resize to 1500 (pad with zeros). 1000 iters.",
+  "out_var": "y"
+}

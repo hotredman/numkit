@@ -1,0 +1,10 @@
+{
+  "name": "ctranspose",
+  "namespace": "core",
+  "setup": "A = reshape(1:1000000, 1000, 1000);",
+  "expr": "y = ctranspose(A);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = ctranspose(A). 1k\u00d71k Hermitian (real \u2192 same as transpose). 100 iters.",
+  "out_var": "y"
+}

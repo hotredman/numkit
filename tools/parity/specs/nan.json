@@ -1,0 +1,13 @@
+{
+  "name": "nan",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = NaN;",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: N = NaN. 1M iters. fp checks isnan since y itself is NaN.",
+  "fingerprint": [
+    "double(isnan(y))",
+    "numel(y)"
+  ]
+}

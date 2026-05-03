@@ -1,0 +1,10 @@
+{
+  "name": "uint8",
+  "namespace": "core",
+  "setup": "x = linspace(0, 255, 1000000);",
+  "expr": "y = uint8(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = uint8(X). 1M \u2192 uint8. 50 iters.",
+  "out_var": "y"
+}

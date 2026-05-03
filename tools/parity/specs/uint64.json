@@ -1,0 +1,10 @@
+{
+  "name": "uint64",
+  "namespace": "core",
+  "setup": "x = linspace(0, 1e15, 1000000);",
+  "expr": "y = uint64(x);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: Y = uint64(X). 1M \u2192 uint64. 50 iters.",
+  "out_var": "y"
+}
