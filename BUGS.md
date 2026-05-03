@@ -545,7 +545,7 @@ BUGS #21 (1-arg form missing); add the 3-arg form too.
 
 ---
 
-## 24. `core/`: `.*` (and other elementwise ops) reject `logical .* double` — **P2**
+## 24. `core/`: `.*` (and other elementwise ops) reject `logical .* double` — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -559,8 +559,14 @@ The pattern `(predicate) .* values` is canonical for masking.
 `double(predicate) .* values`. Possibly affects `+`, `-`, `./` too.
 **Where:** core elementwise dispatch — needs to insert auto-cast for
 logical operands when paired with numeric.
-**Status:** **pending — core fix required.**
 **First seen:** 2026-05-03, parity bulk-bench iteration 20.
+**Fix (2026-05-03):** Added a `coerceLogicalToDouble` helper at the
+top of [libs/builtin/src/language/operators/binary_ops.cpp]: any
+arithmetic op (plus / minus / times / mtimes / rdivide / mrdivide /
+mldivide / power / elementPower) that sees a LOGICAL operand
+recurses with both operands cast to DOUBLE. Bool-mask idioms like
+`(mask) .* values` and `predicate + array` now work without explicit
+`double(...)` wrap.
 
 ---
 
