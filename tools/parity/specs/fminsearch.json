@@ -1,0 +1,13 @@
+{
+  "name": "fminsearch",
+  "namespace": "core",
+  "setup": "f = @(x) (x(1)-1).^2 + (x(2)-2).^2;",
+  "expr": "y = fminsearch(f, [0; 0]);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: X = fminsearch(F, X0). 2-D quadratic at (1,2). 1000 iters.",
+  "fingerprint": [
+    "double(y(1))",
+    "double(y(2))"
+  ]
+}

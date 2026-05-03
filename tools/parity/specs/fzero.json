@@ -1,0 +1,13 @@
+{
+  "name": "fzero",
+  "namespace": "core",
+  "setup": "f = @(x) x.^3 - 2*x - 5;",
+  "expr": "y = fzero(f, [0 5]);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: X = fzero(F, [A B]). Cubic root in [0,5]. 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

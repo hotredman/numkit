@@ -1,0 +1,13 @@
+{
+  "name": "isstring",
+  "namespace": "core",
+  "setup": "s = \"hello\";",
+  "expr": "y = isstring(s);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: TF = isstring(X). Returns scalar logical. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "fminbnd",
+  "namespace": "core",
+  "setup": "f = @(x) (x-3).^2 + 1;",
+  "expr": "y = fminbnd(f, 0, 10);",
+  "iters": 100,
+  "tol": 1e-09,
+  "comment": "Sig: X = fminbnd(F,A,B). 1-D quadratic min at x=3. 1000 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

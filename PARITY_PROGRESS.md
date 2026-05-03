@@ -182,8 +182,8 @@ multiple sections; all occurrences refresh together).
 | `ischar` | ✅ |  |  |  |  |  |
 | `isletter` | ✅ | 0.034 | 0.77× | 2.18× | OK | Sig: TF = isletter(S). 14k char input. 1000 iters. Logical-array fp. |
 | `isspace` | ✅ | 0.028 | 1.02× | 2.07× | OK | Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp. |
-| `isstring` | ✅ |  |  |  |  |  |
-| `isstringscalar` | ✅ |  |  |  |  |  |
+| `isstring` | ✅ | 0.000 | 23.96× | 66.39× | OK | Sig: TF = isstring(X). Returns scalar logical. 100k iters. |
+| `isstringscalar` | ✅ |  |  |  | N/A | Sig: TF = isStringScalar(X). Camel-case fn name. 100k iters. |
 | `isstrprop` | ✅ |  |  |  |  |  |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
 | `lower` | ✅ | 0.046 | 1.59× | 3.67× | OK | Sig: Y = lower(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
@@ -389,7 +389,7 @@ multiple sections; all occurrences refresh together).
 | `bitset` | ✅ | 4.155 | 0.61× | 8.75× | OK | Sig: Y = bitset(A, K). 1M double, set bit 5. 50 iters. |
 | `bitshift` | ✅ | 4.447 | 0.56× | 1.74× | OK | Sig: Y = bitshift(A, K). 1M double << 3. 50 iters. |
 | `bitxor` | ✅ | 5.789 | 1.87× | 2.28× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
-| `swapbytes` | ✅ | 1.049 | 1.04× | 7.60× | OK | 1M uint32 byte-swap. 50 iters. |
+| `swapbytes` | ✅ | 1.070 | 0.95× | 8.06× | OK | Sig: Y = swapbytes(X). 1M uint32 endian-swap. 50 iters. (uint out — fp via double cast). |
 
 ## Set Operations
 
@@ -397,19 +397,19 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `allunique` | ✅ |  |  |  |  | distinct check |
+| `allunique` | ✅ | 0.100 | 0.67× |  | OK | Sig: TF = allunique(X). 10k unique values. 1000 iters. |
 | `innerjoin` | ❌ |  |  |  |  |  |
 | `intersect` | ✅ | 0.623 | 0.43× | 0.42× | OK | Sig: C = intersect(A, B). 10k vs 10k overlap. 100 iters. Element-wise SAVE. |
 | `ismember` | ✅ | 1.359 | 0.30× | 0.55× | OK | Sig: TF = ismember(A, B). 100k vs 20k members. 50 iters. Element-wise SAVE on logical. |
-| `ismembertol` | ✅ |  |  |  |  | tol variant |
+| `ismembertol` | ✅ | 0.769 | 0.31× | 7.59× | OK | Sig: TF = ismembertol(A, B, TOL). 10k vs 100 with tol=0.005. 100 iters. |
 | `join` | ✅ | 0.001 | 0.27× | — | OK | Join 24-element Greek-letter string array. 10k iters. |
-| `numunique` | ✅ |  |  |  |  | count distinct |
+| `numunique` | ✅ | 0.029 | 3.45× |  | OK | Sig: N = numunique(X). 10k with 137 distinct. 1000 iters. |
 | `outerjoin` | ❌ |  |  |  |  |  |
 | `setdiff` | ✅ | 0.591 | 0.52× | 0.50× | OK | Sig: C = setdiff(A, B). 10k minus 10k. 100 iters. Element-wise SAVE. |
 | `setxor` | ✅ | 0.971 | 0.57× | 0.35× | OK | Sig: C = setxor(A, B). 10k symdiff 10k. 100 iters. Element-wise SAVE. |
 | `union` | ✅ | 1.183 | 0.33× | 0.15× | OK | Sig: C = union(A, B). 10k union 10k. 100 iters. Element-wise SAVE. |
 | `unique` | ✅ | 0.931 | 1.08× | 0.35× | OK | Sig: C = unique(A). 100k with ~7919 distinct. 100 iters. Element-wise SAVE. |
-| `uniquetol` | ✅ |  |  |  |  | tol variant |
+| `uniquetol` | ✅ | 0.234 | 0.49× | 6.98× | MISMATCH | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 100 iters. |
 
 ## Arithmetic
 
@@ -727,13 +727,13 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `fminbnd` | ✅ |  |  |  |  | 1-D bounded |
-| `fminsearch` | ✅ |  |  |  |  | Nelder-Mead |
-| `fzero` | ✅ |  |  |  |  |  |
+| `fminbnd` | ✅ | 0.002 | 52.63× | 201.91× | OK | Sig: X = fminbnd(F,A,B). 1-D quadratic min at x=3. 1000 iters. |
+| `fminsearch` | ✅ | 0.041 | 5.39× | 64.92× | MISMATCH | Sig: X = fminsearch(F, X0). 2-D quadratic at (1,2). 1000 iters. |
+| `fzero` | ✅ | 0.005 | 14.35× | 145.72× | OK | Sig: X = fzero(F, [A B]). Cubic root in [0,5]. 1000 iters. |
 | `lsqnonneg` | ❌ |  |  |  |  |  |
-| `optimget` | ✅ |  |  |  |  |  |
+| `optimget` | ✅ | 0.000 | 209.63× | 107.63× | OK | Sig: V = optimget(O, NAME). 10000 iters. |
 | `optimize` | ❌ |  |  |  |  |  |
-| `optimset` | ✅ |  |  |  |  |  |
+| `optimset` | ✅ | 0.001 | 116.44× | 68.66× | MISMATCH | Sig: O = optimset('NAME', VAL, ...). 10000 iters. |
 
 ## Ordinary Differential Equations
 
@@ -783,7 +783,7 @@ multiple sections; all occurrences refresh together).
 | `equilibrate` | ❌ |  |  |  |  |  |
 | `etree` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `etreeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `find` | ✅ |  |  |  |  |  |
+| `find` | ✅ | 2.383 | 0.23× | 0.06× | OK | Sig: K = find(X). 1M-pt logical, ~77k matches. 100 iters. |
 | `full` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `gmres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `gplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
@@ -792,8 +792,8 @@ multiple sections; all occurrences refresh together).
 | `issparse` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `lsqr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `minres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `nnz` | ✅ |  |  |  |  |  |
-| `nonzeros` | ✅ |  |  |  |  |  |
+| `nnz` | ✅ | 0.142 | 0.23× | 1.39× | OK | Sig: N = nnz(X). 1M-pt count. 1000 iters. |
+| `nonzeros` | ✅ | 1.245 | 0.48× | 0.80× | OK | Sig: V = nonzeros(X). 1M-pt extract non-zero (logical→double cast for .*). 100 iters. |
 | `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 | `nzmax` | ❌ |  |  |  |  | **deferred — libs/sparse** |
 | `pcg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
