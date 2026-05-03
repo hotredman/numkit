@@ -1251,11 +1251,11 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 
 ## Partitional Clustering
 
-**Namespace:** `stats.pcluster.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
+**Namespace:** `stats.cluster.*` — 1 ✅ + 0 ⚠️ / 4 = 25%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `kmeans` | ❌ |  |  |  |  | k-means (Lloyd's algorithm) |
+| `kmeans` | ✅ |  |  |  | OK | Lloyd's + k-means++ init, MaxIter / Replicates options |
 | `kmedoids` | ❌ |  |  |  |  | k-medoids (PAM) |
 | `dbscan` | ❌ |  |  |  |  | density-based |
 | `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
