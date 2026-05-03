@@ -67,6 +67,13 @@ void finv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void frnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/beta.cpp
+void betapdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betacdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betainv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betarnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void betastat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // moving/moving.cpp
 void movmean_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void movsum_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -132,6 +139,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "finv",     &stats::detail::finv_reg);
     reg("dist", "frnd",     &stats::detail::frnd_reg);
     reg("dist", "fstat",    &stats::detail::fstat_reg);
+
+    reg("dist", "betapdf",  &stats::detail::betapdf_reg);
+    reg("dist", "betacdf",  &stats::detail::betacdf_reg);
+    reg("dist", "betainv",  &stats::detail::betainv_reg);
+    reg("dist", "betarnd",  &stats::detail::betarnd_reg);
+    reg("dist", "betastat", &stats::detail::betastat_reg);
 
     reg("nan", "nansum",    &stats::detail::nansum_reg);
     reg("nan", "nanmean",   &stats::detail::nanmean_reg);
