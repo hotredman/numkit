@@ -1,0 +1,13 @@
+{
+  "name": "isinteger",
+  "namespace": "core",
+  "setup": "x = int32(1:1000000);",
+  "expr": "y = isinteger(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isinteger(X). Returns scalar. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

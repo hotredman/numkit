@@ -1,0 +1,14 @@
+{
+  "name": "isfinite",
+  "namespace": "core",
+  "setup": "x = [1 2 NaN 4 Inf 6 7 -Inf 9 10]; x = repmat(x, 1, 100000);",
+  "expr": "y = isfinite(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isfinite(X). 1M-pt mixed. 50 iters.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

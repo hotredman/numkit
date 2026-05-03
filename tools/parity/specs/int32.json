@@ -1,0 +1,10 @@
+{
+  "name": "int32",
+  "namespace": "core",
+  "setup": "x = linspace(-1e6, 1e6, 1000000);",
+  "expr": "y = int32(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Y = int32(X). 1M doubles \u2192 int32. 50 iters. Element-wise SAVE.",
+  "out_var": "y"
+}

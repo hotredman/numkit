@@ -1,0 +1,14 @@
+{
+  "name": "isinf",
+  "namespace": "core",
+  "setup": "x = [1 2 Inf 4 -Inf 6 7 Inf 9 -Inf]; x = repmat(x, 1, 100000);",
+  "expr": "y = isinf(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isinf(X). 1M-pt with Inf/-Inf scattered. 50 iters.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}

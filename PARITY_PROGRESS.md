@@ -121,33 +121,33 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `allfinite` | ✅ |  |  |  |  | whole-array `all(isfinite)` |
-| `anynan` | ✅ |  |  |  |  | whole-array `any(isnan)` |
+| `allfinite` | ✅ | 0.503 | 0.10× |  | OK | Sig: TF = allfinite(X). Returns scalar (logical-scalar fp BUGS #14). 100k iters. |
+| `anynan` | ✅ | 0.276 | 0.12× |  | OK | Sig: TF = anynan(X). Returns scalar. 100k iters. |
 | `cast` | ✅ | 5.072 | 0.30× | 0.55× | OK | 1M doubles -> int32. 50 iters. |
-| `double` | ✅ |  |  |  |  |  |
+| `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `eps` | ✅ |  |  |  |  | constant (machine eps) |
 | `flintmax` | ✅ |  |  |  |  | largest exact float-int |
 | `inf` | ✅ |  |  |  |  | constant |
 | `int16` | ✅ |  |  |  |  |  |
-| `int32` | ✅ |  |  |  |  |  |
+| `int32` | ✅ | 5.063 | 0.03× | 0.54× | OK | Sig: Y = int32(X). 1M doubles → int32. 50 iters. Element-wise SAVE. |
 | `int64` | ✅ |  |  |  |  |  |
 | `int8` | ✅ |  |  |  |  |  |
 | `intmax` | ✅ |  |  |  |  | max int per type |
 | `intmin` | ✅ |  |  |  |  | min int per type |
-| `isfinite` | ✅ |  |  |  |  |  |
-| `isfloat` | ✅ |  |  |  |  |  |
-| `isinf` | ✅ |  |  |  |  |  |
-| `isinteger` | ✅ |  |  |  |  |  |
-| `isnan` | ✅ |  |  |  |  |  |
-| `isnumeric` | ✅ |  |  |  |  |  |
-| `isreal` | ✅ |  |  |  |  |  |
+| `isfinite` | ✅ | 3.404 | 0.02× | 0.07× | OK | Sig: TF = isfinite(X). 1M-pt mixed. 50 iters. |
+| `isfloat` | ✅ | 0.000 | 20.26× | 26.00× | OK | Sig: TF = isfloat(X). Returns scalar. 100k iters. |
+| `isinf` | ✅ | 3.383 | 0.03× | 0.07× | OK | Sig: TF = isinf(X). 1M-pt with Inf/-Inf scattered. 50 iters. |
+| `isinteger` | ✅ | 0.000 | 20.54× | 16.06× | OK | Sig: TF = isinteger(X). Returns scalar. 100k iters. |
+| `isnan` | ✅ | 3.391 | 0.03× | 0.07× | OK | Sig: TF = isnan(X). 1M-pt with NaN every 3rd. 50 iters. Element-wise SAVE on logical. |
+| `isnumeric` | ✅ | 0.000 | 23.28× | 24.81× | OK | Sig: TF = isnumeric(X). Returns scalar. 100k iters. |
+| `isreal` | ✅ | 0.000 | 18.13× | 31.18× | OK | Sig: TF = isreal(X). Returns scalar. 100k iters. |
 | `nan` | ✅ |  |  |  |  | constant |
 | `realmax` | ✅ |  |  |  |  | largest finite double |
 | `realmin` | ✅ |  |  |  |  | smallest normal double |
-| `single` | ✅ |  |  |  |  |  |
+| `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `typecast` | ✅ | 1.059 | 0.01× | 0.97× | OK | 1M uint32 reinterpreted as 2M uint16 (LE byte order). 50 iters. |
 | `uint16` | ✅ |  |  |  |  |  |
-| `uint32` | ✅ |  |  |  |  |  |
+| `uint32` | ✅ | 5.264 | 0.03× | 0.49× | OK | Sig: Y = uint32(X). 1M doubles → uint32. 50 iters. Element-wise SAVE. |
 | `uint64` | ✅ |  |  |  |  |  |
 | `uint8` | ✅ |  |  |  |  |  |
 
@@ -168,7 +168,7 @@ multiple sections; all occurrences refresh together).
 | `convertstringstochars` | ✅ |  |  |  |  |  |
 | `count` | ✅ | 0.005 | 1.11× |  | OK | Sig: N = count(S, PAT). 2.2k char string. 10k iters. |
 | `deblank` | ✅ |  |  |  |  |  |
-| `double` | ✅ |  |  |  |  |  |
+| `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `endswith` | ❌ |  |  |  |  |  |
 | `erase` | ✅ |  |  |  |  |  |
 | `erasebetween` | ✅ |  |  |  |  |  |
@@ -1209,7 +1209,7 @@ multiple sections; all occurrences refresh together).
 | `designfilt` | ❌ |  |  |  |  |  |
 | `designfilter` | ❌ |  |  |  |  |  |
 | `digitalfilter` | ❌ |  |  |  |  |  |
-| `double` | ✅ |  |  |  |  |  |
+| `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
 | `dspfwiz` | ❌ |  |  |  |  |  |
 | `ellip` | ❌ |  |  |  |  | IIR elliptic |
 | `ellipord` | ❌ |  |  |  |  | order estimator |
@@ -1234,7 +1234,7 @@ multiple sections; all occurrences refresh together).
 | `rcosdesign` | ❌ |  |  |  |  |  |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolay` | ✅ |  |  |  |  | Savitzky-Golay |
-| `single` | ✅ |  |  |  |  |  |
+| `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
 | `yulewalk` | ❌ |  |  |  |  | recursive YW |
 
 ## Analog Filters (prototype + analog response)
