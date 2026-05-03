@@ -3022,7 +3022,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 ## Image Filtering
 
-**Namespace:** `image.filter.*` — 0 ✅ + 0 ⚠️ / 36 = 0%
+**Namespace:** `image.filter.*` — 2 ✅ + 0 ⚠️ / 36 = 6%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3032,7 +3032,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `freqspace` | ❌ |  |  |  |  |  |
 | `freqz2` | ❌ |  |  |  |  | 2-D freq response |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
-| `fspecial` | ❌ |  |  |  |  | Gaussian/Laplacian/Sobel/etc kernels |
+| `fspecial` | ✅ |  |  |  | OK | average / gaussian / laplacian / log / sobel / prewitt / disk |
 | `fspecial3` | ❌ |  |  |  |  |  |
 | `ftrans2` | ❌ |  |  |  |  | 1-D → 2-D FIR transform |
 | `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
@@ -3057,7 +3057,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
 | `ordfilt2` | ❌ |  |  |  |  | order-statistic filter |
-| `padarray` | ❌ |  |  |  |  |  |
+| `padarray` | ✅ |  |  |  | OK | constant / replicate / symmetric / circular; pre/post/both |
 | `rangefilt` | ❌ |  |  |  |  |  |
 | `roifilt2` | ❌ |  |  |  |  |  |
 | `stdfilt` | ❌ |  |  |  |  |  |

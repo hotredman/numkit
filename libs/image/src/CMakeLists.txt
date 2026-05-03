@@ -3,6 +3,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/arithmetic/arithmetic.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/type_convert/type_convert.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/color/color.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/filter/filter.cpp
 )
 
 set(IMAGELIB_SOURCES ${IMAGELIB_SOURCES} PARENT_SCOPE)
