@@ -1,0 +1,10 @@
+{
+  "name": "conv",
+  "namespace": "core",
+  "setup": "a = sin(linspace(0, 10, 1000)); b = cos(linspace(0, 1, 100));",
+  "expr": "y = conv(a, b);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE."
+}

@@ -563,14 +563,14 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `factor` | ✅ |  |  |  |  |  |
-| `factorial` | ✅ |  |  |  |  |  |
-| `gcd` | ✅ |  |  |  |  |  |
-| `isprime` | ✅ |  |  |  |  |  |
-| `lcm` | ✅ |  |  |  |  |  |
+| `factorial` | ✅ | 0.000 | 39.29× | 39.98× | OK | Sig: Y = factorial(N). N=0:20. 1k iters. Element-wise SAVE. |
+| `gcd` | ✅ | 0.012 | 9.98× | 3.05× | OK | Sig: G = gcd(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
+| `isprime` | ✅ | 0.132 | 3.35× | 46.77× | OK | Sig: TF = isprime(X). 1..10000. 20 iters. Element-wise SAVE on logical. |
+| `lcm` | ✅ | 0.014 | 11.69× | 6.69× | OK | Sig: L = lcm(A, B). 1k-pt vector pair. 100 iters. Element-wise SAVE. |
 | `matchpairs` | ❌ |  |  |  |  |  |
-| `nchoosek` | ✅ |  |  |  |  |  |
+| `nchoosek` | ✅ | 0.007 | 28.74× | 4.32× | OK | Sig: C = nchoosek(N, K). N=30, K=0:30 via for-loop (arrayfun-wrap broken in numkit, see BUGS.md #11). 1 iter. |
 | `perms` | ✅ |  |  |  |  |  |
-| `primes` | ✅ |  |  |  |  |  |
+| `primes` | ✅ | 0.286 | 1.00× | 2.30× | OK | Sig: P = primes(N). N=100000. 50 iters. Element-wise SAVE. |
 | `rat` | ✅ |  |  |  |  |  |
 | `rats` | ✅ |  |  |  |  |  |
 
@@ -580,18 +580,18 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `conv` | ✅ |  |  |  |  |  |
+| `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `deconv` | ✅ |  |  |  |  |  |
 | `poly` | ✅ |  |  |  |  | roots → coeffs |
-| `polyder` | ✅ |  |  |  |  |  |
+| `polyder` | ✅ | 0.001 | 71.29× | 28.02× | MISMATCH | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ |  |  |  |  |  |
 | `polyeig` | ❌ |  |  |  |  | poly eig |
-| `polyfit` | ✅ |  |  |  |  |  |
-| `polyint` | ✅ |  |  |  |  |  |
-| `polyval` | ✅ |  |  |  |  |  |
+| `polyfit` | ✅ | 0.054 | 0.92× | 1.53× | OK | Sig: P = polyfit(X, Y, N). Deterministic 1k pts (sin), 5th-order fit. 100 iters. tol=1e-9 (LSQ residual noise). |
+| `polyint` | ✅ | 0.001 | 15.55× | 28.71× | OK | Sig: P_int = polyint(P). Deterministic 100-coef. 1000 iters. Element-wise SAVE. |
+| `polyval` | ✅ | 3.318 | 0.81× | 7.69× | OK | Sig: Y = polyval(P, X). 4th-order poly on 1M pts. 20 iters. Element-wise SAVE. |
 | `polyvalm` | ✅ |  |  |  |  | matrix poly eval |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
-| `roots` | ✅ |  |  |  |  |  |
+| `roots` | ✅ | 0.001 | 21.54× | 38.26× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
 
 ## Linear Algebra
 
@@ -828,7 +828,7 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `conv` | ✅ |  |  |  |  |  |
+| `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `conv2` | ✅ | 0.318 | 0.25× | 0.34× | OK | 128x128 image, 7x7 averaging kernel, 'same' shape. 100 iters. |
 | `convn` | ✅ | 0.028 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
 | `deconv` | ✅ |  |  |  |  |  |

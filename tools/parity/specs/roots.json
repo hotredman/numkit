@@ -1,0 +1,10 @@
+{
+  "name": "roots",
+  "namespace": "core",
+  "setup": "p = [1 -10 35 -50 24];",
+  "expr": "y = sort(real(roots(p)));",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts."
+}

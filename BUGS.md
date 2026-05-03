@@ -196,6 +196,56 @@ and the parity harness now injects that line on every numkit run.
 
 ---
 
+## 11. `core/`: `arrayfun(@lambda, vec)` ignores the lambda body — **P1**
+
+**Reproducer:**
+```matlab
+arrayfun(@(x) x*2, 1:5)     % numkit: [1 2 3 4 5]   ; MATLAB: [2 4 6 8 10]
+arrayfun(@(x) x^2, 1:5)     % numkit: [1 2 3 4 5]   ; MATLAB: [1 4 9 16 25]
+arrayfun(@(x) sin(x), 1:5)  % numkit: [1 2 3 4 5]   ; MATLAB: sin([1..5])
+arrayfun(@(k) nchoosek(30,k), 0:5)
+                            % numkit: [0 1 2 3 4 5] ; MATLAB: [1 30 435 ...]
+```
+**Symptom:** The anonymous-function body is completely bypassed; arrayfun
+returns the iterated input value verbatim. Direct calls to the body
+work — `nchoosek(30,15)` returns 155117520 correctly. Only the
+arrayfun-wrapped form is broken.
+**Impact:** Any MATLAB code that uses `arrayfun(@(...)..., ...)` will
+silently produce wrong results — not a crash, just the wrong answer.
+This is likely the most dangerous parity bug found so far.
+**Where:** `core/` — arrayfun dispatch + lambda body application
+in TreeWalker / VM. Probably the lambda's captured AST isn't being
+re-bound to the `x` arg at each iteration.
+**Status:** **pending — core fix required.** Documented; do not attempt
+fix from this cycle (libs/ only).
+**First seen:** 2026-05-03, parity bulk-bench iteration 7 (probing
+`nchoosek` MISMATCH).
+
+---
+
+## 12. `libs/builtin`: `polyder` doesn't strip leading zeros from result — **P3**
+
+**Reproducer:**
+```matlab
+p = sin(linspace(0, 5, 100));   % p(1) = 0
+y = polyder(p);
+% numkit: length(y) = 99   (keeps leading 0 from (N-1)*p(1) = 99*0 = 0)
+% MATLAB: length(y) = 98   (strips leading zeros)
+```
+Values otherwise match — the spec's element-wise SAVE block flags
+"length mismatch: 99 vs 98".
+**MATLAB:** drops leading zeros from polynomial coefficient vectors after
+differentiation (matches its general convention that polynomials are
+canonicalized to remove leading-zero terms).
+**Impact:** Cosmetic for most uses, but downstream code that depends on
+length(polyder(p)) == length(p) - k (with leading zeros stripped) will
+diverge.
+**Where:** [libs/builtin/src/...polyder...cpp](libs/builtin/) — needs a
+post-pass to trim leading zeros until first non-zero coefficient.
+**First seen:** 2026-05-03, parity bulk-bench iteration 7.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

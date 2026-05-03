@@ -1,0 +1,10 @@
+{
+  "name": "polyder",
+  "namespace": "core",
+  "setup": "p = sin(linspace(0, 5, 100));",
+  "expr": "y = polyder(p);",
+  "iters": 100,
+  "tol": 1e-10,
+  "out_var": "y",
+  "comment": "Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE."
+}
