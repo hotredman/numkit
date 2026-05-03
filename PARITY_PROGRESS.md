@@ -1456,7 +1456,7 @@ multiple sections; all occurrences refresh together).
 | `dpssdir` | ❌ |  |  |  |  | cache |
 | `dpssload` | ❌ |  |  |  |  | cache |
 | `dpsssave` | ❌ |  |  |  |  | cache |
-| `enbw` | ❌ |  |  |  |  | equivalent noise BW |
+| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
 | `flattopwin` | ✅ | 0.013 | 2.99× | 3.20× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
 | `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
 | `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
@@ -1508,7 +1508,7 @@ multiple sections; all occurrences refresh together).
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
 | `pwelch` | ✅ | 0.063 | 19.59× | 14.55× | MISMATCH | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ❌ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
 | `tfestimate` | ❌ |  |  |  |  | TF estimate |
 
 ## Spectral Measurements (bandpower / snr / sinad / thd / ...)
@@ -1517,22 +1517,22 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bandpower` | ❌ |  |  |  |  |  |
-| `enbw` | ❌ |  |  |  |  | equivalent noise BW |
+| `bandpower` | ✅ |  |  |  |  |  |
+| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
 | `instbw` | ❌ |  |  |  |  |  |
 | `instfreq` | ❌ |  |  |  |  | instantaneous frequency |
-| `meanfreq` | ❌ |  |  |  |  | mean frequency |
-| `medfreq` | ❌ |  |  |  |  | median frequency |
-| `obw` | ❌ |  |  |  |  |  |
-| `powerbw` | ❌ |  |  |  |  |  |
+| `meanfreq` | ✅ |  |  |  |  | mean frequency |
+| `medfreq` | ✅ |  |  |  |  | median frequency |
+| `obw` | ✅ |  |  |  |  |  |
+| `powerbw` | ✅ |  |  |  |  |  |
 | `sfdr` | ❌ |  |  |  |  | spurious-free dynamic range |
 | `sinad` | ❌ |  |  |  |  | signal-noise-distortion |
 | `snr` | ❌ |  |  |  |  | signal-to-noise |
-| `spectralcrest` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ❌ |  |  |  |  |  |
-| `spectralflatness` | ❌ |  |  |  |  |  |
-| `spectralkurtosis` | ❌ |  |  |  |  |  |
-| `spectralskewness` | ❌ |  |  |  |  |  |
+| `spectralcrest` | ✅ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
+| `spectralflatness` | ✅ |  |  |  |  |  |
+| `spectralkurtosis` | ✅ |  |  |  |  |  |
+| `spectralskewness` | ✅ |  |  |  |  |  |
 | `thd` | ❌ |  |  |  |  | total harmonic distortion |
 | `toi` | ❌ |  |  |  |  | third-order intercept |
 
@@ -1555,11 +1555,11 @@ multiple sections; all occurrences refresh together).
 | `istftlayer` | ❌ |  |  |  |  |  |
 | `kurtogram` | ❌ |  |  |  |  |  |
 | `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `spectralcrest` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ❌ |  |  |  |  |  |
-| `spectralflatness` | ❌ |  |  |  |  |  |
-| `spectralkurtosis` | ❌ |  |  |  |  |  |
-| `spectralskewness` | ❌ |  |  |  |  |  |
+| `spectralcrest` | ✅ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
+| `spectralflatness` | ✅ |  |  |  |  |  |
+| `spectralkurtosis` | ✅ |  |  |  |  |  |
+| `spectralskewness` | ✅ |  |  |  |  |  |
 | `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
 | `stft` | ❌ |  |  |  |  | short-time FFT |
 | `stftlayer` | ❌ |  |  |  |  |  |
@@ -1612,8 +1612,8 @@ multiple sections; all occurrences refresh together).
 | `folders2labels` | ❌ |  |  |  |  |  |
 | `framelbl` | ❌ |  |  |  |  |  |
 | `framesig` | ❌ |  |  |  |  |  |
-| `meanfreq` | ❌ |  |  |  |  | mean frequency |
-| `medfreq` | ❌ |  |  |  |  | median frequency |
+| `meanfreq` | ✅ |  |  |  |  | mean frequency |
+| `medfreq` | ✅ |  |  |  |  | median frequency |
 | `mergesigroi` | ❌ |  |  |  |  |  |
 | `peak2peak` | ✅ | 3.066 | 0.03× | 0.52× | OK | Sig: P = peak2peak(X). 1M-pt range. 100 iters. |
 | `peak2rms` | ✅ | 3.127 | 0.87× | 1.16× | OK | Sig: R = peak2rms(X). 100 iters. |

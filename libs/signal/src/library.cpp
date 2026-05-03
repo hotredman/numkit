@@ -155,6 +155,19 @@ void rssq_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCont
 void peak2peak_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void peak2rms_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 
+// Spectral metrics (libs/signal/src/spectral_analysis/spectral_metrics.cpp)
+void bandpower_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void meanfreq_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void medfreq_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
+void enbw_reg            (Span<const Value>, size_t, Span<Value>, CallContext &);
+void obw_reg             (Span<const Value>, size_t, Span<Value>, CallContext &);
+void powerbw_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralcrest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralflatness_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralentropy_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralkurtosis_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void spectralskewness_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // Pulse / transition metrics (libs/signal/src/measurements/pulse_metrics.cpp)
 void statelevels_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void midcross_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -322,6 +335,17 @@ void SignalLibrary::install(Engine &engine)
     reg("measurements", "mag2db",    &signal::detail::mag2db_reg);
     reg("measurements", "db2pow",    &signal::detail::db2pow_reg);
     reg("measurements", "pow2db",    &signal::detail::pow2db_reg);
+    reg("spectral_analysis", "bandpower",        &signal::detail::bandpower_reg);
+    reg("spectral_analysis", "meanfreq",         &signal::detail::meanfreq_reg);
+    reg("spectral_analysis", "medfreq",          &signal::detail::medfreq_reg);
+    reg("spectral_analysis", "enbw",             &signal::detail::enbw_reg);
+    reg("spectral_analysis", "obw",              &signal::detail::obw_reg);
+    reg("spectral_analysis", "powerbw",          &signal::detail::powerbw_reg);
+    reg("spectral_analysis", "spectralcrest",    &signal::detail::spectralcrest_reg);
+    reg("spectral_analysis", "spectralflatness", &signal::detail::spectralflatness_reg);
+    reg("spectral_analysis", "spectralentropy",  &signal::detail::spectralentropy_reg);
+    reg("spectral_analysis", "spectralkurtosis", &signal::detail::spectralkurtosis_reg);
+    reg("spectral_analysis", "spectralskewness", &signal::detail::spectralskewness_reg);
     reg("measurements", "statelevels",  &signal::detail::statelevels_reg);
     reg("measurements", "midcross",     &signal::detail::midcross_reg);
     reg("measurements", "risetime",     &signal::detail::risetime_reg);
