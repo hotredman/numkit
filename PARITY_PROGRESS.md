@@ -473,13 +473,13 @@ multiple sections; all occurrences refresh together).
 | `asind` | ✅ |  |  |  |  | degree |
 | `asinh` | ✅ |  |  |  |  | hyperbolic |
 | `atan` | ✅ |  |  |  |  |  |
-| `atan2` | ✅ |  |  |  |  |  |
+| `atan2` | ✅ | 10.641 | 0.07× | 0.73× | OK | Sig: P = atan2(Y, X). 1000x1000 quadrant grid. 20 iters. Element-wise SAVE. |
 | `atan2d` | ✅ |  |  |  |  | degree |
 | `atand` | ✅ |  |  |  |  | degree |
 | `atanh` | ✅ |  |  |  |  | hyperbolic |
-| `cart2pol` | ✅ |  |  |  |  | coord xform |
+| `cart2pol` | ✅ | 17.127 | 0.19× | 1.34× | OK | Sig: [TH,R] = cart2pol(X,Y) (2-D). 1000x1000 grid. 3-D form [TH,R,Z] = cart2pol(X,Y,Z) not benched yet. 20 iters. |
 | `cart2sph` | ✅ |  |  |  |  | coord xform |
-| `cos` | ✅ |  |  |  |  |  |
+| `cos` | ✅ | 0.855 | 1.03× | 5.49× | OK | Sig: Y = cos(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `cosd` | ✅ |  |  |  |  | degree |
 | `cosh` | ✅ |  |  |  |  | hyperbolic |
 | `cospi` | ✅ |  |  |  |  | use `cos(pi*x)` |
@@ -496,12 +496,12 @@ multiple sections; all occurrences refresh together).
 | `sec` | ✅ |  |  |  |  | reciprocal |
 | `secd` | ✅ |  |  |  |  |  |
 | `sech` | ✅ |  |  |  |  |  |
-| `sin` | ✅ |  |  |  |  |  |
+| `sin` | ✅ | 0.845 | 1.07× | 5.61× | OK | Sig: Y = sin(X). 1M-point sweep over 4π. 20 iters. Element-wise SAVE. |
 | `sind` | ✅ |  |  |  |  | degree |
 | `sinh` | ✅ |  |  |  |  | hyperbolic |
 | `sinpi` | ✅ |  |  |  |  | use `sin(pi*x)` |
 | `sph2cart` | ✅ |  |  |  |  | coord xform |
-| `tan` | ✅ |  |  |  |  |  |
+| `tan` | ✅ | 7.283 | 0.12× | 0.73× | OK | Sig: Y = tan(X). 1M-point sweep on [-1.5, 1.5] (avoid π/2 singularity). 20 iters. Element-wise SAVE. |
 | `tand` | ✅ |  |  |  |  | degree |
 | `tanh` | ✅ |  |  |  |  | hyperbolic |
 
