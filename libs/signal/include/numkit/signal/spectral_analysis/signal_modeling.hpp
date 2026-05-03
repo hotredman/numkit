@@ -116,4 +116,20 @@ Value poly2lsf(std::pmr::memory_resource *mr, const Value &a);
 /// length N+1.
 Value lsf2poly(std::pmr::memory_resource *mr, const Value &lsf);
 
+// ── invfreqs / invfreqz — frequency-response least-squares fit ────
+
+/// invfreqs(H, w, nb, na) — fit analog filter b(s)/a(s) of orders
+/// (nb, na) to a desired complex frequency response H sampled at
+/// angular frequencies w (rad/s). Levi-style equation-error LSQ.
+/// Returns (b, a).
+std::tuple<Value, Value>
+invfreqs(std::pmr::memory_resource *mr, const Value &H, const Value &w,
+         int nb, int na);
+
+/// invfreqz(H, w, nb, na) — same as invfreqs for digital filters.
+/// w in [0, π], polynomial in z⁻¹.
+std::tuple<Value, Value>
+invfreqz(std::pmr::memory_resource *mr, const Value &H, const Value &w,
+         int nb, int na);
+
 } // namespace numkit::signal
