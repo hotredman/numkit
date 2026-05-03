@@ -97,6 +97,11 @@ Value unaryRealDouble(std::pmr::memory_resource *mr, const Value &x, Value *hint
     } else {
         r = createLike(x, ValueType::DOUBLE, mr);
     }
+    // Empty inputs may not have a DOUBLE backing buffer (e.g. `[]`
+    // stored as a tag); skip the loop entirely.
+    if (x.numel() == 0)
+        return r;
+
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
     // Transcendentals are heavier per element than +/-/.* — pays off
@@ -141,6 +146,8 @@ Value log(std::pmr::memory_resource *mr, const Value &x, Value *hint)
     } else {
         r = createLike(x, ValueType::DOUBLE, mr);
     }
+    if (x.numel() == 0)
+        return r;
     const double *in  = x.doubleData();
     double       *out = r.doubleDataMut();
     numkit::detail::parallel_for(x.numel(), numkit::detail::kTranscendentalThreshold,

@@ -1,7 +1,10 @@
-// libs/builtin/src/math/elementary/trigonometry.cpp
+// libs/builtin/src/math/trig/trigonometry.cpp
 //
-// tan / asin / acos / atan / atan2. sin / cos live in
-// libs/builtin/src/backends/MStdTranscendental_*.cpp (SIMD-backed).
+// Trig functions whose implementations don't fit the simple SIMD
+// backend pattern: tan (composes sin/cos), acosh (mixed-domain
+// promotion), and the degree / multiple-of-π variants. The
+// SIMD-friendly trig kernels (sin, cos, sinh, cosh, tanh, asin, acos,
+// atan, asinh, atanh, atan2) live in trig_simd.cpp / trig_portable.cpp.
 
 #include <numkit/builtin/library.hpp>
 #include <numkit/builtin/math/trig/trigonometry.hpp>
@@ -23,62 +26,6 @@ Value tan(std::pmr::memory_resource *mr, const Value &x)
     return unaryDouble(x, [](double v) { return std::tan(v); }, mr);
 }
 
-Value asin(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::asin(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::asin(v); }, mr);
-}
-
-Value acos(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::acos(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::acos(v); }, mr);
-}
-
-Value atan(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::atan(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::atan(v); }, mr);
-}
-
-Value atan2(std::pmr::memory_resource *mr, const Value &y, const Value &x)
-{
-    return elementwiseDouble(y, x, [](double yy, double xx) { return std::atan2(yy, xx); }, mr);
-}
-
-// ── Hyperbolic ────────────────────────────────────────────────────────
-
-Value sinh(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::sinh(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::sinh(v); }, mr);
-}
-
-Value cosh(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::cosh(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::cosh(v); }, mr);
-}
-
-Value tanh(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::tanh(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::tanh(v); }, mr);
-}
-
-Value asinh(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::asinh(c); }, mr);
-    return unaryDouble(x, [](double v) { return std::asinh(v); }, mr);
-}
-
 Value acosh(std::pmr::memory_resource *mr, const Value &x)
 {
     // Real branch returns NaN for |x|<1, where MATLAB returns a complex
@@ -88,18 +35,6 @@ Value acosh(std::pmr::memory_resource *mr, const Value &x)
     if (x.isScalar() && x.toScalar() < 1.0)
         return Value::complexScalar(std::acosh(Complex(x.toScalar(), 0.0)), mr);
     return unaryDouble(x, [](double v) { return std::acosh(v); }, mr);
-}
-
-Value atanh(std::pmr::memory_resource *mr, const Value &x)
-{
-    if (x.isComplex())
-        return unaryComplex(x, [](const Complex &c) { return std::atanh(c); }, mr);
-    if (x.isScalar()) {
-        const double v = x.toScalar();
-        if (v < -1.0 || v > 1.0)
-            return Value::complexScalar(std::atanh(Complex(v, 0.0)), mr);
-    }
-    return unaryDouble(x, [](double v) { return std::atanh(v); }, mr);
 }
 
 // ── Degree-input/-output trig ─────────────────────────────────────────
