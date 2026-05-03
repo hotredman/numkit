@@ -171,7 +171,7 @@ mass-SIMD pass should close all of these.
 
 ---
 
-## 10. `libs/signal`: `compat.nextpow2` is scalar-only — **P2**
+## 10. `libs/signal`: `compat.nextpow2` is scalar-only — **P2** ✅ FIXED
 
 **Reproducer:**
 ```matlab
@@ -193,6 +193,12 @@ shape). Straightforward libs work, deferred from this cycle.
 without `import signal.*`" was wrong — `import compat.*` flattens it,
 and the parity harness now injects that line on every numkit run.
 **First seen:** 2026-05-03, parity bulk-bench iteration 4.
+**Fix (2026-05-03):** Added a vectorized `nextpow2(mr, const Value &)`
+overload in [libs/signal/src/transforms/transform_helpers.cpp] that
+applies the elementary `ceil(log2(|x_i|))` rule elementwise (returning
+0 for |x_i| <= 0). The `nextpow2_reg` adapter now passes the whole
+Value through; scalar callers still hit the same fast path via the
+isScalar branch.
 
 ---
 
