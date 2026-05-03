@@ -1771,6 +1771,449 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
 | `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
 
+## Image I/O (Image Processing Toolbox)
+
+**Namespace:** `image.io.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
+
+Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below operate on numeric matrices passed in directly.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `imread` | ❌ |  |  |  |  | needs PNG/JPEG/BMP decoder |
+| `imwrite` | ❌ |  |  |  |  | needs encoder |
+| `imfinfo` | ❌ |  |  |  |  | header parsing |
+
+## Image Type Conversion
+
+**Namespace:** `image.type.*` — 0 ✅ + 0 ⚠️ / 27 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `adaptthresh` | ❌ |  |  |  |  | adaptive threshold |
+| `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
+| `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
+| `gray2ind` | ❌ |  |  |  |  |  |
+| `graythresh` | ❌ |  |  |  |  | Otsu threshold |
+| `grayslice` | ❌ |  |  |  |  | scalar quantize |
+| `im2bw` | ❌ |  |  |  |  | legacy → imbinarize |
+| `im2double` | ❌ |  |  |  |  |  |
+| `im2gray` | ❌ |  |  |  |  | RGB-or-gray pass-through |
+| `im2int16` | ❌ |  |  |  |  |  |
+| `im2single` | ❌ |  |  |  |  |  |
+| `im2uint16` | ❌ |  |  |  |  |  |
+| `im2uint8` | ❌ |  |  |  |  |  |
+| `imbinarize` | ❌ |  |  |  |  |  |
+| `imquantize` | ❌ |  |  |  |  |  |
+| `imsplit` | ❌ |  |  |  |  | split RGB → 3 planes |
+| `ind2gray` | ❌ |  |  |  |  |  |
+| `ind2rgb` | ❌ |  |  |  |  |  |
+| `iptnum2ordinal` | ❌ |  |  |  |  |  |
+| `label2rgb` | ❌ |  |  |  |  | colourize a label image |
+| `mat2gray` | ❌ |  |  |  |  | rescale to [0, 1] |
+| `multithresh` | ❌ |  |  |  |  | multilevel Otsu |
+| `otsuthresh` | ❌ |  |  |  |  | Otsu from histogram |
+| `rgb2gray` | ❌ |  |  |  |  | luminance |
+| `rgb2ind` | ❌ |  |  |  |  | colour quantize |
+| `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
+| `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
+
+## Color Space Conversion
+
+**Namespace:** `image.color.*` — 0 ✅ + 0 ⚠️ / 30 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
+| `colorangle` | ❌ |  |  |  |  | angle between two RGB colors |
+| `deltaE` | ❌ |  |  |  |  | CIE76 colour-difference |
+| `hsv2rgb` | ❌ |  |  |  |  |  |
+| `illumgray` | ❌ |  |  |  |  | grey-world illumination |
+| `illumpca` | ❌ |  |  |  |  |  |
+| `illumwhite` | ❌ |  |  |  |  | white-patch |
+| `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
+| `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
+| `lab2double` | ❌ |  |  |  |  |  |
+| `lab2rgb` | ❌ |  |  |  |  |  |
+| `lab2uint16` | ❌ |  |  |  |  |  |
+| `lab2uint8` | ❌ |  |  |  |  |  |
+| `lab2xyz` | ❌ |  |  |  |  |  |
+| `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
+| `ntsc2rgb` | ❌ |  |  |  |  |  |
+| `rgb2hsv` | ❌ |  |  |  |  |  |
+| `rgb2lab` | ❌ |  |  |  |  |  |
+| `rgb2lin` | ❌ |  |  |  |  | sRGB gamma → linear |
+| `rgb2ntsc` | ❌ |  |  |  |  |  |
+| `rgb2xyz` | ❌ |  |  |  |  |  |
+| `rgb2ycbcr` | ❌ |  |  |  |  |  |
+| `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
+| `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
+| `whitepoint` | ❌ |  |  |  |  | tristimulus white-points |
+| `xyz2double` | ❌ |  |  |  |  |  |
+| `xyz2lab` | ❌ |  |  |  |  |  |
+| `xyz2rgb` | ❌ |  |  |  |  |  |
+| `xyz2rgbwide` | ❌ |  |  |  |  |  |
+| `xyz2uint16` | ❌ |  |  |  |  |  |
+| `ycbcr2rgb` | ❌ |  |  |  |  |  |
+| `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
+
+## Synthetic Images and Display
+
+**Namespace:** `image.synth.*` / `image.display.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorithm.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `checkerboard` | ❌ |  |  |  |  | synthetic test pattern |
+| `imnoise` | ❌ |  |  |  |  | add gaussian / salt-pepper / speckle |
+| `phantom` | ❌ |  |  |  |  | Shepp-Logan |
+| `imshow` | ❌ |  |  |  |  | needs graphics |
+| `imfuse` | ❌ |  |  |  |  |  |
+| `imshowpair` | ❌ |  |  |  |  |  |
+| `montage` | ❌ |  |  |  |  | tile images |
+| `immovie` | ❌ |  |  |  |  |  |
+
+## Geometric Transformations (Image)
+
+**Namespace:** `image.geom.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+
+Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionally omitted; flat function APIs only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `findbounds` | ❌ |  |  |  |  |  |
+| `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
+| `imcrop` | ❌ |  |  |  |  |  |
+| `imcrop3` | ❌ |  |  |  |  |  |
+| `impyramid` | ❌ |  |  |  |  | reduce/expand 2× |
+| `imresize` | ❌ |  |  |  |  |  |
+| `imresize3` | ❌ |  |  |  |  |  |
+| `imrotate` | ❌ |  |  |  |  |  |
+| `imrotate3` | ❌ |  |  |  |  |  |
+| `imtransform` | ❌ |  |  |  |  | legacy maketform path |
+| `imtranslate` | ❌ |  |  |  |  |  |
+| `imwarp` | ❌ |  |  |  |  |  |
+| `makeresampler` | ❌ |  |  |  |  |  |
+
+## Image Registration
+
+**Namespace:** `image.register.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cpcorr` | ❌ |  |  |  |  | refine control-point correspondences |
+| `imregconfig` | ❌ |  |  |  |  |  |
+| `imregcorr` | ❌ |  |  |  |  | phase-correlation registration |
+| `imregdemons` | ❌ |  |  |  |  | non-rigid demons |
+| `imregister` | ❌ |  |  |  |  |  |
+| `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
+| `imregtform` | ❌ |  |  |  |  |  |
+| `normxcorr2` | ❌ |  |  |  |  | normalised cross-correlation |
+
+## Image Filtering
+
+**Namespace:** `image.filter.*` — 0 ✅ + 0 ⚠️ / 36 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `convmtx2` | ❌ |  |  |  |  |  |
+| `entropyfilt` | ❌ |  |  |  |  | local entropy |
+| `fibermetric` | ❌ |  |  |  |  |  |
+| `freqspace` | ❌ |  |  |  |  |  |
+| `freqz2` | ❌ |  |  |  |  | 2-D freq response |
+| `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
+| `fspecial` | ❌ |  |  |  |  | Gaussian/Laplacian/Sobel/etc kernels |
+| `fspecial3` | ❌ |  |  |  |  |  |
+| `ftrans2` | ❌ |  |  |  |  | 1-D → 2-D FIR transform |
+| `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
+| `fwind2` | ❌ |  |  |  |  |  |
+| `gabor` | ❌ |  |  |  |  | Gabor filter bank |
+| `imbilatfilt` | ❌ |  |  |  |  | bilateral |
+| `imboxfilt` | ❌ |  |  |  |  |  |
+| `imboxfilt3` | ❌ |  |  |  |  |  |
+| `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
+| `imfilter` | ❌ |  |  |  |  |  |
+| `imgaborfilt` | ❌ |  |  |  |  |  |
+| `imgaussfilt` | ❌ |  |  |  |  |  |
+| `imgaussfilt3` | ❌ |  |  |  |  |  |
+| `imguidedfilter` | ❌ |  |  |  |  |  |
+| `imnlmfilt` | ❌ |  |  |  |  | non-local means |
+| `integralBoxFilter` | ❌ |  |  |  |  |  |
+| `integralBoxFilter3` | ❌ |  |  |  |  |  |
+| `integralImage` | ❌ |  |  |  |  |  |
+| `integralImage3` | ❌ |  |  |  |  |  |
+| `medfilt2` | ❌ |  |  |  |  |  |
+| `medfilt3` | ❌ |  |  |  |  |  |
+| `modefilt` | ❌ |  |  |  |  |  |
+| `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
+| `ordfilt2` | ❌ |  |  |  |  | order-statistic filter |
+| `padarray` | ❌ |  |  |  |  |  |
+| `rangefilt` | ❌ |  |  |  |  |  |
+| `roifilt2` | ❌ |  |  |  |  |  |
+| `stdfilt` | ❌ |  |  |  |  |  |
+| `wiener2` | ❌ |  |  |  |  |  |
+
+## Contrast Adjustment
+
+**Namespace:** `image.contrast.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `adapthisteq` | ❌ |  |  |  |  | CLAHE |
+| `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
+| `histeq` | ❌ |  |  |  |  | histogram equalisation |
+| `imadjust` | ❌ |  |  |  |  |  |
+| `imadjustn` | ❌ |  |  |  |  | N-D variant |
+| `imflatfield` | ❌ |  |  |  |  |  |
+| `imhistmatch` | ❌ |  |  |  |  |  |
+| `imhistmatchn` | ❌ |  |  |  |  |  |
+| `imlocalbrighten` | ❌ |  |  |  |  |  |
+| `imreducehaze` | ❌ |  |  |  |  |  |
+| `imsharpen` | ❌ |  |  |  |  |  |
+| `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
+| `localcontrast` | ❌ |  |  |  |  |  |
+| `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
+| `stretchlim` | ❌ |  |  |  |  |  |
+
+## ROI-Based Processing (functions only)
+
+**Namespace:** `image.roi.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, …) intentionally omitted as OOP / interactive.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `inpaintCoherent` | ❌ |  |  |  |  | coherence-transport inpainting |
+| `inpaintExemplar` | ❌ |  |  |  |  | exemplar inpainting |
+| `poly2mask` | ❌ |  |  |  |  |  |
+| `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
+| `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
+| `roicolor` | ❌ |  |  |  |  |  |
+| `roifill` | ❌ |  |  |  |  | legacy alias |
+| `roipoly` | ❌ |  |  |  |  |  |
+
+## Morphological Operations
+
+**Namespace:** `image.morph.*` — 0 ✅ + 0 ⚠️ / 27 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `applylut` | ❌ |  |  |  |  |  |
+| `bwhitmiss` | ❌ |  |  |  |  | hit-or-miss transform |
+| `bwlookup` | ❌ |  |  |  |  |  |
+| `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
+| `bwmorph3` | ❌ |  |  |  |  |  |
+| `bwpack` | ❌ |  |  |  |  |  |
+| `bwperim` | ❌ |  |  |  |  |  |
+| `bwskel` | ❌ |  |  |  |  | skeletonize |
+| `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
+| `bwunpack` | ❌ |  |  |  |  |  |
+| `conndef` | ❌ |  |  |  |  |  |
+| `imbothat` | ❌ |  |  |  |  | black tophat |
+| `imclearborder` | ❌ |  |  |  |  |  |
+| `imclose` | ❌ |  |  |  |  |  |
+| `imdilate` | ❌ |  |  |  |  |  |
+| `imerode` | ❌ |  |  |  |  |  |
+| `imextendedmax` | ❌ |  |  |  |  |  |
+| `imextendedmin` | ❌ |  |  |  |  |  |
+| `imfill` | ❌ |  |  |  |  | flood-fill holes |
+| `imhmax` | ❌ |  |  |  |  | h-maxima transform |
+| `imhmin` | ❌ |  |  |  |  |  |
+| `imimposemin` | ❌ |  |  |  |  |  |
+| `imkeepborder` | ❌ |  |  |  |  |  |
+| `imopen` | ❌ |  |  |  |  |  |
+| `imreconstruct` | ❌ |  |  |  |  | grayscale reconstruction |
+| `imregionalmax` | ❌ |  |  |  |  |  |
+| `imregionalmin` | ❌ |  |  |  |  |  |
+| `imtophat` | ❌ |  |  |  |  |  |
+| `makelut` | ❌ |  |  |  |  |  |
+| `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
+| `strel` | ❌ |  |  |  |  | structuring element factory |
+
+## Deblurring
+
+**Namespace:** `image.deblur.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `deconvblind` | ❌ |  |  |  |  | blind deconvolution |
+| `deconvlucy` | ❌ |  |  |  |  | Richardson-Lucy |
+| `deconvreg` | ❌ |  |  |  |  | regularised |
+| `deconvwnr` | ❌ |  |  |  |  | Wiener |
+| `edgetaper` | ❌ |  |  |  |  |  |
+| `otf2psf` | ❌ |  |  |  |  |  |
+| `psf2otf` | ❌ |  |  |  |  |  |
+
+## Neighborhood and Block Processing
+
+**Namespace:** `image.block.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bestblk` | ❌ |  |  |  |  |  |
+| `blockproc` | ❌ |  |  |  |  | block-wise processing |
+| `col2im` | ❌ |  |  |  |  |  |
+| `colfilt` | ❌ |  |  |  |  |  |
+| `im2col` | ❌ |  |  |  |  |  |
+| `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
+
+## Image Arithmetic
+
+**Namespace:** `image.arith.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `imabsdiff` | ❌ |  |  |  |  |  |
+| `imadd` | ❌ |  |  |  |  |  |
+| `imapplymatrix` | ❌ |  |  |  |  |  |
+| `imcomplement` | ❌ |  |  |  |  |  |
+| `imdivide` | ❌ |  |  |  |  |  |
+| `imlincomb` | ❌ |  |  |  |  |  |
+| `immultiply` | ❌ |  |  |  |  |  |
+| `imsubtract` | ❌ |  |  |  |  |  |
+
+## Image Segmentation
+
+**Namespace:** `image.segment.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `activecontour` | ❌ |  |  |  |  | Chan-Vese |
+| `bfscore` | ❌ |  |  |  |  | boundary F1 score |
+| `boundarymask` | ❌ |  |  |  |  |  |
+| `dice` | ❌ |  |  |  |  | Sørensen-Dice coefficient |
+| `gradientweight` | ❌ |  |  |  |  |  |
+| `grabcut` | ❌ |  |  |  |  |  |
+| `grayconnected` | ❌ |  |  |  |  |  |
+| `graydiffweight` | ❌ |  |  |  |  |  |
+| `imoverlay` | ❌ |  |  |  |  |  |
+| `imseggeodesic` | ❌ |  |  |  |  |  |
+| `imsegfmm` | ❌ |  |  |  |  | fast marching |
+| `imsegisodata` | ❌ |  |  |  |  |  |
+| `imsegkmeans` | ❌ |  |  |  |  |  |
+| `imsegkmeans3` | ❌ |  |  |  |  |  |
+| `jaccard` | ❌ |  |  |  |  | IoU |
+| `label2idx` | ❌ |  |  |  |  |  |
+| `labeloverlay` | ❌ |  |  |  |  |  |
+| `lazysnapping` | ❌ |  |  |  |  |  |
+| `superpixels` | ❌ |  |  |  |  | SLIC |
+| `superpixels3` | ❌ |  |  |  |  |  |
+| `watershed` | ❌ |  |  |  |  |  |
+
+## Object Analysis (Image)
+
+**Namespace:** `image.object.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bwboundaries` | ❌ |  |  |  |  |  |
+| `bwtraceboundary` | ❌ |  |  |  |  |  |
+| `circles2mask` | ❌ |  |  |  |  |  |
+| `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
+| `cornermetric` | ❌ |  |  |  |  |  |
+| `edge` | ❌ |  |  |  |  | Sobel/Canny/etc. |
+| `edge3` | ❌ |  |  |  |  |  |
+| `hough` | ❌ |  |  |  |  |  |
+| `houghlines` | ❌ |  |  |  |  |  |
+| `houghpeaks` | ❌ |  |  |  |  |  |
+| `imfindcircles` | ❌ |  |  |  |  | circle Hough |
+| `imgradient` | ❌ |  |  |  |  |  |
+| `imgradientxy` | ❌ |  |  |  |  |  |
+| `imgradient3` | ❌ |  |  |  |  |  |
+| `imgradientxyz` | ❌ |  |  |  |  |  |
+| `iradon` | ❌ |  |  |  |  | inverse Radon |
+| `qtdecomp` | ❌ |  |  |  |  | quad-tree decomposition |
+| `qtgetblk` | ❌ |  |  |  |  |  |
+| `qtsetblk` | ❌ |  |  |  |  |  |
+| `radon` | ❌ |  |  |  |  |  |
+| `visboundaries` | ❌ |  |  |  |  | display |
+| `viscircles` | ❌ |  |  |  |  | display |
+
+## Region and Image Properties
+
+**Namespace:** `image.region.*` — 0 ✅ + 0 ⚠️ / 28 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bwarea` | ❌ |  |  |  |  |  |
+| `bwareafilt` | ❌ |  |  |  |  |  |
+| `bwareaopen` | ❌ |  |  |  |  |  |
+| `bwconncomp` | ❌ |  |  |  |  |  |
+| `bwconvhull` | ❌ |  |  |  |  |  |
+| `bwdist` | ❌ |  |  |  |  | distance transform |
+| `bwdistgeodesic` | ❌ |  |  |  |  |  |
+| `bweuler` | ❌ |  |  |  |  | Euler number |
+| `bwferet` | ❌ |  |  |  |  | Feret diameters |
+| `bwlabel` | ❌ |  |  |  |  | connected components |
+| `bwlabeln` | ❌ |  |  |  |  |  |
+| `bwperim` | ❌ |  |  |  |  | dup of morph section |
+| `bwpropfilt` | ❌ |  |  |  |  |  |
+| `bwselect` | ❌ |  |  |  |  |  |
+| `bwselect3` | ❌ |  |  |  |  |  |
+| `cc2bw` | ❌ |  |  |  |  |  |
+| `corr2` | ❌ |  |  |  |  | 2-D correlation coefficient |
+| `graydist` | ❌ |  |  |  |  |  |
+| `imcontour` | ❌ |  |  |  |  |  |
+| `imhist` | ❌ |  |  |  |  |  |
+| `impixel` | ❌ |  |  |  |  |  |
+| `improfile` | ❌ |  |  |  |  |  |
+| `labelmatrix` | ❌ |  |  |  |  |  |
+| `mean2` | ❌ |  |  |  |  | mean over 2-D |
+| `poly2label` | ❌ |  |  |  |  |  |
+| `regionprops` | ❌ |  |  |  |  | major one |
+| `regionprops3` | ❌ |  |  |  |  |  |
+| `std2` | ❌ |  |  |  |  |  |
+
+## Texture Analysis
+
+**Namespace:** `image.texture.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `entropy` | ❌ |  |  |  |  |  |
+| `entropyfilt` | ❌ |  |  |  |  | dup of filter section |
+| `graycomatrix` | ❌ |  |  |  |  | GLCM |
+| `graycoprops` | ❌ |  |  |  |  |  |
+| `rangefilt` | ❌ |  |  |  |  | dup of filter section |
+| `stdfilt` | ❌ |  |  |  |  | dup of filter section |
+
+## Image Quality
+
+**Namespace:** `image.quality.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
+| `immse` | ❌ |  |  |  |  |  |
+| `multissim` | ❌ |  |  |  |  | multi-scale SSIM |
+| `multissim3` | ❌ |  |  |  |  |  |
+| `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
+| `piqe` | ❌ |  |  |  |  | perceptual no-reference |
+| `psnr` | ❌ |  |  |  |  |  |
+| `ssim` | ❌ |  |  |  |  |  |
+
+## Image Transforms
+
+**Namespace:** `image.transform.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+`fft2` / `ifft2` / `fftshift` / `ifftshift` already covered under Fourier Analysis; cross-listed here per MATLAB TOC.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dct2` | ❌ |  |  |  |  | 2-D DCT |
+| `dctmtx` | ❌ |  |  |  |  | DCT transform matrix |
+| `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
+| `fanbeam` | ❌ |  |  |  |  |  |
+| `fft2` | ✅ |  |  |  | OK | already in Fourier section |
+| `fftshift` | ✅ |  |  |  | OK |  |
+| `idct2` | ❌ |  |  |  |  |  |
+| `ifanbeam` | ❌ |  |  |  |  |  |
+| `ifft2` | ✅ |  |  |  | OK |  |
+| `ifftshift` | ✅ |  |  |  | OK |  |
+| `para2fan` | ❌ |  |  |  |  |  |
+
 ## Vibration Analysis (envspectrum / order tracking / modal)
 
 **Namespace:** `signal.vibration.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
