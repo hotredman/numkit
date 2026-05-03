@@ -1,0 +1,10 @@
+{
+  "name": "strip",
+  "namespace": "core",
+  "setup": "s = '   hello world   ';",
+  "expr": "y = strip(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = strip(S). Trim both. 10000 iters.",
+  "out_var": "y"
+}

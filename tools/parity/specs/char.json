@@ -1,0 +1,10 @@
+{
+  "name": "char",
+  "namespace": "core",
+  "setup": "x = 65:90;",
+  "expr": "y = char(x);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = char(X). ASCII codes A-Z. 10000 iters.",
+  "out_var": "y"
+}

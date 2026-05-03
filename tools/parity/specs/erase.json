@@ -1,0 +1,10 @@
+{
+  "name": "erase",
+  "namespace": "core",
+  "setup": "s = repmat('foo bar baz ', 1, 100); pat = 'bar ';",
+  "expr": "y = erase(s, pat);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S2 = erase(S, PAT). 1.2k-char string remove 'bar '. 1000 iters.",
+  "out_var": "y"
+}

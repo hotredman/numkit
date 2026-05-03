@@ -1,0 +1,10 @@
+{
+  "name": "deblank",
+  "namespace": "core",
+  "setup": "s = repmat(['hello   '], 1, 1);",
+  "expr": "y = deblank(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: S = deblank(S). Trim trailing space. 10000 iters.",
+  "out_var": "y"
+}

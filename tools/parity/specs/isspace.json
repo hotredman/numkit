@@ -1,0 +1,14 @@
+{
+  "name": "isspace",
+  "namespace": "core",
+  "setup": "s = repmat('abc def ghi ', 1, 1000);",
+  "expr": "y = isspace(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "comment": "Sig: TF = isspace(S). 12k char input. 1000 iters. Logical-array fp.",
+  "fingerprint": [
+    "sum(double(y(:)))",
+    "double(y(1))",
+    "double(y(end))"
+  ]
+}
