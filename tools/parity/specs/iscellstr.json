@@ -1,0 +1,13 @@
+{
+  "name": "iscellstr",
+  "namespace": "core",
+  "setup": "c = {'apple','banana','cherry'};",
+  "expr": "y = iscellstr(c);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ],
+  "comment": "Sig: TF = iscellstr(X). 100k iters."
+}

@@ -1,0 +1,14 @@
+{
+  "name": "cell2struct",
+  "namespace": "core",
+  "setup": "c = {1; 'two'; 3.5}; names = {'a','b','c'};",
+  "expr": "y = cell2struct(c, names, 1);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(fieldnames(y)))",
+    "double(y.a)",
+    "double(y.c)"
+  ],
+  "comment": "Sig: S = cell2struct(C, FIELDS, DIM). 10k iters."
+}

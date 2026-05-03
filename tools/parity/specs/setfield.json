@@ -1,0 +1,13 @@
+{
+  "name": "setfield",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2);",
+  "expr": "y = setfield(s, 'b', 99);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(y.a)",
+    "double(y.b)"
+  ],
+  "comment": "Sig: S2 = setfield(S, F, V). 10k iters."
+}

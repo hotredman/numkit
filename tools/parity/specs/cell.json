@@ -1,0 +1,14 @@
+{
+  "name": "cell",
+  "namespace": "core",
+  "setup": "n = 100;",
+  "expr": "y = cell(n, n);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(y))",
+    "double(size(y, 1))",
+    "double(size(y, 2))"
+  ],
+  "comment": "Sig: C = cell(M, N). 100x100 empty cell. 1000 iters."
+}

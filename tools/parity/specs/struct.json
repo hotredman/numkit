@@ -1,0 +1,14 @@
+{
+  "name": "struct",
+  "namespace": "core",
+  "setup": "names = {'a','b','c','d','e'}; vals = {1,2,3,4,5};",
+  "expr": "y = struct(names{1},vals{1}, names{2},vals{2}, names{3},vals{3}, names{4},vals{4}, names{5},vals{5});",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(fieldnames(y)))",
+    "double(y.a)",
+    "double(y.e)"
+  ],
+  "comment": "Sig: S = struct(name1,val1,...). 5 fields. 10k iters. Custom fp."
+}

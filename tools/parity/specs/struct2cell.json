@@ -1,0 +1,14 @@
+{
+  "name": "struct2cell",
+  "namespace": "core",
+  "setup": "s = struct('a',1,'b',2,'c',3,'d',4,'e',5);",
+  "expr": "y = struct2cell(s);",
+  "iters": 1000,
+  "tol": 1e-10,
+  "fingerprint": [
+    "double(numel(y))",
+    "double(y{1})",
+    "double(y{end})"
+  ],
+  "comment": "Sig: C = struct2cell(S). 5 fields. 10k iters."
+}

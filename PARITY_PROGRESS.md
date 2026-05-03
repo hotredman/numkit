@@ -178,7 +178,7 @@ multiple sections; all occurrences refresh together).
 | `extractbetween` | ✅ |  |  |  |  |  |
 | `insertafter` | ✅ |  |  |  |  |  |
 | `insertbefore` | ✅ |  |  |  |  |  |
-| `iscellstr` | ✅ |  |  |  |  | predicate |
+| `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `ischar` | ✅ |  |  |  |  |  |
 | `isletter` | ✅ |  |  |  |  |  |
 | `isspace` | ✅ |  |  |  |  |  |
@@ -230,16 +230,16 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `arrayfun` | ✅ |  |  |  |  |  |
-| `cell2struct` | ✅ |  |  |  |  |  |
-| `fieldnames` | ✅ |  |  |  |  |  |
-| `getfield` | ✅ |  |  |  |  | dynamic field |
-| `isfield` | ✅ |  |  |  |  |  |
-| `isstruct` | ✅ |  |  |  |  |  |
+| `cell2struct` | ✅ | 0.000 | 4.73× | 15.26× | OK | Sig: S = cell2struct(C, FIELDS, DIM). 10k iters. |
+| `fieldnames` | ✅ | 0.001 | 1.67× |  | MISMATCH | Sig: C = fieldnames(S). 5-field struct. 10k iters. Cell-out fp. |
+| `getfield` | ✅ | 0.000 | 15.25× | 107.10× | OK | Sig: V = getfield(S, F). 100k iters. |
+| `isfield` | ✅ | 0.000 | 6.67× | 26.00× | OK | Sig: TF = isfield(S, F). 100k iters. |
+| `isstruct` | ✅ | 0.000 | 8.76× | 29.48× | OK | Sig: TF = isstruct(S). Returns scalar logical. 100k iters. |
 | `orderfields` | ✅ |  |  |  |  | reorder |
-| `rmfield` | ✅ |  |  |  |  |  |
-| `setfield` | ✅ |  |  |  |  | dynamic field |
-| `struct` | ✅ |  |  |  |  |  |
-| `struct2cell` | ✅ |  |  |  |  |  |
+| `rmfield` | ✅ | 0.000 | 13.56× | 11.47× | OK | Sig: S2 = rmfield(S, F). Remove 'c' from 5-field. 10k iters. |
+| `setfield` | ✅ | 0.000 | 7.82× | 67.62× | OK | Sig: S2 = setfield(S, F, V). 10k iters. |
+| `struct` | ✅ | 0.000 | 7.90× | 34.50× | OK | Sig: S = struct(name1,val1,...). 5 fields. 10k iters. Custom fp. |
+| `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
 | `struct2table` | ❌ |  |  |  |  |  |
 | `structfun` | ✅ |  |  |  |  |  |
 | `table2struct` | ❌ |  |  |  |  |  |
@@ -250,20 +250,20 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cell` | ✅ |  |  |  |  |  |
+| `cell` | ✅ | 0.068 | 0.08× | 2.60× | OK | Sig: C = cell(M, N). 100x100 empty cell. 1000 iters. |
 | `cell2mat` | ✅ |  |  |  |  | concat cells |
-| `cell2struct` | ✅ |  |  |  |  |  |
+| `cell2struct` | ✅ | 0.000 | 4.73× | 15.26× | OK | Sig: S = cell2struct(C, FIELDS, DIM). 10k iters. |
 | `cell2table` | ❌ |  |  |  |  |  |
 | `celldisp` | ✅ |  |  |  |  |  |
 | `cellfun` | ✅ |  |  |  |  |  |
 | `cellplot` | ❌ |  |  |  |  |  |
 | `cellstr` | ✅ |  |  |  |  | cell of char rows |
-| `iscell` | ✅ |  |  |  |  |  |
-| `iscellstr` | ✅ |  |  |  |  | predicate |
+| `iscell` | ✅ | 0.000 | 8.30× | 36.14× | OK | Sig: TF = iscell(X). 100k iters. |
+| `iscellstr` | ✅ | 0.000 | 7.36× | 23.33× | OK | Sig: TF = iscellstr(X). 100k iters. |
 | `mat2cell` | ✅ |  |  |  |  | split into cell |
-| `num2cell` | ✅ |  |  |  |  | wrap each elem |
+| `num2cell` | ✅ | 0.007 | 10.72× | 7.25× | OK | Sig: C = num2cell(A). 1k-vec wrap each. 1000 iters. |
 | `string` | ✅ |  |  |  |  |  |
-| `struct2cell` | ✅ |  |  |  |  |  |
+| `struct2cell` | ✅ | 0.000 | 3.91× | 22.13× | OK | Sig: C = struct2cell(S). 5 fields. 10k iters. |
 | `table` | ❌ |  |  |  |  |  |
 | `table2cell` | ❌ |  |  |  |  |  |
 | `timetable` | ❌ |  |  |  |  |  |
@@ -275,11 +275,11 @@ multiple sections; all occurrences refresh together).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `feval` | ✅ |  |  |  |  | call handle by name |
-| `func2str` | ✅ |  |  |  |  | inspect |
+| `func2str` | ✅ | 0.000 | 4.42× |  | MISMATCH | Sig: S = func2str(F). 10k iters. |
 | `function_handle` | ❌ |  |  |  |  | OOP class |
 | `functions` | ✅ |  |  |  |  | introspection |
 | `localfunctions` | ✅ |  |  |  |  | (stub: empty cell) |
-| `str2func` | ✅ |  |  |  |  | create handle |
+| `str2func` | ✅ | 0.000 | 14.84× | 19.64× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
 ## Categorical Arrays
 
