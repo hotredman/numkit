@@ -430,6 +430,55 @@ canonical-trailing-dim normalization.
 
 ---
 
+## 21. `libs/builtin`: `meshgrid(xv)` / `interp2(X,Y,...)` 2-D-input forms missing — **P2**
+
+**Reproducers:**
+```matlab
+% Case A: single-arg meshgrid
+meshgrid(linspace(0,10,10))
+% MATLAB:  equivalent to meshgrid(x, x), returns NxN grid
+% numkit:  "meshgrid: requires 2 arguments"
+
+% Case B: 2-D-grid input to interp2
+[X, Y] = meshgrid(xv, yv);
+interp2(X, Y, V, Xq, Yq)
+% MATLAB:  accepts grid-form X/Y as well as vector form
+% numkit:  "interp2: X must be a vector"
+
+% Case C: vector-only Xq/Yq treated as 1-D pointwise instead of 2-D grid
+interp2(xv, yv, V, xqv, yqv)   % xqv, yqv vectors
+% MATLAB:  returns 5x5 grid (implicit meshgrid on Xq/Yq)
+% numkit:  returns 1x5 (pointwise pairing only)
+```
+**MATLAB:** all three forms documented; common patterns in image/2D-data
+processing.
+**Impact:** Any MATLAB code using the standard `[X,Y]=meshgrid; interp2(X,Y,V,...)`
+idiom breaks. Numkit's 1-arg meshgrid + grid-input interp2 are the
+default path most snippets use.
+**Where:** [libs/builtin/src/](libs/builtin/) `meshgrid` adapter (1-arg
+overload) + `interp2` adapter (grid-input + implicit-meshgrid forms).
+**First seen:** 2026-05-03, parity bulk-bench iteration 18.
+
+---
+
+## 22. `libs/builtin`: `spline(x, v)` (2-arg pp-struct form) unsupported — **P2**
+
+**Reproducer:**
+```matlab
+pp = spline(linspace(0,10,50), sin(linspace(0,10,50)));
+% MATLAB:  returns a piecewise-poly struct usable with ppval
+% numkit:  "spline: requires 3 arguments"
+```
+**MATLAB:** `spline(x, v)` with 2 args returns a `pp` struct (the
+spline's piecewise-polynomial form). With 3 args `spline(x, v, xq)`
+evaluates at xq directly. numkit only supports the 3-arg form.
+**Impact:** Cannot pre-compute a spline once and evaluate via ppval
+many times — the canonical "factor + apply" pattern.
+**Where:** [libs/builtin/src/](libs/builtin/) `spline` adapter.
+**First seen:** 2026-05-03, parity bulk-bench iteration 18.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one

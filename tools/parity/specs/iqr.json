@@ -1,0 +1,13 @@
+{
+  "name": "iqr",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = iqr(x);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: R = iqr(X). 1M-pt inter-quartile. 50 iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

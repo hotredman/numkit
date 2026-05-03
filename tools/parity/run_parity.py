@@ -234,7 +234,19 @@ def parse_output(out: str) -> tuple[float | None, list[float], SaveBlock]:
             timing = float(m.group(1))
         m = re.match(r"^FP\s+(\d+)\s+(\S+)$", line.strip())
         if m:
-            fps[int(m.group(1))] = float(m.group(2))
+            tok = m.group(2)
+            # Octave prints 'NA' (missing-value) and 'NaN' (not-a-number)
+            # as separate strings; MATLAB only prints 'NaN'/'Inf'. Map
+            # both Octave forms into NaN so float() doesn't blow up.
+            if tok in ("NA", "NaN", "nan"):
+                val = float("nan")
+            elif tok in ("Inf", "inf"):
+                val = float("inf")
+            elif tok in ("-Inf", "-inf"):
+                val = float("-inf")
+            else:
+                val = float(tok)
+            fps[int(m.group(1))] = val
     fp_list = [fps[i] for i in sorted(fps.keys())]
     sb = parse_save_block(lines)
     return timing, fp_list, sb

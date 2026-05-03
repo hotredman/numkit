@@ -1,0 +1,10 @@
+{
+  "name": "prctile",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000)); p = [25 50 75 90];",
+  "expr": "y = prctile(x, p);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Y = prctile(X, P). 1M-pt at 4 percentiles. 50 iters.",
+  "out_var": "y"
+}

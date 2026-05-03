@@ -1,0 +1,10 @@
+{
+  "name": "interp1",
+  "namespace": "core",
+  "setup": "x = linspace(0, 10, 100); v = sin(x); xq = linspace(0, 10, 10000);",
+  "expr": "y = interp1(x, v, xq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: VQ = interp1(X, V, XQ). 100 \u2192 10k linear interp. 100 iters.",
+  "out_var": "y"
+}

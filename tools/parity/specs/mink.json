@@ -1,0 +1,10 @@
+{
+  "name": "mink",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 100, 1000000));",
+  "expr": "y = mink(x, 10);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: B = mink(X, K). Bot 10 of 1M. 100 iters.",
+  "out_var": "y"
+}

@@ -71,8 +71,8 @@ multiple sections; all occurrences refresh together).
 | `length` | ✅ | 0.000 | 26.91× | 36.70× | OK | Sig: L = length(X). 100x600 → returns 600. 100k iters. |
 | `linspace` | ✅ | 2.871 | 1.00× | 0.80× | OK | Sig: V = linspace(A,B,N). N=1M. 100 iters. Element-wise SAVE. |
 | `logspace` | ✅ | 9.205 | 0.95× | 1.42× | OK | Sig: V = logspace(A,B,N). N=1M log-spaced. 100 iters. Element-wise SAVE. |
-| `meshgrid` | ✅ |  |  |  |  |  |
-| `ndgrid` | ✅ |  |  |  |  |  |
+| `meshgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 100 iters. SAVE on X. |
+| `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
 | `ndims` | ✅ | 0.000 | 27.42× | 25.81× | OK | Sig: N = ndims(X). 2D mat → 2. 100k iters. |
 | `numel` | ✅ | 0.000 | 22.63× | 20.44× | OK | Sig: N = numel(X). 1M-elem mat. 100k iters. |
 | `ones` | ✅ | 2.645 | 0.73× | 0.84× | OK | Sig: O = ones(M,N). 1000x1000. 100 iters. |
@@ -705,20 +705,20 @@ multiple sections; all occurrences refresh together).
 | `griddata` | ❌ |  |  |  |  |  |
 | `griddatan` | ❌ |  |  |  |  |  |
 | `griddedinterpolant` | ❌ |  |  |  |  |  |
-| `interp1` | ✅ |  |  |  |  |  |
-| `interp2` | ✅ |  |  |  |  |  |
-| `interp3` | ✅ |  |  |  |  |  |
+| `interp1` | ✅ | 0.123 | 1.16× | 8.36× | OK | Sig: VQ = interp1(X, V, XQ). 100 → 10k linear interp. 100 iters. |
+| `interp2` | ✅ |  |  |  | N/A | Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 → 200x200 bilinear. 50 iters. |
+| `interp3` | ✅ |  |  |  | N/A | Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20³ → 50³ trilinear. 10 iters. |
 | `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
 | `interpn` | ✅ |  |  |  |  |  |
 | `makima` | ❌ |  |  |  |  |  |
-| `meshgrid` | ✅ |  |  |  |  |  |
+| `meshgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 100 iters. SAVE on X. |
 | `mkpp` | ✅ |  |  |  |  |  |
-| `ndgrid` | ✅ |  |  |  |  |  |
+| `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
 | `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
-| `pchip` | ✅ |  |  |  |  |  |
-| `ppval` | ✅ |  |  |  |  |  |
+| `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
+| `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
 | `scatteredinterpolant` | ❌ |  |  |  |  |  |
-| `spline` | ✅ |  |  |  |  |  |
+| `spline` | ✅ | 0.016 | 23.98× | 40.02× | MISMATCH | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
 | `unmkpp` | ✅ |  |  |  |  |  |
 
 ## Optimization
@@ -857,20 +857,20 @@ multiple sections; all occurrences refresh together).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bounds` | ✅ |  |  |  |  | `[min,max]` |
-| `corrcoef` | ✅ |  |  |  |  |  |
+| `bounds` | ✅ | 6.271 | 0.02× | 0.25× | OK | Sig: [lo,hi] = bounds(X). 1M-pt min/max. 100 iters. |
+| `corrcoef` | ✅ | 0.070 | 2.30× | 5.01× | OK | Sig: R = corrcoef(M). 2-col 10k matrix. 100 iters. |
 | `cov` | ✅ |  |  |  |  |  |
 | `cummax` | ✅ | 2.385 | 1.08× | 1.17× | OK | Sig: M = cummax(X). 1M-pt cumulative max. 100 iters. Element-wise SAVE. |
 | `cummin` | ✅ | 2.504 | 1.05× | 1.04× | OK | Sig: M = cummin(X). 1M-pt cumulative min. 100 iters. Element-wise SAVE. |
-| `iqr` | ✅ |  |  |  |  | inter-quartile |
+| `iqr` | ✅ | 69.423 | 0.11× | 0.35× | MISMATCH | Sig: R = iqr(X). 1M-pt inter-quartile. 50 iters. |
 | `kde` | ❌ |  |  |  |  |  |
 | `mape` | ✅ | 9.431 | 0.28× | 0.98× | OK | 1M-point MAPE. 50 iters. numkit needs `import compat.*`; MATLAB+Octave have it flat. |
 | `max` | ✅ | 1.462 | 0.04× | 0.54× | OK | Sig: M = max(X). 1M-pt. 100 iters. Scalar fp. |
-| `maxk` | ✅ |  |  |  |  |  |
+| `maxk` | ✅ | 71.463 | 0.01× |  | OK | Sig: B = maxk(X, K). Top 10 of 1M. 100 iters. |
 | `mean` | ✅ | 1.357 | 0.06× | 0.74× | OK | Sig: M = mean(X). 1M-pt sin reduction. 100 iters. Scalar fp. |
 | `median` | ✅ | 3.330 | 1.47× | 2.30× | OK | Sig: M = median(X). 1M-pt full sort + middle. 50 iters. Scalar fp. |
 | `min` | ✅ | 1.435 | 0.03× | 0.55× | OK | Sig: M = min(X). 1M-pt. 100 iters. Scalar fp. |
-| `mink` | ✅ |  |  |  |  |  |
+| `mink` | ✅ | 71.151 | 0.01× |  | OK | Sig: B = mink(X, K). Bot 10 of 1M. 100 iters. |
 | `mode` | ✅ | 18.749 | 0.48× | 2.75× | OK | Sig: M = mode(X). 1M-pt with ~7919 distinct vals. 50 iters. Scalar fp. |
 | `movmad` | ✅ |  |  |  |  | moving mad |
 | `movmax` | ✅ | 4.771 | 0.29× | 19.05× | OK | Sig: M = movmax(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
@@ -881,8 +881,8 @@ multiple sections; all occurrences refresh together).
 | `movstd` | ✅ | 7.371 | 0.20× | 17.26× | OK | Sig: M = movstd(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
 | `movsum` | ✅ | 4.686 | 0.35× | 19.19× | OK | Sig: Y = movsum(X, K). 1M-pt moving window K=5. 20 iters. Element-wise SAVE. |
 | `movvar` | ✅ | 6.842 | 0.22× | 19.23× | OK | Sig: M = movvar(X, K). 1M-pt window=5. 100 iters. Element-wise SAVE. |
-| `prctile` | ✅ |  |  |  |  |  |
-| `quantile` | ✅ |  |  |  |  |  |
+| `prctile` | ✅ | 33.491 | 0.23× | 0.72× | MISMATCH | Sig: Y = prctile(X, P). 1M-pt at 4 percentiles. 50 iters. |
+| `quantile` | ✅ | 33.734 | 0.23× | 0.72× | MISMATCH | Sig: Y = quantile(X, Q). 1M-pt at 4 quantiles. 50 iters. |
 | `rms` | ✅ | 2.673 | 0.50× | 0.17× | OK | Sig: R = rms(X). 1M-pt sin RMS. 100 iters. Scalar fp. |
 | `rmse` | ✅ |  |  |  |  |  |
 | `std` | ✅ | 0.323 | 4.70× | 26.33× | OK | Sig: S = std(X). 1M-pt. 100 iters. Scalar fp. |

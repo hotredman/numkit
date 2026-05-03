@@ -1,0 +1,10 @@
+{
+  "name": "ndgrid",
+  "namespace": "core",
+  "setup": "x = linspace(-3, 3, 1000); y = linspace(-3, 3, 1000);",
+  "expr": "[y, jj] = ndgrid(x, y);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: [X,Y] = ndgrid(x,y). 1k\u00d71k grid. 100 iters.",
+  "out_var": "y"
+}

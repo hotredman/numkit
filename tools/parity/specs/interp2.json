@@ -1,0 +1,10 @@
+{
+  "name": "interp2",
+  "namespace": "core",
+  "setup": "[X, Y] = meshgrid(linspace(0,10,50)); V = sin(X).*cos(Y); [Xq, Yq] = meshgrid(linspace(0,10,200));",
+  "expr": "y = interp2(X, Y, V, Xq, Yq);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 \u2192 200x200 bilinear. 50 iters.",
+  "out_var": "y"
+}

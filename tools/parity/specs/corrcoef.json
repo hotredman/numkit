@@ -1,0 +1,10 @@
+{
+  "name": "corrcoef",
+  "namespace": "core",
+  "setup": "x = sin(linspace(0, 10, 10000))'; y_in = cos(linspace(0, 10, 10000))';",
+  "expr": "y = corrcoef([x, y_in]);",
+  "iters": 50,
+  "tol": 1e-10,
+  "comment": "Sig: R = corrcoef(M). 2-col 10k matrix. 100 iters.",
+  "out_var": "y"
+}
