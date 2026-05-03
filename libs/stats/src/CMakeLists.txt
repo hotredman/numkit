@@ -14,6 +14,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/uniform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/lognormal.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/weibull.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
