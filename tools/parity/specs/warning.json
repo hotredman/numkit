@@ -1,0 +1,12 @@
+{
+  "name": "warning",
+  "namespace": "core",
+  "setup": "warning('off', 'all'); lastwarn('');",
+  "expr": "warning('test:foo', 'a warning'); y = lastwarn;",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters.",
+  "fingerprint": [
+    "double(strlength(y))"
+  ]
+}

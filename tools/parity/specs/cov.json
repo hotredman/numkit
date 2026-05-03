@@ -1,0 +1,10 @@
+{
+  "name": "cov",
+  "namespace": "core",
+  "setup": "X = sin(linspace(0, 100, 10000)); Y = cos(linspace(0, 100, 10000)); M = [X' Y'];",
+  "expr": "y = cov(M);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: C = cov(M). 2-col 10k cov matrix. 1000 iters.",
+  "out_var": "y"
+}

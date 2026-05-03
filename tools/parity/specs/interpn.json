@@ -1,0 +1,10 @@
+{
+  "name": "interpn",
+  "namespace": "core",
+  "setup": "[X, Y, Z] = ndgrid(linspace(0,10,20)); V = sin(X).*Y.*Z; xq = linspace(0,10,50); [Xq, Yq, Zq] = ndgrid(xq);",
+  "expr": "y = interpn(X, Y, Z, V, Xq, Yq, Zq);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: Vq = interpn(...) N-D interp. 20\u00b3 \u2192 50\u00b3. 10 iters.",
+  "out_var": "y"
+}

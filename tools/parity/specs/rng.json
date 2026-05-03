@@ -1,0 +1,12 @@
+{
+  "name": "rng",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "rng(42); y = rand();",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters.",
+  "fingerprint": [
+    "double(y)"
+  ]
+}

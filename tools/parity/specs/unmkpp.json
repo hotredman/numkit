@@ -1,0 +1,12 @@
+{
+  "name": "unmkpp",
+  "namespace": "core",
+  "setup": "pp = mkpp([0 1 2], [1 1; 1 -1]);",
+  "expr": "[y, jj, kk, ll] = unmkpp(pp);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters.",
+  "fingerprint": [
+    "double(numel(y))"
+  ]
+}

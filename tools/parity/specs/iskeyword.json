@@ -1,0 +1,13 @@
+{
+  "name": "iskeyword",
+  "namespace": "core",
+  "setup": "% nop",
+  "expr": "y = iskeyword('for');",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: TF = iskeyword(NAME). Returns scalar logical. 100k iters.",
+  "fingerprint": [
+    "double(y)",
+    "numel(y)"
+  ]
+}

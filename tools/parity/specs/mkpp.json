@@ -1,0 +1,12 @@
+{
+  "name": "mkpp",
+  "namespace": "core",
+  "setup": "breaks = [0 1 2 3 4]; coefs = [1 0 0; 0 1 0; 0 0 1; 1 1 1];",
+  "expr": "y = mkpp(breaks, coefs);",
+  "iters": 1000,
+  "tol": 1e-09,
+  "comment": "Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters.",
+  "fingerprint": [
+    "double(numel(fieldnames(y)))"
+  ]
+}

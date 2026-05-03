@@ -641,6 +641,44 @@ int input).
 
 ---
 
+## 30. `libs/builtin`: `true(M, N)` / `false(M, N)` shape-form rejected — **P2**
+
+**Reproducer:**
+```matlab
+true(100, 100)
+% MATLAB: 100x100 logical array, all true
+% numkit: "Index exceeds array dimensions (in function call)"
+```
+Same for `false(M, N)`. The 0-arg `true` / `false` literals work
+fine; only the size-arg call form is broken.
+**MATLAB:** `true` and `false` are dual-mode — used as a literal
+(`x = true`) and as a logical-array constructor (`true(M, N)`),
+parallel to `zeros` / `ones`.
+**Impact:** Anything constructing logical arrays via the canonical
+`true(M,N)` idiom fails; users must `logical(ones(M,N))` instead.
+**Where:** [libs/builtin/src/](libs/builtin/) — true/false adapters
+need the size-arg overload (mirror `ones` adapter).
+**First seen:** 2026-05-03, parity bulk-bench iteration 27.
+
+---
+
+## 31. `libs/builtin`: `interpn` (N-D interpolation) not implemented — **P2**
+
+**Reproducer:**
+```matlab
+[X, Y, Z] = ndgrid(linspace(0,10,20));   % already fails — see BUG #23
+% Even with workaround, interpn(...) returns nothing usable.
+```
+**MATLAB:** `interpn(X1, X2, ..., V, Xq1, Xq2, ...)` is N-D linear
+interpolation. Marked ✅ in PARITY_PROGRESS but the function call
+fails (probably tied to BUGS #23 — meshgrid 3-arg missing — and
+the underlying interp infrastructure not generalized to N-D).
+**Where:** [libs/builtin/src/](libs/builtin/) `interpn` adapter.
+Likely needs 3-D meshgrid first.
+**First seen:** 2026-05-03, parity bulk-bench iteration 27.
+
+---
+
 ## Notes
 
 - This file is the bug intake for the parity cycle. When I close one
