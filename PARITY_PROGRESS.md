@@ -1144,18 +1144,18 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ## Resampling Techniques
 
-**Namespace:** `stats.resample.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+**Namespace:** `stats.resample.*` — 3 ✅ + 0 ⚠️ / 7 = 38%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bootci` | ❌ |  |  |  |  | bootstrap confidence intervals |
-| `bootstrp` | ❌ |  |  |  |  | bootstrap statistics |
-| `combnk` | ❌ |  |  |  |  | enumerate combinations |
+| `bootstrp` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
+| `combnk` | ✅ |  |  |  | OK | lex-order enumeration; scalar N or vector input |
 | `crossval` | ❌ |  |  |  |  | k-fold cross-validation |
 | `cvpartition` | ❌ |  |  |  |  | partition object (function-form constructor) |
-| `datasample` | ❌ |  |  |  |  | sample with/without replacement |
-| `jackknife` | ❌ |  |  |  |  | leave-one-out |
-| `randsample` | ❌ |  |  |  |  | random sample |
+| `datasample` | ✅ |  |  |  | OK | rows or columns; with/without replacement; weights |
+| `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
+| `randsample` | ✅ |  |  |  | OK | uniform or weighted; with/without replacement |
 
 ## Quasirandom Sequences and MCMC
 
