@@ -2936,7 +2936,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
-| `colorangle` | ❌ |  |  |  |  | angle between two RGB colors |
+| `colorangle` | ❌ | 0.003 |  | 92.90× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
 | `deltaE` | ❌ |  |  |  |  | CIE76 colour-difference |
 | `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
