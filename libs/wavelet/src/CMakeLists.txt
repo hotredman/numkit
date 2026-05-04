@@ -3,6 +3,7 @@ set(WAVELETLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/filter/wfilters.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/dwt.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dwt/multilevel.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/denoise/denoise.cpp
 )
 
 set(WAVELETLIB_SOURCES ${WAVELETLIB_SOURCES} PARENT_SCOPE)
