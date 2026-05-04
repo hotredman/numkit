@@ -1884,7 +1884,7 @@ as a pair of flat decomposition / reconstruction functions.
 
 ## Communications Toolbox — Modulation
 
-**Namespace:** `comm.mod.*` — 9 ✅ + 0 ⚠️ / 29 = 31%
+**Namespace:** `comm.mod.*` — 13 ✅ + 0 ⚠️ / 29 = 45%
 
 Function-form modulators / demodulators. The `comm.PSKModulator` /
 `comm.QAMModulator` / `comm.OFDMModulator` System Object family is
@@ -1906,10 +1906,10 @@ intentionally omitted, along with `constellation` (object method) and
 | `mil188qamdemod` | ❌ |  |  |  |  |  |
 | `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
 | `mskdemod` | ❌ |  |  |  |  |  |
-| `fskmod` | ❌ |  |  |  |  | M-ary FSK |
-| `fskdemod` | ❌ |  |  |  |  |  |
-| `ofdmmod` | ❌ |  |  |  |  | OFDM |
-| `ofdmdemod` | ❌ |  |  |  |  |  |
+| `fskmod` | ✅ |  |  |  | OK | M-ary FSK; cont (default) and discont phase |
+| `fskdemod` | ✅ |  |  |  | OK | per-symbol energy detection |
+| `ofdmmod` | ✅ |  |  |  | OK | IFFT-based with cyclic prefix |
+| `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
 | `dpskmod` | ✅ |  |  |  | OK | differential PSK |
 | `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
 | `pskmod` | ✅ |  |  |  | OK | M-ary PSK; gray (default) / bin orderings |

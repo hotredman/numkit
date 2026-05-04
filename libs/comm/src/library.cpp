@@ -17,6 +17,12 @@ void pamdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qammod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void qamdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void modnorm_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// modulation/fsk_ofdm.cpp
+void fskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ofdmmod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ofdmdemod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -38,6 +44,11 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "qammod",    &comm::detail::qammod_reg);
     reg("mod", "qamdemod",  &comm::detail::qamdemod_reg);
     reg("mod", "modnorm",   &comm::detail::modnorm_reg);
+
+    reg("mod", "fskmod",    &comm::detail::fskmod_reg);
+    reg("mod", "fskdemod",  &comm::detail::fskdemod_reg);
+    reg("mod", "ofdmmod",   &comm::detail::ofdmmod_reg);
+    reg("mod", "ofdmdemod", &comm::detail::ofdmdemod_reg);
 }
 
 } // namespace numkit
