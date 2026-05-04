@@ -1,0 +1,10 @@
+{
+  "name": "xyz2double",
+  "namespace": "image",
+  "setup": "X = uint16([0 32768 65535; 16384 32768 16384; 8192 32768 49152]);",
+  "expr": "y = xyz2double(X);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double."
+}
