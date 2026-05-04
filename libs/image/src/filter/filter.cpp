@@ -1496,6 +1496,73 @@ Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
     return out;
 }
 
+Value medfilt3(std::pmr::memory_resource *mr, const Value &V,
+               int M, int N, int P)
+{
+    if (M <= 0) M = 3;
+    if (N <= 0) N = 3;
+    if (P <= 0) P = 3;
+    if (M % 2 == 0 || N % 2 == 0 || P % 2 == 0)
+        throw Error("medfilt3: filter sizes must be odd",
+                    0, 0, "medfilt3", "", "m:medfilt3:size");
+
+    const ValueType cls = V.type();
+    const int H = static_cast<int>(V.dims().rows());
+    const int W = static_cast<int>(V.dims().cols());
+    const int D = V.dims().is3D() ? static_cast<int>(V.dims().pages()) : 1;
+
+    Value out = (D > 1) ? Value::matrix3d(H, W, D, cls, mr)
+                        : Value::matrix(H, W, cls, mr);
+    if (H == 0 || W == 0 || D == 0) return out;
+
+    const int hM = M / 2;
+    const int hN = N / 2;
+    const int hP = P / 2;
+    const size_t plane = static_cast<size_t>(H) * static_cast<size_t>(W);
+    const size_t nbhd = static_cast<size_t>(M) * static_cast<size_t>(N)
+                      * static_cast<size_t>(P);
+
+    std::vector<double> window;
+    window.reserve(nbhd);
+    for (int p = 0; p < D; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                window.clear();
+                for (int kp = -hP; kp <= hP; ++kp) {
+                    const int ps = fold_index(p + kp, D, PadMode::Symmetric);
+                    for (int kc = -hN; kc <= hN; ++kc) {
+                        const int cs = fold_index(c + kc, W, PadMode::Symmetric);
+                        for (int kr = -hM; kr <= hM; ++kr) {
+                            const int rs = fold_index(r + kr, H, PadMode::Symmetric);
+                            const size_t idx = static_cast<size_t>(ps) * plane
+                                             + static_cast<size_t>(cs) * H
+                                             + static_cast<size_t>(rs);
+                            window.push_back(V.elemAsDouble(idx));
+                        }
+                    }
+                }
+                std::nth_element(window.begin(),
+                                 window.begin() + window.size() / 2,
+                                 window.end());
+                double med = window[window.size() / 2];
+                if ((window.size() & 1) == 0) {
+                    double left_max = -std::numeric_limits<double>::infinity();
+                    for (auto it = window.begin();
+                         it != window.begin() + window.size() / 2; ++it)
+                        if (*it > left_max) left_max = *it;
+                    med = 0.5 * (left_max + med);
+                }
+                store_classed(out,
+                              static_cast<size_t>(p) * plane
+                                + static_cast<size_t>(c) * H
+                                + static_cast<size_t>(r),
+                              med, cls);
+            }
+        }
+    }
+    return out;
+}
+
 Value convmtx2(std::pmr::memory_resource *mr,
                const Value &h, int m, int n)
 {
@@ -1787,6 +1854,26 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+}
+
+void medfilt3_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("medfilt3: requires (V[, [M N P]])",
+                    0, 0, "medfilt3", "", "m:medfilt3:nargin");
+    int M = 3, N = 3, P = 3;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) {
+            M = N = P = static_cast<int>(v.toScalar());
+        } else if (v.numel() >= 3) {
+            M = static_cast<int>(v.elemAsDouble(0));
+            N = static_cast<int>(v.elemAsDouble(1));
+            P = static_cast<int>(v.elemAsDouble(2));
+        }
+    }
+    outs[0] = medfilt3(ctx.engine->resource(), args[0], M, N, P);
 }
 
 void imgaussfilt3_reg(Span<const Value> args, size_t /*nargout*/,

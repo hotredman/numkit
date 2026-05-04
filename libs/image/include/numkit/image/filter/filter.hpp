@@ -147,6 +147,14 @@ Value convmtx2(std::pmr::memory_resource *mr,
 Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
                    double sigH, double sigW, double sigP);
 
+/// `J = medfilt3(V[, [M N P]])` — 3-D median filter. Default
+/// 3×3×3 neighborhood; sizes must be odd positive. Boundary is
+/// symmetric (mirror reflection) per MATLAB R2025b default.
+/// Output class matches input. NB: only 'symmetric' padopt is
+/// supported in this first cut.
+Value medfilt3(std::pmr::memory_resource *mr, const Value &V,
+               int M, int N, int P);
+
 
 /// entropyfilt(I [, domain]) — local Shannon entropy in bits.
 /// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),

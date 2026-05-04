@@ -3055,7 +3055,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralImage` | ❌ | 0.003 |  | 89.33× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
 | `integralImage3` | ❌ | 0.003 |  | 56.66× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
 | `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `medfilt3` | ❌ |  |  |  |  |  |
+| `medfilt3` | ❌ | 0.032 | 57.47× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
 | `ordfilt2` | ❌ | 0.004 |  | 81.89× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |

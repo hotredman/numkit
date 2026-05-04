@@ -97,6 +97,7 @@ void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt3_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convmtx2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void medfilt3_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imsharpen_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imnoise_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -312,6 +313,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imboxfilt3",   &image::detail::imboxfilt3_reg);
     reg("filter", "convmtx2",     &image::detail::convmtx2_reg);
     reg("filter", "imgaussfilt3", &image::detail::imgaussfilt3_reg);
+    reg("filter", "medfilt3",     &image::detail::medfilt3_reg);
     reg("filter", "medfilt2",     &image::detail::medfilt2_reg);
     reg("filter", "imsharpen",    &image::detail::imsharpen_reg);
     reg("filter", "imnoise",      &image::detail::imnoise_reg);
