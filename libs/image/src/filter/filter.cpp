@@ -1,8 +1,10 @@
 // libs/image/src/filter/filter.cpp
 
 #include <numkit/image/filter/filter.hpp>
+#include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/builtin/math/random/rng.hpp>
+#include <numkit/signal/convolution/convolution.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -1104,6 +1106,101 @@ Value stdfilt(std::pmr::memory_resource *mr,
     return out;
 }
 
+std::tuple<Value, Value>
+wiener2(std::pmr::memory_resource *mr, const Value &I,
+        size_t nh, size_t nw, double noise)
+{
+    const ValueType cls = I.type();
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    if (H == 0 || W == 0) {
+        Value out = Value::matrix(H, W, cls, mr);
+        return {std::move(out), Value::scalar(0.0, mr)};
+    }
+
+    // Promote to double in [0, 1] for processing.
+    Value Id = (cls == ValueType::DOUBLE)
+        ? I
+        : (cls == ValueType::SINGLE
+           ? im2double(mr, I)
+           : im2double(mr, I));
+    if (Id.type() != ValueType::DOUBLE)
+        Id = im2double(mr, Id);
+
+    if (nh == 0) nh = 3;
+    if (nw == 0) nw = 3;
+
+    // Build h×w box kernel.
+    Value k = Value::matrix(nh, nw, ValueType::DOUBLE, mr);
+    {
+        const double a = 1.0 / static_cast<double>(nh * nw);
+        double *kd = k.doubleDataMut();
+        for (size_t i = 0; i < nh * nw; ++i) kd[i] = a;
+    }
+
+    // Squared image.
+    Value Id_sq = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    {
+        const double *id = Id.doubleData();
+        double *od = Id_sq.doubleDataMut();
+        for (size_t i = 0; i < H * W; ++i) od[i] = id[i] * id[i];
+    }
+
+    // Local mean and mean-of-squares via zero-pad conv2 'same'.
+    Value mean_im = signal::conv2(mr, Id, k, "same");
+    Value mean_sq = signal::conv2(mr, Id_sq, k, "same");
+
+    // variance_im = mean_sq - mean_im^2.
+    Value var_im = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    {
+        double *vd = var_im.doubleDataMut();
+        const double *m  = mean_im.doubleData();
+        const double *ms = mean_sq.doubleData();
+        for (size_t i = 0; i < H * W; ++i)
+            vd[i] = ms[i] - m[i] * m[i];
+    }
+
+    // Estimate noise as mean of variance if not supplied.
+    if (std::isnan(noise)) {
+        long double s = 0.0L;
+        for (size_t i = 0; i < H * W; ++i)
+            s += var_im.doubleData()[i];
+        noise = static_cast<double>(s / static_cast<long double>(H * W));
+    }
+
+    // var_orig = max(0, var_im - noise).
+    // out = mean + var_orig / (var_orig + noise) * (Id - mean).
+    Value out_d = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    {
+        const double *id = Id.doubleData();
+        const double *m  = mean_im.doubleData();
+        double *vd       = var_im.doubleDataMut();
+        double *od       = out_d.doubleDataMut();
+        for (size_t i = 0; i < H * W; ++i) {
+            double vo = vd[i] - noise;
+            if (vo < 0.0) vo = 0.0;
+            const double denom = vo + noise;
+            const double w = (denom > 0.0) ? vo / denom : 0.0;
+            od[i] = m[i] + w * (id[i] - m[i]);
+        }
+    }
+
+    // Cast back to input class.
+    Value out;
+    if (cls == ValueType::DOUBLE) out = std::move(out_d);
+    else if (cls == ValueType::SINGLE) {
+        out = Value::matrix(H, W, ValueType::SINGLE, mr);
+        const double *o = out_d.doubleData();
+        float *of = out.singleDataMut();
+        for (size_t i = 0; i < H * W; ++i) of[i] = static_cast<float>(o[i]);
+    } else if (cls == ValueType::UINT8) out = im2uint8(mr, out_d);
+    else if (cls == ValueType::UINT16) out = im2uint16(mr, out_d);
+    else if (cls == ValueType::INT16)  out = im2int16(mr, out_d);
+    else                                out = std::move(out_d);
+
+    return {std::move(out), Value::scalar(noise, mr)};
+}
+
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain)
 {
@@ -1478,6 +1575,31 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
+}
+
+void wiener2_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("wiener2: requires (I [, nhood [, noise]])",
+                    0, 0, "wiener2", "", "m:wiener2:nargin");
+    size_t nh = 3, nw = 3;
+    double noise = std::nan("");
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].numel() == 1) {
+            // Single scalar = noise (Octave convention when no nhood).
+            noise = args[1].toScalar();
+        } else if (args[1].numel() >= 2) {
+            nh = static_cast<size_t>(args[1].elemAsDouble(0));
+            nw = static_cast<size_t>(args[1].elemAsDouble(1));
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        noise = args[2].toScalar();
+    auto [denoised, n] =
+        wiener2(ctx.engine->resource(), args[0], nh, nw, noise);
+    outs[0] = std::move(denoised);
+    if (nargout > 1) outs[1] = std::move(n);
 }
 
 } // namespace detail
