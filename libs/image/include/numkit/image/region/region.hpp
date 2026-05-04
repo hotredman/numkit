@@ -60,4 +60,12 @@ Value regionprops(std::pmr::memory_resource *mr,
                   const Value &BW_or_L,
                   const std::vector<std::string> &props);
 
+/// `D = bwdist(BW)` — Euclidean distance transform. For each pixel
+/// returns the distance to the nearest non-zero pixel in `BW`.
+/// Foreground pixels themselves get distance 0; an all-zero input
+/// yields +Inf everywhere. Implementation is the Felzenszwalb-
+/// Huttenlocher 1-D parabolic-envelope DT applied row-wise then
+/// column-wise (exact, O(H·W)).
+Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
+
 } // namespace numkit::image

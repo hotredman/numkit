@@ -3245,7 +3245,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Region and Image Properties
 
-**Namespace:** `image.region.*` — 7 ✅ + 0 ⚠️ / 28 = 25%
+**Namespace:** `image.region.*` — 8 ✅ + 0 ⚠️ / 28 = 29%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3254,7 +3254,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwareaopen` | ✅ |  |  |  | OK | drop components below P pixels |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ❌ |  |  |  |  | distance transform |
+| `bwdist` | ✅ |  |  |  | OK | Euclidean DT via Felzenszwalb-Huttenlocher 1-D parabolic envelope (exact, O(H·W)) |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
 | `bweuler` | ❌ |  |  |  |  | Euler number |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |

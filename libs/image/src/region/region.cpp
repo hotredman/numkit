@@ -444,6 +444,112 @@ Value regionprops(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// bwdist — Euclidean distance transform
+// ════════════════════════════════════════════════════════════════════
+//
+// Felzenszwalb-Huttenlocher (2004) 1-D parabolic-envelope distance
+// transform applied row-wise then column-wise. Exact, O(H·W).
+//
+// The 1-D DT computes  D(x) = min_y { (x − y)² + f(y) }  in O(N).
+// We use a sentinel f = +Inf for background pixels and 0 for
+// foreground; running the 1-D DT along each row first squashes f
+// horizontally, then the column pass combines that into the full
+// 2-D Euclidean DT (proof: separability of squared distance in the
+// max-of-min formulation).
+
+namespace {
+
+void dt1D(const std::vector<double> &f, std::vector<double> &d, size_t n)
+{
+    // v[k] is the index of the k-th parabola in the lower envelope;
+    // z[k] is the boundary between parabolas k-1 and k.
+    std::vector<long long> v(n);
+    std::vector<double> z(n + 1);
+    long long k = 0;
+    v[0] = 0;
+    z[0] = -std::numeric_limits<double>::infinity();
+    z[1] =  std::numeric_limits<double>::infinity();
+    for (long long q = 1; q < static_cast<long long>(n); ++q) {
+        // Skip background pixels in f (they contribute Inf — no parabola).
+        // Keep them anyway: their +Inf value pushes any candidate boundary
+        // away to +Inf. That's fine.
+        double s;
+        for (;;) {
+            const double fq = f[static_cast<size_t>(q)];
+            const double fv = f[static_cast<size_t>(v[k])];
+            const double dq = static_cast<double>(q);
+            const double dv = static_cast<double>(v[k]);
+            if (std::isinf(fq) && std::isinf(fv)) {
+                // Both background — boundary is at -Inf, parabola q
+                // dominates from k onward.
+                s = -std::numeric_limits<double>::infinity();
+            } else {
+                s = ((fq + dq * dq) - (fv + dv * dv)) / (2.0 * (dq - dv));
+            }
+            if (s <= z[static_cast<size_t>(k)]) {
+                --k;
+                if (k < 0) break;
+            } else break;
+        }
+        ++k;
+        v[static_cast<size_t>(k)] = q;
+        z[static_cast<size_t>(k)] = s;
+        z[static_cast<size_t>(k) + 1] = std::numeric_limits<double>::infinity();
+    }
+    long long kk = 0;
+    for (long long q = 0; q < static_cast<long long>(n); ++q) {
+        while (z[static_cast<size_t>(kk) + 1] < static_cast<double>(q)) ++kk;
+        const double dx = static_cast<double>(q - v[static_cast<size_t>(kk)]);
+        d[static_cast<size_t>(q)] = dx * dx +
+            f[static_cast<size_t>(v[static_cast<size_t>(kk)])];
+    }
+}
+
+} // anonymous
+
+Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
+{
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0) return out;
+
+    const double INF = std::numeric_limits<double>::infinity();
+    // Pull BW into a flat row-major foreground/background buffer.
+    std::vector<double> f(H * W, 0.0);
+    for (size_t r = 0; r < H; ++r)
+        for (size_t c = 0; c < W; ++c) {
+            // numkit storage is column-major: idx = c*H + r.
+            const double v = BW.elemAsDouble(c * H + r);
+            f[r * W + c] = (v != 0.0) ? 0.0 : INF;
+        }
+
+    // Pass 1: distance transform along each row (horizontal DT).
+    std::vector<double> rowIn(W), rowOut(W);
+    std::vector<double> g(H * W, 0.0);
+    for (size_t r = 0; r < H; ++r) {
+        for (size_t c = 0; c < W; ++c) rowIn[c] = f[r * W + c];
+        dt1D(rowIn, rowOut, W);
+        for (size_t c = 0; c < W; ++c) g[r * W + c] = rowOut[c];
+    }
+
+    // Pass 2: distance transform along each column (vertical DT)
+    // operating on the squared-distance result of pass 1.
+    std::vector<double> colIn(H), colOut(H);
+    for (size_t c = 0; c < W; ++c) {
+        for (size_t r = 0; r < H; ++r) colIn[r] = g[r * W + c];
+        dt1D(colIn, colOut, H);
+        for (size_t r = 0; r < H; ++r) {
+            const double sq = colOut[r];
+            // Take sqrt to get true Euclidean distance; +Inf survives.
+            const double d = std::isinf(sq) ? INF : std::sqrt(sq);
+            out.doubleDataMut()[c * H + r] = d;
+        }
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -534,6 +640,15 @@ void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
         props.push_back(args[i].toString());
     }
     outs[0] = regionprops(ctx.engine->resource(), args[0], props);
+}
+
+void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bwdist: requires (BW)",
+                    0, 0, "bwdist", "", "m:bwdist:nargin");
+    outs[0] = bwdist(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail
