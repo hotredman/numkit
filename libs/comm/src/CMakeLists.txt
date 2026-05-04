@@ -5,6 +5,7 @@ set(COMMLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/modulation/fsk_ofdm.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/channel.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/channel/fading.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/eq/pulse.cpp
 )
 
 set(COMMLIB_SOURCES ${COMMLIB_SOURCES} PARENT_SCOPE)
