@@ -3306,19 +3306,19 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Image Transforms
 
-**Namespace:** `image.transform.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+**Namespace:** `image.transform.*` — 7 ✅ + 0 ⚠️ / 11 = 64%
 
 `fft2` / `ifft2` / `fftshift` / `ifftshift` already covered under Fourier Analysis; cross-listed here per MATLAB TOC.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dct2` | ❌ |  |  |  |  | 2-D DCT |
-| `dctmtx` | ❌ |  |  |  |  | DCT transform matrix |
+| `dct2` | ✅ |  |  |  | OK | 2-D DCT (separable, via signal::dct) |
+| `dctmtx` | ✅ |  |  |  | OK | DCT-II transform matrix |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
 | `fft2` | ✅ |  |  |  | OK | already in Fourier section |
 | `fftshift` | ✅ |  |  |  | OK |  |
-| `idct2` | ❌ |  |  |  |  |  |
+| `idct2` | ✅ |  |  |  | OK | inverse 2-D DCT |
 | `ifanbeam` | ❌ |  |  |  |  |  |
 | `ifft2` | ✅ |  |  |  | OK |  |
 | `ifftshift` | ✅ |  |  |  | OK |  |

@@ -83,6 +83,11 @@ void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void psnr_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// transform/transform.cpp
+void dct2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void idct2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dctmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -160,6 +165,10 @@ void ImageLibrary::install(Engine &engine)
     reg("quality", "immse", &image::detail::immse_reg);
     reg("quality", "psnr",  &image::detail::psnr_reg);
     reg("quality", "ssim",  &image::detail::ssim_reg);
+
+    reg("transform", "dct2",   &image::detail::dct2_reg);
+    reg("transform", "idct2",  &image::detail::idct2_reg);
+    reg("transform", "dctmtx", &image::detail::dctmtx_reg);
 }
 
 } // namespace numkit
