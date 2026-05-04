@@ -2902,7 +2902,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `cmap2gray` | ❌ | 0.003 |  |  | N/A | Sig: gmap = cmap2gray(cmap). N×3 colormap → N×1 grayscale via Octave-image weights (0.298936, 0.587043, 0.114021). Octave-image has cmap2gray; cross-check expected OK. |
+| `cmap2gray` | ❌ | 0.003 | 157.35× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
 | `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
 | `gray2ind` | ❌ | 0.006 |  | 35.67× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |

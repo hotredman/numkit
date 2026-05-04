@@ -921,21 +921,31 @@ Value summer_cmap(std::pmr::memory_resource *mr, int n)
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
-    if (d.is3D() || d.cols() != 3)
+    if (d.is3D() || d.cols() != 3 || d.rows() < 1)
         throw Error("cmap2gray: CMAP must be an N-by-3 colormap",
                     0, 0, "cmap2gray", "", "m:cmap2gray:shape");
     const size_t N = d.rows();
-    Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
-    if (N == 0) return out;
+    Value out = Value::matrix(N, 3, ValueType::DOUBLE, mr);
     double *od = out.doubleDataMut();
-    // Octave-image weights (4-5 sig fig). Differs from MATLAB's 4-fig
-    // Rec.601, but is what `cmap*[w_R; w_G; w_B]` produces in Octave.
-    constexpr double Cr = 0.298936, Cg = 0.587043, Cb = 0.114021;
+    // MATLAB R2020b+ derives Y from inv(YIQ→RGB) — first row of inv
+    // matrix [1 0.956 0.621; 1 -0.272 -0.647; 1 -1.106 1.703]. Full
+    // double-precision (matches MATLAB's runtime `inv` to 1 ULP):
+    // [0.29893602129377539, 0.58704307445112136, 0.11402090425510331].
+    // Output is N×3 with the same grayscale value replicated across
+    // R/G/B, clipped to [0, 1].
+    constexpr double Cr = 0.29893602129377539;
+    constexpr double Cg = 0.58704307445112136;
+    constexpr double Cb = 0.11402090425510331;
     for (size_t i = 0; i < N; ++i) {
         const double r = cmap.elemAsDouble(0 * N + i);
         const double g = cmap.elemAsDouble(1 * N + i);
         const double b = cmap.elemAsDouble(2 * N + i);
-        od[i] = Cr * r + Cg * g + Cb * b;
+        double y = Cr * r + Cg * g + Cb * b;
+        if (y < 0.0) y = 0.0;
+        if (y > 1.0) y = 1.0;
+        od[0 * N + i] = y;
+        od[1 * N + i] = y;
+        od[2 * N + i] = y;
     }
     return out;
 }
