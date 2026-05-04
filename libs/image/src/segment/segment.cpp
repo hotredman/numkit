@@ -163,7 +163,88 @@ Value label2idx(std::pmr::memory_resource *mr, const Value &L)
     return cell;
 }
 
+Value grayconnected(std::pmr::memory_resource *mr,
+                    const Value &I, int row, int col, double tol)
+{
+    const int H = static_cast<int>(I.dims().rows());
+    const int W = static_cast<int>(I.dims().cols());
+    Value out = Value::matrix(static_cast<size_t>(H),
+                              static_cast<size_t>(W),
+                              ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0) return out;
+
+    // 1-based MATLAB → 0-based.
+    const int r0 = row - 1;
+    const int c0 = col - 1;
+    if (r0 < 0 || r0 >= H || c0 < 0 || c0 >= W)
+        throw Error("grayconnected: seed out of bounds",
+                    0, 0, "grayconnected", "", "m:grayconnected:seed");
+
+    // Auto-pick tolerance if caller passed a negative sentinel.
+    if (tol < 0.0) {
+        switch (I.type()) {
+            case ValueType::UINT8:  tol = 32.0;            break;
+            case ValueType::INT8:   tol = 32.0;            break;
+            case ValueType::UINT16: tol = 32.0 * 256.0;    break;
+            case ValueType::INT16:  tol = 32.0 * 256.0;    break;
+            default:                tol = 0.125;            break; // [0, 1] floats
+        }
+    }
+
+    auto idxAt = [&](int r, int c) {
+        return static_cast<size_t>(c) * static_cast<size_t>(H) +
+               static_cast<size_t>(r);
+    };
+    const double seedVal = I.elemAsDouble(idxAt(r0, c0));
+    std::uint8_t *od = out.logicalDataMut();
+    std::vector<std::uint8_t> visited(static_cast<size_t>(H) *
+                                       static_cast<size_t>(W), 0);
+
+    // BFS with an explicit deque (vector + read head).
+    std::vector<std::pair<int, int>> q;
+    q.reserve(static_cast<size_t>(H) * static_cast<size_t>(W) / 4 + 4);
+    q.emplace_back(r0, c0);
+    visited[static_cast<size_t>(r0) * static_cast<size_t>(W) +
+            static_cast<size_t>(c0)] = 1;
+    od[idxAt(r0, c0)] = 1;
+    static const int dr8[8] = { -1,-1,-1, 0, 0, 1, 1, 1 };
+    static const int dc8[8] = { -1, 0, 1,-1, 1,-1, 0, 1 };
+
+    size_t head = 0;
+    while (head < q.size()) {
+        const auto [r, c] = q[head++];
+        for (int k = 0; k < 8; ++k) {
+            const int nr = r + dr8[k];
+            const int nc = c + dc8[k];
+            if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
+            const size_t fi = static_cast<size_t>(nr) *
+                                static_cast<size_t>(W) +
+                              static_cast<size_t>(nc);
+            if (visited[fi]) continue;
+            const double v = I.elemAsDouble(idxAt(nr, nc));
+            if (std::abs(v - seedVal) > tol) continue;
+            visited[fi] = 1;
+            od[idxAt(nr, nc)] = 1;
+            q.emplace_back(nr, nc);
+        }
+    }
+    return out;
+}
+
 namespace detail {
+
+void grayconnected_reg(Span<const Value> a, size_t, Span<Value> o,
+                       CallContext &c)
+{
+    if (a.size() < 3)
+        throw Error("grayconnected: requires (I, row, col [, tol])",
+                    0, 0, "grayconnected", "", "m:grayconnected:nargin");
+    const int row = static_cast<int>(a[1].toScalar());
+    const int col = static_cast<int>(a[2].toScalar());
+    double tol = -1.0;
+    if (a.size() >= 4 && !a[3].isEmpty()) tol = a[3].toScalar();
+    o[0] = grayconnected(c.engine->resource(), a[0], row, col, tol);
+}
 
 void dice_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
 {

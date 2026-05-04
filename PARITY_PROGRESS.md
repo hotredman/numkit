@@ -2735,7 +2735,7 @@ vector path-loss models and coordinate transforms.
 
 ## Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...)
 
-**Namespace:** `signal.spectral_analysis.*` — 5 ✅ + 0 ⚠️ / 17 = 29%
+**Namespace:** `signal.spectral_analysis.*` — 6 ✅ + 0 ⚠️ / 17 = 35%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -2755,7 +2755,7 @@ vector path-loss models and coordinate transforms.
 | `pwelch` | ✅ | 0.063 | 19.59× | 14.55× | MISMATCH | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
 | `refinepeaks` | ❌ |  |  |  |  |  |
 | `spectralentropy` | ✅ |  |  |  |  |  |
-| `tfestimate` | ❌ |  |  |  |  | TF estimate |
+| `tfestimate` | ✅ |  |  |  | OK | Pyx/Pxx; auto = 1 exactly, FIR LTI recovers \|H(f)\| within 0.018 |
 
 ## Spectral Measurements (bandpower / snr / sinad / thd / ...)
 
@@ -3186,7 +3186,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 ## Image Segmentation
 
-**Namespace:** `image.segment.*` — 4 ✅ + 0 ⚠️ / 22 = 18%
+**Namespace:** `image.segment.*` — 5 ✅ + 0 ⚠️ / 22 = 23%
 
 Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
 
@@ -3198,7 +3198,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `dice` | ✅ |  |  |  | OK | 2·\|A∩B\| / (\|A\|+\|B\|); both empty → 1 |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ❌ |  |  |  |  |  |
+| `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
 | `graydiffweight` | ❌ |  |  |  |  |  |
 | `imoverlay` | ❌ |  |  |  |  |  |
 | `imseggeodesic` | ❌ |  |  |  |  |  |

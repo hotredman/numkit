@@ -301,6 +301,30 @@ mscohere(std::pmr::memory_resource *mr,
     return std::make_tuple(std::move(Cxy), std::move(F));
 }
 
+std::tuple<Value, Value>
+tfestimate(std::pmr::memory_resource *mr,
+           const Value &x, const Value &y,
+           const Value &window, size_t noverlap, size_t nfft)
+{
+    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    const size_t nOut = o.Sxx.size();
+    Value Txy = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
+    Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    auto *td = Txy.complexDataMut();
+    auto *fd = F.doubleDataMut();
+    // MATLAB convention: Txy = Pyx / Pxx where Pyx = E[Y · conj(X)]
+    // = conj(Pxy). The per-segment scaling factor cancels in the
+    // ratio, so the raw accumulators are sufficient.
+    for (size_t i = 0; i < nOut; ++i) {
+        const std::complex<double> Syx = std::conj(o.Sxy[i]);
+        td[i] = (o.Sxx[i] > 0.0)
+                ? Syx / o.Sxx[i]
+                : std::complex<double>(0.0, 0.0);
+        fd[i] = o.F[i];
+    }
+    return std::make_tuple(std::move(Txy), std::move(F));
+}
+
 namespace detail {
 
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -365,6 +389,21 @@ void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, Call
     auto [Cxy, F] = mscohere(ctx.engine->resource(), args[0], args[1],
                              window, noverlap, nfft);
     outs[0] = std::move(Cxy);
+    if (nargout > 1) outs[1] = std::move(F);
+}
+
+void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("tfestimate: requires (x, y[, window, noverlap, nfft])",
+                    0, 0, "tfestimate", "", "m:tfestimate:nargin");
+    Value window = Value::empty();
+    if (args.size() >= 3 && !args[2].isChar()) window = args[2];
+    const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
+    const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    auto [Txy, F] = tfestimate(ctx.engine->resource(), args[0], args[1],
+                               window, noverlap, nfft);
+    outs[0] = std::move(Txy);
     if (nargout > 1) outs[1] = std::move(F);
 }
 
