@@ -231,7 +231,93 @@ Value grayconnected(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value imoverlay(std::pmr::memory_resource *mr,
+                const Value &I, const Value &BW, const Value &color)
+{
+    if (color.numel() != 3)
+        throw Error("imoverlay: color must be a 1×3 RGB triple",
+                    0, 0, "imoverlay", "", "m:imoverlay:color");
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    if (BW.dims().rows() != H || BW.dims().cols() != W)
+        throw Error("imoverlay: BW must match the H × W of I",
+                    0, 0, "imoverlay", "", "m:imoverlay:shape");
+
+    // Detect input layout: H × W (grayscale) or H × W × 3 (RGB).
+    bool isRGB;
+    if (I.numel() == H * W) isRGB = false;
+    else if (I.numel() == H * W * 3) isRGB = true;
+    else
+        throw Error("imoverlay: I must be H × W or H × W × 3",
+                    0, 0, "imoverlay", "", "m:imoverlay:shape");
+
+    // Read color. Auto-detect float (0..1) vs byte (0..255) by max
+    // value: if all three channels ≤ 1.0 we assume 0..1, else 0..255.
+    double cIn[3] = { color.elemAsDouble(0),
+                       color.elemAsDouble(1),
+                       color.elemAsDouble(2) };
+    const bool floatColour = (cIn[0] <= 1.0 && cIn[1] <= 1.0 &&
+                               cIn[2] <= 1.0);
+    int cByte[3];
+    for (int k = 0; k < 3; ++k) {
+        double v = floatColour ? cIn[k] * 255.0 : cIn[k];
+        if (v < 0.0) v = 0.0;
+        if (v > 255.0) v = 255.0;
+        cByte[k] = static_cast<int>(std::lround(v));
+    }
+
+    // Helper: read I element as 0..255 byte.
+    const ValueType srcT = I.type();
+    auto pixelByte = [&](size_t y, size_t x, int chan) {
+        size_t idx;
+        if (isRGB)
+            idx = static_cast<size_t>(chan) * H * W + x * H + y;
+        else
+            idx = x * H + y;
+        const double v = I.elemAsDouble(idx);
+        double w = v;
+        if (srcT != ValueType::UINT8 && srcT != ValueType::UINT16 &&
+            srcT != ValueType::INT8  && srcT != ValueType::INT16) {
+            // Floating point: assume [0, 1].
+            w = v * 255.0;
+        } else if (srcT == ValueType::UINT16) {
+            w = v / 257.0;
+        } else if (srcT == ValueType::INT16) {
+            w = (v + 32768.0) / 257.0;
+        }
+        if (w < 0.0) w = 0.0;
+        if (w > 255.0) w = 255.0;
+        return static_cast<std::uint8_t>(std::lround(w));
+    };
+
+    Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+    std::uint8_t *od = out.uint8DataMut();
+    const size_t plane = H * W;
+    for (size_t y = 0; y < H; ++y)
+        for (size_t x = 0; x < W; ++x) {
+            const bool flag = (BW.elemAsDouble(x * H + y) != 0.0);
+            for (int c = 0; c < 3; ++c) {
+                const size_t outIdx = static_cast<size_t>(c) * plane +
+                                       x * H + y;
+                if (flag)
+                    od[outIdx] = static_cast<std::uint8_t>(cByte[c]);
+                else
+                    od[outIdx] = pixelByte(y, x, isRGB ? c : 0);
+            }
+        }
+    return out;
+}
+
 namespace detail {
+
+void imoverlay_reg(Span<const Value> a, size_t, Span<Value> o,
+                   CallContext &c)
+{
+    if (a.size() < 3)
+        throw Error("imoverlay: requires (I, BW, color)",
+                    0, 0, "imoverlay", "", "m:imoverlay:nargin");
+    o[0] = imoverlay(c.engine->resource(), a[0], a[1], a[2]);
+}
 
 void grayconnected_reg(Span<const Value> a, size_t, Span<Value> o,
                        CallContext &c)

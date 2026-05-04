@@ -3186,7 +3186,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 ## Image Segmentation
 
-**Namespace:** `image.segment.*` — 5 ✅ + 0 ⚠️ / 22 = 23%
+**Namespace:** `image.segment.*` — 6 ✅ + 0 ⚠️ / 22 = 27%
 
 Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
 
@@ -3200,7 +3200,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
 | `graydiffweight` | ❌ |  |  |  |  |  |
-| `imoverlay` | ❌ |  |  |  |  |  |
+| `imoverlay` | ✅ |  |  |  | OK | gray or RGB input → H×W×3 uint8; auto byte/float colour |
 | `imseggeodesic` | ❌ |  |  |  |  |  |
 | `imsegfmm` | ❌ |  |  |  |  | fast marching |
 | `imsegisodata` | ❌ |  |  |  |  |  |

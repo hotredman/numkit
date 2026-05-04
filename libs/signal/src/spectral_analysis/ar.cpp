@@ -74,15 +74,15 @@ arSpectrum(std::pmr::memory_resource *mr,
 
 } // anonymous
 
-std::tuple<Value, Value>
-pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
-{
-    requireValidArgs(x, p, "pyulear");
-    const size_t N = x.numel();
-    const size_t pp = static_cast<size_t>(p);
-    if (nfft == 0) nfft = (N >= 256) ? 256 : 256;
+// Yule-Walker fit shared by pyulear / aryule / lpc.
+// Returns AR coefficients a[0..p-1] (representing
+// 1 + a_1·z^-1 + … + a_p·z^-p) and the prediction-error variance σ²
+// via Levinson-Durbin recursion on the biased autocorrelation.
+namespace {
+struct YWFit { std::vector<double> a; double sigma2; };
 
-    // Biased autocorrelation r[k] = (1/N) Σ x[n]·x[n+k] for k=0..p.
+YWFit yuleWalkerFit(const Value &x, size_t pp) {
+    const size_t N = x.numel();
     std::vector<double> r(pp + 1, 0.0);
     for (size_t k = 0; k <= pp; ++k) {
         double s = 0.0;
@@ -90,8 +90,6 @@ pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
             s += x.elemAsDouble(n) * x.elemAsDouble(n + k);
         r[k] = s / static_cast<double>(N);
     }
-
-    // Levinson-Durbin: solve r * a = -r[1..p], return (a[1..p], σ²).
     std::vector<double> a(pp, 0.0);
     double sigma2 = r[0];
     if (pp >= 1) {
@@ -100,12 +98,9 @@ pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
         a[0] = k1;
         sigma2 = r[0] * (1.0 - k1 * k1);
         for (size_t m = 1; m < pp; ++m) {
-            // kappa = -(r[m+1] + Σ_{k=0..m-1} a[k]·r[m-k]) / sigma2
             double num = r[m + 1];
             for (size_t k = 0; k < m; ++k) num += a[k] * r[m - k];
             const double kappa = -num / sigma2;
-            // a' [k] = a[k] + kappa * a[m-1-k]   for k=0..m-1
-            // a' [m] = kappa
             for (size_t k = 0; k < m; ++k) aPrev[k] = a[k];
             for (size_t k = 0; k < m; ++k)
                 a[k] = aPrev[k] + kappa * aPrev[m - 1 - k];
@@ -113,8 +108,25 @@ pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
             sigma2 *= (1.0 - kappa * kappa);
         }
     }
-    return arSpectrum(mr, a, sigma2, nfft);
+    return {std::move(a), sigma2};
 }
+
+} // anonymous
+
+std::tuple<Value, Value>
+pyulear(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
+{
+    requireValidArgs(x, p, "pyulear");
+    if (nfft == 0) nfft = 256;
+    auto fit = yuleWalkerFit(x, static_cast<size_t>(p));
+    return arSpectrum(mr, fit.a, fit.sigma2, nfft);
+}
+
+// `aryule` / `lpc` live in libs/signal/src/spectral_analysis/
+// signal_modeling.cpp — predates this TU. We re-use the
+// yuleWalkerFit helper above for pyulear; the existing aryule / lpc
+// implementations have been around since before the parametric-AR
+// stack was even on the parity map.
 
 std::tuple<Value, Value>
 pburg(std::pmr::memory_resource *mr, const Value &x, int p, size_t nfft)
@@ -207,6 +219,8 @@ void pburg_reg(Span<const Value> args, size_t nargout,
     outs[0] = std::move(Pxx);
     if (nargout > 1) outs[1] = std::move(F);
 }
+
+// aryule_reg / lpc_reg live in signal_modeling.cpp.
 
 } // namespace detail
 
