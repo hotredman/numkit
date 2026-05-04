@@ -304,6 +304,112 @@ Value imtranslate(std::pmr::memory_resource *mr,
     return B;
 }
 
+Value impyramid(std::pmr::memory_resource *mr,
+                const Value &A, const std::string &type)
+{
+    // Binomial 5-tap kernel [1 4 6 4 1]/16 (MATLAB / Octave default).
+    static constexpr double kBurt[5] = {1.0 / 16, 4.0 / 16, 6.0 / 16,
+                                        4.0 / 16, 1.0 / 16};
+    const Shape s = shapeOf(A);
+    const ValueType t = A.type();
+
+    bool reduce;
+    if      (type == "reduce" || type == "Reduce") reduce = true;
+    else if (type == "expand" || type == "Expand") reduce = false;
+    else throw Error("impyramid: type must be 'reduce' or 'expand'",
+                     0, 0, "impyramid", "", "m:impyramid:type");
+
+    size_t Hout, Wout;
+    if (reduce) { Hout = (s.H + 1) / 2; Wout = (s.W + 1) / 2; }
+    else        { Hout = s.H ? 2 * s.H - 1 : 0;
+                  Wout = s.W ? 2 * s.W - 1 : 0; }
+
+    Value B = makeOut(mr, Hout, Wout, s.C, t);
+    if (s.H == 0 || s.W == 0 || Hout == 0 || Wout == 0) return B;
+    Shape sd{Hout, Wout, s.C};
+
+    auto clamp_i = [](int i, int N) {
+        if (i < 0) return 0;
+        if (i >= N) return N - 1;
+        return i;
+    };
+
+    if (reduce) {
+        for (size_t c = 0; c < s.C; ++c) {
+            // Pass 1: horizontal filter at every (r, cc).
+            std::vector<double> tmp(s.H * s.W);
+            for (size_t r = 0; r < s.H; ++r) {
+                for (size_t cc = 0; cc < s.W; ++cc) {
+                    double acc = 0;
+                    for (int k = -2; k <= 2; ++k) {
+                        const int cs = clamp_i((int)cc + k, (int)s.W);
+                        acc += kBurt[k + 2] *
+                               A.elemAsDouble(idx3D(s, r, (size_t)cs, c));
+                    }
+                    tmp[cc * s.H + r] = acc;
+                }
+            }
+            // Pass 2: vertical filter at sample positions only.
+            for (size_t yo = 0; yo < Hout; ++yo) {
+                const size_t ys = 2 * yo;
+                for (size_t xo = 0; xo < Wout; ++xo) {
+                    const size_t xs = 2 * xo;
+                    double acc = 0;
+                    for (int k = -2; k <= 2; ++k) {
+                        const int rs = clamp_i((int)ys + k, (int)s.H);
+                        acc += kBurt[k + 2] * tmp[xs * s.H + (size_t)rs];
+                    }
+                    writePixel(B, sd, yo, xo, c, acc, t);
+                }
+            }
+        }
+    } else {
+        // Octave-image (Burt-Adelson Laplacian-pyramid expand) uses
+        // ZERO-pad boundary on the zero-stuffed grid, with separable
+        // ×2 compensation per axis (×4 total).
+        for (size_t c = 0; c < s.C; ++c) {
+            // Zero-stuff into Hout × Wout double buffer.
+            std::vector<double> stuffed(Hout * Wout, 0.0);
+            for (size_t r = 0; r < s.H; ++r)
+                for (size_t cc = 0; cc < s.W; ++cc)
+                    stuffed[(2 * cc) * Hout + 2 * r] =
+                        A.elemAsDouble(idx3D(s, r, cc, c));
+
+            auto sample = [&](int r, int cc) -> double {
+                if (r < 0 || cc < 0 ||
+                    r >= (int)Hout || cc >= (int)Wout) return 0.0;
+                return stuffed[(size_t)cc * Hout + (size_t)r];
+            };
+
+            // Horizontal filter (zero-pad boundary), ×2 compensation.
+            std::vector<double> tmp(Hout * Wout);
+            for (size_t r = 0; r < Hout; ++r) {
+                for (size_t cc = 0; cc < Wout; ++cc) {
+                    double acc = 0;
+                    for (int k = -2; k <= 2; ++k)
+                        acc += kBurt[k + 2] * sample((int)r, (int)cc + k);
+                    tmp[cc * Hout + r] = 2.0 * acc;
+                }
+            }
+            auto sample_t = [&](int r, int cc) -> double {
+                if (r < 0 || cc < 0 ||
+                    r >= (int)Hout || cc >= (int)Wout) return 0.0;
+                return tmp[(size_t)cc * Hout + (size_t)r];
+            };
+            // Vertical filter (zero-pad boundary), ×2 compensation.
+            for (size_t cc = 0; cc < Wout; ++cc) {
+                for (size_t r = 0; r < Hout; ++r) {
+                    double acc = 0;
+                    for (int k = -2; k <= 2; ++k)
+                        acc += kBurt[k + 2] * sample_t((int)r + k, (int)cc);
+                    writePixel(B, sd, r, cc, c, 2.0 * acc, t);
+                }
+            }
+        }
+    }
+    return B;
+}
+
 namespace detail {
 
 static std::string argString(const Value &v) {
@@ -375,6 +481,16 @@ void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     outs[0] = imtranslate(ctx.engine->resource(), args[0],
                           args[1].elemAsDouble(0),
                           args[1].elemAsDouble(1));
+}
+
+void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                   CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("impyramid: requires (A, type)", 0, 0, "impyramid", "",
+                    "m:impyramid:nargin");
+    const std::string type = argString(args[1]);
+    outs[0] = impyramid(ctx.engine->resource(), args[0], type);
 }
 
 } // namespace detail

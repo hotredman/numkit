@@ -1,0 +1,10 @@
+{
+  "name": "impyramid",
+  "namespace": "image",
+  "setup": "I = double(reshape(0:63, [8 8]));",
+  "expr": "y = impyramid(I, 'reduce');",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK."
+}

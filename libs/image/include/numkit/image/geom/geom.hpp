@@ -41,4 +41,12 @@ Value imrotate(std::pmr::memory_resource *mr,
 Value imtranslate(std::pmr::memory_resource *mr,
                   const Value &A, double dx, double dy);
 
+/// `B = impyramid(A, type)` — Burt-Adelson 2-D pyramid step.
+/// type = "reduce" → output ceil(M/2)×ceil(N/2) after low-pass filtering
+/// type = "expand" → output (2M-1)×(2N-1) after zero-stuffing + filter
+/// 5-tap separable kernel [0.05 0.25 0.4 0.25 0.05] with replicate
+/// boundary; 3-D inputs processed per-channel.
+Value impyramid(std::pmr::memory_resource *mr,
+                const Value &A, const std::string &type);
+
 } // namespace numkit::image
