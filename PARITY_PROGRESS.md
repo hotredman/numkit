@@ -1884,7 +1884,7 @@ as a pair of flat decomposition / reconstruction functions.
 
 ## Communications Toolbox — Modulation
 
-**Namespace:** `comm.mod.*` — 0 ✅ + 0 ⚠️ / 29 = 0%
+**Namespace:** `comm.mod.*` — 4 ✅ + 0 ⚠️ / 29 = 14%
 
 Function-form modulators / demodulators. The `comm.PSKModulator` /
 `comm.QAMModulator` / `comm.OFDMModulator` System Object family is
@@ -1910,10 +1910,10 @@ intentionally omitted, along with `constellation` (object method) and
 | `fskdemod` | ❌ |  |  |  |  |  |
 | `ofdmmod` | ❌ |  |  |  |  | OFDM |
 | `ofdmdemod` | ❌ |  |  |  |  |  |
-| `dpskmod` | ❌ |  |  |  |  | differential PSK |
-| `dpskdemod` | ❌ |  |  |  |  |  |
-| `pskmod` | ❌ |  |  |  |  | M-ary PSK |
-| `pskdemod` | ❌ |  |  |  |  |  |
+| `dpskmod` | ✅ |  |  |  | OK | differential PSK |
+| `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
+| `pskmod` | ✅ |  |  |  | OK | M-ary PSK; gray (default) / bin orderings |
+| `pskdemod` | ✅ |  |  |  | OK | nearest-phase decision |
 | `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
 | `amdemod` | ❌ |  |  |  |  |  |
 | `fmmod` | ❌ |  |  |  |  | frequency modulation |
