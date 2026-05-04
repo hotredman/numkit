@@ -1406,6 +1406,96 @@ Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
     return out;
 }
 
+// 1-D Gaussian kernel of length 2*ceil(2σ)+1, normalised.
+static std::vector<double> gauss1d_kernel(double sigma) {
+    if (!(sigma > 0.0)) sigma = 0.5;
+    int half = static_cast<int>(std::ceil(2.0 * sigma));
+    if (half < 1) half = 1;
+    const int K = 2 * half + 1;
+    std::vector<double> k(static_cast<size_t>(K));
+    double sum = 0.0;
+    const double inv2s2 = 0.5 / (sigma * sigma);
+    for (int i = -half; i <= half; ++i) {
+        const double w = std::exp(-static_cast<double>(i * i) * inv2s2);
+        k[static_cast<size_t>(i + half)] = w;
+        sum += w;
+    }
+    const double inv = 1.0 / sum;
+    for (double &x : k) x *= inv;
+    return k;
+}
+
+Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
+                   double sigH, double sigW, double sigP)
+{
+    const ValueType cls = V.type();
+    const int H = static_cast<int>(V.dims().rows());
+    const int W = static_cast<int>(V.dims().cols());
+    const int P = V.dims().is3D() ? static_cast<int>(V.dims().pages()) : 1;
+    Value out = (P > 1) ? Value::matrix3d(H, W, P, cls, mr)
+                        : Value::matrix(H, W, cls, mr);
+    if (H == 0 || W == 0 || P == 0) return out;
+
+    const auto kH = gauss1d_kernel(sigH);
+    const auto kW = gauss1d_kernel(sigW);
+    const auto kP = gauss1d_kernel(sigP);
+    const int hH = static_cast<int>(kH.size()) / 2;
+    const int hW = static_cast<int>(kW.size()) / 2;
+    const int hP = static_cast<int>(kP.size()) / 2;
+
+    const size_t total = static_cast<size_t>(H)
+                       * static_cast<size_t>(W)
+                       * static_cast<size_t>(P);
+    std::vector<double> a(total), b(total);
+    for (size_t i = 0; i < total; ++i) a[i] = V.elemAsDouble(i);
+
+    // Pass 1: along H axis.
+    for (int p = 0; p < P; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                double acc = 0.0;
+                for (int k = -hH; k <= hH; ++k) {
+                    const int rs = fold_index(r + k, H, PadMode::Replicate);
+                    acc += kH[static_cast<size_t>(k + hH)] *
+                           a[(size_t)p * H * W + (size_t)c * H + (size_t)rs];
+                }
+                b[(size_t)p * H * W + (size_t)c * H + (size_t)r] = acc;
+            }
+        }
+    }
+    // Pass 2: along W axis.
+    for (int p = 0; p < P; ++p) {
+        for (int r = 0; r < H; ++r) {
+            for (int c = 0; c < W; ++c) {
+                double acc = 0.0;
+                for (int k = -hW; k <= hW; ++k) {
+                    const int cs = fold_index(c + k, W, PadMode::Replicate);
+                    acc += kW[static_cast<size_t>(k + hW)] *
+                           b[(size_t)p * H * W + (size_t)cs * H + (size_t)r];
+                }
+                a[(size_t)p * H * W + (size_t)c * H + (size_t)r] = acc;
+            }
+        }
+    }
+    // Pass 3: along P axis.
+    for (int p = 0; p < P; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                double acc = 0.0;
+                for (int k = -hP; k <= hP; ++k) {
+                    const int ps = fold_index(p + k, P, PadMode::Replicate);
+                    acc += kP[static_cast<size_t>(k + hP)] *
+                           a[(size_t)ps * H * W + (size_t)c * H + (size_t)r];
+                }
+                store_classed(out,
+                              (size_t)p * H * W + (size_t)c * H + (size_t)r,
+                              acc, cls);
+            }
+        }
+    }
+    return out;
+}
+
 Value convmtx2(std::pmr::memory_resource *mr,
                const Value &h, int m, int n)
 {
@@ -1697,6 +1787,26 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+}
+
+void imgaussfilt3_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imgaussfilt3: requires (V[, sigma])",
+                    0, 0, "imgaussfilt3", "", "m:imgaussfilt3:nargin");
+    double sigH = 0.5, sigW = 0.5, sigP = 0.5;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) {
+            sigH = sigW = sigP = v.toScalar();
+        } else if (v.numel() >= 3) {
+            sigH = v.elemAsDouble(0);
+            sigW = v.elemAsDouble(1);
+            sigP = v.elemAsDouble(2);
+        }
+    }
+    outs[0] = imgaussfilt3(ctx.engine->resource(), args[0], sigH, sigW, sigP);
 }
 
 void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,

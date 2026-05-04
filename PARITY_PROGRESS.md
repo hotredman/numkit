@@ -3047,7 +3047,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
 | `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgaussfilt3` | ❌ |  |  |  |  |  |
+| `imgaussfilt3` | ❌ | 0.008 | 320.13× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
