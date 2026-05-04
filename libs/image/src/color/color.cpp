@@ -1287,6 +1287,26 @@ Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
     return out;
 }
 
+Value brighten(std::pmr::memory_resource *mr, const Value &map, double beta)
+{
+    if (!(beta > -1.0 && beta < 1.0))
+        throw Error("brighten: BETA must be a scalar in the range (-1, 1)",
+                    0, 0, "brighten", "", "m:brighten:beta");
+    const double gamma = (beta > 0.0) ? (1.0 - beta) : (1.0 / (1.0 + beta));
+    const auto &d = map.dims();
+    if (d.is3D() || d.cols() != 3)
+        throw Error("brighten: input must be an N-by-3 colormap",
+                    0, 0, "brighten", "", "m:brighten:shape");
+    const size_t N = map.numel();
+    Value out = Value::matrix(d.rows(), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = map.elemAsDouble(i);
+        od[i] = std::pow(v, gamma);
+    }
+    return out;
+}
+
 Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz)
 {
     const auto &d = xyz.dims();
@@ -1970,6 +1990,16 @@ void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("xyz2uint16: requires (xyz)", 0, 0, "xyz2uint16", "",
                     "m:xyz2uint16:nargin");
     outs[0] = xyz2uint16(ctx.engine->resource(), args[0]);
+}
+
+void brighten_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("brighten: requires (map, beta)", 0, 0, "brighten", "",
+                    "m:brighten:nargin");
+    const double beta = args[1].toScalar();
+    outs[0] = brighten(ctx.engine->resource(), args[0], beta);
 }
 
 void deltaE_reg(Span<const Value> args, size_t /*nargout*/,

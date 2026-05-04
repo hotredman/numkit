@@ -3378,3 +3378,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `lines` | — | 0.003 | 230.31× | 41.74× | OK | Sig: map = lines([n]). Cycles the figure axes colororder. We pin the MATLAB R2025b factory 7-row palette (Octave's older default differs). MATLAB+factory; harness ranks MATLAB as truth so OK is expected. |
 | `bone` | — | 0.004 | 246.57× | 69.89× | OK | Sig: map = bone([n]). N×3 grayscale-with-blue-tint colormap. Per Octave's bone.m: idx=floor(3/4·n) for R, idx=floor(3/8·n) for G/B; piecewise linspace ramps; switch on mod(n,8) for base. Default n=256. MATLAB+Octave both match. |
 | `white` | — | 0.003 | 117.13× | 61.79× | OK | Sig: map = white([n]). N×3 all-ones colormap. Default n=256. MATLAB+Octave both ship white. |
+| `brighten` | — | 0.005 | 77.84× | 21.06× | OK | Sig: rmap = brighten(map, beta). Output = map .^ gamma where gamma = 1-beta if beta>0 else 1/(1+beta). MATLAB+Octave both ship brighten. |

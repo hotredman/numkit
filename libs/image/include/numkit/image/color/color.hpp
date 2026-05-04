@@ -177,6 +177,13 @@ Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz);
 /// to 65535. uint16 input is passed through. Shape preserved.
 Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz);
 
+/// `rmap = brighten(map, beta)` — gamma-adjust an N×3 colormap.
+/// `beta` ∈ (−1, 1). Output is `map .^ gamma` where gamma = 1−β
+/// for β>0 (brighter) or gamma = 1/(1+β) for β≤0 (darker).
+/// Range outside the open interval errors.
+Value brighten(std::pmr::memory_resource *mr,
+               const Value &map, double beta);
+
 /// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
 /// difference. Default treats inputs as RGB and converts to L*a*b*
 /// internally; pass `isInputLab=true` to skip the conversion.
