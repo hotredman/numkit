@@ -109,6 +109,7 @@ void imtophat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imbothat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwhitmiss_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void applylut_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mmgradm_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwpack_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwunpack_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
@@ -292,6 +293,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imbothat",      &image::detail::imbothat_reg);
     reg("morph", "bwhitmiss",     &image::detail::bwhitmiss_reg);
     reg("morph", "applylut",      &image::detail::applylut_reg);
+    reg("morph", "mmgradm",       &image::detail::mmgradm_reg);
     reg("morph", "bwpack",        &image::detail::bwpack_reg);
     reg("morph", "bwunpack",      &image::detail::bwunpack_reg);
 
