@@ -1,0 +1,10 @@
+{
+  "name": "whitepoint",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = [whitepoint('d65'); whitepoint('d50'); whitepoint('a'); whitepoint('e'); whitepoint('icc')];",
+  "iters": 5,
+  "tol": 1e-08,
+  "out_var": "y",
+  "comment": "Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint."
+}

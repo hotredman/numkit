@@ -2959,7 +2959,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
-| `whitepoint` | ❌ |  |  |  |  | tristimulus white-points |
+| `whitepoint` | ❌ | 0.005 | 150.33× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
 | `xyz2double` | ❌ |  |  |  |  |  |
 | `xyz2lab` | ✅ |  |  |  | OK |  |
 | `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |

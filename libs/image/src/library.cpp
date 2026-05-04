@@ -81,6 +81,7 @@ void bone_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void white_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2lin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lin2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void whitepoint_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -289,6 +290,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "white",         &image::detail::white_reg);
     reg("color", "rgb2lin",       &image::detail::rgb2lin_reg);
     reg("color", "lin2rgb",       &image::detail::lin2rgb_reg);
+    reg("color", "whitepoint",    &image::detail::whitepoint_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);

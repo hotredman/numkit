@@ -164,6 +164,18 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
 /// Same class-promotion rule as rgb2lin (integer in → single out).
 Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
 
+/// `wp = whitepoint([illuminant])` — 1×3 XYZ tristimulus value of
+/// a CIE reference illuminant. Supported (case-insensitive):
+///   'a'   → [1.0985 1.0000 0.3558]      (Tungsten 2856 K)
+///   'c'   → [0.9807 1.0000 1.1823]      (Average daylight)
+///   'd50' → [0.96419866 1.0 0.82511648] (Horizon)
+///   'd55' → [0.9568 1.0 0.9214]         (Mid-morning daylight)
+///   'd65' → [0.95047 1.0 1.08883]       (Noon daylight)
+///   'e'   → [1 1 1]                     (Equal-energy)
+///   'icc' → [0.96420288 1.0 0.82489014] (default; ICC profile D50)
+Value whitepoint(std::pmr::memory_resource *mr,
+                 const std::string &illuminant);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
