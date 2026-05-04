@@ -390,6 +390,82 @@ Value imfill_holes(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imregionalmax / imregionalmin
+// ════════════════════════════════════════════════════════════════════
+//
+// Standard formula:  regmax(I) = (I − imreconstruct(I − 1, I)) > 0.
+// The marker (I − 1) is below I except at regional maxima, where the
+// reconstruction can't grow back up to I (because dilation only takes
+// from neighbours that are themselves capped at I − 1). So pixels
+// where the reconstruction equals I lie outside any regional max,
+// and pixels where it stays below I are exactly the maxima.
+//
+// imregionalmin reuses imregionalmax on a value-inverted copy of I:
+//   typeMax − I    for unsigned integer classes
+//   − I             for signed / floating-point
+// Inverting flips peaks↔troughs, so regional maxima of −I are the
+// regional minima of I.
+
+Value imregionalmax(std::pmr::memory_resource *mr,
+                    const Value &I, int conn)
+{
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (N == 0) return out;
+
+    // Build the marker = max(I − 1, lower_bound). Use DOUBLE through
+    // the operation to avoid the integer-saturation surprise for
+    // I = 0 / I = INT_MIN / etc.
+    Value marker = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value mask   = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *md = marker.doubleDataMut();
+    double *kd = mask.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        kd[i] = v;
+        md[i] = v - 1.0;
+    }
+    Value R = imreconstruct(mr, marker, mask, conn);
+
+    // Output = (I > R).
+    std::uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double iv = I.elemAsDouble(i);
+        const double rv = R.elemAsDouble(i);
+        od[i] = (iv > rv) ? 1u : 0u;
+    }
+    return out;
+}
+
+Value imregionalmin(std::pmr::memory_resource *mr,
+                    const Value &I, int conn)
+{
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (N == 0) return out;
+
+    // Invert into a DOUBLE copy: (high - I) flips the order so peaks
+    // become troughs. high is chosen large enough that I_inv stays
+    // non-negative for unsigned classes (purely cosmetic — only the
+    // ordering matters).
+    double high = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        if (v > high) high = v;
+    }
+    Value Iinv = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *id = Iinv.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        id[i] = high - I.elemAsDouble(i);
+
+    return imregionalmax(mr, Iinv, conn);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -464,6 +540,28 @@ void imfill_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imfill_holes(mr, args[0], conn);
+}
+
+void imregionalmax_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imregionalmax: requires (I [, conn])",
+                    0, 0, "imregionalmax", "", "m:imregionalmax:nargin");
+    const int conn = (args.size() >= 2 && !args[1].isEmpty())
+                     ? static_cast<int>(args[1].toScalar()) : 8;
+    outs[0] = imregionalmax(ctx.engine->resource(), args[0], conn);
+}
+
+void imregionalmin_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imregionalmin: requires (I [, conn])",
+                    0, 0, "imregionalmin", "", "m:imregionalmin:nargin");
+    const int conn = (args.size() >= 2 && !args[1].isEmpty())
+                     ? static_cast<int>(args[1].toScalar()) : 8;
+    outs[0] = imregionalmin(ctx.engine->resource(), args[0], conn);
 }
 
 } // namespace detail

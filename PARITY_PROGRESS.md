@@ -3135,8 +3135,8 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imkeepborder` | ❌ |  |  |  |  |  |
 | `imopen` | ✅ |  |  |  | OK | erode → dilate |
 | `imreconstruct` | ✅ |  |  |  | OK | iterate dilate-and-cap until stable; binary + grayscale; conn=4/8 |
-| `imregionalmax` | ❌ |  |  |  |  |  |
-| `imregionalmin` | ❌ |  |  |  |  |  |
+| `imregionalmax` | ✅ |  |  |  | OK | (I − imreconstruct(I−1, I)) > 0 (Vincent 1993) |
+| `imregionalmin` | ✅ |  |  |  | OK | imregionalmax on inverted image |
 | `imtophat` | ❌ |  |  |  |  |  |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
