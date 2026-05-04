@@ -549,6 +549,71 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
+Value bwareafilt(std::pmr::memory_resource *mr,
+                 const Value &BW, double lo, double hi,
+                 size_t n_keep, bool keep_largest, int conn)
+{
+    if (conn != 4) conn = 8;
+    const int H = static_cast<int>(BW.dims().rows());
+    const int W = static_cast<int>(BW.dims().cols());
+
+    Value out = Value::matrix(static_cast<size_t>(H),
+                              static_cast<size_t>(W),
+                              ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0) return out;
+
+    auto [L, K] = label_components(read_bw(BW), H, W, conn);
+    if (K == 0) return out;
+
+    // Compute area per label (1-based labels in L).
+    std::vector<size_t> area(static_cast<size_t>(K) + 1, 0);
+    for (size_t i = 0; i < L.size(); ++i) {
+        const int k = L[i];
+        if (k > 0) ++area[static_cast<size_t>(k)];
+    }
+
+    // Decide kept labels.
+    std::vector<uint8_t> keep(static_cast<size_t>(K) + 1, 0);
+    if (n_keep > 0) {
+        // Top-N form. Sort labels [1..K] by area, ties by lower index.
+        std::vector<int> idx;
+        idx.reserve(static_cast<size_t>(K));
+        for (int k = 1; k <= K; ++k) idx.push_back(k);
+        if (keep_largest) {
+            std::sort(idx.begin(), idx.end(), [&](int a, int b) {
+                if (area[(size_t)a] != area[(size_t)b])
+                    return area[(size_t)a] > area[(size_t)b];
+                return a < b;
+            });
+        } else {
+            std::sort(idx.begin(), idx.end(), [&](int a, int b) {
+                if (area[(size_t)a] != area[(size_t)b])
+                    return area[(size_t)a] < area[(size_t)b];
+                return a < b;
+            });
+        }
+        const size_t take = std::min(n_keep, idx.size());
+        for (size_t i = 0; i < take; ++i)
+            keep[static_cast<size_t>(idx[i])] = 1;
+    } else {
+        // Range form.
+        for (int k = 1; k <= K; ++k) {
+            const double a = static_cast<double>(area[(size_t)k]);
+            keep[(size_t)k] = (a >= lo && a <= hi) ? 1u : 0u;
+        }
+    }
+
+    // Write output (col-major). L is row-major.
+    uint8_t *od = out.logicalDataMut();
+    for (int c = 0; c < W; ++c)
+        for (int r = 0; r < H; ++r) {
+            const int k = L[(size_t)r * (size_t)W + (size_t)c];
+            od[(size_t)c * (size_t)H + (size_t)r] =
+                (k > 0 && keep[(size_t)k]) ? 1u : 0u;
+        }
+    return out;
+}
+
 Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn)
 {
     // Pratt bit-quad LUT (Octave-image bweuler.m).
@@ -694,6 +759,49 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "m:bwdist:nargin");
     outs[0] = bwdist(ctx.engine->resource(), args[0]);
+}
+
+void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("bwareafilt: requires (BW, range|n [, keep] [, conn])",
+                    0, 0, "bwareafilt", "", "m:bwareafilt:nargin");
+    auto *mr = ctx.engine->resource();
+    double lo = 0.0, hi = std::numeric_limits<double>::infinity();
+    size_t n_keep = 0;
+    bool keep_largest = true;
+    int conn = 8;
+
+    const Value &v = args[1];
+    if (v.numel() >= 2) {
+        // Range form.
+        lo = v.elemAsDouble(0);
+        hi = v.elemAsDouble(1);
+    } else {
+        n_keep = static_cast<size_t>(v.toScalar());
+    }
+
+    // Parse remaining args: optional keep_str + conn (any order valid?
+    // Octave docs: keep before conn. Numeric → conn, string → keep.).
+    for (size_t i = 2; i < args.size(); ++i) {
+        const Value &a = args[i];
+        if (a.isEmpty()) continue;
+        if (a.isChar() || a.isString()) {
+            const std::string s = a.toString();
+            std::string lo_s;
+            lo_s.reserve(s.size());
+            for (char c : s) lo_s.push_back(static_cast<char>(std::tolower(c)));
+            if      (lo_s == "largest")  keep_largest = true;
+            else if (lo_s == "smallest") keep_largest = false;
+            else throw Error("bwareafilt: keep must be 'largest' or 'smallest'",
+                             0, 0, "bwareafilt", "", "m:bwareafilt:keep");
+        } else if (a.numel() == 1) {
+            conn = static_cast<int>(a.toScalar());
+        }
+    }
+
+    outs[0] = bwareafilt(mr, args[0], lo, hi, n_keep, keep_largest, conn);
 }
 
 void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
