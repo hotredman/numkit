@@ -1260,6 +1260,72 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
     return {std::move(out), Value::scalar(noise, mr)};
 }
 
+Value imsmooth(std::pmr::memory_resource *mr,
+               const Value &I, const std::string &name,
+               double sigma)
+{
+    std::string lo;
+    lo.reserve(name.size());
+    for (char c : name) lo.push_back(static_cast<char>(std::tolower(c)));
+    if (lo != "gaussian")
+        throw Error("imsmooth: only 'Gaussian' mode is implemented",
+                    0, 0, "imsmooth", "", "m:imsmooth:mode");
+    if (!(sigma > 0.0))
+        throw Error("imsmooth: sigma must be positive",
+                    0, 0, "imsmooth", "", "m:imsmooth:sigma");
+
+    const ValueType cls = I.type();
+    const int H = static_cast<int>(I.dims().rows());
+    const int W = static_cast<int>(I.dims().cols());
+    const int P = I.dims().is3D() ? static_cast<int>(I.dims().pages()) : 1;
+    const int h = static_cast<int>(std::ceil(3.0 * sigma));
+    const int K = 2 * h + 1;
+
+    std::vector<double> f((size_t)K);
+    double s = 0.0;
+    for (int i = -h; i <= h; ++i) {
+        f[(size_t)(i + h)] = std::exp(-(double)i * i / (2.0 * sigma * sigma));
+        s += f[(size_t)(i + h)];
+    }
+    for (int i = 0; i < K; ++i) f[(size_t)i] /= s;
+
+    Value out = (P > 1) ? Value::matrix3d(H, W, P, cls, mr)
+                        : Value::matrix(H, W, cls, mr);
+    if (H == 0 || W == 0) return out;
+
+    for (int p = 0; p < P; ++p) {
+        std::vector<double> tmp((size_t)H * (size_t)W, 0.0);
+        for (int r = 0; r < H; ++r) {
+            for (int c = 0; c < W; ++c) {
+                double acc = 0.0;
+                for (int k = -h; k <= h; ++k) {
+                    const int cs = fold_index(c + k, W, PadMode::Symmetric);
+                    const size_t srcIdx =
+                        (size_t)p * (size_t)H * (size_t)W +
+                        (size_t)cs * (size_t)H + (size_t)r;
+                    acc += f[(size_t)(k + h)] * I.elemAsDouble(srcIdx);
+                }
+                tmp[(size_t)c * (size_t)H + (size_t)r] = acc;
+            }
+        }
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                double acc = 0.0;
+                for (int k = -h; k <= h; ++k) {
+                    const int rs = fold_index(r + k, H, PadMode::Symmetric);
+                    acc += f[(size_t)(k + h)] *
+                           tmp[(size_t)c * (size_t)H + (size_t)rs];
+                }
+                store_classed(out,
+                              (size_t)p * (size_t)H * (size_t)W +
+                                  (size_t)c * (size_t)H + (size_t)r,
+                              acc, cls);
+            }
+        }
+    }
+    return out;
+}
+
 Value entropyfilt(std::pmr::memory_resource *mr,
                   const Value &I, const Value &domain)
 {
@@ -1690,6 +1756,28 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
+}
+
+void imsmooth_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imsmooth: requires (I [, name [, sigma]])",
+                    0, 0, "imsmooth", "", "m:imsmooth:nargin");
+    auto *mr = ctx.engine->resource();
+    std::string name = "Gaussian";
+    double sigma = 0.5;
+    // imsmooth(I, scalar) — Octave shorthand: scalar is sigma, name=Gaussian.
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].isChar() || args[1].isString()) {
+            name = args[1].toString();
+            if (args.size() >= 3 && !args[2].isEmpty())
+                sigma = args[2].toScalar();
+        } else if (args[1].numel() == 1) {
+            sigma = args[1].toScalar();
+        }
+    }
+    outs[0] = imsmooth(mr, args[0], name, sigma);
 }
 
 void entropyfilt_reg(Span<const Value> args, size_t /*nargout*/,

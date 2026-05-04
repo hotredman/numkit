@@ -1,0 +1,10 @@
+{
+  "name": "imsmooth",
+  "namespace": "image",
+  "setup": "I = zeros(7, 7); I(4, 4) = 1;",
+  "expr": "y = imsmooth(I, 'Gaussian', 0.5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: J = imsmooth(I, name [, sigma]). Currently Gaussian-only with σ-Gaussian, h=ceil(3σ), symmetric pad; Octave-image has imsmooth (this matches the Gaussian path)."
+}
