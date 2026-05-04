@@ -19,6 +19,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
 
 namespace numkit::stats {
@@ -114,5 +115,30 @@ Value rmse(std::pmr::memory_resource *mr, const Value &f, const Value &a, int di
 // Inf in the per-element ratio (MATLAB matches this; the mean propagates
 // the Inf).
 Value mape(std::pmr::memory_resource *mr, const Value &f, const Value &a, int dim = 0);
+
+// ── normalize ──────────────────────────────────────────────────────────
+// normalize(A[, method]) — column-wise data normalisation.
+//   method ∈ {"zscore" (default), "norm", "range", "center", "scale",
+//             "medianiqr"}.
+//     zscore     : (A − mean) / std    (population stdev, normFlag=0)
+//     center     : A − mean
+//     scale      : A / std
+//     range      : (A − min) / (max − min)
+//     norm       : A / sqrt(sum(A²))   (unit ℓ²-norm per column)
+//     medianiqr  : (A − median) / iqr  (robust)
+// Output has the same shape as `A`; statistics are computed column-wise.
+Value normalize(std::pmr::memory_resource *mr, const Value &A,
+                const std::string &method);
+
+// ── rescale ────────────────────────────────────────────────────────────
+// rescale(A[, lo, hi]) — linearly map A onto [lo, hi]. Defaults
+// lo=0, hi=1. Constant-data input collapses to lo (degenerate case
+// matching MATLAB).
+Value rescale(std::pmr::memory_resource *mr, const Value &A,
+              double lo, double hi);
+
+// ── zscore ─────────────────────────────────────────────────────────────
+// zscore(A) — alias for normalize(A, "zscore").
+Value zscore(std::pmr::memory_resource *mr, const Value &A);
 
 } // namespace numkit::stats

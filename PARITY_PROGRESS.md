@@ -1358,7 +1358,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `tabulate` | ❌ |  |  |  |  | frequency table |
 | `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
 | `trimmean` | ❌ |  |  |  |  | trimmed mean |
-| `zscore` | ❌ |  |  |  |  | standardise |
+| `zscore` | ✅ |  |  |  | OK | alias for normalize(A,'zscore'); per-column on matrices |
 | `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
 | `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
 | `nanmean` | ❌ |  |  |  |  | (legacy alias) |
