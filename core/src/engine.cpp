@@ -10,6 +10,7 @@
 #include <numkit/image/library.hpp>
 #include <numkit/comm/library.hpp>
 #include <numkit/wavelet/library.hpp>
+#include <numkit/control/library.hpp>
 #include <numkit/graphics/library.hpp>
 #include <numkit/io/library.hpp>
 #include <numkit/core/tree_walker.hpp>
@@ -72,6 +73,7 @@ Engine::Engine(std::pmr::memory_resource *mr)
     ImageLibrary::install(*this);
     CommLibrary::install(*this);
     WaveletLibrary::install(*this);
+    ControlLibrary::install(*this);
     GraphicsLibrary::install(*this);
     IoLibrary::install(*this);
 }
