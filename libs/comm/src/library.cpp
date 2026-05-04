@@ -23,6 +23,17 @@ void fskmod_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void fskdemod_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmmod_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ofdmdemod_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// channel/channel.cpp
+void awgn_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wgn_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bsc_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qfunc_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void qfuncinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void marcumq_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void berawgn_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void noisebw_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void convertSNR_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -49,6 +60,16 @@ void CommLibrary::install(Engine &engine)
     reg("mod", "fskdemod",  &comm::detail::fskdemod_reg);
     reg("mod", "ofdmmod",   &comm::detail::ofdmmod_reg);
     reg("mod", "ofdmdemod", &comm::detail::ofdmdemod_reg);
+
+    reg("rf", "awgn",        &comm::detail::awgn_reg);
+    reg("rf", "wgn",         &comm::detail::wgn_reg);
+    reg("rf", "bsc",         &comm::detail::bsc_reg);
+    reg("perf", "qfunc",     &comm::detail::qfunc_reg);
+    reg("perf", "qfuncinv",  &comm::detail::qfuncinv_reg);
+    reg("perf", "marcumq",   &comm::detail::marcumq_reg);
+    reg("perf", "berawgn",   &comm::detail::berawgn_reg);
+    reg("perf", "noisebw",   &comm::detail::noisebw_reg);
+    reg("perf", "convertSNR",&comm::detail::convertSNR_reg);
 }
 
 } // namespace numkit

@@ -1931,7 +1931,7 @@ intentionally omitted, along with `constellation` (object method) and
 |---|:---:|---:|---:|---:|:---:|---|
 | `randerr` | ❌ |  |  |  |  | random binary error patterns |
 | `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
-| `wgn` | ❌ |  |  |  |  | white Gaussian noise samples |
+| `wgn` | ✅ |  |  |  | OK | dBW / dBm / linear power; real or complex |
 | `biterr` | ❌ |  |  |  |  | bit-error count |
 | `symerr` | ❌ |  |  |  |  | symbol-error count |
 | `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
@@ -1945,7 +1945,7 @@ intentionally omitted, along with `constellation` (object method) and
 | `oct2poly` | ❌ |  |  |  |  |  |
 | `oct2dec` | ❌ |  |  |  |  | octal → decimal |
 | `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
-| `convertSNR` | ❌ |  |  |  |  | EbNo / EsNo / SNR conversions |
+| `convertSNR` | ✅ |  |  |  | OK | Eb/No ↔ Es/No conversion via BitsPerSymbol |
 
 ## Communications Toolbox — Source Coding
 
@@ -2076,12 +2076,12 @@ MLSE entry is exposed.
 
 ## Communications Toolbox — RF and Channel Impairments
 
-**Namespace:** `comm.rf.*` — 0 ✅ + 0 ⚠️ / 10 = 0%
+**Namespace:** `comm.rf.*` — 2 ✅ + 0 ⚠️ / 10 = 20%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `awgn` | ❌ |  |  |  |  | additive white Gaussian noise channel |
-| `bsc` | ❌ |  |  |  |  | binary symmetric channel |
+| `awgn` | ✅ |  |  |  | OK | adds Gaussian noise at given SNR (real or complex) |
+| `bsc` | ✅ |  |  |  | OK | binary symmetric channel; per-bit Bernoulli flip |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
 | `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
 | `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
@@ -2120,21 +2120,21 @@ vector path-loss models and coordinate transforms.
 
 ## Communications Toolbox — Performance Analysis
 
-**Namespace:** `comm.perf.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+**Namespace:** `comm.perf.*` — 5 ✅ + 0 ⚠️ / 11 = 45%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `berawgn` | ❌ |  |  |  |  | analytical BER over AWGN |
+| `berawgn` | ✅ |  |  |  | OK | psk/qam/pam/fsk/dpsk; Gray-coded BER approximation |
 | `bercoding` | ❌ |  |  |  |  | with coding gain |
 | `berconfint` | ❌ |  |  |  |  | confidence interval |
 | `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
 | `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
 | `bersync` | ❌ |  |  |  |  | with imperfect sync |
 | `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
-| `marcumq` | ❌ |  |  |  |  | Marcum Q function |
-| `qfunc` | ❌ |  |  |  |  | tail of standard normal |
-| `qfuncinv` | ❌ |  |  |  |  |  |
-| `noisebw` | ❌ |  |  |  |  | equivalent noise bandwidth |
+| `marcumq` | ✅ |  |  |  | OK | Marcum Q via integral form (m=1 closed-form) |
+| `qfunc` | ✅ |  |  |  | OK | 0.5·erfc(x/√2) |
+| `qfuncinv` | ✅ |  |  |  | OK | √2·erfcinv(2p) via Acklam approx |
+| `noisebw` | ✅ |  |  |  | OK | numerical |H(jω)|² integration over 0..π |
 
 ## Workspace
 
