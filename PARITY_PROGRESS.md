@@ -3166,7 +3166,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
 | `col2im` | ❌ |  |  |  |  |  |
 | `colfilt` | ❌ |  |  |  |  |  |
-| `im2col` | ❌ |  |  |  |  |  |
+| `im2col` | ✅ |  |  |  | OK | sliding + distinct modes; per-class typed memcpy; zero-pads on distinct edges |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
 
 ## Image Arithmetic

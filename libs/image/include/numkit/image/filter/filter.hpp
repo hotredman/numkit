@@ -65,6 +65,13 @@ Value imsharpen(std::pmr::memory_resource *mr,
                 const Value &I,
                 double radius, double amount, double threshold);
 
+/// im2col(A, [m n], block_type) — rearrange image neighborhoods into
+/// matrix columns. block_type ∈ {"sliding", "distinct"} (default
+/// "sliding"). Output is m·n × Ncols; same class as A. "distinct"
+/// zero-pads when A's dims aren't multiples of m or n.
+Value im2col(std::pmr::memory_resource *mr,
+             const Value &A, int m, int n, const std::string &block_type);
+
 /// imnoise(I, mode[, p1, p2]) — additive / multiplicative noise.
 /// Modes (all match MATLAB R2025b semantics):
 ///   "gaussian"        m=0, var=0.01      J = I + m + sqrt(var)·N(0,1)
