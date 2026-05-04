@@ -117,6 +117,7 @@ void idct2_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dctmtx_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void integralImage_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void integralImage3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void checkerboard_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // io/io.cpp
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -262,6 +263,7 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "dctmtx",        &image::detail::dctmtx_reg);
     reg("transform", "integralImage", &image::detail::integralImage_reg);
     reg("transform", "integralImage3",&image::detail::integralImage3_reg);
+    reg("transform", "checkerboard",  &image::detail::checkerboard_reg);
 
     reg("io", "imread",  &image::detail::imread_reg);
     reg("io", "imwrite", &image::detail::imwrite_reg);

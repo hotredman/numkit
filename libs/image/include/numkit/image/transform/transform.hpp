@@ -29,4 +29,11 @@ Value integralImage(std::pmr::memory_resource *mr, const Value &I);
 /// (M+1)×(N+1)×(P+1) double with leading zero plane / row / column.
 Value integralImage3(std::pmr::memory_resource *mr, const Value &V);
 
+/// checkerboard(side, M, N) — 2*M*side × 2*N*side double image with
+/// alternating black / white squares; the right half is dimmed to
+/// grey (×0.7). Defaults: side=10, M=4, N=4. Matches Octave-image's
+/// checkerboard.m.
+Value checkerboard(std::pmr::memory_resource *mr,
+                   size_t side, size_t M, size_t N);
+
 } // namespace numkit::image
