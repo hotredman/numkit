@@ -1110,7 +1110,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ## Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 0 ✅ + 0 ⚠️ / 25 = 0%
+**Namespace:** `stats.test.*` — 5 ✅ + 0 ⚠️ / 25 = 20%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1135,12 +1135,12 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `sampsizepwr` | ❌ |  |  |  |  | sample-size / power |
 | `signrank` | ❌ |  |  |  |  | Wilcoxon signed-rank |
 | `signtest` | ❌ |  |  |  |  | sign test |
-| `ttest` | ❌ |  |  |  |  | one-sample t |
-| `ttest2` | ❌ |  |  |  |  | two-sample t |
-| `vartest` | ❌ |  |  |  |  | one-sample variance |
-| `vartest2` | ❌ |  |  |  |  | two-sample variance |
+| `ttest` | ✅ |  |  |  | OK | one-sample, returns (h, p, ci, tstat) |
+| `ttest2` | ✅ |  |  |  | OK | Welch (default) or pooled-variance |
+| `vartest` | ✅ |  |  |  | OK | chi-squared one-sample variance test |
+| `vartest2` | ✅ |  |  |  | OK | F-test for equality of variances |
 | `vartestn` | ❌ |  |  |  |  | n-sample variance |
-| `ztest` | ❌ |  |  |  |  | one-sample z |
+| `ztest` | ✅ |  |  |  | OK | known-σ z-test |
 
 ## Resampling Techniques
 

@@ -195,6 +195,13 @@ void inconsistent_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void pca_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pcacov_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pcares_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// test/hypothesis.cpp
+void ttest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ttest2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ztest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void vartest_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -363,6 +370,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dim", "pca",     &stats::detail::pca_reg);
     reg("dim", "pcacov",  &stats::detail::pcacov_reg);
     reg("dim", "pcares",  &stats::detail::pcares_reg);
+
+    reg("test", "ttest",    &stats::detail::ttest_reg);
+    reg("test", "ttest2",   &stats::detail::ttest2_reg);
+    reg("test", "ztest",    &stats::detail::ztest_reg);
+    reg("test", "vartest",  &stats::detail::vartest_reg);
+    reg("test", "vartest2", &stats::detail::vartest2_reg);
 }
 
 } // namespace numkit

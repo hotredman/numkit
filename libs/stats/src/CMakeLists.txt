@@ -27,6 +27,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/kmedoids.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/cluster/linkage.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/dim/pca.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/hypothesis.cpp
 )
 
 # Backend-split functions: one definition per TU, picked at configure
