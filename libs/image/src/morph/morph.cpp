@@ -676,6 +676,47 @@ Value imclearborder(std::pmr::memory_resource *mr,
     return out;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// imtophat / imbothat — top-hat residuals
+// ════════════════════════════════════════════════════════════════════
+//
+//   imtophat(I, SE) = I − imopen(I, SE)
+//   imbothat(I, SE) = imclose(I, SE) − I
+//
+// Both are subtractions in the image domain. We compute pixel-wise
+// in double then store back in the input class with saturation
+// (matching MATLAB's behaviour for integer types).
+
+namespace {
+
+Value tophat_subtract(std::pmr::memory_resource *mr,
+                      const Value &lhs, const Value &rhs)
+{
+    const size_t H = lhs.dims().rows();
+    const size_t W = lhs.dims().cols();
+    const size_t N = lhs.numel();
+    Value out = Value::matrix(H, W, lhs.type(), mr);
+    for (size_t i = 0; i < N; ++i) {
+        const double v = lhs.elemAsDouble(i) - rhs.elemAsDouble(i);
+        store_classed_morph(out, i, v, lhs.type());
+    }
+    return out;
+}
+
+} // anonymous
+
+Value imtophat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
+{
+    Value opened = imopen(mr, I, SE);
+    return tophat_subtract(mr, I, opened);
+}
+
+Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
+{
+    Value closed = imclose(mr, I, SE);
+    return tophat_subtract(mr, closed, I);
+}
+
 // Exact dual of imclearborder: keep only the rim-reachable components.
 //   marker = BW ∩ rim, J = imreconstruct(marker, BW, conn)
 // imreconstruct already returns a LOGICAL when marker+mask are LOGICAL,
@@ -883,6 +924,24 @@ void imkeepborder_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imkeepborder(ctx.engine->resource(), args[0], conn);
+}
+
+void imtophat_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imtophat: requires (I, SE)", 0, 0, "imtophat", "",
+                    "m:imtophat:nargin");
+    outs[0] = imtophat(ctx.engine->resource(), args[0], args[1]);
+}
+
+void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
+                    "m:imbothat:nargin");
+    outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
