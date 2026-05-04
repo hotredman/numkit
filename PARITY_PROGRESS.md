@@ -3063,7 +3063,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |
 | `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
-| `wiener2` | ❌ |  |  |  |  |  |
+| `wiener2` | ❌ | 0.003 |  | 100.11× | OK | Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2. |
 
 ## Contrast Adjustment
 

@@ -116,4 +116,14 @@ Value stdfilt(std::pmr::memory_resource *mr,
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain);
 
+/// wiener2(I [, nh, nw [, noise]]) — adaptive Wiener noise reduction
+/// (Lim 1989, eq. 9.26-9.29). Local mean μ and variance σ² in an
+/// nh×nw box neighbourhood (default 3×3, zero-pad boundary). When
+/// `noise` is NaN it is estimated as the mean of σ² across the
+/// image. Returns (denoised, noise) where `denoised` is cast back
+/// to the input class.
+std::tuple<Value, Value>
+wiener2(std::pmr::memory_resource *mr, const Value &I,
+        size_t nh, size_t nw, double noise);
+
 } // namespace numkit::image

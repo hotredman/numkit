@@ -1,0 +1,10 @@
+{
+  "name": "wiener2",
+  "namespace": "image",
+  "setup": "im = zeros(5, 5); im(2:4, 2:4) = 1;",
+  "expr": "y = wiener2(im);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2."
+}

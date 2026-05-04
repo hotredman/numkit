@@ -55,6 +55,7 @@ void imsharpen_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imnoise_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void stdfilt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rangefilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wiener2_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void im2col_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void col2im_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imbilatfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -199,6 +200,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imnoise",      &image::detail::imnoise_reg);
     reg("filter", "stdfilt",      &image::detail::stdfilt_reg);
     reg("filter", "rangefilt",    &image::detail::rangefilt_reg);
+    reg("filter", "wiener2",      &image::detail::wiener2_reg);
     reg("filter", "im2col",       &image::detail::im2col_reg);
     reg("filter", "col2im",       &image::detail::col2im_reg);
     reg("filter", "imbilatfilt",  &image::detail::imbilatfilt_reg);
