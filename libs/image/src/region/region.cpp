@@ -549,6 +549,83 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
+Value fchcode(std::pmr::memory_resource *mr, const Value &bound)
+{
+    if (bound.dims().cols() != 2)
+        throw Error("fchcode: bound must be K-by-2",
+                    0, 0, "fchcode", "", "m:fchcode:size");
+    size_t K = bound.dims().rows();
+
+    // Direction map matching Octave (rows = dr+2, cols = dc+2):
+    //   dr=-1: dc=-1→3, dc=0→2, dc=+1→1
+    //   dr= 0: dc=-1→4, dc=0→NaN, dc=+1→0
+    //   dr=+1: dc=-1→5, dc=0→6, dc=+1→7
+    auto dirCode = [](int dr, int dc) -> double {
+        if (dr == -1 && dc == -1) return 3.0;
+        if (dr == -1 && dc ==  0) return 2.0;
+        if (dr == -1 && dc ==  1) return 1.0;
+        if (dr ==  0 && dc == -1) return 4.0;
+        if (dr ==  0 && dc ==  0) return std::nan("");
+        if (dr ==  0 && dc ==  1) return 0.0;
+        if (dr ==  1 && dc == -1) return 5.0;
+        if (dr ==  1 && dc ==  0) return 6.0;
+        if (dr ==  1 && dc ==  1) return 7.0;
+        return std::nan("");
+    };
+
+    // Read bound rows into vectors r, c.
+    std::vector<double> rs(K), cs(K);
+    for (size_t k = 0; k < K; ++k) {
+        // Column-major: bound[k, 0] = data[0*K + k]; bound[k, 1] = data[1*K + k].
+        rs[k] = bound.elemAsDouble(0 * K + k);
+        cs[k] = bound.elemAsDouble(1 * K + k);
+    }
+
+    // Close the loop if not already closed.
+    if (K >= 1 && (rs.front() != rs.back() || cs.front() != cs.back())) {
+        rs.push_back(rs.front());
+        cs.push_back(cs.front());
+        K = rs.size();
+    }
+    const size_t nCodes = (K >= 1) ? K - 1 : 0;
+
+    Value out = Value::structure(mr);
+
+    // x0y0
+    Value xy0 = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    if (K >= 1) {
+        xy0.doubleDataMut()[0] = rs.empty() ? 0.0 : rs[0];
+        xy0.doubleDataMut()[1] = cs.empty() ? 0.0 : cs[0];
+    }
+    out.field("x0y0") = xy0;
+
+    // fcc — 1×nCodes.
+    Value fcc = Value::matrix(1, nCodes, ValueType::DOUBLE, mr);
+    double *fd = fcc.doubleDataMut();
+    for (size_t k = 0; k < nCodes; ++k) {
+        const int dr = static_cast<int>(rs[k + 1] - rs[k]);
+        const int dc = static_cast<int>(cs[k + 1] - cs[k]);
+        fd[k] = dirCode(dr, dc);
+    }
+    out.field("fcc") = fcc;
+
+    // diff — mod 8 first-difference, cyclic.
+    Value diffV = Value::matrix(1, nCodes, ValueType::DOUBLE, mr);
+    double *dd = diffV.doubleDataMut();
+    for (size_t k = 0; k < nCodes; ++k) {
+        const double a = fd[k];
+        const double b = fd[(k + 1) % nCodes];
+        const double d = b - a;
+        // mod-8 (positive remainder).
+        double m = std::fmod(d, 8.0);
+        if (m < 0.0) m += 8.0;
+        dd[k] = m;
+    }
+    out.field("diff") = diffV;
+
+    return out;
+}
+
 Value bwareafilt(std::pmr::memory_resource *mr,
                  const Value &BW, double lo, double hi,
                  size_t n_keep, bool keep_largest, int conn)
@@ -759,6 +836,15 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "m:bwdist:nargin");
     outs[0] = bwdist(ctx.engine->resource(), args[0]);
+}
+
+void fchcode_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fchcode: requires (bound)",
+                    0, 0, "fchcode", "", "m:fchcode:nargin");
+    outs[0] = fchcode(ctx.engine->resource(), args[0]);
 }
 
 void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
