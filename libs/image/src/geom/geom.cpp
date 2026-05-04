@@ -258,8 +258,12 @@ Value imrotate(std::pmr::memory_resource *mr,
     const double cyIn  = (double(s.H)  - 1.0) / 2.0;
     const double cxIn  = (double(s.W)  - 1.0) / 2.0;
 
-    // Inverse rotation:  pᵢₙ = R⁻¹ · (pₒᵤₜ − cₒᵤₜ) + cᵢₙ.
-    // R(angle) is CCW; inverse uses (cos, +sin; -sin, cos).
+    // Inverse rotation in image coords. The y-axis runs downward, so
+    // a "CCW rotation as you look at the image" (MATLAB convention) is
+    // a CW rotation in math coords. The inverse mapping
+    //   pᵢₙ = R(+θ) · (pₒᵤₜ − cₒᵤₜ) + cᵢₙ
+    // — i.e. (cos, −sin; +sin, cos) — gives the canonical MATLAB
+    // imrotate output (verified against Octave 11.1).
     Value B = makeOut(mr, outH, outW, s.C, t);
     Shape sd{outH, outW, s.C};
     for (size_t c = 0; c < s.C; ++c)
@@ -267,8 +271,8 @@ Value imrotate(std::pmr::memory_resource *mr,
             const double dy = double(y) - cyOut;
             for (size_t x = 0; x < outW; ++x) {
                 const double dx = double(x) - cxOut;
-                const double xs =  co * dx + si * dy + cxIn;
-                const double ys = -si * dx + co * dy + cyIn;
+                const double xs = co * dx - si * dy + cxIn;
+                const double ys = si * dx + co * dy + cyIn;
                 double v;
                 if (nearest) {
                     int yi = int(std::floor(ys + 0.5));

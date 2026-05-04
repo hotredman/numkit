@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-09,
   "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. KNOWN: percentile interpolation differs (numkit uses bin counts, MATLAB uses linear interpolation between bin edges)."
 }
