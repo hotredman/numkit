@@ -1,0 +1,10 @@
+{
+  "name": "psf2otf",
+  "namespace": "image",
+  "setup": "psf = fspecial('gaussian', 8, 1.5);",
+  "expr": "y = psf2otf(psf);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf."
+}

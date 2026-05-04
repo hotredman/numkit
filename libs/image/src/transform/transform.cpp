@@ -7,8 +7,11 @@
 // numkit's Value layout.
 
 #include <numkit/image/transform/transform.hpp>
+#include <numkit/image/filter/filter.hpp>
 
+#include <numkit/builtin/language/arrays/manip.hpp>
 #include <numkit/signal/transforms/dct.hpp>
+#include <numkit/signal/transforms/fft.hpp>
 #include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
@@ -306,6 +309,88 @@ phantom(std::pmr::memory_resource *mr,
     return {std::move(head), std::move(E)};
 }
 
+Value psf2otf(std::pmr::memory_resource *mr,
+              const Value &PSF, const Value &outsize)
+{
+    const auto &d = PSF.dims();
+    const size_t inH = d.rows();
+    const size_t inW = d.cols();
+    const bool is1D = (inH == 1 || inW == 1);
+
+    // Determine output size (default = input size).
+    //   outsize as 2-vec [outH outW]  — applies for both 1-D and 2-D.
+    //   outsize as scalar L           — for 1-D = new length; 2-D = L×L.
+    size_t outH = inH;
+    size_t outW = inW;
+    if (outsize.numel() >= 2) {
+        outH = static_cast<size_t>(outsize.elemAsDouble(0));
+        outW = static_cast<size_t>(outsize.elemAsDouble(1));
+    } else if (outsize.numel() == 1) {
+        const size_t L = static_cast<size_t>(outsize.elemAsDouble(0));
+        if (is1D) {
+            if (inH == 1) { outH = 1; outW = L; }
+            else          { outH = L; outW = 1; }
+        } else { outH = L; outW = L; }
+    }
+    if (outH < inH || outW < inW)
+        throw Error("psf2otf: OUTSIZE must be larger than PSF size",
+                    0, 0, "psf2otf", "", "m:psf2otf:outsize");
+
+    // Pad PSF with zeros (post-pad).
+    Value padded;
+    if (outH != inH || outW != inW) {
+        padded = padarray(mr, PSF, {(int)(outH - inH), (int)(outW - inW)},
+                          PadMode::Constant, 0.0, "post");
+    } else {
+        padded = PSF;
+    }
+
+    // Circular shift by -floor(insize / 2).
+    const int64_t shiftR = -static_cast<int64_t>(inH / 2);
+    const int64_t shiftC = -static_cast<int64_t>(inW / 2);
+    Value shifted;
+    if (is1D) {
+        shifted = builtin::circshift(mr, padded,
+                                     (inH == 1) ? shiftC : shiftR);
+    } else {
+        shifted = builtin::circshift(mr, padded, shiftR, shiftC);
+    }
+
+    // FFT.
+    return is1D ? signal::fft(mr, shifted)
+                : signal::fft2(mr, shifted);
+}
+
+Value otf2psf(std::pmr::memory_resource *mr,
+              const Value &OTF, const Value &outsize)
+{
+    const auto &d = OTF.dims();
+    const size_t inH = d.rows();
+    const size_t inW = d.cols();
+    const bool is1D = (inH == 1 || inW == 1);
+
+    // Inverse FFT.
+    Value psf = is1D ? signal::ifft(mr, OTF)
+                     : signal::ifft2(mr, OTF);
+
+    // Circular shift by +floor(insize / 2) (inverse of psf2otf shift).
+    const auto &dp = psf.dims();
+    const int64_t shiftR =  static_cast<int64_t>(dp.rows() / 2);
+    const int64_t shiftC =  static_cast<int64_t>(dp.cols() / 2);
+    Value shifted;
+    if (is1D) {
+        shifted = builtin::circshift(mr, psf,
+                                     (dp.rows() == 1) ? shiftC : shiftR);
+    } else {
+        shifted = builtin::circshift(mr, psf, shiftR, shiftC);
+    }
+
+    // Note: optional outsize-based cropping not yet implemented;
+    // typical use is OTF the same size as the desired PSF.
+    (void)outsize;
+    return shifted;
+}
+
 Value normxcorr2(std::pmr::memory_resource *mr,
                  const Value &templ, const Value &img)
 {
@@ -498,6 +583,28 @@ void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("normxcorr2: requires (template, img)",
                     0, 0, "normxcorr2", "", "m:normxcorr2:nargin");
     outs[0] = normxcorr2(ctx.engine->resource(), args[0], args[1]);
+}
+
+void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("psf2otf: requires (PSF [, outsize])",
+                    0, 0, "psf2otf", "", "m:psf2otf:nargin");
+    Value outsize;
+    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
+    outs[0] = psf2otf(ctx.engine->resource(), args[0], outsize);
+}
+
+void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("otf2psf: requires (OTF [, outsize])",
+                    0, 0, "otf2psf", "", "m:otf2psf:nargin");
+    Value outsize;
+    if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
+    outs[0] = otf2psf(ctx.engine->resource(), args[0], outsize);
 }
 
 void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
