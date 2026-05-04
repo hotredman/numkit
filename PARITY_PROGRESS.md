@@ -3121,7 +3121,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
 | `conndef` | ❌ |  |  |  |  |  |
-| `imbothat` | ❌ |  |  |  |  | black tophat |
+| `imbothat` | ✅ |  |  |  | OK | imclose(I, SE) − I; saturating to input class |
 | `imclearborder` | ✅ |  |  |  | OK | imreconstruct(BW ∩ rim, BW); BW & ~R — strip components touching the rim |
 | `imclose` | ✅ |  |  |  | OK | dilate → erode |
 | `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
@@ -3137,7 +3137,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imreconstruct` | ✅ |  |  |  | OK | iterate dilate-and-cap until stable; binary + grayscale; conn=4/8 |
 | `imregionalmax` | ✅ |  |  |  | OK | (I − imreconstruct(I−1, I)) > 0 (Vincent 1993) |
 | `imregionalmin` | ✅ |  |  |  | OK | imregionalmax on inverted image |
-| `imtophat` | ❌ |  |  |  |  |  |
+| `imtophat` | ✅ |  |  |  | OK | I − imopen(I, SE); saturating to input class |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
 | `strel` | ✅ |  |  |  | OK | square / rectangle / diamond / disk / line / arbitrary |

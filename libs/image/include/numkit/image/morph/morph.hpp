@@ -125,4 +125,16 @@ Value imclearborder(std::pmr::memory_resource *mr,
 Value imkeepborder(std::pmr::memory_resource *mr,
                    const Value &BW, int conn);
 
+/// `J = imtophat(I, SE)` — white top-hat: I − imopen(I, SE).
+/// Highlights bright structures smaller than SE on a dark
+/// background. Output saturates to the input class.
+Value imtophat(std::pmr::memory_resource *mr,
+               const Value &I, const Value &SE);
+
+/// `J = imbothat(I, SE)` — black top-hat: imclose(I, SE) − I.
+/// Highlights dark structures smaller than SE on a bright
+/// background. Output saturates to the input class.
+Value imbothat(std::pmr::memory_resource *mr,
+               const Value &I, const Value &SE);
+
 } // namespace numkit::image
