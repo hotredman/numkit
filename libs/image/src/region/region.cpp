@@ -6,7 +6,11 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <climits>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <string>
 #include <vector>
 
 namespace numkit::image {
@@ -204,6 +208,242 @@ Value bwareaopen(std::pmr::memory_resource *mr, const Value &BW, int P, int conn
 }
 
 // ════════════════════════════════════════════════════════════════════
+// bwboundaries — Moore-neighbour outer-boundary trace
+// ════════════════════════════════════════════════════════════════════
+//
+// For each connected component (labelled via the same union-find
+// pass we already use for bwlabel/bwperim/bwareaopen), find the
+// leftmost-topmost foreground pixel of that component and walk the
+// outer boundary clockwise. We use Moore-neighbour tracing with
+// Jacob's stopping criterion: stop when we revisit the start pixel
+// from the same direction we left it.
+//
+// Boundary points are emitted as (row, col) pairs in MATLAB 1-based
+// indexing. Inner holes are NOT traced (matches `'noholes'` mode);
+// outer-only is what most scripts want and we'd need a second pass
+// to gather hole boundaries from the complement.
+
+Value bwboundaries(std::pmr::memory_resource *mr,
+                   const Value &BW, int conn)
+{
+    if (conn != 4) conn = 8;
+    const int H = (int)BW.dims().rows();
+    const int W = (int)BW.dims().cols();
+    auto fg = read_bw(BW);
+    auto [L, K] = label_components(fg, H, W, conn);
+    Value cellCol = Value::cell(static_cast<size_t>(K), 1, mr);
+    if (K == 0) return cellCol;
+
+    // 8-direction CW deltas starting at "right" (dir=0):
+    //   E, SE, S, SW, W, NW, N, NE.
+    static const int dr[8] = { 0, 1, 1, 1, 0, -1, -1, -1 };
+    static const int dc[8] = { 1, 1, 0,-1,-1, -1,  0,  1 };
+    auto inside = [&](int r, int c) {
+        return r >= 0 && r < H && c >= 0 && c < W;
+    };
+    auto isFg = [&](int r, int c, int targetLabel) {
+        if (!inside(r, c)) return false;
+        return L[(size_t)r * (size_t)W + (size_t)c] == targetLabel;
+    };
+
+    // Start-pixel scan: first encounter of each label in row-major
+    // order is its leftmost-topmost pixel. Cache that lookup.
+    std::vector<int> startRow(K + 1, -1), startCol(K + 1, -1);
+    for (int r = 0; r < H && std::count(startRow.begin(),
+                                         startRow.end(), -1) > 1; ++r)
+        for (int c = 0; c < W; ++c) {
+            const int lab = L[(size_t)r * (size_t)W + (size_t)c];
+            if (lab > 0 && startRow[lab] < 0) {
+                startRow[lab] = r;
+                startCol[lab] = c;
+            }
+        }
+
+    for (int lab = 1; lab <= K; ++lab) {
+        const int r0 = startRow[lab];
+        const int c0 = startCol[lab];
+        std::vector<int> rows, cols;
+        rows.push_back(r0); cols.push_back(c0);
+
+        // Single-pixel object: emit just the start point.
+        bool hasNeighbour = false;
+        for (int d = 0; d < 8; ++d)
+            if (isFg(r0 + dr[d], c0 + dc[d], lab)) {
+                hasNeighbour = true; break;
+            }
+        if (!hasNeighbour) {
+            // Cell entry: 1×2 [row col] (1-based).
+            Value m = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+            double *mb = m.doubleDataMut();
+            mb[0] = double(r0 + 1);
+            mb[1] = double(c0 + 1);
+            cellCol.cellAt(static_cast<size_t>(lab - 1)) = m;
+            continue;
+        }
+
+        // The previous-direction starts at the "from" we'd have used
+        // if we entered the start from the west (4-conn) / NW (8-conn).
+        int prevDir = (conn == 8) ? 7 : 6;   // NW or N
+        int curR = r0, curC = c0;
+
+        // Cap iteration at perimeter ≤ 8·numComponentPixels (very loose).
+        const size_t cap = static_cast<size_t>(H) * static_cast<size_t>(W) * 4;
+        size_t iter = 0;
+
+        while (iter++ < cap) {
+            // Look at the 8 neighbours starting one CW step past `prevDir`.
+            int found = -1;
+            for (int step = 1; step <= 8; ++step) {
+                const int d = (prevDir + step) % 8;
+                if (conn == 4 && (d & 1)) continue;   // skip diagonals
+                const int nr = curR + dr[d];
+                const int nc = curC + dc[d];
+                if (isFg(nr, nc, lab)) { found = d; break; }
+            }
+            if (found < 0) break;   // isolated pixel reached
+            const int nr = curR + dr[found];
+            const int nc = curC + dc[found];
+            // The direction we came FROM the new pixel is opposite of
+            // the one we just took.
+            prevDir = (found + 4) % 8;
+            // Jacob's stop: back at start *and* would re-enter via the
+            // same direction we left.
+            if (nr == r0 && nc == c0) {
+                // Emit closing entry.
+                rows.push_back(r0);
+                cols.push_back(c0);
+                break;
+            }
+            rows.push_back(nr);
+            cols.push_back(nc);
+            curR = nr;
+            curC = nc;
+        }
+
+        // Pack into a P×2 [row col] (1-based).
+        const size_t P = rows.size();
+        Value m = Value::matrix(P, 2, ValueType::DOUBLE, mr);
+        double *mb = m.doubleDataMut();
+        for (size_t i = 0; i < P; ++i) {
+            mb[i]         = double(rows[i] + 1);
+            mb[P + i]     = double(cols[i] + 1);
+        }
+        cellCol.cellAt(static_cast<size_t>(lab - 1)) = m;
+    }
+    return cellCol;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// regionprops — basic descriptors per labelled region
+// ════════════════════════════════════════════════════════════════════
+
+Value regionprops(std::pmr::memory_resource *mr,
+                  const Value &BW_or_L,
+                  const std::vector<std::string> &propsIn)
+{
+    // Detect input: integer-valued matrix → treat as label image,
+    // else binary → run bwlabel internally.
+    const int H = (int)BW_or_L.dims().rows();
+    const int W = (int)BW_or_L.dims().cols();
+    std::vector<int> L((size_t)H * (size_t)W, 0);
+    int K = 0;
+    bool looksLabelled = false;
+    {
+        // Quick scan: are any values > 1 with integer fractional part?
+        const size_t N = (size_t)H * (size_t)W;
+        for (size_t i = 0; i < N; ++i) {
+            const double v = BW_or_L.elemAsDouble(i);
+            if (v > 1.5) { looksLabelled = true; break; }
+        }
+    }
+    if (looksLabelled) {
+        // Treat as label image directly; copy in row-major.
+        for (int r = 0; r < H; ++r)
+            for (int c = 0; c < W; ++c) {
+                const int v = (int)std::round(
+                    BW_or_L.elemAsDouble((size_t)c * (size_t)H + (size_t)r));
+                L[(size_t)r * (size_t)W + (size_t)c] = v;
+                if (v > K) K = v;
+            }
+    } else {
+        auto [labels, kk] = label_components(read_bw(BW_or_L), H, W, 8);
+        L = std::move(labels);
+        K = kk;
+    }
+
+    // Property selection.
+    auto contains = [&](const char *p) {
+        for (const auto &q : propsIn) {
+            if (q == p) return true;
+            // Case-insensitive ASCII compare.
+            if (q.size() != std::strlen(p)) continue;
+            bool eq = true;
+            for (size_t i = 0; i < q.size(); ++i) {
+                char a = q[i], b = p[i];
+                if (a >= 'A' && a <= 'Z') a = char(a + 32);
+                if (b >= 'A' && b <= 'Z') b = char(b + 32);
+                if (a != b) { eq = false; break; }
+            }
+            if (eq) return true;
+        }
+        return false;
+    };
+    bool wantAll = propsIn.empty() || contains("all") || contains("All");
+    const bool wArea = wantAll || contains("Area");
+    const bool wCent = wantAll || contains("Centroid");
+    const bool wBbox = wantAll || contains("BoundingBox");
+
+    Value sa = Value::structArray(static_cast<size_t>(K), 1, mr);
+    if (K == 0) return sa;
+
+    // Accumulators per label.
+    std::vector<long long> area(K + 1, 0);
+    std::vector<double> sumX(K + 1, 0.0), sumY(K + 1, 0.0);
+    std::vector<int> minX(K + 1, INT_MAX), minY(K + 1, INT_MAX);
+    std::vector<int> maxX(K + 1, INT_MIN), maxY(K + 1, INT_MIN);
+    for (int r = 0; r < H; ++r)
+        for (int c = 0; c < W; ++c) {
+            const int lab = L[(size_t)r * (size_t)W + (size_t)c];
+            if (lab <= 0 || lab > K) continue;
+            ++area[(size_t)lab];
+            sumX[(size_t)lab] += double(c);
+            sumY[(size_t)lab] += double(r);
+            if (c < minX[(size_t)lab]) minX[(size_t)lab] = c;
+            if (r < minY[(size_t)lab]) minY[(size_t)lab] = r;
+            if (c > maxX[(size_t)lab]) maxX[(size_t)lab] = c;
+            if (r > maxY[(size_t)lab]) maxY[(size_t)lab] = r;
+        }
+
+    for (int lab = 1; lab <= K; ++lab) {
+        auto &el = sa.structArrayElem(static_cast<size_t>(lab - 1));
+        if (wArea) {
+            el.emplace("Area", Value::scalar(double(area[(size_t)lab]), mr));
+        }
+        if (wCent) {
+            // Centroid in MATLAB: 1-based (x, y) = (col+1, row+1) means.
+            const double a = double(area[(size_t)lab]);
+            Value cn = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+            cn.doubleDataMut()[0] = (a > 0.0) ? sumX[(size_t)lab] / a + 1.0 : 0.0;
+            cn.doubleDataMut()[1] = (a > 0.0) ? sumY[(size_t)lab] / a + 1.0 : 0.0;
+            el.emplace("Centroid", cn);
+        }
+        if (wBbox) {
+            // BoundingBox: [xmin-0.5, ymin-0.5, width, height]
+            // (MATLAB returns 0.5-aligned floats).
+            Value bb = Value::matrix(1, 4, ValueType::DOUBLE, mr);
+            bb.doubleDataMut()[0] = double(minX[(size_t)lab]) + 0.5;
+            bb.doubleDataMut()[1] = double(minY[(size_t)lab]) + 0.5;
+            bb.doubleDataMut()[2] = double(maxX[(size_t)lab] -
+                                            minX[(size_t)lab] + 1);
+            bb.doubleDataMut()[3] = double(maxY[(size_t)lab] -
+                                            minY[(size_t)lab] + 1);
+            el.emplace("BoundingBox", bb);
+        }
+    }
+    return sa;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -267,6 +507,33 @@ void bwareaopen_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? (int)args[2].toScalar() : 8;
     outs[0] = bwareaopen(ctx.engine->resource(), args[0], P, conn);
+}
+
+void bwboundaries_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bwboundaries: requires (BW[, conn])", 0, 0,
+                    "bwboundaries", "", "m:bwboundaries:nargin");
+    const int conn = (args.size() >= 2 && !args[1].isEmpty())
+                     ? (int)args[1].toScalar() : 8;
+    outs[0] = bwboundaries(ctx.engine->resource(), args[0], conn);
+}
+
+void regionprops_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("regionprops: requires (BW_or_L[, props...])",
+                    0, 0, "regionprops", "", "m:regionprops:nargin");
+    std::vector<std::string> props;
+    for (size_t i = 1; i < args.size(); ++i) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("regionprops: property names must be strings",
+                        0, 0, "regionprops", "", "m:regionprops:type");
+        props.push_back(args[i].toString());
+    }
+    outs[0] = regionprops(ctx.engine->resource(), args[0], props);
 }
 
 } // namespace detail
