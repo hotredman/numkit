@@ -2977,7 +2977,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `checkerboard` | ❌ |  |  |  |  | synthetic test pattern |
-| `imnoise` | ❌ |  |  |  |  | add gaussian / salt-pepper / speckle |
+| `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
 | `phantom` | ❌ |  |  |  |  | Shepp-Logan |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
 | `imfuse` | ❌ |  |  |  |  |  |

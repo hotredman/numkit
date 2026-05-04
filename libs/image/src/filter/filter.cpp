@@ -2,12 +2,16 @@
 
 #include <numkit/image/filter/filter.hpp>
 
+#include <numkit/builtin/math/random/rng.hpp>
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <mutex>
+#include <random>
+#include <string>
 #include <vector>
 
 #ifndef M_PI
@@ -530,6 +534,133 @@ Value imsharpen(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imnoise — additive / multiplicative / shot noise
+// ════════════════════════════════════════════════════════════════════
+//
+// All modes operate on the unit-range [0, 1] interpretation of I:
+//   integer classes are scaled by their max (255 for uint8, 65535 for
+//   uint16, 32768±32767 for int16); double/single are taken as-is.
+// Output is saturated back to the input class.
+//
+// Modes (matching MATLAB R2025b imnoise semantics):
+//   gaussian       J = I + m + sqrt(var) * N(0, 1)
+//   localvar       J = I + sqrt(V[x]) * N(0, 1)         V is variance map
+//   salt & pepper  fraction d / 2 of pixels each set to 0 and 1
+//   speckle        J = I + I * sqrt(var) * N(0, 1)      multiplicative
+//   poisson        J = Poisson(I * scale) / scale       scale per class
+
+Value imnoise(std::pmr::memory_resource *mr,
+              const Value &I, const std::string &mode,
+              const Value &p1, const Value &p2)
+{
+    const ValueType T = I.type();
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+
+    auto toUnit = [&](double v) -> double {
+        switch (T) {
+            case ValueType::UINT8:   return v / 255.0;
+            case ValueType::UINT16:  return v / 65535.0;
+            case ValueType::INT16:   return (v + 32768.0) / 65535.0;
+            case ValueType::LOGICAL: return v != 0.0 ? 1.0 : 0.0;
+            default:                 return v;
+        }
+    };
+    auto fromUnit = [&](Value &out, size_t i, double v) {
+        if (v < 0.0) v = 0.0;
+        if (v > 1.0) v = 1.0;
+        switch (T) {
+            case ValueType::UINT8:
+                out.uint8DataMut()[i] =
+                    (std::uint8_t)std::lround(v * 255.0); break;
+            case ValueType::UINT16:
+                out.uint16DataMut()[i] =
+                    (std::uint16_t)std::lround(v * 65535.0); break;
+            case ValueType::INT16: {
+                double w = std::lround(v * 65535.0) - 32768.0;
+                if (w < -32768.0) w = -32768.0;
+                if (w >  32767.0) w =  32767.0;
+                out.int16DataMut()[i] = (std::int16_t)w; break;
+            }
+            case ValueType::LOGICAL:
+                out.logicalDataMut()[i] = v >= 0.5 ? 1u : 0u; break;
+            case ValueType::SINGLE:
+                out.singleDataMut()[i] = (float)v; break;
+            default:
+                out.doubleDataMut()[i] = v; break;
+        }
+    };
+
+    Value out = Value::matrix(H, W, T, mr);
+
+    auto &rng = numkit::builtin::sharedEngine();
+    std::lock_guard<std::mutex> lk(numkit::builtin::rngMutex());
+
+    if (mode == "gaussian") {
+        const double m = (p1.numel() > 0) ? p1.toScalar() : 0.0;
+        const double v = (p2.numel() > 0) ? p2.toScalar() : 0.01;
+        std::normal_distribution<double> Z(0.0, std::sqrt(std::max(v, 0.0)));
+        for (size_t i = 0; i < N; ++i) {
+            const double x = toUnit(I.elemAsDouble(i));
+            fromUnit(out, i, x + m + Z(rng));
+        }
+    }
+    else if (mode == "salt & pepper" || mode == "salt&pepper") {
+        const double d = (p1.numel() > 0) ? p1.toScalar() : 0.05;
+        std::uniform_real_distribution<double> U(0.0, 1.0);
+        for (size_t i = 0; i < N; ++i) {
+            double x = toUnit(I.elemAsDouble(i));
+            const double u = U(rng);
+            if      (u < d * 0.5) x = 0.0;       // pepper
+            else if (u < d)       x = 1.0;       // salt
+            fromUnit(out, i, x);
+        }
+    }
+    else if (mode == "speckle") {
+        const double v = (p1.numel() > 0) ? p1.toScalar() : 0.04;
+        std::normal_distribution<double> Z(0.0, std::sqrt(std::max(v, 0.0)));
+        for (size_t i = 0; i < N; ++i) {
+            const double x = toUnit(I.elemAsDouble(i));
+            fromUnit(out, i, x + x * Z(rng));
+        }
+    }
+    else if (mode == "poisson") {
+        // Scale per class: integer classes use their max as the count
+        // unit; double/single use a large fixed scale so noise is small.
+        double scale;
+        switch (T) {
+            case ValueType::UINT8:   scale = 255.0;   break;
+            case ValueType::UINT16:  scale = 65535.0; break;
+            default:                 scale = 1e12;    break;
+        }
+        for (size_t i = 0; i < N; ++i) {
+            const double x = toUnit(I.elemAsDouble(i));
+            const double mean = std::max(x * scale, 0.0);
+            std::poisson_distribution<long long> P(mean);
+            const long long k = P(rng);
+            fromUnit(out, i, (double)k / scale);
+        }
+    }
+    else if (mode == "localvar") {
+        if (p1.numel() != N)
+            throw Error("imnoise('localvar', V): V must match I in size",
+                        0, 0, "imnoise", "", "m:imnoise:localvar");
+        for (size_t i = 0; i < N; ++i) {
+            const double x = toUnit(I.elemAsDouble(i));
+            const double v = std::max(p1.elemAsDouble(i), 0.0);
+            std::normal_distribution<double> Z(0.0, std::sqrt(v));
+            fromUnit(out, i, x + Z(rng));
+        }
+    }
+    else {
+        throw Error("imnoise: unknown mode '" + mode + "'",
+                    0, 0, "imnoise", "", "m:imnoise:mode");
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -700,6 +831,22 @@ void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
     outs[0] = medfilt2(ctx.engine->resource(), args[0], rows, cols);
+}
+
+void imnoise_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imnoise: requires (I, mode [, p1, p2])",
+                    0, 0, "imnoise", "", "m:imnoise:nargin");
+    if (!(args[1].isChar() || args[1].isString()))
+        throw Error("imnoise: mode must be a string",
+                    0, 0, "imnoise", "", "m:imnoise:mode");
+    const std::string mode = args[1].toString();
+    Value p1, p2;
+    if (args.size() >= 3) p1 = args[2];
+    if (args.size() >= 4) p2 = args[3];
+    outs[0] = imnoise(ctx.engine->resource(), args[0], mode, p1, p2);
 }
 
 void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
