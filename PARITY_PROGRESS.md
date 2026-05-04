@@ -3126,8 +3126,8 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imclose` | ✅ |  |  |  | OK | dilate → erode |
 | `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
 | `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
-| `imextendedmax` | ❌ |  |  |  |  |  |
-| `imextendedmin` | ❌ |  |  |  |  |  |
+| `imextendedmax` | ✅ |  |  |  | OK | imregionalmax(imhmax(I, h)); peaks ≥ h above neighbours |
+| `imextendedmin` | ✅ |  |  |  | OK | imregionalmin(imhmin(I, h)); troughs ≥ h deep |
 | `imfill` | ✅ |  |  |  | OK | 'holes' mode via imreconstruct on the complement; conn=4/8 |
 | `imhmax` | ✅ |  |  |  | OK | imreconstruct(I − h, I); shaves peaks by h |
 | `imhmin` | ✅ |  |  |  | OK | dual of imhmax via image inversion; raises shallow troughs |
