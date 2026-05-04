@@ -1520,7 +1520,7 @@ intentionally omitted.
 
 ## Control System Toolbox — Model Properties
 
-**Namespace:** `control.props.*` — 9 ✅ + 0 ⚠️ / 11 = 82%
+**Namespace:** `control.props.*` — 11 ✅ + 0 ⚠️ / 11 = **100%**
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1529,11 +1529,11 @@ intentionally omitted.
 | `isproper` | ✅ |  |  |  | OK | tf: numel(num)≤numel(den); zpk: |z|≤|p|; ss: true |
 | `issiso` | ✅ |  |  |  | OK | tf/zpk: true; ss: 1-col B and 1-row C |
 | `isstable` | ✅ |  |  |  | OK | qualified-only (`control.props.isstable`) — `compat.isstable` is libs/signal coefficient form |
-| `isstatic` | ❌ |  |  |  |  | gain only? |
+| `isstatic` | ✅ |  |  |  | OK | true when order(sys) == 0 (pure gain) |
 | `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
 | `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
 | `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
-| `tzero` | ❌ |  |  |  |  | transmission zeros |
+| `tzero` | ✅ |  |  |  | OK | SISO alias for zero(sys); raises NYI on MIMO |
 | `damp` | ✅ |  |  |  | OK | [wn, zeta, p]; discrete via s = ln(z)/Ts |
 
 ## Control System Toolbox — Model Conversion & Reduction
@@ -1607,7 +1607,7 @@ output args).
 
 ## Control System Toolbox — Stability and Margins
 
-**Namespace:** `control.margin.*` — 2 ✅ + 0 ⚠️ / 6 = 33%
+**Namespace:** `control.margin.*` — 3 ✅ + 0 ⚠️ / 6 = 50%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1615,7 +1615,7 @@ output args).
 | `allmargin` | ❌ |  |  |  |  | all stability margins |
 | `db2mag` | ❌ |  |  |  |  |  |
 | `mag2db` | ❌ |  |  |  |  |  |
-| `pzmap` | ❌ |  |  |  |  | pole-zero map (numeric form) |
+| `pzmap` | ✅ |  |  |  | OK | composes pole(sys) + zero(sys) into a 2-output |
 | `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
 
 ## Control System Toolbox — State-Space Design and Estimation

@@ -216,6 +216,30 @@ void damp(std::pmr::memory_resource *mr, const Value &sys,
     if (pOut)    *pOut = p;
 }
 
+void pzmap(std::pmr::memory_resource *mr, const Value &sys,
+           Value *pOut, Value *zOut)
+{
+    if (pOut) *pOut = polesOf(mr, sys);
+    if (zOut) *zOut = zerosOf(mr, sys);
+}
+
+Value isstatic(std::pmr::memory_resource *mr, const Value &sys)
+{
+    Value ord = order(mr, sys);
+    return Value::logicalScalar(ord.toScalar() == 0.0, mr);
+}
+
+Value tzero(std::pmr::memory_resource *mr, const Value &sys)
+{
+    // SISO build: transmission zeros == ordinary zeros.
+    Value siso = issiso(mr, sys);
+    if (siso.toScalar() == 0.0)
+        throw Error("tzero: only SISO systems supported in this build "
+                    "(MIMO transmission zeros need a generalized eigenproblem)",
+                    0, 0, "tzero", "", "m:tzero:miso");
+    return zerosOf(mr, sys);
+}
+
 namespace detail {
 
 void isct_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -259,6 +283,23 @@ void damp_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (o.size() >= 2) o[1] = zeta;
     if (o.size() >= 3) o[2] = p;
 }
+
+void pzmap_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty()) throw Error("pzmap: needs sys", 0, 0, "pzmap", "", "m:pzmap:nargin");
+    Value p, z;
+    pzmap(c.engine->resource(), a[0], &p, &z);
+    if (o.size() >= 1) o[0] = p;
+    if (o.size() >= 2) o[1] = z;
+}
+
+void isstatic_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{ if (a.empty()) throw Error("isstatic: needs sys", 0, 0, "isstatic", "", "m:isstatic:nargin");
+  o[0] = isstatic(c.engine->resource(), a[0]); }
+
+void tzero_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{ if (a.empty()) throw Error("tzero: needs sys", 0, 0, "tzero", "", "m:tzero:nargin");
+  o[0] = tzero(c.engine->resource(), a[0]); }
 
 } // namespace detail
 

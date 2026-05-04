@@ -27,6 +27,9 @@ void order_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pole_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zero_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void damp_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void pzmap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isstatic_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void tzero_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // connect/connect.cpp
 void series_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void parallel_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -89,6 +92,9 @@ void ControlLibrary::install(Engine &engine)
     reg("props", "pole",     &control::detail::pole_reg);
     reg("props", "zero",     &control::detail::zero_reg);
     reg("props", "damp",     &control::detail::damp_reg);
+    reg("props", "pzmap",    &control::detail::pzmap_reg);
+    reg("props", "isstatic", &control::detail::isstatic_reg);
+    reg("props", "tzero",    &control::detail::tzero_reg);
 
     reg("connect", "series",   &control::detail::series_reg);
     reg("connect", "parallel", &control::detail::parallel_reg);
