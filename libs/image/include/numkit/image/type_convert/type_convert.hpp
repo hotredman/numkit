@@ -52,6 +52,12 @@ gray2ind(std::pmr::memory_resource *mr, const Value &I, int n);
 Value ind2gray(std::pmr::memory_resource *mr,
                const Value &idx, const Value &map);
 
+/// `RGB = ind2rgb(idx, map)` — convert indexed image to RGB. Float
+/// idx is 1-based; integer idx is 0-based. Out-of-range entries
+/// clip to first / last colormap row. Output is M×N×3 double.
+Value ind2rgb(std::pmr::memory_resource *mr,
+              const Value &idx, const Value &map);
+
 /// `iptnum2ordinal(n)` — return an ordinal-form string for the
 /// positive integer `n`. 1..20 use English words ("first" …
 /// "twentieth"); 21+ use the suffix form ("21st", "22nd", "23rd",
