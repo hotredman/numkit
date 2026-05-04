@@ -1,0 +1,10 @@
+{
+  "name": "copper",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = copper(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = copper([n]). N×3 black→copper. r=min(5/4*x,1), g=0.7812*x, b=0.4975*x where x=(0:n-1)/(n-1). Default n=256. MATLAB+Octave."
+}

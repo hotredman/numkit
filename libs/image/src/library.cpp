@@ -71,6 +71,7 @@ void spring_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void summer_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void autumn_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void winter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void copper_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -269,6 +270,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "summer",        &image::detail::summer_reg);
     reg("color", "autumn",        &image::detail::autumn_reg);
     reg("color", "winter",        &image::detail::winter_reg);
+    reg("color", "copper",        &image::detail::copper_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
