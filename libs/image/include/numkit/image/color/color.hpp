@@ -112,6 +112,12 @@ Value winter_cmap(std::pmr::memory_resource *mr, int n);
 /// n==1 → [0 0 0]; n ≤ 0 → 0×3.
 Value copper_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = pink([n])` — N×3 pastel-pink colormap. Default n=256.
+/// idx = floor(3/8·n); piecewise linspace ramps for R/G/B then take
+/// the element-wise sqrt to lift saturation. n==1 → sqrt([1/3 1/3 1/3]);
+/// n==2 → sqrt([1/3 1/3 1/6; 1 1 1]); n ≤ 0 → 0×3.
+Value pink_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from

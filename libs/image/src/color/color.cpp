@@ -976,6 +976,81 @@ Value copper_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value pink_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        const double v = std::sqrt(1.0 / 3.0);
+        od[0] = v; od[1] = v; od[2] = v;
+        return out;
+    }
+    if (n == 2) {
+        const double s = std::sqrt(1.0 / 3.0);
+        const double s2 = std::sqrt(1.0 / 6.0);
+        od[0 * n + 0] = s;  od[1 * n + 0] = s;  od[2 * n + 0] = s2;
+        od[0 * n + 1] = 1;  od[1 * n + 1] = 1;  od[2 * n + 1] = 1;
+        return out;
+    }
+    // n > 2.
+    const int IDX = static_cast<int>(std::floor(3.0 / 8.0 * n));
+    const double base = 1.0 / (3.0 * IDX);
+    const double inv  = 1.0 / static_cast<double>(n - 1);
+    std::vector<double> r(n), g(n), b(n);
+
+    // R channel.
+    const double r_end = (2.0 / 3.0) * (IDX - 1) * inv + 1.0 / 3.0;
+    if (IDX == 1) {
+        r[0] = base;
+    } else {
+        for (int i = 0; i < IDX; ++i)
+            r[i] = base + (r_end - base) * i / (IDX - 1);
+    }
+    for (int i = IDX; i < n; ++i)
+        r[i] = (2.0 / 3.0) * i * inv + 1.0 / 3.0;
+
+    // G channel: 3-piece. Initial fill, then linspace overwrites overlap.
+    for (int i = 0; i < IDX; ++i)
+        g[i] = (2.0 / 3.0) * i * inv;
+    {
+        const double a = (2.0 / 3.0) * (IDX - 1) * inv;
+        const double bb = (2.0 / 3.0) * (2 * IDX - 1) * inv + 1.0 / 3.0;
+        const int len = IDX + 1;
+        for (int j = 0; j < len; ++j) {
+            const int pos = IDX - 1 + j;
+            if (pos < 0 || pos >= n) continue;
+            g[pos] = a + (bb - a) * j / (len - 1);
+        }
+    }
+    for (int i = 2 * IDX; i < n; ++i)
+        g[i] = (2.0 / 3.0) * i * inv + 1.0 / 3.0;
+
+    // B channel: linear up to 2*IDX-1, then linspace to 1.
+    const int upto = std::min(2 * IDX, n);
+    for (int i = 0; i < upto; ++i)
+        b[i] = (2.0 / 3.0) * i * inv;
+    {
+        const int b_start = 2 * IDX - 1;
+        if (b_start >= 0 && b_start < n) {
+            const int len = n - 2 * IDX + 1;
+            const double a = (2.0 / 3.0) * b_start * inv;
+            for (int j = 0; j < len; ++j) {
+                const int pos = b_start + j;
+                if (pos >= n) break;
+                b[pos] = a + (1.0 - a) * j / (len - 1);
+            }
+        }
+    }
+
+    for (int i = 0; i < n; ++i) {
+        od[0 * n + i] = std::sqrt(r[i]);
+        od[1 * n + i] = std::sqrt(g[i]);
+        od[2 * n + i] = std::sqrt(b[i]);
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1332,6 +1407,24 @@ void copper_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = copper_cmap(ctx.engine->resource(), n);
+}
+
+void pink_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("pink: N must be a scalar integer",
+                        0, 0, "pink", "", "m:pink:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("pink: N must be a scalar integer",
+                        0, 0, "pink", "", "m:pink:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = pink_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail
