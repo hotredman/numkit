@@ -3214,7 +3214,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Object Analysis (Image)
 
-**Namespace:** `image.object.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+**Namespace:** `image.object.*` — 3 ✅ + 0 ⚠️ / 18 = 17%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3223,14 +3223,14 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
 | `cornermetric` | ❌ |  |  |  |  |  |
-| `edge` | ❌ |  |  |  |  | Sobel/Canny/etc. |
+| `edge` | ✅ |  |  |  | OK | sobel/prewitt/roberts/log/zerocross/canny (simplified) |
 | `edge3` | ❌ |  |  |  |  |  |
 | `hough` | ❌ |  |  |  |  |  |
 | `houghlines` | ❌ |  |  |  |  |  |
 | `houghpeaks` | ❌ |  |  |  |  |  |
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
-| `imgradient` | ❌ |  |  |  |  |  |
-| `imgradientxy` | ❌ |  |  |  |  |  |
+| `imgradient` | ✅ |  |  |  | OK | (Gmag, Gdir) sobel/prewitt/central/intermediate |
+| `imgradientxy` | ✅ |  |  |  | OK | (Gx, Gy) component gradients |
 | `imgradient3` | ❌ |  |  |  |  |  |
 | `imgradientxyz` | ❌ |  |  |  |  |  |
 | `iradon` | ❌ |  |  |  |  | inverse Radon |
