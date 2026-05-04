@@ -109,4 +109,13 @@ Value imextendedmin(std::pmr::memory_resource *mr,
 Value imimposemin(std::pmr::memory_resource *mr,
                   const Value &I, const Value &BW, int conn);
 
+/// `J = imclearborder(BW [, conn])` — remove connected components
+/// that touch the image border. Standard reconstruction recipe:
+///   marker = BW restricted to the rim
+///   R      = imreconstruct(marker, BW, conn)   // border-touching FG
+///   J      = BW & ~R
+/// Output is logical; same H × W as input.
+Value imclearborder(std::pmr::memory_resource *mr,
+                    const Value &BW, int conn);
+
 } // namespace numkit::image

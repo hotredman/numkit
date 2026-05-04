@@ -3122,7 +3122,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwunpack` | ❌ |  |  |  |  |  |
 | `conndef` | ❌ |  |  |  |  |  |
 | `imbothat` | ❌ |  |  |  |  | black tophat |
-| `imclearborder` | ❌ |  |  |  |  |  |
+| `imclearborder` | ✅ |  |  |  | OK | imreconstruct(BW ∩ rim, BW); BW & ~R — strip components touching the rim |
 | `imclose` | ✅ |  |  |  | OK | dilate → erode |
 | `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
 | `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
