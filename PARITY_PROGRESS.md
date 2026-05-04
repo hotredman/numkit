@@ -1707,16 +1707,16 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
+**Namespace:** `wavelet.dwt.*` — 6 ✅ + 0 ⚠️ / 18 = 33%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `dwt` | ✅ |  |  |  | OK | single-level DWT, 'sym' boundary |
 | `idwt` | ✅ |  |  |  | OK | round-trip ≤ 1e-12 on db/sym/coif |
-| `wavedec` | ❌ |  |  |  |  | multi-level DWT |
-| `waverec` | ❌ |  |  |  |  | multi-level reconstruction |
-| `appcoef` | ❌ |  |  |  |  | extract approximation coeffs |
-| `detcoef` | ❌ |  |  |  |  | extract detail coeffs |
+| `wavedec` | ✅ |  |  |  | OK | multi-level DWT (composes dwt) |
+| `waverec` | ✅ |  |  |  | OK | round-trip ≤ 1e-11 over 4 levels |
+| `appcoef` | ✅ |  |  |  | OK | level=0 = full reconstruction |
+| `detcoef` | ✅ |  |  |  | OK | 1-based level (1=finest, n=coarsest) |
 | `wrcoef` | ❌ |  |  |  |  | reconstruct from one band |
 | `dwtmode` | ❌ |  |  |  |  | extension mode |
 | `dyaddown` | ❌ |  |  |  |  | downsample by 2 |

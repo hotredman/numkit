@@ -1,0 +1,267 @@
+// libs/wavelet/src/dwt/multilevel.cpp
+//
+// Multi-level DWT (wavedec) and reconstruction (waverec) wrap the
+// single-level dwt / idwt primitives. The (C, L) layout is the
+// MATLAB-canonical packing:
+//
+//   C = [cA_n, cD_n, cD_{n-1}, ..., cD_1]    (concatenated row vector)
+//   L = [|cA_n|, |cD_n|, |cD_{n-1}|, ..., |cD_1|, |x|]
+//
+// (See MATLAB Wavelet Toolbox `wavedec` doc.) The bookkeeping is
+// fragile but very small — `appcoef` / `detcoef` just slice C using
+// the cumulative offsets implied by L.
+
+#include <numkit/wavelet/dwt/multilevel.hpp>
+#include <numkit/wavelet/dwt/dwt.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <algorithm>
+#include <vector>
+
+namespace numkit::wavelet {
+
+namespace {
+
+Value rowFromVec(std::pmr::memory_resource *mr,
+                 const std::vector<double> &v) {
+    Value r = Value::matrix(1, v.size(), ValueType::DOUBLE, mr);
+    if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
+    return r;
+}
+
+std::vector<double> vecFromValue(const Value &v) {
+    std::vector<double> out(v.numel());
+    for (size_t i = 0; i < v.numel(); ++i) out[i] = v.elemAsDouble(i);
+    return out;
+}
+
+} // anonymous
+
+void wavedec(std::pmr::memory_resource *mr,
+             const Value &x, int n, const std::string &wname,
+             Value *Cout, Value *Lout)
+{
+    if (n < 1)
+        throw Error("wavedec: level must be ≥ 1",
+                    0, 0, "wavedec", "", "m:wavedec:level");
+
+    // Run n successive single-level DWTs on the running approximation.
+    // Stash each cD in `details[level-1]` (0-indexed: details[0] = cD_1
+    // (finest), details[n-1] = cD_n (coarsest)).
+    std::vector<std::vector<double>> details(n);
+    Value running = Value::matrix(1, x.numel(), ValueType::DOUBLE, mr);
+    {
+        double *rd = running.doubleDataMut();
+        for (size_t i = 0; i < x.numel(); ++i) rd[i] = x.elemAsDouble(i);
+    }
+
+    Value finalApprox;
+    for (int k = 0; k < n; ++k) {
+        Value cA, cD;
+        dwt(mr, running, wname, &cA, &cD);
+        details[k] = vecFromValue(cD);
+        running = cA;
+        if (k == n - 1) finalApprox = cA;
+    }
+    auto approx = vecFromValue(finalApprox);
+
+    // L = [|cA_n|, |cD_n|, |cD_{n-1}|, ..., |cD_1|, |x|]
+    std::vector<double> L;
+    L.reserve(n + 2);
+    L.push_back(static_cast<double>(approx.size()));
+    for (int k = n - 1; k >= 0; --k)
+        L.push_back(static_cast<double>(details[k].size()));
+    L.push_back(static_cast<double>(x.numel()));
+
+    // C = [cA_n, cD_n, cD_{n-1}, ..., cD_1]
+    size_t total = approx.size();
+    for (auto &d : details) total += d.size();
+    std::vector<double> C;
+    C.reserve(total);
+    C.insert(C.end(), approx.begin(), approx.end());
+    for (int k = n - 1; k >= 0; --k)
+        C.insert(C.end(), details[k].begin(), details[k].end());
+
+    if (Cout) *Cout = rowFromVec(mr, C);
+    if (Lout) *Lout = rowFromVec(mr, L);
+}
+
+Value waverec(std::pmr::memory_resource *mr,
+              const Value &C, const Value &L, const std::string &wname)
+{
+    const size_t Lcount = L.numel();
+    if (Lcount < 3)
+        throw Error("waverec: L must have at least 3 entries (1 level)",
+                    0, 0, "waverec", "", "m:waverec:size");
+    const int n = static_cast<int>(Lcount) - 2; // number of decomposition levels
+    auto sliceLen = [&](size_t idx) -> size_t {
+        return static_cast<size_t>(L.elemAsDouble(idx));
+    };
+    auto Cv = vecFromValue(C);
+
+    // Approximation cA_n is the first L[0] entries of C.
+    size_t off = 0;
+    const size_t aLen = sliceLen(0);
+    if (off + aLen > Cv.size())
+        throw Error("waverec: C/L mismatch (approx)",
+                    0, 0, "waverec", "", "m:waverec:bounds");
+    std::vector<double> running(Cv.begin() + off, Cv.begin() + off + aLen);
+    off += aLen;
+
+    // Walk through details from coarsest (L[1]) to finest (L[n]).
+    for (int k = 0; k < n; ++k) {
+        const size_t dLen = sliceLen(1 + k);
+        if (off + dLen > Cv.size())
+            throw Error("waverec: C/L mismatch (detail)",
+                        0, 0, "waverec", "", "m:waverec:bounds");
+        std::vector<double> detail(Cv.begin() + off, Cv.begin() + off + dLen);
+        off += dLen;
+
+        // Target reconstruction length: L[2+k] (the next coarser
+        // approximation length, or the original signal length at the
+        // last step).
+        const size_t recLen = sliceLen(2 + k);
+
+        // Pack as Value rows for the idwt API.
+        Value cA = rowFromVec(mr, running);
+        Value cD = rowFromVec(mr, detail);
+        Value next = idwt(mr, cA, cD, wname, static_cast<long long>(recLen));
+        running = vecFromValue(next);
+    }
+    return rowFromVec(mr, running);
+}
+
+Value appcoef(std::pmr::memory_resource *mr,
+              const Value &C, const Value &L, const std::string &wname,
+              int level)
+{
+    const size_t Lcount = L.numel();
+    if (Lcount < 3)
+        throw Error("appcoef: L too short",
+                    0, 0, "appcoef", "", "m:appcoef:size");
+    const int nMax = static_cast<int>(Lcount) - 2;
+    if (level < 0) level = nMax;          // default = coarsest
+    if (level < 0 || level > nMax)
+        throw Error("appcoef: level out of range",
+                    0, 0, "appcoef", "", "m:appcoef:level");
+
+    auto Cv = vecFromValue(C);
+    auto sliceLen = [&](size_t idx) -> size_t {
+        return static_cast<size_t>(L.elemAsDouble(idx));
+    };
+
+    // Start from the coarsest cA_nMax stored at the head of C.
+    std::vector<double> running(Cv.begin(), Cv.begin() + sliceLen(0));
+    if (level == nMax) return rowFromVec(mr, running);
+
+    // We need to reconstruct upward: starting from cA at the deepest
+    // level, apply (nMax - level) steps of "idwt with the corresponding
+    // cD" — same as waverec but stop early.
+    size_t off = sliceLen(0);
+    for (int k = 0; k < nMax - level; ++k) {
+        const size_t dLen = sliceLen(1 + k);
+        std::vector<double> detail(Cv.begin() + off, Cv.begin() + off + dLen);
+        off += dLen;
+        const size_t recLen = sliceLen(2 + k);
+        Value cA = rowFromVec(mr, running);
+        Value cD = rowFromVec(mr, detail);
+        Value next = idwt(mr, cA, cD, wname, static_cast<long long>(recLen));
+        running = vecFromValue(next);
+    }
+    return rowFromVec(mr, running);
+}
+
+Value detcoef(std::pmr::memory_resource *mr,
+              const Value &C, const Value &L, int level)
+{
+    const size_t Lcount = L.numel();
+    if (Lcount < 3)
+        throw Error("detcoef: L too short",
+                    0, 0, "detcoef", "", "m:detcoef:size");
+    const int nMax = static_cast<int>(Lcount) - 2;
+    if (level < 1 || level > nMax)
+        throw Error("detcoef: level out of range",
+                    0, 0, "detcoef", "", "m:detcoef:level");
+
+    // C layout: [cA_n, cD_n, cD_{n-1}, ..., cD_1].
+    // Detail at MATLAB level `level` (1=finest, nMax=coarsest) lives
+    // at C-index that we walk to from the front:
+    //   skip cA_n  : L[0]
+    //   skip cD_n, cD_{n-1}, ..., cD_{level+1}  : sum L[1..nMax-level]
+    //   then dLen = L[nMax - level + 1]
+    auto sliceLen = [&](size_t idx) -> size_t {
+        return static_cast<size_t>(L.elemAsDouble(idx));
+    };
+    size_t off = sliceLen(0);
+    for (int k = 0; k < nMax - level; ++k) off += sliceLen(1 + k);
+    const size_t dLen = sliceLen(static_cast<size_t>(nMax - level + 1));
+
+    auto Cv = vecFromValue(C);
+    if (off + dLen > Cv.size())
+        throw Error("detcoef: C/L bounds",
+                    0, 0, "detcoef", "", "m:detcoef:bounds");
+    std::vector<double> out(Cv.begin() + off, Cv.begin() + off + dLen);
+    return rowFromVec(mr, out);
+}
+
+namespace detail {
+
+static std::string argString(const Value &v) {
+    if (!v.isChar() && !v.isString())
+        throw Error("wavelet: expected string argument",
+                    0, 0, "", "", "m:wavelet:type");
+    return v.toString();
+}
+
+void wavedec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("wavedec: requires (x, n, wname)",
+                    0, 0, "wavedec", "", "m:wavedec:nargin");
+    auto *mr = ctx.engine->resource();
+    Value C, L;
+    wavedec(mr, args[0], static_cast<int>(args[1].toScalar()),
+            argString(args[2]), &C, &L);
+    if (outs.size() >= 1) outs[0] = C;
+    if (outs.size() >= 2) outs[1] = L;
+}
+
+void waverec_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("waverec: requires (C, L, wname)",
+                    0, 0, "waverec", "", "m:waverec:nargin");
+    outs[0] = waverec(ctx.engine->resource(),
+                      args[0], args[1], argString(args[2]));
+}
+
+void appcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("appcoef: requires (C, L, wname [, level])",
+                    0, 0, "appcoef", "", "m:appcoef:nargin");
+    int level = -1;
+    if (args.size() >= 4 && !args[3].isEmpty())
+        level = static_cast<int>(args[3].toScalar());
+    outs[0] = appcoef(ctx.engine->resource(),
+                      args[0], args[1], argString(args[2]), level);
+}
+
+void detcoef_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("detcoef: requires (C, L, level)",
+                    0, 0, "detcoef", "", "m:detcoef:nargin");
+    int level = static_cast<int>(args[2].toScalar());
+    outs[0] = detcoef(ctx.engine->resource(), args[0], args[1], level);
+}
+
+} // namespace detail
+
+} // namespace numkit::wavelet
