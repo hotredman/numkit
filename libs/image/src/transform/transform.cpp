@@ -184,6 +184,128 @@ Value integralImage3(std::pmr::memory_resource *mr, const Value &V)
     return out;
 }
 
+namespace {
+
+// Modified Shepp-Logan ellipse parameters (Toft 1996, Table B.3).
+// Each row: [I, a, b, x0, y0, phi_deg].
+constexpr double kModSheppLogan[10][6] = {
+    { 1.0,  0.69,   0.92,   0.0,    0.0,      0.0},
+    {-0.8,  0.6624, 0.874,  0.0,   -0.0184,   0.0},
+    {-0.2,  0.11,   0.31,   0.22,   0.0,    -18.0},
+    {-0.2,  0.16,   0.41,  -0.22,   0.0,     18.0},
+    { 0.1,  0.21,   0.25,   0.0,    0.35,     0.0},
+    { 0.1,  0.046,  0.046,  0.0,    0.1,      0.0},
+    { 0.1,  0.046,  0.046,  0.0,   -0.1,      0.0},
+    { 0.1,  0.046,  0.023, -0.08,  -0.605,    0.0},
+    { 0.1,  0.023,  0.023,  0.0,   -0.606,    0.0},
+    { 0.1,  0.023,  0.046,  0.06,  -0.605,    0.0},
+};
+
+// Original Shepp-Logan (1974), with the first ellipse intensity reduced
+// from 2.0 to 1.0 so the head intensity stays in [0, 1].
+constexpr double kSheppLogan[10][6] = {
+    { 1.0,   0.69,   0.92,   0.0,    0.0,       0.0},
+    {-0.98,  0.6624, 0.874,  0.0,   -0.0184,    0.0},
+    {-0.02,  0.11,   0.31,   0.22,   0.0,     -18.0},
+    {-0.02,  0.16,   0.41,  -0.22,   0.0,      18.0},
+    { 0.01,  0.21,   0.25,   0.0,    0.35,      0.0},
+    { 0.01,  0.046,  0.046,  0.0,    0.1,       0.0},
+    { 0.01,  0.046,  0.046,  0.0,   -0.1,       0.0},
+    { 0.01,  0.046,  0.023, -0.08,  -0.605,     0.0},
+    { 0.01,  0.023,  0.023,  0.0,   -0.606,     0.0},
+    { 0.01,  0.023,  0.046,  0.06,  -0.605,     0.0},
+};
+
+Value make_ellipse_matrix(std::pmr::memory_resource *mr,
+                          const double (*src)[6], size_t rows)
+{
+    Value E = Value::matrix(rows, 6, ValueType::DOUBLE, mr);
+    double *ed = E.doubleDataMut();
+    // Column-major: ed[c * rows + r] = src[r][c].
+    for (size_t r = 0; r < rows; ++r)
+        for (size_t c = 0; c < 6; ++c)
+            ed[c * rows + r] = src[r][c];
+    return E;
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+phantom(std::pmr::memory_resource *mr,
+        const Value &model_or_E, size_t n)
+{
+    if (n == 0) n = 256;
+
+    // Determine ellipses matrix.
+    Value E;
+    if (model_or_E.numel() == 0) {
+        E = make_ellipse_matrix(mr, kModSheppLogan, 10);
+    } else if (model_or_E.isChar() || model_or_E.isString()) {
+        const std::string m = model_or_E.toString();
+        std::string lo;
+        lo.reserve(m.size());
+        for (char c : m) lo.push_back(static_cast<char>(std::tolower(c)));
+        if (lo == "shepp-logan")
+            E = make_ellipse_matrix(mr, kSheppLogan, 10);
+        else if (lo == "modified shepp-logan")
+            E = make_ellipse_matrix(mr, kModSheppLogan, 10);
+        else
+            throw Error("phantom: unknown MODEL", 0, 0, "phantom", "",
+                        "m:phantom:model");
+    } else {
+        if (model_or_E.dims().cols() != 6)
+            throw Error("phantom: E must be N-by-6",
+                        0, 0, "phantom", "", "m:phantom:E");
+        E = model_or_E;
+    }
+
+    Value head = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    if (n == 0) return {std::move(head), std::move(E)};
+    double *hd = head.doubleDataMut();
+
+    // Build x grid: xvals[i] = -1 + 2i/(n-1) for n > 1; -1 for n == 1.
+    std::vector<double> xvals(n);
+    if (n == 1) xvals[0] = -1.0;
+    else
+        for (size_t i = 0; i < n; ++i)
+            xvals[i] = -1.0 + 2.0 * static_cast<double>(i)
+                              / static_cast<double>(n - 1);
+
+    const size_t nE = E.dims().rows();
+    const double *ed = E.doubleData();
+    auto Eat = [&](size_t r, size_t c) {
+        return ed[c * nE + r];
+    };
+
+    for (size_t k = 0; k < nE; ++k) {
+        const double I  = Eat(k, 0);
+        const double a  = Eat(k, 1);
+        const double b  = Eat(k, 2);
+        const double x0 = Eat(k, 3);
+        const double y0 = Eat(k, 4);
+        const double phi = Eat(k, 5) * M_PI / 180.0;
+        const double a2  = a * a;
+        const double b2  = b * b;
+        const double cos_p = std::cos(phi);
+        const double sin_p = std::sin(phi);
+
+        // xgrid[r, c] = xvals[c]; y = rot90(xgrid) → y[r, c] = xvals[n-1-r].
+        for (size_t c = 0; c < n; ++c) {
+            const double xg_c = xvals[c];
+            const double x = xg_c - x0;
+            const size_t col_off = c * n;
+            for (size_t r = 0; r < n; ++r) {
+                const double y = xvals[n - 1 - r] - y0;
+                const double u = x * cos_p + y * sin_p;
+                const double v = y * cos_p - x * sin_p;
+                if ((u * u) / a2 + (v * v) / b2 <= 1.0)
+                    hd[col_off + r] += I;
+            }
+        }
+    }
+    return {std::move(head), std::move(E)};
+}
+
 Value normxcorr2(std::pmr::memory_resource *mr,
                  const Value &templ, const Value &img)
 {
@@ -341,6 +463,32 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("dctmtx: requires 1 argument (N)",
                     0, 0, "dctmtx", "", "m:dctmtx:nargin");
     outs[0] = dctmtx(ctx.engine->resource(), args[0].toScalar());
+}
+
+void phantom_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    auto *mr = ctx.engine->resource();
+    Value model_or_E;
+    size_t n = 0;
+    // Argument forms:
+    //   phantom()                            -> defaults
+    //   phantom(model_str | E)               -> single arg
+    //   phantom(N)                           -> single numeric scalar
+    //   phantom(model_str | E, N)            -> two args
+    if (args.size() == 1) {
+        const Value &a = args[0];
+        if (!a.isEmpty() && (a.isChar() || a.isString() || a.numel() != 1))
+            model_or_E = a;
+        else if (!a.isEmpty())
+            n = static_cast<size_t>(a.toScalar());
+    } else if (args.size() >= 2) {
+        if (!args[0].isEmpty()) model_or_E = args[0];
+        if (!args[1].isEmpty()) n = static_cast<size_t>(args[1].toScalar());
+    }
+    auto [head, E] = phantom(mr, model_or_E, n);
+    outs[0] = std::move(head);
+    if (nargout > 1) outs[1] = std::move(E);
 }
 
 void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,

@@ -2978,7 +2978,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 |---|:---:|---:|---:|---:|:---:|---|
 | `checkerboard` | ❌ | 0.005 |  | 66.61× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
 | `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
-| `phantom` | ❌ |  |  |  |  | Shepp-Logan |
+| `phantom` | ❌ | 0.069 |  | 20.01× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
 | `imshow` | ❌ |  |  |  |  | needs graphics |
 | `imfuse` | ❌ |  |  |  |  |  |
 | `imshowpair` | ❌ |  |  |  |  |  |

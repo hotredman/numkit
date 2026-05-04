@@ -43,4 +43,13 @@ Value checkerboard(std::pmr::memory_resource *mr,
 Value normxcorr2(std::pmr::memory_resource *mr,
                  const Value &templ, const Value &img);
 
+/// phantom([model | E] [, n]) — Shepp-Logan computational head
+/// phantom. `model` is "Shepp-Logan" or "Modified Shepp-Logan"
+/// (default). `E` is an N×6 matrix of ellipse parameters
+/// {I, a, b, x0, y0, phi_deg}. Output is n×n double.
+/// `ellipses_used` returns the parameter matrix actually used.
+std::tuple<Value, Value>
+phantom(std::pmr::memory_resource *mr,
+        const Value &model_or_E, size_t n);
+
 } // namespace numkit::image
