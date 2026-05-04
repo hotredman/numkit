@@ -171,6 +171,12 @@ Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
 /// (sanitized to double class). Shape is preserved (M×3 or H×W×3).
 Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz);
 
+/// `xyzu16 = xyz2uint16(xyz)` — convert XYZ to uint16 ICC encoding.
+/// Inverse of xyz2double: `uint16 = saturate(round(double * 32768))`.
+/// Negative values clip to 0; values ≥ 65535/32768 ≈ 1.99997 saturate
+/// to 65535. uint16 input is passed through. Shape preserved.
+Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz);
+
 /// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
 /// difference. Default treats inputs as RGB and converts to L*a*b*
 /// internally; pass `isInputLab=true` to skip the conversion.
