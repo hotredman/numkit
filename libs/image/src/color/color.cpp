@@ -12,6 +12,9 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
+#include <cstring>
+#include <utility>
+#include <vector>
 
 namespace numkit::image {
 
@@ -298,6 +301,75 @@ Value lab2rgb(std::pmr::memory_resource *mr, const Value &x) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imsplit — split H×W×P → P planes of H×W
+// ════════════════════════════════════════════════════════════════════
+//
+// Numkit packs an H×W×P volume column-major across all three dims:
+// element (r, c, p) sits at linear offset p·H·W + c·H + r. Splitting
+// is therefore a contiguous H·W copy per channel — no transpose, no
+// stride trickery.
+
+namespace {
+
+inline void copy_plane(const Value &src, size_t plane,
+                       size_t H, size_t W, Value &dst)
+{
+    const size_t N = H * W;
+    const size_t off = plane * N;
+    const ValueType T = src.type();
+    switch (T) {
+        case ValueType::DOUBLE:
+            std::memcpy(dst.doubleDataMut(),
+                        src.doubleData() + off, N * sizeof(double));
+            break;
+        case ValueType::SINGLE:
+            std::memcpy(dst.singleDataMut(),
+                        src.singleData() + off, N * sizeof(float));
+            break;
+        case ValueType::UINT8:
+            std::memcpy(dst.uint8DataMut(),
+                        src.uint8Data() + off, N);
+            break;
+        case ValueType::UINT16:
+            std::memcpy(dst.uint16DataMut(),
+                        src.uint16Data() + off, N * sizeof(std::uint16_t));
+            break;
+        case ValueType::INT16:
+            std::memcpy(dst.int16DataMut(),
+                        src.int16Data() + off, N * sizeof(std::int16_t));
+            break;
+        case ValueType::LOGICAL:
+            std::memcpy(dst.logicalDataMut(),
+                        src.logicalData() + off, N);
+            break;
+        default:
+            // Generic fallback — re-read elements.
+            for (size_t i = 0; i < N; ++i) {
+                const double v = src.elemAsDouble(off + i);
+                dst.doubleDataMut()[i] = v;
+            }
+    }
+}
+
+} // anonymous
+
+void imsplit(std::pmr::memory_resource *mr,
+             const Value &I, std::vector<Value> &planes)
+{
+    const auto &d = I.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1;
+    planes.clear();
+    planes.reserve(P);
+    for (size_t p = 0; p < P; ++p) {
+        Value plane = Value::matrix(H, W, I.type(), mr);
+        copy_plane(I, p, H, W, plane);
+        planes.push_back(std::move(plane));
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -312,6 +384,20 @@ namespace detail {
                         "m:" #name ":nargin");                                     \
         outs[0] = name(ctx.engine->resource(), args[0]);                           \
     }
+
+void imsplit_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imsplit: requires (I)", 0, 0, "imsplit", "",
+                    "m:imsplit:nargin");
+    std::vector<Value> planes;
+    imsplit(ctx.engine->resource(), args[0], planes);
+    const size_t M = std::min((size_t)outs.size(),
+                               std::max(nargout, (size_t)1));
+    for (size_t i = 0; i < M && i < planes.size(); ++i)
+        outs[i] = std::move(planes[i]);
+}
 
 NK_COLOR_REG(rgb2hsv)
 NK_COLOR_REG(hsv2rgb)

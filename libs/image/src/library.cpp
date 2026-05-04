@@ -28,6 +28,7 @@ void im2int16_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void mat2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void im2gray_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imsplit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // color/color.cpp
 void rgb2hsv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -57,6 +58,7 @@ void stretchlim_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imadjust_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void histeq_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void adaptthresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imhistmatch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void graythresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otsuthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multithresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -154,6 +156,7 @@ void ImageLibrary::install(Engine &engine)
     reg("type",  "mat2gray",      &image::detail::mat2gray_reg);
     reg("type",  "im2gray",       &image::detail::im2gray_reg);
     reg("color", "rgb2gray",      &image::detail::rgb2gray_reg);
+    reg("color", "imsplit",       &image::detail::imsplit_reg);
 
     reg("color", "rgb2hsv",       &image::detail::rgb2hsv_reg);
     reg("color", "hsv2rgb",       &image::detail::hsv2rgb_reg);
@@ -184,6 +187,7 @@ void ImageLibrary::install(Engine &engine)
     reg("contrast", "imadjust",   &image::detail::imadjust_reg);
     reg("contrast", "histeq",     &image::detail::histeq_reg);
     reg("contrast", "adaptthresh",&image::detail::adaptthresh_reg);
+    reg("contrast", "imhistmatch",&image::detail::imhistmatch_reg);
 
     reg("type",  "graythresh",   &image::detail::graythresh_reg);
     reg("type",  "otsuthresh",   &image::detail::otsuthresh_reg);

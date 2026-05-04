@@ -12,7 +12,15 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <vector>
+
 namespace numkit::image {
+
+/// imsplit(I) — split an H×W×P volume into P planes (H×W each).
+/// For 2-D input returns a single H×W copy in planes[0]. Output
+/// vector is resized to P; output planes share the input's class.
+void imsplit(std::pmr::memory_resource *mr,
+             const Value &I, std::vector<Value> &planes);
 
 Value rgb2hsv  (std::pmr::memory_resource *mr, const Value &x);
 Value hsv2rgb  (std::pmr::memory_resource *mr, const Value &x);

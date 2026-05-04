@@ -399,6 +399,76 @@ Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &lev
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imhistmatch — CDF-matching to a reference histogram
+// ════════════════════════════════════════════════════════════════════
+//
+// Recipe (single-channel, MATLAB-canonical):
+//   1. Compute nbins-bin normalised histograms of I and ref in [0, 1].
+//   2. Build CDFs: cdfI[k] = sum(histI[0..k]) / N_I, similarly cdfR.
+//   3. For each input bin b, the output normalised intensity is
+//        LUT[b] = first k such that cdfR[k] >= cdfI[b]
+//      then mapped to a representative value (k + 0.5)/nbins ∈ [0, 1].
+//   4. Apply LUT to every pixel of I; cast back to the input class.
+// Default nbins: 256 for uint8, 65536 for uint16, 64 otherwise — same
+// rule as the existing default_nbins() helper.
+
+Value imhistmatch(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &ref, int nbins)
+{
+    if (nbins <= 0) nbins = std::max(default_nbins(I), default_nbins(ref));
+    if (nbins < 2) nbins = 2;
+
+    const size_t Ni = I.numel();
+    const size_t Nr = ref.numel();
+    if (Ni == 0 || Nr == 0)
+        return Value::matrix(I.dims().rows(), I.dims().cols(), I.type(), mr);
+
+    auto bin_index = [&](double u) {
+        int b = (int)std::floor(u * nbins);
+        if (b < 0) b = 0;
+        if (b >= nbins) b = nbins - 1;
+        return b;
+    };
+
+    // Histograms.
+    std::vector<size_t> hI((size_t)nbins, 0), hR((size_t)nbins, 0);
+    for (size_t i = 0; i < Ni; ++i) hI[bin_index(element_to_unit(I, i))]++;
+    for (size_t i = 0; i < Nr; ++i) hR[bin_index(element_to_unit(ref, i))]++;
+
+    // CDFs (normalised).
+    std::vector<double> cI((size_t)nbins), cR((size_t)nbins);
+    {
+        size_t accI = 0, accR = 0;
+        for (int b = 0; b < nbins; ++b) {
+            accI += hI[(size_t)b];
+            accR += hR[(size_t)b];
+            cI[(size_t)b] = (double)accI / (double)Ni;
+            cR[(size_t)b] = (double)accR / (double)Nr;
+        }
+    }
+
+    // Build LUT[b] = smallest k with cR[k] ≥ cI[b], expressed as a
+    // unit-range double. Walk both monotone arrays in O(nbins).
+    std::vector<double> LUT((size_t)nbins, 0.0);
+    int k = 0;
+    for (int b = 0; b < nbins; ++b) {
+        while (k + 1 < nbins && cR[(size_t)k] < cI[(size_t)b]) ++k;
+        LUT[(size_t)b] = (k + 0.5) / (double)nbins;
+    }
+
+    // Apply.
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    Value out = Value::matrix(H, W, I.type(), mr);
+    for (size_t i = 0; i < Ni; ++i) {
+        const double u = element_to_unit(I, i);
+        const double v = LUT[(size_t)bin_index(u)];
+        store_classed(out, i, v, I.type());
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // adaptthresh — locally adaptive threshold matrix
 // ════════════════════════════════════════════════════════════════════
 //
@@ -490,6 +560,17 @@ Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
 // ════════════════════════════════════════════════════════════════════
 
 namespace detail {
+
+void imhistmatch_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imhistmatch: requires (I, ref [, nbins])",
+                    0, 0, "imhistmatch", "", "m:imhistmatch:nargin");
+    int n = (args.size() >= 3 && !args[2].isEmpty())
+            ? (int)args[2].toScalar() : 0;
+    outs[0] = imhistmatch(ctx.engine->resource(), args[0], args[1], n);
+}
 
 void imhist_reg(Span<const Value> args, size_t nargout,
                 Span<Value> outs, CallContext &ctx)
