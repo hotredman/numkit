@@ -92,6 +92,14 @@ Value imhistmatch(std::pmr::memory_resource *mr,
 Value imflatfield(std::pmr::memory_resource *mr,
                   const Value &I, double sigma, const Value &mask);
 
+/// `Y = wcodemat(X [, nb [, opt [, absol]]])` — quantize and scale
+/// `X` into integer codes in [1, nb]. `opt` ∈ {"mat" (default,
+/// global), "row", "col"}; `absol` controls whether to use abs(X)
+/// (1, default) or X (0). Output is double; this is the canonical
+/// wavelet-display helper from MATLAB's Wavelet Toolbox.
+Value wcodemat(std::pmr::memory_resource *mr, const Value &X,
+               int nb, const std::string &opt, int absol);
+
 /// entropy(I [, nbins]) — Shannon entropy of the image histogram in
 /// bits. For non-logical images the image is first converted to
 /// uint8 with 256 bins by default; logical images use 2 bins. Zero
