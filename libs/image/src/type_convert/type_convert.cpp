@@ -315,6 +315,37 @@ inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
 
 } // anonymous
 
+Value iptnum2ordinal(std::pmr::memory_resource *mr, double n)
+{
+    if (!std::isfinite(n) || n <= 0.0 || n != std::floor(n))
+        throw Error("iptnum2ordinal: num must be a real positive integer",
+                    0, 0, "iptnum2ordinal", "", "m:iptnum2ordinal:n");
+
+    static const char *kWords[] = {
+        nullptr,    "first",      "second",   "third",
+        "fourth",   "fifth",      "sixth",    "seventh",
+        "eighth",   "ninth",      "tenth",    "eleventh",
+        "twelfth",  "thirteenth", "fourteenth","fifteenth",
+        "sixteenth","seventeenth","eighteenth","nineteenth",
+        "twentieth"
+    };
+
+    const long long ll = static_cast<long long>(n);
+    std::string s;
+    if (ll >= 1 && ll <= 20) {
+        s = kWords[ll];
+    } else {
+        s = std::to_string(ll);
+        const char last = s.back();
+        const char *suffix = "th";
+        if      (last == '1') suffix = "st";
+        else if (last == '2') suffix = "nd";
+        else if (last == '3') suffix = "rd";
+        s += suffix;
+    }
+    return Value::fromString(s, mr);
+}
+
 Value imcast(std::pmr::memory_resource *mr,
              const Value &I, const std::string &type)
 {
@@ -519,6 +550,16 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         hi = args[1].elemAsDouble(1);
     }
     outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+}
+
+void iptnum2ordinal_reg(Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("iptnum2ordinal: requires (n)",
+                    0, 0, "iptnum2ordinal", "", "m:iptnum2ordinal:nargin");
+    outs[0] = iptnum2ordinal(ctx.engine->resource(),
+                             args[0].toScalar());
 }
 
 void imcast_reg(Span<const Value> args, size_t /*nargout*/,

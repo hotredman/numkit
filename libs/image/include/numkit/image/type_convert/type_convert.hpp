@@ -39,6 +39,12 @@ Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 /// and double all return [0, 1]. Output is always double.
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I);
 
+/// `iptnum2ordinal(n)` — return an ordinal-form string for the
+/// positive integer `n`. 1..20 use English words ("first" …
+/// "twentieth"); 21+ use the suffix form ("21st", "22nd", "23rd",
+/// "24th", …).
+Value iptnum2ordinal(std::pmr::memory_resource *mr, double n);
+
 /// `imcast(I, type)` — convert image to a target class string
 /// ("double", "single", "uint8", "uint16", "int16", "logical").
 /// Dispatches to the existing im2double/im2single/im2uint8/...

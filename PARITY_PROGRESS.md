@@ -2919,7 +2919,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ❌ |  |  |  |  |  |
-| `iptnum2ordinal` | ❌ |  |  |  |  |  |
+| `iptnum2ordinal` | ❌ | 0.003 |  | 170.72× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
 | `label2rgb` | ❌ | 0.003 |  | 157.82× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
 | `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
