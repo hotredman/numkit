@@ -30,4 +30,11 @@ Value imread(std::pmr::memory_resource *mr, const std::string &path);
 void imwrite(std::pmr::memory_resource *mr,
              const Value &A, const std::string &path);
 
+/// `imfinfo(path)` — read header metadata without decoding pixels.
+/// Returns a struct with fields:
+///   Filename, Format ('png'|'jpg'|'bmp'|'gif'|'pnm'|'hdr'|'psd'|'tga'),
+///   Width, Height, NumberOfChannels (1/3/4), ColorType
+///   ('grayscale'|'truecolor'|'truecoloralpha'), FileSize.
+Value imfinfo(std::pmr::memory_resource *mr, const std::string &path);
+
 } // namespace numkit::image

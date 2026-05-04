@@ -2883,7 +2883,7 @@ vector path-loss models and coordinate transforms.
 
 ## Image I/O (Image Processing Toolbox)
 
-**Namespace:** `image.io.*` — 2 ✅ + 0 ⚠️ / 3 = 67%
+**Namespace:** `image.io.*` — 3 ✅ + 0 ⚠️ / 3 = **100%**
 
 Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendored under `third_party/stb/`.
 
@@ -2891,7 +2891,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 |---|:---:|---:|---:|---:|:---:|---|
 | `imread` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA/PSD/GIF/HDR/PNM via stb_image |
 | `imwrite` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA via stb_image_write; ext detected from path |
-| `imfinfo` | ❌ |  |  |  |  | header parsing |
+| `imfinfo` | ✅ |  |  |  | OK | stbi_info + magic-byte format sniff + filesystem size |
 
 ## Image Type Conversion
 

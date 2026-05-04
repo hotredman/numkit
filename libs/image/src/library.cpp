@@ -92,6 +92,7 @@ void dctmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // io/io.cpp
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imwrite_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imfinfo_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -176,6 +177,7 @@ void ImageLibrary::install(Engine &engine)
 
     reg("io", "imread",  &image::detail::imread_reg);
     reg("io", "imwrite", &image::detail::imwrite_reg);
+    reg("io", "imfinfo", &image::detail::imfinfo_reg);
 }
 
 } // namespace numkit

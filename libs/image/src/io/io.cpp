@@ -18,6 +18,9 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdint>
+#include <cstdio>
+#include <filesystem>
+#include <string>
 #include <vector>
 
 namespace numkit::image {
@@ -168,6 +171,92 @@ void imwrite(std::pmr::memory_resource * /*mr*/,
                     0, 0, "imwrite", "", "m:imwrite:write");
 }
 
+namespace {
+
+// Sniff file format by inspecting the first ~12 bytes (magic numbers).
+// Returns one of "png" / "jpg" / "bmp" / "gif" / "psd" / "pnm" / "hdr"
+// / "tga" / "" (unknown).
+std::string detectFormat(const std::string &path) {
+    FILE *f = std::fopen(path.c_str(), "rb");
+    if (!f) return {};
+    unsigned char hdr[16] = {0};
+    const size_t n = std::fread(hdr, 1, sizeof(hdr), f);
+    std::fclose(f);
+    if (n < 4) return {};
+
+    // PNG: 89 50 4E 47 0D 0A 1A 0A
+    if (n >= 8 && hdr[0] == 0x89 && hdr[1] == 'P' && hdr[2] == 'N' &&
+        hdr[3] == 'G' && hdr[4] == 0x0D && hdr[5] == 0x0A)
+        return "png";
+    // JPEG: starts with FF D8 FF
+    if (n >= 3 && hdr[0] == 0xFF && hdr[1] == 0xD8 && hdr[2] == 0xFF)
+        return "jpg";
+    // BMP: 'BM'
+    if (hdr[0] == 'B' && hdr[1] == 'M') return "bmp";
+    // GIF: 'GIF87a' / 'GIF89a'
+    if (n >= 6 && hdr[0] == 'G' && hdr[1] == 'I' && hdr[2] == 'F' &&
+        hdr[3] == '8' && (hdr[4] == '7' || hdr[4] == '9') && hdr[5] == 'a')
+        return "gif";
+    // PSD: '8BPS'
+    if (n >= 4 && hdr[0] == '8' && hdr[1] == 'B' && hdr[2] == 'P' &&
+        hdr[3] == 'S')
+        return "psd";
+    // PNM: 'P1' .. 'P6' (and 'P7' for PAM, 'PF' for HDR PFM).
+    if (hdr[0] == 'P' && hdr[1] >= '1' && hdr[1] <= '7')
+        return "pnm";
+    // Radiance HDR: '#?RADIANCE' or '#?RGBE'
+    if (n >= 8 && hdr[0] == '#' && hdr[1] == '?') return "hdr";
+    // TGA has no magic; fall through to extension.
+    return {};
+}
+
+const char *colorTypeFromChannels(int c) {
+    switch (c) {
+        case 1: return "grayscale";
+        case 2: return "grayscalealpha";
+        case 3: return "truecolor";
+        case 4: return "truecoloralpha";
+        default: return "unknown";
+    }
+}
+
+} // anonymous
+
+Value imfinfo(std::pmr::memory_resource *mr, const std::string &path)
+{
+    int W = 0, H = 0, channels = 0;
+    if (!stbi_info(path.c_str(), &W, &H, &channels)) {
+        const char *err = stbi_failure_reason();
+        throw Error(std::string("imfinfo: failed to read '") + path + "'" +
+                    (err ? std::string(" — ") + err : std::string()),
+                    0, 0, "imfinfo", "", "m:imfinfo:read");
+    }
+
+    std::string fmt = detectFormat(path);
+    if (fmt.empty()) {
+        const std::string ext = lowerExt(path);
+        if (ext == "tga") fmt = "tga";
+        else fmt = ext;   // best effort fallback
+    }
+
+    // File size via std::filesystem (C++17 — already required by numkit).
+    long long fileSize = 0;
+    std::error_code ec;
+    fileSize = static_cast<long long>(std::filesystem::file_size(path, ec));
+    if (ec) fileSize = 0;
+
+    Value s = Value::structure(mr);
+    s.field("Filename")          = Value::fromString(path, mr);
+    s.field("Format")            = Value::fromString(fmt, mr);
+    s.field("Width")             = Value::scalar(double(W), mr);
+    s.field("Height")            = Value::scalar(double(H), mr);
+    s.field("NumberOfChannels")  = Value::scalar(double(channels), mr);
+    s.field("ColorType")         =
+        Value::fromString(colorTypeFromChannels(channels), mr);
+    s.field("FileSize")          = Value::scalar(double(fileSize), mr);
+    return s;
+}
+
 namespace detail {
 
 void imread_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
@@ -192,6 +281,18 @@ void imwrite_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> /*outs*
         throw Error("imwrite: path must be a string",
                     0, 0, "imwrite", "", "m:imwrite:type");
     imwrite(ctx.engine->resource(), args[0], args[1].toString());
+}
+
+void imfinfo_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                 CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imfinfo: requires a path string",
+                    0, 0, "imfinfo", "", "m:imfinfo:nargin");
+    if (!args[0].isChar() && !args[0].isString())
+        throw Error("imfinfo: path must be a string",
+                    0, 0, "imfinfo", "", "m:imfinfo:type");
+    outs[0] = imfinfo(ctx.engine->resource(), args[0].toString());
 }
 
 } // namespace detail
