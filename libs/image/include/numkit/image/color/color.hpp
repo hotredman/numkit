@@ -27,6 +27,9 @@ Value hsv2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value rgb2ycbcr(std::pmr::memory_resource *mr, const Value &x);
 Value ycbcr2rgb(std::pmr::memory_resource *mr, const Value &x);
 
+Value rgb2ntsc (std::pmr::memory_resource *mr, const Value &x);
+Value ntsc2rgb (std::pmr::memory_resource *mr, const Value &x);
+
 Value rgb2xyz  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value rgb2lab  (std::pmr::memory_resource *mr, const Value &x);

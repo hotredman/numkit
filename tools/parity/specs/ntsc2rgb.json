@@ -1,0 +1,10 @@
+{
+  "name": "ntsc2rgb",
+  "namespace": "image",
+  "setup": "yiq = [0.5 0.2 -0.1; 0.7 0.0 0.0; 0.3 -0.3 0.2];",
+  "expr": "y = ntsc2rgb(yiq);",
+  "iters": 5,
+  "tol": 1e-06,
+  "out_var": "y",
+  "comment": "Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb."
+}

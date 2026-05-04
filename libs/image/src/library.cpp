@@ -36,6 +36,8 @@ void rgb2hsv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hsv2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2ycbcr_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ycbcr2rgb_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rgb2ntsc_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ntsc2rgb_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2xyz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void xyz2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2lab_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -188,6 +190,8 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "hsv2rgb",       &image::detail::hsv2rgb_reg);
     reg("color", "rgb2ycbcr",     &image::detail::rgb2ycbcr_reg);
     reg("color", "ycbcr2rgb",     &image::detail::ycbcr2rgb_reg);
+    reg("color", "rgb2ntsc",      &image::detail::rgb2ntsc_reg);
+    reg("color", "ntsc2rgb",      &image::detail::ntsc2rgb_reg);
     reg("color", "rgb2xyz",       &image::detail::rgb2xyz_reg);
     reg("color", "xyz2rgb",       &image::detail::xyz2rgb_reg);
     reg("color", "rgb2lab",       &image::detail::rgb2lab_reg);
