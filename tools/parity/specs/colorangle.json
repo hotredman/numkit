@@ -1,0 +1,10 @@
+{
+  "name": "colorangle",
+  "namespace": "image",
+  "setup": "a = [1 0 0; 0.5 1 0; 0 1 1; 1 1 1]; b = [0 1 0];",
+  "expr": "y = colorangle(a, b);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle."
+}

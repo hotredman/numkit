@@ -34,6 +34,16 @@ Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
 
+/// colorangle(rgb1, rgb2) — angle in degrees between two RGB
+/// colours: rad2deg(acos(dot(rgb1, rgb2) / (|rgb1|·|rgb2|))).
+/// Inputs may be 3-element vectors (any orientation) or N×3
+/// matrices; broadcasting between a single colour and an N×3
+/// stack is supported. Returns 0 when both colours are zero, NaN
+/// when only one is zero. The cosine is clamped to [−1, 1] to
+/// guard against floating-point drift on identical colours.
+Value colorangle(std::pmr::memory_resource *mr,
+                 const Value &rgb1, const Value &rgb2);
+
 /// label2rgb(L, cmap [, background]) — colourise a labelled image.
 /// `L` is an H×W non-negative integer-valued matrix. `cmap` is an
 /// N×3 colormap (double in [0, 1]). Pixels with label == 0 take the

@@ -10,6 +10,10 @@
 
 #include <algorithm>
 #include <array>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -369,6 +373,71 @@ void imsplit(std::pmr::memory_resource *mr,
     }
 }
 
+namespace {
+
+// Normalise an RGB-vector argument to an N×3 row-of-triplets layout.
+// Accepts 3-element vectors of any orientation (1×3, 3×1, or 3-D
+// linear) and N×3 matrices. Returns the data flattened into a
+// std::vector<double> of length 3*N (row-major: per-colour triple
+// stored consecutively).
+std::vector<double> rgb_rows(const Value &v, const char *name) {
+    const auto &d = v.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    if (v.numel() == 3) {
+        std::vector<double> out(3);
+        for (size_t i = 0; i < 3; ++i) out[i] = v.elemAsDouble(i);
+        return out;
+    }
+    if (W != 3)
+        throw Error(std::string(name) + " must be a 3-element or N-by-3 array",
+                    0, 0, "colorangle", "", "m:colorangle:shape");
+    std::vector<double> out(3 * H);
+    for (size_t r = 0; r < H; ++r)
+        for (size_t c = 0; c < 3; ++c)
+            // col-major source: idx = c*H + r → row-major dest: r*3 + c.
+            out[r * 3 + c] = v.elemAsDouble(c * H + r);
+    return out;
+}
+
+} // anonymous
+
+Value colorangle(std::pmr::memory_resource *mr,
+                 const Value &rgb1, const Value &rgb2)
+{
+    const auto a = rgb_rows(rgb1, "RGB1");
+    const auto b = rgb_rows(rgb2, "RGB2");
+    const size_t Na = a.size() / 3;
+    const size_t Nb = b.size() / 3;
+    if (Na != Nb && Na != 1 && Nb != 1)
+        throw Error("colorangle: RGB1 and RGB2 must broadcast (N or 1)",
+                    0, 0, "colorangle", "", "m:colorangle:size");
+    const size_t N = std::max(Na, Nb);
+
+    Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+    double *od = out.doubleDataMut();
+
+    for (size_t i = 0; i < N; ++i) {
+        const double *ai = &a[(Na == 1 ? 0 : i) * 3];
+        const double *bi = &b[(Nb == 1 ? 0 : i) * 3];
+        const double dot = ai[0]*bi[0] + ai[1]*bi[1] + ai[2]*bi[2];
+        const double na  = std::sqrt(ai[0]*ai[0] + ai[1]*ai[1] + ai[2]*ai[2]);
+        const double nb  = std::sqrt(bi[0]*bi[0] + bi[1]*bi[1] + bi[2]*bi[2]);
+        double angle;
+        if (na == 0.0 && nb == 0.0)      angle = 0.0;
+        else if (na == 0.0 || nb == 0.0) angle = std::nan("");
+        else {
+            double c = dot / (na * nb);
+            if (c >  1.0) c =  1.0;
+            if (c < -1.0) c = -1.0;
+            angle = std::acos(c) * 180.0 / M_PI;
+        }
+        od[i] = angle;
+    }
+    return out;
+}
+
 Value label2rgb(std::pmr::memory_resource *mr,
                 const Value &L, const Value &cmap,
                 const Value &background)
@@ -483,6 +552,15 @@ void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
     Value bg;
     if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
     outs[0] = label2rgb(ctx.engine->resource(), args[0], args[1], bg);
+}
+
+void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("colorangle: requires (rgb1, rgb2)",
+                    0, 0, "colorangle", "", "m:colorangle:nargin");
+    outs[0] = colorangle(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
