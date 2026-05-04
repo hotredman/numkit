@@ -205,6 +205,13 @@ void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kstest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void kstest2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// resample/resample.cpp
+void randsample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void datasample_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bootstrp_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void jackknife_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void combnk_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -382,6 +389,12 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "kstest",   &stats::detail::kstest_reg);
     reg("test", "kstest2",  &stats::detail::kstest2_reg);
     reg("test", "jbtest",   &stats::detail::jbtest_reg);
+
+    reg("resample", "randsample", &stats::detail::randsample_reg);
+    reg("resample", "datasample", &stats::detail::datasample_reg);
+    reg("resample", "bootstrp",   &stats::detail::bootstrp_reg);
+    reg("resample", "jackknife",  &stats::detail::jackknife_reg);
+    reg("resample", "combnk",     &stats::detail::combnk_reg);
 }
 
 } // namespace numkit
