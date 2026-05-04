@@ -47,6 +47,9 @@ void stepinfo_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // discretize/discretize.cpp
 void c2d_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+// state/state.cpp
+void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in libs/builtin and libs/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -98,6 +101,9 @@ void ControlLibrary::install(Engine &engine)
 
     reg("discretize", "c2d", &control::detail::c2d_reg);
     reg("discretize", "d2c", &control::detail::d2c_reg);
+
+    reg("state", "ctrb", &control::detail::ctrb_reg);
+    reg("state", "obsv", &control::detail::obsv_reg);
 }
 
 } // namespace numkit
