@@ -53,4 +53,13 @@ Value imclose(std::pmr::memory_resource *mr, const Value &I, const Value &SE);
 Value imreconstruct(std::pmr::memory_resource *mr,
                     const Value &marker, const Value &mask, int conn);
 
+/// `J = imfill(BW, 'holes' [, conn])` — fill interior holes in a
+/// binary image. Holes are 0-pixels NOT connectivity-reachable from
+/// the image border. Implementation:
+///   marker = ~BW restricted to the image border
+///   R      = imreconstruct(marker, ~BW, conn)   // border-touching bg
+///   J      = ~R                                 // foreground + holes
+Value imfill_holes(std::pmr::memory_resource *mr,
+                   const Value &BW, int conn);
+
 } // namespace numkit::image

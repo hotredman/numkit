@@ -3128,7 +3128,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
 | `imextendedmax` | ❌ |  |  |  |  |  |
 | `imextendedmin` | ❌ |  |  |  |  |  |
-| `imfill` | ❌ |  |  |  |  | flood-fill holes |
+| `imfill` | ✅ |  |  |  | OK | 'holes' mode via imreconstruct on the complement; conn=4/8 |
 | `imhmax` | ❌ |  |  |  |  | h-maxima transform |
 | `imhmin` | ❌ |  |  |  |  |  |
 | `imimposemin` | ❌ |  |  |  |  |  |
