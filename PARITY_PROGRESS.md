@@ -3100,7 +3100,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `poly2mask` | ❌ |  |  |  |  |  |
 | `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
 | `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
-| `roicolor` | ❌ |  |  |  |  |  |
+| `roicolor` | ❌ | 0.003 |  | 19.63× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
 | `roifill` | ❌ |  |  |  |  | legacy alias |
 | `roipoly` | ❌ |  |  |  |  |  |
 

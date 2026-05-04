@@ -68,6 +68,15 @@ Value regionprops(std::pmr::memory_resource *mr,
 /// column-wise (exact, O(H·W)).
 Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
 
+/// `BW = roicolor(A, low, high)` — region-of-interest mask via
+/// inclusive range threshold: BW = (A >= low) & (A <= high).
+/// `BW = roicolor(A, v)` — set-membership mask: BW(i) is true iff
+/// A(i) matches any element of vector v. Output is logical, same
+/// shape as A. Use range-form when `is_range` is true; otherwise
+/// `low_or_v` is treated as a value vector.
+Value roicolor(std::pmr::memory_resource *mr, const Value &A,
+               const Value &low_or_v, double high, bool is_range);
+
 /// `fcc = fchcode(bound)` — Freeman 8-direction chain code for a
 /// closed K-by-2 boundary (rows / cols). Returns a struct with
 ///   x0y0 — 1×2 start point (matching bound(1,:))
