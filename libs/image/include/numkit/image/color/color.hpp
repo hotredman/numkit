@@ -75,6 +75,11 @@ Value wavelength2rgb(std::pmr::memory_resource *mr,
 Value colorangle(std::pmr::memory_resource *mr,
                  const Value &rgb1, const Value &rgb2);
 
+/// `map = gray([n])` — N×3 grayscale colormap. Default n = 256 (we
+/// don't track figure state). n == 1 → [0, 0, 0]; n ≤ 0 → 0×3.
+/// Otherwise gr = (0:n-1)/(n-1), repeated across all 3 channels.
+Value gray_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap with values in [0, 1] (any numeric
 /// class accepted; coerced to double). Output is an N×1 column of

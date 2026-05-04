@@ -1,0 +1,10 @@
+{
+  "name": "gray",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = gray(16);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = gray([n]). N×3 grayscale colormap. Default n=256 (we don't track figure colormap state). n==1 → [0 0 0]; n<=0 → 0×3. Octave core has gray."
+}
