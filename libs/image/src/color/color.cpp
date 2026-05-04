@@ -369,6 +369,68 @@ void imsplit(std::pmr::memory_resource *mr,
     }
 }
 
+Value label2rgb(std::pmr::memory_resource *mr,
+                const Value &L, const Value &cmap,
+                const Value &background)
+{
+    const auto &dL = L.dims();
+    const size_t H = dL.rows();
+    const size_t W = dL.cols();
+    if (dL.is3D() && dL.pages() != 1)
+        throw Error("label2rgb: L must be a 2-D labelled image",
+                    0, 0, "label2rgb", "", "m:label2rgb:dims");
+
+    if (cmap.dims().cols() != 3)
+        throw Error("label2rgb: CMAP must be N-by-3",
+                    0, 0, "label2rgb", "", "m:label2rgb:cmap");
+    const size_t N = cmap.dims().rows();
+
+    double bg[3] = {1.0, 1.0, 1.0};
+    if (background.numel() == 3) {
+        bg[0] = background.elemAsDouble(0);
+        bg[1] = background.elemAsDouble(1);
+        bg[2] = background.elemAsDouble(2);
+    } else if (background.numel() != 0)
+        throw Error("label2rgb: background must be a 3-element RGB triplet",
+                    0, 0, "label2rgb", "", "m:label2rgb:bg");
+
+    Value out = Value::matrix3d(H, W, 3, ValueType::UINT8, mr);
+    if (H == 0 || W == 0) return out;
+    uint8_t *od = out.uint8DataMut();
+    const size_t plane = H * W;
+    const double *cd = cmap.doubleData();
+
+    auto sat = [](double v) -> uint8_t {
+        v = std::round(v * 255.0);
+        if (v < 0)   v = 0;
+        if (v > 255) v = 255;
+        return static_cast<uint8_t>(v);
+    };
+
+    for (size_t i = 0; i < plane; ++i) {
+        const double lv = L.elemAsDouble(i);
+        const int64_t lab = static_cast<int64_t>(lv);
+        if (lv < 0 || lab != static_cast<int64_t>(lv))
+            throw Error("label2rgb: L must be non-negative integer-valued",
+                        0, 0, "label2rgb", "", "m:label2rgb:value");
+        if (lab == 0) {
+            od[0 * plane + i] = sat(bg[0]);
+            od[1 * plane + i] = sat(bg[1]);
+            od[2 * plane + i] = sat(bg[2]);
+        } else {
+            const size_t row = static_cast<size_t>(lab) - 1;
+            if (row >= N)
+                throw Error("label2rgb: CMAP has fewer rows than max label",
+                            0, 0, "label2rgb", "", "m:label2rgb:short");
+            // cmap is N×3 column-major: idx[row, ch] = ch * N + row.
+            od[0 * plane + i] = sat(cd[0 * N + row]);
+            od[1 * plane + i] = sat(cd[1 * N + row]);
+            od[2 * plane + i] = sat(cd[2 * N + row]);
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -411,6 +473,17 @@ NK_COLOR_REG(xyz2lab)
 NK_COLOR_REG(lab2xyz)
 
 #undef NK_COLOR_REG
+
+void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("label2rgb: requires (L, cmap [, background])",
+                    0, 0, "label2rgb", "", "m:label2rgb:nargin");
+    Value bg;
+    if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
+    outs[0] = label2rgb(ctx.engine->resource(), args[0], args[1], bg);
+}
 
 } // namespace detail
 } // namespace numkit::image

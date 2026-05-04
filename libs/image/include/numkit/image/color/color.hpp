@@ -34,4 +34,18 @@ Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
 
+/// label2rgb(L, cmap [, background]) — colourise a labelled image.
+/// `L` is an H×W non-negative integer-valued matrix. `cmap` is an
+/// N×3 colormap (double in [0, 1]). Pixels with label == 0 take the
+/// `background` color (default [1, 1, 1] = white). Output is H×W×3
+/// uint8.
+///
+/// The full MATLAB signature accepts a colormap-name string or a
+/// function handle for `cmap`; both require a `jet` / `hsv` / etc.
+/// generator that we don't expose yet, so callers must pass an
+/// explicit N×3 matrix here.
+Value label2rgb(std::pmr::memory_resource *mr,
+                const Value &L, const Value &cmap,
+                const Value &background);
+
 } // namespace numkit::image
