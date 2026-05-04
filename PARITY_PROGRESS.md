@@ -3058,7 +3058,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `medfilt3` | ❌ |  |  |  |  |  |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
-| `ordfilt2` | ❌ |  |  |  |  | order-statistic filter |
+| `ordfilt2` | ❌ | 0.004 |  | 81.89× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
 | `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |

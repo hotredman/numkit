@@ -116,6 +116,16 @@ Value stdfilt(std::pmr::memory_resource *mr,
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain);
 
+/// ordfilt2(A, nth, domain [, S]) — 2-D order-statistic filter.
+/// For each output pixel the neighbourhood selected by `domain`
+/// (non-zero entries) is gathered, optionally offset by S (same
+/// size as domain), sorted, and the `nth`-order element returned
+/// (1-based). `boundary` controls padding of A when the
+/// neighbourhood crosses the image edge. Output class matches A.
+Value ordfilt2(std::pmr::memory_resource *mr,
+               const Value &A, int nth, const Value &domain,
+               const Value &S, PadMode boundary, double pad_value);
+
 /// wiener2(I [, nh, nw [, noise]]) — adaptive Wiener noise reduction
 /// (Lim 1989, eq. 9.26-9.29). Local mean μ and variance σ² in an
 /// nh×nw box neighbourhood (default 3×3, zero-pad boundary). When

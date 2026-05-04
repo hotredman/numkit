@@ -1,0 +1,10 @@
+{
+  "name": "ordfilt2",
+  "namespace": "image",
+  "setup": "b = [0 1 2 3; 1 8 12 12; 4 20 24 21; 7 22 25 18];",
+  "expr": "y = ordfilt2(b, 9, true(3));",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2."
+}
