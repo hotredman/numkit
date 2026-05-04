@@ -7,6 +7,7 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
 
 namespace numkit::image {
@@ -30,6 +31,19 @@ Value imadjust(std::pmr::memory_resource *mr, const Value &I,
                double low_in, double high_in,
                double low_out, double high_out,
                double gamma);
+
+/// adaptthresh(I [, sensitivity [, neighborhood [, statistic]]]) —
+/// locally adaptive threshold matrix in [0, 1] (same scale MATLAB
+/// returns). Pair with `imbinarize(I, T)` for adaptive thresholding.
+///   sensitivity   ∈ [0, 1], default 0.5. Higher → more pixels are
+///                  classified as foreground (lower local threshold).
+///   neighborhood   filter size in pixels (odd). Default
+///                  2·floor(min(H,W)/16) + 1.
+///   statistic     "mean" (default, box filter) or "gaussian" (σ ≈
+///                  neighborhood/6).
+Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
+                  double sensitivity, int neighborhood,
+                  const std::string &statistic);
 
 /// histeq(I[, n]) — histogram equalisation with n=64 default bins.
 Value histeq(std::pmr::memory_resource *mr, const Value &I, int n);

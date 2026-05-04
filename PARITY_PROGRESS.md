@@ -2901,7 +2901,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ❌ |  |  |  |  | adaptive threshold |
+| `adaptthresh` | ✅ |  |  |  | OK | local-mean or Gaussian threshold matrix in [0,1]; sensitivity bias |
 | `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
 | `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
 | `gray2ind` | ❌ |  |  |  |  |  |
