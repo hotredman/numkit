@@ -3243,22 +3243,22 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Region and Image Properties
 
-**Namespace:** `image.region.*` — 1 ✅ + 0 ⚠️ / 28 = 4%
+**Namespace:** `image.region.*` — 6 ✅ + 0 ⚠️ / 28 = 21%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwarea` | ❌ |  |  |  |  |  |
+| `bwarea` | ✅ |  |  |  | OK | foreground-pixel count |
 | `bwareafilt` | ❌ |  |  |  |  |  |
-| `bwareaopen` | ❌ |  |  |  |  |  |
-| `bwconncomp` | ❌ |  |  |  |  |  |
+| `bwareaopen` | ✅ |  |  |  | OK | drop components below P pixels |
+| `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ❌ |  |  |  |  | distance transform |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
 | `bweuler` | ❌ |  |  |  |  | Euler number |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
-| `bwlabel` | ❌ |  |  |  |  | connected components |
+| `bwlabel` | ✅ |  |  |  | OK | two-pass union-find, 4 / 8 connectivity |
 | `bwlabeln` | ❌ |  |  |  |  |  |
-| `bwperim` | ❌ |  |  |  |  | dup of morph section |
+| `bwperim` | ✅ |  |  |  | OK | foreground pixel touching background or edge |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
 | `bwselect` | ❌ |  |  |  |  |  |
 | `bwselect3` | ❌ |  |  |  |  |  |

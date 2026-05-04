@@ -66,6 +66,13 @@ void imerode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// region/region.cpp
+void bwlabel_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwconncomp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwarea_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwperim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -129,6 +136,12 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imdilate",  &image::detail::imdilate_reg);
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
+
+    reg("region", "bwlabel",    &image::detail::bwlabel_reg);
+    reg("region", "bwconncomp", &image::detail::bwconncomp_reg);
+    reg("region", "bwarea",     &image::detail::bwarea_reg);
+    reg("region", "bwperim",    &image::detail::bwperim_reg);
+    reg("region", "bwareaopen", &image::detail::bwareaopen_reg);
 }
 
 } // namespace numkit
