@@ -1,0 +1,10 @@
+{
+  "name": "imfilter",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:25, [5 5])); h = fspecial('gaussian', 3, 1);",
+  "expr": "y = imfilter(I, h);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "im2single",
+  "namespace": "image",
+  "setup": "I = uint8([0 64 128 192 255]);",
+  "expr": "y = im2single(I);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

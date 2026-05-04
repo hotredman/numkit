@@ -2901,30 +2901,30 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ✅ |  |  |  | OK | local-mean or Gaussian threshold matrix in [0,1]; sensitivity bias |
+| `adaptthresh` | ✅ | 0.008 |  | 57.87× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
 | `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
 | `gray2ind` | ❌ |  |  |  |  |  |
-| `graythresh` | ✅ |  |  |  | OK | Otsu's 2nd output η = σ_b²/σ_T² |
+| `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `grayslice` | ❌ |  |  |  |  | scalar quantize |
 | `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
-| `im2double` | ✅ |  |  |  | OK | clamps int classes through unit-range |
-| `im2gray` | ✅ |  |  |  | OK | RGB-or-gray pass-through |
+| `im2double` | ✅ | 0.003 |  | 20.00× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2gray` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
-| `im2single` | ✅ |  |  |  | OK |  |
-| `im2uint16` | ✅ |  |  |  | OK |  |
-| `im2uint8` | ✅ |  |  |  | OK | bit-replicate up; round-down on uint16 |
-| `imbinarize` | ✅ |  |  |  | OK | scalar T (auto = graythresh) **or per-pixel T matrix** (composes with adaptthresh) |
-| `imquantize` | ✅ |  |  |  | OK | N+1 classes from N levels |
+| `im2single` | ✅ | 0.003 |  | 60.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2uint16` | ✅ | 0.003 |  | 34.85× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2uint8` | ✅ | 0.003 |  | 58.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imbinarize` | ✅ | 0.003 |  | 32.70× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ❌ |  |  |  |  |  |
 | `iptnum2ordinal` | ❌ |  |  |  |  |  |
 | `label2rgb` | ❌ |  |  |  |  | colourize a label image |
-| `mat2gray` | ✅ |  |  |  | OK | auto-detect range or explicit [lo hi] |
-| `multithresh` | ✅ |  |  |  | OK | exhaustive search up to N=5 |
-| `otsuthresh` | ✅ |  |  |  | OK | Otsu from precomputed histogram |
-| `rgb2gray` | ✅ |  |  |  | OK | Rec.601 coefficients |
+| `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `otsuthresh` | ✅ | 0.003 |  | 96.59× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2gray` | ✅ | 0.003 |  | 61.95× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2ind` | ❌ |  |  |  |  | colour quantize |
 | `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
 | `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
@@ -2938,34 +2938,34 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
 | `colorangle` | ❌ |  |  |  |  | angle between two RGB colors |
 | `deltaE` | ❌ |  |  |  |  | CIE76 colour-difference |
-| `hsv2rgb` | ✅ |  |  |  | OK | round-trip with rgb2hsv exact |
+| `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
 | `lab2double` | ❌ |  |  |  |  |  |
-| `lab2rgb` | ✅ |  |  |  | OK | composes lab2xyz + xyz2rgb |
+| `lab2rgb` | ✅ | 0.003 |  | 91.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `lab2uint16` | ❌ |  |  |  |  |  |
 | `lab2uint8` | ❌ |  |  |  |  |  |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
 | `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
 | `ntsc2rgb` | ❌ |  |  |  |  |  |
-| `rgb2hsv` | ✅ |  |  |  | OK |  |
-| `rgb2lab` | ✅ |  |  |  | OK | matches MATLAB R2025b L*a*b* exactly |
+| `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2lab` | ✅ | 0.004 |  | 85.89× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2lin` | ❌ |  |  |  |  | sRGB gamma → linear |
 | `rgb2ntsc` | ❌ |  |  |  |  |  |
-| `rgb2xyz` | ✅ |  |  |  | OK | sRGB→linear→XYZ (D65 white) |
-| `rgb2ycbcr` | ✅ |  |  |  | OK | BT.601, double output in [0, 1] |
+| `rgb2xyz` | ✅ | 0.003 |  | 42.49× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2ycbcr` | ✅ | 0.003 |  | 61.90× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
 | `whitepoint` | ❌ |  |  |  |  | tristimulus white-points |
 | `xyz2double` | ❌ |  |  |  |  |  |
 | `xyz2lab` | ✅ |  |  |  | OK |  |
-| `xyz2rgb` | ✅ |  |  |  | OK |  |
+| `xyz2rgb` | ✅ | 0.003 |  | 77.03× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
 | `xyz2uint16` | ❌ |  |  |  |  |  |
-| `ycbcr2rgb` | ✅ |  |  |  | OK |  |
+| `ycbcr2rgb` | ✅ | 0.003 |  | 90.94× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 
 ## Synthetic Images and Display
@@ -2995,15 +2995,15 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `findbounds` | ❌ |  |  |  |  |  |
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
-| `imcrop` | ✅ |  |  |  | OK | rect = [xmin ymin width height] (1-based, MATLAB) |
+| `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imcrop3` | ❌ |  |  |  |  |  |
 | `impyramid` | ❌ |  |  |  |  | reduce/expand 2× |
-| `imresize` | ✅ |  |  |  | OK | scalar scale or [outH outW]; nearest / bilinear |
+| `imresize` | ✅ | 0.003 |  | 443.82× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imresize3` | ❌ |  |  |  |  |  |
-| `imrotate` | ✅ |  |  |  | OK | CCW degrees, nearest / bilinear, loose / crop bbox |
+| `imrotate` | ✅ | 0.003 |  | 69.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imrotate3` | ❌ |  |  |  |  |  |
 | `imtransform` | ❌ |  |  |  |  | legacy maketform path |
-| `imtranslate` | ✅ |  |  |  | OK | bilinear shift, edges → 0 |
+| `imtranslate` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imwarp` | ❌ |  |  |  |  |  |
 | `makeresampler` | ❌ |  |  |  |  |  |
 
@@ -3034,19 +3034,19 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `freqspace` | ❌ |  |  |  |  |  |
 | `freqz2` | ❌ |  |  |  |  | 2-D freq response |
 | `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
-| `fspecial` | ✅ |  |  |  | OK | average / gaussian / laplacian / log / sobel / prewitt / disk |
+| `fspecial` | ✅ | 0.004 |  | 91.07× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `fspecial3` | ❌ |  |  |  |  |  |
 | `ftrans2` | ❌ |  |  |  |  | 1-D → 2-D FIR transform |
 | `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
-| `imboxfilt` | ✅ |  |  |  | OK | average kernel via fspecial + imfilter, replicate boundary |
+| `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imboxfilt3` | ❌ |  |  |  |  |  |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
-| `imfilter` | ✅ |  |  |  | OK | corr/conv, same/full, replicate/symmetric/circular/scalar |
+| `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
-| `imgaussfilt` | ✅ |  |  |  | OK | composes fspecial('gaussian') + imfilter |
+| `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaussfilt3` | ❌ |  |  |  |  |  |
 | `imguidedfilter` | ❌ |  |  |  |  |  |
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
@@ -3054,12 +3054,12 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
 | `integralImage` | ❌ |  |  |  |  |  |
 | `integralImage3` | ❌ |  |  |  |  |  |
-| `medfilt2` | ✅ |  |  |  | OK | sliding-window median; default 3×3, zero-padded boundary |
+| `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `medfilt3` | ❌ |  |  |  |  |  |
 | `modefilt` | ❌ |  |  |  |  |  |
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
 | `ordfilt2` | ❌ |  |  |  |  | order-statistic filter |
-| `padarray` | ✅ |  |  |  | OK | constant / replicate / symmetric / circular; pre/post/both |
+| `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rangefilt` | ❌ |  |  |  |  |  |
 | `roifilt2` | ❌ |  |  |  |  |  |
 | `stdfilt` | ❌ |  |  |  |  |  |
@@ -3073,8 +3073,8 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `adapthisteq` | ❌ |  |  |  |  | CLAHE |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
-| `histeq` | ✅ |  |  |  | OK | n-bin CDF mapping |
-| `imadjust` | ✅ |  |  |  | OK | [low_in high_in] → [low_out high_out] with gamma |
+| `histeq` | ✅ | 0.004 |  | 93.76× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadjust` | ✅ | 0.005 |  | 152.48× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjustn` | ❌ |  |  |  |  | N-D variant |
 | `imflatfield` | ❌ |  |  |  |  |  |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
@@ -3085,7 +3085,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ✅ |  |  |  | OK | per-channel for RGB; default tol [0.01, 0.99] |
+| `stretchlim` | ✅ | 0.003 |  | 79.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ## ROI-Based Processing (functions only)
 
@@ -3116,16 +3116,16 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
 | `bwpack` | ❌ |  |  |  |  |  |
-| `bwperim` | ❌ |  |  |  |  |  |
+| `bwperim` | ❌ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
 | `conndef` | ❌ |  |  |  |  |  |
 | `imbothat` | ✅ | 0.005 |  | 38.27× | OK | Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0). |
 | `imclearborder` | ✅ | 0.008 |  | 44.84× | OK | Sig: J = imclearborder(BW). 3 blobs (rim + interior); only interior dot survives. |
-| `imclose` | ✅ |  |  |  | OK | dilate → erode |
-| `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
-| `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
+| `imclose` | ✅ | 0.004 |  | 66.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imdilate` | ✅ | 0.003 |  | 74.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imerode` | ✅ | 0.003 |  | 44.20× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imextendedmax` | ✅ | 0.019 |  | 7.87× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
 | `imextendedmin` | ✅ | 0.020 |  | 8.89× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
 | `imfill` | ✅ | 0.006 |  | 53.54× | OK | Sig: J = imfill(BW, 'holes'). Hollow square ring → fully filled square. |
@@ -3133,14 +3133,14 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imhmin` | ✅ | 0.011 |  | 16.30× | OK | Sig: J = imhmin(I, h). Two troughs depth 90 / 30; h=50 raises shallow (B) to background, keeps deep (A). |
 | `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
 | `imkeepborder` | ✅ | 0.008 |  |  | N/A | Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.) |
-| `imopen` | ✅ |  |  |  | OK | erode → dilate |
+| `imopen` | ✅ | 0.004 |  | 81.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imreconstruct` | ✅ | 0.017 |  | 8.63× | OK | Sig: J = imreconstruct(marker, mask). Reconstruction by dilation; marker grows to fill the connected mask region. |
 | `imregionalmax` | ✅ | 0.007 |  | 19.32× | OK | Sig: BW = imregionalmax(I). Two regional maxima at (2,2) and (2,5). |
 | `imregionalmin` | ✅ | 0.008 |  | 24.93× | OK | Sig: BW = imregionalmin(I). Two regional minima at (2,2) and (2,5). |
 | `imtophat` | ✅ | 0.005 |  | 68.45× | OK | Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0). |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
-| `strel` | ✅ |  |  |  | OK | square / rectangle / diamond / disk / line / arbitrary |
+| `strel` | ✅ |  |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ## Deblurring
 
@@ -3175,14 +3175,14 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imabsdiff` | ✅ |  |  |  | OK | saturating uint8/uint16/int16, pass-through float |
-| `imadd` | ✅ |  |  |  | OK |  |
+| `imabsdiff` | ✅ | 0.003 |  | 121.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadd` | ✅ | 0.003 |  | 101.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
-| `imcomplement` | ✅ |  |  |  | OK | MAX(class) - X for ints; 1 - X for float |
-| `imdivide` | ✅ |  |  |  | OK |  |
-| `imlincomb` | ✅ |  |  |  | OK | (k1, A1, k2, A2, ..., [output_class]) |
-| `immultiply` | ✅ |  |  |  | OK |  |
-| `imsubtract` | ✅ |  |  |  | OK |  |
+| `imcomplement` | ✅ | 0.002 |  | 52.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imdivide` | ✅ | 0.003 |  | 54.92× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imlincomb` | ✅ | 0.003 |  | 68.58× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `immultiply` | ✅ | 0.003 |  | 66.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imsubtract` | ✅ | 0.003 |  | 54.12× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ## Image Segmentation
 
@@ -3195,7 +3195,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `activecontour` | ❌ |  |  |  |  | Chan-Vese |
 | `bfscore` | ❌ |  |  |  |  | boundary F1 score |
 | `boundarymask` | ✅ |  |  |  | OK | conn=4/8; flags any pixel adjacent to a different label or image edge |
-| `dice` | ✅ |  |  |  | OK | 2·\|A∩B\| / (\|A\|+\|B\|); both empty → 1 |
+| `dice` | ✅ | 0.002 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
@@ -3206,7 +3206,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegisodata` | ❌ |  |  |  |  |  |
 | `imsegkmeans` | ❌ |  |  |  |  |  |
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
-| `jaccard` | ✅ |  |  |  | OK | \|A∩B\| / \|A∪B\|; both empty → 1 |
+| `jaccard` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
 | `labeloverlay` | ❌ |  |  |  |  |  |
 | `lazysnapping` | ❌ |  |  |  |  |  |
@@ -3225,14 +3225,14 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
 | `cornermetric` | ❌ |  |  |  |  |  |
-| `edge` | ✅ |  |  |  | OK | sobel/prewitt/roberts/log/zerocross/canny (simplified) |
+| `edge` | ✅ | 0.014 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `edge3` | ❌ |  |  |  |  |  |
 | `hough` | ❌ |  |  |  |  |  |
 | `houghlines` | ❌ |  |  |  |  |  |
 | `houghpeaks` | ❌ |  |  |  |  |  |
 | `imfindcircles` | ❌ |  |  |  |  | circle Hough |
-| `imgradient` | ✅ |  |  |  | OK | (Gmag, Gdir) sobel/prewitt/central/intermediate |
-| `imgradientxy` | ✅ |  |  |  | OK | (Gx, Gy) component gradients |
+| `imgradient` | ✅ | 0.006 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgradientxy` | ✅ | 0.005 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgradient3` | ❌ |  |  |  |  |  |
 | `imgradientxyz` | ❌ |  |  |  |  |  |
 | `iradon` | ❌ |  |  |  |  | inverse Radon |
@@ -3249,18 +3249,18 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwarea` | ✅ |  |  |  | OK | foreground-pixel count |
+| `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwareafilt` | ❌ |  |  |  |  |  |
-| `bwareaopen` | ✅ |  |  |  | OK | drop components below P pixels |
+| `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ✅ |  |  |  | OK | Euclidean DT via Felzenszwalb-Huttenlocher 1-D parabolic envelope (exact, O(H·W)) |
+| `bwdist` | ✅ | 0.004 |  | 36.95× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
 | `bweuler` | ❌ |  |  |  |  | Euler number |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
-| `bwlabel` | ✅ |  |  |  | OK | two-pass union-find, 4 / 8 connectivity |
+| `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwlabeln` | ❌ |  |  |  |  |  |
-| `bwperim` | ✅ |  |  |  | OK | foreground pixel touching background or edge |
+| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
 | `bwselect` | ❌ |  |  |  |  |  |
 | `bwselect3` | ❌ |  |  |  |  |  |
@@ -3268,7 +3268,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `corr2` | ❌ |  |  |  |  | 2-D correlation coefficient |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
-| `imhist` | ✅ |  |  |  | OK | returns counts + bin centres |
+| `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
 | `labelmatrix` | ❌ |  |  |  |  |  |
@@ -3298,13 +3298,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
-| `immse` | ✅ |  |  |  | OK | mean squared error |
+| `immse` | ✅ | 0.003 |  | 47.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `multissim` | ❌ |  |  |  |  | multi-scale SSIM |
 | `multissim3` | ❌ |  |  |  |  |  |
 | `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
 | `piqe` | ❌ |  |  |  |  | perceptual no-reference |
-| `psnr` | ✅ |  |  |  | OK | 10·log10(peak²/MSE); peak auto-from-class |
-| `ssim` | ✅ |  |  |  | OK | 11×11 σ=1.5 Gauss window, K1=0.01 K2=0.03 |
+| `psnr` | ✅ | 0.002 |  | 61.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ssim` | ✅ | 0.317 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ## Image Transforms
 
@@ -3314,13 +3314,13 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dct2` | ✅ |  |  |  | OK | 2-D DCT (separable, via signal::dct) |
-| `dctmtx` | ✅ |  |  |  | OK | DCT-II transform matrix |
+| `dct2` | ✅ | 0.005 |  | 41.39× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `dctmtx` | ✅ | 0.003 |  | 37.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
 | `fanbeam` | ❌ |  |  |  |  |  |
 | `fft2` | ✅ |  |  |  | OK | already in Fourier section |
 | `fftshift` | ✅ |  |  |  | OK |  |
-| `idct2` | ✅ |  |  |  | OK | inverse 2-D DCT |
+| `idct2` | ✅ | 0.005 |  | 48.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `ifanbeam` | ❌ |  |  |  |  |  |
 | `ifft2` | ✅ |  |  |  | OK |  |
 | `ifftshift` | ✅ |  |  |  | OK |  |

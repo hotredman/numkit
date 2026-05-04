@@ -1,0 +1,10 @@
+{
+  "name": "padarray",
+  "namespace": "image",
+  "setup": "I = double([1 2 3; 4 5 6]);",
+  "expr": "y = padarray(I, [1 1]);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

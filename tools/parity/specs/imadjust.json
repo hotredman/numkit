@@ -1,0 +1,10 @@
+{
+  "name": "imadjust",
+  "namespace": "image",
+  "setup": "I = uint8(reshape(0:99, [10 10]));",
+  "expr": "y = imadjust(I);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

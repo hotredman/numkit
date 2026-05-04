@@ -1,0 +1,10 @@
+{
+  "name": "edge",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:100, [10 10]));",
+  "expr": "y = double(edge(I, 'sobel'));",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}
