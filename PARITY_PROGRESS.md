@@ -1649,13 +1649,13 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 
 ## Control System Toolbox — Matrix Equations
 
-**Namespace:** `control.matrixeq.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `control.matrixeq.*` — 2 ✅ + 0 ⚠️ / 8 = 25%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `lyap` | ❌ |  |  |  |  | continuous Lyapunov |
+| `lyap` | ✅ |  |  |  | OK | A·X + X·Aᵀ + Q = 0 via Kronecker n²-system |
 | `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
-| `dlyap` | ❌ |  |  |  |  | discrete Lyapunov |
+| `dlyap` | ✅ |  |  |  | OK | A·X·Aᵀ − X + Q = 0 via Kronecker n²-system |
 | `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
 | `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
 | `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
