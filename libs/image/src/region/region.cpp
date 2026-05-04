@@ -725,6 +725,49 @@ Value bwareafilt(std::pmr::memory_resource *mr,
     return out;
 }
 
+std::tuple<Value, Value>
+bwselect(std::pmr::memory_resource *mr, const Value &BW,
+         const Value &cols, const Value &rows, int conn)
+{
+    if (conn != 4) conn = 8;
+    const int H = static_cast<int>(BW.dims().rows());
+    const int W = static_cast<int>(BW.dims().cols());
+
+    Value out = Value::matrix(static_cast<size_t>(H),
+                              static_cast<size_t>(W),
+                              ValueType::LOGICAL, mr);
+    Value idx_out = Value::matrix(0, 1, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0)
+        return std::make_tuple(std::move(out), std::move(idx_out));
+
+    auto [L, K] = label_components(read_bw(BW), H, W, conn);
+    if (K == 0) return std::make_tuple(std::move(out), std::move(idx_out));
+
+    const size_t Nseed = std::min(cols.numel(), rows.numel());
+    std::vector<uint8_t> keep(static_cast<size_t>(K) + 1, 0);
+    for (size_t s = 0; s < Nseed; ++s) {
+        const int c = static_cast<int>(cols.elemAsDouble(s)) - 1;
+        const int r = static_cast<int>(rows.elemAsDouble(s)) - 1;
+        if (r < 0 || r >= H || c < 0 || c >= W) continue;
+        const int k = L[(size_t)r * (size_t)W + (size_t)c];
+        if (k > 0) keep[(size_t)k] = 1;
+    }
+
+    uint8_t *od = out.logicalDataMut();
+    std::vector<double> idx_v;
+    for (int c = 0; c < W; ++c)
+        for (int r = 0; r < H; ++r) {
+            const int k = L[(size_t)r * (size_t)W + (size_t)c];
+            const bool sel = (k > 0 && keep[(size_t)k]);
+            od[(size_t)c * (size_t)H + (size_t)r] = sel ? 1u : 0u;
+            if (sel) idx_v.push_back(double((size_t)c * (size_t)H + (size_t)r + 1));
+        }
+    idx_out = Value::matrix(idx_v.size(), 1, ValueType::DOUBLE, mr);
+    if (!idx_v.empty()) std::copy(idx_v.begin(), idx_v.end(),
+                                  idx_out.doubleDataMut());
+    return std::make_tuple(std::move(out), std::move(idx_out));
+}
+
 Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn)
 {
     // Pratt bit-quad LUT (Octave-image bweuler.m).
@@ -938,6 +981,21 @@ void bwareafilt_reg(Span<const Value> args, size_t /*nargout*/,
     }
 
     outs[0] = bwareafilt(mr, args[0], lo, hi, n_keep, keep_largest, conn);
+}
+
+void bwselect_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("bwselect: requires (BW, cols, rows[, conn])",
+                    0, 0, "bwselect", "", "m:bwselect:nargin");
+    int conn = 8;
+    if (args.size() >= 4 && !args[3].isEmpty())
+        conn = static_cast<int>(args[3].toScalar());
+    auto [m, idx] = bwselect(ctx.engine->resource(), args[0],
+                              args[1], args[2], conn);
+    outs[0] = std::move(m);
+    if (nargout > 1) outs[1] = std::move(idx);
 }
 
 void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
