@@ -1884,7 +1884,7 @@ as a pair of flat decomposition / reconstruction functions.
 
 ## Communications Toolbox — Modulation
 
-**Namespace:** `comm.mod.*` — 4 ✅ + 0 ⚠️ / 29 = 14%
+**Namespace:** `comm.mod.*` — 9 ✅ + 0 ⚠️ / 29 = 31%
 
 Function-form modulators / demodulators. The `comm.PSKModulator` /
 `comm.QAMModulator` / `comm.OFDMModulator` System Object family is
@@ -1895,11 +1895,11 @@ intentionally omitted, along with `constellation` (object method) and
 |---|:---:|---:|---:|---:|:---:|---|
 | `genqammod` | ❌ |  |  |  |  | generic QAM |
 | `genqamdemod` | ❌ |  |  |  |  |  |
-| `modnorm` | ❌ |  |  |  |  | normalisation factor for unit-energy symbols |
-| `pammod` | ❌ |  |  |  |  | PAM modulator |
-| `pamdemod` | ❌ |  |  |  |  |  |
-| `qammod` | ❌ |  |  |  |  | rectangular QAM |
-| `qamdemod` | ❌ |  |  |  |  |  |
+| `modnorm` | ✅ |  |  |  | OK | avpow / peakpow scaling |
+| `pammod` | ✅ |  |  |  | OK | M-ary PAM, gray (default) / bin |
+| `pamdemod` | ✅ |  |  |  | OK |  |
+| `qammod` | ✅ |  |  |  | OK | rectangular Gray-coded QAM, optional UnitAveragePower |
+| `qamdemod` | ✅ |  |  |  | OK |  |
 | `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
 | `apskdemod` | ❌ |  |  |  |  |  |
 | `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
