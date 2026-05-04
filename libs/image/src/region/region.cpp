@@ -549,6 +549,51 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
+Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn)
+{
+    // Pratt bit-quad LUT (Octave-image bweuler.m).
+    static constexpr int lut8[16] = {0, 1, 1, 0, 1, 0, -2, -1,
+                                     1, -2, 0, -1, 0, -1, -1, 0};
+    static constexpr int lut4[16] = {0, 1, 1, 0, 1, 0,  2, -1,
+                                     1,  2, 0, -1, 0, -1, -1, 0};
+    if (conn != 4 && conn != 8)
+        throw Error("bweuler: connectivity must be 4 or 8",
+                    0, 0, "bweuler", "", "m:bweuler:conn");
+    const int *lut = (conn == 4) ? lut4 : lut8;
+
+    const auto &d = BW.dims();
+    if (d.is3D())
+        throw Error("bweuler: BW must have 2 dimensions",
+                    0, 0, "bweuler", "", "m:bweuler:dims");
+
+    const int M = static_cast<int>(d.rows());
+    const int N = static_cast<int>(d.cols());
+
+    auto get = [&](int r, int c) -> int {
+        if (r < 0 || c < 0 || r >= M || c >= N) return 0;
+        return BW.elemAsDouble(static_cast<size_t>(c) *
+                               static_cast<size_t>(M) +
+                               static_cast<size_t>(r)) != 0.0 ? 1 : 0;
+    };
+
+    int sum = 0;
+    // Padded image is (M+1)×(N+1) with zero top row/left col, so
+    // every 2×2 window slides over (r, c) ∈ [0..M] × [0..N], reading
+    // BW[r-1, c-1], BW[r, c-1], BW[r-1, c], BW[r, c] (clamped to 0
+    // outside [0, M-1] × [0, N-1]).
+    for (int r = 0; r <= M; ++r) {
+        for (int c = 0; c <= N; ++c) {
+            const int p00 = get(r - 1, c - 1);
+            const int p10 = get(r,     c - 1);
+            const int p01 = get(r - 1, c);
+            const int p11 = get(r,     c);
+            const int idx = p00 + 2 * p10 + 4 * p01 + 8 * p11;
+            sum += lut[idx];
+        }
+    }
+    return Value::scalar(static_cast<double>(sum) / 4.0, mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -649,6 +694,18 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "m:bwdist:nargin");
     outs[0] = bwdist(ctx.engine->resource(), args[0]);
+}
+
+void bweuler_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bweuler: requires (BW [, n])",
+                    0, 0, "bweuler", "", "m:bweuler:nargin");
+    int conn = 8;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        conn = static_cast<int>(args[1].toScalar());
+    outs[0] = bweuler(ctx.engine->resource(), args[0], conn);
 }
 
 } // namespace detail

@@ -3256,7 +3256,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwconvhull` | ❌ |  |  |  |  |  |
 | `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
-| `bweuler` | ❌ |  |  |  |  | Euler number |
+| `bweuler` | ❌ | 0.004 |  | 91.29× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |
 | `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwlabeln` | ❌ |  |  |  |  |  |

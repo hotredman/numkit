@@ -105,6 +105,7 @@ void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwboundaries_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void regionprops_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwdist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bweuler_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // object/object.cpp
 void imgradientxy_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -264,6 +265,7 @@ void ImageLibrary::install(Engine &engine)
     reg("region", "bwboundaries", &image::detail::bwboundaries_reg);
     reg("region", "regionprops",  &image::detail::regionprops_reg);
     reg("region", "bwdist",       &image::detail::bwdist_reg);
+    reg("region", "bweuler",      &image::detail::bweuler_reg);
 
     reg("object", "imgradientxy", &image::detail::imgradientxy_reg);
     reg("object", "imgradient",   &image::detail::imgradient_reg);
