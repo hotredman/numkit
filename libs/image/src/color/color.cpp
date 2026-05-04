@@ -1051,6 +1051,27 @@ Value pink_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value hsv_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    if (n == 1) {
+        Value out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+        double *od = out.doubleDataMut();
+        od[0] = 1.0; od[1] = 0.0; od[2] = 0.0;
+        return out;
+    }
+    // Build N×3 [hue, 1, 1] then dispatch through hsv2rgb.
+    Value hsv_in = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *id = hsv_in.doubleDataMut();
+    const double inv = 1.0 / static_cast<double>(n);
+    for (int i = 0; i < n; ++i) {
+        id[0 * n + i] = static_cast<double>(i) * inv;  // hue
+        id[1 * n + i] = 1.0;                            // saturation
+        id[2 * n + i] = 1.0;                            // value
+    }
+    return hsv2rgb(mr, hsv_in);
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1425,6 +1446,24 @@ void pink_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = pink_cmap(ctx.engine->resource(), n);
+}
+
+void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("hsv: N must be a scalar integer",
+                        0, 0, "hsv", "", "m:hsv:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("hsv: N must be a scalar integer",
+                        0, 0, "hsv", "", "m:hsv:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = hsv_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail

@@ -118,6 +118,10 @@ Value copper_cmap(std::pmr::memory_resource *mr, int n);
 /// n==2 → sqrt([1/3 1/3 1/6; 1 1 1]); n ≤ 0 → 0×3.
 Value pink_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = hsv([n])` — N×3 hue-rotation colormap. Default n=256. Equivalent
+/// to `hsv2rgb([(0:n-1)'/n, 1, 1])`. n==1 → [1 0 0]; n ≤ 0 → 0×3.
+Value hsv_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
