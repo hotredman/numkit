@@ -899,6 +899,25 @@ Value spring_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value summer_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        od[0] = 0.0; od[1] = 0.5; od[2] = 0.4;
+        return out;
+    }
+    const double inv = 1.0 / static_cast<double>(n - 1);
+    for (int i = 0; i < n; ++i) {
+        const double r = static_cast<double>(i) * inv;
+        od[0 * n + i] = r;
+        od[1 * n + i] = 0.5 + 0.5 * r;
+        od[2 * n + i] = 0.4;
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1173,6 +1192,24 @@ void spring_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = spring_cmap(ctx.engine->resource(), n);
+}
+
+void summer_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("summer: N must be a scalar integer",
+                        0, 0, "summer", "", "m:summer:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("summer: N must be a scalar integer",
+                        0, 0, "summer", "", "m:summer:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = summer_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail
