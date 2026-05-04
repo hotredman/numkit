@@ -3369,3 +3369,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `spring` | — | 0.003 | 142.79× | 68.25× | OK | Sig: map = spring([n]). N×3 magenta→yellow. r=1, g=(0:n-1)/(n-1), b=1-g. Default n=256. Octave core has spring. |
 | `summer` | — | 0.003 | 204.72× | 64.76× | OK | Sig: map = summer([n]). N×3 green→yellow. r=(0:n-1)/(n-1), g=0.5+r/2, b=0.4. Default n=256. Octave core has summer. |
 | `autumn` | — | 0.003 | 131.14× | 25.93× | OK | Sig: map = autumn([n]). N×3 red→yellow. r=1, g=(0:n-1)/(n-1), b=0. Default n=256. MATLAB+Octave both ship autumn. |
+| `winter` | — | 0.004 | 119.12× | 52.83× | OK | Sig: map = winter([n]). N×3 blue→cyan-ish. r=0, g=(0:n-1)/(n-1), b=1-g/2. Default n=256. MATLAB+Octave both ship winter. |
