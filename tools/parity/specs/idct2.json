@@ -1,0 +1,10 @@
+{
+  "name": "idct2",
+  "namespace": "image",
+  "setup": "I = double(reshape(1:25, [5 5])); X = dct2(I);",
+  "expr": "y = idct2(X);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

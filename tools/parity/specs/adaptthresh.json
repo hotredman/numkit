@@ -1,0 +1,10 @@
+{
+  "name": "adaptthresh",
+  "namespace": "image",
+  "setup": "I = double(reshape(0:99, [10 10])) / 99;",
+  "expr": "y = adaptthresh(I, 0.5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}

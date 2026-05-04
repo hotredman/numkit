@@ -1,0 +1,10 @@
+{
+  "name": "bwarea",
+  "namespace": "image",
+  "setup": "BW = false(5,5); BW(2,2)=true; BW(2,3)=true; BW(4,4)=true;",
+  "expr": "y = bwarea(BW);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+}
