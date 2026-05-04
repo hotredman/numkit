@@ -1,0 +1,10 @@
+{
+  "name": "im2bw",
+  "namespace": "image",
+  "setup": "G = [0 0.2 0.4 0.6 0.8 1.0];",
+  "expr": "y = double(im2bw(G, 0.5));",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]."
+}

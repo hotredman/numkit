@@ -1,0 +1,10 @@
+{
+  "name": "imbilatfilt",
+  "namespace": "image",
+  "setup": "I = [0.2*ones(8,8), 0.8*ones(8,8)];",
+  "expr": "y = imbilatfilt(I, 0.001, 1);",
+  "iters": 5,
+  "tol": 1e-2,
+  "out_var": "y",
+  "comment": "Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate."
+}

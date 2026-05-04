@@ -1,0 +1,10 @@
+{
+  "name": "imtophat",
+  "namespace": "image",
+  "setup": "I = zeros(5, 5); I(3, 3) = 9; SE = strel('square', 3);",
+  "expr": "y = imtophat(I, SE);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0)."
+}
