@@ -3374,3 +3374,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `pink` | — | 0.004 | 254.55× | 62.29× | OK | Sig: map = pink([n]). N×3 pastel pink. 3-piece linspace ramps per channel, then sqrt. Default n=256. MATLAB+Octave both ship pink. |
 | `hsv` | — | 0.004 | 363.64× | 67.60× | OK | Sig: map = hsv([n]). Hue rotation via hsv2rgb([(0:n-1)'/n, 1, 1]). Default n=256. MATLAB+Octave both ship hsv. |
 | `flag` | — | 0.003 | 194.03× | 66.33× | OK | Sig: map = flag([n]). N×3 cycling [1 0 0; 1 1 1; 0 0 1; 0 0 0]. Default n=256. MATLAB+Octave both ship flag. |
+| `prism` | — | 0.003 | 186.05× | 30.06× | OK | Sig: map = prism([n]). N×3 cyclic 6-row rainbow [r,o,y,g,b,v]. Default n=256. MATLAB+Octave both ship prism. |
