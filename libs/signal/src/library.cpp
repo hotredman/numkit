@@ -75,6 +75,7 @@ void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, C
 void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
+void tfestimate_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void spectrogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hamming_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
 void hann_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx);
@@ -351,6 +352,7 @@ void SignalLibrary::install(Engine &engine)
     reg("spectral_analysis", "pwelch",      &signal::detail::pwelch_reg);
     reg("spectral_analysis", "cpsd",        &signal::detail::cpsd_reg);
     reg("spectral_analysis", "mscohere",    &signal::detail::mscohere_reg);
+    reg("spectral_analysis", "tfestimate",  &signal::detail::tfestimate_reg);
 
     // ── Time-frequency (spectrogram / STFT family) ─────────────────────
     reg("time_frequency", "spectrogram", &signal::detail::spectrogram_reg);

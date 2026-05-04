@@ -49,4 +49,12 @@ mscohere(std::pmr::memory_resource *mr,
          const Value &x, const Value &y,
          const Value &window, size_t noverlap, size_t nfft);
 
+/// Transfer-function estimate Txy(f) = Pyx(f) / Pxx(f). For an LTI
+/// system y = h * x this recovers H(f) up to finite-Welch bias.
+/// Same windowing/segmentation parameters as pwelch.
+std::tuple<Value, Value>
+tfestimate(std::pmr::memory_resource *mr,
+           const Value &x, const Value &y,
+           const Value &window, size_t noverlap, size_t nfft);
+
 } // namespace numkit::signal

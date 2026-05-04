@@ -35,4 +35,12 @@ Value boundarymask(std::pmr::memory_resource *mr,
 /// are excluded.
 Value label2idx(std::pmr::memory_resource *mr, const Value &L);
 
+/// `BW = grayconnected(I, row, col [, tol])` — flood-fill from seed
+/// (row, col) (1-based MATLAB), accepting any 8-connected neighbour
+/// whose intensity differs from the seed pixel's value by ≤ tol.
+/// `tol < 0` ⇒ auto-pick (32 for uint8 / int8, scaled by class range
+/// for others). Returns a logical mask the same H × W as I.
+Value grayconnected(std::pmr::memory_resource *mr,
+                    const Value &I, int row, int col, double tol);
+
 } // namespace numkit::image
