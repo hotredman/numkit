@@ -8,6 +8,7 @@ set(CONTROLLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/freq/freq.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/analyze/analyze.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/discretize/discretize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/state/state.cpp
 )
 
 set(CONTROLLIB_SOURCES ${CONTROLLIB_SOURCES} PARENT_SCOPE)

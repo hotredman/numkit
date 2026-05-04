@@ -1620,7 +1620,7 @@ output args).
 
 ## Control System Toolbox — State-Space Design and Estimation
 
-**Namespace:** `control.design.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+**Namespace:** `control.design.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
 
 OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
 `particleFilter`) intentionally omitted — they're class-objects with
@@ -1641,8 +1641,8 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
 | `reg` | ❌ |  |  |  |  | full-state controller + observer |
-| `ctrb` | ❌ |  |  |  |  | controllability matrix |
-| `obsv` | ❌ |  |  |  |  | observability matrix |
+| `ctrb` | ✅ |  |  |  | OK | [B, AB, A²B, …, A^(n−1)B]; (A,B) or (sys) form |
+| `obsv` | ✅ |  |  |  | OK | [C; CA; CA²; …; CA^(n−1)]; (A,C) or (sys) form |
 | `gram` | ❌ |  |  |  |  | controllability/observability gramian |
 | `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
 | `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
