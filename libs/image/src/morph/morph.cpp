@@ -630,6 +630,53 @@ Value imimposemin(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imclearborder — strip components touching the image rim
+// ════════════════════════════════════════════════════════════════════
+//
+//   marker = BW restricted to the border pixels
+//   R      = imreconstruct(marker, BW, conn)   — all FG reachable
+//                                                from the rim
+//   J      = BW & ~R                           — interior FG only
+//
+// For grayscale inputs the same recipe applies treating non-zero as
+// foreground; we coerce to LOGICAL since MATLAB documents the result
+// as a logical mask.
+
+Value imclearborder(std::pmr::memory_resource *mr,
+                    const Value &BW, int conn)
+{
+    if (conn != 4) conn = 8;
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0) return out;
+
+    Value marker = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    Value mask   = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    std::uint8_t *md = marker.logicalDataMut();
+    std::uint8_t *kd = mask.logicalDataMut();
+    for (size_t c = 0; c < W; ++c)
+        for (size_t r = 0; r < H; ++r) {
+            const size_t idx = c * H + r;
+            const bool fg = (BW.elemAsDouble(idx) != 0.0);
+            kd[idx] = fg ? 1u : 0u;
+            const bool onRim = (r == 0 || c == 0 ||
+                                  r + 1 == H || c + 1 == W);
+            md[idx] = (onRim && fg) ? 1u : 0u;
+        }
+
+    Value R = imreconstruct(mr, marker, mask, conn);
+
+    std::uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < H * W; ++i) {
+        const bool b   = (BW.elemAsDouble(i) != 0.0);
+        const bool rim = (R.elemAsDouble(i) != 0.0);
+        od[i] = (b && !rim) ? 1u : 0u;
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -785,6 +832,17 @@ void imimposemin_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imimposemin(ctx.engine->resource(), args[0], args[1], conn);
+}
+
+void imclearborder_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imclearborder: requires (BW [, conn])",
+                    0, 0, "imclearborder", "", "m:imclearborder:nargin");
+    const int conn = (args.size() >= 2 && !args[1].isEmpty())
+                     ? static_cast<int>(args[1].toScalar()) : 8;
+    outs[0] = imclearborder(ctx.engine->resource(), args[0], conn);
 }
 
 } // namespace detail

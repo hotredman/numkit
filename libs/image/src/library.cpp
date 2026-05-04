@@ -76,6 +76,7 @@ void imhmin_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imextendedmax_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imextendedmin_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imimposemin_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imclearborder_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // region/region.cpp
 void bwlabel_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -193,6 +194,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imextendedmax", &image::detail::imextendedmax_reg);
     reg("morph", "imextendedmin", &image::detail::imextendedmin_reg);
     reg("morph", "imimposemin",   &image::detail::imimposemin_reg);
+    reg("morph", "imclearborder", &image::detail::imclearborder_reg);
 
     reg("region", "bwlabel",      &image::detail::bwlabel_reg);
     reg("region", "bwconncomp",   &image::detail::bwconncomp_reg);
