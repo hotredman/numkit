@@ -754,6 +754,91 @@ Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
     return tophat_subtract(mr, closed, I);
 }
 
+namespace {
+Value diamond_cross(std::pmr::memory_resource *mr) {
+    Value se = Value::matrix(3, 3, ValueType::LOGICAL, mr);
+    std::uint8_t *d = se.logicalDataMut();
+    // Column-major fill: cols [c0(r0..2), c1(r0..2), c2(r0..2)].
+    // Pattern: [0 1 0; 1 1 1; 0 1 0] — center cross.
+    static constexpr std::uint8_t pat[9] = {0,1,0, 1,1,1, 0,1,0};
+    for (size_t i = 0; i < 9; ++i) d[i] = pat[i];
+    return se;
+}
+} // anonymous
+
+Value mmgradm(std::pmr::memory_resource *mr, const Value &I,
+              const Value &se_dil, const Value &se_ero)
+{
+    const bool dilEmpty = se_dil.numel() == 0;
+    const bool eroEmpty = se_ero.numel() == 0;
+    Value dilated = dilEmpty ? Value{} : imdilate(mr, I, se_dil);
+    Value eroded  = eroEmpty ? Value{} : imerode (mr, I, se_ero);
+
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t P = I.dims().is3D() ? I.dims().pages() : 1;
+    const size_t N = H * W * P;
+
+    if (I.type() == ValueType::LOGICAL) {
+        Value out = I.dims().is3D()
+            ? Value::matrix3d(H, W, P, ValueType::LOGICAL, mr)
+            : Value::matrix(H, W, ValueType::LOGICAL, mr);
+        std::uint8_t *od = out.logicalDataMut();
+        for (size_t i = 0; i < N; ++i) {
+            const bool d = !dilEmpty && (dilated.elemAsDouble(i) != 0.0);
+            const bool e = !eroEmpty && (eroded .elemAsDouble(i) != 0.0);
+            // dilated & ~eroded for the standard form; half-gradients drop
+            // one of the two terms.
+            bool v;
+            if (dilEmpty)        v = !e;
+            else if (eroEmpty)   v =  d;
+            else                 v =  d && !e;
+            od[i] = v ? 1u : 0u;
+        }
+        return out;
+    }
+
+    // Numeric: dilated - eroded with class-saturated subtraction.
+    Value out = I.dims().is3D()
+        ? Value::matrix3d(H, W, P, I.type(), mr)
+        : Value::matrix(H, W, I.type(), mr);
+
+    auto satStore = [&](size_t i, double v) {
+        switch (I.type()) {
+            case ValueType::DOUBLE: out.doubleDataMut()[i] = v; break;
+            case ValueType::SINGLE: out.singleDataMut()[i] =
+                                    static_cast<float>(v); break;
+            case ValueType::UINT8: {
+                if (v < 0) v = 0; if (v > 255) v = 255;
+                out.uint8DataMut()[i] = static_cast<std::uint8_t>(std::lround(v));
+                break;
+            }
+            case ValueType::UINT16: {
+                if (v < 0) v = 0; if (v > 65535) v = 65535;
+                out.uint16DataMut()[i] = static_cast<std::uint16_t>(std::lround(v));
+                break;
+            }
+            case ValueType::INT16: {
+                if (v < -32768) v = -32768; if (v > 32767) v = 32767;
+                out.int16DataMut()[i] = static_cast<std::int16_t>(std::lround(v));
+                break;
+            }
+            default: out.doubleDataMut()[i] = v; break;
+        }
+    };
+
+    for (size_t i = 0; i < N; ++i) {
+        double d = dilEmpty ? 0.0 : dilated.elemAsDouble(i);
+        double e = eroEmpty ? 0.0 : eroded.elemAsDouble(i);
+        double v;
+        if (dilEmpty)       v = -e;     // internal: need careful sign for unsigned
+        else if (eroEmpty)  v =  d;
+        else                v =  d - e;
+        satStore(i, v);
+    }
+    return out;
+}
+
 Value bwpack(std::pmr::memory_resource *mr, const Value &BW)
 {
     constexpr size_t CLASS_BITS = 32;
@@ -1129,6 +1214,20 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
                     "m:imbothat:nargin");
     outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
+}
+
+void mmgradm_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mmgradm: requires (I [, se_dil [, se_ero]])",
+                    0, 0, "mmgradm", "", "m:mmgradm:nargin");
+    auto *mr = ctx.engine->resource();
+    // Defaults: arg omitted → elementary cross. Arg explicitly empty
+    // means half-gradient (the C++ function reads .numel() == 0).
+    Value sed = (args.size() >= 2) ? args[1] : diamond_cross(mr);
+    Value see = (args.size() >= 3) ? args[2] : diamond_cross(mr);
+    outs[0] = mmgradm(mr, args[0], sed, see);
 }
 
 void bwpack_reg(Span<const Value> args, size_t /*nargout*/,

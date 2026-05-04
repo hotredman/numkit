@@ -3356,3 +3356,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `axes2pix` | — | 0.004 |  | 25.07× | OK | Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix. |
 | `isgray` | — | 0.003 |  | 14.93× | OK | Sig: tf = isgray(I). True for 2-D images of class uint8/uint16/int16 or float in [0,1]. Octave-image has isgray. |
 | `imcast` | — | 0.005 |  | 41.75× | OK | Sig: J = imcast(I, type). Dispatch wrapper over im2* helpers (type ∈ double/single/uint8/uint16/int16/logical). Octave-image has imcast. |
+| `mmgradm` | — | 0.004 |  | 144.88× | OK | Sig: G = mmgradm(I [, se_dil [, se_ero]]). Morphological gradient = imdilate − imerode (default cross SE). Octave-image has mmgradm. |

@@ -137,6 +137,15 @@ Value imtophat(std::pmr::memory_resource *mr,
 Value imbothat(std::pmr::memory_resource *mr,
                const Value &I, const Value &SE);
 
+/// `G = mmgradm(I [, se_dil [, se_ero]])` — morphological gradient.
+/// Defaults to imdilate(I) − imerode(I) with elementary cross
+/// (diamond, radius 1) structuring element. For logical inputs the
+/// subtraction collapses to `dilate & ~erode`. Pass an empty SE to
+/// half-gradient: `mmgradm(I, [], se_ero)` → −imerode (internal),
+/// `mmgradm(I, se_dil, [])` → imdilate (external).
+Value mmgradm(std::pmr::memory_resource *mr, const Value &I,
+              const Value &se_dil, const Value &se_ero);
+
 /// `bwp = bwpack(BW)` — pack a binary image along the row axis into
 /// uint32 columns. Each 32 rows of `BW` become one uint32; bit 0
 /// corresponds to the first row, bit 31 to the 32nd. Output rows
