@@ -3111,7 +3111,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `applylut` | ❌ |  |  |  |  |  |
-| `bwhitmiss` | ❌ |  |  |  |  | hit-or-miss transform |
+| `bwhitmiss` | ❌ | 0.005 |  | 90.26× | OK | Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss. |
 | `bwlookup` | ❌ |  |  |  |  |  |
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |

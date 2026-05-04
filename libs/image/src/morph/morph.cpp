@@ -752,6 +752,36 @@ Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
     return tophat_subtract(mr, closed, I);
 }
 
+Value bwhitmiss(std::pmr::memory_resource *mr,
+                const Value &BW, const Value &se1, const Value &se2)
+{
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0) return out;
+
+    // Foreground erosion: where se1 fits in BW.
+    Value e1 = imerode(mr, BW, se1);
+
+    // Build !BW as a logical image, then erode with se2.
+    Value notBW = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    {
+        std::uint8_t *nd = notBW.logicalDataMut();
+        for (size_t i = 0; i < H * W; ++i)
+            nd[i] = (BW.elemAsDouble(i) != 0.0) ? 0u : 1u;
+    }
+    Value e2 = imerode(mr, notBW, se2);
+
+    // J = e1 & e2.
+    std::uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < H * W; ++i) {
+        const bool a = (e1.elemAsDouble(i) != 0.0);
+        const bool b = (e2.elemAsDouble(i) != 0.0);
+        od[i] = (a && b) ? 1u : 0u;
+    }
+    return out;
+}
+
 // Exact dual of imclearborder: keep only the rim-reachable components.
 //   marker = BW ∩ rim, J = imreconstruct(marker, BW, conn)
 // imreconstruct already returns a LOGICAL when marker+mask are LOGICAL,
@@ -977,6 +1007,36 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
                     "m:imbothat:nargin");
     outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
+}
+
+void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("bwhitmiss: requires (BW, interval) or (BW, se1, se2)",
+                    0, 0, "bwhitmiss", "", "m:bwhitmiss:nargin");
+    auto *mr = ctx.engine->resource();
+    Value se1, se2;
+    if (args.size() == 2) {
+        // Single interval matrix with values in {-1, 0, 1}.
+        const Value &iv = args[1];
+        const size_t H = iv.dims().rows();
+        const size_t W = iv.dims().cols();
+        const size_t N = iv.numel();
+        se1 = Value::matrix(H, W, ValueType::LOGICAL, mr);
+        se2 = Value::matrix(H, W, ValueType::LOGICAL, mr);
+        std::uint8_t *s1 = se1.logicalDataMut();
+        std::uint8_t *s2 = se2.logicalDataMut();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = iv.elemAsDouble(i);
+            s1[i] = (v ==  1.0) ? 1u : 0u;
+            s2[i] = (v == -1.0) ? 1u : 0u;
+        }
+    } else {
+        se1 = args[1];
+        se2 = args[2];
+    }
+    outs[0] = bwhitmiss(mr, args[0], se1, se2);
 }
 
 } // namespace detail

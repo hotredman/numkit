@@ -137,4 +137,12 @@ Value imtophat(std::pmr::memory_resource *mr,
 Value imbothat(std::pmr::memory_resource *mr,
                const Value &I, const Value &SE);
 
+/// `J = bwhitmiss(BW, se1, se2)` — binary hit-or-miss transform:
+///   J = imerode(BW, se1) & imerode(~BW, se2).
+/// se1 marks foreground requirements; se2 marks background ones.
+/// They must have disjoint neighbourhoods to be meaningful (not
+/// enforced). Output is logical, same H×W as BW.
+Value bwhitmiss(std::pmr::memory_resource *mr,
+                const Value &BW, const Value &se1, const Value &se2);
+
 } // namespace numkit::image
