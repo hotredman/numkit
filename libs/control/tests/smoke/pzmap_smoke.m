@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- pzmap on G(s) = (s+2)/((s+1)(s+3)) ---

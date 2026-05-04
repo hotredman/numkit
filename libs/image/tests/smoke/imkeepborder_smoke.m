@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Same 3-blob layout as imclearborder smoke; imkeepborder should

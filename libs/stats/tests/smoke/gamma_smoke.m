@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Gamma distribution smoke checks (MATLAB convention: a=shape, b=scale).

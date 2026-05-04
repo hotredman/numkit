@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- imsharpen on a step-edge: amplify the edge contrast ---

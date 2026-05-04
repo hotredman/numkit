@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Discrete uniform on {1..N}

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- imresize 2× nearest on a 2×2 ramp ---

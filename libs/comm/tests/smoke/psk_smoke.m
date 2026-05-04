@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % PSK round-trip with M=4 (QPSK)

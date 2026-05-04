@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Build a tiny 2x3 RGB image, write to PNG, read back ---

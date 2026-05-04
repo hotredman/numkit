@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % cheby1(4, 0.5, 0.4) — digital lowpass, normalised cutoff 0.4 (× Nyquist).

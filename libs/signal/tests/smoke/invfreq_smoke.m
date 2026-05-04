@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- invfreqs: round-trip a known analog filter ---

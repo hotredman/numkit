@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Beta distribution smoke checks.

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Standard normal sample → kstest should accept H0 (normal)

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- aryule on AR(2) recovers coefficients ---

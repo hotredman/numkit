@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % buttord(0.2, 0.3, 1, 30) — typical lowpass spec.

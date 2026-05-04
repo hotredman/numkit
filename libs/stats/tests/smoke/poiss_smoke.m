@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % poisspdf(0, 2) = exp(-2) = 0.1353

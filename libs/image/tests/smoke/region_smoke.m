@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Three disjoint blobs

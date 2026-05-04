@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % wblpdf(2, 3, 2): a=3 (scale), b=2 (shape)

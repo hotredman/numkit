@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Double integrator: A=[0 1; 0 0], B=[0;1], C=[1 0] is fully observable+controllable ---

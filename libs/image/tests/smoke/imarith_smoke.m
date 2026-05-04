@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % imadd: saturating uint8 addition

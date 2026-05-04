@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Image with two basins on a plateau:

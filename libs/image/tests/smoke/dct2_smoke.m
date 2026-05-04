@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Round-trip: idct2(dct2(A)) == A

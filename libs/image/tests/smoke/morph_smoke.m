@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Build a 3x3 square SE

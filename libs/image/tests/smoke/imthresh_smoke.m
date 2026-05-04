@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Bimodal image: half dark, half bright

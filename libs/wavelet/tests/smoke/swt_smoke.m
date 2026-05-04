@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Shape and dimensions ---

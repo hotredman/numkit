@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- mscohere(x, x) = 1 everywhere (auto-coherence) ---

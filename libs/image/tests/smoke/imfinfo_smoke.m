@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Build a known PNG, then probe via imfinfo ---

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Trivial scalar: A=0, B=1, want pole at -3 ⇒ K = 3 ---
