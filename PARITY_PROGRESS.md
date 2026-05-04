@@ -3354,3 +3354,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 |---|:---:|---:|---:|---:|:---:|---|
 | `impyramid_expand` | — | 0.004 |  | 115.34× | OK | Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). Cross-check expand variant separately. |
 | `axes2pix` | — | 0.004 |  | 25.07× | OK | Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix. |
+| `isgray` | — | 0.003 |  | 14.93× | OK | Sig: tf = isgray(I). True for 2-D images of class uint8/uint16/int16 or float in [0,1]. Octave-image has isgray. |
