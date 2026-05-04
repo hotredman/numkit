@@ -1,0 +1,10 @@
+{
+  "name": "wavelength2rgb",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = wavelength2rgb(400);",
+  "iters": 5,
+  "tol": 1e-04,
+  "out_var": "y",
+  "comment": "Sig: rgb = wavelength2rgb(wavelength [, class [, gamma]]). Piecewise visible-light wavelength → RGB (Bruton). Tolerance loose because Octave's gamma=0.8 raises tiny FP noise when raising 0 to 0.8 — final RGB triple to 4 decimals is the right comparison."
+}
