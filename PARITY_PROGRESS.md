@@ -3291,18 +3291,18 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Image Quality
 
-**Namespace:** `image.quality.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `image.quality.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
-| `immse` | ❌ |  |  |  |  |  |
+| `immse` | ✅ |  |  |  | OK | mean squared error |
 | `multissim` | ❌ |  |  |  |  | multi-scale SSIM |
 | `multissim3` | ❌ |  |  |  |  |  |
 | `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
 | `piqe` | ❌ |  |  |  |  | perceptual no-reference |
-| `psnr` | ❌ |  |  |  |  |  |
-| `ssim` | ❌ |  |  |  |  |  |
+| `psnr` | ✅ |  |  |  | OK | 10·log10(peak²/MSE); peak auto-from-class |
+| `ssim` | ✅ |  |  |  | OK | 11×11 σ=1.5 Gauss window, K1=0.01 K2=0.03 |
 
 ## Image Transforms
 

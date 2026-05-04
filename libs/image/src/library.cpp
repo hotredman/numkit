@@ -78,6 +78,11 @@ void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgradientxy_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgradient_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// quality/quality.cpp
+void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void psnr_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -151,6 +156,10 @@ void ImageLibrary::install(Engine &engine)
     reg("object", "imgradientxy", &image::detail::imgradientxy_reg);
     reg("object", "imgradient",   &image::detail::imgradient_reg);
     reg("object", "edge",         &image::detail::edge_reg);
+
+    reg("quality", "immse", &image::detail::immse_reg);
+    reg("quality", "psnr",  &image::detail::psnr_reg);
+    reg("quality", "ssim",  &image::detail::ssim_reg);
 }
 
 } // namespace numkit
