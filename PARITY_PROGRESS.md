@@ -2914,7 +2914,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2single` | ✅ |  |  |  | OK |  |
 | `im2uint16` | ✅ |  |  |  | OK |  |
 | `im2uint8` | ✅ |  |  |  | OK | bit-replicate up; round-down on uint16 |
-| `imbinarize` | ✅ |  |  |  | OK | auto graythresh fallback or explicit threshold |
+| `imbinarize` | ✅ |  |  |  | OK | scalar T (auto = graythresh) **or per-pixel T matrix** (composes with adaptthresh) |
 | `imquantize` | ✅ |  |  |  | OK | N+1 classes from N levels |
 | `imsplit` | ❌ |  |  |  |  | split RGB → 3 planes |
 | `ind2gray` | ❌ |  |  |  |  |  |
