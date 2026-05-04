@@ -3132,7 +3132,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imhmax` | ✅ |  |  |  | OK | imreconstruct(I − h, I); shaves peaks by h |
 | `imhmin` | ✅ |  |  |  | OK | dual of imhmax via image inversion; raises shallow troughs |
 | `imimposemin` | ✅ |  |  |  | OK | Soille recipe: R^E_m(fm) via complement-trick imreconstruct; markers become sole regional minima |
-| `imkeepborder` | ❌ |  |  |  |  |  |
+| `imkeepborder` | ✅ |  |  |  | OK | dual of imclearborder; J = imreconstruct(BW ∩ rim, BW) |
 | `imopen` | ✅ |  |  |  | OK | erode → dilate |
 | `imreconstruct` | ✅ |  |  |  | OK | iterate dilate-and-cap until stable; binary + grayscale; conn=4/8 |
 | `imregionalmax` | ✅ |  |  |  | OK | (I − imreconstruct(I−1, I)) > 0 (Vincent 1993) |

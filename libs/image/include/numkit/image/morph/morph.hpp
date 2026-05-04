@@ -118,4 +118,11 @@ Value imimposemin(std::pmr::memory_resource *mr,
 Value imclearborder(std::pmr::memory_resource *mr,
                     const Value &BW, int conn);
 
+/// `J = imkeepborder(BW [, conn])` — exact dual of imclearborder:
+/// keep ONLY components that touch the image rim.
+///   marker = BW restricted to the rim
+///   J      = imreconstruct(marker, BW, conn)
+Value imkeepborder(std::pmr::memory_resource *mr,
+                   const Value &BW, int conn);
+
 } // namespace numkit::image

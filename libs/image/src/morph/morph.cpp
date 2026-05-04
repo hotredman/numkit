@@ -676,6 +676,35 @@ Value imclearborder(std::pmr::memory_resource *mr,
     return out;
 }
 
+// Exact dual of imclearborder: keep only the rim-reachable components.
+//   marker = BW ∩ rim, J = imreconstruct(marker, BW, conn)
+// imreconstruct already returns a LOGICAL when marker+mask are LOGICAL,
+// so we just hand that through.
+Value imkeepborder(std::pmr::memory_resource *mr,
+                   const Value &BW, int conn)
+{
+    if (conn != 4) conn = 8;
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    if (H == 0 || W == 0) return out;
+
+    Value marker = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    Value mask   = Value::matrix(H, W, ValueType::LOGICAL, mr);
+    std::uint8_t *md = marker.logicalDataMut();
+    std::uint8_t *kd = mask.logicalDataMut();
+    for (size_t c = 0; c < W; ++c)
+        for (size_t r = 0; r < H; ++r) {
+            const size_t idx = c * H + r;
+            const bool fg = (BW.elemAsDouble(idx) != 0.0);
+            kd[idx] = fg ? 1u : 0u;
+            const bool onRim = (r == 0 || c == 0 ||
+                                  r + 1 == H || c + 1 == W);
+            md[idx] = (onRim && fg) ? 1u : 0u;
+        }
+    return imreconstruct(mr, marker, mask, conn);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -843,6 +872,17 @@ void imclearborder_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imclearborder(ctx.engine->resource(), args[0], conn);
+}
+
+void imkeepborder_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imkeepborder: requires (BW [, conn])",
+                    0, 0, "imkeepborder", "", "m:imkeepborder:nargin");
+    const int conn = (args.size() >= 2 && !args[1].isEmpty())
+                     ? static_cast<int>(args[1].toScalar()) : 8;
+    outs[0] = imkeepborder(ctx.engine->resource(), args[0], conn);
 }
 
 } // namespace detail
