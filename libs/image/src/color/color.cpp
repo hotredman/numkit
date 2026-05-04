@@ -955,6 +955,27 @@ Value winter_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value copper_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        od[0] = od[1] = od[2] = 0.0;
+        return out;
+    }
+    const double inv = 1.0 / static_cast<double>(n - 1);
+    for (int i = 0; i < n; ++i) {
+        const double x = static_cast<double>(i) * inv;
+        double r = 1.25 * x;
+        if (r > 1.0) r = 1.0;
+        od[0 * n + i] = r;
+        od[1 * n + i] = 0.7812 * x;
+        od[2 * n + i] = 0.4975 * x;
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1293,6 +1314,24 @@ void winter_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = winter_cmap(ctx.engine->resource(), n);
+}
+
+void copper_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("copper: N must be a scalar integer",
+                        0, 0, "copper", "", "m:copper:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("copper: N must be a scalar integer",
+                        0, 0, "copper", "", "m:copper:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = copper_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail
