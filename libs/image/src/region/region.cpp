@@ -549,6 +549,40 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW)
     return out;
 }
 
+Value roicolor(std::pmr::memory_resource *mr, const Value &A,
+               const Value &low_or_v, double high, bool is_range)
+{
+    const auto &d = A.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1;
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, P, ValueType::LOGICAL, mr)
+        : Value::matrix(H, W, ValueType::LOGICAL, mr);
+    const size_t N = A.numel();
+    if (N == 0) return out;
+    std::uint8_t *od = out.logicalDataMut();
+
+    if (is_range) {
+        const double lo = low_or_v.toScalar();
+        const double hi = high;
+        for (size_t i = 0; i < N; ++i) {
+            const double v = A.elemAsDouble(i);
+            od[i] = (v >= lo && v <= hi) ? 1u : 0u;
+        }
+    } else {
+        const size_t M = low_or_v.numel();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = A.elemAsDouble(i);
+            std::uint8_t b = 0;
+            for (size_t k = 0; k < M; ++k)
+                if (v == low_or_v.elemAsDouble(k)) { b = 1; break; }
+            od[i] = b;
+        }
+    }
+    return out;
+}
+
 Value fchcode(std::pmr::memory_resource *mr, const Value &bound)
 {
     if (bound.dims().cols() != 2)
@@ -836,6 +870,22 @@ void bwdist_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("bwdist: requires (BW)",
                     0, 0, "bwdist", "", "m:bwdist:nargin");
     outs[0] = bwdist(ctx.engine->resource(), args[0]);
+}
+
+void roicolor_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("roicolor: requires (A, low, high) or (A, v)",
+                    0, 0, "roicolor", "", "m:roicolor:nargin");
+    auto *mr = ctx.engine->resource();
+    if (args.size() >= 3) {
+        outs[0] = roicolor(mr, args[0], args[1],
+                           args[2].toScalar(), /*is_range=*/true);
+    } else {
+        outs[0] = roicolor(mr, args[0], args[1], 0.0,
+                           /*is_range=*/false);
+    }
 }
 
 void fchcode_reg(Span<const Value> args, size_t /*nargout*/,
