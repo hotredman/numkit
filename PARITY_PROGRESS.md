@@ -2057,7 +2057,7 @@ the flat `gf*` function family below.
 
 ## Communications Toolbox — Pulse Shaping, Equalization, MIMO
 
-**Namespace:** `comm.shape.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `comm.shape.*` — 1 ✅ + 0 ⚠️ / 8 = 13%
 
 System-Object equalisers (`comm.LinearEqualizer`, `comm.MLSEEqualizer`,
 `comm.DecisionFeedbackEqualizer`) are omitted; only the function-form
@@ -2066,7 +2066,7 @@ MLSE entry is exposed.
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `gaussdesign` | ❌ |  |  |  |  | Gaussian pulse-shaping filter |
-| `rcosdesign` | ❌ |  |  |  |  | raised-cosine |
+| `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
 | `rectpulse` | ❌ |  |  |  |  | rectangular pulse shaper |
 | `intdump` | ❌ |  |  |  |  | integrate & dump |
 | `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
@@ -2479,7 +2479,7 @@ vector path-loss models and coordinate transforms.
 | `maxflat` | ❌ |  |  |  |  |  |
 | `polyscale` | ❌ |  |  |  |  |  |
 | `polystab` | ❌ |  |  |  |  |  |
-| `rcosdesign` | ❌ |  |  |  |  |  |
+| `rcosdesign` | ✅ |  |  |  | OK | shared with comm.shape; unit-energy 'normal' / 'sqrt' |
 | `scalefiltersections` | ❌ |  |  |  |  |  |
 | `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
 | `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |

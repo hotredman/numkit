@@ -38,6 +38,9 @@ void convertSNR_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // channel/fading.cpp
 void rayleighchan_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ricianchan_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// eq/pulse.cpp
+void rcosdesign_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -77,6 +80,8 @@ void CommLibrary::install(Engine &engine)
 
     reg("rf", "rayleighchan", &comm::detail::rayleighchan_reg);
     reg("rf", "ricianchan",   &comm::detail::ricianchan_reg);
+
+    reg("eq", "rcosdesign", &comm::detail::rcosdesign_reg);
 }
 
 } // namespace numkit
