@@ -1256,6 +1256,37 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
+{
+    const auto &d = xyz.dims();
+    const bool ok_2d = !d.is3D() && d.cols() == 3;
+    const bool ok_3d = d.is3D() && d.pages() == 3;
+    if (!ok_2d && !ok_3d)
+        throw Error("xyz2double: input must be M-by-3 or H-by-W-by-3",
+                    0, 0, "xyz2double", "", "m:xyz2double:size");
+    const ValueType t = xyz.type();
+    if (t != ValueType::DOUBLE && t != ValueType::UINT16)
+        throw Error("xyz2double: input must be uint16 or double",
+                    0, 0, "xyz2double", "", "m:xyz2double:type");
+
+    Value out = ok_3d
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::DOUBLE, mr);
+    const size_t N = xyz.numel();
+    double *od = out.doubleDataMut();
+    if (t == ValueType::DOUBLE) {
+        const double *id = xyz.doubleData();
+        for (size_t i = 0; i < N; ++i) od[i] = id[i];
+    } else {
+        // ICC: uint16 32768 ↔ 1.0 → divide by 32768.
+        const uint16_t *id = xyz.uint16Data();
+        constexpr double inv32768 = 1.0 / 32768.0;
+        for (size_t i = 0; i < N; ++i)
+            od[i] = static_cast<double>(id[i]) * inv32768;
+    }
+    return out;
+}
+
 Value deltaE(std::pmr::memory_resource *mr,
              const Value &I1, const Value &I2, bool isInputLab)
 {
@@ -1887,6 +1918,15 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
                     "m:lin2rgb:nargin");
     outs[0] = lin2rgb(ctx.engine->resource(), args[0]);
+}
+
+void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("xyz2double: requires (xyz)", 0, 0, "xyz2double", "",
+                    "m:xyz2double:nargin");
+    outs[0] = xyz2double(ctx.engine->resource(), args[0]);
 }
 
 void deltaE_reg(Span<const Value> args, size_t /*nargout*/,

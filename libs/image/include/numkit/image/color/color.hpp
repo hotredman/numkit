@@ -164,6 +164,13 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
 /// Same class-promotion rule as rgb2lin (integer in → single out).
 Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
 
+/// `xyzd = xyz2double(xyz)` — convert XYZ image/colormap to double.
+/// Following the ICC.1:2001-4 convention for uint16 XYZ:
+///     uint16 0 → 0.0,  uint16 32768 → 1.0,  uint16 65535 → 1+32767/32768.
+/// Equivalently `double = uint16 / 32768`. Double input is passed through
+/// (sanitized to double class). Shape is preserved (M×3 or H×W×3).
+Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz);
+
 /// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
 /// difference. Default treats inputs as RGB and converts to L*a*b*
 /// internally; pass `isInputLab=true` to skip the conversion.
