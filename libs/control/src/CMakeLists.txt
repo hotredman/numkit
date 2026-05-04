@@ -2,6 +2,7 @@ set(CONTROLLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/library.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/lti/lti.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/conversion/conversion.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/props/props.cpp
 )
 
 set(CONTROLLIB_SOURCES ${CONTROLLIB_SOURCES} PARENT_SCOPE)

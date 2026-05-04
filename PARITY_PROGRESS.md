@@ -1520,21 +1520,21 @@ intentionally omitted.
 
 ## Control System Toolbox — Model Properties
 
-**Namespace:** `control.props.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+**Namespace:** `control.props.*` — 9 ✅ + 0 ⚠️ / 11 = 82%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `isct` | ❌ |  |  |  |  | continuous-time? |
-| `isdt` | ❌ |  |  |  |  | discrete-time? |
-| `isproper` | ❌ |  |  |  |  | proper transfer function? |
-| `issiso` | ❌ |  |  |  |  | single-input single-output? |
-| `isstable` | ❌ |  |  |  |  |  |
+| `isct` | ✅ |  |  |  | OK | true when Ts == 0 |
+| `isdt` | ✅ |  |  |  | OK | true when Ts > 0 or Ts == -1 |
+| `isproper` | ✅ |  |  |  | OK | tf: numel(num)≤numel(den); zpk: |z|≤|p|; ss: true |
+| `issiso` | ✅ |  |  |  | OK | tf/zpk: true; ss: 1-col B and 1-row C |
+| `isstable` | ✅ |  |  |  | OK | qualified-only (`control.props.isstable`) — `compat.isstable` is libs/signal coefficient form |
 | `isstatic` | ❌ |  |  |  |  | gain only? |
-| `order` | ❌ |  |  |  |  | system order |
-| `pole` | ❌ |  |  |  |  | poles |
-| `zero` | ❌ |  |  |  |  | zeros |
+| `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
+| `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
+| `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
 | `tzero` | ❌ |  |  |  |  | transmission zeros |
-| `damp` | ❌ |  |  |  |  | natural frequencies & damping |
+| `damp` | ✅ |  |  |  | OK | [wn, zeta, p]; discrete via s = ln(z)/Ts |
 
 ## Control System Toolbox — Model Conversion & Reduction
 
