@@ -9,6 +9,7 @@
 #include <numkit/image/transform/transform.hpp>
 
 #include <numkit/signal/transforms/dct.hpp>
+#include <numkit/signal/convolution/convolution.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -183,6 +184,84 @@ Value integralImage3(std::pmr::memory_resource *mr, const Value &V)
     return out;
 }
 
+Value normxcorr2(std::pmr::memory_resource *mr,
+                 const Value &templ, const Value &img)
+{
+    const size_t mH = templ.dims().rows();
+    const size_t mW = templ.dims().cols();
+    const size_t bH = img.dims().rows();
+    const size_t bW = img.dims().cols();
+    const size_t mN = mH * mW;
+
+    // Build double-centered template (a) and image (b).
+    Value a = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
+    Value b = Value::matrix(bH, bW, ValueType::DOUBLE, mr);
+    double *ad = a.doubleDataMut();
+    double *bd = b.doubleDataMut();
+
+    long double sa = 0.0L, sb = 0.0L;
+    for (size_t i = 0; i < mN; ++i) sa += templ.elemAsDouble(i);
+    for (size_t i = 0; i < bH * bW; ++i) sb += img.elemAsDouble(i);
+    const double ma = (mN     > 0) ? static_cast<double>(sa / static_cast<long double>(mN))     : 0.0;
+    const double mb = (bH * bW > 0) ? static_cast<double>(sb / static_cast<long double>(bH * bW)) : 0.0;
+    for (size_t i = 0; i < mN; ++i)     ad[i] = templ.elemAsDouble(i) - ma;
+    for (size_t i = 0; i < bH * bW; ++i) bd[i] = img.elemAsDouble(i)  - mb;
+
+    // Reversed template ar = rot180(a). Column-major: ar[(mW-1-c)*mH + (mH-1-r)] = a[c*mH + r].
+    Value ar = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
+    double *ard = ar.doubleDataMut();
+    for (size_t c = 0; c < mW; ++c)
+        for (size_t r = 0; r < mH; ++r)
+            ard[(mW - 1 - c) * mH + (mH - 1 - r)] = ad[c * mH + r];
+
+    // Numerator: conv2(b, ar, 'full').
+    Value c_num = signal::conv2(mr, b, ar, "full");
+
+    // Denominator pieces use a1 = ones(size(a)).
+    Value a1 = Value::matrix(mH, mW, ValueType::DOUBLE, mr);
+    double *a1d = a1.doubleDataMut();
+    for (size_t i = 0; i < mN; ++i) a1d[i] = 1.0;
+
+    // b_sq = b .^ 2.
+    Value b_sq = Value::matrix(bH, bW, ValueType::DOUBLE, mr);
+    double *bsd = b_sq.doubleDataMut();
+    for (size_t i = 0; i < bH * bW; ++i) bsd[i] = bd[i] * bd[i];
+
+    Value sum_b_sq = signal::conv2(mr, b_sq, a1, "full");
+    Value sum_b    = signal::conv2(mr, b,    a1, "full");
+
+    // c_denom = sum_b_sq - sum_b.^2 / mN (clamped at 0).
+    const size_t outH = bH + mH - 1;
+    const size_t outW = bW + mW - 1;
+    Value c_denom = Value::matrix(outH, outW, ValueType::DOUBLE, mr);
+    double *cdd = c_denom.doubleDataMut();
+    const double *sbsd = sum_b_sq.doubleData();
+    const double *sbd  = sum_b.doubleData();
+    for (size_t i = 0; i < outH * outW; ++i) {
+        double v = sbsd[i] - (sbd[i] * sbd[i]) /
+                              static_cast<double>(mN > 0 ? mN : 1);
+        if (v < 0.0) v = 0.0;
+        cdd[i] = v;
+    }
+
+    // sumsq(a).
+    long double sumsq_a = 0.0L;
+    for (size_t i = 0; i < mN; ++i) sumsq_a += static_cast<long double>(ad[i]) * ad[i];
+    const double sa2 = static_cast<double>(sumsq_a);
+
+    // c = c_num / sqrt(c_denom * sumsq_a); inf/nan → 0.
+    Value c_out = Value::matrix(outH, outW, ValueType::DOUBLE, mr);
+    double *cod = c_out.doubleDataMut();
+    const double *cnd = c_num.doubleData();
+    for (size_t i = 0; i < outH * outW; ++i) {
+        const double denom = std::sqrt(cdd[i] * sa2);
+        double v = (denom > 0.0) ? cnd[i] / denom : 0.0;
+        if (!std::isfinite(v)) v = 0.0;
+        cod[i] = v;
+    }
+    return c_out;
+}
+
 Value checkerboard(std::pmr::memory_resource *mr,
                    size_t side, size_t M, size_t N)
 {
@@ -262,6 +341,15 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("dctmtx: requires 1 argument (N)",
                     0, 0, "dctmtx", "", "m:dctmtx:nargin");
     outs[0] = dctmtx(ctx.engine->resource(), args[0].toScalar());
+}
+
+void normxcorr2_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("normxcorr2: requires (template, img)",
+                    0, 0, "normxcorr2", "", "m:normxcorr2:nargin");
+    outs[0] = normxcorr2(ctx.engine->resource(), args[0], args[1]);
 }
 
 void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
