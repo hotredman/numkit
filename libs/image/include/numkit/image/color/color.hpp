@@ -100,11 +100,11 @@ Value spring_cmap(std::pmr::memory_resource *mr, int n);
 Value summer_cmap(std::pmr::memory_resource *mr, int n);
 
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
-/// Input is an N×3 RGB colormap with values in [0, 1] (any numeric
-/// class accepted; coerced to double). Output is an N×1 column of
-/// luminance values via the Octave-image weights
-/// (0.298936, 0.587043, 0.114021). MATLAB R2020b+; Octave-image has
-/// it under the same name.
+/// Input is an N×3 RGB colormap (treated as double). Output is N×3
+/// double, where each row is `[y y y]` and y is the luminance from
+/// the inv(YIQ→RGB) first row weights (0.298936, 0.587043, 0.114021),
+/// clipped to [0, 1]. Matches MATLAB R2020b+. Octave-image 2.18.2
+/// doesn't ship cmap2gray.
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap);
 
 /// label2rgb(L, cmap [, background]) — colourise a labelled image.

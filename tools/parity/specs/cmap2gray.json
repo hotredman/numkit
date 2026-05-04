@@ -6,5 +6,5 @@
   "iters": 5,
   "tol": 1e-12,
   "out_var": "y",
-  "comment": "Sig: gmap = cmap2gray(cmap). N×3 colormap → N×1 grayscale via Octave-image weights (0.298936, 0.587043, 0.114021). Octave-image 2.18.2 doesn't ship cmap2gray (it's MATLAB R2020b+) → correctness=N/A."
+  "comment": "Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it."
 }
