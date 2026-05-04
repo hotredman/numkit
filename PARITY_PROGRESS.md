@@ -1538,13 +1538,13 @@ intentionally omitted.
 
 ## Control System Toolbox — Model Conversion & Reduction
 
-**Namespace:** `control.convert.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+**Namespace:** `control.convert.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `c2d` | ❌ |  |  |  |  | continuous → discrete |
+| `c2d` | ✅ |  |  |  | OK | ZOH (Van Loan expm) + Tustin; preserves tf/zpk/ss kind |
 | `c2dOptions` | ❌ |  |  |  |  |  |
-| `d2c` | ❌ |  |  |  |  | discrete → continuous |
+| `d2c` | ✅ |  |  |  | OK | Tustin only (ZOH would need matrix log) |
 | `d2cOptions` | ❌ |  |  |  |  |  |
 | `d2d` | ❌ |  |  |  |  | resample discrete |
 | `d2dOptions` | ❌ |  |  |  |  |  |

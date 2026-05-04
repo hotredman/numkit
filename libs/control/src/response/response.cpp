@@ -155,13 +155,15 @@ Mat expm(const Mat &Ain, size_t n)
     //   exp(A) ≈ D(A)^{-1} N(A)
     // For the [6/6] Padé, c_k = (12-k)! / k! / (12)! is rounded for
     // small matrices; the canonical normalised set is:
+    // Canonical [6/6] Padé coefficients for exp(x):
+    //   c_k = (12 − k)! · 6! / (12! · k! · (6 − k)!)
     static const double c[7] = {
         1.0,
         1.0/2.0,
-        1.0/22.0,
-        1.0/198.0,
-        1.0/3960.0,
-        1.0/166320.0,
+        5.0/44.0,
+        1.0/66.0,
+        1.0/792.0,
+        1.0/15840.0,
         1.0/665280.0
     };
     auto axpyMat = [&](Mat &dst, const Mat &src, double alpha) {
