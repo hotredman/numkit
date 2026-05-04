@@ -1,0 +1,10 @@
+{
+  "name": "applylut",
+  "namespace": "image",
+  "setup": "BW = eye(5); LUT = [0; 1; 1; 0; 1; 0; -2; -1; 1; -2; 0; -1; 0; -1; -1; 0];",
+  "expr": "y = applylut(BW, LUT);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: A = applylut(BW, LUT). LUT length = 2^(n*n). Octave-image has applylut."
+}

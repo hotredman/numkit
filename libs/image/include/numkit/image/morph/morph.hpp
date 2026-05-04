@@ -137,6 +137,15 @@ Value imtophat(std::pmr::memory_resource *mr,
 Value imbothat(std::pmr::memory_resource *mr,
                const Value &I, const Value &SE);
 
+/// `A = applylut(BW, LUT)` — apply a neighbourhood lookup table to
+/// a binary image. LUT length must be 2^(n²) for some n; common
+/// choices are n=2 (length 16) and n=3 (length 512). Each output
+/// pixel is the LUT entry indexed by the bit-pattern of its n×n
+/// neighbourhood (zero-padded), with the kernel weights
+/// `reshape(2^[nq-1:-1:0], n, n)`.
+Value applylut(std::pmr::memory_resource *mr,
+               const Value &BW, const Value &LUT);
+
 /// `J = bwhitmiss(BW, se1, se2)` — binary hit-or-miss transform:
 ///   J = imerode(BW, se1) & imerode(~BW, se2).
 /// se1 marks foreground requirements; se2 marks background ones.
