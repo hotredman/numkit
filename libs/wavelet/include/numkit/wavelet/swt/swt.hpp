@@ -24,4 +24,20 @@ Value swt(std::pmr::memory_resource *mr,
 Value iswt(std::pmr::memory_resource *mr,
            const Value &swc, const std::string &wname);
 
+/// `swc = modwt(x, n, wname)` — maximal-overlap discrete wavelet
+/// transform, n levels. Output is an (n+1) × N matrix:
+///   row 1..n : wavelet coefficients W_j (level 1 = finest)
+///   row n+1  : scaling coefficients V_n (final approximation)
+/// All rows are length N. Filters are scaled by 1/√2 each level so
+/// the transform is energy-preserving (Parseval's holds), unlike
+/// `swt` which uses unit-energy filters and requires an explicit
+/// /2 redundancy factor on inversion. Periodic boundary; signal
+/// length need NOT divide 2^n (the transform is shift-invariant).
+Value modwt(std::pmr::memory_resource *mr,
+            const Value &x, int n, const std::string &wname);
+
+/// Inverse MODWT — exact left-inverse of `modwt`.
+Value imodwt(std::pmr::memory_resource *mr,
+             const Value &swc, const std::string &wname);
+
 } // namespace numkit::wavelet

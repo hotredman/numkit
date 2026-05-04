@@ -154,6 +154,96 @@ Value iswt(std::pmr::memory_resource *mr,
     return y;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// modwt / imodwt — maximal-overlap DWT
+// ════════════════════════════════════════════════════════════════════
+//
+// MODWT is structurally identical to SWT but uses energy-preserving
+// filters h̃ = Lo_D/√2 and g̃ = Hi_D/√2. The /√2 normalisation per
+// level absorbs the factor-2 redundancy that SWT pushes into the
+// inverse, so the inverse here is simply two correlations summed
+// (no /2 factor).
+//
+// Output layout (n+1) × N:
+//   row 1..n : wavelet coefficients W_j (level 1 = finest)
+//   row n+1  : scaling coefficients V_n
+//
+// Unlike SWT, MODWT does NOT require N to divide 2ⁿ — the transform
+// is shift-invariant and works for any N.
+
+Value modwt(std::pmr::memory_resource *mr,
+            const Value &x, int n, const std::string &wname)
+{
+    if (n < 1)
+        throw Error("modwt: level must be ≥ 1",
+                    0, 0, "modwt", "", "m:modwt:level");
+    const size_t N = x.numel();
+    if (N == 0)
+        return Value::matrix(static_cast<size_t>(n + 1), 0,
+                             ValueType::DOUBLE, mr);
+
+    auto fb = wavelet_filters(wname);
+    // Pre-scale filters by 1/√2 once (so the inner correlation is a
+    // straight sum without per-tap multiplications).
+    const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    for (auto &v : hLo) v *= inv_sqrt2;
+    for (auto &v : hHi) v *= inv_sqrt2;
+
+    std::vector<double> a(N);
+    for (size_t i = 0; i < N; ++i) a[i] = x.elemAsDouble(i);
+
+    Value out = Value::matrix(static_cast<size_t>(n + 1), N,
+                              ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    const size_t H = static_cast<size_t>(n + 1);
+
+    for (int k = 0; k < n; ++k) {
+        const size_t step = static_cast<size_t>(1) << k;
+        auto a_next = circ_corr_fwd(a, hLo, step);
+        auto d_next = circ_corr_fwd(a, hHi, step);
+        for (size_t c = 0; c < N; ++c) od[c * H + k] = d_next[c];
+        a = std::move(a_next);
+    }
+    for (size_t c = 0; c < N; ++c) od[c * H + n] = a[c];
+    return out;
+}
+
+Value imodwt(std::pmr::memory_resource *mr,
+             const Value &swc, const std::string &wname)
+{
+    const size_t H = swc.dims().rows();
+    const size_t N = swc.dims().cols();
+    if (H < 2)
+        throw Error("imodwt: input must have at least 2 rows",
+                    0, 0, "imodwt", "", "m:imodwt:size");
+    const int n = static_cast<int>(H) - 1;
+    if (N == 0)
+        return Value::matrix(1, 0, ValueType::DOUBLE, mr);
+
+    auto fb = wavelet_filters(wname);
+    const double inv_sqrt2 = 1.0 / std::sqrt(2.0);
+    std::vector<double> hLo = fb.Lo_D, hHi = fb.Hi_D;
+    for (auto &v : hLo) v *= inv_sqrt2;
+    for (auto &v : hHi) v *= inv_sqrt2;
+
+    auto a = rowOf(swc, static_cast<size_t>(n), N);
+
+    // Inverse: sum of two transposed correlations (no /2 — the /√2
+    // in forward already absorbed the redundancy factor).
+    for (int k = n - 1; k >= 0; --k) {
+        const size_t step = static_cast<size_t>(1) << k;
+        auto d = rowOf(swc, static_cast<size_t>(k), N);
+        auto lo = circ_corr_back(a, hLo, step);
+        auto hi = circ_corr_back(d, hHi, step);
+        for (size_t i = 0; i < N; ++i) a[i] = lo[i] + hi[i];
+    }
+
+    Value y = Value::matrix(1, N, ValueType::DOUBLE, mr);
+    if (N > 0) std::copy(a.begin(), a.end(), y.doubleDataMut());
+    return y;
+}
+
 namespace detail {
 
 static std::string argString(const Value &v) {
@@ -181,6 +271,26 @@ void iswt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("iswt: requires (swc, wname)",
                     0, 0, "iswt", "", "m:iswt:nargin");
     outs[0] = iswt(ctx.engine->resource(), args[0], argString(args[1]));
+}
+
+void modwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+               CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("modwt: requires (x, n, wname)",
+                    0, 0, "modwt", "", "m:modwt:nargin");
+    outs[0] = modwt(ctx.engine->resource(),
+                    args[0], static_cast<int>(args[1].toScalar()),
+                    argString(args[2]));
+}
+
+void imodwt_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+                CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imodwt: requires (swc, wname)",
+                    0, 0, "imodwt", "", "m:imodwt:nargin");
+    outs[0] = imodwt(ctx.engine->resource(), args[0], argString(args[1]));
 }
 
 } // namespace detail

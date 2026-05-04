@@ -29,6 +29,8 @@ void wdenoise_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // swt/swt.cpp
 void swt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void iswt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void modwt_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imodwt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::wavelet::detail
 
 namespace numkit {
@@ -54,8 +56,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("denoise", "wnoisest", &wavelet::detail::wnoisest_reg);
     reg("denoise", "wdenoise", &wavelet::detail::wdenoise_reg);
 
-    reg("swt", "swt",  &wavelet::detail::swt_reg);
-    reg("swt", "iswt", &wavelet::detail::iswt_reg);
+    reg("swt", "swt",    &wavelet::detail::swt_reg);
+    reg("swt", "iswt",   &wavelet::detail::iswt_reg);
+    reg("swt", "modwt",  &wavelet::detail::modwt_reg);
+    reg("swt", "imodwt", &wavelet::detail::imodwt_reg);
 }
 
 } // namespace numkit

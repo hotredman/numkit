@@ -1754,7 +1754,7 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Stationary, MODWT, and Wavelet Packets
 
-**Namespace:** `wavelet.swt_modwt.*` — 2 ✅ + 0 ⚠️ / 17 = 12%
+**Namespace:** `wavelet.swt_modwt.*` — 4 ✅ + 0 ⚠️ / 17 = 24%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1762,8 +1762,8 @@ omitted — interactive / Simulink / OOP.
 | `iswt` | ✅ |  |  |  | OK | round-trip ≤ 3.2e-12 across haar/db2/sym4 |
 | `swt2` | ❌ |  |  |  |  |  |
 | `iswt2` | ❌ |  |  |  |  |  |
-| `modwt` | ❌ |  |  |  |  | maximal-overlap DWT |
-| `imodwt` | ❌ |  |  |  |  |  |
+| `modwt` | ✅ |  |  |  | OK | energy-preserving (h̃ = Lo_D/√2); any N (no pow2 constraint) |
+| `imodwt` | ✅ |  |  |  | OK | exact inverse; round-trip ≤ 3e-12; Parseval ratio = 1.0 |
 | `modwtmra` | ❌ |  |  |  |  | multi-resolution analysis from MODWT |
 | `modwtcorr` | ❌ |  |  |  |  | scale-by-scale correlation |
 | `modwtvar` | ❌ |  |  |  |  | scale-by-scale variance |
