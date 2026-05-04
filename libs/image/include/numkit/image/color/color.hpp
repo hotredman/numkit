@@ -164,6 +164,16 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
 /// Same class-promotion rule as rgb2lin (integer in → single out).
 Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
 
+/// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
+/// difference. Default treats inputs as RGB and converts to L*a*b*
+/// internally; pass `isInputLab=true` to skip the conversion.
+/// Result is sqrt(sum((Lab1 - Lab2).^2, 3)) — Euclidean distance
+/// in CIELAB. Inputs are M×3 colormaps (output M×1) or H×W×3
+/// images (output H×W). Class promotion: any double → double,
+/// otherwise single.
+Value deltaE(std::pmr::memory_resource *mr,
+             const Value &I1, const Value &I2, bool isInputLab);
+
 /// `wp = whitepoint([illuminant])` — 1×3 XYZ tristimulus value of
 /// a CIE reference illuminant. Supported (case-insensitive):
 ///   'a'   → [1.0985 1.0000 0.3558]      (Tungsten 2856 K)

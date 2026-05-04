@@ -1256,6 +1256,65 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+Value deltaE(std::pmr::memory_resource *mr,
+             const Value &I1, const Value &I2, bool isInputLab)
+{
+    const auto &d1 = I1.dims();
+    const auto &d2 = I2.dims();
+
+    // Determine output shape based on input dims.
+    enum Shape { COLORMAP, IMAGE } shape;
+    size_t out_h, out_w;
+    if (!d1.is3D() && !d2.is3D()) {
+        if (d1.cols() != 3 || d2.cols() != 3 ||
+            d1.rows() != d2.rows())
+            throw Error("deltaE: M-by-3 inputs must agree in row count",
+                        0, 0, "deltaE", "", "m:deltaE:size");
+        shape = COLORMAP;
+        out_h = d1.rows();
+        out_w = 1;
+    } else if (d1.is3D() && d2.is3D()) {
+        if (d1.pages() != 3 || d2.pages() != 3 ||
+            d1.rows() != d2.rows() || d1.cols() != d2.cols())
+            throw Error("deltaE: H-by-W-by-3 inputs must agree in size",
+                        0, 0, "deltaE", "", "m:deltaE:size");
+        shape = IMAGE;
+        out_h = d1.rows();
+        out_w = d1.cols();
+    } else {
+        throw Error("deltaE: I1 and I2 must both be M-by-3 or H-by-W-by-3",
+                    0, 0, "deltaE", "", "m:deltaE:size");
+    }
+
+    // Class promotion: double if either is double, else single.
+    const bool to_double = (I1.type() == ValueType::DOUBLE) ||
+                           (I2.type() == ValueType::DOUBLE);
+    Value A = to_double ? im2double(mr, I1) : im2single(mr, I1);
+    Value B = to_double ? im2double(mr, I2) : im2single(mr, I2);
+    if (!isInputLab) {
+        A = rgb2lab(mr, A);
+        B = rgb2lab(mr, B);
+    }
+
+    Value out = Value::matrix(out_h, out_w,
+                              to_double ? ValueType::DOUBLE : ValueType::SINGLE,
+                              mr);
+    const size_t plane = out_h * out_w;
+    for (size_t i = 0; i < plane; ++i) {
+        const double l1 = A.elemAsDouble(0 * plane + i);
+        const double a1 = A.elemAsDouble(1 * plane + i);
+        const double b1 = A.elemAsDouble(2 * plane + i);
+        const double l2 = B.elemAsDouble(0 * plane + i);
+        const double a2 = B.elemAsDouble(1 * plane + i);
+        const double b2 = B.elemAsDouble(2 * plane + i);
+        const double dl = l1 - l2, da = a1 - a2, db = b1 - b2;
+        const double v = std::sqrt(dl*dl + da*da + db*db);
+        if (to_double) out.doubleDataMut()[i] = v;
+        else           out.singleDataMut()[i] = static_cast<float>(v);
+    }
+    return out;
+}
+
 Value whitepoint(std::pmr::memory_resource *mr,
                  const std::string &illuminant)
 {
@@ -1828,6 +1887,30 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
                     "m:lin2rgb:nargin");
     outs[0] = lin2rgb(ctx.engine->resource(), args[0]);
+}
+
+void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("deltaE: requires (I1, I2[, 'isInputLab', tf])",
+                    0, 0, "deltaE", "", "m:deltaE:nargin");
+    bool isInputLab = false;
+    // Parse name-value pair: 'isInputLab', value.
+    for (size_t i = 2; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString())
+            throw Error("deltaE: name-value pairs require string keys",
+                        0, 0, "deltaE", "", "m:deltaE:nv");
+        std::string key = args[i].toString();
+        std::string lo;
+        for (char c : key) lo.push_back(static_cast<char>(std::tolower(c)));
+        if (lo == "isinputlab")
+            isInputLab = (args[i + 1].toScalar() != 0.0);
+        else
+            throw Error("deltaE: unknown name '" + key + "'",
+                        0, 0, "deltaE", "", "m:deltaE:nv");
+    }
+    outs[0] = deltaE(ctx.engine->resource(), args[0], args[1], isInputLab);
 }
 
 void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,

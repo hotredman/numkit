@@ -2937,7 +2937,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 |---|:---:|---:|---:|---:|:---:|---|
 | `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
 | `colorangle` | ❌ | 0.003 |  | 92.90× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
-| `deltaE` | ❌ |  |  |  |  | CIE76 colour-difference |
+| `deltaE` | ❌ | 0.004 | 384.49× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
 | `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `illumgray` | ❌ |  |  |  |  | grey-world illumination |
 | `illumpca` | ❌ |  |  |  |  |  |
