@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <numeric>
 #include <vector>
 
 namespace numkit::stats {
@@ -303,6 +304,218 @@ vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// kstest — one-sample Kolmogorov-Smirnov
+// ════════════════════════════════════════════════════════════════════
+
+namespace {
+
+// Asymptotic Kolmogorov distribution survival function (P(K > x)) for
+// the test statistic Dn·√n. Uses the fast-converging Smirnov series
+// for the upper tail (large x) and the slow Kolmogorov series for the
+// lower tail. Adequate for double precision.
+double ks_pvalue(double d) {
+    // d = Dn·√n. P(K ≥ d) = 2 · Σ_{k=1..∞} (-1)^(k-1) · exp(-2 k² d²).
+    if (d <= 0.0) return 1.0;
+    double total = 0.0;
+    double prev = 0.0;
+    for (int k = 1; k <= 100; ++k) {
+        const double term = std::exp(-2.0 * k * k * d * d);
+        if (term < 1e-20 && k > 4) break;
+        total += (k & 1) ? term : -term;
+        if (std::fabs(total - prev) < 1e-12 * std::fabs(total) && k > 4) break;
+        prev = total;
+    }
+    double p = 2.0 * total;
+    if (p < 0.0) p = 0.0;
+    if (p > 1.0) p = 1.0;
+    return p;
+}
+
+// Asymptotic critical value: solve ks_pvalue(d) = α for d ≈ -ln(α/2)/√…
+// Bisection is fine for doc-quality CV.
+double ks_critical(double alpha) {
+    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
+    double lo = 0.01, hi = 5.0;
+    for (int it = 0; it < 80; ++it) {
+        const double mid = 0.5 * (lo + hi);
+        if (ks_pvalue(mid) > alpha) lo = mid; else hi = mid;
+    }
+    return 0.5 * (lo + hi);
+}
+
+// Evaluate a piecewise-linear empirical CDF at point x given a sorted
+// reference grid (x_grid, F_grid). Outside the grid, clamp to 0 / 1.
+double interp_cdf(const std::vector<double> &xg,
+                  const std::vector<double> &Fg, double x) {
+    if (xg.empty()) return 0.0;
+    if (x <= xg.front()) return Fg.front();
+    if (x >= xg.back())  return Fg.back();
+    auto it = std::upper_bound(xg.begin(), xg.end(), x);
+    const size_t k = (size_t)(it - xg.begin()) - 1;
+    const double t = (x - xg[k]) / (xg[k + 1] - xg[k]);
+    return Fg[k] + t * (Fg[k + 1] - Fg[k]);
+}
+
+} // anonymous
+
+std::tuple<Value, Value, Value, Value>
+kstest(std::pmr::memory_resource *mr, const Value &x,
+       const Value &cdf, double alpha, TestTail tail)
+{
+    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
+    const size_t N = x.numel();
+    if (N < 1)
+        throw Error("kstest: empty sample", 0, 0, "kstest", "",
+                    "m:kstest:nsamples");
+
+    std::vector<double> xs(N);
+    for (size_t i = 0; i < N; ++i) xs[i] = x.elemAsDouble(i);
+    std::sort(xs.begin(), xs.end());
+
+    // Reference CDF.
+    auto refF = [&](double v) {
+        if (cdf.numel() >= 2) {
+            const size_t rows = cdf.dims().rows();
+            std::vector<double> xg(rows), Fg(rows);
+            for (size_t i = 0; i < rows; ++i) {
+                xg[i] = cdf.elemAsDouble(0 * rows + i);
+                Fg[i] = cdf.elemAsDouble(1 * rows + i);
+            }
+            // xg should already be sorted; if not, do a quick sort.
+            if (!std::is_sorted(xg.begin(), xg.end())) {
+                std::vector<size_t> ord(rows);
+                std::iota(ord.begin(), ord.end(), (size_t)0);
+                std::sort(ord.begin(), ord.end(),
+                          [&](size_t a, size_t b){ return xg[a] < xg[b]; });
+                std::vector<double> xs2(rows), Fs2(rows);
+                for (size_t i = 0; i < rows; ++i) { xs2[i] = xg[ord[i]]; Fs2[i] = Fg[ord[i]]; }
+                xg = std::move(xs2); Fg = std::move(Fs2);
+            }
+            return interp_cdf(xg, Fg, v);
+        }
+        // Default: standard normal.
+        Value s = Value::scalar(v, mr);
+        return normcdf(mr, s, 0.0, 1.0).toScalar();
+    };
+
+    // Compute D⁺ and D⁻ relative to reference; combine per tail.
+    double Dplus = 0.0, Dminus = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double F = refF(xs[i]);
+        const double up = double(i + 1) / double(N) - F;
+        const double dn = F - double(i) / double(N);
+        if (up > Dplus)  Dplus = up;
+        if (dn > Dminus) Dminus = dn;
+    }
+    double D;
+    switch (tail) {
+        case TestTail::Right: D = Dplus;             break;
+        case TestTail::Left:  D = Dminus;            break;
+        default:              D = std::max(Dplus, Dminus);
+    }
+    const double dn = D * std::sqrt(double(N));
+    const double p  = ks_pvalue(dn);
+    const int    h  = (p < alpha) ? 1 : 0;
+    const double cv = ks_critical(alpha) / std::sqrt(double(N));
+
+    return std::make_tuple(Value::scalar(double(h), mr),
+                           Value::scalar(p, mr),
+                           Value::scalar(D, mr),
+                           Value::scalar(cv, mr));
+}
+
+std::tuple<Value, Value, Value, Value>
+kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+        double alpha, TestTail tail)
+{
+    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
+    const size_t Nx = x.numel(), Ny = y.numel();
+    if (Nx < 1 || Ny < 1)
+        throw Error("kstest2: empty sample", 0, 0, "kstest2", "",
+                    "m:kstest2:nsamples");
+
+    std::vector<double> xs(Nx), ys(Ny);
+    for (size_t i = 0; i < Nx; ++i) xs[i] = x.elemAsDouble(i);
+    for (size_t i = 0; i < Ny; ++i) ys[i] = y.elemAsDouble(i);
+    std::sort(xs.begin(), xs.end());
+    std::sort(ys.begin(), ys.end());
+
+    // Walk the merged sorted axis to compute D⁺ and D⁻.
+    double Dplus = 0.0, Dminus = 0.0;
+    size_t i = 0, j = 0;
+    while (i < Nx && j < Ny) {
+        const double a = xs[i], b = ys[j];
+        if (a <= b) ++i;
+        if (b <= a) ++j;
+        const double Fx = double(i) / double(Nx);
+        const double Fy = double(j) / double(Ny);
+        if (Fx - Fy > Dplus) Dplus = Fx - Fy;
+        if (Fy - Fx > Dminus) Dminus = Fy - Fx;
+    }
+    double D;
+    switch (tail) {
+        case TestTail::Right: D = Dplus;            break;
+        case TestTail::Left:  D = Dminus;           break;
+        default:              D = std::max(Dplus, Dminus);
+    }
+    const double n_eff = double(Nx) * double(Ny) / double(Nx + Ny);
+    const double dn = D * std::sqrt(n_eff);
+    const double p  = ks_pvalue(dn);
+    const int    h  = (p < alpha) ? 1 : 0;
+    const double cv = ks_critical(alpha) / std::sqrt(n_eff);
+
+    return std::make_tuple(Value::scalar(double(h), mr),
+                           Value::scalar(p, mr),
+                           Value::scalar(D, mr),
+                           Value::scalar(cv, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
+// jbtest — Jarque-Bera normality
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value>
+jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha)
+{
+    if (alpha <= 0.0 || alpha >= 1.0) alpha = 0.05;
+    const size_t N = x.numel();
+    if (N < 4)
+        throw Error("jbtest: need at least 4 samples", 0, 0, "jbtest", "",
+                    "m:jbtest:nsamples");
+
+    // Sample skewness and kurtosis (population formula — MATLAB default).
+    double mean = 0.0;
+    for (size_t i = 0; i < N; ++i) mean += x.elemAsDouble(i);
+    mean /= double(N);
+    double m2 = 0.0, m3 = 0.0, m4 = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double d = x.elemAsDouble(i) - mean;
+        const double d2 = d * d;
+        m2 += d2;
+        m3 += d2 * d;
+        m4 += d2 * d2;
+    }
+    m2 /= double(N); m3 /= double(N); m4 /= double(N);
+    const double S = (m2 > 0.0) ? m3 / std::pow(m2, 1.5) : 0.0;
+    const double K = (m2 > 0.0) ? m4 / (m2 * m2) : 0.0;
+
+    // JB = n/6 · (S² + (K-3)²/4)  ~  χ²(2)
+    const double JB = double(N) / 6.0 * (S * S + 0.25 * (K - 3.0) * (K - 3.0));
+    Value JBv = Value::scalar(JB, mr);
+    const double cdf = chi2cdf(mr, JBv, 2.0).toScalar();
+    const double p = 1.0 - cdf;
+    const int h = (p < alpha) ? 1 : 0;
+
+    Value oneMinusAlpha = Value::scalar(1.0 - alpha, mr);
+    const double cv = chi2inv(mr, oneMinusAlpha, 2.0).toScalar();
+
+    return std::make_tuple(Value::scalar(double(h), mr),
+                           Value::scalar(p, mr),
+                           Value::scalar(JB, mr),
+                           Value::scalar(cv, mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -423,6 +636,58 @@ void vartest2_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(ci);
     if (nargout > 3) outs[3] = std::move(F);
+}
+
+void kstest_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("kstest: requires X", 0, 0, "kstest", "",
+                    "m:kstest:nargin");
+    Value cdf = (args.size() >= 2) ? args[1] : Value();  // empty default
+    double alpha = parse_alpha(args, 2, 0.05);
+    TestTail tail = TestTail::Both;
+    for (size_t i = 2; i < args.size(); ++i)
+        if (args[i].isChar() || args[i].isString())
+            tail = parse_tail(args[i].toString(), TestTail::Both);
+    auto [h, p, D, cv] = kstest(ctx.engine->resource(), args[0], cdf, alpha, tail);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) outs[2] = std::move(D);
+    if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void kstest2_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("kstest2: requires (X, Y[, alpha, tail])",
+                    0, 0, "kstest2", "", "m:kstest2:nargin");
+    double alpha = parse_alpha(args, 2, 0.05);
+    TestTail tail = TestTail::Both;
+    for (size_t i = 2; i < args.size(); ++i)
+        if (args[i].isChar() || args[i].isString())
+            tail = parse_tail(args[i].toString(), TestTail::Both);
+    auto [h, p, D, cv] = kstest2(ctx.engine->resource(), args[0], args[1],
+                                  alpha, tail);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) outs[2] = std::move(D);
+    if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void jbtest_reg(Span<const Value> args, size_t nargout,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("jbtest: requires X[, alpha]", 0, 0, "jbtest", "",
+                    "m:jbtest:nargin");
+    double alpha = parse_alpha(args, 1, 0.05);
+    auto [h, p, JB, cv] = jbtest(ctx.engine->resource(), args[0], alpha);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) outs[2] = std::move(JB);
+    if (nargout > 3) outs[3] = std::move(cv);
 }
 
 } // namespace detail

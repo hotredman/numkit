@@ -202,6 +202,9 @@ void ttest2_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ztest_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartest_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void vartest2_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kstest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void kstest2_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void jbtest_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::stats::detail
 
 namespace numkit {
@@ -376,6 +379,9 @@ void StatsLibrary::install(Engine &engine)
     reg("test", "ztest",    &stats::detail::ztest_reg);
     reg("test", "vartest",  &stats::detail::vartest_reg);
     reg("test", "vartest2", &stats::detail::vartest2_reg);
+    reg("test", "kstest",   &stats::detail::kstest_reg);
+    reg("test", "kstest2",  &stats::detail::kstest2_reg);
+    reg("test", "jbtest",   &stats::detail::jbtest_reg);
 }
 
 } // namespace numkit

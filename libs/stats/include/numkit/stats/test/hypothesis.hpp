@@ -50,4 +50,22 @@ std::tuple<Value, Value, Value, Value>
 vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
          double alpha, TestTail tail);
 
+/// kstest(x[, cdf, alpha, tail]) — one-sample Kolmogorov-Smirnov.
+/// `cdf` is a 2-column matrix [x_grid, F_grid] giving the reference CDF;
+/// when empty, defaults to standard normal N(0, 1).
+/// Returns (h, p, ksstat, cv).
+std::tuple<Value, Value, Value, Value>
+kstest(std::pmr::memory_resource *mr, const Value &x,
+       const Value &cdf, double alpha, TestTail tail);
+
+/// kstest2(x, y[, alpha, tail]) — two-sample KS.
+std::tuple<Value, Value, Value, Value>
+kstest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+        double alpha, TestTail tail);
+
+/// jbtest(x[, alpha]) — Jarque-Bera normality test.
+/// Returns (h, p, jbstat, cv).
+std::tuple<Value, Value, Value, Value>
+jbtest(std::pmr::memory_resource *mr, const Value &x, double alpha);
+
 } // namespace numkit::stats

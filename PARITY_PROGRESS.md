@@ -1110,7 +1110,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ## Hypothesis Tests
 
-**Namespace:** `stats.test.*` — 5 ✅ + 0 ⚠️ / 25 = 20%
+**Namespace:** `stats.test.*` — 8 ✅ + 0 ⚠️ / 25 = 32%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1121,11 +1121,11 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `dwtest` | ❌ |  |  |  |  | Durbin-Watson |
 | `fishertest` | ❌ |  |  |  |  | Fisher's exact (2×2) |
 | `friedman` | ❌ |  |  |  |  | non-parametric repeated-measures |
-| `jbtest` | ❌ |  |  |  |  | Jarque-Bera |
+| `jbtest` | ✅ |  |  |  | OK | Jarque-Bera, JB ~ χ²(2) |
 | `knntest` | ❌ |  |  |  |  | k-NN two-sample test |
 | `kruskalwallis` | ❌ |  |  |  |  | non-parametric ANOVA |
-| `kstest` | ❌ |  |  |  |  | Kolmogorov-Smirnov |
-| `kstest2` | ❌ |  |  |  |  | two-sample KS |
+| `kstest` | ✅ |  |  |  | OK | one-sample KS via asymptotic Smirnov series |
+| `kstest2` | ✅ |  |  |  | OK | two-sample KS |
 | `lillietest` | ❌ |  |  |  |  | Lilliefors |
 | `meanEffectSize` | ❌ |  |  |  |  | Cohen's d, Hedges' g |
 | `mmdtest` | ❌ |  |  |  |  | maximum mean discrepancy |
