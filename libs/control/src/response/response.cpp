@@ -20,6 +20,7 @@
 #include <numkit/control/lti/lti.hpp>
 #include <numkit/control/conversion/conversion.hpp>
 #include <numkit/control/props/props.hpp>
+#include <numkit/control/internal/numerics.hpp>
 
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
@@ -35,180 +36,14 @@ namespace numkit::control {
 
 namespace {
 
-using Mat = std::vector<double>;     // square, column-major
-using Vec = std::vector<double>;
+using Mat = internal::Mat;
+using Vec = internal::Vec;
+using internal::expm;
+using internal::solveInPlace;
 
 Mat zeros(size_t r, size_t c) { return Mat(r * c, 0.0); }
 Mat eye(size_t n) { Mat I(n * n, 0.0); for (size_t i = 0; i < n; ++i) I[i * n + i] = 1.0; return I; }
 
-Mat matmul(const Mat &A, size_t Ar, size_t Ac,
-           const Mat &B, size_t Br, size_t Bc)
-{
-    (void)Br;
-    Mat C(Ar * Bc, 0.0);
-    for (size_t j = 0; j < Bc; ++j)
-        for (size_t i = 0; i < Ar; ++i) {
-            double s = 0.0;
-            for (size_t k = 0; k < Ac; ++k)
-                s += A[k * Ar + i] * B[j * Ac + k];
-            C[j * Ar + i] = s;
-        }
-    return C;
-}
-
-double matInfNorm(const Mat &A, size_t n) {
-    double m = 0.0;
-    for (size_t i = 0; i < n; ++i) {
-        double s = 0.0;
-        for (size_t j = 0; j < n; ++j) s += std::abs(A[j * n + i]);
-        m = std::max(m, s);
-    }
-    return m;
-}
-
-// 4×4 LU + back-substitution; small `n` only (Padé denom solve).
-// Solves A·X = B in-place in B (B has nrhs columns), stored col-major.
-// Returns false on singular (caller treats as degenerate).
-bool solveInPlace(Mat &A, Mat &B, size_t n, size_t nrhs)
-{
-    std::vector<size_t> piv(n);
-    for (size_t i = 0; i < n; ++i) piv[i] = i;
-    for (size_t k = 0; k < n; ++k) {
-        // Partial pivot.
-        size_t pk = k;
-        double bestAbs = std::abs(A[k * n + k]);
-        for (size_t i = k + 1; i < n; ++i) {
-            double v = std::abs(A[k * n + i]);
-            if (v > bestAbs) { bestAbs = v; pk = i; }
-        }
-        if (bestAbs < 1e-14) return false;
-        if (pk != k) {
-            // swap rows k and pk in A and B.
-            for (size_t j = 0; j < n; ++j)
-                std::swap(A[j * n + k], A[j * n + pk]);
-            for (size_t j = 0; j < nrhs; ++j)
-                std::swap(B[j * n + k], B[j * n + pk]);
-            std::swap(piv[k], piv[pk]);
-        }
-        const double diag = A[k * n + k];
-        for (size_t i = k + 1; i < n; ++i) {
-            const double f = A[k * n + i] / diag;
-            A[k * n + i] = f;  // L (below-diag)
-            for (size_t j = k + 1; j < n; ++j)
-                A[j * n + i] -= f * A[j * n + k];
-            for (size_t j = 0; j < nrhs; ++j)
-                B[j * n + i] -= f * B[j * n + k];
-        }
-    }
-    // Back-substitute.
-    for (size_t j = 0; j < nrhs; ++j) {
-        for (size_t i = n; i-- > 0;) {
-            double s = B[j * n + i];
-            for (size_t k = i + 1; k < n; ++k)
-                s -= A[k * n + i] * B[j * n + k];
-            B[j * n + i] = s / A[i * n + i];
-        }
-    }
-    return true;
-}
-
-// 6th-order Padé approximation of exp(A) with scaling and squaring.
-// Algorithm 11.3.1 from Golub & Van Loan, simplified for moderate ‖A‖.
-Mat expm(const Mat &Ain, size_t n)
-{
-    if (n == 0) return Mat{};
-    Mat A = Ain;
-    const double normA = matInfNorm(A, n);
-    int s = 0;
-    if (normA > 0.5) {
-        const double l2 = std::log2(normA / 0.5);
-        s = static_cast<int>(std::ceil(std::max(l2, 0.0)));
-    }
-    if (s > 0) {
-        const double scale = std::pow(0.5, s);
-        for (auto &v : A) v *= scale;
-    }
-    // Padé coefficients for q = 6.
-    static const double cN[7] = {
-        1.0, 0.5, 12.0/110.0, 2.0/110.0,
-        2.0/3960.0, 1.0/166320.0, 1.0/665280.0
-    };
-    Mat U = zeros(n, n);
-    Mat V = zeros(n, n);
-    Mat I = eye(n);
-    Mat A2 = matmul(A, n, n, A, n, n);
-    Mat A4 = matmul(A2, n, n, A2, n, n);
-    Mat A6 = matmul(A4, n, n, A2, n, n);
-    // p(A) and q(A) for [6/6] Padé:
-    //   q = sum_{k=0}^{6}  c_k A^k  with  c_2k from cN
-    //   p = sum_{k=0}^{6} (-1)^k c_k A^k
-    // We'll just compute with explicit coefficients.
-    // Simpler: use the standard m=6 method via direct evaluation.
-    // Coefficients b_k for [6/6] (from Higham):
-    static const double b[7] = {
-        720.0, 360.0, 120.0, 30.0, 6.0, 1.0, 0.0  // not used directly
-    };
-    (void)b; (void)cN;
-    // Direct computation using standard formula:
-    //   N(A) = c0 I + c1 A  + c2 A^2  + c3 A^3  + c4 A^4  + c5 A^5  + c6 A^6
-    //   D(A) = c0 I − c1 A  + c2 A^2  − c3 A^3  + c4 A^4  − c5 A^5  + c6 A^6
-    //   exp(A) ≈ D(A)^{-1} N(A)
-    // For the [6/6] Padé, c_k = (12-k)! / k! / (12)! is rounded for
-    // small matrices; the canonical normalised set is:
-    // Canonical [6/6] Padé coefficients for exp(x):
-    //   c_k = (12 − k)! · 6! / (12! · k! · (6 − k)!)
-    static const double c[7] = {
-        1.0,
-        1.0/2.0,
-        5.0/44.0,
-        1.0/66.0,
-        1.0/792.0,
-        1.0/15840.0,
-        1.0/665280.0
-    };
-    auto axpyMat = [&](Mat &dst, const Mat &src, double alpha) {
-        for (size_t i = 0; i < n * n; ++i) dst[i] += alpha * src[i];
-    };
-    Mat A3 = matmul(A2, n, n, A, n, n);
-    Mat A5 = matmul(A4, n, n, A, n, n);
-
-    // N = c0 I + c1 A + c2 A^2 + c3 A^3 + c4 A^4 + c5 A^5 + c6 A^6
-    Mat N = zeros(n, n);
-    axpyMat(N, I,  c[0]);
-    axpyMat(N, A,  c[1]);
-    axpyMat(N, A2, c[2]);
-    axpyMat(N, A3, c[3]);
-    axpyMat(N, A4, c[4]);
-    axpyMat(N, A5, c[5]);
-    axpyMat(N, A6, c[6]);
-    // D = c0 I − c1 A + c2 A^2 − c3 A^3 + c4 A^4 − c5 A^5 + c6 A^6
-    Mat D = zeros(n, n);
-    axpyMat(D, I,   c[0]);
-    axpyMat(D, A,  -c[1]);
-    axpyMat(D, A2,  c[2]);
-    axpyMat(D, A3, -c[3]);
-    axpyMat(D, A4,  c[4]);
-    axpyMat(D, A5, -c[5]);
-    axpyMat(D, A6,  c[6]);
-    // Solve D · X = N for X.
-    Mat Dcopy = D;
-    Mat X = N;
-    if (!solveInPlace(Dcopy, X, n, n)) {
-        // Singular Padé denominator: fall back to truncated series.
-        Mat E = I;
-        Mat term = I;
-        for (int k = 1; k < 30; ++k) {
-            term = matmul(term, n, n, A, n, n);
-            const double inv = 1.0 / static_cast<double>(k);
-            for (auto &v : term) v *= inv;
-            for (size_t i = 0; i < n * n; ++i) E[i] += term[i];
-        }
-        X = E;
-    }
-    // Squaring step.
-    for (int k = 0; k < s; ++k) X = matmul(X, n, n, X, n, n);
-    return X;
-}
 
 // Bring an LTI sys (any kind) into ss-form coefficient buffers.
 struct SS {

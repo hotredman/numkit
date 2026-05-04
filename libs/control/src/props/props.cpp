@@ -14,6 +14,7 @@
 // for in a function-form environment.
 
 #include <numkit/control/props/props.hpp>
+#include <numkit/control/internal/numerics.hpp>
 
 #include <numkit/builtin/math/poly/polynomials.hpp>
 
@@ -46,37 +47,14 @@ Value boolValue(std::pmr::memory_resource *mr, bool b) {
     return Value::logicalScalar(b, mr);
 }
 
-// Char poly via Faddeev–LeVerrier. Returns coefficients [1, c1, c2, …, cn]
-// (descending powers, leading 1). Used for ss-form pole extraction.
+// Char poly thin wrapper around the shared Faddeev–LeVerrier kernel.
+// Pulls A out of the LTI struct as a plain column-major double buffer
+// and forwards.
 std::vector<double> charPoly(const Value &A) {
     const size_t n = A.dims().rows();
     std::vector<double> Av(n * n);
     for (size_t i = 0; i < n * n; ++i) Av[i] = A.elemAsDouble(i);
-
-    std::vector<double> M(n * n, 0.0);
-    for (size_t i = 0; i < n; ++i) M[i * n + i] = 1.0; // I
-    std::vector<double> coeff(n + 1, 0.0);
-    coeff[0] = 1.0;
-
-    for (size_t k = 1; k <= n; ++k) {
-        // AM = A · M
-        std::vector<double> AM(n * n, 0.0);
-        for (size_t j = 0; j < n; ++j)
-            for (size_t i = 0; i < n; ++i) {
-                double s = 0.0;
-                for (size_t l = 0; l < n; ++l)
-                    s += Av[l * n + i] * M[j * n + l];
-                AM[j * n + i] = s;
-            }
-        double tr = 0.0;
-        for (size_t i = 0; i < n; ++i) tr += AM[i * n + i];
-        const double ck = -tr / static_cast<double>(k);
-        coeff[k] = ck;
-        // M_k = AM + ck I
-        for (size_t i = 0; i < n; ++i) AM[i * n + i] += ck;
-        M = std::move(AM);
-    }
-    return coeff;
+    return internal::charPoly(Av, n);
 }
 
 // Pull a Value (either real or complex) into a vector of complex
