@@ -1,0 +1,10 @@
+{
+  "name": "intlut",
+  "namespace": "image",
+  "setup": "A = uint8([10 20 30; 40 50 60]); LUT = uint8(255 - (0:255));",
+  "expr": "y = intlut(A, LUT);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT)."
+}
