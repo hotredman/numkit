@@ -96,6 +96,12 @@ void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imwrite_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imfinfo_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// segment/segment.cpp
+void dice_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
+void jaccard_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void boundarymask_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void label2idx_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // geom/geom.cpp
 void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcrop_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -193,6 +199,11 @@ void ImageLibrary::install(Engine &engine)
     reg("geom", "imcrop",      &image::detail::imcrop_reg);
     reg("geom", "imrotate",    &image::detail::imrotate_reg);
     reg("geom", "imtranslate", &image::detail::imtranslate_reg);
+
+    reg("segment", "dice",         &image::detail::dice_reg);
+    reg("segment", "jaccard",      &image::detail::jaccard_reg);
+    reg("segment", "boundarymask", &image::detail::boundarymask_reg);
+    reg("segment", "label2idx",    &image::detail::label2idx_reg);
 }
 
 } // namespace numkit
