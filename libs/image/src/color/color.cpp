@@ -645,6 +645,71 @@ void wavelength_to_rgb(double lambda, double gamma,
 
 } // anonymous
 
+Value colorgradient(std::pmr::memory_resource *mr,
+                    const Value &C, const Value &w, int n)
+{
+    if (C.dims().cols() != 3)
+        throw Error("colorgradient: C must be K-by-3",
+                    0, 0, "colorgradient", "", "m:colorgradient:C");
+    const int K = static_cast<int>(C.dims().rows());
+    if (K < 2)
+        throw Error("colorgradient: C must have at least 2 rows",
+                    0, 0, "colorgradient", "", "m:colorgradient:rows");
+    if (n < 2)
+        throw Error("colorgradient: n must be >= 2",
+                    0, 0, "colorgradient", "", "m:colorgradient:n");
+
+    std::vector<double> wv;
+    wv.reserve(static_cast<size_t>(K - 1));
+    if (w.numel() == 0) {
+        wv.assign(static_cast<size_t>(K - 1), 1.0);
+    } else {
+        if (static_cast<int>(w.numel()) != K - 1)
+            throw Error("colorgradient: must have one weight per interval",
+                        0, 0, "colorgradient", "", "m:colorgradient:w");
+        for (size_t i = 0; i < w.numel(); ++i)
+            wv.push_back(w.elemAsDouble(i));
+    }
+
+    double total = 0.0;
+    for (double x : wv) total += x;
+    if (total == 0.0) total = 1.0;
+    std::vector<int> wpos(static_cast<size_t>(K), 0);
+    double acc = 0.0;
+    wpos[0] = 1;
+    for (int i = 0; i < K - 1; ++i) {
+        acc += wv[(size_t)i];
+        wpos[(size_t)(i + 1)] = static_cast<int>(
+            1 + std::lround((n - 1) * acc / total));
+    }
+
+    Value map = Value::matrix(static_cast<size_t>(n), 3,
+                              ValueType::DOUBLE, mr);
+    double *md = map.doubleDataMut();
+
+    auto Cval = [&](int r, int c) {
+        return C.elemAsDouble(static_cast<size_t>(c) * (size_t)K + (size_t)r);
+    };
+
+    for (int i = 0; i < K - 1; ++i) {
+        const int p0 = wpos[(size_t)i];
+        const int p1 = wpos[(size_t)(i + 1)];
+        if (p0 == p1) continue;
+        const int len = p1 - p0 + 1;
+        for (int ch = 0; ch < 3; ++ch) {
+            const double a = Cval(i,     ch);
+            const double b = Cval(i + 1, ch);
+            for (int k = 0; k < len; ++k) {
+                const double t = (len == 1) ? 0.0 :
+                                 static_cast<double>(k) / (len - 1);
+                md[(size_t)ch * (size_t)n + (size_t)(p0 - 1 + k)] =
+                    a + t * (b - a);
+            }
+        }
+    }
+    return map;
+}
+
 Value wavelength2rgb(std::pmr::memory_resource *mr,
                      const Value &wavelength,
                      const std::string &out_class,
@@ -859,6 +924,29 @@ void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
     Value bg;
     if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
     outs[0] = label2rgb(ctx.engine->resource(), args[0], args[1], bg);
+}
+
+void colorgradient_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("colorgradient: requires (C [, w] [, n])",
+                    0, 0, "colorgradient", "", "m:colorgradient:nargin");
+    auto *mr = ctx.engine->resource();
+    Value w;
+    int n = 64;
+    // Octave shorthand: colorgradient(C, w_or_n) — if 2nd arg is scalar,
+    // it's n; if vector, it's w (and n defaults to 64).
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (args[1].numel() == 1) {
+            n = static_cast<int>(args[1].toScalar());
+        } else {
+            w = args[1];
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        n = static_cast<int>(args[2].toScalar());
+    outs[0] = colorgradient(mr, args[0], w, n);
 }
 
 void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
