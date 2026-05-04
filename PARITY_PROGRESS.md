@@ -1620,7 +1620,7 @@ output args).
 
 ## Control System Toolbox — State-Space Design and Estimation
 
-**Namespace:** `control.design.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
+**Namespace:** `control.design.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
 
 OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
 `particleFilter`) intentionally omitted — they're class-objects with
@@ -1636,7 +1636,7 @@ methods (`correct`, `predict`, etc.). Flat steady-state designs only.
 | `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
 | `lqgreg` | ❌ |  |  |  |  | LQG regulator |
 | `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
-| `place` | ❌ |  |  |  |  | pole placement |
+| `place` | ✅ |  |  |  | OK | SISO Ackermann — also exposed as `acker` |
 | `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
 | `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
 | `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
