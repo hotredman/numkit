@@ -150,6 +150,14 @@ Value bone_cmap(std::pmr::memory_resource *mr, int n);
 /// n ≤ 0 → 0×3.
 Value white_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `B = rgb2lin(A)` — sRGB → linear-RGB gamma inverse.
+/// Per-element piecewise: |x| < 0.04045 → x/12.92; otherwise
+/// sign(x) · ((|x|+0.055)/1.055)^2.4. Negatives are mirrored
+/// through the gamma curve. Output class is double if input is
+/// double, else single (MATLAB R2025b convention). Only the
+/// default "sRGB" colorspace is supported here.
+Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
