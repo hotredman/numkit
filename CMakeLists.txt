@@ -89,6 +89,7 @@ add_subdirectory(libs/stats/src)
 add_subdirectory(libs/image/src)
 add_subdirectory(libs/comm/src)
 add_subdirectory(libs/wavelet/src)
+add_subdirectory(libs/control/src)
 add_subdirectory(libs/graphics/src)
 add_subdirectory(libs/io/src)
 
@@ -100,6 +101,7 @@ set(NUMKIT_SOURCES
     ${IMAGELIB_SOURCES}
     ${COMMLIB_SOURCES}
     ${WAVELETLIB_SOURCES}
+    ${CONTROLLIB_SOURCES}
     ${GRAPHICSLIB_SOURCES}
     ${IOLIB_SOURCES}
 )
@@ -227,6 +229,7 @@ target_include_directories(numkit
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/image/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/comm/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/wavelet/include>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/control/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/graphics/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/io/include>
         $<INSTALL_INTERFACE:include>

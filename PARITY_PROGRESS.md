@@ -1486,7 +1486,7 @@ intentionally omitted — flat solver functions only.
 
 ## Control System Toolbox — LTI Models
 
-**Namespace:** `control.lti.*` — 0 ✅ + 0 ⚠️ / 19 = 0%
+**Namespace:** `control.lti.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
 
 `tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
 as flat structure-returning functions (returning a struct with fields
@@ -1498,9 +1498,9 @@ intentionally omitted.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `tf` | ❌ |  |  |  |  | transfer function — struct {num, den, Ts} |
-| `zpk` | ❌ |  |  |  |  | zero-pole-gain — struct {z, p, k, Ts} |
-| `ss` | ❌ |  |  |  |  | state-space — struct {A, B, C, D, Ts} |
+| `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
+| `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
+| `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
 | `frd` | ❌ |  |  |  |  | freq-response data — struct {resp, freq} |
 | `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
 | `filt` | ❌ |  |  |  |  | discrete tf with z⁻¹ ordering |
