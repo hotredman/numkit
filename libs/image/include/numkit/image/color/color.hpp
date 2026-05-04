@@ -75,6 +75,14 @@ Value wavelength2rgb(std::pmr::memory_resource *mr,
 Value colorangle(std::pmr::memory_resource *mr,
                  const Value &rgb1, const Value &rgb2);
 
+/// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
+/// Input is an N×3 RGB colormap with values in [0, 1] (any numeric
+/// class accepted; coerced to double). Output is an N×1 column of
+/// luminance values via the Octave-image weights
+/// (0.298936, 0.587043, 0.114021). MATLAB R2020b+; Octave-image has
+/// it under the same name.
+Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap);
+
 /// label2rgb(L, cmap [, background]) — colourise a labelled image.
 /// `L` is an H×W non-negative integer-valued matrix. `cmap` is an
 /// N×3 colormap (double in [0, 1]). Pixels with label == 0 take the
