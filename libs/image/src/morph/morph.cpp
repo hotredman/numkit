@@ -260,6 +260,89 @@ Value imclose(std::pmr::memory_resource *mr, const Value &I, const Value &SE) {
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imreconstruct — morphological reconstruction by dilation
+// ════════════════════════════════════════════════════════════════════
+//
+// J_{k+1} = min(imdilate(J_k, SE), mask), J_0 = marker.
+// The fixed point exists because the iteration is monotone non-
+// decreasing (each dilation only adds; the min-cap can never push a
+// value above mask). Stopping criterion: J_{k+1} == J_k. Works for
+// both binary and grayscale inputs because numkit's `imdilate` is
+// the grayscale max-in-neighborhood form (which reduces to binary
+// dilation when the input is logical).
+
+Value imreconstruct(std::pmr::memory_resource *mr,
+                    const Value &marker, const Value &mask, int conn)
+{
+    if (conn != 4) conn = 8;
+    const size_t H = marker.dims().rows();
+    const size_t W = marker.dims().cols();
+    if (mask.dims().rows() != H || mask.dims().cols() != W)
+        throw Error("imreconstruct: marker and mask must have the same shape",
+                    0, 0, "imreconstruct", "", "m:imreconstruct:shape");
+
+    // Build the SE: 3×3 ones for conn=8, plus-shape for conn=4.
+    Value SE;
+    if (conn == 8) {
+        SE = strel(mr, "square",
+                   std::vector<double>{3.0},
+                   Value::matrix(0, 0, ValueType::DOUBLE, mr));
+    } else {
+        SE = strel(mr, "diamond",
+                   std::vector<double>{1.0},
+                   Value::matrix(0, 0, ValueType::DOUBLE, mr));
+    }
+
+    const size_t N = marker.numel();
+    const ValueType srcT = marker.type();
+
+    // Working buffer J_0 = min(marker, mask) (enforces marker ≤ mask).
+    Value J = Value::matrix(H, W, srcT, mr);
+    auto writeNative = [&](Value &dst, size_t i, double v) {
+        switch (srcT) {
+            case ValueType::DOUBLE: dst.doubleDataMut()[i] = v; break;
+            case ValueType::SINGLE: dst.singleDataMut()[i] = float(v); break;
+            case ValueType::UINT8: {
+                if (v < 0.0) v = 0.0; if (v > 255.0) v = 255.0;
+                dst.uint8DataMut()[i] = std::uint8_t(std::lround(v)); break;
+            }
+            case ValueType::UINT16: {
+                if (v < 0.0) v = 0.0; if (v > 65535.0) v = 65535.0;
+                dst.uint16DataMut()[i] = std::uint16_t(std::lround(v)); break;
+            }
+            case ValueType::LOGICAL:
+                dst.logicalDataMut()[i] = (v != 0.0) ? 1u : 0u; break;
+            default:
+                dst.doubleDataMut()[i] = v; break;
+        }
+    };
+    for (size_t i = 0; i < N; ++i) {
+        const double m = marker.elemAsDouble(i);
+        const double k = mask.elemAsDouble(i);
+        writeNative(J, i, std::min(m, k));
+    }
+
+    // Iterate dilate-and-cap. Bound iterations by min(H,W) — a wave of
+    // dilations propagates at most that far.
+    const size_t maxIter = static_cast<size_t>(H + W);
+    for (size_t iter = 0; iter < maxIter; ++iter) {
+        Value Jd = imdilate(mr, J, SE);
+        bool changed = false;
+        Value Jnew = Value::matrix(H, W, srcT, mr);
+        for (size_t i = 0; i < N; ++i) {
+            const double cur = J.elemAsDouble(i);
+            const double v   = std::min(Jd.elemAsDouble(i),
+                                         mask.elemAsDouble(i));
+            if (v != cur) changed = true;
+            writeNative(Jnew, i, v);
+        }
+        if (!changed) return J;
+        J = std::move(Jnew);
+    }
+    return J;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -301,6 +384,18 @@ NK_MORPH_REG(imopen)
 NK_MORPH_REG(imclose)
 
 #undef NK_MORPH_REG
+
+void imreconstruct_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imreconstruct: requires (marker, mask [, conn])",
+                    0, 0, "imreconstruct", "", "m:imreconstruct:nargin");
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imreconstruct(ctx.engine->resource(),
+                            args[0], args[1], conn);
+}
 
 } // namespace detail
 } // namespace numkit::image

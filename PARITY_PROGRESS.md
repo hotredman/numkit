@@ -3134,7 +3134,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imimposemin` | ❌ |  |  |  |  |  |
 | `imkeepborder` | ❌ |  |  |  |  |  |
 | `imopen` | ✅ |  |  |  | OK | erode → dilate |
-| `imreconstruct` | ❌ |  |  |  |  | grayscale reconstruction |
+| `imreconstruct` | ✅ |  |  |  | OK | iterate dilate-and-cap until stable; binary + grayscale; conn=4/8 |
 | `imregionalmax` | ❌ |  |  |  |  |  |
 | `imregionalmin` | ❌ |  |  |  |  |  |
 | `imtophat` | ❌ |  |  |  |  |  |

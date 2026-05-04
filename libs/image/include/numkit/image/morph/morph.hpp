@@ -43,4 +43,14 @@ Value imopen(std::pmr::memory_resource *mr, const Value &I, const Value &SE);
 /// imclose(I, SE) = imerode(imdilate(I, SE), SE).
 Value imclose(std::pmr::memory_resource *mr, const Value &I, const Value &SE);
 
+/// `J = imreconstruct(marker, mask [, conn])` — morphological
+/// reconstruction by dilation. Iteratively dilates `marker` and
+/// caps it elementwise against `mask` until stable:
+///   J_{k+1} = min(imdilate(J_k, SE), mask),  J_0 = marker
+/// Works on binary or grayscale inputs; `marker ≤ mask` element-wise
+/// is required (we clip to the mask up-front to enforce it).
+/// `conn` ∈ {4, 8} (default 8). Same H × W output type as input.
+Value imreconstruct(std::pmr::memory_resource *mr,
+                    const Value &marker, const Value &mask, int conn);
+
 } // namespace numkit::image
