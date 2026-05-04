@@ -2907,7 +2907,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `gray2ind` | ❌ |  |  |  |  |  |
 | `graythresh` | ✅ |  |  |  | OK | Otsu's 2nd output η = σ_b²/σ_T² |
 | `grayslice` | ❌ |  |  |  |  | scalar quantize |
-| `im2bw` | ✅ |  |  |  | OK | legacy alias → imbinarize (Otsu fallback / scalar threshold) |
+| `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
 | `im2double` | ✅ |  |  |  | OK | clamps int classes through unit-range |
 | `im2gray` | ✅ |  |  |  | OK | RGB-or-gray pass-through |
 | `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
@@ -3040,7 +3040,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
-| `imbilatfilt` | ✅ |  |  |  | OK | spatial × range Gaussian; replicate boundary; degrades to imgaussfilt at huge dos |
+| `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
 | `imboxfilt` | ✅ |  |  |  | OK | average kernel via fspecial + imfilter, replicate boundary |
 | `imboxfilt3` | ❌ |  |  |  |  |  |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
@@ -3077,11 +3077,11 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imadjust` | ✅ |  |  |  | OK | [low_in high_in] → [low_out high_out] with gamma |
 | `imadjustn` | ❌ |  |  |  |  | N-D variant |
 | `imflatfield` | ❌ |  |  |  |  |  |
-| `imhistmatch` | ✅ |  |  |  | OK | CDF-matching to reference; nbins default 64/256/65536 by class |
+| `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
 | `imhistmatchn` | ❌ |  |  |  |  |  |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
-| `imsharpen` | ✅ |  |  |  | OK | unsharp masking; defaults Radius=1, Amount=0.8, Threshold=0; Name-Value pairs |
+| `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
 | `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
@@ -3121,23 +3121,23 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
 | `bwunpack` | ❌ |  |  |  |  |  |
 | `conndef` | ❌ |  |  |  |  |  |
-| `imbothat` | ✅ |  |  |  | OK | imclose(I, SE) − I; saturating to input class |
-| `imclearborder` | ✅ |  |  |  | OK | imreconstruct(BW ∩ rim, BW); BW & ~R — strip components touching the rim |
+| `imbothat` | ✅ | 0.005 |  | 38.27× | OK | Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0). |
+| `imclearborder` | ✅ | 0.008 |  | 44.84× | OK | Sig: J = imclearborder(BW). 3 blobs (rim + interior); only interior dot survives. |
 | `imclose` | ✅ |  |  |  | OK | dilate → erode |
 | `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
 | `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
-| `imextendedmax` | ✅ |  |  |  | OK | imregionalmax(imhmax(I, h)); peaks ≥ h above neighbours |
-| `imextendedmin` | ✅ |  |  |  | OK | imregionalmin(imhmin(I, h)); troughs ≥ h deep |
-| `imfill` | ✅ |  |  |  | OK | 'holes' mode via imreconstruct on the complement; conn=4/8 |
-| `imhmax` | ✅ |  |  |  | OK | imreconstruct(I − h, I); shaves peaks by h |
-| `imhmin` | ✅ |  |  |  | OK | dual of imhmax via image inversion; raises shallow troughs |
-| `imimposemin` | ✅ |  |  |  | OK | Soille recipe: R^E_m(fm) via complement-trick imreconstruct; markers become sole regional minima |
-| `imkeepborder` | ✅ |  |  |  | OK | dual of imclearborder; J = imreconstruct(BW ∩ rim, BW) |
+| `imextendedmax` | ✅ | 0.019 |  | 7.87× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
+| `imextendedmin` | ✅ | 0.020 |  | 8.89× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
+| `imfill` | ✅ | 0.006 |  | 53.54× | OK | Sig: J = imfill(BW, 'holes'). Hollow square ring → fully filled square. |
+| `imhmax` | ✅ | 0.011 |  | 5.68× | OK | Sig: J = imhmax(I, h). 3x7 image, two peaks (40 at (2,2), 20 at (2,5)), background 10. h=15 must keep peak A (shaved to 25) and flatten peak B. |
+| `imhmin` | ✅ | 0.011 |  | 16.30× | OK | Sig: J = imhmin(I, h). Two troughs depth 90 / 30; h=50 raises shallow (B) to background, keeps deep (A). |
+| `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
+| `imkeepborder` | ✅ | 0.008 |  |  | N/A | Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.) |
 | `imopen` | ✅ |  |  |  | OK | erode → dilate |
-| `imreconstruct` | ✅ |  |  |  | OK | iterate dilate-and-cap until stable; binary + grayscale; conn=4/8 |
-| `imregionalmax` | ✅ |  |  |  | OK | (I − imreconstruct(I−1, I)) > 0 (Vincent 1993) |
-| `imregionalmin` | ✅ |  |  |  | OK | imregionalmax on inverted image |
-| `imtophat` | ✅ |  |  |  | OK | I − imopen(I, SE); saturating to input class |
+| `imreconstruct` | ✅ | 0.017 |  | 8.63× | OK | Sig: J = imreconstruct(marker, mask). Reconstruction by dilation; marker grows to fill the connected mask region. |
+| `imregionalmax` | ✅ | 0.007 |  | 19.32× | OK | Sig: BW = imregionalmax(I). Two regional maxima at (2,2) and (2,5). |
+| `imregionalmin` | ✅ | 0.008 |  | 24.93× | OK | Sig: BW = imregionalmin(I). Two regional minima at (2,2) and (2,5). |
+| `imtophat` | ✅ | 0.005 |  | 68.45× | OK | Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0). |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
 | `strel` | ✅ |  |  |  | OK | square / rectangle / diamond / disk / line / arbitrary |
@@ -3164,9 +3164,9 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 |---|:---:|---:|---:|---:|:---:|---|
 | `bestblk` | ❌ |  |  |  |  |  |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ✅ |  |  |  | OK | inverse of im2col; sliding=reshape, distinct=tile-rebuild dropping pad rim |
+| `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
 | `colfilt` | ❌ |  |  |  |  |  |
-| `im2col` | ✅ |  |  |  | OK | sliding + distinct modes; per-class typed memcpy; zero-pads on distinct edges |
+| `im2col` | ✅ | 0.003 |  | 69.65× | OK | Sig: B = im2col(A, [m n], 'sliding'). 4x4 lattice → 4x9 (3·3 sliding positions, column-major within block). |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
 
 ## Image Arithmetic

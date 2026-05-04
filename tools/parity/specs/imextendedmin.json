@@ -1,0 +1,10 @@
+{
+  "name": "imextendedmin",
+  "namespace": "image",
+  "setup": "T = double([100 100 100 100 100 100 100; 100 10 100 100 70 100 100; 100 100 100 100 100 100 100]);",
+  "expr": "y = double(imextendedmin(T, 50));",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed."
+}

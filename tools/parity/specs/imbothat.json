@@ -1,0 +1,10 @@
+{
+  "name": "imbothat",
+  "namespace": "image",
+  "setup": "I = 9 * ones(5, 5); I(3, 3) = 0; SE = strel('square', 3);",
+  "expr": "y = imbothat(I, SE);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0)."
+}

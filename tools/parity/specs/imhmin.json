@@ -1,0 +1,10 @@
+{
+  "name": "imhmin",
+  "namespace": "image",
+  "setup": "T = double([100 100 100 100 100 100 100; 100 10 100 100 70 100 100; 100 100 100 100 100 100 100]);",
+  "expr": "y = imhmin(T, 50);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: J = imhmin(I, h). Two troughs depth 90 / 30; h=50 raises shallow (B) to background, keeps deep (A)."
+}

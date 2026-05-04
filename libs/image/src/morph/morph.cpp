@@ -204,33 +204,34 @@ Value morph_op(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
 
     for (int oc = 0; oc < W; ++oc) {
         for (int orow = 0; orow < H; ++orow) {
-            double best = IsErode ?  std::numeric_limits<double>::infinity()
-                                  : -std::numeric_limits<double>::infinity();
+            // Use NaN as the "no SE pixel covered yet" sentinel so we can
+            // tell apart an empty neighbourhood (→ output 0) from an
+            // actual ±Inf reduction over real input values (preserve as
+            // is — needed by callers like imimposemin which rely on
+            // ±Inf propagation through reconstruction).
+            double best = std::numeric_limits<double>::quiet_NaN();
             for (int kj = 0; kj < se.W; ++kj) {
                 const int c_in = oc + kj - se.half_c;
-                if (c_in < 0 || c_in >= W) {
-                    if (IsErode) {
-                        // For binary erode with constant-0 boundary, missing
-                        // means failure; for grayscale erode we treat missing
-                        // as +∞ (i.e. ignore). MATLAB default = replicate-style
-                        // for grayscale; for binary, default is "ignore (i.e.
-                        // SE-mask ANDed with image — so out-of-bounds counts
-                        // as 0)". We pick simplest: ignore missing, which gives
-                        // a valid grayscale erosion with truncated SE.
-                    }
-                    continue;
-                }
+                if (c_in < 0 || c_in >= W) continue;
                 for (int ki = 0; ki < se.H; ++ki) {
                     if (!se.mask[(size_t)ki * (size_t)se.W + (size_t)kj]) continue;
                     const int r_in = orow + ki - se.half_r;
                     if (r_in < 0 || r_in >= H) continue;
                     const double v = I.elemAsDouble((size_t)c_in * (size_t)H + (size_t)r_in);
-                    if (IsErode) { if (v < best) best = v; }
-                    else         { if (v > best) best = v; }
+                    if (std::isnan(best)) {
+                        best = v;
+                    } else if (IsErode) {
+                        if (v < best) best = v;
+                    } else {
+                        if (v > best) best = v;
+                    }
                 }
             }
-            if (!std::isfinite(best)) {
-                // No SE-marked pixels covered — output value of 0 / class min.
+            if (std::isnan(best)) {
+                // No SE-marked pixel landed in bounds — fall back to 0
+                // (the original convention for binary erosion with a
+                // constant-0 boundary; grayscale callers don't rely on
+                // this branch).
                 best = 0.0;
             }
             store_classed_morph(out, (size_t)oc * (size_t)H + (size_t)orow, best, I.type());
@@ -418,14 +419,29 @@ Value imregionalmax(std::pmr::memory_resource *mr,
     // Build the marker = max(I − 1, lower_bound). Use DOUBLE through
     // the operation to avoid the integer-saturation surprise for
     // I = 0 / I = INT_MIN / etc.
+    //
+    // Edge case: a +Inf pixel breaks the naïve "marker = I − 1" recipe
+    // because (+Inf) − 1 = +Inf, and (mask = +Inf) > (recon = +Inf) is
+    // false — so a +Inf would never be flagged. We fix this by clamping
+    // marker at the largest finite element of I; the relative ordering
+    // is preserved and Vincent's formula now correctly flags +Inf
+    // pixels as regional maxima. The dual −Inf case isn't an issue for
+    // imregionalmax (the formula correctly leaves −Inf as a non-max).
     Value marker = Value::matrix(H, W, ValueType::DOUBLE, mr);
     Value mask   = Value::matrix(H, W, ValueType::DOUBLE, mr);
     double *md = marker.doubleDataMut();
     double *kd = mask.doubleDataMut();
+    double maxFin = -std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        if (std::isfinite(v) && v > maxFin) maxFin = v;
+    }
+    if (!std::isfinite(maxFin)) maxFin = 0.0;
+    const double POS_INF = std::numeric_limits<double>::infinity();
     for (size_t i = 0; i < N; ++i) {
         const double v = I.elemAsDouble(i);
         kd[i] = v;
-        md[i] = v - 1.0;
+        md[i] = (v == POS_INF) ? maxFin : (v - 1.0);
     }
     Value R = imreconstruct(mr, marker, mask, conn);
 
@@ -560,19 +576,26 @@ Value imextendedmin(std::pmr::memory_resource *mr,
 // ════════════════════════════════════════════════════════════════════
 //
 // Force the regional minima of `I` to be exactly the pixels marked
-// in `BW`. Soille's recipe via reconstruction by erosion:
+// in `BW`. Recipe matching MATLAB R2025b / Octave's imimposemin:
 //
-//   marker  fm = -∞ at BW, +∞ elsewhere
-//   mask    m  = min(I, fm) = -∞ at BW, I elsewhere
-//   J          = R^E_m(fm)        (erosion-reconstruction)
+//   marker fm = −∞ at BW, +∞ elsewhere      (sentinel marker)
+//   mask    m = min(I + h, fm)              (lifted image, drops back
+//                                            to −∞ at marker pixels)
+//   J         = R^E_m(fm)                   (erosion-reconstruction)
+//
+// where `h` is the per-class step:
+//   integer classes  → h = 1
+//   floating classes → h = (max(I) − min(I)) / 1000
+//
+// `h` lifts non-marker pixels just enough that any old regional
+// minimum is no longer one (its old neighbours' value at I + h is
+// strictly higher than I along the path to a marker). Marker pixels
+// stay at −∞ and are the only regional minima of the result.
 //
 // Reconstruction by erosion is realised by complementing into the
-// dilation domain: with T a strict upper bound on the working range,
-//   J = T − imreconstruct(T − fm, T − m, conn).
-// At marker pixels this pins J to a "floor" value; at non-marker
-// pixels it lifts the value to the lowest plateau height through
-// which a path to a marker passes — so any old basin boundary
-// crossed without going through a marker erases the basin.
+// dilation domain. For floating-point we use ±Inf directly (matches
+// MATLAB exactly); the existing imreconstruct propagates ±Inf as
+// expected because every internal min/max is over finite differences.
 
 Value imimposemin(std::pmr::memory_resource *mr,
                   const Value &I, const Value &BW, int conn)
@@ -585,7 +608,7 @@ Value imimposemin(std::pmr::memory_resource *mr,
                     0, 0, "imimposemin", "", "m:imimposemin:shape");
     if (N == 0) return Value::matrix(H, W, ValueType::DOUBLE, mr);
 
-    // Pick finite sentinels: low strictly below all of I, high above.
+    // Per-class lift step h.
     double minI =  std::numeric_limits<double>::infinity();
     double maxI = -std::numeric_limits<double>::infinity();
     for (size_t i = 0; i < N; ++i) {
@@ -595,29 +618,41 @@ Value imimposemin(std::pmr::memory_resource *mr,
     }
     if (!std::isfinite(minI)) minI = 0.0;
     if (!std::isfinite(maxI)) maxI = 0.0;
-    const double low  = minI - 1.0;
-    const double high = maxI + 1.0;
-    const double T    = high + 1.0;   // T > high ⇒ T - x ≥ 1 for any x ≤ high
+    const ValueType inT = I.type();
+    const bool is_float = (inT == ValueType::DOUBLE || inT == ValueType::SINGLE);
+    const double h = is_float ? ((maxI - minI) / 1000.0) : 1.0;
 
-    Value mask    = Value::matrix(H, W, ValueType::DOUBLE, mr);
-    Value marker  = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    // marker fm: -Inf at BW, +Inf elsewhere.
+    // mask    m: min(I + h, fm)  →  -Inf at BW, (I + h) elsewhere.
+    Value mask   = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value marker = Value::matrix(H, W, ValueType::DOUBLE, mr);
     double *md = mask.doubleDataMut();
     double *gd = marker.doubleDataMut();
+    const double NEG_INF = -std::numeric_limits<double>::infinity();
+    const double POS_INF =  std::numeric_limits<double>::infinity();
     for (size_t i = 0; i < N; ++i) {
         const bool b = (BW.elemAsDouble(i) != 0.0);
         const double v = I.elemAsDouble(i);
-        md[i] = b ? low : v;
-        gd[i] = b ? low : high;
+        if (b) { md[i] = NEG_INF; gd[i] = NEG_INF; }
+        else   { md[i] = v + h;   gd[i] = POS_INF; }
     }
 
-    // Complement to dilation domain.
-    Value m_inv  = Value::matrix(H, W, ValueType::DOUBLE, mr);
-    Value g_inv  = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    // Reconstruction by erosion via complement-trick over dilation:
+    //   J = T − imreconstruct(T − fm, T − m, conn)
+    // T must be a strict upper bound on every working value. With ±Inf
+    // in fm/m the complement gives ∓Inf, which imreconstruct handles
+    // as expected (any finite mask value caps from below).
+    const double T = (std::isfinite(maxI) ? maxI : 0.0) + std::abs(h) + 1.0;
+
+    Value m_inv = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value g_inv = Value::matrix(H, W, ValueType::DOUBLE, mr);
     double *mi = m_inv.doubleDataMut();
     double *gi = g_inv.doubleDataMut();
     for (size_t i = 0; i < N; ++i) {
-        mi[i] = T - md[i];
-        gi[i] = T - gd[i];
+        mi[i] = T - md[i];   // +Inf at BW, T-(I+h) elsewhere
+        gi[i] = T - gd[i];   // +Inf at BW, T-(+Inf)=−Inf? — clamp:
+        // T − (+Inf) = −Inf; we want g_inv ≤ m_inv, both at marker
+        // are equal (+Inf). At non-marker g_inv = −Inf < m_inv ≥ 0.
     }
 
     Value J_inv = imreconstruct(mr, g_inv, m_inv, conn);

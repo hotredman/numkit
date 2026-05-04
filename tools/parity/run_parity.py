@@ -334,6 +334,7 @@ def run_octave(spec: Spec, *, timed: bool) -> Result:
         "try; pkg load signal; end_try_catch\n"
         "try; pkg load statistics; end_try_catch\n"
         "try; pkg load control; end_try_catch\n"
+        "try; pkg load image; end_try_catch\n"
     )
     script = octave_prelude + build_script(spec, timed=timed)
     path = _write_script(script)

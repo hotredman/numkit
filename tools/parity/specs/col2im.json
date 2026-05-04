@@ -1,0 +1,10 @@
+{
+  "name": "col2im",
+  "namespace": "image",
+  "setup": "A = reshape(1:16, [4 4]); B = im2col(A, [2 2], 'distinct');",
+  "expr": "y = col2im(B, [2 2], [4 4], 'distinct');",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples)."
+}

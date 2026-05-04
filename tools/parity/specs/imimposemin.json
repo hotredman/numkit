@@ -1,0 +1,10 @@
+{
+  "name": "imimposemin",
+  "namespace": "image",
+  "setup": "I = double([10 10 10 10 10 10 10; 10 3 10 10 6 10 10; 10 10 10 10 10 10 10]); BW = false(3, 7); BW(2, 2) = true;",
+  "expr": "y = imimposemin(I, BW);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10)."
+}
