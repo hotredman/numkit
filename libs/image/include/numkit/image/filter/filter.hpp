@@ -125,6 +125,12 @@ Value imsmooth(std::pmr::memory_resource *mr,
                const Value &I, const std::string &name,
                double sigma);
 
+/// `J = imboxfilt3(V [, fH, fW, fP])` — 3-D box (mean) filter over
+/// a volume. Per-axis filter sizes default to 3. Replicate
+/// boundary on all 3 axes. Output type matches input.
+Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
+                 int fH, int fW, int fP);
+
 /// entropyfilt(I [, domain]) — local Shannon entropy in bits.
 /// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),
 /// 2 bins for logical. Default domain = ones(9). Symmetric boundary.

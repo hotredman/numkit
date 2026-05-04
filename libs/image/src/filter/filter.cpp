@@ -1326,6 +1326,86 @@ Value imsmooth(std::pmr::memory_resource *mr,
     return out;
 }
 
+// ════════════════════════════════════════════════════════════════════
+// imboxfilt3 — 3-D box (mean) filter, separable + replicate boundary
+// ════════════════════════════════════════════════════════════════════
+Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
+                 int fH, int fW, int fP)
+{
+    if (fH <= 0) fH = 3;
+    if (fW <= 0) fW = 3;
+    if (fP <= 0) fP = 3;
+    if (fH % 2 == 0) fH += 1;
+    if (fW % 2 == 0) fW += 1;
+    if (fP % 2 == 0) fP += 1;
+
+    const ValueType cls = V.type();
+    const int H = static_cast<int>(V.dims().rows());
+    const int W = static_cast<int>(V.dims().cols());
+    const int P = V.dims().is3D() ? static_cast<int>(V.dims().pages()) : 1;
+    const int hh = fH / 2;
+    const int hw = fW / 2;
+    const int hp = fP / 2;
+
+    Value out = (P > 1) ? Value::matrix3d(H, W, P, cls, mr)
+                        : Value::matrix(H, W, cls, mr);
+    if (H == 0 || W == 0 || P == 0) return out;
+
+    const size_t total = (size_t)H * (size_t)W * (size_t)P;
+    std::vector<double> a(total), b(total);
+    // Load V into a (double).
+    for (size_t i = 0; i < total; ++i) a[i] = V.elemAsDouble(i);
+
+    // Pass 1: average along rows (H axis).
+    for (int p = 0; p < P; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                double acc = 0.0;
+                for (int k = -hh; k <= hh; ++k) {
+                    const int rs = fold_index(r + k, H, PadMode::Replicate);
+                    acc += a[(size_t)p * (size_t)H * (size_t)W +
+                              (size_t)c * (size_t)H + (size_t)rs];
+                }
+                b[(size_t)p * (size_t)H * (size_t)W +
+                  (size_t)c * (size_t)H + (size_t)r] = acc / (double)fH;
+            }
+        }
+    }
+    // Pass 2: average along cols (W axis).
+    for (int p = 0; p < P; ++p) {
+        for (int r = 0; r < H; ++r) {
+            for (int c = 0; c < W; ++c) {
+                double acc = 0.0;
+                for (int k = -hw; k <= hw; ++k) {
+                    const int cs = fold_index(c + k, W, PadMode::Replicate);
+                    acc += b[(size_t)p * (size_t)H * (size_t)W +
+                              (size_t)cs * (size_t)H + (size_t)r];
+                }
+                a[(size_t)p * (size_t)H * (size_t)W +
+                  (size_t)c * (size_t)H + (size_t)r] = acc / (double)fW;
+            }
+        }
+    }
+    // Pass 3: average along pages (P axis).
+    for (int p = 0; p < P; ++p) {
+        for (int c = 0; c < W; ++c) {
+            for (int r = 0; r < H; ++r) {
+                double acc = 0.0;
+                for (int k = -hp; k <= hp; ++k) {
+                    const int ps = fold_index(p + k, P, PadMode::Replicate);
+                    acc += a[(size_t)ps * (size_t)H * (size_t)W +
+                              (size_t)c * (size_t)H + (size_t)r];
+                }
+                store_classed(out,
+                              (size_t)p * (size_t)H * (size_t)W +
+                                  (size_t)c * (size_t)H + (size_t)r,
+                              acc / (double)fP, cls);
+            }
+        }
+    }
+    return out;
+}
+
 Value entropyfilt(std::pmr::memory_resource *mr,
                   const Value &I, const Value &domain)
 {
@@ -1572,6 +1652,26 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+}
+
+void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imboxfilt3: requires (V[, FilterSize])",
+                    0, 0, "imboxfilt3", "", "m:imboxfilt3:nargin");
+    int fH = 3, fW = 3, fP = 3;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) {
+            fH = fW = fP = (int)v.toScalar();
+        } else if (v.numel() >= 3) {
+            fH = (int)v.elemAsDouble(0);
+            fW = (int)v.elemAsDouble(1);
+            fP = (int)v.elemAsDouble(2);
+        }
+    }
+    outs[0] = imboxfilt3(ctx.engine->resource(), args[0], fH, fW, fP);
 }
 
 void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
