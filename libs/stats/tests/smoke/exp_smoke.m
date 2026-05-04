@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % exppdf(x, mu) = exp(-x/mu) / mu

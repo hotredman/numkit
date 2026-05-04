@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Smooths flat regions, preserves a strong step edge ---

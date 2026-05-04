@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- imsplit on a small RGB volume ---

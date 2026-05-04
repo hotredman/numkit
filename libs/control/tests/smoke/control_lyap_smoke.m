@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Continuous Lyapunov on a stable scalar: A·X + X·A + Q = 0 ---

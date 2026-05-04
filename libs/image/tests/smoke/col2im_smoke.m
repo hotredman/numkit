@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Round-trip distinct: col2im(im2col(A, 'distinct'), 'distinct') == A ---

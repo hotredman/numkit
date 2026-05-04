@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Test image: pure red, pure green, pure blue, white, black, gray

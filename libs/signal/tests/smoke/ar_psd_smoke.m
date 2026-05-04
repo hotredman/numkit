@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Synthesise an AR(2) process and try to recover its peak ---

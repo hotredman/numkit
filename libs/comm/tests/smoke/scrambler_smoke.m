@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Round-trip: scramble + descramble recovers the input bit sequence ---

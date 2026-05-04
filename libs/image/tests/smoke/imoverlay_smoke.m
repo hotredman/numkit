@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- imoverlay on grayscale: paint a yellow square ---

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Rayleigh: E[|h|²] = 1, samples large enough for stable mean ---

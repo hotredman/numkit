@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % 2-D anisotropic data along (1, 1) direction

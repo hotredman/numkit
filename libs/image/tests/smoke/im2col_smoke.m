@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Sliding mode on a small lattice ---

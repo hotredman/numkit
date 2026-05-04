@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Bright dot on dark background. Opening with a 3×3 SE removes

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % ttest — sample mean vs known μ=0

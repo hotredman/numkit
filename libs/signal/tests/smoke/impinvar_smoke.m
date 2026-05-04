@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Single real pole: H(s) = 1 / (s + 1)

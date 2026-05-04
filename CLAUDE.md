@@ -30,6 +30,15 @@ surface to the user**. Do not silently work on top of someone else's work.
 - Co-authored trailer required (see prior commits for style).
 - `main` is the integration branch. Never force-push.
 
+## Smoke tests
+
+- Hand-runnable `.m` smokes live in `libs/<name>/tests/smoke/*_smoke.m`
+  (one per public function or related cluster). Run via
+  `build-desktop-fast/Release/numkit_example.exe <path>`.
+- **Every smoke MUST start with `clear` on the very first line**, then
+  the usual `import compat.*` and the body. This ensures no leftover
+  workspace state from a prior run leaks into the test.
+
 ## Memory
 
 Auto-memory at

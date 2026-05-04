@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % pdist on 4 points in 2-D

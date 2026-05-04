@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- 3-level wavedec/waverec round-trip on ramp ---

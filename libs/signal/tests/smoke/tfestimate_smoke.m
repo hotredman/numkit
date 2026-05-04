@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- tfestimate(x, x) = 1 across all freqs (auto-tf) ---

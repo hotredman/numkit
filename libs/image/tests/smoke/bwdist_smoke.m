@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Single foreground pixel at center: D should be Euclidean dist ---

@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- step on G(s) = 1/(s+1): final value should approach 1 ---

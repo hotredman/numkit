@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- c2d ZOH on G(s) = 1/(s+2) at Ts=0.1 ---

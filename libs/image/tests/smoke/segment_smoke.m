@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- dice / jaccard textbook examples ---

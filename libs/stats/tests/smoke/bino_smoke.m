@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % binopdf: C(n,k) p^k (1-p)^(n-k)

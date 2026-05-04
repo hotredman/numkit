@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Scalar threshold (existing path, regression check) ---

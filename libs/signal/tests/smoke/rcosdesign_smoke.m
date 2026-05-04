@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- RC: beta=0.25, span=6, sps=4 → length 25, peak at center ---

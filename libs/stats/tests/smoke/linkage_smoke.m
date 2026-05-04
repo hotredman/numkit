@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % 4 points: 2 close pairs at (0,0)/(0,1) and (10,10)/(10,11)

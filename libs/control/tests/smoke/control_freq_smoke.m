@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- evalfr on G(s) = 1/(s+1) at s = j ---

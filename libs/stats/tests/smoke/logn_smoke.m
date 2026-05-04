@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % lognpdf(1; 0, 1) — log(1) = 0, so z=0 → 1/(x σ √(2π)) = 1/√(2π) = 0.398942

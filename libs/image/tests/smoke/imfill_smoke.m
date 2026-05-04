@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Donut: hollow ring with one center hole ---

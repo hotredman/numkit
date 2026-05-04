@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Round-trip on randn (any length, no divisibility constraint) ---

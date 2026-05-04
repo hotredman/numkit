@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- wfilters round-trip QMF properties ---

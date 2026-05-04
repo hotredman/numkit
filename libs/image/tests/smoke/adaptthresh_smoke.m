@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Constant image: T = constant intensity (the local mean is the image itself) ---

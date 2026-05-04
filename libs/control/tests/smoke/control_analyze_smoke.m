@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- dcgain on G(s) = 5/(s+1) — DC gain = 5 ---

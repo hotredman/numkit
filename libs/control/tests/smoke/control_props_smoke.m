@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Stable continuous: G(s) = 1/(s+1), pole at s = -1

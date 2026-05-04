@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Two peaks of different heights against a plateau:

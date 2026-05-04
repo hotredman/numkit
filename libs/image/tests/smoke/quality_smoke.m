@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Identity case: A == B

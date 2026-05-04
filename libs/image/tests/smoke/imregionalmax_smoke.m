@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Single peak: only that pixel is a regional max ---

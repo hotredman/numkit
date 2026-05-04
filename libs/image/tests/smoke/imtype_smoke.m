@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % im2double: uint8 → [0, 1] double

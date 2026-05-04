@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- zscore on a vector: mean → 0, std → 1 (population stdev) ---

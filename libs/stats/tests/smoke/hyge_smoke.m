@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Hypergeometric: M = pop, K = successes in pop, N = sample size

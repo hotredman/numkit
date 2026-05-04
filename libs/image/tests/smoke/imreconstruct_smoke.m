@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % --- Reconstruct one connected component from a single seed ---

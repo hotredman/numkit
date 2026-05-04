@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Negative binomial: failures before r-th success.

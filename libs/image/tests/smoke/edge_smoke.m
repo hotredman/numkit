@@ -1,3 +1,5 @@
+clear
+
 import compat.*
 
 % Step image — vertical edge in the middle column
