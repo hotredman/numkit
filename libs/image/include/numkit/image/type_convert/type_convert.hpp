@@ -39,6 +39,19 @@ Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 /// and double all return [0, 1]. Output is always double.
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I);
 
+/// `[ind, map] = gray2ind(I [, n])` — grayscale → indexed image.
+/// Float input must be in [0, 1]; integer input is rescaled. Logical
+/// default n=2 else n=64. Output is uint8 if n ≤ 256, else uint16.
+/// `map` is the linear gray(n) N×3 colormap.
+std::tuple<Value, Value>
+gray2ind(std::pmr::memory_resource *mr, const Value &I, int n);
+
+/// `I = ind2gray(idx [, map])` — pull the luminance value out of
+/// the colormap `map` for each entry in `idx`. Default `map` is
+/// gray(N) where N = max(idx).
+Value ind2gray(std::pmr::memory_resource *mr,
+               const Value &idx, const Value &map);
+
 /// `iptnum2ordinal(n)` — return an ordinal-form string for the
 /// positive integer `n`. 1..20 use English words ("first" …
 /// "twentieth"); 21+ use the suffix form ("21st", "22nd", "23rd",
