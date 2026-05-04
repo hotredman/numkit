@@ -1607,7 +1607,7 @@ output args).
 
 ## Control System Toolbox — Stability and Margins
 
-**Namespace:** `control.margin.*` — 1 ✅ + 0 ⚠️ / 6 = 17%
+**Namespace:** `control.margin.*` — 2 ✅ + 0 ⚠️ / 6 = 33%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -1616,7 +1616,7 @@ output args).
 | `db2mag` | ❌ |  |  |  |  |  |
 | `mag2db` | ❌ |  |  |  |  |  |
 | `pzmap` | ❌ |  |  |  |  | pole-zero map (numeric form) |
-| `rlocus` | ❌ |  |  |  |  | root locus |
+| `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
 
 ## Control System Toolbox — State-Space Design and Estimation
 
