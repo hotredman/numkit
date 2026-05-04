@@ -27,6 +27,10 @@ void order_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pole_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void zero_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void damp_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+// connect/connect.cpp
+void series_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void parallel_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void feedback_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in libs/builtin and libs/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -59,6 +63,10 @@ void ControlLibrary::install(Engine &engine)
     reg("props", "pole",     &control::detail::pole_reg);
     reg("props", "zero",     &control::detail::zero_reg);
     reg("props", "damp",     &control::detail::damp_reg);
+
+    reg("connect", "series",   &control::detail::series_reg);
+    reg("connect", "parallel", &control::detail::parallel_reg);
+    reg("connect", "feedback", &control::detail::feedback_reg);
 }
 
 } // namespace numkit
