@@ -1,0 +1,10 @@
+{
+  "name": "bwhitmiss",
+  "namespace": "image",
+  "setup": "bw = repmat([0 1 0 1 1], [3 1]);",
+  "expr": "y = bwhitmiss(bw, [1;0;1], [1 0 1]);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss."
+}
