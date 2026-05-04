@@ -56,4 +56,13 @@ Value imboxfilt(std::pmr::memory_resource *mr, const Value &I, int filter_size);
 Value medfilt2(std::pmr::memory_resource *mr, const Value &I,
                int rows = 3, int cols = 3);
 
+/// imsharpen(I[, radius, amount, threshold]) — unsharp masking.
+///   high  = I − imgaussfilt(I, radius)
+///   mask  = (|high| ≥ threshold·max|high|)
+///   B     = saturate(I + amount · mask · high)
+/// MATLAB defaults: radius=1, amount=0.8, threshold=0.
+Value imsharpen(std::pmr::memory_resource *mr,
+                const Value &I,
+                double radius, double amount, double threshold);
+
 } // namespace numkit::image

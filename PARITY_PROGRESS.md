@@ -2907,7 +2907,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `gray2ind` | ❌ |  |  |  |  |  |
 | `graythresh` | ✅ |  |  |  | OK | Otsu's 2nd output η = σ_b²/σ_T² |
 | `grayslice` | ❌ |  |  |  |  | scalar quantize |
-| `im2bw` | ❌ |  |  |  |  | legacy → imbinarize |
+| `im2bw` | ✅ |  |  |  | OK | legacy alias → imbinarize (Otsu fallback / scalar threshold) |
 | `im2double` | ✅ |  |  |  | OK | clamps int classes through unit-range |
 | `im2gray` | ✅ |  |  |  | OK | RGB-or-gray pass-through |
 | `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
@@ -3081,7 +3081,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imhistmatchn` | ❌ |  |  |  |  |  |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
-| `imsharpen` | ❌ |  |  |  |  |  |
+| `imsharpen` | ✅ |  |  |  | OK | unsharp masking; defaults Radius=1, Amount=0.8, Threshold=0; Name-Value pairs |
 | `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
