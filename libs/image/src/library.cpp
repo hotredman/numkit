@@ -93,6 +93,12 @@ void dctmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imwrite_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imfinfo_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// geom/geom.cpp
+void imresize_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imcrop_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imrotate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imtranslate_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -178,6 +184,11 @@ void ImageLibrary::install(Engine &engine)
     reg("io", "imread",  &image::detail::imread_reg);
     reg("io", "imwrite", &image::detail::imwrite_reg);
     reg("io", "imfinfo", &image::detail::imfinfo_reg);
+
+    reg("geom", "imresize",    &image::detail::imresize_reg);
+    reg("geom", "imcrop",      &image::detail::imcrop_reg);
+    reg("geom", "imrotate",    &image::detail::imrotate_reg);
+    reg("geom", "imtranslate", &image::detail::imtranslate_reg);
 }
 
 } // namespace numkit

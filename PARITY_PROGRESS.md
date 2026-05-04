@@ -2985,7 +2985,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 ## Geometric Transformations (Image)
 
-**Namespace:** `image.geom.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+**Namespace:** `image.geom.*` — 4 ✅ + 0 ⚠️ / 13 = 31%
 
 Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionally omitted; flat function APIs only.
 
@@ -2993,15 +2993,15 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `findbounds` | ❌ |  |  |  |  |  |
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
-| `imcrop` | ❌ |  |  |  |  |  |
+| `imcrop` | ✅ |  |  |  | OK | rect = [xmin ymin width height] (1-based, MATLAB) |
 | `imcrop3` | ❌ |  |  |  |  |  |
 | `impyramid` | ❌ |  |  |  |  | reduce/expand 2× |
-| `imresize` | ❌ |  |  |  |  |  |
+| `imresize` | ✅ |  |  |  | OK | scalar scale or [outH outW]; nearest / bilinear |
 | `imresize3` | ❌ |  |  |  |  |  |
-| `imrotate` | ❌ |  |  |  |  |  |
+| `imrotate` | ✅ |  |  |  | OK | CCW degrees, nearest / bilinear, loose / crop bbox |
 | `imrotate3` | ❌ |  |  |  |  |  |
 | `imtransform` | ❌ |  |  |  |  | legacy maketform path |
-| `imtranslate` | ❌ |  |  |  |  |  |
+| `imtranslate` | ✅ |  |  |  | OK | bilinear shift, edges → 0 |
 | `imwarp` | ❌ |  |  |  |  |  |
 | `makeresampler` | ❌ |  |  |  |  |  |
 
