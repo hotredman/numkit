@@ -1,0 +1,10 @@
+{
+  "name": "pink",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = pink(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = pink([n]). N×3 pastel pink. 3-piece linspace ramps per channel, then sqrt. Default n=256. MATLAB+Octave both ship pink."
+}

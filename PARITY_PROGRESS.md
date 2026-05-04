@@ -3371,3 +3371,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `autumn` | — | 0.003 | 131.14× | 25.93× | OK | Sig: map = autumn([n]). N×3 red→yellow. r=1, g=(0:n-1)/(n-1), b=0. Default n=256. MATLAB+Octave both ship autumn. |
 | `winter` | — | 0.004 | 119.12× | 52.83× | OK | Sig: map = winter([n]). N×3 blue→cyan-ish. r=0, g=(0:n-1)/(n-1), b=1-g/2. Default n=256. MATLAB+Octave both ship winter. |
 | `copper` | — | 0.003 | 212.37× | 38.74× | OK | Sig: map = copper([n]). N×3 black→copper. r=min(5/4*x,1), g=0.7812*x, b=0.4975*x where x=(0:n-1)/(n-1). Default n=256. MATLAB+Octave. |
+| `pink` | — | 0.004 | 254.55× | 62.29× | OK | Sig: map = pink([n]). N×3 pastel pink. 3-piece linspace ramps per channel, then sqrt. Default n=256. MATLAB+Octave both ship pink. |
