@@ -1,0 +1,294 @@
+// libs/control/src/freq/freq.cpp
+//
+// Frequency-domain responses. Reduces every LTI form to (num, den)
+// coefficient rows via the existing libs/builtin (zp2tf) and
+// libs/control (ss2tf) primitives, then evaluates the rational
+// directly using Horner's method on std::complex<double>.
+//
+// Continuous: H(jω) = num(jω) / den(jω)
+// Discrete  : H(e^{jωTs}) = num(z) / den(z) at z = exp(jωTs)
+
+#include <numkit/control/freq/freq.hpp>
+#include <numkit/control/conversion/conversion.hpp>
+#include <numkit/control/props/props.hpp>
+
+#include <numkit/builtin/math/poly/polynomials.hpp>
+
+#include <numkit/core/engine.hpp>
+#include <numkit/core/types.hpp>
+
+#include <algorithm>
+#include <cmath>
+#include <complex>
+#include <vector>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
+namespace numkit::control {
+
+namespace {
+
+using Cd = std::complex<double>;
+
+bool hasKind(const Value &sys, const char *want) {
+    if (!sys.isStruct() || !sys.hasField("kind")) return false;
+    return sys.field("kind").toString() == want;
+}
+
+double sampleTime(const Value &sys) {
+    if (sys.isStruct() && sys.hasField("Ts"))
+        return sys.field("Ts").toScalar();
+    return 0.0;
+}
+
+std::vector<double> coeffsReal(const Value &v) {
+    std::vector<double> out(v.numel());
+    for (size_t i = 0; i < v.numel(); ++i) out[i] = v.elemAsDouble(i);
+    return out;
+}
+
+struct NumDen { std::vector<double> num, den; };
+
+NumDen toNumDen(std::pmr::memory_resource *mr, const Value &sys) {
+    if (hasKind(sys, "tf"))
+        return {coeffsReal(sys.field("num")), coeffsReal(sys.field("den"))};
+    if (hasKind(sys, "zpk")) {
+        Value num, den;
+        zp2tf(mr, sys.field("z"), sys.field("p"), sys.field("k"),
+              &num, &den);
+        return {coeffsReal(num), coeffsReal(den)};
+    }
+    if (hasKind(sys, "ss")) {
+        Value num, den;
+        ss2tf(mr, sys.field("A"), sys.field("B"),
+              sys.field("C"), sys.field("D"), /*iu=*/1, &num, &den);
+        return {coeffsReal(num), coeffsReal(den)};
+    }
+    throw Error("control freq: expected an LTI struct (tf/zpk/ss)",
+                0, 0, "freq", "", "m:control:kind");
+}
+
+// Horner evaluation of a polynomial whose coefficients are stored in
+// MATLAB convention (highest power first).
+Cd hornerCx(const std::vector<double> &p, Cd x) {
+    Cd y(0.0, 0.0);
+    for (double c : p) y = y * x + c;
+    return y;
+}
+
+// H(s) at s for the given (num, den).
+Cd hAt(const std::vector<double> &num, const std::vector<double> &den, Cd s) {
+    Cd n = hornerCx(num, s);
+    Cd d = hornerCx(den, s);
+    return n / d;
+}
+
+// Default log-spaced ω grid spanning ~ 2 decades around the
+// pole/zero magnitudes. For discrete systems the upper bound is the
+// Nyquist frequency π / Ts.
+std::vector<double> pickW(std::pmr::memory_resource *mr, const Value &sys,
+                          size_t N = 200)
+{
+    Value pV = pole(mr, sys);
+    Value zV = zero(mr, sys);
+    auto magsOf = [](const Value &v) {
+        std::vector<double> mags;
+        const size_t k = v.numel();
+        if (v.type() == ValueType::COMPLEX) {
+            const Cd *src = v.complexData();
+            for (size_t i = 0; i < k; ++i) {
+                const double m = std::abs(src[i]);
+                if (m > 0.0) mags.push_back(m);
+            }
+        } else {
+            for (size_t i = 0; i < k; ++i) {
+                const double m = std::abs(v.elemAsDouble(i));
+                if (m > 0.0) mags.push_back(m);
+            }
+        }
+        return mags;
+    };
+    auto pm = magsOf(pV);
+    auto zm = magsOf(zV);
+    pm.insert(pm.end(), zm.begin(), zm.end());
+
+    double lo = 1e-2, hi = 1e2;
+    if (!pm.empty()) {
+        double minM = pm[0], maxM = pm[0];
+        for (double m : pm) {
+            if (m < minM) minM = m;
+            if (m > maxM) maxM = m;
+        }
+        lo = minM / 100.0;
+        hi = maxM * 100.0;
+    }
+    const double Ts = sampleTime(sys);
+    if (Ts > 0.0) {
+        // Discrete: clamp to (0, π/Ts).
+        const double nyq = M_PI / Ts;
+        if (hi > nyq) hi = nyq;
+        if (lo >= hi) lo = hi / 1000.0;
+    }
+    if (lo <= 0.0) lo = 1e-3;
+    if (hi <= lo) hi = lo * 100.0;
+
+    std::vector<double> w(N);
+    const double a = std::log10(lo);
+    const double b = std::log10(hi);
+    for (size_t i = 0; i < N; ++i) {
+        const double t = (N == 1) ? 0.0 : double(i) / double(N - 1);
+        w[i] = std::pow(10.0, a + (b - a) * t);
+    }
+    return w;
+}
+
+std::vector<double> readW(std::pmr::memory_resource *mr,
+                          const Value &sys, const Value &wArg)
+{
+    if (wArg.numel() == 0) return pickW(mr, sys);
+    std::vector<double> w(wArg.numel());
+    for (size_t i = 0; i < wArg.numel(); ++i) w[i] = wArg.elemAsDouble(i);
+    return w;
+}
+
+Value colDouble(std::pmr::memory_resource *mr, const std::vector<double> &v) {
+    Value r = Value::matrix(v.size(), 1, ValueType::DOUBLE, mr);
+    if (!v.empty()) std::copy(v.begin(), v.end(), r.doubleDataMut());
+    return r;
+}
+
+Value colComplex(std::pmr::memory_resource *mr, const std::vector<Cd> &v) {
+    Value r = Value::matrix(v.size(), 1, ValueType::COMPLEX, mr);
+    if (!v.empty()) {
+        Cd *dst = r.complexDataMut();
+        std::copy(v.begin(), v.end(), dst);
+    }
+    return r;
+}
+
+// Map ω → s (continuous) or z (discrete).
+Cd freqArg(double w, double Ts) {
+    if (Ts > 0.0) return std::polar(1.0, w * Ts);   // exp(jωTs)
+    return Cd(0.0, w);                               // jω
+}
+
+} // anonymous
+
+Value evalfr(std::pmr::memory_resource *mr,
+             const Value &sys, double f)
+{
+    auto nd = toNumDen(mr, sys);
+    const double Ts = sampleTime(sys);
+    const Cd h = hAt(nd.num, nd.den, freqArg(f, Ts));
+    Value out = Value::matrix(1, 1, ValueType::COMPLEX, mr);
+    out.complexDataMut()[0] = h;
+    return out;
+}
+
+Value freqresp(std::pmr::memory_resource *mr,
+               const Value &sys, const Value &w)
+{
+    auto nd = toNumDen(mr, sys);
+    const double Ts = sampleTime(sys);
+    auto wv = readW(mr, sys, w);
+    std::vector<Cd> h(wv.size());
+    for (size_t i = 0; i < wv.size(); ++i)
+        h[i] = hAt(nd.num, nd.den, freqArg(wv[i], Ts));
+    return colComplex(mr, h);
+}
+
+void bode(std::pmr::memory_resource *mr,
+          const Value &sys, const Value &wArg,
+          Value *magOut, Value *phaseOut, Value *wOut)
+{
+    auto nd = toNumDen(mr, sys);
+    const double Ts = sampleTime(sys);
+    auto w = readW(mr, sys, wArg);
+    std::vector<double> mag(w.size()), phase(w.size());
+    double prev = 0.0;
+    for (size_t i = 0; i < w.size(); ++i) {
+        Cd h = hAt(nd.num, nd.den, freqArg(w[i], Ts));
+        mag[i] = std::abs(h);
+        // Unwrap phase to avoid 2π jumps.
+        double ph = std::arg(h) * (180.0 / M_PI);
+        if (i > 0) {
+            while (ph - prev > 180.0) ph -= 360.0;
+            while (ph - prev < -180.0) ph += 360.0;
+        }
+        phase[i] = ph;
+        prev = ph;
+    }
+    if (magOut)   *magOut = colDouble(mr, mag);
+    if (phaseOut) *phaseOut = colDouble(mr, phase);
+    if (wOut)     *wOut = colDouble(mr, w);
+}
+
+void nyquist(std::pmr::memory_resource *mr,
+             const Value &sys, const Value &wArg,
+             Value *reOut, Value *imOut, Value *wOut)
+{
+    auto nd = toNumDen(mr, sys);
+    const double Ts = sampleTime(sys);
+    auto w = readW(mr, sys, wArg);
+    std::vector<double> re(w.size()), im(w.size());
+    for (size_t i = 0; i < w.size(); ++i) {
+        Cd h = hAt(nd.num, nd.den, freqArg(w[i], Ts));
+        re[i] = h.real();
+        im[i] = h.imag();
+    }
+    if (reOut) *reOut = colDouble(mr, re);
+    if (imOut) *imOut = colDouble(mr, im);
+    if (wOut)  *wOut = colDouble(mr, w);
+}
+
+namespace detail {
+
+void evalfr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("evalfr: requires (sys, f)",
+                    0, 0, "evalfr", "", "m:evalfr:nargin");
+    o[0] = evalfr(c.engine->resource(), a[0], a[1].toScalar());
+}
+
+void freqresp_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.size() < 2)
+        throw Error("freqresp: requires (sys, w)",
+                    0, 0, "freqresp", "", "m:freqresp:nargin");
+    o[0] = freqresp(c.engine->resource(), a[0], a[1]);
+}
+
+void bode_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty())
+        throw Error("bode: requires (sys [, w])",
+                    0, 0, "bode", "", "m:bode:nargin");
+    Value wArg = (a.size() >= 2) ? a[1]
+                : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
+    Value mag, ph, w;
+    bode(c.engine->resource(), a[0], wArg, &mag, &ph, &w);
+    if (o.size() >= 1) o[0] = mag;
+    if (o.size() >= 2) o[1] = ph;
+    if (o.size() >= 3) o[2] = w;
+}
+
+void nyquist_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty())
+        throw Error("nyquist: requires (sys [, w])",
+                    0, 0, "nyquist", "", "m:nyquist:nargin");
+    Value wArg = (a.size() >= 2) ? a[1]
+                : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
+    Value re, im, w;
+    nyquist(c.engine->resource(), a[0], wArg, &re, &im, &w);
+    if (o.size() >= 1) o[0] = re;
+    if (o.size() >= 2) o[1] = im;
+    if (o.size() >= 3) o[2] = w;
+}
+
+} // namespace detail
+
+} // namespace numkit::control

@@ -1577,7 +1577,7 @@ intentionally omitted.
 
 ## Control System Toolbox — Time and Frequency Response
 
-**Namespace:** `control.response.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
+**Namespace:** `control.response.*` — 7 ✅ + 0 ⚠️ / 19 = 37%
 
 `*plot` variants intentionally dropped — they're display-only mirrors
 of the numeric functions (which already return data when called with
@@ -1593,13 +1593,13 @@ output args).
 | `lsiminfo` | ❌ |  |  |  |  |  |
 | `gensig` | ❌ |  |  |  |  | input signal generator |
 | `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
-| `bode` | ❌ |  |  |  |  | mag + phase vs frequency |
+| `bode` | ✅ |  |  |  | OK | Horner H(jω) eval, phase unwrap |
 | `bodemag` | ❌ |  |  |  |  | magnitude only |
-| `nyquist` | ❌ |  |  |  |  |  |
+| `nyquist` | ✅ |  |  |  | OK | re/im of H(jω) on grid |
 | `nichols` | ❌ |  |  |  |  |  |
 | `sigma` | ❌ |  |  |  |  | singular-value response |
-| `freqresp` | ❌ |  |  |  |  | complex H(jw) on a grid |
-| `evalfr` | ❌ |  |  |  |  | H at one freq |
+| `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
+| `evalfr` | ✅ |  |  |  | OK | scalar H at one frequency, continuous + discrete |
 | `dcgain` | ❌ |  |  |  |  |  |
 | `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
 | `getPeakGain` | ❌ |  |  |  |  | H∞ |
