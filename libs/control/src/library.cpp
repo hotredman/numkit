@@ -40,6 +40,10 @@ void evalfr_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqresp_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nyquist_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// analyze/analyze.cpp
+void dcgain_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void margin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void stepinfo_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in libs/builtin and libs/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -84,6 +88,10 @@ void ControlLibrary::install(Engine &engine)
     reg("response", "freqresp", &control::detail::freqresp_reg);
     reg("response", "bode",     &control::detail::bode_reg);
     reg("response", "nyquist",  &control::detail::nyquist_reg);
+
+    reg("analyze", "dcgain",   &control::detail::dcgain_reg);
+    reg("analyze", "margin",   &control::detail::margin_reg);
+    reg("analyze", "stepinfo", &control::detail::stepinfo_reg);
 }
 
 } // namespace numkit

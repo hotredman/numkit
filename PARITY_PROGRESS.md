@@ -1577,7 +1577,7 @@ intentionally omitted.
 
 ## Control System Toolbox — Time and Frequency Response
 
-**Namespace:** `control.response.*` — 7 ✅ + 0 ⚠️ / 19 = 37%
+**Namespace:** `control.response.*` — 9 ✅ + 0 ⚠️ / 19 = 47%
 
 `*plot` variants intentionally dropped — they're display-only mirrors
 of the numeric functions (which already return data when called with
@@ -1586,7 +1586,7 @@ output args).
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `step` | ✅ |  |  |  | OK | ZOH discretisation via Padé(6/6) expm + scaling/squaring |
-| `stepinfo` | ❌ |  |  |  |  | overshoot, rise time, settling time |
+| `stepinfo` | ✅ |  |  |  | OK | RiseTime / SettlingTime / Overshoot / Peak / etc. struct |
 | `impulse` | ✅ |  |  |  | OK | continuous: x(0+) = B; discrete: u[0]=1 |
 | `initial` | ❌ |  |  |  |  | response from initial state |
 | `lsim` | ✅ |  |  |  | OK | uniform-grid one-shot expm; non-uniform per-step |
@@ -1600,18 +1600,18 @@ output args).
 | `sigma` | ❌ |  |  |  |  | singular-value response |
 | `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
 | `evalfr` | ✅ |  |  |  | OK | scalar H at one frequency, continuous + discrete |
-| `dcgain` | ❌ |  |  |  |  |  |
+| `dcgain` | ✅ |  |  |  | OK | continuous: H(0); discrete: H(z=1) |
 | `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
 | `getPeakGain` | ❌ |  |  |  |  | H∞ |
 | `getGainCrossover` | ❌ |  |  |  |  |  |
 
 ## Control System Toolbox — Stability and Margins
 
-**Namespace:** `control.margin.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+**Namespace:** `control.margin.*` — 1 ✅ + 0 ⚠️ / 6 = 17%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `margin` | ❌ |  |  |  |  | gain & phase margin |
+| `margin` | ✅ |  |  |  | OK | linear interp on bode grid; returns Gm/Pm/Wcg/Wcp |
 | `allmargin` | ❌ |  |  |  |  | all stability margins |
 | `db2mag` | ❌ |  |  |  |  |  |
 | `mag2db` | ❌ |  |  |  |  |  |
