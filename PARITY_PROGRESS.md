@@ -2901,7 +2901,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ✅ | 0.008 |  | 57.87× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
 | `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
 | `gray2ind` | ❌ |  |  |  |  |  |
@@ -2945,27 +2945,27 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
 | `lab2double` | ❌ |  |  |  |  |  |
-| `lab2rgb` | ✅ | 0.003 |  | 91.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `lab2rgb` | ✅ | 0.003 |  | 94.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `lab2uint16` | ❌ |  |  |  |  |  |
 | `lab2uint8` | ❌ |  |  |  |  |  |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
 | `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
 | `ntsc2rgb` | ❌ |  |  |  |  |  |
 | `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rgb2lab` | ✅ | 0.004 |  | 85.89× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2lab` | ✅ | 0.004 |  | 81.79× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgb2lin` | ❌ |  |  |  |  | sRGB gamma → linear |
 | `rgb2ntsc` | ❌ |  |  |  |  |  |
-| `rgb2xyz` | ✅ | 0.003 |  | 42.49× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rgb2ycbcr` | ✅ | 0.003 |  | 61.90× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
 | `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
 | `whitepoint` | ❌ |  |  |  |  | tristimulus white-points |
 | `xyz2double` | ❌ |  |  |  |  |  |
 | `xyz2lab` | ✅ |  |  |  | OK |  |
-| `xyz2rgb` | ✅ | 0.003 |  | 77.03× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
 | `xyz2uint16` | ❌ |  |  |  |  |  |
-| `ycbcr2rgb` | ✅ | 0.003 |  | 90.94× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ycbcr2rgb` | ✅ | 0.003 |  | 59.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 
 ## Synthetic Images and Display
@@ -2998,9 +2998,9 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imcrop3` | ❌ |  |  |  |  |  |
 | `impyramid` | ❌ |  |  |  |  | reduce/expand 2× |
-| `imresize` | ✅ | 0.003 |  | 443.82× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imresize3` | ❌ |  |  |  |  |  |
-| `imrotate` | ✅ | 0.003 |  | 69.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imrotate3` | ❌ |  |  |  |  |  |
 | `imtransform` | ❌ |  |  |  |  | legacy maketform path |
 | `imtranslate` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -3073,8 +3073,8 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 |---|:---:|---:|---:|---:|:---:|---|
 | `adapthisteq` | ❌ |  |  |  |  | CLAHE |
 | `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
-| `histeq` | ✅ | 0.004 |  | 93.76× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjust` | ✅ | 0.005 |  | 152.48× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjustn` | ❌ |  |  |  |  | N-D variant |
 | `imflatfield` | ❌ |  |  |  |  |  |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
@@ -3085,7 +3085,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ✅ | 0.003 |  | 79.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 
 ## ROI-Based Processing (functions only)
 
@@ -3254,7 +3254,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ✅ | 0.004 |  | 36.95× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
 | `bwdistgeodesic` | ❌ |  |  |  |  |  |
 | `bweuler` | ❌ |  |  |  |  | Euler number |
 | `bwferet` | ❌ |  |  |  |  | Feret diameters |

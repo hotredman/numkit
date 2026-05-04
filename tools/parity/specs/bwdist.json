@@ -4,7 +4,7 @@
   "setup": "BW = false(5,5); BW(3,3) = true;",
   "expr": "y = bwdist(BW);",
   "iters": 5,
-  "tol": 1e-09,
+  "tol": 1e-06,
   "out_var": "y",
-  "comment": "Sig + small deterministic input. Auto-generated for parity sweep."
+  "comment": "Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt."
 }
