@@ -62,4 +62,16 @@ Value imreconstruct(std::pmr::memory_resource *mr,
 Value imfill_holes(std::pmr::memory_resource *mr,
                    const Value &BW, int conn);
 
+/// `J = imregionalmax(I [, conn])` — logical mask of regional maxima
+/// (connected pixel groups whose neighbours are all strictly smaller).
+/// Standard formula:  regmax(I) = (I − imreconstruct(I − 1, I)) > 0.
+Value imregionalmax(std::pmr::memory_resource *mr,
+                    const Value &I, int conn);
+
+/// `J = imregionalmin(I [, conn])` — dual of imregionalmax: regional
+/// minima of I via inversion (`(typeMax − I)` for unsigned, `−I` for
+/// floats) → imregionalmax → return.
+Value imregionalmin(std::pmr::memory_resource *mr,
+                    const Value &I, int conn);
+
 } // namespace numkit::image
