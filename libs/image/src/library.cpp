@@ -65,6 +65,7 @@ void wavelength2rgb_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void colorgradient_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void cmap2gray_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void gray_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void hot_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -257,6 +258,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "colorgradient", &image::detail::colorgradient_reg);
     reg("color", "cmap2gray",     &image::detail::cmap2gray_reg);
     reg("color", "gray",          &image::detail::gray_reg);
+    reg("color", "hot",           &image::detail::hot_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
