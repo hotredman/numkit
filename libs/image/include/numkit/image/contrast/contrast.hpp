@@ -82,4 +82,14 @@ Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &lev
 Value imhistmatch(std::pmr::memory_resource *mr,
                   const Value &I, const Value &ref, int nbins);
 
+/// imflatfield(I, sigma [, mask]) — flat-field correction. Divide
+/// the image by a low-pass estimate of its background and rescale
+/// so the mean is preserved:
+///   F = imgaussfilt(I_double, sigma)
+///   B = I_double ./ F .* mean(F[mask])
+/// Output is cast back to the input class with saturation. The
+/// optional mask restricts the mean-of-F average.
+Value imflatfield(std::pmr::memory_resource *mr,
+                  const Value &I, double sigma, const Value &mask);
+
 } // namespace numkit::image

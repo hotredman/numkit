@@ -3076,7 +3076,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imadjustn` | ❌ | 0.005 |  |  | N/A | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
-| `imflatfield` | ❌ |  |  |  |  |  |
+| `imflatfield` | ❌ | 4.227 |  |  | N/A | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image has imflatfield (recent versions); cross-check expected to be OK or N/A depending on package availability. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
 | `imhistmatchn` | ❌ |  |  |  |  |  |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
