@@ -51,6 +51,14 @@ Value normxcorr2(std::pmr::memory_resource *mr,
 Value psf2otf(std::pmr::memory_resource *mr,
               const Value &PSF, const Value &outsize);
 
+/// `Y = fftconv2(A, B [, shape])` — 2-D convolution computed via
+/// the FFT. Faster but less accurate than direct conv2 for large
+/// inputs. shape ∈ {"full" (default), "same", "valid"}. Output is
+/// complex (a small imaginary part appears even for real inputs).
+Value fftconv2(std::pmr::memory_resource *mr,
+               const Value &A, const Value &B,
+               const std::string &shape);
+
 /// `psf = otf2psf(OTF [, outsize])` — inverse: ifft2/ifft, then
 /// circularly shift by `+floor(size(PSF)/2)` to recover the
 /// centered PSF. Output is double if the imaginary part is
