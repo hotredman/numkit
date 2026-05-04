@@ -75,4 +75,11 @@ Value imbinarize(std::pmr::memory_resource *mr, const Value &I,
 /// imquantize(I, levels) — quantise into N+1 classes given N thresholds.
 Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels);
 
+/// imhistmatch(I, ref [, nbins]) — adjust I's histogram to match
+/// the reference image's. CDF-matching algorithm. Single-channel.
+/// nbins default 64 for double/single, 256 for uint8, 65536 for
+/// uint16. Output has the same class as I.
+Value imhistmatch(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &ref, int nbins);
+
 } // namespace numkit::image

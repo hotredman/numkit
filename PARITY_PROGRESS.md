@@ -2916,7 +2916,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `im2uint8` | ✅ |  |  |  | OK | bit-replicate up; round-down on uint16 |
 | `imbinarize` | ✅ |  |  |  | OK | scalar T (auto = graythresh) **or per-pixel T matrix** (composes with adaptthresh) |
 | `imquantize` | ✅ |  |  |  | OK | N+1 classes from N levels |
-| `imsplit` | ❌ |  |  |  |  | split RGB → 3 planes |
+| `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
 | `ind2rgb` | ❌ |  |  |  |  |  |
 | `iptnum2ordinal` | ❌ |  |  |  |  |  |
@@ -3077,7 +3077,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imadjust` | ✅ |  |  |  | OK | [low_in high_in] → [low_out high_out] with gamma |
 | `imadjustn` | ❌ |  |  |  |  | N-D variant |
 | `imflatfield` | ❌ |  |  |  |  |  |
-| `imhistmatch` | ❌ |  |  |  |  |  |
+| `imhistmatch` | ✅ |  |  |  | OK | CDF-matching to reference; nbins default 64/256/65536 by class |
 | `imhistmatchn` | ❌ |  |  |  |  |  |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
