@@ -1,0 +1,10 @@
+{
+  "name": "cool",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = cool(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = cool([n]). N×3 cyan→magenta. r=(0:n-1)/(n-1), g=1-r, b=1. Default n=256. Octave core has cool."
+}
