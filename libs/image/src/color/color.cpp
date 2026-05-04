@@ -1072,6 +1072,23 @@ Value hsv_cmap(std::pmr::memory_resource *mr, int n)
     return hsv2rgb(mr, hsv_in);
 }
 
+Value flag_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    static constexpr double kFlag[4][3] = {
+        {1.0, 0.0, 0.0}, {1.0, 1.0, 1.0}, {0.0, 0.0, 1.0}, {0.0, 0.0, 0.0}
+    };
+    for (int i = 0; i < n; ++i) {
+        const int k = i % 4;
+        od[0 * n + i] = kFlag[k][0];
+        od[1 * n + i] = kFlag[k][1];
+        od[2 * n + i] = kFlag[k][2];
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1464,6 +1481,24 @@ void hsv_cmap_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = hsv_cmap(ctx.engine->resource(), n);
+}
+
+void flag_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("flag: N must be a scalar integer",
+                        0, 0, "flag", "", "m:flag:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("flag: N must be a scalar integer",
+                        0, 0, "flag", "", "m:flag:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = flag_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail

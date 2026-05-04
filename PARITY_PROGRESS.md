@@ -3373,3 +3373,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `copper` | — | 0.003 | 212.37× | 38.74× | OK | Sig: map = copper([n]). N×3 black→copper. r=min(5/4*x,1), g=0.7812*x, b=0.4975*x where x=(0:n-1)/(n-1). Default n=256. MATLAB+Octave. |
 | `pink` | — | 0.004 | 254.55× | 62.29× | OK | Sig: map = pink([n]). N×3 pastel pink. 3-piece linspace ramps per channel, then sqrt. Default n=256. MATLAB+Octave both ship pink. |
 | `hsv` | — | 0.004 | 363.64× | 67.60× | OK | Sig: map = hsv([n]). Hue rotation via hsv2rgb([(0:n-1)'/n, 1, 1]). Default n=256. MATLAB+Octave both ship hsv. |
+| `flag` | — | 0.003 | 194.03× | 66.33× | OK | Sig: map = flag([n]). N×3 cycling [1 0 0; 1 1 1; 0 0 1; 0 0 0]. Default n=256. MATLAB+Octave both ship flag. |

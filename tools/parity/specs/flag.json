@@ -1,0 +1,10 @@
+{
+  "name": "flag",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = flag(33);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: map = flag([n]). N×3 cycling [1 0 0; 1 1 1; 0 0 1; 0 0 0]. Default n=256. MATLAB+Octave both ship flag."
+}
