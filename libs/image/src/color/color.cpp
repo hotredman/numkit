@@ -918,6 +918,24 @@ Value summer_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value autumn_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        od[0] = 1.0; od[1] = 0.0; od[2] = 0.0;
+        return out;
+    }
+    const double inv = 1.0 / static_cast<double>(n - 1);
+    for (int i = 0; i < n; ++i) {
+        od[0 * n + i] = 1.0;
+        od[1 * n + i] = static_cast<double>(i) * inv;
+        od[2 * n + i] = 0.0;
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1220,6 +1238,24 @@ void summer_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = summer_cmap(ctx.engine->resource(), n);
+}
+
+void autumn_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("autumn: N must be a scalar integer",
+                        0, 0, "autumn", "", "m:autumn:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("autumn: N must be a scalar integer",
+                        0, 0, "autumn", "", "m:autumn:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = autumn_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail

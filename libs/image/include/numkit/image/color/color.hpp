@@ -99,6 +99,10 @@ Value spring_cmap(std::pmr::memory_resource *mr, int n);
 /// n ≤ 0 → 0×3.
 Value summer_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = autumn([n])` — N×3 red-to-yellow colormap. Default n=256.
+/// r = 1; g = (0:n-1)/(n-1); b = 0. n==1 → [1 0 0]; n ≤ 0 → 0×3.
+Value autumn_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from

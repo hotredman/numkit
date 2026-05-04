@@ -1,0 +1,10 @@
+{
+  "name": "autumn",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = autumn(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = autumn([n]). N×3 red→yellow. r=1, g=(0:n-1)/(n-1), b=0. Default n=256. MATLAB+Octave both ship autumn."
+}
