@@ -1563,13 +1563,13 @@ intentionally omitted.
 
 ## Control System Toolbox — Interconnections
 
-**Namespace:** `control.connect.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+**Namespace:** `control.connect.*` — 3 ✅ + 0 ⚠️ / 7 = 43%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `feedback` | ❌ |  |  |  |  |  |
-| `series` | ❌ |  |  |  |  |  |
-| `parallel` | ❌ |  |  |  |  |  |
+| `feedback` | ✅ |  |  |  | OK | T = G·d_H / (d_G·d_H − sign·n_G·n_H); default sign=−1 |
+| `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
+| `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
 | `connect` | ❌ |  |  |  |  | name-based interconnect |
 | `append` | ❌ |  |  |  |  | block-diagonal stack |
 | `lft` | ❌ |  |  |  |  | linear fractional transform |
