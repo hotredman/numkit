@@ -4,6 +4,7 @@
 // optimisation deferred to a later phase.
 
 #include <numkit/image/color/color.hpp>
+#include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -433,6 +434,106 @@ std::vector<double> rgb_rows(const Value &v, const char *name) {
 
 } // anonymous
 
+namespace {
+
+void wavelength_to_rgb(double lambda, double gamma,
+                       double &r, double &g, double &b)
+{
+    r = g = b = 0.0;
+    if (lambda < 380.0 || lambda > 780.0) return;   // out-of-band → black
+
+    if (lambda < 440.0) {
+        r = -(lambda - 440.0) / 60.0;
+        b = 1.0;
+    } else if (lambda < 490.0) {
+        g = (lambda - 440.0) / 50.0;
+        b = 1.0;
+    } else if (lambda < 510.0) {
+        g = 1.0;
+        b = -(lambda - 510.0) / 20.0;
+    } else if (lambda < 580.0) {
+        r = (lambda - 510.0) / 70.0;
+        g = 1.0;
+    } else if (lambda < 645.0) {
+        r = 1.0;
+        g = -(lambda - 645.0) / 65.0;
+    } else {
+        r = 1.0;
+    }
+
+    double factor = 0.0;
+    if (lambda >= 380.0 && lambda < 420.0)
+        factor = 0.3 + 0.7 * (lambda - 380.0) / 40.0;
+    else if (lambda <= 700.0)
+        factor = 1.0;
+    else if (lambda <= 780.0)
+        factor = 0.3 + 0.7 * (780.0 - lambda) / 80.0;
+
+    r = std::pow(r * factor, gamma);
+    g = std::pow(g * factor, gamma);
+    b = std::pow(b * factor, gamma);
+}
+
+} // anonymous
+
+Value wavelength2rgb(std::pmr::memory_resource *mr,
+                     const Value &wavelength,
+                     const std::string &out_class,
+                     double gamma)
+{
+    if (!(gamma >= 0.0 && gamma <= 1.0))
+        throw Error("wavelength2rgb: gamma must be in [0, 1]",
+                    0, 0, "wavelength2rgb", "", "m:wavelength2rgb:gamma");
+
+    const auto &d = wavelength.dims();
+    const size_t N = wavelength.numel();
+    if (N == 0)
+        return Value::matrix(0, 0, ValueType::DOUBLE, mr);
+
+    // Decide output shape:
+    //   scalar λ            → 1×3 row.
+    //   row vector 1×N       → 1×N×3.
+    //   column vector N×1   → N×1×3.
+    //   matrix M×N (>=2x2)  → M×N×3.
+    Value out;
+    size_t H, W, plane;
+    if (N == 1) {
+        out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+        H = 1; W = 3; plane = 3;
+    } else {
+        H = d.rows(); W = d.cols();
+        out = Value::matrix3d(H, W, 3, ValueType::DOUBLE, mr);
+        plane = H * W;
+    }
+    double *od = out.doubleDataMut();
+
+    if (N == 1) {
+        double r, g, b;
+        wavelength_to_rgb(wavelength.toScalar(), gamma, r, g, b);
+        od[0] = r; od[1] = g; od[2] = b;
+    } else {
+        for (size_t i = 0; i < N; ++i) {
+            double r, g, b;
+            wavelength_to_rgb(wavelength.elemAsDouble(i), gamma, r, g, b);
+            od[0 * plane + i] = r;
+            od[1 * plane + i] = g;
+            od[2 * plane + i] = b;
+        }
+    }
+
+    // Cast to requested class.
+    std::string lo;
+    lo.reserve(out_class.size());
+    for (char c : out_class) lo.push_back(static_cast<char>(std::tolower(c)));
+    if (lo == "double" || lo.empty()) return out;
+    if (lo == "single") return im2single(mr, out);
+    if (lo == "uint8")  return im2uint8(mr, out);
+    if (lo == "uint16") return im2uint16(mr, out);
+    if (lo == "int16")  return im2int16(mr, out);
+    throw Error("wavelength2rgb: unsupported class",
+                0, 0, "wavelength2rgb", "", "m:wavelength2rgb:cls");
+}
+
 Value colorangle(std::pmr::memory_resource *mr,
                  const Value &rgb1, const Value &rgb2)
 {
@@ -585,6 +686,25 @@ void label2rgb_reg(Span<const Value> args, size_t /*nargout*/,
     Value bg;
     if (args.size() >= 3 && !args[2].isEmpty()) bg = args[2];
     outs[0] = label2rgb(ctx.engine->resource(), args[0], args[1], bg);
+}
+
+void wavelength2rgb_reg(Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("wavelength2rgb: requires (wavelength [, class [, gamma]])",
+                    0, 0, "wavelength2rgb", "", "m:wavelength2rgb:nargin");
+    auto *mr = ctx.engine->resource();
+    std::string cls = "double";
+    double gamma = 0.8;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (!args[1].isChar() && !args[1].isString())
+            throw Error("wavelength2rgb: class must be a string",
+                        0, 0, "wavelength2rgb", "", "m:wavelength2rgb:cls");
+        cls = args[1].toString();
+    }
+    if (args.size() >= 3 && !args[2].isEmpty()) gamma = args[2].toScalar();
+    outs[0] = wavelength2rgb(mr, args[0], cls, gamma);
 }
 
 void colorangle_reg(Span<const Value> args, size_t /*nargout*/,

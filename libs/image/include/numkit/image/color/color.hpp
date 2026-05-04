@@ -37,6 +37,17 @@ Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
 
+/// `RGB = wavelength2rgb(wavelength [, class [, gamma]])` —
+/// piecewise visible-light wavelength → RGB mapping (Bruton 1996).
+/// Scalar input returns a 1×3 row; 1-D vector returns
+/// 1×N×3 / N×1×3; 2-D matrix returns H×W×3. `class` defaults to
+/// "double" and `gamma` to 0.8. Output class follows `class`
+/// through the existing im2* helpers.
+Value wavelength2rgb(std::pmr::memory_resource *mr,
+                     const Value &wavelength,
+                     const std::string &out_class,
+                     double gamma);
+
 /// colorangle(rgb1, rgb2) — angle in degrees between two RGB
 /// colours: rad2deg(acos(dot(rgb1, rgb2) / (|rgb1|·|rgb2|))).
 /// Inputs may be 3-element vectors (any orientation) or N×3
