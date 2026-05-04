@@ -3040,7 +3040,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
 | `fwind2` | ❌ |  |  |  |  |  |
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
-| `imbilatfilt` | ❌ |  |  |  |  | bilateral |
+| `imbilatfilt` | ✅ |  |  |  | OK | spatial × range Gaussian; replicate boundary; degrades to imgaussfilt at huge dos |
 | `imboxfilt` | ✅ |  |  |  | OK | average kernel via fspecial + imfilter, replicate boundary |
 | `imboxfilt3` | ❌ |  |  |  |  |  |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |

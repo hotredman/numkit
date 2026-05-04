@@ -82,6 +82,14 @@ Value col2im(std::pmr::memory_resource *mr,
              const Value &B, int m, int n, int mm, int nn,
              const std::string &block_type);
 
+/// imbilatfilt(I, degreeOfSmoothing, spatialSigma) — bilateral
+/// filter. Edge-preserving smoothing: weights combine a spatial
+/// Gaussian (σ = spatialSigma) and a range Gaussian over intensity
+/// difference (variance = degreeOfSmoothing). Boundary = replicate.
+Value imbilatfilt(std::pmr::memory_resource *mr,
+                  const Value &I,
+                  double degreeOfSmoothing, double spatialSigma);
+
 /// imnoise(I, mode[, p1, p2]) — additive / multiplicative noise.
 /// Modes (all match MATLAB R2025b semantics):
 ///   "gaussian"        m=0, var=0.01      J = I + m + sqrt(var)·N(0,1)

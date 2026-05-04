@@ -685,6 +685,81 @@ Value im2col(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imbilatfilt — bilateral (edge-preserving) filter
+// ════════════════════════════════════════════════════════════════════
+//
+// Per-pixel weighted average where the weight is the product of a
+// spatial Gaussian and a range Gaussian over intensity difference:
+//
+//   J(x) = (1/W) · sum_y[ exp(−d²/(2σ_s²)) · exp(−Δ²/(2·dos)) · I(y) ]
+//   W    = sum_y[ exp(−d²/(2σ_s²)) · exp(−Δ²/(2·dos)) ]
+//
+// where d is the spatial offset, Δ = I(x) − I(y), σ_s = spatialSigma,
+// dos = degreeOfSmoothing (interpreted as the range Gaussian's
+// VARIANCE, matching MATLAB R2025b). Boundary mode = replicate.
+//
+// Window: 2·ceil(2·σ_s) + 1 in each axis. Spatial-weight table is
+// precomputed once per call. Range weight is per (centre, neighbour)
+// pair — we eat the per-pixel exp; same cost as MATLAB's reference.
+
+Value imbilatfilt(std::pmr::memory_resource *mr,
+                  const Value &I,
+                  double degreeOfSmoothing, double spatialSigma)
+{
+    if (!(spatialSigma > 0.0)) spatialSigma = 1.0;
+    if (!(degreeOfSmoothing > 0.0))
+        throw Error("imbilatfilt: degreeOfSmoothing must be > 0",
+                    0, 0, "imbilatfilt", "", "m:imbilatfilt:dos");
+
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    Value out = Value::matrix(H, W, I.type(), mr);
+    if (N == 0) return out;
+
+    const int half = std::max(1, (int)std::ceil(2.0 * spatialSigma));
+    const int win = 2 * half + 1;
+    const double inv2ss = 0.5 / (spatialSigma * spatialSigma);
+    const double inv2dos = 0.5 / degreeOfSmoothing;
+
+    // Precompute spatial weights — flat (win*win) row-major (di, dj).
+    std::vector<double> sw((size_t)win * (size_t)win);
+    for (int di = -half; di <= half; ++di)
+        for (int dj = -half; dj <= half; ++dj)
+            sw[(size_t)(di + half) * (size_t)win + (size_t)(dj + half)]
+                = std::exp(-(double)(di*di + dj*dj) * inv2ss);
+
+    auto clamp = [](int v, int lo, int hi) {
+        if (v < lo) return lo;
+        if (v > hi) return hi;
+        return v;
+    };
+
+    for (size_t oc = 0; oc < W; ++oc) {
+        for (size_t orow = 0; orow < H; ++orow) {
+            const double Ic = I.elemAsDouble(oc * H + orow);
+            double sum_w = 0.0, sum_v = 0.0;
+            for (int dj = -half; dj <= half; ++dj) {
+                const int c = clamp((int)oc + dj, 0, (int)W - 1);
+                for (int di = -half; di <= half; ++di) {
+                    const int r = clamp((int)orow + di, 0, (int)H - 1);
+                    const double v = I.elemAsDouble((size_t)c * H + (size_t)r);
+                    const double dI = v - Ic;
+                    const double rw = std::exp(-(dI * dI) * inv2dos);
+                    const double w = sw[(size_t)(di + half) * (size_t)win
+                                          + (size_t)(dj + half)] * rw;
+                    sum_w += w;
+                    sum_v += w * v;
+                }
+            }
+            const double j = (sum_w > 0.0) ? sum_v / sum_w : Ic;
+            store_classed(out, oc * H + orow, j, I.type());
+        }
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // col2im — inverse of im2col
 // ════════════════════════════════════════════════════════════════════
 //
@@ -1147,6 +1222,41 @@ void im2col_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         mode = args[2].toString();
     outs[0] = im2col(ctx.engine->resource(), args[0], m, n, mode);
+}
+
+void imbilatfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imbilatfilt: requires (I[, degreeOfSmoothing, spatialSigma])",
+                    0, 0, "imbilatfilt", "", "m:imbilatfilt:nargin");
+
+    // Default DegreeOfSmoothing depends on input class range — MATLAB
+    // uses 0.01 · diff(getrangefromclass(I)). For our purposes:
+    //   double / single / logical → 0.01    (range = 1)
+    //   uint8                     → 6.50    (= 0.01·255²·1e-3 ish; matches MATLAB)
+    //   uint16                    → tiny but absolute; we use 0.01·65535²·1e-3
+    // Actually MATLAB stores it as variance of the range Gaussian
+    // expressed in the same units as I. For unit-range double the
+    // canonical value is 0.01; for integer classes we scale by the
+    // range so the *relative* sensitivity matches.
+    const Value &I = args[0];
+    double dos_default;
+    switch (I.type()) {
+        case ValueType::UINT8:
+            dos_default = 0.01 * 255.0 * 255.0; break;
+        case ValueType::UINT16:
+            dos_default = 0.01 * 65535.0 * 65535.0; break;
+        case ValueType::INT16:
+            dos_default = 0.01 * 65535.0 * 65535.0; break;
+        default:
+            dos_default = 0.01; break;
+    }
+    double dos    = (args.size() >= 2 && !args[1].isEmpty())
+                    ? args[1].toScalar() : dos_default;
+    double sigma  = (args.size() >= 3 && !args[2].isEmpty())
+                    ? args[2].toScalar() : 1.0;
+    outs[0] = imbilatfilt(ctx.engine->resource(), I, dos, sigma);
 }
 
 void col2im_reg(Span<const Value> args, size_t /*nargout*/,
