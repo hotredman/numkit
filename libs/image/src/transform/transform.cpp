@@ -309,6 +309,112 @@ phantom(std::pmr::memory_resource *mr,
     return {std::move(head), std::move(E)};
 }
 
+Value fftconv2(std::pmr::memory_resource *mr,
+               const Value &A, const Value &B,
+               const std::string &shape)
+{
+    const size_t ra = A.dims().rows(), ca = A.dims().cols();
+    const size_t rb = B.dims().rows(), cb = B.dims().cols();
+    if (ra == 0 || ca == 0 || rb == 0 || cb == 0)
+        return Value::matrix(0, 0, ValueType::COMPLEX, mr);
+
+    const size_t Hf = ra + rb - 1;
+    const size_t Wf = ca + cb - 1;
+    // signal::fft only handles power-of-2 lengths reliably right now,
+    // so round both axes up to the next power of 2 for the transform
+    // and crop afterwards. Linear-convolution semantics are preserved
+    // because the input is zero-padded.
+    auto next_pow2 = [](size_t n) {
+        size_t p = 1;
+        while (p < n) p <<= 1;
+        return p ? p : 1;
+    };
+    const size_t Hp = next_pow2(Hf);
+    const size_t Wp = next_pow2(Wf);
+
+    auto pad_post = [&](const Value &X, size_t Hpad, size_t Wpad) {
+        return padarray(mr, X,
+                        {(int)(Hpad - X.dims().rows()),
+                         (int)(Wpad - X.dims().cols())},
+                        PadMode::Constant, 0.0, "post");
+    };
+    Value Ap = pad_post(A, Hp, Wp);
+    Value Bp = pad_post(B, Hp, Wp);
+
+    Value FA = signal::fft2(mr, Ap);
+    Value FB = signal::fft2(mr, Bp);
+
+    Value FY = Value::matrix(Hp, Wp, ValueType::COMPLEX, mr);
+    {
+        const Complex *a_ = FA.complexData();
+        const Complex *b_ = FB.complexData();
+        Complex *y_       = FY.complexDataMut();
+        const size_t N = Hp * Wp;
+        for (size_t i = 0; i < N; ++i) y_[i] = a_[i] * b_[i];
+    }
+
+    Value Yfull = signal::ifft2(mr, FY);
+
+    // Crop back to the linear-convolution size Hf × Wf.
+    Value Y = Value::matrix(Hf, Wf, Yfull.type(), mr);
+    if (Yfull.type() == ValueType::COMPLEX) {
+        const Complex *src = Yfull.complexData();
+        Complex *dst       = Y.complexDataMut();
+        for (size_t c = 0; c < Wf; ++c)
+            for (size_t r = 0; r < Hf; ++r)
+                dst[c * Hf + r] = src[c * Hp + r];
+    } else {
+        const double *src = Yfull.doubleData();
+        double *dst       = Y.doubleDataMut();
+        for (size_t c = 0; c < Wf; ++c)
+            for (size_t r = 0; r < Hf; ++r)
+                dst[c * Hf + r] = src[c * Hp + r];
+    }
+
+    std::string sh;
+    sh.reserve(shape.size());
+    for (char c : shape) sh.push_back(static_cast<char>(std::tolower(c)));
+    if (sh.empty()) sh = "full";
+    if (sh == "full") return Y;
+
+    size_t r0 = 0, c0 = 0, outH = 0, outW = 0;
+    if (sh == "same") {
+        r0 = rb / 2;
+        c0 = cb / 2;
+        outH = ra;
+        outW = ca;
+    } else if (sh == "valid") {
+        if (ra < rb || ca < cb)
+            return Value::matrix(0, 0, Y.type(), mr);
+        r0 = rb - 1;
+        c0 = cb - 1;
+        outH = ra - rb + 1;
+        outW = ca - cb + 1;
+    } else {
+        throw Error("fftconv2: shape must be 'full', 'same', or 'valid'",
+                    0, 0, "fftconv2", "", "m:fftconv2:shape");
+    }
+
+    if (outH == 0 || outW == 0)
+        return Value::matrix(0, 0, Y.type(), mr);
+
+    Value Ycrop = Value::matrix(outH, outW, Y.type(), mr);
+    if (Y.type() == ValueType::COMPLEX) {
+        const Complex *src = Y.complexData();
+        Complex *dst       = Ycrop.complexDataMut();
+        for (size_t c = 0; c < outW; ++c)
+            for (size_t r = 0; r < outH; ++r)
+                dst[c * outH + r] = src[(c + c0) * Hf + (r + r0)];
+    } else {
+        const double *src = Y.doubleData();
+        double *dst       = Ycrop.doubleDataMut();
+        for (size_t c = 0; c < outW; ++c)
+            for (size_t r = 0; r < outH; ++r)
+                dst[c * outH + r] = src[(c + c0) * Hf + (r + r0)];
+    }
+    return Ycrop;
+}
+
 Value psf2otf(std::pmr::memory_resource *mr,
               const Value &PSF, const Value &outsize)
 {
@@ -594,6 +700,22 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
     Value outsize;
     if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
     outs[0] = psf2otf(ctx.engine->resource(), args[0], outsize);
+}
+
+void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("fftconv2: requires (A, B [, shape])",
+                    0, 0, "fftconv2", "", "m:fftconv2:nargin");
+    std::string shape = "full";
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (!args[2].isChar() && !args[2].isString())
+            throw Error("fftconv2: shape must be a string",
+                        0, 0, "fftconv2", "", "m:fftconv2:shape");
+        shape = args[2].toString();
+    }
+    outs[0] = fftconv2(ctx.engine->resource(), args[0], args[1], shape);
 }
 
 void otf2psf_reg(Span<const Value> args, size_t /*nargout*/,

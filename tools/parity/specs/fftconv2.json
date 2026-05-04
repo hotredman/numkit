@@ -1,0 +1,10 @@
+{
+  "name": "fftconv2",
+  "namespace": "image",
+  "setup": "A = [1 2 3; 4 5 6; 7 8 9]; B = [1 0; 0 -1];",
+  "expr": "y = real(fftconv2(A, B));",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2."
+}

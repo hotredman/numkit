@@ -150,6 +150,7 @@ void normxcorr2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void phantom_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void psf2otf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otf2psf_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void fftconv2_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // io/io.cpp
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -330,6 +331,7 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "normxcorr2",    &image::detail::normxcorr2_reg);
     reg("transform", "psf2otf",       &image::detail::psf2otf_reg);
     reg("transform", "otf2psf",       &image::detail::otf2psf_reg);
+    reg("transform", "fftconv2",      &image::detail::fftconv2_reg);
     reg("transform", "phantom",       &image::detail::phantom_reg);
 
     reg("io", "imread",  &image::detail::imread_reg);
