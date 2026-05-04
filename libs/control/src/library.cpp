@@ -50,6 +50,9 @@ void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/state.cpp
 void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+// lyapunov/lyapunov.cpp
+void lyap_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dlyap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // (Conversion entry points like tf2zp / zp2tf / tf2ss / ss2tf already
 //  live in libs/builtin and libs/signal — we don't shadow them here.)
 } // namespace numkit::control::detail
@@ -104,6 +107,9 @@ void ControlLibrary::install(Engine &engine)
 
     reg("state", "ctrb", &control::detail::ctrb_reg);
     reg("state", "obsv", &control::detail::obsv_reg);
+
+    reg("lyap", "lyap",  &control::detail::lyap_reg);
+    reg("lyap", "dlyap", &control::detail::dlyap_reg);
 }
 
 } // namespace numkit
