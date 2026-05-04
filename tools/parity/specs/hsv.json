@@ -1,0 +1,10 @@
+{
+  "name": "hsv",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = hsv(64);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = hsv([n]). Hue rotation via hsv2rgb([(0:n-1)'/n, 1, 1]). Default n=256. MATLAB+Octave both ship hsv."
+}
