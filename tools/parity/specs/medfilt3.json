@@ -1,0 +1,10 @@
+{
+  "name": "medfilt3",
+  "namespace": "image",
+  "setup": "V = reshape(mod((1:125), 7) / 6, 5, 5, 5);",
+  "expr": "y = medfilt3(V);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3."
+}
