@@ -3366,3 +3366,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `gray` | — | 0.003 |  | 12.94× | OK | Sig: map = gray([n]). N×3 grayscale colormap. Default n=256 (we don't track figure colormap state). n==1 → [0 0 0]; n<=0 → 0×3. Octave core has gray. |
 | `hot` | — | 0.004 |  | 11.72× | OK | Sig: map = hot([n]). N×3 black→red→yellow→white colormap. Default n=256. Octave core has hot. |
 | `cool` | — | 0.004 |  | 59.77× | OK | Sig: map = cool([n]). N×3 cyan→magenta. r=(0:n-1)/(n-1), g=1-r, b=1. Default n=256. Octave core has cool. |
+| `spring` | — | 0.003 | 142.79× | 68.25× | OK | Sig: map = spring([n]). N×3 magenta→yellow. r=1, g=(0:n-1)/(n-1), b=1-g. Default n=256. Octave core has spring. |
