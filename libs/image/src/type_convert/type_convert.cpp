@@ -315,6 +315,50 @@ inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
 
 } // anonymous
 
+Value imcast(std::pmr::memory_resource *mr,
+             const Value &I, const std::string &type)
+{
+    std::string lo;
+    lo.reserve(type.size());
+    for (char c : type) lo.push_back(static_cast<char>(std::tolower(c)));
+
+    auto cls_of = [](ValueType t) -> const char * {
+        switch (t) {
+            case ValueType::DOUBLE:  return "double";
+            case ValueType::SINGLE:  return "single";
+            case ValueType::UINT8:   return "uint8";
+            case ValueType::UINT16:  return "uint16";
+            case ValueType::INT16:   return "int16";
+            case ValueType::LOGICAL: return "logical";
+            default:                 return "?";
+        }
+    };
+
+    if (lo == cls_of(I.type())) return I;
+
+    if (lo == "double")  return im2double(mr, I);
+    if (lo == "single")  return im2single(mr, I);
+    if (lo == "uint8")   return im2uint8(mr, I);
+    if (lo == "uint16")  return im2uint16(mr, I);
+    if (lo == "int16")   return im2int16(mr, I);
+    if (lo == "logical") {
+        const auto &d = I.dims();
+        Value out = d.is3D()
+            ? Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                              ValueType::LOGICAL, mr)
+            : Value::matrix(d.rows(), d.cols(), ValueType::LOGICAL, mr);
+        const size_t N = I.numel();
+        std::uint8_t *od = out.logicalDataMut();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = I.elemAsDouble(i);
+            od[i] = (v != 0.0 && !std::isnan(v)) ? 1u : 0u;
+        }
+        return out;
+    }
+    throw Error("imcast: unsupported TYPE", 0, 0, "imcast", "",
+                "m:imcast:type");
+}
+
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
 {
     Value r = Value::matrix(1, 2, ValueType::DOUBLE, mr);
@@ -475,6 +519,18 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         hi = args[1].elemAsDouble(1);
     }
     outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+}
+
+void imcast_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imcast: requires (I, type)",
+                    0, 0, "imcast", "", "m:imcast:nargin");
+    if (!args[1].isChar() && !args[1].isString())
+        throw Error("imcast: TYPE must be a string",
+                    0, 0, "imcast", "", "m:imcast:type");
+    outs[0] = imcast(ctx.engine->resource(), args[0], args[1].toString());
 }
 
 void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
