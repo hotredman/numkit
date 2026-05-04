@@ -3052,8 +3052,8 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imnlmfilt` | ❌ |  |  |  |  | non-local means |
 | `integralBoxFilter` | ❌ |  |  |  |  |  |
 | `integralBoxFilter3` | ❌ |  |  |  |  |  |
-| `integralImage` | ❌ |  |  |  |  |  |
-| `integralImage3` | ❌ |  |  |  |  |  |
+| `integralImage` | ❌ | 0.003 |  | 89.33× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
+| `integralImage3` | ❌ | 0.003 |  | 56.66× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
 | `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `medfilt3` | ❌ |  |  |  |  |  |
 | `modefilt` | ❌ |  |  |  |  |  |

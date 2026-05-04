@@ -111,9 +111,11 @@ void psnr_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // transform/transform.cpp
-void dct2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
-void idct2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
-void dctmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dct2_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
+void idct2_reg         (Span<const Value>, size_t, Span<Value>, CallContext &);
+void dctmtx_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void integralImage_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void integralImage3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // io/io.cpp
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -252,9 +254,11 @@ void ImageLibrary::install(Engine &engine)
     reg("quality", "psnr",  &image::detail::psnr_reg);
     reg("quality", "ssim",  &image::detail::ssim_reg);
 
-    reg("transform", "dct2",   &image::detail::dct2_reg);
-    reg("transform", "idct2",  &image::detail::idct2_reg);
-    reg("transform", "dctmtx", &image::detail::dctmtx_reg);
+    reg("transform", "dct2",          &image::detail::dct2_reg);
+    reg("transform", "idct2",         &image::detail::idct2_reg);
+    reg("transform", "dctmtx",        &image::detail::dctmtx_reg);
+    reg("transform", "integralImage", &image::detail::integralImage_reg);
+    reg("transform", "integralImage3",&image::detail::integralImage3_reg);
 
     reg("io", "imread",  &image::detail::imread_reg);
     reg("io", "imwrite", &image::detail::imwrite_reg);

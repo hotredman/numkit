@@ -1,0 +1,10 @@
+{
+  "name": "integralImage",
+  "namespace": "image",
+  "setup": "I = [16 2 3 13; 5 11 10 8; 9 7 6 12; 4 14 15 1];",
+  "expr": "y = integralImage(I);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK."
+}
