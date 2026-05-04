@@ -556,6 +556,80 @@ Value imextendedmin(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imimposemin — minima imposition (Soille 1999, §6.3.1)
+// ════════════════════════════════════════════════════════════════════
+//
+// Force the regional minima of `I` to be exactly the pixels marked
+// in `BW`. Soille's recipe via reconstruction by erosion:
+//
+//   marker  fm = -∞ at BW, +∞ elsewhere
+//   mask    m  = min(I, fm) = -∞ at BW, I elsewhere
+//   J          = R^E_m(fm)        (erosion-reconstruction)
+//
+// Reconstruction by erosion is realised by complementing into the
+// dilation domain: with T a strict upper bound on the working range,
+//   J = T − imreconstruct(T − fm, T − m, conn).
+// At marker pixels this pins J to a "floor" value; at non-marker
+// pixels it lifts the value to the lowest plateau height through
+// which a path to a marker passes — so any old basin boundary
+// crossed without going through a marker erases the basin.
+
+Value imimposemin(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &BW, int conn)
+{
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    if (BW.dims().rows() != H || BW.dims().cols() != W)
+        throw Error("imimposemin: I and BW must have the same shape",
+                    0, 0, "imimposemin", "", "m:imimposemin:shape");
+    if (N == 0) return Value::matrix(H, W, ValueType::DOUBLE, mr);
+
+    // Pick finite sentinels: low strictly below all of I, high above.
+    double minI =  std::numeric_limits<double>::infinity();
+    double maxI = -std::numeric_limits<double>::infinity();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        if (v < minI) minI = v;
+        if (v > maxI) maxI = v;
+    }
+    if (!std::isfinite(minI)) minI = 0.0;
+    if (!std::isfinite(maxI)) maxI = 0.0;
+    const double low  = minI - 1.0;
+    const double high = maxI + 1.0;
+    const double T    = high + 1.0;   // T > high ⇒ T - x ≥ 1 for any x ≤ high
+
+    Value mask    = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value marker  = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *md = mask.doubleDataMut();
+    double *gd = marker.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const bool b = (BW.elemAsDouble(i) != 0.0);
+        const double v = I.elemAsDouble(i);
+        md[i] = b ? low : v;
+        gd[i] = b ? low : high;
+    }
+
+    // Complement to dilation domain.
+    Value m_inv  = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value g_inv  = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *mi = m_inv.doubleDataMut();
+    double *gi = g_inv.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        mi[i] = T - md[i];
+        gi[i] = T - gd[i];
+    }
+
+    Value J_inv = imreconstruct(mr, g_inv, m_inv, conn);
+
+    Value J = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = J.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        jd[i] = T - J_inv.elemAsDouble(i);
+    return J;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -700,6 +774,17 @@ void imextendedmin_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imextendedmin(ctx.engine->resource(), args[0], h, conn);
+}
+
+void imimposemin_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imimposemin: requires (I, BW [, conn])",
+                    0, 0, "imimposemin", "", "m:imimposemin:nargin");
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imimposemin(ctx.engine->resource(), args[0], args[1], conn);
 }
 
 } // namespace detail
