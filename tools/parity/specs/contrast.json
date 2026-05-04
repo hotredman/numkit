@@ -1,0 +1,10 @@
+{
+  "name": "contrast",
+  "namespace": "image",
+  "setup": "X = reshape(1:16, 4, 4);",
+  "expr": "y = [contrast(X, 8); contrast(X, 4)];",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: cmap = contrast(x[, m]). Histogram-equalising gray colormap. Per MATLAB R2025b cleve-moler algorithm: scale to [0,m-1] ints, concat with [0..m], find rising edges. MATLAB+Octave both ship contrast but Octave gives slightly different values; we follow MATLAB."
+}

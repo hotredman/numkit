@@ -184,6 +184,15 @@ Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz);
 Value brighten(std::pmr::memory_resource *mr,
                const Value &map, double beta);
 
+/// `cmap = contrast(x[, m])` — gray colormap that equalises image
+/// histogram. Per MATLAB R2025b: scale x to [0, m-1] integers,
+/// concat with [0..m], sort, return rising-edge positions divided
+/// by their max as a length-≈m gray colormap. Three identical
+/// columns. Default `m` = 64 in our impl (no figure colormap to
+/// inherit). Octave ships a similar function but its output
+/// disagrees with MATLAB's; we follow MATLAB.
+Value contrast(std::pmr::memory_resource *mr, const Value &x, int m);
+
 /// `delE = deltaE(I1, I2[, 'isInputLab', tf])` — CIE76 colour
 /// difference. Default treats inputs as RGB and converts to L*a*b*
 /// internally; pass `isInputLab=true` to skip the conversion.

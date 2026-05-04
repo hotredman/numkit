@@ -1287,6 +1287,61 @@ Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
     return out;
 }
 
+Value contrast(std::pmr::memory_resource *mr, const Value &x, int m)
+{
+    if (m < 2)
+        throw Error("contrast: M must be >= 2",
+                    0, 0, "contrast", "", "m:contrast:m");
+    const size_t Nx = x.numel();
+    if (Nx == 0)
+        throw Error("contrast: input image must be non-empty",
+                    0, 0, "contrast", "", "m:contrast:empty");
+
+    double xmin = x.elemAsDouble(0), xmax = xmin;
+    for (size_t i = 1; i < Nx; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (v < xmin) xmin = v;
+        if (v > xmax) xmax = v;
+    }
+    const double range = xmax - xmin;
+    // MATLAB rounds (m-1)*(x-xmin)/range. With xmin == xmax, div by zero —
+    // MATLAB yields NaN map; we throw to keep output well-defined.
+    if (!(range > 0.0))
+        throw Error("contrast: image must have non-zero intensity range",
+                    0, 0, "contrast", "", "m:contrast:flat");
+
+    std::vector<double> sorted;
+    sorted.reserve(Nx + static_cast<size_t>(m + 1));
+    const double inv_range = 1.0 / range;
+    for (size_t i = 0; i < Nx; ++i) {
+        const double v = x.elemAsDouble(i);
+        sorted.push_back(std::round((m - 1) * (v - xmin) * inv_range));
+    }
+    for (int k = 0; k <= m; ++k)
+        sorted.push_back(static_cast<double>(k));
+    std::sort(sorted.begin(), sorted.end());
+
+    // f = 1-based positions where sorted[i+1] != sorted[i].
+    std::vector<double> f;
+    f.reserve(static_cast<size_t>(m));
+    for (size_t i = 0; i + 1 < sorted.size(); ++i)
+        if (sorted[i + 1] != sorted[i])
+            f.push_back(static_cast<double>(i + 1));
+    if (f.empty())
+        return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    const double fmax = f.back();  // sorted, last is max
+    const size_t N = f.size();
+    Value out = Value::matrix(N, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = f[i] / fmax;
+        od[0 * N + i] = v;
+        od[1 * N + i] = v;
+        od[2 * N + i] = v;
+    }
+    return out;
+}
+
 Value brighten(std::pmr::memory_resource *mr, const Value &map, double beta)
 {
     if (!(beta > -1.0 && beta < 1.0))
@@ -2000,6 +2055,23 @@ void brighten_reg(Span<const Value> args, size_t /*nargout*/,
                     "m:brighten:nargin");
     const double beta = args[1].toScalar();
     outs[0] = brighten(ctx.engine->resource(), args[0], beta);
+}
+
+void contrast_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("contrast: requires (X[, m])", 0, 0, "contrast", "",
+                    "m:contrast:nargin");
+    int m = 64;
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const double d = args[1].toScalar();
+        if (!std::isfinite(d) || d < 2.0)
+            throw Error("contrast: M must be a finite scalar >= 2",
+                        0, 0, "contrast", "", "m:contrast:m");
+        m = static_cast<int>(d);
+    }
+    outs[0] = contrast(ctx.engine->resource(), args[0], m);
 }
 
 void deltaE_reg(Span<const Value> args, size_t /*nargout*/,
