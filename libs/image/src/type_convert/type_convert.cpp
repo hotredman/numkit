@@ -390,6 +390,138 @@ Value imcast(std::pmr::memory_resource *mr,
                 "m:imcast:type");
 }
 
+namespace {
+
+Value gray_colormap(std::pmr::memory_resource *mr, int n)
+{
+    Value map = Value::matrix(static_cast<size_t>(n), 3,
+                              ValueType::DOUBLE, mr);
+    double *md = map.doubleDataMut();
+    if (n <= 0) return map;
+    if (n == 1) {
+        md[0] = md[1] = md[2] = 0.0;
+        return map;
+    }
+    for (int i = 0; i < n; ++i) {
+        const double v = static_cast<double>(i) / static_cast<double>(n - 1);
+        md[0 * n + i] = v;
+        md[1 * n + i] = v;
+        md[2 * n + i] = v;
+    }
+    return map;
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+gray2ind(std::pmr::memory_resource *mr, const Value &I, int n)
+{
+    if (n < 1 || n > 65536)
+        throw Error("gray2ind: N must be in [1, 65536]",
+                    0, 0, "gray2ind", "", "m:gray2ind:n");
+
+    const ValueType cls = I.type();
+    const auto &d = I.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t N = I.numel();
+    const ValueType outT = (n <= 256) ? ValueType::UINT8
+                                       : ValueType::UINT16;
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, d.pages(), outT, mr)
+        : Value::matrix(H, W, outT, mr);
+    Value map = gray_colormap(mr, n);
+    if (N == 0) return {std::move(out), std::move(map)};
+
+    double low = 0.0, scale = 1.0;
+    const bool isFloat = (cls == ValueType::DOUBLE || cls == ValueType::SINGLE);
+    switch (cls) {
+        case ValueType::UINT8:  scale = 255.0;                       break;
+        case ValueType::UINT16: scale = 65535.0;                     break;
+        case ValueType::INT16:  low = -32768.0; scale = 65535.0;     break;
+        case ValueType::DOUBLE:
+        case ValueType::SINGLE:
+        case ValueType::LOGICAL: scale = 1.0;                        break;
+        default:
+            throw Error("gray2ind: unsupported class",
+                        0, 0, "gray2ind", "", "m:gray2ind:cls");
+    }
+    if (isFloat) {
+        for (size_t i = 0; i < N; ++i) {
+            const double v = I.elemAsDouble(i);
+            if (v < 0.0 || v > 1.0)
+                throw Error("gray2ind: float values must be in [0, 1]",
+                            0, 0, "gray2ind", "", "m:gray2ind:range");
+        }
+    }
+    const double k = static_cast<double>(n - 1) / scale;
+    // MATLAB / Octave's integer cast rounds half-away-from-zero, not
+    // truncates toward zero.
+    if (outT == ValueType::UINT8) {
+        std::uint8_t *od = out.uint8DataMut();
+        for (size_t i = 0; i < N; ++i) {
+            double v = std::lround((I.elemAsDouble(i) - low) * k);
+            if (v < 0)   v = 0;
+            if (v > 255) v = 255;
+            od[i] = static_cast<std::uint8_t>(v);
+        }
+    } else {
+        std::uint16_t *od = out.uint16DataMut();
+        for (size_t i = 0; i < N; ++i) {
+            double v = std::lround((I.elemAsDouble(i) - low) * k);
+            if (v < 0)     v = 0;
+            if (v > 65535) v = 65535;
+            od[i] = static_cast<std::uint16_t>(v);
+        }
+    }
+    return {std::move(out), std::move(map)};
+}
+
+Value ind2gray(std::pmr::memory_resource *mr,
+               const Value &idx, const Value &map)
+{
+    const auto &d = idx.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t N = idx.numel();
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+
+    Value m_eff;
+    int M = 0;
+    if (map.numel() == 0) {
+        double mx = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double v = idx.elemAsDouble(i);
+            if (v > mx) mx = v;
+        }
+        M = std::max(64, static_cast<int>(std::ceil(mx)) + 1);
+        m_eff = gray_colormap(mr, M);
+    } else {
+        if (map.dims().cols() != 3)
+            throw Error("ind2gray: map must be N-by-3",
+                        0, 0, "ind2gray", "", "m:ind2gray:map");
+        m_eff = map;
+        M = static_cast<int>(map.dims().rows());
+    }
+
+    double *od = out.doubleDataMut();
+    const bool isFloatIdx = (idx.type() == ValueType::DOUBLE ||
+                             idx.type() == ValueType::SINGLE);
+    for (size_t i = 0; i < N; ++i) {
+        long long k = static_cast<long long>(idx.elemAsDouble(i));
+        if (isFloatIdx) k -= 1;
+        if (k < 0)  k = 0;
+        if (k >= M) k = M - 1;
+        // Read column 0 of the gray map (all 3 channels are equal in a
+        // strict grayscale colormap).
+        od[i] = m_eff.elemAsDouble(static_cast<size_t>(k));
+    }
+    return out;
+}
+
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
 {
     Value r = Value::matrix(1, 2, ValueType::DOUBLE, mr);
@@ -572,6 +704,31 @@ void imcast_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imcast: TYPE must be a string",
                     0, 0, "imcast", "", "m:imcast:type");
     outs[0] = imcast(ctx.engine->resource(), args[0], args[1].toString());
+}
+
+void gray2ind_reg(Span<const Value> args, size_t nargout,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("gray2ind: requires (I [, n])",
+                    0, 0, "gray2ind", "", "m:gray2ind:nargin");
+    int n = (args[0].type() == ValueType::LOGICAL) ? 2 : 64;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        n = static_cast<int>(args[1].toScalar());
+    auto [ind, map] = gray2ind(ctx.engine->resource(), args[0], n);
+    outs[0] = std::move(ind);
+    if (nargout > 1) outs[1] = std::move(map);
+}
+
+void ind2gray_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("ind2gray: requires (idx [, map])",
+                    0, 0, "ind2gray", "", "m:ind2gray:nargin");
+    Value mp;
+    if (args.size() >= 2 && !args[1].isEmpty()) mp = args[1];
+    outs[0] = ind2gray(ctx.engine->resource(), args[0], mp);
 }
 
 void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
