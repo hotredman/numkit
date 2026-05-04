@@ -195,6 +195,11 @@ void ImageLibrary::install(Engine &engine)
     reg("contrast", "adaptthresh",&image::detail::adaptthresh_reg);
     reg("contrast", "imhistmatch",&image::detail::imhistmatch_reg);
 
+    // imadjustn — N-D variant of imadjust. Our imadjust already
+    // handles 3-D arrays elementwise on the unit-range mapping, so
+    // an alias is exact: imadjustn(I) ≡ imadjust(I).
+    reg("contrast", "imadjustn",  &image::detail::imadjust_reg);
+
     reg("type",  "graythresh",   &image::detail::graythresh_reg);
     reg("type",  "otsuthresh",   &image::detail::otsuthresh_reg);
     reg("type",  "multithresh",  &image::detail::multithresh_reg);
