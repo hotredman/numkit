@@ -103,4 +103,13 @@ Value bwareafilt(std::pmr::memory_resource *mr,
                  const Value &BW, double lo, double hi,
                  size_t n_keep, bool keep_largest, int conn);
 
+/// `[imout, idx] = bwselect(BW, cols, rows[, conn])` — select all
+/// connected components that contain any of the seed pixels
+/// (`cols(k)`, `rows(k)`), 1-based. Connectivity 4 or 8 (default 8).
+/// Returns a logical mask of the same size as BW; second output is a
+/// column of 1-based linear (column-major) pixel indices that survive.
+std::tuple<Value, Value>
+bwselect(std::pmr::memory_resource *mr, const Value &BW,
+         const Value &cols, const Value &rows, int conn);
+
 } // namespace numkit::image
