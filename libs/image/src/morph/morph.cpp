@@ -754,6 +754,57 @@ Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
     return tophat_subtract(mr, closed, I);
 }
 
+Value bwpack(std::pmr::memory_resource *mr, const Value &BW)
+{
+    constexpr size_t CLASS_BITS = 32;
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    const size_t outH = (H + CLASS_BITS - 1) / CLASS_BITS;
+    Value out = Value::matrix(outH, W, ValueType::UINT32, mr);
+    if (outH == 0 || W == 0) return out;
+    uint32_t *od = out.uint32DataMut();
+
+    for (size_t c = 0; c < W; ++c) {
+        for (size_t orow = 0; orow < outH; ++orow) {
+            uint32_t word = 0;
+            for (size_t b = 0; b < CLASS_BITS; ++b) {
+                const size_t r = orow * CLASS_BITS + b;
+                if (r >= H) break;
+                if (BW.elemAsDouble(c * H + r) != 0.0)
+                    word |= (uint32_t{1} << b);
+            }
+            od[c * outH + orow] = word;
+        }
+    }
+    return out;
+}
+
+Value bwunpack(std::pmr::memory_resource *mr, const Value &BWP, size_t M)
+{
+    constexpr size_t CLASS_BITS = 32;
+    const size_t pH = BWP.dims().rows();
+    const size_t W  = BWP.dims().cols();
+    if (M == static_cast<size_t>(-1)) M = pH * CLASS_BITS;
+    if (M > pH * CLASS_BITS)
+        throw Error("bwunpack: M exceeds packed-row capacity",
+                    0, 0, "bwunpack", "", "m:bwunpack:M");
+
+    Value out = Value::matrix(M, W, ValueType::LOGICAL, mr);
+    if (M == 0 || W == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+    const uint32_t *pd = BWP.uint32Data();
+
+    for (size_t c = 0; c < W; ++c) {
+        for (size_t r = 0; r < M; ++r) {
+            const size_t orow = r / CLASS_BITS;
+            const size_t b    = r % CLASS_BITS;
+            const uint32_t bit = (pd[c * pH + orow] >> b) & 1u;
+            od[c * M + r] = static_cast<uint8_t>(bit);
+        }
+    }
+    return out;
+}
+
 Value applylut(std::pmr::memory_resource *mr,
                const Value &BW, const Value &LUT)
 {
@@ -1078,6 +1129,27 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
                     "m:imbothat:nargin");
     outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
+}
+
+void bwpack_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bwpack: requires (BW)", 0, 0, "bwpack", "",
+                    "m:bwpack:nargin");
+    outs[0] = bwpack(ctx.engine->resource(), args[0]);
+}
+
+void bwunpack_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bwunpack: requires (BWP [, M])",
+                    0, 0, "bwunpack", "", "m:bwunpack:nargin");
+    size_t M = static_cast<size_t>(-1);
+    if (args.size() >= 2 && !args[1].isEmpty())
+        M = static_cast<size_t>(args[1].toScalar());
+    outs[0] = bwunpack(ctx.engine->resource(), args[0], M);
 }
 
 void applylut_reg(Span<const Value> args, size_t /*nargout*/,

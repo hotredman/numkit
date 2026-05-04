@@ -137,6 +137,16 @@ Value imtophat(std::pmr::memory_resource *mr,
 Value imbothat(std::pmr::memory_resource *mr,
                const Value &I, const Value &SE);
 
+/// `bwp = bwpack(BW)` — pack a binary image along the row axis into
+/// uint32 columns. Each 32 rows of `BW` become one uint32; bit 0
+/// corresponds to the first row, bit 31 to the 32nd. Output rows
+/// = ceil(M / 32). Zero-padded if M not a multiple of 32.
+Value bwpack(std::pmr::memory_resource *mr, const Value &BW);
+
+/// `BW = bwunpack(BWP, M)` — inverse of bwpack. `M` is the original
+/// row count; defaults to rows(BWP)*32. Output is logical.
+Value bwunpack(std::pmr::memory_resource *mr, const Value &BWP, size_t M);
+
 /// `A = applylut(BW, LUT)` — apply a neighbourhood lookup table to
 /// a binary image. LUT length must be 2^(n²) for some n; common
 /// choices are n=2 (length 16) and n=3 (length 512). Each output

@@ -3115,7 +3115,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `bwlookup` | ❌ |  |  |  |  |  |
 | `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
 | `bwmorph3` | ❌ |  |  |  |  |  |
-| `bwpack` | ❌ |  |  |  |  |  |
+| `bwpack` | ❌ | 0.004 |  | 61.12× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
 | `bwperim` | ❌ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwskel` | ❌ |  |  |  |  | skeletonize |
 | `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
