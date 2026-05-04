@@ -3353,3 +3353,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `impyramid_expand` | — | 0.004 |  | 115.34× | OK | Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). Cross-check expand variant separately. |
+| `axes2pix` | — | 0.004 |  | 25.07× | OK | Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix. |

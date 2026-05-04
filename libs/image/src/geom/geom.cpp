@@ -304,6 +304,38 @@ Value imtranslate(std::pmr::memory_resource *mr,
     return B;
 }
 
+Value axes2pix(std::pmr::memory_resource *mr,
+               double n, const Value &extent, const Value &axesCoord)
+{
+    if (extent.numel() < 1)
+        throw Error("axes2pix: EXTENT must be a non-empty vector",
+                    0, 0, "axes2pix", "", "m:axes2pix:extent");
+
+    const double e0 = extent.elemAsDouble(0);
+    const double e1 = extent.elemAsDouble(extent.numel() - 1);
+    const bool degenerate = (n == 1.0) || (e0 == e1);
+    const double pixelWidth = degenerate ? 1.0 : (e1 - e0) / (n - 1.0);
+
+    const auto &d = axesCoord.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    Value out;
+    if (d.is3D())
+        out = Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr);
+    else
+        out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (axesCoord.numel() == 0) return out;
+
+    double *od = out.doubleDataMut();
+    const size_t N = axesCoord.numel();
+    for (size_t i = 0; i < N; ++i) {
+        const double a = axesCoord.elemAsDouble(i);
+        od[i] = degenerate ? (a - e0 + 1.0)
+                           : ((a - e0) / pixelWidth + 1.0);
+    }
+    return out;
+}
+
 Value impyramid(std::pmr::memory_resource *mr,
                 const Value &A, const std::string &type)
 {
@@ -481,6 +513,16 @@ void imtranslate_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> out
     outs[0] = imtranslate(ctx.engine->resource(), args[0],
                           args[1].elemAsDouble(0),
                           args[1].elemAsDouble(1));
+}
+
+void axes2pix_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("axes2pix: requires (n, extent, axesCoord)",
+                    0, 0, "axes2pix", "", "m:axes2pix:nargin");
+    const double n = args[0].toScalar();
+    outs[0] = axes2pix(ctx.engine->resource(), n, args[1], args[2]);
 }
 
 void impyramid_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
