@@ -61,6 +61,7 @@ void lab2xyz_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void label2rgb_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void colorangle_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void wavelength2rgb_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void colorgradient_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -246,6 +247,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "colorangle",    &image::detail::colorangle_reg);
     reg("color", "wavelength2rgb",
                                   &image::detail::wavelength2rgb_reg);
+    reg("color", "colorgradient", &image::detail::colorgradient_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);

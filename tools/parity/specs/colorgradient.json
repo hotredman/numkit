@@ -1,0 +1,10 @@
+{
+  "name": "colorgradient",
+  "namespace": "image",
+  "setup": "C = [0 0 1; 1 1 0; 1 0 0];",
+  "expr": "y = colorgradient(C, 16);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: M = colorgradient(C [, w] [, n]). K-by-3 anchor RGB; piecewise linspace; default n=64. Octave-image has colorgradient. Default uses rows(colormap) but we don't have a graphics colormap so we default to n=64."
+}

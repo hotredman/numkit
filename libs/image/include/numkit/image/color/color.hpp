@@ -47,6 +47,13 @@ Value lab2single (std::pmr::memory_resource *mr, const Value &lab);
 Value lab2uint8  (std::pmr::memory_resource *mr, const Value &lab);
 Value lab2uint16 (std::pmr::memory_resource *mr, const Value &lab);
 
+/// `M = colorgradient(C [, w] [, n])` — colormap that smoothly
+/// traverses the K-by-3 anchor RGB colors `C` with relative segment
+/// weights `w` (length K-1, default ones) into `n` output rows
+/// (default 64). Per-segment linspace; output is double N×3.
+Value colorgradient(std::pmr::memory_resource *mr,
+                    const Value &C, const Value &w, int n);
+
 /// `RGB = wavelength2rgb(wavelength [, class [, gamma]])` —
 /// piecewise visible-light wavelength → RGB mapping (Bruton 1996).
 /// Scalar input returns a 1×3 row; 1-D vector returns
