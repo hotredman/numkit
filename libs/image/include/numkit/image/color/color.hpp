@@ -146,6 +146,10 @@ Value lines_cmap(std::pmr::memory_resource *mr, int n);
 /// n==2 → [1/16 1/8 1/8; 1 1 1]; n ≤ 0 → 0×3.
 Value bone_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = white([n])` — N×3 all-ones colormap. Default n=256.
+/// n ≤ 0 → 0×3.
+Value white_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
