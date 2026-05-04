@@ -3154,7 +3154,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `deconvwnr` | ❌ |  |  |  |  | Wiener |
 | `edgetaper` | ❌ |  |  |  |  |  |
 | `otf2psf` | ❌ |  |  |  |  |  |
-| `psf2otf` | ❌ |  |  |  |  |  |
+| `psf2otf` | ❌ | 0.005 |  | 56.46× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
 
 ## Neighborhood and Block Processing
 

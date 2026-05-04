@@ -43,6 +43,21 @@ Value checkerboard(std::pmr::memory_resource *mr,
 Value normxcorr2(std::pmr::memory_resource *mr,
                  const Value &templ, const Value &img);
 
+/// `otf = psf2otf(PSF [, outsize])` — Optical Transfer Function
+/// from a Point Spread Function. Pads PSF with zeros to `outsize`,
+/// circularly shifts by `-floor(size(PSF)/2)` so the PSF center
+/// lands at the origin, then applies fft2 (2-D) or fft (1-D).
+/// Output is complex.
+Value psf2otf(std::pmr::memory_resource *mr,
+              const Value &PSF, const Value &outsize);
+
+/// `psf = otf2psf(OTF [, outsize])` — inverse: ifft2/ifft, then
+/// circularly shift by `+floor(size(PSF)/2)` to recover the
+/// centered PSF. Output is double if the imaginary part is
+/// negligible, complex otherwise.
+Value otf2psf(std::pmr::memory_resource *mr,
+              const Value &OTF, const Value &outsize);
+
 /// phantom([model | E] [, n]) — Shepp-Logan computational head
 /// phantom. `model` is "Shepp-Logan" or "Modified Shepp-Logan"
 /// (default). `E` is an N×6 matrix of ellipse parameters
