@@ -2336,6 +2336,16 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                 std::find(kw.begin(), kw.end(), s) != kw.end(), mr);
         });
 
+    // full(A) — convert sparse to dense. numkit doesn't have a sparse
+    // class, so inputs are always dense and `full` is the identity.
+    engine.registerFunction("full",
+        [](Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
+           CallContext & /*ctx*/) {
+            if (args.empty())
+                throw std::runtime_error("full requires 1 argument");
+            outs[0] = args[0];
+        });
+
     // freqspace(n) — frequency-spacing vector for FFT-style problems.
     // MATLAB R2025b semantics:
     //   freqspace(n) default form:

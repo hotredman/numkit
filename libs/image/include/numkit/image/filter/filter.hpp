@@ -131,6 +131,15 @@ Value imsmooth(std::pmr::memory_resource *mr,
 Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
                  int fH, int fW, int fP);
 
+/// `T = convmtx2(h, m, n)` or `convmtx2(h, [m n])` — convolution
+/// matrix for 2-D 'full' convolution. Output is dense
+/// (m+M-1)*(n+N-1) by m*n where h is M×N. Multiplying T by
+/// vec(I) (col-major) produces vec(conv2(I, h, 'full')).
+/// MATLAB returns a sparse matrix; we return dense (numkit doesn't
+/// have sparse). Output type is double regardless of input class.
+Value convmtx2(std::pmr::memory_resource *mr,
+               const Value &h, int m, int n);
+
 
 /// entropyfilt(I [, domain]) — local Shannon entropy in bits.
 /// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),

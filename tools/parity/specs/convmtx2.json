@@ -1,0 +1,10 @@
+{
+  "name": "convmtx2",
+  "namespace": "image",
+  "setup": "h = [1 2 3; 4 5 6]; T = convmtx2(h, 4, 4);",
+  "expr": "y = full(T);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2."
+}

@@ -3028,7 +3028,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ❌ |  |  |  |  |  |
+| `convmtx2` | ❌ | 0.003 | 36.24× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
 | `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ❌ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |

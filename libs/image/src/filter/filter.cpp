@@ -1406,6 +1406,51 @@ Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
     return out;
 }
 
+Value convmtx2(std::pmr::memory_resource *mr,
+               const Value &h, int m, int n)
+{
+    const auto &dh = h.dims();
+    if (dh.is3D())
+        throw Error("convmtx2: kernel must be 2-D",
+                    0, 0, "convmtx2", "", "m:convmtx2:dims");
+    if (m <= 0 || n <= 0)
+        throw Error("convmtx2: m, n must be positive integers",
+                    0, 0, "convmtx2", "", "m:convmtx2:size");
+    const int M = static_cast<int>(dh.rows());
+    const int N = static_cast<int>(dh.cols());
+    const size_t out_rows = static_cast<size_t>(m + M - 1);
+    const size_t out_cols = static_cast<size_t>(n + N - 1);
+    const size_t P = out_rows * out_cols;
+    const size_t Q = static_cast<size_t>(m) * static_cast<size_t>(n);
+
+    Value T = Value::matrix(P, Q, ValueType::DOUBLE, mr);
+    if (P == 0 || Q == 0) return T;
+    double *Td = T.doubleDataMut();
+    // T is col-major; column k corresponds to input position (r_in, c_in)
+    // (1-based). For each kernel cell (i, j), set
+    // T(out_r + (out_c-1)*out_rows, k) = h(i, j),
+    // where out_r = r_in + i - 1, out_c = c_in + j - 1.
+    for (int c_in = 0; c_in < n; ++c_in) {
+        for (int r_in = 0; r_in < m; ++r_in) {
+            const size_t k = static_cast<size_t>(c_in) * static_cast<size_t>(m)
+                           + static_cast<size_t>(r_in);
+            for (int j = 0; j < N; ++j) {
+                for (int i = 0; i < M; ++i) {
+                    const double hv = h.elemAsDouble(
+                        static_cast<size_t>(j) * static_cast<size_t>(M)
+                        + static_cast<size_t>(i));
+                    if (hv == 0.0) continue;
+                    const size_t out_r = static_cast<size_t>(r_in + i);
+                    const size_t out_c = static_cast<size_t>(c_in + j);
+                    const size_t p = out_c * out_rows + out_r;
+                    Td[k * P + p] = hv;
+                }
+            }
+        }
+    }
+    return T;
+}
+
 Value entropyfilt(std::pmr::memory_resource *mr,
                   const Value &I, const Value &domain)
 {
@@ -1652,6 +1697,27 @@ void imboxfilt_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "imboxfilt", "", "m:imboxfilt:nargin");
     int fs = (args.size() >= 2 && !args[1].isEmpty()) ? (int)args[1].toScalar() : 3;
     outs[0] = imboxfilt(ctx.engine->resource(), args[0], fs);
+}
+
+void convmtx2_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("convmtx2: requires (h, m, n) or (h, [m n])",
+                    0, 0, "convmtx2", "", "m:convmtx2:nargin");
+    int m = 0, n = 0;
+    if (args.size() >= 3) {
+        m = static_cast<int>(args[1].toScalar());
+        n = static_cast<int>(args[2].toScalar());
+    } else {
+        const Value &v = args[1];
+        if (v.numel() != 2)
+            throw Error("convmtx2: 2nd arg must be a 2-element vector or pair (m, n)",
+                        0, 0, "convmtx2", "", "m:convmtx2:size");
+        m = static_cast<int>(v.elemAsDouble(0));
+        n = static_cast<int>(v.elemAsDouble(1));
+    }
+    outs[0] = convmtx2(ctx.engine->resource(), args[0], m, n);
 }
 
 void imboxfilt3_reg(Span<const Value> args, size_t /*nargout*/,
