@@ -309,6 +309,51 @@ phantom(std::pmr::memory_resource *mr,
     return {std::move(head), std::move(E)};
 }
 
+Value bestblk(std::pmr::memory_resource *mr,
+              const Value &IMS, double k)
+{
+    if (IMS.numel() < 2)
+        throw Error("bestblk: IMS must have at least 2 elements",
+                    0, 0, "bestblk", "", "m:bestblk:size");
+    if (!(k >= 1.0))
+        throw Error("bestblk: K must be a positive scalar",
+                    0, 0, "bestblk", "", "m:bestblk:k");
+
+    const size_t nd = IMS.numel();
+    const long long K = static_cast<long long>(std::floor(k));
+    Value out = Value::matrix(1, nd, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    for (size_t d = 0; d < nd; ++d) {
+        const long long dim = static_cast<long long>(
+            std::floor(IMS.elemAsDouble(d)));
+        if (dim < 1)
+            throw Error("bestblk: IMS entries must be positive",
+                        0, 0, "bestblk", "", "m:bestblk:vals");
+        if (dim <= K) { od[d] = static_cast<double>(dim); continue; }
+
+        // Scan p = K, K-1, ..., ceil(min(dim/10, K/2)). Pick largest p
+        // with smallest mod(-dim, p); strict-less on the descending
+        // walk keeps the higher p on ties. Octave's : range stops at
+        // ceil(lo_double) when the lower bound is non-integer.
+        const double lo_d = std::min(static_cast<double>(dim) / 10.0,
+                                     static_cast<double>(K) / 2.0);
+        long long lo = static_cast<long long>(std::ceil(lo_d));
+        if (lo < 1) lo = 1;
+        long long bestP   = K;
+        long long bestPad = ((K - dim % K) % K + K) % K;
+        for (long long p = K - 1; p >= lo; --p) {
+            const long long pad = ((p - dim % p) % p + p) % p;
+            if (pad < bestPad) {
+                bestPad = pad;
+                bestP   = p;
+            }
+        }
+        od[d] = static_cast<double>(bestP);
+    }
+    return out;
+}
+
 Value fftconv2(std::pmr::memory_resource *mr,
                const Value &A, const Value &B,
                const std::string &shape)
@@ -700,6 +745,25 @@ void psf2otf_reg(Span<const Value> args, size_t /*nargout*/,
     Value outsize;
     if (args.size() >= 2 && !args[1].isEmpty()) outsize = args[1];
     outs[0] = psf2otf(ctx.engine->resource(), args[0], outsize);
+}
+
+void bestblk_reg(Span<const Value> args, size_t nargout,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("bestblk: requires (IMS [, k])",
+                    0, 0, "bestblk", "", "m:bestblk:nargin");
+    auto *mr = ctx.engine->resource();
+    const double k = (args.size() >= 2 && !args[1].isEmpty())
+                       ? args[1].toScalar() : 100.0;
+    Value v = bestblk(mr, args[0], k);
+    if (nargout <= 1) { outs[0] = std::move(v); return; }
+    // Multi-output form: split row vector into scalars.
+    const size_t nd = v.numel();
+    const size_t M = std::min<size_t>(nargout, nd);
+    for (size_t i = 0; i < M; ++i) {
+        outs[i] = Value::scalar(v.elemAsDouble(i), mr);
+    }
 }
 
 void fftconv2_reg(Span<const Value> args, size_t /*nargout*/,

@@ -3162,7 +3162,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bestblk` | ❌ |  |  |  |  |  |
+| `bestblk` | ❌ | 0.005 |  | 22.59× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
 | `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
 | `colfilt` | ❌ |  |  |  |  |  |
