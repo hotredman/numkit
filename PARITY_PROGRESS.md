@@ -1754,12 +1754,12 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Stationary, MODWT, and Wavelet Packets
 
-**Namespace:** `wavelet.swt_modwt.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
+**Namespace:** `wavelet.swt_modwt.*` — 2 ✅ + 0 ⚠️ / 17 = 12%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `swt` | ❌ |  |  |  |  | stationary (à trous) wavelet transform |
-| `iswt` | ❌ |  |  |  |  |  |
+| `swt` | ✅ |  |  |  | OK | stationary (à trous) wavelet transform |
+| `iswt` | ✅ |  |  |  | OK | round-trip ≤ 3.2e-12 across haar/db2/sym4 |
 | `swt2` | ❌ |  |  |  |  |  |
 | `iswt2` | ❌ |  |  |  |  |  |
 | `modwt` | ❌ |  |  |  |  | maximal-overlap DWT |
