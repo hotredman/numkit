@@ -34,6 +34,7 @@ void isbw_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isgray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isind_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isrgb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void iscolormap_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void getrangefromclass_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void imcast_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void iptnum2ordinal_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -220,6 +221,7 @@ void ImageLibrary::install(Engine &engine)
     reg("type",  "isgray",        &image::detail::isgray_reg);
     reg("type",  "isind",         &image::detail::isind_reg);
     reg("type",  "isrgb",         &image::detail::isrgb_reg);
+    reg("type",  "iscolormap",    &image::detail::iscolormap_reg);
     reg("type",  "getrangefromclass",
                                   &image::detail::getrangefromclass_reg);
     reg("type",  "imcast",        &image::detail::imcast_reg);
