@@ -1,0 +1,10 @@
+{
+  "name": "label2rgb",
+  "namespace": "image",
+  "setup": "L = [0 1 1 0 2 2 0 3 3; 0 1 1 0 2 2 0 3 3]; cmap = [0 0 0; 0.5 0.5 0.5; 0.125 0.125 0.125];",
+  "expr": "y = label2rgb(L, cmap);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb."
+}
