@@ -1,0 +1,10 @@
+{
+  "name": "imflatfield",
+  "namespace": "image",
+  "setup": "[XX,YY] = meshgrid(1:32, 1:32); A = 0.6 * (0.5 + 0.5*(XX+YY)/64);",
+  "expr": "y = imflatfield(A, 8);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image 11.1.0 does not have imflatfield so cross-check reports correctness=N/A. Algorithm: F = imgaussfilt(im2double(I), sigma); B = im2cls((I_double./F) * mean(F)). 3-D inputs are processed per-page."
+}

@@ -555,6 +555,81 @@ Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
     return T;
 }
 
+Value imflatfield(std::pmr::memory_resource *mr,
+                  const Value &I, double sigma, const Value &mask)
+{
+    const ValueType classin = I.type();
+    const auto &d = I.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t pages = d.is3D() ? d.pages() : 1;
+    const size_t plane = H * W;
+    const size_t N = I.numel();
+
+    // Convert source to double in [0, 1] (im2double-like).
+    Value Idbl;
+    if (d.is3D())  Idbl = Value::matrix3d(H, W, pages, ValueType::DOUBLE, mr);
+    else           Idbl = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *idd = Idbl.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) idd[i] = element_to_unit(I, i);
+
+    // Gaussian low-pass per plane (imgaussfilt itself is 2-D-only).
+    Value F;
+    if (d.is3D())  F = Value::matrix3d(H, W, pages, ValueType::DOUBLE, mr);
+    else           F = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *fd = F.doubleDataMut();
+    for (size_t p = 0; p < pages; ++p) {
+        Value plane2d;
+        if (pages == 1) {
+            plane2d = Idbl;
+        } else {
+            plane2d = Value::matrix(H, W, ValueType::DOUBLE, mr);
+            std::memcpy(plane2d.doubleDataMut(), idd + p * plane,
+                        plane * sizeof(double));
+        }
+        Value blurred = imgaussfilt(mr, plane2d, sigma, 0);
+        std::memcpy(fd + p * plane, blurred.doubleData(),
+                    plane * sizeof(double));
+    }
+
+    // Per-page mean of F (within mask if provided, replicated across pages).
+    const bool have_mask = (mask.numel() > 0);
+    if (have_mask && (mask.dims().rows() != H || mask.dims().cols() != W))
+        throw Error("imflatfield: mask must match spatial dims of I",
+                    0, 0, "imflatfield", "", "m:imflatfield:masksize");
+    std::vector<double> meanF(pages, 0.0);
+    for (size_t p = 0; p < pages; ++p) {
+        const double *fp = fd + p * plane;
+        if (have_mask) {
+            size_t cnt = 0;
+            double acc = 0.0;
+            for (size_t i = 0; i < plane; ++i)
+                if (mask.elemAsDouble(i) != 0.0) { acc += fp[i]; ++cnt; }
+            meanF[p] = (cnt > 0) ? acc / static_cast<double>(cnt) : 0.0;
+        } else if (plane > 0) {
+            double acc = 0.0;
+            for (size_t i = 0; i < plane; ++i) acc += fp[i];
+            meanF[p] = acc / static_cast<double>(plane);
+        }
+    }
+
+    // Output: per-page (Idbl ./ F) * meanF, with eps guard for degenerate F.
+    Value out;
+    if (d.is3D())  out = Value::matrix3d(H, W, pages, classin, mr);
+    else           out = Value::matrix(H, W, classin, mr);
+    constexpr double EPS = 1e-12;
+    for (size_t p = 0; p < pages; ++p) {
+        const double mF = meanF[p];
+        for (size_t i = 0; i < plane; ++i) {
+            const size_t idx = p * plane + i;
+            const double f = fd[idx];
+            const double v = (f > EPS) ? (idd[idx] / f) * mF : idd[idx];
+            store_classed(out, idx, v, classin);
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -728,6 +803,18 @@ void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
         stat = args[3].toString();
     }
     outs[0] = adaptthresh(ctx.engine->resource(), args[0], sens, nbh, stat);
+}
+
+void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imflatfield: requires (I, sigma [, mask])",
+                    0, 0, "imflatfield", "", "m:imflatfield:nargin");
+    const double sigma = args[1].toScalar();
+    Value mask;
+    if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
+    outs[0] = imflatfield(ctx.engine->resource(), args[0], sigma, mask);
 }
 
 } // namespace detail
