@@ -50,6 +50,9 @@ void d2c_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 // state/state.cpp
 void ctrb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void obsv_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+// state/place.cpp
+void acker_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void place_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 // lyapunov/lyapunov.cpp
 void lyap_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dlyap_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -105,8 +108,10 @@ void ControlLibrary::install(Engine &engine)
     reg("discretize", "c2d", &control::detail::c2d_reg);
     reg("discretize", "d2c", &control::detail::d2c_reg);
 
-    reg("state", "ctrb", &control::detail::ctrb_reg);
-    reg("state", "obsv", &control::detail::obsv_reg);
+    reg("state", "ctrb",  &control::detail::ctrb_reg);
+    reg("state", "obsv",  &control::detail::obsv_reg);
+    reg("state", "acker", &control::detail::acker_reg);
+    reg("state", "place", &control::detail::place_reg);
 
     reg("lyap", "lyap",  &control::detail::lyap_reg);
     reg("lyap", "dlyap", &control::detail::dlyap_reg);
