@@ -96,6 +96,11 @@ Value isind  (std::pmr::memory_resource *mr, const Value &I);
 /// float-class image with values in [0, 1] (not all NaN).
 Value isrgb  (std::pmr::memory_resource *mr, const Value &I);
 
+/// `iscolormap(cmap)` — true iff `cmap` is a valid colormap: a
+/// real, float (single/double) 2-D matrix with exactly 3 columns and
+/// at least 1 row. Range [0, 1] is NOT enforced — Octave behaviour.
+Value iscolormap(std::pmr::memory_resource *mr, const Value &cmap);
+
 /// intlut(A, LUT) — apply a lookup table to an integer image.
 /// `A` must be uint8, uint16, or int16. `LUT` must be a vector of
 ///   256        elements for uint8 input,

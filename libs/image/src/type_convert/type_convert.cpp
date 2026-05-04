@@ -622,6 +622,19 @@ Value isrgb(std::pmr::memory_resource *mr, const Value &I)
     return bool_scalar(mr, is_float_unit_image(I));
 }
 
+Value iscolormap(std::pmr::memory_resource *mr, const Value &cmap)
+{
+    const auto &d = cmap.dims();
+    if (d.is3D())                return bool_scalar(mr, false);
+    if (d.cols() != 3)           return bool_scalar(mr, false);
+    if (cmap.numel() == 0)       return bool_scalar(mr, false);
+    const ValueType t = cmap.type();
+    if (t != ValueType::DOUBLE && t != ValueType::SINGLE)
+        return bool_scalar(mr, false);
+    if (cmap.isComplex())        return bool_scalar(mr, false);
+    return bool_scalar(mr, true);
+}
+
 Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT)
 {
     const ValueType atype = A.type();
@@ -830,6 +843,15 @@ void isrgb_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("isrgb: requires (I)", 0, 0, "isrgb", "",
                     "m:isrgb:nargin");
     outs[0] = isrgb(ctx.engine->resource(), args[0]);
+}
+
+void iscolormap_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("iscolormap: requires (cmap)", 0, 0, "iscolormap", "",
+                    "m:iscolormap:nargin");
+    outs[0] = iscolormap(ctx.engine->resource(), args[0]);
 }
 
 void intlut_reg(Span<const Value> args, size_t /*nargout*/,
