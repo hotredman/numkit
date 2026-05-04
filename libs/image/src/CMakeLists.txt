@@ -7,6 +7,7 @@ set(IMAGELIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/contrast/contrast.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/morph/morph.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/region/region.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/object/object.cpp
 )
 
 set(IMAGELIB_SOURCES ${IMAGELIB_SOURCES} PARENT_SCOPE)

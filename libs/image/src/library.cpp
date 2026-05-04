@@ -73,6 +73,11 @@ void bwconncomp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwarea_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwperim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// object/object.cpp
+void imgradientxy_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void imgradient_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -142,6 +147,10 @@ void ImageLibrary::install(Engine &engine)
     reg("region", "bwarea",     &image::detail::bwarea_reg);
     reg("region", "bwperim",    &image::detail::bwperim_reg);
     reg("region", "bwareaopen", &image::detail::bwareaopen_reg);
+
+    reg("object", "imgradientxy", &image::detail::imgradientxy_reg);
+    reg("object", "imgradient",   &image::detail::imgradient_reg);
+    reg("object", "edge",         &image::detail::edge_reg);
 }
 
 } // namespace numkit
