@@ -18,6 +18,7 @@
 // have yet.
 
 #include <numkit/control/lyapunov/lyapunov.hpp>
+#include <numkit/control/internal/numerics.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -30,45 +31,9 @@ namespace numkit::control {
 
 namespace {
 
-using Mat = std::vector<double>;
-using Vec = std::vector<double>;
-
-// LU + back-sub on a column-major n×n matrix with `nrhs` right-hand
-// side columns (held column-major in B). Same kernel that response/
-// discretize/freq use.
-bool solveInPlace(Mat &A, Mat &B, size_t n, size_t nrhs)
-{
-    for (size_t k = 0; k < n; ++k) {
-        size_t pk = k;
-        double bestAbs = std::abs(A[k * n + k]);
-        for (size_t i = k + 1; i < n; ++i) {
-            double v = std::abs(A[k * n + i]);
-            if (v > bestAbs) { bestAbs = v; pk = i; }
-        }
-        if (bestAbs < 1e-14) return false;
-        if (pk != k) {
-            for (size_t j = 0; j < n; ++j)  std::swap(A[j * n + k], A[j * n + pk]);
-            for (size_t j = 0; j < nrhs; ++j) std::swap(B[j * n + k], B[j * n + pk]);
-        }
-        const double diag = A[k * n + k];
-        for (size_t i = k + 1; i < n; ++i) {
-            const double f = A[k * n + i] / diag;
-            A[k * n + i] = f;
-            for (size_t j = k + 1; j < n; ++j)
-                A[j * n + i] -= f * A[j * n + k];
-            for (size_t j = 0; j < nrhs; ++j)
-                B[j * n + i] -= f * B[j * n + k];
-        }
-    }
-    for (size_t j = 0; j < nrhs; ++j) {
-        for (size_t i = n; i-- > 0;) {
-            double s = B[j * n + i];
-            for (size_t k = i + 1; k < n; ++k) s -= A[k * n + i] * B[j * n + k];
-            B[j * n + i] = s / A[i * n + i];
-        }
-    }
-    return true;
-}
+using Mat = internal::Mat;
+using Vec = internal::Vec;
+using internal::solveInPlace;
 
 Mat readMat(const Value &v, size_t r, size_t c) {
     Mat M(r * c, 0.0);
