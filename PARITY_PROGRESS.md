@@ -1707,12 +1707,12 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Discrete Wavelet Transforms (1-D)
 
-**Namespace:** `wavelet.dwt.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+**Namespace:** `wavelet.dwt.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt` | ❌ |  |  |  |  | single-level DWT |
-| `idwt` | ❌ |  |  |  |  | single-level inverse |
+| `dwt` | ✅ |  |  |  | OK | single-level DWT, 'sym' boundary |
+| `idwt` | ✅ |  |  |  | OK | round-trip ≤ 1e-12 on db/sym/coif |
 | `wavedec` | ❌ |  |  |  |  | multi-level DWT |
 | `waverec` | ❌ |  |  |  |  | multi-level reconstruction |
 | `appcoef` | ❌ |  |  |  |  | extract approximation coeffs |
@@ -1801,11 +1801,11 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Filter Banks and Wavelet Families
 
-**Namespace:** `wavelet.filt.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+**Namespace:** `wavelet.filt.*` — 1 ✅ + 0 ⚠️ / 22 = 5%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `wfilters` | ❌ |  |  |  |  | LO/HI decomposition + reconstruction filters |
+| `wfilters` | ✅ |  |  |  | OK | haar / db1..db4 / sym2 / sym4 / coif1; 4-out form + 'd'/'r'/'l'/'h' |
 | `orthfilt` | ❌ |  |  |  |  | orthogonal filter quadruple |
 | `qmf` | ❌ |  |  |  |  | quadrature mirror filter |
 | `biorfilt` | ❌ |  |  |  |  | biorthogonal filter quadruple |
