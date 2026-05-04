@@ -257,6 +257,106 @@ Value im2gray(std::pmr::memory_resource *mr, const Value &x) {
     return x;  // already grayscale (or unsupported shape — pass through)
 }
 
+namespace {
+
+bool spatial_pages_eq(const Value &x, size_t want) {
+    const auto &d = x.dims();
+    if (d.is3D()) return d.pages() == want;
+    return want == 1;
+}
+
+bool is_int_image_class(ValueType t) {
+    return t == ValueType::UINT8 || t == ValueType::UINT16 ||
+           t == ValueType::INT16;
+}
+
+bool is_float_unit_image(const Value &x) {
+    if (x.type() != ValueType::DOUBLE && x.type() != ValueType::SINGLE)
+        return false;
+    const size_t N = x.numel();
+    bool any_real = false;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (std::isnan(v)) continue;
+        if (v < 0.0 || v > 1.0) return false;
+        any_real = true;
+    }
+    return any_real;
+}
+
+bool is_pos_int_float(const Value &x) {
+    if (x.type() != ValueType::DOUBLE && x.type() != ValueType::SINGLE)
+        return false;
+    const size_t N = x.numel();
+    if (N == 0) return false;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (!std::isfinite(v)) return false;
+        if (v < 1.0 || v != std::floor(v)) return false;
+    }
+    return true;
+}
+
+bool all_zero_or_one(const Value &x) {
+    const size_t N = x.numel();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = x.elemAsDouble(i);
+        if (std::isnan(v)) return false;
+        if (v != 0.0 && v != 1.0) return false;
+    }
+    return true;
+}
+
+inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
+    Value out = Value::matrix(1, 1, ValueType::LOGICAL, mr);
+    out.logicalDataMut()[0] = b ? 1u : 0u;
+    return out;
+}
+
+} // anonymous
+
+Value isbw(std::pmr::memory_resource *mr, const Value &BW,
+           const std::string &mode)
+{
+    if (!spatial_pages_eq(BW, 1)) return bool_scalar(mr, false);
+    if (BW.numel() == 0)          return bool_scalar(mr, false);
+    if (mode == "logical")
+        return bool_scalar(mr, BW.type() == ValueType::LOGICAL);
+    if (mode != "non-logical")
+        throw Error("isbw: MODE must be 'logical' or 'non-logical'",
+                    0, 0, "isbw", "", "m:isbw:mode");
+    if (BW.type() == ValueType::LOGICAL) return bool_scalar(mr, true);
+    if (is_int_image_class(BW.type()) ||
+        BW.type() == ValueType::DOUBLE || BW.type() == ValueType::SINGLE)
+        return bool_scalar(mr, all_zero_or_one(BW));
+    return bool_scalar(mr, false);
+}
+
+Value isgray(std::pmr::memory_resource *mr, const Value &I)
+{
+    if (!spatial_pages_eq(I, 1)) return bool_scalar(mr, false);
+    if (I.numel() == 0)          return bool_scalar(mr, false);
+    if (is_int_image_class(I.type())) return bool_scalar(mr, true);
+    return bool_scalar(mr, is_float_unit_image(I));
+}
+
+Value isind(std::pmr::memory_resource *mr, const Value &I)
+{
+    if (!spatial_pages_eq(I, 1)) return bool_scalar(mr, false);
+    if (I.numel() == 0)          return bool_scalar(mr, false);
+    if (I.type() == ValueType::UINT8 || I.type() == ValueType::UINT16)
+        return bool_scalar(mr, true);
+    return bool_scalar(mr, is_pos_int_float(I));
+}
+
+Value isrgb(std::pmr::memory_resource *mr, const Value &I)
+{
+    if (!spatial_pages_eq(I, 3)) return bool_scalar(mr, false);
+    if (I.numel() == 0)          return bool_scalar(mr, false);
+    if (is_int_image_class(I.type())) return bool_scalar(mr, true);
+    return bool_scalar(mr, is_float_unit_image(I));
+}
+
 Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT)
 {
     const ValueType atype = A.type();
@@ -356,6 +456,49 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         hi = args[1].elemAsDouble(1);
     }
     outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+}
+
+void isbw_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isbw: requires (BW [, mode])",
+                    0, 0, "isbw", "", "m:isbw:nargin");
+    std::string mode = "logical";
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        if (!args[1].isChar() && !args[1].isString())
+            throw Error("isbw: MODE must be a string",
+                        0, 0, "isbw", "", "m:isbw:mode");
+        mode = args[1].toString();
+    }
+    outs[0] = isbw(ctx.engine->resource(), args[0], mode);
+}
+
+void isgray_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isgray: requires (I)", 0, 0, "isgray", "",
+                    "m:isgray:nargin");
+    outs[0] = isgray(ctx.engine->resource(), args[0]);
+}
+
+void isind_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isind: requires (I)", 0, 0, "isind", "",
+                    "m:isind:nargin");
+    outs[0] = isind(ctx.engine->resource(), args[0]);
+}
+
+void isrgb_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("isrgb: requires (I)", 0, 0, "isrgb", "",
+                    "m:isrgb:nargin");
+    outs[0] = isrgb(ctx.engine->resource(), args[0]);
 }
 
 void intlut_reg(Span<const Value> args, size_t /*nargout*/,

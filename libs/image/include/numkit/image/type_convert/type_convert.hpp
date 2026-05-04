@@ -34,6 +34,29 @@ Value im2gray (std::pmr::memory_resource *mr, const Value &x);
 /// Output class matches input.
 Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 
+/// `isbw(BW [, mode])` — true if `BW` looks like a binary image.
+/// `mode = "logical"` (default) requires class logical; `mode =
+/// "non-logical"` accepts numeric classes whose values are all 0 or
+/// 1 (no NaN). Spatial check: 2-D, or M×N×1×K with pages == 1.
+Value isbw   (std::pmr::memory_resource *mr, const Value &BW,
+              const std::string &mode);
+
+/// `isgray(I)` — true if `I` is plausibly a grayscale image:
+/// 2-D / M×N×1×K, and either an integer-class image (uint8 / uint16
+/// / int16) or a floating-point image whose values are in [0, 1] or
+/// NaN (not all NaN).
+Value isgray (std::pmr::memory_resource *mr, const Value &I);
+
+/// `isind(I)` — true if `I` is plausibly an indexed image:
+/// 2-D / M×N×1×K, and either an integer-class image (uint8 / uint16)
+/// or a floating-point image whose values are positive integers.
+Value isind  (std::pmr::memory_resource *mr, const Value &I);
+
+/// `isrgb(I)` — true if `I` is plausibly an RGB image:
+/// M×N×3 (or M×N×3×K), and either an integer-class image or a
+/// float-class image with values in [0, 1] (not all NaN).
+Value isrgb  (std::pmr::memory_resource *mr, const Value &I);
+
 /// intlut(A, LUT) — apply a lookup table to an integer image.
 /// `A` must be uint8, uint16, or int16. `LUT` must be a vector of
 ///   256        elements for uint8 input,

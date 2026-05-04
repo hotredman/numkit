@@ -30,6 +30,10 @@ void im2gray_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void rgb2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imsplit_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void intlut_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isbw_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isgray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isind_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void isrgb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // color/color.cpp
 void rgb2hsv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -185,6 +189,10 @@ void ImageLibrary::install(Engine &engine)
     reg("type",  "mat2gray",      &image::detail::mat2gray_reg);
     reg("type",  "im2gray",       &image::detail::im2gray_reg);
     reg("type",  "intlut",        &image::detail::intlut_reg);
+    reg("type",  "isbw",          &image::detail::isbw_reg);
+    reg("type",  "isgray",        &image::detail::isgray_reg);
+    reg("type",  "isind",         &image::detail::isind_reg);
+    reg("type",  "isrgb",         &image::detail::isrgb_reg);
     reg("color", "rgb2gray",      &image::detail::rgb2gray_reg);
     reg("color", "imsplit",       &image::detail::imsplit_reg);
 
