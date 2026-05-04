@@ -2997,7 +2997,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
 | `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imcrop3` | ❌ |  |  |  |  |  |
-| `impyramid` | ❌ |  |  |  |  | reduce/expand 2× |
+| `impyramid` | ❌ | 0.006 |  | 168.78× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
 | `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imresize3` | ❌ |  |  |  |  |  |
 | `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -3345,3 +3345,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `rpmtrack` | ❌ |  |  |  |  | order tracking |
 | `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
 | `tsa` | ✅ |  |  |  |  |  |
+
+## Misc / not in TODO
+
+Functions benched by the harness that don't appear in any of the MATLAB-doc sections above. Move them into a real section if they correspond to a documented MATLAB function.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `impyramid_expand` | — | 0.004 |  | 115.34× | OK | Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). Cross-check expand variant separately. |

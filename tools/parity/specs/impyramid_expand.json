@@ -1,0 +1,10 @@
+{
+  "name": "impyramid_expand",
+  "namespace": "image",
+  "setup": "I = double(reshape(0:15, [4 4]));",
+  "expr": "y = impyramid(I, 'expand');",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: B = impyramid(A, 'expand'). Output: (2M-1)x(2N-1). Cross-check expand variant separately."
+}
