@@ -108,6 +108,8 @@ void imtophat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imbothat_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwhitmiss_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void applylut_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwpack_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwunpack_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // region/region.cpp
 void bwlabel_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -285,6 +287,8 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imbothat",      &image::detail::imbothat_reg);
     reg("morph", "bwhitmiss",     &image::detail::bwhitmiss_reg);
     reg("morph", "applylut",      &image::detail::applylut_reg);
+    reg("morph", "bwpack",        &image::detail::bwpack_reg);
+    reg("morph", "bwunpack",      &image::detail::bwunpack_reg);
 
     reg("region", "bwlabel",      &image::detail::bwlabel_reg);
     reg("region", "bwconncomp",   &image::detail::bwconncomp_reg);
