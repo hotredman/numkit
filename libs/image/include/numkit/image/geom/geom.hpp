@@ -41,6 +41,15 @@ Value imrotate(std::pmr::memory_resource *mr,
 Value imtranslate(std::pmr::memory_resource *mr,
                   const Value &A, double dx, double dy);
 
+/// `pix = axes2pix(n, extent, axesCoord)` — convert world-axis
+/// coordinates to intrinsic pixel coordinates (1-based) for an
+/// `n`-row-or-col image whose first / last pixel centers lie at
+/// `extent(1)` / `extent(end)`. Degenerate cases (n=1 or
+/// extent(1)==extent(end)) collapse the mapping to a translation.
+/// Output keeps the shape of `axesCoord`.
+Value axes2pix(std::pmr::memory_resource *mr,
+               double n, const Value &extent, const Value &axesCoord);
+
 /// `B = impyramid(A, type)` — Burt-Adelson 2-D pyramid step.
 /// type = "reduce" → output ceil(M/2)×ceil(N/2) after low-pass filtering
 /// type = "expand" → output (2M-1)×(2N-1) after zero-stuffing + filter

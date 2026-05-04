@@ -1,0 +1,10 @@
+{
+  "name": "axes2pix",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = axes2pix(800, [100 140], [100 120 140 105 113.7]);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: pix = axes2pix(n, extent, axesCoord). World→pixel axis mapping (1-based). Octave-image has axes2pix."
+}
