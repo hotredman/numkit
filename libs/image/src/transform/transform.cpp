@@ -183,6 +183,40 @@ Value integralImage3(std::pmr::memory_resource *mr, const Value &V)
     return out;
 }
 
+Value checkerboard(std::pmr::memory_resource *mr,
+                   size_t side, size_t M, size_t N)
+{
+    const size_t H = 2 * M * side;
+    const size_t W = 2 * N * side;
+    Value out = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0 || side == 0) return out;
+    double *od = out.doubleDataMut();
+
+    // Tile pattern: 2*side × 2*side. Build via linspace(-1, 1, 2*side):
+    //   x[i] = -1 + 2 * i / (2*side - 1)
+    // tile(r, c) = (x[r] * x[c]) < 0  → 1.0 in opposite-sign quadrants.
+    const size_t S2 = 2 * side;
+    std::vector<double> x(S2);
+    if (S2 == 1) x[0] = -1.0;
+    else
+        for (size_t i = 0; i < S2; ++i)
+            x[i] = -1.0 + 2.0 * static_cast<double>(i)
+                          / static_cast<double>(S2 - 1);
+
+    // Right half (cols ≥ W/2) is dimmed to 0.7.
+    const size_t halfW = W / 2;
+    for (size_t c = 0; c < W; ++c) {
+        const double xc = x[c % S2];
+        const double dim = (c >= halfW) ? 0.7 : 1.0;
+        for (size_t r = 0; r < H; ++r) {
+            const double xr = x[r % S2];
+            const double tile = (xr * xc < 0.0) ? 1.0 : 0.0;
+            od[c * H + r] = tile * dim;
+        }
+    }
+    return out;
+}
+
 namespace detail {
 
 void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
@@ -228,6 +262,30 @@ void dctmtx_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
         throw Error("dctmtx: requires 1 argument (N)",
                     0, 0, "dctmtx", "", "m:dctmtx:nargin");
     outs[0] = dctmtx(ctx.engine->resource(), args[0].toScalar());
+}
+
+void checkerboard_reg(Span<const Value> args, size_t /*nargout*/,
+                      Span<Value> outs, CallContext &ctx)
+{
+    size_t side = 10, M = 4, N = 4;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const double s = args[0].toScalar();
+        if (s < 0.0 || s != std::floor(s))
+            throw Error("checkerboard: SIDE must be a non-negative integer",
+                        0, 0, "checkerboard", "", "m:checkerboard:side");
+        side = static_cast<size_t>(s);
+    }
+    if (args.size() >= 2 && !args[1].isEmpty()) {
+        const Value &v = args[1];
+        if (v.numel() == 1) { M = N = static_cast<size_t>(v.toScalar()); }
+        else if (v.numel() >= 2) {
+            M = static_cast<size_t>(v.elemAsDouble(0));
+            N = static_cast<size_t>(v.elemAsDouble(1));
+        }
+    }
+    if (args.size() >= 3 && !args[2].isEmpty())
+        N = static_cast<size_t>(args[2].toScalar());
+    outs[0] = checkerboard(ctx.engine->resource(), side, M, N);
 }
 
 } // namespace detail

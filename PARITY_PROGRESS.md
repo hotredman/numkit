@@ -2976,7 +2976,7 @@ Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorit
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `checkerboard` | ❌ |  |  |  |  | synthetic test pattern |
+| `checkerboard` | ❌ | 0.005 |  | 66.61× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
 | `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
 | `phantom` | ❌ |  |  |  |  | Shepp-Logan |
 | `imshow` | ❌ |  |  |  |  | needs graphics |

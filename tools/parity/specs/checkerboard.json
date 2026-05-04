@@ -1,0 +1,10 @@
+{
+  "name": "checkerboard",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = checkerboard(2, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard."
+}
