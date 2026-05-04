@@ -59,6 +59,13 @@ Value fftconv2(std::pmr::memory_resource *mr,
                const Value &A, const Value &B,
                const std::string &shape);
 
+/// `siz = bestblk(IMS [, k])` — best block size for block-processing.
+/// For each dim of `IMS`: keep it if it's ≤ k (default 100); else
+/// scan k..min(dim/10, k/2) and pick the largest size with the
+/// smallest mod-padding (mod(-dim, p)).
+Value bestblk(std::pmr::memory_resource *mr,
+              const Value &IMS, double k);
+
 /// `psf = otf2psf(OTF [, outsize])` — inverse: ifft2/ifft, then
 /// circularly shift by `+floor(size(PSF)/2)` to recover the
 /// centered PSF. Output is double if the imaginary part is
