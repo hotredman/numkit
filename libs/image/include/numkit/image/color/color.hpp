@@ -132,6 +132,12 @@ Value flag_cmap(std::pmr::memory_resource *mr, int n);
 /// 1 1 0; 0 1 0; 0 0 1; 2/3 0 1]`). Default n = 256. n ≤ 0 → 0×3.
 Value prism_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = lines([n])` — N×3 colormap that cycles through MATLAB's
+/// default axes color order (R2025b 7-row palette). n==1 → [0 0 1]
+/// (MATLAB convention); n ≤ 0 → 0×3. Default n = 256. NB: Octave's
+/// default palette differs slightly; we match MATLAB.
+Value lines_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from

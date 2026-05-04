@@ -1,0 +1,10 @@
+{
+  "name": "lines",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = lines(14);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = lines([n]). Cycles the figure axes colororder. We pin the MATLAB R2025b factory 7-row palette (Octave's older default differs). MATLAB+factory; harness ranks MATLAB as truth so OK is expected."
+}
