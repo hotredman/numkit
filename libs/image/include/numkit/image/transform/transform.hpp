@@ -36,4 +36,11 @@ Value integralImage3(std::pmr::memory_resource *mr, const Value &V);
 Value checkerboard(std::pmr::memory_resource *mr,
                    size_t side, size_t M, size_t N);
 
+/// normxcorr2(template, img) — normalized cross-correlation, mostly
+/// used for template matching. Output is (M+m-1)×(N+n-1) double in
+/// [-1, 1] (numerical noise outside this range clamped to 0 via the
+/// inf/nan guard). Algorithm follows Octave-image normxcorr2.m.
+Value normxcorr2(std::pmr::memory_resource *mr,
+                 const Value &templ, const Value &img);
+
 } // namespace numkit::image

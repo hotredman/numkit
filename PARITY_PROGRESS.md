@@ -3020,7 +3020,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imregister` | ❌ |  |  |  |  |  |
 | `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
 | `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ❌ |  |  |  |  | normalised cross-correlation |
+| `normxcorr2` | ❌ | 0.011 |  | 38.41× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
 
 ## Image Filtering
 
