@@ -1,0 +1,10 @@
+{
+  "name": "imhistmatchn",
+  "namespace": "image",
+  "setup": "A = uint8(reshape(0:99, [10 10])); ref = uint8(reshape(100:199, [10 10]));",
+  "expr": "y = imhistmatchn(A, ref);",
+  "iters": 5,
+  "tol": 2,
+  "out_var": "y",
+  "comment": "Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image 11.1.0 has no imhistmatchn → correctness=N/A as documented."
+}

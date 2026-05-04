@@ -3078,7 +3078,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imadjustn` | ❌ | 0.005 |  |  | N/A | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
 | `imflatfield` | ❌ | 4.227 |  |  | N/A | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image has imflatfield (recent versions); cross-check expected to be OK or N/A depending on package availability. |
 | `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
-| `imhistmatchn` | ❌ |  |  |  |  |  |
+| `imhistmatchn` | ❌ | 0.006 |  |  | N/A | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image may not have imhistmatchn (introduced in MATLAB R2017a) → cross-check may report N/A. |
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |

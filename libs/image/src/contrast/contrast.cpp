@@ -456,10 +456,12 @@ Value imhistmatch(std::pmr::memory_resource *mr,
         LUT[(size_t)b] = (k + 0.5) / (double)nbins;
     }
 
-    // Apply.
-    const size_t H = I.dims().rows();
-    const size_t W = I.dims().cols();
-    Value out = Value::matrix(H, W, I.type(), mr);
+    // Apply: preserve input shape (2-D or 3-D volume).
+    const auto &d = I.dims();
+    Value out;
+    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                        I.type(), mr);
+    else          out = Value::matrix(d.rows(), d.cols(), I.type(), mr);
     for (size_t i = 0; i < Ni; ++i) {
         const double u = element_to_unit(I, i);
         const double v = LUT[(size_t)bin_index(u)];
