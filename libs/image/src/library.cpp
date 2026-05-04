@@ -39,6 +39,7 @@ void imcast_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void iptnum2ordinal_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void gray2ind_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ind2gray_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ind2rgb_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // color/color.cpp
 void rgb2hsv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -221,6 +222,7 @@ void ImageLibrary::install(Engine &engine)
                                   &image::detail::iptnum2ordinal_reg);
     reg("type",  "gray2ind",      &image::detail::gray2ind_reg);
     reg("type",  "ind2gray",      &image::detail::ind2gray_reg);
+    reg("type",  "ind2rgb",       &image::detail::ind2rgb_reg);
     reg("color", "rgb2gray",      &image::detail::rgb2gray_reg);
     reg("color", "imsplit",       &image::detail::imsplit_reg);
 

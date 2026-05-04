@@ -2918,7 +2918,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
 | `ind2gray` | ❌ |  |  |  |  |  |
-| `ind2rgb` | ❌ |  |  |  |  |  |
+| `ind2rgb` | ❌ | 0.005 |  | 35.79× | OK | Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb. |
 | `iptnum2ordinal` | ❌ | 0.003 |  | 170.72× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
 | `label2rgb` | ❌ | 0.003 |  | 157.82× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
 | `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |

@@ -522,6 +522,45 @@ Value ind2gray(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value ind2rgb(std::pmr::memory_resource *mr,
+              const Value &idx, const Value &map)
+{
+    if (map.dims().cols() != 3)
+        throw Error("ind2rgb: map must be N-by-3",
+                    0, 0, "ind2rgb", "", "m:ind2rgb:map");
+    const auto &d = idx.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t N = idx.numel();
+    const int M = static_cast<int>(map.dims().rows());
+
+    Value out = Value::matrix3d(H, W, 3, ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+    double *od = out.doubleDataMut();
+    const size_t plane = H * W;
+
+    const bool isFloatIdx = (idx.type() == ValueType::DOUBLE ||
+                             idx.type() == ValueType::SINGLE);
+    for (size_t i = 0; i < N; ++i) {
+        long long k;
+        const double v = idx.elemAsDouble(i);
+        if (std::isnan(v) || !std::isfinite(v)) {
+            // NaN / Inf clip to last colormap row.
+            k = M - 1;
+        } else {
+            k = static_cast<long long>(v);
+            if (isFloatIdx) k -= 1;
+        }
+        if (k < 0)  k = 0;
+        if (k >= M) k = M - 1;
+        // map is M×3, col-major: map[r, c] = data[c*M + r].
+        od[0 * plane + i] = map.elemAsDouble(0 * M + k);
+        od[1 * plane + i] = map.elemAsDouble(1 * M + k);
+        od[2 * plane + i] = map.elemAsDouble(2 * M + k);
+    }
+    return out;
+}
+
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
 {
     Value r = Value::matrix(1, 2, ValueType::DOUBLE, mr);
@@ -729,6 +768,15 @@ void ind2gray_reg(Span<const Value> args, size_t /*nargout*/,
     Value mp;
     if (args.size() >= 2 && !args[1].isEmpty()) mp = args[1];
     outs[0] = ind2gray(ctx.engine->resource(), args[0], mp);
+}
+
+void ind2rgb_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("ind2rgb: requires (idx, map)",
+                    0, 0, "ind2rgb", "", "m:ind2rgb:nargin");
+    outs[0] = ind2rgb(ctx.engine->resource(), args[0], args[1]);
 }
 
 void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
