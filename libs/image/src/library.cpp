@@ -53,6 +53,7 @@ void imsharpen_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imnoise_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void im2col_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void col2im_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imbilatfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // contrast/contrast.cpp
 void imhist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -181,6 +182,7 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imnoise",      &image::detail::imnoise_reg);
     reg("filter", "im2col",       &image::detail::im2col_reg);
     reg("filter", "col2im",       &image::detail::col2im_reg);
+    reg("filter", "imbilatfilt",  &image::detail::imbilatfilt_reg);
 
     // im2bw is the legacy alias of imbinarize (signatures match exactly:
     // im2bw(I) → Otsu, im2bw(I, level) → scalar threshold).
