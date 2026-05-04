@@ -1,0 +1,10 @@
+{
+  "name": "imcast",
+  "namespace": "image",
+  "setup": "I = uint8([0 64 128 192 255]);",
+  "expr": "y = imcast(I, 'double');",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: J = imcast(I, type). Dispatch wrapper over im2* helpers (type ∈ double/single/uint8/uint16/int16/logical). Octave-image has imcast."
+}

@@ -39,6 +39,15 @@ Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 /// and double all return [0, 1]. Output is always double.
 Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I);
 
+/// `imcast(I, type)` — convert image to a target class string
+/// ("double", "single", "uint8", "uint16", "int16", "logical").
+/// Dispatches to the existing im2double/im2single/im2uint8/...
+/// helpers; logical-target maps non-zero entries to 1, and casting
+/// from logical to integer maps true → intmax of the target class.
+/// The MATLAB "indexed" third-arg mode is not yet supported.
+Value imcast(std::pmr::memory_resource *mr,
+             const Value &I, const std::string &type);
+
 /// `isbw(BW [, mode])` — true if `BW` looks like a binary image.
 /// `mode = "logical"` (default) requires class logical; `mode =
 /// "non-logical"` accepts numeric classes whose values are all 0 or
