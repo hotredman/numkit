@@ -1,0 +1,10 @@
+{
+  "name": "phantom",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = phantom(64);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom."
+}

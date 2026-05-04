@@ -127,6 +127,7 @@ void integralImage_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void integralImage3_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 void checkerboard_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void normxcorr2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void phantom_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // io/io.cpp
 void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -282,6 +283,7 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "integralImage3",&image::detail::integralImage3_reg);
     reg("transform", "checkerboard",  &image::detail::checkerboard_reg);
     reg("transform", "normxcorr2",    &image::detail::normxcorr2_reg);
+    reg("transform", "phantom",       &image::detail::phantom_reg);
 
     reg("io", "imread",  &image::detail::imread_reg);
     reg("io", "imwrite", &image::detail::imwrite_reg);
