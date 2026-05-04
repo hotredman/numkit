@@ -110,6 +110,9 @@ void edge_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void immse_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void psnr_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void mean2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void std2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
+void corr2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // transform/transform.cpp
 void dct2_reg          (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -257,6 +260,9 @@ void ImageLibrary::install(Engine &engine)
     reg("quality", "immse", &image::detail::immse_reg);
     reg("quality", "psnr",  &image::detail::psnr_reg);
     reg("quality", "ssim",  &image::detail::ssim_reg);
+    reg("quality", "mean2", &image::detail::mean2_reg);
+    reg("quality", "std2",  &image::detail::std2_reg);
+    reg("quality", "corr2", &image::detail::corr2_reg);
 
     reg("transform", "dct2",          &image::detail::dct2_reg);
     reg("transform", "idct2",         &image::detail::idct2_reg);

@@ -1,0 +1,10 @@
+{
+  "name": "mean2",
+  "namespace": "image",
+  "setup": "A = uint8(reshape(0:99, [10 10]));",
+  "expr": "y = mean2(A);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2."
+}

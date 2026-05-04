@@ -1,0 +1,10 @@
+{
+  "name": "std2",
+  "namespace": "image",
+  "setup": "A = double(reshape(0:99, [10 10]));",
+  "expr": "y = std2(A);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2."
+}

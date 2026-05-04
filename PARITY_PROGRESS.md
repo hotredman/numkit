@@ -3265,18 +3265,18 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwselect` | ❌ |  |  |  |  |  |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
-| `corr2` | ❌ |  |  |  |  | 2-D correlation coefficient |
+| `corr2` | ❌ | 0.003 |  | 158.83× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
 | `graydist` | ❌ |  |  |  |  |  |
 | `imcontour` | ❌ |  |  |  |  |  |
 | `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `impixel` | ❌ |  |  |  |  |  |
 | `improfile` | ❌ |  |  |  |  |  |
 | `labelmatrix` | ❌ |  |  |  |  |  |
-| `mean2` | ❌ |  |  |  |  | mean over 2-D |
+| `mean2` | ❌ | 0.002 |  | 58.74× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
 | `poly2label` | ❌ |  |  |  |  |  |
 | `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
 | `regionprops3` | ❌ |  |  |  |  |  |
-| `std2` | ❌ |  |  |  |  |  |
+| `std2` | ❌ | 0.004 |  | 60.05× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
 
 ## Texture Analysis
 

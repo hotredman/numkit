@@ -142,6 +142,61 @@ Value ssim(std::pmr::memory_resource *mr, const Value &A, const Value &B) {
     return Value::scalar(s, mr);
 }
 
+Value mean2(std::pmr::memory_resource *mr, const Value &A)
+{
+    const size_t N = A.numel();
+    if (N == 0) return Value::scalar(std::nan(""), mr);
+    long double s = 0.0L;
+    for (size_t i = 0; i < N; ++i) s += A.elemAsDouble(i);
+    return Value::scalar(static_cast<double>(s / static_cast<long double>(N)),
+                         mr);
+}
+
+Value std2(std::pmr::memory_resource *mr, const Value &A)
+{
+    const size_t N = A.numel();
+    if (N == 0) return Value::scalar(std::nan(""), mr);
+    if (N == 1) return Value::scalar(0.0, mr);
+    long double s = 0.0L;
+    for (size_t i = 0; i < N; ++i) s += A.elemAsDouble(i);
+    const long double mu = s / static_cast<long double>(N);
+    long double v = 0.0L;
+    for (size_t i = 0; i < N; ++i) {
+        const long double d = A.elemAsDouble(i) - mu;
+        v += d * d;
+    }
+    // std2 wraps std(I(:)) → sample std (normalize by N-1).
+    v /= static_cast<long double>(N - 1);
+    return Value::scalar(static_cast<double>(std::sqrt((double)v)), mr);
+}
+
+Value corr2(std::pmr::memory_resource *mr, const Value &A, const Value &B)
+{
+    const size_t N = A.numel();
+    if (B.numel() != N)
+        throw Error("corr2: A and B must have the same number of elements",
+                    0, 0, "corr2", "", "m:corr2:size");
+    if (N == 0) return Value::scalar(std::nan(""), mr);
+    long double sa = 0.0L, sb = 0.0L;
+    for (size_t i = 0; i < N; ++i) {
+        sa += A.elemAsDouble(i);
+        sb += B.elemAsDouble(i);
+    }
+    const long double ma = sa / static_cast<long double>(N);
+    const long double mb = sb / static_cast<long double>(N);
+    long double cov = 0.0L, va = 0.0L, vb = 0.0L;
+    for (size_t i = 0; i < N; ++i) {
+        const long double da = A.elemAsDouble(i) - ma;
+        const long double db = B.elemAsDouble(i) - mb;
+        cov += da * db;
+        va  += da * da;
+        vb  += db * db;
+    }
+    const long double denom = std::sqrt((double)(va * vb));
+    if (denom == 0.0L) return Value::scalar(std::nan(""), mr);
+    return Value::scalar(static_cast<double>(cov / denom), mr);
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -175,6 +230,33 @@ void ssim_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("ssim: requires (A, B)", 0, 0, "ssim", "",
                     "m:ssim:nargin");
     outs[0] = ssim(ctx.engine->resource(), args[0], args[1]);
+}
+
+void mean2_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("mean2: requires (A)", 0, 0, "mean2", "",
+                    "m:mean2:nargin");
+    outs[0] = mean2(ctx.engine->resource(), args[0]);
+}
+
+void std2_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("std2: requires (A)", 0, 0, "std2", "",
+                    "m:std2:nargin");
+    outs[0] = std2(ctx.engine->resource(), args[0]);
+}
+
+void corr2_reg(Span<const Value> args, size_t /*nargout*/,
+               Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("corr2: requires (A, B)", 0, 0, "corr2", "",
+                    "m:corr2:nargin");
+    outs[0] = corr2(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail
