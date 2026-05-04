@@ -39,6 +39,37 @@ surface to the user**. Do not silently work on top of someone else's work.
   the usual `import compat.*` and the body. This ensures no leftover
   workspace state from a prior run leaks into the test.
 
+## Cross-check against MATLAB / Octave (mandatory)
+
+A smoke alone proves the implementation matches **my** expectations,
+not MATLAB's. For every new function you add:
+
+1. Write a JSON spec in `tools/parity/specs/<name>.json`. Minimal:
+   ```json
+   {
+     "name": "<fn>",
+     "namespace": "<lib>",
+     "setup": "...inputs...",
+     "expr": "y = <fn>(...);",
+     "iters": 5,
+     "tol": 1e-12,
+     "out_var": "y",
+     "comment": "Sig + brief input description."
+   }
+   ```
+2. Run `python tools/parity/run_parity.py tools/parity/specs/<name>.json
+   --no-matlab` (or omit `--no-matlab` if MATLAB is licenced + on PATH).
+3. **Must report `correctness=OK`**. If it reports `MISMATCH`, the
+   numkit implementation is wrong (or has a different convention than
+   MATLAB) — fix BEFORE landing the cycle. Smoke alone is not enough.
+4. If MATLAB / Octave doesn't have the function, the run reports
+   `correctness=N/A`. Document that in the spec's comment so future
+   runs don't think the harness is broken.
+
+Three real bugs in cycles 65-75 were caught only by this cross-check —
+hand-written smokes had passed all three. Don't trust your own
+expected values: trust the reference engine.
+
 ## Memory
 
 Auto-memory at
