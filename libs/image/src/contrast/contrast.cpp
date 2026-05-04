@@ -340,6 +340,35 @@ Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh) {
     return out;
 }
 
+// Per-pixel-threshold variant of imbinarize. T must have the same
+// numel as I (typically the same H × W matrix; H × W × 3 also OK
+// when I is a same-shape volume). T's element scale is interpreted
+// in the same `element_to_unit` space as I, so the raw element
+// values are directly comparable. Composes with `adaptthresh`.
+Value imbinarize(std::pmr::memory_resource *mr, const Value &I,
+                 const Value &T)
+{
+    if (T.numel() != I.numel())
+        throw Error("imbinarize: per-pixel T must have the same number "
+                    "of elements as I",
+                    0, 0, "imbinarize", "", "m:imbinarize:Tshape");
+    const size_t N = I.numel();
+    Value out;
+    const auto &d = I.dims();
+    if (I.isScalar()) out = Value::matrix(1, 1, ValueType::LOGICAL, mr);
+    else if (d.is3D())out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                           ValueType::LOGICAL, mr);
+    else              out = Value::matrix(d.rows(), d.cols(),
+                                          ValueType::LOGICAL, mr);
+    if (N == 0) return out;
+    uint8_t *od = out.logicalDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double t = T.elemAsDouble(i);
+        od[i] = (element_to_unit(I, i) > t) ? 1 : 0;
+    }
+    return out;
+}
+
 Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels) {
     const size_t Lcount = levels.numel();
     std::vector<double> lv(Lcount);
@@ -576,14 +605,19 @@ void imbinarize_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.empty())
         throw Error("imbinarize: requires (I[, thresh])", 0, 0, "imbinarize", "",
                     "m:imbinarize:nargin");
-    double thresh;
+    auto *mr = ctx.engine->resource();
     if (args.size() >= 2 && !args[1].isEmpty()) {
-        thresh = args[1].toScalar();
+        // Dispatch on T's shape: scalar → fast path, matrix → per-pixel.
+        if (args[1].numel() == 1) {
+            outs[0] = imbinarize(mr, args[0], args[1].toScalar());
+        } else {
+            outs[0] = imbinarize(mr, args[0], args[1]);
+        }
     } else {
-        auto [t, _] = graythresh(ctx.engine->resource(), args[0]);
-        thresh = t.toScalar();
+        // No threshold given: pick Otsu's automatically.
+        auto [t, _] = graythresh(mr, args[0]);
+        outs[0] = imbinarize(mr, args[0], t.toScalar());
     }
-    outs[0] = imbinarize(ctx.engine->resource(), args[0], thresh);
 }
 
 void imquantize_reg(Span<const Value> args, size_t /*nargout*/,

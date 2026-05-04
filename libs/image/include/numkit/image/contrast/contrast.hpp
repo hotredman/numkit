@@ -67,6 +67,11 @@ multithresh(std::pmr::memory_resource *mr, const Value &I, int N);
 /// imbinarize(I[, thresh]) — apply a threshold (default = graythresh).
 Value imbinarize(std::pmr::memory_resource *mr, const Value &I, double thresh);
 
+/// imbinarize(I, T) — per-pixel threshold; T must have the same numel
+/// as I. Composes naturally with `adaptthresh(I, …)`.
+Value imbinarize(std::pmr::memory_resource *mr, const Value &I,
+                 const Value &T);
+
 /// imquantize(I, levels) — quantise into N+1 classes given N thresholds.
 Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &levels);
 
