@@ -127,6 +127,11 @@ Value hsv_cmap(std::pmr::memory_resource *mr, int n);
 /// Default n = 256. n ≤ 0 → 0×3.
 Value flag_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = prism([n])` — N×3 cyclic 6-row rainbow palette
+/// `[red, orange, yellow, green, blue, violet]` (`[1 0 0; 1 0.5 0;
+/// 1 1 0; 0 1 0; 0 0 1; 2/3 0 1]`). Default n = 256. n ≤ 0 → 0×3.
+Value prism_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
