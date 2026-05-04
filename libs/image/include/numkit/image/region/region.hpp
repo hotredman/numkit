@@ -68,4 +68,9 @@ Value regionprops(std::pmr::memory_resource *mr,
 /// column-wise (exact, O(H·W)).
 Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
 
+/// bweuler(BW [, n]) — Euler number (objects − holes) of a 2-D
+/// binary image, computed via Pratt's bit-quad LUT method. `n`
+/// is the connectivity for foreground (4 or 8); default 8.
+Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn);
+
 } // namespace numkit::image
