@@ -2,6 +2,8 @@
 
 #include <numkit/image/morph/morph.hpp>
 
+#include <numkit/signal/convolution/convolution.hpp>
+
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
 
@@ -752,6 +754,75 @@ Value imbothat(std::pmr::memory_resource *mr, const Value &I, const Value &SE)
     return tophat_subtract(mr, closed, I);
 }
 
+Value applylut(std::pmr::memory_resource *mr,
+               const Value &BW, const Value &LUT)
+{
+    const size_t lutLen = LUT.numel();
+    if (lutLen == 0)
+        throw Error("applylut: LUT must be non-empty",
+                    0, 0, "applylut", "", "m:applylut:lutsize");
+    // Need lutLen == 2^(n*n) for some integer n.
+    size_t nq = 0;
+    while ((size_t{1} << nq) < lutLen) ++nq;
+    if ((size_t{1} << nq) != lutLen)
+        throw Error("applylut: LUT length must be 2^(n*n)",
+                    0, 0, "applylut", "", "m:applylut:lutsize");
+    const size_t n = static_cast<size_t>(std::round(std::sqrt((double)nq)));
+    if (n * n != nq)
+        throw Error("applylut: LUT length not 2^(n*n) for any integer n",
+                    0, 0, "applylut", "", "m:applylut:lutshape");
+
+    const size_t H = BW.dims().rows();
+    const size_t W = BW.dims().cols();
+    Value out = Value::matrix(H, W, LUT.type(), mr);
+    if (H == 0 || W == 0) return out;
+
+    // Weight kernel: reshape(2^[nq-1:-1:0], n, n) col-major.
+    Value w = Value::matrix(n, n, ValueType::DOUBLE, mr);
+    {
+        double *wd = w.doubleDataMut();
+        for (size_t i = 0; i < n * n; ++i)
+            wd[i] = static_cast<double>(size_t{1} << (nq - 1 - i));
+    }
+
+    // BW promoted to double for filter2.
+    Value bw_d = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    {
+        double *bd = bw_d.doubleDataMut();
+        for (size_t i = 0; i < H * W; ++i)
+            bd[i] = (BW.elemAsDouble(i) != 0.0) ? 1.0 : 0.0;
+    }
+
+    // filter2(w, BW, 'same') = index per pixel.
+    Value idx = signal::filter2(mr, w, bw_d, "same");
+    const double *id = idx.doubleData();
+    const size_t N = H * W;
+
+    auto store_lut = [&](size_t i, double v) {
+        switch (LUT.type()) {
+            case ValueType::DOUBLE: out.doubleDataMut()[i] = v; break;
+            case ValueType::SINGLE: out.singleDataMut()[i] =
+                                    static_cast<float>(v); break;
+            case ValueType::UINT8:  out.uint8DataMut()[i] =
+                                    static_cast<uint8_t>(std::lround(v)); break;
+            case ValueType::UINT16: out.uint16DataMut()[i] =
+                                    static_cast<uint16_t>(std::lround(v)); break;
+            case ValueType::INT16:  out.int16DataMut()[i] =
+                                    static_cast<int16_t>(std::lround(v)); break;
+            case ValueType::LOGICAL: out.logicalDataMut()[i] =
+                                    (v != 0.0) ? 1u : 0u; break;
+            default: out.doubleDataMut()[i] = v; break;
+        }
+    };
+
+    for (size_t i = 0; i < N; ++i) {
+        size_t k = static_cast<size_t>(std::lround(id[i]));
+        if (k >= lutLen) k = lutLen - 1;
+        store_lut(i, LUT.elemAsDouble(k));
+    }
+    return out;
+}
+
 Value bwhitmiss(std::pmr::memory_resource *mr,
                 const Value &BW, const Value &se1, const Value &se2)
 {
@@ -1007,6 +1078,15 @@ void imbothat_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imbothat: requires (I, SE)", 0, 0, "imbothat", "",
                     "m:imbothat:nargin");
     outs[0] = imbothat(ctx.engine->resource(), args[0], args[1]);
+}
+
+void applylut_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("applylut: requires (BW, LUT)",
+                    0, 0, "applylut", "", "m:applylut:nargin");
+    outs[0] = applylut(ctx.engine->resource(), args[0], args[1]);
 }
 
 void bwhitmiss_reg(Span<const Value> args, size_t /*nargout*/,
