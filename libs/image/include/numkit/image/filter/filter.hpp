@@ -72,6 +72,16 @@ Value imsharpen(std::pmr::memory_resource *mr,
 Value im2col(std::pmr::memory_resource *mr,
              const Value &A, int m, int n, const std::string &block_type);
 
+/// col2im(B, [m n], [mm nn], block_type) — inverse of im2col.
+///   "sliding"  expects B to be 1 × (mm−m+1)·(nn−n+1) (a row of
+///              filter responses); reshapes to (mm−m+1) × (nn−n+1).
+///   "distinct" expects B to be m·n × ⌈mm/m⌉·⌈nn/n⌉; rebuilds the
+///              mm × nn image, dropping the zero-pad rim that
+///              im2col added on the right/bottom edges.
+Value col2im(std::pmr::memory_resource *mr,
+             const Value &B, int m, int n, int mm, int nn,
+             const std::string &block_type);
+
 /// imnoise(I, mode[, p1, p2]) — additive / multiplicative noise.
 /// Modes (all match MATLAB R2025b semantics):
 ///   "gaussian"        m=0, var=0.01      J = I + m + sqrt(var)·N(0,1)
