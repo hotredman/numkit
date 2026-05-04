@@ -436,6 +436,175 @@ std::vector<double> rgb_rows(const Value &v, const char *name) {
 
 namespace {
 
+// Detect LAB layout: Mx3 colormap or MxNx3 image. Returns (npix, plane)
+// where plane is the per-channel stride (npix == plane). Throws on
+// other shapes.
+struct LabLayout {
+    size_t H, W, npix;
+    bool is_3d;
+};
+
+LabLayout detect_lab_layout(const Value &v, const char *fn) {
+    const auto &d = v.dims();
+    LabLayout L{};
+    if (d.is3D() && d.pages() == 3) {
+        L.H = d.rows(); L.W = d.cols();
+        L.npix = L.H * L.W;
+        L.is_3d = true;
+    } else if (!d.is3D() && d.cols() == 3) {
+        L.H = d.rows(); L.W = 1;
+        L.npix = d.rows();
+        L.is_3d = false;
+    } else {
+        throw Error(std::string(fn) + ": LAB must be Mx3 or MxNx3",
+                    0, 0, fn, "", std::string("m:") + fn + ":size");
+    }
+    return L;
+}
+
+template <typename T>
+Value lab_alloc_int(std::pmr::memory_resource *mr, const LabLayout &L,
+                    ValueType cls)
+{
+    return L.is_3d ? Value::matrix3d(L.H, L.W, 3, cls, mr)
+                   : Value::matrix(L.H, 3, cls, mr);
+}
+
+// Per-pixel channel reader / writer in the same layout as detect_lab_layout.
+inline size_t lab_idx(const LabLayout &L, size_t pix, size_t ch) {
+    return pix + ch * L.npix;
+}
+
+} // anonymous
+
+Value lab2double(std::pmr::memory_resource *mr, const Value &lab)
+{
+    if (lab.type() == ValueType::DOUBLE) return lab;
+    auto L = detect_lab_layout(lab, "lab2double");
+    Value out = L.is_3d
+        ? Value::matrix3d(L.H, L.W, 3, ValueType::DOUBLE, mr)
+        : Value::matrix(L.H, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+
+    for (size_t p = 0; p < L.npix; ++p) {
+        const double l_ = lab.elemAsDouble(lab_idx(L, p, 0));
+        const double a_ = lab.elemAsDouble(lab_idx(L, p, 1));
+        const double b_ = lab.elemAsDouble(lab_idx(L, p, 2));
+        double L_, a, b;
+        switch (lab.type()) {
+            case ValueType::UINT8:
+                L_ = l_ * (100.0 / 255.0);
+                a  = a_ - 128.0;
+                b  = b_ - 128.0;
+                break;
+            case ValueType::UINT16:
+                L_ = l_ * (100.0 / 65280.0);
+                a  = a_ * (255.0 / 65280.0) - 128.0;
+                b  = b_ * (255.0 / 65280.0) - 128.0;
+                break;
+            case ValueType::SINGLE:
+                L_ = l_; a = a_; b = b_;
+                break;
+            default:
+                throw Error("lab2double: unsupported LAB class",
+                            0, 0, "lab2double", "", "m:lab2double:cls");
+        }
+        od[lab_idx(L, p, 0)] = L_;
+        od[lab_idx(L, p, 1)] = a;
+        od[lab_idx(L, p, 2)] = b;
+    }
+    return out;
+}
+
+Value lab2single(std::pmr::memory_resource *mr, const Value &lab)
+{
+    if (lab.type() == ValueType::SINGLE) return lab;
+    Value asDouble = lab2double(mr, lab);
+    auto L = detect_lab_layout(asDouble, "lab2single");
+    Value out = L.is_3d
+        ? Value::matrix3d(L.H, L.W, 3, ValueType::SINGLE, mr)
+        : Value::matrix(L.H, 3, ValueType::SINGLE, mr);
+    float *of = out.singleDataMut();
+    const double *src = asDouble.doubleData();
+    for (size_t i = 0; i < 3 * L.npix; ++i)
+        of[i] = static_cast<float>(src[i]);
+    return out;
+}
+
+Value lab2uint8(std::pmr::memory_resource *mr, const Value &lab)
+{
+    if (lab.type() == ValueType::UINT8) return lab;
+    auto L = detect_lab_layout(lab, "lab2uint8");
+    Value out = L.is_3d
+        ? Value::matrix3d(L.H, L.W, 3, ValueType::UINT8, mr)
+        : Value::matrix(L.H, 3, ValueType::UINT8, mr);
+    std::uint8_t *od = out.uint8DataMut();
+
+    for (size_t p = 0; p < L.npix; ++p) {
+        for (size_t ch = 0; ch < 3; ++ch) {
+            const double v = lab.elemAsDouble(lab_idx(L, p, ch));
+            double w;
+            switch (lab.type()) {
+                case ValueType::SINGLE:
+                case ValueType::DOUBLE: {
+                    if (std::isnan(v)) { w = 255.0; break; }
+                    w = (ch == 0) ? v * (255.0 / 100.0)
+                                  : v + 128.0;
+                    break;
+                }
+                case ValueType::UINT16:
+                    w = v / 256.0;
+                    break;
+                default:
+                    throw Error("lab2uint8: unsupported LAB class",
+                                0, 0, "lab2uint8", "", "m:lab2uint8:cls");
+            }
+            if (w < 0)   w = 0;
+            if (w > 255) w = 255;
+            od[lab_idx(L, p, ch)] = static_cast<std::uint8_t>(std::lround(w));
+        }
+    }
+    return out;
+}
+
+Value lab2uint16(std::pmr::memory_resource *mr, const Value &lab)
+{
+    if (lab.type() == ValueType::UINT16) return lab;
+    auto L = detect_lab_layout(lab, "lab2uint16");
+    Value out = L.is_3d
+        ? Value::matrix3d(L.H, L.W, 3, ValueType::UINT16, mr)
+        : Value::matrix(L.H, 3, ValueType::UINT16, mr);
+    std::uint16_t *od = out.uint16DataMut();
+
+    for (size_t p = 0; p < L.npix; ++p) {
+        for (size_t ch = 0; ch < 3; ++ch) {
+            const double v = lab.elemAsDouble(lab_idx(L, p, ch));
+            double w;
+            switch (lab.type()) {
+                case ValueType::SINGLE:
+                case ValueType::DOUBLE: {
+                    if (std::isnan(v)) { w = 65535.0; break; }
+                    w = (ch == 0) ? v * (65280.0 / 100.0)
+                                  : (v + 128.0) * (65280.0 / 255.0);
+                    break;
+                }
+                case ValueType::UINT8:
+                    w = v * 256.0;
+                    break;
+                default:
+                    throw Error("lab2uint16: unsupported LAB class",
+                                0, 0, "lab2uint16", "", "m:lab2uint16:cls");
+            }
+            if (w < 0)     w = 0;
+            if (w > 65535) w = 65535;
+            od[lab_idx(L, p, ch)] = static_cast<std::uint16_t>(std::lround(w));
+        }
+    }
+    return out;
+}
+
+namespace {
+
 void wavelength_to_rgb(double lambda, double gamma,
                        double &r, double &g, double &b)
 {
@@ -668,6 +837,10 @@ NK_COLOR_REG(rgb2ycbcr)
 NK_COLOR_REG(ycbcr2rgb)
 NK_COLOR_REG(rgb2ntsc)
 NK_COLOR_REG(ntsc2rgb)
+NK_COLOR_REG(lab2double)
+NK_COLOR_REG(lab2single)
+NK_COLOR_REG(lab2uint8)
+NK_COLOR_REG(lab2uint16)
 NK_COLOR_REG(rgb2xyz)
 NK_COLOR_REG(xyz2rgb)
 NK_COLOR_REG(rgb2lab)

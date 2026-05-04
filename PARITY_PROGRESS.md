@@ -2944,10 +2944,10 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `illumwhite` | ❌ |  |  |  |  | white-patch |
 | `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
 | `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
-| `lab2double` | ❌ |  |  |  |  |  |
+| `lab2double` | ❌ | 0.003 |  | 28.24× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
 | `lab2rgb` | ✅ | 0.003 |  | 94.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `lab2uint16` | ❌ |  |  |  |  |  |
-| `lab2uint8` | ❌ |  |  |  |  |  |
+| `lab2uint8` | ❌ | 0.002 |  | 90.17× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
 | `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
 | `ntsc2rgb` | ❌ | 0.003 |  | 58.09× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |

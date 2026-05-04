@@ -37,6 +37,16 @@ Value lab2rgb  (std::pmr::memory_resource *mr, const Value &x);
 Value xyz2lab  (std::pmr::memory_resource *mr, const Value &x);
 Value lab2xyz  (std::pmr::memory_resource *mr, const Value &x);
 
+/// L*a*b* class conversion: L* in [0, 100] (or 0..255 / 0..65280
+/// integer), a*/b* in [-128, 127] (or [0, 65280] for uint16). The
+/// helpers below dispatch on input class and rescale + offset
+/// per-channel; output keeps the input's shape (Mx3 colormap or
+/// MxNx3 image).
+Value lab2double (std::pmr::memory_resource *mr, const Value &lab);
+Value lab2single (std::pmr::memory_resource *mr, const Value &lab);
+Value lab2uint8  (std::pmr::memory_resource *mr, const Value &lab);
+Value lab2uint16 (std::pmr::memory_resource *mr, const Value &lab);
+
 /// `RGB = wavelength2rgb(wavelength [, class [, gamma]])` —
 /// piecewise visible-light wavelength → RGB mapping (Bruton 1996).
 /// Scalar input returns a 1×3 row; 1-D vector returns
