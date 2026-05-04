@@ -2735,17 +2735,17 @@ vector path-loss models and coordinate transforms.
 
 ## Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...)
 
-**Namespace:** `signal.spectral_analysis.*` — 3 ✅ + 0 ⚠️ / 17 = 17%
+**Namespace:** `signal.spectral_analysis.*` — 5 ✅ + 0 ⚠️ / 17 = 29%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `cpsd` | ❌ |  |  |  |  | cross-PSD |
+| `cpsd` | ✅ |  |  |  | OK | one-sided complex cross-PSD via Welch; Sxx-identity match to 0 |
 | `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
 | `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
 | `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `mscohere` | ❌ |  |  |  |  | magnitude-squared coherence |
+| `mscohere` | ✅ |  |  |  | OK | \|Pxy\|² / (Pxx·Pyy); auto = 1 exactly, LTI ≈ 0.97 |
 | `periodogram` | ✅ | 0.010 |  | 11.41× | MISMATCH | Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX. |
 | `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
 | `pmtm` | ❌ |  |  |  |  | multi-taper |

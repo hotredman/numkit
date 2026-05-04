@@ -34,4 +34,19 @@ pwelch(std::pmr::memory_resource *mr,
        size_t noverlap,
        size_t nfft);
 
+/// Cross-PSD via Welch's method. Returns (Pxy, F) where Pxy is the
+/// one-sided complex cross-spectrum E[X(f)·Y*(f)]. Same windowing
+/// and segmentation rules as pwelch.
+std::tuple<Value, Value>
+cpsd(std::pmr::memory_resource *mr,
+     const Value &x, const Value &y,
+     const Value &window, size_t noverlap, size_t nfft);
+
+/// Magnitude-squared coherence via Welch's method. Returns (Cxy, F)
+/// with Cxy(f) = |Pxy(f)|² / (Pxx(f)·Pyy(f)), real-valued in [0, 1].
+std::tuple<Value, Value>
+mscohere(std::pmr::memory_resource *mr,
+         const Value &x, const Value &y,
+         const Value &window, size_t noverlap, size_t nfft);
+
 } // namespace numkit::signal
