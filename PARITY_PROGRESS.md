@@ -2902,7 +2902,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
+| `cmap2gray` | ❌ | 0.003 |  |  | N/A | Sig: gmap = cmap2gray(cmap). N×3 colormap → N×1 grayscale via Octave-image weights (0.298936, 0.587043, 0.114021). Octave-image has cmap2gray; cross-check expected OK. |
 | `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
 | `gray2ind` | ❌ | 0.006 |  | 35.67× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
@@ -3042,7 +3042,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `gabor` | ❌ |  |  |  |  | Gabor filter bank |
 | `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
 | `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imboxfilt3` | ❌ |  |  |  |  |  |
+| `imboxfilt3` | ❌ | 0.007 |  |  | N/A | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
 | `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
 | `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `imgaborfilt` | ❌ |  |  |  |  |  |
@@ -3262,7 +3262,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `bwlabeln` | ❌ |  |  |  |  |  |
 | `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwpropfilt` | ❌ |  |  |  |  |  |
-| `bwselect` | ❌ |  |  |  |  |  |
+| `bwselect` | ❌ | 0.004 |  | 51.05× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
 | `bwselect3` | ❌ |  |  |  |  |  |
 | `cc2bw` | ❌ |  |  |  |  |  |
 | `corr2` | ❌ | 0.003 |  | 158.83× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
@@ -3362,3 +3362,7 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `wavelength2rgb` | — | 0.004 |  | 144.92× | OK | Sig: rgb = wavelength2rgb(wavelength [, class [, gamma]]). Piecewise visible-light wavelength → RGB (Bruton). Tolerance loose because Octave's gamma=0.8 raises tiny FP noise when raising 0 to 0.8 — final RGB triple to 4 decimals is the right comparison. |
 | `imsmooth` | — | 0.005 |  | 140.09× | OK | Sig: J = imsmooth(I, name [, sigma]). Currently Gaussian-only with σ-Gaussian, h=ceil(3σ), symmetric pad; Octave-image has imsmooth (this matches the Gaussian path). |
 | `colorgradient` | — | 0.005 |  | 45.97× | OK | Sig: M = colorgradient(C [, w] [, n]). K-by-3 anchor RGB; piecewise linspace; default n=64. Octave-image has colorgradient. Default uses rows(colormap) but we don't have a graphics colormap so we default to n=64. |
+| `iscolormap` | — | 0.007 |  | 30.48× | OK | Sig: tf = iscolormap(cmap). Real, float (single/double), 2-D, 3 cols, non-empty. Range [0,1] not enforced. Octave core has iscolormap. |
+| `gray` | — | 0.003 |  | 12.94× | OK | Sig: map = gray([n]). N×3 grayscale colormap. Default n=256 (we don't track figure colormap state). n==1 → [0 0 0]; n<=0 → 0×3. Octave core has gray. |
+| `hot` | — | 0.004 |  | 11.72× | OK | Sig: map = hot([n]). N×3 black→red→yellow→white colormap. Default n=256. Octave core has hot. |
+| `cool` | — | 0.004 |  | 59.77× | OK | Sig: map = cool([n]). N×3 cyan→magenta. r=(0:n-1)/(n-1), g=1-r, b=1. Default n=256. Octave core has cool. |
