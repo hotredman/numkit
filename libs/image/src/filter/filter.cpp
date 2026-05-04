@@ -1028,6 +1028,120 @@ Value imnoise(std::pmr::memory_resource *mr,
     return out;
 }
 
+namespace {
+
+// Build a list of (dr, dc) offsets for the non-zero entries of a
+// 2-D `domain` mask, plus the kernel half-extents.
+struct DomainOffsets {
+    std::vector<std::pair<int, int>> offs;
+    int rh = 0, ch = 0;
+};
+
+DomainOffsets domain_offsets(const Value &domain) {
+    DomainOffsets r;
+    const size_t kH = domain.dims().rows();
+    const size_t kW = domain.dims().cols();
+    r.rh = static_cast<int>(kH) / 2;
+    r.ch = static_cast<int>(kW) / 2;
+    r.offs.reserve(kH * kW);
+    for (size_t c = 0; c < kW; ++c)
+        for (size_t row = 0; row < kH; ++row)
+            if (domain.elemAsDouble(c * kH + row) != 0.0)
+                r.offs.push_back({static_cast<int>(row) - r.rh,
+                                  static_cast<int>(c)   - r.ch});
+    return r;
+}
+
+inline double sample_sym(const Value &I, int r, int c, int H, int W) {
+    r = fold_index(r, H, PadMode::Symmetric);
+    c = fold_index(c, W, PadMode::Symmetric);
+    return I.elemAsDouble(static_cast<size_t>(c) *
+                          static_cast<size_t>(H) +
+                          static_cast<size_t>(r));
+}
+
+} // anonymous
+
+Value stdfilt(std::pmr::memory_resource *mr,
+              const Value &I, const Value &domain)
+{
+    const int H = static_cast<int>(I.dims().rows());
+    const int W = static_cast<int>(I.dims().cols());
+    Value out = Value::matrix((size_t)H, (size_t)W, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0) return out;
+
+    Value dom_local;
+    const Value *dom = &domain;
+    if (domain.numel() == 0) {
+        dom_local = Value::matrix(3, 3, ValueType::LOGICAL, mr);
+        for (size_t i = 0; i < 9; ++i) dom_local.logicalDataMut()[i] = 1;
+        dom = &dom_local;
+    }
+    const DomainOffsets dom_offs = domain_offsets(*dom);
+    const size_t M = dom_offs.offs.size();
+    if (M == 0) return out;
+
+    double *od = out.doubleDataMut();
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            double sum = 0.0;
+            for (size_t k = 0; k < M; ++k)
+                sum += sample_sym(I, r + dom_offs.offs[k].first,
+                                     c + dom_offs.offs[k].second, H, W);
+            const double mu = sum / static_cast<double>(M);
+            double v = 0.0;
+            for (size_t k = 0; k < M; ++k) {
+                const double d = sample_sym(I,
+                                            r + dom_offs.offs[k].first,
+                                            c + dom_offs.offs[k].second,
+                                            H, W) - mu;
+                v += d * d;
+            }
+            od[(size_t)c * (size_t)H + (size_t)r] =
+                (M > 1) ? std::sqrt(v / static_cast<double>(M - 1)) : 0.0;
+        }
+    }
+    return out;
+}
+
+Value rangefilt(std::pmr::memory_resource *mr,
+                const Value &I, const Value &domain)
+{
+    const int H = static_cast<int>(I.dims().rows());
+    const int W = static_cast<int>(I.dims().cols());
+    Value out = Value::matrix((size_t)H, (size_t)W, I.type(), mr);
+    if (H == 0 || W == 0) return out;
+
+    Value dom_local;
+    const Value *dom = &domain;
+    if (domain.numel() == 0) {
+        dom_local = Value::matrix(3, 3, ValueType::LOGICAL, mr);
+        for (size_t i = 0; i < 9; ++i) dom_local.logicalDataMut()[i] = 1;
+        dom = &dom_local;
+    }
+    const DomainOffsets dom_offs = domain_offsets(*dom);
+    const size_t M = dom_offs.offs.size();
+    if (M == 0) return out;
+
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            double mn =  std::numeric_limits<double>::infinity();
+            double mx = -std::numeric_limits<double>::infinity();
+            for (size_t k = 0; k < M; ++k) {
+                const double v = sample_sym(I,
+                                            r + dom_offs.offs[k].first,
+                                            c + dom_offs.offs[k].second,
+                                            H, W);
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            store_classed(out, (size_t)c * (size_t)H + (size_t)r,
+                          mx - mn, I.type());
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -1342,6 +1456,28 @@ void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
     }
     outs[0] = imsharpen(ctx.engine->resource(), args[0],
                         radius, amount, threshold);
+}
+
+void stdfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("stdfilt: requires (I [, domain])",
+                    0, 0, "stdfilt", "", "m:stdfilt:nargin");
+    Value dom;
+    if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
+    outs[0] = stdfilt(ctx.engine->resource(), args[0], dom);
+}
+
+void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rangefilt: requires (I [, domain])",
+                    0, 0, "rangefilt", "", "m:rangefilt:nargin");
+    Value dom;
+    if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
+    outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
 }
 
 } // namespace detail
