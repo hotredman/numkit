@@ -1,0 +1,10 @@
+{
+  "name": "cmap2gray",
+  "namespace": "image",
+  "setup": "cmap = [linspace(0,1,16)' linspace(1,0,16)' (sin(linspace(0,pi,16))').^2];",
+  "expr": "y = cmap2gray(cmap);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: gmap = cmap2gray(cmap). N×3 colormap → N×1 grayscale via Octave-image weights (0.298936, 0.587043, 0.114021). Octave-image 2.18.2 doesn't ship cmap2gray (it's MATLAB R2020b+) → correctness=N/A."
+}

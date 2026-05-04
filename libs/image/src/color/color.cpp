@@ -804,6 +804,28 @@ Value colorangle(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
+{
+    const auto &d = cmap.dims();
+    if (d.is3D() || d.cols() != 3)
+        throw Error("cmap2gray: CMAP must be an N-by-3 colormap",
+                    0, 0, "cmap2gray", "", "m:cmap2gray:shape");
+    const size_t N = d.rows();
+    Value out = Value::matrix(N, 1, ValueType::DOUBLE, mr);
+    if (N == 0) return out;
+    double *od = out.doubleDataMut();
+    // Octave-image weights (4-5 sig fig). Differs from MATLAB's 4-fig
+    // Rec.601, but is what `cmap*[w_R; w_G; w_B]` produces in Octave.
+    constexpr double Cr = 0.298936, Cg = 0.587043, Cb = 0.114021;
+    for (size_t i = 0; i < N; ++i) {
+        const double r = cmap.elemAsDouble(0 * N + i);
+        const double g = cmap.elemAsDouble(1 * N + i);
+        const double b = cmap.elemAsDouble(2 * N + i);
+        od[i] = Cr * r + Cg * g + Cb * b;
+    }
+    return out;
+}
+
 Value label2rgb(std::pmr::memory_resource *mr,
                 const Value &L, const Value &cmap,
                 const Value &background)
@@ -975,6 +997,15 @@ void colorangle_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("colorangle: requires (rgb1, rgb2)",
                     0, 0, "colorangle", "", "m:colorangle:nargin");
     outs[0] = colorangle(ctx.engine->resource(), args[0], args[1]);
+}
+
+void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("cmap2gray: requires (cmap)",
+                    0, 0, "cmap2gray", "", "m:cmap2gray:nargin");
+    outs[0] = cmap2gray(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail
