@@ -3060,9 +3060,9 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
 | `ordfilt2` | ❌ |  |  |  |  | order-statistic filter |
 | `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rangefilt` | ❌ |  |  |  |  |  |
+| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
 | `roifilt2` | ❌ |  |  |  |  |  |
-| `stdfilt` | ❌ |  |  |  |  |  |
+| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
 | `wiener2` | ❌ |  |  |  |  |  |
 
 ## Contrast Adjustment
@@ -3288,8 +3288,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `entropyfilt` | ❌ |  |  |  |  | dup of filter section |
 | `graycomatrix` | ❌ |  |  |  |  | GLCM |
 | `graycoprops` | ❌ |  |  |  |  |  |
-| `rangefilt` | ❌ |  |  |  |  | dup of filter section |
-| `stdfilt` | ❌ |  |  |  |  | dup of filter section |
+| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
 
 ## Image Quality
 

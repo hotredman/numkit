@@ -103,4 +103,17 @@ Value imnoise(std::pmr::memory_resource *mr,
               const Value &I, const std::string &mode,
               const Value &p1, const Value &p2);
 
+/// stdfilt(I [, domain]) — local sample standard deviation in a
+/// neighbourhood defined by `domain` (logical / numeric mask;
+/// non-zero entries select neighbours). Default domain = ones(3).
+/// Boundary handling = symmetric. Output is double.
+Value stdfilt(std::pmr::memory_resource *mr,
+              const Value &I, const Value &domain);
+
+/// rangefilt(I [, domain]) — local max−min in a neighbourhood
+/// defined by `domain`. Default domain = true(3). Boundary =
+/// symmetric. Output type matches input class.
+Value rangefilt(std::pmr::memory_resource *mr,
+                const Value &I, const Value &domain);
+
 } // namespace numkit::image

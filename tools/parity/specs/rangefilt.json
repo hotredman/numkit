@@ -1,0 +1,10 @@
+{
+  "name": "rangefilt",
+  "namespace": "image",
+  "setup": "G = uint8([10 20 30; 40 50 60; 70 80 90]);",
+  "expr": "y = rangefilt(G);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input."
+}
