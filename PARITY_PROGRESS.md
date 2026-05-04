@@ -2903,7 +2903,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 |---|:---:|---:|---:|---:|:---:|---|
 | `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `cmap2gray` | ❌ |  |  |  |  | colormap → grayscale |
-| `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
+| `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
 | `gray2ind` | ❌ |  |  |  |  |  |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `grayslice` | ❌ | 0.004 |  | 43.86× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
