@@ -92,4 +92,15 @@ Value imhistmatch(std::pmr::memory_resource *mr,
 Value imflatfield(std::pmr::memory_resource *mr,
                   const Value &I, double sigma, const Value &mask);
 
+/// grayslice(I, n) — multilevel thresholding into an indexed image.
+///   - n scalar ≥ 1: thresholds at (1/n, 2/n, …, (n-1)/n) of the
+///     image's class range.
+///   - n a vector or 0 < n < 1: explicit threshold values; for
+///     floating-point images the vector is clamped to [min(I) max(I)]
+///     (extending toward image bounds, never shrinking).
+/// Output is uint8 if the number of levels is < 256, else double + 1
+/// (1-based indexing per MATLAB).
+Value grayslice(std::pmr::memory_resource *mr,
+                const Value &I, const Value &n);
+
 } // namespace numkit::image

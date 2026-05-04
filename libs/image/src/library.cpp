@@ -65,6 +65,7 @@ void histeq_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void adaptthresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imhistmatch_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imflatfield_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void grayslice_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void graythresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otsuthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multithresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -207,6 +208,7 @@ void ImageLibrary::install(Engine &engine)
     reg("contrast", "adaptthresh",&image::detail::adaptthresh_reg);
     reg("contrast", "imhistmatch",&image::detail::imhistmatch_reg);
     reg("contrast", "imflatfield",&image::detail::imflatfield_reg);
+    reg("contrast", "grayslice",  &image::detail::grayslice_reg);
 
     // imadjustn — N-D variant of imadjust. Our imadjust already
     // handles 3-D arrays elementwise on the unit-range mapping, so

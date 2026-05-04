@@ -2906,7 +2906,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `getrangefromclass` | ❌ |  |  |  |  | uint8/16 nominal range |
 | `gray2ind` | ❌ |  |  |  |  |  |
 | `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `grayslice` | ❌ |  |  |  |  | scalar quantize |
+| `grayslice` | ❌ | 0.004 |  | 43.86× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
 | `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
 | `im2double` | ✅ | 0.003 |  | 20.00× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `im2gray` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
