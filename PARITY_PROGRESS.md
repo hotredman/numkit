@@ -1732,12 +1732,12 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Discrete Wavelet Transforms (2-D / 3-D)
 
-**Namespace:** `wavelet.dwt2.*` — 0 ✅ + 0 ⚠️ / 15 = 0%
+**Namespace:** `wavelet.dwt2.*` — 2 ✅ + 0 ⚠️ / 15 = 13%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `dwt2` | ❌ |  |  |  |  | 2-D single-level DWT |
-| `idwt2` | ❌ |  |  |  |  |  |
+| `dwt2` | ✅ |  |  |  | OK | separable: row pass then column pass |
+| `idwt2` | ✅ |  |  |  | OK | round-trip ≤ 7e-11 across haar/db2/sym4 |
 | `wavedec2` | ❌ |  |  |  |  |  |
 | `waverec2` | ❌ |  |  |  |  |  |
 | `appcoef2` | ❌ |  |  |  |  |  |
