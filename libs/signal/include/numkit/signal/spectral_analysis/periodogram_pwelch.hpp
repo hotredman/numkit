@@ -57,4 +57,19 @@ tfestimate(std::pmr::memory_resource *mr,
            const Value &x, const Value &y,
            const Value &window, size_t noverlap, size_t nfft);
 
+/// Yule-Walker AR PSD of order p. Levinson-Durbin solves the
+/// normal equations from the autocorrelation; returns the all-pole
+/// PSD Pxx(f) = σ² / |1 + Σ a_k e^{-jωk}|² on a one-sided grid.
+std::tuple<Value, Value>
+pyulear(std::pmr::memory_resource *mr,
+        const Value &x, int p, size_t nfft);
+
+/// Burg's AR PSD of order p. AR coefficients estimated by minimising
+/// the sum of forward + backward prediction-error variances
+/// iteratively — more numerically stable on short data than
+/// Yule-Walker. Same output convention as pyulear.
+std::tuple<Value, Value>
+pburg(std::pmr::memory_resource *mr,
+      const Value &x, int p, size_t nfft);
+
 } // namespace numkit::signal
