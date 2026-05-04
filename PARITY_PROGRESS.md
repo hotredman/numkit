@@ -3186,7 +3186,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 ## Image Segmentation
 
-**Namespace:** `image.segment.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+**Namespace:** `image.segment.*` — 4 ✅ + 0 ⚠️ / 22 = 18%
 
 Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
 
@@ -3194,8 +3194,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 |---|:---:|---:|---:|---:|:---:|---|
 | `activecontour` | ❌ |  |  |  |  | Chan-Vese |
 | `bfscore` | ❌ |  |  |  |  | boundary F1 score |
-| `boundarymask` | ❌ |  |  |  |  |  |
-| `dice` | ❌ |  |  |  |  | Sørensen-Dice coefficient |
+| `boundarymask` | ✅ |  |  |  | OK | conn=4/8; flags any pixel adjacent to a different label or image edge |
+| `dice` | ✅ |  |  |  | OK | 2·\|A∩B\| / (\|A\|+\|B\|); both empty → 1 |
 | `gradientweight` | ❌ |  |  |  |  |  |
 | `grabcut` | ❌ |  |  |  |  |  |
 | `grayconnected` | ❌ |  |  |  |  |  |
@@ -3206,8 +3206,8 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `imsegisodata` | ❌ |  |  |  |  |  |
 | `imsegkmeans` | ❌ |  |  |  |  |  |
 | `imsegkmeans3` | ❌ |  |  |  |  |  |
-| `jaccard` | ❌ |  |  |  |  | IoU |
-| `label2idx` | ❌ |  |  |  |  |  |
+| `jaccard` | ✅ |  |  |  | OK | \|A∩B\| / \|A∪B\|; both empty → 1 |
+| `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
 | `labeloverlay` | ❌ |  |  |  |  |  |
 | `lazysnapping` | ❌ |  |  |  |  |  |
 | `superpixels` | ❌ |  |  |  |  | SLIC |
