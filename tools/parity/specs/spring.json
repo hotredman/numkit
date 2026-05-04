@@ -1,0 +1,10 @@
+{
+  "name": "spring",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = spring(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = spring([n]). N×3 magenta→yellow. r=1, g=(0:n-1)/(n-1), b=1-g. Default n=256. Octave core has spring."
+}
