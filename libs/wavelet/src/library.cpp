@@ -14,6 +14,11 @@ void wfilters_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 // dwt/dwt.cpp
 void dwt_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idwt_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+// dwt/multilevel.cpp
+void wavedec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void waverec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void appcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void detcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::wavelet::detail
 
 namespace numkit {
@@ -28,6 +33,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("filt", "wfilters", &wavelet::detail::wfilters_reg);
     reg("dwt",  "dwt",      &wavelet::detail::dwt_reg);
     reg("dwt",  "idwt",     &wavelet::detail::idwt_reg);
+    reg("dwt",  "wavedec",  &wavelet::detail::wavedec_reg);
+    reg("dwt",  "waverec",  &wavelet::detail::waverec_reg);
+    reg("dwt",  "appcoef",  &wavelet::detail::appcoef_reg);
+    reg("dwt",  "detcoef",  &wavelet::detail::detcoef_reg);
 }
 
 } // namespace numkit
