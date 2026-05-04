@@ -65,4 +65,17 @@ Value imsharpen(std::pmr::memory_resource *mr,
                 const Value &I,
                 double radius, double amount, double threshold);
 
+/// imnoise(I, mode[, p1, p2]) — additive / multiplicative noise.
+/// Modes (all match MATLAB R2025b semantics):
+///   "gaussian"        m=0, var=0.01      J = I + m + sqrt(var)·N(0,1)
+///   "localvar"        V (variance map)   J = I + sqrt(V)·N(0,1)
+///   "salt & pepper"   density d=0.05    fraction d of pixels set to {0,1}
+///   "speckle"         var=0.04           J = I + I·N(0, var)
+///   "poisson"         (no params)        Poisson with mean = I·scale
+/// Image is treated as unit-range [0,1] internally; output is cast
+/// back to the input class with saturation.
+Value imnoise(std::pmr::memory_resource *mr,
+              const Value &I, const std::string &mode,
+              const Value &p1, const Value &p2);
+
 } // namespace numkit::image
