@@ -73,4 +73,16 @@ Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
 /// is the connectivity for foreground (4 or 8); default 8.
 Value bweuler(std::pmr::memory_resource *mr, const Value &BW, int conn);
 
+/// bwareafilt(BW, range_or_n [, keep_str] [, conn]) — keep
+/// connected components by area.
+///   - `range_or_n` is either a 2-element [lo hi] (inclusive
+///     interval) or a scalar N (top-N selection).
+///   - `keep_largest`: when N-form, true → "largest" (default),
+///     false → "smallest".
+///   - `conn` ∈ {4, 8}; default 8.
+/// Output is a logical mask, same H × W as BW.
+Value bwareafilt(std::pmr::memory_resource *mr,
+                 const Value &BW, double lo, double hi,
+                 size_t n_keep, bool keep_largest, int conn);
+
 } // namespace numkit::image

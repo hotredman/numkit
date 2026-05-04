@@ -3250,7 +3250,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwareafilt` | ❌ |  |  |  |  |  |
+| `bwareafilt` | ❌ | 0.005 |  | 213.01× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
 | `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
 | `bwconvhull` | ❌ |  |  |  |  |  |

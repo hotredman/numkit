@@ -1,0 +1,10 @@
+{
+  "name": "bwareafilt",
+  "namespace": "image",
+  "setup": "a2d = [1 0 0 0 0 0 1 0 0 1; 1 0 0 1 0 1 0 1 0 1; 1 0 1 0 0 0 0 0 0 0; 0 0 0 0 0 0 0 0 0 0; 0 1 0 0 0 0 0 0 0 0; 1 1 0 1 1 1 0 0 0 0; 1 1 0 1 0 0 0 1 0 0; 1 1 0 0 0 0 1 0 1 0; 1 1 0 0 0 0 0 0 0 0; 1 1 0 0 0 1 1 0 0 1];",
+  "expr": "y = bwareafilt(a2d, 2);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt."
+}
