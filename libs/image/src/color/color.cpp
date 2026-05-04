@@ -1256,6 +1256,35 @@ Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
     return out;
 }
 
+Value whitepoint(std::pmr::memory_resource *mr,
+                 const std::string &illuminant)
+{
+    std::string lo;
+    lo.reserve(illuminant.size());
+    for (char c : illuminant) lo.push_back(static_cast<char>(std::tolower(c)));
+
+    double X = 0.0, Y = 0.0, Z = 0.0;
+    if (lo == "a")        { X = 1.0985; Y = 1.0; Z = 0.3558; }
+    else if (lo == "c")   { X = 0.9807; Y = 1.0; Z = 1.1823; }
+    else if (lo == "d50") { X = 0.96419865576090109; Y = 1.0;
+                            Z = 0.82511648321920425; }
+    else if (lo == "d55") { X = 0.9568; Y = 1.0; Z = 0.9214; }
+    else if (lo == "d65") { X = 0.95047; Y = 1.0; Z = 1.08883; }
+    else if (lo == "e")   { X = 1.0; Y = 1.0; Z = 1.0; }
+    else if (lo.empty() || lo == "icc")
+                          { X = 0.96420288085938; Y = 1.0;
+                            Z = 0.82489013671875; }
+    else
+        throw Error("whitepoint: unsupported illuminant '" + illuminant +
+                    "' (use a, c, d50, d55, d65, e, or icc)",
+                    0, 0, "whitepoint", "", "m:whitepoint:illum");
+
+    Value out = Value::matrix(1, 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    od[0] = X; od[1] = Y; od[2] = Z;
+    return out;
+}
+
 Value lin2rgb(std::pmr::memory_resource *mr, const Value &A)
 {
     Value in;
@@ -1799,6 +1828,19 @@ void lin2rgb_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("lin2rgb: requires (A)", 0, 0, "lin2rgb", "",
                     "m:lin2rgb:nargin");
     outs[0] = lin2rgb(ctx.engine->resource(), args[0]);
+}
+
+void whitepoint_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    std::string illum = "icc";  // default
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        if (!args[0].isChar() && !args[0].isString())
+            throw Error("whitepoint: illuminant must be a string",
+                        0, 0, "whitepoint", "", "m:whitepoint:type");
+        illum = args[0].toString();
+    }
+    outs[0] = whitepoint(ctx.engine->resource(), illum);
 }
 
 } // namespace detail
