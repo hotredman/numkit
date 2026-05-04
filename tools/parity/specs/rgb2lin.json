@@ -1,0 +1,10 @@
+{
+  "name": "rgb2lin",
+  "namespace": "image",
+  "setup": "rgb = reshape(linspace(0, 1, 48), 4, 4, 3);",
+  "expr": "y = rgb2lin(rgb);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A."
+}

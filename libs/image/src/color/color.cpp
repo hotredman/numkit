@@ -1220,6 +1220,42 @@ Value bone_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value rgb2lin(std::pmr::memory_resource *mr, const Value &A)
+{
+    // MATLAB R2025b convention: int classes float to single; else keep
+    // input class. Range outside [0, 1] is allowed — the function uses
+    // sign(x) * f(|x|) so negatives mirror through the gamma curve.
+    Value in;
+    if (A.type() == ValueType::DOUBLE) in = A;
+    else if (A.type() == ValueType::SINGLE) in = A;
+    else in = im2single(mr, A);
+
+    auto sRGBtoLin = [](double x) -> double {
+        const double s = (x < 0.0) ? -1.0 : 1.0;
+        const double ax = std::abs(x);
+        if (ax < 0.04045) return s * (ax / 12.92);
+        return s * std::pow((ax + 0.055) / 1.055, 2.4);
+    };
+
+    const auto &d = in.dims();
+    Value out = d.is3D()
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), in.type(), mr)
+        : Value::matrix(d.rows(), d.cols(), in.type(), mr);
+    const size_t N = in.numel();
+
+    if (in.type() == ValueType::DOUBLE) {
+        const double *pin = in.doubleData();
+        double *pout = out.doubleDataMut();
+        for (size_t i = 0; i < N; ++i) pout[i] = sRGBtoLin(pin[i]);
+    } else {
+        const float *pin = in.singleData();
+        float *pout = out.singleDataMut();
+        for (size_t i = 0; i < N; ++i)
+            pout[i] = static_cast<float>(sRGBtoLin(static_cast<double>(pin[i])));
+    }
+    return out;
+}
+
 Value white_cmap(std::pmr::memory_resource *mr, int n)
 {
     if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
@@ -1712,6 +1748,15 @@ void white_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = white_cmap(ctx.engine->resource(), n);
+}
+
+void rgb2lin_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("rgb2lin: requires (A)", 0, 0, "rgb2lin", "",
+                    "m:rgb2lin:nargin");
+    outs[0] = rgb2lin(ctx.engine->resource(), args[0]);
 }
 
 } // namespace detail
