@@ -72,4 +72,7 @@ std::tuple<Value, Value>
 pburg(std::pmr::memory_resource *mr,
       const Value &x, int p, size_t nfft);
 
+// `aryule` and `lpc` live in libs/signal's parametric/signal_modeling
+// stack — they predate this TU.
+
 } // namespace numkit::signal

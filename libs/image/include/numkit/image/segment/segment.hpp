@@ -43,4 +43,11 @@ Value label2idx(std::pmr::memory_resource *mr, const Value &L);
 Value grayconnected(std::pmr::memory_resource *mr,
                     const Value &I, int row, int col, double tol);
 
+/// `J = imoverlay(I, BW, color)` — paint BW=true pixels onto I with
+/// `color` (1 × 3 RGB triple; native scale: 0..255 for uint8 input,
+/// 0..1 for float input). I may be H × W (grayscale → replicated to
+/// 3 channels) or H × W × 3. Output is always H × W × 3 uint8.
+Value imoverlay(std::pmr::memory_resource *mr,
+                const Value &I, const Value &BW, const Value &color);
+
 } // namespace numkit::image
