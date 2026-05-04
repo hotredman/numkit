@@ -3284,7 +3284,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `entropy` | ❌ |  |  |  |  |  |
+| `entropy` | ❌ | 0.004 |  | 61.15× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
 | `entropyfilt` | ❌ |  |  |  |  | dup of filter section |
 | `graycomatrix` | ❌ |  |  |  |  | GLCM |
 | `graycoprops` | ❌ |  |  |  |  |  |

@@ -92,6 +92,12 @@ Value imhistmatch(std::pmr::memory_resource *mr,
 Value imflatfield(std::pmr::memory_resource *mr,
                   const Value &I, double sigma, const Value &mask);
 
+/// entropy(I [, nbins]) — Shannon entropy of the image histogram in
+/// bits. For non-logical images the image is first converted to
+/// uint8 with 256 bins by default; logical images use 2 bins. Zero
+/// counts are skipped before the log2 sum.
+Value entropy(std::pmr::memory_resource *mr, const Value &I, int nbins);
+
 /// grayslice(I, n) — multilevel thresholding into an indexed image.
 ///   - n scalar ≥ 1: thresholds at (1/n, 2/n, …, (n-1)/n) of the
 ///     image's class range.
