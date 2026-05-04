@@ -7,7 +7,9 @@
 #include <memory_resource>
 #include <numkit/core/value.hpp>
 
+#include <string>
 #include <tuple>
+#include <vector>
 
 namespace numkit::image {
 
@@ -36,5 +38,26 @@ Value bwperim(std::pmr::memory_resource *mr, const Value &BW, int conn);
 /// bwareaopen(BW, P[, conn]) — remove components with fewer than P
 /// pixels.
 Value bwareaopen(std::pmr::memory_resource *mr, const Value &BW, int P, int conn);
+
+/// bwboundaries(BW [, conn]) — trace outer boundaries of every
+/// connected component via Moore-neighbour walking with Jacob's
+/// stopping criterion. Returns a cell column where each entry is a
+/// P×2 [row col] uint32 matrix listing boundary pixels in clockwise
+/// order, including the start pixel as the closing entry.
+Value bwboundaries(std::pmr::memory_resource *mr,
+                   const Value &BW, int conn);
+
+/// regionprops(BW_or_L [, props…]) — struct array of per-region
+/// descriptors. Supported `props` (case-insensitive):
+///   'Area'        : pixel count
+///   'Centroid'    : 1×2 row [x y] in image coords (1-based)
+///   'BoundingBox' : 1×4 row [xmin ymin width height]
+///   'all'         : all of the above
+/// Default (no `props`): all of the above.
+/// Accepts either a binary image (runs bwlabel internally) or a
+/// pre-labelled integer array.
+Value regionprops(std::pmr::memory_resource *mr,
+                  const Value &BW_or_L,
+                  const std::vector<std::string> &props);
 
 } // namespace numkit::image

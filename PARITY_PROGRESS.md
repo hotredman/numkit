@@ -3214,11 +3214,11 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Object Analysis (Image)
 
-**Namespace:** `image.object.*` — 3 ✅ + 0 ⚠️ / 18 = 17%
+**Namespace:** `image.object.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `bwboundaries` | ❌ |  |  |  |  |  |
+| `bwboundaries` | ✅ |  |  |  | OK | Moore-neighbour outer trace, conn=4/8; 'noholes' default |
 | `bwtraceboundary` | ❌ |  |  |  |  |  |
 | `circles2mask` | ❌ |  |  |  |  |  |
 | `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
@@ -3243,7 +3243,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 
 ## Region and Image Properties
 
-**Namespace:** `image.region.*` — 6 ✅ + 0 ⚠️ / 28 = 21%
+**Namespace:** `image.region.*` — 7 ✅ + 0 ⚠️ / 28 = 25%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3272,7 +3272,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | `labelmatrix` | ❌ |  |  |  |  |  |
 | `mean2` | ❌ |  |  |  |  | mean over 2-D |
 | `poly2label` | ❌ |  |  |  |  |  |
-| `regionprops` | ❌ |  |  |  |  | major one |
+| `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
 | `regionprops3` | ❌ |  |  |  |  |  |
 | `std2` | ❌ |  |  |  |  |  |
 

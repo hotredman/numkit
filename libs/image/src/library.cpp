@@ -73,6 +73,8 @@ void bwconncomp_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwarea_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwperim_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bwareaopen_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void bwboundaries_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void regionprops_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // object/object.cpp
 void imgradientxy_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -163,11 +165,13 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
 
-    reg("region", "bwlabel",    &image::detail::bwlabel_reg);
-    reg("region", "bwconncomp", &image::detail::bwconncomp_reg);
-    reg("region", "bwarea",     &image::detail::bwarea_reg);
-    reg("region", "bwperim",    &image::detail::bwperim_reg);
-    reg("region", "bwareaopen", &image::detail::bwareaopen_reg);
+    reg("region", "bwlabel",      &image::detail::bwlabel_reg);
+    reg("region", "bwconncomp",   &image::detail::bwconncomp_reg);
+    reg("region", "bwarea",       &image::detail::bwarea_reg);
+    reg("region", "bwperim",      &image::detail::bwperim_reg);
+    reg("region", "bwareaopen",   &image::detail::bwareaopen_reg);
+    reg("region", "bwboundaries", &image::detail::bwboundaries_reg);
+    reg("region", "regionprops",  &image::detail::regionprops_reg);
 
     reg("object", "imgradientxy", &image::detail::imgradientxy_reg);
     reg("object", "imgradient",   &image::detail::imgradient_reg);
