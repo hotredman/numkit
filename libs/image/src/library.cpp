@@ -204,6 +204,12 @@ void ImageLibrary::install(Engine &engine)
     // an alias is exact: imadjustn(I) ≡ imadjust(I).
     reg("contrast", "imadjustn",  &image::detail::imadjust_reg);
 
+    // imhistmatchn — N-D variant of imhistmatch. Our imhistmatch
+    // builds a single histogram across all elements (as imhistmatchn
+    // does on volumes); aliasing covers both names with the same
+    // single-histogram semantics.
+    reg("contrast", "imhistmatchn",&image::detail::imhistmatch_reg);
+
     reg("type",  "graythresh",   &image::detail::graythresh_reg);
     reg("type",  "otsuthresh",   &image::detail::otsuthresh_reg);
     reg("type",  "multithresh",  &image::detail::multithresh_reg);
