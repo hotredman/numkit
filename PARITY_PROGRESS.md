@@ -1778,22 +1778,22 @@ omitted — interactive / Simulink / OOP.
 
 ## Wavelet Toolbox — Denoising and Compression
 
-**Namespace:** `wavelet.denoise.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
+**Namespace:** `wavelet.denoise.*` — 3 ✅ + 0 ⚠️ / 16 = 19%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `wdenoise` | ❌ |  |  |  |  | 1-D denoising |
+| `wdenoise` | ✅ |  |  |  | OK | VisuShrink (universal soft) on default details |
 | `wdenoise2` | ❌ |  |  |  |  | 2-D denoising |
 | `wden` | ❌ |  |  |  |  | classical denoising |
 | `wdencmp` | ❌ |  |  |  |  | denoise / compress |
 | `wpdencmp` | ❌ |  |  |  |  | wavelet-packet denoise / compress |
-| `wnoisest` | ❌ |  |  |  |  | noise-level estimate |
+| `wnoisest` | ✅ |  |  |  | OK | per-level σ via MAD/0.6745 |
 | `wvarchg` | ❌ |  |  |  |  | variance-change detection |
 | `ddencmp` | ❌ |  |  |  |  | default thresholding parameters |
 | `thselect` | ❌ |  |  |  |  | threshold selection |
 | `wthcoef` | ❌ |  |  |  |  | apply threshold to detail coeffs |
 | `wthcoef2` | ❌ |  |  |  |  |  |
-| `wthresh` | ❌ |  |  |  |  | hard / soft threshold |
+| `wthresh` | ✅ |  |  |  | OK | hard / soft threshold |
 | `wmulden` | ❌ |  |  |  |  | multivariate denoising |
 | `measerr` | ❌ |  |  |  |  | quality measures (PSNR/MSE/MAX/L2) |
 | `wnoise` | ❌ |  |  |  |  | noisy test signal |

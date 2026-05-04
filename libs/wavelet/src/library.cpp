@@ -19,6 +19,10 @@ void wavedec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void waverec_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void appcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void detcoef_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+// denoise/denoise.cpp
+void wthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wnoisest_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void wdenoise_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::wavelet::detail
 
 namespace numkit {
@@ -37,6 +41,10 @@ void WaveletLibrary::install(Engine &engine)
     reg("dwt",  "waverec",  &wavelet::detail::waverec_reg);
     reg("dwt",  "appcoef",  &wavelet::detail::appcoef_reg);
     reg("dwt",  "detcoef",  &wavelet::detail::detcoef_reg);
+
+    reg("denoise", "wthresh",  &wavelet::detail::wthresh_reg);
+    reg("denoise", "wnoisest", &wavelet::detail::wnoisest_reg);
+    reg("denoise", "wdenoise", &wavelet::detail::wdenoise_reg);
 }
 
 } // namespace numkit
