@@ -3129,8 +3129,8 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imextendedmax` | ❌ |  |  |  |  |  |
 | `imextendedmin` | ❌ |  |  |  |  |  |
 | `imfill` | ✅ |  |  |  | OK | 'holes' mode via imreconstruct on the complement; conn=4/8 |
-| `imhmax` | ❌ |  |  |  |  | h-maxima transform |
-| `imhmin` | ❌ |  |  |  |  |  |
+| `imhmax` | ✅ |  |  |  | OK | imreconstruct(I − h, I); shaves peaks by h |
+| `imhmin` | ✅ |  |  |  | OK | dual of imhmax via image inversion; raises shallow troughs |
 | `imimposemin` | ❌ |  |  |  |  |  |
 | `imkeepborder` | ❌ |  |  |  |  |  |
 | `imopen` | ✅ |  |  |  | OK | erode → dilate |

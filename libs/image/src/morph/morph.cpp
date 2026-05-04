@@ -466,6 +466,72 @@ Value imregionalmin(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imhmax / imhmin — h-extrema transforms
+// ════════════════════════════════════════════════════════════════════
+//
+//   imhmax(I, h) = imreconstruct(I − h, I)
+//   imhmin(I, h) = invert(imhmax(invert(I), h))
+//
+// h-maxima suppresses regional maxima shallower than h. Used as a
+// precursor to imregionalmax to ignore small / noise-like peaks.
+
+Value imhmax(std::pmr::memory_resource *mr,
+             const Value &I, double h, int conn)
+{
+    if (!(h >= 0.0))
+        throw Error("imhmax: h must be ≥ 0",
+                    0, 0, "imhmax", "", "m:imhmax:h");
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    if (N == 0) return Value::matrix(H, W, ValueType::DOUBLE, mr);
+
+    Value marker = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    Value mask   = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *md = marker.doubleDataMut();
+    double *kd = mask.doubleDataMut();
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        kd[i] = v;
+        md[i] = v - h;
+    }
+    return imreconstruct(mr, marker, mask, conn);
+}
+
+Value imhmin(std::pmr::memory_resource *mr,
+             const Value &I, double h, int conn)
+{
+    if (!(h >= 0.0))
+        throw Error("imhmin: h must be ≥ 0",
+                    0, 0, "imhmin", "", "m:imhmin:h");
+    const size_t H = I.dims().rows();
+    const size_t W = I.dims().cols();
+    const size_t N = I.numel();
+    if (N == 0) return Value::matrix(H, W, ValueType::DOUBLE, mr);
+
+    // Invert about a high value so peaks ↔ troughs, then reuse imhmax,
+    // then invert back.
+    double high = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i);
+        if (v > high) high = v;
+    }
+    Value Iinv = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *id = Iinv.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        id[i] = high - I.elemAsDouble(i);
+
+    Value Jinv = imhmax(mr, Iinv, h, conn);
+
+    // Invert back: J = high - Jinv.
+    Value J = Value::matrix(H, W, ValueType::DOUBLE, mr);
+    double *jd = J.doubleDataMut();
+    for (size_t i = 0; i < N; ++i)
+        jd[i] = high - Jinv.elemAsDouble(i);
+    return J;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -562,6 +628,30 @@ void imregionalmin_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 2 && !args[1].isEmpty())
                      ? static_cast<int>(args[1].toScalar()) : 8;
     outs[0] = imregionalmin(ctx.engine->resource(), args[0], conn);
+}
+
+void imhmax_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imhmax: requires (I, h [, conn])",
+                    0, 0, "imhmax", "", "m:imhmax:nargin");
+    const double h = args[1].toScalar();
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imhmax(ctx.engine->resource(), args[0], h, conn);
+}
+
+void imhmin_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imhmin: requires (I, h [, conn])",
+                    0, 0, "imhmin", "", "m:imhmin:nargin");
+    const double h = args[1].toScalar();
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imhmin(ctx.engine->resource(), args[0], h, conn);
 }
 
 } // namespace detail

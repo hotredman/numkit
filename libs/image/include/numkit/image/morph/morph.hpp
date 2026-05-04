@@ -74,4 +74,16 @@ Value imregionalmax(std::pmr::memory_resource *mr,
 Value imregionalmin(std::pmr::memory_resource *mr,
                     const Value &I, int conn);
 
+/// `J = imhmax(I, h [, conn])` — h-maxima transform. Suppresses
+/// regional maxima shallower than `h` units. Formula:
+///   imhmax(I, h) = imreconstruct(I − h, I, conn)
+/// Composes with imregionalmax to count only "deep" peaks.
+Value imhmax(std::pmr::memory_resource *mr,
+             const Value &I, double h, int conn);
+
+/// `J = imhmin(I, h [, conn])` — h-minima transform; dual of imhmax
+/// via image inversion.
+Value imhmin(std::pmr::memory_resource *mr,
+             const Value &I, double h, int conn);
+
 } // namespace numkit::image
