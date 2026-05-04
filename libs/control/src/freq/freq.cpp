@@ -243,6 +243,85 @@ void nyquist(std::pmr::memory_resource *mr,
     if (wOut)  *wOut = colDouble(mr, w);
 }
 
+void rlocus(std::pmr::memory_resource *mr,
+            const Value &sys, const Value &kArg,
+            Value *rOut, Value *kOut)
+{
+    auto nd = toNumDen(mr, sys);
+    // Strip any leading-zero padding so the polynomial sums align on
+    // the trailing (constant) term.
+    auto strip = [](std::vector<double> v) {
+        size_t i = 0;
+        while (i + 1 < v.size() && v[i] == 0.0) ++i;
+        return std::vector<double>(v.begin() + i, v.end());
+    };
+    auto num = strip(nd.num);
+    auto den = strip(nd.den);
+    if (den.empty())
+        throw Error("rlocus: denominator must be non-empty",
+                    0, 0, "rlocus", "", "m:rlocus:den");
+    const size_t n = den.size() - 1;   // closed-loop order
+
+    // Build gain vector.
+    std::vector<double> ks;
+    if (kArg.numel() == 0) {
+        // 0 + 100 log-spaced points from 1e-2 to 1e3.
+        ks.reserve(101);
+        ks.push_back(0.0);
+        const double a = -2.0, b = 3.0;
+        for (size_t i = 0; i < 100; ++i) {
+            const double t = double(i) / 99.0;
+            ks.push_back(std::pow(10.0, a + (b - a) * t));
+        }
+    } else {
+        ks.resize(kArg.numel());
+        for (size_t i = 0; i < kArg.numel(); ++i) ks[i] = kArg.elemAsDouble(i);
+    }
+
+    const size_t K = ks.size();
+    // Allocate K × n complex matrix.
+    Value R = Value::matrix(K, n, ValueType::COMPLEX, mr);
+    if (n > 0 && K > 0) {
+        Cd *rd = R.complexDataMut();
+
+        // Right-align num with den so adding den + k·num is a per-coefficient
+        // sum. den has length n+1 (after strip), num has length numNumel ≤ n+1.
+        std::vector<double> numAligned(den.size(), 0.0);
+        const size_t pad = den.size() - num.size();
+        for (size_t i = 0; i < num.size(); ++i)
+            numAligned[pad + i] = num[i];
+
+        std::vector<double> charPoly(den.size(), 0.0);
+        for (size_t row = 0; row < K; ++row) {
+            const double k = ks[row];
+            for (size_t i = 0; i < den.size(); ++i)
+                charPoly[i] = den[i] + k * numAligned[i];
+            // Pack as a row Value and run builtin::roots.
+            Value cp = Value::matrix(1, charPoly.size(),
+                                     ValueType::DOUBLE, mr);
+            std::copy(charPoly.begin(), charPoly.end(),
+                      cp.doubleDataMut());
+            Value rs = builtin::roots(mr, cp);
+            // rs is a column of length n (for this n-th order polynomial).
+            // Pack into row `row` of R (column-major: R[row, j] is at
+            // index j*K + row).
+            const size_t M = rs.numel();
+            for (size_t j = 0; j < n; ++j) {
+                Cd val(0.0, 0.0);
+                if (j < M) {
+                    if (rs.type() == ValueType::COMPLEX)
+                        val = rs.complexData()[j];
+                    else
+                        val = Cd(rs.elemAsDouble(j), 0.0);
+                }
+                rd[j * K + row] = val;
+            }
+        }
+    }
+    if (rOut) *rOut = R;
+    if (kOut) *kOut = colDouble(mr, ks);
+}
+
 namespace detail {
 
 void evalfr_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
@@ -287,6 +366,19 @@ void nyquist_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
     if (o.size() >= 1) o[0] = re;
     if (o.size() >= 2) o[1] = im;
     if (o.size() >= 3) o[2] = w;
+}
+
+void rlocus_reg(Span<const Value> a, size_t, Span<Value> o, CallContext &c)
+{
+    if (a.empty())
+        throw Error("rlocus: requires (sys [, k])",
+                    0, 0, "rlocus", "", "m:rlocus:nargin");
+    Value kArg = (a.size() >= 2) ? a[1]
+                : Value::matrix(0, 0, ValueType::DOUBLE, c.engine->resource());
+    Value r, k;
+    rlocus(c.engine->resource(), a[0], kArg, &r, &k);
+    if (o.size() >= 1) o[0] = r;
+    if (o.size() >= 2) o[1] = k;
 }
 
 } // namespace detail

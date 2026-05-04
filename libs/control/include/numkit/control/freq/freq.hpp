@@ -33,4 +33,16 @@ void nyquist(std::pmr::memory_resource *mr,
              const Value &sys, const Value &wArg,
              Value *reOut, Value *imOut, Value *wOut);
 
+/// `[r, k] = rlocus(sys [, kVec])` — root locus.
+/// For each gain k in `kVec`, compute the n closed-loop poles of
+/// the negative-feedback system  T = G / (1 + k·G), i.e. roots of
+/// `den(s) + k · num(s) = 0`. Returns
+///   r : (length(k)) × n complex matrix, one row per gain
+///   k : the gain vector actually used
+/// If `kVec` is empty, a default logarithmic sweep is generated
+/// covering 0 plus 100 points from 1e-2 to 1e3.
+void rlocus(std::pmr::memory_resource *mr,
+            const Value &sys, const Value &kVec,
+            Value *rOut, Value *kOut);
+
 } // namespace numkit::control

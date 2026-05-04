@@ -40,6 +40,7 @@ void evalfr_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void freqresp_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void nyquist_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void rlocus_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 // analyze/analyze.cpp
 void dcgain_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void margin_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -100,6 +101,7 @@ void ControlLibrary::install(Engine &engine)
     reg("response", "freqresp", &control::detail::freqresp_reg);
     reg("response", "bode",     &control::detail::bode_reg);
     reg("response", "nyquist",  &control::detail::nyquist_reg);
+    reg("response", "rlocus",   &control::detail::rlocus_reg);
 
     reg("analyze", "dcgain",   &control::detail::dcgain_reg);
     reg("analyze", "margin",   &control::detail::margin_reg);
