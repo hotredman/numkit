@@ -78,6 +78,7 @@ void flag_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void prism_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void lines_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void bone_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void white_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -283,6 +284,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "prism",         &image::detail::prism_reg);
     reg("color", "lines",         &image::detail::lines_reg);
     reg("color", "bone",          &image::detail::bone_reg);
+    reg("color", "white",         &image::detail::white_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
