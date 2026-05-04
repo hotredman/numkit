@@ -4,6 +4,7 @@ set(CONTROLLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/conversion/conversion.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/props/props.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/connect/connect.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/response/response.cpp
 )
 
 set(CONTROLLIB_SOURCES ${CONTROLLIB_SOURCES} PARENT_SCOPE)
