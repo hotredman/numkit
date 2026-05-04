@@ -99,4 +99,14 @@ Value imextendedmax(std::pmr::memory_resource *mr,
 Value imextendedmin(std::pmr::memory_resource *mr,
                     const Value &I, double h, int conn);
 
+/// `J = imimposemin(I, BW [, conn])` — minima imposition. Modify
+/// grayscale `I` so its only regional minima sit at the marker
+/// pixels in BW. Soille's reconstruction-by-erosion recipe:
+///   marker fm = -∞ at BW, +∞ elsewhere
+///   mask    m = min(I, fm) = -∞ at BW, I elsewhere
+///   J         = R^E_m(fm) — fill non-marker basins up to their
+///               boundary, keep markers at the global floor.
+Value imimposemin(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &BW, int conn);
+
 } // namespace numkit::image
