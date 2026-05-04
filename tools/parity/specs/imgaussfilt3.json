@@ -1,0 +1,10 @@
+{
+  "name": "imgaussfilt3",
+  "namespace": "image",
+  "setup": "V = reshape(linspace(0, 1, 125), 5, 5, 5);",
+  "expr": "y = imgaussfilt3(V, 1.5);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3."
+}

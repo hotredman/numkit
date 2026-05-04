@@ -140,6 +140,13 @@ Value imboxfilt3(std::pmr::memory_resource *mr, const Value &V,
 Value convmtx2(std::pmr::memory_resource *mr,
                const Value &h, int m, int n);
 
+/// `J = imgaussfilt3(V, sigmaH, sigmaW, sigmaP)` — 3-D Gaussian
+/// filter applied via separable 1-D convolutions along each axis
+/// with replicate boundary. Per-axis filter sizes default to
+/// 2·ceil(2σ)+1. Output type matches input.
+Value imgaussfilt3(std::pmr::memory_resource *mr, const Value &V,
+                   double sigH, double sigW, double sigP);
+
 
 /// entropyfilt(I [, domain]) — local Shannon entropy in bits.
 /// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),
