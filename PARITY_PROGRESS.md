@@ -2076,12 +2076,14 @@ MLSE entry is exposed.
 
 ## Communications Toolbox — RF and Channel Impairments
 
-**Namespace:** `comm.rf.*` — 2 ✅ + 0 ⚠️ / 10 = 20%
+**Namespace:** `comm.rf.*` — 4 ✅ + 0 ⚠️ / 10 = 40%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `awgn` | ✅ |  |  |  | OK | adds Gaussian noise at given SNR (real or complex) |
 | `bsc` | ✅ |  |  |  | OK | binary symmetric channel; per-bit Bernoulli flip |
+| `rayleighchan` | ✅ |  |  |  | OK | iid frequency-flat Rayleigh, E[\|h\|²]=1 |
+| `ricianchan` | ✅ |  |  |  | OK | Rician with K-factor; E[\|h\|²]=1 regardless of K |
 | `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
 | `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
 | `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |

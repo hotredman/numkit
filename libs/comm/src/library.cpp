@@ -34,6 +34,10 @@ void marcumq_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void berawgn_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void noisebw_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void convertSNR_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// channel/fading.cpp
+void rayleighchan_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
+void ricianchan_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::comm::detail
 
 namespace numkit {
@@ -70,6 +74,9 @@ void CommLibrary::install(Engine &engine)
     reg("perf", "berawgn",   &comm::detail::berawgn_reg);
     reg("perf", "noisebw",   &comm::detail::noisebw_reg);
     reg("perf", "convertSNR",&comm::detail::convertSNR_reg);
+
+    reg("rf", "rayleighchan", &comm::detail::rayleighchan_reg);
+    reg("rf", "ricianchan",   &comm::detail::ricianchan_reg);
 }
 
 } // namespace numkit
