@@ -3357,3 +3357,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `isgray` | — | 0.003 |  | 14.93× | OK | Sig: tf = isgray(I). True for 2-D images of class uint8/uint16/int16 or float in [0,1]. Octave-image has isgray. |
 | `imcast` | — | 0.005 |  | 41.75× | OK | Sig: J = imcast(I, type). Dispatch wrapper over im2* helpers (type ∈ double/single/uint8/uint16/int16/logical). Octave-image has imcast. |
 | `mmgradm` | — | 0.004 |  | 144.88× | OK | Sig: G = mmgradm(I [, se_dil [, se_ero]]). Morphological gradient = imdilate − imerode (default cross SE). Octave-image has mmgradm. |
+| `fchcode` | — | 0.004 |  | 38.44× | OK | Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode. |

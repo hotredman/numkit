@@ -68,6 +68,15 @@ Value regionprops(std::pmr::memory_resource *mr,
 /// column-wise (exact, O(H·W)).
 Value bwdist(std::pmr::memory_resource *mr, const Value &BW);
 
+/// `fcc = fchcode(bound)` — Freeman 8-direction chain code for a
+/// closed K-by-2 boundary (rows / cols). Returns a struct with
+///   x0y0 — 1×2 start point (matching bound(1,:))
+///   fcc  — 1×K direction codes
+///   diff — 1×K mod-8 first-difference (cyclic)
+/// Direction map: 3 2 1 / 4 . 0 / 5 6 7. If the boundary doesn't
+/// already close on itself, the first point is appended.
+Value fchcode(std::pmr::memory_resource *mr, const Value &bound);
+
 /// bweuler(BW [, n]) — Euler number (objects − holes) of a 2-D
 /// binary image, computed via Pratt's bit-quad LUT method. `n`
 /// is the connectivity for foreground (4 or 8); default 8.

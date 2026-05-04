@@ -1,0 +1,10 @@
+{
+  "name": "fchcode",
+  "namespace": "image",
+  "setup": "b = [1 1; 1 2; 1 3; 2 3; 3 3; 3 2; 3 1; 2 1; 1 1];",
+  "expr": "y = fchcode(b).fcc;",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode."
+}
