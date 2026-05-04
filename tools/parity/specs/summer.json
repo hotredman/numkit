@@ -1,0 +1,10 @@
+{
+  "name": "summer",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = summer(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = summer([n]). N×3 green→yellow. r=(0:n-1)/(n-1), g=0.5+r/2, b=0.4. Default n=256. Octave core has summer."
+}

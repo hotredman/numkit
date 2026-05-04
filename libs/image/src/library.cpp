@@ -68,6 +68,7 @@ void gray_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hot_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void cool_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void spring_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void summer_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -263,6 +264,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "hot",           &image::detail::hot_reg);
     reg("color", "cool",          &image::detail::cool_reg);
     reg("color", "spring",        &image::detail::spring_reg);
+    reg("color", "summer",        &image::detail::summer_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
