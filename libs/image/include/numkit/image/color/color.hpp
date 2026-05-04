@@ -80,6 +80,12 @@ Value colorangle(std::pmr::memory_resource *mr,
 /// Otherwise gr = (0:n-1)/(n-1), repeated across all 3 channels.
 Value gray_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = hot([n])` — N×3 black-red-yellow-white colormap.
+/// Default n = 256. Octave behaviour: n==1 → [1 1 1]; n==2 →
+/// [1 1 0.5; 1 1 1]; n>2 piecewise R-then-G-then-B ramps with
+/// idx=floor(3/8·n). n ≤ 0 → 0×3.
+Value hot_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap with values in [0, 1] (any numeric
 /// class accepted; coerced to double). Output is an N×1 column of

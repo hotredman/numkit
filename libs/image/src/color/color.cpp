@@ -824,6 +824,41 @@ Value gray_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value hot_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    auto R = [&](int r) -> double & { return od[0 * n + r]; };
+    auto G = [&](int r) -> double & { return od[1 * n + r]; };
+    auto B = [&](int r) -> double & { return od[2 * n + r]; };
+    if (n == 1) {
+        R(0) = G(0) = B(0) = 1.0;
+        return out;
+    }
+    if (n == 2) {
+        R(0) = G(0) = 1.0; B(0) = 0.5;
+        R(1) = G(1) = B(1) = 1.0;
+        return out;
+    }
+    // n > 2
+    const int idx = static_cast<int>(std::floor(3.0 / 8.0 * n));
+    const int nel = idx;
+    // R: r(1:idx) = i/nel; r(idx+1:end) = 1.
+    for (int i = 0; i < n; ++i) R(i) = 1.0;
+    for (int i = 0; i < nel; ++i) R(i) = static_cast<double>(i + 1) / nel;
+    // G: g(1:idx) = 0; g(idx+1:2*idx) = (1..idx)/idx; g(2*idx+1:end) = 1.
+    for (int i = 0; i < n; ++i) G(i) = 0.0;
+    for (int i = 0; i < idx; ++i) G(idx + i) = static_cast<double>(i + 1) / idx;
+    for (int i = 2 * idx; i < n; ++i) G(i) = 1.0;
+    // B: b(idx2:end) = (1..nel2)/nel2 where idx2 = 2*idx, nel2 = n - 2*idx.
+    for (int i = 0; i < n; ++i) B(i) = 0.0;
+    const int idx2 = 2 * idx;
+    const int nel2 = n - idx2;
+    for (int i = 0; i < nel2; ++i) B(idx2 + i) = static_cast<double>(i + 1) / nel2;
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1044,6 +1079,24 @@ void gray_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = gray_cmap(ctx.engine->resource(), n);
+}
+
+void hot_reg(Span<const Value> args, size_t /*nargout*/,
+             Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("hot: N must be a scalar integer",
+                        0, 0, "hot", "", "m:hot:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("hot: N must be a scalar integer",
+                        0, 0, "hot", "", "m:hot:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = hot_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail

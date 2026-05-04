@@ -1,0 +1,10 @@
+{
+  "name": "hot",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = hot(64);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = hot([n]). N×3 black→red→yellow→white colormap. Default n=256. Octave core has hot."
+}
