@@ -88,6 +88,10 @@ void ssim_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dct2_reg        (Span<const Value>, size_t, Span<Value>, CallContext &);
 void idct2_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
 void dctmtx_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// io/io.cpp
+void imread_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imwrite_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -169,6 +173,9 @@ void ImageLibrary::install(Engine &engine)
     reg("transform", "dct2",   &image::detail::dct2_reg);
     reg("transform", "idct2",  &image::detail::idct2_reg);
     reg("transform", "dctmtx", &image::detail::dctmtx_reg);
+
+    reg("io", "imread",  &image::detail::imread_reg);
+    reg("io", "imwrite", &image::detail::imwrite_reg);
 }
 
 } // namespace numkit
