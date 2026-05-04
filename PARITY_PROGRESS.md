@@ -2883,14 +2883,14 @@ vector path-loss models and coordinate transforms.
 
 ## Image I/O (Image Processing Toolbox)
 
-**Namespace:** `image.io.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
+**Namespace:** `image.io.*` — 2 ✅ + 0 ⚠️ / 3 = 67%
 
-Deferred until a PNG/JPEG decoder is vendored (e.g. stb_image). Algorithms below operate on numeric matrices passed in directly.
+Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendored under `third_party/stb/`.
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `imread` | ❌ |  |  |  |  | needs PNG/JPEG/BMP decoder |
-| `imwrite` | ❌ |  |  |  |  | needs encoder |
+| `imread` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA/PSD/GIF/HDR/PNM via stb_image |
+| `imwrite` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA via stb_image_write; ext detected from path |
 | `imfinfo` | ❌ |  |  |  |  | header parsing |
 
 ## Image Type Conversion

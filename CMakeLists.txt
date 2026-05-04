@@ -243,6 +243,8 @@ target_include_directories(numkit
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/signal/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/stats/src
         ${CMAKE_CURRENT_SOURCE_DIR}/libs/io/src
+        # Vendored single-header libs (stb_image, stb_image_write).
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb
 )
 
 target_compile_features(numkit PUBLIC cxx_std_17)
