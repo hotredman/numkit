@@ -153,6 +153,154 @@ pwelch(std::pmr::memory_resource *mr,
     return std::make_tuple(std::move(Pxx), std::move(F));
 }
 
+// ════════════════════════════════════════════════════════════════════
+// cpsd / mscohere — cross spectra via Welch's method
+// ════════════════════════════════════════════════════════════════════
+//
+// Common machinery: walk overlapping windowed segments of x and y,
+// FFT each, accumulate three spectra:
+//   Sxx[k] = Σ |X[k]|²
+//   Syy[k] = Σ |Y[k]|²
+//   Sxy[k] = Σ X[k]·conj(Y[k])
+// `cpsd` returns Sxy normalised the same way pwelch normalises Pxx.
+// `mscohere` returns |Sxy|² / (Sxx · Syy) — independent of any
+// per-segment scaling, so the normalisation cancels out and the
+// result is a real number in [0, 1].
+
+namespace {
+
+struct CrossWelchOut {
+    std::vector<std::complex<double>> Sxy;
+    std::vector<double> Sxx, Syy;
+    std::vector<double> F;
+    double winPower = 0.0;
+    size_t nSegments = 0;
+    size_t nfft = 0;
+};
+
+CrossWelchOut crossWelch(std::pmr::memory_resource *mr,
+                         const Value &x, const Value &y,
+                         const Value &window,
+                         size_t noverlap, size_t nfft)
+{
+    const size_t nx = x.numel();
+    const size_t ny = y.numel();
+    if (nx != ny)
+        throw Error("cpsd/mscohere: x and y must have the same length",
+                    0, 0, "cpsd", "", "m:cpsd:size");
+    const double *xd = x.doubleData();
+    const double *yd = y.doubleData();
+
+    ScratchArena scratch(mr);
+    size_t winLen;
+    ScratchVec<double> win(&scratch);
+    if (window.numel() > 0) {
+        winLen = window.numel();
+        win.resize(winLen);
+        const double *w = window.doubleData();
+        for (size_t i = 0; i < winLen; ++i) win[i] = w[i];
+    } else {
+        winLen = std::min(nx, static_cast<size_t>(256));
+        win.resize(winLen);
+        fillHammingWindow(win.data(), winLen);
+    }
+    if (noverlap == 0) noverlap = winLen / 2;
+    if (nfft == 0)     nfft = nextPow2(winLen);
+
+    double winPower = 0.0;
+    for (size_t i = 0; i < winLen; ++i) winPower += win[i] * win[i];
+
+    const size_t nOut = nfft / 2 + 1;
+    auto bufX = ScratchVec<Complex>(nfft, &scratch);
+    auto bufY = ScratchVec<Complex>(nfft, &scratch);
+
+    CrossWelchOut o;
+    o.Sxx.assign(nOut, 0.0);
+    o.Syy.assign(nOut, 0.0);
+    o.Sxy.assign(nOut, std::complex<double>(0.0, 0.0));
+
+    const size_t step = winLen - noverlap;
+    for (size_t start = 0; start + winLen <= nx; start += step) {
+        for (size_t i = 0; i < winLen; ++i) {
+            bufX[i] = Complex(xd[start + i] * win[i], 0.0);
+            bufY[i] = Complex(yd[start + i] * win[i], 0.0);
+        }
+        for (size_t i = winLen; i < nfft; ++i) {
+            bufX[i] = Complex(0.0, 0.0);
+            bufY[i] = Complex(0.0, 0.0);
+        }
+        fftRadix2(&scratch, bufX, 1);
+        fftRadix2(&scratch, bufY, 1);
+        for (size_t i = 0; i < nOut; ++i) {
+            const double sx = std::norm(bufX[i]);
+            const double sy = std::norm(bufY[i]);
+            const std::complex<double> sxy = bufX[i] * std::conj(bufY[i]);
+            o.Sxx[i] += sx;
+            o.Syy[i] += sy;
+            o.Sxy[i] += sxy;
+        }
+        ++o.nSegments;
+    }
+    o.winPower = winPower;
+    o.nfft = nfft;
+    o.F.assign(nOut, 0.0);
+    for (size_t i = 0; i < nOut; ++i)
+        o.F[i] = M_PI * static_cast<double>(i) / static_cast<double>(nOut - 1);
+    return o;
+}
+
+} // anonymous
+
+std::tuple<Value, Value>
+cpsd(std::pmr::memory_resource *mr,
+     const Value &x, const Value &y,
+     const Value &window, size_t noverlap, size_t nfft)
+{
+    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    const size_t nOut = o.Sxx.size();
+    if (o.nSegments == 0) {
+        Value Pxy0 = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
+        Value F0   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+        if (nOut > 0) {
+            std::copy(o.F.begin(), o.F.end(), F0.doubleDataMut());
+        }
+        return std::make_tuple(std::move(Pxy0), std::move(F0));
+    }
+    const double scale = 1.0 / (o.winPower * static_cast<double>(o.nfft) *
+                                 static_cast<double>(o.nSegments));
+    Value Pxy = Value::matrix(nOut, 1, ValueType::COMPLEX, mr);
+    Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    auto *cd = Pxy.complexDataMut();
+    auto *fd = F.doubleDataMut();
+    for (size_t i = 0; i < nOut; ++i) {
+        std::complex<double> s = o.Sxy[i] * scale;
+        if (i > 0 && i < o.nfft / 2) s *= 2.0;
+        cd[i] = s;
+        fd[i] = o.F[i];
+    }
+    return std::make_tuple(std::move(Pxy), std::move(F));
+}
+
+std::tuple<Value, Value>
+mscohere(std::pmr::memory_resource *mr,
+         const Value &x, const Value &y,
+         const Value &window, size_t noverlap, size_t nfft)
+{
+    auto o = crossWelch(mr, x, y, window, noverlap, nfft);
+    const size_t nOut = o.Sxx.size();
+    Value Cxy = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    Value F   = Value::matrix(nOut, 1, ValueType::DOUBLE, mr);
+    auto *cd = Cxy.doubleDataMut();
+    auto *fd = F.doubleDataMut();
+    for (size_t i = 0; i < nOut; ++i) {
+        const double denom = o.Sxx[i] * o.Syy[i];
+        const double num   = std::norm(o.Sxy[i]);
+        cd[i] = (denom > 0.0) ? num / denom : 0.0;
+        fd[i] = o.F[i];
+    }
+    return std::make_tuple(std::move(Cxy), std::move(F));
+}
+
 namespace detail {
 
 void periodogram_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
@@ -188,6 +336,36 @@ void pwelch_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallCo
     outs[0] = std::move(Pxx);
     if (nargout > 1)
         outs[1] = std::move(F);
+}
+
+void cpsd_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("cpsd: requires (x, y[, window, noverlap, nfft])",
+                    0, 0, "cpsd", "", "m:cpsd:nargin");
+    Value window = Value::empty();
+    if (args.size() >= 3 && !args[2].isChar()) window = args[2];
+    const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
+    const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    auto [Pxy, F] = cpsd(ctx.engine->resource(), args[0], args[1],
+                         window, noverlap, nfft);
+    outs[0] = std::move(Pxy);
+    if (nargout > 1) outs[1] = std::move(F);
+}
+
+void mscohere_reg(Span<const Value> args, size_t nargout, Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("mscohere: requires (x, y[, window, noverlap, nfft])",
+                    0, 0, "mscohere", "", "m:mscohere:nargin");
+    Value window = Value::empty();
+    if (args.size() >= 3 && !args[2].isChar()) window = args[2];
+    const size_t noverlap = (args.size() >= 4) ? static_cast<size_t>(args[3].toScalar()) : 0;
+    const size_t nfft     = (args.size() >= 5) ? static_cast<size_t>(args[4].toScalar()) : 0;
+    auto [Cxy, F] = mscohere(ctx.engine->resource(), args[0], args[1],
+                             window, noverlap, nfft);
+    outs[0] = std::move(Cxy);
+    if (nargout > 1) outs[1] = std::move(F);
 }
 
 } // namespace detail
