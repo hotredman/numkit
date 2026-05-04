@@ -1,0 +1,10 @@
+{
+  "name": "grayslice",
+  "namespace": "image",
+  "setup": "I = double(reshape(linspace(0, 1, 100), [10 10]));",
+  "expr": "y = grayslice(I);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice."
+}

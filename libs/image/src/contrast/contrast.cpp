@@ -632,6 +632,102 @@ Value imflatfield(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value grayslice(std::pmr::memory_resource *mr,
+                const Value &I, const Value &n)
+{
+    const ValueType ct = I.type();
+    const size_t N = I.numel();
+    const bool isInt16 = (ct == ValueType::INT16);
+    const bool isFloat = (ct == ValueType::DOUBLE || ct == ValueType::SINGLE);
+
+    bool n_scalar_ge1 = false;
+    bool n_is_vec     = false;
+    double n_scalar = 0.0;
+    if (n.numel() == 1) {
+        n_scalar = n.toScalar();
+        if (n_scalar >= 1.0) n_scalar_ge1 = true;
+        else if (n_scalar > 0.0) n_is_vec = true;
+        else
+            throw Error("grayslice: N must be a positive number",
+                        0, 0, "grayslice", "", "m:grayslice:n");
+    } else if (n.numel() > 1) {
+        n_is_vec = true;
+    } else {
+        throw Error("grayslice: N must be scalar ≥ 1 or a vector",
+                    0, 0, "grayslice", "", "m:grayslice:nargin");
+    }
+
+    // Build threshold vector in the image's value scale.
+    std::vector<double> thresh;
+    size_t n_levels = 0;
+    if (n_scalar_ge1) {
+        const size_t k_max = static_cast<size_t>(std::floor(n_scalar - 1.0));
+        thresh.reserve(k_max);
+        const double scale =
+              (ct == ValueType::UINT8)  ? 255.0
+            : (ct == ValueType::UINT16) ? 65535.0
+            : isInt16                   ? 65535.0
+            : 1.0;
+        for (size_t k = 1; k <= k_max; ++k) {
+            const double v_unit = static_cast<double>(k) / n_scalar;
+            double v_class;
+            if (isFloat) v_class = v_unit;
+            else {
+                v_class = std::round(v_unit * scale);
+                if (isInt16) v_class -= 32768.0;
+            }
+            thresh.push_back(v_class);
+        }
+        n_levels = k_max + 1;
+    } else {
+        const size_t M = n.numel();
+        thresh.resize(M);
+        for (size_t i = 0; i < M; ++i) thresh[i] = n.elemAsDouble(i);
+        std::sort(thresh.begin(), thresh.end());
+        if (isFloat && N > 0) {
+            double imin =  std::numeric_limits<double>::infinity();
+            double imax = -std::numeric_limits<double>::infinity();
+            for (size_t i = 0; i < N; ++i) {
+                const double v = I.elemAsDouble(i);
+                if (v < imin) imin = v;
+                if (v > imax) imax = v;
+            }
+            for (size_t i = 0; i < M; ++i) {
+                if (thresh[i] < imin) thresh[i] = imin;
+                if (thresh[i] > imax) thresh[i] = imax;
+            }
+        }
+        n_levels = M + 1;
+    }
+
+    const ValueType outT = (n_levels < 256) ? ValueType::UINT8
+                                            : ValueType::DOUBLE;
+    const auto &d = I.dims();
+    Value out;
+    if (d.is3D()) out = Value::matrix3d(d.rows(), d.cols(), d.pages(),
+                                        outT, mr);
+    else          out = Value::matrix(d.rows(), d.cols(), outT, mr);
+    if (N == 0) return out;
+
+    const bool baseOne = (outT == ValueType::DOUBLE);
+    for (size_t i = 0; i < N; ++i) {
+        const double iv = I.elemAsDouble(i);
+        size_t cnt = 0;
+        for (size_t k = 0; k < thresh.size(); ++k) {
+            if (thresh[k] <= iv) ++cnt;
+            else                 break;
+        }
+        if (outT == ValueType::UINT8) {
+            const size_t v = cnt > 255 ? 255 : cnt;
+            out.uint8DataMut()[i] = static_cast<uint8_t>(v);
+        } else {
+            out.doubleDataMut()[i] = static_cast<double>(cnt) +
+                                     (baseOne ? 1.0 : 0.0);
+        }
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -817,6 +913,19 @@ void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
     Value mask;
     if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
     outs[0] = imflatfield(ctx.engine->resource(), args[0], sigma, mask);
+}
+
+void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("grayslice: requires (I [, n])", 0, 0, "grayslice", "",
+                    "m:grayslice:nargin");
+    Value n;
+    if (args.size() >= 2 && !args[1].isEmpty()) n = args[1];
+    else                                        n = Value::scalar(10.0,
+                                                  ctx.engine->resource());
+    outs[0] = grayslice(ctx.engine->resource(), args[0], n);
 }
 
 } // namespace detail
