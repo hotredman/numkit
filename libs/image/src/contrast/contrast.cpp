@@ -2,6 +2,7 @@
 
 #include <numkit/image/contrast/contrast.hpp>
 #include <numkit/image/filter/filter.hpp>
+#include <numkit/image/type_convert/type_convert.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -632,6 +633,29 @@ Value imflatfield(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value entropy(std::pmr::memory_resource *mr, const Value &I, int nbins)
+{
+    const ValueType ct = I.type();
+    const bool isLogical = (ct == ValueType::LOGICAL);
+    if (nbins <= 0) nbins = isLogical ? 2 : 256;
+
+    Value Iu = isLogical ? I : im2uint8(mr, I);
+    auto [counts, _bins] = imhist(mr, Iu, nbins);
+    const double *cd = counts.doubleData();
+
+    double total = 0.0;
+    for (int i = 0; i < nbins; ++i) total += cd[i];
+    if (total <= 0.0) return Value::scalar(0.0, mr);
+
+    double H = 0.0;
+    for (int i = 0; i < nbins; ++i) {
+        if (cd[i] <= 0.0) continue;
+        const double p = cd[i] / total;
+        H -= p * std::log2(p);
+    }
+    return Value::scalar(H, mr);
+}
+
 Value grayslice(std::pmr::memory_resource *mr,
                 const Value &I, const Value &n)
 {
@@ -913,6 +937,18 @@ void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
     Value mask;
     if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
     outs[0] = imflatfield(ctx.engine->resource(), args[0], sigma, mask);
+}
+
+void entropy_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("entropy: requires (I [, nbins])", 0, 0, "entropy", "",
+                    "m:entropy:nargin");
+    int nbins = 0;
+    if (args.size() >= 2 && !args[1].isEmpty())
+        nbins = static_cast<int>(args[1].toScalar());
+    outs[0] = entropy(ctx.engine->resource(), args[0], nbins);
 }
 
 void grayslice_reg(Span<const Value> args, size_t /*nargout*/,
