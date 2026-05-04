@@ -633,6 +633,84 @@ Value imflatfield(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value wcodemat(std::pmr::memory_resource *mr, const Value &X,
+               int nb, const std::string &opt, int absol)
+{
+    if (nb < 1)
+        throw Error("wcodemat: NB must be a positive integer",
+                    0, 0, "wcodemat", "", "m:wcodemat:nb");
+
+    const auto &d = X.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    Value out = d.is3D()
+        ? Value::matrix3d(H, W, d.pages(), ValueType::DOUBLE, mr)
+        : Value::matrix(H, W, ValueType::DOUBLE, mr);
+    const size_t N = X.numel();
+    if (N == 0) return out;
+    double *od = out.doubleDataMut();
+
+    auto vget = [&](size_t i) {
+        const double v = X.elemAsDouble(i);
+        return absol ? std::abs(v) : v;
+    };
+
+    std::string lo;
+    lo.reserve(opt.size());
+    for (char c : opt) lo.push_back(static_cast<char>(std::tolower(c)));
+    if (lo.empty()) lo = "mat";
+
+    auto encode = [&](double v, double mn, double mx) {
+        const double span = mx - mn;
+        if (span == 0.0) return 1.0;
+        double y = std::round((v - mn) / span * (nb - 1)) + 1.0;
+        if (y < 1.0)  y = 1.0;
+        if (y > nb)   y = nb;
+        return y;
+    };
+
+    if (lo == "mat") {
+        double mn =  std::numeric_limits<double>::infinity();
+        double mx = -std::numeric_limits<double>::infinity();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = vget(i);
+            if (v < mn) mn = v;
+            if (v > mx) mx = v;
+        }
+        for (size_t i = 0; i < N; ++i)
+            od[i] = encode(vget(i), mn, mx);
+    } else if (lo == "row") {
+        // Per-row scaling. col-major: row r elements at i = c*H + r.
+        for (size_t r = 0; r < H; ++r) {
+            double mn =  std::numeric_limits<double>::infinity();
+            double mx = -std::numeric_limits<double>::infinity();
+            for (size_t c = 0; c < W; ++c) {
+                const double v = vget(c * H + r);
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            for (size_t c = 0; c < W; ++c)
+                od[c * H + r] = encode(vget(c * H + r), mn, mx);
+        }
+    } else if (lo == "col") {
+        for (size_t c = 0; c < W; ++c) {
+            double mn =  std::numeric_limits<double>::infinity();
+            double mx = -std::numeric_limits<double>::infinity();
+            for (size_t r = 0; r < H; ++r) {
+                const double v = vget(c * H + r);
+                if (v < mn) mn = v;
+                if (v > mx) mx = v;
+            }
+            for (size_t r = 0; r < H; ++r)
+                od[c * H + r] = encode(vget(c * H + r), mn, mx);
+        }
+    } else {
+        throw Error("wcodemat: opt must be 'mat', 'row', or 'col'",
+                    0, 0, "wcodemat", "", "m:wcodemat:opt");
+    }
+    return out;
+}
+
 Value entropy(std::pmr::memory_resource *mr, const Value &I, int nbins)
 {
     const ValueType ct = I.type();
@@ -937,6 +1015,26 @@ void imflatfield_reg(Span<const Value> args, size_t /*nargout*/,
     Value mask;
     if (args.size() >= 3 && !args[2].isEmpty()) mask = args[2];
     outs[0] = imflatfield(ctx.engine->resource(), args[0], sigma, mask);
+}
+
+void wcodemat_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("wcodemat: requires (X [, nb [, opt [, absol]]])",
+                    0, 0, "wcodemat", "", "m:wcodemat:nargin");
+    int nb = (args.size() >= 2 && !args[1].isEmpty())
+             ? static_cast<int>(args[1].toScalar()) : 16;
+    std::string opt = "mat";
+    if (args.size() >= 3 && !args[2].isEmpty()) {
+        if (!args[2].isChar() && !args[2].isString())
+            throw Error("wcodemat: opt must be a string",
+                        0, 0, "wcodemat", "", "m:wcodemat:opt");
+        opt = args[2].toString();
+    }
+    int absol = (args.size() >= 4 && !args[3].isEmpty())
+                ? static_cast<int>(args[3].toScalar()) : 1;
+    outs[0] = wcodemat(ctx.engine->resource(), args[0], nb, opt, absol);
 }
 
 void entropy_reg(Span<const Value> args, size_t /*nargout*/,

@@ -1723,7 +1723,7 @@ omitted — interactive / Simulink / OOP.
 | `dyadup` | ❌ |  |  |  |  | upsample with zero insertion |
 | `wkeep` | ❌ |  |  |  |  | extract central part |
 | `wextend` | ❌ |  |  |  |  | extend signal |
-| `wcodemat` | ❌ |  |  |  |  | quantise/scale image for display |
+| `wcodemat` | ❌ | 0.005 |  |  | N/A | Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A. |
 | `haart` | ❌ |  |  |  |  | Haar wavelet transform |
 | `ihaart` | ❌ |  |  |  |  | inverse Haar |
 | `wmaxlev` | ❌ |  |  |  |  | maximum decomposition level |

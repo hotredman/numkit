@@ -1,0 +1,10 @@
+{
+  "name": "wcodemat",
+  "namespace": "image",
+  "setup": "X = [-2 -1 0 1 2];",
+  "expr": "y = wcodemat(X, 5, 'mat', 1);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: Y = wcodemat(X [, nb [, opt [, absol]]]). Quantize/scale to [1, nb] integer codes (default nb=16, mat, absol=1). Wavelet Toolbox helper; Octave-image doesn't have it → correctness=N/A."
+}
