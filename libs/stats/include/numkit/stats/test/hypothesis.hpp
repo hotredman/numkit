@@ -1,0 +1,53 @@
+// libs/stats/include/numkit/stats/test/hypothesis.hpp
+//
+// Parametric hypothesis tests. All return a 4-tuple:
+//   (h, p, ci, tstat)
+// where h ∈ {0, 1} (1 = reject H0 at given α), p is the p-value,
+// ci is a 1×2 (or 2×1) confidence interval at level (1 - α), and tstat
+// is the test statistic.
+
+#pragma once
+
+#include <memory_resource>
+#include <numkit/core/value.hpp>
+
+#include <string>
+#include <tuple>
+
+namespace numkit::stats {
+
+enum class TestTail {
+    Both,    // two-sided (default)
+    Right,   // x > μ₀
+    Left     // x < μ₀
+};
+
+/// ttest(x[, m, alpha, tail]) — one-sample Student's t-test.
+/// H0: mean(x) = m   (default m = 0).
+std::tuple<Value, Value, Value, Value>
+ttest(std::pmr::memory_resource *mr, const Value &x,
+      double m, double alpha, TestTail tail);
+
+/// ttest2(x, y[, alpha, tail, vartype]) — two-sample t-test.
+/// vartype: "equal" (pooled variance) or "unequal" (Welch, default).
+std::tuple<Value, Value, Value, Value>
+ttest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+       double alpha, TestTail tail, const std::string &vartype);
+
+/// ztest(x, m, sigma[, alpha, tail]) — z-test with known σ.
+std::tuple<Value, Value, Value, Value>
+ztest(std::pmr::memory_resource *mr, const Value &x,
+      double m, double sigma, double alpha, TestTail tail);
+
+/// vartest(x, v[, alpha, tail]) — chi-squared one-sample variance test.
+/// H0: var(x) = v.
+std::tuple<Value, Value, Value, Value>
+vartest(std::pmr::memory_resource *mr, const Value &x,
+        double v, double alpha, TestTail tail);
+
+/// vartest2(x, y[, alpha, tail]) — F-test for equality of variances.
+std::tuple<Value, Value, Value, Value>
+vartest2(std::pmr::memory_resource *mr, const Value &x, const Value &y,
+         double alpha, TestTail tail);
+
+} // namespace numkit::stats
