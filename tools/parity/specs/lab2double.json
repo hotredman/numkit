@@ -1,0 +1,10 @@
+{
+  "name": "lab2double",
+  "namespace": "image",
+  "setup": "cm = uint8([0 0 0; 1 1 1; 2 2 2; 3 3 3; 127 127 127; 128 128 128; 200 200 200; 254 254 254; 255 255 255]);",
+  "expr": "y = lab2double(cm);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double."
+}
