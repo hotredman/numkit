@@ -804,6 +804,26 @@ Value colorangle(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value gray_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        od[0] = od[1] = od[2] = 0.0;
+        return out;
+    }
+    const double inv = 1.0 / static_cast<double>(n - 1);
+    for (int i = 0; i < n; ++i) {
+        const double v = static_cast<double>(i) * inv;
+        // col-major: column 0 (R), column 1 (G), column 2 (B).
+        od[0 * n + i] = v;
+        od[1 * n + i] = v;
+        od[2 * n + i] = v;
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1006,6 +1026,24 @@ void cmap2gray_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("cmap2gray: requires (cmap)",
                     0, 0, "cmap2gray", "", "m:cmap2gray:nargin");
     outs[0] = cmap2gray(ctx.engine->resource(), args[0]);
+}
+
+void gray_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("gray: N must be a scalar integer",
+                        0, 0, "gray", "", "m:gray:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("gray: N must be a scalar integer",
+                        0, 0, "gray", "", "m:gray:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = gray_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail
