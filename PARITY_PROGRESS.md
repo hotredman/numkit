@@ -3029,7 +3029,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `convmtx2` | ❌ |  |  |  |  |  |
-| `entropyfilt` | ❌ |  |  |  |  | local entropy |
+| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `fibermetric` | ❌ |  |  |  |  |  |
 | `freqspace` | ❌ |  |  |  |  |  |
 | `freqz2` | ❌ |  |  |  |  | 2-D freq response |
@@ -3285,7 +3285,7 @@ Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
 | `entropy` | ❌ | 0.004 |  | 61.15× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
-| `entropyfilt` | ❌ |  |  |  |  | dup of filter section |
+| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
 | `graycomatrix` | ❌ |  |  |  |  | GLCM |
 | `graycoprops` | ❌ |  |  |  |  |  |
 | `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
