@@ -116,6 +116,12 @@ Value stdfilt(std::pmr::memory_resource *mr,
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain);
 
+/// entropyfilt(I [, domain]) — local Shannon entropy in bits.
+/// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),
+/// 2 bins for logical. Default domain = ones(9). Symmetric boundary.
+Value entropyfilt(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &domain);
+
 /// ordfilt2(A, nth, domain [, S]) — 2-D order-statistic filter.
 /// For each output pixel the neighbourhood selected by `domain`
 /// (non-zero entries) is gathered, optionally offset by S (same

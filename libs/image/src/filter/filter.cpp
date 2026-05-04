@@ -1260,6 +1260,62 @@ wiener2(std::pmr::memory_resource *mr, const Value &I,
     return {std::move(out), Value::scalar(noise, mr)};
 }
 
+Value entropyfilt(std::pmr::memory_resource *mr,
+                  const Value &I, const Value &domain)
+{
+    const bool isLogical = (I.type() == ValueType::LOGICAL);
+    const int nbins = isLogical ? 2 : 256;
+    // For non-logical, non-uint8 inputs, cast through im2uint8 to match
+    // Octave-image's "do this for everything except logical/uint8" rule.
+    Value Iu = (isLogical || I.type() == ValueType::UINT8)
+        ? I : im2uint8(mr, I);
+
+    const int H = static_cast<int>(Iu.dims().rows());
+    const int W = static_cast<int>(Iu.dims().cols());
+    Value out = Value::matrix((size_t)H, (size_t)W, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0) return out;
+
+    Value dom_local;
+    const Value *dom = &domain;
+    if (domain.numel() == 0) {
+        // Default: ones(9).
+        dom_local = Value::matrix(9, 9, ValueType::LOGICAL, mr);
+        for (size_t i = 0; i < 81; ++i) dom_local.logicalDataMut()[i] = 1;
+        dom = &dom_local;
+    }
+    const DomainOffsets dom_offs = domain_offsets(*dom);
+    const size_t M = dom_offs.offs.size();
+    if (M == 0) return out;
+
+    double *od = out.doubleDataMut();
+    std::vector<int> hist(static_cast<size_t>(nbins), 0);
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            std::fill(hist.begin(), hist.end(), 0);
+            for (size_t k = 0; k < M; ++k) {
+                const double v = sample_sym(Iu,
+                                            r + dom_offs.offs[k].first,
+                                            c + dom_offs.offs[k].second,
+                                            H, W);
+                int b = static_cast<int>(v);
+                if (b < 0)        b = 0;
+                if (b >= nbins)   b = nbins - 1;
+                ++hist[(size_t)b];
+            }
+            const double total = static_cast<double>(M);
+            double H_bits = 0.0;
+            for (int b = 0; b < nbins; ++b) {
+                const int n = hist[(size_t)b];
+                if (n <= 0) continue;
+                const double p = static_cast<double>(n) / total;
+                H_bits -= p * std::log2(p);
+            }
+            od[(size_t)c * (size_t)H + (size_t)r] = H_bits;
+        }
+    }
+    return out;
+}
+
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain)
 {
@@ -1634,6 +1690,17 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
+}
+
+void entropyfilt_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("entropyfilt: requires (I [, domain])",
+                    0, 0, "entropyfilt", "", "m:entropyfilt:nargin");
+    Value dom;
+    if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
+    outs[0] = entropyfilt(ctx.engine->resource(), args[0], dom);
 }
 
 void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
