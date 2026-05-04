@@ -122,6 +122,11 @@ Value pink_cmap(std::pmr::memory_resource *mr, int n);
 /// to `hsv2rgb([(0:n-1)'/n, 1, 1])`. n==1 → [1 0 0]; n ≤ 0 → 0×3.
 Value hsv_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = flag([n])` — N×3 cyclic red/white/blue/black colormap.
+/// Rows cycle through the 4-row pattern `[1 0 0; 1 1 1; 0 0 1; 0 0 0]`.
+/// Default n = 256. n ≤ 0 → 0×3.
+Value flag_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from

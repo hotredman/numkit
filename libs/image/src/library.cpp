@@ -74,6 +74,7 @@ void winter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void copper_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void pink_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void hsv_cmap_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+void flag_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // filter/filter.cpp
 void padarray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -275,6 +276,7 @@ void ImageLibrary::install(Engine &engine)
     reg("color", "copper",        &image::detail::copper_reg);
     reg("color", "pink",          &image::detail::pink_reg);
     reg("color", "hsv",           &image::detail::hsv_cmap_reg);
+    reg("color", "flag",          &image::detail::flag_reg);
 
     reg("filter", "padarray",     &image::detail::padarray_reg);
     reg("filter", "fspecial",     &image::detail::fspecial_reg);
