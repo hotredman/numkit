@@ -68,6 +68,7 @@ void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imreconstruct_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
+void imfill_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // region/region.cpp
 void bwlabel_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -177,6 +178,7 @@ void ImageLibrary::install(Engine &engine)
     reg("morph", "imopen",    &image::detail::imopen_reg);
     reg("morph", "imclose",   &image::detail::imclose_reg);
     reg("morph", "imreconstruct", &image::detail::imreconstruct_reg);
+    reg("morph", "imfill",        &image::detail::imfill_reg);
 
     reg("region", "bwlabel",      &image::detail::bwlabel_reg);
     reg("region", "bwconncomp",   &image::detail::bwconncomp_reg);
