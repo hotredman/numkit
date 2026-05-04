@@ -2964,7 +2964,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `xyz2lab` | ✅ |  |  |  | OK |  |
 | `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `xyz2rgbwide` | ❌ |  |  |  |  |  |
-| `xyz2uint16` | ❌ |  |  |  |  |  |
+| `xyz2uint16` | ❌ | 0.003 | 455.90× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
 | `ycbcr2rgb` | ✅ | 0.003 |  | 59.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
 | `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
 

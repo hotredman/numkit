@@ -1287,6 +1287,40 @@ Value xyz2double(std::pmr::memory_resource *mr, const Value &xyz)
     return out;
 }
 
+Value xyz2uint16(std::pmr::memory_resource *mr, const Value &xyz)
+{
+    const auto &d = xyz.dims();
+    const bool ok_2d = !d.is3D() && d.cols() == 3;
+    const bool ok_3d = d.is3D() && d.pages() == 3;
+    if (!ok_2d && !ok_3d)
+        throw Error("xyz2uint16: input must be M-by-3 or H-by-W-by-3",
+                    0, 0, "xyz2uint16", "", "m:xyz2uint16:size");
+    const ValueType t = xyz.type();
+    if (t != ValueType::DOUBLE && t != ValueType::UINT16)
+        throw Error("xyz2uint16: input must be uint16 or double",
+                    0, 0, "xyz2uint16", "", "m:xyz2uint16:type");
+
+    Value out = ok_3d
+        ? Value::matrix3d(d.rows(), d.cols(), d.pages(), ValueType::UINT16, mr)
+        : Value::matrix(d.rows(), d.cols(), ValueType::UINT16, mr);
+    const size_t N = xyz.numel();
+    uint16_t *od = out.uint16DataMut();
+    if (t == ValueType::UINT16) {
+        const uint16_t *id = xyz.uint16Data();
+        for (size_t i = 0; i < N; ++i) od[i] = id[i];
+    } else {
+        const double *id = xyz.doubleData();
+        for (size_t i = 0; i < N; ++i) {
+            const double v = id[i] * 32768.0;
+            long r = (v <= 0.0) ? 0L : std::lround(v);
+            if (r < 0L) r = 0L;
+            if (r > 65535L) r = 65535L;
+            od[i] = static_cast<uint16_t>(r);
+        }
+    }
+    return out;
+}
+
 Value deltaE(std::pmr::memory_resource *mr,
              const Value &I1, const Value &I2, bool isInputLab)
 {
@@ -1927,6 +1961,15 @@ void xyz2double_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("xyz2double: requires (xyz)", 0, 0, "xyz2double", "",
                     "m:xyz2double:nargin");
     outs[0] = xyz2double(ctx.engine->resource(), args[0]);
+}
+
+void xyz2uint16_reg(Span<const Value> args, size_t /*nargout*/,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("xyz2uint16: requires (xyz)", 0, 0, "xyz2uint16", "",
+                    "m:xyz2uint16:nargin");
+    outs[0] = xyz2uint16(ctx.engine->resource(), args[0]);
 }
 
 void deltaE_reg(Span<const Value> args, size_t /*nargout*/,

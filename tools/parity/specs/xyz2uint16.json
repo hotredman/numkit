@@ -1,0 +1,10 @@
+{
+  "name": "xyz2uint16",
+  "namespace": "image",
+  "setup": "X = [0 0.5 1.0; 0.25 0.75 1.99997; 1.5 0 -0.1; 1 1 1];",
+  "expr": "y = xyz2uint16(X);",
+  "iters": 5,
+  "tol": 0,
+  "out_var": "y",
+  "comment": "Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16."
+}
