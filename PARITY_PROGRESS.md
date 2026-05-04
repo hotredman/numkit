@@ -3360,3 +3360,4 @@ Functions benched by the harness that don't appear in any of the MATLAB-doc sect
 | `fchcode` | — | 0.004 |  | 38.44× | OK | Sig: fcc = fchcode(bound). Freeman 8-direction chain code; struct with x0y0, fcc, diff fields. Octave-image has fchcode. |
 | `fftconv2` | — | 0.007 |  | 83.79× | OK | Sig: Y = fftconv2(A, B [, shape]). FFT-based 2-D conv; output complex with tiny imag, smoke wraps real(). Octave-image has fftconv2. |
 | `wavelength2rgb` | — | 0.004 |  | 144.92× | OK | Sig: rgb = wavelength2rgb(wavelength [, class [, gamma]]). Piecewise visible-light wavelength → RGB (Bruton). Tolerance loose because Octave's gamma=0.8 raises tiny FP noise when raising 0 to 0.8 — final RGB triple to 4 decimals is the right comparison. |
+| `imsmooth` | — | 0.005 |  | 140.09× | OK | Sig: J = imsmooth(I, name [, sigma]). Currently Gaussian-only with σ-Gaussian, h=ceil(3σ), symmetric pad; Octave-image has imsmooth (this matches the Gaussian path). |

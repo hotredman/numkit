@@ -116,6 +116,15 @@ Value stdfilt(std::pmr::memory_resource *mr,
 Value rangefilt(std::pmr::memory_resource *mr,
                 const Value &I, const Value &domain);
 
+/// `imsmooth(I, "Gaussian"[, sigma])` — Octave-image's smoothing
+/// dispatcher. Currently supports only the "Gaussian" mode, with
+/// 1-D-separable σ-Gaussian, h = ceil(3σ), default σ = 0.5,
+/// symmetric boundary, computed in double then cast back to the
+/// input class. RGB inputs are processed per-channel.
+Value imsmooth(std::pmr::memory_resource *mr,
+               const Value &I, const std::string &name,
+               double sigma);
+
 /// entropyfilt(I [, domain]) — local Shannon entropy in bits.
 /// 256-bin histogram for non-logical inputs (uint8 / im2uint8 cast),
 /// 2 bins for logical. Default domain = ones(9). Symmetric boundary.
