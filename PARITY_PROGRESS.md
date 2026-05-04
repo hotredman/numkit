@@ -1577,7 +1577,7 @@ intentionally omitted.
 
 ## Control System Toolbox — Time and Frequency Response
 
-**Namespace:** `control.response.*` — 0 ✅ + 0 ⚠️ / 19 = 0%
+**Namespace:** `control.response.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
 
 `*plot` variants intentionally dropped — they're display-only mirrors
 of the numeric functions (which already return data when called with
@@ -1585,11 +1585,11 @@ output args).
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `step` | ❌ |  |  |  |  | step response |
+| `step` | ✅ |  |  |  | OK | ZOH discretisation via Padé(6/6) expm + scaling/squaring |
 | `stepinfo` | ❌ |  |  |  |  | overshoot, rise time, settling time |
-| `impulse` | ❌ |  |  |  |  |  |
+| `impulse` | ✅ |  |  |  | OK | continuous: x(0+) = B; discrete: u[0]=1 |
 | `initial` | ❌ |  |  |  |  | response from initial state |
-| `lsim` | ❌ |  |  |  |  | linear simulation |
+| `lsim` | ✅ |  |  |  | OK | uniform-grid one-shot expm; non-uniform per-step |
 | `lsiminfo` | ❌ |  |  |  |  |  |
 | `gensig` | ❌ |  |  |  |  | input signal generator |
 | `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
