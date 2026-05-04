@@ -315,6 +315,25 @@ inline Value bool_scalar(std::pmr::memory_resource *mr, bool b) {
 
 } // anonymous
 
+Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I)
+{
+    Value r = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+    double *rd = r.doubleDataMut();
+    switch (I.type()) {
+        case ValueType::DOUBLE:
+        case ValueType::SINGLE:
+        case ValueType::LOGICAL: rd[0] = 0.0;       rd[1] = 1.0;     break;
+        case ValueType::UINT8:   rd[0] = 0.0;       rd[1] = 255.0;   break;
+        case ValueType::UINT16:  rd[0] = 0.0;       rd[1] = 65535.0; break;
+        case ValueType::INT16:   rd[0] = -32768.0;  rd[1] = 32767.0; break;
+        default:
+            throw Error("getrangefromclass: unrecognized image class",
+                        0, 0, "getrangefromclass", "",
+                        "m:getrangefromclass:cls");
+    }
+    return r;
+}
+
 Value isbw(std::pmr::memory_resource *mr, const Value &BW,
            const std::string &mode)
 {
@@ -456,6 +475,16 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         hi = args[1].elemAsDouble(1);
     }
     outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+}
+
+void getrangefromclass_reg(Span<const Value> args, size_t /*nargout*/,
+                           Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("getrangefromclass: requires (I)",
+                    0, 0, "getrangefromclass", "",
+                    "m:getrangefromclass:nargin");
+    outs[0] = getrangefromclass(ctx.engine->resource(), args[0]);
 }
 
 void isbw_reg(Span<const Value> args, size_t /*nargout*/,

@@ -34,6 +34,11 @@ Value im2gray (std::pmr::memory_resource *mr, const Value &x);
 /// Output class matches input.
 Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 
+/// `getrangefromclass(I)` — return the display [min, max] for the
+/// class of `I`. Integer types use intmin/intmax; logical, single,
+/// and double all return [0, 1]. Output is always double.
+Value getrangefromclass(std::pmr::memory_resource *mr, const Value &I);
+
 /// `isbw(BW [, mode])` — true if `BW` looks like a binary image.
 /// `mode = "logical"` (default) requires class logical; `mode =
 /// "non-logical"` accepts numeric classes whose values are all 0 or

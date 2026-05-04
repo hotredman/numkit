@@ -34,6 +34,7 @@ void isbw_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isgray_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isind_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 void isrgb_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void getrangefromclass_reg(Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // color/color.cpp
 void rgb2hsv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -193,6 +194,8 @@ void ImageLibrary::install(Engine &engine)
     reg("type",  "isgray",        &image::detail::isgray_reg);
     reg("type",  "isind",         &image::detail::isind_reg);
     reg("type",  "isrgb",         &image::detail::isrgb_reg);
+    reg("type",  "getrangefromclass",
+                                  &image::detail::getrangefromclass_reg);
     reg("color", "rgb2gray",      &image::detail::rgb2gray_reg);
     reg("color", "imsplit",       &image::detail::imsplit_reg);
 
