@@ -685,6 +685,148 @@ Value im2col(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// col2im — inverse of im2col
+// ════════════════════════════════════════════════════════════════════
+//
+// Two modes mirroring im2col:
+//
+// "sliding"  — B is 1 × (mm−m+1)·(nn−n+1). Each column of B is a
+//              scalar (already-reduced) filter response for one
+//              window. Output is just a reshape into (mm−m+1) ×
+//              (nn−n+1), column-major. (im2col + correlation per
+//              column = col2im(sliding) of the row of dot-products.)
+//
+// "distinct" — B is m·n × Hb·Wb where Hb=⌈mm/m⌉, Wb=⌈nn/n⌉. Each
+//              column was an m×n tile (column-major). Output is mm
+//              × nn — we drop the trailing rows/cols of the last
+//              row-tile / col-tile, which is where im2col padded
+//              with zeros.
+
+namespace {
+
+template <typename T>
+inline T elem_typed_data(const Value &B, size_t i);
+template <> inline double  elem_typed_data<double>(const Value &B, size_t i)
+                          { return B.doubleData()[i]; }
+template <> inline float   elem_typed_data<float> (const Value &B, size_t i)
+                          { return B.singleData()[i]; }
+template <> inline std::uint8_t elem_typed_data<std::uint8_t>(const Value &B, size_t i)
+                          { return B.uint8Data()[i]; }
+template <> inline std::uint16_t elem_typed_data<std::uint16_t>(const Value &B, size_t i)
+                          { return B.uint16Data()[i]; }
+template <> inline std::int16_t  elem_typed_data<std::int16_t>(const Value &B, size_t i)
+                          { return B.int16Data()[i]; }
+
+template <typename T>
+void col2im_distinct_typed(const Value &B, Value &A, size_t mm, size_t nn,
+                            int m, int n)
+{
+    const size_t Hb = (mm + (size_t)m - 1) / (size_t)m;
+    T *ad = out_typed_mut<T>(A);
+    const size_t outH = (size_t)(m * n);
+    size_t col = 0;
+    for (size_t bj = 0; bj < (nn + (size_t)n - 1) / (size_t)n; ++bj) {
+        for (size_t bi = 0; bi < Hb; ++bi) {
+            size_t off = col * outH;
+            for (int bc = 0; bc < n; ++bc) {
+                const size_t cc = bj * (size_t)n + (size_t)bc;
+                if (cc >= nn) { off += (size_t)m; continue; }
+                const size_t Acol = cc * mm;
+                for (int br = 0; br < m; ++br) {
+                    const size_t rr = bi * (size_t)m + (size_t)br;
+                    if (rr < mm) ad[Acol + rr] = elem_typed_data<T>(B, off);
+                    ++off;
+                }
+            }
+            ++col;
+        }
+    }
+}
+
+} // anonymous
+
+Value col2im(std::pmr::memory_resource *mr,
+             const Value &B, int m, int n, int mm, int nn,
+             const std::string &block_type)
+{
+    if (m <= 0 || n <= 0 || mm <= 0 || nn <= 0)
+        throw Error("col2im: dimensions must be positive",
+                    0, 0, "col2im", "", "m:col2im:size");
+    const size_t MM = (size_t)mm;
+    const size_t NN = (size_t)nn;
+    const ValueType T = B.type();
+
+    bool sliding = (block_type == "sliding" || block_type.empty());
+    if (sliding) {
+        if ((size_t)m > MM || (size_t)n > NN)
+            throw Error("col2im(sliding): block larger than output image",
+                        0, 0, "col2im", "", "m:col2im:size");
+        const size_t Hp = MM - (size_t)m + 1;
+        const size_t Wp = NN - (size_t)n + 1;
+        if (B.numel() != Hp * Wp)
+            throw Error("col2im(sliding): B size mismatch — expected 1×(mm−m+1)·(nn−n+1)",
+                        0, 0, "col2im", "", "m:col2im:nelems");
+        Value A = Value::matrix(Hp, Wp, T, mr);
+        // Both A and B are column-major linearised; values flow 1:1.
+        const size_t N = Hp * Wp;
+        switch (T) {
+            case ValueType::DOUBLE:
+                std::memcpy(A.doubleDataMut(), B.doubleData(),
+                            N * sizeof(double)); break;
+            case ValueType::SINGLE:
+                std::memcpy(A.singleDataMut(), B.singleData(),
+                            N * sizeof(float)); break;
+            case ValueType::UINT8:
+                std::memcpy(A.uint8DataMut(), B.uint8Data(), N); break;
+            case ValueType::UINT16:
+                std::memcpy(A.uint16DataMut(), B.uint16Data(),
+                            N * sizeof(std::uint16_t)); break;
+            case ValueType::INT16:
+                std::memcpy(A.int16DataMut(), B.int16Data(),
+                            N * sizeof(std::int16_t)); break;
+            case ValueType::LOGICAL:
+                std::memcpy(A.logicalDataMut(), B.logicalData(), N); break;
+            default:
+                throw Error("col2im: unsupported class",
+                            0, 0, "col2im", "", "m:col2im:badtype");
+        }
+        return A;
+    }
+
+    if (block_type != "distinct")
+        throw Error("col2im: block_type must be 'sliding' or 'distinct'",
+                    0, 0, "col2im", "", "m:col2im:type");
+
+    const size_t Hb = (MM + (size_t)m - 1) / (size_t)m;
+    const size_t Wb = (NN + (size_t)n - 1) / (size_t)n;
+    const size_t expRows = (size_t)(m * n);
+    const size_t expCols = Hb * Wb;
+    if (B.dims().rows() != expRows || B.dims().cols() != expCols)
+        throw Error("col2im(distinct): B shape mismatch — expected m·n × ⌈mm/m⌉·⌈nn/n⌉",
+                    0, 0, "col2im", "", "m:col2im:shape");
+
+    Value A = Value::matrix(MM, NN, T, mr);
+    if (MM == 0 || NN == 0) return A;
+
+    auto run = [&](auto tag) {
+        using ET = decltype(tag);
+        col2im_distinct_typed<ET>(B, A, MM, NN, m, n);
+    };
+    switch (T) {
+        case ValueType::DOUBLE: run(double{}); break;
+        case ValueType::SINGLE: run(float{});  break;
+        case ValueType::UINT8:  run(std::uint8_t{});  break;
+        case ValueType::UINT16: run(std::uint16_t{}); break;
+        case ValueType::INT16:  run(std::int16_t{});  break;
+        case ValueType::LOGICAL: run(std::uint8_t{}); break;
+        default:
+            throw Error("col2im: unsupported class",
+                        0, 0, "col2im", "", "m:col2im:badtype");
+    }
+    return A;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // imnoise — additive / multiplicative / shot noise
 // ════════════════════════════════════════════════════════════════════
 //
@@ -1005,6 +1147,35 @@ void im2col_reg(Span<const Value> args, size_t /*nargout*/,
     if (args.size() >= 3 && (args[2].isChar() || args[2].isString()))
         mode = args[2].toString();
     outs[0] = im2col(ctx.engine->resource(), args[0], m, n, mode);
+}
+
+void col2im_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("col2im: requires (B, [m n], [mm nn] [, block_type])",
+                    0, 0, "col2im", "", "m:col2im:nargin");
+    int m, n, mm, nn;
+    {
+        const Value &b = args[1];
+        if (b.numel() < 1)
+            throw Error("col2im: empty block size",
+                        0, 0, "col2im", "", "m:col2im:size");
+        m = (int)b.elemAsDouble(0);
+        n = (b.numel() >= 2) ? (int)b.elemAsDouble(1) : m;
+    }
+    {
+        const Value &s = args[2];
+        if (s.numel() < 1)
+            throw Error("col2im: empty image size",
+                        0, 0, "col2im", "", "m:col2im:size");
+        mm = (int)s.elemAsDouble(0);
+        nn = (s.numel() >= 2) ? (int)s.elemAsDouble(1) : mm;
+    }
+    std::string mode = "sliding";
+    if (args.size() >= 4 && (args[3].isChar() || args[3].isString()))
+        mode = args[3].toString();
+    outs[0] = col2im(ctx.engine->resource(), args[0], m, n, mm, nn, mode);
 }
 
 void imnoise_reg(Span<const Value> args, size_t /*nargout*/,

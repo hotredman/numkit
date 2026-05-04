@@ -3164,7 +3164,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 |---|:---:|---:|---:|---:|:---:|---|
 | `bestblk` | ❌ |  |  |  |  |  |
 | `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ❌ |  |  |  |  |  |
+| `col2im` | ✅ |  |  |  | OK | inverse of im2col; sliding=reshape, distinct=tile-rebuild dropping pad rim |
 | `colfilt` | ❌ |  |  |  |  |  |
 | `im2col` | ✅ |  |  |  | OK | sliding + distinct modes; per-class typed memcpy; zero-pads on distinct edges |
 | `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
