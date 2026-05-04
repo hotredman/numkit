@@ -167,6 +167,37 @@ Value hsv2rgb(std::pmr::memory_resource *mr, const Value &x) {
 // output in DOUBLE class).
 // ════════════════════════════════════════════════════════════════════
 
+// ════════════════════════════════════════════════════════════════════
+// RGB ↔ NTSC (YIQ, 3-significant-figure matrix from Wikipedia/MATLAB)
+// ════════════════════════════════════════════════════════════════════
+
+Value rgb2ntsc(std::pmr::memory_resource *mr, const Value &x) {
+    return pixel_transform(mr, x, "rgb2ntsc", [](double r, double g, double b) {
+        const double y = 0.299 * r + 0.587 * g + 0.114 * b;
+        const double i = 0.596 * r - 0.274 * g - 0.322 * b;
+        const double q = 0.211 * r - 0.523 * g + 0.312 * b;
+        return std::array<double, 3>{y, i, q};
+    });
+}
+
+Value ntsc2rgb(std::pmr::memory_resource *mr, const Value &x) {
+    // Octave-image's exact inverse (5 sig figs); built so that
+    // rgb2ntsc/ntsc2rgb round-trip back to the input. Negatives are
+    // clipped to 0 and per-pixel overshoot above 1 is scaled down by
+    // the row max — Matlab compatibility tweak from ntsc2rgb.m.
+    return pixel_transform_raw(mr, x, "ntsc2rgb", [](double y, double i, double q) {
+        double r = y + 0.95617 * i + 0.62143 * q;
+        double g = y - 0.27269 * i - 0.64681 * q;
+        double b = y - 1.10374 * i + 1.70062 * q;
+        if (r < 0.0) r = 0.0;
+        if (g < 0.0) g = 0.0;
+        if (b < 0.0) b = 0.0;
+        const double m = std::max({r, g, b});
+        if (m > 1.0) { r /= m; g /= m; b /= m; }
+        return std::array<double, 3>{r, g, b};
+    });
+}
+
 Value rgb2ycbcr(std::pmr::memory_resource *mr, const Value &x) {
     return pixel_transform(mr, x, "rgb2ycbcr", [](double r, double g, double b) {
         // BT.601 conversion (8-bit-style numbers, normalised by 255).
@@ -534,6 +565,8 @@ NK_COLOR_REG(rgb2hsv)
 NK_COLOR_REG(hsv2rgb)
 NK_COLOR_REG(rgb2ycbcr)
 NK_COLOR_REG(ycbcr2rgb)
+NK_COLOR_REG(rgb2ntsc)
+NK_COLOR_REG(ntsc2rgb)
 NK_COLOR_REG(rgb2xyz)
 NK_COLOR_REG(xyz2rgb)
 NK_COLOR_REG(rgb2lab)

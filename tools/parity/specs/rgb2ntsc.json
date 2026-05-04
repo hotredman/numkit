@@ -1,0 +1,10 @@
+{
+  "name": "rgb2ntsc",
+  "namespace": "image",
+  "setup": "rgb = reshape((0:11)/11, [4 3]);",
+  "expr": "y = rgb2ntsc(rgb);",
+  "iters": 5,
+  "tol": 1e-09,
+  "out_var": "y",
+  "comment": "Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc."
+}
