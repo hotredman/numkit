@@ -1,0 +1,10 @@
+{
+  "name": "lin2rgb",
+  "namespace": "image",
+  "setup": "rgb = reshape(linspace(0, 1, 48), 4, 4, 3);",
+  "expr": "y = lin2rgb(rgb);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A."
+}

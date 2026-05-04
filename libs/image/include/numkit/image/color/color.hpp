@@ -158,6 +158,12 @@ Value white_cmap(std::pmr::memory_resource *mr, int n);
 /// default "sRGB" colorspace is supported here.
 Value rgb2lin(std::pmr::memory_resource *mr, const Value &A);
 
+/// `B = lin2rgb(A)` — linear-RGB → sRGB gamma forward.
+/// Per-element piecewise: |x| ≤ 0.0031308 → 12.92·x; otherwise
+/// sign(x) · (1.055·|x|^(1/2.4) − 0.055). Inverse of rgb2lin.
+/// Same class-promotion rule as rgb2lin (integer in → single out).
+Value lin2rgb(std::pmr::memory_resource *mr, const Value &A);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from

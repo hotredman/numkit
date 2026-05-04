@@ -2949,7 +2949,7 @@ Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendore
 | `lab2uint16` | ❌ |  |  |  |  |  |
 | `lab2uint8` | ❌ | 0.002 |  | 90.17× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
 | `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
-| `lin2rgb` | ❌ |  |  |  |  | linear → sRGB gamma |
+| `lin2rgb` | ❌ | 0.003 | 568.88× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
 | `ntsc2rgb` | ❌ | 0.003 |  | 58.09× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
 | `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
 | `rgb2lab` | ✅ | 0.016 | 920.06× | 59.27× | MISMATCH | Verify our rgb2lab matches MATLAB. |
