@@ -3082,7 +3082,7 @@ Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionall
 | `imlocalbrighten` | ❌ |  |  |  |  |  |
 | `imreducehaze` | ❌ |  |  |  |  |  |
 | `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
-| `intlut` | ❌ |  |  |  |  | apply LUT to integer image |
+| `intlut` | ❌ | 0.002 |  | 76.91× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
 | `localcontrast` | ❌ |  |  |  |  |  |
 | `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
 | `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |

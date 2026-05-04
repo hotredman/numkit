@@ -257,6 +257,63 @@ Value im2gray(std::pmr::memory_resource *mr, const Value &x) {
     return x;  // already grayscale (or unsupported shape — pass through)
 }
 
+Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT)
+{
+    const ValueType atype = A.type();
+    const ValueType ltype = LUT.type();
+
+    size_t expectedLen;
+    switch (atype) {
+        case ValueType::UINT8:  expectedLen = 256;   break;
+        case ValueType::UINT16:
+        case ValueType::INT16:  expectedLen = 65536; break;
+        default:
+            throw Error("intlut: A must be uint8, uint16, or int16",
+                        0, 0, "intlut", "", "m:intlut:atype");
+    }
+    if (ltype != ValueType::UINT8 && ltype != ValueType::UINT16 &&
+        ltype != ValueType::INT16)
+        throw Error("intlut: LUT must be uint8, uint16, or int16",
+                    0, 0, "intlut", "", "m:intlut:luttype");
+    if (LUT.numel() != expectedLen)
+        throw Error("intlut: LUT length does not match input class range",
+                    0, 0, "intlut", "", "m:intlut:lutsize");
+
+    Value out = alloc_like(mr, A, ltype);
+    const size_t N = A.numel();
+    if (N == 0) return out;
+
+    const int shift = (atype == ValueType::INT16) ? 32768 : 0;
+
+    auto idx_at = [&](size_t i) -> size_t {
+        return static_cast<size_t>(static_cast<int64_t>(A.elemAsDouble(i))
+                                   + shift);
+    };
+
+    switch (ltype) {
+        case ValueType::UINT8: {
+            const uint8_t *lut = LUT.uint8Data();
+            uint8_t *od = out.uint8DataMut();
+            for (size_t i = 0; i < N; ++i) od[i] = lut[idx_at(i)];
+            break;
+        }
+        case ValueType::UINT16: {
+            const uint16_t *lut = LUT.uint16Data();
+            uint16_t *od = out.uint16DataMut();
+            for (size_t i = 0; i < N; ++i) od[i] = lut[idx_at(i)];
+            break;
+        }
+        case ValueType::INT16: {
+            const int16_t *lut = LUT.int16Data();
+            int16_t *od = out.int16DataMut();
+            for (size_t i = 0; i < N; ++i) od[i] = lut[idx_at(i)];
+            break;
+        }
+        default: break;
+    }
+    return out;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -299,6 +356,15 @@ void mat2gray_reg(Span<const Value> args, size_t /*nargout*/,
         hi = args[1].elemAsDouble(1);
     }
     outs[0] = mat2gray(ctx.engine->resource(), args[0], lo, hi);
+}
+
+void intlut_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("intlut: requires (A, LUT)", 0, 0, "intlut", "",
+                    "m:intlut:nargin");
+    outs[0] = intlut(ctx.engine->resource(), args[0], args[1]);
 }
 
 } // namespace detail

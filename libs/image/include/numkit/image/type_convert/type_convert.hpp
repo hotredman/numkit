@@ -34,4 +34,12 @@ Value im2gray (std::pmr::memory_resource *mr, const Value &x);
 /// Output class matches input.
 Value rgb2gray(std::pmr::memory_resource *mr, const Value &x);
 
+/// intlut(A, LUT) — apply a lookup table to an integer image.
+/// `A` must be uint8, uint16, or int16. `LUT` must be a vector of
+///   256        elements for uint8 input,
+///   65536      elements for uint16 / int16 input.
+/// For int16, the index is `A(i) + 32768` to match MATLAB semantics.
+/// Output class equals `class(LUT)`.
+Value intlut(std::pmr::memory_resource *mr, const Value &A, const Value &LUT);
+
 } // namespace numkit::image
