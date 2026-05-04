@@ -59,6 +59,13 @@ void otsuthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multithresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imbinarize_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imquantize_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
+// morph/morph.cpp
+void strel_reg       (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imerode_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imdilate_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imopen_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imclose_reg     (Span<const Value>, size_t, Span<Value>, CallContext &);
 } // namespace numkit::image::detail
 
 namespace numkit {
@@ -116,6 +123,12 @@ void ImageLibrary::install(Engine &engine)
     reg("type",  "multithresh",  &image::detail::multithresh_reg);
     reg("type",  "imbinarize",   &image::detail::imbinarize_reg);
     reg("type",  "imquantize",   &image::detail::imquantize_reg);
+
+    reg("morph", "strel",     &image::detail::strel_reg);
+    reg("morph", "imerode",   &image::detail::imerode_reg);
+    reg("morph", "imdilate",  &image::detail::imdilate_reg);
+    reg("morph", "imopen",    &image::detail::imopen_reg);
+    reg("morph", "imclose",   &image::detail::imclose_reg);
 }
 
 } // namespace numkit

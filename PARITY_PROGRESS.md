@@ -3104,7 +3104,7 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 
 ## Morphological Operations
 
-**Namespace:** `image.morph.*` — 0 ✅ + 0 ⚠️ / 27 = 0%
+**Namespace:** `image.morph.*` — 5 ✅ + 0 ⚠️ / 27 = 19%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -3121,9 +3121,9 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `conndef` | ❌ |  |  |  |  |  |
 | `imbothat` | ❌ |  |  |  |  | black tophat |
 | `imclearborder` | ❌ |  |  |  |  |  |
-| `imclose` | ❌ |  |  |  |  |  |
-| `imdilate` | ❌ |  |  |  |  |  |
-| `imerode` | ❌ |  |  |  |  |  |
+| `imclose` | ✅ |  |  |  | OK | dilate → erode |
+| `imdilate` | ✅ |  |  |  | OK | grayscale max-within-SE |
+| `imerode` | ✅ |  |  |  | OK | grayscale min-within-SE |
 | `imextendedmax` | ❌ |  |  |  |  |  |
 | `imextendedmin` | ❌ |  |  |  |  |  |
 | `imfill` | ❌ |  |  |  |  | flood-fill holes |
@@ -3131,14 +3131,14 @@ ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, �
 | `imhmin` | ❌ |  |  |  |  |  |
 | `imimposemin` | ❌ |  |  |  |  |  |
 | `imkeepborder` | ❌ |  |  |  |  |  |
-| `imopen` | ❌ |  |  |  |  |  |
+| `imopen` | ✅ |  |  |  | OK | erode → dilate |
 | `imreconstruct` | ❌ |  |  |  |  | grayscale reconstruction |
 | `imregionalmax` | ❌ |  |  |  |  |  |
 | `imregionalmin` | ❌ |  |  |  |  |  |
 | `imtophat` | ❌ |  |  |  |  |  |
 | `makelut` | ❌ |  |  |  |  |  |
 | `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
-| `strel` | ❌ |  |  |  |  | structuring element factory |
+| `strel` | ✅ |  |  |  | OK | square / rectangle / diamond / disk / line / arbitrary |
 
 ## Deblurring
 
