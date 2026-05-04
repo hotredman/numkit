@@ -123,7 +123,85 @@ Value dctmtx(std::pmr::memory_resource *mr, double Nd)
     return D;
 }
 
+Value integralImage(std::pmr::memory_resource *mr, const Value &I)
+{
+    const auto &d = I.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t H1 = H + 1;
+    Value out = Value::matrix(H1, W + 1, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0) return out;
+    double *od = out.doubleDataMut();
+    // out[r+1, c+1] = out[r, c+1] + out[r+1, c] - out[r, c] + I[r, c].
+    for (size_t c = 0; c < W; ++c) {
+        const size_t cb = (c + 1) * H1;
+        const size_t cl = c * H1;
+        for (size_t r = 0; r < H; ++r) {
+            const size_t r1 = r + 1;
+            od[cb + r1] = od[cl + r1] + od[cb + r] - od[cl + r]
+                        + I.elemAsDouble(c * H + r);
+        }
+    }
+    return out;
+}
+
+Value integralImage3(std::pmr::memory_resource *mr, const Value &V)
+{
+    const auto &d = V.dims();
+    const size_t H = d.rows();
+    const size_t W = d.cols();
+    const size_t P = d.is3D() ? d.pages() : 1;
+    const size_t H1 = H + 1;
+    const size_t W1 = W + 1;
+    const size_t plane1 = H1 * W1;
+    const size_t planeIn = H * W;
+    Value out = Value::matrix3d(H1, W1, P + 1, ValueType::DOUBLE, mr);
+    if (H == 0 || W == 0 || P == 0) return out;
+    double *od = out.doubleDataMut();
+    auto idx = [&](size_t r, size_t c, size_t p) {
+        return p * plane1 + c * H1 + r;
+    };
+    for (size_t p = 0; p < P; ++p) {
+        const size_t p1 = p + 1;
+        for (size_t c = 0; c < W; ++c) {
+            const size_t c1 = c + 1;
+            for (size_t r = 0; r < H; ++r) {
+                const size_t r1 = r + 1;
+                const double v = V.elemAsDouble(p * planeIn + c * H + r);
+                od[idx(r1, c1, p1)] =
+                      od[idx(r,  c1, p1)]
+                    + od[idx(r1, c,  p1)]
+                    + od[idx(r1, c1, p )]
+                    - od[idx(r,  c,  p1)]
+                    - od[idx(r,  c1, p )]
+                    - od[idx(r1, c,  p )]
+                    + od[idx(r,  c,  p )]
+                    + v;
+            }
+        }
+    }
+    return out;
+}
+
 namespace detail {
+
+void integralImage_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralImage: requires (I)",
+                    0, 0, "integralImage", "", "m:integralImage:nargin");
+    outs[0] = integralImage(ctx.engine->resource(), args[0]);
+}
+
+void integralImage3_reg(Span<const Value> args, size_t /*nargout*/,
+                        Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("integralImage3: requires (V)",
+                    0, 0, "integralImage3", "", "m:integralImage3:nargin");
+    outs[0] = integralImage3(ctx.engine->resource(), args[0]);
+}
 
 void dct2_reg(Span<const Value> args, size_t /*nargout*/, Span<Value> outs,
               CallContext &ctx)
