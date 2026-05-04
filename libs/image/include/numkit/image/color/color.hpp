@@ -138,6 +138,14 @@ Value prism_cmap(std::pmr::memory_resource *mr, int n);
 /// default palette differs slightly; we match MATLAB.
 Value lines_cmap(std::pmr::memory_resource *mr, int n);
 
+/// `map = bone([n])` — N×3 grayscale-with-blue-tint "bone" colormap.
+/// Per Octave's bone.m: x=(0:n-1)/(n-1) and per-channel piecewise
+/// linspace ramps with idx_R=floor(3/4·n), idx_G=floor(3/8·n).
+/// `base` adjustment depends on mod(n,8) (cases {2,4}, {5,7},
+/// otherwise). Default n = 256. n==1 → [1/8 1/8 1/8];
+/// n==2 → [1/16 1/8 1/8; 1 1 1]; n ≤ 0 → 0×3.
+Value bone_cmap(std::pmr::memory_resource *mr, int n);
+
 /// `gmap = cmap2gray(cmap)` — colormap → grayscale colormap.
 /// Input is an N×3 RGB colormap (treated as double). Output is N×3
 /// double, where each row is `[y y y]` and y is the luminance from
