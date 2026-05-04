@@ -1140,6 +1140,86 @@ Value lines_cmap(std::pmr::memory_resource *mr, int n)
     return out;
 }
 
+Value bone_cmap(std::pmr::memory_resource *mr, int n)
+{
+    if (n <= 0) return Value::matrix(0, 3, ValueType::DOUBLE, mr);
+    Value out = Value::matrix(static_cast<size_t>(n), 3, ValueType::DOUBLE, mr);
+    double *od = out.doubleDataMut();
+    if (n == 1) {
+        od[0] = 0.125; od[1] = 0.125; od[2] = 0.125;
+        return out;
+    }
+    if (n == 2) {
+        od[0 * n + 0] = 1.0 / 16.0;
+        od[1 * n + 0] = 0.125;
+        od[2 * n + 0] = 0.125;
+        od[0 * n + 1] = 1.0;
+        od[1 * n + 1] = 1.0;
+        od[2 * n + 1] = 1.0;
+        return out;
+    }
+    // n > 2.
+    const double inv = 1.0 / static_cast<double>(n - 1);
+    auto x = [&](int i) { return static_cast<double>(i) * inv; };
+    std::vector<double> r(n), g(n), b(n);
+
+    // R channel.
+    const int IDX_R = static_cast<int>(std::floor(0.75 * n));
+    const int nel_R = n - IDX_R + 1;
+    const int rem8  = n % 8;
+    double base_R = 0.0;
+    if (rem8 == 2 || rem8 == 4)        base_R = 1.0 / (16.0 + 2.0 * (n - rem8));
+    else if (rem8 == 5 || rem8 == 7)   base_R = 1.0 / (24.0 + 2.0 * (n - rem8));
+    for (int i = 0; i < IDX_R; ++i) r[i] = (7.0 / 8.0) * x(i);
+    {
+        const double a  = (7.0 / 8.0) * x(IDX_R - 1) + base_R;
+        const double bb = 1.0;
+        for (int j = 0; j < nel_R; ++j) {
+            const int pos = IDX_R - 1 + j;
+            if (pos < 0 || pos >= n) continue;
+            r[pos] = a + (bb - a) * j / (nel_R - 1);
+        }
+    }
+
+    // G channel.
+    const int IDX_G = static_cast<int>(std::floor(0.375 * n));
+    for (int i = 0; i < IDX_G; ++i) g[i] = (7.0 / 8.0) * x(i);
+    {
+        const int len = IDX_G + 1;  // 1-based length idx..2*idx
+        const double a  = (7.0 / 8.0) * x(IDX_G - 1);
+        const double bb = (7.0 / 8.0) * x(2 * IDX_G - 1) + 0.125;
+        for (int j = 0; j < len; ++j) {
+            const int pos = IDX_G - 1 + j;
+            if (pos < 0 || pos >= n) continue;
+            g[pos] = a + (bb - a) * j / (len - 1);
+        }
+    }
+    for (int i = 2 * IDX_G; i < n; ++i)
+        g[i] = (7.0 / 8.0) * x(i) + 0.125;
+
+    // B channel.
+    {
+        const double base_B = 1.0 / (8.0 * IDX_G);
+        const double a  = base_B;
+        const double bb = (7.0 / 8.0) * x(IDX_G - 1) + 0.125;
+        const int nel_B = IDX_G;
+        for (int j = 0; j < nel_B; ++j) {
+            const int pos = j;
+            if (pos < 0 || pos >= n) continue;
+            b[pos] = a + (bb - a) * j / (nel_B - 1);
+        }
+    }
+    for (int i = IDX_G - 1; i < n; ++i)
+        b[i] = (7.0 / 8.0) * x(i) + 0.125;
+
+    for (int i = 0; i < n; ++i) {
+        od[0 * n + i] = r[i];
+        od[1 * n + i] = g[i];
+        od[2 * n + i] = b[i];
+    }
+    return out;
+}
+
 Value cmap2gray(std::pmr::memory_resource *mr, const Value &cmap)
 {
     const auto &d = cmap.dims();
@@ -1586,6 +1666,24 @@ void lines_reg(Span<const Value> args, size_t /*nargout*/,
         n = static_cast<int>(d);
     }
     outs[0] = lines_cmap(ctx.engine->resource(), n);
+}
+
+void bone_reg(Span<const Value> args, size_t /*nargout*/,
+              Span<Value> outs, CallContext &ctx)
+{
+    int n = 256;
+    if (args.size() >= 1 && !args[0].isEmpty()) {
+        const Value &v = args[0];
+        if (v.numel() != 1)
+            throw Error("bone: N must be a scalar integer",
+                        0, 0, "bone", "", "m:bone:n");
+        const double d = v.toScalar();
+        if (!std::isfinite(d) || d != std::floor(d))
+            throw Error("bone: N must be a scalar integer",
+                        0, 0, "bone", "", "m:bone:n");
+        n = static_cast<int>(d);
+    }
+    outs[0] = bone_cmap(ctx.engine->resource(), n);
 }
 
 } // namespace detail

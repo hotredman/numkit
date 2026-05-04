@@ -1,0 +1,10 @@
+{
+  "name": "bone",
+  "namespace": "image",
+  "setup": "",
+  "expr": "y = bone(32);",
+  "iters": 5,
+  "tol": 1e-12,
+  "out_var": "y",
+  "comment": "Sig: map = bone([n]). N×3 grayscale-with-blue-tint colormap. Per Octave's bone.m: idx=floor(3/4·n) for R, idx=floor(3/8·n) for G/B; piecewise linspace ramps; switch on mod(n,8) for base. Default n=256. MATLAB+Octave both match."
+}
