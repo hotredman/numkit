@@ -1106,6 +1106,65 @@ Value stdfilt(std::pmr::memory_resource *mr,
     return out;
 }
 
+Value ordfilt2(std::pmr::memory_resource *mr,
+               const Value &A, int nth, const Value &domain,
+               const Value &S, PadMode boundary, double pad_value)
+{
+    const int H = static_cast<int>(A.dims().rows());
+    const int W = static_cast<int>(A.dims().cols());
+    Value out = Value::matrix((size_t)H, (size_t)W, A.type(), mr);
+    if (H == 0 || W == 0) return out;
+
+    const size_t kH = domain.dims().rows();
+    const size_t kW = domain.dims().cols();
+    const int rh = static_cast<int>(kH) / 2;
+    const int ch = static_cast<int>(kW) / 2;
+    const bool has_S = (S.numel() == domain.numel());
+
+    struct Off { int dr; int dc; double s; };
+    std::vector<Off> offs;
+    offs.reserve(kH * kW);
+    for (size_t c = 0; c < kW; ++c)
+        for (size_t r = 0; r < kH; ++r)
+            if (domain.elemAsDouble(c * kH + r) != 0.0) {
+                const double s = has_S ? S.elemAsDouble(c * kH + r) : 0.0;
+                offs.push_back({static_cast<int>(r) - rh,
+                                static_cast<int>(c) - ch, s});
+            }
+    const int M = static_cast<int>(offs.size());
+    if (M == 0) return out;
+    if (nth < 1 || nth > M)
+        throw Error("ordfilt2: nth-order index out of range",
+                    0, 0, "ordfilt2", "", "m:ordfilt2:nth");
+
+    auto sample = [&](int r, int c) -> double {
+        if (boundary == PadMode::Constant) {
+            if (r < 0 || c < 0 || r >= H || c >= W) return pad_value;
+        } else {
+            r = fold_index(r, H, boundary);
+            c = fold_index(c, W, boundary);
+        }
+        return A.elemAsDouble((size_t)c * (size_t)H + (size_t)r);
+    };
+
+    std::vector<double> nb(static_cast<size_t>(M));
+    for (int c = 0; c < W; ++c) {
+        for (int r = 0; r < H; ++r) {
+            for (int k = 0; k < M; ++k) {
+                nb[(size_t)k] = sample(r + offs[(size_t)k].dr,
+                                       c + offs[(size_t)k].dc)
+                                + offs[(size_t)k].s;
+            }
+            std::nth_element(nb.begin(),
+                             nb.begin() + (nth - 1),
+                             nb.end());
+            store_classed(out, (size_t)c * (size_t)H + (size_t)r,
+                          nb[(size_t)(nth - 1)], A.type());
+        }
+    }
+    return out;
+}
+
 std::tuple<Value, Value>
 wiener2(std::pmr::memory_resource *mr, const Value &I,
         size_t nh, size_t nw, double noise)
@@ -1575,6 +1634,49 @@ void rangefilt_reg(Span<const Value> args, size_t /*nargout*/,
     Value dom;
     if (args.size() >= 2 && !args[1].isEmpty()) dom = args[1];
     outs[0] = rangefilt(ctx.engine->resource(), args[0], dom);
+}
+
+void ordfilt2_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 3)
+        throw Error("ordfilt2: requires (A, nth, domain [, S] [, padding])",
+                    0, 0, "ordfilt2", "", "m:ordfilt2:nargin");
+    auto *mr = ctx.engine->resource();
+    const int nth = static_cast<int>(args[1].toScalar());
+    Value domain = args[2];
+    if (domain.numel() == 1) {
+        // Scalar domain → square true(N).
+        const int n = static_cast<int>(domain.toScalar());
+        domain = Value::matrix((size_t)n, (size_t)n, ValueType::LOGICAL, mr);
+        std::uint8_t *dd = domain.logicalDataMut();
+        for (size_t i = 0; i < (size_t)n * (size_t)n; ++i) dd[i] = 1;
+    }
+    Value S;
+    PadMode pad = PadMode::Constant;
+    double pad_value = 0.0;
+    for (size_t i = 3; i < args.size(); ++i) {
+        const Value &a = args[i];
+        if (a.isEmpty()) continue;
+        if (a.isChar() || a.isString()) {
+            const std::string s = a.toString();
+            if      (s == "replicate") pad = PadMode::Replicate;
+            else if (s == "symmetric") pad = PadMode::Symmetric;
+            else if (s == "circular")  pad = PadMode::Circular;
+            else throw Error("ordfilt2: unknown padding mode",
+                              0, 0, "ordfilt2", "", "m:ordfilt2:pad");
+        } else if (a.numel() == 1) {
+            pad = PadMode::Constant;
+            pad_value = a.toScalar();
+        } else if (a.dims().rows() == domain.dims().rows() &&
+                   a.dims().cols() == domain.dims().cols()) {
+            S = a;
+        } else {
+            throw Error("ordfilt2: unrecognized argument shape",
+                        0, 0, "ordfilt2", "", "m:ordfilt2:arg");
+        }
+    }
+    outs[0] = ordfilt2(mr, args[0], nth, domain, S, pad, pad_value);
 }
 
 void wiener2_reg(Span<const Value> args, size_t nargout,
