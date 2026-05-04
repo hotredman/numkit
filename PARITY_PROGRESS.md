@@ -2718,7 +2718,7 @@ vector path-loss models and coordinate transforms.
 
 ## Parametric Spectral Estimation (pburg / pmtm / pmusic / ...)
 
-**Namespace:** `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math) — 1 ✅ + 0 ⚠️ / 10 = 10%
+**Namespace:** `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math) — 3 ✅ + 0 ⚠️ / 10 = 30%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -2727,11 +2727,11 @@ vector path-loss models and coordinate transforms.
 | `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
 | `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
 | `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `pburg` | ❌ |  |  |  |  | Burg AR |
+| `pburg` | ✅ |  |  |  | OK | AR PSD via Burg lattice; AR(2) peak recovery within 1 PSD bin |
 | `pcov` | ❌ |  |  |  |  |  |
 | `pmcov` | ❌ |  |  |  |  |  |
 | `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
-| `pyulear` | ❌ |  |  |  |  | Yule-Walker AR |
+| `pyulear` | ✅ |  |  |  | OK | AR PSD via Levinson-Durbin; agrees with pburg to 4 decimals |
 
 ## Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...)
 
