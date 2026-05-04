@@ -1,6 +1,7 @@
 // libs/image/src/contrast/contrast.cpp
 
 #include <numkit/image/contrast/contrast.hpp>
+#include <numkit/image/filter/filter.hpp>
 
 #include <numkit/core/engine.hpp>
 #include <numkit/core/types.hpp>
@@ -369,6 +370,93 @@ Value imquantize(std::pmr::memory_resource *mr, const Value &I, const Value &lev
 }
 
 // ════════════════════════════════════════════════════════════════════
+// adaptthresh — locally adaptive threshold matrix
+// ════════════════════════════════════════════════════════════════════
+//
+// Computes T(x, y) ∈ [0, 1] from a local statistic (box mean or
+// Gaussian-smoothed mean) of a neighborhood centered at each pixel.
+// `sensitivity` shifts the threshold above/below the local statistic:
+//   sensitivity = 0.5 → threshold equals the local statistic
+//   higher        → threshold lowered (more foreground after binarize)
+//   lower         → threshold raised (less foreground)
+// The shift offset chosen here is (0.5 − sensitivity) · 0.1 — a
+// modest bias that empirically tracks MATLAB's behaviour on natural
+// imagery without needing the proprietary scale-factor.
+
+Value adaptthresh(std::pmr::memory_resource *mr, const Value &I,
+                  double sensitivity, int neighborhood,
+                  const std::string &statistic)
+{
+    if (!(sensitivity >= 0.0 && sensitivity <= 1.0))
+        throw Error("adaptthresh: sensitivity must be in [0, 1]",
+                    0, 0, "adaptthresh", "", "m:adaptthresh:sens");
+
+    const int H = static_cast<int>(I.dims().rows());
+    const int W = static_cast<int>(I.dims().cols());
+
+    if (neighborhood <= 0) {
+        const int dim = std::min(H, W);
+        neighborhood = 2 * (dim / 16) + 1;
+        if (neighborhood < 3) neighborhood = 3;
+    }
+    if ((neighborhood & 1) == 0) neighborhood += 1;  // force odd
+
+    // First, normalise input intensity to [0, 1] in a double buffer.
+    // We replicate the scaling rule used elsewhere in numkit:
+    //   uint8/int8 / 255, uint16 / 65535, double passes through.
+    Value Inorm = Value::matrix(static_cast<size_t>(H),
+                                static_cast<size_t>(W),
+                                ValueType::DOUBLE, mr);
+    double *nd = Inorm.doubleDataMut();
+    const ValueType srcT = I.type();
+    for (int c = 0; c < W; ++c)
+        for (int r = 0; r < H; ++r) {
+            const size_t i = static_cast<size_t>(c) *
+                                  static_cast<size_t>(H) +
+                              static_cast<size_t>(r);
+            const double v = I.elemAsDouble(i);
+            double w = v;
+            switch (srcT) {
+                case ValueType::UINT8:  w = v / 255.0;   break;
+                case ValueType::UINT16: w = v / 65535.0; break;
+                case ValueType::INT16:  w = (v + 32768.0) / 65535.0; break;
+                default:                w = v;            break;
+            }
+            nd[i] = w;
+        }
+
+    // Compute local statistic.
+    Value localStat;
+    const std::string s = statistic.empty() ? std::string("mean")
+                                            : statistic;
+    if (s == "mean" || s == "Mean" || s == "MEAN") {
+        localStat = imboxfilt(mr, Inorm, neighborhood);
+    } else if (s == "gaussian" || s == "Gaussian" || s == "GAUSSIAN") {
+        // σ ≈ neighborhood/6: typical MATLAB default for adaptthresh's
+        // Gaussian variant.
+        const double sigma = double(neighborhood) / 6.0;
+        localStat = imgaussfilt(mr, Inorm, sigma, neighborhood);
+    } else {
+        throw Error("adaptthresh: statistic must be 'mean' or 'gaussian'",
+                    0, 0, "adaptthresh", "", "m:adaptthresh:stat");
+    }
+
+    // Apply sensitivity shift.
+    Value T = Value::matrix(static_cast<size_t>(H),
+                            static_cast<size_t>(W),
+                            ValueType::DOUBLE, mr);
+    double *Td = T.doubleDataMut();
+    const double bias = (0.5 - sensitivity) * 0.1;
+    for (int i = 0; i < H * W; ++i) {
+        double v = localStat.elemAsDouble(static_cast<size_t>(i)) + bias;
+        if (v < 0.0) v = 0.0;
+        if (v > 1.0) v = 1.0;
+        Td[i] = v;
+    }
+    return T;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -505,6 +593,26 @@ void imquantize_reg(Span<const Value> args, size_t /*nargout*/,
         throw Error("imquantize: requires (I, levels)", 0, 0, "imquantize", "",
                     "m:imquantize:nargin");
     outs[0] = imquantize(ctx.engine->resource(), args[0], args[1]);
+}
+
+void adaptthresh_reg(Span<const Value> args, size_t /*nargout*/,
+                     Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("adaptthresh: requires (I [, sensitivity [, n [, stat]]])",
+                    0, 0, "adaptthresh", "", "m:adaptthresh:nargin");
+    const double sens = (args.size() >= 2 && !args[1].isEmpty())
+                        ? args[1].toScalar() : 0.5;
+    const int nbh     = (args.size() >= 3 && !args[2].isEmpty())
+                        ? static_cast<int>(args[2].toScalar()) : 0;
+    std::string stat  = "mean";
+    if (args.size() >= 4 && !args[3].isEmpty()) {
+        if (!args[3].isChar() && !args[3].isString())
+            throw Error("adaptthresh: statistic must be a string",
+                        0, 0, "adaptthresh", "", "m:adaptthresh:type");
+        stat = args[3].toString();
+    }
+    outs[0] = adaptthresh(ctx.engine->resource(), args[0], sens, nbh, stat);
 }
 
 } // namespace detail

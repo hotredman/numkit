@@ -54,6 +54,7 @@ void imhist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
 void stretchlim_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imadjust_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void histeq_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
+void adaptthresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void graythresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void otsuthresh_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void multithresh_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -161,6 +162,7 @@ void ImageLibrary::install(Engine &engine)
     reg("contrast", "stretchlim", &image::detail::stretchlim_reg);
     reg("contrast", "imadjust",   &image::detail::imadjust_reg);
     reg("contrast", "histeq",     &image::detail::histeq_reg);
+    reg("contrast", "adaptthresh",&image::detail::adaptthresh_reg);
 
     reg("type",  "graythresh",   &image::detail::graythresh_reg);
     reg("type",  "otsuthresh",   &image::detail::otsuthresh_reg);
