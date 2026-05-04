@@ -2345,13 +2345,21 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
     //     n points on [0, 2 - 2/n]
     // See BUGS.md #19.
     engine.registerFunction("freqspace",
-        [](Span<const Value> args, size_t, Span<Value> outs, CallContext &ctx) {
+        [](Span<const Value> args, size_t nargout, Span<Value> outs,
+           CallContext &ctx) {
             if (args.empty())
                 throw std::runtime_error("freqspace requires (n[, 'whole'])");
-            const size_t n = static_cast<size_t>(args[0].toScalar());
-            if (n == 0) {
-                outs[0] = Value::matrix(1, 0, ValueType::DOUBLE, ctx.engine->resource());
-                return;
+            // Parse arg0 as scalar n or 2-vec [rows cols].
+            size_t n_rows = 0, n_cols = 0;
+            const Value &a0 = args[0];
+            if (a0.numel() == 1) {
+                n_rows = n_cols = static_cast<size_t>(a0.toScalar());
+            } else if (a0.numel() == 2) {
+                n_rows = static_cast<size_t>(a0.elemAsDouble(0));
+                n_cols = static_cast<size_t>(a0.elemAsDouble(1));
+            } else {
+                throw std::runtime_error(
+                    "freqspace: N must be a scalar or 2-element vector");
             }
             bool whole = false;
             if (args.size() >= 2 && (args[1].isChar() || args[1].isString())) {
@@ -2360,38 +2368,63 @@ void BuiltinLibrary::registerWorkspaceBuiltins(Engine &engine)
                     c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
                 whole = (s == "whole");
             }
-            if (whole) {
-                // n points from 0 to 2 - 2/n in 2/n steps.
-                auto v = Value::matrix(1, n, ValueType::DOUBLE, ctx.engine->resource());
+            auto *mr = ctx.engine->resource();
+
+            // Helpers for the three frequency-vector flavors.
+            auto whole_vec = [&](size_t n) {
+                auto v = Value::matrix(1, n, ValueType::DOUBLE, mr);
+                if (n == 0) return v;
                 double *d = v.doubleDataMut();
                 const double step = 2.0 / static_cast<double>(n);
                 for (size_t i = 0; i < n; ++i)
                     d[i] = step * static_cast<double>(i);
-                outs[0] = std::move(v);
-            } else {
-                // Default form: half-spectrum.
-                // Even n: n/2+1 points on [0, 1].
-                // Odd n:  (n+1)/2 points on [0, 1 - 1/n].
+                return v;
+            };
+            auto centered_vec = [&](size_t n) {
+                // Even n: f = (-n:2:n-2)/n; Odd n: f = (-n+1:2:n-1)/n.
+                auto v = Value::matrix(1, n, ValueType::DOUBLE, mr);
+                if (n == 0) return v;
+                double *d = v.doubleDataMut();
+                const long start = (n % 2 == 0) ? -static_cast<long>(n)
+                                                : -static_cast<long>(n) + 1;
+                for (size_t i = 0; i < n; ++i)
+                    d[i] = static_cast<double>(start + 2 * static_cast<long>(i))
+                         / static_cast<double>(n);
+                return v;
+            };
+            auto half_vec = [&](size_t n) {
+                if (n == 0)
+                    return Value::matrix(1, 0, ValueType::DOUBLE, mr);
                 size_t m;
                 double last;
-                if (n % 2 == 0) {
-                    m = n / 2 + 1;
-                    last = 1.0;
-                } else {
-                    m = (n + 1) / 2;
-                    last = 1.0 - 1.0 / static_cast<double>(n);
-                }
-                auto v = Value::matrix(1, m, ValueType::DOUBLE, ctx.engine->resource());
+                if (n % 2 == 0) { m = n / 2 + 1; last = 1.0; }
+                else            { m = (n + 1) / 2;
+                                  last = 1.0 - 1.0 / static_cast<double>(n); }
+                auto v = Value::matrix(1, m, ValueType::DOUBLE, mr);
                 double *d = v.doubleDataMut();
-                if (m == 1) {
-                    d[0] = 0.0;
-                } else {
+                if (m == 1) d[0] = 0.0;
+                else {
                     const double step = last / static_cast<double>(m - 1);
                     for (size_t i = 0; i < m; ++i)
                         d[i] = step * static_cast<double>(i);
                 }
-                outs[0] = std::move(v);
+                return v;
+            };
+
+            if (nargout > 1) {
+                if (whole)
+                    throw std::runtime_error(
+                        "freqspace: 2-output 'whole' form is not supported");
+                // [f1, f2]: f1 from cols, f2 from rows (centered).
+                outs[0] = centered_vec(n_cols);
+                outs[1] = centered_vec(n_rows);
+                return;
             }
+            // Single-output: scalar input only.
+            if (a0.numel() == 2)
+                throw std::runtime_error(
+                    "freqspace: 2-vec input requires 2 output args");
+            outs[0] = whole ? whole_vec(n_rows) : half_vec(n_rows);
         });
 
     // head(A[, n]) / tail(A[, n]) — first / last n rows of A. Defaults
