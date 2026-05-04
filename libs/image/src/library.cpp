@@ -48,6 +48,7 @@ void imfilter_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imgaussfilt_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 void imboxfilt_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 void medfilt2_reg    (Span<const Value>, size_t, Span<Value>, CallContext &);
+void imsharpen_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
 
 // contrast/contrast.cpp
 void imhist_reg      (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -170,6 +171,11 @@ void ImageLibrary::install(Engine &engine)
     reg("filter", "imgaussfilt",  &image::detail::imgaussfilt_reg);
     reg("filter", "imboxfilt",    &image::detail::imboxfilt_reg);
     reg("filter", "medfilt2",     &image::detail::medfilt2_reg);
+    reg("filter", "imsharpen",    &image::detail::imsharpen_reg);
+
+    // im2bw is the legacy alias of imbinarize (signatures match exactly:
+    // im2bw(I) → Otsu, im2bw(I, level) → scalar threshold).
+    reg("type",   "im2bw",        &image::detail::imbinarize_reg);
 
     reg("contrast", "imhist",     &image::detail::imhist_reg);
     reg("contrast", "stretchlim", &image::detail::stretchlim_reg);

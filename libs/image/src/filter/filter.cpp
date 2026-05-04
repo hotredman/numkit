@@ -478,6 +478,58 @@ Value medfilt2(std::pmr::memory_resource *mr, const Value &I, int rows, int cols
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imsharpen — unsharp masking
+// ════════════════════════════════════════════════════════════════════
+//
+//   high  = I − imgaussfilt(I, sigma=radius)
+//   mask  = (|high| ≥ threshold · max|high|)            // 1 if no thresh
+//   B     = saturate(I + amount · mask · high)
+//
+// MATLAB R2025b defaults: radius=1, amount=0.8, threshold=0. Output
+// has the same class as the input (saturating cast for ints).
+
+Value imsharpen(std::pmr::memory_resource *mr,
+                const Value &I,
+                double radius, double amount, double threshold)
+{
+    if (!(radius > 0.0)) radius = 1.0;
+    if (!(threshold >= 0.0 && threshold <= 1.0))
+        throw Error("imsharpen: threshold must be in [0, 1]",
+                    0, 0, "imsharpen", "", "m:imsharpen:threshold");
+
+    // Gaussian filter size: 2*ceil(2*sigma)+1 — MATLAB default.
+    int fs = 2 * (int)std::ceil(2.0 * radius) + 1;
+    if (fs < 3) fs = 3;
+    if (fs % 2 == 0) fs += 1;
+
+    Value blurred = imgaussfilt(mr, I, radius, fs);
+
+    const size_t Hh = I.dims().rows();
+    const size_t Ww = I.dims().cols();
+    const size_t N = I.numel();
+
+    // High-pass component, in DOUBLE for headroom.
+    std::vector<double> Hbuf(N);
+    double max_abs = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double v = I.elemAsDouble(i) - blurred.elemAsDouble(i);
+        Hbuf[i] = v;
+        const double a = std::abs(v);
+        if (a > max_abs) max_abs = a;
+    }
+    const double thr_abs = threshold * max_abs;
+
+    Value out = Value::matrix(Hh, Ww, I.type(), mr);
+    for (size_t i = 0; i < N; ++i) {
+        double h = Hbuf[i];
+        if (threshold > 0.0 && std::abs(h) < thr_abs) h = 0.0;
+        const double v = I.elemAsDouble(i) + amount * h;
+        store_classed(out, i, v, I.type());
+    }
+    return out;
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -648,6 +700,46 @@ void medfilt2_reg(Span<const Value> args, size_t /*nargout*/,
         }
     }
     outs[0] = medfilt2(ctx.engine->resource(), args[0], rows, cols);
+}
+
+void imsharpen_reg(Span<const Value> args, size_t /*nargout*/,
+                   Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("imsharpen: requires (I[, radius, amount, threshold])",
+                    0, 0, "imsharpen", "", "m:imsharpen:nargin");
+    double radius = 1.0, amount = 0.8, threshold = 0.0;
+    // Accept either positional (I, radius, amount, threshold) or
+    // name-value pairs ('Radius', r, 'Amount', a, 'Threshold', t).
+    size_t i = 1;
+    bool sawNV = false;
+    while (i < args.size()) {
+        if (args[i].isChar() || args[i].isString()) {
+            sawNV = true;
+            const std::string nm = args[i].toString();
+            if (i + 1 >= args.size())
+                throw Error("imsharpen: missing value for '" + nm + "'",
+                            0, 0, "imsharpen", "", "m:imsharpen:nv");
+            const double v = args[i + 1].toScalar();
+            if (nm == "Radius" || nm == "radius") radius = v;
+            else if (nm == "Amount" || nm == "amount") amount = v;
+            else if (nm == "Threshold" || nm == "threshold") threshold = v;
+            else throw Error("imsharpen: unknown option '" + nm + "'",
+                             0, 0, "imsharpen", "", "m:imsharpen:opt");
+            i += 2;
+        } else {
+            if (sawNV)
+                throw Error("imsharpen: positional after name-value",
+                            0, 0, "imsharpen", "", "m:imsharpen:syntax");
+            const double v = args[i].toScalar();
+            if      (i == 1) radius    = v;
+            else if (i == 2) amount    = v;
+            else if (i == 3) threshold = v;
+            ++i;
+        }
+    }
+    outs[0] = imsharpen(ctx.engine->resource(), args[0],
+                        radius, amount, threshold);
 }
 
 } // namespace detail
