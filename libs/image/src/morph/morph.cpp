@@ -532,6 +532,30 @@ Value imhmin(std::pmr::memory_resource *mr,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// imextendedmax / imextendedmin — extended-extrema transforms
+// ════════════════════════════════════════════════════════════════════
+//
+//   imextendedmax(I, h) = imregionalmax(imhmax(I, h))
+//   imextendedmin(I, h) = imregionalmin(imhmin(I, h))
+//
+// First flatten any peak shallower than h (imhmax), then locate the
+// regional maxima of the result. Pixels in the output are exactly
+// those that belong to a regional maximum at least h units above its
+// surroundings — the "tall enough" peaks.
+
+Value imextendedmax(std::pmr::memory_resource *mr,
+                    const Value &I, double h, int conn)
+{
+    return imregionalmax(mr, imhmax(mr, I, h, conn), conn);
+}
+
+Value imextendedmin(std::pmr::memory_resource *mr,
+                    const Value &I, double h, int conn)
+{
+    return imregionalmin(mr, imhmin(mr, I, h, conn), conn);
+}
+
+// ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
 
@@ -652,6 +676,30 @@ void imhmin_reg(Span<const Value> args, size_t /*nargout*/,
     const int conn = (args.size() >= 3 && !args[2].isEmpty())
                      ? static_cast<int>(args[2].toScalar()) : 8;
     outs[0] = imhmin(ctx.engine->resource(), args[0], h, conn);
+}
+
+void imextendedmax_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imextendedmax: requires (I, h [, conn])",
+                    0, 0, "imextendedmax", "", "m:imextendedmax:nargin");
+    const double h = args[1].toScalar();
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imextendedmax(ctx.engine->resource(), args[0], h, conn);
+}
+
+void imextendedmin_reg(Span<const Value> args, size_t /*nargout*/,
+                       Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("imextendedmin: requires (I, h [, conn])",
+                    0, 0, "imextendedmin", "", "m:imextendedmin:nargin");
+    const double h = args[1].toScalar();
+    const int conn = (args.size() >= 3 && !args[2].isEmpty())
+                     ? static_cast<int>(args[2].toScalar()) : 8;
+    outs[0] = imextendedmin(ctx.engine->resource(), args[0], h, conn);
 }
 
 } // namespace detail

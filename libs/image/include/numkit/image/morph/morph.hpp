@@ -86,4 +86,17 @@ Value imhmax(std::pmr::memory_resource *mr,
 Value imhmin(std::pmr::memory_resource *mr,
              const Value &I, double h, int conn);
 
+/// `J = imextendedmax(I, h [, conn])` — extended-maxima transform.
+/// Logical mask of regional maxima of imhmax(I, h): keeps only peaks
+/// with height ≥ h above their surroundings. One-liner:
+///   imextendedmax(I, h) = imregionalmax(imhmax(I, h))
+Value imextendedmax(std::pmr::memory_resource *mr,
+                    const Value &I, double h, int conn);
+
+/// `J = imextendedmin(I, h [, conn])` — extended-minima transform;
+/// dual of imextendedmax. Logical mask of regional minima of
+/// imhmin(I, h): keeps only troughs with depth ≥ h.
+Value imextendedmin(std::pmr::memory_resource *mr,
+                    const Value &I, double h, int conn);
+
 } // namespace numkit::image
