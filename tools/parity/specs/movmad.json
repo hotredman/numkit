@@ -1,10 +1,15 @@
 {
   "name": "movmad",
-  "namespace": "core",
-  "setup": "x = sin(linspace(0, 100, 100000));",
-  "expr": "y = movmad(x, 5);",
-  "iters": 1000,
-  "tol": 1e-09,
-  "comment": "Sig: M = movmad(X, K). 100k. 50 iters.",
-  "out_var": "y"
+  "namespace": "stats",
+  "setup": "A = [1 3 2 5 4 6 NaN 8 7 10]'; A2 = (1:9)';",
+  "expr": "y_def = movmad(A, 3); y_omit = movmad(A, 3, 'omitnan'); y_disc = movmad(A2, 3, 'Endpoints', 'discard'); y_fill = movmad(A2, 3, 'Endpoints', 'fill');",
+  "iters": 5,
+  "tol": 1e-10,
+  "fingerprint": [
+    "y_def(1)", "y_def(5)", "y_def(7)", "y_def(10)",
+    "y_omit(7)", "y_omit(8)",
+    "numel(y_disc)", "y_disc(1)",
+    "y_fill(1)", "y_fill(2)"
+  ],
+  "comment": "Sig: movmad(A, k[, dim] [, nanflag] [, Name, Value]). Same surface as movmean. Closes audit/findings/stats/movmad.md."
 }

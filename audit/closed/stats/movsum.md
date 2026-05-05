@@ -59,3 +59,8 @@ default-NaN, omitnan, includenan, Endpoints variants, SamplePoints.
 ## Out of scope for this ТЗ
 
 - N/A — this function shares its scaffold with the other mov*.
+
+## Closed
+- Closed in commit: PENDING (joint mov* family fix)
+- Closed date: 2026-05-06
+- Notes: nanflag {includemissing|includenan|omitmissing|omitnan} + Endpoints {shrink|discard|fill|scalar} + k=0 error all implemented in libs/stats/src/moving/moving.cpp via shared parseMovExtras helper. SamplePoints/DataVariables/ReplaceValues throw with documented messages.

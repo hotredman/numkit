@@ -5,6 +5,6 @@
 # live in tests/smoke/ (next to this file) and are not compiled.
 
 target_sources(numkit_tests PRIVATE
-    # ── DWT 1-D ─────────────────────────────────────────────────
-    # Add per-function gtest TUs here as they're written / backfilled.
+    # ── filter helpers ──────────────────────────────────────────
+    ${CMAKE_CURRENT_SOURCE_DIR}/wrev_test.cpp
 )

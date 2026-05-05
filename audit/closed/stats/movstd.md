@@ -46,3 +46,8 @@ should mirror `movvar`'s but on std-scale outputs. `tol = 1e-9`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix with `movvar` and the family.
+
+## Closed
+- Closed in commit: PENDING (joint mov* family fix)
+- Closed date: 2026-05-06
+- Notes: nanflag {includemissing|includenan|omitmissing|omitnan} + Endpoints {shrink|discard|fill|scalar} + k=0 error all implemented in libs/stats/src/moving/moving.cpp via shared parseMovExtras helper. SamplePoints/DataVariables/ReplaceValues throw with documented messages.
