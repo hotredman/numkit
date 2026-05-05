@@ -683,8 +683,15 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const centerVisible = panels.editor || panels.terminal;
 
   /* ─────────────── render ─────────────── */
+  // .ide is a CSS grid with 3 rows (toolbar / main / statusbar). When the
+  // debug session pauses we render a 4th element (the debug toolbar) — push
+  // an extra explicit row into the template so it doesn't auto-place into
+  // the 22px statusbar row and squash main to nothing.
+  const gridRows = isDebugging
+    ? '36px 28px 1fr 22px'
+    : '36px 1fr 22px';
   return (
-    <div className="ide">
+    <div className="ide" style={{ gridTemplateRows: gridRows }}>
       <Toolbar
         panels={panels}
         togglePanel={togglePanel}
