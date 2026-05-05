@@ -385,6 +385,56 @@ double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
     return double(N) * std::log(sigma) - sLin + sExp;
 }
 
+double gevlike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
+               double mu, const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    if (k == 0.0) {
+        double sZ = 0.0, sExp = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double z = (x.elemAsDouble(i) - mu) / sigma;
+            sZ += z;
+            sExp += std::exp(-z);
+        }
+        return double(N) * std::log(sigma) + sZ + sExp;
+    }
+    double sLogT = 0.0, sTinvk = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double z = (x.elemAsDouble(i) - mu) / sigma;
+        const double t = 1.0 + k * z;
+        if (t <= 0.0) return std::numeric_limits<double>::infinity();
+        sLogT  += std::log(t);
+        sTinvk += std::pow(t, -1.0 / k);
+    }
+    return double(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT + sTinvk;
+}
+
+double gplike(std::pmr::memory_resource * /*mr*/, double k, double sigma,
+              const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    if (k == 0.0) {
+        double sX = 0.0;
+        for (size_t i = 0; i < N; ++i) {
+            const double xi = x.elemAsDouble(i);
+            if (xi < 0.0) return std::numeric_limits<double>::infinity();
+            sX += xi;
+        }
+        return double(N) * std::log(sigma) + sX / sigma;
+    }
+    double sLogT = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi < 0.0) return std::numeric_limits<double>::infinity();
+        const double t = 1.0 + k * xi / sigma;
+        if (t <= 0.0) return std::numeric_limits<double>::infinity();
+        sLogT += std::log(t);
+    }
+    return double(N) * std::log(sigma) + (1.0 / k + 1.0) * sLogT;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -533,6 +583,31 @@ void explike_reg(Span<const Value> args, size_t /*nargout*/,
                     0, 0, "explike", "", "m:explike:nargin");
     const double mu = args[0].toScalar();
     const double nL = explike(ctx.engine->resource(), mu, args[1]);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+}
+
+void gevlike_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args[0].numel() < 3)
+        throw Error("gevlike: requires (params=[k sigma mu], data)",
+                    0, 0, "gevlike", "", "m:gevlike:nargin");
+    const double k     = args[0].elemAsDouble(0);
+    const double sigma = args[0].elemAsDouble(1);
+    const double mu    = args[0].elemAsDouble(2);
+    const double nL = gevlike(ctx.engine->resource(), k, sigma, mu, args[1]);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+}
+
+void gplike_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error("gplike: requires (params=[k sigma], data)",
+                    0, 0, "gplike", "", "m:gplike:nargin");
+    const double k     = args[0].elemAsDouble(0);
+    const double sigma = args[0].elemAsDouble(1);
+    const double nL = gplike(ctx.engine->resource(), k, sigma, args[1]);
     outs[0] = Value::scalar(nL, ctx.engine->resource());
 }
 

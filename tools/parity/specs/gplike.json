@@ -1,0 +1,10 @@
+{
+  "name": "gplike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = gplike([0.5, 1], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL", "gplike([0, 1], x)"],
+  "comment": "Sig: nL = gplike([k sigma], x). Generalised Pareto nLogL; theta is implicitly 0."
+}

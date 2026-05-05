@@ -1,0 +1,10 @@
+{
+  "name": "gevlike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = gevlike([0.5, 1, 0], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL", "gevlike([0, 1, 0], x)"],
+  "comment": "Sig: nL = gevlike([k sigma mu], x). Generalised Extreme Value negative log-likelihood; closed form for k=0 (Gumbel-MAX limit) and k≠0."
+}

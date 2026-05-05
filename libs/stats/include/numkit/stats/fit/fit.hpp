@@ -67,4 +67,12 @@ double betalike (std::pmr::memory_resource *mr, double a,  double b,     const V
 double wbllike  (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
 double evlike   (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
 
+/// gevlike([k, sigma, mu], x) — Generalised Extreme Value nLogL.
+double gevlike (std::pmr::memory_resource *mr, double k, double sigma,
+                double mu, const Value &x);
+
+/// gplike([k, sigma], x) — Generalised Pareto nLogL (theta=0).
+double gplike  (std::pmr::memory_resource *mr, double k, double sigma,
+                const Value &x);
+
 } // namespace numkit::stats
