@@ -1,0 +1,10 @@
+{
+  "name": "gauswavf",
+  "namespace": "wavelet",
+  "setup": "",
+  "expr": "[psi1, x] = gauswavf(-5, 5, 11); [psi2, ~] = gauswavf(-5, 5, 11, 2); [psi4, ~] = gauswavf(-5, 5, 11, 4);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["psi1(5)", "psi1(7)", "psi2(6)", "psi2(5)", "psi4(6)", "x(1)", "x(11)"],
+  "comment": "Sig: [psi, x] = gauswavf(LB, UB, N[, p]). Real Gaussian wavelet ψ_p = sgn_p · |α_p| · H_p(t)·exp(-t²) with sgn_p = (-1)^ceil(p/2), |α_p|² = 1/((2p-1)!!·sqrt(π/2)). Default p = 1."
+}
