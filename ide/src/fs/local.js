@@ -1,5 +1,5 @@
 /**
- * fs/local.js — real-filesystem backend for the numkit mIDE.
+ * fs/local.js — real-filesystem backend for Numkit IDE.
  *
  * Two interchangeable backends with the same public shape:
  *

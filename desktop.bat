@@ -37,7 +37,7 @@ if not exist "%DESKTOP_DIR%\node_modules" (
 )
 
 echo.
-echo Starting mIDE...
+echo Starting Numkit IDE...
 echo.
 
 cd /d "%DESKTOP_DIR%"

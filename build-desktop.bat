@@ -6,7 +6,7 @@ set IDE_DIR=%PROJECT_DIR%ide
 set DESKTOP_DIR=%IDE_DIR%\desktop
 set WASM_DIST=%PROJECT_DIR%build-browser\wasm\dist
 
-echo === mIDE — Desktop Build ===
+echo === Numkit IDE — Desktop Build ===
 echo.
 
 :: Check Node.js

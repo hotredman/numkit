@@ -1,5 +1,5 @@
 /**
- * temporary.js — IndexedDB-backed scratch filesystem for the numkit mIDE.
+ * temporary.js — IndexedDB-backed scratch filesystem for Numkit IDE.
  *
  * Called "Temporary" because it lives only inside the browser's
  * IndexedDB: clearing site data wipes it, and it never syncs to the
