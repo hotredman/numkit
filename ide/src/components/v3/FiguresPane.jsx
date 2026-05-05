@@ -1,20 +1,59 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import InteractivePlot from './InteractivePlot';
+
+/**
+ * Preview card. The body uses CSS `aspect-ratio` so it fills the pane width
+ * and computes its height proportionally. We measure the actual rendered
+ * size with `getBoundingClientRect` on every render and re-measure on
+ * resize/RO so the SVG inside InteractivePlot redraws at the matching pixel
+ * dimensions. Aspect comes from CSS — the JS just mirrors it for SVG.
+ */
+const PREVIEW_ASPECT  = 1.7; // width / height — keep in sync with CSS rule below
 
 function FigurePreviewCard({ figure, onExpand, onClose }) {
   const [viewport, setViewport] = useState({ x: figure.xRange.slice(), y: figure.yRange.slice() });
   const ref = useRef(null);
-  const [size, setSize] = useState({ w: 380, h: 240 });
+  const [size, setSize] = useState({ w: 320, h: Math.round(320 / PREVIEW_ASPECT) });
+
+  // useLayoutEffect runs synchronously AFTER the DOM is updated, BEFORE the
+  // browser paints. We measure here so the SVG renders at the correct pixel
+  // size on the very first frame — no flash of wrong-sized chart.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    if (!r.width) return;
+    const ww = Math.max(200, Math.round(r.width));
+    const hh = Math.max(120, Math.round(ww / PREVIEW_ASPECT));
+    setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
+      ? { w: ww, h: hh } : prev));
+  });
+
+  // Re-measure on resize signals: ResizeObserver in modern browsers, plus
+  // window.resize as a belt-and-braces fallback.
   useEffect(() => {
-    function update() {
-      const el = ref.current; if (!el) return;
+    const el = ref.current;
+    if (!el) return;
+    const remeasure = () => {
       const r = el.getBoundingClientRect();
-      setSize({ w: Math.max(280, r.width), h: 220 });
+      if (!r.width) return;
+      const ww = Math.max(200, Math.round(r.width));
+      const hh = Math.max(120, Math.round(ww / PREVIEW_ASPECT));
+      setSize((prev) => (Math.abs(prev.w - ww) > 0.5 || Math.abs(prev.h - hh) > 0.5
+        ? { w: ww, h: hh } : prev));
+    };
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(remeasure);
+      ro.observe(el);
     }
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('resize', remeasure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', remeasure);
+    };
   }, []);
+
   return (
     <div className="fp-card">
       <div className="fp-card-head">
@@ -26,10 +65,21 @@ function FigurePreviewCard({ figure, onExpand, onClose }) {
         </button>
         <button className="fp-card-icon" title="Close" onClick={onClose}>×</button>
       </div>
-      <div className="fp-card-body" ref={ref} onDoubleClick={onExpand} onClick={onExpand}>
-        <InteractivePlot figure={figure} width={size.w} height={size.h}
-          viewport={viewport} setViewport={setViewport}
-          minor={true} fontScale={0.9} interactive={false} />
+      <div className="fp-card-body" ref={ref}
+        style={{
+          aspectRatio: String(PREVIEW_ASPECT),
+          width: '100%',
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+        onDoubleClick={onExpand} onClick={onExpand}>
+        {/* SVG is positioned absolutely so its intrinsic pixel size doesn't
+            override the body's aspect-ratio-driven height. */}
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <InteractivePlot figure={figure} width={size.w} height={size.h}
+            viewport={viewport} setViewport={setViewport}
+            minor={true} fontScale={0.9} interactive={false} />
+        </div>
       </div>
     </div>
   );

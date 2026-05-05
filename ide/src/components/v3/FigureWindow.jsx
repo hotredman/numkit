@@ -97,16 +97,39 @@ export default function FigureWindow({ figure, onClose }) {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
+  // Re-measure on every layout pass that might change the modal area:
+  // window resize (modal is `width: 85vw / height: 80vh`) plus ResizeObserver
+  // as the primary signal in modern browsers.
   useEffect(() => {
-    function update() {
-      const el = wrapRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      setSize({ w: Math.max(400, r.width - 32), h: Math.max(300, r.height - 32) });
+    const el = wrapRef.current;
+    if (!el) return;
+    let raf = 0;
+    const remeasure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        if (!r.width) return;
+        setSize((prev) => {
+          const w = Math.max(400, Math.round(r.width  - 32));
+          const h = Math.max(300, Math.round(r.height - 32));
+          return (Math.abs(prev.w - w) > 0.5 || Math.abs(prev.h - h) > 0.5) ? { w, h } : prev;
+        });
+      });
+    };
+    remeasure();
+    let ro = null;
+    if (typeof ResizeObserver !== 'undefined') {
+      ro = new ResizeObserver(remeasure);
+      ro.observe(el);
     }
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
+    window.addEventListener('resize', remeasure);
+    const t = setTimeout(remeasure, 50);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro?.disconnect();
+      window.removeEventListener('resize', remeasure);
+      clearTimeout(t);
+    };
   }, []);
 
   function downloadBlob(blob, name) {

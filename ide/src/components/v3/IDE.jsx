@@ -255,6 +255,14 @@ export default function IDE({ engine, status, vfsAdapters, onLocalMount }) {
   const [figuresW, setFiguresW] = useState(() => savedState?.layout?.figuresWidth ?? 440);
   const [dockH,    setDockH]    = useState(() => savedState?.layout?.bottomHeight ?? 280);
 
+  // Drag-resize of the right pane / dock height does not trigger window.resize,
+  // so plot canvases inside the pane wouldn't redraw at the new size in browsers
+  // where ResizeObserver behaves oddly. Dispatch a synthetic resize whenever any
+  // pane dimension changes so subscribers re-measure on the next layout pass.
+  useEffect(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, [sidebarW, figuresW, dockH, panels.explorer, panels.figures, panels.terminal, panels.editor]);
+
   // Engine/output state
   const [output, setOutput]       = useState([]);
   const [figures, setFigures]     = useState([]);
