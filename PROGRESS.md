@@ -2876,7 +2876,7 @@ intentionally omitted — flat solver functions only.
 
 ### Probability Distributions
 
-**Namespace:** `stats.dist.*` — 85 ✅ + 0 ⚠️ / 130+ = 65%
+**Namespace:** `stats.dist.*` — 90 ✅ + 0 ⚠️ / 130+ = 69%
 
 Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) / `*rnd` / `*stat`. All `rnd` functions share `numkit::builtin::sharedEngine()` so `rng(seed)` reseeds them. Discrete `*inv` use one-ULP relative tolerance against the public cdf so `inv(cdf(k))=k` round-trips don't overshoot.
 
@@ -2967,11 +2967,11 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `hygeinv` | ✅ |  |  |  | OK |  |
 | `hygernd` | ✅ |  |  |  | OK | inverse-cdf walk per draw |
 | `hygestat` | ✅ |  |  |  | OK |  |
-| `evpdf` | ❌ |  |  |  |  | extreme value (Gumbel) — pending |
-| `evcdf` | ❌ |  |  |  |  |  |
-| `evinv` | ❌ |  |  |  |  |  |
-| `evrnd` | ❌ |  |  |  |  |  |
-| `evstat` | ❌ |  |  |  |  |  |
+| `evpdf` | ✅ | 0.004 | 70.18× | 28.19× | OK | Sig: p = evpdf(x[, mu, sigma]). Type-I extreme value (Gumbel min) PDF. Defaults mu=0, sigma=1. Formula: (1/σ)·exp(t)·exp(−exp(t)) where t=(x−μ)/σ. |
+| `evcdf` | ✅ | 0.003 | 170.98× | 89.45× | OK | Sig: p = evcdf(x[, mu, sigma]). F(x) = 1 − exp(−exp((x−μ)/σ)). |
+| `evinv` | ✅ | 0.003 | 162.03× | 55.86× | OK | Sig: x = evinv(p[, mu, sigma]). x = μ + σ·log(−log1p(−p)). |
+| `evrnd` | ✅ |  |  |  |  |  |
+| `evstat` | ✅ | 0.003 | 83.95× | 61.95× | OK | Sig: [m, v] = evstat(mu, sigma). Type-I extreme value mean = μ − σ·γ_E and variance = σ²·π²/6. |
 | `gevpdf` | ❌ |  |  |  |  | generalized extreme value |
 | `gevcdf` | ❌ |  |  |  |  |  |
 | `gevinv` | ❌ |  |  |  |  |  |

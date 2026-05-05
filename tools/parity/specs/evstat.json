@@ -1,0 +1,13 @@
+{
+  "name": "evstat",
+  "namespace": "stats",
+  "setup": "mu = 2; sigma = 3;",
+  "expr": "[m, v] = evstat(mu, sigma);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "m",
+    "v"
+  ],
+  "comment": "Sig: [m, v] = evstat(mu, sigma). Type-I extreme value mean = μ − σ·γ_E and variance = σ²·π²/6."
+}

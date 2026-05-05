@@ -96,6 +96,13 @@ void expinv_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void exprnd_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void expstat_reg (Span<const Value>, size_t, Span<Value>, CallContext &);
 
+// distributions/extreme_value.cpp
+void evpdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evcdf_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evinv_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evrnd_reg   (Span<const Value>, size_t, Span<Value>, CallContext &);
+void evstat_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
+
 // distributions/uniform.cpp
 void unifpdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
 void unifcdf_reg  (Span<const Value>, size_t, Span<Value>, CallContext &);
@@ -332,6 +339,12 @@ void StatsLibrary::install(Engine &engine)
     reg("dist", "expinv",   &stats::detail::expinv_reg);
     reg("dist", "exprnd",   &stats::detail::exprnd_reg);
     reg("dist", "expstat",  &stats::detail::expstat_reg);
+
+    reg("dist", "evpdf",    &stats::detail::evpdf_reg);
+    reg("dist", "evcdf",    &stats::detail::evcdf_reg);
+    reg("dist", "evinv",    &stats::detail::evinv_reg);
+    reg("dist", "evrnd",    &stats::detail::evrnd_reg);
+    reg("dist", "evstat",   &stats::detail::evstat_reg);
 
     reg("dist", "unifpdf",  &stats::detail::unifpdf_reg);
     reg("dist", "unifcdf",  &stats::detail::unifcdf_reg);

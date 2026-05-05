@@ -13,6 +13,7 @@ set(STATSLIB_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/beta.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/gamma_dist.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/exponential.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/distributions/extreme_value.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/uniform.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/lognormal.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/distributions/weibull.cpp
