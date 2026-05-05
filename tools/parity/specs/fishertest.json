@@ -1,0 +1,16 @@
+{
+  "name": "fishertest",
+  "namespace": "stats",
+  "setup": "T = [5 2; 1 6];",
+  "expr": "[h, p, stats] = fishertest(T);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": [
+    "h",
+    "p",
+    "stats.OddsRatio",
+    "stats.ConfidenceInterval(1)",
+    "stats.ConfidenceInterval(2)"
+  ],
+  "comment": "Sig: [h, p, stats] = fishertest(T[, 'Tail', t, 'Alpha', a]). Fisher's exact test for 2×2 contingency. Two-sided p sums hypergeometric pmf cells with P(X=k) ≤ P(X=obs). OR = a·d/(b·c); CI is the Woolf log-OR ± z·SE."
+}

@@ -569,6 +569,84 @@ signtest(std::pmr::memory_resource *mr, const Value &x,
 }
 
 // ════════════════════════════════════════════════════════════════════
+// fishertest — Fisher's exact 2×2 contingency
+// ════════════════════════════════════════════════════════════════════
+
+std::tuple<Value, Value, Value, Value, Value>
+fishertest(std::pmr::memory_resource *mr, const Value &T,
+           double alpha, TestTail tail)
+{
+    if (T.dims().rows() != 2 || T.dims().cols() != 2)
+        throw Error("fishertest: T must be a 2×2 matrix",
+                    0, 0, "fishertest", "", "m:fishertest:size");
+    const double a = T.elemAsDouble(0);  // (1,1)
+    const double c = T.elemAsDouble(1);  // (2,1)
+    const double b = T.elemAsDouble(2);  // (1,2)
+    const double d = T.elemAsDouble(3);  // (2,2)
+    const double row1 = a + b;
+    const double col1 = a + c;
+    const double Ntot = a + b + c + d;
+
+    auto lb = [](double n, double k) {
+        if (k < 0.0 || k > n) return -std::numeric_limits<double>::infinity();
+        return std::lgamma(n + 1.0) - std::lgamma(k + 1.0) - std::lgamma(n - k + 1.0);
+    };
+
+    const long long kmin = static_cast<long long>(std::max(0.0, row1 + col1 - Ntot));
+    const long long kmax = static_cast<long long>(std::min(row1, col1));
+    const long long kobs = static_cast<long long>(a);
+    const double logC_den = lb(Ntot, col1);
+    const long long K = kmax - kmin + 1;
+    std::vector<double> pmf(static_cast<size_t>(K));
+    for (long long k = kmin; k <= kmax; ++k) {
+        const double lp = lb(row1, double(k))
+                        + lb(Ntot - row1, col1 - double(k))
+                        - logC_den;
+        pmf[static_cast<size_t>(k - kmin)] = std::exp(lp);
+    }
+    const double pObs = pmf[static_cast<size_t>(kobs - kmin)];
+
+    double p = 0.0;
+    switch (tail) {
+        case TestTail::Both: {
+            const double tol = pObs * (1.0 + 1e-9);
+            for (size_t i = 0; i < pmf.size(); ++i)
+                if (pmf[i] <= tol) p += pmf[i];
+            break;
+        }
+        case TestTail::Right:
+            for (long long k = kobs; k <= kmax; ++k)
+                p += pmf[static_cast<size_t>(k - kmin)];
+            break;
+        case TestTail::Left:
+            for (long long k = kmin; k <= kobs; ++k)
+                p += pmf[static_cast<size_t>(k - kmin)];
+            break;
+    }
+    if (p > 1.0) p = 1.0;
+    const int h = (p < alpha) ? 1 : 0;
+
+    const double OR = (b * c == 0.0)
+                       ? std::numeric_limits<double>::infinity()
+                       : (a * d) / (b * c);
+    double ci_lo = 0.0;
+    double ci_hi = std::numeric_limits<double>::infinity();
+    if (a > 0 && b > 0 && c > 0 && d > 0) {
+        const double logOR = std::log(OR);
+        const double se = std::sqrt(1.0 / a + 1.0 / b + 1.0 / c + 1.0 / d);
+        Value pcrit = Value::scalar(1.0 - alpha / 2.0, mr);
+        const double zcrit = norminv(mr, pcrit, 0.0, 1.0).toScalar();
+        ci_lo = std::exp(logOR - zcrit * se);
+        ci_hi = std::exp(logOR + zcrit * se);
+    }
+    return std::make_tuple(Value::scalar(double(h), mr),
+                           Value::scalar(p,        mr),
+                           Value::scalar(OR,       mr),
+                           Value::scalar(ci_lo,    mr),
+                           Value::scalar(ci_hi,    mr));
+}
+
+// ════════════════════════════════════════════════════════════════════
 // chi2gof — chi-squared goodness-of-fit (frequency form)
 // ════════════════════════════════════════════════════════════════════
 
@@ -1293,6 +1371,38 @@ void jbtest_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(p);
     if (nargout > 2) outs[2] = std::move(JB);
     if (nargout > 3) outs[3] = std::move(cv);
+}
+
+void fishertest_reg(Span<const Value> args, size_t nargout,
+                    Span<Value> outs, CallContext &ctx)
+{
+    if (args.empty())
+        throw Error("fishertest: requires (T[, alpha, tail | name-value])",
+                    0, 0, "fishertest", "", "m:fishertest:nargin");
+    auto *mr = ctx.engine->resource();
+    double alpha = 0.05;
+    TestTail tail = TestTail::Both;
+    for (size_t i = 1; i + 1 < args.size(); i += 2) {
+        if (!args[i].isChar() && !args[i].isString()) break;
+        std::string name = args[i].toString();
+        for (auto &c : name) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        const Value &v = args[i + 1];
+        if      (name == "alpha") alpha = v.toScalar();
+        else if (name == "tail")  tail  = parse_tail(v.toString(), TestTail::Both);
+    }
+    auto [h, p, OR, lo, hi] = fishertest(mr, args[0], alpha, tail);
+    outs[0] = std::move(h);
+    if (nargout > 1) outs[1] = std::move(p);
+    if (nargout > 2) {
+        Value s = Value::structure(mr);
+        s.field("OddsRatio") = OR;
+        Value ci = Value::matrix(1, 2, ValueType::DOUBLE, mr);
+        double *cd = ci.doubleDataMut();
+        cd[0] = lo.toScalar();
+        cd[1] = hi.toScalar();
+        s.field("ConfidenceInterval") = std::move(ci);
+        outs[2] = std::move(s);
+    }
 }
 
 void chi2gof_reg(Span<const Value> args, size_t nargout,

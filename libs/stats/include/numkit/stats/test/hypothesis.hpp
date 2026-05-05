@@ -82,6 +82,14 @@ std::tuple<Value, Value, Value>
 vartestn(std::pmr::memory_resource *mr, const Value &x, const Value &group,
          double alpha);
 
+/// fishertest(T[, alpha, tail]) — Fisher's exact test for a 2×2
+/// contingency table T = [a b; c d]. Returns (h, p, OR, ci_lo, ci_hi)
+/// where OR is the odds ratio a·d/(b·c) and the 95% (or 1−α) Woolf
+/// log-OR confidence interval.
+std::tuple<Value, Value, Value, Value, Value>
+fishertest(std::pmr::memory_resource *mr, const Value &T,
+           double alpha, TestTail tail);
+
 /// chi2gof — frequency form: given Observed counts and Expected counts,
 /// compute chi² goodness-of-fit. df = k − 1 − nparams.
 /// (Auto-binned distribution-fit form — chi2gof(x) without Frequency —
