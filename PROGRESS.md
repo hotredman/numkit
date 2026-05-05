@@ -3260,8 +3260,8 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `knnsearch` | ❌ |  |  |  |  | k nearest neighbours |
-| `rangesearch` | ❌ |  |  |  |  | within-radius search |
+| `knnsearch` | ✅ | 0.004 | 1326.60× | 219.61× | OK | Sig: [Idx, D] = knnsearch(X, Y, 'K', K). Brute-force k-nearest neighbour. 6-point X, 2-query Y, K=3, default Euclidean. Element-wise SAVE on idx (1-based row indices). |
+| `rangesearch` | ✅ | 0.005 | 991.24× | 123.10× | OK | Sig: [Idx, D] = rangesearch(X, Y, r). Cell-array output unwrapped to a numeric row in SAVE (idx = idxC{1}). All 3 points in cluster 1 are within r=1.0 of (1.5, 1.5). Explicit fingerprint avoids sum on the cell. |
 | `createns` | ❌ |  |  |  |  | tree constructor (returns struct, not class) |
 
 ### Hidden Markov Models
