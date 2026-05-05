@@ -6,6 +6,7 @@
 #include <numkit/core/types.hpp>
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -19,9 +20,14 @@ namespace {
 enum class Metric { Euclidean, SqEuclidean, Cityblock, Chebychev, Minkowski,
                     Cosine, Correlation, Hamming, Jaccard };
 
-Metric parse_metric(const std::string &s) {
+Metric parse_metric(const std::string &raw) {
+    // Case-insensitive + accept MATLAB-style aliases (e.g. 'sqEuclidean'
+    // for squared-euclidean).
+    std::string s; s.reserve(raw.size());
+    for (char c : raw) s.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
     if (s == "euclidean")        return Metric::Euclidean;
-    if (s == "squaredeuclidean") return Metric::SqEuclidean;
+    if (s == "squaredeuclidean" ||
+        s == "sqeuclidean")      return Metric::SqEuclidean;
     if (s == "cityblock")        return Metric::Cityblock;
     if (s == "chebychev")        return Metric::Chebychev;
     if (s == "minkowski")        return Metric::Minkowski;
@@ -29,7 +35,7 @@ Metric parse_metric(const std::string &s) {
     if (s == "correlation")      return Metric::Correlation;
     if (s == "hamming")          return Metric::Hamming;
     if (s == "jaccard")          return Metric::Jaccard;
-    throw Error("pdist: unknown metric '" + s + "'", 0, 0, "pdist", "",
+    throw Error("pdist: unknown metric '" + raw + "'", 0, 0, "pdist", "",
                 "m:pdist:badmetric");
 }
 
