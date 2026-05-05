@@ -1,0 +1,17 @@
+{
+  "name": "haltonset",
+  "namespace": "stats",
+  "setup": "p = haltonset(2);",
+  "expr": "X = net(p, 5);",
+  "iters": 5,
+  "tol": 1e-12,
+  "fingerprint": [
+    "X(1,1)",
+    "X(1,2)",
+    "X(2,1)",
+    "X(2,2)",
+    "X(5,1)",
+    "X(5,2)"
+  ],
+  "comment": "Sig: p = haltonset(d[, 'Skip', s, 'Leap', l]); X = net(p, n). Halton quasi-random points via radical inverse on the first d primes. Default skip = 1 (matches MATLAB; 'Skip', 0 yields the trivial origin)."
+}

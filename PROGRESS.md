@@ -3141,11 +3141,11 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 
 ### Quasirandom Sequences and MCMC
 
-**Namespace:** `stats.qmc.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+**Namespace:** `stats.qmc.*` — 1 ✅ + 0 ⚠️ / 8 = 13%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `haltonset` | ❌ |  |  |  |  | Halton sequence |
+| `haltonset` | ✅ | 0.003 | 232.79× |  | OK | Sig: p = haltonset(d[, 'Skip', s, leap]); X = net(p, n). Halton quasi-random points via radical inverse. Default Skip=0 (origin first); MATLAB convention. |
 | `lhsdesign` | ❌ |  |  |  |  | Latin hypercube |
 | `lhsnorm` | ❌ |  |  |  |  | Latin hypercube w/ normal |
 | `mhsample` | ❌ |  |  |  |  | Metropolis-Hastings |
