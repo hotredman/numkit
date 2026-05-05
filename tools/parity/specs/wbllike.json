@@ -1,0 +1,10 @@
+{
+  "name": "wbllike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = wbllike([1, 2], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = wbllike([scale shape], x). Negative log-likelihood for Weibull(a, b)."
+}

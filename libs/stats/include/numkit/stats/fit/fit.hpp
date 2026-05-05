@@ -35,4 +35,18 @@ expfit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 std::tuple<Value, Value, Value, Value>
 unifit(std::pmr::memory_resource *mr, const Value &x, double alpha);
 
+// ── Negative log-likelihoods ───────────────────────────────────────────
+// Each *like(params, data) returns the scalar nLogL = −Σ log f(x_i; θ).
+// `params` is a 1×k row vector; `data` is the sample vector. avar (the
+// asymptotic-covariance second output) is currently not provided —
+// MATLAB-compatible callers that only need nLogL match exactly.
+
+double normlike (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
+double explike  (std::pmr::memory_resource *mr, double mu,                const Value &x);
+double lognlike (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
+double gamlike  (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
+double betalike (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
+double wbllike  (std::pmr::memory_resource *mr, double a,  double b,     const Value &x);
+double evlike   (std::pmr::memory_resource *mr, double mu, double sigma, const Value &x);
+
 } // namespace numkit::stats

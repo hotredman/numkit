@@ -1,0 +1,10 @@
+{
+  "name": "evlike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = evlike([0, 1], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = evlike([mu sigma], x). Negative log-likelihood for Type-I extreme value (Gumbel min). MATLAB convention: f(x) = (1/sigma)·exp((x−mu)/sigma)·exp(−exp((x−mu)/sigma))."
+}

@@ -1,0 +1,10 @@
+{
+  "name": "normlike",
+  "namespace": "stats",
+  "setup": "x = [1 2 3 4 5]';",
+  "expr": "nL = normlike([3, 2], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = normlike(params=[mu sigma], x). Negative log-likelihood. Used to verify the closed-form formula vs MATLAB. Second output (avar) intentionally not implemented yet."
+}

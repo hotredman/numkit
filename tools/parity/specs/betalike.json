@@ -1,0 +1,10 @@
+{
+  "name": "betalike",
+  "namespace": "stats",
+  "setup": "x = [0.1 0.3 0.5 0.7 0.9]';",
+  "expr": "nL = betalike([2, 2], x);",
+  "iters": 5,
+  "tol": 1e-9,
+  "fingerprint": ["nL"],
+  "comment": "Sig: nL = betalike([a b], x). Negative log-likelihood for Beta(a, b)."
+}

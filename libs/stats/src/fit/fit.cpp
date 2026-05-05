@@ -138,6 +138,119 @@ unifit(std::pmr::memory_resource *mr, const Value &x, double alpha)
             rowCI(mr, mx, mx + delta)};
 }
 
+// ── Negative log-likelihoods ──────────────────────────────────────────
+
+namespace {
+constexpr double kLog2Pi = 1.8378770664093454835606594728112352;
+}
+
+double normlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
+                const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    double ss = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double d = x.elemAsDouble(i) - mu;
+        ss += d * d;
+    }
+    return double(N) * std::log(sigma) + 0.5 * double(N) * kLog2Pi
+         + ss / (2.0 * sigma * sigma);
+}
+
+double explike(std::pmr::memory_resource * /*mr*/, double mu, const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || mu <= 0.0) return std::numeric_limits<double>::infinity();
+    double sx = 0.0;
+    for (size_t i = 0; i < N; ++i) sx += x.elemAsDouble(i);
+    return double(N) * std::log(mu) + sx / mu;
+}
+
+double lognlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
+                const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    double sumLogX = 0.0, ss = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi <= 0.0) return std::numeric_limits<double>::infinity();
+        const double lx = std::log(xi);
+        sumLogX += lx;
+        const double d = lx - mu;
+        ss += d * d;
+    }
+    return sumLogX + double(N) * std::log(sigma)
+         + 0.5 * double(N) * kLog2Pi + ss / (2.0 * sigma * sigma);
+}
+
+double gamlike(std::pmr::memory_resource * /*mr*/, double a, double b,
+               const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || a <= 0.0 || b <= 0.0)
+        return std::numeric_limits<double>::infinity();
+    double sumLogX = 0.0, sx = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi <= 0.0) return std::numeric_limits<double>::infinity();
+        sumLogX += std::log(xi);
+        sx += xi;
+    }
+    return -(a - 1.0) * sumLogX + sx / b
+         + double(N) * a * std::log(b) + double(N) * std::lgamma(a);
+}
+
+double betalike(std::pmr::memory_resource * /*mr*/, double a, double b,
+                const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || a <= 0.0 || b <= 0.0)
+        return std::numeric_limits<double>::infinity();
+    double sumLog = 0.0, sumLog1m = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi <= 0.0 || xi >= 1.0)
+            return std::numeric_limits<double>::infinity();
+        sumLog   += std::log(xi);
+        sumLog1m += std::log1p(-xi);
+    }
+    const double logBeta = std::lgamma(a) + std::lgamma(b) - std::lgamma(a + b);
+    return -(a - 1.0) * sumLog - (b - 1.0) * sumLog1m + double(N) * logBeta;
+}
+
+double wbllike(std::pmr::memory_resource * /*mr*/, double scale, double shape,
+               const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || scale <= 0.0 || shape <= 0.0)
+        return std::numeric_limits<double>::infinity();
+    double sumLogX = 0.0, sumPow = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double xi = x.elemAsDouble(i);
+        if (xi <= 0.0) return std::numeric_limits<double>::infinity();
+        sumLogX += std::log(xi);
+        sumPow  += std::pow(xi / scale, shape);
+    }
+    return -double(N) * std::log(shape) + double(N) * shape * std::log(scale)
+         - (shape - 1.0) * sumLogX + sumPow;
+}
+
+double evlike(std::pmr::memory_resource * /*mr*/, double mu, double sigma,
+              const Value &x)
+{
+    const size_t N = x.numel();
+    if (N == 0 || sigma <= 0.0) return std::numeric_limits<double>::infinity();
+    double sLin = 0.0, sExp = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+        const double t = (x.elemAsDouble(i) - mu) / sigma;
+        sLin += t;
+        sExp += std::exp(t);
+    }
+    return double(N) * std::log(sigma) - sLin + sExp;
+}
+
 // ════════════════════════════════════════════════════════════════════
 // Engine adapters
 // ════════════════════════════════════════════════════════════════════
@@ -199,6 +312,58 @@ void unifit_reg(Span<const Value> args, size_t nargout,
     if (nargout > 1) outs[1] = std::move(b);
     if (nargout > 2) outs[2] = std::move(aci);
     if (nargout > 3) outs[3] = std::move(bci);
+}
+
+// ─── *like adapters ───────────────────────────────────────────────────
+
+static void like2_reg(const char *fn,
+                      double (*impl)(std::pmr::memory_resource *,
+                                     double, double, const Value &),
+                      Span<const Value> args, Span<Value> outs,
+                      CallContext &ctx)
+{
+    if (args.size() < 2 || args[0].numel() < 2)
+        throw Error(std::string(fn) + ": requires (params[2], data)",
+                    0, 0, fn, "", "m:like:nargin");
+    const double p0 = args[0].elemAsDouble(0);
+    const double p1 = args[0].elemAsDouble(1);
+    const double nL = impl(ctx.engine->resource(), p0, p1, args[1]);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
+}
+
+void normlike_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{ like2_reg("normlike", &normlike, args, outs, ctx); }
+
+void lognlike_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{ like2_reg("lognlike", &lognlike, args, outs, ctx); }
+
+void gamlike_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{ like2_reg("gamlike", &gamlike, args, outs, ctx); }
+
+void betalike_reg(Span<const Value> args, size_t /*nargout*/,
+                  Span<Value> outs, CallContext &ctx)
+{ like2_reg("betalike", &betalike, args, outs, ctx); }
+
+void wbllike_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{ like2_reg("wbllike", &wbllike, args, outs, ctx); }
+
+void evlike_reg(Span<const Value> args, size_t /*nargout*/,
+                Span<Value> outs, CallContext &ctx)
+{ like2_reg("evlike", &evlike, args, outs, ctx); }
+
+void explike_reg(Span<const Value> args, size_t /*nargout*/,
+                 Span<Value> outs, CallContext &ctx)
+{
+    if (args.size() < 2)
+        throw Error("explike: requires (mu, data)",
+                    0, 0, "explike", "", "m:explike:nargin");
+    const double mu = args[0].toScalar();
+    const double nL = explike(ctx.engine->resource(), mu, args[1]);
+    outs[0] = Value::scalar(nL, ctx.engine->resource());
 }
 
 } // namespace detail
