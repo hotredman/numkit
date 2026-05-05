@@ -1,4 +1,4 @@
-# numkit-m parity progress
+# Numkit parity progress
 
 This is the live parity map of numkit's MATLAB compatibility surface.
 Every documented MATLAB function gets a row here, organized by
@@ -19,9 +19,26 @@ multiple sections; all occurrences refresh together).
   the comparison engine doesn't support the function
 - `comment` — input size / notes / deviations
 
-## Entering Commands
+**Library layout** (each H2 below maps to a numkit lib or a future-lib placeholder):
 
-**Namespace:** core — 5 ✅ + 0 ⚠️ / 9 = 56%
+- **Builtin** — MATLAB base (Mathematics + Language Fundamentals + Programming).
+  Self-contained: no dependency on toolbox libs.
+- **Toolbox libs** — mirror MATLAB toolboxes: Signal / Image / Stats /
+  Communications / Control / Wavelet / Graphics / IO / Fitting.
+- **Future-lib placeholders** — Linear Algebra / ODE / Optimization. Functions
+  may currently live under Builtin physically; they will migrate to their own
+  libs as those land.
+- **Cross-lib deps** — `Image` / `Control` / `Communications` depend on
+  `Signal` for DSP primitives (conv, FFT, DCT). All toolboxes depend on
+  `Builtin`. **`Builtin` has no toolbox dependencies (invariant).**
+- A function may appear in multiple H3 sections when MATLAB-doc places it in
+  multiple topics; the harness updates every occurrence in lock-step.
+
+## Builtin
+
+### Entering Commands
+
+**Namespace:** builtin — 5 ✅ + 0 ⚠️ / 9 = 56%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -35,9 +52,9 @@ multiple sections; all occurrences refresh together).
 | `iskeyword` | ✅ | 0.000 | 5.37× | 6.40× | OK | Sig: TF = iskeyword(NAME). Returns scalar logical. 100k iters. |
 | `more` | ❌ |  |  |  |  | pager |
 
-## Matrices and Arrays
+### Matrices and Arrays
 
-**Namespace:** core — 53 ✅ + 1 ⚠️ / 55 = 98%
+**Namespace:** builtin — 53 ✅ + 1 ⚠️ / 55 = 98%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -97,9 +114,9 @@ multiple sections; all occurrences refresh together).
 | `vertcat` | ✅ | 1.811 | 0.64× | 0.60× | OK | Sig: D = vertcat(A,B). 500x500 stack. 100 iters. |
 | `zeros` | ✅ | 1.807 | 0.03× | 1.16× | OK | Sig: Z = zeros(M,N). 1000x1000. 100 iters. |
 
-## Control Flow
+### Control Flow
 
-**Namespace:** core (keywords) — 10 ✅ + 0 ⚠️ / 11 = 91%
+**Namespace:** builtin (keywords) — 10 ✅ + 0 ⚠️ / 11 = 91%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -115,9 +132,9 @@ multiple sections; all occurrences refresh together).
 | `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
 | `while` | ✅ |  |  |  |  | keyword |
 
-## Numeric Types
+### Numeric Types
 
-**Namespace:** core — 27 ✅ + 0 ⚠️ / 29 = 93%
+**Namespace:** builtin — 27 ✅ + 0 ⚠️ / 29 = 93%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -151,9 +168,9 @@ multiple sections; all occurrences refresh together).
 | `uint64` | ✅ | 4.673 | 0.27× | 0.76× | OK | Sig: Y = uint64(X). 1M → uint64. 50 iters. |
 | `uint8` | ✅ | 2.576 | 0.03× | 0.63× | OK | Sig: Y = uint8(X). 1M → uint8. 50 iters. |
 
-## Characters and Strings
+### Characters and Strings
 
-**Namespace:** core — 54 ✅ + 0 ⚠️ / 65 = 83%
+**Namespace:** builtin — 54 ✅ + 0 ⚠️ / 65 = 83%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -201,8 +218,6 @@ multiple sections; all occurrences refresh together).
 | `reverse` | ✅ | 0.000 | 7.98× |  | OK | Sig: S2 = reverse(S). 1k-char reverse. 10000 iters. |
 | `split` | ✅ | 0.103 | 0.84× |  | OK | Split CSV-like 4000-char string into 1000 tokens. 1000 iters. |
 | `splitlines` | ✅ | 0.001 | 3.02× |  | OK | Sig: C = splitlines(S). 5-line input via sprintf '
-'. 1000 iters. |
-'. 1000 iters. |
 | `sprintf` | ✅ | 0.001 | 5.38× | 5.43× | OK | Sig: S = sprintf(FMT, ...). Format scalar+int. 100k iters. |
 | `sscanf` | ✅ | 0.000 | 5.16× | 80.00× | OK | Sig: A = sscanf(S, FMT). 5 floats. 100k iters. |
 | `startswith` | ❌ |  |  |  |  |  |
@@ -225,9 +240,9 @@ multiple sections; all occurrences refresh together).
 | `strtrim` | ✅ | 0.000 | 3.09× | 135.74× | OK | Sig: S = strtrim(S). Trim leading+trailing. 10000 iters. |
 | `upper` | ✅ | 0.068 | 1.10× | 2.51× | OK | Sig: Y = upper(S). 32k char string with mixed case. 1000 iters. Element-wise SAVE. |
 
-## Structures
+### Structures
 
-**Namespace:** core — 12 ✅ + 0 ⚠️ / 14 = 86%
+**Namespace:** builtin — 12 ✅ + 0 ⚠️ / 14 = 86%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -246,9 +261,9 @@ multiple sections; all occurrences refresh together).
 | `structfun` | ✅ | 0.002 | 3.03× | 38.01× | OK | Sig: A = structfun(@F, S). Apply *2 to each field. 1000 iters. (May fail due to lambda BUG #11). |
 | `table2struct` | ❌ |  |  |  |  |  |
 
-## Cell Arrays
+### Cell Arrays
 
-**Namespace:** core — 12 ✅ + 0 ⚠️ / 17 = 71%
+**Namespace:** builtin — 12 ✅ + 0 ⚠️ / 17 = 71%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -270,9 +285,9 @@ multiple sections; all occurrences refresh together).
 | `table2cell` | ❌ |  |  |  |  |  |
 | `timetable` | ❌ |  |  |  |  |  |
 
-## Function Handles
+### Function Handles
 
-**Namespace:** core — 5 ✅ + 0 ⚠️ / 6 = 83%
+**Namespace:** builtin — 5 ✅ + 0 ⚠️ / 6 = 83%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -283,7 +298,7 @@ multiple sections; all occurrences refresh together).
 | `localfunctions` | ✅ | 0.000 | 373.56× | 9.30× | OK | Sig: F = localfunctions(). Stub returns empty cell. 100k iters. |
 | `str2func` | ✅ | 0.000 | 14.84× | 19.64× | OK | Sig: F = str2func(NAME). 10k iters. fp checks created handle works. |
 
-## Categorical Arrays
+### Categorical Arrays
 
 **Namespace:** `categorical.*` (future) — 1 ✅ + 0 ⚠️ / 17 = 5%
 
@@ -306,7 +321,7 @@ multiple sections; all occurrences refresh together).
 | `setcats` | ❌ |  |  |  |  |  |
 | `summary` | ❌ |  |  |  |  |  |
 
-## Tables / Timetables
+### Tables / Timetables
 
 **Namespace:** `table.*` (future) — 6 ✅ + 0 ⚠️ / 66 = 9%
 
@@ -377,9 +392,9 @@ multiple sections; all occurrences refresh together).
 | `width` | ❌ |  |  |  |  |  |
 | `writetable` | ❌ |  |  |  |  | needs table type |
 
-## Bit-wise Operations
+### Bit-wise Operations
 
-**Namespace:** core — 7 ✅ + 0 ⚠️ / 8 = 88%
+**Namespace:** builtin — 7 ✅ + 0 ⚠️ / 8 = 88%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -392,9 +407,9 @@ multiple sections; all occurrences refresh together).
 | `bitxor` | ✅ | 5.769 | 1.84× | 2.37× | OK | Sig: Y = bitxor(A, B). 1M double. 50 iters. |
 | `swapbytes` | ✅ | 1.070 | 0.95× | 8.06× | OK | Sig: Y = swapbytes(X). 1M uint32 endian-swap. 50 iters. (uint out — fp via double cast). |
 
-## Set Operations
+### Set Operations
 
-**Namespace:** core — 10 ✅ + 0 ⚠️ / 13 = 77%
+**Namespace:** builtin — 10 ✅ + 0 ⚠️ / 13 = 77%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -412,9 +427,9 @@ multiple sections; all occurrences refresh together).
 | `unique` | ✅ | 0.931 | 1.08× | 0.35× | OK | Sig: C = unique(A). 100k with ~7919 distinct. 100 iters. Element-wise SAVE. |
 | `uniquetol` | ✅ | 0.234 | 0.49× | 6.98× | MISMATCH | Sig: U = uniquetol(X, TOL). 10k with rounded vals. 100 iters. |
 
-## Arithmetic
+### Arithmetic
 
-**Namespace:** core — 28 ✅ + 0 ⚠️ / 34 = 82%
+**Namespace:** builtin — 28 ✅ + 0 ⚠️ / 34 = 82%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -453,9 +468,9 @@ multiple sections; all occurrences refresh together).
 | `uminus` | ✅ | 3.806 | 0.03× | 0.58× | OK | Sig: Y = uminus(X). 1M-pt unary minus. 50 iters. |
 | `uplus` | ✅ | 0.000 | 13.31× | 16.92× | OK | Sig: Y = uplus(X). 1M-pt unary plus (no-op). 50 iters. |
 
-## Trigonometry
+### Trigonometry
 
-**Namespace:** core — 47 ✅ + 0 ⚠️ / 47 = 100%
+**Namespace:** builtin — 47 ✅ + 0 ⚠️ / 47 = 100%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -507,9 +522,9 @@ multiple sections; all occurrences refresh together).
 | `tand` | ✅ | 3.442 | 0.24× | 7.32× | OK | Sig: Y = tand(X). 1M-pt sweep on [-89°, 89°] (avoid 90° singularity). 20 iters. Element-wise SAVE. |
 | `tanh` | ✅ | 3.078 | 0.41× | 2.26× | OK | Sig: Y = tanh(X). 1M-pt sweep on [-5, 5]. 20 iters. Element-wise SAVE. |
 
-## Exponents and Logarithms
+### Exponents and Logarithms
 
-**Namespace:** core — 13 ✅ + 0 ⚠️ / 13 = 100%
+**Namespace:** builtin — 13 ✅ + 0 ⚠️ / 13 = 100%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -527,9 +542,9 @@ multiple sections; all occurrences refresh together).
 | `realsqrt` | ✅ | 4.286 | 0.33× | 1.89× | OK | Sig: Y = realsqrt(X). 1M-pt on [0, 1000]. 20 iters. Element-wise SAVE. |
 | `sqrt` | ✅ | 4.191 | 0.30× | 1.81× | OK | Sig: Y = sqrt(X). 1M-pt sqrt. 50 iters. |
 
-## Special Functions
+### Special Functions
 
-**Namespace:** core — 20 ✅ + 0 ⚠️ / 24 = 83%
+**Namespace:** builtin — 20 ✅ + 0 ⚠️ / 24 = 83%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -558,9 +573,9 @@ multiple sections; all occurrences refresh together).
 | `legendre` | ✅ | 0.039 | 12.03× | 6.21× | OK | Sig: P = legendre(N, X). N=4, 1k pts. 20 iters. SAVE on (n+1)x1000 matrix. |
 | `psi` | ✅ | 0.689 | 0.81× | 1.05× | OK | Sig: Y = psi(X). 100k-pt sweep on positive domain. 20 iters. Element-wise SAVE. |
 
-## Discrete Math
+### Discrete Math
 
-**Namespace:** core — 10 ✅ + 0 ⚠️ / 11 = 90%
+**Namespace:** builtin — 10 ✅ + 0 ⚠️ / 11 = 90%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
@@ -576,14 +591,12 @@ multiple sections; all occurrences refresh together).
 | `rat` | ✅ | 0.001 | 96.24× |  | MISMATCH | Sig: S = rat(X, TOL). Continued frac of pi. 1000 iters. |
 | `rats` | ✅ | 0.001 | 28.82× |  | MISMATCH | Sig: S = rats(X). Continued frac as char. 10000 iters. |
 
-## Polynomials
+### Polynomials
 
-**Namespace:** core — 10 ✅ + 0 ⚠️ / 12 = 83%
+**Namespace:** builtin — 10 ✅ + 0 ⚠️ / 12 = 83%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
-| `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
-| `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
 | `poly` | ✅ | 0.000 | 84.89× | 164.01× | OK | Sig: P = poly(R). Roots → polynomial coefficients. 10000 iters. |
 | `polyder` | ✅ | 0.001 | 79.15× | 34.66× | OK | Sig: K = polyder(P). Deterministic 100-coef poly. 1000 iters. Element-wise SAVE. |
 | `polydiv` | ✅ | 0.000 |  | 73.27× | OK | Sig: [Q, R] = polydiv(U, V). Polynomial div via deconv. 10000 iters. |
@@ -594,8 +607,1351 @@ multiple sections; all occurrences refresh together).
 | `polyvalm` | ✅ | 0.001 | 35.94× | 53.27× | OK | Sig: Y = polyvalm(P, A). Matrix poly eval x^2-3x+2. 10000 iters. |
 | `residue` | ❌ |  |  |  |  | partial-fraction |
 | `roots` | ✅ | 0.001 | 21.54× | 38.26× | OK | Sig: R = roots(P). 4th-order poly with real roots {1,2,3,4}. 1000 iters. SAVE on sorted real parts. |
+| `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
+
+### Random Number Generation
+
+**Namespace:** builtin — 5 ✅ + 0 ⚠️ / 6 = 83%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
+| `randi` | ✅ | 6.307 | 0.75× | 1.72× | OK | Sig: A = randi(IMAX, M, N). 1k×1k uniform-int. 100 iters. |
+| `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
+| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
+| `randstream` | ❌ |  |  |  |  |  |
+| `rng` | ✅ | 0.001 | 33.99× | 33.95× | MISMATCH | Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters. |
+
+### Interpolation
+
+**Namespace:** builtin — 11 ✅ + 0 ⚠️ / 18 = 61%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `griddata` | ❌ |  |  |  |  |  |
+| `griddatan` | ❌ |  |  |  |  |  |
+| `griddedinterpolant` | ❌ |  |  |  |  |  |
+| `interp1` | ✅ | 0.123 | 1.16× | 8.36× | OK | Sig: VQ = interp1(X, V, XQ). 100 → 10k linear interp. 100 iters. |
+| `interp2` | ✅ |  |  |  | N/A | Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 → 200x200 bilinear. 50 iters. |
+| `interp3` | ✅ |  |  |  | N/A | Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20³ → 50³ trilinear. 10 iters. |
+| `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
+| `interpn` | ✅ |  |  |  | N/A | Sig: Vq = interpn(...) N-D interp. 20³ → 50³. 10 iters. |
+| `makima` | ❌ |  |  |  |  |  |
+| `meshgrid` | ✅ | 11.413 | 0.21× | 0.40× | OK | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 50 iters. SAVE on X. |
+| `mkpp` | ✅ | 0.000 | 6.87× | 56.79× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
+| `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
+| `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
+| `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
+| `scatteredinterpolant` | ❌ |  |  |  |  |  |
+| `spline` | ✅ | 0.017 | 22.81× | 37.93× | OK | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
+| `unmkpp` | ✅ | 0.000 | 3.90× | 46.01× | OK | Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters. |
+
+### Sparse Matrices
+
+**Namespace:** `sparse.*` (future) — 4 ✅ + 0 ⚠️ / 53 = 7%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `amd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `bicg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `bicgstab` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `bicgstabl` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `cgs` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `colamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `colperm` | ❌ |  |  |  |  |  |
+| `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `dissect` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `dmperm` | ❌ |  |  |  |  |  |
+| `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `equilibrate` | ❌ |  |  |  |  |  |
+| `etree` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `etreeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `find` | ✅ | 2.383 | 0.23× | 0.06× | OK | Sig: K = find(X). 1M-pt logical, ~77k matches. 100 iters. |
+| `full` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `gmres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `gplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `ichol` | ❌ |  |  |  |  |  |
+| `ilu` | ❌ |  |  |  |  |  |
+| `issparse` | ❌ |  |  |  | N/A | Sig: TF = issparse(X). 100k iters. |
+| `lsqr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `minres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `nnz` | ✅ | 0.142 | 0.23× | 1.39× | OK | Sig: N = nnz(X). 1M-pt count. 1000 iters. |
+| `nonzeros` | ✅ | 1.245 | 0.48× | 0.80× | OK | Sig: V = nonzeros(X). 1M-pt extract non-zero (logical→double cast for .*). 100 iters. |
+| `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
+| `nzmax` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `pcg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `qmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
+| `spalloc` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `sparse` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `spaugment` | ❌ |  |  |  |  |  |
+| `spconvert` | ❌ |  |  |  |  |  |
+| `spdiags` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `speye` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `spfun` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `spones` | ❌ |  |  |  |  |  |
+| `spparms` | ❌ |  |  |  |  |  |
+| `sprand` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `sprandn` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `sprandsym` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `sprank` | ❌ |  |  |  |  |  |
+| `spy` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `symamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `symbfact` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `symmlq` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `symrcm` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `tfqmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `treelayout` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `treeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+| `unmesh` | ❌ |  |  |  |  | **deferred — libs/sparse** |
+
+### Workspace
+
+**Namespace:** builtin — 8 ✅ + 0 ⚠️ / 10 = 80%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `clear` | ✅ |  |  |  |  |  |
+| `clearvars` | ✅ |  |  |  |  |  |
+| `disp` | ✅ |  |  |  | N/A | Sig: disp(X) — captured via evalc. 1000 iters. |
+| `formatteddisplaytext` | ✅ |  |  |  | N/A | Sig: S = formattedDisplayText(X). 1000 iters. |
+| `load` | ✅ |  |  |  |  |  |
+| `openvar` | ❌ |  |  |  |  | IDE |
+| `save` | ✅ |  |  |  |  |  |
+| `who` | ✅ |  |  |  |  |  |
+| `whos` | ✅ |  |  |  |  |  |
+| `workspacebrowser` | ❌ |  |  |  |  |  |
+
+### Error Handling (basic)
+
+**Namespace:** builtin — 4 ✅ + 0 ⚠️ / 6 = 66%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `assert` | ✅ | 0.000 | 2.92× |  | OK | Sig: assert(COND). Pass-case. 100k iters. |
+| `error` | ✅ |  |  |  |  |  |
+| `lastwarn` | ✅ | 0.000 | 3.42× |  | OK | Sig: msg = lastwarn. Read last warning. 100k iters. |
+| `oncleanup` | ❌ |  |  |  |  |  |
+| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
+| `warning` | ✅ | 0.000 | 38.01× |  | OK | Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters. |
+
+### Exception Handling
+
+**Namespace:** builtin (keyword + class) — 2 ✅ + 0 ⚠️ / 2 = 100%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `mexception` | ✅ |  |  |  |  | MATLAB exception class — registered as `MException` |
+| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
+
+## Communications
+
+### Modulation
+
+**Namespace:** `comm.mod.*` — 13 ✅ + 0 ⚠️ / 29 = 45%
+
+Function-form modulators / demodulators. The `comm.PSKModulator` /
+`comm.QAMModulator` / `comm.OFDMModulator` System Object family is
+intentionally omitted, along with `constellation` (object method) and
+`showResourceMapping` (display).
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `genqammod` | ❌ |  |  |  |  | generic QAM |
+| `genqamdemod` | ❌ |  |  |  |  |  |
+| `modnorm` | ✅ |  |  |  | OK | avpow / peakpow scaling |
+| `pammod` | ✅ |  |  |  | OK | M-ary PAM, gray (default) / bin |
+| `pamdemod` | ✅ |  |  |  | OK |  |
+| `qammod` | ✅ |  |  |  | OK | rectangular Gray-coded QAM, optional UnitAveragePower |
+| `qamdemod` | ✅ |  |  |  | OK |  |
+| `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
+| `apskdemod` | ❌ |  |  |  |  |  |
+| `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
+| `mil188qamdemod` | ❌ |  |  |  |  |  |
+| `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
+| `mskdemod` | ❌ |  |  |  |  |  |
+| `fskmod` | ✅ |  |  |  | OK | M-ary FSK; cont (default) and discont phase |
+| `fskdemod` | ✅ |  |  |  | OK | per-symbol energy detection |
+| `ofdmmod` | ✅ |  |  |  | OK | IFFT-based with cyclic prefix |
+| `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
+| `dpskmod` | ✅ |  |  |  | OK | differential PSK |
+| `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
+| `pskmod` | ✅ |  |  |  | OK | M-ary PSK; gray (default) / bin orderings |
+| `pskdemod` | ✅ |  |  |  | OK | nearest-phase decision |
+| `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
+| `amdemod` | ❌ |  |  |  |  |  |
+| `fmmod` | ❌ |  |  |  |  | frequency modulation |
+| `fmdemod` | ❌ |  |  |  |  |  |
+| `pmmod` | ❌ |  |  |  |  | phase modulation |
+| `pmdemod` | ❌ |  |  |  |  |  |
+| `ssbmod` | ❌ |  |  |  |  | single-sideband |
+| `ssbdemod` | ❌ |  |  |  |  |  |
+
+### Sources, Sinks, and Signal Operations
+
+**Namespace:** `comm.signals.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `randerr` | ❌ |  |  |  |  | random binary error patterns |
+| `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
+| `wgn` | ✅ |  |  |  | OK | dBW / dBm / linear power; real or complex |
+| `biterr` | ❌ |  |  |  |  | bit-error count |
+| `symerr` | ❌ |  |  |  |  | symbol-error count |
+| `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
+| `mask2shift` | ❌ |  |  |  |  | shift-register mask → shift |
+| `shift2mask` | ❌ |  |  |  |  |  |
+| `bit2int` | ❌ |  |  |  |  | pack bits to integers |
+| `int2bit` | ❌ |  |  |  |  | unpack integers to bits |
+| `bi2de` | ❌ |  |  |  |  | binary → decimal (legacy alias) |
+| `de2bi` | ❌ |  |  |  |  | decimal → binary (legacy alias) |
+| `hex2poly` | ❌ |  |  |  |  | hex string → polynomial coeffs |
+| `oct2poly` | ❌ |  |  |  |  |  |
+| `oct2dec` | ❌ |  |  |  |  | octal → decimal |
+| `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
+| `convertSNR` | ✅ |  |  |  | OK | Eb/No ↔ Es/No conversion via BitsPerSymbol |
+
+### Source Coding
+
+**Namespace:** `comm.source_coding.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
+| `arithdeco` | ❌ |  |  |  |  |  |
+| `compand` | ❌ |  |  |  |  | μ-law / A-law companding |
+| `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
+| `dpcmdeco` | ❌ |  |  |  |  |  |
+| `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
+| `huffmandict` | ❌ |  |  |  |  | build Huffman code table |
+| `huffmanenco` | ❌ |  |  |  |  |  |
+| `huffmandeco` | ❌ |  |  |  |  |  |
+| `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
+| `quantiz` | ❌ |  |  |  |  | apply quantisation table |
+
+### Error Detection and Correction
+
+**Namespace:** `comm.fec.*` — 0 ✅ + 0 ⚠️ / 26 = 0%
+
+`crcConfig`, `ldpcEncoderConfig`, `ldpcDecoderConfig`, the System
+Objects (`comm.CRCGenerator`, `comm.LDPCEncoder`, etc.) and the `gf`
+class are intentionally omitted. Galois-field math is exposed through
+the flat `gf*` function family below.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `crcGenerate` | ❌ |  |  |  |  | append CRC parity bits |
+| `crcDetect` | ❌ |  |  |  |  |  |
+| `cyclgen` | ❌ |  |  |  |  | cyclic-code generator matrix |
+| `cyclpoly` | ❌ |  |  |  |  | cyclic-code generator polynomials |
+| `encode` | ❌ |  |  |  |  | generic block encoder |
+| `decode` | ❌ |  |  |  |  | generic block decoder |
+| `gfweight` | ❌ |  |  |  |  | minimum distance |
+| `gen2par` | ❌ |  |  |  |  | generator ↔ parity-check matrix |
+| `hammgen` | ❌ |  |  |  |  | Hamming generator/parity-check |
+| `syndtable` | ❌ |  |  |  |  | syndrome decoding table |
+| `bchenc` | ❌ |  |  |  |  | BCH encoder |
+| `bchdec` | ❌ |  |  |  |  |  |
+| `bchgenpoly` | ❌ |  |  |  |  |  |
+| `bchnumerr` | ❌ |  |  |  |  |  |
+| `rsenc` | ❌ |  |  |  |  | Reed-Solomon encoder |
+| `rsdec` | ❌ |  |  |  |  |  |
+| `rsgenpoly` | ❌ |  |  |  |  |  |
+| `rsgenpolycoeffs` | ❌ |  |  |  |  |  |
+| `ldpcEncode` | ❌ |  |  |  |  |  |
+| `ldpcDecode` | ❌ |  |  |  |  |  |
+| `ldpcPCM` | ❌ |  |  |  |  | parity-check matrices for standards |
+| `ldpcQuasiCyclicMatrix` | ❌ |  |  |  |  |  |
+| `tpcenc` | ❌ |  |  |  |  | turbo product encoder |
+| `tpcdec` | ❌ |  |  |  |  |  |
+| `convenc` | ❌ |  |  |  |  | convolutional encoder |
+| `vitdec` | ❌ |  |  |  |  | Viterbi decoder |
+
+### Trellis and Galois Field Utilities
+
+**Namespace:** `comm.gf.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `distspec` | ❌ |  |  |  |  | distance spectrum of conv code |
+| `iscatastrophic` | ❌ |  |  |  |  |  |
+| `istrellis` | ❌ |  |  |  |  |  |
+| `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
+| `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
+| `dftmtx` | ❌ |  |  |  |  | already in core / FFT |
+| `isprimitive` | ❌ |  |  |  |  |  |
+| `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
+| `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
+| `gfadd` | ❌ |  |  |  |  | GF addition |
+| `gfconv` | ❌ |  |  |  |  | GF polynomial multiply |
+| `gfcosets` | ❌ |  |  |  |  | GF(p^m) cosets |
+| `gfdeconv` | ❌ |  |  |  |  | GF polynomial divide |
+| `gfdiv` | ❌ |  |  |  |  | element-wise GF division |
+| `gffilter` | ❌ |  |  |  |  | GF FIR filter |
+| `gflineq` | ❌ |  |  |  |  | linear equations over GF(p) |
+| `gfminpol` | ❌ |  |  |  |  |  |
+| `gfmul` | ❌ |  |  |  |  | element-wise GF multiplication |
+| `gfpretty` | ❌ |  |  |  |  | pretty-print GF poly |
+| `gfprimck` | ❌ |  |  |  |  | check primitivity |
+| `gfprimdf` | ❌ |  |  |  |  | default primitive polynomial |
+| `gftuple` | ❌ |  |  |  |  | exponential ↔ polynomial form |
+
+### Interleaving
+
+**Namespace:** `comm.intrlv.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `intrlv` | ❌ |  |  |  |  | generic interleaver |
+| `deintrlv` | ❌ |  |  |  |  |  |
+| `algintrlv` | ❌ |  |  |  |  | algebraic |
+| `algdeintrlv` | ❌ |  |  |  |  |  |
+| `helscanintrlv` | ❌ |  |  |  |  | helical-scan |
+| `helscandeintrlv` | ❌ |  |  |  |  |  |
+| `matintrlv` | ❌ |  |  |  |  | matrix |
+| `matdeintrlv` | ❌ |  |  |  |  |  |
+| `randintrlv` | ❌ |  |  |  |  | random |
+| `randdeintrlv` | ❌ |  |  |  |  |  |
+| `convintrlv` | ❌ |  |  |  |  | convolutional |
+| `convdeintrlv` | ❌ |  |  |  |  |  |
+| `helintrlv` | ❌ |  |  |  |  | helical |
+| `heldeintrlv` | ❌ |  |  |  |  |  |
+| `muxintrlv` | ❌ |  |  |  |  | multiplexed |
+| `muxdeintrlv` | ❌ |  |  |  |  |  |
+
+### Pulse Shaping, Equalization, MIMO
+
+**Namespace:** `comm.shape.*` — 1 ✅ + 0 ⚠️ / 8 = 13%
+
+System-Object equalisers (`comm.LinearEqualizer`, `comm.MLSEEqualizer`,
+`comm.DecisionFeedbackEqualizer`) are omitted; only the function-form
+MLSE entry is exposed.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `gaussdesign` | ❌ |  |  |  |  | Gaussian pulse-shaping filter |
+| `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
+| `rectpulse` | ❌ |  |  |  |  | rectangular pulse shaper |
+| `intdump` | ❌ |  |  |  |  | integrate & dump |
+| `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
+| `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
+| `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
+| `ofdmPrecode` | ❌ |  |  |  |  | OFDM precoding |
+
+### RF and Channel Impairments
+
+**Namespace:** `comm.rf.*` — 4 ✅ + 0 ⚠️ / 10 = 40%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `awgn` | ✅ |  |  |  | OK | adds Gaussian noise at given SNR (real or complex) |
+| `bsc` | ✅ |  |  |  | OK | binary symmetric channel; per-bit Bernoulli flip |
+| `rayleighchan` | ✅ |  |  |  | OK | iid frequency-flat Rayleigh, E[\|h\|²]=1 |
+| `ricianchan` | ✅ |  |  |  | OK | Rician with K-factor; E[\|h\|²]=1 regardless of K |
+| `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
+| `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
+| `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
+| `iqcoef2imbal` | ❌ |  |  |  |  | coefficients → amp/phase imbalance |
+| `iqimbal2coef` | ❌ |  |  |  |  |  |
+| `srmdelay` | ❌ |  |  |  |  | sample-rate-matching delay |
+| `channelDelay` | ❌ |  |  |  |  | channel-delay estimation |
+| `ofdmChannelResponse` | ❌ |  |  |  |  | OFDM frequency-domain channel |
+
+### Propagation Path Loss and Geometry
+
+**Namespace:** `comm.propagation.*` — 0 ✅ + 0 ⚠️ / 15 = 0%
+
+OOP `propagationModel` family, ray-tracing classes (`raytrace`,
+`coverage`, `pattern`, `sinr`, `link`, `sigstrength`) and the antenna /
+basemap object hierarchy intentionally omitted — only flat scalar /
+vector path-loss models and coordinate transforms.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fspl` | ❌ |  |  |  |  | free-space path loss |
+| `cranerainpl` | ❌ |  |  |  |  | Crane rain attenuation |
+| `rainpl` | ❌ |  |  |  |  | ITU rain attenuation |
+| `gaspl` | ❌ |  |  |  |  | gas (oxygen + water vapour) |
+| `fogpl` | ❌ |  |  |  |  | fog / cloud |
+| `raypl` | ❌ |  |  |  |  | propagation along a ray |
+| `buildingMaterialPermittivity` | ❌ |  |  |  |  | ITU building materials |
+| `earthSurfacePermittivity` | ❌ |  |  |  |  |  |
+| `los` | ❌ |  |  |  |  | line-of-sight check |
+| `doppler` | ❌ |  |  |  |  | Doppler-shift utility |
+| `rangeangle` | ❌ |  |  |  |  | range and angle between coordinates |
+| `global2localcoord` | ❌ |  |  |  |  |  |
+| `local2globalcoord` | ❌ |  |  |  |  |  |
+| `cart2sphvec` | ❌ |  |  |  |  | rotate vector to spherical basis |
+| `sph2cartvec` | ❌ |  |  |  |  |  |
+
+### Performance Analysis
+
+**Namespace:** `comm.perf.*` — 5 ✅ + 0 ⚠️ / 11 = 45%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `berawgn` | ✅ |  |  |  | OK | psk/qam/pam/fsk/dpsk; Gray-coded BER approximation |
+| `bercoding` | ❌ |  |  |  |  | with coding gain |
+| `berconfint` | ❌ |  |  |  |  | confidence interval |
+| `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
+| `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
+| `bersync` | ❌ |  |  |  |  | with imperfect sync |
+| `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
+| `marcumq` | ✅ |  |  |  | OK | Marcum Q via integral form (m=1 closed-form) |
+| `qfunc` | ✅ |  |  |  | OK | 0.5·erfc(x/√2) |
+| `qfuncinv` | ✅ |  |  |  | OK | √2·erfcinv(2p) via Acklam approx |
+| `noisebw` | ✅ |  |  |  | OK | numerical |H(jω)|² integration over 0..π |
+
+## Control
+
+### LTI Models
+
+**Namespace:** `control.lti.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
+
+`tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
+as flat structure-returning functions (returning a struct with fields
+{num, den}, {z, p, k}, {A, B, C, D}, {response, frequency} etc.) and
+the data-extraction `*data` functions read those structs. The full
+`lti` / `dynamicSystem` class hierarchy and Simulink integration
+(`slTuner`, `addBlock`/`removeBlock`/`setBlockParam`, etc.) are
+intentionally omitted.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
+| `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
+| `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
+| `frd` | ❌ |  |  |  |  | freq-response data — struct {resp, freq} |
+| `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
+| `filt` | ❌ |  |  |  |  | discrete tf with z⁻¹ ordering |
+| `pid` | ❌ |  |  |  |  | parallel-form PID controller |
+| `pid2` | ❌ |  |  |  |  | 2-DOF PID |
+| `pidstd` | ❌ |  |  |  |  | standard-form PID |
+| `pidstd2` | ❌ |  |  |  |  | 2-DOF standard PID |
+| `rss` | ❌ |  |  |  |  | random stable continuous SS |
+| `drss` | ❌ |  |  |  |  | random stable discrete SS |
+| `tfdata` | ❌ |  |  |  |  | extract num/den |
+| `zpkdata` | ❌ |  |  |  |  | extract z/p/k |
+| `ssdata` | ❌ |  |  |  |  | extract A/B/C/D |
+| `frdata` | ❌ |  |  |  |  | extract response/freq |
+| `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
+| `piddata` | ❌ |  |  |  |  |  |
+| `pidstddata` | ❌ |  |  |  |  |  |
+
+### Model Properties
+
+**Namespace:** `control.props.*` — 11 ✅ + 0 ⚠️ / 11 = **100%**
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `isct` | ✅ |  |  |  | OK | true when Ts == 0 |
+| `isdt` | ✅ |  |  |  | OK | true when Ts > 0 or Ts == -1 |
+| `isproper` | ✅ |  |  |  | OK | tf: numel(num)≤numel(den); zpk: |z|≤|p|; ss: true |
+| `issiso` | ✅ |  |  |  | OK | tf/zpk: true; ss: 1-col B and 1-row C |
+| `isstable` | ✅ |  |  |  | OK | qualified-only (`control.props.isstable`) — `compat.isstable` is libs/signal coefficient form |
+| `isstatic` | ✅ |  |  |  | OK | true when order(sys) == 0 (pure gain) |
+| `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
+| `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
+| `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
+| `tzero` | ✅ |  |  |  | OK | SISO alias for zero(sys); raises NYI on MIMO |
+| `damp` | ✅ |  |  |  | OK | [wn, zeta, p]; discrete via s = ln(z)/Ts |
+
+### Model Conversion & Reduction
+
+**Namespace:** `control.convert.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `c2d` | ✅ |  |  |  | OK | ZOH (Van Loan expm) + Tustin; preserves tf/zpk/ss kind |
+| `c2dOptions` | ❌ |  |  |  |  |  |
+| `d2c` | ✅ |  |  |  | OK | Tustin only (ZOH would need matrix log) |
+| `d2cOptions` | ❌ |  |  |  |  |  |
+| `d2d` | ❌ |  |  |  |  | resample discrete |
+| `d2dOptions` | ❌ |  |  |  |  |  |
+| `ss2ss` | ❌ |  |  |  |  | similarity transform |
+| `canon` | ❌ |  |  |  |  | canonical realisation |
+| `balreal` | ❌ |  |  |  |  | balanced realisation |
+| `prescale` | ❌ |  |  |  |  | improve numerics by scaling |
+| `modalreal` | ❌ |  |  |  |  | modal realisation |
+| `compreal` | ❌ |  |  |  |  | companion realisation |
+| `minreal` | ❌ |  |  |  |  | minimal realisation |
+| `sminreal` | ❌ |  |  |  |  | structurally minimal |
+| `balred` | ❌ |  |  |  |  | balanced reduction |
+| `modred` | ❌ |  |  |  |  | model reduction |
+| `hsvd` | ❌ |  |  |  |  | Hankel singular values |
+| `pade` | ❌ |  |  |  |  | Padé approximation of delay |
+| `ss2tf` | ✅ | 0.001 | 98.47× | 3045.82× | OK | Sig: [NUM,DEN] = ss2tf(A,B,C,D). State-space → transfer fn. 10000 iters. |
+
+### Interconnections
+
+**Namespace:** `control.connect.*` — 3 ✅ + 0 ⚠️ / 7 = 43%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `feedback` | ✅ |  |  |  | OK | T = G·d_H / (d_G·d_H − sign·n_G·n_H); default sign=−1 |
+| `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
+| `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
+| `connect` | ❌ |  |  |  |  | name-based interconnect |
+| `append` | ❌ |  |  |  |  | block-diagonal stack |
+| `lft` | ❌ |  |  |  |  | linear fractional transform |
+| `sumblk` | ❌ |  |  |  |  | summation block (for connect) |
+
+### Time and Frequency Response
+
+**Namespace:** `control.response.*` — 9 ✅ + 0 ⚠️ / 19 = 47%
+
+`*plot` variants intentionally dropped — they're display-only mirrors
+of the numeric functions (which already return data when called with
+output args).
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `step` | ✅ |  |  |  | OK | ZOH discretisation via Padé(6/6) expm + scaling/squaring |
+| `stepinfo` | ✅ |  |  |  | OK | RiseTime / SettlingTime / Overshoot / Peak / etc. struct |
+| `impulse` | ✅ |  |  |  | OK | continuous: x(0+) = B; discrete: u[0]=1 |
+| `initial` | ❌ |  |  |  |  | response from initial state |
+| `lsim` | ✅ |  |  |  | OK | uniform-grid one-shot expm; non-uniform per-step |
+| `lsiminfo` | ❌ |  |  |  |  |  |
+| `gensig` | ❌ |  |  |  |  | input signal generator |
+| `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
+| `bode` | ✅ |  |  |  | OK | Horner H(jω) eval, phase unwrap |
+| `bodemag` | ❌ |  |  |  |  | magnitude only |
+| `nyquist` | ✅ |  |  |  | OK | re/im of H(jω) on grid |
+| `nichols` | ❌ |  |  |  |  |  |
+| `sigma` | ❌ |  |  |  |  | singular-value response |
+| `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
+| `evalfr` | ✅ |  |  |  | OK | scalar H at one frequency, continuous + discrete |
+| `dcgain` | ✅ |  |  |  | OK | continuous: H(0); discrete: H(z=1) |
+| `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
+| `getPeakGain` | ❌ |  |  |  |  | H∞ |
+| `getGainCrossover` | ❌ |  |  |  |  |  |
+
+### Stability and Margins
+
+**Namespace:** `control.margin.*` — 3 ✅ + 0 ⚠️ / 6 = 50%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `margin` | ✅ |  |  |  | OK | linear interp on bode grid; returns Gm/Pm/Wcg/Wcp |
+| `allmargin` | ❌ |  |  |  |  | all stability margins |
+| `db2mag` | ❌ |  |  |  |  |  |
+| `mag2db` | ❌ |  |  |  |  |  |
+| `pzmap` | ✅ |  |  |  | OK | composes pole(sys) + zero(sys) into a 2-output |
+| `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
+
+### State-Space Design and Estimation
+
+**Namespace:** `control.design.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
+
+OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
+`particleFilter`) intentionally omitted — they're class-objects with
+methods (`correct`, `predict`, etc.). Flat steady-state designs only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `lqr` | ❌ |  |  |  |  | linear-quadratic regulator |
+| `lqry` | ❌ |  |  |  |  | LQR with output weighting |
+| `lqi` | ❌ |  |  |  |  | LQR with integral action |
+| `dlqr` | ❌ |  |  |  |  | discrete LQR |
+| `lqrd` | ❌ |  |  |  |  | continuous LQR with sampled controller |
+| `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
+| `lqgreg` | ❌ |  |  |  |  | LQG regulator |
+| `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
+| `place` | ✅ |  |  |  | OK | SISO Ackermann — also exposed as `acker` |
+| `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
+| `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
+| `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
+| `reg` | ❌ |  |  |  |  | full-state controller + observer |
+| `ctrb` | ✅ |  |  |  | OK | [B, AB, A²B, …, A^(n−1)B]; (A,B) or (sys) form |
+| `obsv` | ✅ |  |  |  | OK | [C; CA; CA²; …; CA^(n−1)]; (A,C) or (sys) form |
+| `gram` | ❌ |  |  |  |  | controllability/observability gramian |
+| `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
+| `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
+
+### Matrix Equations
+
+**Namespace:** `control.matrixeq.*` — 2 ✅ + 0 ⚠️ / 8 = 25%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `lyap` | ✅ |  |  |  | OK | A·X + X·Aᵀ + Q = 0 via Kronecker n²-system |
+| `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
+| `dlyap` | ✅ |  |  |  | OK | A·X·Aᵀ − X + Q = 0 via Kronecker n²-system |
+| `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
+| `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
+| `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
+| `gcare` | ❌ |  |  |  |  | generalised continuous Riccati |
+| `gdare` | ❌ |  |  |  |  | generalised discrete Riccati |
+
+### PID Tuning and Modal Analysis
+
+**Namespace:** `control.tune.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+`pidTuner`, `looptune`, `systune`, `slTuner` and friends intentionally
+omitted — interactive / Simulink / OOP.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `pidtune` | ❌ |  |  |  |  | automatic PID tuning |
+| `pidtuneOptions` | ❌ |  |  |  |  |  |
+| `getPIDLoopResponse` | ❌ |  |  |  |  |  |
+| `modalsep` | ❌ |  |  |  |  | modal separation |
+| `stabsep` | ❌ |  |  |  |  | stable / unstable split |
+| `freqsep` | ❌ |  |  |  |  | slow / fast modes |
+| `spectralfact` | ❌ |  |  |  |  | spectral factorisation |
+
+## Fitting
+
+### Splines
+
+**Namespace:** `cfit.splines.*` — 0 ✅ + 0 ⚠️ / 49 = 0%
+
+OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
+GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
+omitted. Curve Fitting's value for a non-OOP runtime sits in the spline
+construction / postprocessing primitives — those are all flat functions.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bspline` | ❌ |  |  |  |  | B-spline of given order |
+| `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
+| `csapi` | ❌ |  |  |  |  | cubic spline interpolation |
+| `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
+| `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
+| `rscvn` | ❌ |  |  |  |  | rational cubic curve |
+| `spapi` | ❌ |  |  |  |  | B-spline interpolation |
+| `spaps` | ❌ |  |  |  |  | smoothing spline (penalised) |
+| `spap2` | ❌ |  |  |  |  | least-squares spline fit |
+| `spcrv` | ❌ |  |  |  |  | uniform B-spline curve |
+| `tpaps` | ❌ |  |  |  |  | thin-plate smoothing spline (2-D) |
+| `ppmak` | ❌ |  |  |  |  | piecewise-polynomial form constructor |
+| `rpmak` | ❌ |  |  |  |  | rational pp form |
+| `rsmak` | ❌ |  |  |  |  | rational spline |
+| `spmak` | ❌ |  |  |  |  | B-spline form constructor |
+| `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
+| `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
+| `fnbrk` | ❌ |  |  |  |  | extract part / break info |
+| `fnchg` | ❌ |  |  |  |  | change spline properties |
+| `fncmb` | ❌ |  |  |  |  | combine splines |
+| `fnder` | ❌ |  |  |  |  | derivative of spline |
+| `fndir` | ❌ |  |  |  |  | directional derivative |
+| `fnint` | ❌ |  |  |  |  | integral of spline |
+| `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
+| `fnmin` | ❌ |  |  |  |  | min of spline |
+| `fnplt` | ❌ |  |  |  |  | display |
+| `fnrfn` | ❌ |  |  |  |  | refine knots |
+| `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
+| `fnval` | ❌ |  |  |  |  | evaluate at points |
+| `fnxtr` | ❌ |  |  |  |  | extrapolate |
+| `fnzeros` | ❌ |  |  |  |  | zeros of spline |
+| `bkbrk` | ❌ |  |  |  |  | break-and-coefs |
+| `slvblk` | ❌ |  |  |  |  | solve almost-block-diagonal system |
+| `spcol` | ❌ |  |  |  |  | B-spline collocation matrix |
+| `stcol` | ❌ |  |  |  |  | stform collocation matrix |
+| `subplus` | ❌ |  |  |  |  | x_+ truncated power |
+| `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
+| `augknt` | ❌ |  |  |  |  | augment knot sequence |
+| `aveknt` | ❌ |  |  |  |  | knot averages |
+| `brk2knt` | ❌ |  |  |  |  | breaks → knots with given multiplicity |
+| `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
+| `knt2brk` | ❌ |  |  |  |  | knots → breaks + multiplicities |
+| `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
+| `optknt` | ❌ |  |  |  |  | optimal knot distribution |
+| `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
+| `datastats` | ❌ |  |  |  |  | basic descriptive on (x, y) |
+| `prepareCurveData` | ❌ |  |  |  |  | sanitise (NaN, Inf, complex) |
+| `prepareSurfaceData` | ❌ |  |  |  |  | 2-D variant |
+| `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
+
+## Graphics
+
+### Line Plots
+
+**Namespace:** `graphics.line.*` — 2 ✅ + 0 ⚠️ / 12 = 16%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `area` | ❌ |  |  |  |  |  |
+| `errorbar` | ❌ |  |  |  |  |  |
+| `fimplicit` | ❌ |  |  |  |  |  |
+| `fplot` | ❌ |  |  |  |  |  |
+| `fplot3` | ❌ |  |  |  |  |  |
+| `loglog` | ❌ |  |  |  |  |  |
+| `plot` | ✅ |  |  |  |  |  |
+| `plot3` | ❌ |  |  |  |  | 3-D |
+| `semilogx` | ❌ |  |  |  |  |  |
+| `semilogy` | ❌ |  |  |  |  |  |
+| `stackedplot` | ❌ |  |  |  |  |  |
+| `stairs` | ✅ |  |  |  |  |  |
+
+### Polar Plots
+
+**Namespace:** `graphics.polar.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `compassplot` | ❌ |  |  |  |  |  |
+| `fpolarplot` | ❌ |  |  |  |  |  |
+| `polaraxes` | ❌ |  |  |  |  |  |
+| `polarbubblechart` | ❌ |  |  |  |  |  |
+| `polarhistogram` | ❌ |  |  |  |  |  |
+| `polarplot` | ✅ |  |  |  |  |  |
+| `polarregion` | ❌ |  |  |  |  |  |
+| `polarscatter` | ❌ |  |  |  |  |  |
+| `radiusregion` | ❌ |  |  |  |  |  |
+| `rlim` | ✅ |  |  |  |  |  |
+| `rtickangle` | ❌ |  |  |  |  |  |
+| `rtickformat` | ❌ |  |  |  |  |  |
+| `rticklabels` | ❌ |  |  |  |  |  |
+| `rticks` | ❌ |  |  |  |  |  |
+| `thetalim` | ✅ |  |  |  |  |  |
+| `thetaregion` | ❌ |  |  |  |  |  |
+| `thetatickformat` | ❌ |  |  |  |  |  |
+| `thetaticklabels` | ❌ |  |  |  |  |  |
+| `thetaticks` | ❌ |  |  |  |  |  |
+
+### Contour Plots
+
+**Namespace:** `graphics.contour.*` — 2 ✅ + 0 ⚠️ / 7 = 28%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `clabel` | ❌ |  |  |  |  |  |
+| `contour` | ✅ |  |  |  |  |  |
+| `contour3` | ❌ |  |  |  |  |  |
+| `contourc` | ❌ |  |  |  |  |  |
+| `contourf` | ✅ |  |  |  |  |  |
+| `contourslice` | ❌ |  |  |  |  |  |
+| `fcontour` | ❌ |  |  |  |  |  |
+
+### Vector Fields
+
+**Namespace:** `graphics.vector_fields.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `compassplot` | ❌ |  |  |  |  |  |
+| `feather` | ❌ |  |  |  |  |  |
+| `quiver` | ❌ |  |  |  |  |  |
+| `quiver3` | ❌ |  |  |  |  |  |
+| `streamline` | ❌ |  |  |  |  |  |
+| `streamslice` | ❌ |  |  |  |  |  |
+
+### Surface and Mesh Plots
+
+**Namespace:** `graphics.surface.*` — 3 ✅ + 0 ⚠️ / 21 = 14%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `contour3` | ❌ |  |  |  |  |  |
+| `cylinder` | ✅ | 0.125 | 0.48× | 2.75× | OK | 201-point sin-shaped profile, 50 angular samples. 200 iters. |
+| `ellipsoid` | ✅ | 0.094 | 1.00× | 4.19× | OK | 101x101 ellipsoid (1,2,3) center, (4,5,6) semi-axes. 200 iters. |
+| `fimplicit3` | ❌ |  |  |  |  |  |
+| `fmesh` | ❌ |  |  |  |  |  |
+| `fsurf` | ❌ |  |  |  |  |  |
+| `hidden` | ❌ |  |  |  |  |  |
+| `mesh` | ✅ |  |  |  |  |  |
+| `meshc` | ❌ |  |  |  |  |  |
+| `meshz` | ❌ |  |  |  |  |  |
+| `pcolor` | ✅ |  |  |  |  |  |
+| `peaks` | ✅ | 0.365 | 1.71× | 5.05× | OK | 200x200 peaks() surface. 50 iters, element-wise. |
+| `ribbon` | ❌ |  |  |  |  |  |
+| `sphere` | ✅ | 0.090 | 0.55× | 3.55× | OK | Unit sphere on 101x101 grid. 200 iters, element-wise on Z. |
+| `surf` | ✅ |  |  |  |  |  |
+| `surf2patch` | ❌ |  |  |  |  |  |
+| `surface` | ❌ |  |  |  |  |  |
+| `surfc` | ❌ |  |  |  |  |  |
+| `surfl` | ❌ |  |  |  |  |  |
+| `surfnorm` | ❌ |  |  |  |  |  |
+| `waterfall` | ❌ |  |  |  |  |  |
+
+### Volume Visualization
+
+**Namespace:** `graphics.volume.*` — 0 ✅ + 0 ⚠️ / 24 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `coneplot` | ❌ |  |  |  |  |  |
+| `contourslice` | ❌ |  |  |  |  |  |
+| `curl` | ❌ |  |  |  |  |  |
+| `divergence` | ❌ |  |  |  |  |  |
+| `flow` | ❌ |  |  |  |  |  |
+| `interpstreamspeed` | ❌ |  |  |  |  |  |
+| `isocaps` | ❌ |  |  |  |  |  |
+| `isocolors` | ❌ |  |  |  |  |  |
+| `isonormals` | ❌ |  |  |  |  |  |
+| `isosurface` | ❌ |  |  |  |  |  |
+| `reducepatch` | ❌ |  |  |  |  |  |
+| `reducevolume` | ❌ |  |  |  |  |  |
+| `shrinkfaces` | ❌ |  |  |  |  |  |
+| `slice` | ❌ |  |  |  |  |  |
+| `smooth3` | ❌ |  |  |  |  |  |
+| `stream2` | ❌ |  |  |  |  |  |
+| `stream3` | ❌ |  |  |  |  |  |
+| `streamline` | ❌ |  |  |  |  |  |
+| `streamparticles` | ❌ |  |  |  |  |  |
+| `streamribbon` | ❌ |  |  |  |  |  |
+| `streamslice` | ❌ |  |  |  |  |  |
+| `streamtube` | ❌ |  |  |  |  |  |
+| `subvolume` | ❌ |  |  |  |  |  |
+| `volumebounds` | ❌ |  |  |  |  |  |
+
+### Geographic Plots
+
+**Namespace:** `graphics.geographic.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `geoaxes` | ❌ |  |  |  |  |  |
+| `geobasemap` | ❌ |  |  |  |  |  |
+| `geobubble` | ❌ |  |  |  |  |  |
+| `geodensityplot` | ❌ |  |  |  |  |  |
+| `geolimits` | ❌ |  |  |  |  |  |
+| `geoplot` | ❌ |  |  |  |  |  |
+| `geoscatter` | ❌ |  |  |  |  |  |
+| `geotickformat` | ❌ |  |  |  |  |  |
+
+## Image
+
+### Image I/O
+
+**Namespace:** `image.io.*` — 3 ✅ + 0 ⚠️ / 3 = **100%**
+
+Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendored under `third_party/stb/`.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `imread` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA/PSD/GIF/HDR/PNM via stb_image |
+| `imwrite` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA via stb_image_write; ext detected from path |
+| `imfinfo` | ✅ |  |  |  | OK | stbi_info + magic-byte format sniff + filesystem size |
+
+### Image Type Conversion
+
+**Namespace:** `image.type.*` — 13 ✅ + 0 ⚠️ / 27 = 48%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `cmap2gray` | ❌ | 0.003 | 157.35× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
+| `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
+| `gray2ind` | ❌ | 0.006 |  | 35.67× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
+| `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `grayslice` | ❌ | 0.004 |  | 43.86× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
+| `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
+| `im2double` | ✅ | 0.003 |  | 20.00× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2gray` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
+| `im2single` | ✅ | 0.003 |  | 60.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2uint16` | ✅ | 0.003 |  | 34.85× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `im2uint8` | ✅ | 0.003 |  | 58.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imbinarize` | ✅ | 0.003 |  | 32.70× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
+| `ind2gray` | ❌ |  |  |  |  |  |
+| `ind2rgb` | ❌ | 0.005 |  | 35.79× | OK | Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb. |
+| `iptnum2ordinal` | ❌ | 0.003 |  | 170.72× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
+| `label2rgb` | ❌ | 0.003 |  | 157.82× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
+| `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `otsuthresh` | ✅ | 0.003 |  | 96.59× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2gray` | ✅ | 0.003 |  | 61.95× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2ind` | ❌ |  |  |  |  | colour quantize |
+| `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
+| `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
+
+### Color Space Conversion
+
+**Namespace:** `image.color.*` — 10 ✅ + 0 ⚠️ / 30 = 33%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
+| `colorangle` | ❌ | 0.003 |  | 92.90× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
+| `deltaE` | ❌ | 0.004 | 384.49× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
+| `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `illumgray` | ❌ |  |  |  |  | grey-world illumination |
+| `illumpca` | ❌ |  |  |  |  |  |
+| `illumwhite` | ❌ |  |  |  |  | white-patch |
+| `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
+| `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
+| `lab2double` | ❌ | 0.003 |  | 28.24× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
+| `lab2rgb` | ✅ | 0.003 |  | 94.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `lab2uint16` | ❌ |  |  |  |  |  |
+| `lab2uint8` | ❌ | 0.002 |  | 90.17× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
+| `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
+| `lin2rgb` | ❌ | 0.003 | 568.88× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
+| `ntsc2rgb` | ❌ | 0.003 |  | 58.09× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
+| `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rgb2lab` | ✅ | 0.016 | 920.06× | 59.27× | MISMATCH | Verify our rgb2lab matches MATLAB. |
+| `rgb2lin` | ❌ | 0.003 | 555.64× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
+| `rgb2ntsc` | ❌ | 0.003 |  | 57.90× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
+| `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
+| `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
+| `whitepoint` | ❌ | 0.005 | 150.33× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
+| `xyz2double` | ❌ | 0.003 | 394.55× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
+| `xyz2lab` | ✅ |  |  |  | OK |  |
+| `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `xyz2rgbwide` | ❌ |  |  |  |  |  |
+| `xyz2uint16` | ❌ | 0.003 | 455.90× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
+| `ycbcr2rgb` | ✅ | 0.003 |  | 59.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
+| `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
+
+### Synthetic Images and Display
+
+**Namespace:** `image.synth.*` / `image.display.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorithm.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `checkerboard` | ❌ | 0.005 |  | 66.61× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
+| `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
+| `phantom` | ❌ | 0.069 |  | 20.01× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
+| `imshow` | ❌ |  |  |  |  | needs graphics |
+| `imfuse` | ❌ |  |  |  |  |  |
+| `imshowpair` | ❌ |  |  |  |  |  |
+| `montage` | ❌ |  |  |  |  | tile images |
+| `immovie` | ❌ |  |  |  |  |  |
+
+### Geometric Transformations
+
+**Namespace:** `image.geom.*` — 4 ✅ + 0 ⚠️ / 13 = 31%
+
+Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionally omitted; flat function APIs only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `findbounds` | ❌ |  |  |  |  |  |
+| `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
+| `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imcrop3` | ❌ |  |  |  |  |  |
+| `impyramid` | ❌ | 0.006 |  | 168.78× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
+| `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imresize3` | ❌ |  |  |  |  |  |
+| `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imrotate3` | ❌ |  |  |  |  |  |
+| `imtransform` | ❌ |  |  |  |  | legacy maketform path |
+| `imtranslate` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imwarp` | ❌ |  |  |  |  |  |
+| `makeresampler` | ❌ |  |  |  |  |  |
+
+### Image Registration
+
+**Namespace:** `image.register.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cpcorr` | ❌ |  |  |  |  | refine control-point correspondences |
+| `imregconfig` | ❌ |  |  |  |  |  |
+| `imregcorr` | ❌ |  |  |  |  | phase-correlation registration |
+| `imregdemons` | ❌ |  |  |  |  | non-rigid demons |
+| `imregister` | ❌ |  |  |  |  |  |
+| `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
+| `imregtform` | ❌ |  |  |  |  |  |
+| `normxcorr2` | ❌ | 0.011 |  | 38.41× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
+
+### Image Filtering
+
+**Namespace:** `image.filter.*` — 6 ✅ + 0 ⚠️ / 36 = 17%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `convmtx2` | ❌ | 0.003 | 36.24× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
+| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
+| `fibermetric` | ❌ |  |  |  |  |  |
+| `freqspace` | ❌ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
+| `freqz2` | ❌ |  |  |  |  | 2-D freq response |
+| `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
+| `fspecial` | ✅ | 0.004 |  | 91.07× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `fspecial3` | ❌ |  |  |  |  |  |
+| `ftrans2` | ❌ |  |  |  |  | 1-D → 2-D FIR transform |
+| `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
+| `fwind2` | ❌ |  |  |  |  |  |
+| `gabor` | ❌ |  |  |  |  | Gabor filter bank |
+| `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
+| `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imboxfilt3` | ❌ | 0.007 |  |  | N/A | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
+| `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
+| `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgaborfilt` | ❌ |  |  |  |  |  |
+| `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgaussfilt3` | ❌ | 0.008 | 320.13× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
+| `imguidedfilter` | ❌ |  |  |  |  |  |
+| `imnlmfilt` | ❌ |  |  |  |  | non-local means |
+| `integralBoxFilter` | ❌ |  |  |  |  |  |
+| `integralBoxFilter3` | ❌ |  |  |  |  |  |
+| `integralImage` | ❌ | 0.003 |  | 89.33× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
+| `integralImage3` | ❌ | 0.003 |  | 56.66× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
+| `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `medfilt3` | ❌ | 0.032 | 57.47× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
+| `modefilt` | ❌ |  |  |  |  |  |
+| `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
+| `ordfilt2` | ❌ | 0.004 |  | 81.89× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
+| `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `roifilt2` | ❌ |  |  |  |  |  |
+| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+| `wiener2` | ❌ | 0.003 |  | 100.11× | OK | Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2. |
+
+### Contrast Adjustment
+
+**Namespace:** `image.contrast.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `adapthisteq` | ❌ |  |  |  |  | CLAHE |
+| `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
+| `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadjustn` | ❌ | 0.005 |  |  | N/A | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
+| `imflatfield` | ❌ | 4.227 |  |  | N/A | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image has imflatfield (recent versions); cross-check expected to be OK or N/A depending on package availability. |
+| `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
+| `imhistmatchn` | ❌ | 0.006 |  |  | N/A | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image may not have imhistmatchn (introduced in MATLAB R2017a) → cross-check may report N/A. |
+| `imlocalbrighten` | ❌ |  |  |  |  |  |
+| `imreducehaze` | ❌ |  |  |  |  |  |
+| `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
+| `intlut` | ❌ | 0.002 |  | 76.91× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
+| `localcontrast` | ❌ |  |  |  |  |  |
+| `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
+| `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
+
+### ROI-Based Processing
+
+**Namespace:** `image.roi.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
+
+ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, …) intentionally omitted as OOP / interactive.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `inpaintCoherent` | ❌ |  |  |  |  | coherence-transport inpainting |
+| `inpaintExemplar` | ❌ |  |  |  |  | exemplar inpainting |
+| `poly2mask` | ❌ |  |  |  |  |  |
+| `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
+| `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
+| `roicolor` | ❌ | 0.003 |  | 19.63× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
+| `roifill` | ❌ |  |  |  |  | legacy alias |
+| `roipoly` | ❌ |  |  |  |  |  |
+
+### Morphological Operations
+
+**Namespace:** `image.morph.*` — 5 ✅ + 0 ⚠️ / 27 = 19%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `applylut` | ❌ | 0.005 |  | 26.08× | OK | Sig: A = applylut(BW, LUT). LUT length = 2^(n*n). Octave-image has applylut. |
+| `bwhitmiss` | ❌ | 0.005 |  | 90.26× | OK | Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss. |
+| `bwlookup` | ❌ |  |  |  |  |  |
+| `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
+| `bwmorph3` | ❌ |  |  |  |  |  |
+| `bwpack` | ❌ | 0.004 |  | 61.12× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
+| `bwperim` | ❌ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwskel` | ❌ |  |  |  |  | skeletonize |
+| `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
+| `bwunpack` | ❌ |  |  |  |  |  |
+| `conndef` | ❌ |  |  |  |  |  |
+| `imbothat` | ✅ | 0.005 |  | 38.27× | OK | Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0). |
+| `imclearborder` | ✅ | 0.008 |  | 44.84× | OK | Sig: J = imclearborder(BW). 3 blobs (rim + interior); only interior dot survives. |
+| `imclose` | ✅ | 0.004 |  | 66.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imdilate` | ✅ | 0.003 |  | 74.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imerode` | ✅ | 0.003 |  | 44.20× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imextendedmax` | ✅ | 0.019 |  | 7.87× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
+| `imextendedmin` | ✅ | 0.020 |  | 8.89× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
+| `imfill` | ✅ | 0.006 |  | 53.54× | OK | Sig: J = imfill(BW, 'holes'). Hollow square ring → fully filled square. |
+| `imhmax` | ✅ | 0.011 |  | 5.68× | OK | Sig: J = imhmax(I, h). 3x7 image, two peaks (40 at (2,2), 20 at (2,5)), background 10. h=15 must keep peak A (shaved to 25) and flatten peak B. |
+| `imhmin` | ✅ | 0.011 |  | 16.30× | OK | Sig: J = imhmin(I, h). Two troughs depth 90 / 30; h=50 raises shallow (B) to background, keeps deep (A). |
+| `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
+| `imkeepborder` | ✅ | 0.008 |  |  | N/A | Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.) |
+| `imopen` | ✅ | 0.004 |  | 81.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imreconstruct` | ✅ | 0.017 |  | 8.63× | OK | Sig: J = imreconstruct(marker, mask). Reconstruction by dilation; marker grows to fill the connected mask region. |
+| `imregionalmax` | ✅ | 0.007 |  | 19.32× | OK | Sig: BW = imregionalmax(I). Two regional maxima at (2,2) and (2,5). |
+| `imregionalmin` | ✅ | 0.008 |  | 24.93× | OK | Sig: BW = imregionalmin(I). Two regional minima at (2,2) and (2,5). |
+| `imtophat` | ✅ | 0.005 |  | 68.45× | OK | Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0). |
+| `makelut` | ❌ |  |  |  |  |  |
+| `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
+| `strel` | ✅ |  |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+
+### Deblurring
+
+**Namespace:** `image.deblur.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `deconvblind` | ❌ |  |  |  |  | blind deconvolution |
+| `deconvlucy` | ❌ |  |  |  |  | Richardson-Lucy |
+| `deconvreg` | ❌ |  |  |  |  | regularised |
+| `deconvwnr` | ❌ |  |  |  |  | Wiener |
+| `edgetaper` | ❌ |  |  |  |  |  |
+| `otf2psf` | ❌ |  |  |  |  |  |
+| `psf2otf` | ❌ | 0.005 |  | 56.46× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
+
+### Neighborhood and Block Processing
+
+**Namespace:** `image.block.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bestblk` | ❌ | 0.005 |  | 22.59× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
+| `blockproc` | ❌ |  |  |  |  | block-wise processing |
+| `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
+| `colfilt` | ❌ |  |  |  |  |  |
+| `im2col` | ✅ | 0.003 |  | 69.65× | OK | Sig: B = im2col(A, [m n], 'sliding'). 4x4 lattice → 4x9 (3·3 sliding positions, column-major within block). |
+| `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
+
+### Image Arithmetic
+
+**Namespace:** `image.arith.*` — 8 ✅ + 0 ⚠️ / 8 = 100%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `imabsdiff` | ✅ | 0.003 |  | 121.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imadd` | ✅ | 0.003 |  | 101.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
+| `imcomplement` | ✅ | 0.002 |  | 52.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imdivide` | ✅ | 0.003 |  | 54.92× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imlincomb` | ✅ | 0.003 |  | 68.58× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `immultiply` | ✅ | 0.003 |  | 66.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imsubtract` | ✅ | 0.003 |  | 54.12× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+
+### Image Segmentation
+
+**Namespace:** `image.segment.*` — 6 ✅ + 0 ⚠️ / 22 = 27%
+
+Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `activecontour` | ❌ |  |  |  |  | Chan-Vese |
+| `bfscore` | ❌ |  |  |  |  | boundary F1 score |
+| `boundarymask` | ✅ |  |  |  | OK | conn=4/8; flags any pixel adjacent to a different label or image edge |
+| `dice` | ✅ | 0.002 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `gradientweight` | ❌ |  |  |  |  |  |
+| `grabcut` | ❌ |  |  |  |  |  |
+| `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
+| `graydiffweight` | ❌ |  |  |  |  |  |
+| `imoverlay` | ✅ |  |  |  | OK | gray or RGB input → H×W×3 uint8; auto byte/float colour |
+| `imseggeodesic` | ❌ |  |  |  |  |  |
+| `imsegfmm` | ❌ |  |  |  |  | fast marching |
+| `imsegisodata` | ❌ |  |  |  |  |  |
+| `imsegkmeans` | ❌ |  |  |  |  |  |
+| `imsegkmeans3` | ❌ |  |  |  |  |  |
+| `jaccard` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
+| `labeloverlay` | ❌ |  |  |  |  |  |
+| `lazysnapping` | ❌ |  |  |  |  |  |
+| `superpixels` | ❌ |  |  |  |  | SLIC |
+| `superpixels3` | ❌ |  |  |  |  |  |
+| `watershed` | ❌ |  |  |  |  |  |
+
+### Object Analysis
+
+**Namespace:** `image.object.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bwboundaries` | ✅ |  |  |  | OK | Moore-neighbour outer trace, conn=4/8; 'noholes' default |
+| `bwtraceboundary` | ❌ |  |  |  |  |  |
+| `circles2mask` | ❌ |  |  |  |  |  |
+| `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
+| `cornermetric` | ❌ |  |  |  |  |  |
+| `edge` | ✅ | 0.014 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `edge3` | ❌ |  |  |  |  |  |
+| `hough` | ❌ |  |  |  |  |  |
+| `houghlines` | ❌ |  |  |  |  |  |
+| `houghpeaks` | ❌ |  |  |  |  |  |
+| `imfindcircles` | ❌ |  |  |  |  | circle Hough |
+| `imgradient` | ✅ | 0.006 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgradientxy` | ✅ | 0.005 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `imgradient3` | ❌ |  |  |  |  |  |
+| `imgradientxyz` | ❌ |  |  |  |  |  |
+| `iradon` | ❌ |  |  |  |  | inverse Radon |
+| `qtdecomp` | ❌ |  |  |  |  | quad-tree decomposition |
+| `qtgetblk` | ❌ |  |  |  |  |  |
+| `qtsetblk` | ❌ |  |  |  |  |  |
+| `radon` | ❌ |  |  |  |  |  |
+| `visboundaries` | ❌ |  |  |  |  | display |
+| `viscircles` | ❌ |  |  |  |  | display |
+
+### Region and Image Properties
+
+**Namespace:** `image.region.*` — 8 ✅ + 0 ⚠️ / 28 = 29%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwareafilt` | ❌ | 0.005 |  | 213.01× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
+| `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
+| `bwconvhull` | ❌ |  |  |  |  |  |
+| `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
+| `bwdistgeodesic` | ❌ |  |  |  |  |  |
+| `bweuler` | ❌ | 0.004 |  | 91.29× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
+| `bwferet` | ❌ |  |  |  |  | Feret diameters |
+| `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwlabeln` | ❌ |  |  |  |  |  |
+| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `bwpropfilt` | ❌ |  |  |  |  |  |
+| `bwselect` | ❌ | 0.004 |  | 51.05× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
+| `bwselect3` | ❌ |  |  |  |  |  |
+| `cc2bw` | ❌ |  |  |  |  |  |
+| `corr2` | ❌ | 0.003 |  | 158.83× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
+| `graydist` | ❌ |  |  |  |  |  |
+| `imcontour` | ❌ |  |  |  |  |  |
+| `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `impixel` | ❌ |  |  |  |  |  |
+| `improfile` | ❌ |  |  |  |  |  |
+| `labelmatrix` | ❌ |  |  |  |  |  |
+| `mean2` | ❌ | 0.002 |  | 58.74× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
+| `poly2label` | ❌ |  |  |  |  |  |
+| `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
+| `regionprops3` | ❌ |  |  |  |  |  |
+| `std2` | ❌ | 0.004 |  | 60.05× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
+
+### Texture Analysis
+
+**Namespace:** `image.texture.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `entropy` | ❌ | 0.004 |  | 61.15× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
+| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
+| `graycomatrix` | ❌ |  |  |  |  | GLCM |
+| `graycoprops` | ❌ |  |  |  |  |  |
+| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
+| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
+
+### Image Quality
+
+**Namespace:** `image.quality.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
+| `immse` | ✅ | 0.003 |  | 47.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `multissim` | ❌ |  |  |  |  | multi-scale SSIM |
+| `multissim3` | ❌ |  |  |  |  |  |
+| `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
+| `piqe` | ❌ |  |  |  |  | perceptual no-reference |
+| `psnr` | ✅ | 0.002 |  | 61.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ssim` | ✅ | 0.317 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
+
+### Image Transforms
+
+**Namespace:** `image.transform.*` — 7 ✅ + 0 ⚠️ / 11 = 64%
+
+`fft2` / `ifft2` / `fftshift` / `ifftshift` already covered under Signal / Transforms; cross-listed here per MATLAB TOC.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dct2` | ✅ | 0.005 |  | 41.39× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `dctmtx` | ✅ | 0.003 |  | 37.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
+| `fanbeam` | ❌ |  |  |  |  |  |
+| `fft2` | ✅ |  |  |  | OK | already in Signal / Transforms |
+| `fftshift` | ✅ |  |  |  | OK |  |
+| `idct2` | ✅ | 0.005 |  | 48.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
+| `ifanbeam` | ❌ |  |  |  |  |  |
+| `ifft2` | ✅ |  |  |  | OK |  |
+| `ifftshift` | ✅ |  |  |  | OK |  |
+| `para2fan` | ❌ |  |  |  |  |  |
+
+## IO
+
+### Low-Level File I/O
+
+**Namespace:** `io.file_io.*` — 13 ✅ + 0 ⚠️ / 15 = 86%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fclose` | ✅ | 0.025 | 0.77× | 0.94× | OK | Sig: STATUS = fclose(FID). 1000 iters. |
+| `feof` | ✅ | 0.026 | 1.13× | 1.33× | OK | Sig: TF = feof(FID). 1000 iters. |
+| `ferror` | ✅ | 0.026 | 0.71× |  | OK | Sig: MSG = ferror(FID). 1000 iters. |
+| `fgetl` | ✅ | 0.026 | 1.01× |  | OK | Sig: LINE = fgetl(FID). 1000 iters. |
+| `fgets` | ✅ | 0.025 | 1.01× |  | OK | Sig: LINE = fgets(FID). 1000 iters. |
+| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
+| `fopen` | ✅ | 0.027 | 0.69× | 0.88× | OK | Sig: FID = fopen(F). 1000 iters. |
+| `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
+| `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
+| `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
+| `fscanf` | ✅ | 0.027 | 1.63× | 1.90× | OK | Sig: A = fscanf(FID, FMT). 1000 iters. |
+| `fseek` | ✅ | 0.028 | 1.01× | 1.15× | OK | Sig: STATUS = fseek(FID, OFFSET, ORIGIN). 1000 iters. |
+| `ftell` | ✅ | 0.028 | 1.03× | 1.23× | OK | Sig: POS = ftell(FID). 1000 iters. |
+| `fwrite` | ✅ | 0.235 | 2.12× | 1.06× | OK | Sig: COUNT = fwrite(FID, A, PRECISION). 100 iters. |
+| `openedfiles` | ❌ |  |  |  |  |  |
+
+### Text Files (CSV / dlm / readtable)
+
+**Namespace:** `io.text.*`. Exception: `readtable/writetable/readtimetable/writetimetable` → `table.*` (future) — 1 ✅ + 0 ⚠️ / 16 = 6%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
+| `importdatatask` | ❌ |  |  |  |  |  |
+| `importtool` | ❌ |  |  |  |  |  |
+| `readcell` | ❌ |  |  |  |  |  |
+| `readlines` | ✅ | 0.019 | 132.24× |  | MISMATCH | Sig: L = readlines(F). 4-line file. 1000 iters. |
+| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
+| `readtable` | ❌ |  |  |  |  | needs table type |
+| `readtimetable` | ❌ |  |  |  |  |  |
+| `readvars` | ❌ |  |  |  |  |  |
+| `textscan` | ✅ | 0.028 | 4.16× | 1.97× | OK | Sig: C = textscan(FID, FMT). 100 iters. |
+| `type` | ✅ |  |  |  | N/A | Sig: type(F). Captured via evalc. 1000 iters. |
+| `writecell` | ❌ |  |  |  |  |  |
+| `writelines` | ✅ |  |  |  | N/A | Sig: writelines(L, F). 100 iters. |
+| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
+| `writetable` | ❌ |  |  |  |  | needs table type |
+| `writetimetable` | ❌ |  |  |  |  |  |
+
+### Spreadsheets
+
+**Namespace:** `io.text.*`. Table-shaped readers (`readtable`/`writetable`) → `table.*` (future) — 0 ✅ + 0 ⚠️ / 13 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `importdata` | ❌ |  |  |  |  | auto-detect |
+| `importdatatask` | ❌ |  |  |  |  |  |
+| `importtool` | ❌ |  |  |  |  |  |
+| `readcell` | ❌ |  |  |  |  |  |
+| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
+| `readtable` | ❌ |  |  |  |  | needs table type |
+| `readtimetable` | ❌ |  |  |  |  |  |
+| `readvars` | ❌ |  |  |  |  |  |
+| `sheetnames` | ❌ |  |  |  |  |  |
+| `writecell` | ❌ |  |  |  |  |  |
+| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
+| `writetable` | ❌ |  |  |  |  | needs table type |
+| `writetimetable` | ❌ |  |  |  |  |  |
+
+### Workspace Save / Load
+
+**Namespace:** `io.workspace.*` — 0 ✅ + 0 ⚠️ / 2 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `loadobj` | ❌ |  |  |  |  |  |
+| `saveobj` | ❌ |  |  |  |  |  |
+
+### File Name Construction
+
+**Namespace:** `io.paths.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `filemarker` | ❌ |  |  |  |  |  |
+| `fileparts` | ✅ | 0.000 | 8.91× |  | OK | Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters. |
+| `filesep` | ✅ | 0.000 | 2.88× |  | OK | Sig: SEP = filesep. OS-specific separator. 100k iters. |
+| `fullfile` | ✅ | 0.001 | 16.87× |  | OK | Sig: F = fullfile(PARTS). 10000 iters. |
+| `matlabdrive` | ❌ |  |  |  |  |  |
+| `matlabroot` | ❌ |  |  |  |  |  |
+| `tempdir` | ✅ | 0.013 | 0.08× |  | OK | Sig: D = tempdir. 10000 iters. |
+| `tempname` | ✅ | 0.014 | 1.08× |  | OK | Sig: F = tempname. 10000 iters. |
+| `toolboxdir` | ❌ |  |  |  |  |  |
 
 ## Linear Algebra
+
+
 
 **Namespace:** `linalg.*` (future) — 12 ✅ + 0 ⚠️ / 82 = 15%
 
@@ -684,59 +2040,9 @@ multiple sections; all occurrences refresh together).
 | `triu` | ✅ | 2.255 | 0.89× | 0.97× | OK | Sig: U = triu(A). 1k×1k upper triangular. 100 iters. |
 | `vecnorm` | ❌ |  |  |  |  | **deferred — libs/linalg** |
 
-## Random Number Generation
+## ODE
 
-**Namespace:** core — 5 ✅ + 0 ⚠️ / 6 = 83%
 
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `rand` | ✅ | 6.807 | 0.51× | 0.81× | OK | Sig: A = rand(M,N). 1k×1k uniform. 100 iters. Custom fp (RNG diffs). |
-| `randi` | ✅ | 6.307 | 0.75× | 1.72× | OK | Sig: A = randi(IMAX, M, N). 1k×1k uniform-int. 100 iters. |
-| `randn` | ✅ | 15.280 | 0.28× | 0.45× | OK | Sig: A = randn(M,N). 1k×1k normal. 100 iters. RNG-stream-diff fp. |
-| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
-| `randstream` | ❌ |  |  |  |  |  |
-| `rng` | ✅ | 0.001 | 33.99× | 33.95× | MISMATCH | Sig: rng(SEED). After seeding, rand() should be deterministic. 1000 iters. |
-
-## Interpolation
-
-**Namespace:** core — 11 ✅ + 0 ⚠️ / 18 = 61%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `griddata` | ❌ |  |  |  |  |  |
-| `griddatan` | ❌ |  |  |  |  |  |
-| `griddedinterpolant` | ❌ |  |  |  |  |  |
-| `interp1` | ✅ | 0.123 | 1.16× | 8.36× | OK | Sig: VQ = interp1(X, V, XQ). 100 → 10k linear interp. 100 iters. |
-| `interp2` | ✅ |  |  |  | N/A | Sig: Vq = interp2(X,Y,V,Xq,Yq). 50x50 → 200x200 bilinear. 50 iters. |
-| `interp3` | ✅ |  |  |  | N/A | Sig: Vq = interp3(X,Y,Z,V,Xq,Yq,Zq). 20³ → 50³ trilinear. 10 iters. |
-| `interpft` | ✅ | 0.012 | 2.33× | 16.15× | OK | 256-pt band-limited signal interpolated to 1024 points. 200 iters, element-wise. |
-| `interpn` | ✅ |  |  |  | N/A | Sig: Vq = interpn(...) N-D interp. 20³ → 50³. 10 iters. |
-| `makima` | ❌ |  |  |  |  |  |
-| `meshgrid` | ✅ | 11.413 | 0.21× | 0.40× | OK | Sig: [X,Y] = meshgrid(x,y). 1k×1k grid. 50 iters. SAVE on X. |
-| `mkpp` | ✅ | 0.000 | 6.87× | 56.79× | OK | Sig: PP = mkpp(BREAKS, COEFS). 4-piece linear. 10000 iters. |
-| `ndgrid` | ✅ |  |  |  | N/A | Sig: [X,Y] = ndgrid(x,y). 1k×1k grid. 100 iters. |
-| `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
-| `pchip` | ✅ | 0.016 | 15.97× | 29.07× | OK | Sig: yq = pchip(x, v, xq). 50 → 1000 PCHIP. 100 iters. |
-| `ppval` | ✅ |  |  |  | N/A | Sig: V = ppval(PP, X). 50-knot spline → 10k pts. 100 iters. |
-| `scatteredinterpolant` | ❌ |  |  |  |  |  |
-| `spline` | ✅ | 0.017 | 22.81× | 37.93× | OK | Sig: yq = spline(x, v, xq). 50 → 1000 cubic spline. 100 iters. |
-| `unmkpp` | ✅ | 0.000 | 3.90× | 46.01× | OK | Sig: [BR,CF,L,K] = unmkpp(PP). Inverse mkpp. 10000 iters. |
-
-## Optimization
-
-**Namespace:** core — 5 ✅ + 0 ⚠️ / 7 = 71%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `fminbnd` | ✅ | 0.002 | 52.63× | 201.91× | OK | Sig: X = fminbnd(F,A,B). 1-D quadratic min at x=3. 1000 iters. |
-| `fminsearch` | ✅ | 0.041 | 5.39× | 64.92× | MISMATCH | Sig: X = fminsearch(F, X0). 2-D quadratic at (1,2). 1000 iters. |
-| `fzero` | ✅ | 0.005 | 14.35× | 145.72× | OK | Sig: X = fzero(F, [A B]). Cubic root in [0,5]. 1000 iters. |
-| `lsqnonneg` | ❌ |  |  |  |  |  |
-| `optimget` | ✅ | 0.000 | 209.63× | 107.63× | OK | Sig: V = optimget(O, NAME). 10000 iters. |
-| `optimize` | ❌ |  |  |  |  |  |
-| `optimset` | ✅ | 0.001 | 116.44× | 68.66× | MISMATCH | Sig: O = optimset('NAME', VAL, ...). 10000 iters. |
-
-## Ordinary Differential Equations
 
 **Namespace:** `ode.*` (future) — 0 ✅ + 0 ⚠️ / 21 = 0%
 
@@ -764,83 +2070,366 @@ multiple sections; all occurrences refresh together).
 | `odextend` | ❌ |  |  |  |  | **deferred — libs/ode** |
 | `solveode` | ❌ |  |  |  |  |  |
 
-## Sparse Matrices
+## Optimization
 
-**Namespace:** `sparse.*` (future) — 4 ✅ + 0 ⚠️ / 53 = 7%
+### Local
 
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `amd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `bicg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `bicgstab` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `bicgstabl` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `cgs` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `colamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `colperm` | ❌ |  |  |  |  |  |
-| `condest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `dissect` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `dmperm` | ❌ |  |  |  |  |  |
-| `eigs` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `equilibrate` | ❌ |  |  |  |  |  |
-| `etree` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `etreeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `find` | ✅ | 2.383 | 0.23× | 0.06× | OK | Sig: K = find(X). 1M-pt logical, ~77k matches. 100 iters. |
-| `full` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `gmres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `gplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `ichol` | ❌ |  |  |  |  |  |
-| `ilu` | ❌ |  |  |  |  |  |
-| `issparse` | ❌ |  |  |  | N/A | Sig: TF = issparse(X). 100k iters. |
-| `lsqr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `minres` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `nnz` | ✅ | 0.142 | 0.23× | 1.39× | OK | Sig: N = nnz(X). 1M-pt count. 1000 iters. |
-| `nonzeros` | ✅ | 1.245 | 0.48× | 0.80× | OK | Sig: V = nonzeros(X). 1M-pt extract non-zero (logical→double cast for .*). 100 iters. |
-| `normest` | ❌ |  |  |  |  | **deferred — libs/linalg** |
-| `nzmax` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `pcg` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `qmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `randperm` | ✅ | 0.707 | 2.73× | 1.08× | OK | Sig: P = randperm(N). 100k random permutation. 100 iters. |
-| `spalloc` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `sparse` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `spaugment` | ❌ |  |  |  |  |  |
-| `spconvert` | ❌ |  |  |  |  |  |
-| `spdiags` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `speye` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `spfun` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `spones` | ❌ |  |  |  |  |  |
-| `spparms` | ❌ |  |  |  |  |  |
-| `sprand` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `sprandn` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `sprandsym` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `sprank` | ❌ |  |  |  |  |  |
-| `spy` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `svds` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `symamd` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `symbfact` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `symmlq` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `symrcm` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `tfqmr` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `treelayout` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `treeplot` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-| `unmesh` | ❌ |  |  |  |  | **deferred — libs/sparse** |
-
-## Fourier Analysis and Filtering
-
-**Namespace:** `signal.transforms.*` + 6 promotions in core (`fft, ifft, fftshift, ifftshift, conv, xcorr`) — 8 ✅ + 0 ⚠️ / 21 = 38%
+**Namespace:** builtin — 5 ✅ + 0 ⚠️ / 7 = 71%
 
 | function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
 |---|:---:|---:|---:|---:|:---:|---|
+| `fminbnd` | ✅ | 0.002 |  |  | N/A | Sig: X = fminbnd(F,A,B). 1-D quadratic min at x=3. 1000 iters. |
+| `fminsearch` | ✅ | 0.041 |  |  | N/A | Sig: X = fminsearch(F, X0). 2-D quadratic at (1,2). 1000 iters. |
+| `fzero` | ✅ | 0.005 |  |  | N/A | Sig: X = fzero(F, [A B]). Cubic root in [0,5]. 1000 iters. |
+| `lsqnonneg` | ❌ |  |  |  |  |  |
+| `optimget` | ✅ | 0.000 | 209.63× | 107.63× | OK | Sig: V = optimget(O, NAME). 10000 iters. |
+| `optimize` | ❌ |  |  |  |  |  |
+| `optimset` | ✅ | 0.001 | 116.44× | 68.66× | MISMATCH | Sig: O = optimset('NAME', VAL, ...). 10000 iters. |
+
+### Constrained
+
+**Namespace:** `optim.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
+
+The new problem-based API (`optimproblem`, `optimvar`, `optimexpr`,
+`optimconstr`, `optimeq`, `optimineq`, `solve`, `evaluate`, `prob2struct`,
+`infeasibility`, `findindex`, `issatisfied`, `paretoplot`, `optimvalues`,
+the `show*` / `write*` family, `eqnproblem`, `fcn2optimexpr`) is OOP /
+expression-tree based and intentionally omitted; we expose only the
+solver-based legacy API which is flat function-form.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `fmincon` | ❌ |  |  |  |  | constrained nonlinear minimisation |
+| `fminunc` | ❌ |  |  |  |  | unconstrained nonlinear minimisation |
+| `fseminf` | ❌ |  |  |  |  | semi-infinite optimisation |
+| `fgoalattain` | ❌ |  |  |  |  | multi-objective goal attainment |
+| `fminimax` | ❌ |  |  |  |  | minimax optimisation |
+| `linprog` | ❌ |  |  |  |  | linear programming |
+| `intlinprog` | ❌ |  |  |  |  | mixed-integer linear programming |
+| `quadprog` | ❌ |  |  |  |  | quadratic programming |
+| `coneprog` | ❌ |  |  |  |  | second-order cone programming |
+| `secondordercone` | ❌ |  |  |  |  | SOC constraint helper |
+| `lsqlin` | ❌ |  |  |  |  | linear LSQ with bounds & linear constraints |
+| `lsqcurvefit` | ❌ |  |  |  |  | nonlinear LSQ in curve-fit signature |
+| `lsqnonlin` | ❌ |  |  |  |  | nonlinear LSQ |
+| `fsolve` | ❌ |  |  |  |  | system of nonlinear equations |
+| `mpsread` | ❌ |  |  |  |  | MPS-format LP reader (defer — I/O) |
+| `optimoptions` | ❌ |  |  |  |  | options struct (modern) |
+| `resetoptions` | ❌ |  |  |  |  | reset options to default |
+| `checkGradients` | ❌ |  |  |  |  | finite-diff gradient check |
+| `optimwarmstart` | ❌ |  |  |  |  | warm-start handle for lsqlin/quadprog |
+| `integerConstraint` | ❌ |  |  |  |  | helper for integer DOF |
+| `mldivide` | ✅ |  |  |  | OK | already in core (operator `\`) |
+
+### Global
+
+**Namespace:** `gads.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
+
+Problem-based API (`optimproblem`/`optimvar`/etc.), MultiStart class
+methods (`createOptimProblem`/`list`/`run`) and `paretoplot` (display)
+intentionally omitted — flat solver functions only.
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `ga` | ❌ |  |  |  |  | genetic algorithm |
+| `gamultiobj` | ❌ |  |  |  |  | multi-objective GA |
+| `paretosearch` | ❌ |  |  |  |  | direct multi-objective search |
+| `particleswarm` | ❌ |  |  |  |  | particle swarm optimisation |
+| `patternsearch` | ❌ |  |  |  |  | direct (mesh / GPS / MADS) |
+| `simulannealbnd` | ❌ |  |  |  |  | bounded simulated annealing |
+| `surrogateopt` | ❌ |  |  |  |  | surrogate-model optimisation |
+| `packfcn` | ❌ |  |  |  |  | pack/unpack obj-fcn args |
+| `gaoptimset` | ❌ |  |  |  |  | legacy GA options setter |
+| `gaoptimget` | ❌ |  |  |  |  | legacy GA options getter |
+| `psoptimset` | ❌ |  |  |  |  | legacy patternsearch options setter |
+| `psoptimget` | ❌ |  |  |  |  | legacy patternsearch options getter |
+| `saoptimset` | ❌ |  |  |  |  | legacy SA options setter |
+| `saoptimget` | ❌ |  |  |  |  | legacy SA options getter |
+
+## Signal
+
+### Waveform Generation
+
+**Namespace:** `signal.waveform_generation.*` — 5 ✅ + 0 ⚠️ / 21 = 23%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `buffer` | ❌ |  |  |  |  | reshape with overlap |
+| `chirp` | ✅ | 0.030 | 2.17× | 1.70× | OK | Sig: Y = chirp(T, F0, T1, F1). 4096-pt linear sweep. 1000 iters. |
+| `demod` | ❌ |  |  |  |  |  |
+| `diric` | ✅ | 0.116 | 0.96× | 1.87× | OK | Sig: Y = diric(X, N). Dirichlet kernel N=5. 1000 iters. |
+| `framelbl` | ❌ |  |  |  |  |  |
+| `framesig` | ❌ |  |  |  |  |  |
+| `gauspuls` | ✅ | 0.107 | 0.44× | 1.00× | MISMATCH | Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters. |
+| `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
+| `marcumq` | ❌ |  |  |  |  |  |
+| `modulate` | ❌ |  |  |  |  |  |
+| `pulstran` | ✅ | 0.009 | 5.05× | 17.41× | MISMATCH | Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters. |
+| `rectpuls` | ✅ | 0.020 | 1.23× | 1.42× | OK | Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters. |
+| `sawtooth` | ✅ | 0.063 | 0.80× | 1.31× | OK | Sig: Y = sawtooth(T). 1000 iters. |
+| `shiftdata` | ❌ |  |  |  |  |  |
+| `sinc` | ✅ | 0.731 | 0.28× | 1.75× | OK | Sig: Y = sinc(X). 100k-pt sin(πx)/(πx). 1000 iters. |
+| `square` | ✅ | 0.061 | 0.66× | 0.82× | OK | Sig: Y = square(T). Square wave. 1000 iters. |
+| `tripuls` | ✅ | 0.057 | 0.80× | 1.09× | OK | Sig: Y = tripuls(T). Triangular pulse. 1000 iters. |
+| `udecode` | ❌ |  |  |  |  |  |
+| `uencode` | ❌ |  |  |  |  |  |
+| `unshiftdata` | ❌ |  |  |  |  |  |
+| `vco` | ❌ |  |  |  |  | VCO |
+
+### Filter Design
+
+**Namespace:** `signal.filter_design.*` — 11 ✅ + 0 ⚠️ / 37 = 30%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
+| `buttord` | ✅ |  |  |  | OK | LP/HP match MATLAB exactly; band-edge refinement deferred. |
+| `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
+| `cheb1ord` | ✅ |  |  |  | OK | Wn = Wp (passband edge). |
+| `cheb2ord` | ✅ |  |  |  | OK | Wn = Ws (stopband edge). |
+| `cheby1` | ✅ |  |  |  | OK | LP/HP/BP/BS via cheb1ap+lp2X+zp2tf+bilinear. |
+| `cheby2` | ✅ |  |  |  | OK | Cheb2ap zero formula was 1/sin → 1/cos; fixed in 6ec8a62. |
+| `designfilt` | ❌ |  |  |  |  |  |
+| `designfilter` | ❌ |  |  |  |  |  |
+| `digitalfilter` | ❌ |  |  |  |  |  |
+| `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
+| `dspfwiz` | ❌ |  |  |  |  |  |
+| `ellip` | ❌ |  |  |  |  | IIR elliptic |
+| `ellipord` | ❌ |  |  |  |  | order estimator |
+| `filt2block` | ❌ |  |  |  |  |  |
+| `filteranalyzer` | ❌ |  |  |  |  |  |
+| `fir1` | ✅ | 0.000 | 152.85× | 3103.22× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
+| `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
+| `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
+| `fircls1` | ❌ |  |  |  |  |  |
+| `firls` | ❌ |  |  |  |  | least-squares FIR |
+| `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
+| `firpmord` | ❌ |  |  |  |  | order estimator |
+| `gaussdesign` | ❌ |  |  |  |  |  |
+| `info` | ❌ |  |  |  |  |  |
+| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `isdouble` | ❌ |  |  |  |  |  |
+| `issingle` | ✅ | 0.000 |  |  | N/A | Sig: TF = issingle(X). 100k iters. |
+| `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
+| `maxflat` | ❌ |  |  |  |  |  |
+| `polyscale` | ❌ |  |  |  |  |  |
+| `polystab` | ❌ |  |  |  |  |  |
+| `rcosdesign` | ✅ |  |  |  | OK | shared with comm.shape; unit-energy 'normal' / 'sqrt' |
+| `scalefiltersections` | ❌ |  |  |  |  |  |
+| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
+| `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
+| `yulewalk` | ❌ |  |  |  |  | recursive YW |
+
+### Analog Filters
+
+**Namespace:** `signal.filter_design.*` — 14 ✅ + 0 ⚠️ / 17 = 82%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `besselap` | ✅ |  |  |  |  | analog prototype |
+| `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
+| `bilinear` | ✅ |  |  |  |  |  |
+| `buttap` | ✅ |  |  |  |  | analog prototype |
+| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
+| `cheb1ap` | ✅ |  |  |  |  | analog prototype |
+| `cheb2ap` | ✅ |  |  |  |  | analog prototype (zeros formula fixed in 6ec8a62) |
+| `cheby1` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 0.5, 0.4) test. |
+| `cheby2` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 30, 0.4) test. |
+| `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
+| `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
+| `freqs` | ✅ |  |  |  |  | analog freq response |
+| `impinvar` | ✅ |  |  |  | OK | Matches MATLAB to 8 decimals on simple-pole tests. Repeated poles not yet supported. |
+| `lp2bp` | ✅ |  |  |  |  |  |
+| `lp2bs` | ✅ |  |  |  |  |  |
+| `lp2hp` | ✅ |  |  |  |  |  |
+| `lp2lp` | ✅ |  |  |  |  |  |
+
+### Digital Filter Analysis
+
+**Namespace:** `signal.filter_analysis.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `filteranalyzer` | ❌ |  |  |  |  |  |
+| `filternorm` | ❌ |  |  |  |  |  |
+| `filtord` | ❌ |  |  |  |  |  |
+| `firtype` | ❌ |  |  |  |  |  |
+| `freqz` | ✅ | 0.004 | 21.99× | 51.25× | MISMATCH | Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters. |
+| `grpdelay` | ✅ | 0.006 | 29.69× | 26.74× | MISMATCH | Sig: [G,W] = grpdelay(B,A,N). Group delay. 1000 iters. |
+| `impz` | ✅ | 0.002 | 38.13× | 13.46× | OK | Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters. |
+| `impzlength` | ✅ | 0.000 | 316.67× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
+| `isallpass` | ✅ | 0.000 | 107.10× | 241.60× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
+| `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
+| `islinphase` | ✅ | 0.000 | 261.13× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
+| `ismaxphase` | ✅ | 0.001 | 178.17× | 154.70× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
+| `isminphase` | ✅ | 0.000 | 270.37× | 260.14× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
+| `isstable` | ✅ | 0.000 | 219.41× | 155.13× | OK | Sig: TF = isstable(B, A). 10000 iters. |
+| `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
+| `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
+| `stepz` | ✅ | 0.002 | 40.07× |  | OK | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
+| `zerophase` | ✅ | 0.005 | 173.47× |  | MISMATCH | Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters. |
+| `zplane` | ❌ |  |  |  |  |  |
+
+### Digital Filtering
+
+**Namespace:** `signal.digital_filtering.*` + `signal.filter_implementation.*` (TF/SOS/SS/ZP conversions) — 8 ✅ + 0 ⚠️ / 41 = 19%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bandpass` | ✅ | 0.540 | 113.63× |  | MISMATCH | Sig: Y = bandpass(X, [LO HI], FS). 100 iters. |
+| `bandstop` | ✅ | 0.603 | 95.72× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
+| `cell2sos` | ❌ |  |  |  |  |  |
+| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
+| `ctffilt` | ❌ |  |  |  |  | control TF filter |
+| `dspfwiz` | ❌ |  |  |  |  |  |
+| `eqtflength` | ❌ |  |  |  |  |  |
+| `fftfilt` | ✅ | 1.769 | 1.93× | 5.18× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
+| `filt2block` | ❌ |  |  |  |  |  |
+| `filtfilt` | ✅ | 0.261 | 1.41× | 1.86× | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
+| `filtic` | ❌ |  |  |  |  | init state |
+| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
+| `highpass` | ✅ | 0.283 | 196.45× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
+| `latc2tf` | ❌ |  |  |  |  | inverse |
+| `latcfilt` | ❌ |  |  |  |  |  |
+| `lowpass` | ✅ | 0.291 | 184.11× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
+| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
+| `residuez` | ❌ |  |  |  |  |  |
+| `scalefiltersections` | ❌ |  |  |  |  |  |
+| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
+| `sos2cell` | ❌ |  |  |  |  |  |
+| `sos2ctf` | ❌ |  |  |  |  |  |
+| `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
+| `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
+| `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
+| `sosfilt` | ✅ | 0.102 | 0.43× | 0.29× | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
+| `ss` | ❌ |  |  |  |  |  |
+| `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
+| `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
+| `tf` | ❌ |  |  |  |  |  |
+| `tf2latc` | ❌ |  |  |  |  | lattice |
+| `tf2sos` | ✅ | 0.001 | 97.22× | 1564.99× | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
+| `tf2ss` | ✅ | 0.000 | 14.43× | 3654.83× | MISMATCH | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
+| `tf2zp` | ✅ | 0.001 | 21.65× | 2076.90× | OK | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
+| `tf2zpk` | ✅ | 0.001 | 27.29× |  | OK | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
+| `zp2ctf` | ❌ |  |  |  |  |  |
+| `zp2sos` | ✅ | 0.000 | 264.82× | 1334.55× | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
+| `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
+| `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
+| `zpk` | ❌ |  |  |  |  |  |
+| `filter` | ✅ | 1.154 | 0.05× | 0.11× | OK | Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters. |
+| `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
+
+### Multirate Signal Processing
+
+**Namespace:** `signal.multirate.*` — 4 ✅ + 0 ⚠️ / 8 = 50%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `decimate` | ✅ | 1.190 | 2.29× | 5.87× | MISMATCH | Sig: Y = decimate(X, M). M=4. 100 iters. |
+| `downsample` | ✅ | 0.042 | 1.96× | 0.73× | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
+| `fillgaps` | ❌ |  |  |  |  |  |
+| `interp` | ✅ | 3.443 | 0.21× | 3.66× | MISMATCH | Sig: Y = interp(X, L). Upsample×4 with FIR. 100 iters. |
+| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
+| `resample` | ✅ | 0.496 | 1.82× | 5.42× | MISMATCH | Sig: Y = resample(X, P, Q). 3:2. 100 iters. |
+| `upfirdn` | ✅ | 0.023 | 4.96× | 0.64× | MISMATCH | Sig: Y = upfirdn(X, H, P, Q). 100 iters. |
+| `upsample` | ✅ | 0.133 | 0.52× | 0.47× | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
+
+### Signal Modeling
+
+**Namespace:** `signal.parametric.*` — 23 ✅ + 0 ⚠️ / 25 = 92%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `ac2poly` | ✅ |  |  |  |  |  |
+| `ac2rc` | ✅ |  |  |  |  |  |
+| `arburg` | ✅ |  |  |  |  | Burg AR |
+| `arcov` | ✅ |  |  |  |  | covariance AR |
+| `armcov` | ✅ |  |  |  |  | modified cov AR |
+| `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
+| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
+| `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
+| `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
+| `is2rc` | ✅ |  |  |  |  |  |
+| `lar2rc` | ✅ |  |  |  |  |  |
+| `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
+| `lpc` | ✅ |  |  |  |  | linear prediction |
+| `lsf2poly` | ✅ |  |  |  |  |  |
+| `poly2ac` | ✅ |  |  |  |  |  |
+| `poly2lsf` | ✅ |  |  |  |  |  |
+| `poly2rc` | ✅ |  |  |  |  |  |
+| `prony` | ✅ |  |  |  |  | Prony method |
+| `rc2ac` | ✅ |  |  |  |  |  |
+| `rc2is` | ✅ |  |  |  |  |  |
+| `rc2lar` | ✅ |  |  |  |  |  |
+| `rc2poly` | ✅ |  |  |  |  |  |
+| `rlevinson` | ✅ |  |  |  |  | reverse Levinson |
+| `schurrc` | ❌ |  |  |  |  | Schur recursion |
+| `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
+
+### Correlation and Convolution
+
+**Namespace:** `signal.convolution.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `alignsignals` | ✅ | 0.099 | 2.19× |  | MISMATCH | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
+| `cconv` | ✅ | 10.545 | 0.02× | 0.03× | OK | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
+| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
+| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
+| `dtw` | ❌ |  |  |  |  | dynamic time warp |
+| `edr` | ❌ |  |  |  |  | edit distance on real |
+| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
+| `findsignal` | ❌ |  |  |  |  | pattern search |
+| `xcorr2` | ✅ | 0.229 | 0.14× | 0.19× | OK | Sig: C = xcorr2(A, B). 32x32 vs 8x8. 1000 iters. |
 | `conv` | ✅ | 0.025 | 0.78× | 1.24× | OK | Sig: C = conv(A, B). Deterministic 1k * 100 conv. 100 iters. Element-wise SAVE. |
 | `conv2` | ✅ | 0.318 | 0.25× | 0.34× | OK | 128x128 image, 7x7 averaging kernel, 'same' shape. 100 iters. |
 | `convn` | ✅ | 0.028 | 2.06× | 0.85× | OK | 64x64 2-D image / convn dispatch (delegates to conv2). 100 iters. |
 | `deconv` | ✅ | 0.001 |  | 67.45× | OK | Sig: [Q,R] = deconv(U, V). Polynomial division. 10k iters. |
-| `fft` | ✅ | 0.004 | 2.22× | 4.49× | OK | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
+
+### Transforms
+
+**Namespace:** `signal.transforms.*`. Promotions in core: `fft, ifft, fftshift, ifftshift`. Future wavelet split: `cwt/dwt/modwt/...` → `wavelet.*` — 6 ✅ + 0 ⚠️ / 32 = 18%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bitrevorder` | ✅ | 0.003 | 133.74× | 204.18× | OK | Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters. |
+| `cceps` | ✅ | 0.029 | 5.63× | 3.79× | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
+| `czt` | ❌ |  |  |  |  | chirp Z-transform |
+| `dct` | ✅ | 3.978 | 0.02× | 0.02× | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
+| `dftmtx` | ✅ | 0.034 | 1.55× | 1.24× | OK | Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters. |
+| `digitrevorder` | ❌ |  |  |  |  |  |
+| `dlistft` | ❌ |  |  |  |  |  |
+| `dlstft` | ❌ |  |  |  |  |  |
+| `emd` | ❌ |  |  |  |  | empirical mode decomp |
+| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
+| `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
+| `goertzel` | ✅ | 0.066 | 2.56× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
+| `hht` | ❌ |  |  |  |  | Hilbert-Huang |
+| `hilbert` | ✅ | 0.020 | 3.65× | 12.54× | OK | Sig: H = hilbert(X). Analytic signal real part. 1000 iters. |
+| `icceps` | ✅ | 0.034 | 2.11× |  | OK | Sig: Y = icceps(C). Inverse complex cepstrum. 100 iters. |
+| `idct` | ✅ | 3.917 | 0.02× | 0.03× | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
+| `ifsst` | ❌ |  |  |  |  |  |
+| `ifwht` | ❌ |  |  |  |  | inverse |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
+| `istft` | ❌ |  |  |  |  | inverse |
+| `istftlayer` | ❌ |  |  |  |  |  |
+| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
+| `rceps` | ✅ | 0.024 | 4.97× | 4.25× | OK | Sig: Y = rceps(X). Real cepstrum. 1000 iters. |
+| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
+| `stft` | ❌ |  |  |  |  | short-time FFT |
+| `stftlayer` | ❌ |  |  |  |  |  |
+| `stftmag2sig` | ❌ |  |  |  |  |  |
+| `vmd` | ❌ |  |  |  |  | variational MD |
+| `wvd` | ❌ |  |  |  |  | Wigner-Ville |
+| `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
+| `xwvd` | ❌ |  |  |  |  | cross WVD |
+| `fft` | ✅ | 0.004 |  |  | N/A | Sig: Y = fft(X). 1024-pt FFT on sin. 1000 iters. Custom fp (complex out). |
 | `fft2` | ✅ | 1.127 | 0.60× | 0.58× | OK | 256x256 deterministic test signal, complex 2-D FFT. 50 iters. |
 | `fftn` | ❌ |  |  |  |  | N-D FFT |
 | `fftshift` | ✅ | 0.003 | 14.24× | 8.90× | OK | Sig: Y = fftshift(X). 1024-pt shift. 1000 iters. |
 | `fftw` | ❌ |  |  |  |  | wisdom file |
-| `filter` | ✅ | 1.154 | 0.05× | 0.11× | OK | Sig: Y = filter(B, A, X). FIR-1 [1 -0.5] on 100k. 100 iters. |
-| `filter2` | ✅ | 0.141 | 0.51× | 0.34× | OK | 128x128 image with 3x3 Laplacian kernel. 100 iters. |
 | `ifft` | ✅ | 0.010 | 0.67× | 4.15× | OK | Sig: y = ifft(Y). 1024-pt inverse. 1000 iters. |
 | `ifft2` | ✅ | 1.840 | 0.38× | 0.57× | OK | 256x256 inverse 2-D FFT (after fft2 of deterministic signal). 50 iters. |
 | `ifftn` | ❌ |  |  |  |  | N-D FFT |
@@ -849,10 +2438,228 @@ multiple sections; all occurrences refresh together).
 | `nextpow2` | ✅ | 7.982 | 0.56× | 1.62× | OK | Sig: Y = nextpow2(X). 1M-pt integer-ish on [1, 1e6]. 20 iters. Element-wise SAVE. |
 | `nufft` | ❌ |  |  |  |  | non-uniform |
 | `nufftn` | ❌ |  |  |  |  | non-uniform |
-| `padecoef` | ✅ | 0.000 | 3.03× | 158.05× | OK | Pade(10,10) of e^{-1.5s} numerator coefficients. 10k iters. Octave's padecoef (control pkg) uses a different normalization — comparison reference is MATLAB. |
-| `ss2tf` | ✅ | 0.001 | 98.47× | 3045.82× | OK | Sig: [NUM,DEN] = ss2tf(A,B,C,D). State-space → transfer fn. 10000 iters. |
 
-## Descriptive Statistics
+### Windows
+
+**Namespace:** `signal.windows.*` — 6 ✅ + 0 ⚠️ / 24 = 25%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `barthannwin` | ✅ | 0.004 | 4.96× | 6.35× | OK | Sig: W = barthannwin(N). Bartlett-Hann. 10000 iters. |
+| `bartlett` | ✅ | 0.002 | 6.14× | 10.10× | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
+| `blackman` | ✅ | 0.007 | 4.61× | 3.81× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
+| `blackmanharris` | ✅ | 0.010 | 2.84× | 3.91× | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
+| `bohmanwin` | ✅ | 0.007 | 3.52× | 5.92× | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
+| `chebwin` | ✅ | 0.024 | 0.83× | 7.41× | MISMATCH | Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters. |
+| `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
+| `dpssclear` | ❌ |  |  |  |  | cache |
+| `dpssdir` | ❌ |  |  |  |  | cache |
+| `dpssload` | ❌ |  |  |  |  | cache |
+| `dpsssave` | ❌ |  |  |  |  | cache |
+| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
+| `flattopwin` | ✅ | 0.013 | 2.99× | 3.20× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
+| `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
+| `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
+| `hann` | ✅ | 0.004 | 7.54× | 6.01× | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
+| `kaiser` | ✅ | 0.019 | 1.63× | 13.62× | OK | Sig: W = kaiser(N, BETA). beta=5. 10000 iters. |
+| `nuttallwin` | ✅ | 0.010 | 2.43× | 3.99× | OK | Sig: W = nuttallwin(N). 10000 iters. |
+| `parzenwin` | ✅ | 0.001 | 43.75× | 39.21× | OK | Sig: W = parzenwin(N). 10000 iters. |
+| `rectwin` | ✅ | 0.001 | 1.62× | 7.42× | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
+| `taylorwin` | ✅ | 0.013 | 3.16× | 7.12× | MISMATCH | Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters. |
+| `triang` | ✅ | 0.001 | 8.97× | 15.16× | OK | Sig: W = triang(N). Triangular. 10000 iters. |
+| `tukeywin` | ✅ | 0.002 | 9.45× | 26.31× | OK | Sig: W = tukeywin(N, R). r=0.5. 10000 iters. |
+| `wvtool` | ❌ |  |  |  |  | GUI |
+
+### Parametric Spectral Estimation
+
+**Namespace:** `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math) — 3 ✅ + 0 ⚠️ / 10 = 30%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
+| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
+| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
+| `pburg` | ✅ |  |  |  | OK | AR PSD via Burg lattice; AR(2) peak recovery within 1 PSD bin |
+| `pcov` | ❌ |  |  |  |  |  |
+| `pmcov` | ❌ |  |  |  |  |  |
+| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
+| `pyulear` | ✅ |  |  |  | OK | AR PSD via Levinson-Durbin; agrees with pburg to 4 decimals |
+
+### Nonparametric Spectral Estimation
+
+**Namespace:** `signal.spectral_analysis.*` — 6 ✅ + 0 ⚠️ / 17 = 35%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cpsd` | ✅ |  |  |  | OK | one-sided complex cross-PSD via Welch; Sxx-identity match to 0 |
+| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
+| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
+| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
+| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
+| `mscohere` | ✅ |  |  |  | OK | \|Pxy\|² / (Pxx·Pyy); auto = 1 exactly, LTI ≈ 0.97 |
+| `periodogram` | ✅ | 0.010 |  | 11.41× | MISMATCH | Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX. |
+| `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
+| `pmtm` | ❌ |  |  |  |  | multi-taper |
+| `poctave` | ❌ |  |  |  |  |  |
+| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
+| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
+| `pwelch` | ✅ | 0.063 | 19.59× | 14.55× | MISMATCH | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
+| `refinepeaks` | ❌ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
+| `tfestimate` | ✅ |  |  |  | OK | Pyx/Pxx; auto = 1 exactly, FIR LTI recovers \|H(f)\| within 0.018 |
+
+### Spectral Measurements
+
+**Namespace:** `signal.spectral_analysis.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `bandpower` | ✅ |  |  |  |  |  |
+| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
+| `instbw` | ✅ |  |  |  |  |  |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
+| `meanfreq` | ✅ |  |  |  |  | mean frequency |
+| `medfreq` | ✅ |  |  |  |  | median frequency |
+| `obw` | ✅ |  |  |  |  |  |
+| `powerbw` | ✅ |  |  |  |  |  |
+| `sfdr` | ✅ |  |  |  |  | spurious-free dynamic range |
+| `sinad` | ✅ |  |  |  |  | signal-noise-distortion |
+| `snr` | ✅ |  |  |  |  | signal-to-noise |
+| `spectralcrest` | ✅ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
+| `spectralflatness` | ✅ |  |  |  |  |  |
+| `spectralkurtosis` | ✅ |  |  |  |  |  |
+| `spectralskewness` | ✅ |  |  |  |  |  |
+| `thd` | ✅ |  |  |  |  | total harmonic distortion |
+| `toi` | ❌ |  |  |  |  | third-order intercept |
+
+### Time-Frequency Analysis
+
+**Namespace:** `signal.time_frequency.*`. Wavelet/EMD subset (`cwt/wsst/vmd/hht/emd/fsst/ifsst`) → `wavelet.*` (future) — 1 ✅ + 0 ⚠️ / 27 = 3%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dlistft` | ❌ |  |  |  |  |  |
+| `dlstft` | ❌ |  |  |  |  |  |
+| `emd` | ❌ |  |  |  |  | empirical mode decomp |
+| `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
+| `hht` | ❌ |  |  |  |  | Hilbert-Huang |
+| `ifsst` | ❌ |  |  |  |  |  |
+| `instbw` | ✅ |  |  |  |  |  |
+| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
+| `iscola` | ❌ |  |  |  |  |  |
+| `istft` | ❌ |  |  |  |  | inverse |
+| `istftlayer` | ❌ |  |  |  |  |  |
+| `kurtogram` | ❌ |  |  |  |  |  |
+| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
+| `spectralcrest` | ✅ |  |  |  |  |  |
+| `spectralentropy` | ✅ |  |  |  |  |  |
+| `spectralflatness` | ✅ |  |  |  |  |  |
+| `spectralkurtosis` | ✅ |  |  |  |  |  |
+| `spectralskewness` | ✅ |  |  |  |  |  |
+| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
+| `stft` | ❌ |  |  |  |  | short-time FFT |
+| `stftlayer` | ❌ |  |  |  |  |  |
+| `stftmag2sig` | ❌ |  |  |  |  |  |
+| `tfridge` | ❌ |  |  |  |  |  |
+| `vmd` | ❌ |  |  |  |  | variational MD |
+| `wvd` | ❌ |  |  |  |  | Wigner-Ville |
+| `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
+| `xwvd` | ❌ |  |  |  |  | cross WVD |
+
+### Pulse and Transition Metrics
+
+**Namespace:** `signal.measurements.*` — 0 ✅ + 0 ⚠️ / 12 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `dutycycle` | ✅ |  |  |  |  | duty cycle |
+| `falltime` | ✅ |  |  |  |  |  |
+| `midcross` | ✅ |  |  |  |  | mid-ref crossings |
+| `overshoot` | ✅ |  |  |  |  |  |
+| `pulseperiod` | ✅ |  |  |  |  |  |
+| `pulsesep` | ✅ |  |  |  |  |  |
+| `pulsewidth` | ✅ |  |  |  |  |  |
+| `risetime` | ✅ |  |  |  |  |  |
+| `settlingtime` | ✅ |  |  |  |  |  |
+| `slewrate` | ✅ |  |  |  |  |  |
+| `statelevels` | ✅ |  |  |  |  |  |
+| `undershoot` | ✅ |  |  |  |  |  |
+
+### Signal Descriptive Statistics
+
+**Namespace:** `signal.measurements.*` — 2 ✅ + 0 ⚠️ / 30 = 6%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `alignsignals` | ✅ | 0.099 | 2.19× |  | MISMATCH | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
+| `binmask2sigroi` | ❌ |  |  |  |  |  |
+| `countlabels` | ❌ |  |  |  |  |  |
+| `cusum` | ❌ |  |  |  |  | CUSUM change detection |
+| `dtw` | ❌ |  |  |  |  | dynamic time warp |
+| `edr` | ❌ |  |  |  |  | edit distance on real |
+| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
+| `extendsigroi` | ❌ |  |  |  |  |  |
+| `extractsigroi` | ❌ |  |  |  |  |  |
+| `filenames2labels` | ❌ |  |  |  |  |  |
+| `findchangepts` | ❌ |  |  |  |  | change-point detection |
+| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
+| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
+| `findsignal` | ❌ |  |  |  |  | pattern search |
+| `folders2labels` | ❌ |  |  |  |  |  |
+| `framelbl` | ❌ |  |  |  |  |  |
+| `framesig` | ❌ |  |  |  |  |  |
+| `meanfreq` | ✅ |  |  |  |  | mean frequency |
+| `medfreq` | ✅ |  |  |  |  | median frequency |
+| `mergesigroi` | ❌ |  |  |  |  |  |
+| `peak2peak` | ✅ | 3.066 | 0.03× | 0.52× | OK | Sig: P = peak2peak(X). 1M-pt range. 100 iters. |
+| `peak2rms` | ✅ | 3.127 | 0.87× | 1.16× | OK | Sig: R = peak2rms(X). 100 iters. |
+| `removesigroi` | ❌ |  |  |  |  |  |
+| `rssq` | ✅ | 2.638 | 0.10× | 0.16× | OK | Sig: R = rssq(X). 100 iters. |
+| `seqperiod` | ❌ |  |  |  |  |  |
+| `shortensigroi` | ❌ |  |  |  |  |  |
+| `sigrangebinmask` | ❌ |  |  |  |  |  |
+| `sigroi2binmask` | ❌ |  |  |  |  |  |
+| `splitlabels` | ❌ |  |  |  |  |  |
+| `zerocrossrate` | ❌ |  |  |  |  |  |
+
+### Smoothing and Denoising
+
+**Namespace:** `signal.smoothing.*` + `signal.digital_filtering.*` (medfilt1, sgolayfilt). `smoothdata` itself → `stats.moving.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
+| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
+| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
+| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
+
+### Vibration Analysis
+
+**Namespace:** `signal.vibration.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `envspectrum` | ✅ |  |  |  |  | envelope spectrum |
+| `modalfit` | ❌ |  |  |  |  | modal-fit |
+| `modalfrf` | ❌ |  |  |  |  |  |
+| `modalsd` | ❌ |  |  |  |  |  |
+| `orderspectrum` | ❌ |  |  |  |  |  |
+| `ordertrack` | ❌ |  |  |  |  |  |
+| `orderwaveform` | ❌ |  |  |  |  |  |
+| `rainflow` | ✅ |  |  |  |  |  |
+| `rpmfreqmap` | ❌ |  |  |  |  |  |
+| `rpmordermap` | ❌ |  |  |  |  |  |
+| `rpmtrack` | ❌ |  |  |  |  | order tracking |
+| `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
+| `tsa` | ✅ |  |  |  |  |  |
+
+## Stats
+
+### Descriptive Statistics
 
 **Namespace:** `stats.descriptive.*` / `stats.moving.*` / `stats.nan.*`. Exception: `xcorr/xcov/rms/rssq/peak2peak/peak2rms` → `signal.*` (signal-side stats) — 14 ✅ + 0 ⚠️ / 33 = 42%
 
@@ -892,7 +2699,37 @@ multiple sections; all occurrences refresh together).
 | `xcorr` | ✅ | 0.959 | 0.20× | 1.08× | OK | Sig: C = xcorr(X). Auto-correlation 5k-pt. 100 iters. |
 | `xcov` | ✅ | 1.011 | 0.36× | 0.99× | OK | Cross-cov of 5k-pt sine. 50 iters. |
 
-## Probability Distributions
+### Descriptive Statistics — extras
+
+**Namespace:** `stats.descriptive.*` — additions on top of the existing section above. 0 ✅ + 0 ⚠️ / 23 = 0%
+
+| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
+|---|:---:|---:|---:|---:|:---:|---|
+| `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
+| `corr` | ❌ |  |  |  |  | (with type='Spearman'/'Kendall' options) |
+| `corrcov` | ❌ |  |  |  |  | covariance → correlation |
+| `crosstab` | ❌ |  |  |  |  | cross-tabulation |
+| `geomean` | ❌ |  |  |  |  | geometric mean |
+| `grpstats` | ❌ |  |  |  |  | group-wise statistics |
+| `harmmean` | ❌ |  |  |  |  | harmonic mean |
+| `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
+| `mad` | ❌ |  |  |  |  | mean / median absolute deviation |
+| `moment` | ❌ |  |  |  |  | central moment of order k |
+| `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
+| `partialcorr` | ❌ |  |  |  |  |  |
+| `partialcorri` | ❌ |  |  |  |  | with internal vars |
+| `range` | ❌ |  |  |  |  | max - min |
+| `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
+| `skewness` | ❌ |  |  |  |  |  |
+| `tabulate` | ❌ |  |  |  |  | frequency table |
+| `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
+| `trimmean` | ❌ |  |  |  |  | trimmed mean |
+| `zscore` | ✅ |  |  |  | OK | alias for normalize(A,'zscore'); per-column on matrices |
+| `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
+| `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
+| `nanmean` | ❌ |  |  |  |  | (legacy alias) |
+
+### Probability Distributions
 
 **Namespace:** `stats.dist.*` — 85 ✅ + 0 ⚠️ / 130+ = 65%
 
@@ -1026,7 +2863,7 @@ Each distribution provides 5 entrypoints: `*pdf` / `*cdf` / `*inv` (or `*icdf`) 
 | `ncx2rnd` | ❌ |  |  |  |  |  |
 | `ncx2stat` | ❌ |  |  |  |  |  |
 
-## Distribution Fitting (MLE / likelihood)
+### Distribution Fitting (MLE / likelihood)
 
 **Namespace:** `stats.fit.*` — 0 ✅ + 0 ⚠️ / 24 = 0%
 
@@ -1061,7 +2898,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `wblfit` | ❌ |  |  |  |  |  |
 | `wbllike` | ❌ |  |  |  |  |  |
 
-## Multivariate Distributions
+### Multivariate Distributions
 
 **Namespace:** `stats.mvdist.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
 
@@ -1084,7 +2921,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `copulastat` | ❌ |  |  |  |  |  |
 | `copularnd` | ❌ |  |  |  |  |  |
 
-## Pearson / Johnson Distributions
+### Pearson / Johnson Distributions
 
 **Namespace:** `stats.pearson.*` / `stats.johnson.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
@@ -1097,7 +2934,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `johnsrnd` | ❌ |  |  |  |  | Johnson family random |
 | `randg` | ❌ |  |  |  |  | gamma random utility |
 
-## Empirical / Kernel Distributions
+### Empirical / Kernel Distributions
 
 **Namespace:** `stats.empirical.*` — 0 ✅ + 0 ⚠️ / 4 = 0%
 
@@ -1108,7 +2945,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `ksdensity` | ❌ |  |  |  |  | kernel density estimation |
 | `mvksdensity` | ❌ |  |  |  |  | multivariate KDE |
 
-## Hypothesis Tests
+### Hypothesis Tests
 
 **Namespace:** `stats.test.*` — 8 ✅ + 0 ⚠️ / 25 = 32%
 
@@ -1142,7 +2979,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `vartestn` | ❌ |  |  |  |  | n-sample variance |
 | `ztest` | ✅ |  |  |  | OK | known-σ z-test |
 
-## Resampling Techniques
+### Resampling Techniques
 
 **Namespace:** `stats.resample.*` — 3 ✅ + 0 ⚠️ / 7 = 38%
 
@@ -1157,7 +2994,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `jackknife` | ⚠️ |  |  |  | NYI | needs Engine::call for function handles |
 | `randsample` | ✅ |  |  |  | OK | uniform or weighted; with/without replacement |
 
-## Quasirandom Sequences and MCMC
+### Quasirandom Sequences and MCMC
 
 **Namespace:** `stats.qmc.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
 
@@ -1172,7 +3009,7 @@ function-form fitters (return `[parmhat, parmci]`) and likelihood evaluators.
 | `sobolset` | ❌ |  |  |  |  | Sobol sequence |
 | `qrand` | ❌ |  |  |  |  | draw from qrandstream |
 
-## ANOVA / MANOVA / Correlation
+### ANOVA / MANOVA / Correlation
 
 **Namespace:** `stats.anova.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
 
@@ -1190,7 +3027,7 @@ OOP `anova` class and `fitrm` repeated-measures model intentionally omitted; onl
 | `mauchly` | ❌ |  |  |  |  | Mauchly's sphericity |
 | `epsilon` | ❌ |  |  |  |  | sphericity adjustments |
 
-## Linear Regression (function-form)
+### Linear Regression (function-form)
 
 **Namespace:** `stats.regress.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
 
@@ -1212,7 +3049,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `lassoglm` | ❌ |  |  |  |  |  |
 | `polyconf` | ❌ |  |  |  |  | polynomial CI prediction |
 
-## Nonlinear Regression (function-form)
+### Nonlinear Regression (function-form)
 
 **Namespace:** `stats.nlfit.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
 
@@ -1224,7 +3061,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `statset` | ❌ |  |  |  |  | options struct setter |
 | `statget` | ❌ |  |  |  |  | options struct getter |
 
-## Distance Metrics
+### Distance Metrics
 
 **Namespace:** `stats.cluster.*` — 4 ✅ + 0 ⚠️ / 4 = 100%
 
@@ -1235,7 +3072,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `squareform` | ✅ |  |  |  | OK | bidirectional vec ↔ square |
 | `mahal` | ✅ |  |  |  | OK | Cholesky-based, throws on non-PSD covariance |
 
-## Hierarchical Clustering
+### Hierarchical Clustering
 
 **Namespace:** `stats.cluster.*` — 5 ✅ + 0 ⚠️ / 7 = 71%
 
@@ -1249,7 +3086,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `dendrogram` | ❌ |  |  |  |  | display |
 | `optimalleaforder` | ❌ |  |  |  |  | leaf permutation for visualisation |
 
-## Partitional Clustering
+### Partitional Clustering
 
 **Namespace:** `stats.cluster.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
 
@@ -1260,7 +3097,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `dbscan` | ✅ |  |  |  | OK | core-point expansion; noise → label 0 (MATLAB convention) |
 | `spectralcluster` | ❌ |  |  |  |  | spectral clustering |
 
-## Cluster Evaluation
+### Cluster Evaluation
 
 **Namespace:** `stats.cluster_eval.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
 
@@ -1270,7 +3107,7 @@ OOP `fitlm` / `fitlme` / `fitglm` / `LinearModel` / etc. intentionally omitted. 
 | `evalclusters` | ❌ |  |  |  |  | CalinskiHarabasz / DaviesBouldin / gap / silhouette |
 | `manovacluster` | ❌ |  |  |  |  | dendrogram from MANOVA |
 
-## Nearest Neighbors (function-form)
+### Nearest Neighbors (function-form)
 
 **Namespace:** `stats.knn.*` — 0 ✅ + 0 ⚠️ / 3 = 0%
 
@@ -1282,7 +3119,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `rangesearch` | ❌ |  |  |  |  | within-radius search |
 | `createns` | ❌ |  |  |  |  | tree constructor (returns struct, not class) |
 
-## Hidden Markov Models
+### Hidden Markov Models
 
 **Namespace:** `stats.hmm.*` — 0 ✅ + 0 ⚠️ / 5 = 0%
 
@@ -1294,7 +3131,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `hmmtrain` | ❌ |  |  |  |  | Baum-Welch |
 | `hmmviterbi` | ❌ |  |  |  |  | most-likely state path |
 
-## Dimensionality Reduction
+### Dimensionality Reduction
 
 **Namespace:** `stats.dim.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
 
@@ -1309,7 +3146,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `sparsefilt` | ❌ |  |  |  |  | sparse filtering |
 | `tsne` | ❌ |  |  |  |  | t-SNE |
 
-## Feature Selection (function-form)
+### Feature Selection (function-form)
 
 **Namespace:** `stats.fselect.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
 
@@ -1325,7 +3162,7 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 | `relieff` | ❌ |  |  |  |  | ReliefF |
 | `sequentialfs` | ❌ |  |  |  |  | sequential feature selection |
 
-## Linear Discriminant Analysis (function-form)
+### Linear Discriminant Analysis (function-form)
 
 **Namespace:** `stats.lda.*` — 0 ✅ + 0 ⚠️ / 1 = 0%
 
@@ -1333,353 +3170,9 @@ OOP `KDTreeSearcher` / `ExhaustiveSearcher` / `hnswSearcher` intentionally omitt
 |---|:---:|---:|---:|---:|:---:|---|
 | `classify` | ❌ |  |  |  |  | LDA / QDA classification (function-form) |
 
-## Descriptive Statistics — extras
+## Wavelet
 
-**Namespace:** `stats.descriptive.*` — additions on top of the existing section above. 0 ✅ + 0 ⚠️ / 23 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `cholcov` | ❌ |  |  |  |  | Cholesky-of-cov, handles PSD |
-| `corr` | ❌ |  |  |  |  | (with type='Spearman'/'Kendall' options) |
-| `corrcov` | ❌ |  |  |  |  | covariance → correlation |
-| `crosstab` | ❌ |  |  |  |  | cross-tabulation |
-| `geomean` | ❌ |  |  |  |  | geometric mean |
-| `grpstats` | ❌ |  |  |  |  | group-wise statistics |
-| `harmmean` | ❌ |  |  |  |  | harmonic mean |
-| `kurtosis` | ❌ |  |  |  |  | already partially via `stats.descriptive`; here MATLAB stats version |
-| `mad` | ❌ |  |  |  |  | mean / median absolute deviation |
-| `moment` | ❌ |  |  |  |  | central moment of order k |
-| `nearcorr` | ❌ |  |  |  |  | nearest correlation matrix |
-| `partialcorr` | ❌ |  |  |  |  |  |
-| `partialcorri` | ❌ |  |  |  |  | with internal vars |
-| `range` | ❌ |  |  |  |  | max - min |
-| `robustcov` | ❌ |  |  |  |  | robust covariance estimator (FAST-MCD) |
-| `skewness` | ❌ |  |  |  |  |  |
-| `tabulate` | ❌ |  |  |  |  | frequency table |
-| `tiedrank` | ❌ |  |  |  |  | ranks with tie correction |
-| `trimmean` | ❌ |  |  |  |  | trimmed mean |
-| `zscore` | ✅ |  |  |  | OK | alias for normalize(A,'zscore'); per-column on matrices |
-| `nancov` | ❌ |  |  |  |  | NaN-aware covariance |
-| `nansum` | ❌ |  |  |  |  | (legacy alias of stats.nan.nansum) |
-| `nanmean` | ❌ |  |  |  |  | (legacy alias) |
-
-## Curve Fitting Toolbox — Splines
-
-**Namespace:** `cfit.splines.*` — 0 ✅ + 0 ⚠️ / 49 = 0%
-
-OOP `fittype`/`fit`/`cfit`/`sfit`/`fitoptions`/`excludedata` and the
-GUI tools (`sftool`, `bspligui`, `splinetool`, `getcurve`) intentionally
-omitted. Curve Fitting's value for a non-OOP runtime sits in the spline
-construction / postprocessing primitives — those are all flat functions.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bspline` | ❌ |  |  |  |  | B-spline of given order |
-| `csape` | ❌ |  |  |  |  | cubic spline w/ end-conditions |
-| `csapi` | ❌ |  |  |  |  | cubic spline interpolation |
-| `csaps` | ❌ |  |  |  |  | cubic smoothing spline |
-| `cscvn` | ❌ |  |  |  |  | natural cubic curve through points |
-| `rscvn` | ❌ |  |  |  |  | rational cubic curve |
-| `spapi` | ❌ |  |  |  |  | B-spline interpolation |
-| `spaps` | ❌ |  |  |  |  | smoothing spline (penalised) |
-| `spap2` | ❌ |  |  |  |  | least-squares spline fit |
-| `spcrv` | ❌ |  |  |  |  | uniform B-spline curve |
-| `tpaps` | ❌ |  |  |  |  | thin-plate smoothing spline (2-D) |
-| `ppmak` | ❌ |  |  |  |  | piecewise-polynomial form constructor |
-| `rpmak` | ❌ |  |  |  |  | rational pp form |
-| `rsmak` | ❌ |  |  |  |  | rational spline |
-| `spmak` | ❌ |  |  |  |  | B-spline form constructor |
-| `stmak` | ❌ |  |  |  |  | stform constructor (2-D scattered) |
-| `fn2fm` | ❌ |  |  |  |  | convert between spline forms |
-| `fnbrk` | ❌ |  |  |  |  | extract part / break info |
-| `fnchg` | ❌ |  |  |  |  | change spline properties |
-| `fncmb` | ❌ |  |  |  |  | combine splines |
-| `fnder` | ❌ |  |  |  |  | derivative of spline |
-| `fndir` | ❌ |  |  |  |  | directional derivative |
-| `fnint` | ❌ |  |  |  |  | integral of spline |
-| `fnjmp` | ❌ |  |  |  |  | jump value at discontinuities |
-| `fnmin` | ❌ |  |  |  |  | min of spline |
-| `fnplt` | ❌ |  |  |  |  | display |
-| `fnrfn` | ❌ |  |  |  |  | refine knots |
-| `fntlr` | ❌ |  |  |  |  | Taylor coefficients |
-| `fnval` | ❌ |  |  |  |  | evaluate at points |
-| `fnxtr` | ❌ |  |  |  |  | extrapolate |
-| `fnzeros` | ❌ |  |  |  |  | zeros of spline |
-| `bkbrk` | ❌ |  |  |  |  | break-and-coefs |
-| `slvblk` | ❌ |  |  |  |  | solve almost-block-diagonal system |
-| `spcol` | ❌ |  |  |  |  | B-spline collocation matrix |
-| `stcol` | ❌ |  |  |  |  | stform collocation matrix |
-| `subplus` | ❌ |  |  |  |  | x_+ truncated power |
-| `aptknt` | ❌ |  |  |  |  | append knots for spline of order k |
-| `augknt` | ❌ |  |  |  |  | augment knot sequence |
-| `aveknt` | ❌ |  |  |  |  | knot averages |
-| `brk2knt` | ❌ |  |  |  |  | breaks → knots with given multiplicity |
-| `chbpnt` | ❌ |  |  |  |  | Chebyshev sites |
-| `knt2brk` | ❌ |  |  |  |  | knots → breaks + multiplicities |
-| `newknt` | ❌ |  |  |  |  | distribute knots on equidistribution |
-| `optknt` | ❌ |  |  |  |  | optimal knot distribution |
-| `smooth` | ❌ |  |  |  |  | data smoothing (already partially in core) |
-| `datastats` | ❌ |  |  |  |  | basic descriptive on (x, y) |
-| `prepareCurveData` | ❌ |  |  |  |  | sanitise (NaN, Inf, complex) |
-| `prepareSurfaceData` | ❌ |  |  |  |  | 2-D variant |
-| `quad2d` | ❌ |  |  |  |  | 2-D quadrature (also in core) |
-
-## Optimization Toolbox
-
-**Namespace:** `optim.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
-
-The new problem-based API (`optimproblem`, `optimvar`, `optimexpr`,
-`optimconstr`, `optimeq`, `optimineq`, `solve`, `evaluate`, `prob2struct`,
-`infeasibility`, `findindex`, `issatisfied`, `paretoplot`, `optimvalues`,
-the `show*` / `write*` family, `eqnproblem`, `fcn2optimexpr`) is OOP /
-expression-tree based and intentionally omitted; we expose only the
-solver-based legacy API which is flat function-form.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `fmincon` | ❌ |  |  |  |  | constrained nonlinear minimisation |
-| `fminunc` | ❌ |  |  |  |  | unconstrained nonlinear minimisation |
-| `fseminf` | ❌ |  |  |  |  | semi-infinite optimisation |
-| `fgoalattain` | ❌ |  |  |  |  | multi-objective goal attainment |
-| `fminimax` | ❌ |  |  |  |  | minimax optimisation |
-| `linprog` | ❌ |  |  |  |  | linear programming |
-| `intlinprog` | ❌ |  |  |  |  | mixed-integer linear programming |
-| `quadprog` | ❌ |  |  |  |  | quadratic programming |
-| `coneprog` | ❌ |  |  |  |  | second-order cone programming |
-| `secondordercone` | ❌ |  |  |  |  | SOC constraint helper |
-| `lsqlin` | ❌ |  |  |  |  | linear LSQ with bounds & linear constraints |
-| `lsqcurvefit` | ❌ |  |  |  |  | nonlinear LSQ in curve-fit signature |
-| `lsqnonlin` | ❌ |  |  |  |  | nonlinear LSQ |
-| `fsolve` | ❌ |  |  |  |  | system of nonlinear equations |
-| `mpsread` | ❌ |  |  |  |  | MPS-format LP reader (defer — I/O) |
-| `optimoptions` | ❌ |  |  |  |  | options struct (modern) |
-| `resetoptions` | ❌ |  |  |  |  | reset options to default |
-| `checkGradients` | ❌ |  |  |  |  | finite-diff gradient check |
-| `optimwarmstart` | ❌ |  |  |  |  | warm-start handle for lsqlin/quadprog |
-| `integerConstraint` | ❌ |  |  |  |  | helper for integer DOF |
-| `mldivide` | ✅ |  |  |  | OK | already in core (operator `\`) |
-
-## Global Optimization Toolbox
-
-**Namespace:** `gads.*` — 0 ✅ + 0 ⚠️ / 14 = 0%
-
-Problem-based API (`optimproblem`/`optimvar`/etc.), MultiStart class
-methods (`createOptimProblem`/`list`/`run`) and `paretoplot` (display)
-intentionally omitted — flat solver functions only.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `ga` | ❌ |  |  |  |  | genetic algorithm |
-| `gamultiobj` | ❌ |  |  |  |  | multi-objective GA |
-| `paretosearch` | ❌ |  |  |  |  | direct multi-objective search |
-| `particleswarm` | ❌ |  |  |  |  | particle swarm optimisation |
-| `patternsearch` | ❌ |  |  |  |  | direct (mesh / GPS / MADS) |
-| `simulannealbnd` | ❌ |  |  |  |  | bounded simulated annealing |
-| `surrogateopt` | ❌ |  |  |  |  | surrogate-model optimisation |
-| `packfcn` | ❌ |  |  |  |  | pack/unpack obj-fcn args |
-| `gaoptimset` | ❌ |  |  |  |  | legacy GA options setter |
-| `gaoptimget` | ❌ |  |  |  |  | legacy GA options getter |
-| `psoptimset` | ❌ |  |  |  |  | legacy patternsearch options setter |
-| `psoptimget` | ❌ |  |  |  |  | legacy patternsearch options getter |
-| `saoptimset` | ❌ |  |  |  |  | legacy SA options setter |
-| `saoptimget` | ❌ |  |  |  |  | legacy SA options getter |
-
-## Control System Toolbox — LTI Models
-
-**Namespace:** `control.lti.*` — 3 ✅ + 0 ⚠️ / 19 = 16%
-
-`tf`/`zpk`/`ss`/`frd` are object constructors in MATLAB; we treat them
-as flat structure-returning functions (returning a struct with fields
-{num, den}, {z, p, k}, {A, B, C, D}, {response, frequency} etc.) and
-the data-extraction `*data` functions read those structs. The full
-`lti` / `dynamicSystem` class hierarchy and Simulink integration
-(`slTuner`, `addBlock`/`removeBlock`/`setBlockParam`, etc.) are
-intentionally omitted.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `tf` | ✅ |  |  |  | OK | transfer function — struct {kind='tf', num, den, Ts} |
-| `zpk` | ✅ |  |  |  | OK | zero-pole-gain — struct {kind='zpk', z, p, k, Ts} |
-| `ss` | ✅ |  |  |  | OK | state-space — struct {kind='ss', A, B, C, D, Ts} |
-| `frd` | ❌ |  |  |  |  | freq-response data — struct {resp, freq} |
-| `dss` | ❌ |  |  |  |  | descriptor state-space (E·xdot = Ax + Bu) |
-| `filt` | ❌ |  |  |  |  | discrete tf with z⁻¹ ordering |
-| `pid` | ❌ |  |  |  |  | parallel-form PID controller |
-| `pid2` | ❌ |  |  |  |  | 2-DOF PID |
-| `pidstd` | ❌ |  |  |  |  | standard-form PID |
-| `pidstd2` | ❌ |  |  |  |  | 2-DOF standard PID |
-| `rss` | ❌ |  |  |  |  | random stable continuous SS |
-| `drss` | ❌ |  |  |  |  | random stable discrete SS |
-| `tfdata` | ❌ |  |  |  |  | extract num/den |
-| `zpkdata` | ❌ |  |  |  |  | extract z/p/k |
-| `ssdata` | ❌ |  |  |  |  | extract A/B/C/D |
-| `frdata` | ❌ |  |  |  |  | extract response/freq |
-| `dssdata` | ❌ |  |  |  |  | extract A/B/C/D/E |
-| `piddata` | ❌ |  |  |  |  |  |
-| `pidstddata` | ❌ |  |  |  |  |  |
-
-## Control System Toolbox — Model Properties
-
-**Namespace:** `control.props.*` — 11 ✅ + 0 ⚠️ / 11 = **100%**
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `isct` | ✅ |  |  |  | OK | true when Ts == 0 |
-| `isdt` | ✅ |  |  |  | OK | true when Ts > 0 or Ts == -1 |
-| `isproper` | ✅ |  |  |  | OK | tf: numel(num)≤numel(den); zpk: |z|≤|p|; ss: true |
-| `issiso` | ✅ |  |  |  | OK | tf/zpk: true; ss: 1-col B and 1-row C |
-| `isstable` | ✅ |  |  |  | OK | qualified-only (`control.props.isstable`) — `compat.isstable` is libs/signal coefficient form |
-| `isstatic` | ✅ |  |  |  | OK | true when order(sys) == 0 (pure gain) |
-| `order` | ✅ |  |  |  | OK | tf: max(deg); zpk: max(numel); ss: rows(A) |
-| `pole` | ✅ |  |  |  | OK | tf: roots(den); ss: roots(charpoly via Faddeev) |
-| `zero` | ✅ |  |  |  | OK | tf/zpk; ss form raises NYI |
-| `tzero` | ✅ |  |  |  | OK | SISO alias for zero(sys); raises NYI on MIMO |
-| `damp` | ✅ |  |  |  | OK | [wn, zeta, p]; discrete via s = ln(z)/Ts |
-
-## Control System Toolbox — Model Conversion & Reduction
-
-**Namespace:** `control.convert.*` — 2 ✅ + 0 ⚠️ / 18 = 11%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `c2d` | ✅ |  |  |  | OK | ZOH (Van Loan expm) + Tustin; preserves tf/zpk/ss kind |
-| `c2dOptions` | ❌ |  |  |  |  |  |
-| `d2c` | ✅ |  |  |  | OK | Tustin only (ZOH would need matrix log) |
-| `d2cOptions` | ❌ |  |  |  |  |  |
-| `d2d` | ❌ |  |  |  |  | resample discrete |
-| `d2dOptions` | ❌ |  |  |  |  |  |
-| `ss2ss` | ❌ |  |  |  |  | similarity transform |
-| `canon` | ❌ |  |  |  |  | canonical realisation |
-| `balreal` | ❌ |  |  |  |  | balanced realisation |
-| `prescale` | ❌ |  |  |  |  | improve numerics by scaling |
-| `modalreal` | ❌ |  |  |  |  | modal realisation |
-| `compreal` | ❌ |  |  |  |  | companion realisation |
-| `minreal` | ❌ |  |  |  |  | minimal realisation |
-| `sminreal` | ❌ |  |  |  |  | structurally minimal |
-| `balred` | ❌ |  |  |  |  | balanced reduction |
-| `modred` | ❌ |  |  |  |  | model reduction |
-| `hsvd` | ❌ |  |  |  |  | Hankel singular values |
-| `pade` | ❌ |  |  |  |  | Padé approximation of delay |
-
-## Control System Toolbox — Interconnections
-
-**Namespace:** `control.connect.*` — 3 ✅ + 0 ⚠️ / 7 = 43%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `feedback` | ✅ |  |  |  | OK | T = G·d_H / (d_G·d_H − sign·n_G·n_H); default sign=−1 |
-| `series` | ✅ |  |  |  | OK | tf form: num/den = conv(num1,num2)/conv(den1,den2) |
-| `parallel` | ✅ |  |  |  | OK | tf form: (n1·d2 + n2·d1) / (d1·d2) |
-| `connect` | ❌ |  |  |  |  | name-based interconnect |
-| `append` | ❌ |  |  |  |  | block-diagonal stack |
-| `lft` | ❌ |  |  |  |  | linear fractional transform |
-| `sumblk` | ❌ |  |  |  |  | summation block (for connect) |
-
-## Control System Toolbox — Time and Frequency Response
-
-**Namespace:** `control.response.*` — 9 ✅ + 0 ⚠️ / 19 = 47%
-
-`*plot` variants intentionally dropped — they're display-only mirrors
-of the numeric functions (which already return data when called with
-output args).
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `step` | ✅ |  |  |  | OK | ZOH discretisation via Padé(6/6) expm + scaling/squaring |
-| `stepinfo` | ✅ |  |  |  | OK | RiseTime / SettlingTime / Overshoot / Peak / etc. struct |
-| `impulse` | ✅ |  |  |  | OK | continuous: x(0+) = B; discrete: u[0]=1 |
-| `initial` | ❌ |  |  |  |  | response from initial state |
-| `lsim` | ✅ |  |  |  | OK | uniform-grid one-shot expm; non-uniform per-step |
-| `lsiminfo` | ❌ |  |  |  |  |  |
-| `gensig` | ❌ |  |  |  |  | input signal generator |
-| `covar` | ❌ |  |  |  |  | output covariance under stochastic input |
-| `bode` | ✅ |  |  |  | OK | Horner H(jω) eval, phase unwrap |
-| `bodemag` | ❌ |  |  |  |  | magnitude only |
-| `nyquist` | ✅ |  |  |  | OK | re/im of H(jω) on grid |
-| `nichols` | ❌ |  |  |  |  |  |
-| `sigma` | ❌ |  |  |  |  | singular-value response |
-| `freqresp` | ✅ |  |  |  | OK | complex H column on user grid; default log-spaced |
-| `evalfr` | ✅ |  |  |  | OK | scalar H at one frequency, continuous + discrete |
-| `dcgain` | ✅ |  |  |  | OK | continuous: H(0); discrete: H(z=1) |
-| `bandwidth` | ❌ |  |  |  |  | -3 dB bandwidth |
-| `getPeakGain` | ❌ |  |  |  |  | H∞ |
-| `getGainCrossover` | ❌ |  |  |  |  |  |
-
-## Control System Toolbox — Stability and Margins
-
-**Namespace:** `control.margin.*` — 3 ✅ + 0 ⚠️ / 6 = 50%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `margin` | ✅ |  |  |  | OK | linear interp on bode grid; returns Gm/Pm/Wcg/Wcp |
-| `allmargin` | ❌ |  |  |  |  | all stability margins |
-| `db2mag` | ❌ |  |  |  |  |  |
-| `mag2db` | ❌ |  |  |  |  |  |
-| `pzmap` | ✅ |  |  |  | OK | composes pole(sys) + zero(sys) into a 2-output |
-| `rlocus` | ✅ |  |  |  | OK | sweep gain, roots(den + k·num); composes with feedback to 0 ULP |
-
-## Control System Toolbox — State-Space Design and Estimation
-
-**Namespace:** `control.design.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
-
-OOP filters (`extendedKalmanFilter`, `unscentedKalmanFilter`,
-`particleFilter`) intentionally omitted — they're class-objects with
-methods (`correct`, `predict`, etc.). Flat steady-state designs only.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `lqr` | ❌ |  |  |  |  | linear-quadratic regulator |
-| `lqry` | ❌ |  |  |  |  | LQR with output weighting |
-| `lqi` | ❌ |  |  |  |  | LQR with integral action |
-| `dlqr` | ❌ |  |  |  |  | discrete LQR |
-| `lqrd` | ❌ |  |  |  |  | continuous LQR with sampled controller |
-| `lqg` | ❌ |  |  |  |  | linear-quadratic Gaussian |
-| `lqgreg` | ❌ |  |  |  |  | LQG regulator |
-| `lqgtrack` | ❌ |  |  |  |  | tracking LQG |
-| `place` | ✅ |  |  |  | OK | SISO Ackermann — also exposed as `acker` |
-| `estim` | ❌ |  |  |  |  | steady-state estimator (Kalman) |
-| `kalman` | ❌ |  |  |  |  | continuous-time Kalman gain |
-| `kalmd` | ❌ |  |  |  |  | discrete Kalman from continuous plant |
-| `reg` | ❌ |  |  |  |  | full-state controller + observer |
-| `ctrb` | ✅ |  |  |  | OK | [B, AB, A²B, …, A^(n−1)B]; (A,B) or (sys) form |
-| `obsv` | ✅ |  |  |  | OK | [C; CA; CA²; …; CA^(n−1)]; (A,C) or (sys) form |
-| `gram` | ❌ |  |  |  |  | controllability/observability gramian |
-| `ctrbf` | ❌ |  |  |  |  | controllable-form decomposition |
-| `obsvf` | ❌ |  |  |  |  | observable-form decomposition |
-
-## Control System Toolbox — Matrix Equations
-
-**Namespace:** `control.matrixeq.*` — 2 ✅ + 0 ⚠️ / 8 = 25%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `lyap` | ✅ |  |  |  | OK | A·X + X·Aᵀ + Q = 0 via Kronecker n²-system |
-| `lyapchol` | ❌ |  |  |  |  | factored continuous Lyapunov |
-| `dlyap` | ✅ |  |  |  | OK | A·X·Aᵀ − X + Q = 0 via Kronecker n²-system |
-| `dlyapchol` | ❌ |  |  |  |  | factored discrete Lyapunov |
-| `care` | ❌ |  |  |  |  | continuous algebraic Riccati |
-| `dare` | ❌ |  |  |  |  | discrete algebraic Riccati |
-| `gcare` | ❌ |  |  |  |  | generalised continuous Riccati |
-| `gdare` | ❌ |  |  |  |  | generalised discrete Riccati |
-
-## Control System Toolbox — PID Tuning and Modal Analysis
-
-**Namespace:** `control.tune.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
-
-`pidTuner`, `looptune`, `systune`, `slTuner` and friends intentionally
-omitted — interactive / Simulink / OOP.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `pidtune` | ❌ |  |  |  |  | automatic PID tuning |
-| `pidtuneOptions` | ❌ |  |  |  |  |  |
-| `getPIDLoopResponse` | ❌ |  |  |  |  |  |
-| `modalsep` | ❌ |  |  |  |  | modal separation |
-| `stabsep` | ❌ |  |  |  |  | stable / unstable split |
-| `freqsep` | ❌ |  |  |  |  | slow / fast modes |
-| `spectralfact` | ❌ |  |  |  |  | spectral factorisation |
-
-## Wavelet Toolbox — Continuous Wavelet Transforms
+### Continuous Wavelet Transforms
 
 **Namespace:** `wavelet.cwt.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
 
@@ -1705,7 +3198,7 @@ omitted — interactive / Simulink / OOP.
 | `wavemngr` | ❌ |  |  |  |  | wavelet manager |
 | `waveinfo` | ❌ |  |  |  |  | info on a wavelet family |
 
-## Wavelet Toolbox — Discrete Wavelet Transforms (1-D)
+### Discrete Wavelet Transforms (1-D)
 
 **Namespace:** `wavelet.dwt.*` — 6 ✅ + 0 ⚠️ / 18 = 33%
 
@@ -1730,7 +3223,7 @@ omitted — interactive / Simulink / OOP.
 | `dwpt` | ❌ |  |  |  |  | discrete wavelet packet transform |
 | `idwpt` | ❌ |  |  |  |  | inverse DWPT |
 
-## Wavelet Toolbox — Discrete Wavelet Transforms (2-D / 3-D)
+### Discrete Wavelet Transforms (2-D / 3-D)
 
 **Namespace:** `wavelet.dwt2.*` — 2 ✅ + 0 ⚠️ / 15 = 13%
 
@@ -1752,7 +3245,7 @@ omitted — interactive / Simulink / OOP.
 | `dwt3` | ❌ |  |  |  |  |  |
 | `idwt3` | ❌ |  |  |  |  |  |
 
-## Wavelet Toolbox — Stationary, MODWT, and Wavelet Packets
+### Stationary, MODWT, and Wavelet Packets
 
 **Namespace:** `wavelet.swt_modwt.*` — 4 ✅ + 0 ⚠️ / 17 = 24%
 
@@ -1776,7 +3269,7 @@ omitted — interactive / Simulink / OOP.
 | `wprcoef` | ❌ |  |  |  |  |  |
 | `besttree` | ❌ |  |  |  |  | best-basis selection |
 
-## Wavelet Toolbox — Denoising and Compression
+### Denoising and Compression
 
 **Namespace:** `wavelet.denoise.*` — 3 ✅ + 0 ⚠️ / 16 = 19%
 
@@ -1799,7 +3292,7 @@ omitted — interactive / Simulink / OOP.
 | `wnoise` | ❌ |  |  |  |  | noisy test signal |
 | `wcompress` | ❌ |  |  |  |  | compression front-end |
 
-## Wavelet Toolbox — Filter Banks and Wavelet Families
+### Filter Banks and Wavelet Families
 
 **Namespace:** `wavelet.filt.*` — 1 ✅ + 0 ⚠️ / 22 = 5%
 
@@ -1828,7 +3321,7 @@ omitted — interactive / Simulink / OOP.
 | `waveletfamilies` | ❌ |  |  |  |  | list families |
 | `wavenames` | ❌ |  |  |  |  |  |
 
-## Wavelet Toolbox — Continuous Wavelet Shapes
+### Continuous Wavelet Shapes
 
 **Namespace:** `wavelet.shape.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
 
@@ -1846,7 +3339,7 @@ omitted — interactive / Simulink / OOP.
 | `pat2cwav` | ❌ |  |  |  |  | pattern → custom wavelet |
 | `shanwavf` | ❌ |  |  |  |  | Shannon wavelet |
 
-## Wavelet Toolbox — Lifting
+### Lifting
 
 **Namespace:** `wavelet.lift.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
 
@@ -1862,7 +3355,7 @@ as a pair of flat decomposition / reconstruction functions.
 | `lwtcoef` | ❌ |  |  |  |  | extract one band |
 | `lwtcoef2` | ❌ |  |  |  |  |  |
 
-## Wavelet Toolbox — Decomposition Trees and Misc
+### Decomposition Trees and Misc
 
 **Namespace:** `wavelet.misc.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
 
@@ -1881,1470 +3374,6 @@ as a pair of flat decomposition / reconstruction functions.
 | `wfusimg` | ❌ |  |  |  |  | image fusion |
 | `wfusmat` | ❌ |  |  |  |  | matrix fusion |
 | `wentropy` | ❌ |  |  |  |  | wavelet entropy |
-
-## Communications Toolbox — Modulation
-
-**Namespace:** `comm.mod.*` — 13 ✅ + 0 ⚠️ / 29 = 45%
-
-Function-form modulators / demodulators. The `comm.PSKModulator` /
-`comm.QAMModulator` / `comm.OFDMModulator` System Object family is
-intentionally omitted, along with `constellation` (object method) and
-`showResourceMapping` (display).
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `genqammod` | ❌ |  |  |  |  | generic QAM |
-| `genqamdemod` | ❌ |  |  |  |  |  |
-| `modnorm` | ✅ |  |  |  | OK | avpow / peakpow scaling |
-| `pammod` | ✅ |  |  |  | OK | M-ary PAM, gray (default) / bin |
-| `pamdemod` | ✅ |  |  |  | OK |  |
-| `qammod` | ✅ |  |  |  | OK | rectangular Gray-coded QAM, optional UnitAveragePower |
-| `qamdemod` | ✅ |  |  |  | OK |  |
-| `apskmod` | ❌ |  |  |  |  | amplitude-phase-shift keying |
-| `apskdemod` | ❌ |  |  |  |  |  |
-| `mil188qammod` | ❌ |  |  |  |  | MIL-STD-188 QAM |
-| `mil188qamdemod` | ❌ |  |  |  |  |  |
-| `mskmod` | ❌ |  |  |  |  | minimum-shift keying |
-| `mskdemod` | ❌ |  |  |  |  |  |
-| `fskmod` | ✅ |  |  |  | OK | M-ary FSK; cont (default) and discont phase |
-| `fskdemod` | ✅ |  |  |  | OK | per-symbol energy detection |
-| `ofdmmod` | ✅ |  |  |  | OK | IFFT-based with cyclic prefix |
-| `ofdmdemod` | ✅ |  |  |  | OK | drops CP then FFT |
-| `dpskmod` | ✅ |  |  |  | OK | differential PSK |
-| `dpskdemod` | ✅ |  |  |  | OK | phase-difference decoder |
-| `pskmod` | ✅ |  |  |  | OK | M-ary PSK; gray (default) / bin orderings |
-| `pskdemod` | ✅ |  |  |  | OK | nearest-phase decision |
-| `ammod` | ❌ |  |  |  |  | amplitude modulation (analog) |
-| `amdemod` | ❌ |  |  |  |  |  |
-| `fmmod` | ❌ |  |  |  |  | frequency modulation |
-| `fmdemod` | ❌ |  |  |  |  |  |
-| `pmmod` | ❌ |  |  |  |  | phase modulation |
-| `pmdemod` | ❌ |  |  |  |  |  |
-| `ssbmod` | ❌ |  |  |  |  | single-sideband |
-| `ssbdemod` | ❌ |  |  |  |  |  |
-
-## Communications Toolbox — Sources, Sinks, and Signal Operations
-
-**Namespace:** `comm.signals.*` — 0 ✅ + 0 ⚠️ / 17 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `randerr` | ❌ |  |  |  |  | random binary error patterns |
-| `randsrc` | ❌ |  |  |  |  | random matrix from given alphabet |
-| `wgn` | ✅ |  |  |  | OK | dBW / dBm / linear power; real or complex |
-| `biterr` | ❌ |  |  |  |  | bit-error count |
-| `symerr` | ❌ |  |  |  |  | symbol-error count |
-| `zadoffChuSeq` | ❌ |  |  |  |  | Zadoff-Chu reference sequence |
-| `mask2shift` | ❌ |  |  |  |  | shift-register mask → shift |
-| `shift2mask` | ❌ |  |  |  |  |  |
-| `bit2int` | ❌ |  |  |  |  | pack bits to integers |
-| `int2bit` | ❌ |  |  |  |  | unpack integers to bits |
-| `bi2de` | ❌ |  |  |  |  | binary → decimal (legacy alias) |
-| `de2bi` | ❌ |  |  |  |  | decimal → binary (legacy alias) |
-| `hex2poly` | ❌ |  |  |  |  | hex string → polynomial coeffs |
-| `oct2poly` | ❌ |  |  |  |  |  |
-| `oct2dec` | ❌ |  |  |  |  | octal → decimal |
-| `vec2mat` | ❌ |  |  |  |  | reshape with zero-pad |
-| `convertSNR` | ✅ |  |  |  | OK | Eb/No ↔ Es/No conversion via BitsPerSymbol |
-
-## Communications Toolbox — Source Coding
-
-**Namespace:** `comm.source_coding.*` — 0 ✅ + 0 ⚠️ / 11 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `arithenco` | ❌ |  |  |  |  | arithmetic encoder |
-| `arithdeco` | ❌ |  |  |  |  |  |
-| `compand` | ❌ |  |  |  |  | μ-law / A-law companding |
-| `dpcmenco` | ❌ |  |  |  |  | differential PCM encoder |
-| `dpcmdeco` | ❌ |  |  |  |  |  |
-| `dpcmopt` | ❌ |  |  |  |  | optimise predictor + partition |
-| `huffmandict` | ❌ |  |  |  |  | build Huffman code table |
-| `huffmanenco` | ❌ |  |  |  |  |  |
-| `huffmandeco` | ❌ |  |  |  |  |  |
-| `lloyds` | ❌ |  |  |  |  | Lloyd-Max scalar quantiser |
-| `quantiz` | ❌ |  |  |  |  | apply quantisation table |
-
-## Communications Toolbox — Error Detection and Correction
-
-**Namespace:** `comm.fec.*` — 0 ✅ + 0 ⚠️ / 26 = 0%
-
-`crcConfig`, `ldpcEncoderConfig`, `ldpcDecoderConfig`, the System
-Objects (`comm.CRCGenerator`, `comm.LDPCEncoder`, etc.) and the `gf`
-class are intentionally omitted. Galois-field math is exposed through
-the flat `gf*` function family below.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `crcGenerate` | ❌ |  |  |  |  | append CRC parity bits |
-| `crcDetect` | ❌ |  |  |  |  |  |
-| `cyclgen` | ❌ |  |  |  |  | cyclic-code generator matrix |
-| `cyclpoly` | ❌ |  |  |  |  | cyclic-code generator polynomials |
-| `encode` | ❌ |  |  |  |  | generic block encoder |
-| `decode` | ❌ |  |  |  |  | generic block decoder |
-| `gfweight` | ❌ |  |  |  |  | minimum distance |
-| `gen2par` | ❌ |  |  |  |  | generator ↔ parity-check matrix |
-| `hammgen` | ❌ |  |  |  |  | Hamming generator/parity-check |
-| `syndtable` | ❌ |  |  |  |  | syndrome decoding table |
-| `bchenc` | ❌ |  |  |  |  | BCH encoder |
-| `bchdec` | ❌ |  |  |  |  |  |
-| `bchgenpoly` | ❌ |  |  |  |  |  |
-| `bchnumerr` | ❌ |  |  |  |  |  |
-| `rsenc` | ❌ |  |  |  |  | Reed-Solomon encoder |
-| `rsdec` | ❌ |  |  |  |  |  |
-| `rsgenpoly` | ❌ |  |  |  |  |  |
-| `rsgenpolycoeffs` | ❌ |  |  |  |  |  |
-| `ldpcEncode` | ❌ |  |  |  |  |  |
-| `ldpcDecode` | ❌ |  |  |  |  |  |
-| `ldpcPCM` | ❌ |  |  |  |  | parity-check matrices for standards |
-| `ldpcQuasiCyclicMatrix` | ❌ |  |  |  |  |  |
-| `tpcenc` | ❌ |  |  |  |  | turbo product encoder |
-| `tpcdec` | ❌ |  |  |  |  |  |
-| `convenc` | ❌ |  |  |  |  | convolutional encoder |
-| `vitdec` | ❌ |  |  |  |  | Viterbi decoder |
-
-## Communications Toolbox — Trellis and Galois Field Utilities
-
-**Namespace:** `comm.gf.*` — 0 ✅ + 0 ⚠️ / 22 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `distspec` | ❌ |  |  |  |  | distance spectrum of conv code |
-| `iscatastrophic` | ❌ |  |  |  |  |  |
-| `istrellis` | ❌ |  |  |  |  |  |
-| `poly2trellis` | ❌ |  |  |  |  | conv-poly → trellis struct |
-| `cosets` | ❌ |  |  |  |  | cyclotomic cosets |
-| `dftmtx` | ❌ |  |  |  |  | already in core / FFT |
-| `isprimitive` | ❌ |  |  |  |  |  |
-| `minpol` | ❌ |  |  |  |  | minimal polynomial in GF |
-| `primpoly` | ❌ |  |  |  |  | primitive polynomial of degree m |
-| `gfadd` | ❌ |  |  |  |  | GF addition |
-| `gfconv` | ❌ |  |  |  |  | GF polynomial multiply |
-| `gfcosets` | ❌ |  |  |  |  | GF(p^m) cosets |
-| `gfdeconv` | ❌ |  |  |  |  | GF polynomial divide |
-| `gfdiv` | ❌ |  |  |  |  | element-wise GF division |
-| `gffilter` | ❌ |  |  |  |  | GF FIR filter |
-| `gflineq` | ❌ |  |  |  |  | linear equations over GF(p) |
-| `gfminpol` | ❌ |  |  |  |  |  |
-| `gfmul` | ❌ |  |  |  |  | element-wise GF multiplication |
-| `gfpretty` | ❌ |  |  |  |  | pretty-print GF poly |
-| `gfprimck` | ❌ |  |  |  |  | check primitivity |
-| `gfprimdf` | ❌ |  |  |  |  | default primitive polynomial |
-| `gftuple` | ❌ |  |  |  |  | exponential ↔ polynomial form |
-
-## Communications Toolbox — Interleaving
-
-**Namespace:** `comm.intrlv.*` — 0 ✅ + 0 ⚠️ / 16 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `intrlv` | ❌ |  |  |  |  | generic interleaver |
-| `deintrlv` | ❌ |  |  |  |  |  |
-| `algintrlv` | ❌ |  |  |  |  | algebraic |
-| `algdeintrlv` | ❌ |  |  |  |  |  |
-| `helscanintrlv` | ❌ |  |  |  |  | helical-scan |
-| `helscandeintrlv` | ❌ |  |  |  |  |  |
-| `matintrlv` | ❌ |  |  |  |  | matrix |
-| `matdeintrlv` | ❌ |  |  |  |  |  |
-| `randintrlv` | ❌ |  |  |  |  | random |
-| `randdeintrlv` | ❌ |  |  |  |  |  |
-| `convintrlv` | ❌ |  |  |  |  | convolutional |
-| `convdeintrlv` | ❌ |  |  |  |  |  |
-| `helintrlv` | ❌ |  |  |  |  | helical |
-| `heldeintrlv` | ❌ |  |  |  |  |  |
-| `muxintrlv` | ❌ |  |  |  |  | multiplexed |
-| `muxdeintrlv` | ❌ |  |  |  |  |  |
-
-## Communications Toolbox — Pulse Shaping, Equalization, MIMO
-
-**Namespace:** `comm.shape.*` — 1 ✅ + 0 ⚠️ / 8 = 13%
-
-System-Object equalisers (`comm.LinearEqualizer`, `comm.MLSEEqualizer`,
-`comm.DecisionFeedbackEqualizer`) are omitted; only the function-form
-MLSE entry is exposed.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `gaussdesign` | ❌ |  |  |  |  | Gaussian pulse-shaping filter |
-| `rcosdesign` | ✅ |  |  |  | OK | raised-cosine ('normal') and root-raised-cosine ('sqrt'); unit-energy normalised |
-| `rectpulse` | ❌ |  |  |  |  | rectangular pulse shaper |
-| `intdump` | ❌ |  |  |  |  | integrate & dump |
-| `mlseeq` | ❌ |  |  |  |  | maximum-likelihood sequence equaliser |
-| `ofdmEqualize` | ❌ |  |  |  |  | OFDM zero-forcing / MMSE equalise |
-| `blkdiagbfweights` | ❌ |  |  |  |  | block-diagonalisation BF weights |
-| `ofdmPrecode` | ❌ |  |  |  |  | OFDM precoding |
-
-## Communications Toolbox — RF and Channel Impairments
-
-**Namespace:** `comm.rf.*` — 4 ✅ + 0 ⚠️ / 10 = 40%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `awgn` | ✅ |  |  |  | OK | adds Gaussian noise at given SNR (real or complex) |
-| `bsc` | ✅ |  |  |  | OK | binary symmetric channel; per-bit Bernoulli flip |
-| `rayleighchan` | ✅ |  |  |  | OK | iid frequency-flat Rayleigh, E[\|h\|²]=1 |
-| `ricianchan` | ✅ |  |  |  | OK | Rician with K-factor; E[\|h\|²]=1 regardless of K |
-| `stdchan` | ❌ |  |  |  |  | standard channel-model picker |
-| `frequencyOffset` | ❌ |  |  |  |  | apply Δf |
-| `iqimbal` | ❌ |  |  |  |  | apply IQ imbalance |
-| `iqcoef2imbal` | ❌ |  |  |  |  | coefficients → amp/phase imbalance |
-| `iqimbal2coef` | ❌ |  |  |  |  |  |
-| `srmdelay` | ❌ |  |  |  |  | sample-rate-matching delay |
-| `channelDelay` | ❌ |  |  |  |  | channel-delay estimation |
-| `ofdmChannelResponse` | ❌ |  |  |  |  | OFDM frequency-domain channel |
-
-## Communications Toolbox — Propagation Path Loss and Geometry
-
-**Namespace:** `comm.propagation.*` — 0 ✅ + 0 ⚠️ / 15 = 0%
-
-OOP `propagationModel` family, ray-tracing classes (`raytrace`,
-`coverage`, `pattern`, `sinr`, `link`, `sigstrength`) and the antenna /
-basemap object hierarchy intentionally omitted — only flat scalar /
-vector path-loss models and coordinate transforms.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `fspl` | ❌ |  |  |  |  | free-space path loss |
-| `cranerainpl` | ❌ |  |  |  |  | Crane rain attenuation |
-| `rainpl` | ❌ |  |  |  |  | ITU rain attenuation |
-| `gaspl` | ❌ |  |  |  |  | gas (oxygen + water vapour) |
-| `fogpl` | ❌ |  |  |  |  | fog / cloud |
-| `raypl` | ❌ |  |  |  |  | propagation along a ray |
-| `buildingMaterialPermittivity` | ❌ |  |  |  |  | ITU building materials |
-| `earthSurfacePermittivity` | ❌ |  |  |  |  |  |
-| `los` | ❌ |  |  |  |  | line-of-sight check |
-| `doppler` | ❌ |  |  |  |  | Doppler-shift utility |
-| `rangeangle` | ❌ |  |  |  |  | range and angle between coordinates |
-| `global2localcoord` | ❌ |  |  |  |  |  |
-| `local2globalcoord` | ❌ |  |  |  |  |  |
-| `cart2sphvec` | ❌ |  |  |  |  | rotate vector to spherical basis |
-| `sph2cartvec` | ❌ |  |  |  |  |  |
-
-## Communications Toolbox — Performance Analysis
-
-**Namespace:** `comm.perf.*` — 5 ✅ + 0 ⚠️ / 11 = 45%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `berawgn` | ✅ |  |  |  | OK | psk/qam/pam/fsk/dpsk; Gray-coded BER approximation |
-| `bercoding` | ❌ |  |  |  |  | with coding gain |
-| `berconfint` | ❌ |  |  |  |  | confidence interval |
-| `berfading` | ❌ |  |  |  |  | over Rayleigh / Rician fading |
-| `berfit` | ❌ |  |  |  |  | curve fit BER vs Eb/No |
-| `bersync` | ❌ |  |  |  |  | with imperfect sync |
-| `semianalytic` | ❌ |  |  |  |  | semi-analytic BER |
-| `marcumq` | ✅ |  |  |  | OK | Marcum Q via integral form (m=1 closed-form) |
-| `qfunc` | ✅ |  |  |  | OK | 0.5·erfc(x/√2) |
-| `qfuncinv` | ✅ |  |  |  | OK | √2·erfcinv(2p) via Acklam approx |
-| `noisebw` | ✅ |  |  |  | OK | numerical |H(jω)|² integration over 0..π |
-
-## Workspace
-
-**Namespace:** core — 8 ✅ + 0 ⚠️ / 10 = 80%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `clear` | ✅ |  |  |  |  |  |
-| `clearvars` | ✅ |  |  |  |  |  |
-| `disp` | ✅ |  |  |  | N/A | Sig: disp(X) — captured via evalc. 1000 iters. |
-| `formatteddisplaytext` | ✅ |  |  |  | N/A | Sig: S = formattedDisplayText(X). 1000 iters. |
-| `load` | ✅ |  |  |  |  |  |
-| `openvar` | ❌ |  |  |  |  | IDE |
-| `save` | ✅ |  |  |  |  |  |
-| `who` | ✅ |  |  |  |  |  |
-| `whos` | ✅ |  |  |  |  |  |
-| `workspacebrowser` | ❌ |  |  |  |  |  |
-
-## Error Handling (basic)
-
-**Namespace:** core — 4 ✅ + 0 ⚠️ / 6 = 66%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `assert` | ✅ | 0.000 | 2.92× |  | OK | Sig: assert(COND). Pass-case. 100k iters. |
-| `error` | ✅ |  |  |  |  |  |
-| `lastwarn` | ✅ | 0.000 | 3.42× |  | OK | Sig: msg = lastwarn. Read last warning. 100k iters. |
-| `oncleanup` | ❌ |  |  |  |  |  |
-| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
-| `warning` | ✅ | 0.000 | 38.01× |  | OK | Sig: warning(ID, MSG). Side-effect tested via lastwarn. 10000 iters. |
-
-## Exception Handling
-
-**Namespace:** core (keyword + class) — 2 ✅ + 0 ⚠️ / 2 = 100%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `mexception` | ✅ |  |  |  |  | MATLAB exception class — registered as `MException` |
-| `try` | ✅ |  |  |  |  | keyword (`try/catch`) |
-
-## Line Plots
-
-**Namespace:** `graphics.line.*` — 2 ✅ + 0 ⚠️ / 12 = 16%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `area` | ❌ |  |  |  |  |  |
-| `errorbar` | ❌ |  |  |  |  |  |
-| `fimplicit` | ❌ |  |  |  |  |  |
-| `fplot` | ❌ |  |  |  |  |  |
-| `fplot3` | ❌ |  |  |  |  |  |
-| `loglog` | ❌ |  |  |  |  |  |
-| `plot` | ✅ |  |  |  |  |  |
-| `plot3` | ❌ |  |  |  |  | 3-D |
-| `semilogx` | ❌ |  |  |  |  |  |
-| `semilogy` | ❌ |  |  |  |  |  |
-| `stackedplot` | ❌ |  |  |  |  |  |
-| `stairs` | ✅ |  |  |  |  |  |
-
-## Polar Plots
-
-**Namespace:** `graphics.polar.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `compassplot` | ❌ |  |  |  |  |  |
-| `fpolarplot` | ❌ |  |  |  |  |  |
-| `polaraxes` | ❌ |  |  |  |  |  |
-| `polarbubblechart` | ❌ |  |  |  |  |  |
-| `polarhistogram` | ❌ |  |  |  |  |  |
-| `polarplot` | ✅ |  |  |  |  |  |
-| `polarregion` | ❌ |  |  |  |  |  |
-| `polarscatter` | ❌ |  |  |  |  |  |
-| `radiusregion` | ❌ |  |  |  |  |  |
-| `rlim` | ✅ |  |  |  |  |  |
-| `rtickangle` | ❌ |  |  |  |  |  |
-| `rtickformat` | ❌ |  |  |  |  |  |
-| `rticklabels` | ❌ |  |  |  |  |  |
-| `rticks` | ❌ |  |  |  |  |  |
-| `thetalim` | ✅ |  |  |  |  |  |
-| `thetaregion` | ❌ |  |  |  |  |  |
-| `thetatickformat` | ❌ |  |  |  |  |  |
-| `thetaticklabels` | ❌ |  |  |  |  |  |
-| `thetaticks` | ❌ |  |  |  |  |  |
-
-## Contour Plots
-
-**Namespace:** `graphics.contour.*` — 2 ✅ + 0 ⚠️ / 7 = 28%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `clabel` | ❌ |  |  |  |  |  |
-| `contour` | ✅ |  |  |  |  |  |
-| `contour3` | ❌ |  |  |  |  |  |
-| `contourc` | ❌ |  |  |  |  |  |
-| `contourf` | ✅ |  |  |  |  |  |
-| `contourslice` | ❌ |  |  |  |  |  |
-| `fcontour` | ❌ |  |  |  |  |  |
-
-## Vector Fields
-
-**Namespace:** `graphics.vector_fields.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `compassplot` | ❌ |  |  |  |  |  |
-| `feather` | ❌ |  |  |  |  |  |
-| `quiver` | ❌ |  |  |  |  |  |
-| `quiver3` | ❌ |  |  |  |  |  |
-| `streamline` | ❌ |  |  |  |  |  |
-| `streamslice` | ❌ |  |  |  |  |  |
-
-## Surface and Mesh Plots
-
-**Namespace:** `graphics.surface.*` — 3 ✅ + 0 ⚠️ / 21 = 14%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `contour3` | ❌ |  |  |  |  |  |
-| `cylinder` | ✅ | 0.125 | 0.48× | 2.75× | OK | 201-point sin-shaped profile, 50 angular samples. 200 iters. |
-| `ellipsoid` | ✅ | 0.094 | 1.00× | 4.19× | OK | 101x101 ellipsoid (1,2,3) center, (4,5,6) semi-axes. 200 iters. |
-| `fimplicit3` | ❌ |  |  |  |  |  |
-| `fmesh` | ❌ |  |  |  |  |  |
-| `fsurf` | ❌ |  |  |  |  |  |
-| `hidden` | ❌ |  |  |  |  |  |
-| `mesh` | ✅ |  |  |  |  |  |
-| `meshc` | ❌ |  |  |  |  |  |
-| `meshz` | ❌ |  |  |  |  |  |
-| `pcolor` | ✅ |  |  |  |  |  |
-| `peaks` | ✅ | 0.365 | 1.71× | 5.05× | OK | 200x200 peaks() surface. 50 iters, element-wise. |
-| `ribbon` | ❌ |  |  |  |  |  |
-| `sphere` | ✅ | 0.090 | 0.55× | 3.55× | OK | Unit sphere on 101x101 grid. 200 iters, element-wise on Z. |
-| `surf` | ✅ |  |  |  |  |  |
-| `surf2patch` | ❌ |  |  |  |  |  |
-| `surface` | ❌ |  |  |  |  |  |
-| `surfc` | ❌ |  |  |  |  |  |
-| `surfl` | ❌ |  |  |  |  |  |
-| `surfnorm` | ❌ |  |  |  |  |  |
-| `waterfall` | ❌ |  |  |  |  |  |
-
-## Volume Visualization
-
-**Namespace:** `graphics.volume.*` — 0 ✅ + 0 ⚠️ / 24 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `coneplot` | ❌ |  |  |  |  |  |
-| `contourslice` | ❌ |  |  |  |  |  |
-| `curl` | ❌ |  |  |  |  |  |
-| `divergence` | ❌ |  |  |  |  |  |
-| `flow` | ❌ |  |  |  |  |  |
-| `interpstreamspeed` | ❌ |  |  |  |  |  |
-| `isocaps` | ❌ |  |  |  |  |  |
-| `isocolors` | ❌ |  |  |  |  |  |
-| `isonormals` | ❌ |  |  |  |  |  |
-| `isosurface` | ❌ |  |  |  |  |  |
-| `reducepatch` | ❌ |  |  |  |  |  |
-| `reducevolume` | ❌ |  |  |  |  |  |
-| `shrinkfaces` | ❌ |  |  |  |  |  |
-| `slice` | ❌ |  |  |  |  |  |
-| `smooth3` | ❌ |  |  |  |  |  |
-| `stream2` | ❌ |  |  |  |  |  |
-| `stream3` | ❌ |  |  |  |  |  |
-| `streamline` | ❌ |  |  |  |  |  |
-| `streamparticles` | ❌ |  |  |  |  |  |
-| `streamribbon` | ❌ |  |  |  |  |  |
-| `streamslice` | ❌ |  |  |  |  |  |
-| `streamtube` | ❌ |  |  |  |  |  |
-| `subvolume` | ❌ |  |  |  |  |  |
-| `volumebounds` | ❌ |  |  |  |  |  |
-
-## Geographic Plots
-
-**Namespace:** `graphics.geographic.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `geoaxes` | ❌ |  |  |  |  |  |
-| `geobasemap` | ❌ |  |  |  |  |  |
-| `geobubble` | ❌ |  |  |  |  |  |
-| `geodensityplot` | ❌ |  |  |  |  |  |
-| `geolimits` | ❌ |  |  |  |  |  |
-| `geoplot` | ❌ |  |  |  |  |  |
-| `geoscatter` | ❌ |  |  |  |  |  |
-| `geotickformat` | ❌ |  |  |  |  |  |
-
-## Low-Level File I/O
-
-**Namespace:** `io.file_io.*` — 13 ✅ + 0 ⚠️ / 15 = 86%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `fclose` | ✅ | 0.025 | 0.77× | 0.94× | OK | Sig: STATUS = fclose(FID). 1000 iters. |
-| `feof` | ✅ | 0.026 | 1.13× | 1.33× | OK | Sig: TF = feof(FID). 1000 iters. |
-| `ferror` | ✅ | 0.026 | 0.71× |  | OK | Sig: MSG = ferror(FID). 1000 iters. |
-| `fgetl` | ✅ | 0.026 | 1.01× |  | OK | Sig: LINE = fgetl(FID). 1000 iters. |
-| `fgets` | ✅ | 0.025 | 1.01× |  | OK | Sig: LINE = fgets(FID). 1000 iters. |
-| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
-| `fopen` | ✅ | 0.027 | 0.69× | 0.88× | OK | Sig: FID = fopen(F). 1000 iters. |
-| `fprintf` | ✅ |  |  |  | N/A | Sig: COUNT = fprintf(FID, FMT, A). 100 iters. |
-| `fread` | ✅ | 0.048 | 0.80× | 0.92× | OK | Sig: A = fread(FID, COUNT, PRECISION). 100 iters. |
-| `frewind` | ✅ | 0.028 | 1.48× | 1.64× | OK | Sig: frewind(FID). 1000 iters. |
-| `fscanf` | ✅ | 0.027 | 1.63× | 1.90× | OK | Sig: A = fscanf(FID, FMT). 1000 iters. |
-| `fseek` | ✅ | 0.028 | 1.01× | 1.15× | OK | Sig: STATUS = fseek(FID, OFFSET, ORIGIN). 1000 iters. |
-| `ftell` | ✅ | 0.028 | 1.03× | 1.23× | OK | Sig: POS = ftell(FID). 1000 iters. |
-| `fwrite` | ✅ | 0.235 | 2.12× | 1.06× | OK | Sig: COUNT = fwrite(FID, A, PRECISION). 100 iters. |
-| `openedfiles` | ❌ |  |  |  |  |  |
-
-## Text Files (CSV / dlm / readtable)
-
-**Namespace:** `io.text.*`. Exception: `readtable/writetable/readtimetable/writetimetable` → `table.*` (future) — 1 ✅ + 0 ⚠️ / 16 = 6%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `fileread` | ✅ | 0.019 | 4.01× |  | OK | Sig: T = fileread(F). 1000 iters. |
-| `importdatatask` | ❌ |  |  |  |  |  |
-| `importtool` | ❌ |  |  |  |  |  |
-| `readcell` | ❌ |  |  |  |  |  |
-| `readlines` | ✅ | 0.019 | 132.24× |  | MISMATCH | Sig: L = readlines(F). 4-line file. 1000 iters. |
-| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
-| `readtable` | ❌ |  |  |  |  | needs table type |
-| `readtimetable` | ❌ |  |  |  |  |  |
-| `readvars` | ❌ |  |  |  |  |  |
-| `textscan` | ✅ | 0.028 | 4.16× | 1.97× | OK | Sig: C = textscan(FID, FMT). 100 iters. |
-| `type` | ✅ |  |  |  | N/A | Sig: type(F). Captured via evalc. 1000 iters. |
-| `writecell` | ❌ |  |  |  |  |  |
-| `writelines` | ✅ |  |  |  | N/A | Sig: writelines(L, F). 100 iters. |
-| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
-| `writetable` | ❌ |  |  |  |  | needs table type |
-| `writetimetable` | ❌ |  |  |  |  |  |
-
-## Spreadsheets
-
-**Namespace:** `io.text.*`. Table-shaped readers (`readtable`/`writetable`) → `table.*` (future) — 0 ✅ + 0 ⚠️ / 13 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `importdata` | ❌ |  |  |  |  | auto-detect |
-| `importdatatask` | ❌ |  |  |  |  |  |
-| `importtool` | ❌ |  |  |  |  |  |
-| `readcell` | ❌ |  |  |  |  |  |
-| `readmatrix` | ✅ | 0.021 | 274.53× |  | OK | Sig: M = readmatrix(F). 100 iters. |
-| `readtable` | ❌ |  |  |  |  | needs table type |
-| `readtimetable` | ❌ |  |  |  |  |  |
-| `readvars` | ❌ |  |  |  |  |  |
-| `sheetnames` | ❌ |  |  |  |  |  |
-| `writecell` | ❌ |  |  |  |  |  |
-| `writematrix` | ✅ | 0.650 | 4.00× |  | MISMATCH | Sig: writematrix(M, F). 100 iters. |
-| `writetable` | ❌ |  |  |  |  | needs table type |
-| `writetimetable` | ❌ |  |  |  |  |  |
-
-## Workspace Save / Load
-
-**Namespace:** `io.workspace.*` — 0 ✅ + 0 ⚠️ / 2 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `loadobj` | ❌ |  |  |  |  |  |
-| `saveobj` | ❌ |  |  |  |  |  |
-
-## File Name Construction
-
-**Namespace:** `io.paths.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `filemarker` | ❌ |  |  |  |  |  |
-| `fileparts` | ✅ | 0.000 | 8.91× |  | OK | Sig: [PATH,NAME,EXT] = fileparts(F). 10000 iters. |
-| `filesep` | ✅ | 0.000 | 2.88× |  | OK | Sig: SEP = filesep. OS-specific separator. 100k iters. |
-| `fullfile` | ✅ | 0.001 | 16.87× |  | OK | Sig: F = fullfile(PARTS). 10000 iters. |
-| `matlabdrive` | ❌ |  |  |  |  |  |
-| `matlabroot` | ❌ |  |  |  |  |  |
-| `tempdir` | ✅ | 0.013 | 0.08× |  | OK | Sig: D = tempdir. 10000 iters. |
-| `tempname` | ✅ | 0.014 | 1.08× |  | OK | Sig: F = tempname. 10000 iters. |
-| `toolboxdir` | ❌ |  |  |  |  |  |
-
-## Waveform Generation
-
-**Namespace:** `signal.waveform_generation.*` — 5 ✅ + 0 ⚠️ / 21 = 23%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `buffer` | ❌ |  |  |  |  | reshape with overlap |
-| `chirp` | ✅ | 0.030 | 2.17× | 1.70× | OK | Sig: Y = chirp(T, F0, T1, F1). 4096-pt linear sweep. 1000 iters. |
-| `demod` | ❌ |  |  |  |  |  |
-| `diric` | ✅ | 0.116 | 0.96× | 1.87× | OK | Sig: Y = diric(X, N). Dirichlet kernel N=5. 1000 iters. |
-| `framelbl` | ❌ |  |  |  |  |  |
-| `framesig` | ❌ |  |  |  |  |  |
-| `gauspuls` | ✅ | 0.107 | 0.44× | 1.00× | MISMATCH | Sig: Y = gauspuls(T, FC, BW). Gaussian pulse. 1000 iters. |
-| `gmonopuls` | ✅ | 0.085 | 0.49× | 0.79× | OK | Sig: Y = gmonopuls(T, FC). Gaussian monopulse. 1000 iters. |
-| `marcumq` | ❌ |  |  |  |  |  |
-| `modulate` | ❌ |  |  |  |  |  |
-| `pulstran` | ✅ | 0.009 | 5.05× | 17.41× | MISMATCH | Sig: Y = pulstran(T, D, FUNC, ARGS). Pulse train. 1000 iters. |
-| `rectpuls` | ✅ | 0.020 | 1.23× | 1.42× | OK | Sig: Y = rectpuls(T). Rectangular pulse. 1000 iters. |
-| `sawtooth` | ✅ | 0.063 | 0.80× | 1.31× | OK | Sig: Y = sawtooth(T). 1000 iters. |
-| `shiftdata` | ❌ |  |  |  |  |  |
-| `sinc` | ✅ | 0.731 | 0.28× | 1.75× | OK | Sig: Y = sinc(X). 100k-pt sin(πx)/(πx). 1000 iters. |
-| `square` | ✅ | 0.061 | 0.66× | 0.82× | OK | Sig: Y = square(T). Square wave. 1000 iters. |
-| `tripuls` | ✅ | 0.057 | 0.80× | 1.09× | OK | Sig: Y = tripuls(T). Triangular pulse. 1000 iters. |
-| `udecode` | ❌ |  |  |  |  |  |
-| `uencode` | ❌ |  |  |  |  |  |
-| `unshiftdata` | ❌ |  |  |  |  |  |
-| `vco` | ❌ |  |  |  |  | VCO |
-
-## Filter Design (FIR / IIR coefficient generators)
-
-**Namespace:** `signal.filter_design.*` — 11 ✅ + 0 ⚠️ / 37 = 30%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
-| `buttord` | ✅ |  |  |  | OK | LP/HP match MATLAB exactly; band-edge refinement deferred. |
-| `cfirpm` | ❌ |  |  |  |  | complex Parks-McClellan |
-| `cheb1ord` | ✅ |  |  |  | OK | Wn = Wp (passband edge). |
-| `cheb2ord` | ✅ |  |  |  | OK | Wn = Ws (stopband edge). |
-| `cheby1` | ✅ |  |  |  | OK | LP/HP/BP/BS via cheb1ap+lp2X+zp2tf+bilinear. |
-| `cheby2` | ✅ |  |  |  | OK | Cheb2ap zero formula was 1/sin → 1/cos; fixed in 6ec8a62. |
-| `designfilt` | ❌ |  |  |  |  |  |
-| `designfilter` | ❌ |  |  |  |  |  |
-| `digitalfilter` | ❌ |  |  |  |  |  |
-| `double` | ✅ | 3.606 | 0.04× | 0.57× | OK | Sig: Y = double(X). 1M single → double. 50 iters. Element-wise SAVE. |
-| `dspfwiz` | ❌ |  |  |  |  |  |
-| `ellip` | ❌ |  |  |  |  | IIR elliptic |
-| `ellipord` | ❌ |  |  |  |  | order estimator |
-| `filt2block` | ❌ |  |  |  |  |  |
-| `filteranalyzer` | ❌ |  |  |  |  |  |
-| `fir1` | ✅ | 0.000 | 152.85× | 3103.22× | OK | Sig: B = fir1(N, WN). 21-tap FIR. 1000 iters. |
-| `fir2` | ❌ |  |  |  |  | arbitrary-response FIR |
-| `fircls` | ❌ |  |  |  |  | constrained-LS FIR |
-| `fircls1` | ❌ |  |  |  |  |  |
-| `firls` | ❌ |  |  |  |  | least-squares FIR |
-| `firpm` | ❌ |  |  |  |  | Parks-McClellan FIR |
-| `firpmord` | ❌ |  |  |  |  | order estimator |
-| `gaussdesign` | ❌ |  |  |  |  |  |
-| `info` | ❌ |  |  |  |  |  |
-| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
-| `isdouble` | ❌ |  |  |  |  |  |
-| `issingle` | ✅ | 0.000 |  |  | N/A | Sig: TF = issingle(X). 100k iters. |
-| `kaiserord` | ❌ |  |  |  |  | Kaiser window order |
-| `maxflat` | ❌ |  |  |  |  |  |
-| `polyscale` | ❌ |  |  |  |  |  |
-| `polystab` | ❌ |  |  |  |  |  |
-| `rcosdesign` | ✅ |  |  |  | OK | shared with comm.shape; unit-energy 'normal' / 'sqrt' |
-| `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
-| `single` | ✅ | 2.755 | 0.06× | 0.43× | OK | Sig: Y = single(X). 1M double → single. 50 iters. Element-wise SAVE. |
-| `yulewalk` | ❌ |  |  |  |  | recursive YW |
-
-## Analog Filters (prototype + analog response)
-
-**Namespace:** `signal.filter_design.*` — 14 ✅ + 0 ⚠️ / 17 = 82%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `besselap` | ✅ |  |  |  |  | analog prototype |
-| `besself` | ✅ |  |  |  | OK | a = [1, 2.4329, 2.4662, 1] for N=3 — matches Bessel polynomial. |
-| `bilinear` | ✅ |  |  |  |  |  |
-| `buttap` | ✅ |  |  |  |  | analog prototype |
-| `butter` | ✅ | 0.000 | 316.16× | 403.68× | OK | Sig: [B,A] = butter(N, WN). 4th-order LPF. 1000 iters. SAVE on B. |
-| `cheb1ap` | ✅ |  |  |  |  | analog prototype |
-| `cheb2ap` | ✅ |  |  |  |  | analog prototype (zeros formula fixed in 6ec8a62) |
-| `cheby1` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 0.5, 0.4) test. |
-| `cheby2` | ✅ |  |  |  | OK | Matches MATLAB to 6+ decimals on (4, 30, 0.4) test. |
-| `ellip` | ❌ |  |  |  |  | IIR elliptic — needs ellipap (Jacobi elliptic) |
-| `ellipap` | ❌ |  |  |  |  | needs K(m) via AGM + Jacobi sn/cn/dn |
-| `freqs` | ✅ |  |  |  |  | analog freq response |
-| `impinvar` | ✅ |  |  |  | OK | Matches MATLAB to 8 decimals on simple-pole tests. Repeated poles not yet supported. |
-| `lp2bp` | ✅ |  |  |  |  |  |
-| `lp2bs` | ✅ |  |  |  |  |  |
-| `lp2hp` | ✅ |  |  |  |  |  |
-| `lp2lp` | ✅ |  |  |  |  |  |
-
-## Digital Filter Analysis (freqz / phasez / grpdelay / impz / ...)
-
-**Namespace:** `signal.filter_analysis.*` — 3 ✅ + 0 ⚠️ / 19 = 15%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `filteranalyzer` | ❌ |  |  |  |  |  |
-| `filternorm` | ❌ |  |  |  |  |  |
-| `filtord` | ❌ |  |  |  |  |  |
-| `firtype` | ❌ |  |  |  |  |  |
-| `freqz` | ✅ | 0.004 | 21.99× | 51.25× | MISMATCH | Sig: [H,W] = freqz(B,A,N). 256-pt freq response. 1000 iters. |
-| `grpdelay` | ✅ | 0.006 | 29.69× | 26.74× | MISMATCH | Sig: [G,W] = grpdelay(B,A,N). Group delay. 1000 iters. |
-| `impz` | ✅ | 0.002 | 38.13× | 13.46× | OK | Sig: [H,T] = impz(B,A,N). Impulse response. 1000 iters. |
-| `impzlength` | ✅ | 0.000 | 316.67× |  | MISMATCH | Sig: L = impzlength(B, A). 10000 iters. |
-| `isallpass` | ✅ | 0.000 | 107.10× | 241.60× | OK | Sig: TF = isallpass(B, A). FIR coefficients. 10000 iters. |
-| `isfir` | ✅ | 0.000 |  |  | N/A | Sig: TF = isfir(B, A). 10000 iters. |
-| `islinphase` | ✅ | 0.000 | 261.13× |  | OK | Sig: TF = islinphase(B, A). 10000 iters. |
-| `ismaxphase` | ✅ | 0.001 | 178.17× | 154.70× | OK | Sig: TF = ismaxphase(B, A). 10000 iters. |
-| `isminphase` | ✅ | 0.000 | 270.37× | 260.14× | OK | Sig: TF = isminphase(B, A). 10000 iters. |
-| `isstable` | ✅ | 0.000 | 219.41× | 155.13× | OK | Sig: TF = isstable(B, A). 10000 iters. |
-| `phasedelay` | ✅ | 0.006 | 152.47× |  | MISMATCH | Sig: [P,W] = phasedelay(B,A,N). Phase delay. 1000 iters. |
-| `phasez` | ✅ | 0.005 | 82.46× | 45.85× | MISMATCH | Sig: [P,W] = phasez(B,A,N). 256-pt phase response. 1000 iters. |
-| `stepz` | ✅ | 0.002 | 40.07× |  | OK | Sig: [H,T] = stepz(B,A,N). 256-pt step response. 1000 iters. |
-| `zerophase` | ✅ | 0.005 | 173.47× |  | MISMATCH | Sig: [HZ,W] = zerophase(B,A,N). Zero-phase. 1000 iters. |
-| `zplane` | ❌ |  |  |  |  |  |
-
-## Digital Filtering (filter / filtfilt / sosfilt / lowpass / ...)
-
-**Namespace:** `signal.digital_filtering.*` + `signal.filter_implementation.*` (TF/SOS/SS/ZP conversions) — 8 ✅ + 0 ⚠️ / 41 = 19%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bandpass` | ✅ | 0.540 | 113.63× |  | MISMATCH | Sig: Y = bandpass(X, [LO HI], FS). 100 iters. |
-| `bandstop` | ✅ | 0.603 | 95.72× |  | MISMATCH | Sig: Y = bandstop(X, [LO HI], FS). 100 iters. |
-| `cell2sos` | ❌ |  |  |  |  |  |
-| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `ctf2zp` | ❌ |  |  |  |  | control TF → ZPK |
-| `ctffilt` | ❌ |  |  |  |  | control TF filter |
-| `dspfwiz` | ❌ |  |  |  |  |  |
-| `eqtflength` | ❌ |  |  |  |  |  |
-| `fftfilt` | ✅ | 1.769 | 1.93× | 5.18× | OK | Sig: Y = fftfilt(B, X). FFT-based 32-tap MA on 100k. 100 iters. |
-| `filt2block` | ❌ |  |  |  |  |  |
-| `filtfilt` | ✅ | 0.261 | 1.41× | 1.86× | OK | Sig: Y = filtfilt(B, A, X). Zero-phase forward+back. 100 iters. |
-| `filtic` | ❌ |  |  |  |  | init state |
-| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
-| `highpass` | ✅ | 0.283 | 196.45× |  | MISMATCH | Sig: Y = highpass(X, FPASS, FS). 100 iters. |
-| `latc2tf` | ❌ |  |  |  |  | inverse |
-| `latcfilt` | ❌ |  |  |  |  |  |
-| `lowpass` | ✅ | 0.291 | 184.11× |  | MISMATCH | Sig: Y = lowpass(X, FPASS, FS). 10k pts, 100 Hz cutoff at fs=1k. 100 iters. |
-| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
-| `residuez` | ❌ |  |  |  |  |  |
-| `scalefiltersections` | ❌ |  |  |  |  |  |
-| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
-| `sos2cell` | ❌ |  |  |  |  |  |
-| `sos2ctf` | ❌ |  |  |  |  |  |
-| `sos2ss` | ✅ | 0.001 | 20.77× | 1990.57× | MISMATCH | Sig: [A,B,C,D] = sos2ss(SOS). 1000 iters. |
-| `sos2tf` | ✅ | 0.001 | 28.06× | 211.88× | OK | Sig: [B,A] = sos2tf(SOS). 1000 iters. |
-| `sos2zp` | ✅ | 0.002 | 14.99× | 95.44× | OK | Sig: [Z,P,K] = sos2zp(SOS). 1000 iters. |
-| `sosfilt` | ✅ | 0.102 | 0.43× | 0.29× | OK | Sig: Y = sosfilt(SOS, X). 10k pts. 100 iters. |
-| `ss` | ❌ |  |  |  |  |  |
-| `ss2sos` | ✅ | 0.001 | 97.24× |  | MISMATCH | Sig: SOS = ss2sos(A,B,C,D). 1000 iters. |
-| `ss2zp` | ✅ |  |  |  | N/A | Sig: [Z,P,K] = ss2zp(A,B,C,D). 1000 iters. |
-| `tf` | ❌ |  |  |  |  |  |
-| `tf2latc` | ❌ |  |  |  |  | lattice |
-| `tf2sos` | ✅ | 0.001 | 97.22× | 1564.99× | MISMATCH | Sig: SOS = tf2sos(B,A). 1000 iters. |
-| `tf2ss` | ✅ | 0.000 | 14.43× | 3654.83× | MISMATCH | Sig: [A,B,C,D] = tf2ss(BS,AS). 1000 iters. SAVE on A. |
-| `tf2zp` | ✅ | 0.001 | 21.65× | 2076.90× | OK | Sig: [Z,P,K] = tf2zp(B,A). 10000 iters. SAVE on Z. |
-| `tf2zpk` | ✅ | 0.001 | 27.29× |  | OK | Sig: [Z,P,K] = tf2zpk(B,A). 10000 iters. |
-| `zp2ctf` | ❌ |  |  |  |  |  |
-| `zp2sos` | ✅ | 0.000 | 264.82× | 1334.55× | OK | Sig: SOS = zp2sos(Z,P,K). 1000 iters. |
-| `zp2ss` | ✅ | 0.001 | 51.12× | 2385.86× | MISMATCH | Sig: [A,B,C,D] = zp2ss(Z,P,K). 1000 iters. |
-| `zp2tf` | ✅ | 0.000 | 43.39× | 4351.90× | OK | Sig: [B,A] = zp2tf(Z,P,K). 10000 iters. |
-| `zpk` | ❌ |  |  |  |  |  |
-
-## Multirate Signal Processing (decimate / interp / resample / ...)
-
-**Namespace:** `signal.multirate.*` — 4 ✅ + 0 ⚠️ / 8 = 50%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `decimate` | ✅ | 1.190 | 2.29× | 5.87× | MISMATCH | Sig: Y = decimate(X, M). M=4. 100 iters. |
-| `downsample` | ✅ | 0.042 | 1.96× | 0.73× | OK | Sig: Y = downsample(X, N). N=4. 1000 iters. |
-| `fillgaps` | ❌ |  |  |  |  |  |
-| `interp` | ✅ | 3.443 | 0.21× | 3.66× | MISMATCH | Sig: Y = interp(X, L). Upsample×4 with FIR. 100 iters. |
-| `intfilt` | ✅ | 0.001 | 465.68× |  | MISMATCH | Sig: H = intfilt(R, L, ALPHA). FIR coeffs (alpha=0.5). 1000 iters. |
-| `resample` | ✅ | 0.496 | 1.82× | 5.42× | MISMATCH | Sig: Y = resample(X, P, Q). 3:2. 100 iters. |
-| `upfirdn` | ✅ | 0.023 | 4.96× | 0.64× | MISMATCH | Sig: Y = upfirdn(X, H, P, Q). 100 iters. |
-| `upsample` | ✅ | 0.133 | 0.52× | 0.47× | OK | Sig: Y = upsample(X, N). N=4. 1000 iters. |
-
-## Signal Modeling (AR / Burg / Yule-Walker / Levinson / Prony)
-
-**Namespace:** `signal.parametric.*` — 23 ✅ + 0 ⚠️ / 25 = 92%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `ac2poly` | ✅ |  |  |  |  |  |
-| `ac2rc` | ✅ |  |  |  |  |  |
-| `arburg` | ✅ |  |  |  |  | Burg AR |
-| `arcov` | ✅ |  |  |  |  | covariance AR |
-| `armcov` | ✅ |  |  |  |  | modified cov AR |
-| `aryule` | ✅ |  |  |  |  | Yule-Walker AR |
-| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
-| `invfreqs` | ✅ |  |  |  | OK | Levi LSQ; round-trip recovers source coefficients to machine precision. |
-| `invfreqz` | ✅ |  |  |  | OK | Same, in z⁻¹ form. Iterative S-K refinement deferred. |
-| `is2rc` | ✅ |  |  |  |  |  |
-| `lar2rc` | ✅ |  |  |  |  |  |
-| `levinson` | ✅ |  |  |  |  | Levinson-Durbin |
-| `lpc` | ✅ |  |  |  |  | linear prediction |
-| `lsf2poly` | ✅ |  |  |  |  |  |
-| `poly2ac` | ✅ |  |  |  |  |  |
-| `poly2lsf` | ✅ |  |  |  |  |  |
-| `poly2rc` | ✅ |  |  |  |  |  |
-| `prony` | ✅ |  |  |  |  | Prony method |
-| `rc2ac` | ✅ |  |  |  |  |  |
-| `rc2is` | ✅ |  |  |  |  |  |
-| `rc2lar` | ✅ |  |  |  |  |  |
-| `rc2poly` | ✅ |  |  |  |  |  |
-| `rlevinson` | ✅ |  |  |  |  | reverse Levinson |
-| `schurrc` | ❌ |  |  |  |  | Schur recursion |
-| `stmcb` | ❌ |  |  |  |  | Steiglitz-McBride |
-
-## Correlation and Convolution (extras: alignsignals / finddelay / xcorr2 / cconv / convmtx)
-
-**Namespace:** `signal.convolution.*` — 0 ✅ + 0 ⚠️ / 9 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ | 0.099 | 2.19× |  | MISMATCH | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
-| `cconv` | ✅ | 10.545 | 0.02× | 0.03× | OK | Sig: C = cconv(A, B). Circular convolution. 100 iters. |
-| `convmtx` | ✅ | 0.004 | 11.81× | 31.10× | OK | Sig: A = convmtx(H, N). 102x100 conv matrix. 1000 iters. |
-| `corrmtx` | ✅ |  |  |  |  | autocorr matrix |
-| `dtw` | ❌ |  |  |  |  | dynamic time warp |
-| `edr` | ❌ |  |  |  |  | edit distance on real |
-| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
-| `findsignal` | ❌ |  |  |  |  | pattern search |
-| `xcorr2` | ✅ | 0.229 | 0.14× | 0.19× | OK | Sig: C = xcorr2(A, B). 32x32 vs 8x8. 1000 iters. |
-
-## Transforms (FFT / DCT / DWT / Hilbert / CZT / Cepstrum)
-
-**Namespace:** `signal.transforms.*`. Promotions in core: `fft, ifft, fftshift, ifftshift`. Future wavelet split: `cwt/dwt/modwt/...` → `wavelet.*` — 6 ✅ + 0 ⚠️ / 32 = 18%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bitrevorder` | ✅ | 0.003 | 133.74× | 204.18× | OK | Sig: Y = bitrevorder(X). Bit-reverse permutation. 10000 iters. |
-| `cceps` | ✅ | 0.029 | 5.63× | 3.79× | OK | Sig: Y = cceps(X). Complex cepstrum. 100 iters. |
-| `czt` | ❌ |  |  |  |  | chirp Z-transform |
-| `dct` | ✅ | 3.978 | 0.02× | 0.02× | OK | Sig: Y = dct(X). 1024-pt DCT. 1000 iters. |
-| `dftmtx` | ✅ | 0.034 | 1.55× | 1.24× | OK | Sig: F = dftmtx(N). 64x64 DFT matrix. 1000 iters. |
-| `digitrevorder` | ❌ |  |  |  |  |  |
-| `dlistft` | ❌ |  |  |  |  |  |
-| `dlstft` | ❌ |  |  |  |  |  |
-| `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
-| `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
-| `fwht` | ❌ |  |  |  |  | fast Walsh-Hadamard |
-| `goertzel` | ✅ | 0.066 | 2.56× |  | OK | Sig: Y = goertzel(X, F). 41 freq bins. 100 iters. |
-| `hht` | ❌ |  |  |  |  | Hilbert-Huang |
-| `hilbert` | ✅ | 0.020 | 3.65× | 12.54× | OK | Sig: H = hilbert(X). Analytic signal real part. 1000 iters. |
-| `icceps` | ✅ | 0.034 | 2.11× |  | OK | Sig: Y = icceps(C). Inverse complex cepstrum. 100 iters. |
-| `idct` | ✅ | 3.917 | 0.02× | 0.03× | OK | Sig: y = idct(X). Inverse DCT 1024-pt. 1000 iters. |
-| `ifsst` | ❌ |  |  |  |  |  |
-| `ifwht` | ❌ |  |  |  |  | inverse |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
-| `istft` | ❌ |  |  |  |  | inverse |
-| `istftlayer` | ❌ |  |  |  |  |  |
-| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `rceps` | ✅ | 0.024 | 4.97× | 4.25× | OK | Sig: Y = rceps(X). Real cepstrum. 1000 iters. |
-| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
-| `stft` | ❌ |  |  |  |  | short-time FFT |
-| `stftlayer` | ❌ |  |  |  |  |  |
-| `stftmag2sig` | ❌ |  |  |  |  |  |
-| `vmd` | ❌ |  |  |  |  | variational MD |
-| `wvd` | ❌ |  |  |  |  | Wigner-Ville |
-| `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
-| `xwvd` | ❌ |  |  |  |  | cross WVD |
-
-## Windows (Hamming / Hann / Kaiser / Chebyshev / DPSS / ...)
-
-**Namespace:** `signal.windows.*` — 6 ✅ + 0 ⚠️ / 24 = 25%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `barthannwin` | ✅ | 0.004 | 4.96× | 6.35× | OK | Sig: W = barthannwin(N). Bartlett-Hann. 10000 iters. |
-| `bartlett` | ✅ | 0.002 | 6.14× | 10.10× | OK | Sig: W = bartlett(N). 1024-pt triangular. 10000 iters. |
-| `blackman` | ✅ | 0.007 | 4.61× | 3.81× | OK | Sig: W = blackman(N). 1024-pt Blackman. 10000 iters. |
-| `blackmanharris` | ✅ | 0.010 | 2.84× | 3.91× | OK | Sig: W = blackmanharris(N). 4-term Blackman-Harris. 10000 iters. |
-| `bohmanwin` | ✅ | 0.007 | 3.52× | 5.92× | OK | Sig: W = bohmanwin(N). Bohman. 10000 iters. |
-| `chebwin` | ✅ | 0.024 | 0.83× | 7.41× | MISMATCH | Sig: W = chebwin(N, R). Dolph-Chebyshev. 1000 iters. |
-| `dpss` | ❌ |  |  |  |  | discrete prolate spheroidal |
-| `dpssclear` | ❌ |  |  |  |  | cache |
-| `dpssdir` | ❌ |  |  |  |  | cache |
-| `dpssload` | ❌ |  |  |  |  | cache |
-| `dpsssave` | ❌ |  |  |  |  | cache |
-| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
-| `flattopwin` | ✅ | 0.013 | 2.99× | 3.20× | OK | Sig: W = flattopwin(N). Flat-top. 10000 iters. |
-| `gausswin` | ✅ | 0.004 | 5.68× | 5.12× | OK | Sig: W = gausswin(N). Gaussian. 10000 iters. |
-| `hamming` | ✅ | 0.004 | 6.66× | 4.44× | OK | Sig: W = hamming(N). 1024-pt Hamming. 10000 iters. |
-| `hann` | ✅ | 0.004 | 7.54× | 6.01× | OK | Sig: W = hann(N). 1024-pt Hann window. 10000 iters. |
-| `kaiser` | ✅ | 0.019 | 1.63× | 13.62× | OK | Sig: W = kaiser(N, BETA). beta=5. 10000 iters. |
-| `nuttallwin` | ✅ | 0.010 | 2.43× | 3.99× | OK | Sig: W = nuttallwin(N). 10000 iters. |
-| `parzenwin` | ✅ | 0.001 | 43.75× | 39.21× | OK | Sig: W = parzenwin(N). 10000 iters. |
-| `rectwin` | ✅ | 0.001 | 1.62× | 7.42× | OK | Sig: W = rectwin(N). All-ones. 10000 iters. |
-| `taylorwin` | ✅ | 0.013 | 3.16× | 7.12× | MISMATCH | Sig: W = taylorwin(N). 1024-pt Taylor window. 1000 iters. |
-| `triang` | ✅ | 0.001 | 8.97× | 15.16× | OK | Sig: W = triang(N). Triangular. 10000 iters. |
-| `tukeywin` | ✅ | 0.002 | 9.45× | 26.31× | OK | Sig: W = tukeywin(N, R). r=0.5. 10000 iters. |
-| `wvtool` | ❌ |  |  |  |  | GUI |
-
-## Parametric Spectral Estimation (pburg / pmtm / pmusic / ...)
-
-**Namespace:** `signal.spectral_analysis.*`. Magnitude utils (`db/db2mag/mag2db/pow2db`) → core (cross-cutting math) — 3 ✅ + 0 ⚠️ / 10 = 30%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
-| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `pburg` | ✅ |  |  |  | OK | AR PSD via Burg lattice; AR(2) peak recovery within 1 PSD bin |
-| `pcov` | ❌ |  |  |  |  |  |
-| `pmcov` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
-| `pyulear` | ✅ |  |  |  | OK | AR PSD via Levinson-Durbin; agrees with pburg to 4 decimals |
-
-## Nonparametric Spectral Estimation (pwelch / periodogram / cpsd / ...)
-
-**Namespace:** `signal.spectral_analysis.*` — 6 ✅ + 0 ⚠️ / 17 = 35%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `cpsd` | ✅ |  |  |  | OK | one-sided complex cross-PSD via Welch; Sxx-identity match to 0 |
-| `db` | ✅ | 0.246 | 1.04× |  | OK | Sig: D = db(X). magnitude → dB. 100k iters. |
-| `db2mag` | ✅ | 0.861 | 0.70× | 1.37× | OK | Sig: M = db2mag(D). 100k iters. |
-| `db2pow` | ✅ | 0.645 | 0.93× | 1.92× | OK | Sig: P = db2pow(D). 100k pts. 1000 iters. |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
-| `mag2db` | ✅ | 0.451 | 0.53× | 2.53× | OK | Sig: D = mag2db(M). 100k iters. |
-| `mscohere` | ✅ |  |  |  | OK | \|Pxy\|² / (Pxx·Pyy); auto = 1 exactly, LTI ≈ 0.97 |
-| `periodogram` | ✅ | 0.010 |  | 11.41× | MISMATCH | Sig: [PXX, F] = periodogram(X). 1024-pt PSD. 100 iters. SAVE on PXX. |
-| `plomb` | ❌ |  |  |  |  | Lomb-Scargle |
-| `pmtm` | ❌ |  |  |  |  | multi-taper |
-| `poctave` | ❌ |  |  |  |  |  |
-| `pow2db` | ✅ | 0.247 | 0.96× | 4.59× | OK | Sig: D = pow2db(P). 100k iters. |
-| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `pwelch` | ✅ | 0.063 | 19.59× | 14.55× | MISMATCH | Sig: [PXX, F] = pwelch(X). Welch PSD. 100 iters. |
-| `refinepeaks` | ❌ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
-| `tfestimate` | ✅ |  |  |  | OK | Pyx/Pxx; auto = 1 exactly, FIR LTI recovers \|H(f)\| within 0.018 |
-
-## Spectral Measurements (bandpower / snr / sinad / thd / ...)
-
-**Namespace:** `signal.spectral_analysis.*` — 0 ✅ + 0 ⚠️ / 18 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bandpower` | ✅ |  |  |  |  |  |
-| `enbw` | ✅ |  |  |  |  | equivalent noise BW |
-| `instbw` | ✅ |  |  |  |  |  |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
-| `meanfreq` | ✅ |  |  |  |  | mean frequency |
-| `medfreq` | ✅ |  |  |  |  | median frequency |
-| `obw` | ✅ |  |  |  |  |  |
-| `powerbw` | ✅ |  |  |  |  |  |
-| `sfdr` | ✅ |  |  |  |  | spurious-free dynamic range |
-| `sinad` | ✅ |  |  |  |  | signal-noise-distortion |
-| `snr` | ✅ |  |  |  |  | signal-to-noise |
-| `spectralcrest` | ✅ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
-| `spectralflatness` | ✅ |  |  |  |  |  |
-| `spectralkurtosis` | ✅ |  |  |  |  |  |
-| `spectralskewness` | ✅ |  |  |  |  |  |
-| `thd` | ✅ |  |  |  |  | total harmonic distortion |
-| `toi` | ❌ |  |  |  |  | third-order intercept |
-
-## Time-Frequency Analysis (spectrogram / stft / cwt / wvd / ...)
-
-**Namespace:** `signal.time_frequency.*`. Wavelet/EMD subset (`cwt/wsst/vmd/hht/emd/fsst/ifsst`) → `wavelet.*` (future) — 1 ✅ + 0 ⚠️ / 27 = 3%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `dlistft` | ❌ |  |  |  |  |  |
-| `dlstft` | ❌ |  |  |  |  |  |
-| `emd` | ❌ |  |  |  |  | empirical mode decomp |
-| `fsst` | ❌ |  |  |  |  | Fourier synchrosqueezed |
-| `hht` | ❌ |  |  |  |  | Hilbert-Huang |
-| `ifsst` | ❌ |  |  |  |  |  |
-| `instbw` | ✅ |  |  |  |  |  |
-| `instfreq` | ✅ |  |  |  |  | instantaneous frequency |
-| `iscola` | ❌ |  |  |  |  |  |
-| `istft` | ❌ |  |  |  |  | inverse |
-| `istftlayer` | ❌ |  |  |  |  |  |
-| `kurtogram` | ❌ |  |  |  |  |  |
-| `pspectrum` | ❌ |  |  |  |  | easy spectral analysis |
-| `spectralcrest` | ✅ |  |  |  |  |  |
-| `spectralentropy` | ✅ |  |  |  |  |  |
-| `spectralflatness` | ✅ |  |  |  |  |  |
-| `spectralkurtosis` | ✅ |  |  |  |  |  |
-| `spectralskewness` | ✅ |  |  |  |  |  |
-| `spectrogram` | ✅ | 0.102 | 7.88× |  | OK | Sig: [S, F, T] = spectrogram(X, NFFT). 100 iters. SAVE on S magnitude. |
-| `stft` | ❌ |  |  |  |  | short-time FFT |
-| `stftlayer` | ❌ |  |  |  |  |  |
-| `stftmag2sig` | ❌ |  |  |  |  |  |
-| `tfridge` | ❌ |  |  |  |  |  |
-| `vmd` | ❌ |  |  |  |  | variational MD |
-| `wvd` | ❌ |  |  |  |  | Wigner-Ville |
-| `xspectrogram` | ❌ |  |  |  |  | cross-spectrogram |
-| `xwvd` | ❌ |  |  |  |  | cross WVD |
-
-## Pulse and Transition Metrics (risetime / dutycycle / overshoot / ...)
-
-**Namespace:** `signal.measurements.*` — 0 ✅ + 0 ⚠️ / 12 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `dutycycle` | ✅ |  |  |  |  | duty cycle |
-| `falltime` | ✅ |  |  |  |  |  |
-| `midcross` | ✅ |  |  |  |  | mid-ref crossings |
-| `overshoot` | ✅ |  |  |  |  |  |
-| `pulseperiod` | ✅ |  |  |  |  |  |
-| `pulsesep` | ✅ |  |  |  |  |  |
-| `pulsewidth` | ✅ |  |  |  |  |  |
-| `risetime` | ✅ |  |  |  |  |  |
-| `settlingtime` | ✅ |  |  |  |  |  |
-| `slewrate` | ✅ |  |  |  |  |  |
-| `statelevels` | ✅ |  |  |  |  |  |
-| `undershoot` | ✅ |  |  |  |  |  |
-
-## Signal Descriptive Statistics (rms / peak2peak / envelope / sigROIs / ...)
-
-**Namespace:** `signal.measurements.*` — 2 ✅ + 0 ⚠️ / 30 = 6%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `alignsignals` | ✅ | 0.099 | 2.19× |  | MISMATCH | Sig: [X1, X2] = alignsignals(A, B). 1000-pt signals. 100 iters. |
-| `binmask2sigroi` | ❌ |  |  |  |  |  |
-| `countlabels` | ❌ |  |  |  |  |  |
-| `cusum` | ❌ |  |  |  |  | CUSUM change detection |
-| `dtw` | ❌ |  |  |  |  | dynamic time warp |
-| `edr` | ❌ |  |  |  |  | edit distance on real |
-| `envelope` | ✅ | 0.666 | 0.39× |  | MISMATCH | Sig: [UP, LO] = envelope(X). Hilbert envelope. 100 iters. SAVE on UP. |
-| `extendsigroi` | ❌ |  |  |  |  |  |
-| `extractsigroi` | ❌ |  |  |  |  |  |
-| `filenames2labels` | ❌ |  |  |  |  |  |
-| `findchangepts` | ❌ |  |  |  |  | change-point detection |
-| `finddelay` | ✅ | 0.090 | 2.08× |  | OK | Sig: D = finddelay(A, B). 1000 iters. |
-| `findpeaks` | ✅ | 0.018 | 32.81× |  | OK | Sig: [PKS, LOC] = findpeaks(X). 100 iters. |
-| `findsignal` | ❌ |  |  |  |  | pattern search |
-| `folders2labels` | ❌ |  |  |  |  |  |
-| `framelbl` | ❌ |  |  |  |  |  |
-| `framesig` | ❌ |  |  |  |  |  |
-| `meanfreq` | ✅ |  |  |  |  | mean frequency |
-| `medfreq` | ✅ |  |  |  |  | median frequency |
-| `mergesigroi` | ❌ |  |  |  |  |  |
-| `peak2peak` | ✅ | 3.066 | 0.03× | 0.52× | OK | Sig: P = peak2peak(X). 1M-pt range. 100 iters. |
-| `peak2rms` | ✅ | 3.127 | 0.87× | 1.16× | OK | Sig: R = peak2rms(X). 100 iters. |
-| `removesigroi` | ❌ |  |  |  |  |  |
-| `rssq` | ✅ | 2.638 | 0.10× | 0.16× | OK | Sig: R = rssq(X). 100 iters. |
-| `seqperiod` | ❌ |  |  |  |  |  |
-| `shortensigroi` | ❌ |  |  |  |  |  |
-| `sigrangebinmask` | ❌ |  |  |  |  |  |
-| `sigroi2binmask` | ❌ |  |  |  |  |  |
-| `splitlabels` | ❌ |  |  |  |  |  |
-| `zerocrossrate` | ❌ |  |  |  |  |  |
-
-## Smoothing and Denoising (smoothdata / hampel / sgolayfilt / ...)
-
-**Namespace:** `signal.smoothing.*` + `signal.digital_filtering.*` (medfilt1, sgolayfilt). `smoothdata` itself → `stats.moving.*` — 3 ✅ + 0 ⚠️ / 4 = 75%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `hampel` | ✅ | 0.726 | 0.22× |  | OK | Sig: Y = hampel(X). Outlier-resistant smoother. 100 iters. |
-| `medfilt1` | ✅ | 1.813 | 0.19× | 0.28× | MISMATCH | Sig: Y = medfilt1(X, K). 100k window=5. 100 iters. |
-| `sgolay` | ✅ | 0.001 | 16.08× | 214.22× | OK | Sig: B = sgolay(K, F). order=3 frame=11. 1000 iters. |
-| `sgolayfilt` | ✅ | 0.117 | 1.13× | 2.57× | OK | Sig: Y = sgolayfilt(X, K, F). order=3 frame=11. 100 iters. |
-
-## Image I/O (Image Processing Toolbox)
-
-**Namespace:** `image.io.*` — 3 ✅ + 0 ⚠️ / 3 = **100%**
-
-Backed by `stb_image` / `stb_image_write` (single-header, public-domain) vendored under `third_party/stb/`.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `imread` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA/PSD/GIF/HDR/PNM via stb_image |
-| `imwrite` | ✅ |  |  |  | OK | PNG/JPG/BMP/TGA via stb_image_write; ext detected from path |
-| `imfinfo` | ✅ |  |  |  | OK | stbi_info + magic-byte format sniff + filesystem size |
-
-## Image Type Conversion
-
-**Namespace:** `image.type.*` — 13 ✅ + 0 ⚠️ / 27 = 48%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `adaptthresh` | ✅ | 0.008 |  | 63.86× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `cmap2gray` | ❌ | 0.003 | 157.35× |  | OK | Sig: gmap = cmap2gray(cmap). N×3 RGB cmap → N×3 grayscale (replicated y across R/G/B), inv(YIQ→RGB) row weights (0.298936/0.587043/0.114021), clipped to [0,1]. MATLAB R2020b+; Octave-image 2.18.2 doesn't ship it. |
-| `getrangefromclass` | ❌ | 0.003 |  | 31.43× | OK | Sig: r = getrangefromclass(I). Returns [intmin intmax] for integer classes; [0 1] for logical/single/double. Always double output. Octave-image has it. |
-| `gray2ind` | ❌ | 0.006 |  | 35.67× | OK | Sig: [ind, map] = gray2ind(I [, n]). Default n=64 (or 2 for logical). uint8 if n<=256 else uint16. Octave-image has gray2ind. |
-| `graythresh` | ✅ | 0.005 |  | 133.52× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `grayslice` | ❌ | 0.004 |  | 43.86× | OK | Sig: G = grayslice(I [, N|V]). Multilevel intensity thresholding. Default N=10. Output uint8 if levels < 256, else double + 1 (1-based). Octave-image has grayslice. |
-| `im2bw` | ✅ | 0.003 |  | 52.74× | OK | Sig: BW = im2bw(I, level). Scalar threshold at 0.5 → [0 0 0 1 1 1]. |
-| `im2double` | ✅ | 0.003 |  | 20.00× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `im2gray` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `im2int16` | ✅ |  |  |  | OK | round-then-shift convention |
-| `im2single` | ✅ | 0.003 |  | 60.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `im2uint16` | ✅ | 0.003 |  | 34.85× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `im2uint8` | ✅ | 0.003 |  | 58.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imbinarize` | ✅ | 0.003 |  | 32.70× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imquantize` | ✅ | 0.003 |  | 85.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imsplit` | ✅ |  |  |  | OK | split H×W×P volume into P planes (multi-output, byte-perfect copy) |
-| `ind2gray` | ❌ |  |  |  |  |  |
-| `ind2rgb` | ❌ | 0.005 |  | 35.79× | OK | Sig: rgb = ind2rgb(idx, map). Float idx 1-based, integer 0-based. Out-of-range clipped. Octave has ind2rgb. |
-| `iptnum2ordinal` | ❌ | 0.003 |  | 170.72× | OK | Sig: ord = iptnum2ordinal(num). 1..20 word form; 21+ digit-suffix. Output is char. Octave-image has iptnum2ordinal. |
-| `label2rgb` | ❌ | 0.003 |  | 157.82× | OK | Sig: RGB = label2rgb(L, cmap [, background]). Caller passes an explicit N-by-3 colormap (we don't yet have the colormap-name / function-handle defaults). Octave-image has label2rgb. |
-| `mat2gray` | ✅ | 0.003 |  | 65.69× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `multithresh` | ✅ | 13.193 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `otsuthresh` | ✅ | 0.003 |  | 96.59× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rgb2gray` | ✅ | 0.003 |  | 61.95× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rgb2ind` | ❌ |  |  |  |  | colour quantize |
-| `rgb2lightness` | ❌ |  |  |  |  | L* of CIELAB |
-| `demosaic` | ❌ |  |  |  |  | Bayer → RGB |
-
-## Color Space Conversion
-
-**Namespace:** `image.color.*` — 10 ✅ + 0 ⚠️ / 30 = 33%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `chromadapt` | ❌ |  |  |  |  | Bradford/von Kries chromatic adapt |
-| `colorangle` | ❌ | 0.003 |  | 92.90× | OK | Sig: ang = colorangle(rgb1, rgb2). Angle in degrees between RGB colours; broadcasts N×3 vs 1×3. Octave-image has colorangle. |
-| `deltaE` | ❌ | 0.004 | 384.49× |  | OK | Sig: delE = deltaE(I1, I2[, 'isInputLab', tf]). CIE76 distance in CIELAB. We test the Lab-input path (skips rgb2lab to avoid the known sRGB-vs-linear divergence between numkit and MATLAB). |
-| `hsv2rgb` | ✅ | 0.003 |  | 104.82× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `illumgray` | ❌ |  |  |  |  | grey-world illumination |
-| `illumpca` | ❌ |  |  |  |  |  |
-| `illumwhite` | ❌ |  |  |  |  | white-patch |
-| `imapprox` | ❌ |  |  |  |  | reduce indexed-image colors |
-| `imcolordiff` | ❌ |  |  |  |  | CIE94/CIEDE2000 |
-| `lab2double` | ❌ | 0.003 |  | 28.24× | OK | Sig: lab_dbl = lab2double(lab). uint8 LAB → double: L *= 100/255, a/b -= 128. Octave-image has lab2double. |
-| `lab2rgb` | ✅ | 0.003 |  | 94.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
-| `lab2uint16` | ❌ |  |  |  |  |  |
-| `lab2uint8` | ❌ | 0.002 |  | 90.17× | OK | Sig: lab_u8 = lab2uint8(lab). double LAB → uint8: L *= 255/100, a/b += 128. NaN → 255. Octave-image has lab2uint8. |
-| `lab2xyz` | ✅ |  |  |  | OK | CIELAB → XYZ (D65) |
-| `lin2rgb` | ❌ | 0.003 | 568.88× |  | OK | Sig: B = lin2rgb(A). Linear → sRGB forward gamma. MATLAB R2025b. Octave-image doesn't ship lin2rgb; harness ranks MATLAB above Octave so OK is expected with octave=N/A. |
-| `ntsc2rgb` | ❌ | 0.003 |  | 58.09× | OK | Sig: rgb = ntsc2rgb(yiq). Inverse of rgb2ntsc 3-sig-fig matrix. Octave-image has ntsc2rgb. |
-| `rgb2hsv` | ✅ | 0.003 |  | 54.51× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rgb2lab` | ✅ | 0.016 | 920.06× | 59.27× | MISMATCH | Verify our rgb2lab matches MATLAB. |
-| `rgb2lin` | ❌ | 0.003 | 555.64× |  | OK | Sig: B = rgb2lin(A). sRGB inverse gamma (piecewise linear|^2.4). MATLAB R2025b. Octave-image doesn't ship rgb2lin; harness ranks MATLAB above Octave so OK is expected even with octave=N/A. |
-| `rgb2ntsc` | ❌ | 0.003 |  | 57.90× | OK | Sig: yiq = rgb2ntsc(rgb). Linear matrix; 3-sig-fig from Wikipedia/MATLAB. Octave-image has rgb2ntsc. |
-| `rgb2xyz` | ✅ | 0.003 |  | 28.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
-| `rgb2ycbcr` | ✅ | 0.003 |  | 47.60× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
-| `rgbwide2xyz` | ❌ |  |  |  |  | wide-gamut HDR |
-| `rgbwide2ycbcr` | ❌ |  |  |  |  |  |
-| `whitepoint` | ❌ | 0.005 | 150.33× |  | OK | Sig: wp = whitepoint([illuminant]). 1×3 XYZ tristimulus of CIE reference illuminant. Supports a/c/d50/d55/d65/e/icc; default 'icc'. MATLAB R2025b. Octave-image doesn't ship whitepoint. |
-| `xyz2double` | ❌ | 0.003 | 394.55× |  | OK | Sig: xyzd = xyz2double(xyz). uint16 XYZ → double via ICC.1:2001-4 (32768 ↔ 1.0). Double input passthrough. MATLAB R2025b. Octave-image doesn't ship xyz2double. |
-| `xyz2lab` | ✅ |  |  |  | OK |  |
-| `xyz2rgb` | ✅ | 0.003 |  | 57.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
-| `xyz2rgbwide` | ❌ |  |  |  |  |  |
-| `xyz2uint16` | ❌ | 0.003 | 455.90× |  | OK | Sig: xyzu16 = xyz2uint16(xyz). Double XYZ → uint16 ICC (round(x*32768) clipped to [0,65535]). MATLAB R2025b. Octave-image doesn't ship xyz2uint16. |
-| `ycbcr2rgb` | ✅ | 0.003 |  | 59.93× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-4: small FP differences from slightly different published color-matrix coefficients (D65 white point variants). |
-| `ycbcr2rgbwide` | ❌ |  |  |  |  |  |
-
-## Synthetic Images and Display
-
-**Namespace:** `image.synth.*` / `image.display.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
-
-Display ones (`imshow`, `montage`, …) need graphics; synthesis is pure algorithm.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `checkerboard` | ❌ | 0.005 |  | 66.61× | OK | Sig: I = checkerboard(side [, M [, N]]). 2*M*side x 2*N*side double image; right half dimmed to 0.7. Octave-image has checkerboard. |
-| `imnoise` | ✅ |  |  |  | OK | gaussian / localvar / salt&pepper / speckle / poisson; shares numkit::builtin RNG |
-| `phantom` | ❌ | 0.069 |  | 20.01× | OK | Sig: P = phantom([model | E] [, n]). Modified Shepp-Logan default; 64x64 reference test. Octave-image has phantom. |
-| `imshow` | ❌ |  |  |  |  | needs graphics |
-| `imfuse` | ❌ |  |  |  |  |  |
-| `imshowpair` | ❌ |  |  |  |  |  |
-| `montage` | ❌ |  |  |  |  | tile images |
-| `immovie` | ❌ |  |  |  |  |  |
-
-## Geometric Transformations (Image)
-
-**Namespace:** `image.geom.*` — 4 ✅ + 0 ⚠️ / 13 = 31%
-
-Class-based affine/rigid/projective transforms (affinetform2d etc.) intentionally omitted; flat function APIs only.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `findbounds` | ❌ |  |  |  |  |  |
-| `fitgeotrans` | ❌ |  |  |  |  | fit transform from cp pairs |
-| `imcrop` | ✅ | 0.003 |  | 55.29× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imcrop3` | ❌ |  |  |  |  |  |
-| `impyramid` | ❌ | 0.006 |  | 168.78× | OK | Sig: B = impyramid(A, type). type='reduce' or 'expand'. Burt-Adelson 5-tap separable kernel; replicate boundary. Output: ceil(M/2)xceil(N/2) for reduce, (2M-1)x(2N-1) for expand. Octave-image has impyramid; cross-check expected OK. |
-| `imresize` | ✅ | 0.003 |  | 434.70× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imresize3` | ❌ |  |  |  |  |  |
-| `imrotate` | ✅ | 0.003 |  | 92.45× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imrotate3` | ❌ |  |  |  |  |  |
-| `imtransform` | ❌ |  |  |  |  | legacy maketform path |
-| `imtranslate` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imwarp` | ❌ |  |  |  |  |  |
-| `makeresampler` | ❌ |  |  |  |  |  |
-
-## Image Registration
-
-**Namespace:** `image.register.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `cpcorr` | ❌ |  |  |  |  | refine control-point correspondences |
-| `imregconfig` | ❌ |  |  |  |  |  |
-| `imregcorr` | ❌ |  |  |  |  | phase-correlation registration |
-| `imregdemons` | ❌ |  |  |  |  | non-rigid demons |
-| `imregister` | ❌ |  |  |  |  |  |
-| `imregmtb` | ❌ |  |  |  |  | median-threshold-bitmap |
-| `imregtform` | ❌ |  |  |  |  |  |
-| `normxcorr2` | ❌ | 0.011 |  | 38.41× | OK | Sig: c = normxcorr2(template, img). Output (M+m-1)x(N+n-1) double in [-1, 1]. Octave-image has normxcorr2. |
-
-## Image Filtering
-
-**Namespace:** `image.filter.*` — 6 ✅ + 0 ⚠️ / 36 = 17%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `convmtx2` | ❌ | 0.003 | 36.24× |  | OK | Sig: T = convmtx2(h, m, n). Convolution matrix for 2-D 'full' convolution. MATLAB returns sparse, we return dense — wrap in full() in MATLAB so dim and values match. Octave-image doesn't ship convmtx2. |
-| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
-| `fibermetric` | ❌ |  |  |  |  |  |
-| `freqspace` | ❌ | 0.003 | 31.49× |  | OK | Sig: [f1, f2] = freqspace(N|[N M]) or f = freqspace(N[, 'whole']). Now supports 2-output centered form and 2-vec [N M] input (via libs/builtin extension). |
-| `freqz2` | ❌ |  |  |  |  | 2-D freq response |
-| `fsamp2` | ❌ |  |  |  |  | 2-D FIR via frequency sampling |
-| `fspecial` | ✅ | 0.004 |  | 91.07× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `fspecial3` | ❌ |  |  |  |  |  |
-| `ftrans2` | ❌ |  |  |  |  | 1-D → 2-D FIR transform |
-| `fwind1` | ❌ |  |  |  |  | 2-D windowed FIR (rotation) |
-| `fwind2` | ❌ |  |  |  |  |  |
-| `gabor` | ❌ |  |  |  |  | Gabor filter bank |
-| `imbilatfilt` | ✅ | 0.021 |  | 80.24× | OK | Sig: B = imbilatfilt(I, dos, sigma). Step image, tight range Gaussian (preserves edge). Tol relaxed: kernel-window-size differences plus per-pixel exp-rounding propagate. |
-| `imboxfilt` | ✅ | 0.004 |  | 193.49× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imboxfilt3` | ❌ | 0.007 |  |  | N/A | Sig: J = imboxfilt3(V [, FilterSize]). 3-D box (mean) filter over a volume, replicate boundary on all 3 axes. MATLAB R2020a+; Octave-image doesn't have it → correctness=N/A. |
-| `imdiffusefilt` | ❌ |  |  |  |  | anisotropic diffusion |
-| `imfilter` | ✅ | 0.003 |  | 116.15× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgaborfilt` | ❌ |  |  |  |  |  |
-| `imgaussfilt` | ✅ | 0.007 |  | 110.10× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgaussfilt3` | ❌ | 0.008 | 320.13× |  | OK | Sig: J = imgaussfilt3(V[, sigma]). 3-D Gaussian filter, separable, replicate boundary. Sigma scalar or 3-vec. Filter size = 2*ceil(2σ)+1 per axis. MATLAB R2017+; Octave-image doesn't ship imgaussfilt3. |
-| `imguidedfilter` | ❌ |  |  |  |  |  |
-| `imnlmfilt` | ❌ |  |  |  |  | non-local means |
-| `integralBoxFilter` | ❌ |  |  |  |  |  |
-| `integralBoxFilter3` | ❌ |  |  |  |  |  |
-| `integralImage` | ❌ | 0.003 |  | 89.33× | OK | Sig: J = integralImage(I). Summed-area table with (M+1)x(N+1) zero-padded leading row/col. Octave-image has integralImage; cross-check expected OK. |
-| `integralImage3` | ❌ | 0.003 |  | 56.66× | OK | Sig: J = integralImage3(V). 3-D summed-volume table with leading zero plane/row/col. Octave-image may not have integralImage3 → may report N/A. |
-| `medfilt2` | ✅ | 0.004 |  | 80.09× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `medfilt3` | ❌ | 0.032 | 57.47× |  | OK | Sig: J = medfilt3(V[, [M N P]]). 3-D median filter, default 3x3x3, symmetric pad. MATLAB R2017+; Octave-image doesn't ship medfilt3. |
-| `modefilt` | ❌ |  |  |  |  |  |
-| `nlfilter` | ❌ |  |  |  |  | generic neighborhood op |
-| `ordfilt2` | ❌ | 0.004 |  | 81.89× | OK | Sig: B = ordfilt2(A, nth, domain [, S] [, padding]). Order-statistic filter; 1-based nth. Octave-image has ordfilt2. |
-| `padarray` | ✅ | 0.003 |  | 102.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
-| `roifilt2` | ❌ |  |  |  |  |  |
-| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
-| `wiener2` | ❌ | 0.003 |  | 100.11× | OK | Sig: J = wiener2(I [, nhood [, noise]]). Adaptive Wiener filter (Lim 1989, eq. 9.26-9.29). Default 3x3, zero-pad. Octave-image has wiener2. |
-
-## Contrast Adjustment
-
-**Namespace:** `image.contrast.*` — 3 ✅ + 0 ⚠️ / 14 = 21%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `adapthisteq` | ❌ |  |  |  |  | CLAHE |
-| `decorrstretch` | ❌ |  |  |  |  | decorrelation stretch |
-| `histeq` | ✅ | 0.004 | 495.84× |  | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjust` | ✅ | 0.005 |  | 134.01× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadjustn` | ❌ | 0.005 |  |  | N/A | Sig: imadjustn(I). N-D variant of imadjust; we alias since imadjust already handles 3-D. Octave-image does not have imadjustn so cross-check may report N/A — depends on stretchlim like the imadjust spec. |
-| `imflatfield` | ❌ | 4.227 |  |  | N/A | Sig: imflatfield(I, sigma [, mask]). Smooth synthetic shading on a 32x32 double image. Octave-image has imflatfield (recent versions); cross-check expected to be OK or N/A depending on package availability. |
-| `imhistmatch` | ✅ | 0.004 |  |  | N/A | Sig: J = imhistmatch(I, ref, nbins). [0,0.5] source CDF-matched to [0,1] reference. Tol relaxed: bin discretisation differs slightly across implementations. |
-| `imhistmatchn` | ❌ | 0.006 |  |  | N/A | Sig: imhistmatchn(I, ref [, nbins]). N-D histogram match (single histogram across volume). Aliased to imhistmatch which uses the same single-histogram semantics. Octave-image may not have imhistmatchn (introduced in MATLAB R2017a) → cross-check may report N/A. |
-| `imlocalbrighten` | ❌ |  |  |  |  |  |
-| `imreducehaze` | ❌ |  |  |  |  |  |
-| `imsharpen` | ✅ | 0.021 |  | 80.53× | OK | Sig: B = imsharpen(I). Defaults Radius=1, Amount=0.8, Threshold=0. Step image. Tol relaxed: tiny boundary-condition diffs in the imgaussfilt convolution propagate. |
-| `intlut` | ❌ | 0.002 |  | 76.91× | OK | Sig: B = intlut(A, LUT). Pure pointwise table lookup. uint8 in / uint8 out via inversion LUT. Output class follows class(LUT). |
-| `localcontrast` | ❌ |  |  |  |  |  |
-| `locallapfilt` | ❌ |  |  |  |  | local Laplacian |
-| `stretchlim` | ✅ | 0.003 |  | 79.71× | MISMATCH | Sig + small deterministic input. Auto-generated for parity sweep. |
-
-## ROI-Based Processing (functions only)
-
-**Namespace:** `image.roi.*` — 0 ✅ + 0 ⚠️ / 8 = 0%
-
-ROI drawing classes (`Circle`, `Ellipse`, `drawcircle`, `imellipse`, `imrect`, …) intentionally omitted as OOP / interactive.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `inpaintCoherent` | ❌ |  |  |  |  | coherence-transport inpainting |
-| `inpaintExemplar` | ❌ |  |  |  |  | exemplar inpainting |
-| `poly2mask` | ❌ |  |  |  |  |  |
-| `reducepoly` | ❌ |  |  |  |  | Douglas-Peucker simplify |
-| `regionfill` | ❌ |  |  |  |  | smooth fill of bw mask |
-| `roicolor` | ❌ | 0.003 |  | 19.63× | OK | Sig: BW = roicolor(A, low, high) range form, or roicolor(A, v) set-membership. Output logical, same shape as A. Octave-image has roicolor. |
-| `roifill` | ❌ |  |  |  |  | legacy alias |
-| `roipoly` | ❌ |  |  |  |  |  |
-
-## Morphological Operations
-
-**Namespace:** `image.morph.*` — 5 ✅ + 0 ⚠️ / 27 = 19%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `applylut` | ❌ | 0.005 |  | 26.08× | OK | Sig: A = applylut(BW, LUT). LUT length = 2^(n*n). Octave-image has applylut. |
-| `bwhitmiss` | ❌ | 0.005 |  | 90.26× | OK | Sig: J = bwhitmiss(BW, se1, se2) or bwhitmiss(BW, interval). Hit-or-miss: imerode(BW, se1) & imerode(~BW, se2). Octave-image has bwhitmiss. |
-| `bwlookup` | ❌ |  |  |  |  |  |
-| `bwmorph` | ❌ |  |  |  |  | 2-D morphology dispatch |
-| `bwmorph3` | ❌ |  |  |  |  |  |
-| `bwpack` | ❌ | 0.004 |  | 61.12× | OK | Sig: BWP = bwpack(BW). Pack 32 binary rows into one uint32 (LSB = row 0). Octave-image has bwpack. |
-| `bwperim` | ❌ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwskel` | ❌ |  |  |  |  | skeletonize |
-| `bwulterode` | ❌ |  |  |  |  | ultimate erosion |
-| `bwunpack` | ❌ |  |  |  |  |  |
-| `conndef` | ❌ |  |  |  |  |  |
-| `imbothat` | ✅ | 0.005 |  | 38.27× | OK | Sig: J = imbothat(I, SE). Dark dot extracted (B(3,3)=9, others=0). |
-| `imclearborder` | ✅ | 0.008 |  | 44.84× | OK | Sig: J = imclearborder(BW). 3 blobs (rim + interior); only interior dot survives. |
-| `imclose` | ✅ | 0.004 |  | 66.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imdilate` | ✅ | 0.003 |  | 74.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imerode` | ✅ | 0.003 |  | 44.20× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imextendedmax` | ✅ | 0.019 |  | 7.87× | OK | Sig: BW = imextendedmax(I, h). Tall peak A survives (mask=1 at (2,2)); shallow peak B suppressed. |
-| `imextendedmin` | ✅ | 0.020 |  | 8.89× | OK | Sig: BW = imextendedmin(I, h). Deep trough A survives, shallow B suppressed. |
-| `imfill` | ✅ | 0.006 |  | 53.54× | OK | Sig: J = imfill(BW, 'holes'). Hollow square ring → fully filled square. |
-| `imhmax` | ✅ | 0.011 |  | 5.68× | OK | Sig: J = imhmax(I, h). 3x7 image, two peaks (40 at (2,2), 20 at (2,5)), background 10. h=15 must keep peak A (shaved to 25) and flatten peak B. |
-| `imhmin` | ✅ | 0.011 |  | 16.30× | OK | Sig: J = imhmin(I, h). Two troughs depth 90 / 30; h=50 raises shallow (B) to background, keeps deep (A). |
-| `imimposemin` | ✅ | 0.011 |  | 10.73× | OK | Sig: J = imimposemin(I, BW). Force regional minima at marker; basin B at (2,5) erased (lifted to plateau 10). |
-| `imkeepborder` | ✅ | 0.008 |  |  | N/A | Sig: J = imkeepborder(BW). Inverse of imclearborder — keep components touching the rim. (NOTE: imkeepborder is a MATLAB R2025b addition; if Octave's image package lacks it, run with --no-octave.) |
-| `imopen` | ✅ | 0.004 |  | 81.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imreconstruct` | ✅ | 0.017 |  | 8.63× | OK | Sig: J = imreconstruct(marker, mask). Reconstruction by dilation; marker grows to fill the connected mask region. |
-| `imregionalmax` | ✅ | 0.007 |  | 19.32× | OK | Sig: BW = imregionalmax(I). Two regional maxima at (2,2) and (2,5). |
-| `imregionalmin` | ✅ | 0.008 |  | 24.93× | OK | Sig: BW = imregionalmin(I). Two regional minima at (2,2) and (2,5). |
-| `imtophat` | ✅ | 0.005 |  | 68.45× | OK | Sig: J = imtophat(I, SE). Lone bright dot extracted (T(3,3)=9, others=0). |
-| `makelut` | ❌ |  |  |  |  |  |
-| `offsetstrel` | ❌ |  |  |  |  | structuring element with offsets |
-| `strel` | ✅ |  |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-
-## Deblurring
-
-**Namespace:** `image.deblur.*` — 0 ✅ + 0 ⚠️ / 7 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `deconvblind` | ❌ |  |  |  |  | blind deconvolution |
-| `deconvlucy` | ❌ |  |  |  |  | Richardson-Lucy |
-| `deconvreg` | ❌ |  |  |  |  | regularised |
-| `deconvwnr` | ❌ |  |  |  |  | Wiener |
-| `edgetaper` | ❌ |  |  |  |  |  |
-| `otf2psf` | ❌ |  |  |  |  |  |
-| `psf2otf` | ❌ | 0.005 |  | 56.46× | OK | Sig: otf = psf2otf(psf [, outsize]). FFT of circshift(zeropad(psf), -floor(size/2)). Octave-image has psf2otf. |
-
-## Neighborhood and Block Processing
-
-**Namespace:** `image.block.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bestblk` | ❌ | 0.005 |  | 22.59× | OK | Sig: siz = bestblk(IMS [, k]). Best block size minimising mod-padding within [ceil(min(dim/10, k/2)), k]. Octave-image has bestblk. |
-| `blockproc` | ❌ |  |  |  |  | block-wise processing |
-| `col2im` | ✅ | 0.003 |  | 79.94× | OK | Sig: A = col2im(B, [m n], [mm nn], 'distinct'). Round-trip im2col→col2im rebuilds 4x4 (clean multiples). |
-| `colfilt` | ❌ |  |  |  |  |  |
-| `im2col` | ✅ | 0.003 |  | 69.65× | OK | Sig: B = im2col(A, [m n], 'sliding'). 4x4 lattice → 4x9 (3·3 sliding positions, column-major within block). |
-| `nlfilter` | ❌ |  |  |  |  | duplicate of filter section |
-
-## Image Arithmetic
-
-**Namespace:** `image.arith.*` — 8 ✅ + 0 ⚠️ / 8 = 100%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `imabsdiff` | ✅ | 0.003 |  | 121.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imadd` | ✅ | 0.003 |  | 101.93× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imapplymatrix` | ✅ |  |  |  | OK | 3-D colour transform along page axis |
-| `imcomplement` | ✅ | 0.002 |  | 52.55× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imdivide` | ✅ | 0.003 |  | 54.92× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imlincomb` | ✅ | 0.003 |  | 68.58× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `immultiply` | ✅ | 0.003 |  | 66.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imsubtract` | ✅ | 0.003 |  | 54.12× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-
-## Image Segmentation
-
-**Namespace:** `image.segment.*` — 6 ✅ + 0 ⚠️ / 22 = 27%
-
-Deep-learning-based ones (`imsegsam`, `segmentAnythingModel`, …) intentionally omitted.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `activecontour` | ❌ |  |  |  |  | Chan-Vese |
-| `bfscore` | ❌ |  |  |  |  | boundary F1 score |
-| `boundarymask` | ✅ |  |  |  | OK | conn=4/8; flags any pixel adjacent to a different label or image edge |
-| `dice` | ✅ | 0.002 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `gradientweight` | ❌ |  |  |  |  |  |
-| `grabcut` | ❌ |  |  |  |  |  |
-| `grayconnected` | ✅ |  |  |  | OK | 8-conn flood-fill from seed within tol; auto-tol per class |
-| `graydiffweight` | ❌ |  |  |  |  |  |
-| `imoverlay` | ✅ |  |  |  | OK | gray or RGB input → H×W×3 uint8; auto byte/float colour |
-| `imseggeodesic` | ❌ |  |  |  |  |  |
-| `imsegfmm` | ❌ |  |  |  |  | fast marching |
-| `imsegisodata` | ❌ |  |  |  |  |  |
-| `imsegkmeans` | ❌ |  |  |  |  |  |
-| `imsegkmeans3` | ❌ |  |  |  |  |  |
-| `jaccard` | ✅ | 0.003 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `label2idx` | ✅ |  |  |  | OK | cell column of MATLAB-1-based linear indices per label |
-| `labeloverlay` | ❌ |  |  |  |  |  |
-| `lazysnapping` | ❌ |  |  |  |  |  |
-| `superpixels` | ❌ |  |  |  |  | SLIC |
-| `superpixels3` | ❌ |  |  |  |  |  |
-| `watershed` | ❌ |  |  |  |  |  |
-
-## Object Analysis (Image)
-
-**Namespace:** `image.object.*` — 4 ✅ + 0 ⚠️ / 18 = 22%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bwboundaries` | ✅ |  |  |  | OK | Moore-neighbour outer trace, conn=4/8; 'noholes' default |
-| `bwtraceboundary` | ❌ |  |  |  |  |  |
-| `circles2mask` | ❌ |  |  |  |  |  |
-| `corner` | ❌ |  |  |  |  | Harris/Min-eig corner detector |
-| `cornermetric` | ❌ |  |  |  |  |  |
-| `edge` | ✅ | 0.014 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `edge3` | ❌ |  |  |  |  |  |
-| `hough` | ❌ |  |  |  |  |  |
-| `houghlines` | ❌ |  |  |  |  |  |
-| `houghpeaks` | ❌ |  |  |  |  |  |
-| `imfindcircles` | ❌ |  |  |  |  | circle Hough |
-| `imgradient` | ✅ | 0.006 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgradientxy` | ✅ | 0.005 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `imgradient3` | ❌ |  |  |  |  |  |
-| `imgradientxyz` | ❌ |  |  |  |  |  |
-| `iradon` | ❌ |  |  |  |  | inverse Radon |
-| `qtdecomp` | ❌ |  |  |  |  | quad-tree decomposition |
-| `qtgetblk` | ❌ |  |  |  |  |  |
-| `qtsetblk` | ❌ |  |  |  |  |  |
-| `radon` | ❌ |  |  |  |  |  |
-| `visboundaries` | ❌ |  |  |  |  | display |
-| `viscircles` | ❌ |  |  |  |  | display |
-
-## Region and Image Properties
-
-**Namespace:** `image.region.*` — 8 ✅ + 0 ⚠️ / 28 = 29%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `bwarea` | ✅ | 0.002 |  | 38.03× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwareafilt` | ❌ | 0.005 |  | 213.01× | OK | Sig: J = bwareafilt(BW, range|n [, keep] [, conn]). Range [lo hi] or top-N selection ('largest' default). Octave-image has bwareafilt. |
-| `bwareaopen` | ✅ | 0.003 |  | 61.61× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwconncomp` | ✅ |  |  |  | OK | connectivity / size / count / pixel-list |
-| `bwconvhull` | ❌ |  |  |  |  |  |
-| `bwdist` | ✅ | 0.004 |  | 19.43× | OK | Sig + small deterministic input. Auto-generated for parity sweep. Tol=1e-6: tiny FP precision delta on Euclidean sqrt. |
-| `bwdistgeodesic` | ❌ |  |  |  |  |  |
-| `bweuler` | ❌ | 0.004 |  | 91.29× | OK | Sig: e = bweuler(BW [, n]). Euler number (objects − holes) via Pratt bit-quad LUT. Octave-image has bweuler. |
-| `bwferet` | ❌ |  |  |  |  | Feret diameters |
-| `bwlabel` | ✅ | 0.003 |  | 43.65× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwlabeln` | ❌ |  |  |  |  |  |
-| `bwperim` | ✅ | 0.003 |  | 154.18× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `bwpropfilt` | ❌ |  |  |  |  |  |
-| `bwselect` | ❌ | 0.004 |  | 51.05× | OK | Sig: [BW2, idx] = bwselect(BW, cols, rows[, conn]). Keep all components that contain any seed pixel. Octave-image has bwselect. |
-| `bwselect3` | ❌ |  |  |  |  |  |
-| `cc2bw` | ❌ |  |  |  |  |  |
-| `corr2` | ❌ | 0.003 |  | 158.83× | OK | Sig: r = corr2(A, B). Pearson correlation coefficient over all elements (flat). Octave-image has corr2. |
-| `graydist` | ❌ |  |  |  |  |  |
-| `imcontour` | ❌ |  |  |  |  |  |
-| `imhist` | ✅ | 0.004 |  | 64.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `impixel` | ❌ |  |  |  |  |  |
-| `improfile` | ❌ |  |  |  |  |  |
-| `labelmatrix` | ❌ |  |  |  |  |  |
-| `mean2` | ❌ | 0.002 |  | 58.74× | OK | Sig: m = mean2(A). Mean of all elements (flat). Octave-image has mean2. |
-| `poly2label` | ❌ |  |  |  |  |  |
-| `regionprops` | ✅ |  |  |  | OK | Area / Centroid / BoundingBox; struct array out, BW or label input |
-| `regionprops3` | ❌ |  |  |  |  |  |
-| `std2` | ❌ | 0.004 |  | 60.05× | OK | Sig: s = std2(A). Std of all elements normalized by N (population). Octave-image has std2. |
-
-## Texture Analysis
-
-**Namespace:** `image.texture.*` — 0 ✅ + 0 ⚠️ / 6 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `entropy` | ❌ | 0.004 |  | 61.15× | OK | Sig: E = entropy(I [, nbins]). Shannon entropy in bits over imhist of im2uint8(I) (256 bins by default). Octave-image has entropy. |
-| `entropyfilt` | ❌ | 0.007 |  | 89.83× | OK | Sig: E = entropyfilt(I [, domain]). Local Shannon entropy in bits; default 9x9 ones, symmetric pad. Octave-image has entropyfilt. |
-| `graycomatrix` | ❌ |  |  |  |  | GLCM |
-| `graycoprops` | ❌ |  |  |  |  |  |
-| `rangefilt` | ❌ | 0.003 |  | 186.94× | OK | Sig: R = rangefilt(I [, domain]). Local max-min over neighbourhood. Default 3x3 ones, symmetric pad. Output class matches input. |
-| `stdfilt` | ❌ | 0.004 |  | 158.96× | OK | Sig: S = stdfilt(I [, domain]). Local sample std (N-1 norm). Default 3x3 ones, symmetric pad. Uses Octave-source test vector G. |
-
-## Image Quality
-
-**Namespace:** `image.quality.*` — 3 ✅ + 0 ⚠️ / 8 = 38%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `brisque` | ❌ |  |  |  |  | no-reference quality (needs trained model) |
-| `immse` | ✅ | 0.003 |  | 47.28× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `multissim` | ❌ |  |  |  |  | multi-scale SSIM |
-| `multissim3` | ❌ |  |  |  |  |  |
-| `niqe` | ❌ |  |  |  |  | no-reference (needs model) |
-| `piqe` | ❌ |  |  |  |  | perceptual no-reference |
-| `psnr` | ✅ | 0.002 |  | 61.06× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `ssim` | ✅ | 0.317 |  |  | N/A | Sig + small deterministic input. Auto-generated for parity sweep. |
-
-## Image Transforms
-
-**Namespace:** `image.transform.*` — 7 ✅ + 0 ⚠️ / 11 = 64%
-
-`fft2` / `ifft2` / `fftshift` / `ifftshift` already covered under Fourier Analysis; cross-listed here per MATLAB TOC.
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `dct2` | ✅ | 0.005 |  | 41.39× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `dctmtx` | ✅ | 0.003 |  | 37.54× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `fan2para` | ❌ |  |  |  |  | fan-beam → parallel |
-| `fanbeam` | ❌ |  |  |  |  |  |
-| `fft2` | ✅ |  |  |  | OK | already in Fourier section |
-| `fftshift` | ✅ |  |  |  | OK |  |
-| `idct2` | ✅ | 0.005 |  | 48.89× | OK | Sig + small deterministic input. Auto-generated for parity sweep. |
-| `ifanbeam` | ❌ |  |  |  |  |  |
-| `ifft2` | ✅ |  |  |  | OK |  |
-| `ifftshift` | ✅ |  |  |  | OK |  |
-| `para2fan` | ❌ |  |  |  |  |  |
-
-## Vibration Analysis (envspectrum / order tracking / modal)
-
-**Namespace:** `signal.vibration.*` — 0 ✅ + 0 ⚠️ / 13 = 0%
-
-| function | status | numkit_ms | vs_MATLAB | vs_Octave | correctness | comment |
-|---|:---:|---:|---:|---:|:---:|---|
-| `envspectrum` | ✅ |  |  |  |  | envelope spectrum |
-| `modalfit` | ❌ |  |  |  |  | modal-fit |
-| `modalfrf` | ❌ |  |  |  |  |  |
-| `modalsd` | ❌ |  |  |  |  |  |
-| `orderspectrum` | ❌ |  |  |  |  |  |
-| `ordertrack` | ❌ |  |  |  |  |  |
-| `orderwaveform` | ❌ |  |  |  |  |  |
-| `rainflow` | ✅ |  |  |  |  |  |
-| `rpmfreqmap` | ❌ |  |  |  |  |  |
-| `rpmordermap` | ❌ |  |  |  |  |  |
-| `rpmtrack` | ❌ |  |  |  |  | order tracking |
-| `tachorpm` | ✅ |  |  |  |  | tachometer→RPM |
-| `tsa` | ✅ |  |  |  |  |  |
 
 ## Misc / not in TODO
 
