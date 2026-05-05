@@ -51,3 +51,8 @@ Spec extension same shape as `var.json`. `tol = 1e-9`.
 ## Out of scope for this ТЗ
 
 - N/A — joint fix with `var`.
+
+## Closed
+- Closed in commit: PENDING (joint var/std fix)
+- Closed date: 2026-05-06
+- Notes: Adapter rewritten via varStdDispatch helper. Supports 'all' string, full-flatten vecdim ([1 2] / [1 2 3]), and weight-vector W (denominator = sum(W)). Default nanflag remains 'includenan' (NaN poisons) — matches MATLAB R2025b documented default for double; auditor's R2023b-default-omitnan claim was incorrect (verified via probe). Partial vecdim and weight + non-flat dim not yet supported (documented).
