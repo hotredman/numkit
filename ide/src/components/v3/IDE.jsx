@@ -222,7 +222,16 @@ function BottomDock({
         <button className="dock-iconbtn" title="Close panel" onClick={onClose}>×</button>
       </div>
       <div className="dock-body">
-        <div style={{ display: active === 'console' ? 'flex' : 'none', flex: 1, overflow: 'hidden', flexDirection: 'column' }}>
+        {/* Console is mounted at all times so its history/state survives
+            tab switches; visibility is toggled via display + dimensions
+            so the inner `.console` (flex column) gets a real height to
+            distribute between its scrollable output and the input row. */}
+        <div style={{
+          display:        active === 'console' ? 'block' : 'none',
+          height:         '100%',
+          minHeight:      0,
+          overflow:       'hidden',
+        }}>
           {consoleNode}
         </div>
         {active === 'workspace' && <WorkspacePanel variables={workspaceVars} onOpen={onOpenVar} />}
